@@ -82,6 +82,8 @@ import { proposeFirstMove, nextStart, endsAt, ritualIsReady, whyNotReady, ritual
 import RitualSheet from "../tasks/screens/RitualSheet";
 import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "../schedule/blend";
 import type { BlendMap } from "./YourDay";
+import GymFlow from "../gym/GymFlow";
+import { useGymDoor } from "../gym/useGymDoor";
 import { loadMailSnapshot, mailNotices, type MailNotice } from "../messages/home";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -1743,7 +1745,19 @@ export default function TodayFlow({
     // pregenRan ref makes that true even if the deps below ever grow.
   }, [ai.available, today]);
 
+  // UP-ATH-02 (2026-09-06): the Training Door on Today. Schedule has had it
+  // since D4-C off this same DayRow; the page the athlete is on at six in the
+  // evening did not, so a gym block here was a plain row and the only way
+  // into a session was Resume on one already running.
+  const gymDoor = useGymDoor(todayEvents, today, today);
+
   if (loading) return <SkeletonScreen />;
+  // UP-ATH-02 (2026-09-06): walking through the Training Door mounts the gym
+  // whole, exactly as Schedule does it, and coming back re-reads the day so
+  // the block shows its fresh stamp.
+  if (gymDoor.opened) {
+    return <GymFlow door={gymDoor.opened} onBack={() => { gymDoor.close(); void reload(); }} />;
+  }
   if (reportOpen) {
     return <ReportFlow onBack={() => { setReportOpen(false); void reload(); }} onOpenTask={(id) => { setReportOpen(false); void onOpenTask(id); }} />;
   }
@@ -2879,6 +2893,7 @@ export default function TodayFlow({
       upNextWaiting={Math.max(0, upNextAll.length - 1)}
       upNextReason={upNextAll[0] ? reasonFor(upNextAll[0], today, inPeakNow) : null}
       blendMap={blendMap}
+      gymDoorFor={gymDoor.doorFor}
       onStartTask={(id) => {
         const t = taskItems.find((x) => x.id === id);
         if (t) void startFifteen(t);

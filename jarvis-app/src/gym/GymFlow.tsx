@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics, useOptionalProfile } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
-import { monthDay } from "../money/bills";
+import { monthDay, dayPhrase } from "../money/bills";
 import { agoPhraseLower } from "./summary";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type MeasureKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
@@ -58,6 +58,16 @@ const PLUS = (
 const DUMBBELL = (
   <BarbellGlyph />
 );
+
+// UP-ATH-02: "18:00" as the athlete reads it. The app's own fmtTime lives in
+// schedule/, and the gym reaches into schedule for exactly one thing already
+// (occursOn, lazily); a five-line clock beats a second static dependency.
+function gameClock(hhmm: string): string {
+  const h = Number(hhmm.slice(0, 2));
+  const m = hhmm.slice(3);
+  const h12 = h % 12 || 12;
+  return h12 + (m === "00" ? "" : ":" + m) + (h < 12 ? " AM" : " PM");
+}
 
 const ACTIVE_PROGRAM_KEY = "jarvis.gym.activeProgram.v1";
 
@@ -575,7 +585,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   const [rowMenu, setRowMenu] = useState<RowMenu | null>(null);
   const [picker, setPicker] = useState<Picker | null>(null);
   const [backdateDay, setBackdateDay] = useState<ProgramDay | null>(null);
-  const [nextGame, setNextGame] = useState<string | null>(null);
+  // UP-ATH-02 (2026-09-06): the start time rides along now, so the fact can
+  // be stated the way an athlete says it ("Game Saturday 6 PM") instead of as
+  // a bare date on the program row and nowhere else.
+  const [nextGame, setNextGame] = useState<{ date: string; start?: string } | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   // D12: which of the athlete's own categories mean "Health" (Architecture
   // C tag route) -- a gym goal tags these, silently, so it surfaces in
@@ -620,6 +633,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   // workout, recomputed only when the underlying data actually changes.
   const library = useMemo(() => buildLibrary(allPrograms, workouts), [allPrograms, workouts]);
 
+  // UP-ATH-02 (2026-09-06), THE SEASON LINK's other half. The program row has
+  // said "Next Game: Sep 12" since the link shipped, and the two screens an
+  // athlete is actually looking at while they train said nothing. One fact,
+  // stated once on each: never a taper, never a deload, never advice about
+  // what to do with it. Undefined when the program is not in season or the
+  // athlete has not said which category means a game, which is the same
+  // silence the program row keeps.
+  const gameLine = nextGame
+    ? "Game " + dayPhrase(nextGame.date, todayISO()) + (nextGame.start ? " " + gameClock(nextGame.start) : "")
+    : undefined;
+
   const reload = useCallback(async () => {
     // Anything logged offline lands as soon as a write succeeds.
     await flushPending((w) => svc.saveWorkout(w));
@@ -647,12 +671,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       const catId = program.data.gameCategoryId;
       const { occursOn } = await import("../schedule/calendar");
       const today = todayISO();
-      let found: string | null = null;
+      let found: { date: string; start?: string } | null = null;
       for (let i = 0; i <= 7; i++) {
         const d = new Date(today + "T00:00:00");
         d.setDate(d.getDate() + i);
         const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        if (items.some((e) => e.data.category === catId && occursOn(e.data, iso))) { found = iso; break; }
+        const hit = items.find((e) => e.data.category === catId && occursOn(e.data, iso));
+        if (hit) { found = { date: iso, ...(hit.data.start ? { start: hit.data.start } : {}) }; break; }
       }
       if (!cancelled) setNextGame(found);
     })();
@@ -1278,6 +1303,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         onFinish={() => void finish()}
         onBack={parkSession}
         restNotify={restNotify}
+        gameLine={gameLine}
       />
     );
   }
@@ -1530,6 +1556,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         defaultBudgetMin={fitFor.budgetMin}
         onStart={(fit) => { const f = fitFor; setFitFor(null); startDay(f.day, { fit, doorEventId: f.doorEventId }); }}
         onCancel={() => setFitFor(null)}
+        gameLine={gameLine}
       />
     );
   }
@@ -1935,7 +1962,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
                     <div className="conn-meta">
                       {[
                         programs.length > 1 ? `${programs.length} Active` : null,
-                        program.data.inSeason ? (nextGame ? `Next Game: ${monthDay(nextGame)}` : "In-Season") : null,
+                        program.data.inSeason ? (nextGame ? `Next Game: ${monthDay(nextGame.date)}` : "In-Season") : null,
                       ].filter(Boolean).join(" · ")}
                     </div>
                   )}

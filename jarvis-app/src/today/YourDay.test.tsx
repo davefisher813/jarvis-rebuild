@@ -34,6 +34,33 @@ describe("YourDay", () => {
     expect(container.querySelector(".empty-state")).toBeTruthy();
   });
 
+  // UP-ATH-02 (2026-09-06): Schedule has shown the Training Door on a gym
+  // block since D4-C, off this same DayRow. Today did not, so the page the
+  // athlete is on at six in the evening was the one page that could not
+  // start a session.
+  it("draws the Training Door on a gym block, and starts from it", () => {
+    const gym: EventItem = { id: "g1", data: { title: "Gym", date: "2026-05-20", start: "18:00", category: "orgB", gym: true } };
+    let started = 0;
+    render(
+      <YourDay
+        events={[gym]}
+        now="08:00"
+        nowLabel="8:00"
+        onSeeAll={() => {}}
+        gymDoorFor={(e) => (e.data.gym ? { dayName: "Push Day", meta: "6 exercises · Est 42 min", onStart: () => { started++; } } : null)}
+      />,
+    );
+    expect(screen.getByText("Push Day")).toBeInTheDocument();
+    expect(screen.getByText("6 exercises · Est 42 min")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Start Push Day" }));
+    expect(started).toBe(1);
+  });
+
+  it("leaves a plain event alone: no door where there is no gym block", () => {
+    render(<YourDay events={[ev("a", "09:00")]} now="08:00" nowLabel="8:00" onSeeAll={() => {}} gymDoorFor={() => null} />);
+    expect(screen.queryByText(/^Start /)).not.toBeInTheDocument();
+  });
+
   describe("when the day overflows the window", () => {
     let desc: PropertyDescriptor | undefined;
     beforeEach(() => {

@@ -202,6 +202,7 @@ export default function TodayPage({
   dayFooter,
   checkIn,
   blendMap,
+  gymDoorFor,
   nowCard,
   notices = [],
   reminders,
@@ -329,6 +330,9 @@ export default function TodayPage({
   checkIn?: ReactNode;
   // Blend offers for today's blocks (see YourDay). Built by the flow.
   blendMap?: import("./YourDay").BlendMap;
+  // UP-ATH-02 (2026-09-06): the Training Door on a gym block, built by the
+  // flow through gym/useGymDoor and drawn by the same DayRow Schedule uses.
+  gymDoorFor?: (e: EventItem) => import("../schedule/screens/DayRow").GymDoorView | null;
   // The Now card (what is happening this minute) rides at the very top:
   // the page reads in the order the day happens (Dave 2026-08-19).
   nowCard?: ReactNode;
@@ -785,6 +789,7 @@ export default function TodayPage({
         onShiftBlock={onShiftBlock}
         onRetimeBlock={onRetimeBlock}
         onResizeBlock={onResizeBlock}
+        gymDoorFor={gymDoorFor}
       />
 
       {/* Sunday evening only: the weekly close-out card. Two lines, no charts;

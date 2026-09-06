@@ -11,7 +11,7 @@ import { estimateDay, leverOffers, trimTargets, type FitPlan, type LeverKey } fr
 // Walking in through a timed gym block pre-fills the budget from the block's
 // own length; from the gym page the default is no cap, so an athlete who
 // never asked for time-boxing is never paced by a number they didn't pick.
-export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart, onCancel }: {
+export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart, onCancel, gameLine }: {
   day: ProgramDay;
   history: Workout[];
   rack: RackConfig;
@@ -20,6 +20,12 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
   defaultBudgetMin?: number;
   onStart: (fit: FitPlan) => void;
   onCancel: () => void;
+  /** UP-ATH-02 (2026-09-06): "Game Saturday 6 PM", when the program is in
+   *  season and the athlete has said which category means a game. Said ONCE,
+   *  here, as a fact beside the plan. It changes no lever and no estimate:
+   *  what to do about a game on Saturday is the athlete's call, and a taper
+   *  is exactly the kind of advice this app does not give. */
+  gameLine?: string;
 }) {
   const [budget, setBudget] = useState<number>(defaultBudgetMin ?? 0);
   const [plan, setPlan] = useState<FitPlan>({});
@@ -56,7 +62,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{day.name} · Plan {planMin} Min</div></div>
+        <div className="grp"><div className="eyebrow">{day.name} · Plan {planMin} Min{gameLine ? " · " + gameLine : ""}</div></div>
 
         <div className="pad-x">
           <div className="field">

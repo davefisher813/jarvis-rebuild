@@ -55,6 +55,11 @@ export default function SessionScreen({
   // by GymFlow. Off means the rest timer arms nothing, so the switch is a
   // real switch and not a label on a thing that buzzes anyway.
   restNotify = true,
+  // UP-ATH-02 (2026-09-06): "Game Saturday 6 PM" when the program is in
+  // season and the athlete has said which category means a game. A fact on
+  // the header, stated once. Never a prescription: nothing in this app is
+  // allowed to tell somebody to back off before a game.
+  gameLine,
 }: {
   live: LiveSession;
   exercise: Exercise;
@@ -91,6 +96,7 @@ export default function SessionScreen({
   onFinish: () => void;
   onBack: () => void;
   restNotify?: boolean;
+  gameLine?: string;
 }) {
   // S5-Q30 (2026-09-04): "the screen sleeps between sets." This screen stays
   // mounted for the whole session (GymFlow swaps its props, not the
@@ -315,6 +321,7 @@ export default function SessionScreen({
         <div className="eyebrow">
           Exercise {idx + 1} of {live.exercises.length}
           {pairLabel && ` · ${pairLabel}`}
+          {gameLine && ` · ${gameLine}`}
         </div>
         {/* D5-C: the projected finish rides the header the whole session --
             amber only when actually over, never red (time pressure is a

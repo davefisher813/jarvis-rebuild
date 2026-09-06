@@ -7,7 +7,7 @@ import { usePeople } from "../data/NotesProvider";
 import type { Person } from "../people/types";
 import CallPrepSheet from "../people/CallPrepSheet";
 import GymFlow, { readActiveProgramId } from "../gym/GymFlow";
-import { doorInfoFor } from "../gym/door";
+import { useGymDoor } from "../gym/useGymDoor";
 import { readGymSettings, rackFrom } from "../gym/settings";
 import type { Program, Workout } from "../gym/types";
 import { pausedCategoryIds } from "../categories/kinds";
@@ -217,9 +217,11 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   // THE TRAINING DOOR (D4-C). The gym's programs and history, read only so a
   // door event can name the day's lift and price it -- and the overlay that
   // opens when the athlete walks through.
-  const gymSvc = useOptionalGym();
-  const [gymData, setGymData] = useState<{ programs: Program[]; workouts: Workout[] } | null>(null);
-  const [gymDoorOpen, setGymDoorOpen] = useState<{ eventId: string; budgetMin?: number } | null>(null);
+  //
+  // UP-ATH-02 (2026-09-06): the forty lines that used to live here are
+  // gym/useGymDoor.ts now, because Today renders the same DayRow off the same
+  // calendar and had no door at all. One seam, two surfaces.
+  const gymDoor = useGymDoor(allEvents, selected, today);
   // Soft anchor guard (roadmap v2): the one gentle nudge, at most once per day.
   const [guard, setGuard] = useState<{ id: string; date: string } | null>(null);
   const nudgedDays = useRef<Set<string>>(new Set());
@@ -1272,39 +1274,10 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     });
   };
 
-  // D4-C: the gym is read lazily -- only when a door event is actually on
-  // the calendar -- and re-read when the overlay closes (a finished session
-  // may have stamped the block and moved history).
-  const anyDoor = allEvents.some((e) => e.data.gym);
-  useEffect(() => {
-    if (!anyDoor || !gymSvc || gymDoorOpen) return;
-    let on = true;
-    void (async () => {
-      const [programs, workouts] = await Promise.all([gymSvc.listPrograms(), gymSvc.listWorkouts()]);
-      if (on) setGymData({ programs, workouts });
-    })();
-    return () => { on = false; };
-  }, [anyDoor, gymSvc, gymDoorOpen]);
-
-  const gymDoorFor = useCallback((e: EventItem) => {
-    if (!e.data.gym || !gymSvc) return null;
-    const trainedMin = e.data.trained?.[selected];
-    if (trainedMin != null) return { trainedMin };
-    const info = gymData ? doorInfoFor(gymData.programs, readActiveProgramId(), gymData.workouts, rackFrom(readGymSettings()), selected) : null;
-    // Start only where starting is true: today's occurrence. A future date's
-    // door still names its pinned lift; a past one stays quiet.
-    const startable = selected === todayISO();
-    const budgetMin = e.data.end ? Math.max(0, (Number(e.data.end.slice(0, 2)) * 60 + Number(e.data.end.slice(3))) - (Number(e.data.start.slice(0, 2)) * 60 + Number(e.data.start.slice(3)))) : 0;
-    return {
-      ...(info ? { dayName: info.day.name, meta: info.meta } : {}),
-      ...(startable ? { onStart: () => setGymDoorOpen({ eventId: e.id, ...(budgetMin > 0 ? { budgetMin } : {}) }) } : {}),
-    };
-  }, [gymSvc, gymData, selected]);
-
   // Walking through the door mounts the gym whole, as an overlay -- same
   // pattern Brain uses. Coming back re-reads events so a fresh stamp shows.
-  if (gymDoorOpen) {
-    return <GymFlow door={gymDoorOpen} onBack={() => { setGymDoorOpen(null); void reload(); }} />;
+  if (gymDoor.opened) {
+    return <GymFlow door={gymDoor.opened} onBack={() => { gymDoor.close(); void reload(); }} />;
   }
 
   return (
@@ -1321,7 +1294,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
         todayDate={today}
         dots={dots}
         dayEvents={dayEvents}
-        gymDoorFor={gymDoorFor}
+        gymDoorFor={gymDoor.doorFor}
         conflicts={conflicts}
         loading={loading}
         loadFailed={loadFailed}

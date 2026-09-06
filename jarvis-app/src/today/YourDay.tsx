@@ -70,7 +70,7 @@ const todayISODate = () => {
 function DaySet({
   events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, onOpenBlock, blendMap = {}, proposed, fromMin, expandHeld = false,
   conflicts, attachMap, firstMoveMap, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow,
-  onShiftBlock, onRetimeBlock, onResizeBlock,
+  onShiftBlock, onRetimeBlock, onResizeBlock, gymDoorFor,
 }: {
   events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void;
   onEditRoutine?: (blockId?: string) => void;
@@ -95,6 +95,10 @@ function DaySet({
   onShiftBlock?: (id: string, mins: number) => void;
   onRetimeBlock?: (id: string, startMin: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
+  // UP-ATH-02 (2026-09-06): the Training Door, the same one Schedule renders
+  // off the same DayRow. Absent means no door, which is what every caller
+  // that is not the real Today wants.
+  gymDoorFor?: (e: EventItem) => import("../schedule/screens/DayRow").GymDoorView | null;
 }) {
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
   const nowMin = toMin(now);
@@ -172,6 +176,7 @@ function DaySet({
           onSetEnd={onSetEnd ? (end) => onSetEnd(en.ev.id, end) : undefined}
           onSkipToday={onSkipToday ? () => onSkipToday(en.ev.id) : undefined}
           onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.ev.id) : undefined}
+          gymDoor={gymDoorFor?.(en.ev) ?? null}
           weatherDateIso={todayISODate()}
         />,
       );
@@ -302,6 +307,7 @@ export default function YourDay({
   onShiftBlock,
   onRetimeBlock,
   onResizeBlock,
+  gymDoorFor,
 }: {
   events: EventItem[];
   locked?: LockedRange[];
@@ -344,6 +350,8 @@ export default function YourDay({
   onShiftBlock?: (id: string, mins: number) => void;
   onRetimeBlock?: (id: string, startMin: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
+  // UP-ATH-02 (2026-09-06): forwarded straight to DaySet, see there.
+  gymDoorFor?: (e: EventItem) => import("../schedule/screens/DayRow").GymDoorView | null;
   // Accept / Not Today, owned by the flow and drawn under the day.
   footer?: React.ReactNode;
   // MERGE B (2026-08-24, Dave: "can't now and your day be combined somehow?").
@@ -570,7 +578,7 @@ export default function YourDay({
               expanded, which is the ticker's own content. Deciding whether a
               thing should scroll by measuring something other than that thing
               is how the feature switched itself off. */}
-          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} firstMoveMap={firstMoveMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} /></div>
+          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} firstMoveMap={firstMoveMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} gymDoorFor={gymDoorFor} /></div>
           {measuring && (
             <div ref={measureRef} className="day-measure" aria-hidden="true">
               <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />

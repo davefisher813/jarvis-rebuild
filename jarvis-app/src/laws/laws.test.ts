@@ -4101,6 +4101,31 @@ describe("LAW: the Health module is reachable, and whatever stays dormant says w
 // by ConditioningFace itself for when it renders standalone. Same shape as
 // useSwipe.ts's one-implementation doc comment: a second inline
 // navigator.wakeLock.request call anywhere is the regression this catches.
+// UP-ATH-02 (2026-09-06): the Training Door was forty lines inside
+// ScheduleFlow, so Today, which renders the same DayRow off the same
+// calendar, had no door at all and could not start a session. One seam
+// (gym/useGymDoor.ts), two surfaces, and the same rule useSwipe.ts and
+// useWakeLock.ts already carry: a second inline copy is the regression.
+describe("LAW: the Training Door has one implementation", () => {
+  it("doorInfoFor is read through gym/useGymDoor and nowhere else", () => {
+    const bad: string[] = [];
+    for (const f of ALL) {
+      if (isTest(f) || isBench(f)) continue;
+      if (rel(f) === "gym/useGymDoor.ts" || rel(f) === "gym/door.ts") continue;
+      if (/doorInfoFor\s*\(/.test(read(f))) bad.push(rel(f));
+    }
+    expect(bad, "only gym/useGymDoor.ts may build door facts").toEqual([]);
+  });
+
+  it("Today and Schedule both open the door from that seam", () => {
+    for (const f of ["today/TodayFlow.tsx", "schedule/ScheduleFlow.tsx"]) {
+      const src = read(join(SRC, f));
+      expect(src, rel(join(SRC, f)) + " must use the shared door seam").toMatch(/useGymDoor\(/);
+      expect(src, rel(join(SRC, f)) + " must mount the gym when the door opens").toMatch(/<GymFlow door=/);
+    }
+  });
+});
+
 describe("LAW: only one file asks for the screen wake lock", () => {
   it("navigator.wakeLock is requested from useWakeLock.ts alone", () => {
     const bad: string[] = [];
