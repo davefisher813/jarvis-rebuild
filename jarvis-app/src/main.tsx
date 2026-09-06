@@ -8,6 +8,7 @@ import { supabase } from "./auth/supabaseClient";
 import App from "./App";
 import ErrorBoundary from "./monitoring/ErrorBoundary";
 import { initMonitoring } from "./monitoring/monitor";
+import { startAppUrlListener } from "./native/appUrl";
 
 import "./styles/jarvis-design-system.css";
 import "./styles/uniformity.css";
@@ -15,6 +16,11 @@ import "./styles/components.css";
 import "./styles/ruled.css";
 
 initMonitoring();
+// UP-LAUNCH-12 (2026-09-05): URLs that arrive from outside, on the phone.
+// The Google sign-in sheet's callback comes back this way, and so will the
+// magic link and the widget deep links. A no-op on the web and on a native
+// build with no @capacitor/app pod yet.
+void startAppUrlListener();
 
 // Catalog V3.1 motion: lists stagger on FIRST PAINT only. The class lives on
 // body for the boot moment and is gone before any tab switch, so switches

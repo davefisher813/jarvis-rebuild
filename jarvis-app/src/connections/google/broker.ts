@@ -1,5 +1,6 @@
 import { apiUrl } from "../../shared/apiBase";
 import { requestGoogleCode, type TokenOpts } from "./gis";
+import { nativeGoogleAvailable, requestGoogleCodeNative } from "./nativeAuth";
 
 // The token broker (persistent sign-in, 2026-08-04): how the session gets
 // Google access tokens.
@@ -37,7 +38,19 @@ export function serverBroker(getAuthToken: () => string | undefined, doFetch: Fe
   };
 
   return {
+    // UP-LAUNCH-12 (2026-09-05): the same exchange, two ways of getting the
+    // code. The web keeps the GIS popup; the phone opens the system sign-in
+    // sheet with PKCE, because a popup code client posts back to the page's
+    // origin and in the App Store build that origin is capacitor://localhost,
+    // which Google will not accept. The server half is identical apart from
+    // the verifier, which is what proves the exchange belongs to this sheet.
     async authorize(opts) {
+      if (nativeGoogleAvailable()) {
+        const { code, verifier, redirectUri } = await requestGoogleCodeNative(opts);
+        const res = await call({ code, verifier, redirectUri });
+        if (!res.accessToken) throw new Error(res.error || "Google sign-in failed");
+        return { token: res.accessToken, email: res.email };
+      }
       const code = await requestGoogleCode(opts);
       const res = await call({ code });
       if (!res.accessToken) throw new Error(res.error || "Google sign-in failed");

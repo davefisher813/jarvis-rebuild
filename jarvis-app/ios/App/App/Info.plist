@@ -42,6 +42,26 @@
 	     By, in the native seven session. -->
 	<key>NSCameraUsageDescription</key>
 	<string>JARVIS uses the camera only when you choose Take Photo to read a schedule, a program or a document. Photos stay in your JARVIS account.</string>
+	<!-- UP-LAUNCH-12 (2026-09-05): the URL schemes this app answers to.
+	     `jarvis` is ours: the widget and shortcut deep links the native seven
+	     stages already assume it, and the Supabase magic link lands on it.
+	     The Google sign-in callback needs a SECOND entry here, the iOS OAuth
+	     client id reversed (com.googleusercontent.apps.NNN-xxx). It is not in
+	     the repo because it is created in the Google Cloud console per
+	     project; DAVE_STEPS has the exact dict to paste beside this one, and
+	     src/connections/google/nativeAuth.ts computes the same string from
+	     VITE_GOOGLE_IOS_CLIENT_ID so the two cannot disagree silently. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.bridge.jarvis</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>jarvis</string>
+			</array>
+		</dict>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

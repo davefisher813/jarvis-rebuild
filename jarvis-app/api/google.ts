@@ -75,7 +75,7 @@ export default async function handler(req: Request): Promise<Response> {
   const userId = await authedUserId(req, supaUrl, supaAnon);
   if (!userId) return json({ error: "Unauthorized" }, 401);
 
-  let body: { code?: unknown; refresh?: unknown; forget?: unknown };
+  let body: { code?: unknown; refresh?: unknown; forget?: unknown; verifier?: unknown; redirectUri?: unknown };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -86,10 +86,37 @@ export default async function handler(req: Request): Promise<Response> {
   const svc = { apikey: service, Authorization: "Bearer " + service, "content-type": "application/json" };
 
   if (typeof body.code === "string" && body.code) {
+    // UP-LAUNCH-12 (2026-09-05): two shapes of the same exchange.
+    //
+    //   web    the GIS popup code client, redirect_uri "postmessage", the
+    //          web client id and its secret.
+    //   native an iOS OAuth client, which HAS no secret (an installed app
+    //          cannot keep one) and proves itself with the PKCE verifier
+    //          instead, redirecting to its own reversed client id.
+    //
+    // The native branch is taken only when the caller sends a verifier AND
+    // the iOS client is configured, and the redirect_uri it may name is
+    // checked against that client's own scheme rather than trusted: a
+    // redirect_uri parameter accepted verbatim is how an exchange endpoint
+    // becomes somebody else's.
+    const iosClientId = process.env.VITE_GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_IOS_CLIENT_ID || "";
+    const iosScheme = iosClientId.endsWith(".apps.googleusercontent.com")
+      ? "com.googleusercontent.apps." + iosClientId.slice(0, -".apps.googleusercontent.com".length)
+      : "";
+    const verifier = typeof body.verifier === "string" ? body.verifier : "";
+    const redirectUri = typeof body.redirectUri === "string" ? body.redirectUri : "";
+    const native = !!verifier && !!iosScheme && redirectUri.startsWith(iosScheme + ":");
+    if (verifier && !native) return json({ error: "Native sign-in is not configured" }, 400);
     const r = await fetch(TOKEN_URL, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
+      body: new URLSearchParams(native ? {
+        code: body.code,
+        client_id: iosClientId,
+        code_verifier: verifier,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      } : {
         code: body.code,
         client_id: clientId,
         client_secret: clientSecret,
