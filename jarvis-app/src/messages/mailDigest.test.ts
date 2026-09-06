@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildMailDigests, asOfLine, inRefreshLead, MAIL_DIGEST_BASE, MAIL_DIGEST_CAP, QUIET_START_MIN, QUIET_END_MIN } from "./mailDigest";
 import { DEFAULT_WINDOWS } from "./batching";
-import { IOS_PENDING_LIMIT, CHECKIN_BUDGET, TASK_REMINDER_CAP, EVENT_REMINDER_CAP, MAIL_DIGEST_BUDGET } from "../shared/notifications";
+import { MAIL_DIGEST_BUDGET } from "../shared/notifications";
 
 // UP-MIND-14, chosen option: the local digest. The trial this rests on found
 // that batching helped AND that turning notifications off backfired, so the
@@ -63,9 +63,14 @@ describe("looking before the window", () => {
 });
 
 // The whole app's notification spend is one arithmetic, and this took its
-// share from it rather than quietly overrunning the OS.
+// share from it rather than quietly overrunning the OS. That arithmetic is
+// asserted ONCE, in shared/notifications.test.ts, over every block at the
+// same time -- a second copy here restated four of the five and went stale
+// the moment the rest timer claimed its seat. What belongs to this module is
+// the narrower promise: the digest never schedules more than the share it
+// argued for.
 describe("the budget still adds up", () => {
-  it("fits inside the iOS pending limit", () => {
-    expect(CHECKIN_BUDGET + TASK_REMINDER_CAP + EVENT_REMINDER_CAP + MAIL_DIGEST_BUDGET).toBe(IOS_PENDING_LIMIT);
+  it("never schedules more than the share it argued for", () => {
+    expect(MAIL_DIGEST_CAP).toBeLessThanOrEqual(MAIL_DIGEST_BUDGET);
   });
 });

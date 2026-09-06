@@ -563,6 +563,14 @@ describe("LAW: Apple HIG casing", () => {
           // would push a number out of its own circle. Four rules, all in
           // .cond-face, all vw-based.
           if (/^clamp\([^)]*vw[^)]*\)$/.test(value)) continue;
+          // And an em, which is a multiple of the PARENT's size and so grows
+          // with everything above it by construction -- the harm this law
+          // names is "a line that will not grow", and an em always does.
+          // UP-MIND-12's evidence chip is the case: its quote mark is 1.05em
+          // so it stays a shade larger than the claim it sits inside, at
+          // every scale. A token there would pin the mark to one size while
+          // the claim around it grew, which is the bug this law is against.
+          if (/^[\d.]+em$/.test(value)) continue;
           bad.push(`${f}:${i + 1} ${value}`);
         }
       }
