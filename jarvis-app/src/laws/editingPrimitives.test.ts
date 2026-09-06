@@ -47,6 +47,43 @@ describe("law: one swipe controller", () => {
     ).map(rel);
     expect(offenders).toEqual([]);
   });
+
+  // SHARED-F-21 (2026-09-05): the controller's first contract line says
+  // "horizontal claims the gesture (page must not scroll)", and the call that
+  // was supposed to enforce it (useSwipe.ts:68's preventDefault) cannot:
+  // React 18 registers touchmove on the root as passive
+  // (react-dom.development.js:9172-9173), so it is ignored. What actually
+  // claims the gesture is `touch-action: pan-y` on the moving element. Most
+  // rows had it by luck; .notice-card and the bare .swipe-shell did not, and
+  // a diagonal swipe on a Today notice or a notification revealed the actions
+  // AND scrolled the list at the same time.
+  //
+  // So the roster is explicit, the same shape the 44px law uses: a new swipe
+  // surface fails this until it says which class carries its pan-y.
+  it("every swipe surface's moving element carries touch-action: pan-y", () => {
+    const SURFACES: Record<string, string> = {
+      "tasks/screens/TasksPage.tsx": "task-row",
+      "today/TodayFlow.tsx": "task-row",
+      "today/NoticeCard.tsx": "notice-card",
+      "notes/screens/NotesList.tsx": "task-row",
+      "messages/MailSwipe.tsx": "task-row",
+      "messages/LetGoSwipe.tsx": "task-row",
+      "notifications/NotificationsFlow.tsx": "swipe-shell",
+      "gym/SetStrip.tsx": "set-chip",
+      "schedule/screens/DayRow.tsx": "sched-row",
+      "schedule/screens/LockedRow.tsx": "sched-row",
+    };
+    const css = read(join(SRC, "styles", "components.css")) + read(join(SRC, "styles", "ruled.css"));
+    const usesSwipe = FILES.filter((f) => rel(f) !== "shared/useSwipe.ts" && /from "[^"]*shared\/useSwipe"/.test(read(f))).map(rel);
+    expect(usesSwipe.filter((f) => !(f in SURFACES)), "a new swipe surface must name the class that carries its pan-y").toEqual([]);
+    const bare: string[] = [];
+    for (const [file, cls] of Object.entries(SURFACES)) {
+      if (!usesSwipe.includes(file)) continue; // the surface was retired; the roster entry is harmless
+      const rule = new RegExp("\\.(?:[a-z0-9-]+\\s+)?" + cls + "\\b[^{}]*\\{[^}]*touch-action:\\s*pan-y");
+      if (!rule.test(css)) bare.push(file + " (." + cls + ")");
+    }
+    expect(bare, "the moving element's class must say touch-action: pan-y").toEqual([]);
+  });
 });
 
 describe("law: one drag controller", () => {

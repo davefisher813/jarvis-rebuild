@@ -12,6 +12,23 @@ import { useEffect, useRef, useState } from "react";
 // - The row tracks the finger, clamped to [-revealW, 0].
 // - Release past half the reveal opens; anything less snaps shut.
 //
+// SHARED-F-21 (2026-09-05): HOW THE FIRST LINE IS ACTUALLY KEPT. "Horizontal
+// claims the gesture" is enforced by CSS, not by the preventDefault below.
+// React 18 registers touchmove on the root as a PASSIVE listener
+// (react-dom.development.js:9172-9173), so preventDefault on a synthetic
+// touchmove is ignored and Chrome logs the intervention warning. The rows
+// that behave behave because their CSS says `touch-action: pan-y`, which
+// tells the browser to keep vertical panning and hand horizontal movement to
+// the page. That was true of most of them by luck rather than by rule:
+// .notice-card and the bare .swipe-shell had no pan-y, so a diagonal swipe on
+// a Today notice or a notification revealed the actions AND scrolled.
+//
+// So it is a rule now: EVERY element that spreads these handlers must carry
+// touch-action: pan-y, and laws.test.ts holds the roster of swipe surfaces
+// and the class each one leans on. The preventDefault below stays because it
+// costs nothing and is correct the day these are bound natively; it is not
+// what makes the gesture work today, and nothing should assume it is.
+//
 // TODAY-F-23 (2026-09-05): AND A WAY IN WITHOUT A TOUCHSCREEN.
 //
 // Every secondary action in this app lives behind this gesture: Dismiss,
