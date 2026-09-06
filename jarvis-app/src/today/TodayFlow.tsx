@@ -120,7 +120,7 @@ import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCa
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { scheduleTask, breakDownTask as splitIntoSteps, undoBreakdown, splitLine, type BreakdownResult } from "../tasks/taskMoves";
-import { identityToText } from "../ai/context";
+import { identityToText, voiceToText } from "../ai/context";
 import { useAIContext } from "../ai/useAIContext";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
 import { supabase } from "../auth/supabaseClient";
@@ -1715,9 +1715,37 @@ export default function TodayFlow({
   const nudgeInstruction = (subject: string, days: number, sent: number) =>
     decide(subject, "", days, sent).primary.instruction ?? "";
 
+  // UP-MIND-01 (2026-09-05): the card's draft reads the How You Write doc and
+  // the Writing-bucket facts, which is what the Sweep deck has done since it
+  // shipped (DeckFlow.tsx:146). Both cardDraft builders have always accepted
+  // `voice` and this caller never passed it, so a reply drafted on the home
+  // page sounded like nobody while the same reply drafted one tab over
+  // sounded like him.
+  //
+  // Gathered ONCE per open, into a ref, because jobFor is synchronous and is
+  // called from both the tap handler and the background pass: the two must
+  // hash the same string or every pre-generated draft misses. styleRule:
+  // false because CARD_REPLY_SYSTEM and CARD_NUDGE_SYSTEM already emit
+  // STYLE_SCOPE_RULE, same reason the deck passes it.
+  const cardVoiceRef = useRef("");
+  const [cardVoiceReady, setCardVoiceReady] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void gatherContext()
+      .then((c) => voiceToText(c, { styleRule: false }))
+      .catch(() => "")
+      .then((v) => {
+        if (!live) return;
+        cardVoiceRef.current = v;
+        setCardVoiceReady(true);
+      });
+    return () => { live = false; };
+  }, [gatherContext]);
+
   const jobFor = (n: { kind: string; threadId: string }) =>
     cardDraftJob(n, loadMailSnapshot(), loadNudgeCounts(), nudgeInstruction,
-      (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system));
+      (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
+      cardVoiceRef.current);
 
   //
   // The list is derived with the SAME mailNotices() call MailNotices renders
@@ -1730,7 +1758,11 @@ export default function TodayFlow({
 
   const pregenRan = useRef(false);
   useEffect(() => {
-    if (pregenRan.current || !ai.available) return;
+    // Waits for the voice (UP-MIND-01): warming a draft with an empty voice
+    // and then serving the tap path a voiced one would miss every entry the
+    // background pass wrote, which is the exact failure the shared hash in
+    // cardDraftJob exists to prevent.
+    if (pregenRan.current || !ai.available || !cardVoiceReady) return;
     const snap = loadMailSnapshot();
     if (snap.threads.length === 0 && snap.waiting.length === 0) return;
     pregenRan.current = true;
@@ -1743,7 +1775,7 @@ export default function TodayFlow({
     // warm-up, and re-running it whenever mail reloads would turn a capped
     // background pass into a loop that spends five calls per refresh. The
     // pregenRan ref makes that true even if the deps below ever grow.
-  }, [ai.available, today]);
+  }, [ai.available, today, cardVoiceReady]);
 
   // UP-ATH-02 (2026-09-06): the Training Door on Today. Schedule has had it
   // since D4-C off this same DayRow; the page the athlete is on at six in the

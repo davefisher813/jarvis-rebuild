@@ -22,10 +22,15 @@ const wait = (over = {}) => ({
 } as MailSnapshot["waiting"][number]);
 
 const noInstruction = () => "";
-const complete = vi.fn(async () => "Sending it over this afternoon.");
+// Typed with the arguments the job actually passes, so a test can assert what
+// reached `system` (UP-MIND-01) and not just that a call happened.
+const complete = vi.fn(async (messages: { role: string; content: string }[], system: string) => {
+  void messages; void system;
+  return "Sending it over this afternoon.";
+});
 
-const job = (n: { kind: string; threadId: string }, s: MailSnapshot, counts = {}, instr = noInstruction) =>
-  cardDraftJob(n, s, counts, instr, complete);
+const job = (n: { kind: string; threadId: string }, s: MailSnapshot, counts = {}, instr = noInstruction, voice = "") =>
+  cardDraftJob(n, s, counts, instr, complete, voice);
 
 describe("cardDraftJob", () => {
   it("describes a reply as a request keyed by its thread", () => {
@@ -92,6 +97,31 @@ describe("cardDraftJob", () => {
   it("files a chase under the nudge namespace, not its own", () => {
     const s = snap({ chases: [{ threadId: "w1", to: "Rob", subject: "Field booking" }] as MailSnapshot["chases"] });
     expect(job({ kind: "chase", threadId: "w1" }, s)?.kind).toBe("nudge");
+  });
+
+  // UP-MIND-01: the home page's drafts used to skip the How You Write doc
+  // entirely, so they read generic while the Sweep deck's read like him.
+  it("carries the voice into the system prompt of a reply", async () => {
+    complete.mockClear();
+    const j = job({ kind: "reply", threadId: "t1" }, snap({ threads: [thread()] }), {}, noInstruction, "Writing voice: short, no greeting.");
+    await j!.build();
+    expect(complete.mock.calls[0]![1]).toContain("Writing voice: short, no greeting.");
+  });
+
+  it("carries the voice into the system prompt of a nudge", async () => {
+    complete.mockClear();
+    const j = job({ kind: "nudge", threadId: "w1" }, snap({ waiting: [wait()] }), {}, noInstruction, "Writing voice: short, no greeting.");
+    await j!.build();
+    expect(complete.mock.calls[0]![1]).toContain("Writing voice: short, no greeting.");
+  });
+
+  // The doc is an input to the prompt, so it is an input to the hash: an
+  // edited voice must not keep serving the draft the old voice wrote.
+  it("changes the hash when the voice changes", () => {
+    const s = snap({ threads: [thread()] });
+    const a = job({ kind: "reply", threadId: "t1" }, s, {}, noInstruction, "");
+    const b = job({ kind: "reply", threadId: "t1" }, s, {}, noInstruction, "Never opens with Hi there.");
+    expect(a?.hash).not.toBe(b?.hash);
   });
 
   it("builds through the caller's complete, and parses what comes back", async () => {

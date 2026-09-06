@@ -52,6 +52,7 @@ function sourceFor(
   snap: MailSnapshot,
   nudgeCounts: Record<string, number>,
   extraInstruction: (subject: string, days: number, sent: number) => string,
+  voice: string,
 ): Source | null {
   if (n.kind === "nudge" || n.kind === "chase") {
     const w = snap.waiting.find((x) => x.threadId === n.threadId);
@@ -61,7 +62,7 @@ function sourceFor(
     if (!to || !subject) return null;
     const days = w?.days ?? 0;
     const sent = nudgeCounts[n.threadId] ?? 0;
-    const p = cardNudgePrompt(to, subject, days);
+    const p = cardNudgePrompt(to, subject, days, voice);
     // The escalation instruction is part of the prompt, so it is part of the
     // material: a nudge that has climbed a rung is a different draft, and a
     // cache that ignored the rung would keep serving the gentle one forever.
@@ -70,18 +71,22 @@ function sourceFor(
       kind: "nudge",
       system: p.system + "\n" + instruction,
       user: p.user,
-      material: ["nudge", to, subject, days, sent, instruction].join("\u0000"),
+      // UP-MIND-01 (2026-09-05): the voice is an input to the prompt, so it is
+      // an input to the hash. Editing the How You Write doc has to strand the
+      // drafts written before the edit, or the card keeps serving the sentence
+      // the old doc produced and the edit reads as ignored.
+      material: ["nudge", to, subject, days, sent, instruction, voice].join("\u0000"),
     };
   }
   const t = snap.threads.find((x) => x.id === n.threadId);
   if (!t) return null;
   const body = t.snippet ?? t.gist ?? "";
-  const p = cardReplyPrompt(t.from, t.subject, t.gist, body);
+  const p = cardReplyPrompt(t.from, t.subject, t.gist, body, voice);
   return {
     kind: "reply",
     system: p.system,
     user: p.user,
-    material: ["reply", t.from, t.subject, t.gist, body].join("\u0000"),
+    material: ["reply", t.from, t.subject, t.gist, body, voice].join("\u0000"),
   };
 }
 
@@ -95,8 +100,12 @@ export function cardDraftJob(
   nudgeCounts: Record<string, number>,
   extraInstruction: (subject: string, days: number, sent: number) => string,
   complete: Complete,
+  // UP-MIND-01 (2026-09-05): voiceToText of the live context, or "" when it
+  // could not be gathered. Defaulted so a caller that has no context provider
+  // above it still gets the generic draft rather than a type error.
+  voice = "",
 ): PregenRequest | null {
-  const s = sourceFor(n, snap, nudgeCounts, extraInstruction);
+  const s = sourceFor(n, snap, nudgeCounts, extraInstruction, voice);
   if (!s) return null;
   return {
     kind: s.kind,

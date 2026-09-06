@@ -38,6 +38,11 @@ export const CARD_NUDGE_SYSTEM = [
   "Reply with ONLY the message body.",
 ].join("\n");
 
+// UP-MIND-01 (2026-09-05): `voice` is the How You Write doc plus the
+// Writing-bucket facts, rendered by voiceToText. Both builders have accepted
+// it since they were written; until Today started passing it, the only caller
+// that did was the Sweep deck, so the drafts on the home page were the
+// generic ones and the drafts one tab over were his.
 export function cardReplyPrompt(from: string, subject: string, gist: string, body: string, voice = ""): { system: string; user: string } {
   return {
     system: voice.trim() ? CARD_REPLY_SYSTEM + "\n\nWrite it as this person would write it:\n" + voice.trim() : CARD_REPLY_SYSTEM,
