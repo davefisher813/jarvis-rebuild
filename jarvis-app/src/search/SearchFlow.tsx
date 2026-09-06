@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { useTasks, useSchedule, useNotes, usePeople, useProjects, useMoney, useGoals, useCategories, useDecisions } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, usePeople, useProjects, useMoney, useGoals, useCategories, useDecisions, useOptionalFiles, useOptionalStrands } from "../data/NotesProvider";
 import { runSearch, totalHits, buildSuggestionIndex, suggest, type SearchInput } from "./search";
 import { personInitials, slotForName } from "../people/types";
 import { RowIcon } from "../shared/anatomy";
+
+// UP-CORE-04 (2026-09-05): the matched line, under the title, so a hit whose
+// title does not contain the query says why it is here instead of looking
+// like a mistake.
+function Why({ why }: { why?: string }) {
+  return why ? <div className="conn-meta truncate">{why}</div> : null;
+}
 
 const MAG = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
@@ -21,20 +28,26 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
   const goals = useGoals();
   const categories = useCategories();
   const decisions = useDecisions();
+  // UP-CORE-04 (2026-09-05): optional services, so a shell that mounts
+  // without them still searches everything else.
+  const files = useOptionalFiles();
+  const strands = useOptionalStrands();
   const [data, setData] = useState<SearchInput | null>(null);
   const [q, setQ] = useState("");
 
   useEffect(() => {
     let on = true;
     (async () => {
-      const [t, e, n, p, pr, ac, g, c, dec] = await Promise.all([
+      const [t, e, n, p, pr, ac, g, c, dec, fl, st] = await Promise.all([
         tasks.listTasks(), schedule.listEvents(), notes.listNotes(), people.list(),
         projects.list(), money.list(), goals.list(), categories.list(), decisions.list(),
+        files ? files.list("money") : Promise.resolve([]),
+        strands ? strands.list() : Promise.resolve([]),
       ]);
-      if (on) setData({ tasks: t, events: e, notes: n, people: p, projects: pr, accounts: ac, goals: g, categories: c, decisions: dec });
+      if (on) setData({ tasks: t, events: e, notes: n, people: p, projects: pr, accounts: ac, goals: g, categories: c, decisions: dec, files: fl, strands: st });
     })();
     return () => { on = false; };
-  }, [tasks, schedule, notes, people, projects, money, goals, categories, decisions]);
+  }, [tasks, schedule, notes, people, projects, money, goals, categories, decisions, files, strands]);
 
   const results = useMemo(() => (data ? runSearch(q, data) : null), [q, data]);
   const empty = q.trim() === "";
@@ -111,7 +124,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="sh2 sh2-quiet"><span className="t">Schedule</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {results.events.map((e) => (
-                <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => open("event", e.id)}><RowIcon kind="event" /><div className="row-grow"><div className="conn-name">{e.title}</div></div><span className="urgency urgency-muted">{e.start}</span></div>
+                <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => open("event", e.id)}><RowIcon kind="event" /><div className="row-grow"><div className="conn-name">{e.title}</div><Why why={e.why} /></div><span className="urgency urgency-muted">{e.start}</span></div>
               ))}
             </div></div>
           </>
@@ -122,7 +135,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="sh2 sh2-quiet"><span className="t">Tasks</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {results.tasks.map((t) => (
-                <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => open("task", t.id)}><RowIcon kind="task" /><div className="row-grow"><div className="conn-name">{t.text}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => open("task", t.id)}><RowIcon kind="task" /><div className="row-grow"><div className="conn-name">{t.text}</div><Why why={t.why} /></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -133,7 +146,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="sh2 sh2-quiet"><span className="t">People</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {results.people.map((p) => (
-                <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => open("person", p.id)}><div className={"av av-40 cat-bg-" + slotForName(p.name)}>{personInitials(p.name)}</div><div className="row-grow"><div className="conn-name">{p.name}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => open("person", p.id)}><div className={"av av-40 cat-bg-" + slotForName(p.name)}>{personInitials(p.name)}</div><div className="row-grow"><div className="conn-name">{p.name}</div><Why why={p.why} /></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -144,7 +157,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="sh2 sh2-quiet"><span className="t">Notes</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {results.notes.map((n) => (
-                <div className="row" role="button" tabIndex={0} key={n.id} onClick={() => open("note", n.id)}><RowIcon kind="note" /><div className="row-grow"><div className="conn-name">{n.title}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={n.id} onClick={() => open("note", n.id)}><RowIcon kind="note" /><div className="row-grow"><div className="conn-name">{n.title}</div><Why why={n.why} /></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -176,7 +189,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="sh2 sh2-quiet"><span className="t">Decisions</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {results.decisions.map((d) => (
-                <div className="row" role="button" tabIndex={0} key={d.id} onClick={() => open("decision", d.id)}><RowIcon kind="decision" /><div className="row-grow"><div className="conn-name">{d.decision}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={d.id} onClick={() => open("decision", d.id)}><RowIcon kind="decision" /><div className="row-grow"><div className="conn-name">{d.decision}</div><Why why={d.why} /></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -188,6 +201,28 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="pad-x"><div className="card list-card-ruled">
               {results.accounts.map((a) => (
                 <div className="row" role="button" tabIndex={0} key={a.id} onClick={() => open("account", a.id)}><RowIcon kind="money" /><div className="row-grow"><div className="conn-name">{a.name}</div></div><div className="chev"></div></div>
+              ))}
+            </div></div>
+          </>
+        )}
+
+        {results && !empty && results.files.length > 0 && (
+          <>
+            <div className="sh2 sh2-quiet"><span className="t">Files</span></div>
+            <div className="pad-x"><div className="card list-card-ruled">
+              {results.files.map((f) => (
+                <div className="row" role="button" tabIndex={0} key={f.id} onClick={() => open("file", f.id)}><RowIcon kind="note" /><div className="row-grow"><div className="conn-name">{f.name}</div></div><div className="chev"></div></div>
+              ))}
+            </div></div>
+          </>
+        )}
+
+        {results && !empty && results.facts.length > 0 && (
+          <>
+            <div className="sh2 sh2-quiet"><span className="t">What JARVIS Knows</span></div>
+            <div className="pad-x"><div className="card list-card-ruled">
+              {results.facts.map((f) => (
+                <div className="row" role="button" tabIndex={0} key={f.id} onClick={() => open("fact", f.id)}><RowIcon kind="insight" /><div className="row-grow"><div className="conn-name">{f.text}</div></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>

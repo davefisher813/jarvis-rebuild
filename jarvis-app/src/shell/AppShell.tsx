@@ -494,6 +494,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         // IS the surface. Everything else opens the exact item.
         if (kind === "account") { accountIntent.fire(id); setActive("money"); }
         else if (kind === "category") { brainIntent.fire(id); setActive("brain"); }
+        // UP-CORE-04 (2026-09-05): a file hit lands where its files live.
+        // FileScope has exactly one value today (files/types.ts: "money"), so
+        // the Money tab IS the file's page; a second scope needs a map here.
+        else if (kind === "file") { setActive("money"); }
         else void navigateToEntity(kind, id);
       }} /></Suspense>}
     </div>

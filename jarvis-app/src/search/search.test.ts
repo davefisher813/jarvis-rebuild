@@ -95,3 +95,49 @@ describe("type-ahead", () => {
     expect(suggest("s", idx)).toEqual([]); // needs 2+ chars
   });
 });
+
+// UP-CORE-04 (2026-09-05): "where did I put the dentist's number" is only
+// answerable if search reads the fields the number was typed into. Each hit
+// says which line matched, so a title that does not contain the query no
+// longer reads as a mistake.
+describe("search reaches inside things", () => {
+  const deep: SearchInput = {
+    ...data,
+    tasks: [{ id: "t2", data: { text: "Sort the appointment", done: false, category: "", steps: [{ text: "call the dentist", done: false }] } }],
+    events: [{ id: "e2", data: { title: "Practice", date: "2026-05-24", start: "17:00", category: "", location: "Rink 2" } }],
+    people: [{ id: "p2", data: { name: "Ada", group: "contacts", phone: "555-0134", notes: "Dentist for the kids", relationship: "Neighbour" } }],
+    projects: [], accounts: [], goals: [], categories: [], notes: [],
+    files: [{ id: "f1", data: { name: "dentist-receipt.pdf", path: "u/f1/x.pdf", mime: "application/pdf", bytes: 100, scope: "money", addedAt: "2026-05-01" } }],
+    strands: [{ id: "s1", data: { text: "Books the dentist in the morning", category: "routine", source: "watched", strength: "influence", status: "active", createdAt: "2026-05-01" } } as never],
+  };
+
+  it("matches a task's steps, an event's location and a person's fields, and says which", () => {
+    const r = runSearch("dentist", deep);
+    expect(r.tasks[0]!.id).toBe("t2");
+    expect(r.tasks[0]!.why).toBe("Steps: call the dentist");
+    expect(r.people[0]!.why).toBe("Notes: Dentist for the kids");
+    expect(r.files[0]!.name).toBe("dentist-receipt.pdf");
+    expect(r.facts[0]!.text).toBe("Books the dentist in the morning");
+    const loc = runSearch("rink", deep);
+    expect(loc.events[0]!.id).toBe("e2");
+    expect(loc.events[0]!.why).toBe("Location: Rink 2");
+    const phone = runSearch("555-0134", deep);
+    expect(phone.people[0]!.why).toBe("Phone: 555-0134");
+  });
+
+  it("says nothing about why when the title itself matched", () => {
+    expect(runSearch("practice", deep).events[0]!.why).toBeUndefined();
+    expect(runSearch("ada", deep).people[0]!.why).toBeUndefined();
+  });
+
+  it("a note hit carries the block line that matched", () => {
+    const withBody: SearchInput = {
+      ...deep,
+      notes: [{
+        id: "n3", ownerId: "u", entityType: "note", serverTime: 0,
+        data: { title: "Kitchen remodel", category: "", connections: [], blocks: [{ id: "b1", type: "text", text: "the dentist called back" }] } as never,
+      }],
+    };
+    expect(runSearch("dentist", withBody).notes[0]!.why).toBe("Note: the dentist called back");
+  });
+});
