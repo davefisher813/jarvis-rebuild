@@ -48,6 +48,17 @@ export function automaticityLine(a: Automaticity): string | null {
   return `${times} · Most people are automatic around ${AUTOMATIC_MEDIAN}`;
 }
 
+// BAN-1 (2026-09-05): the bare count, for surfaces that show the fact
+// without the automaticity framing. Area pages used to render "N in a row ·
+// Best M" off the streak fields; the D1 ruling is a count, never a run, so
+// they render this instead. Same floor as the reminder line: below
+// MIN_TO_SHOW a count is noise, so it says nothing at all.
+export function repetitionsLine(doneCount: number | undefined): string | null {
+  const done = Math.max(0, Math.floor(doneCount ?? 0));
+  if (done < MIN_TO_SHOW) return null;
+  return `Done ${done} times`;
+}
+
 // Counting a repetition. Idempotent per day, because a reminder ticked,
 // unticked and ticked again is one enactment, not three, and a count that can
 // be farmed is a count that means nothing.

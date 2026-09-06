@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { reachOf } from "../bigger/reach";
 import { movesLine } from "../today/goalPulse";
 import { healthOf, measureState } from "../bigger/measure";
+import { repetitionsLine, countEnactment, MIN_TO_SHOW } from "../tasks/automaticity";
 
 // THE LAWS, AS TESTS.
 //
@@ -4091,5 +4092,87 @@ describe("LAW: every notice in Today's stream is keyed", () => {
       if (!/\bkey=/.test(head)) unkeyed.push(`line ${i + 1}`);
     });
     expect(unkeyed).toEqual([]);
+  });
+});
+
+// LAW: A COUNT, NEVER A RUN (D1, approved 2026-08-20; Dave's Sweep ruling of
+// 2026-08-31; BAN-1 and BAN-2, 2026-09-05).
+//
+// "Done 14 times" yes. "12 in a row" and "Best 30" never, anywhere. The
+// reasoning is in tasks/automaticity.ts and it is not aesthetic: a run is the
+// one number in the app that can only be LOST, so it hands loss aversion
+// something to grip and turns a missed Tuesday into a failure rather than a
+// Tuesday. A count has all of the pull and none of the cliff.
+//
+// The rule was already written down twice and shipped broken twice anyway:
+// area pages rendered "N in a row · Best M" off the streak fields, and the
+// Sweep finish screen printed "Best run: N" beside the squares. Both are
+// gone; this is the check that keeps them gone.
+//
+// What this does NOT ban, deliberately: the Back On Track comeback line
+// ("Back on track · 12-day run still counts", tasks/lifecycle.ts and
+// health/healthComeback.ts). That names a run only in the moment it ENDS, to
+// say it still counted, which is the opposite of a scoreboard. Dave approved
+// that copy. Nothing renders a live run any more, which is the thing that
+// was banned.
+describe("LAW: a count, never a run", () => {
+  // Prose the user can read: string and template literals, plus JSX text
+  // nodes. Class lists and storage keys are excluded by shape, because
+  // `sweep-streak-row` is a stylesheet hook and not something anybody reads.
+  const CLASSY = /^[a-z0-9-]+(\s+[a-z0-9-]+)*$/;
+  const stripComments = (src: string) =>
+    src
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .split("\n")
+      .map((l) => l.replace(/^\s*\/\/.*$/, "").replace(/\s\/\/.*$/, ""))
+      .join("\n");
+
+  function copyOf(src: string): string[] {
+    const s = stripComments(src);
+    const out: string[] = [];
+    for (const m of s.matchAll(/"([^"\n]*)"|'([^'\n]*)'|`([^`]*)`/g)) {
+      // An interpolation is an identifier, not something anybody reads:
+      // `${streak.len} days in flow` renders a number and the words after it.
+      const v = (m[1] ?? m[2] ?? m[3] ?? "").replace(/\$\{[^}]*\}/g, " ").trim();
+      if (v && !CLASSY.test(v)) out.push(v);
+    }
+    for (const m of s.matchAll(/>\s*([A-Za-z][^<>{}\n]*?)\s*</g)) out.push(m[1]!);
+    return out;
+  }
+
+  it("the run fields never reach a screen: only the files that maintain them read them", () => {
+    // runLen and bestRun still exist, because the comeback line reads them.
+    // They are data, not display. Anything that renders reads doneCount.
+    // Property access only: health/healthComeback.ts counts a local runLen
+    // over its own logged days and never touches a task's.
+    const allowed = ["tasks/lifecycle.ts", "tasks/TasksService.ts", "notes/types.ts"];
+    const hits = SOURCES
+      .filter((f) => !allowed.includes(rel(f)) && /\.(runLen|bestRun)\b/.test(stripComments(read(f))))
+      .map(rel);
+    expect(hits).toEqual([]);
+  });
+
+  it("the area page's repetition line is the D1 count, and it has a floor", () => {
+    // BAN-1: doneCount, kept idempotent per day by countEnactment, is what
+    // the page reads; below MIN_TO_SHOW it says nothing rather than "done 1
+    // time", which is not information.
+    const page = read(join(SRC, "brain/CategoryDetail.tsx"));
+    expect(page).toContain("repetitionsLine");
+    expect(page).toContain("doneCount");
+    expect(repetitionsLine(0)).toBeNull();
+    expect(repetitionsLine(MIN_TO_SHOW - 1)).toBeNull();
+    expect(repetitionsLine(14)).toBe("Done 14 times");
+  });
+
+  it("a tick counts once a day however many times it is tapped, and Undo takes it back", () => {
+    // The count is only honest if it cannot be farmed and cannot be left
+    // behind by an Undo. Both properties live in countEnactment and in
+    // TasksService.restoreCompletion's field list.
+    expect(countEnactment(4, "2026-09-05", "2026-09-05")).toEqual({ doneCount: 4, lastCounted: "2026-09-05" });
+    expect(countEnactment(4, "2026-09-04", "2026-09-05")).toEqual({ doneCount: 5, lastCounted: "2026-09-05" });
+    const svc = read(join(SRC, "tasks/TasksService.ts"));
+    const restore = svc.slice(svc.indexOf("async restoreCompletion"), svc.indexOf("async restoreCompletion") + 900);
+    expect(restore).toContain("doneCount");
+    expect(restore).toContain("lastCounted");
   });
 });

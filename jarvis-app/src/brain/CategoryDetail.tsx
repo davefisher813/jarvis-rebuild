@@ -17,7 +17,7 @@ import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import { showToast } from "../shared/toast";
 import type { TaskItem } from "../tasks/TasksService";
-import { streakAlive } from "../tasks/lifecycle";
+import { repetitionsLine } from "../tasks/automaticity";
 import { effectiveKind } from "../categories/kinds";
 import { weekReceipt, afterHoursLine, type WeekEvent } from "../categories/receipts";
 import { categoryRecord, type RecordEntry } from "../categories/record";
@@ -611,14 +611,16 @@ export default function CategoryDetail({
   // People-kind page derivations (2026-08-10).
   const bdayById = new Map(upcomingBirthdays(catPeople, today).map((b) => [b.id, b] as const));
   const nowMs = Date.now();
-  // Streaks (2026-08-10): recurring tasks in this category that are actually
-  // running. The data (runLen/bestRun) has been maintained since the ADHD
-  // lifecycle work; the page never showed it. streakAlive is the gate
-  // (2026-08-25): runLen only changes on completion, so without it a run
-  // that ended months ago still displayed as current.
-  const streaks = allTasks
-    .filter((t) => t.data.category === categoryId && t.data.recurrence && (t.data.runLen ?? 0) >= 2 && streakAlive(t.data, today))
-    .sort((a, b) => (b.data.runLen ?? 0) - (a.data.runLen ?? 0))
+  // WHAT KEEPS HAPPENING HERE (2026-08-10, rewritten for BAN-1 2026-09-05).
+  // This shipped as "N in a row · Best M" off runLen/bestRun, which is a run,
+  // and the D1 ruling is a count, never a run: nothing resets, there is no
+  // best to lose, a gap costs one day. It reads doneCount now, which
+  // TasksService.toggleDone keeps the same idempotent-per-day way reminders
+  // have kept theirs since D1. The alive gate went with the run: a count does
+  // not go stale, so a fortnightly task that lapsed still says what it did.
+  const repeats = allTasks
+    .filter((t) => t.data.category === categoryId && t.data.recurrence && repetitionsLine(t.data.doneCount) !== null)
+    .sort((a, b) => (b.data.doneCount ?? 0) - (a.data.doneCount ?? 0))
     .slice(0, 5);
 
   // Training summary (2026-08-25): the health page reads the gym without
@@ -883,15 +885,15 @@ export default function CategoryDetail({
           ) : null}
           more={
             <>
-              {streaks.length > 0 && (
+              {repeats.length > 0 && (
                 <>
-                  <div className="sh2 sh2-quiet"><span className="t">Streaks</span><span className="n">{streaks.length}</span></div>
+                  <div className="sh2 sh2-quiet"><span className="t">Repetitions</span><span className="n">{repeats.length}</span></div>
                   <div className="pad-x"><div className="card list-card-ruled">
-                    {streaks.map((t) => (
+                    {repeats.map((t) => (
                       <div className="task-row p2" key={t.id}>
                         <div className="task-title">
                           <span className="task-name">{t.data.text}</span>
-                          <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(`${t.data.runLen} in a row${(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · Best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · Your best" : ""}`)}</span></div>
+                          <div className="r-k"><span className="r-goal r-cat">{repetitionsLine(t.data.doneCount)}</span></div>
                         </div>
                       </div>
                     ))}
@@ -983,17 +985,18 @@ export default function CategoryDetail({
         </>
       )}
 
-      {streaks.length > 0 && (
+      {repeats.length > 0 && (
         <>
-          {/* What keeps happening here: live streaks on this category's
-              recurring tasks. Scoreboard, not a to-do list. */}
-          <div className="sh2 sh2-quiet"><span className="t">Streaks</span><span className="n">{streaks.length}</span></div>
+          {/* What keeps happening here: how many times this category's
+              recurring work has actually been done. Scoreboard, not a to-do
+              list, and a count rather than a run (BAN-1). */}
+          <div className="sh2 sh2-quiet"><span className="t">Repetitions</span><span className="n">{repeats.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
-            {streaks.map((t) => (
+            {repeats.map((t) => (
               <div className="task-row p2" key={t.id}>
                 <div className="task-title">
                   <span className="task-name">{t.data.text}</span>
-                  <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(`${t.data.runLen} in a row${(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · Best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · Your best" : ""}`)}</span></div>
+                  <div className="r-k"><span className="r-goal r-cat">{repetitionsLine(t.data.doneCount)}</span></div>
                 </div>
               </div>
             ))}

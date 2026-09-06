@@ -122,11 +122,18 @@ export class TasksService {
       let due = t.due || today;
       let guard = 0;
       do { due = nextDue(due, t.recurrence); } while (due <= today && guard++ < 400);
+      // BAN-1 (2026-09-05): the count the area pages render, kept the same
+      // way reminders have kept theirs since D1 (countEnactment, idempotent
+      // per day). It rides alongside the run rather than replacing it: the
+      // comeback line still needs runLen, nothing shows it any more.
+      const counted = countEnactment(t.doneCount, t.lastCounted, today);
       await this.store.update(this.ownerId, id, {
         due,
         lastDone: streak.lastDone,
         runLen: streak.runLen,
         bestRun: streak.bestRun,
+        doneCount: counted.doneCount,
+        lastCounted: counted.lastCounted,
       });
     } else {
       // One-time bills stamp lastDone on completion: it is the "Paid Jul 28"
@@ -156,7 +163,10 @@ export class TasksService {
   // puts back exactly the fields a tick changes, to what the caller read
   // before the tick, and nothing else: the same end state however many times
   // or in whatever order it is tapped. Every completion Undo calls this.
-  async restoreCompletion(id: string, before: Pick<TaskData, "done" | "due" | "lastDone" | "runLen" | "bestRun">): Promise<boolean> {
+  async restoreCompletion(
+    id: string,
+    before: Pick<TaskData, "done" | "due" | "lastDone" | "runLen" | "bestRun" | "doneCount" | "lastCounted">,
+  ): Promise<boolean> {
     const t = await this.getTask(id);
     if (!t) return false;
     await this.store.update(this.ownerId, id, {
@@ -165,6 +175,11 @@ export class TasksService {
       lastDone: before.lastDone ?? null,
       runLen: before.runLen ?? null,
       bestRun: before.bestRun ?? null,
+      // BAN-1 (2026-09-05): the count is one of the fields a tick changes, so
+      // it is one of the fields Undo puts back. Without it an undone tick
+      // still counted, which is exactly the farming countEnactment prevents.
+      doneCount: before.doneCount ?? null,
+      lastCounted: before.lastCounted ?? null,
     });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;

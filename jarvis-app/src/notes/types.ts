@@ -153,6 +153,13 @@ export interface TaskData {
   lastDone?: string; // recurring: last completion date (streaks; bills: paid receipt)
   runLen?: number; // recurring: current run length
   bestRun?: number; // recurring: best run ever (never shrinks)
+  // BAN-1 (2026-09-05): the honest counterpart to the two fields above, the
+  // same pair ReminderInfo has carried since D1. Nothing here ever resets, so
+  // a gap costs one day rather than the whole run, and this is what area
+  // pages render. runLen/bestRun stay because the Back On Track comeback
+  // still reads them; they are simply no longer shown to anyone.
+  doneCount?: number; // recurring: times actually enacted, one per day at most
+  lastCounted?: string; // the day doneCount last moved, so a re-tick cannot farm it
   bill?: BillInfo; // Money v1: this task is a bill (see BillInfo)
   reminder?: ReminderInfo; // this task is a reminder (see ReminderInfo)
   // A1 (2026-08-20): the if-then plan. "If [cue], then I'll [≤5 words]."
