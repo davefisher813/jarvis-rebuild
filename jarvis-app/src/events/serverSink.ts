@@ -61,6 +61,16 @@ const PERSISTED: ReadonlySet<string> = new Set([
   // flag says finished or skipped, and rowFrom already has columns for both.
   "onboarding.step",
   "onboarding.finished",
+  // UP-MIND-05 (2026-09-05): the intake every later detector reads. Safe to
+  // persist for the same reason email.handled was: rowFrom keeps an id, a
+  // day, an hour and a regex-gated kind, and drops every other prop, so no
+  // free text exists on this path to leak.
+  "decision.recorded",
+  "chat.answered",
+  "health.logged",
+  "person.reached",
+  "focus.started",
+  "focus.completed",
 ]);
 
 // Storage seam (same pattern as LocalEventLog) so tests run without a browser.

@@ -1,7 +1,10 @@
 import type { Store, ItemData } from "@core";
 import { ENTITY_PERSON, type Person, type PersonData, type PersonGroup } from "./types";
 
-type Emit = (e: { type: "entity.created" | "entity.updated" | "entity.deleted"; entityType: string; entityId: string }) => void;
+// UP-MIND-05 (2026-09-05): widened so reaching out to someone can be logged
+// as the act it is. entity.updated on a person says a field changed; it
+// cannot say a call was placed.
+type Emit = (e: import("../events").EventInput) => void;
 
 export class PeopleService {
   constructor(private store: Store, private ownerId: string, private onEvent: Emit = () => {}) {}
@@ -71,6 +74,10 @@ export class PeopleService {
     if (!p) return null;
     const prior = p.data.lastCallAttempt;
     await this.update(id, { lastCallAttempt: at });
+    // UP-MIND-05: the person id and the kind, nothing else. Never who they
+    // are, never what was said; the app knows a call was placed and the log
+    // knows exactly that much.
+    this.onEvent({ type: "person.reached", entityType: ENTITY_PERSON, entityId: id, props: { kind: "call" } });
     return { prior };
   }
 

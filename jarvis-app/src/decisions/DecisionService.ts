@@ -1,7 +1,11 @@
 import type { Store, ItemData } from "@core";
 import { ENTITY_DECISION, type DecisionRecord, type DecisionRecordData, type DecisionLinkType } from "./types";
 
-type Emit = (e: { type: "entity.created" | "entity.updated" | "entity.deleted"; entityType: string; entityId: string }) => void;
+// UP-MIND-05 (2026-09-05): widened past the CRUD trio so the service can
+// emit the SEMANTIC act too. A generic entity.created says a row appeared;
+// decision.recorded says a decision was made, which is the fact the Brain
+// needs and the one it could never hear.
+type Emit = (e: import("../events").EventInput) => void;
 
 // Decision Record service. Typed adapter queries per the typed-queries law.
 // Supersede links, never deletes: the old record stays readable with the new
@@ -64,6 +68,15 @@ export class DecisionService {
     };
     const id = await this.store.create(this.ownerId, ENTITY_DECISION, full as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_DECISION, entityId: id });
+    // UP-MIND-05: a supersede reaches here through create() with the back
+    // pointer already set, so the kind is read off the record rather than
+    // from the call site, and both paths log the truth.
+    this.onEvent({
+      type: "decision.recorded",
+      entityType: ENTITY_DECISION,
+      entityId: id,
+      props: { kind: full.supersedesId ? "superseded" : "new" },
+    });
     return id;
   }
 
@@ -133,7 +146,11 @@ export class DecisionService {
 
   // Still Good: stamp the confirmation and close the revisit.
   async confirmRevisit(id: string): Promise<boolean> {
-    return this.update(id, { revisitState: "confirmed", confirmedAt: new Date().toISOString() });
+    const ok = await this.update(id, { revisitState: "confirmed", confirmedAt: new Date().toISOString() });
+    // UP-MIND-05: "still good" is a decision act in its own right, and the
+    // one that says a call held up.
+    if (ok) this.onEvent({ type: "decision.recorded", entityType: ENTITY_DECISION, entityId: id, props: { kind: "confirmed" } });
+    return ok;
   }
 
   // Undo of Still Good: back to pending so it can render once more today.

@@ -32,6 +32,8 @@ import GoogleAutoImport from "../connections/google/AutoImport";
 import TodayOutboxPump from "../messages/TodayOutboxPump";
 import MailOutboxPump from "../messages/MailOutboxPump";
 import MailSnapshotPump from "../messages/MailSnapshotPump";
+import BrainPump from "../brain/BrainPump";
+import { focusStarted } from "../events/focus";
 import AutoReplyPump from "../messages/AutoReplyPump";
 
 // Heavier, less-visited surfaces load on demand so the startup bundle stays
@@ -219,6 +221,11 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       category: pick.task.data.category || undefined,
       sourceTaskId: pick.task.id,
     });
+    // UP-MIND-05 (2026-09-05): focus.started has been reserved in the event
+    // schema since it was written and nothing ever emitted it. This is the
+    // one tap in the app where a focus block truly begins NOW, so it is the
+    // one place the row is true. Only on a block that really got made.
+    if (id) focusStarted(pick.task.id, pick.minutes, "fifteen");
     showToast({
       message: `Fifteen minutes on ${pick.task.data.text}`,
       actionLabel: id ? "Undo" : undefined,
@@ -483,6 +490,11 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         inside the Email tab, which is only mounted when he is. */}
     <AutoReplyPump />
     <MailSnapshotPump />
+    {/* UP-MIND-05 (2026-09-05): the once-a-day consolidation ran from inside
+        TodaySuggestions, so a day that screen never rendered was a day the
+        Brain never reviewed. Keyed on the local day, mounted where the mail
+        pump is, for the same reason. */}
+    <BrainPump dayKey={dayKey} />
     <div className="app-shell">
       <div className="app-scroll">
         {/* key remounts the flow per tab; no transition class: tab switches

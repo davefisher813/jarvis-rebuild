@@ -5,7 +5,7 @@ import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../a
 import { useTasks, useProfile, useBrainDocs, useSchedule, useRoutine, useOptionalStrands } from "../data/NotesProvider";
 import { readWindow, type WindowClient } from "../brain/window";
 import { brainMoments } from "../brain/moments";
-import { consolidate } from "../brain/nightly";
+import { readChosen } from "../brain/nightly";
 import { fadedStrands, daysSince } from "../brain/recall";
 import type { Strand } from "../brain/strands/types";
 import type { Derived } from "../brain/derive";
@@ -112,7 +112,11 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
           // consolidated once per local day and capped at three, instead of
           // whichever single gate happened to trip while this screen was
           // open. See brain/nightly.ts for why holding it steady matters.
-          moments = consolidate(brainMoments(rows, strands), today);
+          // UP-MIND-05 (2026-09-05): READS the day's set, which BrainPump
+          // decided at the local day rollover. It used to decide it here,
+          // which meant a day this screen never rendered was a day the
+          // Brain never reviewed at all.
+          moments = readChosen(brainMoments(rows, strands), today);
           // FADE (handoff 5.8, decision m1): a fact nobody has confirmed in a
           // season asks whether it still holds. Never a silent deletion and
           // never silent staleness, which is why it is a question here rather

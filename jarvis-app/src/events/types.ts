@@ -93,6 +93,24 @@ export type EventType =
   // what they typed: the same rule as every other row in this table.
   | "onboarding.step"
   | "onboarding.finished"
+  // UP-MIND-05 (2026-09-05): THE OTHER MODULES START FEEDING THE LOG.
+  //
+  // Until now the task loop and email were the only things the Brain could
+  // hear. A month of Chat, Decisions, Health, focus blocks and reaching out
+  // to people taught it nothing, because nothing was listening. These are
+  // the semantic acts those modules perform, in the same discipline
+  // email.handled set: a closed `kind` vocabulary, an entity id where there
+  // is one, and NO free text of any sort. Nothing about what was decided,
+  // asked, logged or said can leave the device through this path.
+  //
+  // kind: new | superseded | confirmed
+  | "decision.recorded"
+  // kind: records | ai | action | capture (which of Chat's four lanes answered)
+  | "chat.answered"
+  // kind: the metric key, regex-gated by the sink to [a-z_]{1,24}
+  | "health.logged"
+  // kind: call | message | checkin, entity_id is the person
+  | "person.reached"
   // escape hatch: props.name carries the specific action, no schema bump needed
   | "action";
 

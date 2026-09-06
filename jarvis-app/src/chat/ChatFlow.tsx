@@ -30,6 +30,7 @@ import type { ChatMessage } from "./ChatService";
 import type { ChatProvenance } from "./types";
 import type { EventItem } from "../schedule/types";
 import type { SheetCategory } from "../tasks/screens/TaskSheet";
+import { emit } from "../events";
 
 // Chat (addendum item 23): one box that ANSWERS (deterministic Q&A first,
 // grounded AI second, honest refusal offline), ACTS (command parser under
@@ -165,6 +166,15 @@ export default function ChatFlow({ onOpen }: {
     await reload();
   };
 
+  // UP-MIND-05 (2026-09-05): Chat emitted nothing at all, so the box that
+  // answers, acts and captures taught the Brain nothing about any of it.
+  // WHICH LANE answered is the whole payload: no question, no answer, no
+  // subject. rowFrom drops every prop but this one, so nothing typed into
+  // Chat can leave the device through the log.
+  const logAnswered = (kind: "records" | "ai" | "action" | "capture") => {
+    emit({ type: "chat.answered", props: { kind } });
+  };
+
   const snapshot = async (): Promise<AnswerSnapshot> => {
     const today = todayISO();
     const [evs, tks] = await Promise.all([schedule.listEvents(), tasksSvc.listTasks()]);
@@ -284,6 +294,7 @@ export default function ChatFlow({ onOpen }: {
         if (cmd) {
           const open = (await tasksSvc.listTasks()).filter((t) => !t.data.done).map((t) => ({ id: t.id, text: t.data.text }));
           const res = resolveTarget(open, cmd.query);
+          logAnswered("action");
           if (res.kind === "one") await runCommand(cmd, res.target);
           else if (res.kind === "choose") {
             await say("jarvis", "Which one?", { kind: "records" });
@@ -300,6 +311,7 @@ export default function ChatFlow({ onOpen }: {
           if (ans) {
             // The turn that a follow-up will resolve against next.
             if (!ans.choose) setPrior({ question: asked, ...(ans.provenance.refs ? { refs: ans.provenance.refs } : {}) });
+            logAnswered("records");
             await say("jarvis", ans.text, ans.provenance);
             // UP-MIND-03: more than one person answers to that name. The
             // chips are the same bounded chooser the command path renders.
@@ -324,6 +336,7 @@ export default function ChatFlow({ onOpen }: {
               { kind: "chat", background: false },
             );
             setPrior({ question: asked });
+            logAnswered("ai");
             await say("jarvis", raw.trim(), { kind: "ai" });
           } catch {
             await say("jarvis", "Couldn't reach the AI · Try again", { kind: "records" });
@@ -346,6 +359,7 @@ export default function ChatFlow({ onOpen }: {
           await say("jarvis", refusedFact ? "The Brain is full · Prune it in What JARVIS Knows" : "Nothing to save in that", { kind: "records" });
           return;
         }
+        logAnswered("capture");
         const first = saved[0]!;
         await say(
           "jarvis",

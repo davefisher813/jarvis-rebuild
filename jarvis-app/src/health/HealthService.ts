@@ -67,7 +67,16 @@ export class HealthService {
    *  flushPending without HealthService re-deriving entity types. */
   async saveQueued(entry: PendingHealthLog): Promise<string | null> {
     const id = await this.store.create(this.ownerId, entry.entityType, entry.data as unknown as ItemData);
-    if (id) this.onEvent({ type: "action", props: { name: "health." + entry.entityType }, entityType: entry.entityType, entityId: id });
+    // UP-MIND-05 (2026-09-05): this emitted type "action" with a free-form
+    // name, which serverSink deliberately refuses to persist, so a year of
+    // health logging reached the Brain as nothing at all. health.logged is a
+    // real type whose kind is the entity key itself, already shaped like the
+    // sink's [a-z_]{1,24} gate, and rowFrom drops every other prop: what was
+    // logged never leaves the device, only that something was.
+    if (id) {
+      this.onEvent({ type: "action", props: { name: "health." + entry.entityType }, entityType: entry.entityType, entityId: id });
+      this.onEvent({ type: "health.logged", entityType: entry.entityType, entityId: id, props: { kind: entry.entityType } });
+    }
     return id;
   }
 

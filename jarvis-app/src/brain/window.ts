@@ -70,6 +70,11 @@ const READ_TYPES = [
   // has persisted them just as long -- this list was the one place in
   // between that never named them, so the fold always saw zero rows.
   "suggestion.accepted", "suggestion.dismissed",
+  // UP-MIND-05 (2026-09-05): the new intake. Reading them is what makes the
+  // window worth writing to; a type that is persisted and never read is the
+  // exact hole entity.deleted was found in above.
+  "decision.recorded", "chat.answered", "health.logged", "person.reached",
+  "focus.started", "focus.completed",
 ];
 
 export function windowStartISO(nowMs: number, days = WINDOW_DAYS): string {

@@ -105,3 +105,25 @@ export function consolidate(moments: Derived[], today: string): Derived[] {
   writeConsolidation({ day: today, keys: picked.map((m) => m.derivation) });
   return picked;
 }
+
+
+/**
+ * UP-MIND-05 (2026-09-05): the READ half. consolidate() both decides and
+ * reads, which meant the decision was made by whichever screen happened to
+ * render first, and only if one did: a day the user never opened Today was a
+ * day the Brain never reviewed. BrainPump now makes the decision at the local
+ * day boundary from a component that is always mounted, and the screens read
+ * what it decided through here.
+ *
+ * The fallback is deliberate and narrow: with nothing stored for today (the
+ * pump's window read is async and best-effort, and a first render can beat
+ * it), this decides, exactly as it always did. Better a set decided a second
+ * early than a home page with nothing on it.
+ */
+export function readChosen(moments: Derived[], today: string): Derived[] {
+  const prior = readConsolidation();
+  if (prior?.day !== today) return consolidate(moments, today);
+  return prior.keys
+    .map((k) => moments.find((m) => m.derivation === k))
+    .filter((m): m is Derived => !!m);
+}
