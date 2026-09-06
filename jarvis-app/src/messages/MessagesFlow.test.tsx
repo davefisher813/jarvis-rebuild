@@ -996,6 +996,75 @@ describe("MessagesFlow (threads)", () => {
     expect(screen.queryByText("Inbox Empty")).toBeNull();
   });
 
+  // 2026-09-06, Dave from his phone: "Email has an error". Two accounts
+  // connected, one of them answering 403, and the line under the chips said
+  // "Google refused that · Reconnect in Settings to update permissions" while
+  // naming NEITHER account, so the one thing it asked him to do was the one
+  // thing it would not tell him how to do. EMAIL-F-04 is why he is seeing it
+  // at all: before that, a failing account was caught to [] and read as an
+  // empty inbox, which is the worse bug and is not coming back.
+  //
+  // A failure belongs to the ACCOUNT it happened to, so there is one line per
+  // account and each one names its own. The full address, not acctLabel:
+  // two gmail accounts both shorten to "gmail".
+  const REFUSED = "Google refused that · Reconnect in Settings to update permissions";
+  const EXPIRED = "Your Google sign-in expired · Reconnect in Settings";
+
+  it("one account of two refusing says which one, and does not read as a dead inbox", async () => {
+    const apis: Record<string, GoogleApi> = {
+      "a@x.com": makeApi(),
+      "b@x.com": makeApi({ listThreads: async () => { throw new Error("threads 403"); } }),
+    };
+    render(
+      <NotesProvider userId="two-accounts-one-403">
+        <TwoAccounts apiOf={(e) => apis[e]!}><MessagesFlow ai={noAI} configured /></TwoAccounts>
+      </NotesProvider>,
+    );
+    expect(await screen.findByText("b@x.com · " + REFUSED)).toBeInTheDocument();
+    // The account that answered is not accused of anything, and its mail is
+    // on the screen, so the page is not down and never says it is.
+    expect(screen.queryByText("a@x.com · " + REFUSED)).toBeNull();
+    expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
+    expect(screen.queryByText("Couldn’t Reach Your Mail")).toBeNull();
+  });
+
+  // The other half: two failures is not one account failing, and two causes
+  // are not one sentence. failures[0] spoke for both, so a 401 on one account
+  // and a 403 on the other rendered as whichever lost the race.
+  it("both accounts failing says both, each with its own cause", async () => {
+    const apis: Record<string, GoogleApi> = {
+      "a@x.com": makeApi({ listThreads: async () => { throw new Error("threads 401"); } }),
+      "b@x.com": makeApi({ listThreads: async () => { throw new Error("threads 403"); } }),
+    };
+    render(
+      <NotesProvider userId="two-accounts-both-fail">
+        <TwoAccounts apiOf={(e) => apis[e]!}><MessagesFlow ai={noAI} configured /></TwoAccounts>
+      </NotesProvider>,
+    );
+    expect(await screen.findByText("a@x.com · " + EXPIRED)).toBeInTheDocument();
+    expect(await screen.findByText("b@x.com · " + REFUSED)).toBeInTheDocument();
+    // Nothing answered, so this one IS a page that is down.
+    expect(await screen.findByText("Couldn’t Reach Your Mail")).toBeInTheDocument();
+  });
+
+  // The hole the shape change closes: the total-failure card keyed on
+  // `error`, which any single account failure set, so one refusing account
+  // plus one genuinely empty inbox rendered "Couldn't Reach Your Mail" over
+  // an account that had answered perfectly well.
+  it("one account refusing while the other is empty is still not a dead inbox", async () => {
+    const apis: Record<string, GoogleApi> = {
+      "a@x.com": makeApi({ listThreads: async () => [] }),
+      "b@x.com": makeApi({ listThreads: async () => { throw new Error("threads 403"); } }),
+    };
+    render(
+      <NotesProvider userId="two-accounts-one-empty">
+        <TwoAccounts apiOf={(e) => apis[e]!}><MessagesFlow ai={noAI} configured /></TwoAccounts>
+      </NotesProvider>,
+    );
+    expect(await screen.findByText("b@x.com · " + REFUSED)).toBeInTheDocument();
+    expect(screen.queryByText("Couldn’t Reach Your Mail")).toBeNull();
+  });
+
   // S2-1 (2026-09-04): "A failed send destroys the message." The outbox
   // queue (outbox.ts) is now wired through MessagesFlow. These cover the
   // three things the old bare-setTimeout send could never do: survive a

@@ -546,6 +546,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const pageRef = useRef(MAIL_PAGE);
   const [atEnd, setAtEnd] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // EMAIL (Dave 2026-09-06, from his phone: "Email has an error"). Two
+  // accounts connected, one of them answering 403, and the line under the
+  // chips read "Google refused that · Reconnect in Settings to update
+  // permissions" while naming NEITHER of them. A sentence that sells
+  // reconnecting and will not say what to reconnect is not actionable.
+  //
+  // A load failure belongs to the ACCOUNT it happened to, so the fact is one
+  // per account and so is the line. That also settles the shape question: one
+  // page-level banner cannot be true when one of two inboxes loaded, and two
+  // failures with two different causes cannot be one sentence either.
+  //
+  // `error` stays the page's own error (search, opening a thread, a compose
+  // that would not send). Whether the PAGE is down is `mailDown` below, which
+  // is only true when every connected mail account failed.
+  const [mailFailures, setMailFailures] = useState<{ email: string; why: string }[]>([]);
+  const [mailDown, setMailDown] = useState(false);
   const composeRef = useRef<HTMLTextAreaElement | null>(null);
   const [thread, setThread] = useState<ThreadFull | null>(null);
   // UP-MIND-12: the message an evidence chip sent us to, for one open.
@@ -659,6 +675,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     pageRef.current = want;
     setLoading(true);
     setError(null);
+    setMailFailures([]);
+    setMailDown(false);
     try {
       // One inbox across every account: each thread remembers which account
       // it lives in, and that account is where its reply will leave from.
@@ -673,9 +691,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // is collected; if every account failed, the rows, the triage flag
       // and the snapshot are all left exactly as they were (the last good
       // read) and the failure is said in words a person can act on.
-      const failures: unknown[] = [];
+      const failures: { email: string; error: unknown }[] = [];
       const perAccount = await Promise.all(list.map(async ({ email, api }) => {
-        const metas = await api.listThreads(want).catch((e: unknown) => { failures.push(e); return null; });
+        const metas = await api.listThreads(want).catch((e: unknown) => { failures.push({ email, error: e }); return null; });
         if (!metas) return null;
         return {
           // EMAIL-F-18: Gmail answering with fewer threads than we asked for
@@ -688,7 +706,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             .map((t) => ({ ...t, account: email })),
         };
       }));
-      if (failures.length) setError(humanError(failures[0], "Could not load mail"));
+      // One line per account that failed, each carrying its own cause: an
+      // expired token on one and a refusal on the other are two facts, and
+      // "failures[0]" spoke for both of them.
+      setMailFailures(failures.map((f) => ({ email: f.email, why: humanError(f.error, "Could not load mail") })));
+      // The page is down only when nothing answered. With one of two working,
+      // his other inbox is on the screen and the screen must not read as a
+      // total failure -- which it did whenever the working account happened
+      // to be empty, because the empty-with-an-error card keyed on `error`.
+      setMailDown(failures.length === list.length);
       if (failures.length === list.length) return;
       const good = perAccount.filter((p): p is { all: boolean; rows: (ThreadRow & { account: string })[] } => p !== null);
       const mapped = good.flatMap((p) => p.rows).sort((a, b) => b.dateMs - a.dateMs);
@@ -2878,7 +2904,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               on a failed load it does not pretend the silence is peace. */}
           <div className="mail-door-peek">
             {rows.length === 0 && loading ? "Seeing who wrote…"
-              : rows.length === 0 && error ? "Couldn't check the inbox"
+              : rows.length === 0 && (error || mailDown) ? "Couldn't check the inbox"
               : peekLine(rows, effTriage, vips)}
           </div>
           <div className="mail-door-acts">
@@ -3672,6 +3698,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         </button>
       </div>
       {error && <div className="pad-x conn-error">{error}</div>}
+      {/* One line per account that could not be read, each naming the account
+          it is about. The full address, not acctLabel: two gmail accounts
+          both shorten to "gmail", which is the ambiguity this is here to end.
+          Named only when there is more than one account to tell apart, the
+          same condition every other account label on this screen uses. */}
+      {mailFailures.map((f) => (
+        <div className="pad-x conn-error" key={f.email}>
+          {g.accounts.length > 1 ? f.email + " · " + f.why : f.why}
+        </div>
+      ))}
       {searching && <div className="pad-x conn-status">Searching everything...</div>}
       {/* E13: the sort renders the first batch and keeps working, so the list
           below is real but incomplete. Saying so is the difference between
@@ -3713,12 +3749,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         )
       ) : loading && rows.length === 0 ? (
         <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">Loading...</div></div></div></div>
-      ) : error && rows.length === 0 && results === null ? (
+      ) : (error || mailDown) && rows.length === 0 && results === null ? (
         // EMAIL-F-04 (2026-09-05): a load that FAILED with nothing in hand is
         // an error state, never "Inbox Is Quiet" or "Inbox Empty" (For You
         // would otherwise sit on "Reading Your Inbox" for good, since a
         // failed fetch never starts a sort). The sentence itself is the
         // conn-error line above this; the card carries the way back.
+        // 2026-09-06: `mailDown`, not any mail failure. One of two accounts
+        // refusing is not "couldn't reach your mail", and this card used to
+        // claim it was whenever the account that DID answer was empty.
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><Mail className="ic" /></div>
           <div className="empty-title">Couldn’t Reach Your Mail</div>
