@@ -1621,20 +1621,45 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // template. The law that pins that shape is further down this file.)
   };
 
+  // Who mentions which module, built in ONE pass over every file rather than
+  // one regex per module against every file.
+  //
+  // UP-LAUNCH-23 (2026-09-05): the old shape was 400 modules times 400 files
+  // of regex over whole file bodies, which took a shade under five seconds
+  // and then, when this session added a dozen modules, a shade over: the law
+  // started failing intermittently on a TIMEOUT rather than on a finding,
+  // which is the worst way for a law to fail. Same rule, same crudeness
+  // (specifiers by their last path segment, no resolver), same answer, in one
+  // pass. The map is stem -> the files that name it, so "reachable" can still
+  // exclude a module's mention of itself.
+  function referenceIndex(files: string[]): Map<string, Set<string>> {
+    const byStem = new Map<string, Set<string>>();
+    for (const f of files) {
+      for (const m of read(f).matchAll(/["']([^"'\n]*[./][A-Za-z0-9_$.-]+)["']/g)) {
+        const spec = m[1]!;
+        const stem = spec.slice(Math.max(spec.lastIndexOf("/"), spec.lastIndexOf(".")) + 1);
+        if (!stem) continue;
+        const set = byStem.get(stem) ?? new Set<string>();
+        set.add(f);
+        byStem.set(stem, set);
+      }
+    }
+    return byStem;
+  }
+
   it("nothing is written, tested, and silently unreachable", () => {
     const files: string[] = [];
     for (const r of ROOTS) { try { walk(r, files); } catch { /* api/ may not exist */ } }
     const code = files.filter((f) => /\.(ts|tsx)$/.test(f) && !isTest(f) && !/\.d\.ts$/.test(f));
-    const text = files
-      .filter((f) => /\.(ts|tsx)$/.test(f) && !isTest(f))
-      .map((f) => ({ f, t: read(f) }));
+    const byStem = referenceIndex(files.filter((f) => /\.(ts|tsx)$/.test(f) && !isTest(f)));
 
     const orphans: string[] = [];
     for (const m of code) {
       const stem = m.replace(/^.*\//, "").replace(/\.(ts|tsx)$/, "");
       if (NOT_APP.includes(stem + (m.endsWith(".tsx") ? ".tsx" : ".ts"))) continue;
-      const re = new RegExp('["\'][^"\']*[./]' + stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + '["\']');
-      if (text.some((s) => s.f !== m && re.test(s.t))) continue;
+      const named = byStem.get(stem);
+      // Its own mention of itself does not count as somebody importing it.
+      if (named && [...named].some((f) => f !== m)) continue;
       const base = stem + (m.endsWith(".tsx") ? ".tsx" : ".ts");
       if (base in UNWIRED) continue;
       orphans.push(base);
