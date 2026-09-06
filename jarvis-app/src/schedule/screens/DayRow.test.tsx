@@ -241,3 +241,39 @@ describe("BROWSER-F-17: the time editor hangs under the row, not over it", () =>
     expect(container.querySelector(".time-pop-durs")).toBeInTheDocument();
   });
 });
+
+// UP-CORE-05 (2026-09-05): an event that the app created, or that re-flow
+// moved today, says so on its own row. Auto-created events have carried a
+// source since item 8 and no row ever rendered it.
+describe("provenance on an event row", () => {
+  it("renders the source line, and a move made today outranks it", () => {
+    const madeAt = Date.now();
+    const { rerender } = render(
+      <DayRow e={ev({ source: { type: "paste", ts: madeAt } })} conflict={false} isNext={false} isPast={false} now={null} />,
+    );
+    expect(screen.getByText(/From Smart Paste/)).toBeInTheDocument();
+    rerender(
+      <DayRow e={ev({ source: { type: "paste", ts: madeAt }, moved: { type: "reflow", ts: madeAt } })} conflict={false} isNext={false} isPast={false} now={null} />,
+    );
+    expect(screen.getByText(/Moved by re-flow/)).toBeInTheDocument();
+    expect(screen.queryByText(/From Smart Paste/)).toBeNull();
+  });
+
+  it("says nothing for an event a person made", () => {
+    render(<DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} />);
+    expect(document.querySelector(".prov-line")).toBeNull();
+  });
+
+  it("opens the source when the flow has a route to it", () => {
+    const onOpen = vi.fn();
+    render(
+      <DayRow
+        e={ev({ source: { type: "note", ref: "n1", ts: Date.now() } })}
+        conflict={false} isNext={false} isPast={false} now={null}
+        openSourceFor={() => onOpen}
+      />,
+    );
+    fireEvent.click(screen.getByText(/From a note/));
+    expect(onOpen).toHaveBeenCalled();
+  });
+});

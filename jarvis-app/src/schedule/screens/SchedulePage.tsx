@@ -18,6 +18,7 @@ import ProposedRow from "./ProposedRow";
 import type { TaskItem } from "../../tasks/TasksService";
 import type { ParentLine } from "../../life/parent";
 import type { AttachInfo } from "../attachments";
+import type { Source } from "../../shared/provenance";
 import { dropInto } from "../dayEdit";
 
 // A dropped task gets an hour, the same hour the tap-to-fill path gives it.
@@ -87,7 +88,7 @@ export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts, gymDoorFor,
   mode = "month", onMode, weekCells = [], weekRows = [], loading, loadFailed, onRetryLoad, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay,
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
-  locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
+  locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate, openSourceFor,
   onShiftBlock, onRetimeBlock, onResizeBlock,
   proposed, dayFooter,
   anytimeItems = [], onToggleTask, onScheduleTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
@@ -150,6 +151,8 @@ export default function SchedulePage({
   onShift?: (id: string, mins: number) => void;
   onMoveTo?: (id: string, start: string) => void;
   onSetEnd?: (id: string, end: string) => void;
+  // UP-CORE-05 (2026-09-05): handed down to every row's provenance line.
+  openSourceFor?: (source: Source) => (() => void) | undefined;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
   onRunningLate?: (mins: number) => void;
@@ -807,6 +810,7 @@ export default function SchedulePage({
                   onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.e.id) : undefined}
                   gymDoor={gymDoorFor?.(en.e) ?? null}
                   weatherDateIso={weatherDateIso}
+                  openSourceFor={openSourceFor}
                 />
                 {/* The blend offer. It sits UNDER the block it belongs to,
                     because that is the sentence it is making: this task goes

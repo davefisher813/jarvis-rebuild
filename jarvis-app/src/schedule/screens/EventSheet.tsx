@@ -10,6 +10,8 @@ import { DUR_CHOICES, durLabel } from "../durations";
 import { catColor } from "../../shared/categories";
 import { untilError } from "../repeats";
 import SheetBar from "../../shared/SheetBar";
+import Provenance from "../../shared/Provenance";
+import type { Source } from "../../shared/provenance";
 import HeadMenu from "../../shared/HeadMenu";
 import { Tile } from "../../shared/FormSheet";
 import { Calendar, Tag, Hourglass, Shuffle, Plus } from "../../shared/icons";
@@ -75,6 +77,8 @@ export default function EventSheet({
   attachTasks,
   onToggleTask,
   onBlend,
+  source,
+  openSourceFor,
 }: {
   mode: "new" | "edit";
   initial?: Partial<EventDraft>;
@@ -98,6 +102,11 @@ export default function EventSheet({
   // Every blend he actually makes is a vote that this category belongs in
   // this kind of block. The caller persists the vote.
   onBlend?: (kind: ReturnType<typeof blockKind>, categoryId: string) => void;
+  // UP-CORE-05 (2026-09-05): where this event came from, when the app made
+  // it. A fact line only, never editable (editing coverage map, refusals),
+  // and a button when the flow has a route to the source.
+  source?: Source;
+  openSourceFor?: (source: Source) => (() => void) | undefined;
 }) {
   const [taskIds, setTaskIds] = useState<string[]>(initial?.taskIds ?? []);
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -209,6 +218,7 @@ export default function EventSheet({
         <div className="sheet-handle" />
         <SheetBar title={mode === "new" ? "New Event" : "Edit Event"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"} />
         <div className="sheet-form">
+          <Provenance source={source} {...(source && openSourceFor ? { onOpen: openSourceFor(source) } : {})} />
           <div className="grp xs-grp"><div className="eyebrow">Event</div></div>
           <div className="pad-x"><div className="card xs-group">
             <div className="row xs-row">

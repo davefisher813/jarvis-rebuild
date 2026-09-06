@@ -332,3 +332,17 @@ describe("how long this one takes (UP-CORE-02)", () => {
     expect((await svc.task(back))?.estimateMin).toBe(120);
   });
 });
+
+// UP-CORE-05 (2026-09-05): a task that moved on its own says who moved it.
+// Auto-Sweep pulls overdue work to today at first open; the row carrying
+// "Moved by Auto-Sweep" for the day is what keeps that from being a mystery.
+describe("the automated move says so (UP-CORE-05)", () => {
+  it("Auto-Sweep stamps the move, and the next move he makes himself clears it", async () => {
+    const svc = new TasksService(new Store(new InMemoryAdapter()), "u-moved");
+    const id = (await svc.createTask("Email Sam", { due: "2026-09-01" }))!;
+    await svc.setDue(id, "2026-09-05", "sweep");
+    expect((await svc.task(id))?.moved?.type).toBe("sweep");
+    await svc.setDue(id, "2026-09-08");
+    expect((await svc.task(id))?.moved ?? null).toBeNull();
+  });
+});

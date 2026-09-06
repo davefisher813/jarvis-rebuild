@@ -1474,7 +1474,9 @@ export default function TodayFlow({
     if (res.moves.length === 0 && res.overflow.length === 0) return;
     const ok = await attemptWrite(async () => {
       for (const m of res.moves) {
-        await schedule.editTime(m.eventId, m.start);
+        // UP-CORE-05 (2026-09-05): the block says re-flow moved it, for the
+        // day, so a plan block that is not where he left it explains itself.
+        await schedule.editTime(m.eventId, m.start, "reflow");
         await schedule.editEnd(m.eventId, m.end);
       }
     });

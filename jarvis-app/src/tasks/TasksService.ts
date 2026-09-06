@@ -7,6 +7,7 @@ import { nextStreak } from "./lifecycle";
 import { recordCompletion } from "../shared/timeSense";
 import { countEnactment } from "./automaticity";
 import { isUsable, type IfThen } from "./ifThen";
+import { madeBy } from "../shared/provenance";
 
 export interface TaskItem {
   id: string;
@@ -316,12 +317,18 @@ export class TasksService {
     return this.patchReminder(id, patch);
   }
 
-  async setDue(id: string, due: string | null): Promise<boolean> {
+  // UP-CORE-05 (2026-09-05): movedBy is set ONLY by an automated move
+  // (Auto-Sweep today, re-flow when a task-level re-flow exists). Every other
+  // caller is a person moving their own task, and that write clears the
+  // stamp, which is what "cleared on the next user edit" means: the date is
+  // his again, so the line about a machine touching it is no longer true.
+  async setDue(id: string, due: string | null, movedBy?: "sweep" | "reflow"): Promise<boolean> {
     const t = await this.getTask(id);
     if (!t) return false;
     // Pushing a due date later counts as a slip (First Step watches for 3).
     const slipped = !!t.due && !!due && due > t.due;
-    await this.store.update(this.ownerId, id, slipped ? { due, slips: (t.slips ?? 0) + 1 } : { due });
+    const moved = movedBy ? madeBy(movedBy) : null;
+    await this.store.update(this.ownerId, id, (slipped ? { due, slips: (t.slips ?? 0) + 1, moved } : { due, moved }) as unknown as ItemData);
     // Semantic event: slips-by-category is a Brain launch derivation.
     if (slipped) this.onEvent({ type: "task.pushed", entityType: ENTITY_TASK, entityId: id, props: { category: t.category ?? "" } });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });

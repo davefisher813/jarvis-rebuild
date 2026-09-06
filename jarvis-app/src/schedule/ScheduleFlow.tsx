@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { sourceOpener } from "../shared/openSource";
+import { rowSource } from "../shared/provenance";
 import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands, useOptionalRules, useOptionalGym } from "../data/NotesProvider";
 import GymFlow, { readActiveProgramId } from "../gym/GymFlow";
 import { doorInfoFor } from "../gym/door";
@@ -59,9 +61,12 @@ import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEvent
 // carries which day was tapped. Without it "This Event" split the day that
 // happened to be selected while the sheet showed, and saved to, the series
 // anchor.
-type SheetState = { mode: "new" } | { mode: "edit"; id: string; occurrence: string; initial: EventDraft } | null;
+type SheetState = { mode: "new" } | { mode: "edit"; id: string; occurrence: string; initial: EventDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?: (blockId?: string) => void; openId?: string } = {}) {
+export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { onEditRoutine?: (blockId?: string) => void; openId?: string; onNavigate?: (kind: string, id: string) => void } = {}) {
+  // UP-CORE-05 (2026-09-05): one map from a provenance stamp to a route,
+  // shared with every other surface that shows the line (shared/openSource).
+  const openSourceFor = useMemo(() => (onNavigate ? sourceOpener(onNavigate) : undefined), [onNavigate]);
   const svc = useSchedule();
   const rulesSvc = useOptionalRules();
   // The chosen day cap (monthly report's one change): seeds the sheet.
@@ -463,7 +468,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     // B1-2 (2026-09-04): "until" has to travel into the sheet too, or the
     // sheet's own default of "" reads as "forever" and onSave below writes
     // that back, silently erasing a real end date on any unrelated edit.
-    setSheet({ mode: "edit", id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
   };
 
   // When arriving via a note connection, jump to the event's own date and open
@@ -480,7 +485,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       const occurrence = repeating ? nextOccurrence(e, todayISO()) ?? e.date : e.date;
       setSelected(occurrence);
       syncView(occurrence);
-      setSheet({ mode: "edit", id: openId, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
     })();
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1219,6 +1224,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   return (
     <>
       <SchedulePage
+        openSourceFor={openSourceFor}
         proposed={standingProposal}
         dayFooter={proposalFooter}
         year={view.y}
@@ -1380,6 +1386,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           attachTasks={attachableTasks}
           onToggleTask={onToggleAttached}
           onBlend={(kind, categoryId) => recordBlend(kind, categoryId)}
+          source={sheet.mode === "edit" ? sheet.source : undefined}
+          openSourceFor={openSourceFor}
         />
       )}
       {blockSheet && (

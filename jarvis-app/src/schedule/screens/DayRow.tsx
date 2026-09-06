@@ -8,6 +8,8 @@ import { attachLabel } from "../attachments";
 import { DUR_CHOICES, durLabel, minutesBetween, endFor } from "../durations";
 import { Check as CheckGlyph } from "../../shared/icons";
 import { EventWeatherLine } from "../../weather/WeatherLine";
+import Provenance from "../../shared/Provenance";
+import { rowSource, type Source } from "../../shared/provenance";
 
 // One event row on the Schedule day list. Same anatomy as before, plus the
 // roadmap-v2 basics: swipe left reveals Push 15 / Tomorrow (recurring events
@@ -55,6 +57,7 @@ export default function DayRow({
   weatherDateIso,
   gymDoor,
   firstMove,
+  openSourceFor,
 }: {
   e: EventItem;
   conflict: boolean;
@@ -72,6 +75,9 @@ export default function DayRow({
   onPushTomorrow?: () => void;
   // B3/B5 (2026-08-23): change how LONG this is, without the full editor.
   onSetEnd?: (end: string) => void;
+  // UP-CORE-05 (2026-09-05): the way to open this event's source, when the
+  // flow has one. Undefined leaves the provenance line a plain fact.
+  openSourceFor?: (source: Source) => (() => void) | undefined;
   // Select mode (2026-08-24, bulk delete). The row picks instead of opening,
   // and every control inside it stands down: a half-swiped row under a
   // selection is two gestures fighting, and a time picker opening from a row
@@ -130,6 +136,9 @@ export default function DayRow({
     if (offBottom && roomAbove) setPopUp(true);
   }, [picking]);
   const mins = e.data.end ? minutesBetween(e.data.start, e.data.end) : null;
+  // A re-flow that happened today outranks where the block came from; an
+  // older move is history nobody is looking for (rowSource).
+  const prov = rowSource(e.data.source, e.data.moved);
 
   return (
     <div className="sched-swipe-wrap">
@@ -286,6 +295,11 @@ export default function DayRow({
               </>
             )}
           </div>
+          {/* UP-CORE-05 (2026-09-05): where this block came from, or that
+              re-flow moved it today. Auto-created events have carried a
+              source since item 8 and no row ever showed it, so a block that
+              appeared from a paste or jumped an hour explained nothing. */}
+          <Provenance source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
           {attach && (
             <div className="sched-cat">
               <svg className="ic clip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>

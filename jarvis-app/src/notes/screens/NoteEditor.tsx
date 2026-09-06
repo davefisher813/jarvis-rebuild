@@ -4,6 +4,8 @@ import { wrapRange, countWords } from "../richtext";
 import { catColor } from "../../shared/categories";
 import { Burst } from "../../shared/Burst";
 import InlineEdit from "../../shared/InlineEdit";
+import Provenance from "../../shared/Provenance";
+import type { Source } from "../../shared/provenance";
 import { connIcon, type Conn } from "./Connections";
 
 // Editorial layout is a way of writing, not a property of one note, so the
@@ -36,6 +38,9 @@ export interface EditorNote {
   eyebrow: string;
   title: string;
   blocks: EditorBlock[];
+  // UP-CORE-05 (2026-09-05): where this note came from, when the app made
+  // it rather than a person.
+  source?: Source;
 }
 
 // COMMAND DECK's card-per-section grouping (Dave 2026-08-28: "the non
@@ -482,9 +487,13 @@ export default function NoteEditor({
   onRemoveConnection,
   onOpenConnection,
   onOpenTask,
+  openSourceFor,
   fileStore = null,
 }: {
   note: EditorNote;
+  // UP-CORE-05: the way to open this note's source, or undefined when the
+  // flow has no route to it, in which case the line stays a plain fact.
+  openSourceFor?: (source: Source) => (() => void) | undefined;
   // Where a photo or file block's bytes live, for showing and opening them.
   fileStore?: FileStore | null;
   onBack?: () => void;
@@ -679,6 +688,10 @@ export default function NoteEditor({
           {note.eyebrow && <span className={"eyebrow cat-fg-" + catColor(note.category)}>{note.eyebrow}</span>}
         </div>
         <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Untitled" onSave={onEditTitle} />
+        {/* UP-CORE-05 (2026-09-05): a note the app made says where it came
+            from, in the same one grey line auto-created tasks have carried
+            since item 8, and opens the source when the flow has a route. */}
+        <Provenance source={note.source} {...(note.source && openSourceFor ? { onOpen: openSourceFor(note.source) } : {})} />
 
         {/* One tap to link, one tap to unlink, right where you're already
             looking -- no trip to the Connections screen for the common

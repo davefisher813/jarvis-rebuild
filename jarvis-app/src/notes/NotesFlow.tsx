@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { sourceOpener } from "../shared/openSource";
 import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople, useOptionalProfile, useFileStore } from "../data/NotesProvider";
 import { catName } from "../shared/categories";
 import type { Category } from "../categories/types";
@@ -67,6 +68,7 @@ function toEditorNote(data: NoteData): EditorNote {
     eyebrow: catName(data.category).toUpperCase(),
     title: data.title,
     blocks,
+    ...(data.source ? { source: data.source } : {}),
   };
 }
 
@@ -132,6 +134,9 @@ export default function NotesFlow({
   const [screen, setScreen] = useState<Screen>("list");
   const [list, setList] = useState<NoteListItem[]>([]);
   const [current, setCurrent] = useState<EditorNote | null>(null);
+  // UP-CORE-05 (2026-09-05): the one map from a provenance stamp to a route,
+  // shared with the Schedule tab (shared/openSource).
+  const openSourceFor = useMemo(() => (onNavigate ? sourceOpener(onNavigate) : undefined), [onNavigate]);
   const [currentId, setCurrentId] = useState<string | null>(null);
   // Canvas typing flow: which block should hold the caret after a mutation.
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
@@ -983,6 +988,7 @@ export default function NotesFlow({
           })}
           onOpenConnection={(kind, targetId) => onNavigate?.(kind, targetId)}
           onOpenTask={onNavigate ? (taskId) => onNavigate("task", taskId) : undefined}
+          openSourceFor={openSourceFor}
         />
       )}
       {addBlockOpen && (

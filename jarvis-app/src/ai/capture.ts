@@ -158,7 +158,9 @@ export async function applyCapture(
   if (r.kind === "event") {
     id = await svc.schedule.createEvent(r.title, { date: r.date ?? today, start: r.start ?? "09:00", category: catId, source });
   } else if (r.kind === "note") {
-    id = await svc.notes.createNote(r.title, catId ?? "");
+    // UP-CORE-05 (2026-09-05): a captured note carries the same provenance
+    // stamp a captured task and event have carried since item 8.
+    id = await svc.notes.createNote(r.title, catId ?? "", [], source);
     // A paste-born note keeps the copied text VERBATIM as its body (Smart
     // Paste law: copied text is never rewritten).
     if (id && r.notes) await svc.notes.addBlock(id, { type: "text", text: r.notes });

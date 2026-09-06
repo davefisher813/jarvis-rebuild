@@ -4,6 +4,7 @@ import { ENTITY_EVENT, type EventData, type EventItem, type EventRecurrence } fr
 import { eventsForDate, dotsForMonth } from "./calendar";
 import { planDuplicateIds, supersededPlanEventIds } from "./planDedupe";
 import { recordPicks } from "../events/planOutcome";
+import { madeBy } from "../shared/provenance";
 
 // The Schedule feature, backed by the engine Store. Each event is a Store item
 // of entity type "event". onEvent feeds the gaming event bus (no-op in tests).
@@ -92,8 +93,11 @@ export class ScheduleService {
     if (!title || !title.trim()) return Promise.resolve(false);
     return this.patch(id, { title: title.trim() });
   }
-  editTime(id: string, start: string): Promise<boolean> {
-    return this.patch(id, { start });
+  // UP-CORE-05 (2026-09-05): movedBy is set only by re-flow, the one thing
+  // that re-times a block without being asked. A person dragging their own
+  // event through this same door clears the stamp.
+  editTime(id: string, start: string, movedBy?: "reflow"): Promise<boolean> {
+    return this.patch(id, { start, moved: movedBy ? madeBy(movedBy) : undefined });
   }
   editEnd(id: string, end: string): Promise<boolean> {
     return this.patch(id, { end: end || undefined });

@@ -1,6 +1,6 @@
 import type { Store, ItemData } from "@core";
 import type { EventInput } from "../events";
-import { madeBy } from "../shared/provenance";
+import { madeBy, type Source } from "../shared/provenance";
 import { shortDateFromMs } from "../shared/dateFormat";
 import {
   ENTITY_NOTE,
@@ -48,9 +48,12 @@ export class NotesService {
   // the link picker afterwards is how the link never gets made. The reverse
   // lookup (notesLinkedTo) has existed since Session 6 and had nothing
   // feeding it except manual linking.
-  async createNote(title: string, category: string, connections: Connection[] = []): Promise<string | null> {
+  // UP-CORE-05 (2026-09-05): `source` is the provenance stamp for a note the
+  // app made on its own (a capture, a paste, a file). Absent for the ones a
+  // person typed, which is what keeps the line meaningful when it appears.
+  async createNote(title: string, category: string, connections: Connection[] = [], source?: Source): Promise<string | null> {
     if (!title || !String(title).trim()) return null;
-    const data: NoteData = { title, category, blocks: [], connections };
+    const data: NoteData = { title, category, blocks: [], connections, ...(source ? { source } : {}) };
     const id = await this.store.create(this.ownerId, ENTITY_NOTE, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_NOTE, entityId: id });
     return id;

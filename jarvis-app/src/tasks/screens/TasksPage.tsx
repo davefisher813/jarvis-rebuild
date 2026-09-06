@@ -14,7 +14,7 @@ import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory, SheetProject } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
 import Provenance from "../../shared/Provenance";
-import type { Source } from "../../shared/provenance";
+import { rowSource, type Source } from "../../shared/provenance";
 import { capAfterNumber } from "../../shared/casing";
 import { cueLine } from "../ifThen";
 import { durLabel } from "../../schedule/durations";
@@ -179,6 +179,7 @@ export function TaskRow({
 }) {
   const t = item.data;
   const u = urgencyFor(t, today);
+  const prov = rowSource(t.source, t.moved);
   // The distance chip: TODAY, 2 DAYS LATE, 3 WEEKS LATE, OVER A MONTH.
   // Same ladder as Today's dealt row (distanceFor). Muted on the Today
   // filter, where every row would say the same word.
@@ -339,7 +340,11 @@ export function TaskRow({
               back a handler only for a source this flow can actually reach,
               so a line that cannot be opened stays a plain fact instead of
               becoming a button that does nothing. */}
-          <Provenance source={t.source} {...(t.source && openSourceFor ? { onOpen: openSourceFor(t.source) } : {})} />
+          {/* UP-CORE-05 (2026-09-05): a task Auto-Sweep pulled to today says
+              so, for the day, above where it came from. A date that changed
+              overnight with nothing explaining it is the "did I do that?"
+              moment this line exists to end (rowSource picks which fact). */}
+          <Provenance source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
         </div>
         {/* The urgency label steps aside for Start, exactly as it does on
             Today: knowing a thing is due is worth less than a way to begin

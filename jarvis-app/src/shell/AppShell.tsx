@@ -162,6 +162,13 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       brainIntent.fire("knows");
       setActive("brain");
     }
+    // UP-CORE-05 (2026-09-05): the two routes a provenance line needs and
+    // navigateToEntity did not have. An email source opens the thread it
+    // names; a file source lands where its files live (FileScope has exactly
+    // one value today, files/types.ts: "money", so the Money tab IS the
+    // file's page, and a second scope needs a map here).
+    else if (kind === "email") { mailIntent.fire(targetId); setActive("messages"); }
+    else if (kind === "file") { setActive("money"); }
     else if (kind === "person") {
       const p = await people.get(targetId);
       if (!p) return; // deleted person: the link goes nowhere, quietly
@@ -418,7 +425,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             the new day instead of yesterday's. See shell/useDayKey.ts. */}
         {active === "today" && <TodayFlow key={dayKey} onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { goLife("tasks"); taskFilterIntent.fire("all"); }} onGoTasksOverdue={() => { goLife("tasks"); taskFilterIntent.fire("overdue"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); }} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }} onGoBigger={(goalId?: string) => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); }} />}
         {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => { mailIntent.fire(threadId); setActive("messages"); }} />}
-        {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} />}
+        {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} onNavigate={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent.value} openNonce={noteIntent.nonce} onOpenConsumed={noteIntent.clear} />}
 
@@ -494,10 +501,6 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         // IS the surface. Everything else opens the exact item.
         if (kind === "account") { accountIntent.fire(id); setActive("money"); }
         else if (kind === "category") { brainIntent.fire(id); setActive("brain"); }
-        // UP-CORE-04 (2026-09-05): a file hit lands where its files live.
-        // FileScope has exactly one value today (files/types.ts: "money"), so
-        // the Money tab IS the file's page; a second scope needs a map here.
-        else if (kind === "file") { setActive("money"); }
         else void navigateToEntity(kind, id);
       }} /></Suspense>}
     </div>

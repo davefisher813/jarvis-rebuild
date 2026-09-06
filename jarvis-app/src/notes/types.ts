@@ -63,6 +63,11 @@ export interface NoteData {
   category: string;
   blocks: Block[];
   connections: Connection[];
+  // UP-CORE-05 (2026-09-05): provenance on notes too. A note born from a
+  // paste, a capture or a file said nothing about where it came from, while
+  // the identical line has been under auto-created tasks since item 8.
+  // Absent on hand-made notes, which is most of them.
+  source?: import("../shared/provenance").Source;
 }
 
 export type Recurrence = "daily" | "weekly" | "monthly" | "weekdays";
@@ -180,6 +185,13 @@ export interface TaskData {
   // set, and its absence leaves the learned median exactly as it was
   // (schedule/useTaskEstimate.ts). Optional and additive, no migration.
   estimateMin?: number;
+  // UP-CORE-05 (2026-09-05): WHO MOVED THIS, TODAY. Auto-Sweep pulls overdue
+  // work to today and re-flow re-times slipped blocks, both silently, and a
+  // task whose date jumped overnight with nothing saying why is the exact
+  // "did I do that?" moment provenance exists to end. Written only by an
+  // automated move (TasksService.setDue's movedBy), and cleared by the next
+  // move he makes himself, because from then on the date is his.
+  moved?: import("../shared/provenance").Source;
 }
 
 export type TemplateKey =

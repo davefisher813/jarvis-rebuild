@@ -8,7 +8,7 @@ import { useProjects, useGoals } from "../data/NotesProvider";
 import type { Goal } from "../life/types";
 import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
-import type { Source } from "../shared/provenance";
+import { rowSource, type Source } from "../shared/provenance";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import type { Project } from "../projects/types";
 import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
@@ -410,7 +410,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     // plan rides into the sheet (2026-08-25): without it the sheet's fields
     // start empty, save() sees an untouched plan, and setPlan(id, null) below
     // silently erased the task's if-then on EVERY edit.
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin }, source: t.source });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin }, source: rowSource(t.source, t.moved) });
   };
 
   // When arriving via a note connection, open that task. SHELL-F-12: on the

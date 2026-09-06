@@ -44,6 +44,11 @@ export interface EventData {
   // Provenance (addendum item 8): set on every AUTO-created event, absent on
   // hand-made ones. Lives in JSONB, no migration needed.
   source?: import("../shared/provenance").Source;
+  // UP-CORE-05 (2026-09-05): the automated move, when there was one today.
+  // Re-flow re-times a slipped plan block without asking; the row says so
+  // for the day rather than leaving him to wonder why 2 PM says 4 PM now.
+  // Cleared by the next time he moves it himself (ScheduleService.editTime).
+  moved?: import("../shared/provenance").Source;
   // THE TRAINING DOOR, D4-C (Training Catalog V2, approved 2026-08-31).
   // Dave: "Right now I have a daily block for the gym. It should have the
   // option to insert the lift for the day." Marked by the athlete's own hand

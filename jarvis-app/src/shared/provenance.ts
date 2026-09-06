@@ -66,6 +66,17 @@ function sameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+// UP-CORE-05 (2026-09-05): WHICH LINE A ROW SHOWS. A thing can carry both
+// where it came from and an automated move, and they are different facts.
+// A move made TODAY is the one that answers the question the person is
+// actually asking ("why is this here?"); an older move is history nobody is
+// looking for, so the origin comes back. One rule, so a task row, an event
+// row and a sheet cannot each answer it differently.
+export function rowSource(source: Source | undefined, moved: Source | undefined, now: () => number = Date.now): Source | undefined {
+  if (moved && sameDay(new Date(moved.ts), new Date(now()))) return moved;
+  return source;
+}
+
 // "From Smart Paste · 2:14 PM" today, "From Smart Paste · Aug 12" earlier.
 // Null for a missing or unknown source so callers can render nothing.
 export function sourceLine(source: Source | undefined, now: () => number = Date.now): string | null {

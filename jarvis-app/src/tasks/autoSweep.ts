@@ -100,7 +100,10 @@ export async function runAutoSweep(svc: TasksService, today: string): Promise<Sw
   let failed = false;
   for (const t of targets) {
     try {
-      const ok = await svc.setDue(t.id, today);
+      // UP-CORE-05 (2026-09-05): the sweep says so on the task itself, not
+      // only in its own receipt. The receipt is one card on Today that can
+      // be waved off; the row is where he meets the task again next week.
+      const ok = await svc.setDue(t.id, today, "sweep");
       if (ok) moved.push({ id: t.id, prevDue: t.data.due!, text: t.data.text, slips: (t.data.slips ?? 0) + 1 });
       else failed = true;
     } catch {
