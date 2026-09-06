@@ -1,5 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSwipe } from "../shared/useSwipe";
+import { useLongPress } from "../shared/useLongPress";
+import { haptics } from "../shared/haptics";
 import { Quiet, type Heat } from "./quiet";
 
 // THE NOTICE LAW (A1, 2026-08-20), extended by FORM FOLLOWS DECISION
@@ -65,8 +67,17 @@ export default function NoticeCard({
   weight,
   receipt,
   anchor,
+  automation,
+  onTune,
 }: {
   icon: ReactNode;
+  // UP-CORE-14 (2026-09-05): which producer made this card ("gap-fill",
+  // "goal-nudge"), and what to do with a tuning choice. Both or neither: a
+  // card nobody names is a thing the person did themselves, and holding it
+  // offers nothing. The write is the caller's, so this component still owns
+  // no services.
+  automation?: string;
+  onTune?: (choice: "more" | "less" | "never") => void;
   // A cat-fg-* class. Color is the notice's category, never decoration.
   tone?: string;
   title: ReactNode;
@@ -165,6 +176,10 @@ export default function NoticeCard({
   const altOnReveal = alt;
   const acts = (altOnReveal ? 1 : 0) + (onDismiss ? 1 : 0) + (onDelete ? 1 : 0);
   const swipe = useSwipe({ revealW: acts * 88, enabled: acts > 0 });
+  // UP-CORE-14: the hold that opens the tuning sheet. Only on a card that
+  // names its producer, so an ordinary notice keeps every gesture it had.
+  const [tuneOpen, setTuneOpen] = useState(false);
+  const hold = useLongPress({ onLongPress: () => { haptics.selection(); setTuneOpen(true); }, enabled: !!onTune && !!automation });
 
   const subNode = sub != null && (typeof sub === "string" ? <Quiet s={sub} heat={heat} /> : sub);
 
@@ -306,9 +321,26 @@ export default function NoticeCard({
             + (swipe.dragging ? " swiping" : "")}
           style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
           {...swipe.handlers}
+          {...(onTune ? hold : {})}
         >
           {inner}
         </div>
+        {/* UP-CORE-14 (2026-09-05): HOLD AN AUTOMATED CARD AND TUNE IT. This
+            is how the paid AI tier stays welcome: the person tunes it where
+            it happens, without a settings trip, and every tuning is a
+            visible, deletable rule in What JARVIS Learned. The sheet is
+            three rows and nothing else, because there are exactly three
+            things to say to a producer. */}
+        {tuneOpen && onTune && (
+          <>
+            <div className="block-menu-scrim" onClick={() => setTuneOpen(false)} />
+            <div className="block-menu notice-tune">
+              <button className="block-menu-item" onClick={() => { setTuneOpen(false); onTune("more"); }}>More Like This</button>
+              <button className="block-menu-item" onClick={() => { setTuneOpen(false); onTune("less"); }}>Less of This</button>
+              <button className="block-menu-item danger" onClick={() => { setTuneOpen(false); onTune("never"); }}>Never</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

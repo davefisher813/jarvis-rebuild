@@ -243,6 +243,10 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .block-menu-btn .ic { width:18px; height:18px; }
 .block-menu-scrim { position:fixed; inset:0; z-index:40; }
 .block-menu { position:absolute; right:0; top:var(--s-7); z-index:50; background:var(--surface-3); border-radius:var(--r-md); padding:var(--s-1); min-width:160px; box-shadow:var(--shadow-card); }
+/* UP-CORE-14 (2026-09-05): the same menu, over a notice rather than a block.
+   It hangs from the card's own bottom edge, inside the pad the notice
+   already sits in, so it never leaves the column the card is in. */
+.notice-tune { top:auto; bottom:var(--s-2); right:var(--s-4); }
 .block-menu-item { display:flex; align-items:center; gap:var(--s-2); width:100%; background:0; border:0; color:var(--tx-1); font-family:var(--f); font-size:var(--t-body); padding:var(--s-2h) var(--s-3); border-radius:var(--r-sm); min-height:var(--tap-min); }
 .block-menu-item .ic { width:17px; height:17px; }
 .block-menu-item.danger { color:var(--sys-red); }

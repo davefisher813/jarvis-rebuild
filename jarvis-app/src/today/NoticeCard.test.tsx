@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
-import { render, act } from "@testing-library/react";
+import { render, act, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NoticeCard from "./NoticeCard";
 
@@ -125,5 +125,36 @@ describe("NoticeCard: the reveal without a touchscreen", () => {
     );
     fireEvent.focus(getByText("Plan"));
     expect(rail(container)).toBe("");
+  });
+});
+
+// UP-CORE-14 (2026-09-05): hold an automated card and tune it. A card that
+// does not name its producer is a thing the person did themselves and holds
+// nothing; the write is the caller's, so this component still owns no
+// services.
+describe("holding an automated card (UP-CORE-14)", () => {
+  const hold = (el: Element) => {
+    fireEvent.touchStart(el, { touches: [{ clientX: 10, clientY: 10 }] });
+    act(() => { vi.advanceTimersByTime(600); });
+  };
+
+  it("offers the three choices and hands the pick back", () => {
+    vi.useFakeTimers();
+    const onTune = vi.fn();
+    render(<NoticeCard icon={<i />} title="Keep going" automation="momentum" onTune={onTune} />);
+    hold(document.querySelector(".notice-card")!);
+    expect(screen.getByText("More Like This")).toBeInTheDocument();
+    expect(screen.getByText("Less of This")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Never"));
+    expect(onTune).toHaveBeenCalledWith("never");
+    vi.useRealTimers();
+  });
+
+  it("does nothing on a card that names no producer", () => {
+    vi.useFakeTimers();
+    render(<NoticeCard icon={<i />} title="Rent due" />);
+    hold(document.querySelector(".notice-card")!);
+    expect(screen.queryByText("Never")).toBeNull();
+    vi.useRealTimers();
   });
 });

@@ -21,6 +21,7 @@ import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
 import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
+import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
 import { leadFor } from "../schedule/leaveBy";
 import { capAfterNumber } from "../shared/casing";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
@@ -388,6 +389,43 @@ export default function TodayFlow({
   // after. Same function the Schedule tab's row glyph calls.
   const [notedEvents, setNotedEvents] = useState<ReadonlySet<string>>(new Set());
   const [noteTick, setNoteTick] = useState(0);
+  // UP-CORE-14 (2026-09-05): what he has told the automations. Read once
+  // with the rules list; every producer below asks before it speaks, and
+  // every answer is a row in What JARVIS Learned that deleting reverts.
+  const [tunings, setTunings] = useState<Record<string, TuningChoice>>({});
+  const [tuneTick, setTuneTick] = useState(0);
+  useEffect(() => {
+    let on = true;
+    if (!rulesSvc) return;
+    rulesSvc.list().then((rs) => { if (on) setTunings(tuningsFrom(rs)); }).catch(() => {});
+    return () => { on = false; };
+  }, [rulesSvc, tuneTick]);
+  // The write: one rule, with the card's own words as its evidence, and a
+  // toast that says what just happened and where to undo it.
+  const tune = async (name: string, choice: TuningChoice, evidence: string) => {
+    if (!rulesSvc) return;
+    const ok = await attemptWrite(async () => {
+      const existing = (await rulesSvc.list()).find((r) => r.data.scope === tuningScope(name) && r.data.from === "frequency");
+      // A second choice REPLACES the first: two rules about one producer
+      // would be two answers to one question.
+      if (existing) await rulesSvc.delete(existing.id);
+      await rulesSvc.create("tuning", tuningScope(name), "frequency", choice, evidence);
+    });
+    if (!ok) return;
+    setTuneTick((n) => n + 1);
+    const label = AUTOMATION_LABEL[name] ?? name;
+    showToast({
+      message: choice === "never" ? `${label} · Off · Change it in Settings`
+        : choice === "less" ? `${label} · Less often · Change it in Settings`
+        : `${label} · More often · Change it in Settings`,
+    });
+  };
+  // Two questions every producer asks: may I speak today, and how loud.
+  const tuned = (name: string) => tuningAllows(tunings, name, today);
+  const tuneProps = (name: string, evidence: string) => ({
+    automation: name,
+    onTune: (choice: TuningChoice) => void tune(name, choice, evidence),
+  });
   useEffect(() => {
     let on = true;
     notesSvc.eventsWithNotes(todayEvents.map((e) => e.id)).then((set) => { if (on) setNotedEvents(set); }).catch(() => {});
@@ -1693,7 +1731,10 @@ export default function TodayFlow({
   const gapKey = today + ":" + (nowCtx.nextStart ?? "end");
   // Pick 1 + pick 31: the goal this gap task moves, when naming it says
   // something the task title did not already say.
-  const gapPick = evening || gapDismissed === gapKey
+  // UP-CORE-14: the gap offer is a row inside the Now card rather than a
+  // notice, so there is nothing to hold; the tuning still governs whether it
+  // speaks, set from any other card or from What JARVIS Learned.
+  const gapPick = evening || gapDismissed === gapKey || !tuned("gap-fill")
     ? null
     : gapFill(
         taskItems.map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done, due: t.data.due, bill: t.data.bill, reminder: t.data.reminder, estimateMin: t.data.estimateMin })),
@@ -2078,10 +2119,11 @@ export default function TodayFlow({
         }}
       />
     ) : null,
-    sweepReceipt && !sweepReceipt.failed && unplannedMoved.length > 0 && !sweepCardDismissed(today) ? (
+    sweepReceipt && !sweepReceipt.failed && unplannedMoved.length > 0 && !sweepCardDismissed(today) && tuned("sweep-receipt") ? (
       <NoticeCard
         key="sweep"
-        weight={NEW}
+        {...tuneProps("sweep-receipt", capAfterNumber(`${unplannedMoved.length} moved to today`))}
+        weight={tuningWeight(tunings, "sweep-receipt", NEW)}
         icon={SWEEP_ICO}
         tone="cat-fg-orange"
         // The count is of what still needs a time, not of what moved: the
@@ -2203,10 +2245,11 @@ export default function TodayFlow({
     // gap to clear, no hiding itself once he is "active" elsewhere. It is
     // just true or not true, read straight off the live session, and gone
     // on its own the moment the session ends or goes stale.
-    liveGym && gymCatId && !gymDismissed ? (
+    liveGym && gymCatId && !gymDismissed && tuned("live-gym") ? (
       <NoticeCard
         key="live-gym"
-        weight={RESUME}
+        {...tuneProps("live-gym", "Back to " + liveGym.dayName)}
+        weight={tuningWeight(tunings, "live-gym", RESUME)}
         icon={<BarbellGlyph />}
         tone="cat-fg-orange"
         title={`Back to ${liveGym.dayName}`}
@@ -2221,10 +2264,11 @@ export default function TodayFlow({
     // complaint was that the bigger picture is invisible. The last tick of
     // the last task IS the moment; it happens here, so the offer belongs
     // here. One at a time, and it disappears the instant it is taken.
-    finishedProject ? (
+    finishedProject && tuned("close-offer") ? (
       <NoticeCard
         key="finished"
-        weight={NEW}
+        {...tuneProps("close-offer", finishedProject.project.data.title)}
+        weight={tuningWeight(tunings, "close-offer", NEW)}
         icon={WIN_ICO}
         tone="cat-fg-green"
         title={finishedProject.project.data.title}
@@ -2247,10 +2291,11 @@ export default function TodayFlow({
     // Dismiss rail, because every notice on Today wears the same one (the
     // uniform law), and it counts toward the same two that quiet the chain
     // for the day.
-    momentum ? (
+    momentum && tuned("momentum") ? (
       <NoticeCard
         key={"momentum-" + momentum.id}
-        weight={NEW}
+        {...tuneProps("momentum", momentumSub(momentum))}
+        weight={tuningWeight(tunings, "momentum", NEW)}
         icon={<CheckCircleGlyph />}
         tone="cat-fg-blue"
         title={momentum.data.text}
@@ -2265,10 +2310,11 @@ export default function TodayFlow({
     // evening before, with the message already draftable, is the whole
     // difference between remembering and scrambling. Only in the evening,
     // only for tomorrow, and it waves off per person like every other card.
-    tomorrowBirthday ? (
+    tomorrowBirthday && tuned("birthday") ? (
       <NoticeCard
         key={"birthday-" + tomorrowBirthday.id}
-        weight={RESUME}
+        {...tuneProps("birthday", tomorrowBirthday.name + " · Birthday tomorrow")}
+        weight={tuningWeight(tunings, "birthday", RESUME)}
         icon={<GiftGlyph />}
         tone="cat-fg-pink"
         title={tomorrowBirthday.name}
@@ -2284,16 +2330,17 @@ export default function TodayFlow({
     // nothing on this page has ever mentioned a goal. Quiet for three days
     // when waved off, and silent entirely on a day whose plate already
     // covers every goal, which is the normal case.
-    untouched ? (
+    untouched && tuned("goal-nudge") ? (
       <NoticeCard
         key="goalnudge"
+        {...tuneProps("goal-nudge", untouched.data.title)}
         /* HISTORY: this pinned form="card" so the goal's own words could
            wrap ("Run three times a week" shredded on the row form,
            2026-08-25). The pin is repealed in the stream (Dave 2026-08-26,
            Option 1: one-line rows, tap expands to the full card in place),
            so the stream rows this down like everything else; the evidence
            line comes back on the expand. */
-        weight={RESUME}
+        weight={tuningWeight(tunings, "goal-nudge", RESUME)}
         icon={GOAL_ICO}
         /* The goal's own area color, brand red when unhomed (Dave
            2026-08-31) -- same goalTone as Your Life and Money. The card's

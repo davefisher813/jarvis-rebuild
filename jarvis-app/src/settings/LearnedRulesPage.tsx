@@ -5,6 +5,11 @@ import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import type { LearnedRule } from "../rules/LearnedRulesService";
 import { Head, Card, Row } from "./kit";
+// UP-CORE-14 (2026-09-05): an automation tuning is a rule about a CARD, not
+// about a word, so "automation.goal-nudge means less" is the database
+// talking. tuningLine says it the way the app says it, and returns null for
+// every other kind, which keeps the sentence this page already had.
+import { tuningLine } from "../rules/tuning";
 
 export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
   const svc = useRules();
@@ -59,7 +64,7 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
           <Head label="Rules" count={rules.length} />
           <Card>
             {rules.map((r) => (
-              <Row key={r.id} label={`${label(r.data.from)} means ${label(r.data.to)}`}
+              <Row key={r.id} label={tuningLine(r) ?? `${label(r.data.from)} means ${label(r.data.to)}`}
                 meta={r.data.evidence.map((e, i) => <div key={i}>{e}</div>)}>
                 <button className="pill-act row-act-pill" disabled={removing === r.id} onClick={() => void remove(r)}>{removing === r.id ? "..." : "Delete"}</button>
               </Row>
