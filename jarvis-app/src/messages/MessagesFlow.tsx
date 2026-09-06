@@ -44,6 +44,7 @@ import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeet
 import EvidenceChip from "./EvidenceChip";
 import { anchorNeedsYou, needsAnchor, ANCHOR_CAP } from "./evidencePass";
 import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
+import { expandQuery, groupByPerson, loadRecents, rememberSearch, MIN_CHARS, DEBOUNCE_MS, type SearchPerson } from "./mailSearch";
 import { takeComposeDraft } from "../chat/composeDraft";
 import { buildLedger, ledgerFloor, type Ledger, type LedgerRow } from "./ledger";
 import { settleAll, settleLine, type SettleWords } from "./settle";
@@ -499,6 +500,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [outcome, setOutcome] = useState<Outcome>(lastOutcome);
   const pickOutcome = (o: Outcome) => { lastOutcome = o; setOutcome(o); };
   const [search, setSearch] = useState("");
+  // UP-MIND-15 (2026-09-05): who the search can be ABOUT. Contacts with an
+  // address, plus the senders already loaded, so a name that is not in
+  // Contacts still resolves to the person who wrote. Rebuilt when either
+  // changes, never on every keystroke.
+  const [searchPeople, setSearchPeople] = useState<SearchPerson[]>([]);
+  // Which person the current search resolved to, when it resolved to one.
+  const [searchWho, setSearchWho] = useState<SearchPerson | null>(null);
+  const [recents, setRecents] = useState<string[]>(() => loadRecents());
+  const [searchFocus, setSearchFocus] = useState(false);
   const [results, setResults] = useState<ThreadRow[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1434,24 +1444,81 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // Fans out across EVERY mail account (2026-08-09): it used to quietly
   // cover only the first, so a hit in the second account came back as "No
   // matches" with no hint anything was skipped. Same shape as loadThreads.
-  const runSearch = async () => {
+  // UP-MIND-15 (2026-09-05): a bare name becomes a question about that
+  // person ("from:them OR to:them"), which is what 40% of mail searches
+  // actually are; everything else is the raw query, unchanged. Nothing here
+  // is an AI call: Gmail search is what already ran.
+  const runSearch = useCallback(async (raw?: string) => {
     const list = g.apis("mail");
-    const q = search.trim();
-    if (list.length === 0 || !q) return;
+    const typed = (raw ?? search).trim();
+    if (list.length === 0 || !typed) return;
+    const { query, person } = expandQuery(typed, searchPeople);
+    setSearchWho(person ?? null);
     setSearching(true);
     setError(null);
     try {
       const perAccount = await Promise.all(list.map(async ({ email, api }) => {
-        const metas = await api.searchThreads(q, 20).catch(() => []);
+        const metas = await api.searchThreads(query, 20).catch(() => []);
         return metas.map(mapThread).filter((t): t is ThreadRow => t !== null).map((t) => ({ ...t, account: email }));
       }));
-      setResults(perAccount.flat().sort((a, b) => b.dateMs - a.dateMs));
+      const hits = perAccount.flat().sort((a, b) => b.dateMs - a.dateMs);
+      setResults(hits);
+      // Remembered only when it found something: a list of dead ends is not
+      // a list worth showing on focus.
+      if (hits.length > 0) setRecents(rememberSearch(typed));
     } catch (e) {
       setError(humanError(e, "Search failed"));
     } finally {
       setSearching(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [g, search, searchPeople]);
+
+  // UP-MIND-15: it answers as you type, from three characters. Debounced so
+  // walking to "marco" is one request, not four.
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < MIN_CHARS) return;
+    const t = setTimeout(() => { void runSearch(q); }, DEBOUNCE_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, searchPeople]);
+
+  // Who a search can be about: Contacts with an address, then the senders
+  // already on screen. A person's label and whether a thread with them is
+  // linked to a live project decide where their group ranks.
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const contacts = people ? await people.list().catch(() => []) : [];
+      const projectThreads = new Set(
+        Object.entries(links).filter(([, l]) => l.type === "project").map(([threadId]) => threadId),
+      );
+      const onProject = new Set(
+        rows.filter((r) => projectThreads.has(r.id)).map((r) => (r.fromEmail || "").toLowerCase()),
+      );
+      const out: SearchPerson[] = [];
+      const seen = new Set<string>();
+      for (const c of contacts) {
+        const email = (c.data.email || "").trim().toLowerCase();
+        if (!email || seen.has(email)) continue;
+        seen.add(email);
+        out.push({
+          name: c.data.name, email,
+          ...(c.data.relationship ? { label: c.data.relationship } : {}),
+          ...(onProject.has(email) ? { onProject: true } : {}),
+        });
+      }
+      for (const r of rows) {
+        const email = (r.fromEmail || "").trim().toLowerCase();
+        if (!email || seen.has(email)) continue;
+        seen.add(email);
+        out.push({ name: displayName(r.from), email, ...(onProject.has(email) ? { onProject: true } : {}) });
+      }
+      if (live) setSearchPeople(out);
+    })();
+    return () => { live = false; };
+  }, [people, rows, links]);
 
   // HEADS-DOWN AUTO-REPLY (N8, 2026-08-20) LIVES IN A PUMP NOW.
   //
@@ -3392,8 +3459,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             setSearch(e.target.value);
             if (!e.target.value.trim()) setResults(null);
           }}
+          onFocus={() => setSearchFocus(true)}
+          onBlur={() => setTimeout(() => setSearchFocus(false), 150)}
           onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }}
         />
+        {/* UP-MIND-15: what you looked for before, on focus, before you have
+            typed anything. Only searches that actually found something. */}
+        {searchFocus && !search.trim() && recents.length > 0 && (
+          <div className="chip-row">
+            {recents.map((r) => (
+              <button key={r} type="button" className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => { setSearch(r); void runSearch(r); }}>{r}</button>
+            ))}
+          </div>
+        )}
         {/* N11 (2026-08-20): the same box answers a different question. Search
             finds threads; this finds the sentence HE wrote, with the date. */}
         {search.trim() && ai.available && (
@@ -3552,7 +3630,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           </div></div></div>
         ) : (
           <>
-            <div><div className="list-flat">{listRows.map((r) => threadRow(r))}</div></div>
+            {/* UP-MIND-15 (2026-09-05): when the query was a name, the hits
+                are grouped under the people they are with, best-known
+                first, so "marco" answers "here is Marco" rather than
+                "here are eighteen strings". A plain query keeps the plain
+                list, which is most searches. */}
+            {results !== null && results.length > 0 && searchWho ? (
+              groupByPerson(results, searchPeople).map((grp) => (
+                <div key={grp.email || grp.name}>
+                  <div className="sh2 sh2-quiet"><span className="t">{grp.name}</span><span className="n">{grp.rows.length}</span></div>
+                  <div className="list-flat">{grp.rows.map((r) => threadRow(r))}</div>
+                </div>
+              ))
+            ) : (
+              <div><div className="list-flat">{listRows.map((r) => threadRow(r))}</div></div>
+            )}
             {/* EMAIL-F-18: search results are their own complete answer, so
                 they keep the plain floor; the inbox gets the honest one. */}
             {results !== null ? <ListFloor /> : mailFloor()}
