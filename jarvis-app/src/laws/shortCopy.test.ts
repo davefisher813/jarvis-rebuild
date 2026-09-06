@@ -71,6 +71,9 @@ const EXEMPT_FILES = new Set([
   // scheduleExtract's above. Its rendered strings live in
   // SyllabusUploadFlow.tsx, which this law scans normally.
   "life/syllabusExtract.ts",
+  // UP-CORE-13 (2026-09-05): the receipt prompt, same reason again. Its one
+  // rendered string lives in MoneyFlow.tsx, which this law scans normally.
+  "money/receiptExtract.ts",
   "brain/docs/BrainDocPage.tsx",
 ]);
 

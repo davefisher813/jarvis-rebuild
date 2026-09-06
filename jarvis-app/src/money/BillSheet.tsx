@@ -3,6 +3,7 @@ import type { Recurrence, BillInfo } from "../notes/types";
 import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
 import { Calendar, Link2 } from "../shared/icons";
 import { DollarGlyph, RepeatGlyph, WalletGlyph } from "../shared/glyphs";
+import { monthDay } from "./bills";
 
 export interface BillDraft {
   text: string;
@@ -18,9 +19,16 @@ export interface BillDraft {
 // and the pay link are typed at the right of their labels; Repeats opens
 // the dropdown; Autopay is a switch, with the truthful frame under it (it
 // changes what JARVIS SAYS about the bill, never what happens).
-export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }: {
-  mode: "new" | "edit";
+export default function BillSheet({ mode, initial, paidOn, onSave, onDelete, onCancel }: {
+  // UP-CORE-13 (2026-09-05): "paid" is a new bill that already happened, the
+  // shape a read receipt produces. Same form, same fields; what changes is
+  // that the sheet says which day it was paid and Save files it as a record
+  // rather than as something still owed.
+  mode: "new" | "edit" | "paid";
   initial?: BillDraft;
+  // The day the receipt says it was paid. Shown, never invented: the caller
+  // falls back to today, which is the one date a person can check at a glance.
+  paidOn?: string;
   onSave: (d: BillDraft) => void | Promise<boolean | void>;
   onDelete?: () => void;
   onCancel: () => void;
@@ -64,7 +72,7 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
   };
 
   return (
-    <FormSheet title={mode === "new" ? "New Bill" : "Edit Bill"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
+    <FormSheet title={mode === "paid" ? "From a Receipt" : mode === "new" ? "New Bill" : "Edit Bill"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Bill">
         <FieldRow tone="yellow" glyph={<WalletGlyph />} value={text} onChange={setText} placeholder="e.g. Rent" ariaLabel="Bill name"
           error={touched && !text.trim()} right={false} />
@@ -72,6 +80,9 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
           ariaLabel="Amount in dollars" error={touched && !valid && !!text.trim()} />
       </Group>
       <ErrorLine text={touched && !valid ? "Add a name and an amount." : null} />
+      {/* UP-CORE-13: what this Save will record, said before it happens. The
+          words are the ones bills.ts already uses for a manual payment. */}
+      {mode === "paid" && paidOn && <div className="pad-x"><div className="conn-meta">Files as paid {monthDay(paidOn)}</div></div>}
       <Group label="When">
         <FieldRow tone="orange" glyph={<Calendar className="ic" />} label="Next Due" type="date" value={due} onChange={setDue} ariaLabel="Next due" />
         <MenuRow tone="sky" glyph={<RepeatGlyph />} label="Repeats" value={recurrence ?? "once"} ariaLabel="Repeats"

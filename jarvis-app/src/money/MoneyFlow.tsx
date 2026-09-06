@@ -7,7 +7,7 @@ import {
   loadEnvelopes, forgetLocalEnvelopes, cleanEnvelopes, setAsideTotal, leftToSpend, leftSub, shortLine,
   daysUntil, perDayLine, envelopeId, type Envelope,
 } from "./budget";
-import { activeBills, billSubline, paydayLine, paydayNext, monthDay, type PaydayInfo, type PaydayFreq } from "./bills";
+import { activeBills, billSubline, paydayLine, paydayNext, monthDay, paidThisMonth, type PaydayInfo, type PaydayFreq } from "./bills";
 import BillSheet, { type BillDraft } from "./BillSheet";
 import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
@@ -21,7 +21,13 @@ import { capAfterNumber } from "../shared/casing";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
 import { usePickFile } from "../shared/usePickFile";
-import { sizeLabel, type UserFile } from "../files/types";
+import { sizeLabel, fileStem, type UserFile } from "../files/types";
+import { useAI } from "../ai/useAI";
+import { buildVisionMessage } from "../ai/AIService";
+import { JARVIS_VOICE } from "../ai/voice";
+import { encodeImageForVision } from "../shared/imageEncode";
+import { madeBy } from "../shared/provenance";
+import { RECEIPT_EXTRACT_PROMPT, parseReceiptExtract } from "./receiptExtract";
 import { Paperclip, Image as ImageGlyph, FileText, Calendar, FolderKanban } from "../shared/icons";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
 import { pressable } from "../shared/pressable";
@@ -135,7 +141,13 @@ function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
 }
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
-type BillSheetState = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
+type BillSheetState =
+  | { kind: "closed" }
+  | { kind: "new" }
+  | { kind: "edit"; id: string }
+  // UP-CORE-13 (2026-09-05): a receipt that has been read. The draft is
+  // prefilled from what the picture said and nothing is written until Save.
+  | { kind: "paid"; initial: BillDraft; paidOn: string; fileId: string };
 
 export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpenConsumed }: { onOpenTask?: (id: string) => void;
   // SHELL-F-21 (2026-09-05): a Money search hit used to land on this tab's
@@ -152,6 +164,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   const catsSvc = useCategories();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [bills, setBills] = useState<TaskItem[]>([]);
+  const [paidMonth, setPaidMonth] = useState<{ total: number; count: number }>({ total: 0, count: 0 });
   // Also tagged Money (2026-08-10): the "Money" category used to be its own
   // page with tasks like "Budget Review" or "File Taxes" living only there.
   // Now that tapping the category opens this tab instead, anything tagged to
@@ -234,6 +247,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   // Receipts card, newest first: name, date, size. Tap opens it; the trash
   // removes it with Undo. The row is made first because the storage path
   // carries its id; a failed upload takes the row back with it.
+  const ai = useAI();
   const filesSvc = useOptionalFiles();
   const fileStore = useFileStore();
   const [receipts, setReceipts] = useState<UserFile[]>([]);
@@ -304,6 +318,10 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     const [accts, allTasks, prof, cats] = await Promise.all([svc.list(), tasksSvc.listTasks(), profileSvc.get(), catsSvc.list()]);
     setAccounts(accts);
     setBills(activeBills(allTasks, todayISO()));
+    // UP-CORE-13 (2026-09-05): what actually went out this month, from the
+    // paid bills the app holds. Read off the whole task list, because
+    // activeBills drops a one-time bill thirty days after it was paid.
+    setPaidMonth(paidThisMonth(allTasks, todayISO()));
     setPayday(prof?.payday);
     setPayHalfOn((prof?.template ?? "personal") !== "business");
     // HMN-F-12: the profile is the truth. An account that has never written
@@ -348,11 +366,67 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     return true;
   };
 
+  // UP-CORE-13 (2026-09-05): READ IT. The Privacy Policy already promises
+  // this ("documents you upload for extraction are processed to create the
+  // records you review"), and a receipt has been a picture and nothing else
+  // since the clip shipped. One vision call, then the same review every
+  // other extractor in this app insists on: the bill sheet opens prefilled
+  // and Save is still a tap.
+  const [reading, setReading] = useState<string | null>(null);
+  const readReceipt = async (r: UserFile) => {
+    const url = receiptUrls[r.id];
+    if (!ai.available || !url || reading) return;
+    setReading(r.id);
+    try {
+      // The same signed URL the row already resolved for opening it, fetched
+      // back as bytes so the vision encoder can do its downscale and its
+      // budget check (shared/imageEncode).
+      const blob = await (await fetch(url)).blob();
+      const img = await encodeImageForVision(new File([blob], r.data.name, { type: r.data.mime || blob.type }));
+      const out = await ai.complete(
+        [buildVisionMessage(RECEIPT_EXTRACT_PROMPT, img.data, img.mediaType)],
+        JARVIS_VOICE,
+        { kind: "receipt", pin: "pasteFallback" },
+      );
+      const read = parseReceiptExtract(out);
+      if (!read) { showToast({ message: "Couldn't read that receipt" }); return; }
+      setBillSheet({
+        kind: "paid",
+        // The date it was paid: the receipt's own, or the day the file was
+        // added, which is a date he can check rather than one JARVIS made up.
+        paidOn: read.date ?? r.data.addedAt,
+        fileId: r.id,
+        initial: {
+          text: read.vendor || fileStem(r.data.name),
+          due: read.date ?? r.data.addedAt,
+          // A receipt is one purchase. Nothing here claims it repeats.
+          recurrence: null,
+          bill: { amount: read.total ?? 0 },
+        },
+      });
+    } catch {
+      showToast({ message: "Couldn't read that receipt" });
+    } finally {
+      setReading(null);
+    }
+  };
+
   const editingBill = billSheet.kind === "edit" ? bills.find((b) => b.id === billSheet.id) : undefined;
   const saveBill = async (d: BillDraft): Promise<boolean> => {
     const ok = await attemptWrite(async () => {
       if (billSheet.kind === "new") {
         await tasksSvc.createTask(d.text, { due: d.due || null, recurrence: d.recurrence ?? undefined, bill: d.bill });
+      } else if (billSheet.kind === "paid") {
+        // Already paid, by definition: a receipt is a record of something
+        // that happened. lastDone is what the Paid This Month card counts,
+        // and the provenance line says where the record came from.
+        await tasksSvc.createTask(d.text, {
+          due: d.due || null,
+          bill: d.bill,
+          done: true,
+          lastDone: billSheet.paidOn,
+          source: madeBy("file", billSheet.fileId),
+        });
       } else if (billSheet.kind === "edit") {
         await tasksSvc.updateBillTask(billSheet.id, { text: d.text, due: d.due || null, recurrence: d.recurrence, bill: d.bill });
       }
@@ -608,6 +682,24 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
           <div className="sh2 sh2-quiet"><span className="t">Bills</span>{bills.length > 0 && <span className="n">{bills.length}</span>}</div>
           <div className="pad-x"><div className="card list-card-ruled">{billRows}</div></div>
 
+          {/* UP-CORE-13 (2026-09-05): PAID THIS MONTH. Money could say what
+              is owed and never what has gone out, so the receipts a person
+              files added up to nothing. It counts the paid bills in the app
+              and claims nothing more: not a balance, not a budget, and not a
+              statement about the account. Absent on a month with none, which
+              is a fact rather than a zero. */}
+          {paidMonth.count > 0 && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Paid This Month</span><span className="n">{paidMonth.count}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
+                <div className="row">
+                  <div className="row-grow"><div className="conn-name">{formatMoney(paidMonth.total)}</div></div>
+                  <span className="conn-meta">{capAfterNumber(`${paidMonth.count} ${paidMonth.count === 1 ? "bill" : "bills"} in the app`)}</span>
+                </div>
+              </div></div>
+            </>
+          )}
+
           {/* PICK 24 (Dave 2026-08-22): MONEY FLOWS INTO SAVINGS GOALS.
               A savings goal has been able to hold real logged money since
               Money v1, and the only door to it was two taps deep inside the
@@ -685,6 +777,15 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                       <span className="task-name">{r.data.name}</span>
                       <div className="r-k"><span className="r-goal r-cat">{monthDay(r.data.addedAt)}{r.data.bytes > 0 ? ` \u00b7 ${sizeLabel(r.data.bytes)}` : ""}</span></div>
                     </div>
+                    {/* UP-CORE-13 (2026-09-05): Read It, on a picture the
+                        app can actually read. A PDF or a text file is left
+                        alone rather than offered a button that fails. */}
+                    {ai.available && r.data.mime.startsWith("image/") && (
+                      <button className="pill-act" aria-label={"Read " + r.data.name}
+                        onClick={(e) => { e.stopPropagation(); void readReceipt(r); }}>
+                        {reading === r.id ? "Reading" : "Read It"}
+                      </button>
+                    )}
                     <button className="conn-remove" aria-label={"Remove " + r.data.name}
                       onClick={(e) => { e.stopPropagation(); void removeReceipt(r); }}>{TRASH}</button>
                   </div>
@@ -724,7 +825,8 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
           onCancel={() => setSheet({ kind: "closed" })} />
       )}
       {billSheet.kind !== "closed" && (
-        <BillSheet mode={billSheet.kind === "new" ? "new" : "edit"}
+        <BillSheet mode={billSheet.kind === "new" ? "new" : billSheet.kind === "paid" ? "paid" : "edit"}
+          paidOn={billSheet.kind === "paid" ? billSheet.paidOn : undefined}
           initial={editingBill ? { text: editingBill.data.text, due: editingBill.data.due ?? "", recurrence: editingBill.data.recurrence ?? null, bill: editingBill.data.bill! } : undefined}
           onSave={saveBill}
           onDelete={billSheet.kind === "edit" ? async () => {

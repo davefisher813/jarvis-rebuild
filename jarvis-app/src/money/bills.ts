@@ -30,6 +30,29 @@ export function activeBills(tasks: TaskItem[], today: string): TaskItem[] {
     .sort((a, b) => (a.data.due ?? "9999").localeCompare(b.data.due ?? "9999"));
 }
 
+// PAID THIS MONTH (UP-CORE-13, 2026-09-05). What actually went out, from
+// the receipts the app holds: a bill with a lastDone inside this month. Read
+// off the WHOLE task list rather than activeBills, which drops a one-time
+// bill thirty days after it was paid, because a month is not thirty days and
+// the first of the month would empty this card.
+//
+// It counts what it can see and says so nowhere else: this is not a balance,
+// not a budget, and not a claim about the money that left the account. It is
+// the sum of the paid bills in the app.
+export function paidThisMonth(tasks: TaskItem[], today: string): { total: number; count: number } {
+  const month = today.slice(0, 7);
+  let total = 0;
+  let count = 0;
+  for (const t of tasks) {
+    const amount = t.data.bill?.amount;
+    if (typeof amount !== "number" || !Number.isFinite(amount)) continue;
+    if (!t.data.lastDone || t.data.lastDone.slice(0, 7) !== month) continue;
+    total += amount;
+    count++;
+  }
+  return { total, count };
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 

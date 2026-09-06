@@ -32,7 +32,10 @@ describe("MoneyFlow", () => {
     expect(screen.getByText("$120")).toBeInTheDocument();
     // mark paid -> dated receipt appears
     fireEvent.click(screen.getByLabelText("Mark paid"));
-    await waitFor(() => expect(screen.getByText(/^Paid /)).toBeInTheDocument());
+    // UP-CORE-13 (2026-09-05): scoped to the ROW's own line. The page grew a
+    // "Paid This Month" head, which is a different claim about the same word
+    // and used to make this query ambiguous.
+    await waitFor(() => expect(screen.getByText(/^Paid \w{3} \d/)).toBeInTheDocument());
 
     // autopay bill: only ever "set to autopay" language
     fireEvent.click(screen.getByText("Add Bill"));

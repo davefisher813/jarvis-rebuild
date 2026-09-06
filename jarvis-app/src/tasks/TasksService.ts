@@ -60,7 +60,7 @@ export class TasksService {
   // set the precedent; Store.create takes the id straight through.
   async createTask(
     text: string,
-    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string; done?: boolean; lastDone?: string } = {},
     id?: string,
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
@@ -82,6 +82,12 @@ export class TasksService {
     if (opts.plan && isUsable(opts.plan)) data.plan = opts.plan;
     if (isLength(opts.estimateMin)) data.estimateMin = opts.estimateMin;
     if (opts.personId) data.personId = opts.personId;
+    // UP-CORE-13 (2026-09-05): a receipt is a record of something ALREADY
+    // paid, so the bill it becomes is born done, with the receipt's own date
+    // as its lastDone. The only caller that passes these is the receipt read;
+    // everything else creates open work, as it always has.
+    if (opts.done) data.done = true;
+    if (opts.lastDone) data.lastDone = opts.lastDone;
     const steps = cleanSteps(opts.steps);
     if (steps.length) data.steps = steps;
     const newId = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData, id);
