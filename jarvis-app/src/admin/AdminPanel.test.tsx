@@ -31,6 +31,7 @@ describe("AdminPanel", () => {
       async usage() { return { totalUsers: 0, activeUsers: 0, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { throw new Error("admin 404"); },
+      async metrics() { throw new Error("admin 404"); },
     };
     render(<AdminPanel isAdmin source={noEndpoint} />);
     expect(await screen.findByText("Feedback Is Not Loaded")).toBeInTheDocument();
@@ -45,6 +46,7 @@ describe("AdminPanel", () => {
       async usage() { return { totalUsers: 1, activeUsers: 1, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
+      async metrics() { throw new Error("no metrics endpoint"); },
     };
     render(<AdminPanel isAdmin source={src} />);
     fireEvent.click(await screen.findByText("Disable"));
@@ -62,6 +64,7 @@ describe("AdminPanel", () => {
       async usage() { return { totalUsers: 1, activeUsers: 1, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
+      async metrics() { throw new Error("no metrics endpoint"); },
     };
     render(<AdminPanel isAdmin source={src} />);
     fireEvent.click(await screen.findByText("Disable"));
@@ -78,6 +81,7 @@ describe("AdminPanel", () => {
       async usage() { return { totalUsers: 0, activeUsers: 0, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
+      async metrics() { throw new Error("no metrics endpoint"); },
     };
     render(<AdminPanel isAdmin source={src} />);
     expect(screen.getAllByText("Live Data Needs the Admin Server").length).toBeGreaterThan(0);

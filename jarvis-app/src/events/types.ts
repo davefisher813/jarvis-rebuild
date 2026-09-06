@@ -81,6 +81,18 @@ export type EventType =
   | "strand.created"
   | "strand.corrected"
   | "strand.deleted"
+  // UP-LAUNCH-17 (2026-09-05): the onboarding funnel, which was the one
+  // question the durable log could not answer. Every other launch number
+  // (D1, D7, weekly active, AI calls per user) already falls out of
+  // app.opened and ai_usage; where people STOP during intake emitted
+  // nothing at all, so "onboarding has to be flawless" had no measurement
+  // behind it.
+  //
+  // n = the step index reached. flag on onboarding.finished = whether they
+  // finished it or tapped Skip for now. No text, no answers, nothing about
+  // what they typed: the same rule as every other row in this table.
+  | "onboarding.step"
+  | "onboarding.finished"
   // escape hatch: props.name carries the specific action, no schema bump needed
   | "action";
 

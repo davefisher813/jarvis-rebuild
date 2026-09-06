@@ -4,6 +4,7 @@
 // holds the shape + UI; `available` is false until that endpoint exists.
 
 import { apiUrl } from "../shared/apiBase";
+import type { AdminMetrics } from "./adminMetrics";
 
 export interface AdminUser {
   id: string;
@@ -41,6 +42,8 @@ export interface AdminService {
   usage(): Promise<AdminUsage>;
   billing(): Promise<AdminBilling>;
   feedback(): Promise<AdminFeedbackItem[]>;
+  // UP-LAUNCH-17 (2026-09-05): the launch numbers, first party.
+  metrics(): Promise<AdminMetrics>;
 }
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) =>
@@ -82,6 +85,7 @@ export function createAdminApi(token: string, available = adminConfigured(), doF
     async usage() { return (await get("/usage")) as AdminUsage; },
     async billing() { return (await get("/billing")) as AdminBilling; },
     async feedback() { return ((await get("/feedback")) as { feedback: AdminFeedbackItem[] }).feedback; },
+    async metrics() { return (await get("/metrics")) as AdminMetrics; },
   };
 }
 
@@ -102,6 +106,14 @@ export function makeSampleAdminSource(): AdminService {
     async billing() { return { mrr: 36, activeSubs: 2, trialing: 1, currency: "USD" }; },
     async feedback() {
       return [{ id: "f_001", text: "The gym timer keeps running when I leave the screen.", meta: "abc1234 \u00b7 student \u00b7 iPhone", at: "2026-09-04T18:02:00.000Z", lastError: null }];
+    },
+    async metrics() {
+      return {
+        signups7d: 1, signups30d: 3, weeklyActive: 2,
+        onboardingRate: 0.67, funnel: { started: 3, finished: 2, skipped: 1 },
+        d1: 0.5, d7: null, d1Basis: 2, d7Basis: 0,
+        aiCallsPerActive: 4.5, truncated: false,
+      };
     },
   };
 }

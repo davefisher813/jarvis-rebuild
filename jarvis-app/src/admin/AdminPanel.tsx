@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ShieldAlert } from "../shared/icons";
 import type { AdminService, AdminUser, AdminUsage, AdminBilling, AdminFeedbackItem } from "./AdminService";
+import { pct, type AdminMetrics } from "./adminMetrics";
 
 // The master-account panel. Gated by isAdmin for UX; the real boundary is the
 // server (privileged endpoint + RLS). When the source is unavailable (no server
@@ -17,6 +18,10 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
   // tolerated separately: an older deploy has no /api/admin/feedback, and one
   // missing section must not blank the whole panel.
   const [feedback, setFeedback] = useState<AdminFeedbackItem[] | null>(null);
+  // UP-LAUNCH-17 (2026-09-05): the launch numbers, loaded the same tolerant
+  // way as Feedback so an older deploy without the endpoint says so instead
+  // of blanking the panel.
+  const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,6 +35,10 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
         try {
           const f = await source.feedback();
           if (on) setFeedback(f);
+        } catch { /* the section says so for itself */ }
+        try {
+          const m = await source.metrics();
+          if (on) setMetrics(m);
         } catch { /* the section says so for itself */ }
       } catch (e) {
         if (on) setError((e as Error).message || "Could not load admin data");
@@ -98,6 +107,35 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
           <div className="adm-tile"><div className="adm-num">{billing?.activeSubs ?? "-"}</div><div className="adm-label">Subscribers</div></div>
           <div className="adm-tile"><div className="adm-num">{billing?.trialing ?? "-"}</div><div className="adm-label">Trialing</div></div>
         </div></div>
+      )}
+
+      {/* UP-LAUNCH-17: the three questions the milestones are written in,
+          answered from rows this app already writes. Every one of them is a
+          dash rather than a zero when there is nobody to count yet: an
+          invented number here is a decision made on a lie. */}
+      <div className="grp"><div className="eyebrow">Metrics</div></div>
+      {!source.available ? serverNote : metrics === null ? (
+        <div className="pad-x"><div className="card"><div className="empty-state">
+          <div className="empty-title">Metrics Are Not Loaded</div>
+          <div className="empty-sub">This deploy has no metrics endpoint yet</div>
+        </div></div></div>
+      ) : (
+        <>
+          <div className="pad-x"><div className="adm-grid">
+            <div className="adm-tile"><div className="adm-num">{pct(metrics.onboardingRate)}</div><div className="adm-label">Finished onboarding</div></div>
+            <div className="adm-tile"><div className="adm-num">{metrics.weeklyActive}</div><div className="adm-label">Active this week</div></div>
+            <div className="adm-tile"><div className="adm-num">{pct(metrics.d1)}</div><div className="adm-label">Came back next day{metrics.d1Basis ? " (" + metrics.d1Basis + ")" : ""}</div></div>
+            <div className="adm-tile"><div className="adm-num">{pct(metrics.d7)}</div><div className="adm-label">Came back day 7{metrics.d7Basis ? " (" + metrics.d7Basis + ")" : ""}</div></div>
+            <div className="adm-tile"><div className="adm-num">{metrics.aiCallsPerActive ?? "-"}</div><div className="adm-label">AI calls per active</div></div>
+            <div className="adm-tile"><div className="adm-num">{metrics.signups7d}</div><div className="adm-label">Signups 7d</div></div>
+          </div></div>
+          <div className="pad-x"><div className="list-floor">
+            {metrics.funnel.started} started intake · {metrics.funnel.finished} finished · {metrics.funnel.skipped} skipped
+          </div></div>
+          {metrics.truncated && (
+            <div className="pad-x"><div className="list-floor">Too many days of history to walk, so the two return numbers are withheld rather than guessed</div></div>
+          )}
+        </>
       )}
 
       <div className="grp"><div className="eyebrow">Feedback{feedback?.length ? " (" + feedback.length + ")" : ""}</div></div>

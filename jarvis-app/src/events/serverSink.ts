@@ -57,6 +57,10 @@ const PERSISTED: ReadonlySet<string> = new Set([
   "strand.corrected",
   "strand.deleted",
   "reminder.ticked",
+  // UP-LAUNCH-17 (2026-09-05): the onboarding funnel. n is the step index,
+  // flag says finished or skipped, and rowFrom already has columns for both.
+  "onboarding.step",
+  "onboarding.finished",
 ]);
 
 // Storage seam (same pattern as LocalEventLog) so tests run without a browser.

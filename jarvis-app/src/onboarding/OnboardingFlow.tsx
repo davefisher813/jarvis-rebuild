@@ -16,6 +16,7 @@ import { dismissSplash } from "../shared/splash";
 import { attemptWrite } from "../shared/guard";
 import { requestNotificationPermission } from "../shared/notifications";
 import { useOptionalSession } from "../auth/AuthProvider";
+import { emit } from "../events";
 
 const ic = (d: string) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
@@ -129,6 +130,17 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   // is spent: as the first answer, already filled in, still editable. Nothing
   // else reads it, and an account that did not come from Apple has nothing
   // here, which is simply an empty field.
+  // UP-LAUNCH-17 (2026-09-05): which step this person reached, once each.
+  // Emitted from the index rather than from the ten places that advance it,
+  // so a new step cannot be added without being counted. Going back does not
+  // re-count: a funnel measures how far people got, not how many taps.
+  const counted = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (counted.current.has(idx)) return;
+    counted.current.add(idx);
+    emit({ type: "onboarding.step", props: { n: idx } });
+  }, [idx]);
+
   const authName = useOptionalSession()?.user?.user_metadata?.["name"];
   useEffect(() => {
     if (typeof authName === "string" && authName.trim()) setName((cur) => cur || authName.trim());
@@ -186,6 +198,11 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const finish = async (complete: boolean) => {
     if (saving) return;
     setSaving(true);
+    // UP-LAUNCH-17 (2026-09-05): the end of the funnel. flag says which end
+    // it was, and it is emitted before the save because a save that fails is
+    // still a person who reached the last step, which is the thing the number
+    // is about.
+    emit({ type: "onboarding.finished", props: { n: idx, flag: complete } });
     try {
       const ok = await attemptWrite(async () => {
         // (people and priority are deliberately NOT persisted on the profile:
