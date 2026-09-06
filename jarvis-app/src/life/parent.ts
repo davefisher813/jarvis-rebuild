@@ -9,16 +9,16 @@
 // task hangs straight off a goal, the category dot when it is loose.
 // Nothing invented, nothing shortened, one glyph per kind learned once.
 //
-// The upward look is the same one Today has always used (reach.ts): the
-// filed project first, then the goal a task moves, then the category. The
-// only new fact here is the project's progress, which is why this module
+// The upward look is the filed project first, then the category. It was
+// "project, then the goal a task moves, then the category" until 2026-09-06;
+// see parentForTask for why the middle step could never state a real fact.
+// The only new fact here is the project's progress, which is why this module
 // takes the task list.
 
 import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
 import type { Goal } from "./types";
-import { catColor, catName, goalTone } from "../shared/categories";
-import { buildGoalIndex, goalIdsForTask, liveGoals, type GoalIndex } from "../bigger/reach";
+import { catColor, catName } from "../shared/categories";
 import { projectProgress } from "../bigger/progress";
 
 export type ParentKind = "project" | "goal" | "category";
@@ -34,13 +34,12 @@ export interface ParentLine {
 
 export interface ParentIndex {
   projects: Map<string, { title: string; tone: string; pct: number | null }>;
-  goals: GoalIndex;
-  goalTone: Map<string, string>;
 }
 
-/** Build once per render pass; every row on the page reads from it. */
-export function buildParentIndex(projects: Project[], goals: Goal[], tasks: TaskItem[]): ParentIndex {
-  const live = liveGoals(goals);
+/** Build once per render pass; every row on the page reads from it.
+ *  `goals` is still taken so every call site keeps its shape, and because a
+ *  task that can be filed to a goal directly would read it again. */
+export function buildParentIndex(projects: Project[], _goals: Goal[], tasks: TaskItem[]): ParentIndex {
   const pmap = new Map<string, { title: string; tone: string; pct: number | null }>();
   for (const p of projects) {
     pmap.set(p.id, {
@@ -49,9 +48,7 @@ export function buildParentIndex(projects: Project[], goals: Goal[], tasks: Task
       pct: projectProgress(tasks, p.id)?.pct ?? null,
     });
   }
-  const gtone = new Map<string, string>();
-  for (const g of live) gtone.set(g.id, goalTone(g.data.tags));
-  return { projects: pmap, goals: buildGoalIndex(projects, live), goalTone: gtone };
+  return { projects: pmap };
 }
 
 /** Where this task lives, or null when it has no project, no goal and no category. */
@@ -59,11 +56,27 @@ export function parentForTask(idx: ParentIndex, task: TaskItem): ParentLine | nu
   const pid = task.data.projectId;
   const p = pid ? idx.projects.get(pid) : undefined;
   if (p) return { kind: "project", name: p.title, tone: p.tone, pct: p.pct };
-  const gid = goalIdsForTask(idx.goals, task)[0];
-  if (gid) {
-    const title = idx.goals.titleOf.get(gid);
-    if (title) return { kind: "goal", name: title, tone: idx.goalTone.get(gid) ?? "cat-fg-brand", pct: null };
-  }
+  // WHERE A TASK LIVES IS A LINK SOMEONE MADE, NOT A FILTER THAT MATCHES IT
+  // (2026-09-06, Dave: "unlabeled tasks randomly go into projects and goals
+  // that have nothing to do with them").
+  //
+  // This line used to ask goalIdsForTask, which answers "which goals does
+  // this task MOVE" and counts a tag match. A tag is a saved filter over a
+  // CATEGORY: tag the goal "Make apartment aesthetic" with Personal and every
+  // Personal task in the app starts claiming that goal as its home. Submit
+  // job apps read as apartment work. Check WWBA read as apartment work.
+  //
+  // A task carries projectId and nothing else pointing up (notes/types.ts:
+  // there is no goalId on a task), so the branch that stood here could ONLY
+  // ever fire on a tag. It was never able to state a real one, which is why
+  // deleting it loses nothing: a task filed through a project already
+  // answered above, and a loose task lives in its area, which is true and is
+  // what the row now says.
+  //
+  // reach.ts's own law still holds everywhere it belongs: tags feed what a
+  // task MOVES (ranking, Plan My Day, the goal page's own From Your Areas
+  // list, which says "from your areas" and means it). They do not feed where
+  // it lives.
   const cat = task.data.category;
   const name = cat ? catName(cat) : "";
   if (!name) return null;

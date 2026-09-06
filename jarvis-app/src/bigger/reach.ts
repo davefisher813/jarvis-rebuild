@@ -120,7 +120,17 @@ export function reachOf(tasks: TaskItem[], projects: Project[], goal: Goal): Goa
  * real denominator; tagged work speaks in open counts because it does not.
  * A goal with neither says so.
  */
-export function reachLine(r: GoalReach): string {
+export function reachLine(r: GoalReach, done = false): string {
+  // A FINISHED GOAL DOES NOT ADVERTISE WORK IT NEVER OWNED (2026-09-06).
+  // Dave's screenshot: "Get Health Insurance / DONE / 9 Tasks open". The nine
+  // were tagged, not filed: open tasks in an area this goal watches, none of
+  // them about health insurance. On a live goal that count is a useful filter
+  // and it says so. On a finished one it is a contradiction in the same
+  // three lines, so the honest line is the filed record, or silence.
+  if (done) {
+    const p0 = r.progress;
+    return p0 ? capAfterNumber(`${p0.done} of ${p0.total} done`) : "Done";
+  }
   const p = r.progress;
   if (p) {
     const base = capAfterNumber(`${p.done} of ${p.total} done`);

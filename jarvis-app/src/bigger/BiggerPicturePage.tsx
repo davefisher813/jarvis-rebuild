@@ -184,7 +184,7 @@ export default function BiggerPicturePage({
     const extra = extraOf?.(g.id) ?? null;
     // A finish line outranks the reach line, for the same reason it does on
     // the goal page: it is what he asked to be measured on.
-    const body = ms ? ms.line : reachLine(r);
+    const body = ms ? ms.line : reachLine(r, g.data.state === "achieved" || !!g.data.dropped);
     const mine = openRows.filter((row) => row.project.data.goalId === g.id);
     return (
       <div key={g.id}>
@@ -252,7 +252,7 @@ export default function BiggerPicturePage({
     const ms = measureOfGoal?.(g.id) ?? null;
     return (
       <GoalRowRuled key={g.id} title={g.data.title} tone={goalTone(g.data.tags)}
-        body={ms ? ms.line : reachLine(r)} status={statusOf?.(g.id) ?? null}
+        body={ms ? ms.line : reachLine(r, g.data.state === "achieved" || !!g.data.dropped)} status={statusOf?.(g.id) ?? null}
         bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)} />
     );
   };

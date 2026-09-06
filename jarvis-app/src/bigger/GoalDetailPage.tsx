@@ -177,7 +177,7 @@ export default function GoalDetailPage({
                 is what he asked to be measured on, and the task counts are
                 the machinery under it. Without one, reachLine still says the
                 honest thing about what the goal can see. */}
-            <div className="bp-sub">{measure ? measure.line : reachLine(reach)}</div>
+            <div className="bp-sub">{measure ? measure.line : reachLine(reach, health === "done")}</div>
             {/* PICK 14: the arithmetic a date makes possible. Absent when
                 there is nothing to pace. */}
             {pace && <div className="bp-sub">{pace}</div>}

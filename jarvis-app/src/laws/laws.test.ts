@@ -4483,3 +4483,45 @@ describe("swipe reveals are hidden at rest (2026-09-06)", () => {
     expect(RULED).toMatch(/\.ruled \.card \.task-row[^{}]*\{[^{}]*background:\s*transparent/);
   });
 });
+
+// A SAVED FILTER IS NOT PROVENANCE (2026-09-06, Dave from his phone:
+// "unlabeled tasks randomly go into projects and goals that have nothing to
+// do with them").
+//
+// A goal reaches work two ways: FILED (a project points at it) and TAGGED (it
+// names categories, and any task in one matches). reach.ts is careful about
+// the difference where it counts, and says so at length: a tag is a saved
+// filter, it never feeds done over total. But the task ROW asked the same
+// tag-inclusive lookup for the one line that says where the task LIVES, so
+// tagging a goal with a broad area made every task in that area wear it.
+// Submit job apps read as apartment work. Pay Ticket read as a runway goal.
+//
+// The rule, stated once: a row may only name a parent someone actually
+// linked. Tags still rank, still fill the goal page's own From Your Areas
+// list, and still answer "does this move a goal". They do not answer "where
+// does this live", because they were never told.
+describe("a row names a link, not a filter (2026-09-06)", () => {
+  it("a task in an area a goal merely watches wears the area", async () => {
+    const { buildParentIndex, parentForTask } = await import("../life/parent");
+    const { setCategoryRegistry } = await import("../shared/categories");
+    setCategoryRegistry([{ id: "personal", name: "Personal", color: "yellow" }]);
+    const goals = [{ id: "g", data: { title: "Make apartment aesthetic", state: "on_track", tags: ["personal"] } }];
+    const loose = { id: "t", data: { text: "Submit job apps", done: false, createdAt: 0, category: "personal" } };
+    const p = parentForTask(buildParentIndex([], goals as never, [loose as never]), loose as never);
+    expect(p?.kind).toBe("category");
+    expect(p?.name).toBe("Personal");
+  });
+  it("and the parent line is never derived from a goal's tags at all", () => {
+    const src = read(SRC + "/life/parent.ts");
+    // The lookup that counts a tag match. If it comes back here, so does the bug.
+    expect(src).not.toMatch(/goalIdsForTask\s*\(/);
+  });
+  // The other half, so this law cannot be "fixed" by gutting the tag feature:
+  // tags must still answer what a task MOVES, which is what ranks the day.
+  it("tags still say what a task moves", async () => {
+    const { buildGoalIndex, movesGoal } = await import("../bigger/reach");
+    const goals = [{ id: "g", data: { title: "G", state: "on_track", tags: ["personal"] } }];
+    const loose = { id: "t", data: { text: "x", done: false, createdAt: 0, category: "personal" } };
+    expect(movesGoal(buildGoalIndex([], goals as never), loose as never)).toBe(true);
+  });
+});
