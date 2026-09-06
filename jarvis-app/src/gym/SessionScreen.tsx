@@ -65,7 +65,13 @@ export default function SessionScreen({
   history: Workout[];
   library: LibraryEntry[];
   onLog: (s: SetEntry) => void;
-  onSetLogged: (sets: SetEntry[]) => void;
+  /** UP-ATH-04 (2026-09-06): `at` names the exercise the strip belongs to,
+   *  which matters for an Undo taken LATE. Every write here is same-exercise
+   *  and the caller's own live index answered for it until the toast made a
+   *  gap: tap Log, walk to the pair partner, tap Undo, and the restore landed
+   *  on whichever exercise the session had moved to. Omitted means the live
+   *  index, exactly as before. */
+  onSetLogged: (sets: SetEntry[], at?: number) => void;
   onSkip: () => void;
   onMove: (idx: number) => void;
   onSwap: (sub: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string }) => void;
@@ -247,7 +253,7 @@ export default function SessionScreen({
     showToast({
       message: gone.length === 1 ? `${one} deleted` : `${gone.length} ${many.toLowerCase()} deleted`,
       actionLabel: "Undo",
-      onAction: () => onSetLogged(before),
+      onAction: () => onSetLogged(before, idx),
     });
   };
 
@@ -263,15 +269,32 @@ export default function SessionScreen({
   const pairNext = pairNextId ? dayExercises.find((e) => e.id === pairNextId) : undefined;
   const pairNextLiveIdx = pairNext ? live.exercises.findIndex((e) => e.exerciseId === pairNext.id) : -1;
 
+  // UP-ATH-04 (2026-09-06): every Log Set gets the app's standard receipt
+  // with an Undo, the same shape the swipe-delete above already has. A
+  // fat-fingered tap on a gym floor cost a swipe and a hunt through the strip
+  // before this. The Undo writes the strip as it was BEFORE this tap (the
+  // snapshot rule, SHARED-F-03), against the exercise it belongs to, so
+  // tapping it twice, or late, or after moving to the pair partner lands on
+  // the same answer.
+  const receiptForLog = (entry: SetEntry) => {
+    const before = logged;
+    showToast({
+      message: exercise.kind === "done" ? `${exercise.name} logged` : `Logged ${formatSet(exercise, entry)}`,
+      actionLabel: "Undo",
+      onAction: () => onSetLogged(before, idx),
+    });
+  };
   const log = () => {
-    if (exercise.kind === "done") { onLog({ id: newSetId(), done: true }); return; }
+    if (exercise.kind === "done") { const e = { id: newSetId(), done: true }; onLog(e); receiptForLog(e); return; }
     // The plan is the WORK, so it is indexed by working sets logged. Warm-ups
     // sit in the same strip and must never advance the athlete's place in it.
     const next = plannedEntryAt(planEx, workLogged);
-    if (next) { onLog(duplicateEntry(next)); startRest(); return; }
+    if (next) { const e = duplicateEntry(next); onLog(e); startRest(); receiptForLog(e); return; }
     const lastWork = [...logged].reverse().find((x) => !x.warmup);
-    onLog(lastWork ? duplicateEntry(lastWork) : blankEntry());
+    const e = lastWork ? duplicateEntry(lastWork) : blankEntry();
+    onLog(e);
     startRest();
+    receiptForLog(e);
   };
 
   return (

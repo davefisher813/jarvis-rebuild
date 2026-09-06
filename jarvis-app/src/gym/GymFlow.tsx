@@ -1268,7 +1268,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         history={workouts}
         library={library}
         onLog={(s: SetEntry) => patchLive((l) => logSet(l, l.idx, s))}
-        onSetLogged={(sets: SetEntry[]) => patchLive((l) => setLoggedSets(l, l.idx, sets))}
+        onSetLogged={(sets: SetEntry[], at?: number) => patchLive((l) => setLoggedSets(l, at ?? l.idx, sets))}
         onSkip={() => patchLive((l) => ({ ...skipExercise(l, l.idx), idx: Math.min(l.idx + 1, l.exercises.length - 1) }))}
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
         onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); showToast({ message: `Swapped in ${sub.name}` }); }}

@@ -61,7 +61,9 @@ describe("deleting a logged set in the live session", () => {
     expect(toast.message).toBe("Set deleted");
     expect(toast.actionLabel).toBe("Undo");
     toast.onAction!();
-    expect(onSetLogged).toHaveBeenLastCalledWith(logged);
+    // UP-ATH-04 (2026-09-06): the restore names its exercise now, so an Undo
+    // taken after the session has moved on still lands on this strip.
+    expect(onSetLogged).toHaveBeenLastCalledWith(logged, 0);
   });
 
   it("an edit is not a delete: correcting a chip offers no undo toast", () => {
