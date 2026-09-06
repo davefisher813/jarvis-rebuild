@@ -254,7 +254,10 @@ export const EVENT_REMINDER_BASE = 9100;
 // S6-Q36: the first move named on this event's source task, when it has
 // one (see schedule/attachments.ts's firstMoveOf). Optional, additive: an
 // event with none falls back to the ladder's generic closing copy.
-export interface ReminderInput { date: string; start: string; end?: string; title: string; location?: string; firstMove?: string }
+// UP-CORE-07 (2026-09-05): leaveMin is the whole lead (travel plus buffer)
+// for an event that has to be travelled to. It buys ONE more rung, at the
+// leave time, which is the only alert in this app that says stand up now.
+export interface ReminderInput { date: string; start: string; end?: string; title: string; location?: string; firstMove?: string; leaveMin?: number }
 export interface EventReminder { id: number; title: string; body: string; at: Date }
 
 // Pure: which reminders exist for these events, from this moment. Only
@@ -270,7 +273,7 @@ export function buildEventReminders(
   // never claims to be an hour away.
   ladder: readonly number[] = LADDER,
 ): EventReminder[] {
-  const out: (EventReminder & { lead: number })[] = [];
+  const out: (EventReminder & { lead: number; leave?: boolean })[] = [];
   for (const e of events) {
     if (!e.title.trim() || !/^\d{2}:\d{2}$/.test(e.start)) continue;
     const startMs = new Date(`${e.date}T${e.start}:00`).getTime();
@@ -285,9 +288,32 @@ export function buildEventReminders(
     // keeps every rung, exactly as it did before this fix.
     const endMs = e.end && /^\d{2}:\d{2}$/.test(e.end) ? new Date(`${e.date}T${e.end}:00`).getTime() : NaN;
     const durationMin = Number.isFinite(endMs) && endMs > startMs ? (endMs - startMs) / 60000 : null;
+    // UP-CORE-07: the leave rung, when this event has a travel time. It is
+    // an INSTRUCTION, the same voice the ladder's closing rung uses, and it
+    // is the one rung this app would keep if it could only keep one: a
+    // person who is told at 3:20 to leave for a 3:40 practice is on time,
+    // and no other alert in the ladder can say that.
+    const leaveLead = Number.isFinite(e.leaveMin) && (e.leaveMin ?? 0) > 0 ? Math.round(e.leaveMin!) : null;
+    if (leaveLead !== null && leaveLead < minutesUntil) {
+      const at = new Date(startMs - leaveLead * 60000);
+      if (at.getTime() > nowMs) {
+        out.push({
+          id: 0,
+          title: e.title.trim(),
+          body: e.location ? `Leave now for ${e.location}` : "Leave now",
+          at,
+          lead: leaveLead,
+          leave: true,
+        });
+      }
+    }
     for (const lead of ladder) {
       if (lead >= minutesUntil) continue; // already past this rung
       if (durationMin !== null && lead > durationMin) continue; // longer than the event itself
+      // A ladder rung landing on the same minute as the leave alert would
+      // buzz twice for one moment, and the leave one is the one that says
+      // what to do.
+      if (leaveLead !== null && lead === leaveLead) continue;
       const at = new Date(startMs - lead * 60000);
       if (at.getTime() <= nowMs) continue;
       out.push({
@@ -306,10 +332,13 @@ export function buildEventReminders(
   // while another has four alerts. Every event keeps its 15 and 5 minute
   // rungs until the day is so full that even those do not fit, and only then
   // does the slice below drop the latest-firing ones.
+  // UP-CORE-07: the leave rung is never one of the ones dropped for budget.
+  // It is matched on its flag, not its lead, so a 30 minute drive does not
+  // get swept up with the ladder's 30 minute rung.
   let kept = out;
   for (const rung of [60, 30]) {
     if (kept.length <= EVENT_REMINDER_CAP) break;
-    kept = kept.filter((r) => r.lead !== rung);
+    kept = kept.filter((r) => r.leave || r.lead !== rung);
   }
   return kept.slice(0, EVENT_REMINDER_CAP).map((r, i) => ({ id: EVENT_REMINDER_BASE + i, title: r.title, body: r.body, at: r.at }));
 }

@@ -5,6 +5,7 @@ import { eventsForDate, dotsForMonth } from "./calendar";
 import { planDuplicateIds, supersededPlanEventIds } from "./planDedupe";
 import { recordPicks } from "../events/planOutcome";
 import { madeBy } from "../shared/provenance";
+import { isTravel } from "./leaveBy";
 
 // The Schedule feature, backed by the engine Store. Each event is a Store item
 // of entity type "event". onEvent feeds the gaming event bus (no-op in tests).
@@ -27,7 +28,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -59,6 +60,10 @@ export class ScheduleService {
     // opts had no way to say so. The receipts (trained) stay behind: they
     // belong to the occurrence that earned them.
     if (opts.gym) data.gym = true;
+    // UP-CORE-07 (2026-09-05): travel and slack only mean something next to a
+    // place, so they are stored only when there is one.
+    if (data.location && isTravel(opts.travelMin)) data.travelMin = opts.travelMin;
+    if (data.location && isTravel(opts.bufferMin)) data.bufferMin = opts.bufferMin;
     const id = await this.store.create(this.ownerId, ENTITY_EVENT, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_EVENT, entityId: id });
     return id;
@@ -142,8 +147,20 @@ export class ScheduleService {
     return this.patch(id, { taskIds: taskIds.length ? taskIds : undefined });
   }
 
+  // UP-CORE-07 (2026-09-05): how long it takes to get there, and the slack on
+  // top. Null clears either. Clearing the PLACE clears both, because minutes
+  // to nowhere is a number with nothing behind it.
+  async editTravel(id: string, travelMin: number | null, bufferMin: number | null = null): Promise<boolean> {
+    return this.patch(id, {
+      travelMin: isTravel(travelMin) ? travelMin : undefined,
+      bufferMin: isTravel(travelMin) && isTravel(bufferMin) ? bufferMin : undefined,
+    });
+  }
+
   async editLocation(id: string, location: string): Promise<boolean> {
-    return this.patch(id, { location: location.trim() });
+    const place = location.trim();
+    if (!place) return this.patch(id, { location: undefined, travelMin: undefined, bufferMin: undefined });
+    return this.patch(id, { location: place });
   }
 
   // THE TRAINING DOOR, D4-C. On/off by the athlete's own hand in the event

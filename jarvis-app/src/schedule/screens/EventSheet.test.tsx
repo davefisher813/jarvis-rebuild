@@ -173,3 +173,53 @@ describe("EventSheet: a series end before the start blocks the save", () => {
     expect(onSave.mock.calls[0]![0]).toMatchObject({ until: "2026-11-30" });
   });
 });
+
+// LEAVE BY (UP-CORE-07, 2026-09-05). The rows exist only next to a place,
+// because minutes to nowhere is a number with nothing behind it. The travel
+// time is typed once per place and offered every time after; nothing is
+// routed, learned or located.
+describe("EventSheet: Leave By", () => {
+  it("offers travel only with a place, computes the leave time, and saves both", () => {
+    const onSave = vi.fn();
+    render(
+      <EventSheet mode="new" initial={{ date: "2026-05-24", start: "15:40" }} categories={CATS} onSave={onSave} onCancel={() => {}} />,
+    );
+    expect(screen.queryByLabelText("Travel")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Location"), { target: { value: "Rink 2" } });
+    fireEvent.click(screen.getByLabelText("Travel"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "20 min" }));
+    expect((screen.getByLabelText("Leave by") as HTMLInputElement).value).toBe("15:20");
+    fireEvent.click(screen.getByLabelText("Buffer"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "10 min" }));
+    expect((screen.getByLabelText("Leave by") as HTMLInputElement).value).toBe("15:10");
+    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Practice" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ travelMin: 20, bufferMin: 10, location: "Rink 2" });
+  });
+
+  // The computed time is itself a chip you can override (A26 coverage map),
+  // and moving it moves the travel minutes, so there is one number behind
+  // both and they cannot disagree.
+  it("overriding the leave time changes the travel minutes", () => {
+    render(
+      <EventSheet mode="new" initial={{ date: "2026-05-24", start: "15:40", location: "Rink 2", travelMin: 20 }} categories={CATS} onSave={() => {}} onCancel={() => {}} />,
+    );
+    fireEvent.change(screen.getByLabelText("Leave by"), { target: { value: "15:00" } });
+    expect(screen.getByLabelText("Travel").textContent).toContain("40 min");
+  });
+
+  it("offers what was typed for this place last time, and a way to forget it", () => {
+    const onSave = vi.fn();
+    render(
+      <EventSheet mode="new" initial={{ date: "2026-05-24", start: "15:40", location: "Rink 2" }} categories={CATS}
+        travelMemory={{ "rink 2": 25 }} onSave={onSave} onCancel={() => {}} />,
+    );
+    expect(screen.getByText("25 min last time")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Travel"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Forget This Place" }));
+    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Practice" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0].forgetTravel).toBe(true);
+    expect(onSave.mock.calls[0]![0].travelMin).toBeUndefined();
+  });
+});

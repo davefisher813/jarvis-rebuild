@@ -4,17 +4,18 @@ import type { ColorSlot } from "../../categories/types";
 import { suggestFor, loadBlendMemory, blockKind, type Fit } from "../blend";
 import type { SheetCategory } from "../../tasks/screens/TaskSheet";
 import type { EventRecurrence } from "../types";
-import { addMinutes, fmtTime, minToHHMM, addDays } from "../calendar";
+import { addMinutes, fmtTime, minToHHMM, addDays, minutesBetween } from "../calendar";
 import type { TitleSuggestion } from "../memory";
 import { DUR_CHOICES, durLabel } from "../durations";
 import { catColor } from "../../shared/categories";
 import { untilError } from "../repeats";
 import SheetBar from "../../shared/SheetBar";
+import { BUFFER_CHOICES, TRAVEL_CHOICES, leaveByOf, travelFor, type TravelMemory } from "../leaveBy";
 import Provenance from "../../shared/Provenance";
 import type { Source } from "../../shared/provenance";
 import HeadMenu from "../../shared/HeadMenu";
 import { Tile } from "../../shared/FormSheet";
-import { Calendar, Tag, Hourglass, Shuffle, Plus } from "../../shared/icons";
+import { Calendar, Tag, Hourglass, Shuffle, Timer, Plus } from "../../shared/icons";
 import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph, SunGlyph } from "../../shared/glyphs";
 
 export type { SheetCategory };
@@ -45,6 +46,13 @@ export interface EventDraft {
   // what every repeat used to be.
   until?: string;
   taskIds?: string[]; // attached tasks (Session 4 connections)
+  // LEAVE BY (UP-CORE-07, 2026-09-05): minutes to get there, and the slack
+  // on top. Null means not set, which is most events.
+  travelMin?: number | null;
+  bufferMin?: number | null;
+  // The Forget row: stop remembering this place's travel time. Set only by
+  // that row, so an ordinary save never erases the memory.
+  forgetTravel?: boolean;
   // THE TRAINING DOOR (D4-C): this block opens the gym. By the athlete's own
   // hand only -- the sheet never guesses from the title.
   gym?: boolean;
@@ -79,6 +87,7 @@ export default function EventSheet({
   onBlend,
   source,
   openSourceFor,
+  travelMemory,
 }: {
   mode: "new" | "edit";
   initial?: Partial<EventDraft>;
@@ -107,6 +116,10 @@ export default function EventSheet({
   // and a button when the flow has a route to the source.
   source?: Source;
   openSourceFor?: (source: Source) => (() => void) | undefined;
+  // UP-CORE-07: the travel times already typed, keyed by place. Used to
+  // prefill this sheet the second time a place is used, and to know whether
+  // there is anything to forget.
+  travelMemory?: TravelMemory;
 }) {
   const [taskIds, setTaskIds] = useState<string[]>(initial?.taskIds ?? []);
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -117,6 +130,12 @@ export default function EventSheet({
   const [location, setLocation] = useState(initial?.location ?? "");
   const [recurrence, setRecurrence] = useState<EventRecurrence>(initial?.recurrence ?? "none");
   const [gym, setGym] = useState(!!initial?.gym);
+  // UP-CORE-07 (2026-09-05): how long it takes to get there. Typed once per
+  // place and offered every time after (travelMemory), never guessed.
+  const [travelMin, setTravelMin] = useState<number | null>(initial?.travelMin ?? null);
+  const [bufferMin, setBufferMin] = useState<number | null>(initial?.bufferMin ?? null);
+  const [forgetTravel, setForgetTravel] = useState(false);
+  const [travelCustom, setTravelCustom] = useState(false);
   const [until, setUntil] = useState(initial?.until ?? "");
   const untilBad = recurrence !== "none" ? untilError(date, until) : null;
   const [scope, setScope] = useState<"this" | "series">("series");
@@ -149,7 +168,18 @@ export default function EventSheet({
     }
     if (saving) return;
     setSaving(true);
-    const draft = { title: title.trim(), date, start, end, category, location: location.trim(), recurrence, until: recurrence === "none" ? "" : until, taskIds: recurrence === "none" ? taskIds : [], gym };
+    const draft = {
+      title: title.trim(), date, start, end, category, location: location.trim(),
+      recurrence, until: recurrence === "none" ? "" : until,
+      taskIds: recurrence === "none" ? taskIds : [], gym,
+      // No place, no travel: minutes to nowhere is a number with nothing
+      // behind it, and the service refuses it anyway. Absent rather than
+      // null when unset, so a draft for an event with no travel time is the
+      // same object it has always been.
+      ...(place && travelMin !== null ? { travelMin } : {}),
+      ...(place && travelMin !== null && bufferMin !== null ? { bufferMin } : {}),
+      ...(forgetTravel ? { forgetTravel: true } : {}),
+    };
     recurringEdit ? onSave(draft, scope) : onSave(draft);
   };
 
@@ -183,6 +213,11 @@ export default function EventSheet({
   const [memUsed, setMemUsed] = useState(false);
   const titleSugs = mode === "new" && !memUsed && suggestTitles ? suggestTitles(title) : [];
   const locSugs = !location && suggestLocations ? suggestLocations(title) : [];
+  // UP-CORE-07: the place as it will be stored, what was typed for it last
+  // time, and the number this all exists to produce.
+  const place = location.trim();
+  const remembered = travelFor(travelMemory, place);
+  const leaveBy = leaveByOf({ start, travelMin: travelMin ?? undefined, bufferMin: bufferMin ?? undefined });
   const applySug = (s: TitleSuggestion) => {
     setMemUsed(true);
     setTitle(s.title);
@@ -372,6 +407,76 @@ export default function EventSheet({
               <div className="conn-name">Place</div>
               <input className="xs-input xs-field" placeholder="Optional" aria-label="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
             </div>
+            {/* LEAVE BY (UP-CORE-07, 2026-09-05). "Parents driving to
+                practice and execs crossing town pay for the one number
+                time-blind people cannot compute: when to stand up." The
+                minutes are typed once per place and offered every time
+                after; nothing is routed, learned or located. The rows exist
+                only next to a place, because that is the only thing they
+                mean anything about. */}
+            {place && (
+              <div className="row xs-row">
+                <Tile tone="teal"><Timer className="ic" /></Tile>
+                <div className="row-grow">
+                  <div className="conn-name">Travel</div>
+                  {travelMin === null && remembered !== undefined && <div className="conn-meta">{remembered} min last time</div>}
+                </div>
+                <HeadMenu variant="value" ariaLabel="Travel" value={travelMin === null ? "" : String(travelMin)} label={travelMin === null ? "None" : `${travelMin} min`} off={travelMin === null}
+                  options={[
+                    { value: "", label: "None" },
+                    ...TRAVEL_CHOICES.map((m) => ({ value: String(m), label: `${m} min` })),
+                    { value: "custom", label: "Custom" },
+                    // Only offered when there is something to forget, so the
+                    // row never advertises a memory that does not exist.
+                    ...(remembered !== undefined ? [{ value: "forget", label: "Forget This Place" }] : []),
+                  ]}
+                  onPick={(v) => {
+                    if (v === "custom") { setTravelCustom(true); return; }
+                    setTravelCustom(false);
+                    if (v === "forget") { setForgetTravel(true); setTravelMin(null); setBufferMin(null); return; }
+                    setForgetTravel(false);
+                    setTravelMin(v === "" ? null : Number(v));
+                  }} />
+              </div>
+            )}
+            {place && travelCustom && (
+              <div className="row xs-row xs-date">
+                <input
+                  type="number" min={1} max={480} inputMode="numeric"
+                  className="xs-input" aria-label="Travel minutes"
+                  value={travelMin ?? ""}
+                  onChange={(e) => { const n = parseInt(e.target.value, 10); setTravelMin(Number.isFinite(n) && n > 0 ? n : null); }}
+                />
+              </div>
+            )}
+            {place && travelMin !== null && (
+              <div className="row xs-row">
+                <Tile tone="sky"><ClockGlyph /></Tile>
+                <div className="conn-name">Buffer</div>
+                <HeadMenu variant="value" ariaLabel="Buffer" value={bufferMin === null ? "" : String(bufferMin)} label={bufferMin === null ? "None" : `${bufferMin} min`} off={bufferMin === null}
+                  options={[{ value: "", label: "None" }, ...BUFFER_CHOICES.map((m) => ({ value: String(m), label: `${m} min` }))]}
+                  onPick={(v) => setBufferMin(v === "" ? null : Number(v))} />
+              </div>
+            )}
+            {place && leaveBy && (
+              <div className="row xs-row">
+                <Tile tone="purple"><PinGlyph /></Tile>
+                <div className="row-grow"><div className="conn-name">Leave By</div></div>
+                {/* The computed time is itself editable (A26 coverage map).
+                    Moving it moves the TRAVEL minutes, so there is one number
+                    behind both and they can never disagree. */}
+                <input
+                  type="time" className="xs-input xs-field" aria-label="Leave by" value={leaveBy}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (!/^\d{2}:\d{2}$/.test(v)) return;
+                    const lead = minutesBetween(v, start);
+                    const next = lead - (bufferMin ?? 0);
+                    if (next > 0) { setTravelMin(next); setTravelCustom(false); }
+                  }}
+                />
+              </div>
+            )}
             {locSugs.map((l) => (
               <div key={l} className="row xs-row xs-suggest" role="button" tabIndex={0} onClick={() => setLocation(l)}>
                 <div className="conn-name">{l}</div>

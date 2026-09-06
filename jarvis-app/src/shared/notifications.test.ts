@@ -91,6 +91,30 @@ describe("buildEventReminders", () => {
     expect(rs[3]!.body).toBe("Leave what you're doing · 188 Clinton Ave");
   });
 
+  // UP-CORE-07 (2026-09-05): the one rung that says stand up now.
+  it("adds a leave rung at the leave time, and never doubles up with a ladder rung", () => {
+    const rs = buildEventReminders(
+      [{ date: "2026-08-09", start: "09:20", title: "Practice", location: "Rink 2", leaveMin: 25 }],
+      NOW,
+    );
+    const leave = rs.find((r) => r.body === "Leave now for Rink 2")!;
+    expect(leave.at).toEqual(new Date("2026-08-09T08:55:00"));
+    // A leave lead equal to a ladder rung leaves ONE alert at that minute,
+    // the one that says what to do.
+    const collide = buildEventReminders(
+      [{ date: "2026-08-09", start: "09:20", title: "Practice", location: "Rink 2", leaveMin: 30 }],
+      NOW,
+    );
+    const at850 = collide.filter((r) => r.at.getTime() === new Date("2026-08-09T08:50:00").getTime());
+    expect(at850).toHaveLength(1);
+    expect(at850[0]!.body).toBe("Leave now for Rink 2");
+  });
+
+  it("says nothing about leaving for an event with no travel time", () => {
+    const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", title: "Call" }], NOW);
+    expect(rs.some((r) => r.body.startsWith("Leave now"))).toBe(false);
+  });
+
   it("skips rungs that have already passed rather than stacking them", () => {
     // 08:10 is ten minutes out: only the 5-minute rung is still ahead.
     const rs = buildEventReminders([{ date: "2026-08-09", start: "08:10", title: "Soon" }], NOW);

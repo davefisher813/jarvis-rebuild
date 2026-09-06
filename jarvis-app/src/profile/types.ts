@@ -85,6 +85,12 @@ export interface ProfileData {
   // is one now too. Keyed by scope + NUL + trigger, emptied as each pair
   // becomes a rule. See rules/LearnedRulesService.ts.
   pendingCorrections?: Record<string, { to: string; evidence: string[] }>;
+  // LEAVE BY (UP-CORE-07, 2026-09-05): how long it takes to get to a place,
+  // keyed by the exact string the person typed for it. Typed once, offered
+  // every time after. It rides the profile so it syncs, and it is
+  // deliberately NOT in the Brain: no place is learned, nothing is inferred
+  // from location, and the Forget row on the event sheet empties an entry.
+  travel?: Record<string, number>;
 }
 
 export const EMPTY_PROFILE: ProfileData = {

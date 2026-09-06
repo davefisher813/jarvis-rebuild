@@ -45,6 +45,34 @@ describe("Now Context (item 10)", () => {
   });
 });
 
+// LEAVE BY (UP-CORE-07, 2026-09-05): the free window ends when you have to
+// stand up, not when the thing starts, and the guard counts to the leaving.
+describe("Leave By in the Now line and the guard", () => {
+  const withTravel = (title: string, start: string, travelMin: number): EventItem =>
+    ({ id: title, data: { title, date: "2026-08-15", start, category: "", location: "Rink 2", travelMin } }) as EventItem;
+
+  it("free time ends at the leave time, and says what the leaving is for", () => {
+    const ctx = nowContext([withTravel("Practice", "18:00", 20)], [], "15:20");
+    expect(ctx.line).toBe("Free until 5:40 PM · then leave for Practice");
+    expect(ctx.nextLeave).toEqual({ at: "17:40", title: "Practice" });
+    // The gap on offer is the time actually free, not the time until it starts.
+    expect(ctx.gapMin).toBe(140);
+  });
+
+  it("an event with no travel time reads exactly as it always has", () => {
+    const ctx = nowContext([ev("Practice", "18:00", "19:30")], [], "15:20");
+    expect(ctx.line).toBe("Free until 6 PM · 2 hr 40 min open");
+    expect(ctx.nextLeave).toBeNull();
+  });
+
+  it("the guard warns about the leaving, inside ten minutes of it", () => {
+    expect(hyperfocusGuard([withTravel("Practice", "18:00", 20)], "15:00"))
+      .toEqual({ text: "Leave for Practice at 5:40 PM", warn: false });
+    expect(hyperfocusGuard([withTravel("Practice", "18:00", 20)], "17:32"))
+      .toEqual({ text: "Leave for Practice in 8 min", warn: true });
+  });
+});
+
 describe("Gap Fill (item 11)", () => {
   const task = (id: string, text: string, extra = {}) => ({ id, text, category: "work", done: false, ...extra });
 

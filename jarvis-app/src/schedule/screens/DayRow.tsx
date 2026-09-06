@@ -9,6 +9,7 @@ import { DUR_CHOICES, durLabel, minutesBetween, endFor } from "../durations";
 import { Check as CheckGlyph } from "../../shared/icons";
 import { EventWeatherLine } from "../../weather/WeatherLine";
 import Provenance from "../../shared/Provenance";
+import { leaveByOf } from "../leaveBy";
 import { rowSource, type Source } from "../../shared/provenance";
 
 // One event row on the Schedule day list. Same anatomy as before, plus the
@@ -139,6 +140,7 @@ export default function DayRow({
   // A re-flow that happened today outranks where the block came from; an
   // older move is history nobody is looking for (rowSource).
   const prov = rowSource(e.data.source, e.data.moved);
+  const leaveBy = leaveByOf(e.data);
 
   return (
     <div className="sched-swipe-wrap">
@@ -283,6 +285,16 @@ export default function DayRow({
                   rel="noreferrer"
                   onClick={(ev) => ev.stopPropagation()}
                 >{e.data.location}</a>
+              </>
+            )}
+            {/* LEAVE BY (UP-CORE-07, 2026-09-05): the one number time-blind
+                people cannot compute, on the row where the place already
+                is. A fact, in the same grey line; absent until the travel
+                minutes have been typed once. */}
+            {leaveBy && (
+              <>
+                <span className="sched-sep">&middot;</span>
+                <span className="sched-until">Leave by {fmtTime(leaveBy).time} {fmtTime(leaveBy).ap}</span>
               </>
             )}
             {weatherDateIso && !isPast && e.data.location && <EventWeatherLine dateIso={weatherDateIso} start={e.data.start} />}

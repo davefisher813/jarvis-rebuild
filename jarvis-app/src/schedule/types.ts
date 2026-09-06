@@ -11,6 +11,12 @@ export interface EventData {
   category: string;
   end?: string;
   location?: string;
+  // LEAVE BY (UP-CORE-07, 2026-09-05). The minutes it takes to GET to this
+  // place, as the person typed them, plus whatever slack they asked for. Not
+  // a route and not a GPS read: see schedule/leaveBy.ts for what this
+  // deliberately is not. Only meaningful alongside a location.
+  travelMin?: number;
+  bufferMin?: number;
   recurrence?: EventRecurrence; // repeats from `date` forward
   // N3 (2026-08-21): the last day the series runs, inclusive. Absent means
   // forever, which is what every repeating event used to be: "fall clinics

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sourceOpener } from "../shared/openSource";
 import { rowSource } from "../shared/provenance";
-import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands, useOptionalRules, useOptionalGym } from "../data/NotesProvider";
+import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useProfile, useOptionalStrands, useOptionalRules, useOptionalGym } from "../data/NotesProvider";
+import { rememberTravel, type TravelMemory } from "./leaveBy";
 import GymFlow, { readActiveProgramId } from "../gym/GymFlow";
 import { doorInfoFor } from "../gym/door";
 import { readGymSettings, rackFrom } from "../gym/settings";
@@ -85,6 +86,25 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     }).catch(() => {});
     return () => { on = false; };
   }, [rulesSvc]);
+  // UP-CORE-07 (2026-09-05): the travel times already typed, keyed by place.
+  // On the profile so they sync, and read once here for the sheet to prefill
+  // from. Never in the Brain: no place is learned, nothing is inferred.
+  const profileSvc = useProfile();
+  const [travelMemory, setTravelMemory] = useState<TravelMemory>({});
+  useEffect(() => {
+    let on = true;
+    profileSvc.get().then((p) => { if (on) setTravelMemory(p?.travel ?? {}); }).catch(() => {});
+    return () => { on = false; };
+  }, [profileSvc]);
+  // The place's minutes are remembered on save, and the Forget row empties
+  // them. One writer, called from both save paths.
+  const rememberPlace = async (location: string, minutes: number | null, forget: boolean) => {
+    const next = rememberTravel(travelMemory, location, forget ? null : minutes);
+    if (!next) return;
+    setTravelMemory(next);
+    try { await profileSvc.save({ travel: next }); } catch { /* the event still saved; the memory is a convenience */ }
+  };
+
   const cats = useCategories();
   const today = todayISO();
   const t0 = new Date(today + "T00:00:00");
@@ -468,7 +488,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     // B1-2 (2026-09-04): "until" has to travel into the sheet too, or the
     // sheet's own default of "" reads as "forever" and onSave below writes
     // that back, silently erasing a real end date on any unrelated edit.
-    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null } });
   };
 
   // When arriving via a note connection, jump to the event's own date and open
@@ -485,7 +505,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
       const occurrence = repeating ? nextOccurrence(e, todayISO()) ?? e.date : e.date;
       setSelected(occurrence);
       syncView(occurrence);
-      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null } });
     })();
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -512,7 +532,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     let newEventDate: string | null = null;
     if (sheet?.mode === "new") {
       const created = await attemptWrite(async () => {
-        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, taskIds: draft.taskIds });
+        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, taskIds: draft.taskIds, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined });
         if (newEventId && draft.gym) await svc.editGymDoor(newEventId, true);
       });
       if (!created) newEventId = null;
@@ -528,7 +548,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
         // duplicate lands on some other day.
         await attemptWrite(async () => {
           await svc.addExdate(id, sheet.occurrence);
-          const splitId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined });
+          const splitId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined });
           if (splitId && draft.gym) await svc.editGymDoor(splitId, true);
         });
       } else {
@@ -550,11 +570,16 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           await svc.editUntil(id, draft.until || null);
           await svc.editCategory(id, draft.category);
           await svc.editLocation(id, draft.location);
+          await svc.editTravel(id, draft.travelMin ?? null, draft.bufferMin ?? null);
           await svc.editTaskIds(id, draft.taskIds ?? []);
           await svc.editGymDoor(id, !!draft.gym);
         });
       }
     }
+    // UP-CORE-07: the place's minutes are typed once and offered every time
+    // after. Outside attemptWrite: the event itself is what a failure here
+    // must not take down.
+    if (draft.location.trim()) await rememberPlace(draft.location, draft.travelMin ?? null, !!draft.forgetTravel);
     setSheet(null);
     setNewStart(null);
     await reload();
@@ -1388,6 +1413,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           onBlend={(kind, categoryId) => recordBlend(kind, categoryId)}
           source={sheet.mode === "edit" ? sheet.source : undefined}
           openSourceFor={openSourceFor}
+          travelMemory={travelMemory}
         />
       )}
       {blockSheet && (

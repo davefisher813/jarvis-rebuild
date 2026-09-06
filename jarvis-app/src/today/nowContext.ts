@@ -5,6 +5,7 @@
 
 import type { EventItem } from "../schedule/types";
 import type { LockedRange } from "./YourDay";
+import { leaveByOf } from "../schedule/leaveBy";
 
 export interface NowContext {
   // "Free until 6:00 PM" / "In: Elite Squad Practice" / "Clear from here"
@@ -15,6 +16,10 @@ export interface NowContext {
   // The next commitment's start (HH:MM) when one exists.
   nextStart: string | null;
   nextTitle: string | null;
+  // LEAVE BY (UP-CORE-07, 2026-09-05): the next commitment that has to be
+  // TRAVELLED to, and the time to stand up for it. Null when nothing ahead
+  // has a travel time, which is most of the time and says nothing.
+  nextLeave: { at: string; title: string } | null;
 }
 
 const toMin = (hhmm: string): number => {
@@ -43,6 +48,13 @@ export function fmtSpan(min: number): string {
 // events and the routine's protected ranges; never a guess, never advice.
 export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: string): NowContext {
   const now = toMin(nowHHMM);
+  // The soonest leave time still ahead. Its own read, not tied to whichever
+  // slot is next: the thing you have to drive to may be the second event of
+  // the afternoon, and the leaving is what has to be said out loud.
+  const nextLeave = events
+    .map((ev) => ({ at: leaveByOf(ev.data), title: ev.data.title }))
+    .filter((x): x is { at: string; title: string } => !!x.at && toMin(x.at) > now)
+    .sort((a, b) => toMin(a.at) - toMin(b.at))[0] ?? null;
   type Slot = { s: number; e: number; title: string };
   const slots: Slot[] = [
     ...events.map((ev) => ({
@@ -58,6 +70,7 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
     return {
       line: `In: ${inside.title} until ${fmt12(inside.e)}`,
       gapMin: null,
+      nextLeave,
       nextStart: null,
       nextTitle: inside.title,
     };
@@ -65,14 +78,28 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
 
   const next = slots.find((s) => s.s > now);
   if (!next) {
-    return { line: "Clear from here", gapMin: null, nextStart: null, nextTitle: null };
+    return { line: "Clear from here", gapMin: null, nextStart: null, nextTitle: null, nextLeave };
   }
   const gap = next.s - now;
+  // UP-CORE-07: when the next thing has to be travelled to, the free window
+  // ends at the LEAVE time, not at the start time. That is the whole point:
+  // "free until 6" is a lie when the drive starts at 5:20.
+  if (nextLeave && toMin(nextLeave.at) < next.s) {
+    const leaveMin = toMin(nextLeave.at);
+    return {
+      line: `Free until ${fmt12(leaveMin)} · then leave for ${nextLeave.title}`,
+      gapMin: Math.max(0, leaveMin - now),
+      nextStart: nextLeave.at,
+      nextTitle: nextLeave.title,
+      nextLeave,
+    };
+  }
   return {
     line: `Free until ${fmt12(next.s)} · ${fmtSpan(gap)} open`,
     gapMin: gap,
     nextStart: `${String(Math.floor(next.s / 60)).padStart(2, "0")}:${String(next.s % 60).padStart(2, "0")}`,
     nextTitle: next.title,
+    nextLeave,
   };
 }
 
@@ -145,12 +172,23 @@ export interface GuardLine {
 
 export function hyperfocusGuard(events: EventItem[], nowHHMM: string): GuardLine | null {
   const now = toMin(nowHHMM);
+  // UP-CORE-07 (2026-09-05): what bears down on you is LEAVING, not
+  // starting. An event you have to drive to arrives at its leave time, so
+  // that is the moment the guard counts to; an event with no travel time is
+  // exactly the guard it has always been.
   const next = events
-    .map((ev) => ({ s: toMin(ev.data.start), title: ev.data.title }))
+    .map((ev) => {
+      const leave = leaveByOf(ev.data);
+      return leave
+        ? { s: toMin(leave), title: ev.data.title, leaving: true }
+        : { s: toMin(ev.data.start), title: ev.data.title, leaving: false };
+    })
     .filter((x) => x.s > now)
     .sort((a, b) => a.s - b.s)[0];
   if (!next) return null;
   const mins = next.s - now;
-  if (mins <= GUARD_WARN_MIN) return { text: `${next.title} in ${mins} min`, warn: true };
-  return { text: `${next.title} at ${fmt12(next.s)}`, warn: false };
+  if (mins <= GUARD_WARN_MIN) {
+    return { text: next.leaving ? `Leave for ${next.title} in ${mins} min` : `${next.title} in ${mins} min`, warn: true };
+  }
+  return { text: next.leaving ? `Leave for ${next.title} at ${fmt12(next.s)}` : `${next.title} at ${fmt12(next.s)}`, warn: false };
 }

@@ -21,6 +21,7 @@ import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
 import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
+import { leadFor } from "../schedule/leaveBy";
 import { capAfterNumber } from "../shared/casing";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, upcomingBirthdays, type BirthdayHit } from "../people/birthdays";
@@ -1126,8 +1127,10 @@ export default function TodayFlow({
       ? [
           // S6-Q36: firstMove rides along so the closing rung of the
           // ladder can name the actual move instead of a placeholder.
-          ...todayEvents.map((e) => ({ date: today, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location, firstMove: firstMoveOf(e, taskItems) })),
-          ...tomorrowEvents.map((e) => ({ date: tomorrow, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location, firstMove: firstMoveOf(e, taskItems) })),
+          // UP-CORE-07 (2026-09-05): leaveMin buys the one rung that says
+          // stand up now, for an event with a travel time.
+          ...todayEvents.map((e) => ({ date: today, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location, firstMove: firstMoveOf(e, taskItems), leaveMin: leadFor(e.data) ?? undefined })),
+          ...tomorrowEvents.map((e) => ({ date: tomorrow, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location, firstMove: firstMoveOf(e, taskItems), leaveMin: leadFor(e.data) ?? undefined })),
         ]
       : []; // pref off: an empty schedule cancels whatever was pending
     void ensureEventReminders(inputs);
