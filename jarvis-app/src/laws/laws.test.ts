@@ -4812,8 +4812,16 @@ describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatment
       ".ruled .task-row .r-goal b",
       ".ruled .r-goal.r-rec",
     ]) {
-      expect(inkOf(sel).color, sel + " reads in the neutral text ramp").toMatch(/^var\(--tx-[1-4]\)$/);
+      expect(inkOf(sel).color, sel + " reads in the neutral text ramp")
+        .toMatch(/^var\(--tx-(?:[1-4]|quiet)\)$/);
     }
+    // BROWSER-F-09 (2026-09-05) split --tx-4 off from quiet metadata one day
+    // before this: --tx-4 means "finished or out of range" and measures 2.3:1
+    // in dark, 1.7:1 in light, which "is not quiet, it is gone". A recurrence
+    // is live information, so the quietest fact on this line takes the token
+    // that was minted for exactly that and clears AA.
+    expect(inkOf(".ruled .r-goal.r-rec").color, "the quietest fact is quiet, not gone")
+      .toBe("var(--tx-quiet)");
     expect(RULED, "and the parent's glyph is still the one coloured thing")
       .toMatch(/\.ruled \.r-pg \.r-gm \{[^}]*color: currentColor/);
   });

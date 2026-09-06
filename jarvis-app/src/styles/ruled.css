@@ -270,9 +270,17 @@
    not jitter, the same as the right slot's own duration. */
 .ruled .r-goal.r-est { color: var(--tx-3); font-variant-numeric: tabular-nums; }
 /* A RECURRENCE is a rule, not an instance of one. The quietest fact on the
-   line (the ink .r-when on a note row already uses for its trailing fact),
-   and by its place in the line the first to go when the room runs out. */
-.ruled .r-goal.r-rec { flex-shrink: 0; color: var(--tx-4); }
+   line, and by its place in the line the first to go when the room runs out.
+   --tx-quiet, NOT --tx-4: BROWSER-F-09 (2026-09-05) split those two apart
+   exactly one day before this, because --tx-4 means "finished or out of
+   range" and measures 2.3:1 in dark and 1.7:1 in light, which "is not quiet,
+   it is gone". A recurrence is live information a person has to read, so it
+   takes the token minted for that, which clears AA on every ground.
+   In the light theme the ramp maps --tx-quiet and --tx-3 to the same alpha
+   (0.72, the alpha light needs to stay readable at all), so there this fact
+   leans on its weight and its place at the end of the line rather than on
+   its ink. That is the token system's call, and the right one. */
+.ruled .r-goal.r-rec { flex-shrink: 0; color: var(--tx-quiet); }
 
 /* ---------- THE PROJECTS LENS: the pie row (Goals and Projects, 2026-09-02:
    "The progress pie, three lines", "Under their goal") ----------------------
