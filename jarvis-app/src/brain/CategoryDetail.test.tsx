@@ -538,7 +538,10 @@ import { addDays } from "../schedule/calendar";
 import { resetToasts } from "../shared/toast";
 
 const seenToasts: string[] = [];
-subscribeToast((t) => { if (t) seenToasts.push(t.message); });
+// UP-ATH-10 (2026-09-06): the action too, because an offer that makes a real
+// thing has to be takeable back.
+let lastToast: { message: string; actionLabel?: string } | null = null;
+subscribeToast((t) => { if (t) { seenToasts.push(t.message); lastToast = t; } });
 
 function SeededHealthMore({ template }: { template: TemplateKey }) {
   const cats = useCategories();
@@ -595,18 +598,26 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
     await waitFor(() => expect(screen.getByText("1 · 2 Hours")).toBeInTheDocument());
   });
 
-  it("an offer taken on a health screen lands as a real task, and the receipt waits for it", async () => {
+  // UP-ATH-10 (2026-09-06): this case asserted the OLD behaviour, which
+  // HMN-F-06 shipped as the honest half of a bigger fix: every offer, whatever
+  // it was, landed as one untimed task on this area's list. Protecting an
+  // hour tonight is not a to-do, so Add Wind Down writes a protected block on
+  // the routine instead, the receipt says which thing it made, and it can be
+  // taken back.
+  it("Add Wind Down protects the hour on the routine, and says so only after the write", async () => {
     render(<NotesProvider userId="hm4"><SeededHealthMore template="student" /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("More")).toBeInTheDocument());
     fireEvent.click(screen.getByText("More"));
     fireEvent.click(await screen.findByText("The Night Before"));
     fireEvent.click(await screen.findByText("Add Wind Down"));
-    await waitFor(() => expect(seenToasts.some((m) => m === "Wind Down added")).toBe(true));
-    // Back out through the menu: the offer is a task on this area's list.
+    await waitFor(() => expect(seenToasts.some((m) => m === "Wind Down added to your routine")).toBe(true));
+    expect(lastToast!.actionLabel).toBe("Undo");
+    // And it is NOT a row on the list any more: that was the flattening.
     fireEvent.click(screen.getByLabelText("Back"));
     await waitFor(() => expect(screen.getByText("The Night Before")).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("Back"));
-    await waitFor(() => expect(screen.getByText(/^Wind Down at /)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Log It")).toBeInTheDocument());
+    expect(screen.queryByText(/^Wind Down at /)).not.toBeInTheDocument();
   });
 
   // UP-ATH-01 (2026-09-06): Personal used to get no More row at all, so the

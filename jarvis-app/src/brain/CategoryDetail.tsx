@@ -77,6 +77,27 @@ import { chartableExercises, liftSessions } from "../gym/chartData";
 import { correlate, plateauFlag, hardSetRows, muscleMapFromProgram, backOffSignal, shouldOfferLighterWeek } from "../gym/insights";
 import { MUSCLE_LABEL } from "../gym/muscles";
 import { pressable } from "../shared/pressable";
+import { madeBy, type Source } from "../shared/provenance";
+import { OFFER_RECEIPT, type HealthOffer } from "../health/offers";
+
+// UP-ATH-10 (2026-09-06): the three small facts applyHealthOffer needs.
+// pbId mints a protected-block id the same way the routine editor does
+// (routine/RoutineFlow.tsx); WIND_DOWN_MIN is how long the block runs, which
+// is the catalog's own wind-down buffer rather than a number invented here;
+// healthSource stamps what made the row so the card can say so.
+function pbId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return "pb_" + crypto.randomUUID();
+  return "pb_" + Math.random().toString(36).slice(2);
+}
+const WIND_DOWN_MIN = 30;
+/** A local calendar day from an instant. Never toISOString: that reads UTC
+ *  and lands on the wrong day for anyone west of Greenwich. */
+function localDayOf(d: Date): string {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function healthSource(): Source {
+  return madeBy("health");
+}
 
 const CHEV = (
   <div className="chev" />
@@ -533,9 +554,101 @@ export default function CategoryDetail({
   // makes lands: a task on this area's list. The answer travels back so the
   // screen's receipt waits for the write instead of announcing on the tap.
   const landHealthTask = async (line: string): Promise<boolean> => {
-    const ok = await attemptWrite(() => tasksSvc.createTask(line, { category: categoryId }));
+    const ok = await attemptWrite(() => tasksSvc.createTask(line, { category: categoryId, source: healthSource() }));
     if (ok) await reload();
     return ok;
+  };
+  // UP-ATH-10 (2026-09-06): the offers make the thing they name. Every health
+  // screen ends in an offer (rail 6) and HMN-F-06 made all five of them land
+  // as the same untimed task, so "Add Wind Down" produced a row on a list
+  // instead of an hour the planner will not fill, and "Place a Rest Block"
+  // produced one instead of a day on the calendar. Each kind writes through
+  // the primitive that already exists for it, carries provenance so the row
+  // can say where it came from, and offers an Undo through the same delete
+  // path the rest of the app uses. The receipt still waits for the write:
+  // attemptWrite answers, and HealthFlow's `take` only toasts on true.
+  const applyHealthOffer = async (offer: HealthOffer): Promise<false | { undo: () => void }> => {
+    if (offer.kind === "task") {
+      let id: string | null = null;
+      const ok = await attemptWrite(async () => { id = await tasksSvc.createTask(offer.line, { category: categoryId, source: healthSource() }); });
+      if (!ok) return false;
+      await reload();
+      return { undo: () => void (async () => { if (id) await attemptWrite(() => tasksSvc.deleteTask(id!)); await reload(); })() };
+    }
+
+    if (offer.kind === "reminder") {
+      const at = new Date(offer.at);
+      const time = String(at.getHours()).padStart(2, "0") + ":" + String(at.getMinutes()).padStart(2, "0");
+      let id: string | null = null;
+      const ok = await attemptWrite(async () => {
+        id = await tasksSvc.createTask(offer.line, {
+          category: categoryId,
+          due: localDayOf(at),
+          reminder: { time, days: [at.getDay()] },
+          source: healthSource(),
+        });
+      });
+      if (!ok) return false;
+      await reload();
+      return { undo: () => void (async () => { if (id) await attemptWrite(() => tasksSvc.deleteTask(id!)); await reload(); })() };
+    }
+
+    if (offer.kind === "windDown") {
+      // A protected block, on the one weekday this wind-down is for. The
+      // routine is a weekly shape, so a block lands on the day the offer is
+      // about and no others: turning one night's offer into every night's
+      // rule would be the app deciding how somebody lives.
+      const at = new Date(offer.at);
+      const startMin = at.getHours() * 60 + at.getMinutes();
+      const rt = await routine.get();
+      const before = rt.protectedBlocks ?? [];
+      const block = {
+        id: pbId(),
+        label: "Wind Down",
+        startMin,
+        endMin: Math.min(24 * 60 - 1, startMin + WIND_DOWN_MIN),
+        days: [at.getDay()],
+        kind: "other" as const,
+        mode: "protects" as const,
+      };
+      const ok = await attemptWrite(() => routine.save({ protectedBlocks: [...before, block] }));
+      if (!ok) return false;
+      await reload();
+      return { undo: () => void (async () => { await attemptWrite(() => routine.save({ protectedBlocks: before })); await reload(); })() };
+    }
+
+    // The two calendar kinds. A rest day anchors at the athlete's own wake
+    // time rather than a number this page made up; a protected gap sits in
+    // the real hole between the day's own commitments, and there is nothing
+    // honest to place when the day has no hole, so that falls back to a task.
+    const rt = await routine.get();
+    const wake = rt.wakeMin;
+    let start = String(Math.floor(wake / 60)).padStart(2, "0") + ":" + String(wake % 60).padStart(2, "0");
+    let end: string | undefined;
+    let title = offer.line;
+    if (offer.kind === "protectGap") {
+      const onDay = dayEvents(offer.date)
+        .map((e) => ({ s: e.data.start, e: endOf(e) }))
+        .sort((a, b) => a.s.localeCompare(b.s));
+      const hole = onDay.slice(0, -1).map((x, i) => ({ from: x.e, to: onDay[i + 1]!.s })).find((g) => g.to > g.from);
+      if (!hole) return applyHealthOffer({ kind: "task", line: offer.line });
+      start = hole.from;
+      end = hole.to;
+      title = "Protected Gap";
+    }
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => {
+      id = await schedule.createEvent(title, {
+        date: offer.date,
+        start,
+        ...(end ? { end } : {}),
+        category: categoryId,
+        source: healthSource(),
+      });
+    });
+    if (!ok) return false;
+    await reload();
+    return { undo: () => void (async () => { if (id) await attemptWrite(() => schedule.deleteEvent(id!)); await reload(); })() };
   };
   // UP-ATH-01 (2026-09-06): `everyone` marks the rows that are about a person
   // and their own medication, which is not a student-athlete question: an
@@ -577,7 +690,7 @@ export default function CategoryDetail({
         eatingWindowBlocks={eatingWindowBlocks}
         sessionStarts={sessionStarts}
         bagEvent={bagEvent}
-        onOffer={landHealthTask}
+        onOffer={applyHealthOffer}
         onLandParentTask={landHealthTask}
         // UP-ATH-07 (2026-09-06): Say It to Someone picks from the people
         // this account already keeps, so the number that has to work in a

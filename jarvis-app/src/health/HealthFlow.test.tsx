@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { Store, InMemoryAdapter } from "@core";
 import { AIService } from "../ai/AIService";
-import { subscribeToast } from "../shared/toast";
+import { subscribeToast, resetToasts } from "../shared/toast";
 import HealthFlow from "./HealthFlow";
 import { HealthService } from "./HealthService";
 
@@ -385,5 +385,104 @@ describe("HealthFlow: nothing is announced that did not happen (HMN-F-22)", () =
     await waitFor(async () => expect(await svc.wasAgeRuleShown(new Date().getFullYear() + "-q" + (Math.floor(new Date().getMonth() / 3) + 1))).toBe(true));
     const seasons = await store.listForUser("u1", "health_age_rule_shown");
     expect(seasons.length).toBe(1);
+  });
+});
+
+// UP-ATH-10 (2026-09-06): every screen in this module ends in an offer, and
+// every offer used to be a STRING, so five different actions flattened into
+// one untimed row on a list. The offer says what kind of thing it is now, and
+// the receipt names the thing that got made.
+describe("HealthFlow: an offer is a thing, not a sentence", () => {
+  // The toast store is module-level and an action toast holds the slot
+  // against a plain one (SHARED-F-09), so each case starts from empty.
+  beforeEach(() => resetToasts());
+  const at = (h: number, m = 0) => new Date("2026-09-08T00:00:00").getTime() + h * 3600000 + m * 60000;
+
+  it("The Night Before offers a wind-down at a real time", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const onOffer = vi.fn();
+    render(
+      <HealthFlow
+        store={store} ownerId="off1" initialScreen="nightBefore" onExit={() => {}}
+        nightBeforeCommitments={[{ title: "First Bell", at: at(31) }]}
+        onOffer={onOffer}
+      />,
+    );
+    fireEvent.click(await screen.findByText("Add Wind Down"));
+    await waitFor(() => expect(onOffer).toHaveBeenCalled());
+    const offer = onOffer.mock.calls[0]![0];
+    expect(offer.kind).toBe("windDown");
+    expect(typeof offer.at).toBe("number");
+  });
+
+  it("Two Days Off offers a dated rest day", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const onOffer = vi.fn();
+    const week = ["2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-12", "2026-09-13"];
+    render(
+      <HealthFlow
+        store={store} ownerId="off2" initialScreen="twoDaysOff" onExit={() => {}}
+        weekDates={week}
+        sportSessions={week.slice(0, 6).map((date) => ({ date, org: "Club", title: "Practice", durationMin: 90 }))}
+        onOffer={onOffer}
+      />,
+    );
+    fireEvent.click(await screen.findByText(/^Place a Rest/));
+    await waitFor(() => expect(onOffer).toHaveBeenCalled());
+    expect(onOffer.mock.calls[0]![0]).toMatchObject({ kind: "restDay", date: "2026-09-13" });
+  });
+
+  it("The Third Practice offers a gap on the day that carries two teams", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const onOffer = vi.fn();
+    render(
+      <HealthFlow
+        store={store} ownerId="off3" initialScreen="thirdPractice" onExit={() => {}}
+        sportSessions={[
+          { date: "2026-09-09", org: "School", title: "Practice", durationMin: 90 },
+          { date: "2026-09-09", org: "Club", title: "Practice", durationMin: 90 },
+        ]}
+        onOffer={onOffer}
+      />,
+    );
+    fireEvent.click(await screen.findByText(/Protect/));
+    await waitFor(() => expect(onOffer).toHaveBeenCalled());
+    expect(onOffer.mock.calls[0]![0]).toMatchObject({ kind: "protectGap", date: "2026-09-09" });
+  });
+
+  it("the receipt carries the Undo the wiring layer handed back, and only then", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const seen: { message: string; actionLabel?: string; onAction?: () => void }[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t); });
+    const undo = vi.fn();
+    render(
+      <HealthFlow
+        store={store} ownerId="off4" initialScreen="nightBefore" onExit={() => {}}
+        nightBeforeCommitments={[{ title: "First Bell", at: at(31) }]}
+        onOffer={() => Promise.resolve({ undo })}
+      />,
+    );
+    fireEvent.click(await screen.findByText("Add Wind Down"));
+    await waitFor(() => expect(seen.some((t) => t.actionLabel === "Undo")).toBe(true));
+    seen.find((t) => t.actionLabel === "Undo")!.onAction!();
+    expect(undo).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it("a failed write says so and offers no Undo at all", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const seen: { message: string; actionLabel?: string }[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t); });
+    render(
+      <HealthFlow
+        store={store} ownerId="off5" initialScreen="nightBefore" onExit={() => {}}
+        nightBeforeCommitments={[{ title: "First Bell", at: at(31) }]}
+        onOffer={() => Promise.resolve(false)}
+      />,
+    );
+    fireEvent.click(await screen.findByText("Add Wind Down"));
+    await waitFor(() => expect(seen.some((t) => t.message.startsWith("Couldn't"))).toBe(true));
+    expect(seen.every((t) => t.actionLabel === undefined)).toBe(true);
+    stop();
   });
 });

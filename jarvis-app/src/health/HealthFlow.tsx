@@ -21,6 +21,7 @@ import { ageRuleFacts } from "./ageRule";
 import { LOCKER_DOC_LABEL } from "./locker";
 import { healthComebackMessage } from "./healthComeback";
 import { handoffItems } from "./handoff";
+import { OFFER_RECEIPT, type HealthOffer, type OfferUndo } from "./offers";
 import type { SportSession } from "./loadCandidates";
 import type { SeasonFeedDraft } from "./seasonFeed";
 import { showToast } from "../shared/toast";
@@ -146,7 +147,14 @@ export default function HealthFlow({
   // HMN-F-06 (2026-09-05): a wired caller writes something real here (the
   // health area page lands it as a task), so this may answer with false when
   // the write failed; the receipt below waits for that answer.
-  onOffer?: (line: string) => void | Promise<boolean | void>;
+  // UP-ATH-10 (2026-09-06): a typed offer, not a sentence. Every screen used
+  // to hand over a string and every string became the same untimed task;
+  // protecting an hour tonight is not a to-do. The wiring layer decides how
+  // to make each kind; see health/offers.ts.
+  // A caller that made something reversible hands its Undo back, and the
+  // receipt below carries it. A bare boolean, or nothing, behaves exactly as
+  // it did before.
+  onOffer?: (offer: HealthOffer) => void | Promise<boolean | void | OfferUndo>;
   // Refill Runway's call, specifically: the catalog is explicit this lands
   // on the PARENT's list, not a generic offer, so it gets its own seam.
   onLandParentTask?: (line: string) => void | Promise<boolean | void>;
@@ -235,17 +243,24 @@ export default function HealthFlow({
   // offer of its own. The argument is generic because The Season Feed hands
   // over a draft rather than a line, and onDone runs only on a real write,
   // so a failed commit leaves the person on the screen they can retry from.
+  //
+  // UP-ATH-10 (2026-09-06): an offer that MADE something can hand its Undo
+  // back with the answer, so the one receipt this flow raises is also the way
+  // out of it. A seam that returns a plain boolean or nothing is unchanged.
   const take = <T,>(
-    fn: ((arg: T) => void | Promise<boolean | void>) | undefined,
+    fn: ((arg: T) => void | Promise<boolean | void | OfferUndo>) | undefined,
     arg: T,
     said: string,
     onDone?: () => void,
   ) => {
     if (!fn) return;
     void (async () => {
-      const ok = await Promise.resolve(fn(arg)).catch(() => false);
-      showToast({ message: ok === false ? WRITE_FAILED_MESSAGE : said });
-      if (ok !== false) onDone?.();
+      const r = await Promise.resolve(fn(arg)).catch(() => false);
+      const undo = r && typeof r === "object" && typeof r.undo === "function" ? r.undo : undefined;
+      showToast(r === false
+        ? { message: WRITE_FAILED_MESSAGE }
+        : { message: said, ...(undo ? { actionLabel: "Undo", onAction: undo } : {}) });
+      if (r !== false) onDone?.();
     })();
   };
 
@@ -407,7 +422,9 @@ export default function HealthFlow({
           // toast now follows the offer instead of announcing it.
           onAddWindDown={() => {
             const offer = nightBeforeOffer(nightBeforeCommitments, Date.now());
-            if (offer) take(onOffer, "Wind Down at " + new Date(offer.windDownAt).toLocaleTimeString(), "Wind Down added");
+            if (!offer) return;
+            const line = "Wind Down at " + new Date(offer.windDownAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+            take(onOffer, { kind: "windDown", at: offer.windDownAt, line }, OFFER_RECEIPT.windDown);
           }}
           onBack={onExit}
         />
@@ -416,7 +433,9 @@ export default function HealthFlow({
       return (
         <EatingWindowsScreen
           offers={eatingWindowOffers(eatingWindowBlocks)}
-          onTakeOffer={(o) => take(onOffer, o.line, "Added to your list")}
+          // The gap itself is the ping time: a reminder to pack something is
+          // useless after the gap it was for has started.
+          onTakeOffer={(o) => take(onOffer, { kind: "reminder", at: o.gap.start, line: o.line }, OFFER_RECEIPT.reminder)}
           onBack={onExit}
         />
       );
@@ -441,7 +460,7 @@ export default function HealthFlow({
       return (
         <ThirdPracticeScreen
           offers={thirdPracticeOffers(sportSessions)}
-          onProtectGap={(o) => take(onOffer, o.line, "Added to your list")}
+          onProtectGap={(o) => take(onOffer, { kind: "protectGap", date: o.fact.date, orgs: o.fact.orgs, line: o.line }, OFFER_RECEIPT.protectGap)}
           onBack={onExit}
         />
       );
@@ -457,7 +476,7 @@ export default function HealthFlow({
       return (
         <TwoDaysOffScreen
           offer={restDayOffer(weekShape(sportSessions, weekDates ?? defaultWeekDates()))}
-          onPlaceRestDay={(date) => take(onOffer, "Rest day, " + date, "Rest day added")}
+          onPlaceRestDay={(date) => take(onOffer, { kind: "restDay", date, line: "Rest Day" }, OFFER_RECEIPT.restDay)}
           onBack={onExit}
         />
       );
@@ -472,7 +491,9 @@ export default function HealthFlow({
       return (
         <AgeRuleScreen
           facts={facts}
-          onProtectAGap={() => take(onOffer, "Protect a gap this week", "Added to your list")}
+          // No day and no time on this one: the facts are about the season,
+          // not about Thursday, so it is honestly a task.
+          onProtectAGap={() => take(onOffer, { kind: "task", line: "Protect a gap this week" }, OFFER_RECEIPT.task)}
           onBack={onExit}
         />
       );

@@ -28,6 +28,11 @@ export type SourceType =
   | "google_calendar"
   | "gmail"
   | "apple_health"
+  // UP-ATH-10 (2026-09-06): a block, event, task or reminder the health
+  // module's own offers made. The health screens are the one place in the
+  // app that creates something on the athlete's behalf from a fact about
+  // their week, so the row says where it came from.
+  | "health"
   | "apple_calendar"
   | "apple_reminders"
   | "contacts";
@@ -56,6 +61,7 @@ const LABEL: Record<SourceType, string> = {
   google_calendar: "From Google Calendar",
   gmail: "From Gmail",
   apple_health: "From Apple Health",
+  health: "From your health screens",
   apple_calendar: "From Apple Calendar",
   apple_reminders: "From Apple Reminders",
   contacts: "From Contacts",
