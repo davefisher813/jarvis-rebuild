@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics } from "../data/NotesProvider";
+import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics, useOptionalProfile } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
 import { monthDay } from "../money/bills";
 import { agoPhraseLower } from "./summary";
@@ -492,6 +492,19 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   const categoriesSvc = useOptionalCategories();
   const goalsSvc = useOptionalGoals();
   const metricsSvc = useOptionalMetrics();
+  // UP-ATH-03 (2026-09-06): the Notifications page's rest switch. Read once
+  // here, where the profile already is, rather than inside the timer, so
+  // RestTimer stays what it is: a countdown with props in and no services.
+  // Defaults on, same as the page's own defaults, and the switch's absence
+  // (an older stored profile) reads as on rather than as off.
+  const profileSvc = useOptionalProfile();
+  const [restNotify, setRestNotify] = useState(true);
+  useEffect(() => {
+    if (!profileSvc) return;
+    let on = true;
+    void profileSvc.get().then((p) => { if (on) setRestNotify(p?.notify?.rest !== false); }).catch(() => {});
+    return () => { on = false; };
+  }, [profileSvc]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [allPrograms, setAllPrograms] = useState<Program[]>([]); // active + archived
   const [workouts, setWorkouts] = useState<Workout[]>([]);
@@ -1264,6 +1277,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         onFit={(patch) => patchLive((l) => ({ ...l, ...patch }))}
         onFinish={() => void finish()}
         onBack={parkSession}
+        restNotify={restNotify}
       />
     );
   }

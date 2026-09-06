@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { beepDone, openAudio } from "./beep";
 import { haptics } from "../shared/haptics";
+import { scheduleRestOver, cancelRestOver } from "../shared/notifications";
 
 function mmss(total: number): string {
   const m = Math.floor(total / 60);
@@ -32,15 +33,26 @@ export function restRemainingSec(endsAt: number, now: number = Date.now()): numb
  * same three-note cue and success haptic the conditioning clock plays when
  * its cap lands, so a pocketed phone gets a cue at all.
  *
+ * UP-ATH-03 (2026-09-06): the cue above only reaches a phone that is awake.
+ * WKWebView suspends this component's timer the moment the app leaves the
+ * foreground, so a phone face-down between sets got nothing at all. One
+ * local notification is armed for the deadline on mount and cancelled when
+ * the rest is dismissed or this leaves the screen, which is the only thing
+ * that can fire while the app is asleep. iOS only; the web stays silent.
+ *
  * `key`-remounted by the caller on every new deadline (React resets all
  * state on a key change), which is how the countdown restarts clean each
  * time rather than this component tracking which set it belongs to.
  */
-export default function RestTimer({ endsAt, fillerName, onLogFiller, onDismiss }: {
+export default function RestTimer({ endsAt, fillerName, onLogFiller, onDismiss, notifyLine }: {
   endsAt: number;
   fillerName?: string;
   onLogFiller?: () => void;
   onDismiss: () => void;
+  // What the lock screen says, e.g. "Bench Press set 3". Absent when the
+  // athlete has the rest switch off on the Notifications page, and then no
+  // notification is armed at all.
+  notifyLine?: string;
 }) {
   const [remaining, setRemaining] = useState(() => restRemainingSec(endsAt));
   // A timer that mounts already over (the app came back long after the rest
@@ -72,6 +84,16 @@ export default function RestTimer({ endsAt, fillerName, onLogFiller, onDismiss }
     beepDone(audioRef.current);
     haptics.success();
   }, [remaining]);
+
+  // UP-ATH-03: armed once per deadline, torn down with the timer. The cancel
+  // covers every way off this card -- Continue, Skip Rest, the next set's
+  // rest replacing this one, and leaving the session screen entirely -- so a
+  // rest the athlete already walked away from never buzzes later.
+  useEffect(() => {
+    if (!notifyLine) return;
+    void scheduleRestOver(endsAt, notifyLine);
+    return () => { void cancelRestOver(); };
+  }, [endsAt, notifyLine]);
 
   const over = remaining <= 0;
 

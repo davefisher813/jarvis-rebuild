@@ -6,8 +6,8 @@ import { requestNotificationPermission, notificationPermissionState, type Notify
 import { Head, Card, Switch, Foot } from "./kit";
 import { attemptWrite } from "../shared/guard";
 
-type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean };
-const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true };
+type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean; rest: boolean };
+const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true, rest: true };
 
 export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   const svc = useProfile();
@@ -58,6 +58,11 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
         <Switch label="Today's events" on={prefs.events} locked={denied} onToggle={() => set({ events: !prefs.events })} />
         <Switch label="Daily check-ins" on={prefs.checkins} locked={denied} onToggle={() => set({ checkins: !prefs.checkins })} />
         <Switch label="Goal and life-area nudges" on={prefs.goals} locked={denied} onToggle={() => set({ goals: !prefs.goals })} />
+        {/* UP-ATH-03 (2026-09-06): the rest timer's buzz between sets. The
+            only alert on this page the athlete asked for by starting the
+            thing that schedules it, which is why it is last and why it is
+            on by default. */}
+        <Switch label="Rest timer" on={prefs.rest} locked={denied} onToggle={() => set({ rest: !prefs.rest })} />
       </Card>
       {/* A4 (audit 2026-08-21, catalog Q8: never promise what the platform
           cannot do). A page called Notifications with four switches on it

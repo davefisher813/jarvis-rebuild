@@ -7,6 +7,9 @@ import RestTimer, { restRemainingSec } from "./RestTimer";
 vi.mock("../shared/haptics", () => ({ haptics: { success: vi.fn(), impact: vi.fn(), selection: vi.fn(), warning: vi.fn() } }));
 import { haptics } from "../shared/haptics";
 
+vi.mock("../shared/notifications", () => ({ scheduleRestOver: vi.fn(), cancelRestOver: vi.fn() }));
+import { scheduleRestOver, cancelRestOver } from "../shared/notifications";
+
 // GYM-F-01 (2026-09-05): the rest timer used to count TICKS, so a webview
 // that suspended timers while the app was backgrounded left it reading 2:00
 // after a 90-second glance at Music. Now it is a function of the clock.
@@ -53,6 +56,24 @@ describe("RestTimer", () => {
     expect(screen.getByText("Rest Over")).toBeInTheDocument();
     act(() => { vi.advanceTimersByTime(2_000); });
     expect(haptics.success).not.toHaveBeenCalled();
+  });
+
+  // UP-ATH-03 (2026-09-06): the beep and the haptic above only reach a phone
+  // that is awake. The pocketed phone needs the OS.
+  it("arms one notification for the deadline, and takes it back when the timer goes away", () => {
+    const view = render(<RestTimer endsAt={T0 + 120_000} notifyLine="Bench Press set 3" onDismiss={() => {}} />);
+    expect(scheduleRestOver).toHaveBeenCalledTimes(1);
+    expect(scheduleRestOver).toHaveBeenCalledWith(T0 + 120_000, "Bench Press set 3");
+    expect(cancelRestOver).not.toHaveBeenCalled();
+    // Continue, Skip Rest, the next set's rest, or leaving the session: all
+    // of them unmount this, and none of them may leave a buzz behind.
+    view.unmount();
+    expect(cancelRestOver).toHaveBeenCalledTimes(1);
+  });
+
+  it("arms nothing when the athlete has the rest switch off", () => {
+    render(<RestTimer endsAt={T0 + 120_000} onDismiss={() => {}} />);
+    expect(scheduleRestOver).not.toHaveBeenCalled();
   });
 
   it("offers the filler only while the rest is still running", () => {

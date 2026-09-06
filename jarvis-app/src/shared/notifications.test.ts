@@ -71,7 +71,7 @@ describe("buildCheckinNotifications", () => {
 });
 
 // Event reminders (2026-08-09).
-import { buildEventReminders, EVENT_REMINDER_BASE, EVENT_REMINDER_CAP, EVENT_REMINDER_SPAN, TASK_REMINDER_CAP, CHECKIN_BUDGET, IOS_PENDING_LIMIT } from "./notifications";
+import { buildEventReminders, EVENT_REMINDER_BASE, EVENT_REMINDER_CAP, EVENT_REMINDER_SPAN, TASK_REMINDER_CAP, CHECKIN_BUDGET, IOS_PENDING_LIMIT, REST_BUDGET, REST_OVER_ID } from "./notifications";
 
 describe("buildEventReminders", () => {
   const NOW = new Date("2026-08-09T08:00:00").getTime();
@@ -171,9 +171,19 @@ describe("buildEventReminders", () => {
   // the rest by fire time. Over budget, the ladder sheds its outer rungs
   // before it sheds an event: nothing on the calendar goes unannounced while
   // something else keeps four alerts.
-  it("the three blocks together fit inside the OS limit", () => {
-    expect(EVENT_REMINDER_CAP + TASK_REMINDER_CAP + CHECKIN_BUDGET).toBe(IOS_PENDING_LIMIT);
+  // UP-ATH-03 (2026-09-06): a fourth block, one seat, taken out of the
+  // ladder's share rather than added on top of the limit.
+  it("every block together fits inside the OS limit", () => {
+    expect(EVENT_REMINDER_CAP + TASK_REMINDER_CAP + CHECKIN_BUDGET + REST_BUDGET).toBe(IOS_PENDING_LIMIT);
     expect(IOS_PENDING_LIMIT).toBe(64);
+  });
+
+  // Below EVENT_REMINDER_BASE (9100), which is itself below the task block
+  // (9300), so arming a rest can never cancel a rung or a reminder.
+  it("the rest timer's id sits clear of every other block's span", () => {
+    expect(REST_OVER_ID).not.toBe(MORNING_ID);
+    expect(REST_OVER_ID).not.toBe(EVENING_ID);
+    expect(REST_OVER_ID).toBeLessThan(EVENT_REMINDER_BASE);
   });
 
   it("drops the hour and half-hour rungs before it drops an event", () => {

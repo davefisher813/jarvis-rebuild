@@ -27,6 +27,10 @@ export interface CheckinNotification {
 // Stable ids so re-scheduling replaces instead of stacking.
 export const MORNING_ID = 9001;
 export const EVENING_ID = 9002;
+// UP-ATH-03 (2026-09-06): the rest timer's own reserved id, in the same low
+// block as the check-ins and clear of both spans below (9100+ and 9300+), so
+// arming a rest can never cancel an event rung or a task reminder.
+export const REST_OVER_ID = 9003;
 
 // ---- THE BUDGET (SHARED-F-05, 2026-09-05) ----
 //
@@ -46,8 +50,15 @@ export const IOS_PENDING_LIMIT = 64;
 export const CHECKIN_BUDGET = 2;
 // Task reminders (SHARED-F-08 expands these to a week, soonest first).
 export const TASK_REMINDER_CAP = 18;
+// UP-ATH-03 (2026-09-06): one seat for the rest timer, and it argues for it
+// here rather than quietly overrunning the OS, which is what this block is
+// for. Exactly one is ever pending: a rest is a single deadline the athlete
+// is standing in front of, and the next set's rest replaces it. The seat
+// comes out of the event ladder, because this block's own reasoning already
+// says the outermost rung of one event is the cheapest thing to lose.
+export const REST_BUDGET = 1;
 // Whatever is left is the event ladder's.
-export const EVENT_REMINDER_CAP = IOS_PENDING_LIMIT - CHECKIN_BUDGET - TASK_REMINDER_CAP;
+export const EVENT_REMINDER_CAP = IOS_PENDING_LIMIT - CHECKIN_BUDGET - TASK_REMINDER_CAP - REST_BUDGET;
 
 // The id ranges EARLIER BUILDS scheduled into. A phone upgrading from the
 // 120/60 caps still has those ids pending, and a cancel pass that only
@@ -189,6 +200,50 @@ export function serializeLatest(): (job: Job) => Promise<void> {
 const checkinQueue = serializeLatest();
 const eventQueue = serializeLatest();
 const taskQueue = serializeLatest();
+const restQueue = serializeLatest();
+
+// ---- Rest over (UP-ATH-03, 2026-09-06) ----
+//
+// "The timer is silent and only counts while the screen is on." GYM-F-01
+// gave the countdown a wall clock and the same three-note cue plus success
+// haptic the conditioning clock plays, which covers a phone that is awake.
+// A phone face-down in a gym bag is not awake: WKWebView suspends the JS
+// timer, so nothing in the app can fire at zero. Only the OS can, which is
+// what this is.
+//
+// One pending at a time, by construction: a single reserved id, cancelled
+// before it is scheduled, and cancelled again when the rest is dismissed or
+// the timer leaves the screen. Same rules as every other scheduler here:
+// native-only, permission-gated, never prompts, never throws into the UI.
+export async function scheduleRestOver(at: number, body: string, nowMs: number = Date.now()): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  return restQueue(async () => {
+    try {
+      await LocalNotifications.cancel({ notifications: [{ id: REST_OVER_ID }] });
+      // A rest that is already over has nothing to announce: the athlete
+      // either watched it end or is reading it now.
+      if (at <= nowMs) return;
+      const perm = await LocalNotifications.checkPermissions();
+      if (perm.display !== "granted") return;
+      await LocalNotifications.schedule({
+        notifications: [{ id: REST_OVER_ID, title: "Rest over", body, schedule: { at: new Date(at), allowWhileIdle: true } }],
+      });
+    } catch {
+      /* notifications are a bonus, never a crash */
+    }
+  });
+}
+
+export async function cancelRestOver(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  return restQueue(async () => {
+    try {
+      await LocalNotifications.cancel({ notifications: [{ id: REST_OVER_ID }] });
+    } catch {
+      /* notifications are a bonus, never a crash */
+    }
+  });
+}
 
 // ---- BUTTONS ON THE BANNER (UP-PLAT-01, 2026-09-06) ----
 //

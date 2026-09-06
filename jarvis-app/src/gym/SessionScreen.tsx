@@ -51,6 +51,10 @@ export default function SessionScreen({
   onFit,
   onFinish,
   onBack,
+  // UP-ATH-03 (2026-09-06): the Notifications page's rest switch, read once
+  // by GymFlow. Off means the rest timer arms nothing, so the switch is a
+  // real switch and not a label on a thing that buzzes anyway.
+  restNotify = true,
 }: {
   live: LiveSession;
   exercise: Exercise;
@@ -80,6 +84,7 @@ export default function SessionScreen({
   onFit: (patch: Partial<LiveSession>) => void;
   onFinish: () => void;
   onBack: () => void;
+  restNotify?: boolean;
 }) {
   // S5-Q30 (2026-09-04): "the screen sleeps between sets." This screen stays
   // mounted for the whole session (GymFlow swaps its props, not the
@@ -216,6 +221,12 @@ export default function SessionScreen({
     }
   };
   const endRest = () => onFit({ restEndsAt: undefined });
+  // UP-ATH-03 (2026-09-06): what the lock screen says when the rest lands,
+  // built from what actually just happened rather than from the plan: the
+  // exercise by name, and the working set number, or the word warm-up when
+  // the last thing logged was one of those.
+  const lastLogged = logged[logged.length - 1];
+  const restLine = exercise.name + (lastLogged?.warmup ? " warm-up" : " set " + workLogged);
 
   // GYM-F-24 (2026-09-05): in the live session the strip writes straight
   // through to storage, so one tap on the swipe-revealed delete took the
@@ -404,6 +415,7 @@ export default function SessionScreen({
           fillerName={filler?.name}
           onLogFiller={filler && fillerLiveIdx >= 0 ? () => { onMove(fillerLiveIdx); endRest(); } : undefined}
           onDismiss={endRest}
+          notifyLine={restNotify ? restLine : undefined}
         />
       )}
 

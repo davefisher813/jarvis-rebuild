@@ -24,7 +24,11 @@ export interface ProfileData {
   // Multi-account Google (2026-08-04): the persisted account list. Tokens are
   // never stored; only who to re-auth and which features each account powers.
   googleAccounts?: { email: string; mail: boolean; cal: boolean }[];
-  notify?: { overdue: boolean; events: boolean; goals: boolean; checkins?: boolean };
+  // UP-ATH-03 (2026-09-06): `rest` is the rest timer's buzz between sets.
+  // Optional like `checkins`, and absent reads as ON: an existing profile has
+  // never stored it, and defaulting a switch off would mean the feature ships
+  // silent for everyone already using the app.
+  notify?: { overdue: boolean; events: boolean; goals: boolean; checkins?: boolean; rest?: boolean };
   // Open tracking on outgoing mail (2026-08-09). Default ON preserves what
   // the app always did; the point of the field is that it is now a VISIBLE
   // choice with an off switch and a privacy-policy line, not a silent one.
