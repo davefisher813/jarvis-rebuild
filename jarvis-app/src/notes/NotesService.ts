@@ -271,6 +271,57 @@ export class NotesService {
     return made;
   }
 
+  // ONE LINE, ONE TASK (UP-CORE-16, 2026-09-05).
+  //
+  // Meeting notes produce action items one at a time, and the only way to
+  // get one out was the bulk Create Tasks screen three taps away, which
+  // makes tasks out of the WHOLE list. So the line that is actually an
+  // action stayed in the note. This is tasksFromChecklist's body for a
+  // single item, deliberately sharing every one of its rules: the same
+  // fromNote and "From a note" provenance, the same connection written back
+  // on the note so both directions of the link light up (S6-Q38), the same
+  // taskId stored on the item so the two stay in sync, and the same refusal
+  // to promote a blank line or one that is already linked.
+  //
+  // Returns the new task's id, or null when there was nothing to promote,
+  // so the caller can offer an Undo only when something happened.
+  async taskFromChecklistItem(noteId: string, blockId: string, index: number): Promise<string | null> {
+    const note = await this.getNote(noteId);
+    if (!note) return null;
+    const block = note.blocks.find((b) => b.id === blockId);
+    if (!block || block.type !== "checklist" || !block.items) return null;
+    const items = this.normalizeItems(block.items);
+    const it = items[index];
+    if (!it || !it.text.trim() || it.taskId) return null;
+    const data: TaskData = { text: it.text, fromNote: noteId, category: note.category, done: it.done, source: madeBy("note", noteId) };
+    const tid = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
+    await this.addConnection(noteId, "task", it.text, tid);
+    items[index] = { ...it, taskId: tid };
+    await this.editBlock(noteId, blockId, { items });
+    return tid;
+  }
+
+  // The other half of the Undo: the task itself is deleted by the caller
+  // (TasksService owns tasks), and this takes the line back to unlinked and
+  // drops the connection the promotion added, so the note is exactly as it
+  // was rather than carrying a chip pointing at a deleted task.
+  async unlinkChecklistItem(noteId: string, blockId: string, index: number): Promise<boolean> {
+    const note = await this.getNote(noteId);
+    if (!note) return false;
+    const block = note.blocks.find((b) => b.id === blockId);
+    if (!block || block.type !== "checklist" || !block.items) return false;
+    const items = this.normalizeItems(block.items);
+    const it = items[index];
+    if (!it?.taskId) return false;
+    const conn = (note.connections ?? []).find((c) => c.kind === "task" && c.targetId === it.taskId);
+    if (conn) await this.removeConnection(noteId, conn.id);
+    const { taskId: _gone, ...rest } = it;
+    void _gone;
+    items[index] = rest;
+    await this.editBlock(noteId, blockId, { items });
+    return true;
+  }
+
   // Pull linked-task completion states back into the note's checklist, so a
   // task checked off in Tasks shows checked here too. Writes only on drift.
   async reconcileChecklistTasks(id: string): Promise<void> {

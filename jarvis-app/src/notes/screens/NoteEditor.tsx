@@ -4,6 +4,7 @@ import { wrapRange, countWords } from "../richtext";
 import { catColor } from "../../shared/categories";
 import { Burst } from "../../shared/Burst";
 import InlineEdit from "../../shared/InlineEdit";
+import { useLongPress } from "../../shared/useLongPress";
 import Provenance from "../../shared/Provenance";
 import { HyperfocusLine, useHyperfocusGuard } from "../../today/useHyperfocusGuard";
 import type { Source } from "../../shared/provenance";
@@ -128,6 +129,83 @@ function ListBlock({
   );
 }
 
+// ONE CHECKLIST LINE (UP-CORE-16, 2026-09-05). Extracted from Checklist's map
+// so the row can own a hold gesture: a hook cannot be called inside a map,
+// and the hold has to sit on the row itself, not on a wrapper, or the flex
+// layout of box, text and chip changes.
+function ChecklistLine({
+  it,
+  bursting,
+  menuOpen,
+  onOpenMenu,
+  onCloseMenu,
+  onToggle,
+  onSaveText,
+  onOpenTask,
+  onPromote,
+}: {
+  it: { text: string; done?: boolean; taskId?: string };
+  bursting: boolean;
+  menuOpen: boolean;
+  onOpenMenu: () => void;
+  onCloseMenu: () => void;
+  onToggle: () => void;
+  onSaveText?: (text: string) => void;
+  onOpenTask?: (taskId: string) => void;
+  onPromote?: () => void;
+}) {
+  // Only a line that could actually become a task holds: a blank one has
+  // nothing to promote, and one already linked has a task already.
+  const canPromote = !!onPromote && !it.taskId && !!it.text.trim();
+  const hold = useLongPress({ onLongPress: onOpenMenu, enabled: canPromote });
+  return (
+    <div className={"check-line" + (it.done ? " done" : "")} {...(canPromote ? hold : {})}>
+      <div
+        className={"cb" + (it.done ? " on" : "") + (bursting ? " just-checked" : "")}
+        // HMN-F-01: the tap must not blur-save the item being typed in;
+        // the caret stays put and the toggle queues behind nothing. Same
+        // guard Add Row has carried since the deep template pass.
+        onMouseDown={(e) => e.preventDefault()}
+        // Only allow checking an item that has text, so a blank line can
+        // never become an orphaned checked box.
+        onClick={onToggle}
+      >
+        {it.done && <Check className="ic" />}
+        <Burst show={bursting} />
+      </div>
+      <InlineEdit
+        tag="span"
+        value={it.text}
+        placeholder="List Item"
+        // On blur, an item left blank is removed so no empty checkbox lingers.
+        onSave={onSaveText}
+      />
+      {/* UP-CORE-16: hold a line and it becomes a real task, filed under the
+          note's area and linked back, without the bulk Create Tasks screen
+          turning the whole list into tasks. The bulk screen stays. */}
+      {menuOpen && (
+        <>
+          <div className="block-menu-scrim" onClick={onCloseMenu} />
+          <div className="block-menu">
+            <button className="block-menu-item" onClick={() => { onCloseMenu(); onPromote?.(); }}>
+              <ListChecks className="ic" /> Make It a Task
+            </button>
+          </div>
+        </>
+      )}
+      {it.taskId && (
+        onOpenTask ? (
+          <button className="check-linked" aria-label="Open Linked Task" onClick={(e) => { e.stopPropagation(); onOpenTask(it.taskId!); }}>
+            <ListChecks className="ic" />
+          </button>
+        ) : (
+          <span className="check-linked" aria-hidden="true"><ListChecks className="ic" /></span>
+        )
+      )}
+    </div>
+  );
+}
+
 function Checklist({
   block,
   onToggle,
@@ -135,6 +213,7 @@ function Checklist({
   onAddItem,
   onDeleteItem,
   onOpenTask,
+  onPromoteItem,
 }: {
   block: Extract<EditorBlock, { type: "checklist" }>;
   onToggle?: (blockId: string, index: number) => void;
@@ -146,7 +225,13 @@ function Checklist({
   // item that looks plain but is secretly synced, and tapping it jumps
   // straight to the task rather than making you go find it.
   onOpenTask?: (taskId: string) => void;
+  // UP-CORE-16 (2026-09-05): promote ONE line to a real task. Absent when
+  // the flow cannot write, in which case no line holds and no menu exists.
+  onPromoteItem?: (blockId: string, index: number) => void;
 }) {
+  // UP-CORE-16: the index whose hold menu is open, or null. One at a time,
+  // like every other menu in this editor.
+  const [menuAt, setMenuAt] = useState<number | null>(null);
   // Completion feedback (audit 2026-07-30): checking an item pops the box and
   // fires the same micro-burst as tasks. Items stay in place when checked, so
   // no delay is needed here.
@@ -163,37 +248,18 @@ function Checklist({
   return (
     <>
       {block.items.map((it, i) => (
-        <div className={"check-line" + (it.done ? " done" : "")} key={i}>
-          <div
-            className={"cb" + (it.done ? " on" : "") + (burstAt === i ? " just-checked" : "")}
-            // HMN-F-01: the tap must not blur-save the item being typed in;
-            // the caret stays put and the toggle queues behind nothing. Same
-            // guard Add Row has carried since the deep template pass.
-            onMouseDown={(e) => e.preventDefault()}
-            // Only allow checking an item that has text, so a blank line can
-            // never become an orphaned checked box.
-            onClick={() => { if (it.text.trim()) { if (!it.done) celebrate(i); onToggle?.(block.id, i); } }}
-          >
-            {it.done && <Check className="ic" />}
-            <Burst show={burstAt === i} />
-          </div>
-          <InlineEdit
-            tag="span"
-            value={it.text}
-            placeholder="List Item"
-            // On blur, an item left blank is removed so no empty checkbox lingers.
-            onSave={onEditItem ? (t) => { if (t.trim()) onEditItem(block.id, i, t); else onDeleteItem?.(block.id, i); } : undefined}
-          />
-          {it.taskId && (
-            onOpenTask ? (
-              <button className="check-linked" aria-label="Open Linked Task" onClick={(e) => { e.stopPropagation(); onOpenTask(it.taskId!); }}>
-                <ListChecks className="ic" />
-              </button>
-            ) : (
-              <span className="check-linked" aria-hidden="true"><ListChecks className="ic" /></span>
-            )
-          )}
-        </div>
+        <ChecklistLine
+          key={i}
+          it={it}
+          bursting={burstAt === i}
+          menuOpen={menuAt === i}
+          onOpenMenu={() => setMenuAt(i)}
+          onCloseMenu={() => setMenuAt(null)}
+          onToggle={() => { if (it.text.trim()) { if (!it.done) celebrate(i); onToggle?.(block.id, i); } }}
+          onSaveText={onEditItem ? (t) => { if (t.trim()) onEditItem(block.id, i, t); else onDeleteItem?.(block.id, i); } : undefined}
+          onOpenTask={onOpenTask}
+          onPromote={onPromoteItem ? () => onPromoteItem(block.id, i) : undefined}
+        />
       ))}
       {onAddItem && (
         <button className="check-add" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddItem(block.id)}>
@@ -466,6 +532,7 @@ export default function NoteEditor({
   onEditCheckItem,
   onAddCheckItem,
   onDeleteCheckItem,
+  onPromoteCheckItem,
   onMoveBlock,
   onDeleteBlock,
   onTurnInto,
@@ -514,6 +581,8 @@ export default function NoteEditor({
   onEditCheckItem?: (blockId: string, index: number, text: string) => void;
   onAddCheckItem?: (blockId: string) => void;
   onDeleteCheckItem?: (blockId: string, index: number) => void;
+  // UP-CORE-16 (2026-09-05): promote one checklist line to a real task.
+  onPromoteCheckItem?: (blockId: string, index: number) => void;
   onMoveBlock?: (blockId: string, dir: -1 | 1) => void;
   onDeleteBlock?: (blockId: string) => void;
   onTurnInto?: (blockId: string, type: "text" | "heading" | "bulleted_list" | "checklist") => void;
@@ -624,7 +693,7 @@ export default function NoteEditor({
         onTransform={onTransformAt ? (p, rest) => onTransformAt(b.id, p, rest) : undefined}
         onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
     if (b.type === "checklist")
-      return <Checklist block={b} onToggle={onToggleCheck} onEditItem={onEditCheckItem} onAddItem={onAddCheckItem} onDeleteItem={onDeleteCheckItem} onOpenTask={onOpenTask} />;
+      return <Checklist block={b} onToggle={onToggleCheck} onEditItem={onEditCheckItem} onAddItem={onAddCheckItem} onDeleteItem={onDeleteCheckItem} onOpenTask={onOpenTask} onPromoteItem={onPromoteCheckItem} />;
     if (b.type === "bulleted_list" || b.type === "numbered_list")
       return <ListBlock block={b} focusBlockId={focusBlockId} onItems={onListItems} onExit={onListExit} />;
     if (b.type === "table")

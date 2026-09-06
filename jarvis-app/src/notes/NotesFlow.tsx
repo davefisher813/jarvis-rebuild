@@ -631,6 +631,40 @@ export default function NotesFlow({
     setScreen("editor");
   };
 
+  // UP-CORE-16 (2026-09-05): ONE LINE, ONE TASK. Meeting notes produce
+  // action items one at a time and the bulk screen three taps away makes
+  // tasks out of the whole list, which is why the one line that is actually
+  // an action stayed in the note. Through the same serialised queue every
+  // other block write uses (HMN-F-01), so the promotion cannot race the
+  // blur-save of the line being typed in.
+  const promoteCheckItem = (blockId: string, index: number) => enqueue(async () => {
+    if (!currentId) return;
+    const noteId = currentId;
+    await snap();
+    // BROWSER-F-01's lesson (2026-09-05), which this file is one line away
+    // from repeating: attemptWrite resolves a BOOLEAN, never the write's own
+    // value, so the new id is caught inside the closure.
+    const made: { id: string | null } = { id: null };
+    const ok = await attemptWrite(async () => { made.id = await svc.taskFromChecklistItem(noteId, blockId, index); });
+    await loadCurrent(noteId);
+    // No task, no toast: taskFromChecklistItem answers null when there was
+    // nothing to promote (a blank line, or one already linked), and a failed
+    // write has already said so in its own toast.
+    const taskId = made.id;
+    if (!ok || !taskId) return;
+    showToast({
+      message: "Made it a task",
+      actionLabel: "Undo",
+      onAction: () => void enqueue(async () => {
+        await attemptWrite(async () => {
+          await tasksSvc.deleteTask(taskId);
+          await svc.unlinkChecklistItem(noteId, blockId, index);
+        });
+        await loadCurrent(noteId);
+      }),
+    });
+  });
+
   const editTitle = (text: string) => enqueue(async () => {
     if (!currentId) return;
     if (text) await attemptWrite(() => svc.editTitle(currentId, text)); // ignore empty, revert on reload
@@ -969,6 +1003,7 @@ export default function NotesFlow({
           onEditCheckItem={editCheckItem}
           onAddCheckItem={addCheckItem}
           onDeleteCheckItem={deleteCheckItem}
+          onPromoteCheckItem={promoteCheckItem}
           onMoveBlock={moveBlockDir}
           onDeleteBlock={deleteBlock}
           onTurnInto={(id, t) => void turnInto(id, t)}
