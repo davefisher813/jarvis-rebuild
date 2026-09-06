@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { usePeople, useNotes, useCategories, useTasks, useSchedule } from "../data/NotesProvider";
+import { usePeople, useNotes, useCategories, useTasks, useSchedule, useHealth } from "../data/NotesProvider";
 import { openWith as openWithPerson, type MentionItem } from "./mentions";
 import { todayISO } from "../tasks/grouping";
 import { ENTITY_PERSON, type Person } from "./types";
@@ -57,6 +57,21 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     return () => { on = false; };
   }, [catsSvc]);
   const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
+  // UP-ATH-07 (2026-09-06): who Say It to Someone actually reaches, so the
+  // person's own card says the one fact the health module knows about them.
+  // The required hook, same as usePeople above it: this flow already throws
+  // without a full NotesProvider, so there is no thinner tree to guard for
+  // (PLUMB-F-19 retired the optional one for exactly that reason). The READ
+  // is still best-effort: a card that cannot say it simply does not.
+  const healthSvc = useHealth();
+  const [trustedAdultId, setTrustedAdultId] = useState<string | null>(null);
+  useEffect(() => {
+    let on = true;
+    void healthSvc.getTrustedAdult()
+      .then((ta) => { if (on) setTrustedAdultId(ta?.data.personId ?? null); })
+      .catch(() => {});
+    return () => { on = false; };
+  }, [healthSvc]);
   // BRAIN-F-04: open on the id whenever it arrives, including a repeat of the
   // same person (the nonce), then tell the shell it is spent.
   useEffect(() => {
@@ -357,6 +372,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           onMessage={current.data.phone ? () => setMsg({}) : undefined}
           onMessageAbout={current.data.phone ? (m) => setMsg({ about: aboutOf(m) }) : undefined}
           categoryNames={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)?.name).filter((n): n is string => !!n)}
+          trustedAdult={trustedAdultId === current.id}
           lastTalked={lastTalked}
           quiet={quiet}
           onCheckIn={current.data.email ? () => void checkIn() : undefined}

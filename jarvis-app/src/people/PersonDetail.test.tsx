@@ -82,4 +82,16 @@ describe("PersonDetail: Last Talked and the check-in draft (S6-Q40)", () => {
     expect(screen.getByText("Last Talked")).toBeInTheDocument();
     expect(screen.getByText("Yesterday")).toBeInTheDocument();
   });
+
+  // UP-ATH-07 (2026-09-06): the one fact the health module knows about this
+  // person, resolved by the caller like everything else on this card.
+  it("says Trusted adult on the person Say It to Someone reaches, and on nobody else", () => {
+    render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} trustedAdult />);
+    expect(screen.getByText("Trusted adult")).toBeInTheDocument();
+  });
+
+  it("says nothing about it on an ordinary person", () => {
+    render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} />);
+    expect(screen.queryByText("Trusted adult")).not.toBeInTheDocument();
+  });
 });

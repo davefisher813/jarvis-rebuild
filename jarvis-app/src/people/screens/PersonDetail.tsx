@@ -38,6 +38,7 @@ export default function PersonDetail({
   openWith = [],
   onOpenItem,
   onMessageAbout,
+  trustedAdult = false,
 }: {
   person: Person;
   onEdit: () => void;
@@ -53,6 +54,11 @@ export default function PersonDetail({
   // Names of the categories this person belongs to (resolved by the caller,
   // since this screen has no service access on purpose).
   categoryNames?: string[];
+  // UP-ATH-07 (2026-09-06): this person is the one Say It to Someone reaches.
+  // A fact, resolved by the caller like everything else on this screen (the
+  // health module has no business being imported here, and this screen has no
+  // service access on purpose). Absent on everyone else, which is most people.
+  trustedAdult?: boolean;
   // LAST TALKED (S6-Q40, 2026-08-10's lastContact.ts brought to the card
   // itself): a ready sentence ("3 Weeks ago", "Gone quiet · 2 Months ago"),
   // resolved by the caller same as everything else here (a Gmail lookup
@@ -98,6 +104,7 @@ export default function PersonDetail({
       <div className="person-hero">
         <div className={"av av-72 " + avatarClass(color)}>{personInitials(name)}</div>
         <div className="person-name">{name}</div>
+        {trustedAdult && <div className="bp-sub">Trusted adult</div>}
       </div>
       {/* Reach them (2026-08-10): the email and phone this card has stored
           since the person pass, finally shown, and tappable so the card is a

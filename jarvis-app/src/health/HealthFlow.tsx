@@ -103,7 +103,7 @@ export default function HealthFlow({
   store, ownerId, service, onEvent, candidates = [], callItDuration, initialScreen = "share", initialHandOff, onExit,
   sportSessions = [], weekDates, athleteAgeYears, monthsInSeason,
   nightBeforeCommitments = [], eatingWindowBlocks = [], sessionStarts = [],
-  bagEvent, ai, onOffer, onLandParentTask, onCommitSeasonFeed,
+  bagEvent, ai, onOffer, onLandParentTask, onCommitSeasonFeed, people = [],
 }: {
   // HMN-F-06 (2026-09-05), option A: the app hands in the service the rest
   // of it already uses (data/NotesProvider's useHealth), so a dose logged
@@ -153,6 +153,10 @@ export default function HealthFlow({
   // Same shape, same reason: The Season Feed's receipt counts events, and a
   // count is the loudest claim on this flow, so it waits for the answer too.
   onCommitSeasonFeed?: (draft: SeasonFeedDraft) => void | Promise<boolean | void>;
+  // UP-ATH-07 (2026-09-06): the athlete's own people, with a number on them.
+  // Same EXTERNAL CANDIDATES seam as everything else here: src/health never
+  // imports src/people, so whatever wires this module in supplies the list.
+  people?: { id: string; name: string; phone: string }[];
 }) {
   const svc = useState(() => service ?? new HealthService(store!, ownerId ?? "", onEvent))[0];
   const [screen, setScreen] = useState<ScreenKey>(initialScreen);
@@ -481,8 +485,9 @@ export default function HealthFlow({
           // HMN-F-22 (2026-09-05): this write had no catch, so the one
           // screen that has to work in a crisis could drop the person it
           // just promised to remember without a word.
-          onSetTrustedAdult={(name, phone) => {
-            void svc.setTrustedAdult(name, phone)
+          people={people}
+          onSetTrustedAdult={(name, phone, personId) => {
+            void svc.setTrustedAdult(name, phone, personId)
               .then(reload)
               .catch(() => showToast({ message: WRITE_FAILED_MESSAGE }));
           }}

@@ -37,6 +37,38 @@ describe("Say It to Someone carries the summary", () => {
   });
 });
 
+// UP-ATH-07 (2026-09-06): the number that has to work in a crisis was a
+// second copy, typed into a box, of one the app already keeps fresh.
+describe("Say It to Someone picks from the people you already have", () => {
+  const PEOPLE = [
+    { id: "p1", name: "Mom", phone: "(607) 555-0142" },
+    { id: "p2", name: "Coach Ruiz", phone: "(607) 555-0199" },
+  ];
+
+  it("offers your people first, and saving one carries their id", () => {
+    const onSetTrustedAdult = vi.fn();
+    render(<SayItToSomeoneScreen name="" phone="" people={PEOPLE} onSetTrustedAdult={onSetTrustedAdult} onBack={() => {}} />);
+    expect(screen.getByText("From Your People")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Coach Ruiz"));
+    expect(onSetTrustedAdult).toHaveBeenCalledWith("Coach Ruiz", "(607) 555-0199", "p2");
+  });
+
+  it("keeps the free-text form as the way to reach somebody the app has never heard of", () => {
+    const onSetTrustedAdult = vi.fn();
+    render(<SayItToSomeoneScreen name="" phone="" people={PEOPLE} onSetTrustedAdult={onSetTrustedAdult} onBack={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("A Name You Trust"), { target: { value: "Aunt Rae" } });
+    fireEvent.change(screen.getByPlaceholderText("A Number That Reaches Them"), { target: { value: "607 555 0170" } });
+    fireEvent.click(screen.getByText("Save This Person"));
+    expect(onSetTrustedAdult).toHaveBeenCalledWith("Aunt Rae", "607 555 0170");
+  });
+
+  it("with nobody in People it is the form it always was", () => {
+    render(<SayItToSomeoneScreen name="" phone="" onSetTrustedAdult={() => {}} onBack={() => {}} />);
+    expect(screen.queryByText("From Your People")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("A Name You Trust")).toBeInTheDocument();
+  });
+});
+
 describe("Say It to Someone dials a line that connects, or none", () => {
   it("states the line for the region it was handed", () => {
     render(

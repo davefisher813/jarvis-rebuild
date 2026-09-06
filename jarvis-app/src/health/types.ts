@@ -230,6 +230,14 @@ export interface LockerDocEntry {
 export interface TrustedAdultData {
   name: string;
   phone: string;
+  /** UP-ATH-07 (2026-09-06): the People record this adult IS, when the
+   *  athlete picked them from their own list rather than typing a stranger.
+   *  The name and phone above are still stored, and still what gets dialled:
+   *  a person deleted from People must not silently take the one number that
+   *  has to work in a crisis with them. This is the link, not the source of
+   *  truth. Absent on a hand-typed adult, and on every one saved before the
+   *  picker existed. */
+  personId?: string;
   at: number;
 }
 export interface TrustedAdultEntry {

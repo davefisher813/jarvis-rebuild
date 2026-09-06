@@ -198,9 +198,13 @@ export class HealthService {
     return item ? { id: item.id, data: item.data as unknown as TrustedAdultData } : null;
   }
 
-  async setTrustedAdult(name: string, phone: string): Promise<TrustedAdultData> {
+  async setTrustedAdult(name: string, phone: string, personId?: string): Promise<TrustedAdultData> {
     const items = await this.store.listForUser(this.ownerId, ENTITY_TRUSTED_ADULT);
-    const data: TrustedAdultData = { name: name.trim(), phone: phone.trim(), at: Date.now() };
+    // UP-ATH-07 (2026-09-06): personId only when there is one. Clearing a
+    // field writes null, never undefined, and a hand-typed adult replacing a
+    // picked one must not keep the old link, so the key is dropped from the
+    // written shape rather than set to undefined.
+    const data: TrustedAdultData = { name: name.trim(), phone: phone.trim(), ...(personId ? { personId } : {}), at: Date.now() };
     if (items[0]) {
       await this.store.update(this.ownerId, items[0].id, data as unknown as ItemData);
       this.onEvent({ type: "entity.updated", entityType: ENTITY_TRUSTED_ADULT, entityId: items[0].id });

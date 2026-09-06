@@ -170,6 +170,9 @@ export default function CategoryDetail({
   // The people in this category (person.categoryIds, set from the person's
   // own card). Written since the person-pass; READ for the first time here.
   const [catPeople, setCatPeople] = useState<Person[]>([]);
+  // UP-ATH-07 (2026-09-06): every person, not only this area's, because the
+  // adult you would call in a crisis is not necessarily filed under Health.
+  const [allPeople, setAllPeople] = useState<Person[]>([]);
   // Last mail contact per person id, derived from Gmail when connected.
   const [contact, setContact] = useState<Record<string, number | null>>({});
   // Sent-and-unanswered threads keyed by person id (waiting.ts derivation).
@@ -272,6 +275,7 @@ export default function CategoryDetail({
     const door = gymDoorOn(ev, nowIso);
     setGymDoor(door ? { id: door.id, start: door.data.start } : null);
     setCatPeople(ppl.filter((p) => (p.data.categoryIds ?? []).includes(categoryId)));
+    setAllPeople(ppl);
     // Pushed-forward count for the week (2026-08-10): the receipt told half
     // the story (what got done); this is the honest other half, read from the
     // same local event log the pushes already write to.
@@ -575,6 +579,13 @@ export default function CategoryDetail({
         bagEvent={bagEvent}
         onOffer={landHealthTask}
         onLandParentTask={landHealthTask}
+        // UP-ATH-07 (2026-09-06): Say It to Someone picks from the people
+        // this account already keeps, so the number that has to work in a
+        // crisis is the one Contacts enrichment keeps fresh rather than a
+        // second copy typed into a box. Everyone with a number, not just
+        // this area's people: the adult you would call is not necessarily
+        // filed under Health.
+        people={allPeople.filter((p) => p.data.phone?.trim()).map((p) => ({ id: p.id, name: p.data.name, phone: p.data.phone!.trim() }))}
       />
     );
   }
