@@ -51,10 +51,9 @@ export function movesCount(idx: GoalIndex, tasks: TaskItem[]): number {
   return tasks.filter((t) => !t.data.done && goalIdsForTask(idx, t).length > 0).length;
 }
 
-/** "moves a goal" / "move a goal". A count of one is still one task. */
-export function movesPillLabel(n: number): string {
-  return n === 1 ? "moves a goal" : "move a goal";
-}
+// TODAY-F-18 (2026-09-05): movesPillLabel had no importer. movesLine above
+// says the whole sentence, count and verb together, which is the only way the
+// two can agree on the plural.
 
 // --- PICK 4: THE END OF THE DAY SAYS WHAT MOVED -----------------------------
 //

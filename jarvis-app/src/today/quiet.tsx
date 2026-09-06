@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 
 // THE QUIET LINE (approved 2026-08-22): words whisper, data pops.
 //
@@ -62,16 +61,6 @@ export function Quiet({ s, heat = null }: { s: string; heat?: Heat }) {
   );
 }
 
-// Some subs carry one datum that is hot while the rest stay plain (an age
-// beside a count). Producers can pre-split into segments when that matters.
-export function QuietParts({ parts }: { parts: { s: string; heat?: Heat }[] }) {
-  return (
-    <>
-      {parts.map((p, i) => (
-        <span key={i}>{i > 0 && " · "}<Quiet s={p.s} heat={p.heat ?? null} /></span>
-      ))}
-    </>
-  );
-}
-
-export type QuietSub = ReactNode;
+// TODAY-F-18 (2026-09-05): QuietParts and the QuietSub alias both went. No
+// producer ever pre-split a sub into heated segments; Quiet above finds the
+// datum in the sentence itself, which is why nothing needed to.

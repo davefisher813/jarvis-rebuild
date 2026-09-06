@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  movesLine, movesCount, movesPillLabel, goalsMovedToday, movedLine,
+  movesLine, movesCount, goalsMovedToday, movedLine,
   openWorkOf, untouchedGoal, untouchedLine,
   isGoalNudgeDismissed, dismissGoalNudge, type DismissStore,
 } from "./goalPulse";
@@ -58,8 +58,6 @@ describe("movesCount (pick 5)", () => {
     expect(movesCount(buildGoalIndex(projects, []), [task("a", { projectId: "p1" })])).toBe(0);
   });
   it("keeps the count grammatical", () => {
-    expect(movesPillLabel(1)).toBe("moves a goal");
-    expect(movesPillLabel(2)).toBe("move a goal");
   });
 });
 

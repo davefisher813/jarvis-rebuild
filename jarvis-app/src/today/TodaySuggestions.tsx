@@ -208,6 +208,18 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // `always` is What JARVIS Knows (pick 29). On Today this was a whisper you
   // had to tap; on the page about what JARVIS has noticed it IS the content,
   // so it opens as the card.
+  //
+  // TODAY-F-18 (2026-09-05): STATE OF PLAY, because the whisper is currently
+  // unreachable and deleting it would be the wrong call. Its home was Today,
+  // and Today no longer mounts this component at all (laws.test.ts:1460 now
+  // forbids it and pins StrandsPage.tsx:229 as the only mount), which passes
+  // `always`, so `open` starts true and the `!open` branches below never
+  // render in the app. They are not dead code in the ordinary sense: they are
+  // the Law 3E receipt tier, exercised by a dozen cases in
+  // TodaySuggestions.test.tsx, waiting on a surface. Reviving the whisper
+  // means giving it a mount, which is a design decision; dropping `always`
+  // would open What JARVIS Knows collapsed, which contradicts the ruling in
+  // the paragraph above. Left as is, and said out loud.
   const [open, setOpen] = useState(always);
   const aiPick = !pattern && visibleTaskTexts !== null ? nonEcho[0] ?? null : null;
   // The rest of today's moments, beyond whichever one (if any) won the row

@@ -32,14 +32,6 @@ describe("the Heads Up stream is one height", () => {
     expect(container.querySelector(".notice-card-uniform")).toBeTruthy();
   });
 
-  // The headliner is retired (see stream.ts), so nothing asks for this form
-  // any more. It stays unclamped: whatever still reaches it is not part of
-  // the uniform stream and should not be quietly reshaped by it.
-  it("leaves the retired headliner form alone", () => {
-    const { container } = render(<NoticeCard icon={null} title="x" sub="y" form="headliner" />);
-    expect(container.querySelector(".notice-card-uniform")).toBeNull();
-  });
-
   // A card whose sub is not RENDERED gives the title both lines rather than
   // truncating it into one. The row form measures and drops a sub it cannot
   // finish, and reading the prop instead of the outcome left the lead notice

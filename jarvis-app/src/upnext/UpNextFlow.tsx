@@ -174,7 +174,12 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
       {mode === "next" && (
         <div className="pad-x">
           <div className="chip-wrap">
-            <div className="chip active" role="button" tabIndex={0}>Next</div>
+            {/* TODAY-F-18 (2026-09-05): this said role="button" and carried
+                a tab stop, so VoiceOver announced it as a button and a
+                keyboard user could land on it, for a tap that did nothing:
+                it is the state you are already in. aria-current says that
+                instead, which is what it always meant. */}
+            <div className="chip active" aria-current="page">Next</div>
             {/* WAVE 4, DUPLICATE DOORS (2026-08-29). Once you have skipped
                 twice, a full-width "Deal Five Quick Ones Instead" appears
                 under the card calling this exact handler, and offerWins is a

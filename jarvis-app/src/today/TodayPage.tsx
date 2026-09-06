@@ -177,7 +177,7 @@ export default function TodayPage({
   today,
   onToggleTask,
   onOpenTask,
-  avatar = "DF",
+  avatar = "",
   onSeeAllSchedule,
   onPlanDay,
   onPlanTomorrow,
@@ -265,6 +265,10 @@ export default function TodayPage({
   today: string;
   onToggleTask?: (id: string) => void;
   onOpenTask?: (id: string) => void;
+  // TODAY-F-18 (2026-09-05): this defaulted to "DF", one account's initials,
+  // on a screen built for anybody. It is never reached (the flow always
+  // passes real initials), and the day it is, an empty circle beats someone
+  // else's name.
   avatar?: string;
   onSeeAllSchedule: () => void;
   onPlanDay?: () => void;

@@ -6,13 +6,18 @@ import { Quiet, type Heat } from "./quiet";
 // (Law 3E, approved 2026-08-22).
 //
 // Every notice is still built exactly one way -- colored glyph, the words,
-// exactly one visible control -- but it now renders in one of three FORMS,
+// exactly one visible control -- but it now renders in one of two FORMS,
 // and the STREAM decides which, never the producer:
 //
 //   card       the classic anatomy (default; used outside ranked streams)
-//   headliner  the one notice most worth the next tap: big type, its verbs
-//              as real capsules on their own line
 //   row        every other actionable notice: ONE line, fact plus capsule
+//
+// TODAY-F-18 (2026-09-05): there were three. The headliner (big type, verbs
+// as capsules on their own line) was retired in the stream on 2026-08-22
+// (see stream.ts, which returns headliner: null unconditionally) and its
+// branch lived on here, reachable only by a test passing form="headliner".
+// A form nothing can ask for is a form nobody maintains; it went, with its
+// CSS. stream.ts's own comment records why the promotion stopped.
 //
 // A row is a fact wearing its verb, not a paragraph wearing a pill. Tapping
 // a row's body expands it to the full card in place (progressive
@@ -83,7 +88,7 @@ export default function NoticeCard({
   onOpen?: () => void;
   // Extra rows below the main line, inside the same card (the email stack).
   foot?: ReactNode;
-  form?: "card" | "headliner" | "row";
+  form?: "card" | "row";
   // ONE HEIGHT FOR THE WHOLE STREAM (Dave 2026-08-25: "Why are the heads up
   // containers different sizes? They should all be the size of update workout
   // feature"). A card's title takes up to two lines and its sub takes up to
@@ -133,7 +138,7 @@ export default function NoticeCard({
   const subRef = useRef<HTMLSpanElement>(null);
   const [subDropped, setSubDropped] = useState(false);
   useLayoutEffect(() => {
-    if ((effForm !== "row" && effForm !== "headliner") || subDropped) return;
+    if (effForm !== "row" || subDropped) return;
     // ZERO TOLERANCE, measured live (probe 2026-08-26): Rent's sub sat at
     // scrollWidth 146 vs clientWidth 145, the old +1 grace called that
     // "fits", and text-overflow answered a 1px deficit by eating "ay" and
@@ -156,56 +161,15 @@ export default function NoticeCard({
     ro.observe(line);
     return () => ro.disconnect();
   });
-  // Headliners show alt beside the primary, so the swipe carries only
-  // Dismiss there; other forms keep alt on the reveal.
-  const altOnReveal = effForm === "headliner" ? undefined : alt;
+  // Both forms keep alt on the swipe reveal.
+  const altOnReveal = alt;
   const acts = (altOnReveal ? 1 : 0) + (onDismiss ? 1 : 0) + (onDelete ? 1 : 0);
   const swipe = useSwipe({ revealW: acts * 88, enabled: acts > 0 });
 
   const subNode = sub != null && (typeof sub === "string" ? <Quiet s={sub} heat={heat} /> : sub);
 
   const inner =
-    effForm === "headliner" ? (
-      // THE HEADLINER PAYS RENT (Dave 2026-08-22, twice in one day: "why is
-      // this rendering so large and with so much wasted space").
-      //
-      // The title still owns a full line, because that is the only thing
-      // stopping a real task title ("Check on Bridge Admin Costs") from
-      // truncating to "Check ..." beside its verb -- measured, 143px is all
-      // a row leaves for fact plus sub next to a 13-character button. What
-      // was wasted was the SUB sitting on a line of its own: it moves down
-      // to ride beside the verb, which recovers a whole line. The lead also
-      // gains the category tile, so it wears the same anatomy as the rows
-      // under it instead of being the one notice with no icon at all.
-      // 129px -> 85px, nothing truncated.
-      <>
-        <div className="notice-hl">
-          <div className={"hl-tile " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>
-          <div className="row-grow"><div className="hl-title">{title}</div></div>
-        </div>
-        {((subNode && !subDropped) || action || alt || onOpen) && (
-          <div className="hl-acts">
-            {subNode && !subDropped && <span className="conn-meta hl-sub" ref={subRef}>{subNode}</span>}
-            {(action || alt || onOpen) && (
-              <span className="hl-verbs">
-                {action && (
-                  <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
-                    {action.label}
-                  </button>
-                )}
-                {alt && (
-                  <button className="pill-act" onClick={(e) => { e.stopPropagation(); alt.onClick(); }}>
-                    {alt.label}
-                  </button>
-                )}
-                {!action && onOpen && <div className="chev" />}
-              </span>
-            )}
-          </div>
-        )}
-        {foot}
-      </>
-    ) : effForm === "row" ? (
+    effForm === "row" ? (
       <div
         className="row notice-vrow"
         // B3-6 (2026-09-04): this used to set role/tabIndex unconditionally,
