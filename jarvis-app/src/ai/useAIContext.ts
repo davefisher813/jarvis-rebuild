@@ -20,6 +20,7 @@ import { measureState, healthOf, goalStatusForAI } from "../bigger/measure";
 import { openWorkOf } from "../today/goalPulse";
 import { activeBills, paydayNext } from "../money/bills";
 import { setAsideTotal, leftToSpend } from "../money/budget";
+import { signedBalance } from "../money/types";
 
 // B2-4 (2026-09-04): this used to serialise with toISOString(), which reads
 // UTC. Four other modules (Chat, Today's suggestions, Quick Capture, the
@@ -207,7 +208,10 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     projects: pj.map((x) => x.data.title),
     habits,
     completionSamples: readSamples().map((s2) => ({ h: s2.h, t: s2.t })),
-    money: mn.map((a) => ({ name: a.data.name, balance: a.data.balance })),
+    // HMN-F-13 (2026-09-05): what the account contributes, so a credit card
+    // reaches the model as the debt it is and Chat cannot quote a total the
+    // Money tab disagrees with.
+    money: mn.map((a) => ({ name: a.data.name, balance: signedBalance(a.data) })),
     bills: openBills.map((b) => ({
       name: b.data.text,
       amount: b.data.bill?.amount ?? 0,

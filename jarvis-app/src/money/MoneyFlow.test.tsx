@@ -335,3 +335,27 @@ describe("Set Aside envelopes live on the profile (HMN-F-12)", () => {
     stop();
   });
 });
+
+// HMN-F-13 (2026-09-05), option A: a Credit account is money owed. The field
+// asked for a "Balance" behind inputMode="numeric", and that keypad has no
+// minus, so $2,000 owed went in as 2,000 and Total balance went UP by the
+// size of the debt.
+describe("a Credit account is a debt, typed as a plain number (HMN-F-13)", () => {
+  it("asks what is Owed and takes it off the total", async () => {
+    render(<NotesProvider userId="credit-1"><MoneyFlow /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Add an Account"));
+    fireEvent.change(screen.getByPlaceholderText("e.g. Checking"), { target: { value: "Visa" } });
+    // The field is Balance until the kind says otherwise.
+    expect(screen.getByLabelText("Balance in dollars")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Account type"));
+    fireEvent.click(await screen.findByText("Credit"));
+    const owed = await screen.findByLabelText("Amount owed in dollars");
+    fireEvent.change(owed, { target: { value: "2000" } });
+    fireEvent.click(screen.getByText("Save"));
+
+    await waitFor(() => expect(screen.getByText("Total balance")).toBeInTheDocument());
+    // No minus was typed anywhere, and the total went down by the debt.
+    expect(screen.getAllByText("-$2,000").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("$2,000")).not.toBeInTheDocument();
+  });
+});

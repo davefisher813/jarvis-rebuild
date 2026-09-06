@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { MoneyService } from "./MoneyService";
-import { totalBalance, formatMoney } from "./types";
+import { totalBalance, formatMoney, signedBalance } from "./types";
 
 describe("MoneyService", () => {
   it("creates accounts, totals balances, edits, removes", async () => {
@@ -15,6 +15,22 @@ describe("MoneyService", () => {
     await m.remove(id!);
     expect((await m.list()).length).toBe(1);
   });
+  // HMN-F-13 (2026-09-05), option A: a credit account is money owed. The
+  // iPhone's numeric keypad has no minus, so the debt is typed as a plain
+  // positive number and the total subtracts it. A record written the old way
+  // (a negative, typed on a hardware keyboard) means the same thing.
+  it("a credit account is subtracted whichever way its amount was typed", async () => {
+    const m = new MoneyService(new Store(new InMemoryAdapter()), "u");
+    await m.create({ name: "Checking", balance: 1200, kind: "cash" });
+    await m.create({ name: "Card", balance: 2000, kind: "credit" });
+    expect(totalBalance(await m.list())).toBe(-800);
+    expect(signedBalance({ name: "Card", balance: 2000, kind: "credit" })).toBe(-2000);
+    // The older shape reads identically, so nothing stored has to be migrated.
+    expect(signedBalance({ name: "Card", balance: -2000, kind: "credit" })).toBe(-2000);
+    // And every other kind keeps its own sign, including a real overdraft.
+    expect(signedBalance({ name: "Checking", balance: -40, kind: "cash" })).toBe(-40);
+  });
+
   it("rejects empty name; formats USD", async () => {
     const m = new MoneyService(new Store(new InMemoryAdapter()), "u");
     expect(await m.create({ name: "  ", balance: 5, kind: "cash" })).toBeNull();

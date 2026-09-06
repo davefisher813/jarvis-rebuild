@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useOptionalFiles, useFileStore } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
-import { ACCOUNT_META, ACCOUNT_KINDS, formatMoney, totalBalance, type Account, type AccountData, type AccountKind } from "./types";
+import { ACCOUNT_META, ACCOUNT_KINDS, formatMoney, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
 import {
   loadEnvelopes, forgetLocalEnvelopes, cleanEnvelopes, setAsideTotal, leftToSpend, leftSub, shortLine,
   daysUntil, perDayLine, envelopeId, type Envelope,
@@ -57,10 +57,14 @@ function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
 }) {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(initial?.name ?? "");
-  const [balance, setBalance] = useState(initial ? String(initial.balance) : "");
+  // HMN-F-13 (2026-09-05): a credit account's field asks for what is OWED,
+  // so an older record that stored the debt as a negative shows its size here
+  // and is written back in the new shape the next time it is saved.
+  const [balance, setBalance] = useState(initial ? String(initial.kind === "credit" ? Math.abs(initial.balance) : initial.balance) : "");
   const [kind, setKind] = useState<AccountKind>(initial?.kind ?? "cash");
   const [touched, setTouched] = useState(false);
   const valid = name.trim().length > 0 && balance.trim() !== "" && Number.isFinite(Number(balance));
+  const owed = isLiability(kind);
   // Every save re-stamps asOf: the dated-balance line depends on it.
   // B12: Save creates an account, so two taps created two.
   // HMN-F-09 (2026-09-05): the B12 latch went in without an error path, so a
@@ -82,8 +86,8 @@ function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
       <Group label="Account">
         <FieldRow tone="blue" glyph={<WalletGlyph />} value={name} onChange={setName} placeholder="e.g. Checking" ariaLabel="Account name"
           error={touched && !name.trim()} right={false} />
-        <FieldRow tone="green" glyph={<DollarGlyph />} label="Balance" value={balance} onChange={setBalance} placeholder="0" inputMode="numeric"
-          ariaLabel="Balance in dollars" error={touched && !valid && !!name.trim()} />
+        <FieldRow tone="green" glyph={<DollarGlyph />} label={owed ? "Owed" : "Balance"} value={balance} onChange={setBalance} placeholder="0" inputMode="numeric"
+          ariaLabel={owed ? "Amount owed in dollars" : "Balance in dollars"} error={touched && !valid && !!name.trim()} />
         <MenuRow tone="indigo" glyph={<FolderKanban className="ic" />} label="Type" value={kind} ariaLabel="Account type"
           options={ACCOUNT_KINDS.map((k) => ({ value: k, label: ACCOUNT_META[k].label }))} onPick={(v) => setKind(v as AccountKind)} />
       </Group>
@@ -477,8 +481,10 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
           <div className="r-k"><span className="r-goal r-cat">{m.label}</span></div>
         </div>
         {/* A negative balance is a fact, not an alarm: it reads in the
-            quiet ink with its sign, never in red (L1, red is a verb). */}
-        <span className={"money-amt" + (a.data.balance < 0 ? " money-neg" : "")}>{formatMoney(a.data.balance)}</span>
+            quiet ink with its sign, never in red (L1, red is a verb).
+            HMN-F-13: a credit account shows what it takes off the total,
+            so the row and the number above it can never disagree. */}
+        <span className={"money-amt" + (signedBalance(a.data) < 0 ? " money-neg" : "")}>{formatMoney(signedBalance(a.data))}</span>
       </div>
     );
   };
