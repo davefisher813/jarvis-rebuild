@@ -3,6 +3,7 @@ import { inboxSentence } from "./inboxBrief";
 import { loadSnoozes, snoozeNotice, sleepingNow, snoozeChoices } from "./snoozeNotice";
 import { parseCardDraft, cardReplyPrompt, cardNudgePrompt, CARD_DRAFT_MAX } from "./cardDraft";
 import { quickAnswers, DEFAULT_ANSWERS } from "./quickAnswers";
+import { byTime, mailNotices } from "./home";
 import type { MailNotice, MailSnapshot } from "./home";
 
 const notice = (kind: MailNotice["kind"], threadId: string): MailNotice =>
@@ -162,5 +163,60 @@ describe("quick answers", () => {
   it("drops a long question back at him: he cannot send that blind", () => {
     expect(quickAnswers(["Do you want me to handle this one or should Rob?"])).toEqual(DEFAULT_ANSWERS);
     expect(quickAnswers(["Which one?"])).toEqual(["Which one?"]);
+  });
+});
+
+// UP-MIND-07 (2026-09-05): "by 3 PM" on a day booked until 3 is a different
+// fact than the same deadline on an empty day. Stated as a fact, never as a
+// reschedule offer: JARVIS says what is, it does not advise.
+describe("UP-MIND-07: a deadline that lands during a meeting", () => {
+  const today = "2026-08-15";
+  const at2pm = new Date("2026-08-15T09:00:00");
+  const snapWith = (by: string): MailSnapshot => ({
+    ts: Date.now(), needsYou: 1, waiting: [], promises: [],
+    threads: [{ id: "t1", from: "Nadia", fromEmail: "n@x.com", subject: "Roster", gist: "needs the roster", by }],
+  });
+
+  it("reads a clock out of the sender's phrase, and nothing out of a day word", () => {
+    expect(byTime("by 3 PM")).toBe("15:00");
+    expect(byTime("before 3pm")).toBe("15:00");
+    expect(byTime("15:30")).toBe("15:30");
+    expect(byTime("12 am")).toBe("00:00");
+    expect(byTime("friday")).toBeNull();
+    expect(byTime("end of month")).toBeNull();
+    expect(byTime(undefined)).toBeNull();
+  });
+
+  it("names the meeting the deadline lands inside", () => {
+    const n = mailNotices(snapWith("3 PM"), today, at2pm, 3, [], [
+      { title: "Board Prep", date: today, start: "13:00", end: "15:00" },
+    ])[0]!;
+    expect(n.sub).toBe("From Nadia · Due 3:00 PM · You're in Board Prep until 3:00");
+  });
+
+  it("says nothing when the day is clear at that hour", () => {
+    const n = mailNotices(snapWith("3 PM"), today, at2pm, 3, [], [
+      { title: "Standup", date: today, start: "09:00", end: "09:15" },
+    ])[0]!;
+    expect(n.sub).toBe("From Nadia · Due 3:00 PM");
+  });
+
+  it("never invents a clock from a day word", () => {
+    const n = mailNotices(snapWith("today"), today, at2pm, 3, [], [
+      { title: "Board Prep", date: today, start: "00:00", end: "23:59" },
+    ])[0]!;
+    expect(n.sub).toBe("From Nadia · Due today");
+  });
+
+  it("reads tomorrow's calendar for tomorrow's deadline", () => {
+    const n = mailNotices(snapWith("tomorrow 3 PM"), today, at2pm, 3, [], [
+      { title: "Board Prep", date: "2026-08-16", start: "13:00", end: "16:00" },
+    ])[0]!;
+    expect(n.sub).toBe("From Nadia · Due tomorrow 3:00 PM · You're in Board Prep until 4:00");
+  });
+
+  it("keeps working for a caller with no calendar at all", () => {
+    const n = mailNotices(snapWith("3 PM"), today, at2pm)[0]!;
+    expect(n.sub).toBe("From Nadia · Due 3:00 PM");
   });
 });

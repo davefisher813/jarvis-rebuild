@@ -178,15 +178,66 @@ export function taskTitleFrom(subject: string, from: string): string {
   return titleCase(s);
 }
 
-function deadlineNotice(t: MailThread, todayISO: string, now: Date): MailNotice | null {
-  const due = dueFromBy(t.by, todayISO, now);
-  if (!due || byRank(t.by, now) > 1) return null; // only when the date is NOW
+// UP-MIND-07 (2026-09-05): the clock inside the sender's phrase, when there
+// is one. "by 3 PM" and "before 15:00" carry a time; "Friday" and "end of
+// month" do not, and this returns null for those rather than inventing noon.
+export function byTime(by: string | undefined): string | null {
+  const t = (by || "").trim().toLowerCase();
+  if (!t) return null;
+  const m = t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/) || t.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (!m) return null;
+  let h = Number(m[1]);
+  const min = m[2] ? Number(m[2]) : 0;
+  const ap = m[3];
+  if (ap === "pm" && h < 12) h += 12;
+  if (ap === "am" && h === 12) h = 0;
+  if (!ap && (h > 23 || h < 0)) return null;
+  if (h > 23 || min > 59) return null;
+  return String(h).padStart(2, "0") + ":" + String(min).padStart(2, "0");
+}
+
+/** One calendar event on `day` that is running at `hhmm`. Facts only: this
+ *  never suggests moving anything, it says what is already there. */
+export interface DayEvent { title: string; date: string; start: string; end?: string }
+export function spanningEvent(events: DayEvent[], day: string, hhmm: string): DayEvent | null {
+  const min = (t: string) => Number(t.split(":")[0] ?? 0) * 60 + Number(t.split(":")[1] ?? 0);
+  const at = min(hhmm);
+  for (const e of events) {
+    if (e.date !== day || !e.start || !e.end) continue;
+    // Inclusive of the end, because a meeting that runs UNTIL 3 is exactly
+    // the collision worth naming on a 3 PM deadline: booked right up to it.
+    if (min(e.start) <= at && at <= min(e.end)) return e;
+  }
+  return null;
+}
+
+function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayEvent[]): MailNotice | null {
+  // UP-MIND-07: "by 3 PM" on a day booked until 3 is a different fact than
+  // the same deadline on an empty day. Stated, never advised: no reschedule
+  // offer, no "you should", just the thing already on the calendar.
+  const at = byTime(t.by);
+  const rank = byRank(t.by, now);
+  // A CLOCK WITH NO DAY WORD IS TODAY. byRank leaves it at 500 (the honest
+  // middle for a phrase it cannot read), which is right for SORTING and
+  // wrong here: a sender who wrote "by 3 PM" and nothing else meant today,
+  // and the card said nothing at all about it. Only ever a phrase with a
+  // real clock in it; an unreadable phrase without one still says nothing.
+  const bareClock = !!at && rank >= 500;
+  const due = bareClock ? todayISO : dueFromBy(t.by, todayISO, now);
+  if (!due || (!bareClock && rank > 1)) return null; // only when the date is NOW
+  const clash = at ? spanningEvent(events, due, at) : null;
+  const day = due === todayISO ? "" : byLabel(t.by, now).toLowerCase() + " ";
+  const dueLabel = at ? day + fmtTime(at).time + " " + fmtTime(at).ap : byLabel(t.by, now).toLowerCase();
+  const endAp = clash?.end ? fmtTime(clash.end) : null;
+  const until = clash && endAp
+    ? " · You're in " + clash.title + " until " + endAp.time + (at && endAp.ap === fmtTime(at).ap ? "" : " " + endAp.ap)
+    : "";
   return {
     key: "deadline:" + t.id,
     kind: "deadline",
     threadId: t.id,
     title: titleCase(t.subject),
-    sub: capAfterNumber(`From ${t.from} · Due ${byLabel(t.by, now).toLowerCase()}`),
+    sub: capAfterNumber(`From ${t.from} · Due ${dueLabel}${until}`),
     action: "Add Task",
     tone: "cat-fg-red",
     ...(t.byEv ? { evidence: t.byEv } : {}),
@@ -344,6 +395,10 @@ export function mailNotices(
   now = new Date(),
   max = 3,
   hidden: string[] = [],
+  // UP-MIND-07 (2026-09-05): today's and tomorrow's calendar, for the
+  // collision clause. Empty is the normal case for callers with no schedule
+  // in hand, and the deadline reads exactly as it did before.
+  events: DayEvent[] = [],
 ): MailNotice[] {
   const skip = new Set(hidden);
   const threads = [...snap.threads].sort((a, b) => byRank(a.by, now) - byRank(b.by, now));
@@ -356,7 +411,7 @@ export function mailNotices(
     .filter((n): n is MailNotice => n !== null);
   const actIds = new Set(acts.map((a) => a.threadId));
 
-  const deadlines = threads.map((t) => deadlineNotice(t, todayISO, now)).filter((n): n is MailNotice => n !== null);
+  const deadlines = threads.map((t) => deadlineNotice(t, todayISO, now, events)).filter((n): n is MailNotice => n !== null);
   const deadlineIds = new Set(deadlines.map((d) => d.threadId));
   // A thread already surfaced as a deadline or as a dated commitment is not
   // also surfaced as a reply. An appointment reminder that also says "let us

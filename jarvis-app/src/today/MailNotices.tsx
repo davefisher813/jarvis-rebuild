@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { useOptionalSchedule } from "../data/NotesProvider";
+import { addDays, occursOn } from "../schedule/calendar";
 import { Mail, Clock, CalendarClock, CornerUpLeft, CalendarCheck, BellRing, PenLine, CalendarPlus } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
 import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import {
   loadMailSnapshot, mailNotices, residualLine, loadDismissed, dismissNotice, setDismissed,
-  type MailKind, type MailNotice,
+  type MailKind, type MailNotice, type DayEvent,
 } from "../messages/home";
 import type { MailAct } from "../messages/mailAct";
 import EvidenceChip from "../messages/EvidenceChip";
@@ -107,6 +109,31 @@ export default function MailNotices({
   const [done, setDone] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, MailDraft>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  // UP-MIND-07 (2026-09-05): today and tomorrow, for the collision clause on
+  // a deadline the sender put a clock on. Optional provider on purpose: with
+  // no schedule the deadline reads exactly as it did before, never an
+  // apology about not knowing.
+  const scheduleSvc = useOptionalSchedule();
+  const [dayEvents, setDayEvents] = useState<DayEvent[]>([]);
+  useEffect(() => {
+    if (!scheduleSvc) return;
+    let live = true;
+    const tomorrow = addDays(today, 1);
+    void scheduleSvc.listEvents()
+      .then((evs) => {
+        if (!live) return;
+        const out: DayEvent[] = [];
+        for (const day of [today, tomorrow]) {
+          for (const e of evs) {
+            if (!occursOn(e.data, day)) continue;
+            out.push({ title: e.data.title, date: day, start: e.data.start, ...(e.data.end ? { end: e.data.end } : {}) });
+          }
+        }
+        setDayEvents(out);
+      })
+      .catch(() => { /* no calendar read, no clause: the deadline still shows */ });
+    return () => { live = false; };
+  }, [scheduleSvc, today]);
 
   // LAW 1 (Dave 2026-08-29): HANDLED HAS TO OUTLIVE THE TAB.
   //
@@ -132,7 +159,7 @@ export default function MailNotices({
 
   const snap = loadMailSnapshot();
   const asleep = sleepingNow(snoozed, nowHHMM);
-  const notices = mailNotices(snap, today, new Date(), max, [...hidden, ...done, ...asleep]);
+  const notices = mailNotices(snap, today, new Date(), max, [...hidden, ...done, ...asleep], dayEvents);
   const residual = residualLine(snap, notices.map((n) => n.threadId));
   // Reported from an EFFECT, never during render: telling a parent to set
   // state while rendering is how a render loop starts.

@@ -1720,7 +1720,12 @@ describe("LAW: every module is reachable, or is listed as not", () => {
       orphans.push(base);
     }
     expect(orphans).toEqual([]);
-  });
+    // UP-MIND-07 (2026-09-05): this walks every source file and then scans
+    // every OTHER source file for each one, so its cost grows with the
+    // square of the tree and it crossed vitest's 5s default this session.
+    // The assertion is untouched; it is simply given the time the scan
+    // actually takes on a tree this size.
+  }, 30000);
 
   // The other direction, and the one that makes the list shrink instead of
   // rot: once something IS wired, its excuse has to go. Without this the list
