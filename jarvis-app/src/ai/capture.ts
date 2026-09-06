@@ -8,6 +8,9 @@ import type { ScheduleService } from "../schedule/ScheduleService";
 import type { NotesService } from "../notes/NotesService";
 import { suggestCategory } from "../schedule/memory";
 import { todayISO as isoOf } from "../schedule/calendar";
+import type { Recurrence } from "../notes/types";
+
+const RECURRENCES: Recurrence[] = ["daily", "weekly", "monthly", "weekdays"];
 
 export interface CaptureResult {
   kind: "task" | "event" | "note";
@@ -19,6 +22,14 @@ export interface CaptureResult {
   // SHELL-F-06 below.
   category?: string;
   notes?: string;
+  // UP-CORE-01 (2026-09-05): the four shapes the deterministic layer can now
+  // read and the AI fallback is allowed to fill in. Every one is a field
+  // TasksService already takes; applyCapture passes them straight through.
+  recurrence?: Recurrence;
+  reminder?: { time: string; days?: number[] };
+  bill?: { amount: number };
+  personId?: string;
+  projectId?: string;
 }
 
 // Structured-output schema (item 12): sent with the capture call so the proxy
@@ -33,6 +44,26 @@ export const CAPTURE_SCHEMA: Record<string, unknown> = {
     start: { type: "string", description: "HH:MM 24h" },
     category: { type: "string", description: "category NAME from the provided list" },
     notes: { type: "string" },
+    // UP-CORE-01: the model may only fill these from words the person wrote.
+    // The person and project links are NOT offered to it: those are ids, and
+    // a model guessing at an id is the one failure mode this whole pipeline
+    // is built to avoid. The deterministic layer matches them, or nobody does.
+    recurrence: { type: "string", enum: ["daily", "weekly", "monthly", "weekdays"], description: "only when the text says it repeats" },
+    reminder: {
+      type: "object",
+      description: "only when the text asks to be reminded at a clock time",
+      properties: {
+        time: { type: "string", description: "HH:MM 24h" },
+        days: { type: "array", items: { type: "number" }, description: "weekdays 0=Sun..6=Sat; omit for every day" },
+      },
+      required: ["time"],
+    },
+    bill: {
+      type: "object",
+      description: "only when the text names a money amount to pay",
+      properties: { amount: { type: "number" } },
+      required: ["amount"],
+    },
   },
   required: ["kind", "title"],
 };
@@ -46,7 +77,8 @@ export function captureSystemPrompt(ctx: AIContext, today: string): string {
     `Today is ${today} (ISO). Resolve relative dates ("tomorrow", "Friday") against it.`,
     "Decide if the input is a task, an event (has a time or specific day), or a note (a thought to keep).",
     `Pick a category by NAME from this list when one clearly fits: ${cats}.`,
-    'Reply with ONLY a JSON object, no prose, no code fences: {"kind":"task|event|note","title":string,"date":"yyyy-mm-dd"(optional),"start":"HH:MM"(optional, 24h),"category":string(optional),"notes":string(optional)}.',
+    'Reply with ONLY a JSON object, no prose, no code fences: {"kind":"task|event|note","title":string,"date":"yyyy-mm-dd"(optional),"start":"HH:MM"(optional, 24h),"category":string(optional),"notes":string(optional),"recurrence":"daily|weekly|monthly|weekdays"(optional),"reminder":{"time":"HH:MM","days":[0-6]}(optional),"bill":{"amount":number}(optional)}.',
+    "Only fill recurrence, reminder or bill from words the person actually wrote. Never invent a repeat, a time, or an amount.",
     "",
     "User context:",
     contextToText(ctx),
@@ -65,6 +97,14 @@ export function parseCapture(raw: string): CaptureResult | null {
       const out = o as CaptureResult;
       out.title = noDashes(out.title);
       if (typeof out.notes === "string") out.notes = noDashes(out.notes);
+      // UP-CORE-01 (2026-09-05): the same belt-and-suspenders the title gets.
+      // A reply carrying a malformed reminder or a nonsense amount drops
+      // that field rather than writing a reminder with no time or a bill for
+      // NaN; the capture still lands, one fact lighter.
+      if (out.recurrence && !RECURRENCES.includes(out.recurrence)) delete out.recurrence;
+      if (out.reminder && !/^\d{2}:\d{2}$/.test(out.reminder.time ?? "")) delete out.reminder;
+      if (out.reminder?.days && !out.reminder.days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)) delete out.reminder.days;
+      if (out.bill && !(Number.isFinite(out.bill.amount) && out.bill.amount > 0)) delete out.bill;
       return out;
     }
   } catch {
@@ -156,7 +196,11 @@ export async function applyCapture(
   }
   let id: string | null = null;
   if (r.kind === "event") {
-    id = await svc.schedule.createEvent(r.title, { date: r.date ?? today, start: r.start ?? "09:00", category: catId, source });
+    // UP-CORE-01: a repeating event ("practice every Tuesday at 5") keeps its
+    // repeat. EventRecurrence has no "weekdays", so that one stays a task's
+    // word and is not translated into something the calendar would misread.
+    const evRepeat = r.recurrence && r.recurrence !== "weekdays" ? r.recurrence : undefined;
+    id = await svc.schedule.createEvent(r.title, { date: r.date ?? today, start: r.start ?? "09:00", category: catId, source, recurrence: evRepeat });
   } else if (r.kind === "note") {
     // UP-CORE-05 (2026-09-05): a captured note carries the same provenance
     // stamp a captured task and event have carried since item 8.
@@ -165,7 +209,20 @@ export async function applyCapture(
     // Paste law: copied text is never rewritten).
     if (id && r.notes) await svc.notes.addBlock(id, { type: "text", text: r.notes });
   } else {
-    id = await svc.tasks.createTask(r.title, { category: catId, due: r.date ?? null, source });
+    // UP-CORE-01 (2026-09-05): the reminder, the repeat, the money and the
+    // links ride through to the fields TasksService has always had. A
+    // reminder is a task wearing reminder facts (notes/types.ts), so this is
+    // one call either way.
+    id = await svc.tasks.createTask(r.title, {
+      category: catId,
+      due: r.date ?? null,
+      source,
+      ...(r.recurrence ? { recurrence: r.recurrence } : {}),
+      ...(r.reminder ? { reminder: r.reminder } : {}),
+      ...(r.bill ? { bill: r.bill } : {}),
+      ...(r.personId ? { personId: r.personId } : {}),
+      ...(r.projectId ? { projectId: r.projectId } : {}),
+    });
   }
   return { id, kind: r.kind };
 }

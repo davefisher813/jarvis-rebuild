@@ -577,3 +577,108 @@ describe("a fact lands in the Brain, not on a list", () => {
     expect(out[0]!.kind).toBe("task");
   });
 });
+
+// UP-CORE-01 (2026-09-05): the front door reads the shapes the rest of the
+// app already stores. Every one of these fields has existed on TaskData
+// since the day it was written; capture simply never filled them in, so
+// "meds 9pm every day" landed as a nine PM event.
+describe("capture reads reminders, repeats, bills and people", () => {
+  it("a clock time that repeats every day is a reminder, not an event", () => {
+    const e = classifyLine("meds 9pm every day", TODAY);
+    expect(e.kind).toBe("task");
+    expect(e.reminder).toEqual({ time: "21:00" });
+    expect(e.title).toBe("Meds");
+    expect(e.confident).toBe(true);
+  });
+
+  it("remind me says outright which lane it is", () => {
+    const e = classifyLine("remind me to take the bins out at 7:30am", TODAY);
+    expect(e.reminder).toEqual({ time: "07:30" });
+    expect(e.kind).toBe("task");
+  });
+
+  it("every weekday is a reminder on the five weekdays", () => {
+    expect(classifyLine("stretch 7am every weekday", TODAY).reminder).toEqual({ time: "07:00", days: [1, 2, 3, 4, 5] });
+  });
+
+  // A repeat on a NAMED weekday is a commitment, not a habit: the calendar
+  // is where it belongs, and the recurrence rides with it.
+  it("a named weekday with a time stays a repeating event", () => {
+    const e = classifyLine("practice every tuesday at 5pm", TODAY);
+    expect(e.kind).toBe("event");
+    expect(e.recurrence).toBe("weekly");
+    expect(e.start).toBe("17:00");
+    expect(e.reminder).toBeUndefined();
+  });
+
+  it("a repeat with no clock is a repeating task", () => {
+    const e = classifyLine("water the plants every week", TODAY);
+    expect(e).toMatchObject({ kind: "task", recurrence: "weekly", confident: true });
+    expect(e.title).toBe("Water the Plants");
+  });
+
+  it("an amount makes it a bill, and the day of the month is a real date", () => {
+    const e = classifyLine("$1,200 rent on the 1st", TODAY);
+    expect(e.kind).toBe("task");
+    expect(e.bill).toEqual({ amount: 1200 });
+    expect(e.date).toBe("2026-09-01");
+    // No repeat was written, so none is claimed, however obvious rent is.
+    expect(e.recurrence).toBeUndefined();
+  });
+
+  it("a bare number is never money", () => {
+    expect(classifyLine("call 3 people back", TODAY).bill).toBeUndefined();
+  });
+
+  it("files the one contact the line names, and asks when two answer", () => {
+    const people = [
+      { id: "p1", name: "Marco Diaz" },
+      { id: "p2", name: "Marco Silva" },
+      { id: "p3", name: "Nadia Sorensen" },
+    ];
+    const one = classifyLine("call Nadia about the invoice", TODAY, { people });
+    expect(one.personId).toBe("p3");
+    expect(one.personChoices).toBeUndefined();
+    const two = classifyLine("text Marco about the invoice", TODAY, { people });
+    expect(two.personId).toBeUndefined();
+    expect(two.personChoices).toEqual(["p1", "p2"]);
+  });
+
+  it("files into a project the person named, and never into one they did not", () => {
+    const projects = [{ id: "pr1", title: "Kitchen remodel" }];
+    expect(classifyLine("order tile for Kitchen remodel", TODAY, { projects }).projectId).toBe("pr1");
+    expect(classifyLine("order tile", TODAY, { projects }).projectId).toBeUndefined();
+  });
+
+  it("writes the reminder, the bill and the repeat all the way through to the task", async () => {
+    const calls = { n: 0 };
+    const deps = rig(calls);
+    const saved = await smartPasteSave("meds 9pm every day\n$1,200 rent on the 1st", deps);
+    expect(calls.n).toBe(0); // deterministic, no AI call
+    const tasks = await deps.tasks.listTasks();
+    const meds = tasks.find((t) => t.data.text === "Meds")!;
+    expect(meds.data.reminder).toEqual({ time: "21:00" });
+    const rent = tasks.find((t) => t.data.bill)!;
+    expect(rent.data.bill).toEqual({ amount: 1200 });
+    expect(rent.data.due).toBe("2026-09-01");
+    // The receipt gets the same facts, so it can show the read.
+    expect(saved.find((s) => s.title === "Meds")!.reminder).toEqual({ time: "21:00" });
+    expect(saved.find((s) => s.bill)!.bill).toEqual({ amount: 1200 });
+  });
+});
+
+// UP-CORE-01, the refusals. A reminder has no date, only a time and the days
+// it runs, so a line naming a day must never become one: "remind me tomorrow
+// at 9" would ping every morning forever.
+describe("capture refuses the reads it cannot honestly make", () => {
+  it("a dated reminder stays a dated thing", () => {
+    const e = classifyLine("remind me to call the bank tomorrow at 9am", TODAY);
+    expect(e.reminder).toBeUndefined();
+    expect(e).toMatchObject({ kind: "event", date: "2026-08-16", start: "09:00" });
+  });
+
+  it("a standing fact about the person is still a fact, not a bill or a ping", () => {
+    expect(classifyLine("I never take calls before 9am", TODAY).kind).toBe("fact");
+    expect(classifyLine("my rule is $20 a day", TODAY).kind).toBe("fact");
+  });
+});

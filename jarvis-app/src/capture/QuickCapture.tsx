@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
-import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, usePeople, useProjects } from "../data/NotesProvider";
 import { STRAND_CATEGORY_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
 import { useAIContext, todayISO } from "../ai/useAIContext";
@@ -12,6 +12,7 @@ import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import { weekdayLongDate, shortDateFromMs } from "../shared/dateFormat";
+import { formatMoney } from "../money/types";
 
 // "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
 // user, filed into the Brain rather than onto a list. It is a chip like the
@@ -36,6 +37,46 @@ function fmtWhen(s: SavedEntity): string {
     parts.push(d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
   }
   return parts.join(" · ");
+}
+
+// UP-CORE-01 (2026-09-05): WHAT IT READ, IN WORDS. A capture that quietly
+// became a reminder, a repeating task or a bill has to say so on the
+// receipt, or the read is invisible until it pings at nine at night. Same
+// rule the resolved date has followed since Smart Paste shipped: show the
+// read so a wrong one is visible the moment it happens.
+const REPEAT_WORD: Record<string, string> = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", weekdays: "Weekdays" };
+
+function fmtClock(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map((x) => parseInt(x, 10));
+  const d = new Date();
+  d.setHours(h ?? 9, m ?? 0);
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function readWord(s: SavedEntity): string {
+  if (s.reminder) return "Reminder";
+  if (s.bill) return "Bill";
+  return KIND_LABEL[s.kind];
+}
+
+function readFacts(s: SavedEntity, names: { person?: string; project?: string }): string[] {
+  const out: string[] = [];
+  if (s.reminder) out.push(fmtClock(s.reminder.time));
+  if (s.bill) out.push(formatMoney(s.bill.amount));
+  if (s.kind === "fact") {
+    if (s.factCategory) out.push(STRAND_CATEGORY_LABEL[s.factCategory]);
+  } else {
+    const when = fmtWhen(s);
+    if (when) out.push(when);
+  }
+  // A reminder with no repeat runs every day: that is what an absent `days`
+  // MEANS in ReminderInfo, so the receipt says it rather than leaving the
+  // person to find out tomorrow morning.
+  if (s.recurrence) out.push(REPEAT_WORD[s.recurrence] ?? s.recurrence);
+  else if (s.reminder) out.push(s.reminder.days ? "Weekdays" : "Daily");
+  if (names.person) out.push(names.person);
+  if (names.project) out.push(names.project);
+  return out;
 }
 
 function fmtRecent(ts: number): string {
@@ -65,6 +106,8 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   // Same seam for the genome: no strand store means the fact lane is closed
   // and a self-fact lands as a task, exactly as it did before Quick Add.
   const strands = useOptionalStrands();
+  const peopleSvc = usePeople();
+  const projectsSvc = useProjects();
 
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<"input" | "saving" | "saved">("input");
@@ -73,11 +116,18 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   const [recents, setRecents] = useState<RecentCapture[]>([]);
   const [error, setError] = useState("");
   const [dupAge, setDupAge] = useState<number | null>(null);
+  // UP-CORE-01 (2026-09-05): the bounded lists the capture matches people and
+  // projects against, and the receipt names them from. Read once with the
+  // categories; a failure leaves both lanes closed rather than blocking the
+  // save.
+  const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
+  const [projects, setProjects] = useState<{ id: string; title: string }[]>([]);
 
   // rules is passed IN, not reached for inside smartPaste: the pipeline stays
   // a pure function of its deps, and a surface that has no rules store simply
   // does not learn rather than crashing or reaching for a global.
-  const deps = (categories: Category[]) => ({ ai, gather, tasks, schedule, notes, categories, today: todayISO(), ...(rules ? { rules } : {}), ...(strands ? { strands } : {}) });
+  const deps = (categories: Category[], who: { people?: { id: string; name: string }[]; projects?: { id: string; title: string }[] } = { people, projects }) =>
+    ({ ai, gather, tasks, schedule, notes, categories, today: todayISO(), ...who, ...(rules ? { rules } : {}), ...(strands ? { strands } : {}) });
 
   const capture = async (force = false) => {
     const t = text.trim();
@@ -92,13 +142,19 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     setPhase("saving");
     const categories = await categoriesSvc.list().catch(() => []);
     setCats(categories);
+    // UP-CORE-01: who and which project, read fresh with the categories so a
+    // contact added a minute ago is matchable now.
+    const ps = (await peopleSvc.list().catch(() => [])).map((p) => ({ id: p.id, name: p.data.name }));
+    const prs = (await projectsSvc.list().catch(() => [])).map((p) => ({ id: p.id, title: p.data.title }));
+    setPeople(ps);
+    setProjects(prs);
     let out: SavedEntity[] = [];
     // A full genome refuses a fact, and that refusal has a reason worth
     // stating: "Nothing to save in that" would be false, since the sentence
     // was read perfectly and there was simply nowhere to put it.
     let refused = false;
     const ok = await attemptWrite(async () => {
-      out = await smartPasteSave(t, { ...deps(categories), onFactRefused: () => { refused = true; } });
+      out = await smartPasteSave(t, { ...deps(categories, { people: ps, projects: prs }), onFactRefused: () => { refused = true; } });
     });
     if (!ok || out.length === 0) {
       // The middle dot, not a full stop: the short-copy law forbids a
@@ -191,6 +247,18 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   // that missing control. The cap is a real, expected outcome here (twelve
   // per bucket), not a write failure, so it gets its own honest line rather
   // than the generic "couldn't save" toast.
+  // UP-CORE-01 (2026-09-05): TWO MARCOS. When more than one real contact
+  // answers to the line, nothing is filed and the receipt asks, which is the
+  // Uncertainty Protocol in one row of chips: JARVIS says what it is unsure
+  // about and the person decides in one tap. Only a task carries a person,
+  // so this never appears on an event or a note.
+  const onPerson = async (s: SavedEntity, personId: string) => {
+    if (s.kind !== "task" || personId === s.personId) return;
+    const ok = await attemptWrite(() => tasks.setPerson(s.id, personId));
+    if (!ok) return;
+    setSaved(saved.map((x) => (x.id === s.id ? { ...x, personId } : x)));
+  };
+
   const onFactCat = async (s: SavedEntity, category: StrandCategory) => {
     if (category === s.factCategory) return;
     let moved = false;
@@ -250,7 +318,10 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                       <div className="conn-name">{s.title}</div>
                       {/* A fact says where in the Brain it landed instead of
                           a date it does not have: "Fact · Values". */}
-                      <div className="conn-meta">{[KIND_LABEL[s.kind], s.kind === "fact" ? (s.factCategory ? STRAND_CATEGORY_LABEL[s.factCategory] : "") : fmtWhen(s)].filter(Boolean).join(" · ")} · From your paste</div>
+                      <div className="conn-meta">{[readWord(s), ...readFacts(s, {
+                        person: people.find((p) => p.id === s.personId)?.name,
+                        project: projects.find((p) => p.id === s.projectId)?.title,
+                      })].filter(Boolean).join(" · ")} · From your paste</div>
                     </div>
                     <button className="btn-sm" onClick={() => void onUndo(s)}>Undo</button>
                   </div>
@@ -286,6 +357,20 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                           </div>
                         ))}
                   </div>
+                  {/* UP-CORE-01: who, when the line named more than one real
+                      contact. Nobody was filed; these chips are the ask. */}
+                  {s.kind === "task" && (s.personChoices?.length ?? 0) > 1 && (
+                    <div className="chip-row chip-wrap-row">
+                      {s.personChoices!.map((id) => {
+                        const p = people.find((x) => x.id === id);
+                        return p ? (
+                          <div key={id} className={"chip" + (s.personId === id ? " active" : "")} role="radio" aria-checked={s.personId === id} tabIndex={0} onClick={() => void onPerson(s, id)}>
+                            {p.name}
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

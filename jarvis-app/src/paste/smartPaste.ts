@@ -32,6 +32,16 @@ export interface SavedEntity {
   category?: string;
   // Fact only: the strand category it was filed under.
   factCategory?: StrandCategory;
+  // UP-CORE-01 (2026-09-05): what else the capture read, so the receipt can
+  // show it ("Reminder · 9:00 PM · Daily") and the person can flip it there.
+  recurrence?: import("../notes/types").Recurrence;
+  reminder?: { time: string; days?: number[] };
+  bill?: { amount: number };
+  personId?: string;
+  // More than one contact answered to the line, so nobody was filed and the
+  // receipt asks (the Uncertainty Protocol).
+  personChoices?: string[];
+  projectId?: string;
   // The line exactly as pasted. Both halves of the learned-rules loop derive
   // their trigger from THIS and never from title, so the correction that
   // teaches a rule and the lookup that applies it key on the same string.
@@ -48,6 +58,11 @@ export interface PasteDeps {
   notes: NotesService;
   categories: Category[];
   today: string;
+  // UP-CORE-01 (2026-09-05): the bounded lists the person and project reads
+  // match against. Optional, and absent means those two lanes are simply
+  // closed: a capture is never dropped because a list was not passed.
+  people?: { id: string; name: string }[];
+  projects?: { id: string; title: string }[];
   // Learned rules, optional. Absent means no capture is ever categorised by
   // a rule, which is what every existing caller and every test gets by
   // default: this can only ever change behaviour where it is passed in.
@@ -121,6 +136,14 @@ function toCaptureResult(e: ParsedEntity, kind: CaptureResult["kind"]): CaptureR
     ...(e.date ? { date: e.date } : {}),
     ...(e.start ? { start: e.start } : {}),
     ...(e.body ? { notes: e.body } : {}),
+    // UP-CORE-01 (2026-09-05): the four extra reads ride through. Only ever
+    // on the confident path: an unconfident line goes to the model, and what
+    // comes back is what gets written.
+    ...(e.recurrence ? { recurrence: e.recurrence } : {}),
+    ...(e.reminder ? { reminder: e.reminder } : {}),
+    ...(e.bill ? { bill: e.bill } : {}),
+    ...(e.personId ? { personId: e.personId } : {}),
+    ...(e.projectId ? { projectId: e.projectId } : {}),
   };
 }
 
@@ -149,7 +172,7 @@ async function aiImprove(line: string, deps: PasteDeps): Promise<CaptureResult |
 // Save a paste. Returns what was created, in order, for the receipt, the
 // refile chips, and undo.
 export async function smartPasteSave(text: string, deps: PasteDeps): Promise<SavedEntity[]> {
-  const { entities } = parsePaste(text, deps.today);
+  const { entities } = parsePaste(text, deps.today, { people: deps.people, projects: deps.projects });
   const saved: SavedEntity[] = [];
   for (const e of entities) {
     // QUICK ADD (handoff 5.0). A standing fact about the user goes straight
@@ -213,6 +236,15 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
         ...(result.date ? { date: result.date } : {}),
         ...(result.start ? { start: result.start } : {}),
         ...(result.category ? { category: result.category } : {}),
+        // UP-CORE-01: the extra reads, for the receipt. personChoices comes
+        // off the parse rather than the result: nobody was filed, which is
+        // the whole point of it reaching the receipt.
+        ...(result.recurrence ? { recurrence: result.recurrence } : {}),
+        ...(result.reminder ? { reminder: result.reminder } : {}),
+        ...(result.bill ? { bill: result.bill } : {}),
+        ...(result.personId ? { personId: result.personId } : {}),
+        ...(e.personChoices ? { personChoices: e.personChoices } : {}),
+        ...(result.projectId ? { projectId: result.projectId } : {}),
         raw: e.raw,
       };
       saved.push(s);
