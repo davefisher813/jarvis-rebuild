@@ -351,10 +351,18 @@ export function TaskRow({
               most ink, a person is a name and a door, an estimate is a number
               and takes the ruled inline number emphasis through Nums, and a
               recurrence is a rule rather than an instance of one, so it is the
-              quietest. They are also in the order they should hand the line
-              back when there is not room for all of them, which is the half of
-              this the wrap fix lands on next. */}
-          <div className="r-k">
+              quietest. They are also in the order they hand the line back when
+              there is not room for all of them, which is DEFECT 1 below.
+
+              DEFECT 1 (Dave, the same morning: "There's wrapping in the tasks
+              pills"). BROWSER-F-06 had given this line flex-wrap on 2026-09-05
+              and the person and the estimate then made it fire on every row
+              that carried them: the second line measured 88.75px over FOUR
+              visual lines and the row 129.55px, where the contract rules two
+              lines and a density of 44, 56 or 64. `.r-k-one` holds it to one
+              line box (ruled.css), so a fact that no longer fits leaves the
+              line whole instead of taking a row of its own. */}
+          <div className="r-k r-k-one">
             {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
             {kicker
               ? <span className={"r-goal r-cat" + (kickerTone === "stalled" ? " r-stalled" : "")}>{kicker}</span>

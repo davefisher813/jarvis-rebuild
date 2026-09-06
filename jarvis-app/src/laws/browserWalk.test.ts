@@ -296,8 +296,32 @@ describe("BROWSER-F-06: the app's own names and facts are not cut in half", () =
     expect(fact).toMatch(/text-overflow:\s*ellipsis/);
   });
 
-  it("the goal line takes its own row rather than splitting one with the badge", () => {
+  // CORRECTED 2026-09-06. This test asserted the bug, not the fix.
+  //
+  // What it demanded was that the goal line take A ROW OF ITS OWN under the
+  // badge. That row is the THIRD line, and §4.1 rules "Two lines, always: no
+  // third line". It also inverts the ruling right above it in the same
+  // paragraph, "the words truncate first, chip and the right slot never
+  // shrink": the goal losing width to the chip is the ruled outcome, not the
+  // defect. One day later UP-CORE-17 and UP-CORE-02 put a person and an
+  // estimate on that line, the wrap fired on every row that carried them, and
+  // Dave found it on his phone: "There's wrapping in the tasks pills"
+  // (DEFECT 1). Measured at 390x844: .r-k 88.75px over four visual lines, a
+  // 129.55px row against a ruled 44/56/64.
+  //
+  // The real complaint underneath BROWSER-F-06 is still answered, and better:
+  // the words carry a FLOOR now (.r-k-one below), so a long goal name is the
+  // one thing on the line guaranteed room, and what will not fit beside it
+  // leaves whole instead of taking a row. The wrap stays as the mechanism
+  // that makes "leaves whole" possible, so this still checks for it -- but it
+  // is now checked together with the clamp that stops it ever being seen.
+  it("a name too long for the badge beside it keeps a floor, never a second row", () => {
     expect(ruleBody(ruled(), ".ruled .r-k")).toMatch(/flex-wrap:\s*wrap/);
+    const one = ruleBody(ruled(), ".ruled .r-k-one");
+    expect(one, "the task row's second line is clamped to one line box").toBeTruthy();
+    expect(one).toMatch(/overflow:\s*hidden/);
+    expect(ruled(), "and the words are the item with the floor under them")
+      .toMatch(/\.ruled \.r-k-one > \.r-cat, \.ruled \.r-k-one > \.r-parent \{ flex: 1 1 [\d.]+em; \}/);
   });
 
   // A button that says "Remember ..." has stopped saying what it does. The cap

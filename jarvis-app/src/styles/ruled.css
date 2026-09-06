@@ -155,14 +155,49 @@
   min-width: 0; }
 .ruled .task-row .task-title > .task-name { display: block; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }
-/* BROWSER-F-06 (2026-09-05): flex-wrap, so the goal line gets its own row
-   under the badge instead of splitting one row with it. The chip is
-   flex-shrink: 0 by design, which left the goal name whatever was over:
-   "Build a six-month runway" lost 48 percent across 35 screens. Wrapping only
-   fires when the two do not fit, so a row with a short goal is the same row it
-   always was, and the order the ruled comment promises (name last, goal first,
-   chip and trailing slot never) is finally true of the goal too. */
+/* BROWSER-F-06 (2026-09-05) gave this line flex-wrap so a long goal name got a
+   row of its own under the badge rather than whatever the chip left over.
+   DEFECT 1 (Dave 2026-09-06, on his phone: "There's wrapping in the tasks
+   pills") is what that bought one day later: UP-CORE-17 and UP-CORE-02 put a
+   person and an estimate on the same line, the wrap that was meant to fire
+   rarely fired always, and the measured row ran to FOUR visual lines on the
+   second line alone (.r-k 88.75px, row 129.55px, against a ruled 44/56/64).
+   The contract already ruled this one (§4.1): "Two lines, always: no third
+   line", and "the words truncate first, chip and the right slot never shrink".
+   So a row of its own was never the answer. The wrap stays, but only as the
+   MECHANISM below: an item that does not fit is pushed off the line whole
+   instead of clipped mid-word, and .r-k-one then holds the line to one line
+   box, which is the ruling. */
 .ruled .r-k { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 4px; min-width: 0; }
+/* THE TASK ROW'S SECOND LINE IS ONE LINE (DEFECT 1, 2026-09-06). Worn by
+   TaskRow alone, so the goal rows, note rows and money rows that share .r-k
+   keep their own heights.
+   The height is the urgency chip's own box, which is the tallest thing this
+   line can carry: 10px of text at the app's 1.3 line-height (0.8125 of the
+   row's 16px em, so it follows --type-scale) plus the chip's ruled 3px of
+   padding top and bottom. One chip tall means a second flex line (a line box
+   plus the 7px row gap below it) can never show, at any scale from 1.0 to
+   1.4, and it means EVERY task row is the same height whether or not it
+   carries a chip and whether or not the line ran out of room. Density was
+   57.05 without a chip and 59.80 with one before this; it is 59.80 for both
+   now, which is the "nothing in between" the density ruling asks for. */
+.ruled .r-k-one { height: calc(0.8125em + 6px); overflow: hidden; align-content: flex-start; }
+/* The priority the ruling names, made real. The chip never shrinks (it has
+   flex-shrink: 0 already). The words carry a floor and take whatever the chip
+   leaves, so what survives is a readable parent rather than three fragments.
+   The person and the estimate are the first to give up space (2026-09-06),
+   and a recurrence is a rule rather than an instance of one, so it goes
+   first of all. Giving up space here means leaving the line whole: an item
+   that no longer fits wraps, and the clamp above hides the line it wrapped
+   to. Three legible facts beat five slivers.
+   The two numbers are the point at which a cut fact still names itself, taken
+   off the measurement: about seven characters of 12.5px text, which is 5.5em
+   for the words (the parent's 13px glyph and its 6px gap come out of that) and
+   4.5em for a person. Below that a fact is a stub that says nothing, so it
+   leaves instead. */
+.ruled .r-k-one > .r-cat, .ruled .r-k-one > .r-parent { flex: 1 1 5.5em; }
+.ruled .r-k-one > .r-person { flex: 0 1 auto; max-width: 4.5em; }
+.ruled .r-k-one > .r-est, .ruled .r-k-one > .r-rec { flex: 0 0 auto; }
 .ruled .r-bar { width: 4px; height: 11px; border-radius: 2px; flex-shrink: 0; }
 .ruled .r-goal { font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-normal); color: var(--tx-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

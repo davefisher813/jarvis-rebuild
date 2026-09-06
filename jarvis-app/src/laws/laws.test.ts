@@ -4660,16 +4660,23 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
 });
 
 // ---------------------------------------------------------------------------
-// DEFECT 6, FOUND ON DAVE'S PHONE 2026-09-06: "tasks have too much grey when
-// you add info like time and people. Think of another way to render that info
-// so it all doesn't blend in".
+// TWO DEFECTS DAVE FOUND ON HIS PHONE, 2026-09-06. Both live on one line of
+// one component: the second line of the ruled task row.
 //
-// The second line of the ruled task row had carried a chip and one set of
-// words since 2026-09-01. On 2026-09-05 UP-CORE-17 added a person to it and
-// UP-CORE-02 added an estimate, both as another `.r-goal.r-cat` glued on with
-// a middle dot. Measured in chromium at 390x844 the next morning: four word
-// spans, every one of them rgba(235,235,245,0.6) at weight 400. One ink, one
-// weight, one separator, four different kinds of thing.
+// The line had carried a chip and one set of words since 2026-09-01. On
+// 2026-09-05 UP-CORE-17 added a person to it and UP-CORE-02 added an
+// estimate, both as another `.r-goal.r-cat` glued on with a middle dot, and
+// BROWSER-F-06 gave the line flex-wrap the same day. The next morning:
+//
+//   "There's wrapping in the tasks pills"                        (DEFECT 1)
+//   "tasks have too much grey when you add info like time and
+//    people. Think of another way to render that info so it all
+//    doesn't blend in"                                           (DEFECT 6)
+//
+// Measured in chromium at 390x844 before the fix, on a row carrying all five
+// facts: .r-k 88.75px over FOUR visual lines, row 129.55px, and every one of
+// the four word spans resolving to rgba(235,235,245,0.6) at weight 400.
+// After: .r-k 19.00px over ONE line, row 59.80px, four distinct treatments.
 // ---------------------------------------------------------------------------
 
 // Every rule whose selector list matches exactly, in source order, joined.
@@ -4685,6 +4692,73 @@ const ruleOf = (sheet: string, selector: string): string | null => {
   }
   return hits.length ? hits.join(" ") : null;
 };
+
+describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always", () => {
+  const PAGE = read(join(SRC, "tasks/screens/TasksPage.tsx"));
+
+  it("the task row's second line is clamped to one line box", () => {
+    const b = ruleOf(RULED, ".ruled .r-k-one");
+    expect(b, ".r-k-one is declared").toBeTruthy();
+    // A height, not a max-height: every task row is then the same height
+    // whether or not it carries a chip and whether or not the line ran out
+    // of room. 57.05 / 59.80 before, 59.80 for all of them after.
+    expect(b, "one line box tall").toMatch(/height:\s*calc\(0\.8125em \+ 6px\)/);
+    expect(b, "a second flex line is clipped, never shown").toMatch(/overflow:\s*hidden/);
+    expect(b, "and the first line is packed to the top, never centred over two")
+      .toMatch(/align-content:\s*flex-start/);
+  });
+
+  it("the class is on the task row's second line and on nothing else", () => {
+    expect(PAGE).toMatch(/className="r-k r-k-one"/);
+    // The goal rows, note rows, money summaries and project rows share .r-k
+    // and keep their own heights: a clamp meant for one anatomy must not
+    // reach an anatomy it was never measured against.
+    const others = COMPONENTS
+      .filter((f) => !f.endsWith("tasks/screens/TasksPage.tsx"))
+      .filter((f) => read(f).includes("r-k-one"));
+    expect(others.map(rel)).toEqual([]);
+  });
+
+  it("the priority on the line is the ruled one: chip, then words, then the rest", () => {
+    // §4.1: "Name truncates last, the words truncate first, chip and the
+    // right slot never shrink." The chip's own rule carries the never.
+    expect(ruleOf(RULED, ".ruled .uchip"), "the chip never shrinks").toMatch(/flex-shrink:\s*0/);
+    // The words are the one thing on the line with a floor under them, so
+    // what survives a squeeze is a readable parent and not three fragments.
+    expect(RULED, "the words carry a floor")
+      .toMatch(/\.ruled \.r-k-one > \.r-cat, \.ruled \.r-k-one > \.r-parent \{ flex: 1 1 [\d.]+em; \}/);
+    // A person is cut to where a name still names itself, then leaves.
+    expect(ruleOf(RULED, ".ruled .r-k-one > .r-person")).toMatch(/max-width:\s*[\d.]+em/);
+    // A number and a rule are whole or gone: half a duration is a wrong one.
+    expect(RULED).toMatch(/\.ruled \.r-k-one > \.r-est, \.ruled \.r-k-one > \.r-rec \{ flex: 0 0 auto; \}/);
+  });
+
+  // The clamp is arithmetic, so the law is arithmetic. It has to hold for
+  // every text scale the app can be set to (textZoom clamps 1.0 to 1.4), or
+  // it is a fix that comes apart on somebody's phone at 1.3x, which is the
+  // exact class of bug the bare-pixel font-size law above exists to stop.
+  it("the clamp fits the chip and excludes a second line at every text scale", () => {
+    const tokens = read(SRC + "/styles/jarvis-design-system.css");
+    const lh = Number(/--lh-default:\s*([\d.]+)/.exec(tokens)![1]);
+    const rowFs = Number(/\.ruled \.task-row \.task-title \{[^}]*font-size: calc\(([\d.]+)px/.exec(RULED)![1]);
+    const metaFs = Number(/\.ruled \.r-goal \{[^}]*font-size: calc\(([\d.]+)px/.exec(RULED)![1]);
+    const chip = /\.ruled \.uchip \{[^}]*font-size: calc\(([\d.]+)px[^}]*padding:\s*([\d.]+)px/.exec(RULED)!;
+    const chipFs = Number(chip[1]), chipPadY = Number(chip[2]);
+    const clamp = /\.ruled \.r-k-one \{[^}]*height: calc\(([\d.]+)em \+ ([\d.]+)px\)/.exec(RULED)!;
+    const em = Number(clamp[1]), extra = Number(clamp[2]);
+    const rowGap = Number(/\.ruled \.r-k \{[^}]*gap: ([\d.]+)px/.exec(RULED)![1]);
+    for (const scale of [1, 1.1, 1.2, 1.3, 1.4]) {
+      // The em resolves against the row's own font size, so the clamp scales.
+      const box = em * rowFs * scale + extra;
+      const chipH = chipFs * scale * lh + chipPadY * 2;
+      const textH = metaFs * scale * lh;
+      expect(box, `the chip fits at ${scale}x`).toBeGreaterThanOrEqual(chipH - 0.001);
+      expect(box, `the words fit at ${scale}x`).toBeGreaterThanOrEqual(textH - 0.001);
+      expect(box, `a wrapped second line cannot show at ${scale}x`)
+        .toBeLessThan(Math.min(chipH, textH) + rowGap);
+    }
+  });
+});
 
 describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatments", () => {
   const PAGE = read(join(SRC, "tasks/screens/TasksPage.tsx"));
