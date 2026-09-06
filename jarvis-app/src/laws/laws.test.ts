@@ -5,6 +5,13 @@ import { reachOf } from "../bigger/reach";
 import { movesLine } from "../today/goalPulse";
 import { healthOf, measureState } from "../bigger/measure";
 import { repetitionsLine, countEnactment, MIN_TO_SHOW } from "../tasks/automaticity";
+import { readiness } from "../brain/readiness";
+import {
+  MIN_COMPLETIONS, MIN_SLIPS_LEADER, MIN_PLAN_PICKS, MIN_PERSON_HANDLED,
+  deriveCompletionWindow, deriveSlipCategory, derivePlanRate,
+} from "../brain/derive";
+import { setCategoryRegistry } from "../shared/categories";
+import type { WindowRow } from "../brain/window";
 
 // THE LAWS, AS TESTS.
 //
@@ -4927,5 +4934,103 @@ describe("a create alone in a card paints no card (2026-09-06)", () => {
     // of its own.
     expect(read(join(SRC, "tasks/screens/TaskSheet.tsx")))
       .toMatch(/className="row row-act"[^\n]*>Add Item</);
+  });
+});
+
+// THE PANEL AND THE DETECTOR CANNOT SAY DIFFERENT NUMBERS (2026-09-06).
+//
+// Dave, on his phone: "i dont see any trace of jarvis learning anything.
+// theres 1 fact in what jarvis knows about me." Nobody could say why, because
+// eight detectors sat behind evidence gates and every one of them failed
+// silently and identically. brain/readiness.ts is the instrument that ends
+// that, and an instrument is only worth having if it is right: a panel that
+// tells him "10 needed" while brain/derive.ts requires twelve would make the
+// screen worse than the empty one it replaced.
+//
+// So the gates live in ONE place each and are read from there. This law is
+// what makes that structural instead of a promise: a threshold raised in
+// derive.ts moves the panel with it, and a threshold re-typed into the panel
+// fails here.
+describe("LAW: the readiness panel reports the gates the Brain enforces (2026-09-06)", () => {
+  const RDY = read(join(SRC, "brain/readiness.ts"));
+  const DERIVE = read(join(SRC, "brain/derive.ts"));
+  const GATES = [
+    "MIN_COMPLETIONS", "MIN_BAND_SHARE", "MIN_SLIPS_LEADER",
+    "SLIP_LEAD_RATIO", "MIN_PLAN_PICKS", "MIN_PERSON_HANDLED", "QUIET_MS",
+  ];
+
+  it("derive.ts exports every gate, so there is exactly one copy of each", () => {
+    for (const g of GATES) {
+      expect(DERIVE, g + " went back to being module-private").toMatch(new RegExp("export const " + g + "\\b"));
+    }
+  });
+
+  it("readiness.ts imports the gates and declares none of its own", () => {
+    expect(RDY).toMatch(/from "\.\/derive"/);
+    for (const g of GATES) {
+      expect(RDY, g + " is not read from derive.ts").toContain(g);
+      expect(RDY, g + " was re-typed into the panel").not.toMatch(new RegExp("const\\s+" + g + "\\s*="));
+    }
+    // The eighth detector's gate lives in today/planningPatterns.ts, and the
+    // same rule applies to it.
+    expect(RDY).toMatch(/from "\.\.\/today\/planningPatterns"/);
+    expect(RDY).toMatch(/MIN_COUNT as MIN_TIMING_SAMPLES/);
+    expect(RDY).toContain("MIN_AVG_ABS_MIN");
+    expect(RDY, "the timing gate was re-typed into the panel").not.toMatch(/const\s+MIN_AVG_ABS_MIN\s*=/);
+  });
+
+  // The behavioural half. Source checks stop a copy being made; these stop the
+  // two halves disagreeing about where the line falls, which is the failure
+  // that would actually reach him.
+  const NOW = Date.parse("2026-09-06T12:00:00");
+  const wrow = (over: Partial<WindowRow>): WindowRow => ({
+    type: "task.completed", day: "2026-08-20", h: 10, category: null, n: null, flag: null, kind: null, ...over,
+  });
+  const spread = (n: number, over: Partial<WindowRow> = {}): WindowRow[] =>
+    Array.from({ length: n }, (_, i) => wrow({ ...over, day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}` }));
+  const at = (rows: WindowRow[], key: string) => readiness(rows, [], [], NOW).find((r) => r.key === key)!;
+
+  it("the completion gate is the same line for the detector and the panel", () => {
+    const under = spread(MIN_COMPLETIONS - 1);
+    const on = spread(MIN_COMPLETIONS);
+    expect(deriveCompletionWindow(under), "the detector spoke below its own gate").toBeNull();
+    expect(at(under, "completion_window").state).not.toBe("ready");
+    expect(at(under, "completion_window").need).toBe(MIN_COMPLETIONS);
+    expect(deriveCompletionWindow(on)).not.toBeNull();
+    expect(at(on, "completion_window").state).toBe("ready");
+    expect(at(on, "completion_window").have).toBe(MIN_COMPLETIONS);
+  });
+
+  it("the slip gate is the same line for the detector and the panel", () => {
+    setCategoryRegistry([{ id: "cat-admin", name: "Admin", color: "blue" }]);
+    const under = spread(MIN_SLIPS_LEADER - 1, { type: "task.pushed", category: "cat-admin" });
+    const on = spread(MIN_SLIPS_LEADER, { type: "task.pushed", category: "cat-admin" });
+    expect(deriveSlipCategory(under)).toBeNull();
+    expect(at(under, "slip_category").state).not.toBe("ready");
+    expect(at(under, "slip_category").need).toBe(MIN_SLIPS_LEADER);
+    expect(deriveSlipCategory(on)).not.toBeNull();
+    expect(at(on, "slip_category").state).toBe("ready");
+  });
+
+  it("the plan gate is the same line for the detector and the panel", () => {
+    const under = spread(MIN_PLAN_PICKS - 1, { type: "plan.outcome", flag: true });
+    const on = spread(MIN_PLAN_PICKS, { type: "plan.outcome", flag: true });
+    expect(derivePlanRate(under)).toBeNull();
+    expect(at(under, "plan_rate").state).not.toBe("ready");
+    expect(at(under, "plan_rate").need).toBe(MIN_PLAN_PICKS);
+    expect(derivePlanRate(on)).not.toBeNull();
+    expect(at(on, "plan_rate").state).toBe("ready");
+    expect(at(on, "people_rhythm").need).toBe(MIN_PERSON_HANDLED);
+  });
+
+  it("every detector in deriveAll has a row, so none of them can fail invisibly", () => {
+    // deriveAll's own list, read out of the source: a ninth detector added
+    // there without a readiness row would be a detector that goes quiet with
+    // no way to ask why, which is the exact state this panel ended.
+    const block = DERIVE.slice(DERIVE.indexOf("export function deriveAll"));
+    const called = [...block.matchAll(/derive([A-Z]\w+)\(/g)].map((m) => m[1]!).filter((n) => n !== "All");
+    expect(called.length, "deriveAll stopped listing its detectors").toBeGreaterThanOrEqual(7);
+    const keys = new Set(readiness([], [], [], NOW).map((r) => r.key));
+    expect(keys.size).toBeGreaterThanOrEqual(called.length + 1); // the seven plus task_timing
   });
 });

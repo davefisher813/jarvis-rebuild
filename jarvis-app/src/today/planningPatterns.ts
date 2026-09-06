@@ -17,8 +17,12 @@ import type { PatternObservation } from "./patterns";
 export interface DurationCorrection { category: string; deltaMin: number; ts: number }
 
 const WINDOW_MS = 30 * 86400000; // 30 days, same window Time Sense uses
-const MIN_COUNT = 3; // matches patternObservation's streak/weekday bars
-const MIN_AVG_ABS_MIN = 10; // a 5-minute nudge isn't worth mentioning
+// Exported 2026-09-06 for brain/readiness.ts, which reports this detector's
+// gate on What JARVIS Knows beside the seven in brain/derive.ts. Same rule
+// as the gates there: one definition, read by the enforcer and by the row
+// that explains it, so the two cannot say different numbers.
+export const MIN_COUNT = 3; // matches patternObservation's streak/weekday bars
+export const MIN_AVG_ABS_MIN = 10; // a 5-minute nudge isn't worth mentioning
 
 // Reads the local event log for recent duration-correction signals. Pure
 // reshaping of the durable log into the domain shape planningPatternObservation

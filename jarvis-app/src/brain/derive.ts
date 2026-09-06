@@ -46,11 +46,15 @@ export interface DerivePerson {
   lastMs?: number;
 }
 
-const MIN_COMPLETIONS = 10;
-const MIN_BAND_SHARE = 0.4; // the band must actually dominate the month
-const MIN_SLIPS_LEADER = 5;
-const SLIP_LEAD_RATIO = 2; // leader must double the runner-up
-const MIN_PLAN_PICKS = 10;
+// THE GATES. Exported since 2026-09-06 because brain/readiness.ts reports
+// them on What JARVIS Knows, and a panel that says "10 needed" while this
+// file requires twelve is worse than no panel at all. One definition, two
+// readers: the detector that enforces the gate and the row that explains it.
+export const MIN_COMPLETIONS = 10;
+export const MIN_BAND_SHARE = 0.4; // the band must actually dominate the month
+export const MIN_SLIPS_LEADER = 5;
+export const SLIP_LEAD_RATIO = 2; // leader must double the runner-up
+export const MIN_PLAN_PICKS = 10;
 
 // BRAIN-F-18 (2026-09-05): the band's end is bandStart + 3, so a late band
 // hands 24 in and `h < 12` called midnight PM: "Your tasks get done between
@@ -122,16 +126,27 @@ export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
 /** The clearly leading slipped category, shared by the derivation and the
  *  monthly seal: 5+ pushes and double the runner-up, or nothing. One
  *  definition, two readers, no drift. */
-export function slipLeader(rows: WindowRow[]): { category: string; n: number } | null {
+/** Pushes per category in the window, most first, ties alphabetical. Split
+ *  out of slipLeader 2026-09-06 so brain/readiness.ts can say HOW FAR the
+ *  leader is from the gate; slipLeader itself only ever speaks once both
+ *  conditions are already met, and a readiness row that re-implemented this
+ *  grouping is the exact drift the panel exists to prevent. */
+export function slipCounts(rows: WindowRow[]): { category: string; n: number }[] {
   const pushed = rows.filter((r) => r.type === "task.pushed" && r.category);
   const counts = new Map<string, number>();
   for (const r of pushed) counts.set(r.category!, (counts.get(r.category!) ?? 0) + 1);
-  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([category, n]) => ({ category, n }));
+}
+
+export function slipLeader(rows: WindowRow[]): { category: string; n: number } | null {
+  const ranked = slipCounts(rows);
   const leader = ranked[0];
-  if (!leader || leader[1] < MIN_SLIPS_LEADER) return null;
-  const runnerUp = ranked[1]?.[1] ?? 0;
-  if (runnerUp > 0 && leader[1] < runnerUp * SLIP_LEAD_RATIO) return null;
-  return { category: leader[0], n: leader[1] };
+  if (!leader || leader.n < MIN_SLIPS_LEADER) return null;
+  const runnerUp = ranked[1]?.n ?? 0;
+  if (runnerUp > 0 && leader.n < runnerUp * SLIP_LEAD_RATIO) return null;
+  return leader;
 }
 
 export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
@@ -164,8 +179,16 @@ export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
 // counts. Speaks in both directions with the same honesty: a strong rate is
 // a being-known win; a weak one is said plainly, as a fact about plan size,
 // never as guilt.
+/** The resolved plan picks in the window: the flag is the whole definition
+ *  (see above), so an outcome row without one is not evidence. Named
+ *  2026-09-06 alongside taskDone / workoutDone / emailHandled so the
+ *  readiness panel counts the same rows the gate counts. */
+export function planOutcomes(rows: WindowRow[]): WindowRow[] {
+  return rows.filter((r) => r.type === "plan.outcome" && typeof r.flag === "boolean");
+}
+
 export function derivePlanRate(rows: WindowRow[]): Derived | null {
-  const outcomes = rows.filter((r) => r.type === "plan.outcome" && typeof r.flag === "boolean");
+  const outcomes = planOutcomes(rows);
   if (outcomes.length < MIN_PLAN_PICKS) return null;
   const done = outcomes.filter((r) => r.flag === true).length;
   const rate = done / outcomes.length;
