@@ -63,16 +63,24 @@ describe("SignIn legal links", () => {
   });
 });
 
+// UP-LAUNCH-11 (2026-09-05), fork B: the link is the primary way in and the
+// password is one tap behind "Use a Password Instead", so the password
+// flows are reached from there now.
+const usePassword = () => { openEmailSignIn(); fireEvent.click(screen.getByText("Use a Password Instead")); };
+
 describe("SignIn Forgot Password", () => {
-  it("only appears in sign-in mode, not create-account mode", () => {
+  it("appears with the password, and never on the create-account form", () => {
     openEmailSignIn();
+    // Not until a password is asked for: there is nothing to forget yet.
+    expect(screen.queryByText("Forgot Password?")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Use a Password Instead"));
     expect(screen.getByText("Forgot Password?")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Create a new account"));
     expect(screen.queryByText("Forgot Password?")).not.toBeInTheDocument();
   });
 
   it("without an email typed, asks for one instead of calling anything", () => {
-    openEmailSignIn();
+    usePassword();
     fireEvent.click(screen.getByText("Forgot Password?"));
     expect(screen.getByText(/Enter your email first/)).toBeInTheDocument();
     expect(sendPasswordReset).not.toHaveBeenCalled();
@@ -80,7 +88,7 @@ describe("SignIn Forgot Password", () => {
 
   it("with an email typed, sends the reset and says so honestly", async () => {
     sendPasswordReset.mockResolvedValue(undefined);
-    openEmailSignIn();
+    usePassword();
     fireEvent.change(screen.getByPlaceholderText("you@email.com"), { target: { value: "dave@example.com" } });
     fireEvent.click(screen.getByText("Forgot Password?"));
     await waitFor(() => expect(sendPasswordReset).toHaveBeenCalledWith("dave@example.com"));
@@ -89,7 +97,7 @@ describe("SignIn Forgot Password", () => {
 
   it("a failure surfaces as a real message, not a silent no-op", async () => {
     sendPasswordReset.mockRejectedValue(new Error("rate limited, try later"));
-    openEmailSignIn();
+    usePassword();
     fireEvent.change(screen.getByPlaceholderText("you@email.com"), { target: { value: "dave@example.com" } });
     fireEvent.click(screen.getByText("Forgot Password?"));
     await screen.findByText("rate limited, try later");
@@ -120,7 +128,7 @@ describe("SignIn: Apple and the magic link", () => {
     fireEvent.change(screen.getByPlaceholderText("you@email.com"), { target: { value: "dave@example.com" } });
     fireEvent.click(screen.getByText("Email Me a Link"));
     await waitFor(() => expect(signInWithEmail).toHaveBeenCalledWith("dave@example.com"));
-    expect(screen.getByText("Check your email for a sign-in link.")).toBeInTheDocument();
+    expect(screen.getByText(/Check your email for a sign-in link/)).toBeInTheDocument();
   });
 
   it("asks for the address before sending, instead of sending nothing", () => {
@@ -135,5 +143,17 @@ describe("SignIn: Apple and the magic link", () => {
     openEmailSignIn();
     fireEvent.click(screen.getByText("Create a new account"));
     expect(screen.queryByText("Email Me a Link")).not.toBeInTheDocument();
+  });
+
+  // UP-LAUNCH-11: the shape of the choice, which is the whole of fork B.
+  it("leads with the link and keeps the password one tap away", () => {
+    openEmailSignIn();
+    // No password field until it is asked for: nothing to type, nothing to
+    // forget, nothing for a password manager to fight over.
+    expect(screen.queryByPlaceholderText("At Least 6 Characters")).not.toBeInTheDocument();
+    expect(screen.getByText("Email Me a Link")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Use a Password Instead"));
+    expect(screen.getByPlaceholderText("At Least 6 Characters")).toBeInTheDocument();
+    expect(screen.getByText("Sign In", { selector: "button" })).toBeInTheDocument();
   });
 });

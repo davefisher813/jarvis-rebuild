@@ -20,6 +20,10 @@ export default function SignIn() {
   useEffect(() => { dismissSplash(); }, []);
   const [view, setView] = useState<"choose" | "email">("choose");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  // UP-LAUNCH-11 (2026-09-05), fork option B: the link is the way in, and the
+  // password field is not on screen until somebody asks for it. Creating an
+  // account still needs one, so signup opens with it showing.
+  const [usePassword, setUsePassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -123,29 +127,41 @@ export default function SignIn() {
             <div className="input-label">Email</div>
             <input className="input" type="email" autoComplete="email" placeholder="you@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <div className="field">
-            <div className="input-label">Password</div>
-            <input className="input" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder="At Least 6 Characters" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
+          {(mode === "signup" || usePassword) && (
+            <div className="field">
+              <div className="input-label">Password</div>
+              <input className="input" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder="At Least 6 Characters" value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+          )}
           {error && <div className="input-error">{error}</div>}
           {resetSent && <div className="input-hint">Check your email for a reset link.</div>}
-          {linkSent && <div className="input-hint">Check your email for a sign-in link.</div>}
-          <button className="btn btn-primary btn-block btn-lg" onClick={submit} disabled={busy}>
-            {busy ? "Working..." : mode === "signup" ? "Create Account" : "Sign In"}
-          </button>
-          {mode === "signin" && (
+          {linkSent && <div className="input-hint">Check your email for a sign-in link \u00b7 Open it on this device</div>}
+          {/* UP-LAUNCH-11: the link first. A 15 year old does not keep a
+              password, a parent on a shared phone should not have to, and
+              every password that exists is a password reset waiting to
+              happen. The ones that already exist still work, one tap away. */}
+          {mode === "signin" && !usePassword ? (
             <>
-              {/* SHELL-F-18: no password to remember, for anyone who would
-                  rather not have one. Same field above, one tap. */}
-              <button className="btn btn-secondary btn-block" onClick={() => void emailMeALink()} disabled={linkBusy || busy}>
+              <button className="btn btn-primary btn-block btn-lg" onClick={() => void emailMeALink()} disabled={linkBusy}>
                 {linkBusy ? "Sending..." : "Email Me a Link"}
               </button>
-              <button className="btn btn-secondary btn-block" onClick={() => void forgotPassword()} disabled={resetBusy || busy}>
-                {resetBusy ? "Sending..." : "Forgot Password?"}
+              <button className="btn btn-secondary btn-block" onClick={() => { setUsePassword(true); setError(""); setLinkSent(false); }}>
+                Use a Password Instead
               </button>
             </>
+          ) : (
+            <>
+              <button className="btn btn-primary btn-block btn-lg" onClick={submit} disabled={busy}>
+                {busy ? "Working..." : mode === "signup" ? "Create Account" : "Sign In"}
+              </button>
+              {mode === "signin" && (
+                <button className="btn btn-secondary btn-block" onClick={() => void forgotPassword()} disabled={resetBusy || busy}>
+                  {resetBusy ? "Sending..." : "Forgot Password?"}
+                </button>
+              )}
+            </>
           )}
-          <button className="btn btn-secondary btn-block" onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setError(""); setResetSent(false); }}>
+          <button className="btn btn-secondary btn-block" onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setError(""); setResetSent(false); setLinkSent(false); }}>
             {mode === "signup" ? "I already have an account" : "Create a new account"}
           </button>
         </div>

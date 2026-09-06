@@ -11,8 +11,10 @@ import { clearUndo } from "../shared/undoStack";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import { emit } from "../events";
-import { apiUrl, webOrigin } from "../shared/apiBase";
+import { apiUrl } from "../shared/apiBase";
 import { appleNativeAvailable, signInWithAppleNative } from "./appleSignIn";
+import { authRedirectTo, startAuthLinks } from "./authLink";
+import { showToast } from "../shared/toast";
 
 // Auth state for the app. Wraps Supabase Auth. When no backend is configured
 // (sandbox), session stays null and the methods report that clearly, so the
@@ -63,7 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // landing, and it is the whole signal the app needs.
       if (event === "PASSWORD_RECOVERY") setRecovery(true);
     });
-    return () => sub.subscription.unsubscribe();
+    // UP-LAUNCH-11: the native half of the same landing. On the phone a
+    // magic link or a reset link arrives as a jarvis:// URL through
+    // native/appUrl.ts, and the token in it is redeemed by the client that is
+    // actually running. On the web the Supabase client already reads the
+    // address bar on boot, so this is a no-op there.
+    const stopLinks = startAuthLinks(supabase, (message) => showToast({ message }));
+    return () => { sub.subscription.unsubscribe(); stopLinks(); };
   }, []);
 
   const value = useMemo<AuthValue>(
@@ -102,9 +110,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await supabase.auth.updateUser({ data: { name: apple.name } }).catch(() => { /* onboarding asks */ });
         }
       },
+      // UP-LAUNCH-11 (2026-09-05), fork B: the link IS the way in, so it has
+      // to land somewhere that runs this app. Without emailRedirectTo it goes
+      // to the project's Site URL, which on the phone is not this app at all:
+      // the person taps the link, Safari signs ITSELF in, and JARVIS is still
+      // signed out with nothing to say about it.
       signInWithEmail: async (email: string) => {
         if (!supabase) throw new Error("Auth backend not configured");
-        await supabase.auth.signInWithOtp({ email });
+        const to = authRedirectTo();
+        const { error } = await supabase.auth.signInWithOtp({ email, ...(to ? { options: { emailRedirectTo: to } } : {}) });
+        if (error) throw error;
       },
       signUpWithPassword: async (email: string, password: string) => {
         if (!supabase) throw new Error("Auth backend not configured");
@@ -131,7 +146,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // SHELL-F-04: the link has to land somewhere that runs this app. With
         // no redirectTo it went to the project's Site URL, which on the phone
         // is not this app at all.
-        const to = webOrigin();
+        // UP-LAUNCH-11 (2026-09-05): authRedirectTo is webOrigin on the web
+        // and the app's own jarvis:// scheme on the phone, so the reset link
+        // opens the app rather than a browser tab beside it.
+        const to = authRedirectTo();
         const { error } = await supabase.auth.resetPasswordForEmail(email, to ? { redirectTo: to } : undefined);
         if (error) throw error;
       },
