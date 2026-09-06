@@ -86,6 +86,10 @@ export interface MetricPreset {
  */
 export const METRIC_PRESETS: MetricPreset[] = [
   { key: "sleep", name: "Sleep", type: "number", unit: "hrs" },
+  // UP-ATH-31 (2026-09-06): a number a phone already counts, so an Apple
+  // Health import has somewhere honest to land. Off like every other preset
+  // here: an import never turns a metric on for somebody.
+  { key: "steps", name: "Steps", type: "number", unit: "steps" },
   { key: "bodyweight", name: "Bodyweight", type: "number", unit: "lb" },
   { key: "restingHR", name: "Resting Heart Rate", type: "number", unit: "bpm" },
   { key: "soreness", name: "Soreness", type: "scale5" },

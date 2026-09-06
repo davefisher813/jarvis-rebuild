@@ -1662,6 +1662,13 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "contactsMatch.ts": "iOS only: needs the Contacts bridge",
     "eventKitDedupe.ts": "iOS only: needs the EventKit bridge",
     "healthDedupe.ts": "iOS only: needs the HealthKit bridge",
+    // UP-ATH-31 (2026-09-06, fork option A): the shape half of Apple Health
+    // In. Turns a HealthKit sample into the workout and metric rows this app
+    // stores, and refuses everything the health rails refuse (no energy, no
+    // sleep stages, no metric enabled on the user's behalf). Same island as
+    // its four siblings above, for the same reason: there is no bridge in the
+    // web build to feed it.
+    "healthImport.ts": "iOS only: needs the HealthKit bridge",
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
     // every upload through it, from the clip on Notes and Money.)
     // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the

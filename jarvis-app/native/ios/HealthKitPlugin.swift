@@ -74,18 +74,19 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject("workout query failed", nil, error)
                 return
             }
+            // UP-ATH-31 (2026-09-06): active energy is NOT read across. Health
+            // rail 3 bans a calorie field at schema level, the bridge type
+            // dropped it, and the query that populated it goes with the type:
+            // a value this app cannot store is a value it has no business
+            // asking HealthKit for.
             let workouts = (samples as? [HKWorkout] ?? []).map { w -> [String: Any] in
-                var record: [String: Any] = [
+                [
                     "uid": w.uuid.uuidString,
                     "start": w.startDate.timeIntervalSince1970 * 1000,
                     "end": w.endDate.timeIntervalSince1970 * 1000,
                     "activityType": Self.activityName(w.workoutActivityType),
                     "sourceName": w.sourceRevision.source.name,
-                ]
-                if let energy = w.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity() {
-                    record["calories"] = energy.doubleValue(for: .kilocalorie())
-                }
-                return record
+                ] as [String: Any]
             }
             call.resolve(["workouts": workouts])
         }

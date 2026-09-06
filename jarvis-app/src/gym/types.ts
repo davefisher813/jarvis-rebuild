@@ -1,3 +1,5 @@
+import type { Source } from "../shared/provenance";
+
 export const ENTITY_PROGRAM = "program";
 export const ENTITY_WORKOUT = "workout";
 
@@ -285,6 +287,12 @@ export interface WorkoutData {
    *  abandoned session from a prior day) must leave it alone while it is
    *  still open. */
   backdated?: boolean;
+  /** UP-ATH-31 (2026-09-06): where this session came from, when it did not
+   *  come from the person in front of the phone. Absent on every hand-logged
+   *  workout, which is what makes the provenance line honest: it appears
+   *  only on records JARVIS created for someone. Inside the entity's JSONB
+   *  data, so no migration (the same precedent shared/provenance.ts names). */
+  source?: Source;
 }
 export interface Workout { id: string; data: WorkoutData }
 
