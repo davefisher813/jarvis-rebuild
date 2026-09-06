@@ -6,6 +6,22 @@ workflows:
   ios-testflight:
     name: JARVIS iOS TestFlight
     max_build_duration: 60
+    # UP-LAUNCH-23 (2026-09-05): tags only. A Mac build is minutes and money,
+    # and every push is now covered by GitHub Actions (.github/workflows/ci.yml)
+    # which runs the typecheck, the linter, the whole suite and a production
+    # build for both packages. This runs when a version is cut:
+    #   git tag v1.0.3 && git push origin v1.0.3
+    # `npx cap sync ios` still runs inside the workflow, so a tag is all it
+    # takes. Manual builds from the Codemagic UI are unaffected.
+    triggering:
+      events:
+        - tag
+      branch_patterns:
+        - pattern: "*"
+          include: true
+      tag_patterns:
+        - pattern: "v*"
+          include: true
     instance_type: mac_mini_m2
     environment:
       groups:

@@ -1,0 +1,88 @@
+# CI (UP-LAUNCH-23, 2026-09-05).
+#
+# 372 test files, a laws suite that encodes product rules as tests, and until
+# now all of it ran on one laptop. That is a diligence answer ("do the tests
+# run anywhere other than your machine?") but it is a working answer first:
+# a law that only fails locally is a law that lands broken on main whenever
+# somebody is moving fast.
+#
+# Two jobs, because the two packages are independent: the engine has no idea
+# the app exists, and the app imports it through one alias. Both must be
+# green, and the build has to run too, because a typecheck that passes and a
+# bundle that will not build is a deploy that fails in Vercel instead of here.
+name: CI
+
+on:
+  push:
+  pull_request:
+  # The weekly one is the dependency audit, which needs no push to be worth
+  # knowing about: a vulnerability lands in a package, not in a commit.
+  schedule:
+    - cron: "0 9 * * 1"
+
+jobs:
+  core:
+    name: jarvis-core
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jarvis-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: jarvis-core/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+
+  app:
+    name: jarvis-app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jarvis-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: jarvis-app/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx eslint src
+      # The laws suite is the reason this file exists, so it is named rather
+      # than folded into the run below: when CI goes red, the log should say
+      # which kind of red it is before it says anything else.
+      - name: The laws
+        run: npx vitest run src/laws
+      - run: npx vitest run
+      - run: npm run build
+      # The published legal pages are generated from src/legal/content.ts.
+      # This fails if somebody edited one and did not run the generator, which
+      # is the exact way the app and the App Store's linked policy drifted
+      # apart the first time.
+      - name: Legal pages are in step
+        run: npm run build:legal && git diff --exit-code public/
+
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Advisory, not a gate: a high-severity advisory in a dev-only
+      # dependency should tell somebody, not stop a deploy at midnight.
+      - name: jarvis-app
+        working-directory: jarvis-app
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      - name: jarvis-core
+        working-directory: jarvis-core
+        run: npm audit --audit-level=high
+        continue-on-error: true

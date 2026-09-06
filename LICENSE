@@ -1,0 +1,42 @@
+JARVIS
+Copyright (c) 2026 Dave Fisher. All rights reserved.
+
+PROPRIETARY AND CONFIDENTIAL.
+
+This software and its source code, documentation, designs and data models are
+proprietary. No licence is granted, expressly or by implication, to any person
+who obtains a copy. In particular, no person may copy, modify, merge, publish,
+distribute, sublicense, sell, or create derivative works from any part of it
+without the prior written permission of the copyright holder.
+
+Access to this repository, whether granted for evaluation, employment,
+contracting, or any other purpose, does not transfer ownership of anything in
+it and does not grant a licence to use it beyond that purpose.
+
+CONTRIBUTIONS AND WORK FOR HIRE
+
+Anyone who contributes to this repository, whether as an employee, a
+contractor, or otherwise, assigns all right, title and interest in their
+contribution to the copyright holder, including all copyright and any other
+intellectual property rights in it, and waives any moral rights in it to the
+extent permitted by law. Where an assignment is not effective as a matter of
+law, the contributor grants an exclusive, perpetual, irrevocable, worldwide,
+royalty-free licence to use their contribution for any purpose.
+
+A contractor engaged on this project signs a written agreement to the same
+effect before their first commit. This file records the intent; it does not
+replace that agreement.
+
+THIRD-PARTY SOFTWARE
+
+This project depends on open-source packages, each under its own licence, held
+in the package manifests and the lockfiles. Nothing in this notice modifies
+those licences, and nothing in this notice claims ownership of them.
+
+NO WARRANTY
+
+The software is provided "as is", without warranty of any kind, express or
+implied, including the warranties of merchantability, fitness for a particular
+purpose and non-infringement. In no event shall the copyright holder be liable
+for any claim, damages or other liability arising from the software or its
+use.
