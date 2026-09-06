@@ -6,11 +6,15 @@ import handler from "../../api/ai";
 // api/ai.ts serves an authenticated user an UNLIMITED number of Anthropic
 // calls whenever SUPABASE_SERVICE_ROLE_KEY is missing: without it there is no
 // counter to check, and the whole rate-limit block is skipped. The launch
-// lever for that has existed since 2026-08-07 and has never been exercised by
+// lever for that had existed since 2026-08-07 and had never been exercised by
 // anything, which is the same as not having one. This runs both sides of it.
 //
-// The lever is a Vercel env var (AI_REQUIRE_LIMITS=1), so this pins the code
-// path, and DAVE_STEPS.md carries the flip.
+// Merge fix (2026-09-06): UP-LAUNCH-04 went after the same unexercised lever
+// from the other end and FLIPPED ITS DEFAULT, so fail-closed is now what a
+// deploy does with no env var at all and AI_REQUIRE_LIMITS=0 is the local
+// development opt-out. Only one lever survives, main's, and these cases now
+// pin the polarity that actually ships rather than the one this test was
+// written against. DAVE_STEPS.md carries the env var.
 
 const upstream = vi.fn();
 
@@ -66,8 +70,8 @@ afterEach(() => {
 });
 
 describe("an uncapped proxy (UP-PLAT-04)", () => {
-  it("with the lever ON, a missing service key refuses instead of serving", async () => {
-    vi.stubEnv("AI_REQUIRE_LIMITS", "1");
+  it("by default, a missing service key refuses instead of serving", async () => {
+    vi.stubEnv("AI_REQUIRE_LIMITS", "");
     const res = await handler(post(CALL));
     expect(res.status).toBe(503);
     // The load-bearing half: no money was spent proving the point.
@@ -78,8 +82,8 @@ describe("an uncapped proxy (UP-PLAT-04)", () => {
     expect(body.error).toBe("AI is temporarily unavailable. Try again later.");
   });
 
-  it("with the lever off, the old behaviour stands: it serves, loudly", async () => {
-    vi.stubEnv("AI_REQUIRE_LIMITS", "");
+  it("opted out for local development, the old behaviour stands: it serves, loudly", async () => {
+    vi.stubEnv("AI_REQUIRE_LIMITS", "0");
     const res = await handler(post(CALL));
     expect(res.status).toBe(200);
     expect(upstream).toHaveBeenCalledTimes(1);
@@ -88,7 +92,7 @@ describe("an uncapped proxy (UP-PLAT-04)", () => {
   });
 
   it("the lever only fires on a MISSING key: with one, the caps do the work", async () => {
-    vi.stubEnv("AI_REQUIRE_LIMITS", "1");
+    vi.stubEnv("AI_REQUIRE_LIMITS", "");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
     const res = await handler(post(CALL));
     expect(res.status).toBe(200);
