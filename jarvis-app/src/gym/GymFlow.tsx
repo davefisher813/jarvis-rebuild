@@ -1169,11 +1169,23 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
             }}
             {...(goal && goalsSvc ? {
               onDelete: async () => {
+                // UP-ATH-08 (2026-09-06): reversible without a confirm, like
+                // every other delete in this app. GoalService.create takes an
+                // explicit id, so Undo puts back the SAME goal, not a copy of
+                // it, and anything pointing at that id still points at it.
+                const snapshot = goal.data;
                 const ok = await attemptWrite(() => goalsSvc.remove(goal.id));
                 if (!ok) return;
                 setGoals(await goalsSvc.list());
                 setLiftGoalSheetOpen(false);
-                showToast({ message: "Goal deleted" });
+                showToast({
+                  message: "Goal deleted",
+                  actionLabel: "Undo",
+                  onAction: () => void (async () => {
+                    const back = await attemptWrite(() => goalsSvc.create(snapshot, goal.id));
+                    if (back) setGoals(await goalsSvc.list());
+                  })(),
+                });
               },
             } : {})}
             onCancel={() => setLiftGoalSheetOpen(false)}

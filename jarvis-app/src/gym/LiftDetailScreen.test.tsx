@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import LiftDetailScreen from "./LiftDetailScreen";
 import type { Workout, SetEntry } from "./types";
@@ -61,5 +61,33 @@ describe("LiftDetailScreen weekly hard sets", () => {
   it("a lift with no muscle set claims nothing at all", () => {
     render(<LiftDetailScreen {...base} workouts={workouts} muscleMap={chestMap} />);
     expect(screen.queryByText(/sets this week/)).toBeNull();
+  });
+});
+
+// UP-ATH-08 (2026-09-06): a lift goal, once set, could only be changed from
+// Bigger Picture. The card on the lift's own page is the door to it.
+describe("the goal card on a lift's page", () => {
+  const goal = {
+    id: "g1",
+    data: {
+      title: "Touch 30",
+      measure: { kind: "lift" as const, exercise: "Incline Press", measureKind: "weight_reps" as const, target: { w: 225, r: 5 }, unit: "lb" },
+    },
+  };
+
+  const history = [workout("2026-09-02", [{ name: "Incline Press", sets: 4 }])];
+
+  it("opens the goal sheet when it is tapped", () => {
+    const onSetGoal = vi.fn();
+    render(<LiftDetailScreen {...base} onSetGoal={onSetGoal} workouts={history} goal={goal as never} />);
+    fireEvent.click(screen.getByLabelText("Edit Goal"));
+    expect(onSetGoal).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers Enter and Space too, because it is a button", () => {
+    const onSetGoal = vi.fn();
+    render(<LiftDetailScreen {...base} onSetGoal={onSetGoal} workouts={history} goal={goal as never} />);
+    fireEvent.keyDown(screen.getByLabelText("Edit Goal"), { key: "Enter" });
+    expect(onSetGoal).toHaveBeenCalledTimes(1);
   });
 });
