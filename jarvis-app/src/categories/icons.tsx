@@ -75,7 +75,8 @@ export const CAT_ICONS: Record<string, () => ReactNode> = {
   flag: Flag, bulb: Bulb,
   settings: Settings, folder: Folder,
 };
-export const ICON_KEYS = Object.keys(CAT_ICONS);
+// SHELL-F-25 (2026-09-05): ICON_KEYS had no importer. The picker renders
+// ICON_GROUPS, which is the same keys in the order a person reads them.
 export function catIcon(key?: string): ReactNode {
   return (CAT_ICONS[key ?? ""] ?? Tag)();
 }

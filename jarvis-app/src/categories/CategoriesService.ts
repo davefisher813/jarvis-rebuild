@@ -43,18 +43,10 @@ export class CategoriesService {
     return true;
   }
 
-  rename(id: string, name: string): Promise<boolean> {
-    if (!name || !name.trim()) return Promise.resolve(false);
-    return this.patch(id, { name: name.trim() });
-  }
-
-  recolor(id: string, color: ColorSlot): Promise<boolean> {
-    return this.patch(id, { color });
-  }
-
-  setIcon(id: string, icon: string): Promise<boolean> {
-    return this.patch(id, { icon });
-  }
+  // SHELL-F-25 (2026-09-05): rename, recolor and setIcon went. Nothing called
+  // them: CategorySheet edits name, colour and icon together and saves them
+  // as one change through update(), which is right -- three separate writes
+  // for one sheet is three chances to land half an edit.
 
   // Merge a partial change into an existing category (preserves order/other fields).
   async update(id: string, patch: Partial<CategoryData>): Promise<boolean> {

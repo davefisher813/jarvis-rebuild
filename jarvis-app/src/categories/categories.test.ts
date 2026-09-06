@@ -23,21 +23,20 @@ describe("CategoriesService", () => {
     expect((await svc.list()).length).toBe(0);
   });
 
-  it("renames, recolors, and sets icon by id", async () => {
+  // SHELL-F-25 (2026-09-05): rename, recolor and setIcon went unused; the
+  // sheet saves name, colour and icon as ONE change through update(), which
+  // is what these now cover.
+  it("renames, recolors, and sets the icon as one change", async () => {
     const svc = new CategoriesService(new Store(new InMemoryAdapter()), "u1");
     const id = (await svc.create("Work", "blue"))!;
-    expect(await svc.rename(id, "Ridgeley")).toBe(true);
-    expect(await svc.recolor(id, "sky")).toBe(true);
-    expect(await svc.setIcon(id, "building")).toBe(true);
+    expect(await svc.update(id, { name: "Ridgeley", color: "sky", icon: "building" })).toBe(true);
     const c = await svc.get(id);
     expect(c?.data).toMatchObject({ name: "Ridgeley", color: "sky", icon: "building" });
   });
 
-  it("rename rejects empty and unknown id", async () => {
+  it("an edit to an unknown id changes nothing and says so", async () => {
     const svc = new CategoriesService(new Store(new InMemoryAdapter()), "u1");
-    const id = (await svc.create("Work", "blue"))!;
-    expect(await svc.rename(id, "  ")).toBe(false);
-    expect(await svc.rename("nope", "X")).toBe(false);
+    expect(await svc.update("nope", { name: "X" })).toBe(false);
   });
 
   it("removes a category", async () => {
