@@ -47,6 +47,11 @@ function scrubValue(v: unknown): unknown {
  */
 export function scrubReport(r: ErrorReport): ErrorReport {
   const out: ErrorReport = { ...r, message: scrubText(r.message) };
+  // UP-LAUNCH-16 found this one by testing it: a JavaScript stack begins
+  // "Error: <message>", so dropping a long message from the message field and
+  // keeping the stack put the whole thing straight back. The stack stays
+  // exempt as a whole, and the dropped message is removed from inside it.
+  if (r.stack && out.message !== r.message) out.stack = r.stack.split(r.message).join(out.message);
   if (r.context) {
     const ctx = scrubValue(r.context) as Record<string, unknown>;
     // componentStack is the one long value that is unambiguously code: React

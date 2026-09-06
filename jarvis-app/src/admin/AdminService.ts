@@ -25,6 +25,14 @@ export interface AdminBilling {
   trialing: number;
   currency: string;
 }
+// UP-LAUNCH-16 (2026-09-05): what a tester wrote, newest first. Read only.
+export interface AdminFeedbackItem {
+  id: string;
+  text: string;
+  meta: string;
+  at: string;
+  lastError: string | null;
+}
 export interface AdminService {
   available: boolean;
   sample?: boolean; // true when showing labelled sample data (demo only)
@@ -32,6 +40,7 @@ export interface AdminService {
   setUserStatus(id: string, status: "active" | "disabled"): Promise<void>;
   usage(): Promise<AdminUsage>;
   billing(): Promise<AdminBilling>;
+  feedback(): Promise<AdminFeedbackItem[]>;
 }
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) =>
@@ -72,6 +81,7 @@ export function createAdminApi(token: string, available = adminConfigured(), doF
     },
     async usage() { return (await get("/usage")) as AdminUsage; },
     async billing() { return (await get("/billing")) as AdminBilling; },
+    async feedback() { return ((await get("/feedback")) as { feedback: AdminFeedbackItem[] }).feedback; },
   };
 }
 
@@ -90,5 +100,8 @@ export function makeSampleAdminSource(): AdminService {
     async setUserStatus() { /* sample: no-op */ },
     async usage() { return { totalUsers: 3, activeUsers: 2, signups7d: 1, aiCalls30d: 42 }; },
     async billing() { return { mrr: 36, activeSubs: 2, trialing: 1, currency: "USD" }; },
+    async feedback() {
+      return [{ id: "f_001", text: "The gym timer keeps running when I leave the screen.", meta: "abc1234 \u00b7 student \u00b7 iPhone", at: "2026-09-04T18:02:00.000Z", lastError: null }];
+    },
   };
 }

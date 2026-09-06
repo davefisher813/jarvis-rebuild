@@ -110,6 +110,12 @@ export const PRIVACY: LegalDoc = {
       ],
     },
     {
+      heading: "When You Write to Us",
+      blocks: [
+        { kind: "p", runs: ["Settings, Support, Send Feedback sends us what you type, plus the build number, which kind of device you are on, and which template you set up with. If you tick the switch, it also attaches the app's most recent error, which carries no text you wrote. Nothing else from your account comes with it, and we keep these messages so we can answer them and fix what they describe."] },
+      ],
+    },
+    {
       heading: "Files You Upload",
       blocks: [
         { kind: "p", runs: ["Files you upload (images and PDFs) are stored privately in your account, readable only by you. We remove location data embedded in images before storing them. Files are deleted when you delete the item they belong to, or when you delete them directly."] },

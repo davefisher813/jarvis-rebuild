@@ -89,6 +89,17 @@ describe("the scrub", () => {
     expect(scrubReport(report({ stack: long })).stack).toBe(long);
   });
 
+  it("takes a dropped message back out of the stack, where it also appears", () => {
+    // A stack begins "Error: <message>". Dropping the message and keeping the
+    // stack verbatim put the whole thing back, which is how this shipped for
+    // about ten minutes.
+    const note = "Dear Karen, " + "s".repeat(400);
+    const r = scrubReport(report({ message: "Save failed: " + note, stack: `Error: Save failed: ${note}\n  at save (a.js:1:1)` }));
+    expect(r.stack).not.toContain("Karen");
+    expect(r.stack).toContain("[dropped");
+    expect(r.stack).toContain("at save (a.js:1:1)");
+  });
+
   it("truncates a React componentStack instead of dropping it", () => {
     const cs = Array.from({ length: 300 }, () => "\n    in Thing").join("");
     const out = scrubReport(report({ context: { componentStack: cs } })).context as { componentStack: string };

@@ -19,6 +19,23 @@ describe("AdminPanel", () => {
     expect(screen.getByText(/Sample data/)).toBeInTheDocument();
   });
 
+  // UP-LAUNCH-16 (2026-09-05): the Feedback section, and the honest empty
+  // states behind it. A deploy without the endpoint says so rather than
+  // showing an empty list, which would read as "nobody has written".
+  it("shows what testers sent, and says so when the endpoint is not there", async () => {
+    render(<AdminPanel isAdmin source={makeSampleAdminSource()} />);
+    expect(await screen.findByText(/gym timer keeps running/)).toBeInTheDocument();
+    const noEndpoint: AdminService = {
+      available: true,
+      async listUsers() { return []; }, async setUserStatus() {},
+      async usage() { return { totalUsers: 0, activeUsers: 0, signups7d: 0, aiCalls30d: 0 }; },
+      async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
+      async feedback() { throw new Error("admin 404"); },
+    };
+    render(<AdminPanel isAdmin source={noEndpoint} />);
+    expect(await screen.findByText("Feedback Is Not Loaded")).toBeInTheDocument();
+  });
+
   it("disables a user through the source", async () => {
     let called: [string, string] | null = null;
     const src: AdminService = {
@@ -27,6 +44,7 @@ describe("AdminPanel", () => {
       async setUserStatus(id, st) { called = [id, st]; },
       async usage() { return { totalUsers: 1, activeUsers: 1, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
+      async feedback() { return []; },
     };
     render(<AdminPanel isAdmin source={src} />);
     fireEvent.click(await screen.findByText("Disable"));
@@ -43,6 +61,7 @@ describe("AdminPanel", () => {
       async setUserStatus() { throw new Error("admin 502"); },
       async usage() { return { totalUsers: 1, activeUsers: 1, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
+      async feedback() { return []; },
     };
     render(<AdminPanel isAdmin source={src} />);
     fireEvent.click(await screen.findByText("Disable"));
@@ -58,6 +77,7 @@ describe("AdminPanel", () => {
       async listUsers() { return []; }, async setUserStatus() {},
       async usage() { return { totalUsers: 0, activeUsers: 0, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
+      async feedback() { return []; },
     };
     render(<AdminPanel isAdmin source={src} />);
     expect(screen.getAllByText("Live Data Needs the Admin Server").length).toBeGreaterThan(0);

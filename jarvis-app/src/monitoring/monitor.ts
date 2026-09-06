@@ -33,11 +33,49 @@ export function setErrorSink(fn: Sink | null): void {
 
 export function captureError(error: unknown, context?: Record<string, unknown>): void {
   console.error("[jarvis]", error, context ?? "");
+  remember(error);
   try {
     sink?.(error, context);
   } catch {
     /* a broken reporter must never crash the app */
   }
+}
+
+// UP-LAUNCH-16 (2026-09-05): the last twenty crashes, in memory, so Send
+// Feedback's "Include the last error" has something to include. A tester who
+// can say "it broke" cannot say WHICH thing broke, and the report that
+// matters is the one attached to their sentence about it.
+//
+// Message and stack only, already scrubbed, and never persisted: this is a
+// convenience for the person writing the message, not a second log. It dies
+// with the tab, which is the correct lifetime for it.
+const RING_MAX = 20;
+const ring: { at: string; name: string; message: string; stack?: string }[] = [];
+
+function remember(error: unknown): void {
+  try {
+    const r = scrubReport(toErrorReport(error));
+    ring.push({ at: r.at, name: r.name, message: r.message, ...(r.stack ? { stack: r.stack } : {}) });
+    while (ring.length > RING_MAX) ring.shift();
+  } catch {
+    /* remembering a crash must never be a second one */
+  }
+}
+
+export function recentErrors(): readonly { at: string; name: string; message: string; stack?: string }[] {
+  return ring.slice();
+}
+
+/** The newest crash as one block of text, or null when nothing has failed. */
+export function lastErrorText(): string | null {
+  const last = ring[ring.length - 1];
+  if (!last) return null;
+  return `${last.at} ${last.name}: ${last.message}` + (last.stack ? "\n" + last.stack : "");
+}
+
+/** Tests and Clear Local Data: forget what crashed. */
+export function clearRecentErrors(): void {
+  ring.length = 0;
 }
 
 // What one report carries. Deliberately no query string and no URL hash:

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ShieldAlert } from "../shared/icons";
-import type { AdminService, AdminUser, AdminUsage, AdminBilling } from "./AdminService";
+import type { AdminService, AdminUser, AdminUsage, AdminBilling, AdminFeedbackItem } from "./AdminService";
 
 // The master-account panel. Gated by isAdmin for UX; the real boundary is the
 // server (privileged endpoint + RLS). When the source is unavailable (no server
@@ -13,6 +13,10 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usage, setUsage] = useState<AdminUsage | null>(null);
   const [billing, setBilling] = useState<AdminBilling | null>(null);
+  // UP-LAUNCH-16 (2026-09-05): what testers wrote. Loaded beside the rest but
+  // tolerated separately: an older deploy has no /api/admin/feedback, and one
+  // missing section must not blank the whole panel.
+  const [feedback, setFeedback] = useState<AdminFeedbackItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,6 +27,10 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
         const [u, us, b] = await Promise.all([source.listUsers(), source.usage(), source.billing()]);
         if (!on) return;
         setUsers(u); setUsage(us); setBilling(b);
+        try {
+          const f = await source.feedback();
+          if (on) setFeedback(f);
+        } catch { /* the section says so for itself */ }
       } catch (e) {
         if (on) setError((e as Error).message || "Could not load admin data");
       }
@@ -90,6 +98,30 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
           <div className="adm-tile"><div className="adm-num">{billing?.activeSubs ?? "-"}</div><div className="adm-label">Subscribers</div></div>
           <div className="adm-tile"><div className="adm-num">{billing?.trialing ?? "-"}</div><div className="adm-label">Trialing</div></div>
         </div></div>
+      )}
+
+      <div className="grp"><div className="eyebrow">Feedback{feedback?.length ? " (" + feedback.length + ")" : ""}</div></div>
+      {!source.available ? serverNote : feedback === null ? (
+        <div className="pad-x"><div className="card"><div className="empty-state">
+          <div className="empty-title">Feedback Is Not Loaded</div>
+          <div className="empty-sub">This deploy has no feedback endpoint yet</div>
+        </div></div></div>
+      ) : feedback.length === 0 ? (
+        <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">Nothing Sent Yet</div></div></div></div>
+      ) : (
+        <div className="pad-x"><div className="card">
+          {feedback.map((f) => (
+            <div className="row" key={f.id}>
+              <div className="row-grow">
+                <div className="conn-name adm-feedback">{f.text}</div>
+                <div className="conn-meta">{f.meta}{f.lastError ? " \u00b7 with the last error" : ""}</div>
+              </div>
+            </div>
+          ))}
+        </div></div>
+      )}
+      {feedback !== null && feedback.length >= 50 && (
+        <div className="pad-x"><div className="list-floor">Showing the newest 50</div></div>
       )}
 
       <div className="grp"><div className="eyebrow">Users{users.length ? " (" + users.length + ")" : ""}</div></div>

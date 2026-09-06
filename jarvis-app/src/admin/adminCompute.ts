@@ -63,3 +63,49 @@ export function monthlyRevenue(subs: StripeSub[]): AdminBilling {
   }
   return { mrr: Math.round(mrr), activeSubs, trialing, currency: "USD" };
 }
+
+// UP-LAUNCH-16 (2026-09-05): the Feedback section's rows, shaped here so the
+// panel never has to reason about a database row.
+//
+// The whole message is passed through untouched. Truncating somebody's bug
+// report to fit a card is how the sentence that explains the bug gets cut off;
+// the panel wraps it instead.
+export interface RawFeedback {
+  id: string;
+  text: string;
+  build?: string;
+  device?: string;
+  template?: string;
+  last_error?: string | null;
+  created_at: string;
+}
+export interface AdminFeedback {
+  id: string;
+  text: string;
+  /** "build · template · device", with the empty parts left out entirely
+      rather than rendered as blanks. */
+  meta: string;
+  at: string;
+  lastError: string | null;
+}
+
+// A user agent string is 120 characters of version numbers with one useful
+// word in it. This keeps the shape ("iPhone", "iPad", "Mac", "Android") and
+// drops the rest, which is what "which device" actually means.
+export function deviceName(ua: string | undefined): string {
+  const s = ua || "";
+  for (const [needle, name] of [["iPhone", "iPhone"], ["iPad", "iPad"], ["Android", "Android"], ["Macintosh", "Mac"], ["Windows", "Windows"]] as const) {
+    if (s.includes(needle)) return name;
+  }
+  return s ? "Other" : "";
+}
+
+export function mapFeedback(rows: RawFeedback[]): AdminFeedback[] {
+  return rows.map((r) => ({
+    id: r.id,
+    text: r.text,
+    meta: [r.build, r.template, deviceName(r.device)].filter(Boolean).join(" · "),
+    at: r.created_at,
+    lastError: r.last_error || null,
+  }));
+}
