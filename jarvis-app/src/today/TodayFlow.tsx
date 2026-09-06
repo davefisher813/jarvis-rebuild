@@ -20,6 +20,7 @@ import { monthName as monthTitle } from "../review/report";
 import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
 import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
+import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
 import { capAfterNumber } from "../shared/casing";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, upcomingBirthdays, type BirthdayHit } from "../people/birthdays";
@@ -372,6 +373,10 @@ export default function TodayFlow({
   // A dismissal lives in storage, so a bump is what tells the render to go
   // read it again (the same pattern the sweep and goal cards use).
   const [birthdayDismissTick, setBirthdayDismissTick] = useState(0);
+  // UP-CORE-09 (2026-09-05): the Momentum Chain's slot, on the tab where
+  // ticks actually happen. Holds the task offered after the last completion;
+  // the next tick replaces it and Not Now empties it for the day.
+  const [momentum, setMomentum] = useState<TaskItem | null>(null);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   const [catsFull, setCatsFull] = useState<Category[]>([]);
@@ -520,6 +525,18 @@ export default function TodayFlow({
     const ok = await attemptWrite(() => tasks.toggleDone(id));
     await reload();
     if (!ok) return;
+    // UP-CORE-09 (2026-09-05): THE CHAIN, ON TODAY. momentum.ts and its two
+    // helpers have existed since item 7 and were wired to the Tasks tab
+    // alone, so the dopamine of a tick on the page where ticks actually
+    // happen bought a toast and nothing else, and the next small thing was
+    // four taps away. Same producer, same quieting, same "two Not Nows and
+    // it is done for the day" (chainQuietToday).
+    if (before && !before.done && !chainQuietToday(today)) {
+      // The season pause candidatesFor applies, at the other door a task
+      // becomes work. nextBest already refuses bills and reminders.
+      const fresh = (await tasks.listTasks()).filter((t) => !pausedCats.has(t.data.category ?? ""));
+      setMomentum(nextBest(fresh, id, before.category ?? ""));
+    }
     const advanced = before && !before.done ? movedByTask(before, id) : null;
     if (comeback) {
       showToast({ message: comeback });
@@ -1267,6 +1284,13 @@ export default function TodayFlow({
   // dismissal re-derive without a reload.
   void goalNudgeTick; // re-derive after a dismissal (same pattern as dismissTick)
   const untouched = untouchedGoal(goalIdx, goalList, goalReach, todaysTasks(taskItems, today), today);
+  // The chain's one meta line: derived facts only, and the task's own length
+  // when it has one (UP-CORE-02), because "10m" is what makes it startable.
+  const momentumSub = (t: TaskItem): string => {
+    const why = chainReason(t, t.data.category ?? "", today);
+    const mins = t.data.estimateMin ?? estimates[t.data.category ?? ""];
+    return ["Keep going", why?.toLowerCase(), mins ? durLabel(mins) : null].filter(Boolean).join(" \u00b7 ");
+  };
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm, completionsToday) : undefined;
   // UP-CORE-03: tomorrow's birthday, in the evening only, one at a time,
   // and silent once waved off. upcomingBirthdays already knows how to say
@@ -2154,6 +2178,27 @@ export default function TodayFlow({
         // until he closed something he did not want closed. Quiet for three
         // days, the same window every other dismissal here uses.
         onDismiss={() => { goQuiet(finishedProject.project.id, today, closeOfferStore); setSweepDismissTick((n) => n + 1); }}
+      />
+    ) : null,
+    // UP-CORE-09 (2026-09-05): KEEP GOING. One row slides into the slot the
+    // finished task left, with the next best thing in it. It is a fresh
+    // offer produced by his own tick seconds ago, so it rides the NEW band:
+    // anything failing or waiting on him still outranks it. Start is the
+    // same fifteen-minute block every other Start pill on this page commits.
+    // The Tasks tab spells its dismissal "Not Now"; here it is the card's own
+    // Dismiss rail, because every notice on Today wears the same one (the
+    // uniform law), and it counts toward the same two that quiet the chain
+    // for the day.
+    momentum ? (
+      <NoticeCard
+        key={"momentum-" + momentum.id}
+        weight={NEW}
+        icon={<CheckCircleGlyph />}
+        tone="cat-fg-blue"
+        title={momentum.data.text}
+        sub={momentumSub(momentum)}
+        action={{ label: "Start", onClick: () => { const t = momentum; setMomentum(null); void startFifteen(t); } }}
+        onDismiss={() => { dismissChain(today); setMomentum(null); }}
       />
     ) : null,
     // UP-CORE-03 (2026-09-05): THE NIGHT BEFORE. The birthday row on Today

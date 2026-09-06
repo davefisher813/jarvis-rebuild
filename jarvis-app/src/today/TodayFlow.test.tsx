@@ -100,3 +100,42 @@ describe("TodayFlow: Undo after deleting an event (TODAY-F-11)", () => {
     expect(back.exdates).toEqual([addDays(today, 4)]);
   });
 });
+
+// UP-CORE-09 (2026-09-05): the Momentum Chain, on the tab where ticks happen.
+// momentum.ts shipped with item 7 and was wired to the Tasks tab alone, so a
+// tick on Today bought a toast and the next small thing stayed four taps away.
+describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
+  it("offers the next best thing after a tick, and Not Now takes it back", async () => {
+    const { useTasks } = await import("../data/NotesProvider");
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_TASK } = await import("../notes/types");
+    const { todayISO } = await import("../schedule/calendar");
+    let svc: import("../tasks/TasksService").TasksService | null = null;
+    function Grab() { svc = useTasks(); return null; }
+    render(
+      <NotesProvider userId="today-momentum">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+          <Grab />
+          <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    const today = todayISO();
+    await svc!.createTask("Email the coach", { category: "c1", due: today, estimateMin: 15 });
+    await svc!.createTask("Book the field", { category: "c1", due: today, estimateMin: 15 });
+    notifyFreshLists(ENTITY_TASK);
+    await waitFor(() => expect(screen.getByText("Book the field")).toBeInTheDocument());
+
+    // Tick the dealt task; the chain fills the slot it left.
+    fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
+    await waitFor(() => expect(screen.getByText(/Keep going/)).toBeInTheDocument());
+    // The task's own length is what makes it startable (UP-CORE-02).
+    expect(screen.getAllByText(/15m/).length).toBeGreaterThan(0);
+
+    // Waving it off empties the slot. Two of those quiet the chain for the
+    // day, which is momentum.ts's own rule, unchanged.
+    const chain = screen.getByText(/Keep going/).closest(".notice-swipe")!;
+    fireEvent.click(chain.querySelector(".notice-dismiss")!);
+    await waitFor(() => expect(screen.queryByText(/Keep going/)).toBeNull());
+  });
+});
