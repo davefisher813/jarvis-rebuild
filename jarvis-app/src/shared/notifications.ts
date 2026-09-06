@@ -15,6 +15,7 @@ import { LADDER, ladderBody, type Rung } from "../schedule/countdown";
 import { addDays } from "../schedule/calendar";
 import type { ReminderInfo } from "../notes/types";
 import { runsOn, effectiveTime, isDone } from "../tasks/reminders";
+import { MAIL_DIGEST_BASE } from "../messages/mailDigest";
 
 export interface CheckinNotification {
   id: number;
@@ -57,8 +58,14 @@ export const TASK_REMINDER_CAP = 18;
 // comes out of the event ladder, because this block's own reasoning already
 // says the outermost rung of one event is the cheapest thing to lose.
 export const REST_BUDGET = 1;
+// UP-MIND-14 (2026-09-05): the mail digest, one repeating notification per
+// window. It takes its share from the same arithmetic rather than quietly
+// overrunning the OS, which is the whole point of this block. Six is the
+// window editor's own maximum (batching.ts MAX_WINDOWS).
+export const MAIL_DIGEST_BUDGET = 6;
 // Whatever is left is the event ladder's.
-export const EVENT_REMINDER_CAP = IOS_PENDING_LIMIT - CHECKIN_BUDGET - TASK_REMINDER_CAP - REST_BUDGET;
+export const EVENT_REMINDER_CAP =
+  IOS_PENDING_LIMIT - CHECKIN_BUDGET - TASK_REMINDER_CAP - REST_BUDGET - MAIL_DIGEST_BUDGET;
 
 // The id ranges EARLIER BUILDS scheduled into. A phone upgrading from the
 // 120/60 caps still has those ids pending, and a cancel pass that only
@@ -346,6 +353,51 @@ export async function cancelCheckinNotifications(): Promise<void> {
       } catch {
         /* notifications are a bonus, never a crash */
       }
+  });
+}
+
+// ---- The mail digest (UP-MIND-14, 2026-09-05) ----
+//
+// Same seam and same rules as the check-ins: native-only, permission-gated,
+// cancel-then-schedule, and a bonus rather than a crash. Its own id block,
+// so re-arming it can never touch a task reminder or an event rung. The
+// notifications repeat daily at the window starts, which is the rhythm the
+// user set in the window editor; their CONTENT is rewritten every time the
+// snapshot pump looks, so the line the phone shows is the line the app last
+// actually read.
+const digestQueue = serializeLatest();
+
+export async function ensureMailDigests(specs: { id: number; title: string; body: string; hour: number; minute: number }[]): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  return digestQueue(async () => {
+    try {
+      const perm = await LocalNotifications.checkPermissions();
+      if (perm.display !== "granted") return;
+      const ids = Array.from({ length: MAIL_DIGEST_BUDGET }, (_, i) => ({ id: MAIL_DIGEST_BASE + i }));
+      await LocalNotifications.cancel({ notifications: ids });
+      if (specs.length === 0) return;
+      await LocalNotifications.schedule({
+        notifications: specs.slice(0, MAIL_DIGEST_BUDGET).map((s) => ({
+          id: s.id,
+          title: s.title,
+          body: s.body,
+          schedule: { on: { hour: s.hour, minute: s.minute }, allowWhileIdle: true },
+        })),
+      });
+    } catch {
+      /* notifications are a bonus, never a crash */
+    }
+  });
+}
+
+export async function cancelMailDigests(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  return digestQueue(async () => {
+    try {
+      await LocalNotifications.cancel({
+        notifications: Array.from({ length: MAIL_DIGEST_BUDGET }, (_, i) => ({ id: MAIL_DIGEST_BASE + i })),
+      });
+    } catch { /* same rule */ }
   });
 }
 

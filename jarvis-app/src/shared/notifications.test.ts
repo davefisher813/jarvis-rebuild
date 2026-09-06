@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildCheckinNotifications, MORNING_ID, EVENING_ID } from "./notifications";
+import { buildCheckinNotifications, MORNING_ID, EVENING_ID, MAIL_DIGEST_BUDGET } from "./notifications";
 import { DEFAULT_ROUTINE } from "../routine/types";
 
 const r = (patch: Partial<typeof DEFAULT_ROUTINE> = {}) => ({ ...DEFAULT_ROUTINE, ...patch });
@@ -171,10 +171,15 @@ describe("buildEventReminders", () => {
   // the rest by fire time. Over budget, the ladder sheds its outer rungs
   // before it sheds an event: nothing on the calendar goes unannounced while
   // something else keeps four alerts.
-  // UP-ATH-03 (2026-09-06): a fourth block, one seat, taken out of the
-  // ladder's share rather than added on top of the limit.
+  // UP-ATH-03 (2026-09-06) and UP-MIND-14 (2026-09-05): five blocks now, the
+  // rest timer's one seat and the mail digest's six, both taken out of the
+  // ladder's share rather than added on top of the limit. That is the whole
+  // point of this law: anything that wants pending notifications argues with
+  // the others here rather than quietly overrunning the OS.
   it("every block together fits inside the OS limit", () => {
-    expect(EVENT_REMINDER_CAP + TASK_REMINDER_CAP + CHECKIN_BUDGET + REST_BUDGET).toBe(IOS_PENDING_LIMIT);
+    expect(
+      EVENT_REMINDER_CAP + TASK_REMINDER_CAP + CHECKIN_BUDGET + REST_BUDGET + MAIL_DIGEST_BUDGET,
+    ).toBe(IOS_PENDING_LIMIT);
     expect(IOS_PENDING_LIMIT).toBe(64);
   });
 
@@ -187,8 +192,9 @@ describe("buildEventReminders", () => {
   });
 
   it("drops the hour and half-hour rungs before it drops an event", () => {
-    // 14 events at 4 rungs each is 56, over the 44 event budget. Dropping
-    // the 60-minute rung leaves 42, which fits, so every event survives.
+    // 14 events at 4 rungs each is 56, over the event budget. Dropping the
+    // 60-minute rung leaves 42 and the half-hour one 28, which fits, so
+    // every event survives with its closing rung.
     const many = Array.from({ length: 14 }, (_, i) => ({
       date: "2026-08-10", start: `${String(8 + i).padStart(2, "0")}:00`, title: "e" + i,
     }));

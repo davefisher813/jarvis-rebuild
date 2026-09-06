@@ -4,6 +4,9 @@ import { useAI } from "../ai/useAI";
 import { useOptionalPeople } from "../data/NotesProvider";
 import { refreshMailSnapshot } from "./snapshotRefresh";
 import { loadMailSnapshot } from "./home";
+import { loadWindows, peekLine, DEFAULT_WINDOWS } from "./batching";
+import { buildMailDigests, inRefreshLead } from "./mailDigest";
+import { ensureMailDigests } from "../shared/notifications";
 
 // How old the snapshot must be before this pump bothers rebuilding it --
 // well inside the 36-hour display ceiling (home.ts's SNAPSHOT_MAX_AGE_MS),
@@ -30,10 +33,32 @@ export default function MailSnapshotPump() {
   const people = useOptionalPeople();
   const busy = useRef(false);
 
+  // UP-MIND-14 (2026-09-05): the digest is scheduled from whatever the app
+  // last actually read, so it is re-armed after every refresh and again on
+  // the first check of a session. The line and the freshness both come from
+  // the snapshot; nothing is invented and no count of unread appears.
+  const arm = () => {
+    const snap = loadMailSnapshot();
+    const w = loadWindows();
+    const rows = snap.threads.map((t) => ({ id: t.id, from: t.from, fromEmail: t.fromEmail, inInbox: true }));
+    void ensureMailDigests(buildMailDigests(
+      w.windows.length ? w.windows : DEFAULT_WINDOWS.windows,
+      peekLine(rows),
+      snap.ts,
+    ));
+  };
+
   useEffect(() => {
     const check = () => {
       if (!g.hasToken || busy.current) return;
-      if (Date.now() - loadMailSnapshot().ts < REFRESH_STALE_MS) return;
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const w = loadWindows();
+      // UP-MIND-14: ten minutes before a window, look again whatever the
+      // staleness clock says. The digest that fires at the window start is
+      // supposed to be about this morning, not about breakfast yesterday.
+      const dueSoon = inRefreshLead(w.windows.length ? w.windows : DEFAULT_WINDOWS.windows, nowMin);
+      if (!dueSoon && Date.now() - loadMailSnapshot().ts < REFRESH_STALE_MS) { arm(); return; }
       busy.current = true;
       void refreshMailSnapshot({
         apis: () => g.apis("mail"),
@@ -41,7 +66,7 @@ export default function MailSnapshotPump() {
         ...(people ? { people: async () => (await people.list()).map((p) => ({ id: p.id, ...(p.data.email ? { email: p.data.email } : {}) })) } : {}),
       })
         .catch(() => { /* best effort: the next check retries */ })
-        .finally(() => { busy.current = false; });
+        .finally(() => { busy.current = false; arm(); });
     };
     check();
     const t = setInterval(check, CHECK_INTERVAL_MS);
