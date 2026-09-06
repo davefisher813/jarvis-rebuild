@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useGoogle } from "../connections/google/GoogleSession";
-import { useOptionalProfile, useOptionalRoutine } from "../data/NotesProvider";
+import { useOptionalProfile, useOptionalRoutine, useOptionalBrainDocs } from "../data/NotesProvider";
 import { emit } from "../events";
 import { runAutoReplyPass } from "./autoReplyPump";
 import { autoReplyEnabled } from "./autoReply";
@@ -26,25 +26,29 @@ export default function AutoReplyPump() {
   // first is still awaiting getThread) could both clear shouldAutoReply for
   // the same VIP before either marked them, which is how a person gets the
   // same auto-reply twice.
+  const docs = useOptionalBrainDocs();
   const busy = useRef(false);
 
   useEffect(() => {
     const tick = () => {
       if (busy.current || !g.hasToken || !routineSvc || !autoReplyEnabled()) return;
       busy.current = true;
-      void runAutoReplyPass({
+      void (async () => runAutoReplyPass({
         apis: () => g.apis("mail"),
         routine: () => routineSvc.get(),
         myName: async () => (await profileSvc?.get())?.name ?? "",
         onSent: () => emit({ type: "action", props: { name: "email.autoreply" } }),
-      })
+        // UP-MIND-20 (2026-09-05): the user's stated hard lines. Read fresh
+        // each pass: a line added at lunchtime holds this afternoon.
+        hardLines: docs ? await docs.hardLines().catch(() => []) : [],
+      }))()
         .catch(() => { /* best effort: the next tick retries */ })
         .finally(() => { busy.current = false; });
     };
     tick();
     const t = setInterval(tick, AUTO_REPLY_TICK_MS);
     return () => clearInterval(t);
-  }, [g.apis, g.hasToken, routineSvc, profileSvc]);
+  }, [g.apis, g.hasToken, routineSvc, profileSvc, docs]);
 
   return null;
 }

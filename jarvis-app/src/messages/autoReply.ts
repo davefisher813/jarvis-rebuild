@@ -1,4 +1,5 @@
 import { AUTOMATED_ADDRESS } from "./noReply";
+import { heldBy, type HardLine } from "../brain/hardLines";
 
 // HEADS-DOWN AUTO-REPLY (N8, Dave 2026-08-20).
 //
@@ -75,6 +76,11 @@ export interface AutoReplyInput {
   // that can show the sentence behind it. Defaults to high so every existing
   // caller and test keeps its behaviour; the callers that know pass it.
   confidence?: "high" | "low";
+  // UP-MIND-20 (2026-09-05): the user's stated hard lines, and who this
+  // would be answering. A line outranks the level and the confidence both.
+  // Empty by default, so every existing caller and test is unchanged.
+  hardLines?: HardLine[];
+  fromName?: string;
   fromEmail: string;
   myEmail: string;
   vips: string[];
@@ -89,6 +95,9 @@ export function shouldAutoReply(i: AutoReplyInput): boolean {
   // The gate order the decision names: confidence first, then everything
   // else. A low-confidence read never sends on its own, at any AI level.
   if (i.confidence === "low") return false;
+  // Then Values. The order is the decision's: a low-confidence read never
+  // acts at all, and a confident one still stops at a hard line.
+  if (i.hardLines?.length && heldBy(i.hardLines, { action: "reply", fromEmail: i.fromEmail, fromName: i.fromName })) return false;
   const from = (i.fromEmail || "").toLowerCase();
   if (!from) return false;
   if (from === (i.myEmail || "").toLowerCase()) return false;

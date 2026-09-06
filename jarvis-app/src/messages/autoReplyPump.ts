@@ -5,6 +5,7 @@ import { fmtTime, todayISO } from "../schedule/calendar";
 import { autoReplyBody, autoReplyEnabled, loadAutoState, markAutoReplied, shouldAutoReply } from "./autoReply";
 import { loadVips } from "./vip";
 import { loadWaitingCache } from "./waiting";
+import type { HardLine } from "../brain/hardLines";
 
 // HEADS-DOWN AUTO-REPLY, THE BACKGROUND HALF (EMAIL-F-16, 2026-09-05).
 //
@@ -34,6 +35,10 @@ export interface AutoReplyDeps {
   myName: () => Promise<string>;
   /** Fired once per mail that actually left, for the metrics stream. */
   onSent?: (threadId: string) => void;
+  // UP-MIND-20 (2026-09-05): the user's stated hard lines. Absent means the
+  // pass behaves exactly as it did before; a line held is a reply that never
+  // goes out on their behalf.
+  hardLines?: HardLine[];
   now?: () => Date;
 }
 
@@ -78,6 +83,7 @@ export async function runAutoReplyPass(deps: AutoReplyDeps): Promise<number> {
   const mine = new Set(list.map((a) => a.email.toLowerCase()));
   // Threads he is waiting on are threads he already answered.
   const waitingOn = loadWaitingCache();
+  const lines = deps.hardLines ?? [];
 
   let sent = 0;
   for (const { email, api } of list) {
@@ -94,6 +100,11 @@ export async function runAutoReplyPass(deps: AutoReplyDeps): Promise<number> {
         // parameter is here because the gate order is confidence first: a
         // future caller with a model-derived claim has to answer it.
         confidence: "high",
+        // UP-MIND-20 (2026-09-05): the user's stated hard lines, read once
+        // per pass. "Never automatic with the school" stops a reply going
+        // out on their behalf whatever the level says.
+        hardLines: lines,
+        fromName: row.from,
         // Re-read per row: the pass marks as it goes, so the second thread
         // from the same VIP inside one pass is already covered.
         state: loadAutoState(blockId),

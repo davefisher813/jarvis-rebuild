@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules } from "../data/NotesProvider";
+import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules, useBrainDocs } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
 import { goalTone } from "../shared/categories";
 import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
@@ -59,6 +59,7 @@ import { useGoogle } from "../connections/google/GoogleSession";
 import { mapThreadFull, buildReply } from "../connections/google/map";
 import { cardDraftJob } from "../messages/cardDraftJob";
 import { DUR_CHOICES, durLabel } from "../schedule/durations";
+import { heldBy, heldLine, type HardLine } from "../brain/hardLines";
 import {
   moveEvent as moveEventAdjust, undoMoveEvent as undoMoveEventAdjust, type MoveOutcome,
   resizeEvent as resizeEventAdjust, undoResizeEvent as undoResizeEventAdjust, type ResizeOutcome,
@@ -217,6 +218,7 @@ export default function TodayFlow({
 }) {
   const ai = useAI();
   const gatherContext = useAIContext();
+  const brainDocs = useBrainDocs();
   const google = useGoogle();
   const schedule = useSchedule();
   // Read to answer "does the thing this bookmark names still exist" (Law 1),
@@ -1608,6 +1610,13 @@ export default function TodayFlow({
     if (!dayDraft?.accepted) return;
     const res = reflowDay(planEvs, otherEvs, nowMin, todayWindow.endMin, hardRanges, doneTaskIds);
     if (res.moves.length === 0 && res.overflow.length === 0) return;
+    // UP-MIND-20 (2026-09-05): a block the user's Values protect is never
+    // moved for them, whatever the level or the confidence, and the hold
+    // leaves a receipt rather than a day that silently did not re-flow.
+    const protectedMove = res.moves
+      .map((m) => ({ m, l: heldBy(valueLines, { action: "reflow", blockTitle: todayEvents.find((e) => e.id === m.eventId)?.data.title, category: todayEvents.find((e) => e.id === m.eventId)?.data.category }) }))
+      .find((x) => x.l);
+    if (protectedMove?.l) { showToast({ message: heldLine(protectedMove.l) }); return; }
     const ok = await attemptWrite(async () => {
       for (const m of res.moves) {
         // UP-CORE-05 (2026-09-05): the block says re-flow moved it, for the
@@ -1738,6 +1747,14 @@ export default function TodayFlow({
   // STYLE_SCOPE_RULE, same reason the deck passes it.
   // UP-MIND-24: Contacts and their cached last-contact times, for the
   // meeting line. Read once per open; neither costs a request.
+  // UP-MIND-20 (2026-09-05): the user's stated hard lines. Read only: the
+  // app never writes a Value.
+  const [valueLines, setValueLines] = useState<HardLine[]>([]);
+  useEffect(() => {
+    let live = true;
+    void brainDocs.hardLines().then((l) => { if (live) setValueLines(l); }).catch(() => { /* no lines: the re-flow behaves as before */ });
+    return () => { live = false; };
+  }, [brainDocs]);
   const [prepPeople, setPrepPeople] = useState<PrepPerson[]>([]);
   const [prepLast, setPrepLast] = useState<Record<string, number>>({});
   useEffect(() => {

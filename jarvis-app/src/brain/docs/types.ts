@@ -5,6 +5,13 @@ export const ENTITY_BRAIN_DOC = "brain_doc";
 export interface BrainDocData {
   topic: string;
   text: string;
+  // UP-MIND-20 (2026-09-05): the Values doc's HARD LINES, structured, edited
+  // as chips beside the prose. Values stays free text and stays the user's;
+  // this is the part an automatic action can be checked against without a
+  // model reading a paragraph. Only ever present on the values topic, and
+  // only ever written by the user on their own page. JSONB, so no migration
+  // and no second entity, the same way `until` rode on an event.
+  hardLines?: import("../hardLines").HardLine[];
 }
 
 export interface BrainDocMeta {

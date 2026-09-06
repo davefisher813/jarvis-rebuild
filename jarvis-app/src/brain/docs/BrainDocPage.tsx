@@ -7,7 +7,8 @@ import { JARVIS_VOICE } from "../../ai/voice";
 import { encodeImageForVision } from "../../shared/imageEncode";
 import { showToast } from "../../shared/toast";
 import PageHeader from "../../shared/PageHeader";
-import { pressable } from "../../shared/pressable";
+import { pressable, onPressKey } from "../../shared/pressable";
+import { cleanHardLines, HARD_LINE_LABEL, HARD_LINE_PROMISE, MAX_HARD_LINES, type HardLine, type HardLineKind } from "../hardLines";
 
 const PHOTO = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
@@ -34,13 +35,23 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   // false forever: the writing surface stayed greyed out with nothing said
   // and no way to ask again short of leaving the tab. It says so now, and
   // Try Again re-runs this effect.
+  // UP-MIND-20 (2026-09-05): the Values doc's hard lines, edited as chips
+  // beside the prose. Values only: the other two docs shape how JARVIS
+  // writes, and neither of them stops the app doing anything.
+  const isValues = topic === "values";
+  const [lines, setLines] = useState<HardLine[]>([]);
+  const [lineKind, setLineKind] = useState<HardLineKind>("never_file");
+  const [lineText, setLineText] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let on = true;
     setLoadFailed(false);
     docs.get(topic)
-      .then((t) => { if (on) { setText(t); setLoaded(true); } })
+      .then(async (t) => {
+        const hl = isValues ? await docs.hardLines(topic).catch(() => []) : [];
+        if (on) { setText(t); setLines(hl); setLoaded(true); }
+      })
       .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't load · Check your connection" }); });
     return () => { on = false; };
   }, [docs, topic, attempt]);
@@ -48,7 +59,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   // Failed saves surface instead of dying silently (audit 2026-07-30).
   const save = async () => {
     try {
-      await docs.save(topic, text.trim());
+      await docs.save(topic, text.trim(), isValues ? lines : undefined);
       setDirty(false);
     } catch {
       showToast({ message: "Couldn't save · Check your connection" });
@@ -104,6 +115,52 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
           onChange={(e) => { setText(e.target.value); setDirty(true); }}
           disabled={!loaded}
         />
+        {/* UP-MIND-20: the hard lines. Typed by the user, on their own
+            page, and nowhere else: the app never writes a Value. Each chip
+            says exactly what it will stop, because a rule that stops an
+            automatic action has to be readable at a glance. */}
+        {isValues && loaded && (
+          <div className="card list-card-ruled">
+            <div className="sh2 sh2-quiet"><span className="t">Hard Lines</span>{lines.length > 0 && <span className="n">{lines.length}</span>}</div>
+            {lines.length === 0 && (
+              <div className="pad-x"><div className="conn-meta">Nothing is off limits to the automation yet.</div></div>
+            )}
+            {lines.map((l, i) => (
+              <div className="row" key={l.kind + l.match}>
+                <div className="row-grow">
+                  <div className="conn-name">{HARD_LINE_LABEL[l.kind]} · {l.match}</div>
+                  <div className="conn-meta">{HARD_LINE_PROMISE[l.kind]}</div>
+                </div>
+                <button className="quiet-action" onClick={() => { setLines(lines.filter((_, j) => j !== i)); setDirty(true); }}>Remove</button>
+              </div>
+            ))}
+            {lines.length < MAX_HARD_LINES && (
+              <div className="pad-x sheet-form">
+                <div className="chip-row">
+                  {(Object.keys(HARD_LINE_LABEL) as HardLineKind[]).map((k) => (
+                    <div key={k} className={"chip" + (lineKind === k ? " active" : "")} role="radio" aria-checked={lineKind === k} tabIndex={0} onClick={() => setLineKind(k)} onKeyDown={onPressKey(() => setLineKind(k))}>{HARD_LINE_LABEL[k]}</div>
+                  ))}
+                </div>
+                <input
+                  className="input"
+                  placeholder="Who or what · school.org, Family, Gym"
+                  value={lineText}
+                  onChange={(e) => setLineText(e.target.value)}
+                  aria-label="What this line is about"
+                />
+                <button
+                  className="btn btn-secondary btn-block"
+                  disabled={!lineText.trim()}
+                  onClick={() => {
+                    setLines(cleanHardLines([...lines, { kind: lineKind, match: lineText.trim() }]));
+                    setLineText("");
+                    setDirty(true);
+                  }}
+                >Add a Line</button>
+              </div>
+            )}
+          </div>
+        )}
         {ai.available && (
           <>
             <input

@@ -58,6 +58,7 @@ import { humanError } from "../connections/google/humanError";
 import { aiFailureLine } from "../ai/failureLine";
 import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
+import { heldBy, heldLine, type HardLine } from "../brain/hardLines";
 import Dictate from "../shared/Dictate";
 import { Head, Card } from "../settings/kit";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
@@ -139,7 +140,7 @@ const DemoMail = __DEMO_SEED__ ? lazyWithRecovery(() => import("./DemoMail")) : 
 import { noDashes } from "../ai/suggestions";
 import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
-import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine } from "../data/NotesProvider";
+import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine, useOptionalBrainDocs } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { capAfterNumber } from "../shared/casing";
 
@@ -262,6 +263,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const projectsSvc = useOptionalProjects();
   const routineSvc = useOptionalRoutine();
   const people = useOptionalPeople();
+  const brainDocs = useOptionalBrainDocs();
   // UP-MIND-10 (2026-09-05): Contacts by address, rebuilt when Contacts
   // change and read by the snapshot build and every email-born task. Address
   // equality only: a wrong person id on a promise is worse than none.
@@ -480,6 +482,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const countCleared = (n: number) => setCleared(bumpCleared(clearedKey, n));
   // The rest of the moves for one Waiting On row, opened from its swipe.
   const [more, setMore] = useState<{ row: WaitingRow & { account?: string }; d: Decision } | null>(null);
+  // UP-MIND-20 (2026-09-05): the user's stated hard lines, read once. Values
+  // is never written by the app; this only ever reads it.
+  const [hardLines, setHardLines] = useState<HardLine[]>([]);
+  useEffect(() => {
+    if (!brainDocs) return;
+    let live = true;
+    void brainDocs.hardLines().then((l) => { if (live) setHardLines(l); }).catch(() => { /* no lines: the paths behave as before */ });
+    return () => { live = false; };
+  }, [brainDocs]);
   // E6 (2026-08-24): Waiting On, one decision at a time. An index into the
   // owed list, or null for the list view. Not a copy of the rows: Let It Go
   // shrinks the list under the index and the next card simply surfaces.
@@ -2198,11 +2209,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // exactly why it may not act on a guess.
     const ruled = new Set(rows.filter((r) => rules[r.fromEmail.toLowerCase()] === "noise").map((r) => r.id));
     const safe = autoArchivable(noise, (id) => ruled.has(id));
-    if (safe.length === 0) return;
+    // UP-MIND-20 (2026-09-05): the gate order is confidence, then Values.
+    // A stated hard line ("never file anything from the school") outranks
+    // both the level and the confidence, and a held row leaves a receipt
+    // rather than quietly staying put.
+    const held = safe.map((r) => ({ r, l: heldBy(hardLines, { action: "file", fromEmail: r.fromEmail, fromName: r.from }) }));
+    const allowed = held.filter((x) => !x.l).map((x) => x.r);
+    const first = held.find((x) => x.l);
+    if (first?.l) say(heldLine(first.l));
+    if (allowed.length === 0) return;
     autoRan.current = true;
-    void archiveAllNoise(safe, false);
+    void archiveAllNoise(allowed, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [triaged, autoNoise, rows, triage, rules, knownSenders]);
+  }, [triaged, autoNoise, rows, triage, rules, knownSenders, hardLines]);
 
   // N15: only ever something he ALREADY has. Nothing is generated, nothing is
   // guessed at, and nothing is attached without him.
