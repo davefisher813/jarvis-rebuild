@@ -11,6 +11,12 @@ export interface ProjectData {
   // Stamped by ProjectsService.update on the transition INTO done (audit
   // 2026-08-25), so the monthly report can name the month's closures.
   closedOn?: string;
+  // UP-CORE-18 (2026-09-05): the day this is due. A school project due
+  // Friday and a client deliverable due the 30th are the same shape, and a
+  // project could hold neither: it had a status, an order, a goal and a hold
+  // date, and no deadline at all. Optional, so a project without one behaves
+  // exactly as every project did before.
+  due?: string;
 }
 export interface Project { id: string; data: ProjectData; }
 

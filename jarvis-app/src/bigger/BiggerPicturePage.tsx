@@ -43,7 +43,7 @@ const TARGET = <TargetGlyph />;
 const FOLDER = <FolderOpenGlyph />;
 
 export default function BiggerPicturePage({
-  goals, reachOfGoal, measureOfGoal, extraOf, statusOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, sizeLineOf, onCloseProject,
+  goals, reachOfGoal, measureOfGoal, extraOf, statusOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, sizeLineOf, paceLineOf, onCloseProject,
   lens = "goals", title = "Your Life", segments,
 }: {
   // THE LENS (ruled 2026-09-01, "The Lens plus Lineage rows"). One tree,
@@ -84,6 +84,9 @@ export default function BiggerPicturePage({
   // PICKS 20 + 22: what a row could never say. Both derived by the flow.
   holdLineOf?: (projectId: string) => string | null;
   sizeLineOf?: (projectId: string) => string | null;
+  // UP-CORE-18 (2026-09-05): "3 of 8 left · Due Fri · 1 a day keeps pace",
+  // derived by the flow from the project's own tasks and its due date.
+  paceLineOf?: (projectId: string) => string | null;
   onAddGoal: () => void;
   onOpenGoal: (id: string) => void;
   onAddProject: () => void;
@@ -142,6 +145,7 @@ export default function BiggerPicturePage({
     const filed = !nested && project.data.goalId ? goalById.get(project.data.goalId) : undefined;
     const hold = holdLineOf?.(project.id) ?? null;
     const sized = sizeLineOf?.(project.id) ?? null;
+    const paced = paceLineOf?.(project.id) ?? null;
     const canClose = closable({ project, progress, stalled, lastAt: null });
     return (
       <div className={"proj-row" + (nested ? " bp-nest" : "")} role="button" tabIndex={0} key={project.id} onClick={() => onOpenProject(project.id)}>
@@ -160,6 +164,11 @@ export default function BiggerPicturePage({
             : <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>}
           {/* PICK 22: size from the planner's own learned durations. */}
           {sized && <div className="bp-sub">{sized}</div>}
+          {/* UP-CORE-18 (2026-09-05): the pace, when the project has a date.
+              A client deliverable due the 30th and a school project due
+              Friday are the same shape, and the row could say everything
+              about a project except when it is due. */}
+          {paced && <div className="bp-sub">{paced}</div>}
           {progress && <Bar p={progress} />}
         </div>
         {canClose && onCloseProject
@@ -215,6 +224,7 @@ export default function BiggerPicturePage({
     const next = nextActionTextOf?.(project.id);
     const hold = holdLineOf?.(project.id) ?? null;
     const sized = sizeLineOf?.(project.id) ?? null;
+    const paced = paceLineOf?.(project.id) ?? null;
     const canClose = closable({ project, progress, stalled, lastAt: null });
     const line = hold ?? (progressLabel(progress, stalled) + (sized ? " \u00b7 " + sized : ""));
     return (

@@ -23,6 +23,9 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
   const [goalId, setGoalId] = useState<string>(initial?.goalId ?? "");
   // PICK 20: a hold with no end is a project that disappeared.
   const [holdUntil, setHoldUntil] = useState<string>(initial?.holdUntil ?? "");
+  // UP-CORE-18 (2026-09-05): the day this is due. Optional, and empty is the
+  // normal state: most projects are work, not deadlines.
+  const [due, setDue] = useState<string>(initial?.due ?? "");
   const [touched, setTouched] = useState(false);
   // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
   // a project, so two taps created two. The first valid tap latches.
@@ -37,7 +40,7 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
     if (!valid) { setTouched(true); return; }
     if (saving) return;
     setSaving(true);
-    const r = onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined, holdUntil: status === "on_hold" && holdUntil ? holdUntil : undefined });
+    const r = onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined, holdUntil: status === "on_hold" && holdUntil ? holdUntil : undefined, due: due || undefined });
     // BRAIN-F-09 (2026-09-05): a parent whose write THROWS unlatches too; the
     // false branch only ever covered parents that already caught for themselves.
     void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
@@ -55,6 +58,11 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
         {status === "on_hold" && (
           <FieldRow tone="sky" glyph={<Calendar className="ic" />} label="Back On" type="date" value={holdUntil} onChange={setHoldUntil} ariaLabel="Back on" />
         )}
+        {/* UP-CORE-18 (2026-09-05): a project could hold a status, an order,
+            a goal and a hold date, and no deadline at all, so "3 of 8 left,
+            due Friday" was arithmetic the app had every number for and no
+            date to do it against. */}
+        <FieldRow tone="orange" glyph={<Calendar className="ic" />} label="Due" type="date" value={due} onChange={setDue} ariaLabel="Due" />
       </Group>
       {status === "on_hold" && <div className="xs-note">The day it comes back. A hold with no date is a project that disappeared.</div>}
       {(categories.length > 0 || goalOptions.length > 0) && (

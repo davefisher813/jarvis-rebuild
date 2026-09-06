@@ -15,7 +15,7 @@ import ProjectDetailPage from "../projects/ProjectDetailPage";
 import { loadLinks, linkedThreadsFor } from "../messages/threadLink";
 import { attemptWrite } from "../shared/guard";
 import GoalSheet from "../life/GoalSheet";
-import { rankProjects } from "./progress";
+import { rankProjects, projectPace, projectProgress } from "./progress";
 import { reachOf, type GoalReach } from "./reach";
 import { measureState, paceLine, healthOf, HEALTH_LABEL, type MeasureContext } from "./measure";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
@@ -869,6 +869,9 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         nextActionTextOf={nextActionTextOf}
         holdLineOf={(id: string) => { const p = projects.find((x) => x.id === id); return p ? holdLine(p.data, today) : null; }}
         sizeLineOf={(id: string) => sizeLine(sizeOf(tasks.filter((t) => t.data.projectId === id).map((t) => ({ done: !!t.data.done, category: t.data.category })), estimateFor))}
+        // UP-CORE-18 (2026-09-05): N left, D days, is the pace real. The same
+        // arithmetic paceLine does for a goal with a By date.
+        paceLineOf={(id: string) => projectPace(projectProgress(tasks, id), projects.find((p) => p.id === id)?.data.due, today)}
         // Single-goal default: with exactly one goal, a new project starts
         // linked to it, visibly, one tap to undo in the sheet. A default, not
         // a hidden action.

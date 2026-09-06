@@ -40,6 +40,7 @@ export const AUTOMATION_LABEL: Record<string, string> = {
   birthday: "Birthday Heads-Up",
   "live-gym": "Back to Training",
   "mail-notice": "Mail Notices",
+  "project-due": "Project Deadlines",
 };
 
 export function tuningScope(name: string): string {

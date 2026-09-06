@@ -14,6 +14,7 @@ import { capAfterNumber } from "../shared/casing";
 import { areaFromTasks } from "./backfill";
 import { fileableGoals } from "../bigger/reach";
 import { holdLine, holdExpired, sizeOf, sizeLine } from "./shape";
+import { projectPace } from "../bigger/progress";
 import { haptics } from "../shared/haptics";
 import { ForkGlyph } from "../shared/glyphs";
 
@@ -105,6 +106,9 @@ export default function ProjectDetailPage({
   const [doneOpen, setDoneOpen] = useState(false);
   const openSteps = steps.filter((t) => !t.done);
   const doneSteps = steps.filter((t) => t.done);
+  // UP-CORE-18: N left, D days, is the pace real. Null without a due date or
+  // without tasks, which is most projects.
+  const pace = today ? projectPace(steps.length ? { done: doneSteps.length, total: steps.length, pct: 0 } : null, data.due, today) : null;
 
   const m = PROJECT_META[data.status];
   const size = estimateFor ? sizeOf(steps, estimateFor) : null;
@@ -151,6 +155,11 @@ export default function ProjectDetailPage({
             tasks are not the same project. "About" is doing real work in that
             sentence: these are learned averages, not commitments. */}
         {size && <div className="conn-meta">{sizeLine(size)}</div>}
+        {/* UP-CORE-18 (2026-09-05): the pace, the same arithmetic a goal with
+            a By date has had since PICK 14. A fact about the numbers, never
+            a prescription: "2 a day from here" is what is left over what is
+            left, not advice about how to spend the week. */}
+        {pace && <div className="conn-meta">{pace}</div>}
         {/* PICK 20: a hold with an end. Expired, it stops being furniture and
             becomes the one move worth offering. */}
         {hold && <div className={"conn-meta" + (expired ? " fact-warn" : "")}>{hold}</div>}

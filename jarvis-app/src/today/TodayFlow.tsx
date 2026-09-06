@@ -50,7 +50,7 @@ import { buildParentIndex, parentForTask } from "../life/parent";
 import { inheritFromThread } from "../messages/threadTasks";
 import { endOfAct, type MailAct } from "../messages/mailAct";
 import { dayPhrase } from "../money/bills";
-import { rankProjects, closable } from "../bigger/progress";
+import { rankProjects, closable, projectPace, projectProgress } from "../bigger/progress";
 import { movesCount, movesLine, goalsMovedToday, movedLine, untouchedGoal, untouchedLine, openWorkOf, dismissGoalNudge } from "./goalPulse";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
@@ -107,6 +107,13 @@ const BIRTHDAY_ABOUT = "a short happy-birthday message";
 // "HH:MM" as minutes. calendar.ts keeps its own copy private, and this file
 // needs the one comparison (UP-CORE-08's "which event am I inside").
 const minsOf = (hhmm: string): number => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+// Calendar days forward, stepped with setDate so a clocks-change day counts
+// as one day (the timezone law; same helper shape as schedule/calendar).
+const addDaysISO = (iso: string, n: number): string => {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCaptureSheet";
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
@@ -126,7 +133,7 @@ import { lazyWithRecovery } from "../shell/chunkRecovery";
 import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
-import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph } from "../shared/glyphs";
+import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import { Clock, CircleSlash, BellRing } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 
@@ -169,6 +176,7 @@ export default function TodayFlow({
   onEditRoutine,
   onRestoreSpot,
   onOpenNote,
+  onOpenProject,
   onGoBigger,
 }: {
   onGoSchedule: () => void;
@@ -192,6 +200,9 @@ export default function TodayFlow({
   // makes. The shell's own navigateToNote; absent means the pill is not
   // offered rather than tapping into nothing.
   onOpenNote?: (id: string) => void;
+  // UP-CORE-18 (2026-09-05): open a project, for the near-deadline card.
+  // Absent means the card is not offered rather than tapping into nothing.
+  onOpenProject?: (id: string) => void;
 }) {
   const ai = useAI();
   const gatherContext = useAIContext();
@@ -1352,6 +1363,22 @@ export default function TodayFlow({
     await reload();
     if (ok) showToast({ message: celebrationLine("project", id) + " · " + proj.data.title });
   };
+  // UP-CORE-18 (2026-09-05): A PROJECT WITH A DATE, WHEN THE DATE IS NEAR.
+  // Three days, because a deadline further out than that is not today's
+  // business and this page is about today. The line is the same arithmetic
+  // the project row and the project page carry, so all three say one thing.
+  const dueProject = (() => {
+    if (!onOpenProject) return null;
+    const soon = addDaysISO(today, 3);
+    for (const p of projList) {
+      if (p.data.status !== "active" || !p.data.due) continue;
+      if (p.data.due > soon) continue;
+      if (isQuiet(p.id, today, closeOfferStore)) continue;
+      const line = projectPace(projectProgress(taskItems, p.id), p.data.due, today);
+      if (line) return { project: p, line };
+    }
+    return null;
+  })();
   // PICK 3: the goal nothing on today's plate touches. goalNudgeTick lets a
   // dismissal re-derive without a reload.
   void goalNudgeTick; // re-derive after a dismissal (same pattern as dismissTick)
@@ -2295,6 +2322,23 @@ export default function TodayFlow({
         // until he closed something he did not want closed. Quiet for three
         // days, the same window every other dismissal here uses.
         onDismiss={() => { goQuiet(finishedProject.project.id, today, closeOfferStore); setSweepDismissTick((n) => n + 1); }}
+      />
+    ) : null,
+    // UP-CORE-18 (2026-09-05): the deadline that is close enough to be
+    // today's business, with the pace it implies. Not a scolding: "2 a day
+    // from here" is arithmetic, and waving it off quiets that project the
+    // same three days every other offer here uses.
+    dueProject && tuned("project-due") ? (
+      <NoticeCard
+        key={"projdue-" + dueProject.project.id}
+        {...tuneProps("project-due", dueProject.project.data.title)}
+        weight={tuningWeight(tunings, "project-due", WAITING)}
+        icon={<FolderOpenGlyph />}
+        tone="cat-fg-indigo"
+        title={dueProject.project.data.title}
+        sub={dueProject.line}
+        action={{ label: "Open", onClick: () => onOpenProject?.(dueProject.project.id) }}
+        onDismiss={() => { goQuiet(dueProject.project.id, today, closeOfferStore); setSweepDismissTick((n) => n + 1); }}
       />
     ) : null,
     // UP-CORE-09 (2026-09-05): KEEP GOING. One row slides into the slot the

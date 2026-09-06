@@ -2,6 +2,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import { capAfterNumber } from "../shared/casing";
+import { daysBetween } from "../upnext/upnext";
 
 // Bigger Picture (roadmap v2, Session 6). "What you're working toward and what
 // is ACTUALLY moving." The word actually is the whole design: every number here
@@ -32,6 +33,35 @@ export function projectProgress(tasks: TaskItem[], projectId: string): Progress 
   if (mine.length === 0) return null;
   const done = mine.filter((t) => t.data.done).length;
   return { done, total: mine.length, pct: Math.round((done / mine.length) * 100) };
+}
+
+// A PROJECT WITH A DATE (UP-CORE-18, 2026-09-05).
+//
+// The same arithmetic goals have had since PICK 14 (measure.ts's paceLine),
+// on the other thing in this app that finishes: N tasks left, D days, is the
+// pace real. Deliberately the same sentence shape, so the two surfaces read
+// as one idea rather than two features.
+//
+// Null when there is nothing to pace: no date, no tasks, or already finished.
+// Never a scolding and never a prescription: "2 a day from here" is what the
+// arithmetic says, not what anyone should do about it.
+export function projectPace(progress: Progress | null, due: string | undefined, today: string): string | null {
+  if (!due || !progress || progress.total === 0) return null;
+  const left = progress.total - progress.done;
+  if (left <= 0) return null;
+  const days = daysBetween(today, due);
+  // The count reads "3 of 8 left" so the fraction is visible, and the rate
+  // segment leads with a WORD ("About 2 a day"), which is the same trick
+  // paceLine uses to keep the number-lead casing law reading as English.
+  const count = `${left} of ${progress.total} left`;
+  if (days < 0) return capAfterNumber(`${count} · Past its date`);
+  if (days === 0) return capAfterNumber(`${count} · Due today`);
+  if (days === 1) return capAfterNumber(`${count} · Due tomorrow`);
+  // Fewer things left than days: one a day is more than enough, and a rate
+  // under one ("0.4 a day") is arithmetic nobody can act on.
+  const perDay = left / days;
+  if (perDay <= 1) return capAfterNumber(`${count} · Due in ${days} days`);
+  return capAfterNumber(`${count} · About ${Math.ceil(perDay)} a day from here`);
 }
 
 // LIFE-F-22 (2026-09-05): goalProgress had no caller, and laws.test.ts:1494
