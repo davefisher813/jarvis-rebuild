@@ -23,6 +23,7 @@ import MusicChip from "../music/MusicChip";
 import { showToast } from "../shared/toast";
 import { monthDay } from "../money/bills";
 import { useWakeLock } from "../shared/useWakeLock";
+import { HyperfocusLine, useHyperfocusGuard } from "../today/useHyperfocusGuard";
 
 const CHEV = (
   <div className="chev" />
@@ -87,6 +88,8 @@ export default function SessionScreen({
   // covers the gaps between sets and during rest, where the old code held
   // nothing awake at all.
   useWakeLock();
+  // UP-CORE-06: the next hard commitment, refreshed every minute.
+  const guard = useHyperfocusGuard();
   const idx = live.idx;
   const current = live.exercises[idx]!;
   const logged = current.sets;
@@ -288,6 +291,12 @@ export default function SessionScreen({
           </div>
         )}
         <div className="p3-q">{exercise.name}</div>
+        {/* UP-CORE-06 (2026-09-05): the guard, under the title. A workout is
+            one of the two places two hours disappear, and the person is by
+            definition not looking at their calendar. A fact, in the same
+            line the Up Next card has carried since Group B item 12; never a
+            modal, and it never stops the session. */}
+        <HyperfocusLine guard={guard} />
         {header && (
           <div className="bp-sub">
             {`Last: ${header.last} · ${monthDay(header.date)}`}{header.best ? ` · Best: ${header.best}` : ""}

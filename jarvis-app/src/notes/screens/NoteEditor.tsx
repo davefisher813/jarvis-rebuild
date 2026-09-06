@@ -5,6 +5,7 @@ import { catColor } from "../../shared/categories";
 import { Burst } from "../../shared/Burst";
 import InlineEdit from "../../shared/InlineEdit";
 import Provenance from "../../shared/Provenance";
+import { HyperfocusLine, useHyperfocusGuard } from "../../today/useHyperfocusGuard";
 import type { Source } from "../../shared/provenance";
 import { connIcon, type Conn } from "./Connections";
 
@@ -536,6 +537,8 @@ export default function NoteEditor({
   onOpenConnection?: (kind: string, targetId: string) => void;
   onOpenTask?: (taskId: string) => void;
 }) {
+  // UP-CORE-06: the next hard commitment, refreshed every minute.
+  const guard = useHyperfocusGuard();
   const inline = note.blocks.filter((b) => b.type !== "file" && b.type !== "photo");
   // EDITORIAL MODE (Dave 2026-08-20). A layer over the same blocks, never a
   // second editor: ruled baselines, a red margin rule, numbered lines and a
@@ -692,6 +695,11 @@ export default function NoteEditor({
             from, in the same one grey line auto-created tasks have carried
             since item 8, and opens the source when the flow has a route. */}
         <Provenance source={note.source} {...(note.source && openSourceFor ? { onOpen: openSourceFor(note.source) } : {})} />
+        {/* UP-CORE-06 (2026-09-05): the Hyperfocus Guard, in the note's own
+            head. The other place two hours vanish is a page you are writing;
+            the guard existed and was mounted only on the Up Next card. One
+            line of fact, never a modal, and it stops nothing. */}
+        <HyperfocusLine guard={guard} />
 
         {/* One tap to link, one tap to unlink, right where you're already
             looking -- no trip to the Connections screen for the common

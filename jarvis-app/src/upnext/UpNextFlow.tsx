@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTasks, useRoutine, useSchedule } from "../data/NotesProvider";
-import type { EventItem } from "../schedule/types";
-import { hyperfocusGuard } from "../today/nowContext";
-import { nowHHMM } from "../today/todayData";
+import { useTasks, useRoutine } from "../data/NotesProvider";
+import { HyperfocusLine, useHyperfocusGuard } from "../today/useHyperfocusGuard";
 import type { TaskItem } from "../tasks/TasksService";
 import { todayISO } from "../tasks/grouping";
 import { catColor, catName } from "../shared/categories";
@@ -28,18 +26,12 @@ function fmtClock(s: number): string {
 export default function UpNextFlow({ onClose }: { onClose: () => void }) {
   const svc = useTasks();
   const routine = useRoutine();
-  const schedule = useSchedule();
   // Hyperfocus Guard (item 12): today's events + a minute tick keep the
-  // commitment line honest while the user is deep in one card.
-  const [guardEvents, setGuardEvents] = useState<EventItem[]>([]);
-  const [, setGuardTick] = useState(0);
-  useEffect(() => {
-    let on = true;
-    void schedule.eventsOn(todayISO()).then((e) => { if (on) setGuardEvents(e); });
-    const id = setInterval(() => setGuardTick((n) => n + 1), 60_000);
-    return () => { on = false; clearInterval(id); };
-  }, [schedule]);
-  const guard = hyperfocusGuard(guardEvents, nowHHMM());
+  // commitment line honest while the user is deep in one card. UP-CORE-06
+  // (2026-09-05) moved the hand-rolled version here into the shared hook, so
+  // the note editor and the live gym session get the same line rather than a
+  // third and fourth copy of this effect.
+  const guard = useHyperfocusGuard();
   const today = todayISO();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -150,11 +142,7 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
       {/* Hyperfocus Guard (Group B item 12): the next hard commitment as a
           fact line on the focus card. Warn tone inside 10 minutes. Never a
           modal; it informs, it does not interrupt. */}
-      {guard && (
-        <div className="conn-meta">
-          {guard.warn ? <span className="urgency urgency-warn">{guard.text}</span> : guard.text}
-        </div>
-      )}
+      <HyperfocusLine guard={guard} />
       <div className="upnext-done-wrap">
         <button className="btn btn-primary btn-block" onClick={complete} disabled={completing.current}>Done</button>
         <Burst show={bursting} />
