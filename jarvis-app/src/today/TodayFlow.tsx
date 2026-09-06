@@ -102,7 +102,7 @@ import { supabase } from "../auth/supabaseClient";
 import type { WindowClient } from "../brain/window";
 import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, slippedPlanEvents, plannedTaskIds, acceptInto, seedFrom, editDraft, liveBlocks, type DayDraft } from "../dayloop/dayLoop";
 import { madeBy } from "../shared/provenance";
-import { RowIcon, StatTiles } from "../shared/anatomy";
+import { RowIcon } from "../shared/anatomy";
 import { effectiveLevel } from "../ai/aiGate";
 import { getAIControl } from "../ai/levelStore";
 import { Suspense } from "react";

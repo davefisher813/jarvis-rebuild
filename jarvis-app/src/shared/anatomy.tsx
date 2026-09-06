@@ -4,15 +4,23 @@
 //   RowIcon    - the leading TYPE tile: what a row IS before you read it.
 //                App-colored (nav-tile palette); the user's category dot
 //                keeps its own meaning and its own spot.
-//   StatTiles  - numbers as tinted tiles, big enough to read at a glance.
-//                Tint carries meaning: green done, sky events, amber pushed.
 //   DayDivide  - one day label above a group instead of the same word
 //                repeated on every row.
 //
 // A surface that hand-rolls any of these is drifting; use these.
+//
+// SHARED-F-19 (2026-09-05): StatTiles was the third piece and it is gone,
+// along with its Stat type. Nothing ever rendered it: TodayFlow.tsx:104
+// imported it and never wrote <StatTiles, and Today's own stat row is
+// hand-built. NOTED, because it is the drift this header warns about and
+// deleting the primitive does not undo it: three surfaces hand-roll the
+// .stat-row / .stat-tile markup today (review/ReportPage.tsx:121,
+// gym/ReceiptSheet.tsx:38-46, and today/TodayPage.tsx:368 on its own
+// st-n/st-w variant). Rebuilding the primitive is worth doing from whichever
+// of those is the real shape, rather than keeping a fourth version nobody
+// reached for.
 
 import type { ReactNode } from "react";
-import RollingNumber from "./RollingNumber";
 
 export type RowKind = "task" | "event" | "note" | "money" | "person" | "project" | "goal" | "gym" | "insight" | "mail" | "decision";
 
@@ -72,28 +80,6 @@ const FG: Record<RowKind, string> = {
 
 export function RowGlyph({ kind }: { kind: RowKind }) {
   return <div className={"row-glyph " + FG[kind]}>{ICON[kind]}</div>;
-}
-
-export interface Stat {
-  num: string | number;
-  label: string;
-  tint?: "good" | "sky" | "warn" | "blue" | "plain";
-}
-
-export function StatTiles({ stats }: { stats: Stat[] }) {
-  if (stats.length === 0) return null;
-  return (
-    <div className="stat-row">
-      {stats.map((s) => (
-        <div key={s.label} className={"stat-tile stat-" + (s.tint ?? "plain")}>
-          {/* Catalog V3.1 motion: numeric values roll to their new value
-              (reduced-motion snaps); formatted strings render as-is. */}
-          <div className="stat-num">{typeof s.num === "number" ? <RollingNumber value={s.num} /> : s.num}</div>
-          <div className="stat-label">{s.label}</div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 export function DayDivide({ label }: { label: string }) {

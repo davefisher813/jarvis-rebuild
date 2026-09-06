@@ -247,8 +247,9 @@ export async function cancelCheckinNotifications(): Promise<void> {
 // own block so re-scheduling can never touch the check-in pair.
 
 export const EVENT_REMINDER_BASE = 9100;
-// Four rungs per event, inside EVENT_REMINDER_CAP (see THE BUDGET above).
-export const EVENT_REMINDER_LEAD_MIN = 15;
+// SHARED-F-20 (2026-09-05): EVENT_REMINDER_LEAD_MIN went. It was a single
+// fifteen-minute lead that predates the ladder, and nothing has read it since
+// LADDER in schedule/countdown.ts replaced it with four rungs.
 
 // S6-Q36: the first move named on this event's source task, when it has
 // one (see schedule/attachments.ts's firstMoveOf). Optional, additive: an
