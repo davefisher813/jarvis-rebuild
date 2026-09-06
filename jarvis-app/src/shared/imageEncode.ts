@@ -31,6 +31,14 @@ function encodeAt(img: HTMLImageElement, maxDim: number, quality: number): strin
 // something: if even the smallest/lowest-quality pass is still over budget,
 // that smallest encoding is returned rather than throwing, so the caller
 // gets a clear 413 from the server instead of a client-side dead end.
+//
+// SHARED-F-23 (2026-09-05): the loops used to be nested the other way round,
+// quality inside dimension, which does the OPPOSITE of the sentence above:
+// an over-budget photo was pushed to quality 0.4 at a full 1568px, blurry and
+// still large, before a single downscale was tried. Quality is the outer loop
+// now, so every dimension is tried at 0.85 first and the drop to 0.7 only
+// happens once even 480px will not fit at 0.85. Same passes, same worst case,
+// the order the policy actually asks for.
 export async function encodeImageForVision(file: File): Promise<EncodedImage> {
   const url = URL.createObjectURL(file);
   try {
@@ -41,8 +49,8 @@ export async function encodeImageForVision(file: File): Promise<EncodedImage> {
       i.src = url;
     });
     let smallest = "";
-    for (const maxDim of DIMS) {
-      for (const q of QUALITIES) {
+    for (const q of QUALITIES) {
+      for (const maxDim of DIMS) {
         const dataUrl = encodeAt(img, maxDim, q);
         const data = dataUrl.split(",")[1] ?? "";
         smallest = data;

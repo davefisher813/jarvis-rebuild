@@ -4,7 +4,7 @@ import { docMeta } from "./types";
 import { useAI } from "../../ai/useAI";
 import { buildVisionMessage } from "../../ai/AIService";
 import { JARVIS_VOICE } from "../../ai/voice";
-import { fileToAIImage } from "../../shared/imageInput";
+import { encodeImageForVision } from "../../shared/imageEncode";
 import { showToast } from "../../shared/toast";
 import PageHeader from "../../shared/PageHeader";
 import { pressable } from "../../shared/pressable";
@@ -61,7 +61,13 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   const onPhoto = async (file: File) => {
     setReading(true);
     try {
-      const img = await fileToAIImage(file);
+      // SHARED-F-23 (2026-09-05): this used to call fileToAIImage, the older
+      // single-guess encoder, whose header claimed the proxy allows ~340KB
+      // when api/ai.ts:62 caps a vision request at 600,000 bytes. One guess
+      // at 896px/q0.72 is not checked against any cap, which is the silent
+      // 413 imageEncode.ts was written to end. One encoder now, and it
+      // verifies its own output before handing it over.
+      const img = await encodeImageForVision(file);
       const task = PHOTO_TASK[topic] ?? `The image is something the user added to their "${meta?.title ?? topic}" notes. Reply with 2 to 4 short plain lines capturing what it should add to those notes, each on its own line, no preamble.`;
       const out = await ai.complete([buildVisionMessage(task, img.data, img.mediaType)], JARVIS_VOICE);
       const clean = out.trim();
