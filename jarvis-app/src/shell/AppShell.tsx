@@ -22,7 +22,9 @@ import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
-import { onNotificationTap, ensureTaskReminders } from "../shared/notifications";
+import { onNotificationTap, ensureTaskReminders, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW } from "../shared/notifications";
+import { addDays } from "../schedule/calendar";
+import { isDone as isReminderDone } from "../tasks/reminders";
 import { useDayKey } from "./useDayKey";
 import { useAI } from "../ai/useAI";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
@@ -292,18 +294,74 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     return () => { on = false; unsub(); };
   }, [categories]);
 
+  // UP-PLAT-01 (2026-09-06): DONE FROM THE LOCK SCREEN.
+  //
+  // Explicit state, never a toggle (SHARED-F-03): the banner button says
+  // Done, so a task already done stays done and a second press is a no-op,
+  // instead of un-ticking whatever the row happens to be now. A reminder is
+  // a task wearing reminder facts, and "done" for that shape is the tick the
+  // Reminders strip writes (a dated lastDone plus one counted enactment), not
+  // task.done, so each shape goes to its own writer. attemptWrite carries the
+  // failure path: a Done pressed with no signal says so rather than lying.
+  const doneFromBanner = async (taskId: string) => {
+    const t = await tasks.task(taskId);
+    if (!t) return; // deleted since the banner was scheduled
+    if (t.reminder) {
+      if (isReminderDone(t.reminder, todayISO())) return;
+      const ok = await attemptWrite(() => tasks.tickReminder(taskId, todayISO()));
+      if (ok) showToast({ message: `Ticked ${t.text}` });
+      return;
+    }
+    if (t.done) return;
+    const ok = await attemptWrite(() => tasks.toggleDone(taskId));
+    if (ok) showToast({ message: `Completed ${t.text}` });
+  };
+
+  // TOMORROW, through the one push path. Auto-Sweep moves a task with
+  // TasksService.setDue and nothing else (tasks/autoSweep.ts:103), which is
+  // where the slips counter advances and task.pushed fires, so the banner
+  // uses the same call and the two stay one system.
+  const tomorrowFromBanner = async (taskId: string) => {
+    const t = await tasks.task(taskId);
+    if (!t || t.done) return;
+    const to = addDays(todayISO(), 1);
+    if (t.due === to) return; // already there: pressing again is not a second slip
+    const ok = await attemptWrite(() => tasks.setDue(taskId, to));
+    if (ok) showToast({ message: `Moved ${t.text} to tomorrow` });
+  };
+
   // S1-04 (2026-09-04): "A notification tap lands nowhere." AppShell is the
   // one place that owns tab navigation and outlives every screen, so it is
   // the single subscriber that turns a tap into a real destination.
   // Check-ins land on Today (both the morning nudge into Up Next and the
-  // evening mood ask are things Today itself surfaces); event reminders land
-  // on Schedule; task reminders land on Today, where the Reminders strip is.
+  // evening mood ask are things Today itself surfaces).
+  //
+  // UP-PLAT-01 (2026-09-06): and the two reminder blocks now land on the
+  // THING, not its tab. The banner carries the id in `extra`, so a task
+  // reminder opens that task's sheet on the Life tab and an event rung opens
+  // that event's sheet on Schedule. A banner from an older build carries no
+  // extra and still lands on the tab, exactly as it did before.
   useEffect(() => {
-    return onNotificationTap((kind) => {
-      if (kind === "morning" || kind === "evening" || kind === "reminder") setActive("today");
-      else if (kind === "event") setActive("schedule");
+    void registerNotificationActions();
+    return onNotificationTap((tap) => {
+      if (tap.actionId === ACTION_DONE && tap.taskId) { void doneFromBanner(tap.taskId); return; }
+      if (tap.actionId === ACTION_TOMORROW && tap.taskId) { void tomorrowFromBanner(tap.taskId); return; }
+      if (tap.kind === "reminder") {
+        if (tap.taskId) { taskIntent.fire(tap.taskId); goLife("tasks"); }
+        else setActive("today");
+        return;
+      }
+      if (tap.kind === "event") {
+        if (tap.eventId) eventIntent.fire(tap.eventId);
+        setActive("schedule");
+        return;
+      }
+      if (tap.kind === "morning" || tap.kind === "evening") setActive("today");
     });
-  }, []);
+    // The intents' fire/clear are stable (shell/intents.ts) and setState is
+    // stable, so the only real dependency here is the service identity, which
+    // rotates with the access token.
+  }, [tasks]);
 
   // Leaving Notes always restores the dock.
   useEffect(() => {

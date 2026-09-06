@@ -18,7 +18,6 @@ native/
     HealthKitPlugin.swift                1. Health read-only (workouts/steps/sleep)
     EventKitPlugin.swift                 2. Calendar + Reminders (one write: complete)
     ContactsPlugin.swift                 3. Contacts read-only enrichment
-    NotificationActions.swift            4. Done / Tomorrow notification actions
     JarvisWidget/JarvisWidget.swift      5. Home Screen widget (WidgetKit)
     LeaveByActivity/LeaveByActivity.swift  6. Leave By Live Activity (ActivityKit)
     Intents/AddTaskIntent.swift          7a. Siri capture into Smart Paste
@@ -34,11 +33,10 @@ src/native/  (in the web tree, typechecked and tested today)
 
 ## What compiles when enrollment clears
 
-1. **App target additions** (existing `ios/App`): add the four plugin
-   files (`HealthKitPlugin`, `EventKitPlugin`, `ContactsPlugin`,
-   `NotificationActionsPlugin`) to the target, register them with
-   Capacitor, paste the Info.plist strings from `InfoPlist-strings.md`,
-   add `PrivacyInfo.xcprivacy` to the bundle.
+1. **App target additions** (existing `ios/App`): add the three plugin
+   files (`HealthKitPlugin`, `EventKitPlugin`, `ContactsPlugin`) to the
+   target, register them with Capacitor, paste the Info.plist strings from
+   `InfoPlist-strings.md`, add `PrivacyInfo.xcprivacy` to the bundle.
 2. **Capabilities on the App target**: HealthKit; App Groups
    (`group.com.bridge.jarvis`); Push Notifications (`aps-environment`)
    for remote pushes (local notification actions work without it).
@@ -60,6 +58,8 @@ src/native/  (in the web tree, typechecked and tested today)
 2. EventKit import + the single reminder-completion write
 3. Contacts enrichment (fill-only, refuse ambiguity)
 4. Notification actions (Done / Tomorrow via the Auto-Sweep push path)
+   -- SHIPPED 2026-09-06, UP-PLAT-01, and no longer staged: it needed no
+   Swift at all. See `src/shared/notifications.ts`.
 5. Home Screen widget mirroring Up Next
 6. Leave By Live Activity
 7. Siri capture + Next Up
@@ -84,8 +84,8 @@ never in a permissions wall at onboarding.
   match enriches nobody; only missing fields fill
 - Widget and Siri read the App Group snapshot the app writes; they never
   rank or query the database themselves (one brain, every surface)
-- Notification "Tomorrow" goes through `TasksService.setDue` with the slip
-  flag, the same path Auto-Sweep uses, so slips and `task.pushed` stay one
-  system
+- Notification "Tomorrow" goes through `TasksService.setDue`, the same call
+  Auto-Sweep makes, so slips and `task.pushed` stay one system (now enforced
+  in `shell/AppShell.tsx`, not here)
 - Siri capture never asks a voice follow-up; low confidence saves a note
 - No em dashes in any file, including Swift comments (house law)

@@ -353,6 +353,37 @@ describe("kindOfNotification", () => {
   });
 });
 
+// UP-PLAT-01 (2026-09-06): the two builders carry the id of the thing the
+// banner is about, which is what lets Done, Tomorrow and a plain tap act on
+// THAT item instead of landing on a tab. Pure halves, same as above.
+describe("a banner knows which item it is about (UP-PLAT-01)", () => {
+  const TODAY = "2026-08-09";
+  const NOW = new Date("2026-08-09T08:00:00").getTime();
+
+  it("every event rung carries its event id", () => {
+    const rs = buildEventReminders([{ id: "ev1", date: "2026-08-09", start: "09:20", title: "ES Game" }], NOW);
+    expect(rs.length).toBeGreaterThan(0);
+    expect(rs.every((r) => r.eventId === "ev1")).toBe(true);
+  });
+
+  it("an event with no id still builds its rungs, and simply routes to the tab", () => {
+    const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", title: "ES Game" }], NOW);
+    expect(rs.length).toBeGreaterThan(0);
+    expect(rs.every((r) => r.eventId === undefined)).toBe(true);
+  });
+
+  it("the reminder ping and its follow-up both name the task", () => {
+    const out = buildTaskReminderNotifications(
+      [{ id: "t1", text: "Take meds", reminder: { time: "21:00" } }],
+      TODAY,
+      NOW,
+      1,
+    );
+    expect(out).toHaveLength(2); // the ping and its "Asking again"
+    expect(out.map((o) => o.taskId)).toEqual(["t1", "t1"]);
+  });
+});
+
 // SHARED-F-06 (2026-09-05): cancel-then-schedule is two awaited bridge calls
 // with nothing holding the door between them, and Today's effects re-run
 // several times per reload. Run A cancels, run B cancels, A schedules the old

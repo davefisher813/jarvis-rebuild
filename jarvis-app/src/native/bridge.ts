@@ -142,29 +142,18 @@ export const contactsBridge: ContactsBridge = {
   fetchPhoto: () => notStaged("ContactsBridge", "fetchPhoto"),
 };
 
-// MARK: 4. Notification actions
-
-// Done completes the task from the banner. Tomorrow uses the SAME push
-// mechanics as Auto-Sweep: TasksService.setDue with slipped, so the slips
-// counter advances and task.pushed fires (see tasks/autoSweep.ts). The
-// native side only reports which button was hit on which task.
-
-export type NotificationAction = "done" | "tomorrow";
-
-export interface NotificationActionEvent {
-  action: NotificationAction;
-  taskId: string;
-}
-
-export interface NotificationActionsBridge {
-  registerCategories(): Promise<void>;
-  onAction(handler: (event: NotificationActionEvent) => void): void;
-}
-
-export const notificationActionsBridge: NotificationActionsBridge = {
-  registerCategories: () => notStaged("NotificationActionsBridge", "registerCategories"),
-  onAction: () => notStaged("NotificationActionsBridge", "onAction"),
-};
+// MARK: 4. Notification actions -- SHIPPED, not staged (UP-PLAT-01,
+// 2026-09-06)
+//
+// This was a Swift plugin waiting on enrollment. It did not need to be:
+// @capacitor/local-notifications, already a dependency and already the
+// scheduler for every banner the app sends, registers the action types
+// itself and reports the pressed button as `actionId`. The whole feature
+// lives in shared/notifications.ts and shell/AppShell.tsx now, with no
+// native target to add, so the stub and native/ios/NotificationActions.swift
+// are gone rather than left as a second, dead contract for the same thing.
+// The invariant they carried survives where the code is: Tomorrow goes
+// through TasksService.setDue, the same call Auto-Sweep makes.
 
 // MARK: 5. Home Screen widget shared state
 

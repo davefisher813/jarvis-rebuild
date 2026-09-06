@@ -190,6 +190,60 @@ const checkinQueue = serializeLatest();
 const eventQueue = serializeLatest();
 const taskQueue = serializeLatest();
 
+// ---- BUTTONS ON THE BANNER (UP-PLAT-01, 2026-09-06) ----
+//
+// The whole initiation thesis at the top of this file is that the app starts
+// the conversation. A buzz you can only answer by unlocking, finding JARVIS,
+// finding the tab and finding the row is not the app starting anything: it
+// is a reminder to go and do the work of acting on a reminder. Two buttons on
+// the lock screen close that gap.
+//
+// No Swift and no enrollment: @capacitor/local-notifications registers
+// UNNotificationCategory action types itself, and reports which button was
+// hit as `actionId` on the same localNotificationActionPerformed event the
+// plain tap already comes through. native/ios/NotificationActions.swift and
+// notificationActionsBridge were the pre-Capacitor plan for this and are
+// deleted in the same commit.
+//
+// Done and Tomorrow are background actions (foreground defaults to false), so
+// tapping either answers the buzz without the app coming to the front. Open
+// is a foreground action because opening the event is the entire point of it.
+export const TASK_ACTION_TYPE = "jarvis-task";
+export const EVENT_ACTION_TYPE = "jarvis-event";
+export const ACTION_DONE = "done";
+export const ACTION_TOMORROW = "tomorrow";
+export const ACTION_OPEN = "open";
+
+// Registered once per launch. Memoised on the promise rather than a boolean
+// so the schedulers below can await it, and reset on failure so a transient
+// error is retried rather than leaving every later banner button-less.
+let actionTypes: Promise<void> | null = null;
+
+export function registerNotificationActions(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return Promise.resolve();
+  if (!actionTypes) {
+    actionTypes = Promise.resolve()
+      .then(() => LocalNotifications.registerActionTypes({
+        types: [
+          {
+            id: TASK_ACTION_TYPE,
+            actions: [
+              { id: ACTION_DONE, title: "Done" },
+              { id: ACTION_TOMORROW, title: "Tomorrow" },
+            ],
+          },
+          {
+            id: EVENT_ACTION_TYPE,
+            actions: [{ id: ACTION_OPEN, title: "Open", foreground: true }],
+          },
+        ],
+      }))
+      .then(() => { /* registered for this launch */ })
+      .catch(() => { actionTypes = null; });
+  }
+  return actionTypes;
+}
+
 // Cancel-then-schedule so routine changes always win and nothing stacks.
 // Native only; resolves quietly everywhere else. Never throws into the UI.
 //
@@ -257,8 +311,13 @@ export const EVENT_REMINDER_BASE = 9100;
 // UP-CORE-07 (2026-09-05): leaveMin is the whole lead (travel plus buffer)
 // for an event that has to be travelled to. It buys ONE more rung, at the
 // leave time, which is the only alert in this app that says stand up now.
-export interface ReminderInput { date: string; start: string; end?: string; title: string; location?: string; firstMove?: string; leaveMin?: number }
-export interface EventReminder { id: number; title: string; body: string; at: Date }
+//
+// UP-PLAT-01 (2026-09-06): `eventId` rides along so the banner can carry it
+// in `extra` and a tap opens THAT event rather than the Schedule tab. It is
+// optional because the builder is pure and its tests construct inputs by
+// hand; a rung without one still routes to the tab, exactly as before.
+export interface ReminderInput { id?: string; date: string; start: string; end?: string; title: string; location?: string; firstMove?: string; leaveMin?: number }
+export interface EventReminder { id: number; title: string; body: string; at: Date; eventId?: string }
 
 // Pure: which reminders exist for these events, from this moment. Only
 // future fire-times survive (a reminder for something already started is
@@ -304,6 +363,10 @@ export function buildEventReminders(
           at,
           lead: leaveLead,
           leave: true,
+          // UP-PLAT-01: the leave rung carries the id too. It is the one
+          // alert that says stand up now, so a tap on it has more reason
+          // than any other rung to open that exact event.
+          eventId: e.id,
         });
       }
     }
@@ -322,6 +385,7 @@ export function buildEventReminders(
         body: ladderBody(lead as Rung, e.location, e.firstMove),
         at,
         lead,
+        eventId: e.id,
       });
     }
   }
@@ -340,7 +404,7 @@ export function buildEventReminders(
     if (kept.length <= EVENT_REMINDER_CAP) break;
     kept = kept.filter((r) => r.leave || r.lead !== rung);
   }
-  return kept.slice(0, EVENT_REMINDER_CAP).map((r, i) => ({ id: EVENT_REMINDER_BASE + i, title: r.title, body: r.body, at: r.at }));
+  return kept.slice(0, EVENT_REMINDER_CAP).map((r, i) => ({ id: EVENT_REMINDER_BASE + i, title: r.title, body: r.body, at: r.at, eventId: r.eventId }));
 }
 
 export async function ensureEventReminders(events: ReminderInput[], nowMs: number = Date.now()): Promise<void> {
@@ -358,12 +422,18 @@ export async function ensureEventReminders(events: ReminderInput[], nowMs: numbe
       });
       const specs = buildEventReminders(events, nowMs);
       if (specs.length === 0) return;
+      // UP-PLAT-01: awaited, so the category exists before the first banner
+      // that names it does. A failed registration costs the buttons, never
+      // the notification.
+      await registerNotificationActions();
       await LocalNotifications.schedule({
         notifications: specs.map((s) => ({
           id: s.id,
           title: s.title,
           body: s.body,
           schedule: { at: s.at, allowWhileIdle: true },
+          actionTypeId: EVENT_ACTION_TYPE,
+          extra: s.eventId ? { eventId: s.eventId } : undefined,
         })),
       });
     } catch {
@@ -389,7 +459,11 @@ export async function ensureEventReminders(events: ReminderInput[], nowMs: numbe
 export const TASK_REMINDER_BASE = 9300;
 
 export interface TaskReminderInput { id: string; text: string; reminder: ReminderInfo }
-export interface TaskReminderNotification { id: number; title: string; body: string; at: Date }
+// UP-PLAT-01 (2026-09-06): `taskId` is the task the banner is about, which
+// the builder had in hand all along and dropped. Done and Tomorrow on the
+// lock screen need it, and so does a plain tap that opens the task itself
+// rather than the tab it lives on.
+export interface TaskReminderNotification { id: number; title: string; body: string; at: Date; taskId: string }
 
 // TODAY-F-10 (2026-09-05): "If You Miss It: Ask Again in 15m" is the DEFAULT
 // on every reminder (ReminderSheet's onMiss), and nothing ever asked again.
@@ -429,7 +503,7 @@ export function buildTaskReminderNotifications(
   // Stepped as calendar days (addDays uses setDate), never by adding a day's
   // worth of milliseconds, so the clocks-change days keep their real dates.
   for (let i = 0; i < Math.max(1, daysAhead); i++) dates.push(i === 0 ? today : addDays(today, i));
-  const out: { title: string; body: string; at: Date }[] = [];
+  const out: { title: string; body: string; at: Date; taskId: string }[] = [];
   for (const r of reminders) {
     if (!r.text.trim()) continue;
     for (const date of dates) {
@@ -439,7 +513,7 @@ export function buildTaskReminderNotifications(
       const time = date === today ? effectiveTime(r.reminder, today) : r.reminder.time;
       const at = new Date(`${date}T${time}:00`);
       if (!Number.isFinite(at.getTime())) continue;
-      if (at.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Reminder", at });
+      if (at.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Reminder", at, taskId: r.id });
       // "Let it go" means exactly that, here as everywhere else (see
       // reminders.ts): it fires once and never chases. Everything else nags,
       // because that is what the setting he was given says by default.
@@ -450,7 +524,7 @@ export function buildTaskReminderNotifications(
       // occurrence already past, which is the one moment it exists for.
       if (r.reminder.onMiss !== "let_go") {
         const again = new Date(at.getTime() + NAG_AFTER_MIN * 60_000);
-        if (again.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Asking again", at: again });
+        if (again.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Asking again", at: again, taskId: r.id });
       }
     }
   }
@@ -475,12 +549,15 @@ export async function ensureTaskReminders(
       });
       const specs = buildTaskReminderNotifications(reminders, today, nowMs);
       if (specs.length === 0) return;
+      await registerNotificationActions();
       await LocalNotifications.schedule({
         notifications: specs.map((s) => ({
           id: s.id,
           title: s.title,
           body: s.body,
           schedule: { at: s.at, allowWhileIdle: true },
+          actionTypeId: TASK_ACTION_TYPE,
+          extra: { taskId: s.taskId },
         })),
       });
     } catch {
@@ -510,15 +587,45 @@ export function kindOfNotification(id: number): NotificationKind {
   return null;
 }
 
+// UP-PLAT-01 (2026-09-06): what the user did, not just which block it was
+// in. `actionId` is Capacitor's own id for the button; the plain body tap
+// reports "tap" and a swipe-away reports "dismiss". `taskId`/`eventId` come
+// out of the notification's `extra`, which the two schedulers above now fill,
+// so the handler can open the exact item instead of guessing at a tab.
+export interface NotificationTap {
+  kind: NotificationKind;
+  id: number;
+  actionId: string;
+  taskId?: string;
+  eventId?: string;
+}
+
+// The plain body tap. Capacitor's constant, restated here so the routing
+// side never has to know the string.
+export const ACTION_TAP = "tap";
+
+function extraOf(extra: unknown, key: "taskId" | "eventId"): string | undefined {
+  if (!extra || typeof extra !== "object") return undefined;
+  const v = (extra as Record<string, unknown>)[key];
+  return typeof v === "string" && v ? v : undefined;
+}
+
 // Native-only; a clean no-op (and no-op unsubscribe) everywhere else, same
 // contract as every other function in this file. Fire-and-forget listener
 // registration: Capacitor resolves addListener with a handle whose remove()
 // is itself async, which the returned cleanup awaits without surfacing.
-export function onNotificationTap(handler: (kind: NotificationKind, id: number) => void): () => void {
+export function onNotificationTap(handler: (tap: NotificationTap) => void): () => void {
   if (!Capacitor.isNativePlatform()) return () => {};
   const sub = LocalNotifications.addListener("localNotificationActionPerformed", (action) => {
     const id = action.notification.id;
-    handler(kindOfNotification(id), id);
+    const extra = action.notification.extra;
+    handler({
+      kind: kindOfNotification(id),
+      id,
+      actionId: action.actionId,
+      taskId: extraOf(extra, "taskId"),
+      eventId: extraOf(extra, "eventId"),
+    });
   });
   return () => { void sub.then((h) => h.remove()); };
 }

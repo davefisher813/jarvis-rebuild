@@ -1209,8 +1209,10 @@ export default function TodayFlow({
           // ladder can name the actual move instead of a placeholder.
           // UP-CORE-07 (2026-09-05): leaveMin buys the one rung that says
           // stand up now, for an event with a travel time.
-          ...todayEvents.map((e) => ({ date: today, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location, firstMove: firstMoveOf(e, taskItems), leaveMin: leadFor(e.data) ?? undefined })),
-          ...tomorrowEvents.map((e) => ({ date: tomorrow, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location, firstMove: firstMoveOf(e, taskItems), leaveMin: leadFor(e.data) ?? undefined })),
+          // UP-PLAT-01 (2026-09-06): the id rides along too, so a tap on the
+          // rung opens THAT event's sheet instead of the Schedule tab.
+          ...todayEvents.map((e) => ({ id: e.id, date: today, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location, firstMove: firstMoveOf(e, taskItems), leaveMin: leadFor(e.data) ?? undefined })),
+          ...tomorrowEvents.map((e) => ({ id: e.id, date: tomorrow, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location, firstMove: firstMoveOf(e, taskItems), leaveMin: leadFor(e.data) ?? undefined })),
         ]
       : []; // pref off: an empty schedule cancels whatever was pending
     void ensureEventReminders(inputs);
