@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
-import { Plus, Trash2, Clock, ListChecks, Check } from "../../shared/icons";
+import { Plus, Trash2, Clock, ListChecks, Check, Camera } from "../../shared/icons";
 import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
 import type { BurstSize } from "../../shared/completion";
@@ -388,6 +388,7 @@ export default function TasksPage({
   onSnoozeTask,
   onStartTask,
   onNew,
+  onUpload,
   onRenameTask,
   onClearDone,
   categories,
@@ -424,6 +425,10 @@ export default function TasksPage({
   onSnoozeTask?: (id: string) => void;
   onStartTask?: (id: string) => void;
   onNew?: () => void;
+  // UP-CORE-12 (2026-09-05): read a syllabus (or any dated handout) into
+  // tasks and events. Absent when the flow has no AI, so the door never
+  // promises a read it cannot do.
+  onUpload?: () => void;
   onRenameTask?: (id: string, text: string) => void;
   onClearDone?: () => void;
   categories?: SheetCategory[];
@@ -532,6 +537,7 @@ export default function TasksPage({
               {onDeleteMany && items.length > 0 && (
                 <BarText label="Select" onClick={() => sel.enter()} />
               )}
+              {onUpload && <BarAction label="Upload a Syllabus" onClick={onUpload}><Camera className="ic" /></BarAction>}
               <BarAction label="New Task" onClick={onNew}><Plus className="ic" /></BarAction>
             </>
           )

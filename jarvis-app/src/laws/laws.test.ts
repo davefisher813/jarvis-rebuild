@@ -757,6 +757,7 @@ describe("LAW: one filled red per screen", () => {
       "gym/UploadFlow.tsx": "phase machine; one phase renders",
       "health/screens/SeasonFeedScreen.tsx": "same phase machine as gym/UploadFlow.tsx; the source-pick view and the draft-review view are an early return apart",
       "schedule/screens/ScheduleUploadFlow.tsx": "phase machine; one phase renders",
+      "life/SyllabusUploadFlow.tsx": "the same phase machine, one early return apart: the year question, the review, the source pick",
       "capture/QuickCapture.tsx": "dupAge ternary, plus a separate saved-phase screen",
       "people/CallPrepSheet.tsx": "Call and Save Note are exclusive on `dialed`",
       "schedule/screens/PlanDaySheet.tsx": "count === 0 ternary: replan or commit, never both",

@@ -67,6 +67,10 @@ const EXEMPT_FILES = new Set([
   "health/seasonFeed.ts",
   "schedule/planDayAI.ts",
   "schedule/scheduleExtract.ts",
+  // UP-CORE-12 (2026-09-05): the syllabus prompt, for the same reason as
+  // scheduleExtract's above. Its rendered strings live in
+  // SyllabusUploadFlow.tsx, which this law scans normally.
+  "life/syllabusExtract.ts",
   "brain/docs/BrainDocPage.tsx",
 ]);
 

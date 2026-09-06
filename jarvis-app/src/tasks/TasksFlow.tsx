@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTasks, useCategories, useSchedule, useRoutine, useNotes, usePeople } from "../data/NotesProvider";
 import type { Person } from "../people/types";
 import CallPrepSheet from "../people/CallPrepSheet";
+import SyllabusUploadFlow from "../life/SyllabusUploadFlow";
 import MessageDraftSheet from "../people/MessageDraftSheet";
 import { pausedCategoryIds, offHoursCategoryIds } from "../categories/kinds";
 import TasksPage from "./screens/TasksPage";
@@ -97,6 +98,10 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     return () => { on = false; };
   }, [peopleSvc, peopleTick]);
   const [personSheet, setPersonSheet] = useState<{ kind: "call" | "text"; personId: string; about: string } | null>(null);
+  // UP-CORE-12 (2026-09-05): the syllabus door. A photographed syllabus is a
+  // semester of work in one page, and the app could read a schedule photo and
+  // a gym program while the shape that produces TASKS had no extractor.
+  const [uploadOpen, setUploadOpen] = useState(false);
   // LIFE-F-01 (2026-09-05): this used to serialise local midnight with
   // toISOString(), which reads the UTC date. East of Greenwich that is still
   // today, so swiping Tomorrow set the due date to today, the row stayed put
@@ -788,6 +793,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         burstSizeOf={(t) => (t.data.done ? "small" : burstSize(movedByTask(t.data, t.id)?.moved ?? null))}
         openSourceFor={openSourceFor}
         personFor={personFor}
+        onUpload={ai.available ? () => setUploadOpen(true) : undefined}
         momentum={momentum && {
           afterId: momentum.afterId,
           el: (
@@ -875,6 +881,27 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
             });
             if (noteId) onOpenNote(noteId);
           })() : undefined}
+        />
+      )}
+      {uploadOpen && (
+        <SyllabusUploadFlow
+          ai={ai}
+          tasks={svc}
+          schedule={schedule}
+          categoryId={catFilter !== "all" ? catFilter : undefined}
+          onDone={async ({ taskCount, eventCount, undo }) => {
+            setUploadOpen(false);
+            await reload();
+            const parts: string[] = [];
+            if (taskCount) parts.push(`${taskCount} ${taskCount === 1 ? "task" : "tasks"}`);
+            if (eventCount) parts.push(`${eventCount} ${eventCount === 1 ? "event" : "events"}`);
+            showToast({
+              message: capAfterNumber(parts.join(" and ") + " added"),
+              actionLabel: "Undo",
+              onAction: async () => { await undo(); await reload(); },
+            });
+          }}
+          onCancel={() => setUploadOpen(false)}
         />
       )}
       {/* UP-CORE-17 (2026-09-05): the two person surfaces, opened from a task
