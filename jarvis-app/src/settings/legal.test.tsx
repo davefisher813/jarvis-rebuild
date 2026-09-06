@@ -1,4 +1,9 @@
 // @vitest-environment jsdom
+// UP-LAUNCH-05 (2026-09-05): these three screens render src/legal/content.ts
+// now, and public/*.html is generated from the same document (the generator
+// is checked by src/legal/sync.test.ts). This file keeps its original job:
+// what a stranger reading these screens must never see.
+//
 // SHELL-F-19 (2026-09-05): every legal screen opened with "Template copy.
 // Replace with your legal-reviewed text before launch." and Support gave out
 // support@your-domain.com. Two of these screens are reachable from Sign In,
@@ -13,7 +18,7 @@ import { join } from "node:path";
 import TermsPage from "./TermsPage";
 import PrivacyPage from "./PrivacyPage";
 import SupportPage from "./SupportPage";
-import { SUPPORT_EMAIL } from "./support";
+import { SUPPORT_EMAIL } from "../legal/content";
 
 const PAGES = [
   { name: "Terms of Service", node: <TermsPage onBack={() => {}} />, publicFile: "terms.html" },

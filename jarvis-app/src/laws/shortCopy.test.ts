@@ -20,9 +20,12 @@ const SRC = join(__dirname, "..");
 const EXEMPT_FILES = new Set([
   // Demo seed prose is simulated USER content for previews, not UI copy.
   "data/seedNotes.ts",
-  "settings/PrivacyPage.tsx",
-  "settings/TermsPage.tsx",
-  "settings/SupportPage.tsx",
+  // UP-LAUNCH-05 (2026-09-05): the three legal screens no longer hold any
+  // prose. The Privacy Policy, the Terms and the Support text live once in
+  // legal/content.ts and are rendered into both the app and public/*.html,
+  // so the exemption follows the words rather than the file that used to
+  // hold them. legal/Body.tsx and legal/html.ts contain no copy at all.
+  "legal/content.ts",
   "settings/LegalScreen.tsx",
   "onboarding/steps.ts",
   "onboarding/OnboardingFlow.tsx",

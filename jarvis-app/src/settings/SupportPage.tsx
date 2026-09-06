@@ -1,23 +1,15 @@
 import LegalScreen from "./LegalScreen";
-import { SUPPORT_EMAIL } from "./support";
+import LegalBody from "../legal/Body";
+import { SUPPORT } from "../legal/content";
 
-// SHELL-F-19 (2026-09-05): this page told the person reading it to replace it
-// ("Replace this with your real support email or help-desk link before
-// launch. Email: support@your-domain.com"), on a screen reachable from Sign
-// In. It is the help page published at public/support.html now, with the
-// address that page has always carried.
+// UP-LAUNCH-05 (2026-09-05): one source, in src/legal/content.ts, rendered
+// here and generated into public/support.html. The support address lives
+// there too, so the app and the published page cannot give out different
+// ones.
 export default function SupportPage({ onBack, back }: { onBack: () => void; back?: string }) {
   return (
-    <LegalScreen title="Support" onBack={onBack} back={back}>
-      <p>Need help with JARVIS? You're in the right place.</p>
-      <h4 className="legal-h">Common Fixes</h4>
-      <p><b>App looks out of date or blank.</b> Fully close the app and reopen it twice; it self-updates.</p>
-      <p><b>Can't log in.</b> Check that your email is typed correctly and look for the sign-in email in spam.</p>
-      <p><b>Something looks wrong.</b> Close and reopen the app; if it persists, email us a screenshot.</p>
-      <h4 className="legal-h">Get Your Data</h4>
-      <p>Settings, Backup exports everything you own as a single file, any time.</p>
-      <h4 className="legal-h">Contact Us</h4>
-      <p>Email {SUPPORT_EMAIL} and we'll get back to you as soon as we can. Include what you were doing and a screenshot if possible.</p>
+    <LegalScreen title={SUPPORT.title} onBack={onBack} back={back}>
+      <LegalBody doc={SUPPORT} />
     </LegalScreen>
   );
 }
