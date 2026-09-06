@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  loadEnvelopes, saveEnvelopes, setAsideTotal, leftToSpend, leftSub,
+  loadEnvelopes, saveEnvelopes, cleanEnvelopes, forgetLocalEnvelopes, setAsideTotal, leftToSpend, leftSub,
   shortLine, daysUntil, perDayLine, envelopeId,
 } from "./budget";
 
@@ -30,6 +30,23 @@ describe("set aside is a plan, never a spend claim", () => {
 
   it("ids are stable and unique per seed", () => {
     expect(envelopeId(1)).not.toBe(envelopeId(2));
+  });
+
+  // HMN-F-12 (2026-09-05), option A: the sanitising half is its own function
+  // now, because the list is written to the profile rather than to this
+  // device, and the device's old copy is dropped once it has been lifted.
+  it("cleans a list without writing it anywhere", () => {
+    const out = cleanEnvelopes([env("a", " Groceries ", 300.4), env("b", "", 10), env("c", "Gas", 0)]);
+    expect(out).toEqual([env("a", "Groceries", 300)]);
+    expect(localStorage.getItem("jarvis.money.envelopes.v1")).toBeNull();
+  });
+
+  it("forgets this device's copy once it has been lifted", () => {
+    saveEnvelopes([env("a", "Gas", 120)]);
+    expect(loadEnvelopes()).toHaveLength(1);
+    forgetLocalEnvelopes();
+    expect(localStorage.getItem("jarvis.money.envelopes.v1")).toBeNull();
+    expect(loadEnvelopes()).toEqual([]);
   });
 });
 

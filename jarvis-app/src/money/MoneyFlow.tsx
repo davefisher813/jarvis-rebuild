@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useOptionalFiles, useFileStore } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
 import { ACCOUNT_META, ACCOUNT_KINDS, formatMoney, totalBalance, type Account, type AccountData, type AccountKind } from "./types";
 import {
-  loadEnvelopes, saveEnvelopes, setAsideTotal, leftToSpend, leftSub, shortLine,
+  loadEnvelopes, forgetLocalEnvelopes, cleanEnvelopes, setAsideTotal, leftToSpend, leftSub, shortLine,
   daysUntil, perDayLine, envelopeId, type Envelope,
 } from "./budget";
 import { activeBills, billSubline, paydayLine, paydayNext, monthDay, type PaydayInfo, type PaydayFreq } from "./bills";
@@ -171,7 +171,12 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   const [paydayOpen, setPaydayOpen] = useState(false);
   // Budgeting: envelopes are a plan he chose, and the breakdown stays folded
   // until he doubts the number.
-  const [envelopes, setEnvelopes] = useState<Envelope[]>(() => loadEnvelopes());
+  // HMN-F-12 (2026-09-05), option A: they are read from the profile now, not
+  // from this device, so reload fills them the same way it fills payday.
+  const [envelopes, setEnvelopes] = useState<Envelope[]>([]);
+  // The one-time lift of what this device already had, attempted once per
+  // mount: a failed write leaves the local copy exactly where it was.
+  const lifted = useRef(false);
   const [mathOpen, setMathOpen] = useState(false);
   const [envOpen, setEnvOpen] = useState(false);
   // PICK 24: savings goals, read here and written here. Optional service so
@@ -201,6 +206,21 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   };
   const [envName, setEnvName] = useState("");
   const [envAmt, setEnvAmt] = useState("");
+  // HMN-F-12 (2026-09-05): every envelope change is one guarded write to the
+  // profile, and the screen only shows what actually landed.
+  const writeEnvelopes = async (next: Envelope[]): Promise<boolean> => {
+    const clean = cleanEnvelopes(next);
+    const ok = await attemptWrite(() => profileSvc.save({ envelopes: clean }));
+    if (ok) setEnvelopes(clean);
+    return ok;
+  };
+  // Reversible without a confirm: removing one had no Undo at all, and this
+  // is a plan someone made, not a typo.
+  const removeEnvelope = async (e: Envelope) => {
+    const before = envelopes;
+    if (!(await writeEnvelopes(envelopes.filter((x) => x.id !== e.id)))) return;
+    showToast({ message: "Set aside removed", actionLabel: "Undo", onAction: () => void writeEnvelopes(before) });
+  };
   const today = todayISO();
 
   // RECEIPTS (Dave 2026-09-02: "both pages need to have a pic/file upload
@@ -282,6 +302,19 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     setBills(activeBills(allTasks, todayISO()));
     setPayday(prof?.payday);
     setPayHalfOn((prof?.template ?? "personal") !== "business");
+    // HMN-F-12: the profile is the truth. An account that has never written
+    // one still has whatever this phone stored, so it goes up once and the
+    // local copy is forgotten; nothing is lost and nothing syncs twice.
+    if (prof?.envelopes) {
+      setEnvelopes(prof.envelopes);
+    } else {
+      const local = loadEnvelopes();
+      setEnvelopes(local);
+      if (local.length > 0 && !lifted.current) {
+        lifted.current = true;
+        if (await attemptWrite(() => profileSvc.save({ envelopes: local }))) forgetLocalEnvelopes();
+      }
+    }
     const moneyCatIds = new Set(cats.filter((c) => effectiveKind(c.data) === "money").map((c) => c.id));
     setTagged(allTasks.filter((t) => !t.data.done && !t.data.bill && moneyCatIds.has(t.data.category ?? "")));
   }, [svc, tasksSvc, profileSvc, catsSvc]);
@@ -504,7 +537,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                     <div className="task-title"><span className="task-name">{e.name}</span></div>
                     <span className="money-amt">{formatMoney(e.amount)}</span>
                     <button className="conn-remove" aria-label={"Remove " + e.name}
-                      onClick={() => setEnvelopes(saveEnvelopes(envelopes.filter((x) => x.id !== e.id)))}>{TRASH}</button>
+                      onClick={() => void removeEnvelope(e)}>{TRASH}</button>
                   </div>
                 ))}
                 {envOpen ? (
@@ -522,8 +555,10 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                           showToast({ message: !envName.trim() ? "Needs a name" : "Needs an amount over zero" });
                           return;
                         }
-                        setEnvelopes(saveEnvelopes([...envelopes, { id: envelopeId(envelopes.length + Date.now() % 9999), name: envName, amount: amt }]));
-                        setEnvName(""); setEnvAmt(""); setEnvOpen(false);
+                        void (async () => {
+                          const ok = await writeEnvelopes([...envelopes, { id: envelopeId(envelopes.length + Date.now() % 9999), name: envName, amount: amt }]);
+                          if (ok) { setEnvName(""); setEnvAmt(""); setEnvOpen(false); }
+                        })();
                       }}>Add</button>
                     </div>
                   </div>

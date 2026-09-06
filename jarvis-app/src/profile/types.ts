@@ -1,5 +1,6 @@
 import type { TemplateKey } from "../categories/defaults";
 import type { SenderRules } from "../messages/rules";
+import type { Envelope } from "../money/budget";
 
 // One per-user profile record, written by onboarding and read across the app
 // (greeting, avatar, which template's categories to seed, setup status).
@@ -48,6 +49,12 @@ export interface ProfileData {
   // honest-money rule forbids faking a regular one. amount = one paycheck;
   // next = an upcoming payday date the math advances from by freq.
   payday?: { amount: number; next: string; freq: "weekly" | "biweekly" | "monthly" };
+  // HMN-F-12 (2026-09-05), option A. Set Aside envelopes lived in this
+  // phone's localStorage, so the iPad showed a different Yours, Chat on the
+  // second device denied they existed, and a new phone or a restore lost
+  // every one of them. They sit beside payday now, on the record that
+  // already syncs and that the AI context already reads.
+  envelopes?: Envelope[];
   // AI Control (addendum items 18-22): master level + per-feature pins.
   // Absent means Draft Only (the default; also where onboarding Skip lands).
   // Stored on the profile so it syncs; mirrored into the levelStore singleton

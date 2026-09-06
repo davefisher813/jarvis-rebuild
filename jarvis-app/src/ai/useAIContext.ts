@@ -19,7 +19,7 @@ import { reachOf, liveGoals } from "../bigger/reach";
 import { measureState, healthOf, goalStatusForAI } from "../bigger/measure";
 import { openWorkOf } from "../today/goalPulse";
 import { activeBills, paydayNext } from "../money/bills";
-import { loadEnvelopes, setAsideTotal, leftToSpend } from "../money/budget";
+import { setAsideTotal, leftToSpend } from "../money/budget";
 
 // B2-4 (2026-09-04): this used to serialise with toISOString(), which reads
 // UTC. Four other modules (Chat, Today's suggestions, Quick Capture, the
@@ -159,7 +159,10 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     const billsOut = openBills
       .filter((b) => !!b.data.due && b.data.due <= next)
       .reduce((sum, b) => sum + (b.data.bill?.amount ?? 0), 0);
-    const setAside = setAsideTotal(loadEnvelopes());
+    // HMN-F-12 (2026-09-05): read off the profile this function already has,
+    // so Chat on a second device knows about the same envelopes the Money
+    // tab there is subtracting. It used to read this phone's localStorage.
+    const setAside = setAsideTotal(p?.envelopes ?? []);
     const l = leftToSpend(payday.amount, billsOut, setAside);
     cashFlow = { paycheck: payday.amount, nextPayday: next, billsOut, setAside, left: l.amount, short: l.short };
   }

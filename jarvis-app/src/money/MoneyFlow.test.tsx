@@ -261,3 +261,77 @@ describe("a Money search hit opens the account (SHELL-F-21)", () => {
     await waitFor(() => expect(screen.queryByText("Edit Account")).not.toBeInTheDocument());
   });
 });
+
+// HMN-F-12 (2026-09-05), option A: Set Aside envelopes lived in this phone's
+// localStorage, so the iPad showed a different Yours, Chat on a second device
+// did not know they existed, and a new phone lost every one of them. They sit
+// on the profile record now, beside the payday the same screen already reads.
+let profRef: ReturnType<typeof useProfile> | null = null;
+function SeededForEnvelopes() {
+  const profile = useProfile();
+  const tasks = useTasks();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      profRef = profile;
+      await profile.save({ template: "personal", payday: { amount: 500, next: todayISO(), freq: "biweekly" as const } });
+      // One bill, so the page is past its empty state and the budget half
+      // (which is what Set Aside lives in) renders at all.
+      await tasks.createTask("Rent", { bill: { amount: 100 } });
+      setReady(true);
+    })();
+  }, [profile, tasks]);
+  return ready ? <MoneyFlow /> : null;
+}
+
+describe("Set Aside envelopes live on the profile (HMN-F-12)", () => {
+  afterEach(() => { localStorage.clear(); resetToasts(); });
+
+  it("a new envelope is written to the profile, not to this device", async () => {
+    profRef = null;
+    render(<NotesProvider userId="env-1"><SeededForEnvelopes /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Set Money Aside")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Set Money Aside"));
+    fireEvent.change(screen.getByPlaceholderText("What For"), { target: { value: "Groceries" } });
+    fireEvent.change(screen.getAllByPlaceholderText("0")[0]!, { target: { value: "300" } });
+    fireEvent.click(screen.getByText("Add"));
+
+    await waitFor(async () => {
+      expect((await profRef!.get())!.envelopes).toEqual([{ id: expect.any(String), name: "Groceries", amount: 300 }]);
+    });
+    expect(localStorage.getItem("jarvis.money.envelopes.v1")).toBeNull();
+    expect(screen.getByText("Groceries")).toBeInTheDocument();
+  });
+
+  it("envelopes this phone already had are lifted onto the profile once, then forgotten here", async () => {
+    profRef = null;
+    localStorage.setItem("jarvis.money.envelopes.v1", JSON.stringify([{ id: "a", name: "Gas", amount: 120 }]));
+    render(<NotesProvider userId="env-2"><SeededForEnvelopes /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Gas")).toBeInTheDocument());
+    await waitFor(async () => {
+      expect((await profRef!.get())!.envelopes).toEqual([{ id: "a", name: "Gas", amount: 120 }]);
+    });
+    expect(localStorage.getItem("jarvis.money.envelopes.v1")).toBeNull();
+  });
+
+  it("removing one offers Undo, and Undo puts it back on the profile", async () => {
+    profRef = null;
+    const seen: string[] = [];
+    let undo: (() => void) | undefined;
+    const stop = subscribeToast((t) => { if (t) { seen.push(t.message); undo = t.onAction; } });
+    localStorage.setItem("jarvis.money.envelopes.v1", JSON.stringify([{ id: "a", name: "Gas", amount: 120 }]));
+    render(<NotesProvider userId="env-3"><SeededForEnvelopes /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Gas")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Remove Gas"));
+    await waitFor(() => expect(seen).toContain("Set aside removed"));
+    await waitFor(async () => expect((await profRef!.get())!.envelopes).toEqual([]));
+
+    undo?.();
+    await waitFor(() => expect(screen.getByText("Gas")).toBeInTheDocument());
+    await waitFor(async () => {
+      expect((await profRef!.get())!.envelopes).toEqual([{ id: "a", name: "Gas", amount: 120 }]);
+    });
+    stop();
+  });
+});

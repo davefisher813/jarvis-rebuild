@@ -23,6 +23,17 @@ const KEY = "jarvis.money.envelopes.v1";
 const CAP = 20;
 const MAX = 1_000_000;
 
+// HMN-F-12 (2026-09-05), option A: envelopes live on the profile record now,
+// so the sanitising half of saveEnvelopes is its own function and the caller
+// writes the result wherever it keeps them. loadEnvelopes and saveEnvelopes
+// stay for the one-time lift of what this device already had.
+export function cleanEnvelopes(list: Envelope[]): Envelope[] {
+  return list
+    .filter((e) => e.name.trim() && e.amount > 0)
+    .map((e) => ({ id: e.id, name: e.name.trim().slice(0, 40), amount: Math.min(MAX, Math.round(e.amount)) }))
+    .slice(0, CAP);
+}
+
 export function loadEnvelopes(): Envelope[] {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || "[]") as unknown;
@@ -40,12 +51,16 @@ export function loadEnvelopes(): Envelope[] {
 }
 
 export function saveEnvelopes(list: Envelope[]): Envelope[] {
-  const clean = list
-    .filter((e) => e.name.trim() && e.amount > 0)
-    .map((e) => ({ id: e.id, name: e.name.trim().slice(0, 40), amount: Math.min(MAX, Math.round(e.amount)) }))
-    .slice(0, CAP);
+  const clean = cleanEnvelopes(list);
   try { localStorage.setItem(KEY, JSON.stringify(clean)); } catch { /* private mode */ }
   return clean;
+}
+
+/** HMN-F-12: the device's old copy, cleared once it has been lifted onto the
+ *  profile, so the migration cannot run twice and a later local edit by an
+ *  older build cannot come back to life. */
+export function forgetLocalEnvelopes(): void {
+  try { localStorage.removeItem(KEY); } catch { /* private mode */ }
 }
 
 export function envelopeId(seed: number): string {
