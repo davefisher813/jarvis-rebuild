@@ -4844,3 +4844,88 @@ describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatment
       .toEqual({ color: "var(--tx-3)", weight: "var(--w-normal)" });
   });
 });
+
+// ===========================================================================
+// A CREATE ALONE IN A CARD IS A PILL IN A PILL (2026-09-06)
+//
+// Dave, from his phone, on the Edit Task sheet: "the add item button is
+// sitting inside of a pill and violates our visual catalog rules". Measured on
+// the built app at 390x844 with an empty checklist: the group card painted
+// 356x52 at border-radius 22 on --surface-3 with the 113x44 border-radius 999
+// Add Item capsule centred inside it, four pixels of card showing all round.
+// A 52pt box with a 22pt corner is a capsule in all but name.
+//
+// §0.5 is the row that binds it: "a control inside a group card is a row of
+// that card or a capsule button placed as one, not a pill drawn inside another
+// pill". The button is not the defect -- §4.4 says a button is ALWAYS a
+// capsule, and an in-list create is the Action treatment, which is what
+// .row-act already is. The card is what goes, and only when it is grouping
+// nothing.
+//
+// The 2026-09-03 rule said exactly this already and could not reach him: it
+// named only .row-create, and it was scoped to .ruled, which the form sheets
+// never wear because they portal to document.body. Both halves are asserted,
+// because either one going missing brings the same screenshot back.
+//
+// A source check on purpose: jsdom reports every box as 0, so the numbers live
+// in the browser walk. What this catches is the rule being deleted or
+// re-scoped, which is how it went missing the first time.
+describe("a create alone in a card paints no card (2026-09-06)", () => {
+  const RULES = [...RULED.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .map((m) => ({
+      sels: m[1]!.split(",").map((x) => x.trim().replace(/\s+/g, " ")).filter(Boolean),
+      body: m[2]!.replace(/\s+/g, " ").trim(),
+    }));
+  const LONE = ".card:has(> .row-act:only-child)";
+
+  it("the card behind a lone create keeps no ground, no corner and no shadow", () => {
+    const rule = RULES.find((r) => r.sels.includes(LONE));
+    expect(rule, "nothing flattens the card around a lone .row-act").toBeTruthy();
+    expect(rule!.body, "the ground goes").toMatch(/background:\s*transparent/);
+    expect(rule!.body, "the corner goes").toMatch(/border-radius:\s*0/);
+    expect(rule!.body, "the rim and the shadow go").toMatch(/box-shadow:\s*none/);
+    // prefix FIRST, standard LAST (see f056f06), and both, or the glass blur
+    // keeps painting a card that no longer has a ground.
+    expect(rule!.body).toMatch(/-webkit-backdrop-filter:\s*none/);
+    expect(rule!.body).toMatch(/[^-]backdrop-filter:\s*none/);
+    // Light theme states the sheet's card ground one selector deeper, so the
+    // same thing has to be said at that weight or it survives in light.
+    const light = RULES.find((r) => r.sels.includes('[data-theme="light"] ' + LONE));
+    expect(light, "light theme keeps the slab behind a lone .row-act").toBeTruthy();
+    expect(light!.body).toMatch(/background:\s*transparent/);
+    expect(light!.body).toMatch(/box-shadow:\s*none/);
+  });
+
+  it("the rule is not scoped to .ruled, because the sheets are not", () => {
+    // This is the half that let the defect through for a day: the 2026-09-03
+    // rule for .row-create sits behind .ruled, and every form sheet renders
+    // through createPortal into document.body, which wears no such class.
+    const scoped = RULES.flatMap((r) => r.sels)
+      .filter((s) => s.includes(".row-act:only-child") && /^\.ruled /.test(s));
+    expect(scoped, "the lone-create rule went back behind .ruled").toEqual([]);
+    expect(read(join(SRC, "tasks/screens/TaskSheet.tsx"))).toContain("createPortal");
+  });
+
+  it("the create itself stays the capsule the button law names", () => {
+    // The wrong fix, and the one to guard against: bleaching Add Item into
+    // bare words. Section 4.4 allows exactly one bare-text action in the app
+    // and it is the section head's trailing link.
+    const comp = read(join(SRC, "styles/components.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+    const act = comp.match(/\.row-act\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(act, "an in-list create is a capsule").toMatch(/border-radius:\s*var\(--r-pill\)/);
+    expect(act, "Action treatment: the label's colour on the press neutral").toMatch(/background:\s*var\(--press-3\)/);
+    expect(act).toMatch(/color:\s*var\(--tint\)/);
+    // And it keeps that ground inside a ruled card. .ruled .card .row makes
+    // every row transparent so a swipe reveal stays hidden at rest, and
+    // .row-act is a .row: measured on the built app, Add Area on the Areas
+    // page painted rgba(0, 0, 0, 0) where the same class in a sheet paints
+    // rgba(255, 255, 255, 0.06). A create has no reveal to hide, and a button
+    // with no ground is the bare words the capsule law exists to stop.
+    expect(RULES.find((r) => r.sels.includes(".ruled .card .row.row-act"))?.body,
+      "the ruled skin eats the create's capsule again").toMatch(/background:\s*var\(--press-3\)/);
+    // And the Checklist group still renders that shared class, not a dress
+    // of its own.
+    expect(read(join(SRC, "tasks/screens/TaskSheet.tsx")))
+      .toMatch(/className="row row-act"[^\n]*>Add Item</);
+  });
+});

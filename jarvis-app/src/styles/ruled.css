@@ -84,6 +84,18 @@
 .ruled .card .task-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,
 .ruled .card .notice-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,
 .ruled .card .sched-strip:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > * { visibility: visible; }
+/* THE CREATE KEEPS ITS CAPSULE (2026-09-06, measured on the built app while
+   fixing "the add item button is sitting inside of a pill"). The rule above
+   is about ROWS, and it caught the one child of a ruled card that is a
+   BUTTON: .row-act carries .row, so the in-list create lost its --press-3
+   ground everywhere .ruled is worn and rendered as bare centred words. On
+   the Areas page Add Area measured background rgba(0,0,0,0) against the
+   rgba(255,255,255,0.06) it wears in a sheet, on the same class, which is
+   the ONE RULE's "a surface may choose a density and a ground, it may not
+   choose a shape" broken by collateral rather than by choice, and the
+   capsule law ("buttons need to look like buttons not text") broken on ten
+   screens. A create is not swipeable: it has no reveal to hide. */
+.ruled .card .row.row-act { background: var(--press-3); }
 
 /* ---------- EVERY BAND IS ONE CARD ("Go with pic 1. Apply that everywhere.")
    The Email band on Today wore three separate cards, each its own height.
@@ -847,6 +859,50 @@
   -webkit-backdrop-filter: none; backdrop-filter: none;
 }
 .ruled .card:has(> .row-create:only-child) > .row-create { border-top: 0; }
+
+/* ---------- AND THE HALF IT DID NOT REACH (2026-09-06) -------------------
+   Dave, from his phone: "the add item button is sitting inside of a pill and
+   violates our visual catalog rules". The Edit Task sheet's CHECKLIST group.
+
+   The rule above says this already and could not get there, twice over: it
+   names only .row-create, and the app's OTHER in-list create is the capsule
+   .row-act; and it is scoped to .ruled, which no form sheet wears, because
+   the sheets render through createPortal into document.body.
+
+   Measured on the built app at 390x844, TaskSheet.tsx:358 with an empty
+   checklist: the group card painted 356x52 at border-radius 22 on
+   --surface-3 with the 113x44 border-radius 999 capsule centred in it, four
+   pixels of card showing all round. A 52pt box with a 22pt corner is a
+   capsule in all but name, so what he was looking at was a pill drawn
+   inside a pill.
+
+   The BUTTON is not the defect and does not change here. §4.4 says a button
+   is ALWAYS a capsule and offers four treatments; an in-list create is the
+   Action one, red text on the press neutral (white lettering where
+   BROWSER-F-10 took the red out of a verb sitting on a sheet grey), which is
+   exactly what .row-act is and what the button law in components.css calls
+   it. §0.5 is the row that binds this: "a control inside a group card is a
+   row of that card or a capsule button placed as one, not a pill drawn
+   inside another pill". With rows above it the capsule IS placed as a row,
+   of a card that is grouping something. With nothing above it the card is
+   grouping nothing, so the card is what goes.
+
+   Unscoped on purpose: the same empty card ships on the Routine page's Try
+   Again and Categories' Add Area, which are always alone, and on the Task
+   Sheet's own Add a Note, Add Protected Time, Add a Task, Add a Note, Add to
+   Savings, Set Money Aside and Add a Reminder whenever the list they end has
+   nothing in it yet. One rule at the seam, not eight local overrides.
+
+   Light theme states the sheet's card ground one selector deeper than dark
+   does ([data-theme="light"] .sheet-form .card), so the same thing has to be
+   said at that weight or the ground survives in light. */
+.card:has(> .row-act:only-child) {
+  background: transparent; border-radius: 0; box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+[data-theme="light"] .card:has(> .row-act:only-child) {
+  background: transparent; box-shadow: none;
+}
 .ruled .proj-detail-hero .proj-prog .conn-meta { text-align: center; }
 
 /* ---------- TRAINING, PORTED (2026-09-03) ---------------------------------
