@@ -187,17 +187,57 @@
 /* ---------- THE PARENT LINE (The Row and Health, Dave 2026-09-02: "The
    parent's own glyph leads the line"; the vertical bar is gone) -----------
    The second line opens with the glyph of whatever the task belongs to,
-   in that parent's category colour, then the parent's full name in the
-   same quiet grey as any other subtext. The pie is the Projects page's pie
-   at 13px, the target is the Goals page's mark, the dot is the category
-   head's dot. The name is never shortened; it is cut with an ellipsis. */
+   in that parent's category colour, then the parent's full name. The pie is
+   the Projects page's pie at 13px, the target is the Goals page's mark, the
+   dot is the category head's dot. The name is never shortened; it is cut
+   with an ellipsis. (The name's own ink is one step up from subtext since
+   2026-09-06; see the four treatments below.) */
 .ruled .r-goal.r-parent { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--tx-3); }
 .ruled .r-goal.r-parent .r-goal-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .r-pg { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 13px; height: 13px; }
 .ruled .r-pg .r-gm { width: 13px; height: 13px; color: currentColor; }
 .ruled .r-pg .pp-sm { width: 13px; height: 13px; }
 .ruled .r-pdot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: block; }
-.ruled .r-goal.r-rec { flex-shrink: 0; }
+
+/* ---------- FOUR KINDS OF FACT, FOUR TREATMENTS (DEFECT 6, Dave 2026-09-06:
+   "tasks have too much grey when you add info like time and people. Think of
+   another way to render that info so it all doesn't blend in") -------------
+   Measured before the fix: the parent, the recurrence, the person and the
+   estimate all resolved to rgba(235,235,245,0.6) at weight 400, strung on
+   middle dots. Four different kinds of thing wearing one ink, one weight and
+   one separator is the definition of an undifferentiated grey run. They are
+   split by ink step, by weight and by shape now, never by a new colour and
+   never by a second category-coloured mark (lint rule 4), and the dots that
+   glued them together are gone: the gap and the step do that job.
+
+   WHERE IT LIVES keeps the most ink, because it is the answer to the page's
+   own question: its glyph is the row's one category colour, and it is the one
+   thing on the line with a floor under it. A name it MOVES (a project, a goal)
+   steps up to --tx-2 at medium, the treatment §4.1 already rules for it and
+   .r-is-goal above already wears. A task that moves nothing "says the category
+   name, plain" (§4.1 again, Dave's words), so a category parent keeps the
+   quiet ink and the plain weight; the coloured dot is its whole distinction.
+   The branch is on the KIND of parent, never on a category's name or its
+   colour value (lint rules 10 and 11). */
+.ruled .r-goal.r-parent .r-goal-t { color: var(--tx-2); font-weight: var(--w-medium); }
+.ruled .r-goal.r-parent.r-parent-plain .r-goal-t { color: var(--tx-3); font-weight: var(--w-normal); }
+/* A PERSON is a name and a door (it opens their Call Prep card), not a fact
+   of the same kind as a duration at all. Medium weight says name; the quiet
+   ink keeps it behind where the task lives; the press dims it, the way every
+   other quiet text control in the app answers a finger. */
+.ruled .r-goal.r-person { color: var(--tx-3); font-weight: var(--w-medium); }
+.ruled .r-goal.r-person[role="button"] { cursor: pointer; }
+.ruled .r-goal.r-person[role="button"]:active { opacity: 0.6; }
+/* AN ESTIMATE is a NUMBER, and §5 rules what a number does inside meta text:
+   it takes the extra weight and the brighter ink. That is the `.r-goal b`
+   rule further down, reached through shared/Nums, and it is what stops
+   "1h 30m" reading as two more grey words. Tabular so a column of rows does
+   not jitter, the same as the right slot's own duration. */
+.ruled .r-goal.r-est { color: var(--tx-3); font-variant-numeric: tabular-nums; }
+/* A RECURRENCE is a rule, not an instance of one. The quietest fact on the
+   line (the ink .r-when on a note row already uses for its trailing fact),
+   and by its place in the line the first to go when the room runs out. */
+.ruled .r-goal.r-rec { flex-shrink: 0; color: var(--tx-4); }
 
 /* ---------- THE PROJECTS LENS: the pie row (Goals and Projects, 2026-09-02:
    "The progress pie, three lines", "Under their goal") ----------------------

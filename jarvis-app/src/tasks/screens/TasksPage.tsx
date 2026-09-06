@@ -24,6 +24,7 @@ import HeadMenu from "../../shared/HeadMenu";
 import { useLongPress } from "../../shared/useLongPress";
 import { haptics } from "../../shared/haptics";
 import { ParentLineGlyph } from "../../shared/glyphs";
+import { Nums } from "../../bigger/GoalRowRuled";
 import type { ParentLine } from "../../life/parent";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
@@ -336,6 +337,23 @@ export function TaskRow({
               quiet grey. The vertical bar is gone; the glyph is the colour.
               The old caps eyebrow, the urgency chip that sat beside it, and
               the row-tags line they shared are gone; this line is all three. */}
+          {/* DEFECT 6 (Dave 2026-09-06, on his phone: "tasks have too much
+              grey when you add info like time and people. Think of another way
+              to render that info so it all doesn't blend in").
+
+              UP-CORE-17's person and UP-CORE-02's estimate landed on this line
+              on 2026-09-05 as two more `.r-goal.r-cat` spans glued on with
+              middle dots. Measured the next morning: four word spans, every
+              one of them rgba(235,235,245,0.6) at weight 400.
+
+              The dots are gone and each fact wears the treatment its KIND
+              earns (ruled.css carries the reasoning): where it lives keeps the
+              most ink, a person is a name and a door, an estimate is a number
+              and takes the ruled inline number emphasis through Nums, and a
+              recurrence is a rule rather than an instance of one, so it is the
+              quietest. They are also in the order they should hand the line
+              back when there is not room for all of them, which is the half of
+              this the wrap fix lands on next. */}
           <div className="r-k">
             {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
             {kicker
@@ -345,16 +363,15 @@ export function TaskRow({
               : <span className="r-goal r-cat">
                   {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || "No category"}
                 </span>}
-            {t.recurrence && <span className="r-goal r-cat r-rec">{"\u00b7 " + t.recurrence}</span>}
             {/* UP-CORE-17 (2026-09-05): the person this is about, and the
-                door to their card. A chip, because the second line already
-                carries where the task lives. */}
+                door to their card. */}
             {person && (person.onOpen
-              ? <span className="r-goal r-cat" role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); person.onOpen!(); }}>{"\u00b7 " + person.name}</span>
-              : <span className="r-goal r-cat">{"\u00b7 " + person.name}</span>)}
+              ? <span className="r-goal r-person" role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); person.onOpen!(); }}>{person.name}</span>
+              : <span className="r-goal r-person">{person.name}</span>)}
             {/* UP-CORE-02 (2026-09-05): how long he said this one takes,
                 where he is deciding what to pick up. A fact, only when set. */}
-            {t.estimateMin ? <span className="r-goal r-cat">{"\u00b7 " + durLabel(t.estimateMin)}</span> : null}
+            {t.estimateMin ? <span className="r-goal r-est"><Nums text={durLabel(t.estimateMin)} /></span> : null}
+            {t.recurrence && <span className="r-goal r-rec">{t.recurrence}</span>}
           </div>
           {/* A1: the cue, where he will see it while scanning. The whole
               sentence is on the sheet; the row carries the trigger, which is

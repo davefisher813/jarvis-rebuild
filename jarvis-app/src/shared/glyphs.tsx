@@ -308,12 +308,19 @@ export function ProjectPie({ pct, className = "pp" }: { pct: number | null; clas
 
 // THE PARENT LINE'S GLYPH (The Row and Health, Dave 2026-09-02). The second
 // line of a task row opens with the glyph of whatever the task belongs to,
-// in that parent's category colour, then the parent's name in plain grey.
+// in that parent's category colour, then the parent's name.
 // Same pie as the Projects page, same target as the Goals page, same dot as
 // the category head: one glyph per kind, learned once.
+//
+// DEFECT 6 (2026-09-06): the name's ink follows §4.1, which draws the line at
+// what the task MOVES. A project or a goal is a thing this task advances, so
+// its name reads in --tx-2 at medium; a category is only where the task
+// lives, and the contract says a task that moves nothing "says the category
+// name, plain". The class carries the kind so the sheet never has to know a
+// category's name or its colour.
 export function ParentLineGlyph({ p }: { p: { kind: "project" | "goal" | "category"; name: string; tone: string; pct: number | null } }) {
   return (
-    <span className="r-goal r-parent">
+    <span className={"r-goal r-parent" + (p.kind === "category" ? " r-parent-plain" : "")}>
       <span className={"r-pg " + p.tone}>
         {p.kind === "project" ? <ProjectPie pct={p.pct} className="pp pp-sm" />
           : p.kind === "goal" ? <GoalMark />

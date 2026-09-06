@@ -4658,3 +4658,107 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     expect(CSS).toMatch(/\.sheet-bar-cancel,\s*\.sheet-bar-save\s*\{[^{}]*min-height:\s*44px/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// DEFECT 6, FOUND ON DAVE'S PHONE 2026-09-06: "tasks have too much grey when
+// you add info like time and people. Think of another way to render that info
+// so it all doesn't blend in".
+//
+// The second line of the ruled task row had carried a chip and one set of
+// words since 2026-09-01. On 2026-09-05 UP-CORE-17 added a person to it and
+// UP-CORE-02 added an estimate, both as another `.r-goal.r-cat` glued on with
+// a middle dot. Measured in chromium at 390x844 the next morning: four word
+// spans, every one of them rgba(235,235,245,0.6) at weight 400. One ink, one
+// weight, one separator, four different kinds of thing.
+// ---------------------------------------------------------------------------
+
+// Every rule whose selector list matches exactly, in source order, joined.
+// Not the first one: .r-parent .r-goal-t is declared twice (layout, then ink)
+// and reading only the first would miss the half this file is about, which is
+// how a cascade of equal specificity actually resolves.
+const ruleOf = (sheet: string, selector: string): string | null => {
+  const bare = sheet.replace(/\/\*[\s\S]*?\*\//g, "");
+  const want = selector.replace(/\s+/g, " ").trim();
+  const hits: string[] = [];
+  for (const m of bare.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    if (m[1]!.replace(/\s+/g, " ").trim() === want) hits.push(m[2]!);
+  }
+  return hits.length ? hits.join(" ") : null;
+};
+
+describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatments", () => {
+  const PAGE = read(join(SRC, "tasks/screens/TasksPage.tsx"));
+  // colour and weight as declared, with .r-goal's own weight standing in
+  // wherever a rule does not restate it.
+  const inkOf = (selector: string) => {
+    const b = ruleOf(RULED, selector);
+    expect(b, selector + " is declared").toBeTruthy();
+    // The LAST declaration wins, the way the cascade resolves it.
+    const last = (re: RegExp) => [...b!.matchAll(re)].pop()?.[1];
+    return {
+      color: last(/color:\s*(var\(--[a-z0-9-]+\))/g) ?? null,
+      weight: last(/font-weight:\s*(var\(--[a-z0-9-]+\))/g) ?? "var(--w-normal)",
+    };
+  };
+
+  it("each fact is its own element, and none of them is the category's any more", () => {
+    // All four wore .r-goal.r-cat, which is one class saying "quiet grey
+    // subtext". Four kinds of thing cannot share one word for what they are.
+    expect(PAGE).toMatch(/className="r-goal r-person"/);
+    expect(PAGE).toMatch(/className="r-goal r-est"/);
+    expect(PAGE).toMatch(/className="r-goal r-rec"/);
+    expect(PAGE, "and nothing on this line is glued on with a middle dot")
+      .not.toMatch(/"\\u00b7 " \+/);
+  });
+
+  it("no two of them resolve to the same ink and the same weight", () => {
+    const facts: Record<string, { color: string | null; weight: string }> = {
+      "the name of a thing it moves": inkOf(".ruled .r-goal.r-parent .r-goal-t"),
+      "the category it merely lives in": inkOf(".ruled .r-goal.r-parent.r-parent-plain .r-goal-t"),
+      "a person": inkOf(".ruled .r-goal.r-person"),
+      "a number inside meta text": inkOf(".ruled .task-row .r-goal b"),
+      "a recurrence": inkOf(".ruled .r-goal.r-rec"),
+    };
+    const seen = new Map<string, string>();
+    for (const [what, ink] of Object.entries(facts)) {
+      const key = ink.color + " " + ink.weight;
+      expect(seen.get(key), `${what} reads exactly like ${seen.get(key)}`).toBeUndefined();
+      seen.set(key, what);
+    }
+  });
+
+  it("the split is the neutral text ramp, never a colour and never a second mark", () => {
+    // §6: the wired colours mean what they mean; a duration and a person's
+    // name are not allowed to spend one. Lint rule 4: one category-coloured
+    // element per row, and it is the parent's glyph, which is untouched.
+    for (const sel of [
+      ".ruled .r-goal.r-parent .r-goal-t",
+      ".ruled .r-goal.r-parent.r-parent-plain .r-goal-t",
+      ".ruled .r-goal.r-person",
+      ".ruled .task-row .r-goal b",
+      ".ruled .r-goal.r-rec",
+    ]) {
+      expect(inkOf(sel).color, sel + " reads in the neutral text ramp").toMatch(/^var\(--tx-[1-4]\)$/);
+    }
+    expect(RULED, "and the parent's glyph is still the one coloured thing")
+      .toMatch(/\.ruled \.r-pg \.r-gm \{[^}]*color: currentColor/);
+  });
+
+  it("an estimate is a number, so it takes the ruled inline number emphasis", () => {
+    // §5: "Numbers inside meta text take extra weight and sometimes colour."
+    // Nums is the one renderer for that, already used by the goal and review
+    // rows, so the task row does not invent a second one.
+    expect(PAGE).toMatch(/<Nums text=\{durLabel\(t\.estimateMin\)\} \/>/);
+    expect(RULED).toMatch(/\.ruled \.task-row \.r-goal b \{ font-weight: var\(--w-semi\); color: var\(--tx-2\); \}/);
+  });
+
+  it("a category name stays plain, which is what the contract says it does", () => {
+    // §4.1: "a task that moves nothing says the category name, plain." The
+    // branch is on the KIND of parent, never on the name or the colour value
+    // (lint rules 10 and 11).
+    const glyphs = read(join(SRC, "shared/glyphs.tsx"));
+    expect(glyphs).toMatch(/p\.kind === "category" \? " r-parent-plain" : ""/);
+    expect(inkOf(".ruled .r-goal.r-parent.r-parent-plain .r-goal-t"))
+      .toEqual({ color: "var(--tx-3)", weight: "var(--w-normal)" });
+  });
+});
