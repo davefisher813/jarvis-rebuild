@@ -1,6 +1,7 @@
 import { JARVIS_VOICE } from "./voice";
 import { noDashes } from "./suggestions";
 import type { AIContext } from "./context";
+import type { AISystem } from "./systemPrompt";
 import { contextToText } from "./context";
 import type { Category } from "../categories/types";
 import type { TasksService } from "../tasks/TasksService";
@@ -69,20 +70,30 @@ export const CAPTURE_SCHEMA: Record<string, unknown> = {
 };
 
 // System prompt: route a quick note to task/event/note, return ONLY JSON.
-export function captureSystemPrompt(ctx: AIContext, today: string): string {
+//
+// UP-PLAT-02 (2026-09-06): split into the shared context and this feature's
+// instructions so the proxy can cache the first half (ai/systemPrompt.ts).
+// The context was already last in the old single string, so what reaches the
+// model is unchanged apart from the "User context:" label moving above it.
+export function captureSystemPrompt(ctx: AIContext, today: string): AISystem {
   const cats = ctx.categories.length ? ctx.categories.join(", ") : "none";
-  return [
-    JARVIS_VOICE,
-    "Task: you are, a personal assistant that files quick notes.",
-    `Today is ${today} (ISO). Resolve relative dates ("tomorrow", "Friday") against it.`,
-    "Decide if the input is a task, an event (has a time or specific day), or a note (a thought to keep).",
-    `Pick a category by NAME from this list when one clearly fits: ${cats}.`,
-    'Reply with ONLY a JSON object, no prose, no code fences: {"kind":"task|event|note","title":string,"date":"yyyy-mm-dd"(optional),"start":"HH:MM"(optional, 24h),"category":string(optional),"notes":string(optional),"recurrence":"daily|weekly|monthly|weekdays"(optional),"reminder":{"time":"HH:MM","days":[0-6]}(optional),"bill":{"amount":number}(optional)}.',
-    "Only fill recurrence, reminder or bill from words the person actually wrote. Never invent a repeat, a time, or an amount.",
-    "",
-    "User context:",
-    contextToText(ctx),
-  ].join("\n");
+  return {
+    context: contextToText(ctx),
+    instructions: [
+      JARVIS_VOICE,
+      "Task: you are, a personal assistant that files quick notes.",
+      "The user's context is above.",
+      `Today is ${today} (ISO). Resolve relative dates ("tomorrow", "Friday") against it.`,
+      "Decide if the input is a task, an event (has a time or specific day), or a note (a thought to keep).",
+      `Pick a category by NAME from this list when one clearly fits: ${cats}.`,
+      // UP-CORE-01 (2026-09-05): the four extra shapes stay named in the
+      // reply shape and stay fenced by the line under it. Splitting the
+      // prompt for caching moved the context out; it did not narrow what
+      // the model is allowed to fill in.
+      'Reply with ONLY a JSON object, no prose, no code fences: {"kind":"task|event|note","title":string,"date":"yyyy-mm-dd"(optional),"start":"HH:MM"(optional, 24h),"category":string(optional),"notes":string(optional),"recurrence":"daily|weekly|monthly|weekdays"(optional),"reminder":{"time":"HH:MM","days":[0-6]}(optional),"bill":{"amount":number}(optional)}.',
+      "Only fill recurrence, reminder or bill from words the person actually wrote. Never invent a repeat, a time, or an amount.",
+    ].join("\n"),
+  };
 }
 
 export function parseCapture(raw: string): CaptureResult | null {

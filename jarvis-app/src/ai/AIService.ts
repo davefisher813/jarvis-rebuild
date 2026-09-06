@@ -2,6 +2,9 @@ import { apiUrl } from "../shared/apiBase";
 import { backendConfigured } from "../data/store";
 import { aiCallAllowed, effectiveLevel, refusalMessage, type AIPinKey } from "./aiGate";
 import { getAIControl } from "./levelStore";
+import { wireSystem, type AISystem } from "./systemPrompt";
+
+export type { AISystem } from "./systemPrompt";
 
 export interface AIMessage {
   role: "user" | "assistant";
@@ -64,9 +67,15 @@ export class AIService {
   // The gate runs here first (so the UI can explain a refusal without a
   // round trip) and again authoritatively in the proxy against the stored
   // profile, so a client bug can never spend AI the user turned off.
+  // UP-PLAT-02 (2026-09-06): `system` may now be split into the assembled
+  // context and this feature's instructions, which is what lets the proxy
+  // mark the context as cacheable (0.1x the input price on a read, five
+  // minute TTL). wireSystem decides: split when the block is big enough to
+  // cache, one plain string otherwise. A caller passing a string is
+  // untouched. See ai/systemPrompt.ts.
   async complete(
     messages: AIMessage[],
-    system?: string,
+    system?: string | AISystem,
     opts?: { tier?: "write"; kind?: string; background?: boolean; pin?: AIPinKey; schema?: Record<string, unknown> },
   ): Promise<string> {
     if (!this.available) throw new Error("AI is not configured in this build.");
@@ -82,7 +91,7 @@ export class AIService {
       },
       body: JSON.stringify({
         messages,
-        system,
+        system: wireSystem(system),
         ...(opts?.tier ? { tier: opts.tier } : {}),
         ...(opts?.kind ? { kind: opts.kind } : {}),
         ...(background ? { background: true } : {}),

@@ -23,7 +23,8 @@ export const config = { runtime: "edge" };
 
 import { aiCallAllowed, normalizeLevel, refusalMessage, DEFAULT_AI_LEVEL } from "../src/ai/aiGate";
 import { schemaOk, toolPayload, extractText } from "../src/ai/structured";
-import { tokenRow } from "../src/ai/tokenLog";
+import { tokenRow, withoutCacheCounts } from "../src/ai/tokenLog";
+import { systemPayload } from "../src/ai/systemPrompt";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = process.env.AI_MODEL || "claude-sonnet-4-6";
@@ -192,7 +193,12 @@ export default async function handler(req: Request): Promise<Response> {
     body: JSON.stringify({
       model: body.tier === "write" ? WRITE_MODEL : MODEL,
       max_tokens: MAX_TOKENS,
-      ...(typeof body.system === "string" ? { system: body.system } : {}),
+      // UP-PLAT-02 (2026-09-06): a system prompt may arrive as one string, as
+      // it always has, or split into { context, instructions }, in which case
+      // the context goes first as its own block with cache_control ephemeral.
+      // Anything else is dropped rather than forwarded. See
+      // src/ai/systemPrompt.ts for why the context has to be the prefix.
+      ...(systemPayload(body.system) ?? {}),
       ...(schemaOk(body.schema) ? toolPayload(body.schema) : {}),
       messages,
     }),
@@ -203,7 +209,12 @@ export default async function handler(req: Request): Promise<Response> {
   }
   const data = (await upstream.json()) as {
     content?: { type: string; text?: string; name?: string; input?: unknown }[];
-    usage?: { input_tokens?: unknown; output_tokens?: unknown };
+    usage?: {
+      input_tokens?: unknown;
+      output_tokens?: unknown;
+      cache_read_input_tokens?: unknown;
+      cache_creation_input_tokens?: unknown;
+    };
   };
 
   // Token accounting (item 12): record what this call actually cost, into
@@ -214,11 +225,14 @@ export default async function handler(req: Request): Promise<Response> {
     const model = body.tier === "write" ? WRITE_MODEL : MODEL;
     const row = tokenRow(me.id, kind, model, data.usage);
     if (row && serviceKey) {
-      await fetch(`${supaUrl}/rest/v1/ai_tokens`, {
-        method: "POST",
-        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify(row),
-      });
+      const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json", Prefer: "return=minimal" };
+      const post = (r: unknown) => fetch(`${supaUrl}/rest/v1/ai_tokens`, { method: "POST", headers, body: JSON.stringify(r) });
+      const wrote = await post(row);
+      // UP-PLAT-02 (2026-09-06): the row gained the two cache counters, and
+      // PostgREST rejects an insert naming a column the table does not have
+      // yet. One retry without them, so the whole ledger does not go dark
+      // between this deploy and Dave running migration 0033.
+      if (!wrote.ok) await post(withoutCacheCounts(row));
     }
   } catch { /* accounting must never break the reply */ }
 

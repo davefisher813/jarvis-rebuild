@@ -37,7 +37,12 @@ describe("actionable suggestions", () => {
   it("includes the avoid list in the prompt", () => {
     const ctx = { name: "Dave", template: "personal", people: [], categories: [], openTasks: [], events: [], birthdays: [] } as never;
     const p = suggestionsSystemPrompt(ctx, "2026-07-28", ["Old One"]);
-    expect(p).toContain("Old One");
-    expect(p).toContain("do NOT repeat".toLowerCase().replace("do not", "Do NOT"));
+    // UP-PLAT-02 (2026-09-06): two halves now, and the avoid list belongs in
+    // the INSTRUCTIONS half. It changes on nearly every call, and anything
+    // ahead of the cache breakpoint that changes would stop the context
+    // block behind it from ever being read back.
+    expect(p.instructions).toContain("Old One");
+    expect(p.instructions).toContain("do NOT repeat".toLowerCase().replace("do not", "Do NOT"));
+    expect(p.context).not.toContain("Old One");
   });
 });

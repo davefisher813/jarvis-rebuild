@@ -1,26 +1,33 @@
 import { JARVIS_VOICE } from "./voice";
 import type { AIContext } from "./context";
+import type { AISystem } from "./systemPrompt";
 import { contextToText } from "./context";
 import { titleCase } from "../shared/casing";
 
 // Asks the model for up to two short, grounded nudges for the user's day.
-export function suggestionsSystemPrompt(ctx: AIContext, today: string, avoid: string[] = []): string {
-  return [
-    JARVIS_VOICE,
-    "Task: suggest what the user should focus on right now.",
-    `Today is ${today} (ISO).`,
-    "Ground every suggestion in their real tasks, schedule, people, and birthdays below.",
-    "Always write clock times in 12-hour format with AM/PM (e.g., 7:30 PM). Never use 24-hour time.",
-    "Style: write each suggestion in Title Case (Capitalize Major Words). No trailing period. Never use em dashes or hyphens as separators; use a colon or comma instead.",
-    "Reply with ONLY a JSON array of at most 2 objects, no prose, no code fences.",
-    "Each object: {\"text\": string (max ~12 words, Title Case), \"task\": string or null}.",
-    "Set task to the EXACT text of the open task the suggestion is about, or null if it is not about a specific task.",
-    "If nothing is genuinely useful, reply with an empty array: [].",
-    avoid.length ? "Do NOT repeat or rephrase these recent suggestions: " + JSON.stringify(avoid) : "",
-    "",
-    "User context:",
-    contextToText(ctx),
-  ].join("\n");
+//
+// UP-PLAT-02 (2026-09-06): split into the shared context and this feature's
+// instructions so the proxy can cache the first half (ai/systemPrompt.ts).
+// The avoid list stays in the instructions on purpose: it changes on nearly
+// every call, and anything that changes must sit BEHIND the cache breakpoint
+// or nothing in front of it would ever hit.
+export function suggestionsSystemPrompt(ctx: AIContext, today: string, avoid: string[] = []): AISystem {
+  return {
+    context: contextToText(ctx),
+    instructions: [
+      JARVIS_VOICE,
+      "Task: suggest what the user should focus on right now.",
+      `Today is ${today} (ISO).`,
+      "Ground every suggestion in their real tasks, schedule, people, and birthdays above.",
+      "Always write clock times in 12-hour format with AM/PM (e.g., 7:30 PM). Never use 24-hour time.",
+      "Style: write each suggestion in Title Case (Capitalize Major Words). No trailing period. Never use em dashes or hyphens as separators; use a colon or comma instead.",
+      "Reply with ONLY a JSON array of at most 2 objects, no prose, no code fences.",
+      "Each object: {\"text\": string (max ~12 words, Title Case), \"task\": string or null}.",
+      "Set task to the EXACT text of the open task the suggestion is about, or null if it is not about a specific task.",
+      "If nothing is genuinely useful, reply with an empty array: [].",
+      avoid.length ? "Do NOT repeat or rephrase these recent suggestions: " + JSON.stringify(avoid) : "",
+    ].filter(Boolean).join("\n"),
+  };
 }
 
 // Hard style guarantees, applied even if the model ignores instructions:
