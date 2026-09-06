@@ -57,16 +57,21 @@ export interface MailThread {
   // network round trip; see evidence.ts.
   byEv?: Evidence;
   actEv?: Evidence;
+  // UP-MIND-10 (2026-09-05): the sender, when they are someone in Contacts.
+  personId?: string;
 }
-export interface MailWaiting { threadId: string; to: string; subject: string; days: number }
-export interface MailPromise { threadId: string; text: string; due?: string }
+// UP-MIND-10 (2026-09-05): personId on every row that has a counterpart.
+// Optional everywhere, because a sender who is not in Contacts has no id and
+// inventing one would be the wrong link.
+export interface MailWaiting { threadId: string; to: string; subject: string; days: number; personId?: string }
+export interface MailPromise { threadId: string; text: string; due?: string; personId?: string }
 // N1 (2026-08-20): times a sender OFFERED, already checked against the real
 // calendar by the Email tab. Only threads where at least one option is open
 // travel here; "you're busy for all of them" is a card the tab shows, not a
 // home-page interruption.
 export interface MailMeeting { threadId: string; from: string; label: string; date: string; start: string; end: string; line: string }
 // N3: a chase he set at send time that has come due.
-export interface MailChase { threadId: string; to: string; subject: string }
+export interface MailChase { threadId: string; to: string; subject: string; personId?: string }
 // N10: a draft he started and never sent.
 export interface MailDraftRow { id: string; threadId: string; to: string; subject: string; line: string }
 
@@ -93,7 +98,7 @@ export interface MailNotice {
   tone: string;               // a cat-fg-* class
   // When present, the action finishes on Today: it writes this task and the
   // card clears. No navigation, no inbox, no second decision.
-  task?: { text: string; due?: string };
+  task?: { text: string; due?: string; personId?: string };
   // Same contract, a different surface. Present only on kind "act": the card
   // writes an event, a bill, or a reminder and clears. Already validated by
   // readAct, so a handler can use these fields without re-checking them.
@@ -243,7 +248,7 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
     ...(t.byEv ? { evidence: t.byEv } : {}),
     // A subject of "(no subject)" is a list placeholder; titleCase turned it
     // into the literal task name "(No Subject)" (2026-08-25).
-    task: { text: taskTitleFrom(t.subject, t.from), due },
+    task: { text: taskTitleFrom(t.subject, t.from), due, ...(t.personId ? { personId: t.personId } : {}) },
   };
 }
 
@@ -268,7 +273,7 @@ function promiseNotice(p: MailPromise, todayISO: string): MailNotice {
     sub: p.due ? "You said you would, by " + dayPhrase(p.due, todayISO) : "You said you would",
     action: "Add Task",
     tone: "cat-fg-yellow",
-    task: { text: titleCase(p.text), due: p.due },
+    task: { text: titleCase(p.text), due: p.due, ...(p.personId ? { personId: p.personId } : {}) },
   };
 }
 

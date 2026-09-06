@@ -194,7 +194,7 @@ export default function ChatFlow({ onOpen }: {
       today,
       nowHHMM: nowHHMM(new Date()),
       events: evs.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start, location: e.data.location })),
-      tasks: tks.map((t) => ({ id: t.id, text: t.data.text, due: t.data.due, done: t.data.done })),
+      tasks: tks.map((t) => ({ id: t.id, text: t.data.text, due: t.data.due, done: t.data.done, ...(t.data.personId ? { personId: t.data.personId } : {}) })),
       leftToSpend: left,
       // SHELL-F-08 (2026-09-05): the true total AND the preview. mail.threads
       // is capped at 6 by the snapshot; mail.needsYou is what actually needs

@@ -14,7 +14,9 @@ import { agoLabel } from "../people/lastContact";
 export interface AnswerSnapshot {
   today: string;
   events: { id: string; title: string; date: string; start: string; location?: string }[];
-  tasks: { id: string; text: string; due?: string | null; done: boolean }[];
+  // UP-MIND-10 (2026-09-05): personId, when the task was filed off an
+  // email with someone in Contacts.
+  tasks: { id: string; text: string; due?: string | null; done: boolean; personId?: string }[];
   // Money's derived left-to-spend line, already computed by the money layer;
   // null when money is not set up. Chat never does money math itself.
   leftToSpend: string | null;
@@ -179,8 +181,8 @@ async function lastTalked(p: SnapPerson, snap: AnswerSnapshot): Promise<ChatAnsw
 
 function openWithPerson(p: SnapPerson, snap: AnswerSnapshot): ChatAnswer {
   const items = openWith(
-    { name: p.name },
-    snap.tasks.map((t) => ({ id: t.id, text: t.text, done: t.done, due: t.due })),
+    { name: p.name, id: p.id },
+    snap.tasks.map((t) => ({ id: t.id, text: t.text, done: t.done, due: t.due, ...(t.personId ? { personId: t.personId } : {}) })),
     snap.events.map((e) => ({ id: e.id, title: e.title, date: e.date, start: e.start, location: e.location })),
     snap.today,
   );

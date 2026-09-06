@@ -74,6 +74,12 @@ export class TasksService {
     // Pick 26: the thread this task came from, so its siblings can teach the
     // next one where it belongs.
     if (opts.fromThread) data.fromThread = opts.fromThread;
+    // UP-CORE-17 / UP-MIND-10 (2026-09-05): who this task is about. Set from
+    // the bounded chooser, or from the sender when the task was born out of
+    // a thread. Written at creation either way, because the person is known
+    // then and guessing it later from a task title is exactly the wrong link.
+    // Both features wrote this line; it is one field and one write.
+    if (opts.personId) data.personId = opts.personId;
     if (opts.recurrence) data.recurrence = opts.recurrence;
     if (opts.projectId) data.projectId = opts.projectId;
     if (opts.bill) data.bill = opts.bill;
@@ -81,7 +87,6 @@ export class TasksService {
     if (opts.source) data.source = opts.source;
     if (opts.plan && isUsable(opts.plan)) data.plan = opts.plan;
     if (isLength(opts.estimateMin)) data.estimateMin = opts.estimateMin;
-    if (opts.personId) data.personId = opts.personId;
     // UP-CORE-13 (2026-09-05): a receipt is a record of something ALREADY
     // paid, so the bill it becomes is born done, with the receipt's own date
     // as its lastDone. The only caller that passes these is the receipt read;

@@ -43,6 +43,7 @@ import { alreadyPromised, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import EvidenceChip from "./EvidenceChip";
 import { anchorNeedsYou, needsAnchor, ANCHOR_CAP } from "./evidencePass";
+import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { recordSweepDay, loadSweepDays, sweepWeek, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
 import ListFloor from "../shared/ListFloor";
@@ -251,6 +252,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const projectsSvc = useOptionalProjects();
   const routineSvc = useOptionalRoutine();
   const people = useOptionalPeople();
+  // UP-MIND-10 (2026-09-05): Contacts by address, rebuilt when Contacts
+  // change and read by the snapshot build and every email-born task. Address
+  // equality only: a wrong person id on a promise is worse than none.
+  const [personIdFor, setPersonIdFor] = useState<PersonIdFor>(() => noPersonId);
+  useEffect(() => {
+    if (!people) return;
+    let live = true;
+    void people.list()
+      .then((list) => {
+        if (!live) return;
+        const fn = makePersonIdFor(list.map((p) => ({ id: p.id, ...(p.data.email ? { email: p.data.email } : {}) })));
+        setPersonIdFor(() => fn);
+      })
+      .catch(() => { /* no ids this session; every row reads as it did before */ });
+    return () => { live = false; };
+  }, [people]);
   const session = useOptionalSession();
   // Phase 3: anything drafted here goes out over the user's name, so it gets
   // their voice and the people guardrail. Optional on purpose, matching the
@@ -1027,6 +1044,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const id = await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
           bill: { amount },
           source: madeBy("email", row.threadId),
+          // UP-MIND-10 (2026-09-05): who it is with, when they are in Contacts.
+          ...(personIdFor(row.toEmail) ? { personId: personIdFor(row.toEmail)! } : {}),
         });
         // toFixed, not toLocaleString: the latter drops the trailing cent, so
         // $1,234.50 was printing as $1,234.5 on every money receipt.
@@ -1038,6 +1057,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const id = await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
           due: todayISO(),
           source: madeBy("email", row.threadId),
+          ...(personIdFor(row.toEmail) ? { personId: personIdFor(row.toEmail)! } : {}),
         });
         say(id ? "Added to your tasks" : "Couldn't add it · Nothing was saved");
         return;
@@ -1223,6 +1243,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // is actually being read on, not the day this snapshot was written.
         act: map[r.id]?.act,
         account: (r as ThreadRow & { account?: string }).account,
+        ...(personIdFor(r.fromEmail) ? { personId: personIdFor(r.fromEmail)! } : {}),
         snippet: r.snippet ?? "",
         lastMsgId: r.lastMsgId,
         // Reuse the quick replies this thread already has. Regenerating them
@@ -1231,6 +1252,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       })),
       waiting: waiting.slice(0, 3).map((w) => ({
         threadId: w.threadId, to: displayName(w.to), subject: w.subject, days: w.waitingDays,
+        ...(personIdFor(w.toEmail) ? { personId: personIdFor(w.toEmail)! } : {}),
       })),
       promises: liveSweep(loadSweep(), loadPromised()).slice(0, 3),
       // N1: only meetings with an open slot travel to the home page. "You're
@@ -1250,7 +1272,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         line: staleLine(d, Date.now()),
       })),
     });
-  }, [triaged, rows, triage, rules, waiting, sweepTick, meetings, drafts]);
+  }, [triaged, rows, triage, rules, waiting, sweepTick, meetings, drafts, personIdFor]);
 
   // Nothing-slips net: anything that has needed Dave for 3+ days becomes a
   // task, exactly once. This is what earns the right to fold the rest away.
@@ -1275,7 +1297,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       let made = 0;
       for (const r of due) {
         const id = await tasks
-          .createTask(laterTaskTitle(r.from, r.subject), { due: todayISO(), source: madeBy("email", r.id) })
+          .createTask(laterTaskTitle(r.from, r.subject), {
+            due: todayISO(),
+            source: madeBy("email", r.id),
+            ...(personIdFor(r.fromEmail) ? { personId: personIdFor(r.fromEmail)! } : {}),
+          })
           .catch(() => null);
         if (id) made += 1;
       }

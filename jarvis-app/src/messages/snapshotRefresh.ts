@@ -7,6 +7,7 @@ import {
 } from "./triage";
 import { loadRules, applyRules } from "./rules";
 import { anchorNeedsYou } from "./evidencePass";
+import { makePersonIdFor, noPersonId, type PersonEmail } from "./personFor";
 import { mapThreadFull } from "../connections/google/map";
 import { findWaiting } from "./waiting";
 import { loadLetGo } from "./letGo";
@@ -65,6 +66,10 @@ export interface SnapshotRefreshDeps {
   apis: () => { email: string; api: GoogleApi }[];
   ai: AIService;
   now?: number;
+  // UP-MIND-10 (2026-09-05): Contacts, for the person id on every row that
+  // has a counterpart. Optional: with no People service the snapshot is
+  // exactly what it was before, never a broken one.
+  people?: () => Promise<PersonEmail[]>;
 }
 
 export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<void> {
@@ -155,6 +160,11 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
     .sort((a, b) => b.waitingDays - a.waitingDays)
     .slice(0, 5);
 
+  // UP-MIND-10: built ONCE per snapshot, because this build touches thirty
+  // rows and reading the People list thirty times reads the same list thirty
+  // times. A failed read means no ids, which is the old behaviour.
+  const personIdFor = deps.people ? makePersonIdFor(await deps.people().catch(() => [])) : noPersonId;
+
   const todayIso = todayISO();
   const answeredThreads = rows.filter((r) => !waiting.some((w) => w.threadId === r.id)).map((r) => r.id);
 
@@ -172,12 +182,14 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
       ...(map[r.id]?.byEv ? { byEv: map[r.id]!.byEv! } : {}),
       ...(map[r.id]?.actEv ? { actEv: map[r.id]!.actEv! } : {}),
       account: (r as ThreadRow & { account?: string }).account,
+      ...(personIdFor(r.fromEmail) ? { personId: personIdFor(r.fromEmail)! } : {}),
       snippet: r.snippet ?? "",
       lastMsgId: r.lastMsgId,
       replies: briefFor(r.lastMsgId)?.replies,
     })),
     waiting: waiting.slice(0, 3).map((w) => ({
       threadId: w.threadId, to: displayName(w.to), subject: w.subject, days: w.waitingDays,
+      ...(personIdFor(w.toEmail) ? { personId: personIdFor(w.toEmail)! } : {}),
     })),
     promises: liveSweep(loadSweep(), loadPromised()).slice(0, 3),
     chases: dueChases(loadChases(), todayIso, answeredThreads).slice(0, 2).map((c) => ({

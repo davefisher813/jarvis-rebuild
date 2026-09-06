@@ -3,6 +3,7 @@ import type { AIService } from "../ai/AIService";
 import type { GoogleApi } from "../connections/google/api";
 import { mapThreadFull, buildReply, type ThreadRow, type ThreadFull } from "../connections/google/map";
 import { useTasks, useSchedule, usePeople } from "../data/NotesProvider";
+import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
 import { useAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
 import { emit } from "../events";
@@ -76,6 +77,21 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   const tasks = useTasks();
   const schedule = useSchedule();
   const people = usePeople();
+  // UP-MIND-10 (2026-09-05): the Sweep writes bills, events and tasks off a
+  // thread whose sender the app often knows. Rebuilt when Contacts change;
+  // address equality only, never a name match.
+  const [personIdFor, setPersonIdFor] = useState<PersonIdFor>(() => noPersonId);
+  useEffect(() => {
+    let live = true;
+    void people.list()
+      .then((list) => {
+        if (!live) return;
+        const fn = makePersonIdFor(list.map((p) => ({ id: p.id, ...(p.data.email ? { email: p.data.email } : {}) })));
+        setPersonIdFor(() => fn);
+      })
+      .catch(() => { /* no ids: the rows read exactly as they did before */ });
+    return () => { live = false; };
+  }, [people]);
   // Required, not optional, unlike MessagesFlow: this component already calls
   // useTasks and useSchedule, so it cannot render without NotesProvider anyway.
   const gatherContext = useAIContext();
@@ -269,6 +285,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
           bill: { amount: plan.bill.amount },
           fromThread: row.id,
           source: madeBy("email", row.id),
+          ...(personIdFor(row.fromEmail) ? { personId: personIdFor(row.fromEmail)! } : {}),
         });
         cleared = await archiveRemote(row.id, row.account);
         receipts.current.bills += 1;
@@ -282,7 +299,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
         cleared = await archiveRemote(row.id, row.account);
         receipts.current.scheduled += 1;
       } else if (plan.kind === "task" && plan.task) {
-        await tasks.createTask(plan.task.title, { due: plan.task.due ?? null, fromThread: row.id, source: madeBy("email", row.id) });
+        await tasks.createTask(plan.task.title, { due: plan.task.due ?? null, fromThread: row.id, source: madeBy("email", row.id), ...(personIdFor(row.fromEmail) ? { personId: personIdFor(row.fromEmail)! } : {}) });
         cleared = await archiveRemote(row.id, row.account);
         receipts.current.tasks += 1;
       } else {
@@ -304,7 +321,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
     try {
       // todayISO is LOCAL. toISOString().slice(0,10) is UTC, so tapping
       // Later after 5pm west of UTC filed the task due TOMORROW.
-      await tasks.createTask(laterTaskTitle(displayName(row.from), row.subject), { due: todayISO(), fromThread: row.id, source: madeBy("email", row.id) });
+      await tasks.createTask(laterTaskTitle(displayName(row.from), row.subject), { due: todayISO(), fromThread: row.id, source: madeBy("email", row.id), ...(personIdFor(row.fromEmail) ? { personId: personIdFor(row.fromEmail)! } : {}) });
       emit({ type: "action", props: { name: "email.deck.later" } });
       receipts.current.later += 1;
       advance(false); // stays in the inbox: the task is the reminder, the mail is the evidence

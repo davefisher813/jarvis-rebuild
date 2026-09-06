@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useGoogle } from "../connections/google/GoogleSession";
 import { useAI } from "../ai/useAI";
+import { useOptionalPeople } from "../data/NotesProvider";
 import { refreshMailSnapshot } from "./snapshotRefresh";
 import { loadMailSnapshot } from "./home";
 
@@ -23,6 +24,10 @@ const CHECK_INTERVAL_MS = 30 * 60e3;
 export default function MailSnapshotPump() {
   const g = useGoogle();
   const ai = useAI();
+  // UP-MIND-10 (2026-09-05): Contacts, so a waiting row and a needs-you
+  // thread remember WHO they are about. Optional, same seam every other
+  // enhancement in this app uses.
+  const people = useOptionalPeople();
   const busy = useRef(false);
 
   useEffect(() => {
@@ -30,14 +35,18 @@ export default function MailSnapshotPump() {
       if (!g.hasToken || busy.current) return;
       if (Date.now() - loadMailSnapshot().ts < REFRESH_STALE_MS) return;
       busy.current = true;
-      void refreshMailSnapshot({ apis: () => g.apis("mail"), ai })
+      void refreshMailSnapshot({
+        apis: () => g.apis("mail"),
+        ai,
+        ...(people ? { people: async () => (await people.list()).map((p) => ({ id: p.id, ...(p.data.email ? { email: p.data.email } : {}) })) } : {}),
+      })
         .catch(() => { /* best effort: the next check retries */ })
         .finally(() => { busy.current = false; });
     };
     check();
     const t = setInterval(check, CHECK_INTERVAL_MS);
     return () => clearInterval(t);
-  }, [g, ai]);
+  }, [g, ai, people]);
 
   return null;
 }

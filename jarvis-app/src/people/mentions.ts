@@ -71,6 +71,12 @@ export interface MentionItem {
 // id match is exact and needs no patterns, so a person whose name the matcher
 // refuses to guess from ("Mark", "Will") still gets their filed work here,
 // which the name-only version could never show.
+//
+// UP-MIND-10 (2026-09-05) arrives at the same seam from the other side: a
+// task born from an email now carries the sender's personId too, so both the
+// chooser and the mail path feed this one match. `person.id` stays optional
+// so every existing caller still compiles, and the name matcher stays as the
+// fallback for everything written by hand.
 export function openWith(
   person: { id?: string; name: string },
   tasks: { id: string; text: string; done?: boolean; due?: string | null; personId?: string }[],
@@ -85,7 +91,9 @@ export function openWith(
   for (const t of tasks) {
     if (t.done) continue;
     // Filed first, so a link he made himself is never lost to a name the
-    // matcher will not risk.
+    // matcher will not risk. It wins even for a name the matcher refuses to
+    // guess at ("Will", "Grace"): a task filed off Will's own email is about
+    // Will, whatever his first name looks like in a sentence.
     if (!linked(t) && !hit(t.text)) continue;
     out.push({ id: t.id, kind: "task", title: t.text, sub: t.due ?? undefined });
   }

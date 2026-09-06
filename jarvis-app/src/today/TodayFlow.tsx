@@ -2766,6 +2766,10 @@ export default function TodayFlow({
         due: a.date,
         fromThread: threadId,
         source: src,
+        // UP-MIND-10 (2026-09-05): the sender, when the snapshot resolved
+        // them to someone in Contacts. Read off the snapshot rather than
+        // matched here, so there is one resolver and one rule.
+        ...(personIdOfThread(threadId) ? { personId: personIdOfThread(threadId)! } : {}),
         // A bill is a task wearing money facts (notes/types.ts), so Money
         // needs no separate write and the row appears where he pays things.
         ...(a.verb === "bill" ? { bill: { amount: a.amount! } } : {}),
@@ -2833,6 +2837,12 @@ export default function TodayFlow({
   // already exists and somebody already filed it. The first task off a thread
   // inherits nothing, which is correct, because there is nothing to inherit
   // yet; every one after it joins its sibling. See messages/threadTasks.ts.
+  // UP-MIND-10 (2026-09-05): the snapshot already resolved the sender to a
+  // Person at build time (snapshotRefresh / MessagesFlow), so Today reads
+  // that id rather than running a second matcher over Contacts.
+  const personIdOfThread = (threadId?: string): string | undefined =>
+    threadId ? loadMailSnapshot().threads.find((t) => t.id === threadId)?.personId : undefined;
+
   const addTaskFromMail = async (text: string, due?: string, threadId?: string): Promise<boolean> => {
     const inherited = threadId ? inheritFromThread(taskItems, threadId) : {};
     // THE ID, NOT THE ABSENCE OF A THROW (2026-08-25). attemptWrite reports
@@ -2844,6 +2854,7 @@ export default function TodayFlow({
       made = await tasks.createTask(text, {
         due: due ?? today,
         ...(threadId ? { fromThread: threadId } : {}),
+        ...(personIdOfThread(threadId) ? { personId: personIdOfThread(threadId)! } : {}),
         ...inherited,
       });
     });

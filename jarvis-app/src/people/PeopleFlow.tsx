@@ -120,6 +120,9 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   // B1: what is still open with this person. Best effort and additive; a
   // failure here leaves the card exactly as it was before.
   const currentName = current?.data.name;
+  // UP-MIND-10 (2026-09-05): the id, so a task filed off this person's own
+  // email counts even when their first name is one the matcher refuses to
+  // guess at.
   const currentId = current?.id;
   useEffect(() => {
     if (!currentName) { setStill([]); return; }
@@ -131,7 +134,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
         setStill(openWithPerson(
           // UP-CORE-17 (2026-09-05): with the id, a task he FILED under this
           // person counts whatever its wording, so the card lists the work
-          // the name matcher was right to refuse to guess at.
+          // the name matcher was right to refuse to guess at. UP-MIND-10
+          // widens the same match to tasks born from this person's email.
           { id: currentId, name: currentName },
           ts.map((t) => ({ id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null, personId: t.data.personId })),
           evs.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start, location: e.data.location })),
