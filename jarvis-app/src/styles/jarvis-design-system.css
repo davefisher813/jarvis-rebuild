@@ -8,16 +8,25 @@
 :root {
   --f: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
 
+  /* TEXT SIZE (UP-PLAT-09, 2026-09-06).
+     Every font-size in this app is a multiple of this. 1 is the shipped
+     scale, so nothing moves until somebody asks it to; Settings, Appearance
+     sets it, and the iOS Dynamic Type reading sets it too once the native
+     seam is live (appearance/textZoom.ts). Clamped 1 to 1.4 by whoever
+     writes it: past 1.4 the tab bar loses its labels, which is a worse
+     answer than "as big as this app goes". */
+  --type-scale: 1;
+
   /* TYPE SCALE (7-tier) */
-  --t-display: 56px;  /* hero numbers only */
-  --t-h1: 34px;       /* screen titles = iOS largeTitle (34pt). Was 32,
+  --t-display: calc(56px * var(--type-scale));  /* hero numbers only */
+  --t-h1: calc(34px * var(--type-scale));       /* screen titles = iOS largeTitle (34pt). Was 32,
                          which is not a step on Apple's ramp and left
                          .pagehead-title's hardcoded 34 disagreeing with it. */
-  --t-h2: 20px;       /* card / section titles */
-  --t-h3: 17px;       /* row primary text */
-  --t-body: 15px;     /* body */
-  --t-meta: 15px;     /* subtext / meta (raised from 13px at Dave's request) */
-  --t-eyebrow: 11px;  /* kicker labels */
+  --t-h2: calc(20px * var(--type-scale));       /* card / section titles */
+  --t-h3: calc(17px * var(--type-scale));       /* row primary text */
+  --t-body: calc(15px * var(--type-scale));     /* body */
+  --t-meta: calc(15px * var(--type-scale));     /* subtext / meta (raised from 13px at Dave's request) */
+  --t-eyebrow: calc(11px * var(--type-scale));  /* kicker labels */
 
   /* WEIGHTS */
   --w-bold: 800; --w-semi: 700; --w-medium: 600; --w-regular: 500; --w-normal: 400;
@@ -417,7 +426,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 
 /* AVATARS */
 .av { border-radius: var(--r-circle); display: flex; align-items: center; justify-content: center; font-weight: var(--w-semi); color: #fff; flex-shrink: 0; position: relative; overflow: hidden; }
-.av-24 { width: 24px; height: 24px; font-size: 10px; }
+.av-24 { width: 24px; height: 24px; font-size: calc(10px * var(--type-scale)); }
 .av-32 { width: 32px; height: 32px; font-size: var(--t-meta); }
 .av-40 { width: 40px; height: 40px; font-size: var(--t-body); }
 .av-56 { width: 56px; height: 56px; font-size: var(--t-h2); }
@@ -429,7 +438,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
    label), so a .btn that forgets its variant can never render as naked
    words. Five did -- the Tasks overwhelm door (now "Just This One") and
    every sheet's quiet sibling. */
-.btn { display: inline-flex; align-items: center; justify-content: center; font-family: var(--f); font-size: var(--t-h3); font-weight: var(--w-semi); height: 50px; padding: 0 var(--s-6); border-radius: var(--r-pill); border: 0; letter-spacing: var(--track-default); min-width: var(--tap-min); cursor: pointer;
+.btn { display: inline-flex; align-items: center; justify-content: center; font-family: var(--f); font-size: var(--t-h3); font-weight: var(--w-semi); min-height: 50px; padding: var(--s-2) var(--s-6); border-radius: var(--r-pill); border: 0; letter-spacing: var(--track-default); min-width: var(--tap-min); cursor: pointer;
   background: var(--press-3); color: var(--tint); }
 /* Primary is the flat brand fill, full stop. The OLED glow it wore from
    2026-07-29 to 2026-08-22 is gone (Dave: "get rid of the glow effect") --
@@ -446,7 +455,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 .btn-icon { width: 44px; height: 44px; padding: 0; border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); }
 
 /* INPUTS */
-.input { width: 100%; height: 44px; padding: 0 var(--s-3); background: var(--surface-2); border: 1px solid var(--card-bd); border-radius: var(--r-md); font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); outline: none; }
+.input { width: 100%; min-height: 44px; padding: var(--s-2) var(--s-3); background: var(--surface-2); border: 1px solid var(--card-bd); border-radius: var(--r-md); font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); outline: none; }
 .input::placeholder { color: var(--tx-4); }
 .input:focus, .input.focused { border-color: var(--tint); border-width: 2px; padding: 0 calc(var(--s-3) - 1px); }
 .input.error { border-color: var(--red); border-width: 2px; padding: 0 calc(var(--s-3) - 1px); }
@@ -487,7 +496,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 /* The stepper keeps its track solid and greys only the glyph: a translucent
    button inside a filled pill reads as a rendering fault. */
 .stepper button:disabled { opacity: 1; color: var(--tx-4); }
-.stepper button { width: 44px; height: 34px; background: transparent; border: 0; color: var(--tint); font-size: 20px; font-family: var(--f); }
+.stepper button { width: 44px; height: 34px; background: transparent; border: 0; color: var(--tint); font-size: calc(20px * var(--type-scale)); font-family: var(--f); }
 .stepper .sep { width: 1px; background: var(--divider); }
 .stepper .val { padding: 0 var(--s-3); display: flex; align-items: center; font-size: var(--t-h3); min-width: 32px; justify-content: center; }
 
@@ -549,7 +558,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    the app's primary navigation at half of the 4.5:1 Apple itself asks for
    in the App Store accessibility criteria. systemGray takes them to 6.44:1
    on the dark bar. */
-.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: var(--s-1) 0; color: var(--sys-gray); font-size: 10px; font-weight: var(--w-medium); position: relative; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: var(--s-1) 0; color: var(--sys-gray); font-size: calc(10px * var(--type-scale)); font-weight: var(--w-medium); position: relative; }
 .tab.active { color: var(--accent-chrome); }
 
 /* NAV BAR */
@@ -557,7 +566,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .nav-back, .nav-action { font-size: var(--t-h3); color: var(--tint); background: 0; border: 0; font-family: var(--f); min-width: 44px; min-height: 44px; display: flex; align-items: center; }
 .nav-action { font-weight: var(--w-semi); justify-content: flex-end; }
 .nav-title { font-size: var(--t-h3); font-weight: var(--w-semi); }
-.nav-large { padding: var(--s-4); font-size: 34px; font-weight: var(--w-bold); letter-spacing: -0.03em; }
+.nav-large { padding: var(--s-4); font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.03em; }
 
 /* PILLS (single capsule system; ALL CAPS 11/700 0.04em) */
 .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 var(--s-2); border-radius: var(--r-pill); font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps); text-transform: uppercase; white-space: nowrap; }
@@ -619,7 +628,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    same shape of bug as the military-time one: a shared span whose styling
    only existed under one parent. It is now the class's own rule, so a new
    surface that prints a time gets it for free. */
-.ampm { font-size: 11px; color: var(--tx-3); font-weight: var(--w-regular); margin-left: 3px; letter-spacing: 0.3px; }
+.ampm { font-size: calc(11px * var(--type-scale)); color: var(--tx-3); font-weight: var(--w-regular); margin-left: 3px; letter-spacing: 0.3px; }
 /* min-width:0 is load-bearing, not tidiness (2026-08-21). A flex item will
    not shrink below its content's min-content width without it, so a long
    title or a nested row pushed .sched-body past the card and everything
@@ -692,7 +701,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .modal-title { font-size: var(--t-h3); font-weight: var(--w-semi); margin-bottom: var(--s-2); text-align: center; }
 .modal-body { font-size: var(--t-body); color: var(--tx-3); margin-bottom: var(--s-4); text-align: center; }
 .modal-actions { display: flex; gap: var(--s-2); }
-.modal-actions .btn { flex: 1; height: 44px; }
+.modal-actions .btn { flex: 1; min-height: 44px; }
 .sheet-handle { width: 36px; height: 5px; background: var(--tx-4); border-radius: 999px; margin: var(--s-2) auto var(--s-4); }
 .action-sheet button { display: block; width: 100%; text-align: center; padding: var(--s-3); background: 0; border: 0; font-size: var(--t-h3); color: var(--tint); font-family: var(--f); }
 .action-sheet button + button { border-top: 0.5px solid var(--divider); }

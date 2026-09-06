@@ -534,6 +534,53 @@ describe("LAW: Apple HIG casing", () => {
     expect(missing).toEqual([]);
   });
 
+  // LAW: EVERY FONT SIZE SCALES (UP-PLAT-09, 2026-09-06).
+  //
+  // The whole type ramp was fixed pixels, plus 143 more bare-px font-sizes
+  // scattered through the component sheet, so a parent with Larger Text on,
+  // or anyone who simply wants bigger text, met a 15px app and bounced off
+  // it. Every font-size is now a multiple of --type-scale, which Settings,
+  // Appearance and (once the plugin is installed) the phone's own setting
+  // both drive. A bare px anywhere is a line that will not grow with the
+  // rest, which is worse than not growing at all: it is a screen that comes
+  // apart at 1.3x.
+  it("no font-size in a stylesheet is a bare pixel value", () => {
+    const files = ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css"];
+    const bad: string[] = [];
+    for (const f of files) {
+      const css = read(SRC + "/styles/" + f);
+      for (const [i, line] of css.split("\n").entries()) {
+        for (const m of line.matchAll(/font-size:\s*([^;}]+)/g)) {
+          const value = (m[1] ?? "").trim();
+          // Legal: a token, a calc that multiplies by the scale, inherit,
+          // and 0 (an icon-only control hiding its text node).
+          if (/^var\(--t-/.test(value)) continue;
+          if (/var\(--type-scale\)/.test(value)) continue;
+          if (/^(inherit|0)$/.test(value)) continue;
+          // And a viewport-relative clamp, which already sizes itself to the
+          // screen: the conditioning face's countdown number is drawn INSIDE
+          // a ring sized the same way, so multiplying it by the text scale
+          // would push a number out of its own circle. Four rules, all in
+          // .cond-face, all vw-based.
+          if (/^clamp\([^)]*vw[^)]*\)$/.test(value)) continue;
+          bad.push(`${f}:${i + 1} ${value}`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  // And the seven tier tokens are the scale's own definition, so a change to
+  // --type-scale really does reach every one of them rather than most.
+  it("every tier token multiplies by the text scale", () => {
+    const css = read(SRC + "/styles/jarvis-design-system.css");
+    for (const tier of ["display", "h1", "h2", "h3", "body", "meta", "eyebrow"]) {
+      const m = new RegExp(`--t-${tier}:\\s*calc\\([0-9.]+px \\* var\\(--type-scale\\)\\)`);
+      expect(css, `--t-${tier} scales`).toMatch(m);
+    }
+    expect(css, "and the scale itself has a shipped default of 1").toMatch(/--type-scale:\s*1;/);
+  });
+
   // ONE RED, THREE JOBS (2026-08-21). The first contrast sweep found 236
   // unreadable strings, and 160 of them were one mistake repeated: the brand
   // red used for a job it cannot do.
@@ -3439,7 +3486,9 @@ describe("LAW 15: the gym speaks one grammar", () => {
     expect(css).toMatch(/\.sheet-scrim \.set-chip\s*\{\s*background:\s*var\(--surface-3\)/);
     expect(css).not.toMatch(/\.train-skin/);
     // A set's numbers stay at the grouped-row 16px without the skin.
-    expect(css).toMatch(/\.set-chip \.conn-name\s*\{\s*font-size:\s*16px/);
+    // UP-PLAT-09 (2026-09-06): still 16px, now times the text scale like
+    // every other font-size in the app.
+    expect(css).toMatch(/\.set-chip \.conn-name\s*\{\s*font-size:\s*calc\(16px \* var\(--type-scale\)\)/);
     // No radius, no gap, no elevation escalation inside a sheet: a set row
     // reads exactly like its neighbouring .xs-row grouped-table rows.
     expect(chip).not.toMatch(/border-radius/);

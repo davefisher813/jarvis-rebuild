@@ -61,6 +61,7 @@ import { setOverwhelmed } from "../tasks/overwhelmed";
 import { showToast } from "../shared/toast";
 import { useOneShot } from "./intents";
 import { attemptWrite } from "../shared/guard";
+import { useAppearance } from "../appearance/AppearanceProvider";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -237,6 +238,13 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // anyone) resets it. The rest of the bootstrap still reruns on every
   // identity change, which is harmless: seeding defaults and loading tabs
   // are idempotent.
+  // UP-PLAT-09: held in a ref so the bootstrap effect can apply the stored
+  // text size without taking the appearance context as a dependency, which
+  // would re-run seeding on every theme change.
+  const appearance = useAppearance();
+  const appearanceRef = useRef(appearance);
+  appearanceRef.current = appearance;
+
   const firstBoot = useRef(true);
   useEffect(() => {
     let on = true;
@@ -266,7 +274,14 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         seed.seedDemoMail();
       }
       if (!on) return;
-      const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
+      // UP-PLAT-09 (2026-09-06): the account's text size wins over whatever
+      // this phone happened to have stored, so signing in on a new device is
+      // already at the size he chose. Same shape as the AI level, which is
+      // mirrored out of the profile the same way.
+      if (prof?.textSize && prof.textSize !== appearanceRef.current.appearance.textSize) {
+        appearanceRef.current.setTextSize(prof.textSize);
+      }
+            const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
       setTabKeys(keys);
       if (firstBoot.current) {
         setActive(keys[0] ?? "today");
