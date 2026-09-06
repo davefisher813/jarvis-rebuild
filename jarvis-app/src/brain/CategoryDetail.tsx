@@ -488,6 +488,10 @@ export default function CategoryDetail({
   //   Season Feed  commits a whole season off an extraction, and its receipt
   //                announces the events before anything writes them
   //                (HMN-F-22). It waits for that.
+  // Only the health page asks any of this, and this component renders on
+  // every area, so the calendar walk below is gated rather than run and
+  // thrown away.
+  const healthOn = kind === "health";
   const DEFAULT_EVENT_MIN = 60; // ScheduleFlow's own length when it makes one
   const endOf = (e: EventItem) => e.data.end ?? addMinutes(e.data.start, DEFAULT_EVENT_MIN);
   const msOf = (date: string, hhmm: string) => new Date(date + "T" + hhmm + ":00").getTime();
@@ -497,7 +501,7 @@ export default function CategoryDetail({
   // Through eventsForDate, so a weekly practice anchored months ago counts on
   // the day it actually happens rather than only on its anchor date.
   const dayEvents = (date: string) => eventsForDate(allEvents, date);
-  const healthWeek = Array.from({ length: 7 }, (_, i) => addDays(today, i));
+  const healthWeek = healthOn ? Array.from({ length: 7 }, (_, i) => addDays(today, i)) : [];
   const sportSessions: SportSession[] = healthWeek.flatMap((date) =>
     dayEvents(date)
       .filter((e) => orgName.has(e.data.category))
@@ -509,11 +513,12 @@ export default function CategoryDetail({
       })),
   );
   const tomorrow = addDays(today, 1);
-  const nightBeforeCommitments: FixedCommitment[] = dayEvents(tomorrow)
+  const tomorrowEvents = healthOn ? dayEvents(tomorrow) : [];
+  const nightBeforeCommitments: FixedCommitment[] = tomorrowEvents
     .map((e) => ({ title: e.data.title, at: msOf(tomorrow, e.data.start) }));
-  const eatingWindowBlocks: DayBlock[] = dayEvents(tomorrow)
+  const eatingWindowBlocks: DayBlock[] = tomorrowEvents
     .map((e) => ({ title: e.data.title, start: msOf(tomorrow, e.data.start), end: msOf(tomorrow, endOf(e)) }));
-  const sessionStarts: SessionStartCandidate[] = dayEvents(today)
+  const sessionStarts: SessionStartCandidate[] = (healthOn ? dayEvents(today) : [])
     .filter((e) => orgName.has(e.data.category))
     .map((e) => ({ date: today, at: msOf(today, e.data.start), title: e.data.title }));
   // The Bag binds a checklist to ONE event: the next session on the calendar.
