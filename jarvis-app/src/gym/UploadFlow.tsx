@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AIService } from "../ai/AIService";
 import { buildVisionMessage } from "../ai/AIService";
@@ -17,8 +17,12 @@ const CHEV = (
 // Upload a program (gym session 2). Photo/screenshot or pasted text -> the
 // model extracts -> the user REVIEWS every piece before anything commits.
 // The raw file is never retained: it is read, sent once, and dropped.
-export default function UploadFlow({ ai, onSave, onCancel }: {
+export default function UploadFlow({ ai, initialFile, onSave, onCancel }: {
   ai: AIService;
+  // UP-PLAT-08 (2026-09-06): a file Chat's router already read as a workout.
+  // Same contract as the schedule uploader: extraction starts on mount and
+  // the person still reviews every line before anything is saved.
+  initialFile?: File;
   onSave: (p: ProgramData) => void;
   onCancel: () => void;
 }) {
@@ -58,6 +62,14 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
       showToast({ message: "Couldn't read that image" });
     }
   };
+
+  // Once, on the file this flow was opened with (see initialFile above).
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!initialFile || seeded.current) return;
+    seeded.current = true;
+    void onFile(initialFile);
+  }, [initialFile]);
 
   // ---- review ----
   // Extraction always produces one week (extract.ts): a coach's sheet or

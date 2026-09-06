@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands } from "../data/NotesProvider";
+import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, useOptionalFiles, useFileStore, useOptionalGym } from "../data/NotesProvider";
+import { usePickFile, PICK_ANY } from "../shared/usePickFile";
+import { routeFile, parseRouteAnswer, ROUTE_PROMPT, DESTINATION_LABEL, isPdf, type FileDestination } from "../files/route";
+import { fileStem, sizeLabel } from "../files/types";
+import { buildVisionMessage } from "../ai/AIService";
+import { encodeImageForVision } from "../shared/imageEncode";
+import { getAIControl } from "../ai/levelStore";
+import { effectiveLevel } from "../ai/aiGate";
+import ScheduleUploadFlow from "../schedule/screens/ScheduleUploadFlow";
+import GymUploadFlow from "../gym/UploadFlow";
 import { useAI } from "../ai/useAI";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
@@ -17,6 +26,8 @@ import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import type { ChatMessage } from "./ChatService";
 import type { ChatProvenance } from "./types";
+import type { EventItem } from "../schedule/types";
+import type { SheetCategory } from "../tasks/screens/TaskSheet";
 
 // Chat (addendum item 23): one box that ANSWERS (deterministic Q&A first,
 // grounded AI second, honest refusal offline), ACTS (command parser under
@@ -24,7 +35,20 @@ import type { ChatProvenance } from "./types";
 // matches render a bounded chooser whose tap is both answer and action,
 // zero is a refusal that states nothing changed), and CAPTURES (everything
 // else rides the Smart Paste pipeline: instant save, provenance, receipt).
-// Drafting yes, sending never. File routing is the flagged follow-up.
+// Drafting yes, sending never.
+//
+// UP-PLAT-08 (2026-09-06), A23: and it takes FILES. A photo of a receipt
+// files to Money, a season schedule PDF goes through the schedule
+// distillation, a whiteboard workout to the gym uploader, anything else to a
+// new note. Deterministic first (files/route.ts), one vision call only when
+// the file says nothing about itself and the master AI level allows it, and
+// the receipt bubble names where it went with refile chips and an Undo, which
+// is Smart Paste's anatomy applied to bytes.
+
+// The paperclip. Same 24px stroke grammar as SEND below it.
+const CLIP = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+);
 
 const SEND = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
@@ -50,6 +74,34 @@ export default function ChatFlow() {
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState<PendingChoice | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+
+  const filesSvc = useOptionalFiles();
+  const fileStore = useFileStore();
+  const gymSvc = useOptionalGym();
+
+  // UP-PLAT-08 (2026-09-06): the attached file, from the pick to the receipt.
+  // `pending` is the distillation handoff: the two review flows (schedule,
+  // gym) own the rest of the journey and the file never lands anywhere until
+  // the person has looked at what was read.
+  const [attaching, setAttaching] = useState(false);
+  const [pending, setPending] = useState<{ to: "schedule" | "gym"; file: File } | null>(null);
+  // Loaded only for the schedule distillation, which needs the areas to file
+  // an event under and the day's events to spot a duplicate. Loaded when a
+  // schedule file is actually handed over, so an ordinary chat turn pays
+  // nothing for a feature it is not using.
+  const [sheetCats, setSheetCats] = useState<SheetCategory[]>([]);
+  const [allEvents, setAllEvents] = useState<EventItem[]>([]);
+  useEffect(() => {
+    if (pending?.to !== "schedule") return;
+    let on = true;
+    void (async () => {
+      const [cats, evs] = await Promise.all([catsSvc.list().catch(() => []), schedule.listEvents().catch(() => [])]);
+      if (!on) return;
+      setSheetCats(cats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
+      setAllEvents(evs);
+    })();
+    return () => { on = false; };
+  }, [pending, catsSvc, schedule]);
 
   const reload = useCallback(async () => setMsgs(await chat.list()), [chat]);
   useEffect(() => { void reload(); }, [reload]);
@@ -238,6 +290,142 @@ export default function ChatFlow() {
     }
   };
 
+  // ---- FILES (UP-PLAT-08, 2026-09-06) ----
+
+  // The one vision call, and only when the deterministic router could not
+  // decide. No pin: this rides the MASTER level, so a person at On Request
+  // who just tapped the clip is asking, and a person at Off never spends a
+  // cent here. An unreadable answer is a note, which loses nothing.
+  const askWhere = async (file: File, said: string): Promise<FileDestination> => {
+    if (!ai.available || effectiveLevel(getAIControl()) === "off") return "note";
+    if (isPdf(file.type, file.name)) return "note"; // the proxy takes images, not PDFs
+    try {
+      const img = await encodeImageForVision(file);
+      const raw = await ai.complete(
+        [buildVisionMessage(ROUTE_PROMPT + (said ? `\nThe person said: ${said}` : ""), img.data, img.mediaType)],
+        undefined,
+        { kind: "file_route", background: false },
+      );
+      return parseRouteAnswer(raw) ?? "note";
+    } catch {
+      return "note";
+    }
+  };
+
+  // Money and Notes are writes this screen can make itself. Schedule and Gym
+  // are review flows that already exist, so the file is handed to them and
+  // nothing is written until the person has approved what was read.
+  const fileToMoney = async (file: File, why: string) => {
+    if (!filesSvc || !fileStore) { await say("jarvis", "Files need a signed-in account", { kind: "records" }); return; }
+    const rowId = await filesSvc.create({
+      name: file.name, path: "", mime: file.type, bytes: file.size, scope: "money", addedAt: todayISO(),
+    });
+    try {
+      const stored = await fileStore.upload(rowId, file);
+      await filesSvc.update(rowId, { path: stored.path, name: stored.name, mime: stored.mime, bytes: stored.bytes });
+    } catch (e) {
+      await filesSvc.remove(rowId).catch(() => undefined);
+      throw e;
+    }
+    await say("jarvis", `Filed to Money as a receipt · ${why}`, {
+      kind: "action",
+      refs: [{ kind: "file", id: rowId, label: file.name }],
+    });
+    showToast({
+      message: "Filed to Money",
+      actionLabel: "Undo",
+      onAction: async () => {
+        const row = await filesSvc.get(rowId);
+        await attemptWrite(() => filesSvc.remove(rowId));
+        if (row?.data.path) void fileStore.remove([row.data.path]);
+        showToast({ message: "Receipt removed" });
+      },
+    });
+  };
+
+  const fileToNote = async (file: File, why: string) => {
+    if (!fileStore) { await say("jarvis", "Files need a signed-in account", { kind: "records" }); return; }
+    // Born unfiled, same rule every other note creation follows.
+    const noteId = await notes.createNote(fileStem(file.name), "");
+    if (!noteId) throw new Error("Couldn't make a note for that file.");
+    try {
+      const stored = await fileStore.upload(noteId, file);
+      await notes.addBlock(noteId, {
+        type: stored.mime.startsWith("image/") ? "photo" : "file",
+        name: stored.name, size: sizeLabel(stored.bytes), path: stored.path, mime: stored.mime,
+      });
+    } catch (e) {
+      await notes.deleteNote(noteId).catch(() => undefined);
+      throw e;
+    }
+    await say("jarvis", `Attached to a new note · ${why}`, {
+      kind: "action",
+      refs: [{ kind: "note", id: noteId, label: fileStem(file.name) }],
+    });
+    showToast({
+      message: "Saved to Notes",
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(() => notes.deleteNote(noteId));
+        void fileStore.removeAll(noteId);
+        showToast({ message: "Note removed" });
+      },
+    });
+  };
+
+  const deliver = async (file: File, to: FileDestination, why: string) => {
+    setLastTo(to);
+    if (to === "schedule" || to === "gym") {
+      setPending({ to, file });
+      await say("jarvis", `Reading it as a ${to === "schedule" ? "schedule" : "workout"} · ${why}`, { kind: "records" });
+      return;
+    }
+    if (to === "money") { await fileToMoney(file, why); return; }
+    await fileToNote(file, why);
+  };
+
+  // The whole journey for one picked file. The draft text rides along as a
+  // signal, because "here is the receipt from lunch" is the strongest thing
+  // the router can read, and it is NOT consumed: it stays in the box, so a
+  // person who meant to send it as a message still can.
+  const onPickedFile = async (file: File) => {
+    if (attaching) return;
+    setAttaching(true);
+    const said = draft.trim();
+    try {
+      await say("user", said ? `${said} · ${file.name}` : file.name);
+      const decided = routeFile({ name: file.name, mime: file.type, text: said });
+      const to = decided?.to ?? await askWhere(file, said);
+      await deliver(file, to, decided?.why ?? "Read from the file itself");
+    } catch (e) {
+      // Never a silent failure: the bytes did not land and the thread says so.
+      await say("jarvis", e instanceof Error && e.message ? e.message : "Couldn't save that file", { kind: "records" });
+    } finally {
+      setAttaching(false);
+    }
+  };
+
+  // Refile: the same file, somewhere else, without picking it again. Only
+  // offered on the last receipt, because that is the one the person is
+  // looking at, and only while the file is still in hand.
+  const [lastFile, setLastFile] = useState<File | null>(null);
+  // Where it went last, so the refile chips never offer the place it is
+  // already in.
+  const [lastTo, setLastTo] = useState<FileDestination | null>(null);
+  const refile = async (to: FileDestination) => {
+    if (!lastFile || attaching) return;
+    setAttaching(true);
+    try {
+      await deliver(lastFile, to, "You moved it here");
+    } catch (e) {
+      await say("jarvis", e instanceof Error && e.message ? e.message : "Couldn't save that file", { kind: "records" });
+    } finally {
+      setAttaching(false);
+    }
+  };
+
+  const picker = usePickFile((f) => { setLastFile(f); void onPickedFile(f); });
+
   const provLine = (m: ChatMessage): string | null => {
     const p = m.data.provenance;
     if (!p) return null;
@@ -285,6 +473,21 @@ export default function ChatFlow() {
             {m.data.role === "jarvis" && provLine(m) && <div className="chat-prov">{provLine(m)}</div>}
           </div>
         ))}
+        {/* UP-PLAT-08: refile chips, Smart Paste's anatomy applied to bytes.
+            Only on the file still in hand, and only the three places it did
+            NOT go: a chip that files it where it already is does nothing and
+            says it did something. */}
+        {lastFile && !attaching && !pending && (
+          <div className="chip-row">
+            {(["money", "schedule", "gym", "note"] as FileDestination[])
+              .filter((d) => d !== lastTo)
+              .map((d) => (
+                <div className="chip" role="button" tabIndex={0} key={d} onClick={() => void refile(d)}>
+                  Move to {DESTINATION_LABEL[d]}
+                </div>
+              ))}
+          </div>
+        )}
         {choice && (
           <div className="chip-row chip-picker-open">
             {choice.options.map((o) => (
@@ -296,6 +499,16 @@ export default function ChatFlow() {
         <div ref={endRef} />
       </div>
       <div className="chat-inputbar">
+        {/* UP-PLAT-08 (2026-09-06): the attach button. One picker, the
+            phone's own sheet (camera, library, Files), same seam Money and
+            Notes already use. */}
+        {picker.input}
+        <button
+          className="convo-send"
+          aria-label="Attach a File"
+          onClick={() => picker.open(PICK_ANY)}
+          disabled={attaching || busy}
+        >{CLIP}</button>
         <input
           className="input"
           placeholder="Ask · tell · paste"
@@ -309,6 +522,42 @@ export default function ChatFlow() {
             DOM did not move in 1.1 seconds, which is a control that lies. */}
         <button className="convo-send" aria-label="Send" onClick={() => void send()} disabled={busy || draft.trim() === ""}>{SEND}</button>
       </div>
+      {/* UP-PLAT-08: the two distillation flows the app already has, handed
+          the file the person attached. Nothing is written until they have
+          seen what was read and approved it, which is these screens' whole
+          reason for existing; Chat only decided which one to open. */}
+      {pending?.to === "schedule" && (
+        <ScheduleUploadFlow
+          ai={ai}
+          svc={schedule}
+          categories={sheetCats}
+          existingEvents={allEvents}
+          initialFile={pending.file}
+          onDone={async ({ createdCount, updatedCount, undo }) => {
+            setPending(null);
+            const parts: string[] = [];
+            if (createdCount) parts.push(`${createdCount} added`);
+            if (updatedCount) parts.push(`${updatedCount} updated`);
+            await say("jarvis", parts.length ? `Schedule read · ${parts.join(", ")}` : "Nothing to add from that", { kind: "action" });
+            if (parts.length) showToast({ message: parts.join(", "), actionLabel: "Undo", onAction: async () => { await undo(); } });
+          }}
+          onCancel={() => { setPending(null); void say("jarvis", "Left it alone", { kind: "records" }); }}
+        />
+      )}
+      {pending?.to === "gym" && (
+        <GymUploadFlow
+          ai={ai}
+          initialFile={pending.file}
+          onSave={async (program) => {
+            setPending(null);
+            if (!gymSvc) { await say("jarvis", "The gym needs a signed-in account", { kind: "records" }); return; }
+            // The receipt fires only after the write resolved, never before.
+            if (!(await attemptWrite(() => gymSvc.createProgram(program)))) return;
+            await say("jarvis", `Saved ${program.name} to the gym`, { kind: "action" });
+          }}
+          onCancel={() => { setPending(null); void say("jarvis", "Left it alone", { kind: "records" }); }}
+        />
+      )}
     </div>
   );
 }

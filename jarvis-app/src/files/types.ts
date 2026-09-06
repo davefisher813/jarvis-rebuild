@@ -7,6 +7,13 @@
 // deleting the note is what deletes them.
 export const ENTITY_FILE = "user_file";
 
+// UP-PLAT-08 (2026-09-06) considered widening this to "chat" and "note" and
+// did not, because neither would have a writer: a file attached in Chat is
+// always DELIVERED somewhere (a Money receipt, a note's own block, the
+// schedule or gym distillation), so nothing is ever owned by a message, and
+// a note's files ride inside the note exactly as they have since 2026-09-02.
+// A union member with no writer is scaffolding, and this codebase deletes
+// scaffolding rather than shipping it.
 export type FileScope = "money";
 
 export interface FileData {

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AIService } from "../../ai/AIService";
 import { buildVisionMessage } from "../../ai/AIService";
@@ -41,12 +41,16 @@ function toRows(extracted: ExtractedEvent[], fallbackYear: number, existing: Eve
 // The raw photo is never retained: it is downscaled, sent once, and dropped
 // once the calendar has the review data.
 export default function ScheduleUploadFlow({
-  ai, svc, categories, existingEvents, onDone, onCancel,
+  ai, svc, categories, existingEvents, initialFile, onDone, onCancel,
 }: {
   ai: AIService;
   svc: ScheduleService;
   categories: SheetCategory[];
   existingEvents: EventItem[];
+  // UP-PLAT-08 (2026-09-06): a file the person already picked somewhere else
+  // (Chat's attach button, whose router decided this is a schedule). Reading
+  // it starts on mount, so they are not asked to find the same file twice.
+  initialFile?: File;
   onDone: (r: { createdCount: number; updatedCount: number; undo: () => Promise<void> }) => void;
   onCancel: () => void;
 }) {
@@ -101,6 +105,15 @@ export default function ScheduleUploadFlow({
       showToast({ message: "Couldn't read that image." });
     }
   };
+
+  // Once, on the file this flow was opened with. A ref rather than a dep so
+  // a re-render cannot make the app read (and pay for) the same photo twice.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!initialFile || seeded.current) return;
+    seeded.current = true;
+    void onFile(initialFile);
+  }, [initialFile]);
 
   const confirmYear = () => {
     if (!extracted) return;
