@@ -3,6 +3,7 @@ import { noDashes } from "../ai/suggestions";
 import { capAfterNumber } from "../shared/casing";
 import type { ActProposal } from "./mailAct";
 import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
+import { evidenceIn, type Evidence } from "./evidence";
 
 // Triage (email 1): one AI pass sorts the inbox into what needs Dave, what is
 // worth knowing, and noise, with a one-line gist per thread so junk never has
@@ -28,6 +29,11 @@ export interface Triage {
   // The dated commitment the email states, UNRESOLVED. See mailAct.ts for why
   // it is validated at render time rather than here.
   act?: ActProposal;
+  // UP-MIND-12 (2026-09-05): the sentence each claim came from. Verbatim or
+  // absent, never a paraphrase: see evidence.ts. A claim with no evidence
+  // still renders, hedged and without a chip.
+  byEv?: Evidence;
+  actEv?: Evidence;
 }
 export type TriageMap = Record<string, Triage & { lastMsgId: string }>;
 
@@ -41,7 +47,11 @@ export type TriageMap = Record<string, Triage & { lastMsgId: string }>;
 // the delta only re-triages a thread when a NEW message arrives: every email
 // already in the inbox would keep its old long gist and its missing action
 // forever. One re-sort buys both.
-const CACHE_KEY = "jarvis.mail.triage.v3";
+// v4 (2026-09-05, UP-MIND-12): the cached shape gained the evidence
+// triples. Same reason as v2 and v3: the delta only re-triages a thread
+// when a NEW message arrives, so every email already in the inbox would
+// keep an entry with no span and never get a chip. One re-sort buys them.
+const CACHE_KEY = "jarvis.mail.triage.v4";
 const CACHE_CAP = 300;
 // A FRAGMENT, NOT A PARAGRAPH (Dave 2026-08-25: "The subtext on email
 // previews feels a little lengthy. It should be right to the point").
@@ -65,6 +75,8 @@ Bad: "Resolve Psychiatric Services reminds Dave of video appointment" / "They ar
 
 Also write "by": the answer-by the SENDER actually stated, copied in their words and under 20 characters ("today", "Friday", "Aug 14", "end of month"). If the sender did not name a time, use "". NEVER invent a deadline and never guess one from tone.
 
+Also write "bySpan": the WHOLE sentence the deadline came from, copied character for character out of the text you were given. If you cannot copy it exactly, use "". A sentence you rewrote is worse than none.
+
 Also write "act" WHEN AND ONLY WHEN the email states a dated commitment this person now has. This becomes a one-tap button, so every field must be COPIED from the email, never inferred:
 - "kind": one of appointment, meeting, call, flight, reservation, class, bill, invoice, payment, renewal, subscription, delivery, package, order. Anything else: leave "act" out entirely.
 - "title": what it is, 6 words max, no sender name.
@@ -72,6 +84,7 @@ Also write "act" WHEN AND ONLY WHEN the email states a dated commitment this per
 - "start": 24-hour "HH:MM", ONLY when the email states a start time. Omit it rather than guess. An appointment with no stated time is still worth an "act" without a start.
 - "durationMin": only if stated.
 - "amount": a plain number, only for bills, only when the email states the total.
+- "span": the sentence in the email that states this commitment, copied character for character. Use "" if you cannot copy it exactly.
 Leave "act" out for anything speculative, for marketing with a deadline, and for anything already in the past.
 
 Reply with ONLY a JSON array, one object per thread: [{"id":"...","bucket":"needs_you|worth_knowing|noise","gist":"...","by":"...","act":{...}}]
@@ -97,6 +110,7 @@ export const TRIAGE_SCHEMA: Record<string, unknown> = {
           bucket: { type: "string", enum: ["needs_you", "worth_knowing", "noise"] },
           gist: { type: "string", description: "a fragment, at most 6 words, no sender name, no 'you'" },
           by: { type: "string", description: "sender's stated deadline in their words, or empty" },
+          bySpan: { type: "string", description: "the sender's whole sentence stating that deadline, copied exactly from the text, or empty" },
           act: {
             type: "object",
             description: "a dated commitment stated in the email, every field copied not inferred; omit entirely when there is none",
@@ -107,6 +121,7 @@ export const TRIAGE_SCHEMA: Record<string, unknown> = {
               start: { type: "string", description: "HH:MM 24-hour, only when the email states a time" },
               durationMin: { type: "number", description: "only if stated" },
               amount: { type: "number", description: "bills only, the stated total" },
+              span: { type: "string", description: "the sentence in the email that states this commitment, copied exactly, or empty" },
             },
             required: ["kind", "title", "date"],
           },
@@ -147,7 +162,7 @@ export function parseTriage(raw: string, rows: ThreadRow[]): TriageMap | null {
   const out: TriageMap = {};
   for (const item of parsed) {
     if (typeof item !== "object" || item === null) continue;
-    const { id, bucket, gist, by, act } = item as { id?: unknown; bucket?: unknown; gist?: unknown; by?: unknown; act?: unknown };
+    const { id, bucket, gist, by, act, bySpan } = item as { id?: unknown; bucket?: unknown; gist?: unknown; by?: unknown; act?: unknown; bySpan?: unknown };
     if (typeof id !== "string") continue;
     const row = byId.get(id);
     if (!row) continue;
@@ -160,7 +175,20 @@ export function parseTriage(raw: string, rows: ThreadRow[]): TriageMap | null {
     // fortnight later. Resolving at render means a stale action expires by
     // itself rather than lying quietly.
     const a = act && typeof act === "object" && !Array.isArray(act) ? (act as ActProposal) : undefined;
-    out[id] = { bucket: b, gist: g, lastMsgId: row.lastMsgId, ...(d ? { by: d } : {}), ...(a ? { act: a } : {}) };
+    // UP-MIND-12 (2026-09-05): the model was shown a 200-character snippet
+    // and nothing more, so a span is only kept when it is verbatim inside
+    // THAT snippet. Most spans will be absent here and get anchored later
+    // against the full body (evidence.ts anchorClaims); a claim with no
+    // evidence renders hedged, which is the point of the two states.
+    const msgs = [{ id: row.lastMsgId, body: row.snippet }];
+    const byEv = typeof bySpan === "string" ? evidenceIn(bySpan, msgs) : null;
+    const actSpan = a && typeof (a as { span?: unknown }).span === "string" ? (a as { span?: string }).span! : "";
+    const actEv = actSpan ? evidenceIn(actSpan, msgs) : null;
+    out[id] = {
+      bucket: b, gist: g, lastMsgId: row.lastMsgId,
+      ...(d ? { by: d } : {}), ...(a ? { act: a } : {}),
+      ...(byEv ? { byEv } : {}), ...(actEv ? { actEv } : {}),
+    };
   }
   return Object.keys(out).length ? out : null;
 }
@@ -237,6 +265,16 @@ export function triageDelta(rows: ThreadRow[], cache: TriageMap): ThreadRow[] {
   return rows.filter((r) => !cache[r.id] || cache[r.id]!.lastMsgId !== r.lastMsgId);
 }
 
+// Stored evidence is read back with the same suspicion as everything else in
+// this cache: a triple missing a field is dropped, not repaired.
+function readEv(v: unknown): Evidence | null {
+  if (typeof v !== "object" || v === null) return null;
+  const { sourceMsgId, span, confidence } = v as { sourceMsgId?: unknown; span?: unknown; confidence?: unknown };
+  if (typeof sourceMsgId !== "string" || !sourceMsgId) return null;
+  if (typeof span !== "string" || !span.trim()) return null;
+  return { sourceMsgId, span, confidence: confidence === "low" ? "low" : "high" };
+}
+
 export function loadTriageCache(storage: Pick<Storage, "getItem"> = localStorage): TriageMap {
   try {
     const raw = storage.getItem(CACHE_KEY);
@@ -246,13 +284,17 @@ export function loadTriageCache(storage: Pick<Storage, "getItem"> = localStorage
     const out: TriageMap = {};
     for (const [id, v] of Object.entries(parsed as Record<string, unknown>)) {
       if (typeof v !== "object" || v === null) continue;
-      const { bucket, gist, lastMsgId, by, act } = v as { bucket?: unknown; gist?: unknown; lastMsgId?: unknown; by?: unknown; act?: unknown };
+      const { bucket, gist, lastMsgId, by, act, byEv, actEv } = v as { bucket?: unknown; gist?: unknown; lastMsgId?: unknown; by?: unknown; act?: unknown; byEv?: unknown; actEv?: unknown };
       if ((bucket === "needs_you" || bucket === "worth_knowing" || bucket === "noise")
         && typeof gist === "string" && typeof lastMsgId === "string") {
         // Carried through unread. Dropping it here would mean the button
         // appears once, on the pass that triaged the thread, and never again.
         const a = act && typeof act === "object" && !Array.isArray(act) ? (act as ActProposal) : undefined;
-        out[id] = { bucket, gist, lastMsgId, ...(typeof by === "string" && by ? { by } : {}), ...(a ? { act: a } : {}) };
+        out[id] = {
+          bucket, gist, lastMsgId,
+          ...(typeof by === "string" && by ? { by } : {}), ...(a ? { act: a } : {}),
+          ...(readEv(byEv) ? { byEv: readEv(byEv)! } : {}), ...(readEv(actEv) ? { actEv: readEv(actEv)! } : {}),
+        };
       }
     }
     return out;

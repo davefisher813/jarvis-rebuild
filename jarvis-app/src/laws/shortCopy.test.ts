@@ -60,6 +60,11 @@ const EXEMPT_FILES = new Set([
   "messages/handoff.ts",
   "messages/commitments.ts",
   "messages/bodyText.ts",
+  // UP-MIND-06 and UP-MIND-12 (2026-09-05): the shared untrusted-content
+  // clause and the evidence extractor's system prompt. Same class as every
+  // other entry here: sentences written FOR a model, never rendered.
+  "messages/untrusted.ts",
+  "messages/evidence.ts",
   "people/messageDraft.ts",
   "people/lastContact.ts",
   "tasks/firstStep.ts",

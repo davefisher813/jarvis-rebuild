@@ -4,6 +4,7 @@ import { decide, draftableOf } from "./mailAction";
 import { dayPhrase } from "../money/bills";
 import { fmtTime } from "../schedule/calendar";
 import { readAct, actLabel, type ActProposal, type MailAct } from "./mailAct";
+import type { Evidence } from "./evidence";
 
 // THE HOME-PAGE EMAIL SURFACE (Dave 2026-08-20: "give me ideas to make the
 // email homepage feature actually useful or we can scratch it because right
@@ -51,6 +52,11 @@ export interface MailThread {
   // Resolved against today's date inside mailNotices, so an appointment that
   // has been sitting in the snapshot since yesterday expires by itself.
   act?: ActProposal;
+  // UP-MIND-12 (2026-09-05): the sentence each claim came from, verbatim or
+  // absent. Travels with the snapshot so Today can show the words without a
+  // network round trip; see evidence.ts.
+  byEv?: Evidence;
+  actEv?: Evidence;
 }
 export interface MailWaiting { threadId: string; to: string; subject: string; days: number }
 export interface MailPromise { threadId: string; text: string; due?: string }
@@ -92,6 +98,11 @@ export interface MailNotice {
   // writes an event, a bill, or a reminder and clears. Already validated by
   // readAct, so a handler can use these fields without re-checking them.
   act?: MailAct;
+  // UP-MIND-12 (2026-09-05): the sentence this notice's claim came from.
+  // Present on a deadline and on an act, absent everywhere else and absent
+  // whenever the model could not quote the email exactly. A notice with no
+  // evidence renders exactly as it did before, hedged by UP-MIND-18.
+  evidence?: Evidence;
   // Present only on kind "draft". "Finish It" used to fall through every
   // branch to "open the thread", and a draft composed from scratch HAS no
   // thread, so a draft id reached the thread opener and it returned silently
@@ -178,6 +189,7 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date): MailNotice 
     sub: capAfterNumber(`From ${t.from} · Due ${byLabel(t.by, now).toLowerCase()}`),
     action: "Add Task",
     tone: "cat-fg-red",
+    ...(t.byEv ? { evidence: t.byEv } : {}),
     // A subject of "(no subject)" is a list placeholder; titleCase turned it
     // into the literal task name "(No Subject)" (2026-08-25).
     task: { text: taskTitleFrom(t.subject, t.from), due },
@@ -293,6 +305,7 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
     action: actLabel(a),
     tone: a.verb === "bill" ? "cat-fg-green" : "cat-fg-sky",
     act: a,
+    ...(t.actEv ? { evidence: t.actEv } : {}),
   };
 }
 

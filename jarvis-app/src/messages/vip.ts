@@ -70,11 +70,15 @@ export function isVip(email: string | undefined, vips: string[]): boolean {
 
 // VIP mail is needs_you, always. Applied AFTER triage and after sender rules,
 // because it is the rule that is allowed to overrule both.
-export function applyVips<T extends { id: string; fromEmail: string }>(
-  map: Record<string, { bucket: Bucket; gist: string; by?: string; lastMsgId: string }>,
+// UP-MIND-12 (2026-09-05): generic over the ENTRY as well as the row. This
+// used to name the entry shape inline, which silently narrowed every triage
+// entry that passed through it: the evidence triples were dropped from the
+// type on the way to the list, and the chip could never see them.
+export function applyVips<T extends { id: string; fromEmail: string }, E extends { bucket: Bucket; gist: string; by?: string; lastMsgId: string }>(
+  map: Record<string, E>,
   rows: T[],
   vips: string[],
-): typeof map {
+): Record<string, E> {
   if (vips.length === 0) return map;
   const out = { ...map };
   for (const r of rows) {

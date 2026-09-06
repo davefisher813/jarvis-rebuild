@@ -1780,6 +1780,18 @@ button {
    constraint; "no rush" goes grey so it reads as permission, not pressure. */
 .msg-due { font-size: var(--t-meta); color: var(--warn, #ffd60a); flex-shrink: 0; }
 .msg-due.soft { color: var(--tx-3); }
+
+/* UP-MIND-12: a claim that can show the sentence it came from. The chip is
+   the claim, not a second control beside it, so the only visible difference
+   is the quote mark and the fact that it takes a tap. */
+.ev-chip { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 2px; }
+.ev-mark { opacity: 0.55; font-size: 1.05em; line-height: 1; }
+/* The sender's own sentence, unaltered. Quoted so it reads as theirs. */
+.ev-span { font-size: var(--t-body); color: var(--tx-1); line-height: 1.45; padding: var(--s-2) 0; }
+.ev-span::before { content: "\201C"; }
+.ev-span::after { content: "\201D"; }
+/* The message the span came from, when the thread opens onto it. */
+.msg-turn.ev-target { border-radius: var(--r-2, 10px); box-shadow: 0 0 0 2px var(--warn, #ffd60a) inset; }
 /* "Read the whole thing": the way out of a folded body. */
 .msg-more { margin-top: var(--s-2); }
 .msg-more-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }

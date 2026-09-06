@@ -8,6 +8,7 @@ import {
   type MailKind, type MailNotice,
 } from "../messages/home";
 import type { MailAct } from "../messages/mailAct";
+import EvidenceChip from "../messages/EvidenceChip";
 import { loadSnoozes, snoozeNotice, sleepingNow, snoozeChoices } from "../messages/snoozeNotice";
 import { quickAnswers } from "../messages/quickAnswers";
 import { removeTodaySend } from "../messages/todayOutbox";
@@ -363,6 +364,20 @@ export default function MailNotices({
             onOpen={onOpenThread ? () => onOpenThread(n.threadId) : undefined}
             foot={
               <>
+                {/* UP-MIND-12 (2026-09-05): the card can show the sentence
+                    the claim came from. Only when there IS one: a claim the
+                    model could not quote exactly renders as it always did,
+                    with no chip and nothing to tap. */}
+                {n.evidence && !draft && (
+                  <div className="row mail-chips">
+                    <EvidenceChip
+                      className="chip"
+                      label="Why"
+                      evidence={n.evidence}
+                      onOpenSource={onOpenThread ? () => onOpenThread(n.threadId) : undefined}
+                    />
+                  </div>
+                )}
                 {chips.length > 0 && !draft && (
                   <div className="row mail-chips">
                     {chips.map((c) => (

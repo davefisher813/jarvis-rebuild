@@ -6,6 +6,8 @@ import {
   TRIAGE_SCHEMA, fillSkipped, splitByBucket, sortByDeadline, type TriageMap,
 } from "./triage";
 import { loadRules, applyRules } from "./rules";
+import { anchorNeedsYou } from "./evidencePass";
+import { mapThreadFull } from "../connections/google/map";
 import { findWaiting } from "./waiting";
 import { loadLetGo } from "./letGo";
 import { loadSweep, liveSweep } from "./sentSweep";
@@ -120,7 +122,26 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
   }
 
   const rules = loadRules();
-  const map = selfBlankGuard(applyRules(merged, rows, rules), rows, list.map((a) => a.email));
+  let map = selfBlankGuard(applyRules(merged, rows, rules), rows, list.map((a) => a.email));
+  // UP-MIND-12 (2026-09-05): the claims triage made from a 200-character
+  // snippet get anchored to the sentence they came from, over the full body,
+  // for the threads that need him. Capped and best-effort: a claim that
+  // cannot be anchored keeps its place and renders without a chip.
+  if (ai.available) {
+    const apiByAccount = new Map(list.map((a) => [a.email, a.api]));
+    const before = map;
+    map = await anchorNeedsYou(
+      rows,
+      map,
+      async (id, account) => {
+        const api = (account ? apiByAccount.get(account) : undefined) ?? list[0]!.api;
+        const full = mapThreadFull(await api.getThread(id));
+        return { id: full.id, messages: full.messages.map((m) => ({ id: m.id, body: m.body })) };
+      },
+      (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
+    ).catch(() => before);
+    if (map !== before) saveTriageCache(map);
+  }
   const { needsYou } = splitByBucket(rows, map);
   const ordered = sortByDeadline(needsYou, map);
 
@@ -148,6 +169,8 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
       gist: map[r.id]?.gist ?? r.snippet ?? "",
       by: map[r.id]?.by,
       act: map[r.id]?.act,
+      ...(map[r.id]?.byEv ? { byEv: map[r.id]!.byEv! } : {}),
+      ...(map[r.id]?.actEv ? { actEv: map[r.id]!.actEv! } : {}),
       account: (r as ThreadRow & { account?: string }).account,
       snippet: r.snippet ?? "",
       lastMsgId: r.lastMsgId,

@@ -41,6 +41,8 @@ import { PRESETS, loadMinutes, saveMinutes, clampMinutes } from "./drain";
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, forwardDraft, type HandoffTarget } from "./handoff";
 import { alreadyPromised, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
+import EvidenceChip from "./EvidenceChip";
+import { anchorNeedsYou, needsAnchor, ANCHOR_CAP } from "./evidencePass";
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { recordSweepDay, loadSweepDays, sweepWeek, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
 import ListFloor from "../shared/ListFloor";
@@ -484,6 +486,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [atEnd, setAtEnd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [thread, setThread] = useState<ThreadFull | null>(null);
+  // UP-MIND-12: the message an evidence chip sent us to, for one open.
+  const [focusMsg, setFocusMsg] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [replies, setReplies] = useState<string[]>(DEFAULT_ANSWERS);
   const [draft, setDraft] = useState<Draft>({ to: "", subject: "", body: "" });
@@ -1315,6 +1319,56 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const accountOfSender = (email: string) =>
     rows.find((r) => (r.fromEmail || "").toLowerCase() === email.toLowerCase())?.account;
 
+  // UP-MIND-12 (2026-09-05): THE ANCHOR PASS. Triage was shown a 200-char
+  // snippet, so most of its deadlines and dated commitments have no sentence
+  // behind them. This fetches the full body for the threads that need him,
+  // finds the sentence (free when the sender's own phrase is in it, one
+  // model call when it is not), and writes the triple back into the same
+  // cache the tab and the headless refresh both read.
+  //
+  // Its own effect rather than a step inside runTriage: runTriage's deps are
+  // [ai] and apiFor is declared below it, so pulling apiFor into that
+  // callback would evaluate it during render, before its own const runs.
+  // Keyed on the ids still needing an anchor, so it moves on as they are
+  // filled and stops dead when a pass finds nothing.
+  const anchorKey = useRef("");
+  useEffect(() => {
+    if (!ai.available || !triaged) return;
+    const pending = rows.filter((r) => needsAnchor(triage, r.id)).slice(0, ANCHOR_CAP).map((r) => r.id);
+    if (pending.length === 0) return;
+    const key = pending.join(",");
+    if (anchorKey.current === key) return;
+    anchorKey.current = key;
+    let live = true;
+    void (async () => {
+      const next = await anchorNeedsYou(
+        rows,
+        triage,
+        async (id, account) => {
+          const api = apiFor(account);
+          if (!api) return null;
+          const full = mapThreadFull(await api.getThread(id));
+          return { id: full.id, messages: full.messages.map((m) => ({ id: m.id, body: m.body })) };
+        },
+        (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
+      ).catch(() => triage);
+      if (!live || next === triage) return;
+      saveTriageCache(next);
+      setTriage(next);
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ai.available, triaged, rows, triage]);
+
+  // UP-MIND-12: land on the sentence, not on the thread. Runs once per open
+  // that carried a focus message; a message that is not in the thread we
+  // fetched simply leaves the view where it was.
+  useEffect(() => {
+    if (!thread || !focusMsg) return;
+    const el = document.getElementById("msgturn-" + focusMsg);
+    el?.scrollIntoView({ block: "center" });
+  }, [thread, focusMsg]);
+
   // Fans out across EVERY mail account (2026-08-09): it used to quietly
   // cover only the first, so a hit in the second account came back as "No
   // matches" with no hint anything was skipped. Same shape as loadThreads.
@@ -1586,9 +1640,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     say("Discarded", { label: "Undo", run: () => enqueueOutbox(item) });
   };
 
-  const openThread = async (id: string) => {
+  // UP-MIND-12 (2026-09-05): `focusMsgId` is the message an evidence chip
+  // pointed at. The thread opens scrolled to it and marks it, so "show me
+  // where that came from" lands on the sentence rather than on the thread.
+  const openThread = async (id: string, focusMsgId?: string) => {
     const api = apiFor(accountOfThread(id));
     if (!api) return;
+    setFocusMsg(focusMsgId ?? null);
     // A new thread gets a fresh attachment offer; the last one's dismissal
     // must not silence this one.
     setAttachDone(false);
@@ -2741,7 +2799,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             const mode = bodyMode[m.id] ?? (asSent ? "sent" : "text");
             const setMode = (v: "sent" | "text" | "full") => setBodyMode((o) => ({ ...o, [m.id]: v }));
             return (
-            <div className="msg-turn" key={m.id}>
+            <div className={"msg-turn" + (focusMsg === m.id ? " ev-target" : "")} id={"msgturn-" + m.id} key={m.id}>
               <div className="msg-turn-head">
                 <span className="msg-turn-from">{m.from}</span>
                 <span className="conn-meta">{m.date}</span>
@@ -3118,8 +3176,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               model's raw phrase, sliced at 20 characters and mid-word, while
               the Today card ran the identical field through byLabel and read
               "Today" / "Tomorrow". Same email, two descriptions. */}
+          {/* UP-MIND-12 (2026-09-05): the deadline IS the chip, and when the
+              sentence behind it was found verbatim the chip takes a tap and
+              shows those words. With no evidence it renders exactly as it
+              always did: a plain amber phrase, no dead control. */}
           {effTriage[r.id]?.by
-            ? <span className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}>{byLabel(effTriage[r.id]!.by)}</span>
+            ? <EvidenceChip
+                className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}
+                label={byLabel(effTriage[r.id]!.by)}
+                evidence={effTriage[r.id]!.byEv}
+                onOpenSource={(msgId) => void openThread(r.id, msgId)}
+              />
             : <span className="msg-when">{fmtWhen(r.dateMs)}</span>}
         </div>
         {/* NEEDS YOU IS ALREADY A VERDICT. Gmail's raw unread flag used to be
