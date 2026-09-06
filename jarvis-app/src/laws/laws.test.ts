@@ -1615,14 +1615,9 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "healthDedupe.ts": "iOS only: needs the HealthKit bridge",
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
     // every upload through it, from the clip on Notes and Money.)
-    // Real, tested code with nowhere to plug in yet: HealthFlow composes
-    // the Share Line and the five loggers
-    // over a real HealthService, but wiring it into AppShell/destinations.tsx
-    // is its own task (student-athlete health track, Track 3) and out of
-    // scope for the session that built the module itself. Every screen and
-    // service it composes IS reachable, through this file; this is the one
-    // file with nothing above it yet.
-    "HealthFlow.tsx": "Health module: not wired into AppShell yet, Track 3 follow-up",
+    // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the
+    // Brain's health area page mounts it behind the More row, on the Student
+    // template. The law that pins that shape is further down this file.)
   };
 
   it("nothing is written, tested, and silently unreachable", () => {
@@ -3921,29 +3916,49 @@ describe("LAW: the window never carries a type nothing reads, and durations trav
   });
 });
 
-// S5-Q29 (2026-09-04): "the Health module has no route into the app." The
-// full 21-screen module stays dormant (HealthFlow.tsx keeps its UNWIRED
-// exemption below, unchanged), but four of its five one-tap loggers
-// (everything except Ate Before, which needs a source of calendar
-// candidates nothing supplies yet) are now real, reachable features on the
-// Brain's health area page. Checked structurally: rendering CategoryDetail
-// through all four logger round-trips lives in CategoryDetail.test.tsx,
-// with real assertions on what the store actually holds after a tap.
-describe("LAW: the Health module's highest-value loggers are wired, the rest stays dormant", () => {
+// S5-Q29 (2026-09-04): "the Health module has no route into the app." Four of
+// the module's one-tap loggers were grafted onto the Brain's health area page
+// as real, reachable features.
+//
+// HMN-F-06 (2026-09-05), fork option A: the other seventeen screens were still
+// written, tested and unreachable, so the page now mounts HealthFlow itself
+// behind a More row, on the Student template only, which is the track those
+// screens were written for. Three of the seventeen stay dormant, and this law
+// names them so the reason has to be argued rather than quietly forgotten:
+//   ateBefore   nothing marks a calendar event as a practice or a game, and
+//               that question is the entire screen.
+//   ageRule     nothing stores an athlete's age or a season length; the
+//               screen's defaults would be invented facts about a person.
+//   seasonFeed  its receipt announces committed events before anything has
+//               written them (HMN-F-22).
+// Checked structurally; the round trips through the loggers and the More menu
+// live in CategoryDetail.test.tsx, with real assertions on the store.
+describe("LAW: the Health module is reachable, and whatever stays dormant says why", () => {
   it("HealthService has a real seat in the data provider", () => {
     const src = read(SRC + "/data/NotesProvider.tsx");
     expect(src).toMatch(/export function useHealth\(\): HealthService/);
   });
 
-  it("the health area page imports exactly the four grafted screens, not Ate Before and not HealthFlow itself", () => {
+  it("the health area page keeps the four grafted screens and mounts the rest of the module", () => {
     const src = read(SRC + "/brain/CategoryDetail.tsx");
     for (const s of ["LightsOutScreen", "TookItScreen", "CallItScreen", "PointAtItScreen"]) {
       expect(src, `must import ${s}`).toMatch(new RegExp("import " + s + " from \"\\.\\./health/screens/" + s + "\""));
     }
-    expect(src, "Ate Before stays dormant: no calendar-candidate source exists yet")
+    expect(src, "the rest of the module opens from this page now").toMatch(/import HealthFlow\b/);
+    expect(src, "and only on the template those screens were written for")
+      .toMatch(/template === "student"/);
+  });
+
+  it("the three screens with no honest source of their own are not offered", () => {
+    const src = read(SRC + "/brain/CategoryDetail.tsx");
+    const menu = src.slice(src.indexOf("const healthMoreRows"), src.indexOf("if (healthDeep)"));
+    expect(menu.length, "the More menu must be findable").toBeGreaterThan(0);
+    for (const key of ["ateBefore", "ageRule", "seasonFeed"]) {
+      expect(menu, key + " has no honest source yet, so it may not be a row")
+        .not.toMatch(new RegExp('key: "' + key + '"'));
+    }
+    expect(src, "Ate Before's screen stays out of this page entirely")
       .not.toMatch(/AteBeforeScreen/);
-    expect(src, "the 21-screen flow itself stays out of this graft")
-      .not.toMatch(/HealthFlow/);
   });
 });
 

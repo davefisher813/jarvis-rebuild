@@ -24,6 +24,7 @@ import { handoffItems } from "./handoff";
 import type { SportSession } from "./loadCandidates";
 import type { SeasonFeedDraft } from "./seasonFeed";
 import { showToast } from "../shared/toast";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import ShareLineScreen from "./screens/ShareLineScreen";
 import WhatTheySeeScreen from "./screens/WhatTheySeeScreen";
 import LightsOutScreen from "./screens/LightsOutScreen";
@@ -46,7 +47,9 @@ import SeasonFeedScreen from "./screens/SeasonFeedScreen";
 import LockerScreen from "./screens/LockerScreen";
 import HandoffScreen from "./screens/HandoffScreen";
 
-type ScreenKey =
+// HMN-F-06 (2026-09-05): exported now that something outside this module
+// chooses which screen to open (brain/CategoryDetail's More menu).
+export type ScreenKey =
   | "share" | "whatTheySee" | "lightsOut" | "ateBefore" | "tookIt" | "callIt" | "pointAtIt"
   | "refillRunway" | "medWindow" | "doctorReport" | "nightBefore" | "eatingWindows" | "theBag"
   | "thirdPractice" | "weekShape" | "twoDaysOff" | "ageRule" | "sayItToSomeone" | "seasonFeed"
@@ -76,13 +79,19 @@ function currentSeason(now: number = Date.now()): string {
 // wires Health into the real app (still out of scope here, same Track 3
 // follow-up the foundation already named) supplies these shapes.
 export default function HealthFlow({
-  store, ownerId, onEvent, candidates = [], callItDuration, initialScreen = "share", onExit,
+  store, ownerId, service, onEvent, candidates = [], callItDuration, initialScreen = "share", onExit,
   sportSessions = [], weekDates, athleteAgeYears, monthsInSeason,
   nightBeforeCommitments = [], eatingWindowBlocks = [], sessionStarts = [],
   bagEvent, ai, onOffer, onLandParentTask, onCommitSeasonFeed,
 }: {
-  store: Store;
-  ownerId: string;
+  // HMN-F-06 (2026-09-05), option A: the app hands in the service the rest
+  // of it already uses (data/NotesProvider's useHealth), so a dose logged
+  // through one of these screens is the same row the health area page's own
+  // loggers read. The bench and this module's tests build one from a bare
+  // store instead, which is what these two props are still for.
+  service?: HealthService;
+  store?: Store;
+  ownerId?: string;
   onEvent?: (e: EventInput) => void;
   candidates?: AteBeforeCandidate[];
   callItDuration?: number;
@@ -108,13 +117,16 @@ export default function HealthFlow({
   // Windows, The Third Practice, Two Days Off, The Age Rule). The real
   // Routine-block/task creation is schedule/tasks' job, out of scope here;
   // this is the seam a real wiring layer hangs off.
-  onOffer?: (line: string) => void;
+  // HMN-F-06 (2026-09-05): a wired caller writes something real here (the
+  // health area page lands it as a task), so this may answer with false when
+  // the write failed; the receipt below waits for that answer.
+  onOffer?: (line: string) => void | Promise<boolean | void>;
   // Refill Runway's call, specifically: the catalog is explicit this lands
   // on the PARENT's list, not a generic offer, so it gets its own seam.
-  onLandParentTask?: (line: string) => void;
+  onLandParentTask?: (line: string) => void | Promise<boolean | void>;
   onCommitSeasonFeed?: (draft: SeasonFeedDraft) => void;
 }) {
-  const svc = useState(() => new HealthService(store, ownerId, onEvent))[0];
+  const svc = useState(() => service ?? new HealthService(store!, ownerId ?? "", onEvent))[0];
   const [screen, setScreen] = useState<ScreenKey>(initialScreen);
 
   const [grants, setGrants] = useState<ConsentGrant[]>([]);
@@ -156,6 +168,23 @@ export default function HealthFlow({
   };
 
   const today = localDay();
+
+  // HMN-F-06 (2026-09-05): every offer on these screens used to announce
+  // itself on the tap, before the caller it hands the line to had written
+  // anything. Now that the screens are reachable (the health area page's
+  // More row) that receipt has to be true: it waits for the write, and says
+  // so when the write failed. A caller that returns nothing (the bench, the
+  // module's own tests) is unchanged.
+  const take = (
+    fn: ((line: string) => void | Promise<boolean | void>) | undefined,
+    line: string,
+    said: string,
+  ) => {
+    void (async () => {
+      const ok = await Promise.resolve(fn?.(line)).catch(() => false);
+      showToast({ message: ok === false ? WRITE_FAILED_MESSAGE : said });
+    })();
+  };
 
   switch (screen) {
     case "share":
@@ -235,8 +264,9 @@ export default function HealthFlow({
           onLogFill={(dosesInFill) => { svc.logMedRefill({ filledAt: Date.now(), dosesInFill }); void reload(); }}
           onLandParentTask={() => {
             const line = refillOffer(refillRunway(medRefill, tookIt));
-            if (line) onLandParentTask?.(line);
-            showToast({ message: "Sent to the parent's list" });
+            // HMN-F-06: the catalog wrote this for a parent's list, and there
+            // is one list in this app. The receipt names the list it landed on.
+            if (line) take(onLandParentTask, line, "Added to your list");
           }}
           onBack={onExit}
         />
@@ -265,8 +295,7 @@ export default function HealthFlow({
           offer={nightBeforeOffer(nightBeforeCommitments, Date.now())}
           onAddWindDown={() => {
             const offer = nightBeforeOffer(nightBeforeCommitments, Date.now());
-            if (offer && onOffer) onOffer("Wind Down at " + new Date(offer.windDownAt).toLocaleTimeString());
-            showToast({ message: "Wind Down added" });
+            if (offer) take(onOffer, "Wind Down at " + new Date(offer.windDownAt).toLocaleTimeString(), "Wind Down added");
           }}
           onBack={onExit}
         />
@@ -275,7 +304,7 @@ export default function HealthFlow({
       return (
         <EatingWindowsScreen
           offers={eatingWindowOffers(eatingWindowBlocks)}
-          onTakeOffer={(o) => { onOffer?.(o.line); showToast({ message: "Added to the list" }); }}
+          onTakeOffer={(o) => take(onOffer, o.line, "Added to your list")}
           onBack={onExit}
         />
       );
@@ -297,7 +326,7 @@ export default function HealthFlow({
       return (
         <ThirdPracticeScreen
           offers={thirdPracticeOffers(sportSessions)}
-          onProtectGap={(o) => { onOffer?.(o.line); showToast({ message: "Noted" }); }}
+          onProtectGap={(o) => take(onOffer, o.line, "Added to your list")}
           onBack={onExit}
         />
       );
@@ -313,7 +342,7 @@ export default function HealthFlow({
       return (
         <TwoDaysOffScreen
           offer={restDayOffer(weekShape(sportSessions, weekDates ?? defaultWeekDates()))}
-          onPlaceRestDay={(date) => { onOffer?.("Rest day, " + date); showToast({ message: "Rest day placed" }); }}
+          onPlaceRestDay={(date) => take(onOffer, "Rest day, " + date, "Rest day added")}
           onBack={onExit}
         />
       );
@@ -329,7 +358,7 @@ export default function HealthFlow({
       return (
         <AgeRuleScreen
           facts={facts}
-          onProtectAGap={() => { onOffer?.("Protect a gap this week"); showToast({ message: "Noted" }); }}
+          onProtectAGap={() => take(onOffer, "Protect a gap this week", "Added to your list")}
           onBack={onExit}
         />
       );

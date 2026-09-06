@@ -1,6 +1,6 @@
 // SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { useEffect, useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -525,5 +525,94 @@ describe("CategoryDetail area delete (BRAIN-F-10)", () => {
     } finally {
       stop();
     }
+  });
+});
+
+// HMN-F-06 (2026-09-05), fork option A: S5-Q29 grafted four loggers onto this
+// page and left the other seventeen health screens written, tested and
+// unreachable. They open from the More row now, on the Student template, with
+// the candidate props built from the real calendar.
+import { useProfile } from "../data/NotesProvider";
+import type { TemplateKey } from "../categories/defaults";
+import { addDays } from "../schedule/calendar";
+import { resetToasts } from "../shared/toast";
+
+const seenToasts: string[] = [];
+subscribeToast((t) => { if (t) seenToasts.push(t.message); });
+
+function SeededHealthMore({ template }: { template: TemplateKey }) {
+  const cats = useCategories();
+  const profile = useProfile();
+  const schedule = useSchedule();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      await profile.save({ template });
+      // An org area is a team or a program: that is what makes its events
+      // sport sessions to the health screens.
+      const org = await cats.create("Elite Squad", "red");
+      await cats.update(org!, { kind: "org" });
+      await schedule.createEvent("Practice", { date: localToday(), start: "16:00", end: "18:00", category: org! });
+      // Tomorrow's fixed thing, which is what The Night Before anchors on.
+      await schedule.createEvent("Bus Leaves", { date: addDays(localToday(), 1), start: "07:00", category: org! });
+      setCid((await cats.create("Health", "blue"))!);
+    })();
+  }, [cats, profile, schedule, template]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
+  afterEach(() => { seenToasts.length = 0; resetToasts(); });
+
+  it("Student gets the More row, and it opens the screens that have a real source", async () => {
+    render(<NotesProvider userId="hm1"><SeededHealthMore template="student" /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("More")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("More"));
+
+    await waitFor(() => expect(screen.getByText("The Share Line")).toBeInTheDocument());
+    expect(screen.getByText("What They See")).toBeInTheDocument();
+    expect(screen.getByText("The Locker")).toBeInTheDocument();
+    expect(screen.getByText("The Handoff")).toBeInTheDocument();
+    // The Bag binds to a real event, and there is one on the calendar.
+    expect(screen.getByText("The Bag")).toBeInTheDocument();
+    // The three with nothing honest behind them are not offered.
+    expect(screen.queryByText("Ate Before")).not.toBeInTheDocument();
+    expect(screen.queryByText("The Age Rule")).not.toBeInTheDocument();
+    expect(screen.queryByText("The Season Feed")).not.toBeInTheDocument();
+
+    // The consent screen opens over the same HealthService the page uses.
+    fireEvent.click(screen.getByText("The Share Line"));
+    await waitFor(() => expect(screen.getByText("Areas")).toBeInTheDocument());
+    expect(screen.getByText("Mood and Mind")).toBeInTheDocument();
+  });
+
+  it("Week Shape counts the real calendar, not a stand-in", async () => {
+    render(<NotesProvider userId="hm2"><SeededHealthMore template="student" /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("More")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("More"));
+    fireEvent.click(await screen.findByText("Week Shape"));
+    // The 16:00 to 18:00 practice on the org area, read through the calendar.
+    await waitFor(() => expect(screen.getByText("1 · 2 Hours")).toBeInTheDocument());
+  });
+
+  it("an offer taken on a health screen lands as a real task, and the receipt waits for it", async () => {
+    render(<NotesProvider userId="hm4"><SeededHealthMore template="student" /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("More")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("More"));
+    fireEvent.click(await screen.findByText("The Night Before"));
+    fireEvent.click(await screen.findByText("Add Wind Down"));
+    await waitFor(() => expect(seenToasts.some((m) => m === "Wind Down added")).toBe(true));
+    // Back out through the menu: the offer is a task on this area's list.
+    fireEvent.click(screen.getByLabelText("Back"));
+    await waitFor(() => expect(screen.getByText("The Night Before")).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText("Back"));
+    await waitFor(() => expect(screen.getByText(/^Wind Down at /)).toBeInTheDocument());
+  });
+
+  it("Personal has no More row: this is the student-athlete track", async () => {
+    render(<NotesProvider userId="hm3"><SeededHealthMore template="personal" /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Log It")).toBeInTheDocument());
+    expect(screen.getByText("Lights Out")).toBeInTheDocument();
+    expect(screen.queryByText("More")).not.toBeInTheDocument();
   });
 });

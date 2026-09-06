@@ -87,7 +87,7 @@ function Spark({ pts }: { pts: number[] }) {
 export default function HealthBody({
   program, workouts, training, today, isEvening, gymEvent, metricDefs, metricLogs, goals, tasks, kickerOf, parentOf,
   onStart, onOpenGym, onOpenMetric, onManageMetrics, onOpenGoal, onToggleTask, onOpenTask, onDeleteTask, onSnoozeTask, onStartTask, onAddTask, insights, more,
-  healthLoggers, onOpenHealthLogger,
+  healthLoggers, onOpenHealthLogger, onOpenHealthMore,
 }: {
   program: Program | null;
   workouts: Workout[];
@@ -125,6 +125,10 @@ export default function HealthBody({
   /** S5-Q29: the four grafted one-tap loggers, in display order. */
   healthLoggers: HealthLoggerRow[];
   onOpenHealthLogger: (key: HealthLoggerKey) => void;
+  /** HMN-F-06 (2026-09-05): the door to the rest of the health module.
+   *  Absent on every template but Student, and the row is absent with it:
+   *  a row that opens nothing is worse than no row. */
+  onOpenHealthMore?: () => void;
 }) {
   const dow = todayDow();
   const next = nextDayFor(program, workouts, dow);
@@ -221,6 +225,18 @@ export default function HealthBody({
             {CHEV}
           </div>
         ))}
+        {/* HMN-F-06: seventeen more screens were written, tested and
+            unreachable. They live behind this one row rather than seventeen
+            more rows on a page that is already long. */}
+        {onOpenHealthMore && (
+          <div {...pressable(onOpenHealthMore)} className="task-row p2">
+            <div className="task-title">
+              <span className="task-name">More</span>
+              <div className="r-k"><span className="r-goal r-cat">Sharing, medication, the week, the locker</span></div>
+            </div>
+            {CHEV}
+          </div>
+        )}
       </div></div>
 
       {/* THE NUMBERS: tiles, each with its sparkline once there is history. */}

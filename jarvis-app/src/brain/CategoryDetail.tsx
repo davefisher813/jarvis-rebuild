@@ -1,6 +1,6 @@
 import { isIn } from "../tasks/categories";
 import { useCallback, useEffect, useState } from "react";
-import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine, usePeople } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine, usePeople, useProfile } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import type { Person } from "../people/types";
 import { personInitials, avatarClass } from "../people/types";
@@ -27,7 +27,7 @@ import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
 import { nextActionOf } from "../bigger/related";
 import { dayPhrase } from "../money/bills";
-import { fmtTime, addMinutes, addDays } from "../schedule/calendar";
+import { fmtTime, addMinutes, addDays, eventsForDate } from "../schedule/calendar";
 import { comingUpFor, gymDoorOn, type UpcomingRow } from "./comingUp";
 import { FIFTEEN } from "../tasks/rightNow";
 import { attemptWrite } from "../shared/guard";
@@ -47,6 +47,16 @@ import PointAtItScreen from "../health/screens/PointAtItScreen";
 import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry } from "../health/types";
 import { tookItTimeline, stillThere } from "../health/timelines";
 import { telHref, crisisLineFor, regionOf, type CrisisLine } from "../health/trustedAdult";
+// HMN-F-06 (2026-09-05), fork option A: the other fourteen screens of the
+// health module, mounted behind the More row on this page. See the
+// HEALTH_MORE list below for the three that stay dormant and why.
+import HealthFlow, { type ScreenKey as HealthScreenKey } from "../health/HealthFlow";
+import type { SportSession } from "../health/loadCandidates";
+import type { FixedCommitment } from "../health/nightBefore";
+import type { DayBlock } from "../health/eatingWindows";
+import type { SessionStartCandidate } from "../health/medWindow";
+import type { EventItem } from "../schedule/types";
+import type { TemplateKey } from "../categories/defaults";
 import { localDayParts } from "../events/serverSink";
 import type { HealthLoggerKey, HealthLoggerRow } from "./HealthBody";
 import type { Program } from "../gym/types";
@@ -192,7 +202,18 @@ export default function CategoryDetail({
   // S5-Q29 (2026-09-04): the four grafted Health loggers, health-kind pages
   // only, same read/reload shape as the metric strip just above.
   const healthSvc = useHealth();
+  const profileSvc = useProfile();
   const [healthScreen, setHealthScreen] = useState<HealthLoggerKey | null>(null);
+  // HMN-F-06 (2026-09-05), option A: the rest of the health module, behind
+  // the More row. `healthMore` is the menu, `healthDeep` is the screen it
+  // opened. Student only: this is the student-athlete track, and a Personal
+  // or Business page has no use for The Third Practice or The Bag.
+  const [template, setTemplate] = useState<TemplateKey | null>(null);
+  const [healthMore, setHealthMore] = useState(false);
+  const [healthDeep, setHealthDeep] = useState<HealthScreenKey | null>(null);
+  // Full event rows (the `events` state above is the thin shape the week
+  // receipt needs); the health candidates below are built from these.
+  const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [lightsOut, setLightsOut] = useState<LightsOutEntry[]>([]);
   const [tookIt, setTookIt] = useState<TookItEntry[]>([]);
   const [callIt, setCallIt] = useState<CallItEntry[]>([]);
@@ -211,7 +232,7 @@ export default function CategoryDetail({
   const today = todayISO();
 
   const reload = useCallback(async () => {
-    const [c, cs, tk, pj, gl, nt, ev, rt, ppl] = await Promise.all([
+    const [c, cs, tk, pj, gl, nt, ev, rt, ppl, prof] = await Promise.all([
       catsSvc.get(categoryId),
       catsSvc.list(),
       tasksSvc.listTasks(),
@@ -221,7 +242,11 @@ export default function CategoryDetail({
       schedule.listEvents(),
       routine.get(),
       peopleSvc.list(),
+      profileSvc.get(),
     ]);
+    // HMN-F-06: which template this account is on, for the More row's gate.
+    setTemplate(prof?.template ?? "personal");
+    setAllEvents(ev);
     setCat(c);
     setAllCats(cs);
     setAllTasks(tk);
@@ -253,7 +278,7 @@ export default function CategoryDetail({
     const weekAgo = Date.now() - 7 * 86400000;
     setPushedWeek(eventLog.all().filter((e) => e.type === "task.pushed" && e.ts >= weekAgo && e.props?.category === categoryId).length);
     setWork(rt ? { startMin: rt.workStartMin, endMin: rt.workEndMin } : null);
-  }, [catsSvc, tasksSvc, projectsSvc, goalsSvc, notesSvc, schedule, routine, peopleSvc, categoryId]);
+  }, [catsSvc, tasksSvc, projectsSvc, goalsSvc, notesSvc, schedule, routine, peopleSvc, profileSvc, categoryId]);
 
   useEffect(() => { void reload(); }, [reload]);
 
@@ -445,6 +470,128 @@ export default function CategoryDetail({
   const kind = effectiveKind(cat.data);
   const isOrg = kind === "org";
   const paused = isOrg && cat.data.season === "paused";
+
+  // HMN-F-06 (2026-09-05), fork option A. The health module shipped 21
+  // screens. S5-Q29 grafted four loggers onto this page; the other seventeen
+  // were written, tested, and had no path into the app at all. Fourteen open
+  // from here now, behind one More row, on the Student template only: this
+  // is the student-athlete track, and a Personal or Business page has no use
+  // for The Third Practice or The Bag.
+  //
+  // Every candidate below is real calendar data, never a stand-in. Three
+  // screens stay dormant for reasons this page cannot argue away:
+  //   Ate Before   asks about "today's practice or game", and nothing marks
+  //                an event as either. That question IS the whole screen.
+  //   The Age Rule states facts about an athlete's hours for their age, and
+  //                nothing stores an age or a season length. Its defaults
+  //                (15 years, 9 months) would be invented facts about a person.
+  //   Season Feed  commits a whole season off an extraction, and its receipt
+  //                announces the events before anything writes them
+  //                (HMN-F-22). It waits for that.
+  const DEFAULT_EVENT_MIN = 60; // ScheduleFlow's own length when it makes one
+  const endOf = (e: EventItem) => e.data.end ?? addMinutes(e.data.start, DEFAULT_EVENT_MIN);
+  const msOf = (date: string, hhmm: string) => new Date(date + "T" + hhmm + ":00").getTime();
+  // An ORG area IS a team or a program: that is what the kind means, so the
+  // org is that area's name. Read from the kind, never from what it is called.
+  const orgName = new Map(allCats.filter((c) => effectiveKind(c.data) === "org").map((c) => [c.id, c.data.name] as const));
+  // Through eventsForDate, so a weekly practice anchored months ago counts on
+  // the day it actually happens rather than only on its anchor date.
+  const dayEvents = (date: string) => eventsForDate(allEvents, date);
+  const healthWeek = Array.from({ length: 7 }, (_, i) => addDays(today, i));
+  const sportSessions: SportSession[] = healthWeek.flatMap((date) =>
+    dayEvents(date)
+      .filter((e) => orgName.has(e.data.category))
+      .map((e) => ({
+        date,
+        org: orgName.get(e.data.category)!,
+        title: e.data.title,
+        durationMin: Math.max(0, Math.round((msOf(date, endOf(e)) - msOf(date, e.data.start)) / 60000)),
+      })),
+  );
+  const tomorrow = addDays(today, 1);
+  const nightBeforeCommitments: FixedCommitment[] = dayEvents(tomorrow)
+    .map((e) => ({ title: e.data.title, at: msOf(tomorrow, e.data.start) }));
+  const eatingWindowBlocks: DayBlock[] = dayEvents(tomorrow)
+    .map((e) => ({ title: e.data.title, start: msOf(tomorrow, e.data.start), end: msOf(tomorrow, endOf(e)) }));
+  const sessionStarts: SessionStartCandidate[] = dayEvents(today)
+    .filter((e) => orgName.has(e.data.category))
+    .map((e) => ({ date: today, at: msOf(today, e.data.start), title: e.data.title }));
+  // The Bag binds a checklist to ONE event: the next session on the calendar.
+  // No session, no row, because a checklist bound to nothing packs nothing.
+  const bagSource = healthWeek
+    .flatMap((d) => dayEvents(d).filter((e) => orgName.has(e.data.category)).map((e) => ({ e, date: d })))[0];
+  const bagEvent = bagSource ? { eventId: bagSource.e.id, eventTitle: bagSource.e.data.title, date: bagSource.date } : undefined;
+  // An offer taken on a health screen lands where everything else this page
+  // makes lands: a task on this area's list. The answer travels back so the
+  // screen's receipt waits for the write instead of announcing on the tap.
+  const landHealthTask = async (line: string): Promise<boolean> => {
+    const ok = await attemptWrite(() => tasksSvc.createTask(line, { category: categoryId }));
+    if (ok) await reload();
+    return ok;
+  };
+  const healthMoreRows: { group: string; key: HealthScreenKey; label: string; sub: string }[] = [
+    { group: "Sharing", key: "share", label: "The Share Line", sub: "What crosses to a parent, one switch at a time" },
+    { group: "Sharing", key: "whatTheySee", label: "What They See", sub: "The same list, from their side" },
+    { group: "Sharing", key: "sayItToSomeone", label: "Say It to Someone", sub: "The adult Point at It hands to" },
+    { group: "Medication", key: "refillRunway", label: "Refill Runway", sub: "Doses left in this fill" },
+    { group: "Medication", key: "medWindow", label: "The Med Window", sub: "Dose, food, session start, lights out, by day" },
+    { group: "Medication", key: "doctorReport", label: "Take This to the Doctor", sub: "The last few weeks on one page" },
+    { group: "Tomorrow", key: "nightBefore", label: "The Night Before", sub: "A wind-down before tomorrow's first fixed thing" },
+    { group: "Tomorrow", key: "eatingWindows", label: "Eating Windows", sub: "Where tomorrow leaves no room" },
+    ...(bagEvent ? [{ group: "Tomorrow", key: "theBag" as HealthScreenKey, label: "The Bag", sub: bagEvent.eventTitle }] : []),
+    { group: "The Week", key: "thirdPractice", label: "The Third Practice", sub: "Days that carry two teams" },
+    { group: "The Week", key: "weekShape", label: "Week Shape", sub: "Sessions and hours, day by day" },
+    { group: "The Week", key: "twoDaysOff", label: "Two Days Off", sub: "Where a rest day fits" },
+    { group: "Keeping", key: "locker", label: "The Locker", sub: "Forms and the dates they run out" },
+    { group: "Keeping", key: "handoff", label: "The Handoff", sub: "What the next adult needs to know" },
+  ];
+
+  if (healthDeep) {
+    return (
+      <HealthFlow
+        service={healthSvc}
+        initialScreen={healthDeep}
+        onExit={() => { setHealthDeep(null); void reload(); }}
+        sportSessions={sportSessions}
+        weekDates={healthWeek}
+        nightBeforeCommitments={nightBeforeCommitments}
+        eatingWindowBlocks={eatingWindowBlocks}
+        sessionStarts={sessionStarts}
+        bagEvent={bagEvent}
+        onOffer={landHealthTask}
+        onLandParentTask={landHealthTask}
+      />
+    );
+  }
+  if (healthMore) {
+    const groups = [...new Set(healthMoreRows.map((r) => r.group))];
+    return (
+      <div className="screen ruled health-ruled">
+        <div className="nav-bar">
+          <button className="nav-back" aria-label="Back" onClick={() => setHealthMore(false)}></button>
+          <div className="nav-title">{cat.data.name}</div>
+        </div>
+        <div className="nav-large">More</div>
+        {groups.map((g) => (
+          <div key={g}>
+            <div className="sh2 sh2-quiet"><span className="t">{g}</span></div>
+            <div className="pad-x"><div className="card list-card-ruled">
+              {healthMoreRows.filter((r) => r.group === g).map((r) => (
+                <div {...pressable(() => setHealthDeep(r.key))} className="task-row p2" key={r.key}>
+                  <div className="task-title">
+                    <span className="task-name">{r.label}</span>
+                    <div className="r-k"><span className="r-goal r-cat">{r.sub}</span></div>
+                  </div>
+                  {CHEV}
+                </div>
+              ))}
+            </div></div>
+          </div>
+        ))}
+        <div className="screen-foot" />
+      </div>
+    );
+  }
   // Done, the Record, and the weekday insight now read the SAME log the
   // Pushed tile reads (2026-08-29, Brain wiring audit): one source, one cap,
   // numbers on this screen can no longer disagree with each other.
@@ -677,6 +824,8 @@ export default function CategoryDetail({
           onManageMetrics={() => setMetricSheet({ kind: "add" })}
           healthLoggers={healthLoggers}
           onOpenHealthLogger={(key) => setHealthScreen(key)}
+          // HMN-F-06: Student only, and absent rather than disabled.
+          onOpenHealthMore={template === "student" ? () => setHealthMore(true) : undefined}
           onToggleTask={(id) => void toggle(id)}
           onOpenTask={onOpenTask}
           onDeleteTask={(id) => void deleteTask(id)}
