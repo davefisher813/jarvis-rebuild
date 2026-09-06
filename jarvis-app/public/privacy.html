@@ -24,7 +24,7 @@
 <p>Your data is stored with Supabase (our database provider) with per-account access controls: your records are readable only by your account. The app is served by Vercel, which also runs the small server functions the app calls.</p>
 
 <h2>Crash Reports</h2>
-<p>When the app hits an error it sends us a report so we can fix it: the error's name and message, the code path it came from, the build number, and the kind of device. It carries no account identifier and none of your text. It is the only way we hear about a crash on a phone we do not own.</p>
+<p>When the app hits an error it sends us a report so we can fix it: the error's name and message, the code path it came from, the build number, and the kind of device. It carries no account identifier, and any text longer than a short label is dropped before the report leaves your device, so what you wrote cannot ride along with it. Reports are held by our hosting provider, Vercel, and by our error tracking provider, Sentry, which groups them so we can tell one bug from a hundred copies of it. It is the only way we hear about a crash on a phone we do not own.</p>
 
 <h2>Files You Upload</h2>
 <p>Files you upload (images and PDFs) are stored privately in your account, readable only by you. We remove location data embedded in images before storing them. Files are deleted when you delete the item they belong to, or when you delete them directly.</p>

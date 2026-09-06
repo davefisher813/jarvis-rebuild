@@ -3,6 +3,11 @@
 // unhandledrejection handlers, and the launch gate all report through here,
 // so a sink set once at boot sees every crash the app knows about.
 //
+// UP-LAUNCH-07 (2026-09-05): a second sink speaks Sentry (fork option A),
+// chosen with a DSN, and every report now passes through scrub.ts on its way
+// out of both of them. See monitoring/sentry.ts for why Sentry is reached
+// over its envelope endpoint rather than through its SDK.
+//
 // PLUMB-F-11 (2026-09-05): the seam existed for months with no sink ever set;
 // the Sentry slot below it was comments. A render crash on the phone printed
 // to a console nobody reads and left no record anywhere. The sink is now a
@@ -13,6 +18,8 @@
 // Sentry-style SDK can still be dropped in later through setErrorSink
 // without touching a caller.
 import { apiUrl } from "../shared/apiBase";
+import { scrubReport } from "./scrub";
+import { parseDsn, authHeader, envelope, type Dsn } from "./sentry";
 
 type Sink = (error: unknown, context?: Record<string, unknown>) => void;
 
@@ -118,11 +125,14 @@ export interface FetchSinkOptions {
   repeatWindowMs?: number;
 }
 
-// A sink that POSTs each report as JSON to `url`. It never throws and never
-// awaits: a failed report is dropped, because the reporter must not become a
-// second failure on top of the first. keepalive lets a report sent during
-// pagehide finish after the page is gone.
-export function createFetchSink(url: string, opts: FetchSinkOptions = {}): Sink {
+// UP-LAUNCH-07 (2026-09-05): the two sinks below differ only in where the
+// bytes go and what shape they are in. Everything that decides WHETHER a
+// report is sent is here, once, so a second sink cannot ship without the
+// flood ceiling, without the repeat window, or without the scrub.
+function createSink(
+  opts: FetchSinkOptions,
+  send: (fetchFn: typeof fetch, report: ErrorReport) => void,
+): Sink {
   const fetchFn = opts.fetchFn ?? (typeof fetch === "function" ? fetch.bind(globalThis) : null);
   const now = opts.now ?? (() => Date.now());
   const maxPerMinute = opts.maxPerMinute ?? 20;
@@ -133,7 +143,9 @@ export function createFetchSink(url: string, opts: FetchSinkOptions = {}): Sink 
   return (error, context) => {
     if (!fetchFn) return;
     const t = now();
-    const report = toErrorReport(error, context);
+    // The scrub is applied HERE, not at the call site, because the call site
+    // is every catch block in the app and one of them will forget.
+    const report = scrubReport(toErrorReport(error, context));
     const key = report.name + "|" + report.message + "|" + (report.stack?.split("\n")[1] ?? "");
     const last = lastByKey.get(key);
     if (last !== undefined && t - last < repeatWindowMs) return;
@@ -143,16 +155,39 @@ export function createFetchSink(url: string, opts: FetchSinkOptions = {}): Sink 
     lastByKey.set(key, t);
     if (lastByKey.size > 200) lastByKey.clear();
     try {
-      void fetchFn(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(report),
-        keepalive: true,
-      }).catch(() => { /* dropped on purpose */ });
+      send(fetchFn, report);
     } catch {
       /* a synchronous fetch failure (bad URL) is dropped the same way */
     }
   };
+}
+
+// A sink that POSTs each report as JSON to `url`. It never throws and never
+// awaits: a failed report is dropped, because the reporter must not become a
+// second failure on top of the first. keepalive lets a report sent during
+// pagehide finish after the page is gone.
+export function createFetchSink(url: string, opts: FetchSinkOptions = {}): Sink {
+  return createSink(opts, (fetchFn, report) => {
+    void fetchFn(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(report),
+      keepalive: true,
+    }).catch(() => { /* dropped on purpose */ });
+  });
+}
+
+// The same sink, speaking Sentry's envelope format (UP-LAUNCH-07, option A).
+// See monitoring/sentry.ts for why this is an HTTP call rather than an SDK.
+export function createSentrySink(dsn: Dsn, opts: FetchSinkOptions = {}): Sink {
+  return createSink(opts, (fetchFn, report) => {
+    void fetchFn(dsn.endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/x-sentry-envelope", "x-sentry-auth": authHeader(dsn) },
+      body: envelope(report),
+      keepalive: true,
+    }).catch(() => { /* dropped on purpose */ });
+  });
 }
 
 export function initMonitoring(): void {
@@ -160,6 +195,11 @@ export function initMonitoring(): void {
     window.addEventListener("error", (e) => captureError(e.error ?? e.message, { kind: "window.error" }));
     window.addEventListener("unhandledrejection", (e) => captureError(e.reason, { kind: "unhandledrejection" }));
   }
+  // A DSN wins when both are configured. Two sinks would mean two requests
+  // per crash and two places to look, and the point of a vendor is that
+  // there is one place to look.
+  const dsn = parseDsn(import.meta.env.VITE_SENTRY_DSN as string | undefined);
+  if (dsn) { setErrorSink(createSentrySink(dsn)); return; }
   const url = resolveSinkUrl(import.meta.env.VITE_ERROR_SINK as string | undefined);
   if (url) setErrorSink(createFetchSink(url));
 }

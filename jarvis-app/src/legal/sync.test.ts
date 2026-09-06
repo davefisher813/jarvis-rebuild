@@ -50,7 +50,7 @@ describe("the published legal pages are generated, never edited", () => {
     // here is a vendor that actually receives data today; when one is added
     // (an analytics vendor, a crash SDK) this test is where it gets noticed.
     const text = JSON.stringify(PRIVACY);
-    for (const vendor of ["Anthropic", "Supabase", "Vercel", "Google"]) expect(text).toContain(vendor);
+    for (const vendor of ["Anthropic", "Supabase", "Vercel", "Google", "Sentry"]) expect(text).toContain(vendor);
     expect(text, "the Google limited use statement is required by Google's verification").toContain("Limited Use");
   });
 

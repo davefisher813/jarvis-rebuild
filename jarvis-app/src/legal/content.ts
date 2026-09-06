@@ -106,7 +106,7 @@ export const PRIVACY: LegalDoc = {
     {
       heading: "Crash Reports",
       blocks: [
-        { kind: "p", runs: ["When the app hits an error it sends us a report so we can fix it: the error's name and message, the code path it came from, the build number, and the kind of device. It carries no account identifier and none of your text. It is the only way we hear about a crash on a phone we do not own."] },
+        { kind: "p", runs: ["When the app hits an error it sends us a report so we can fix it: the error's name and message, the code path it came from, the build number, and the kind of device. It carries no account identifier, and any text longer than a short label is dropped before the report leaves your device, so what you wrote cannot ride along with it. Reports are held by our hosting provider, Vercel, and by our error tracking provider, Sentry, which groups them so we can tell one bug from a hundred copies of it. It is the only way we hear about a crash on a phone we do not own."] },
       ],
     },
     {
