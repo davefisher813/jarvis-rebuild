@@ -562,7 +562,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                           return;
                         }
                         void (async () => {
-                          const ok = await writeEnvelopes([...envelopes, { id: envelopeId(envelopes.length + Date.now() % 9999), name: envName, amount: amt }]);
+                          const ok = await writeEnvelopes([...envelopes, { id: envelopeId(), name: envName, amount: amt }]);
                           if (ok) { setEnvName(""); setEnvAmt(""); setEnvOpen(false); }
                         })();
                       }}>Add</button>

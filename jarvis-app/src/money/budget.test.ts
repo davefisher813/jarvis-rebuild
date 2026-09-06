@@ -28,8 +28,12 @@ describe("set aside is a plan, never a spend claim", () => {
     expect(loadEnvelopes()).toEqual([env("a", "Gas", 20)]);
   });
 
-  it("ids are stable and unique per seed", () => {
-    expect(envelopeId(1)).not.toBe(envelopeId(2));
+  // HMN-F-25 (2026-09-05): the id used to be built from the list's length and
+  // the clock, so two envelopes could share one and removing either removed
+  // both. Every id is its own now, however fast they arrive.
+  it("every envelope gets an id of its own", () => {
+    const ids = new Set(Array.from({ length: 50 }, () => envelopeId()));
+    expect(ids.size).toBe(50);
   });
 
   // HMN-F-12 (2026-09-05), option A: the sanitising half is its own function

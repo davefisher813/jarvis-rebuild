@@ -63,8 +63,13 @@ export function forgetLocalEnvelopes(): void {
   try { localStorage.removeItem(KEY); } catch { /* private mode */ }
 }
 
-export function envelopeId(seed: number): string {
-  return "env" + seed.toString(36);
+// HMN-F-25 (2026-09-05): the id was built from `envelopes.length + Date.now()
+// % 9999`, and two envelopes added in the same millisecond bucket at the same
+// list length shared one, so removing either removed both. Same generator the
+// rest of the app uses for a local id (NotesService.genId).
+export function envelopeId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return "env_" + crypto.randomUUID();
+  return "env_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 export function setAsideTotal(list: Envelope[]): number {

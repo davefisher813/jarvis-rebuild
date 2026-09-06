@@ -36,4 +36,16 @@ describe("MoneyService", () => {
     expect(await m.create({ name: "  ", balance: 5, kind: "cash" })).toBeNull();
     expect(formatMoney(1500)).toBe("$1,500");
   });
+
+  // HMN-F-25 (2026-09-05), option B: the bill sheet takes cents and the
+  // display dropped them, so a $49.99 bill read "$50" and a card of them
+  // summed to a total that did not match its own rows.
+  it("shows cents only when the number carries them", () => {
+    expect(formatMoney(49.99)).toBe("$49.99");
+    expect(formatMoney(12.5)).toBe("$12.50");
+    expect(formatMoney(-49.99)).toBe("-$49.99");
+    // A whole number never grows a ".00" it never had.
+    expect(formatMoney(50)).toBe("$50");
+    expect(formatMoney(0)).toBe("$0");
+  });
 });
