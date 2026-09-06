@@ -4090,6 +4090,26 @@ describe("LAW: the Health module is reachable, and whatever stays dormant says w
     expect(src, "Ate Before's screen stays out of this page entirely")
       .not.toMatch(/AteBeforeScreen/);
   });
+
+  // UP-ATH-22 (2026-09-06): healthComebackMessage was written and tested when
+  // the module shipped and only HealthFlow's own copies of these screens ever
+  // called it, so the loggers a person can actually reach said nothing when
+  // they came back after a fortnight. Checked structurally, and specifically
+  // that the history is read BEFORE the write: a comeback judged against a
+  // gap this very tap has already closed is no comeback at all.
+  it("the grafted loggers say something on a real return, judged before the tap lands", () => {
+    const src = read(SRC + "/brain/CategoryDetail.tsx");
+    expect(src, "the helper must be imported").toMatch(/healthComebackMessage/);
+    for (const [screen, log] of [["lightsOut", "logLightsOut"], ["tookIt", "logTookIt"], ["callIt", "logCallIt"]] as const) {
+      const start = src.indexOf('healthScreen === "' + screen + '"');
+      expect(start, screen + " must still be grafted onto this page").toBeGreaterThan(-1);
+      const block = src.slice(start, src.indexOf("\n  }", start));
+      const celebrate = block.indexOf("celebrateHealthLog(");
+      const write = block.indexOf(log + "(");
+      expect(celebrate, screen + " must offer the comeback line").toBeGreaterThan(-1);
+      expect(celebrate, screen + " must read the history before it writes").toBeLessThan(write);
+    }
+  });
 });
 
 // S5-Q30 (2026-09-04): "the screen sleeps between sets." ConditioningFace held

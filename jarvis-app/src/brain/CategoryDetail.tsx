@@ -46,6 +46,7 @@ import CallItScreen from "../health/screens/CallItScreen";
 import PointAtItScreen from "../health/screens/PointAtItScreen";
 import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry } from "../health/types";
 import { tookItTimeline, stillThere, stillThereSummary, stillThereMessage } from "../health/timelines";
+import { healthComebackMessage } from "../health/healthComeback";
 // HMN-F-06 (2026-09-05), fork option A: the other fourteen screens of the
 // health module, mounted behind the More row on this page. See the
 // HEALTH_MORE list below for the three that stay dormant and why.
@@ -443,11 +444,24 @@ export default function CategoryDetail({
   // module -- they were always presentational (props in, callbacks out),
   // never wired to a store of their own. onBack just closes the screen;
   // the effect above already refetches everything on that same dep.
+  // UP-ATH-22 (2026-09-06): BACK ON TRACK reaches the grafted loggers too.
+  // healthComebackMessage has existed and been tested since the module
+  // shipped, and only HealthFlow's own copies of these screens called it, so
+  // the four loggers actually reachable from this page said nothing when
+  // somebody came back after a fortnight away. Read BEFORE the tap lands, the
+  // same ordering TodayFlow.onToggleTask uses for tasks, so the gap being
+  // judged is the real one rather than one this tap has already closed. The
+  // helper itself refuses to say anything about what was skipped: it names
+  // the run that came before, never the days that were not logged.
+  const celebrateHealthLog = (marksBefore: { at: number }[]) => {
+    const msg = healthComebackMessage(marksBefore, today);
+    if (msg) showToast({ message: msg });
+  };
   if (healthScreen === "lightsOut") {
     return (
       <LightsOutScreen
         last={lightsOut[lightsOut.length - 1] ?? null}
-        onLog={() => { healthSvc.logLightsOut(); }}
+        onLog={() => { celebrateHealthLog(lightsOut.map((e) => ({ at: e.data.at }))); healthSvc.logLightsOut(); }}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -456,7 +470,7 @@ export default function CategoryDetail({
     return (
       <TookItScreen
         timeline={tookItTimeline(tookIt)}
-        onLog={() => { healthSvc.logTookIt(); }}
+        onLog={() => { celebrateHealthLog(tookIt.map((e) => ({ at: e.data.at }))); healthSvc.logTookIt(); }}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -465,7 +479,7 @@ export default function CategoryDetail({
     return (
       <CallItScreen
         history={callIt.map((e) => ({ at: e.data.at, rpe: e.data.rpe, durationMin: e.data.durationMin }))}
-        onLog={(rpe) => { healthSvc.logCallIt({ rpe }); }}
+        onLog={(rpe) => { celebrateHealthLog(callIt.map((e) => ({ at: e.data.at }))); healthSvc.logCallIt({ rpe }); }}
         onBack={() => setHealthScreen(null)}
       />
     );
