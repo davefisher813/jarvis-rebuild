@@ -2200,6 +2200,18 @@ describe("LAW L2: every list has a floor", () => {
     expect(bad, "import ListFloor and end the list with it").toEqual([]);
   });
 
+  // SHARED-F-18 (2026-09-05): a floor may only say "That's everything." when
+  // it really is everything. The unreachable count prop is gone; what a
+  // truncated list owes instead is words plus a way to the rest, which is
+  // what EMAIL-F-18 gave the mail list. This pins that: the one paged list in
+  // the app must not end on the bare floor.
+  it("a paged list does not claim to be complete", () => {
+    const src = read(join(SRC, "messages/MessagesFlow.tsx"));
+    const floor = src.slice(src.indexOf("const mailFloor"), src.indexOf("const mailFloor") + 600);
+    expect(floor, "the paged mail list still branches on atEnd").toMatch(/atEnd \?/);
+    expect(floor, "and still offers the next page rather than a bare count").toMatch(/Load More/);
+  });
+
   it("the floor's words answer 'am I done', not 'is the array empty'", () => {
     const src = read(join(SRC, "shared/ListFloor.tsx"));
     expect(src).toContain("That's everything.");

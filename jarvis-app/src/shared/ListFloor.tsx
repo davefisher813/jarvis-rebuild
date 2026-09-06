@@ -12,19 +12,26 @@
 // about the world, not about the software: it does not say "end of list" or
 // "no more items", which describe a data structure rather than answering the
 // question the person is actually asking, which is "am I done?"
-export default function ListFloor({ children, count }: {
-  /** Override the words. Used when the list is a slice of something larger. */
+// SHARED-F-18 (2026-09-05): the `count` prop went. It rendered "N more are
+// waiting for next time" and no list ever passed it, so the branch was
+// unreachable, and both places that reached for it landed somewhere better
+// on their own:
+//
+//   - MessagesFlow.tsx:3646 carried count={restCount} once and dropped it,
+//     because those 27 were The Rest, a different list a scroll below. A
+//     floor may only count what it is the floor OF.
+//   - The mail list, which really is a slice, answers with words and a way
+//     forward instead of a number (EMAIL-F-18): "Showing what's loaded so
+//     far." over a Load More, which is also the only way to reach thread 31.
+//     A residual count with no way to act on it is the pile in a smaller
+//     hat, which is exactly what L2 exists to stop.
+//
+// So a truncated list overrides the words through `children` and offers the
+// rest; a complete one says "That's everything." Those are the two cases.
+export default function ListFloor({ children }: {
+  /** Override the words. Used when the list is a slice of something larger,
+   *  in which case the override must also offer the way to the rest. */
   children?: React.ReactNode;
-  /** When some of the list is deliberately not shown, say how many and why. */
-  count?: number;
 }) {
-  return (
-    <div className="list-floor">
-      {children ?? (count && count > 0
-        // Never a bare number: a residual count with no explanation is the
-        // pile wearing a smaller hat.
-        ? count + (count === 1 ? " more is waiting for next time" : " more are waiting for next time")
-        : "That's everything.")}
-    </div>
-  );
+  return <div className="list-floor">{children ?? "That's everything."}</div>;
 }
