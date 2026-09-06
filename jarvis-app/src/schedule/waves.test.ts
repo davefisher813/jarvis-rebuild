@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { occursOn } from "./calendar";
-import { repeatRows, repeatDays, cadenceOf, endsLabel, untilIsValid, untilError, ordinal } from "./repeats";
-import { gapsOn, dropInto, duplicateOf, copyDay, overlapsOn, fixOverlap, overlapLine, durationOf } from "./dayEdit";
+import { repeatRows, cadenceOf, endsLabel, untilIsValid, untilError, ordinal } from "./repeats";
+import { dropInto, duplicateOf, copyDay, overlapsOn, overlapLine, durationOf } from "./dayEdit";
 import type { EventItem, EventData } from "./types";
 
 const ev = (id: string, over: Partial<EventData> = {}): EventItem => ({
@@ -79,32 +79,14 @@ describe("W1 · the repeats view", () => {
   });
 });
 
-describe("W2 · week marks", () => {
-  it("marks the days a repeating thing stands on", () => {
-    const items = [ev("Standup", { recurrence: "weekly" })]; // a Thursday
-    const week = ["2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21"];
-    expect([...repeatDays(items, week)]).toEqual(["2026-08-20"]);
-  });
-
-  it("ignores one-offs: the mark means something STANDING", () => {
-    expect(repeatDays([ev("One Off")], ["2026-08-20"]).size).toBe(0);
-  });
-});
-
 describe("M4 · drop into a gap", () => {
   const items = [
     ev("a", { start: "09:00", end: "10:00" }),
     ev("b", { start: "14:00", end: "15:00" }),
   ];
 
-  it("finds the open stretches of a day", () => {
-    const g = gapsOn(items, "2026-08-20", 8 * 60, 18 * 60);
-    expect(g).toEqual([{ s: 480, e: 540 }, { s: 600, e: 840 }, { s: 900, e: 1080 }]);
-  });
-
   it("lands where the finger pointed, snapped to the quarter hour", () => {
-    const g = gapsOn(items, "2026-08-20", 8 * 60, 18 * 60);
-    expect(dropInto(g, 11 * 60 + 7, 60)).toBe("11:00");
+    expect(dropInto([{ s: 480, e: 540 }, { s: 600, e: 840 }, { s: 900, e: 1080 }], 11 * 60 + 7, 60)).toBe("11:00");
   });
 
   it("pulls back so the event FITS rather than hanging off the end", () => {
@@ -178,11 +160,6 @@ describe("N5 · fix the overlap", () => {
     const o = overlapsOn(items, "2026-08-20");
     expect(o).toHaveLength(1);
     expect(o[0]!.byMin).toBe(30);
-  });
-
-  it("moves the LATER one, because the earlier is already underway", () => {
-    const fix = fixOverlap(overlapsOn(items, "2026-08-20")[0]!);
-    expect(fix).toEqual({ id: "Clinic", start: "11:00", end: "12:00" });
   });
 
   it("says it in plain words", () => {

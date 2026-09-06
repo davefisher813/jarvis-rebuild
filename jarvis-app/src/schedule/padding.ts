@@ -12,6 +12,17 @@
 // retires the moment real data replaces it. The rule that keeps this honest
 // is that the app never presents a pad as a measurement.
 //
+// SCHED-F-17 (2026-09-05): STATE OF PLAY, so this header stops reading as if
+// it shipped. B3 is built and tested here and NOT WIRED: no screen calls
+// estimateFor. The planner's unlearned fallback is a flat default
+// (useTaskEstimate.ts's DEFAULT_TASK_MINUTES, and Bigger Picture's `?? 45`),
+// so nothing is padded and nothing is therefore shown without its
+// disclosure. padNote and learnedNote are KEPT for that reason rather than
+// deleted as dead: they are the visible half the law above requires, and
+// whoever wires estimateFor has to render padNote in the same change or the
+// pad becomes a measurement. Wiring it is a feature decision, not a cleanup:
+// it moves every unlearned estimate in the planner by half.
+//
 // The 50% figure is clinical convention rather than a trial result, and is
 // described that way in the UI copy rather than dressed up as science.
 

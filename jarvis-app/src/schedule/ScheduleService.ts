@@ -4,7 +4,6 @@ import { ENTITY_EVENT, type EventData, type EventItem, type EventRecurrence } fr
 import { eventsForDate, dotsForMonth } from "./calendar";
 import { planDuplicateIds, supersededPlanEventIds } from "./planDedupe";
 import { recordPicks } from "../events/planOutcome";
-import { saveShape } from "./dayShape";
 
 // The Schedule feature, backed by the engine Store. Each event is a Store item
 // of entity type "event". onEvent feeds the gaming event bus (no-op in tests).
@@ -218,18 +217,18 @@ export class ScheduleService {
     }
     if (plan && plan.picks.length > 0) {
       plan.picks.forEach((id, i) => this.onEvent({ type: "plan.picked", entityType: "task", entityId: id, props: { n: i + 1 } }));
-      // The outcome resolver's registry and the day-shape memory ride the
-      // same door, so an accepted day counts exactly like a hand-built one.
-      // Best-effort: both are localStorage conveniences, and a commit must
-      // never fail because storage is absent (tests, private mode).
+      // The outcome resolver's registry rides this door, so an accepted day
+      // counts exactly like a hand-built one. Best-effort: it is a
+      // localStorage convenience, and a commit must never fail because
+      // storage is absent (tests, private mode).
+      //
+      // SCHED-F-17 (2026-09-05): saveShape used to run here too, on every
+      // commit, writing a day-shape memory whose only reader (the P12 offer)
+      // left PlanDaySheet in commit 47173c2 on 2026-08-22. A write with no
+      // reader is a store that drifts in silence, so it stopped.
       try {
         recordPicks(date, plan.picks);
-        saveShape({
-          day: date,
-          dow: new Date(date + "T12:00:00").getDay(),
-          slots: blocks.map((b) => ({ startMin: toMin(b.start), min: toMin(b.end) - toMin(b.start) })).filter((s) => s.min > 0),
-        });
-      } catch { /* memory is a convenience; the events above are the record */ }
+      } catch { /* the events above are the record */ }
     }
     return { created, replaced: superseded.length };
   }
@@ -260,6 +259,11 @@ export class ScheduleService {
     return (await this.eventsOn(date)).length;
   }
 
+  // SCHED-F-17 (2026-09-05): KEPT, with the reason written down. These three
+  // are pass-throughs to the Store and the app never calls them: offline is
+  // wired at the Store, through data/offlineSync.ts. Their caller is the
+  // schedule spec's offline step, which drives the queue through the same
+  // service the rest of the spec uses.
   goOffline(): void {
     this.store.goOffline();
   }

@@ -68,19 +68,10 @@ export function repeatRows(items: EventItem[]): RepeatRow[] {
     .sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title));
 }
 
-// W2: which days of a week already carry a repeating thing, so the week view
-// can mark them. Returns the set of dates, not a count: the mark says "there
-// is something standing here", and a number would just be another thing to read.
-export function repeatDays(items: EventItem[], weekDates: string[]): Set<string> {
-  const out = new Set<string>();
-  for (const date of weekDates) {
-    for (const e of items) {
-      if (!e.data.recurrence || e.data.recurrence === "none") continue;
-      if (occursOn(e.data, date)) { out.add(date); break; }
-    }
-  }
-  return out;
-}
+// SCHED-F-17 (2026-09-05): repeatDays went with the repeatMarks prop it fed.
+// W2's day marks were superseded by the row-based Week (D2): repeatRows above
+// draws each standing thing as its own row, which says what is standing there
+// rather than only that something is.
 
 // A series ending BEFORE it starts is a data mistake, and the fix is to
 // refuse it at the edit rather than let the event disappear from the app.

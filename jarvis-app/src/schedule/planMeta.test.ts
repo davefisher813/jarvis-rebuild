@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { goalTitleOf, workWindowOf } from "./planMeta";
+import { workWindowOf } from "./planMeta";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import type { Category } from "../categories/types";
@@ -14,15 +14,6 @@ const cats = [
   { id: "home", data: { name: "Personal", color: "sky", order: 1 } },
 ] as Category[];
 const routine = { workStartMin: 9 * 60, workEndMin: 17 * 60 };
-
-describe("goalTitleOf", () => {
-  it("follows task -> project -> goal, and stays silent off the chain", () => {
-    expect(goalTitleOf(projects, goals, "p1")).toBe("Bridge Partnerships");
-    expect(goalTitleOf(projects, goals, "p2")).toBeNull(); // project without a goal
-    expect(goalTitleOf(projects, goals, "missing")).toBeNull();
-    expect(goalTitleOf(projects, goals, undefined)).toBeNull();
-  });
-});
 
 describe("workWindowOf", () => {
   it("pins work-hours categories to the routine window, nothing else", () => {

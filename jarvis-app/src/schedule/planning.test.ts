@@ -3,7 +3,7 @@ import { openMinutes, loadOf, loadLine, dropToFit, dropLine, hhmm, autoSelect } 
 import { capOffer, finishRate } from "./planCap";
 import { splitSittings, splitLine } from "./splitSitting";
 import { dayClock } from "./planClock";
-import { saveShape, loadShapes, dayScores, planCount, shapeOffer, applyShape, type DayShape } from "./dayShape";
+import { dayScores, planCount } from "./dayShape";
 import type { EventItem } from "./types";
 import type { PlanCandidate } from "./screens/PlanDaySheet";
 import { ScheduleService } from "./ScheduleService";
@@ -85,9 +85,11 @@ describe("the finish rate", () => {
     expect(finishRate({ picks: 20, done: 1 }, 10)).toBeNull();
   });
 
-  it("turns the shame stat into an offer", () => {
-    const o = capOffer({ picks: 21, done: 6 }, 3);
-    expect(o).toEqual({ n: 2, title: "You Finish About Two a Day", sub: "Want me to plan for two and leave the rest?" });
+  // SCHED-F-17 (2026-09-05): the offer's title and sub went. PlanDaySheet
+  // reads `n` and writes its own words, so these two were a second copy of
+  // one sentence, and this case was the only thing reading them.
+  it("turns the shame stat into a number the sheet can plan to", () => {
+    expect(capOffer({ picks: 21, done: 6 }, 3)).toEqual({ n: 2 });
   });
 
   it("rounds in the user's favour", () => {
@@ -141,32 +143,11 @@ describe("the clock check", () => {
   });
 });
 
-describe("the day shape", () => {
-  const mem = () => {
-    let v: string | null = null;
-    return { getItem: () => v, setItem: (_k: string, s: string) => { v = s; } };
-  };
-  const shape = (day: string, dow: number, slots = [{ startMin: 540, min: 60 }]): DayShape => ({ day, dow, slots });
-
-  it("round-trips and replaces same-day", () => {
-    const st = mem();
-    saveShape(shape("2026-08-18", 2), st);
-    saveShape(shape("2026-08-18", 2, [{ startMin: 600, min: 30 }]), st);
-    expect(loadShapes(st)).toHaveLength(1);
-    expect(loadShapes(st)[0]!.slots[0]!.min).toBe(30);
-  });
-
-  it("refuses to store an empty shape", () => {
-    const st = mem();
-    saveShape({ day: "2026-08-18", dow: 2, slots: [] }, st);
-    expect(loadShapes(st)).toEqual([]);
-  });
-
-  it("survives a corrupt store", () => {
-    expect(loadShapes({ getItem: () => "{" })).toEqual([]);
-  });
-
-  it("scores days from the outcome log", () => {
+// SCHED-F-17 (2026-09-05): the shape half of dayShape.ts went with the P12
+// offer that left PlanDaySheet on 2026-08-22, and its cases went with it.
+// What is left is the scoring the cap offer still reads.
+describe("the outcome log's per-day scores", () => {
+  it("scores days from the outcome log, and an untagged outcome is unscoreable rather than zero", () => {
     const log = [
       { type: "plan.outcome", props: { day: "2026-08-18", flag: true } },
       { type: "plan.outcome", props: { day: "2026-08-18", flag: true } },
@@ -178,49 +159,7 @@ describe("the day shape", () => {
       "2026-08-19": { picks: 1, done: 0 },
     });
     expect(planCount(log)).toBe(2);
-  });
-
-  it("an untagged outcome is unscoreable, never zero", () => {
     expect(dayScores([{ type: "plan.outcome", props: { flag: false } }])).toEqual({});
-  });
-
-  it("offers a day that measurably worked", () => {
-    const o = shapeOffer(
-      [shape("2026-08-18", 2), shape("2026-08-19", 3)],
-      4, "2026-08-20",
-      { "2026-08-18": { picks: 1, done: 1 }, "2026-08-19": { picks: 2, done: 1 } },
-    );
-    expect(o?.worked).toBe(true);
-    expect(o?.title).toBe("Plan It Like Tuesday");
-    expect(o?.shape.day).toBe("2026-08-18");
-  });
-
-  it("falls back to the same weekday, and says so instead of claiming it worked", () => {
-    const o = shapeOffer([shape("2026-08-13", 4)], 4, "2026-08-20", {});
-    expect(o?.worked).toBe(false);
-    expect(o?.title).toBe("Same Shape as Last Thursday");
-  });
-
-  it("stays silent rather than handing him a Sunday rhythm for a Wednesday", () => {
-    expect(shapeOffer([shape("2026-08-16", 0)], 3, "2026-08-20", {})).toBeNull();
-    expect(shapeOffer([], 3, "2026-08-20", {})).toBeNull();
-  });
-
-  it("never offers today or the future as precedent", () => {
-    expect(shapeOffer([shape("2026-08-20", 4)], 4, "2026-08-20", {})).toBeNull();
-  });
-
-  it("pours picks into the slots, in order", () => {
-    const s = shape("2026-08-18", 2, [{ startMin: 540, min: 60 }, { startMin: 660, min: 30 }]);
-    const { overrides, durations } = applyShape(s, ["a", "b", "c"], 480, 1020);
-    expect(overrides).toEqual({ a: "09:00", b: "11:00" });
-    expect(durations).toEqual({ a: 60, b: 30 });
-  });
-
-  it("will not push a block past today's window", () => {
-    const s = shape("2026-08-18", 2, [{ startMin: 1200, min: 60 }]);
-    const { overrides } = applyShape(s, ["a"], 540, 1020);
-    expect(overrides).toEqual({ a: "16:00" }); // clamped to fit, not dropped off the end
   });
 });
 

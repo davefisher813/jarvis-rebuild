@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { ScheduleService } from "./ScheduleService";
-import { monthMatrix, fmtTime, eventsForDate, dotsForMonth, todayISO, addMinutes, fmtRange, occursOn, findConflicts, nextFreeSlot, openSlots } from "./calendar";
+import { monthMatrix, fmtTime, eventsForDate, dotsForMonth, todayISO, addMinutes, fmtRange, occursOn, nextFreeSlot, openSlots } from "./calendar";
 import type { EventItem } from "./types";
 
 const TODAY = "2026-05-20";
@@ -233,17 +233,6 @@ describe("Schedule upgrades: time math, recurrence, conflicts, free slots", () =
     expect(out.length).toBe(1);
     expect(out[0]!.data.date).toBe("2026-05-23");
     expect(out[0]!.id).toBe("a");
-  });
-
-  it("findConflicts flags only overlapping ranges", () => {
-    const c = findConflicts([
-      ev("x", "2026-05-20", "09:00", "10:00"),
-      ev("y", "2026-05-20", "09:30", "10:30"),
-      ev("z", "2026-05-20", "11:00", "12:00"),
-    ]);
-    expect(c.has("x")).toBe(true);
-    expect(c.has("y")).toBe(true);
-    expect(c.has("z")).toBe(false);
   });
 
   it("nextFreeSlot skips booked time, returns the next open slot, defaults empty day to 9am", () => {

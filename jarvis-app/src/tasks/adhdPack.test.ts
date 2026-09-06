@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rungsFor, ladderBody, buildLadder, LADDER } from "../schedule/countdown";
+import { ladderBody, LADDER } from "../schedule/countdown";
 import { padMinutes, estimateFor, padNote, learnedNote, PAD_FACTOR } from "../schedule/padding";
 import { automaticityOf, automaticityLine, countEnactment, AUTOMATIC_MEDIAN, MIN_TO_SHOW } from "./automaticity";
 import { welcomeBack, markSeen, loadLastSeen, AWAY_DAYS } from "../today/welcomeBack";
@@ -7,15 +7,10 @@ import { theOneThing, loadOverwhelmed, setOverwhelmed } from "./overwhelmed";
 import type { TaskItem } from "./TasksService";
 
 describe("B1 · the countdown ladder", () => {
-  it("skips rungs that have already passed rather than stacking them", () => {
-    expect(rungsFor(20)).toEqual([15, 5]);
-    expect(rungsFor(90)).toEqual([...LADDER]);
-    expect(rungsFor(3)).toEqual([]);
-  });
-
-  it("never fires an 'in an hour' alert for something happening in twenty minutes", () => {
-    const alerts = buildLadder("Board call", Date.now() + 20 * 60000, Date.now());
-    expect(alerts.some((a) => a.leadMin === 60)).toBe(false);
+  // SCHED-F-17 (2026-09-05): rungsFor and buildLadder went with the rest of
+  // the unused ladder builders. The rungs themselves are still the law.
+  it("names four rungs, farthest first, so the copy can shift as they close", () => {
+    expect([...LADDER]).toEqual([60, 30, 15, 5]);
   });
 
   it("changes tone as it closes: information, then instruction", () => {
@@ -30,11 +25,6 @@ describe("B1 · the countdown ladder", () => {
     expect(ladderBody(30, "   ")).toBe("In half an hour");
   });
 
-  it("puts each alert at the right moment", () => {
-    const start = Date.now() + 90 * 60000;
-    const a = buildLadder("X", start, Date.now()).find((x) => x.leadMin === 30)!;
-    expect(a.atMs).toBe(start - 30 * 60000);
-  });
 });
 
 describe("B3 · padding an unlearned guess", () => {

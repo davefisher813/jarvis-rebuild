@@ -47,7 +47,7 @@ import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
 import type { TaskItem } from "../tasks/TasksService";
-import { repeatRows, repeatDays } from "./repeats";
+import { repeatRows } from "./repeats";
 import { overlapsOn, overlapLine, copyDay, durationOf, type Overlap } from "./dayEdit";
 import { capAfterNumber } from "../shared/casing";
 import { useFreshLists } from "../data/useFreshLists";
@@ -1235,7 +1235,6 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         mode={mode}
         onMode={setMode}
         repeats={repeatRows(allEvents)}
-        repeatMarks={repeatDays(allEvents, weekCells.map((c) => c.date))}
         overlap={worstOverlap ? { line: overlapLine(worstOverlap) } : null}
         onFixOverlap={worstOverlap ? () => openOverlapFix(worstOverlap.b.id) : undefined}
         clashCount={dayOverlaps.length}

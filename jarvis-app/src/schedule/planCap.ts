@@ -18,10 +18,12 @@ import type { PlanRecord } from "../events/planOutcome";
 
 export const CAP_MIN_PICKS = 6;
 
+// SCHED-F-17 (2026-09-05): title and sub went. PlanDaySheet reads `n` and
+// writes the offer's own words where it draws them (:221, :762), so these two
+// were a second copy of the sentence, free to drift from the shipped one, and
+// the law above ("it never says a number under one") lives in finishRate.
 export interface CapOffer {
   n: number;      // the number of picks his history supports
-  title: string;
-  sub: string;
 }
 
 // Picks per plan that actually got done the same day, rounded to a whole
@@ -34,15 +36,8 @@ export function finishRate(r: PlanRecord, plans: number): number | null {
   return Math.max(1, Math.round(per));
 }
 
-const WORD = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight"];
-
 export function capOffer(r: PlanRecord, plans: number): CapOffer | null {
   const n = finishRate(r, plans);
   if (n === null) return null;
-  const w = WORD[n] ?? String(n);
-  return {
-    n,
-    title: `You Finish About ${w.charAt(0).toUpperCase() + w.slice(1)} a Day`,
-    sub: `Want me to plan for ${w} and leave the rest?`,
-  };
+  return { n };
 }

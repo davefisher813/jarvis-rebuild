@@ -17,22 +17,9 @@ export function durationOf(e: EventData): number {
 
 export interface Gap { s: number; e: number }
 
-// M4: the open stretches of a day, so a thing can be dropped INTO one at the
-// time it actually starts rather than at whatever minute the finger landed on.
-export function gapsOn(items: EventItem[], date: string, dayStart = 7 * 60, dayEnd = 22 * 60): Gap[] {
-  const busy = items
-    .filter((e) => occursOn(e.data, date))
-    .map((e) => ({ s: toMin(e.data.start), e: toMin(e.data.start) + durationOf(e.data) }))
-    .sort((a, b) => a.s - b.s);
-  const out: Gap[] = [];
-  let cur = dayStart;
-  for (const b of busy) {
-    if (b.s > cur) out.push({ s: cur, e: Math.min(b.s, dayEnd) });
-    cur = Math.max(cur, b.e);
-  }
-  if (cur < dayEnd) out.push({ s: cur, e: dayEnd });
-  return out.filter((g) => g.e - g.s >= 15);
-}
+// SCHED-F-17 (2026-09-05): gapsOn had no caller. The planner finds its own
+// room through planDay's window arithmetic, which also honours the routine's
+// protected blocks; a 7-to-22 day with a flat 15-minute floor did not.
 
 // The gap a dropped minute belongs to, and where inside it the event should
 // land: snapped to the quarter hour and pulled back so it FITS rather than
@@ -89,18 +76,10 @@ export function overlapsOn(items: EventItem[], date: string): Overlap[] {
   return out;
 }
 
-// The fix: push the SECOND one later by exactly the collision. The later
-// event moves because the earlier one is the commitment already underway, and
-// moving the thing you are about to start is how a plan stops being trusted.
-export function fixOverlap(o: Overlap): { id: string; start: string; end?: string } {
-  const dur = durationOf(o.b.data);
-  const start = toMin(o.b.data.start) + o.byMin;
-  return {
-    id: o.b.id,
-    start: fromMin(Math.round(start / 15) * 15),
-    ...(o.b.data.end ? { end: fromMin(Math.round((start + dur) / 15) * 15) } : {}),
-  };
-}
+// SCHED-F-17 (2026-09-05): fixOverlap had no caller. "Fix It" on the day
+// opens the real move sheet through ScheduleFlow.openOverlapFix, so the
+// person sees and confirms where the later event lands instead of having it
+// silently pushed by exactly the collision.
 
 export function overlapLine(o: Overlap): string {
   const m = o.byMin;

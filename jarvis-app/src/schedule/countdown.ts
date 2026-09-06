@@ -23,18 +23,11 @@
 export const LADDER = [60, 30, 15, 5] as const;
 export type Rung = (typeof LADDER)[number];
 
-export interface LadderAlert {
-  leadMin: Rung;
-  title: string;
-  body: string;
-  atMs: number;
-}
-
-// Which rungs are real for an event this far away. Anything whose lead time
-// has already passed is dropped rather than fired late.
-export function rungsFor(minutesUntil: number): Rung[] {
-  return LADDER.filter((r) => r < minutesUntil);
-}
+// SCHED-F-17 (2026-09-05): rungsFor and buildLadder below both went. The
+// notification scheduler builds its own alerts off LADDER and ladderBody,
+// which is the half that carries the copy law (the rungs shift from
+// information to instruction), and nothing ever asked for a pre-built array
+// of alerts.
 
 // The copy shifts from information to instruction as the event closes. This
 // is the part that stops the ladder becoming four identical pings.
@@ -52,17 +45,3 @@ export function ladderBody(lead: Rung, where?: string, firstMove?: string): stri
   return (firstMove?.trim() || "Leave what you're doing") + place;
 }
 
-export function buildLadder(
-  title: string,
-  startMs: number,
-  nowMs: number,
-  where?: string,
-): LadderAlert[] {
-  const minutesUntil = (startMs - nowMs) / 60000;
-  return rungsFor(minutesUntil).map((leadMin) => ({
-    leadMin,
-    title,
-    body: ladderBody(leadMin, where),
-    atMs: startMs - leadMin * 60000,
-  }));
-}

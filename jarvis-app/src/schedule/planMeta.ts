@@ -4,13 +4,11 @@ import type { Category } from "../categories/types";
 
 // Plan My Day candidate metadata (6.7). Pure lookups both flows share.
 
-/** The goal a task moves, via its project's goal link. Null when unlinked. */
-export function goalTitleOf(projects: Project[], goals: Goal[], projectId: string | undefined): string | null {
-  if (!projectId) return null;
-  const p = projects.find((x) => x.id === projectId);
-  if (!p?.data.goalId) return null;
-  return goals.find((g) => g.id === p.data.goalId)?.data.title ?? null;
-}
+// SCHED-F-17 (2026-09-05): goalTitleOf went, and laws.test.ts:1359 is why
+// nothing called it: both surfaces that build plan candidates must read the
+// upward goal index (goalTitleForTask), because the filed-only lookup could
+// see just the tasks under a project and ranked most real work as if it
+// moved nothing. The law forbids the fallback; this was the fallback.
 
 /**
  * The placement window for a task's category. Work-hours org categories pin

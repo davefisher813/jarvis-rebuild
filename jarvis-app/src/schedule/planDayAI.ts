@@ -183,10 +183,10 @@ export function parsePlanReply(raw: string, validIds: string[], strandIds: strin
   return { items: out, leanedOnIds };
 }
 
-// Legacy shape, kept for existing callers and tests.
-export function parseAIPlan(raw: string, validIds: string[]): AIPlanItem[] {
-  return parsePlanReply(raw, validIds).items;
-}
+// SCHED-F-17 (2026-09-05): parseAIPlan went. It was "kept for existing
+// callers", and there were none: parsePlanReply above is what aiPlanDay
+// calls, and it returns the leanedOnIds the receipt needs as well as the
+// items, which is why it replaced this.
 
 export const AI_PLAN_TIMEOUT_MS = 20000;
 

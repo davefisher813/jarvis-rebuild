@@ -75,13 +75,10 @@ export async function undoMoveEvent(id: string, viewedDate: string, outcome: Mov
   await events.removeExdate(id, viewedDate);
 }
 
-// Shift by a relative amount (the swipe actions: -15m/+15m/+1h). Just
-// moveEvent with the new start computed from the old one.
-export async function shiftEvent(id: string, mins: number, viewedDate: string, events: EventWriter): Promise<MoveOutcome> {
-  const e = await events.event(id);
-  if (!e) return { ok: false, repeating: false };
-  return moveEvent(id, addMinutes(e.start, mins), viewedDate, events);
-}
+// SCHED-F-17 (2026-09-05): shiftEvent had no caller. The swipe actions call
+// moveEvent with an absolute time, because the sheet the swipe opens already
+// knows the new start; computing it from a relative amount was a second way
+// to say the same thing.
 
 // RESIZE: change how long an event runs without opening the full editor. A
 // repeating event resizes for the whole series - correct, and not the same

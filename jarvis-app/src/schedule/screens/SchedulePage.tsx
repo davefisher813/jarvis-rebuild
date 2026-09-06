@@ -85,7 +85,7 @@ function weekRange(cells: WeekCell[]): string {
 
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts, gymDoorFor,
-  mode = "month", onMode, weekCells = [], weekRows = [], loading, loadFailed, onRetryLoad, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
+  mode = "month", onMode, weekCells = [], weekRows = [], loading, loadFailed, onRetryLoad, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay,
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
   onShiftBlock, onRetimeBlock, onResizeBlock,
@@ -119,8 +119,11 @@ export default function SchedulePage({
   onOverlapBadge?: (eventId: string) => void;
   // N7: yesterday's shape, reused.
   onCopyDay?: () => void;
-  // W2: the dates in this week that carry a repeating event.
-  repeatMarks?: ReadonlySet<string>;
+  // SCHED-F-17 (2026-09-05): repeatMarks went. W2's week marks were
+  // superseded by the row-based Week (D2), which draws each repeating event
+  // as its own row rather than marking the day it falls on; the prop was
+  // still computed in ScheduleFlow, passed here, destructured, and never
+  // rendered.
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
   // SCHED-F-03 (2026-09-05): a row hands over the DAY it is drawn on as well
   // as the id. eventsForDate already remaps a recurring event's date to the

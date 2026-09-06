@@ -127,22 +127,10 @@ export function eventsForDate(items: EventItem[], date: string): EventItem[] {
     .sort((a, b) => a.data.start.localeCompare(b.data.start));
 }
 
-// Conflicting event ids on a single day: any pair whose time ranges overlap.
-export function findConflicts(items: EventItem[]): Set<string> {
-  const out = new Set<string>();
-  const sorted = [...items].sort((a, b) => a.data.start.localeCompare(b.data.start));
-  for (let i = 0; i < sorted.length; i++) {
-    for (let j = i + 1; j < sorted.length; j++) {
-      const ei = sorted[i], ej = sorted[j];
-      if (!ei || !ej) continue;
-      if (toMin(ej.data.start) < endMin(ei.data) && toMin(ei.data.start) < endMin(ej.data)) {
-        out.add(ei.id); out.add(ej.id);
-      }
-    }
-  }
-  return out;
-}
-
+// SCHED-F-17 (2026-09-05): findConflicts returned a bare set of colliding
+// ids and had no caller. dayEdit.overlapsOn is what the day actually reads:
+// it names the pair and by how much, which is what "Fix It" needs to say
+// which event moves and where.
 // Earliest 30-min-aligned slot on `date` that fits `durationMin` without
 // overlapping existing events. Starts at now (if today) or 9am, caps at 22:00.
 export function nextFreeSlot(
