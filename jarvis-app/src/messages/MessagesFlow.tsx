@@ -42,7 +42,7 @@ import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, forwardDraf
 import { alreadyPromised, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import { settleAll, settleLine, type SettleWords } from "./settle";
-import { recordSweepDay, loadSweepDays, streakView, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
+import { recordSweepDay, loadSweepDays, sweepWeek, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
 import ListFloor from "../shared/ListFloor";
 import { senderPiles, selectedCount, selectedIds, purgeLabel, purgePromise, defaultPicks } from "./purge";
 import { readIcs } from "./ics";
@@ -2209,10 +2209,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // Gmail has no done state, so no session ever feels finished, so every
   // session feels like failure. This screen is the payoff and the proof in
   // one: a full-screen Done, the true receipts (counted as they happened,
-  // never estimated), and the honest streak (10A): squares that color in and
-  // never, ever reset.
+  // never estimated), and the honest record (10A): squares that color in and
+  // never, ever reset. BAN-2 (2026-09-05): "Best run" sat beside them until
+  // Dave ruled on 2026-08-31 that this is a count, never a run. The squares
+  // and "Cleared N of the last 7" are the count, and they are all that is
+  // left.
   if (view === "dead" && deadStats) {
-    const sv = streakView(loadSweepDays(), todayISO());
+    const sv = sweepWeek(loadSweepDays(), todayISO());
     const lines = receiptLines(deadStats.receipts);
     return (
       <div className={"screen sweep-finish " + pushCls} key="dead">
@@ -2234,7 +2237,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {sv.last7.map((hit, i) => <span className={"sweep-sq" + (hit ? " on" : "")} key={i} />)}
             </div>
             <div className="sweep-streak-line">
-              {capAfterNumber("Cleared " + sv.cleared + " of the last 7")}{sv.best > 1 ? " · Best run: " + sv.best : ""}
+              {capAfterNumber("Cleared " + sv.cleared + " of the last 7")}
             </div>
           </div>
         </div>

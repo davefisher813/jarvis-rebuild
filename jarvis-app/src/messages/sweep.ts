@@ -76,10 +76,15 @@ export function handledOf(r: SweepReceipts): number {
   return r.sent + r.bills + r.scheduled + r.tasks + r.archived + r.later;
 }
 
-// THE HONEST STREAK (10A), the same shape reminders already ship: nothing
-// ever resets, a missed day simply is not colored in, and the best run is
-// kept forever. "Cleared 6 of the last 7" is pride without a cliff to fall
-// off, which is the entire difference between a ritual and a guillotine.
+// THE HONEST RECORD (10A), the same shape reminders already ship: nothing
+// ever resets and a missed day simply is not colored in. "Cleared 6 of the
+// last 7" is pride without a cliff to fall off, which is the entire
+// difference between a ritual and a guillotine.
+//
+// BAN-2 (2026-09-05): this shipped with a best-consecutive-days number too,
+// and a best is a run: it can only be lost, and losing it is the cliff the
+// paragraph above exists to avoid. Dave ruled it out on 2026-08-31. The
+// squares and the seven-day count are the whole feature now.
 const STREAK_KEY = "jarvis.mail.sweep.v1";
 
 export interface SweepDays { days: string[]; }
@@ -108,14 +113,13 @@ export function recordSweepDay(todayISO: string, handled: number, storage: Pick<
 const dayMs = 86400e3;
 const at = (iso: string) => new Date(iso + "T12:00:00").getTime();
 
-export interface StreakView {
+export interface SweepWeek {
   /** Oldest first, ending today: which of the last seven days had a sweep. */
   last7: boolean[];
   cleared: number;
-  best: number;
 }
 
-export function streakView(d: SweepDays, todayISO: string): StreakView {
+export function sweepWeek(d: SweepDays, todayISO: string): SweepWeek {
   const set = new Set(d.days);
   const t = at(todayISO);
   const last7: boolean[] = [];
@@ -124,18 +128,10 @@ export function streakView(d: SweepDays, todayISO: string): StreakView {
     const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
     last7.push(set.has(iso));
   }
-  // Best CONSECUTIVE run, ever. Sorted unique days, so a gap of more than one
-  // calendar day breaks the run.
-  let best = 0;
-  let run = 0;
-  let prev: number | null = null;
-  for (const iso of d.days) {
-    const cur = at(iso);
-    run = prev !== null && Math.round((cur - prev) / dayMs) === 1 ? run + 1 : 1;
-    if (run > best) best = run;
-    prev = cur;
-  }
-  return { last7, cleared: last7.filter(Boolean).length, best };
+  // BAN-2 (2026-09-05): the best-consecutive-days walk over d.days used to
+  // live here. It is gone rather than merely unrendered, so nothing can put
+  // the line back by reading a field that is still being computed.
+  return { last7, cleared: last7.filter(Boolean).length };
 }
 
 /**

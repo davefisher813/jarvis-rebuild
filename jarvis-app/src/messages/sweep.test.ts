@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   dealHand, HAND_MAX, estimateOf, receiptLines, handledOf, EMPTY_RECEIPTS,
-  loadSweepDays, recordSweepDay, streakView, sweepEstimate,
+  loadSweepDays, recordSweepDay, sweepWeek, sweepEstimate,
 } from "./sweep";
 
 // The Sweep's promises, held as tests. Each block is one approved catalog
@@ -59,7 +59,7 @@ describe("7A: receipts count what happened, never what was attempted", () => {
   });
 });
 
-describe("10A: the honest streak", () => {
+describe("10A: the honest record", () => {
   it("a day with kills colors in; a zero-card session does not", () => {
     const s = new Mem();
     recordSweepDay("2026-08-25", 3, s);
@@ -70,18 +70,22 @@ describe("10A: the honest streak", () => {
   it("nothing ever resets: a gap costs the day, not the history", () => {
     const s = new Mem();
     for (const d of ["2026-08-19", "2026-08-20", "2026-08-21", "2026-08-24", "2026-08-25"]) recordSweepDay(d, 1, s);
-    const v = streakView(loadSweepDays(s), "2026-08-25");
+    const v = sweepWeek(loadSweepDays(s), "2026-08-25");
     // Last seven days ending today: 19,20,21 hit, 22,23 missed, 24,25 hit.
     expect(v.last7).toEqual([true, true, true, false, false, true, true]);
     expect(v.cleared).toBe(5);
-    // Best run is the 19-21 stretch: three consecutive days.
-    expect(v.best).toBe(3);
   });
 
-  it("the best run survives forever, even after worse weeks", () => {
+  // BAN-2 (2026-09-05): this pair of tests used to assert a best-consecutive
+  // run of 3 here and 4 below, which is the violation, not the behaviour.
+  // Dave ruled on 2026-08-31 that the Sweep counts, never runs. The view
+  // carries no best at all now, so there is nothing to render it from.
+  it("no best-run number is computed at all, so none can be shown", () => {
     const s = new Mem();
     for (const d of ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-08-25"]) recordSweepDay(d, 1, s);
-    expect(streakView(loadSweepDays(s), "2026-08-25").best).toBe(4);
+    const v = sweepWeek(loadSweepDays(s), "2026-08-25");
+    expect(Object.keys(v).sort()).toEqual(["cleared", "last7"]);
+    expect(v.cleared).toBe(1);
   });
 
   it("recording the same day twice counts once", () => {

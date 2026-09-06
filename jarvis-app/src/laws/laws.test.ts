@@ -4140,6 +4140,43 @@ describe("LAW: a count, never a run", () => {
     return out;
   }
 
+  it("no rendered copy says 'in a row', a best run, or a longest streak", () => {
+    // Two allowances, and both are about somebody else's words or about
+    // NAMING the ban, the same convention the em dash law already uses:
+    //
+    //   gym/LiftGoalSheet.tsx and gym/MetricsCard.tsx promise the rule in
+    //   copy ("Counted, never a streak", "No targets, no streaks"). Telling
+    //   the user what the app refuses to do is the opposite of doing it.
+    //
+    //   ai/golden/goldenSet.ts is recorded user input. "idea: theme packs
+    //   could unlock by streak length" is a note somebody typed; rewriting a
+    //   fixture would be rewriting the evidence.
+    const allowed = ["gym/LiftGoalSheet.tsx", "gym/MetricsCard.tsx", "ai/golden/goldenSet.ts"];
+    const banned: [RegExp, string][] = [
+      [/\bin a row\b/i, "a run of consecutive days"],
+      [/\bbest (run|streak|week|day)\b/i, "a best to lose"],
+      [/\blongest (run|streak)\b/i, "a longest to lose"],
+      [/\bstreaks?\b/i, "the word streak"],
+    ];
+    const bad: string[] = [];
+    for (const f of SOURCES) {
+      if (allowed.includes(rel(f))) continue;
+      for (const line of copyOf(read(f))) {
+        for (const [re, why] of banned) if (re.test(line)) bad.push(rel(f) + ": " + why + " in " + JSON.stringify(line.slice(0, 60)));
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("the Sweep's week view computes no best at all", () => {
+    // BAN-2: removed rather than merely unrendered, so no future screen can
+    // put the line back by reading a field that is still being computed.
+    const src = stripComments(read(join(SRC, "messages/sweep.ts")));
+    const view = src.slice(src.indexOf("export interface SweepWeek"), src.indexOf("export function sweepEstimate"));
+    expect(view.length).toBeGreaterThan(0);
+    expect(view).not.toMatch(/\bbest\b/i);
+  });
+
   it("the run fields never reach a screen: only the files that maintain them read them", () => {
     // runLen and bestRun still exist, because the comeback line reads them.
     // They are data, not display. Anything that renders reads doneCount.
