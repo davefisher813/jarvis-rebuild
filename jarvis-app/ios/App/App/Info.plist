@@ -30,26 +30,36 @@
 	     stores: a coarse fix, kept on the device. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>JARVIS uses your approximate location to put one weather line on your day. It is stored on this device only.</string>
+	<!-- UP-LAUNCH-03 (2026-09-05): four image inputs offer Take Photo
+	     (shared/usePickFile.tsx, and the schedule, program, gym and document
+	     upload flows that open it). iOS terminates an app that reaches the
+	     camera with no string here, so this is a crash on first use, not a
+	     missing feature. The staged Location string in
+	     native/InfoPlist-strings.md is deliberately NOT swapped in: it
+	     promises Leave By alert timing, which the shipping web shell does
+	     not do yet, and a usage string that describes unbuilt behaviour is
+	     the kind of thing App Review asks about. It comes back with Leave
+	     By, in the native seven session. -->
+	<key>NSCameraUsageDescription</key>
+	<string>JARVIS uses the camera only when you choose Take Photo to read a schedule, a program or a document. Photos stay in your JARVIS account.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>armv7</string>
-	</array>
+	<!-- UP-LAUNCH-03: portrait only, matching public/manifest.webmanifest.
+	     Every screen in this app is a single column laid out against the
+	     safe area; landscape was never designed and never tested, and an
+	     untested rotation is a screenshot an App Review tester can take.
+	     The armv7 device capability that used to sit here was removed with
+	     it: it names a 32 bit architecture no iOS 12+ device runs. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>

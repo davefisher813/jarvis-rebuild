@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  UP-LAUNCH-03 (2026-09-05). The privacy manifest for the app that actually
+  ships, trimmed from the staged one in native/PrivacyInfo.xcprivacy.
+
+  The staged file declares everything the native seven will touch once the
+  HealthKit, EventKit and Contacts plugins compile. Declaring a data type the
+  binary cannot collect is not a harmless overshare: it has to agree with the
+  App Privacy answers in App Store Connect (UP-LAUNCH-20), and every extra
+  type is a question the reviewer can ask and the app cannot answer. So Health,
+  Fitness and Contacts stay staged, and come back here in the same commit as
+  the plugin that earns them.
+
+  What the shipping web shell genuinely collects:
+    Email Address       the account itself (Supabase auth)
+    Other User Content  notes, tasks, events, and the mail shown in the app
+    Coarse Location     the weather line, when the user allows it
+    Product Interaction the text-free event log (app.opened and the semantic
+                        acts; see src/events/serverSink.ts, migration 0015)
+    Crash Data          the client error receiver (api/client-error.ts)
+
+  Crash Data is the one type marked NOT linked, and that is a fact about the
+  code rather than a preference: api/client-error.ts takes no bearer token and
+  writes no user id, so a crash report cannot be tied back to an account.
+  Everything else is keyed by owner_id and is therefore linked.
+
+  Nothing here is tracking, and there are no tracking domains, because there
+  is no ad network, no third-party analytics SDK and no data broker anywhere
+  in this app. NSPrivacyTracking false is a load-bearing claim: it is what
+  lets the app skip App Tracking Transparency entirely.
+-->
+<plist version="1.0">
+<dict>
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array>
+        <!-- The account. Email and password, or the Apple relay address. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeEmailAddress</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- Everything the user writes or imports: notes, tasks, projects,
+             events, and the mail the Email tab shows. Stored in the user's
+             own rows under row level security, never shared. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- Coarse location for the one weather line, asked for in the
+             moment and only when the user taps Allow. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeCoarseLocation</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- The event log: which day the app was opened and which typed act
+             happened. No free text can reach it by construction (rowFrom
+             maps a fixed set of columns and drops the rest). -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeProductInteraction</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- Crash reports. Not linked: the receiver is unauthenticated and
+             stores no user id. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeCrashData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+    </array>
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <!-- UserDefaults / App Group shared state: app-only access. -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>CA92.1</string>
+            </array>
+        </dict>
+        <!-- File timestamps inside the app's own container. -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>C617.1</string>
+            </array>
+        </dict>
+        <!-- Disk space checks by the local cache layer. -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>E174.1</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

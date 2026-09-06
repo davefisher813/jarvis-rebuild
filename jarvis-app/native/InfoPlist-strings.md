@@ -67,9 +67,33 @@ the onboarding flow) uses:
 **`NSSupportsLiveActivities`**: `YES` (boolean, no prose). The Leave By
 countdown on the lock screen and Dynamic Island depends on it.
 
+## Already in the shipping Info.plist (UP-LAUNCH-03, 2026-09-05)
+
+The web shell asks for two of these today, so two of them have landed in
+`ios/App/App/Info.plist` and must NOT be pasted again:
+
+- `NSLocationWhenInUseUsageDescription`, in the narrower wording that
+  describes only the weather line. The staged string above also promises
+  Leave By alert timing, which the shipping shell does not do; it replaces
+  the narrow one in the same session that ships Leave By.
+- `NSCameraUsageDescription` (new, not staged above, because the staging pass
+  read the native seven and missed that four web image inputs already offer
+  Take Photo): "JARVIS uses the camera only when you choose Take Photo to
+  read a schedule, a program or a document. Photos stay in your JARVIS
+  account."
+
+The privacy manifest landed the same way: `ios/App/App/PrivacyInfo.xcprivacy`
+is the trimmed version of `native/PrivacyInfo.xcprivacy`, carrying only what
+the shipping binary can collect. Health, Fitness and Contacts come back to it
+in the same commit as the plugin that earns them. `src/laws/appStore.test.ts`
+fails if either file drifts from what the source actually asks for.
+
 ## Checklist for the wiring session
 
-- [ ] Paste the five usage strings above into Info.plist
+- [ ] Paste the three remaining usage strings above into Info.plist (Health,
+      Calendars, Reminders, Contacts: the two below have landed already)
+- [ ] Widen the Location string once Leave By ships
 - [ ] `NSSupportsLiveActivities` = YES
 - [ ] Confirm NO `NSHealthUpdateUsageDescription` is present
 - [ ] Register the `jarvis://` URL scheme (widget + intent deep links)
+- [ ] Add Health, Fitness and Contacts back to `ios/App/App/PrivacyInfo.xcprivacy`
