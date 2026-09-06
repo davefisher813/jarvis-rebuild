@@ -319,3 +319,74 @@ describe("QuickCapture while the save is in flight", () => {
     create.mockRestore();
   });
 });
+
+// UP-ATH-18 (2026-09-06, option A): while a session is live the bar is
+// standing next to the athlete, and "225 for 5" used to become a task called
+// "225 For 5". The branch runs before any AI call and refuses everything it
+// is not certain about.
+import { writeLive, readLive, clearLive } from "../gym/liveSession";
+import { todayISO } from "../ai/useAIContext";
+
+describe("QuickCapture: a set goes to the live session", () => {
+  const liveBench = () => writeLive({
+    programId: "p", dayId: "d", dayName: "Push", date: todayISO(), startedAt: Date.now(), idx: 0,
+    exercises: [{ exerciseId: "e1", name: "Bench Press", kind: "weight_reps", unit: "lb", sets: [] }],
+  });
+
+  beforeEach(() => { clearLive(); showToast.mockClear(); });
+
+  it("logs the set on the exercise the athlete is on, and closes", async () => {
+    liveBench();
+    const onClose = vi.fn();
+    render(
+      <NotesProvider userId="qc-gym-1">
+        <QuickCapture ai={new AIService({ available: false })} onClose={onClose} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "225 for 5" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(readLive()!.exercises[0]!.sets).toHaveLength(1);
+    expect(readLive()!.exercises[0]!.sets[0]).toMatchObject({ w: 225, r: 5 });
+    expect(showToast.mock.calls[0]![0].message).toBe("Logged 225 lb × 5");
+    expect(showToast.mock.calls[0]![0].actionLabel).toBe("Undo");
+  });
+
+  it("the Undo puts the strip back exactly as it was", async () => {
+    liveBench();
+    render(
+      <NotesProvider userId="qc-gym-2">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "225 for 5" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(readLive()!.exercises[0]!.sets).toHaveLength(1));
+    act(() => showToast.mock.calls[0]![0].onAction());
+    expect(readLive()!.exercises[0]!.sets).toHaveLength(0);
+  });
+
+  it("text that is not a set still routes normally, even mid-session", async () => {
+    liveBench();
+    render(
+      <NotesProvider userId="qc-gym-3">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    expect(readLive()!.exercises[0]!.sets).toHaveLength(0);
+  });
+
+  it("with no session live the same words are a task, not a set", async () => {
+    render(
+      <NotesProvider userId="qc-gym-4">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "225 for 5" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+  });
+});

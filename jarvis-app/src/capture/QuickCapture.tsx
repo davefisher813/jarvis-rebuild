@@ -7,6 +7,11 @@ import { useAIContext, todayISO } from "../ai/useAIContext";
 import type { AIService } from "../ai/AIService";
 import type { Category } from "../categories/types";
 import { smartPasteSave, undoSaved, refileSaved, recategorizeSaved, recategorizeFact, type SavedEntity } from "../paste/smartPaste";
+import { parseSetPhrase } from "../gym/parseSet";
+import { readLive, writeLive, logSet, setLoggedSets, skipExercise, isStillActive } from "../gym/liveSession";
+import { newSetId, duplicateEntry } from "../gym/strip";
+import { formatSet } from "../gym/measures";
+import type { SetEntry } from "../gym/types";
 import { pasteSeenAge, readRecentCaptures, dropCapture, type RecentCapture } from "../paste/captureLog";
 import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { showToast } from "../shared/toast";
@@ -129,10 +134,64 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   const deps = (categories: Category[], who: { people?: { id: string; name: string }[]; projects?: { id: string; title: string }[] } = { people, projects }) =>
     ({ ai, gather, tasks, schedule, notes, categories, today: todayISO(), ...who, ...(rules ? { rules } : {}), ...(strands ? { strands } : {}) });
 
+  // UP-ATH-18 (2026-09-06, option A): THE SET GOES TO THE SESSION, NOT TO A
+  // LIST. While a session is live the bar is standing right next to the
+  // athlete, and "225 for 5" typed into it used to become a task called "225
+  // For 5". Deterministic and first, before any AI call: gym/parseSet.ts
+  // reads the shapes people type against the exercise they are actually on,
+  // and answers null for everything else, so a note that happens to start
+  // with a number is still a note. The whole branch is skipped when nothing
+  // is live, which is most of the time.
+  const logToSession = (t: string): boolean => {
+    const live = readLive();
+    if (!live || !isStillActive(live, todayISO())) return false;
+    const entry = live.exercises[live.idx];
+    if (!entry || entry.skipped) return false;
+    const hit = parseSetPhrase(t, { kind: entry.kind, ...(entry.unit ? { unit: entry.unit } : {}), ...(entry.timeUnit ? { timeUnit: entry.timeUnit } : {}) });
+    if (!hit) return false;
+    const before = entry.sets;
+    if (hit.kind === "skip") {
+      writeLive(skipExercise(live, live.idx));
+      showToast({
+        message: `${entry.name} skipped`,
+        actionLabel: "Undo",
+        onAction: () => { const cur = readLive(); if (cur) writeLive({ ...cur, exercises: cur.exercises.map((e, i) => (i === live.idx ? { ...e, skipped: false } : e)) }); },
+      });
+      onClose();
+      return true;
+    }
+    // "same" repeats the last WORKING set: a warm-up is not what "same"
+    // means, and with nothing logged yet there is nothing to repeat.
+    let set: SetEntry;
+    if (hit.kind === "same") {
+      const last = [...before].reverse().find((x) => !x.warmup);
+      if (!last) return false;
+      set = duplicateEntry(last);
+    } else if (hit.kind === "done") {
+      set = { id: newSetId(), done: true };
+    } else {
+      // A rep count on its own inherits the weight from the last set, which
+      // is what "8 reps" means standing at a loaded bar. With nothing to
+      // inherit from, the entry is exactly what was typed.
+      const last = [...before].reverse().find((x) => !x.warmup);
+      const filled = hit.entry.w === undefined && last?.w !== undefined ? { ...hit.entry, w: last.w } : hit.entry;
+      set = { id: newSetId(), ...filled };
+    }
+    writeLive(logSet(live, live.idx, set));
+    showToast({
+      message: `Logged ${formatSet(entry, set)}`,
+      actionLabel: "Undo",
+      onAction: () => { const cur = readLive(); if (cur) writeLive(setLoggedSets(cur, live.idx, before)); },
+    });
+    onClose();
+    return true;
+  };
+
   const capture = async (force = false) => {
     const t = text.trim();
     if (!t || phase === "saving") return;
     setError("");
+    if (logToSession(t)) return;
     // Exact-text 7-day dedupe: a fact and a choice, never a silent block.
     if (!force) {
       const age = pasteSeenAge(t);
