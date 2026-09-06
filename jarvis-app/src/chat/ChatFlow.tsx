@@ -18,7 +18,7 @@ import { contextToText } from "../ai/context";
 import { chatSystemPrompt } from "./chatPrompt";
 import { nowHHMM } from "../today/todayData";
 import { addDays } from "../schedule/calendar";
-import { answerQuestion, looksLikeQuestion, type AnswerSnapshot } from "./answers";
+import { answerQuestion, looksLikeQuestion, rewriteFollowUp, type AnswerSnapshot, type Prior } from "./answers";
 // S6-Q42 (2026-09-05): the same needs-you snapshot the Email tab and Today
 // already read -- a synchronous cache read, no network, no AI call.
 import { loadMailSnapshot } from "../messages/home";
@@ -56,6 +56,28 @@ const SEND = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
 );
 
+// UP-MIND-04 (2026-09-05): the last six stored messages as alternating
+// turns, ending with what was just typed. Trimmed from the FRONT, so the
+// most recent turns are the ones that survive the cap, and forced to start
+// on a user turn because a conversation that opens with an assistant reply
+// is not one.
+const HISTORY_TURNS = 6;
+const HISTORY_CHARS = 6000;
+
+export function recentTurns(
+  stored: { data: { role: "user" | "jarvis"; text: string } }[],
+  latest: string,
+): { role: "user" | "assistant"; content: string }[] {
+  const prior = stored
+    .slice(0, -1) // the message just stored is `latest`, added below
+    .slice(-HISTORY_TURNS)
+    .map((m) => ({ role: m.data.role === "user" ? "user" as const : "assistant" as const, content: m.data.text }));
+  while (prior.length && (prior[0]!.role !== "user" || prior.reduce((n, t) => n + t.content.length, 0) > HISTORY_CHARS)) {
+    prior.shift();
+  }
+  return [...prior, { role: "user" as const, content: latest }];
+}
+
 interface PendingChoice {
   // A command that matched more than one task (the Uncertainty Protocol).
   command?: ChatCommand;
@@ -90,6 +112,12 @@ export default function ChatFlow({ onOpen }: {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState<PendingChoice | null>(null);
+  // UP-MIND-04 (2026-09-05): the last question this conversation actually
+  // answered, and the records it cited. "And tomorrow?" resolves against
+  // this instead of starting cold. In state, not in the store: it is about
+  // THIS conversation on THIS screen, and a stale one from last week is
+  // exactly the wrong thing to resolve a pronoun against.
+  const [prior, setPrior] = useState<Prior | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   const filesSvc = useOptionalFiles();
@@ -120,7 +148,15 @@ export default function ChatFlow({ onOpen }: {
     return () => { on = false; };
   }, [pending, catsSvc, schedule]);
 
-  const reload = useCallback(async () => setMsgs(await chat.list()), [chat]);
+  // Returns the list it just loaded (UP-MIND-04): `msgs` inside an async
+  // handler is the value from the render that started it, so a handler that
+  // needs the history INCLUDING the message it just stored has to be handed
+  // it rather than reading the state it set two lines up.
+  const reload = useCallback(async () => {
+    const list = await chat.list();
+    setMsgs(list);
+    return list;
+  }, [chat]);
   useEffect(() => { void reload(); }, [reload]);
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [msgs.length, choice]);
 
@@ -235,10 +271,16 @@ export default function ChatFlow({ onOpen }: {
       if (!stored) return;
       setDraft("");
       try {
-        await reload();
+        const history = await reload();
+
+        // UP-MIND-04: "and tomorrow", "move it to Friday", "where is it".
+        // Rewritten into a whole sentence BEFORE the command parser and the
+        // Q&A shapes see it, so both stay stateless. The user's own words
+        // are what is stored and shown; only the resolution changes.
+        const asked = rewriteFollowUp(text, prior) ?? text;
 
         // 1. Commands, before any AI call (cost guard).
-        const cmd = parseCommand(text);
+        const cmd = parseCommand(asked);
         if (cmd) {
           const open = (await tasksSvc.listTasks()).filter((t) => !t.data.done).map((t) => ({ id: t.id, text: t.data.text }));
           const res = resolveTarget(open, cmd.query);
@@ -253,9 +295,11 @@ export default function ChatFlow({ onOpen }: {
         }
 
         // 2. Deterministic Q&A, still before any AI call.
-        if (looksLikeQuestion(text)) {
-          const ans = await answerQuestion(text, await snapshot());
+        if (looksLikeQuestion(asked)) {
+          const ans = await answerQuestion(asked, await snapshot());
           if (ans) {
+            // The turn that a follow-up will resolve against next.
+            if (!ans.choose) setPrior({ question: asked, ...(ans.provenance.refs ? { refs: ans.provenance.refs } : {}) });
             await say("jarvis", ans.text, ans.provenance);
             // UP-MIND-03: more than one person answers to that name. The
             // chips are the same bounded chooser the command path renders.
@@ -270,10 +314,16 @@ export default function ChatFlow({ onOpen }: {
           try {
             const ctx = await gather();
             const raw = await ai.complete(
-              [{ role: "user", content: text }],
+              // UP-MIND-04: the last six turns ride along, so "and what
+              // about the week after" is a question rather than a fragment.
+              // Capped hard: the proxy refuses an input over 32 KB
+              // (api/ai.ts:61) and the context block below is already most
+              // of one prompt.
+              recentTurns(history, text),
               chatSystemPrompt(contextToText(ctx)),
               { kind: "chat", background: false },
             );
+            setPrior({ question: asked });
             await say("jarvis", raw.trim(), { kind: "ai" });
           } catch {
             await say("jarvis", "Couldn't reach the AI · Try again", { kind: "records" });

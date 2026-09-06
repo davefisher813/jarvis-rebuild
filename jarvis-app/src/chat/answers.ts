@@ -90,6 +90,57 @@ function findByTitle<T>(items: T[], titleOf: (t: T) => string, q: string): T[] {
 }
 
 
+// Steps a local day with setDate, never with a UTC serialiser: the house
+// timezone rule (schedule/calendar.ts owns the general helpers; this file
+// needs exactly one day of it and importing the schedule layer into Chat's
+// pure answer module would be the bigger change).
+function addOneDay(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// --- FOLLOW-UPS (UP-MIND-04) ---
+
+/** The last thing this conversation answered: the question as it was finally
+ *  understood, and the records the answer cited. */
+export interface Prior {
+  question: string;
+  refs?: { kind: string; id: string; label: string }[];
+}
+
+// "And tomorrow?" after "what's on today" is one question, asked in two
+// turns. This rewrites the second turn into a whole question so every shape
+// below stays stateless and testable: nothing here answers anything, it only
+// says what was meant. A rewrite it cannot make honestly returns null, and
+// the turn goes on to the AI path with the conversation attached.
+export function rewriteFollowUp(raw: string, prior: Prior | null): string | null {
+  if (!prior) return null;
+  const t = raw.trim().toLowerCase().replace(/[?.!]+$/, "");
+  if (!t) return null;
+  // "and tomorrow", "what about today", "how about tomorrow"
+  const day = t.match(/^(?:and|what about|how about|ok(?:ay)? and)\s+(today|tomorrow)$/);
+  if (day) return `what's on ${day[1]}`;
+  // "and <something else>" against the shape just asked: the verb is carried
+  // over, the subject is replaced. Only for the two shapes that HAVE a
+  // subject, because carrying "and the standup" onto "how much can I spend"
+  // would be nonsense.
+  const other = t.match(/^(?:and|what about|how about)\s+(.+)$/);
+  if (other) {
+    const verb = prior.question.trim().toLowerCase().match(/^(when(?:'| i)?s|when is|where(?:'| i)?s|where is)\b/);
+    if (verb) return `${verb[1]} ${other[1]}`;
+    return null;
+  }
+  // A pronoun standing in for the record the last answer cited. Without a
+  // ref there is nothing to stand in for, so this stays null rather than
+  // guessing which "it" was meant.
+  const first = prior.refs?.[0];
+  if (!first) return null;
+  if (!/\b(it|that|this one|the next one|him|her|them)\b/.test(t)) return null;
+  const filled = t.replace(/\b(it|that|this one|the next one|him|her|them)\b/, first.label);
+  return filled === t ? null : filled;
+}
+
 // --- PEOPLE (UP-MIND-03) ---
 
 type SnapPerson = AnswerSnapshot["people"][number];
@@ -216,6 +267,19 @@ export async function answerQuestion(
     return {
       text: capAfterNumber(`${evs.length} ${evs.length === 1 ? "event" : "events"} · ${due.length} ${due.length === 1 ? "task" : "tasks"} due`),
       provenance: { kind: "records" },
+    };
+  }
+
+  // UP-MIND-04 (2026-09-05): "and tomorrow?" is how people actually talk, and
+  // it rewrites to this. There was no tomorrow shape at all before, so the
+  // follow-up had nothing to resolve into.
+  if (/^(what('| i)?s (on )?tomorrow|what does tomorrow look like|tomorrow)$/.test(q)) {
+    const tmr = addOneDay(snap.today);
+    const evs = snap.events.filter((e) => e.date === tmr);
+    const due = snap.tasks.filter((t) => !t.done && t.due === tmr);
+    return {
+      text: capAfterNumber(`${evs.length} ${evs.length === 1 ? "event" : "events"} · ${due.length} ${due.length === 1 ? "task" : "tasks"} due`),
+      provenance: { kind: "records", refs: evs.slice(0, 4).map((e) => ({ kind: "event", id: e.id, label: e.title })) },
     };
   }
 

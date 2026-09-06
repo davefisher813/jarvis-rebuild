@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import "@testing-library/jest-dom";
 import { NotesProvider, useOptionalStrands, useTasks, useChat } from "../data/NotesProvider";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
-import ChatFlow from "./ChatFlow";
+import ChatFlow, { recentTurns } from "./ChatFlow";
 
 // jsdom has no scrollIntoView; ChatFlow's own autoscroll effect calls it on
 // every message, unrelated to what this file is testing.
@@ -205,5 +205,39 @@ describe("UP-MIND-02: tap what Chat cites", () => {
     sendText("Complete the plumber");
     await waitFor(() => expect(screen.getByText("Done: Call the plumber")).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Call the plumber" })).toBeNull();
+  });
+});
+
+// UP-MIND-04 (2026-09-05): the AI path used to send exactly one message, so
+// "and what about the week after" arrived as a fragment with no conversation
+// behind it.
+describe("UP-MIND-04: the AI path carries the conversation", () => {
+  const turn = (role: "user" | "jarvis", text: string) => ({ data: { role, text } });
+
+  it("sends the last turns, alternating, ending with what was just typed", () => {
+    const out = recentTurns([
+      turn("user", "what's on today"),
+      turn("jarvis", "2 Events"),
+      turn("user", "and the week after"),
+    ], "and the week after");
+    expect(out).toEqual([
+      { role: "user", content: "what's on today" },
+      { role: "assistant", content: "2 Events" },
+      { role: "user", content: "and the week after" },
+    ]);
+  });
+
+  it("starts on a user turn, whatever the history begins with", () => {
+    const out = recentTurns([turn("jarvis", "Saved"), turn("user", "hello")], "hello");
+    expect(out[0]).toEqual({ role: "user", content: "hello" });
+    expect(out).toHaveLength(1);
+  });
+
+  it("caps the history so a long conversation cannot blow the input limit", () => {
+    const many = [];
+    for (let i = 0; i < 40; i++) many.push(turn(i % 2 === 0 ? "user" : "jarvis", "x".repeat(2000)));
+    many.push(turn("user", "latest"));
+    const out = recentTurns(many, "latest");
+    expect(out.reduce((n, t) => n + t.content.length, 0)).toBeLessThan(8000);
   });
 });

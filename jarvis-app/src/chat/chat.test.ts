@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
-import { answerQuestion, looksLikeQuestion, type AnswerSnapshot } from "./answers";
+import { answerQuestion, looksLikeQuestion, rewriteFollowUp, type AnswerSnapshot } from "./answers";
 import { parseCommand, resolveTarget, CHOOSER_CAP } from "./commands";
 import { ChatService } from "./ChatService";
 import { ENTITY_CHAT } from "./types";
@@ -204,8 +204,11 @@ describe("law: chat pipeline is deterministic before AI", () => {
   it("ChatFlow places parseCommand and answerQuestion before ai.complete", async () => {
     const fs = await import("node:fs");
     const src = fs.readFileSync(new URL("./ChatFlow.tsx", import.meta.url), "utf8");
-    const cmdAt = src.indexOf("parseCommand(text)");
-    const qaAt = src.indexOf("answerQuestion(text");
+    // UP-MIND-04 (2026-09-05): both now read `asked`, the follow-up rewrite
+    // of what was typed. The law is the ORDER, which is unchanged: commands
+    // first, deterministic Q&A second, the billed call only after both.
+    const cmdAt = src.indexOf("parseCommand(asked)");
+    const qaAt = src.indexOf("answerQuestion(asked");
     const aiAt = src.indexOf("ai.complete(");
     expect(cmdAt).toBeGreaterThan(-1);
     expect(qaAt).toBeGreaterThan(cmdAt);
@@ -306,3 +309,42 @@ describe("chat answers about a person", () => {
 });
 
 const withPeopleAnswer = (q: string, s: AnswerSnapshot) => answerQuestion(q, s);
+
+// UP-MIND-04 (2026-09-05): a follow-up resolves against the conversation.
+// The rewriter answers nothing; it says what was MEANT, so every shape above
+// stays stateless and a rewrite it cannot make honestly is a null.
+describe("chat follow-ups", () => {
+  it("rewrites and tomorrow into a whole question", () => {
+    expect(rewriteFollowUp("and tomorrow?", { question: "what's on today" })).toBe("what's on tomorrow");
+    expect(rewriteFollowUp("what about today", { question: "what's on tomorrow" })).toBe("what's on today");
+  });
+
+  it("answers the rewritten day question from records", async () => {
+    const a = (await answerQuestion("what's on tomorrow", snap({
+      events: [{ id: "e9", title: "Dentist", date: "2026-08-16", start: "14:30" }],
+      tasks: [],
+    })))!;
+    expect(a.text).toBe("1 Event · 0 Tasks due");
+    expect(a.provenance.refs?.[0]?.id).toBe("e9");
+  });
+
+  it("carries the verb over onto a new subject", () => {
+    expect(rewriteFollowUp("and the standup", { question: "when is the dentist" })).toBe("when is the standup");
+  });
+
+  it("refuses to carry a verb that has no subject", () => {
+    expect(rewriteFollowUp("and the standup", { question: "how much can i spend" })).toBeNull();
+  });
+
+  it("fills a pronoun from the record the last answer cited", () => {
+    const prior = { question: "what's next", refs: [{ kind: "event", id: "e2", label: "Standup" }] };
+    expect(rewriteFollowUp("where is it", prior)).toBe("where is Standup");
+    expect(rewriteFollowUp("move it to friday", prior)).toBe("move Standup to friday");
+  });
+
+  it("stays silent with nothing to resolve against", () => {
+    expect(rewriteFollowUp("where is it", null)).toBeNull();
+    expect(rewriteFollowUp("where is it", { question: "what's on today" })).toBeNull();
+    expect(rewriteFollowUp("what's on today", { question: "what's next" })).toBeNull();
+  });
+});
