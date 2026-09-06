@@ -19,6 +19,18 @@ export interface AdminUsage {
   activeUsers: number;
   signups7d: number;
   aiCalls30d: number;
+  // UP-PLAT-04 (2026-09-06): what those calls cost, list price times measured
+  // tokens. Null when nothing was measured or a model in the window has no
+  // price in the table: an unpriced estimate is not an estimate.
+  aiCost30d?: number | null;
+  // Per account, biggest spender first, only accounts that ran something.
+  spend?: AdminSpend[];
+}
+export interface AdminSpend {
+  id: string;
+  email: string;
+  calls: number;
+  usd: number | null;
 }
 export interface AdminBilling {
   mrr: number;

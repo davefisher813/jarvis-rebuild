@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ShieldAlert } from "../shared/icons";
+import { formatUSD } from "../ai/tokenLog";
 import type { AdminService, AdminUser, AdminUsage, AdminBilling, AdminFeedbackItem } from "./AdminService";
 import { pct, type AdminMetrics } from "./adminMetrics";
 
@@ -97,7 +98,32 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
           <div className="adm-tile"><div className="adm-num">{usage?.activeUsers ?? "-"}</div><div className="adm-label">Active</div></div>
           <div className="adm-tile"><div className="adm-num">{usage?.signups7d ?? "-"}</div><div className="adm-label">Signups 7d</div></div>
           <div className="adm-tile"><div className="adm-num">{usage?.aiCalls30d ?? "-"}</div><div className="adm-label">AI calls 30d</div></div>
+          {/* UP-PLAT-04 (2026-09-06): the bill, not just the call count. A
+              dash when nothing was measured or a model in the window has no
+              price: an unpriced estimate is not an estimate. */}
+          <div className="adm-tile"><div className="adm-num">{usage?.aiCost30d != null ? formatUSD(usage.aiCost30d) : "-"}</div><div className="adm-label">AI cost 30d</div></div>
         </div></div>
+      )}
+
+      {/* Per account, biggest first, only accounts that ran something, so a
+          runaway is visible the day it starts instead of at the invoice. An
+          empty list means nobody spent anything, which is why there is no
+          row rather than a column of zeros. */}
+      {source.available && !!usage?.spend?.length && (
+        <>
+          <div className="grp"><div className="eyebrow">AI Spend 30d</div></div>
+          <div className="pad-x"><div className="card">
+            {usage.spend.map((s) => (
+              <div className="row" key={s.id}>
+                <div className="row-grow">
+                  <div className="conn-name">{s.email}</div>
+                  <div className="conn-meta">{s.calls} {s.calls === 1 ? "call" : "calls"}</div>
+                </div>
+                <div className="conn-meta">{s.usd != null ? formatUSD(s.usd) : "Not priced"}</div>
+              </div>
+            ))}
+          </div></div>
+        </>
       )}
 
       <div className="grp"><div className="eyebrow">Billing</div></div>

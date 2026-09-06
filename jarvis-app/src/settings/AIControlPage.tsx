@@ -5,6 +5,7 @@ import { haptics } from "../shared/haptics";
 import { apiUrl } from "../shared/apiBase";
 import { AI_LEVELS, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AILevel, type AIPinKey } from "../ai/aiGate";
 import { setAIControl } from "../ai/levelStore";
+import { estimateCost, formatTokens, formatUSD, type TokenTotals } from "../ai/tokenLog";
 import { Head, Card, Row, Menu } from "./kit";
 import { attemptWrite } from "../shared/guard";
 
@@ -47,6 +48,10 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
   const [count, setCount] = useState<number | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
   const [showCalls, setShowCalls] = useState(false);
+  // UP-PLAT-04 (2026-09-06): what the calls cost, from ai_tokens. Empty until
+  // the endpoint answers, and an empty array is a legal answer: an account
+  // that ran nothing today has no tokens, and no row claims otherwise.
+  const [tokens, setTokens] = useState<TokenTotals[]>([]);
 
   useEffect(() => {
     void svc.get().then((p) => { if (p?.ai) setCtrl(p.ai); });
@@ -56,8 +61,8 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     if (!token) return;
     void fetch(apiUrl("/api/ai-usage"), { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { count?: number | null; calls?: Call[] } | null) => {
-        if (d) { setCount(d.count ?? null); setCalls(d.calls ?? []); }
+      .then((d: { count?: number | null; calls?: Call[]; tokens?: TokenTotals[] } | null) => {
+        if (d) { setCount(d.count ?? null); setCalls(d.calls ?? []); setTokens(d.tokens ?? []); }
       })
       .catch(() => { /* the count is a fact or absent, never a guess */ });
   }, [token]);
@@ -79,6 +84,16 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     haptics.selection();
     void apply({ ...ctrl, pins: { ...ctrl.pins, [key]: v as AILevel | "match" } });
   };
+
+  // UP-PLAT-04 (2026-09-06): "N calls · ~$0.0X". The tilde is load-bearing:
+  // this is list price times measured tokens, not the invoice.
+  const usd = estimateCost(tokens);
+  const callsValue = count === null
+    ? "Not tracked"
+    : usd === null ? String(count) : `${count} · ~${formatUSD(usd)}`;
+  const inTok = tokens.reduce((n, t) => n + t.inputTokens + t.cacheReadTokens + t.cacheWriteTokens, 0);
+  const outTok = tokens.reduce((n, t) => n + t.outputTokens, 0);
+  const tokenRow = inTok + outTok > 0 ? `${formatTokens(inTok)} in · ${formatTokens(outTok)} out` : "";
 
   return (
     <div className="screen ruled">
@@ -103,7 +118,12 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
       </Card>
       <Head label="What Ran" />
       <Card>
-        <Row label="AI Calls Today" value={count === null ? "Not tracked" : String(count)} onClick={calls.length ? () => setShowCalls(!showCalls) : undefined} />
+        <Row label="AI Calls Today" value={callsValue} onClick={calls.length ? () => setShowCalls(!showCalls) : undefined} />
+        {/* UP-PLAT-04: the tokens row only exists when there are tokens. No
+            row of zeros for an account that ran nothing, and no dollar figure
+            for a model the price table does not know: the tokens are the
+            fact, the cost is an estimate, and neither is invented. */}
+        {tokenRow && <Row label="Tokens Today" value={tokenRow} className="set-sub" />}
         {showCalls && calls.map((c, i) => (
           <Row key={i} label={kindLabel(c.kind)} value={new Date(c.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} className="set-sub" />
         ))}

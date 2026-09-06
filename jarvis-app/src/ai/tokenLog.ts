@@ -62,3 +62,102 @@ export function withoutCacheCounts(row: TokenRow): Omit<TokenRow, "cache_read_in
 function toCount(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : null;
 }
+
+// ---- WHAT IT COSTS (UP-PLAT-04, 2026-09-06) ----
+//
+// ai_tokens has been written on every completed call since migration 0026 and
+// had exactly zero readers: the numbers existed, and nobody, not even Dave who
+// pays the bill, could see them. A price table is the missing half, and it
+// belongs beside the row it prices.
+//
+// USD per MILLION tokens, Anthropic's published list prices, read 2026-09-06.
+// This is the ONE place in the app that hard-codes a price. Matched on the
+// model family in the id ("claude-sonnet-4-6" is a sonnet) so a version bump
+// does not silently drop a model out of the table.
+//
+// A model this table does not know prices at NULL, not zero. An estimate
+// nobody can trace is worse than no estimate, and a fake zero next to a real
+// bill is the exact shape of lie this codebase does not tell.
+export interface ModelPrice { input: number; output: number }
+
+const PRICES: readonly { family: string; price: ModelPrice }[] = [
+  { family: "opus", price: { input: 15, output: 75 } },
+  { family: "sonnet", price: { input: 3, output: 15 } },
+  { family: "haiku", price: { input: 1, output: 5 } },
+];
+
+export function priceOf(model: string): ModelPrice | null {
+  const m = (model || "").toLowerCase();
+  return PRICES.find((p) => m.includes(p.family))?.price ?? null;
+}
+
+// UP-PLAT-02's arithmetic: a cache read bills at a tenth of the input price,
+// a cache write at 1.25x, once.
+export const CACHE_READ_MULTIPLIER = 0.1;
+export const CACHE_WRITE_MULTIPLIER = 1.25;
+
+// One model's totals over a window. The two cache fields are named for what
+// they mean here rather than for Anthropic's wire format, because this shape
+// is what the app's own screens read.
+export interface TokenTotals {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
+/** Sums the rows of an ai_tokens read into one line per model. */
+export function totalsByModel(rows: Partial<TokenRow>[]): TokenTotals[] {
+  const by = new Map<string, TokenTotals>();
+  for (const r of rows) {
+    const model = typeof r.model === "string" ? r.model : "";
+    const t = by.get(model) ?? { model, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    t.inputTokens += num(r.input_tokens);
+    t.outputTokens += num(r.output_tokens);
+    t.cacheReadTokens += num(r.cache_read_input_tokens);
+    t.cacheWriteTokens += num(r.cache_creation_input_tokens);
+    by.set(model, t);
+  }
+  return [...by.values()];
+}
+
+/**
+ * Dollars for these totals, or null when any line names a model this table
+ * cannot price. All or nothing on purpose: a total that quietly omits one
+ * model is a wrong number wearing a right one's clothes.
+ */
+export function estimateCost(totals: TokenTotals[]): number | null {
+  if (totals.length === 0) return null;
+  let usd = 0;
+  for (const t of totals) {
+    const p = priceOf(t.model);
+    if (!p) return null;
+    usd += (t.inputTokens * p.input) / 1e6;
+    usd += (t.outputTokens * p.output) / 1e6;
+    usd += (t.cacheReadTokens * p.input * CACHE_READ_MULTIPLIER) / 1e6;
+    usd += (t.cacheWriteTokens * p.input * CACHE_WRITE_MULTIPLIER) / 1e6;
+  }
+  return usd;
+}
+
+/**
+ * The one renderer, so a cost never appears in two shapes. A real spend under
+ * a cent says so rather than rounding itself away to "$0.00", which reads as
+ * free.
+ */
+export function formatUSD(usd: number): string {
+  if (usd > 0 && usd < 0.01) return "<$0.01";
+  return "$" + usd.toFixed(2);
+}
+
+/** "3.2k" for a token count, so a row of digits does not swamp a settings row. */
+export function formatTokens(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+  return String(n);
+}
+
+function num(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0;
+}

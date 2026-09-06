@@ -1,7 +1,8 @@
 // Pure logic for the admin endpoints, kept out of the serverless handlers so it
 // can be unit-tested. The handlers fetch raw Supabase/Stripe data and pass it
 // here for shaping.
-import type { AdminUser, AdminUsage, AdminBilling } from "./AdminService";
+import type { AdminUser, AdminUsage, AdminBilling, AdminSpend } from "./AdminService";
+import { estimateCost, totalsByModel, type TokenRow } from "../ai/tokenLog";
 
 export interface RawUser {
   id: string;
@@ -31,13 +32,65 @@ export function mapUsers(raw: RawUser[], profiles: ProfileRow[], now = Date.now(
   });
 }
 
-export function usageFromUsers(raw: RawUser[], aiCalls30d: number, now = Date.now()): AdminUsage {
+export function usageFromUsers(
+  raw: RawUser[],
+  aiCalls30d: number,
+  now = Date.now(),
+  // UP-PLAT-04 (2026-09-06): the ai_tokens rows for the same 30 days, so the
+  // panel can say what those calls cost and WHO ran them. Optional, so a
+  // caller that cannot read the cost ledger still gets the counts it always
+  // got instead of an error.
+  tokenRows: Partial<TokenRow>[] = [],
+): AdminUsage {
   let active = 0, signups7d = 0;
   for (const u of raw) {
     if (u.last_sign_in_at && now - new Date(u.last_sign_in_at).getTime() <= 30 * DAY) active += 1;
     if (u.created_at && now - new Date(u.created_at).getTime() <= 7 * DAY) signups7d += 1;
   }
-  return { totalUsers: raw.length, activeUsers: active, signups7d, aiCalls30d };
+  const spend = spendByUser(raw, tokenRows);
+  return {
+    totalUsers: raw.length,
+    activeUsers: active,
+    signups7d,
+    aiCalls30d,
+    aiCost30d: estimateCost(totalsByModel(tokenRows)),
+    spend,
+  };
+}
+
+// A RUNAWAY IS VISIBLE THE DAY IT STARTS (UP-PLAT-04, 2026-09-06). ai_tokens
+// carried the answer since migration 0026 and nothing read it, so one account
+// (or one background kind) burning the bill looked exactly like a quiet month
+// until the invoice arrived. Sorted by spend, biggest first, and only accounts
+// that actually ran something: an account with no calls has no row, because a
+// list of "$0.00" for every user is noise, not information.
+//
+// A user whose model this build cannot price gets a null cost next to real
+// token counts, never a zero.
+export function spendByUser(raw: RawUser[], tokenRows: Partial<TokenRow>[]): AdminSpend[] {
+  const byUser = new Map<string, Partial<TokenRow>[]>();
+  for (const r of tokenRows) {
+    const id = typeof r.user_id === "string" ? r.user_id : "";
+    if (!id) continue;
+    const list = byUser.get(id) ?? [];
+    list.push(r);
+    byUser.set(id, list);
+  }
+  const email = new Map(raw.map((u) => [u.id, u.email || "(no email)"]));
+  const out: AdminSpend[] = [];
+  for (const [id, rows] of byUser) {
+    const totals = totalsByModel(rows);
+    out.push({
+      id,
+      // An account deleted since its calls were logged still has spend; the
+      // id is what the ledger has and what the panel can act on.
+      email: email.get(id) || "(deleted account)",
+      calls: rows.length,
+      usd: estimateCost(totals),
+    });
+  }
+  out.sort((a, b) => (b.usd ?? 0) - (a.usd ?? 0) || b.calls - a.calls);
+  return out;
 }
 
 export interface StripeSub {
