@@ -20,7 +20,7 @@ const BrainFlow = lazyWithRecovery(() => import("../brain/BrainFlow"));
 import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
-import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym } from "../data/NotesProvider";
+import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym, useSettings } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { onNotificationTap, ensureTaskReminders, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW } from "../shared/notifications";
 import { addDays } from "../schedule/calendar";
@@ -61,7 +61,8 @@ import { setOverwhelmed } from "../tasks/overwhelmed";
 import { showToast } from "../shared/toast";
 import { useOneShot } from "./intents";
 import { attemptWrite } from "../shared/guard";
-import { useAppearance } from "../appearance/AppearanceProvider";
+import { useAppearance, type Appearance } from "../appearance/AppearanceProvider";
+import { SETTING_APPEARANCE } from "../data/SettingsService";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -79,6 +80,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const decisions = useDecisions();
   const gym = useGym();
   const sealSvc = useOptionalSeal();
+  const settings = useSettings();
   const { signOut, backendConfigured } = useAuth();
   const ai = useAI();
 
@@ -274,13 +276,14 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         seed.seedDemoMail();
       }
       if (!on) return;
-      // UP-PLAT-09 (2026-09-06): the account's text size wins over whatever
-      // this phone happened to have stored, so signing in on a new device is
-      // already at the size he chose. Same shape as the AI level, which is
-      // mirrored out of the profile the same way.
-      if (prof?.textSize && prof.textSize !== appearanceRef.current.appearance.textSize) {
-        appearanceRef.current.setTextSize(prof.textSize);
-      }
+      // UP-PLAT-09 / UP-PLAT-10 (2026-09-06): the account's appearance wins
+      // over whatever this phone happened to have stored, so signing in on a
+      // new device is already the theme and the text size he chose. pull()
+      // reconciles the two by the server's own monotonic stamp and returns
+      // the winner, so an offline change made here is not thrown away by a
+      // launch that reaches the network.
+      const storedAppearance = await settings?.pull<Partial<Appearance>>(SETTING_APPEARANCE);
+      if (storedAppearance) appearanceRef.current.applyAppearance(storedAppearance);
             const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
       setTabKeys(keys);
       if (firstBoot.current) {
@@ -290,7 +293,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       setReady(true);
     })();
     return () => { on = false; };
-  }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people, decisions, sealSvc, gym]);
+  }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people, decisions, sealSvc, gym, settings]);
 
   // Keep the category name/color resolver in sync when a category is created,
   // renamed, recolored, or deleted, so edits reflect live everywhere (schedule,

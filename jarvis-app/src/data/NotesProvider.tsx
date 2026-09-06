@@ -28,6 +28,7 @@ import type { Store } from "@core";
 import { wireOfflineSync } from "./offlineSync";
 import { wireResumeRefresh } from "./resumeRefresh";
 import { wireRealtime } from "./realtimeSync";
+import { SettingsService } from "./SettingsService";
 import { emit } from "../events";
 
 // One store per session, shared by Notes, Tasks, and Schedule, so cross-feature
@@ -70,6 +71,12 @@ const TokenContext = createContext<string | undefined>(undefined);
 // or notes, so it reads the one Store all of them share.
 const StoreContext = createContext<Store | null>(null);
 
+// UP-PLAT-10 (2026-09-06): the scalar_setting reader and writer. Not one of
+// the services above because it is not built on the Store: a scalar is not an
+// item. Null in a harness with no provider, same shape as every other
+// optional service here.
+const SettingsContext = createContext<SettingsService | null>(null);
+
 export function NotesProvider({
   userId,
   accessToken,
@@ -109,6 +116,9 @@ export function NotesProvider({
       seal: new SealService(store, userId, (e) => emit(e)),
     };
   }, [userId, accessToken]);
+  // Rebuilt with the session, like everything above it: a different signed-in
+  // user must never read the last one's settings.
+  const settings = useMemo(() => new SettingsService(supabase, userId), [userId]);
   // S3-Q14: real connectivity, not a pass-through only a test ever calls.
   // Tied to `store` itself (not [] ) so a token refresh or a different
   // signed-in user, each of which builds a fresh Store above, re-wires
@@ -128,6 +138,7 @@ export function NotesProvider({
   return (
     <TokenContext.Provider value={accessToken}>
     <StoreContext.Provider value={store}>
+    <SettingsContext.Provider value={settings}>
     <NotesContext.Provider value={notes}>
       <TasksContext.Provider value={tasks}>
         <ScheduleContext.Provider value={schedule}>
@@ -169,6 +180,7 @@ export function NotesProvider({
         </ScheduleContext.Provider>
       </TasksContext.Provider>
     </NotesContext.Provider>
+    </SettingsContext.Provider>
     </StoreContext.Provider>
     </TokenContext.Provider>
   );
@@ -375,4 +387,8 @@ export function useAccessToken(): string | undefined {
 // throwing.
 export function useStore(): Store | null {
   return useContext(StoreContext);
+}
+
+export function useSettings(): SettingsService | null {
+  return useContext(SettingsContext);
 }

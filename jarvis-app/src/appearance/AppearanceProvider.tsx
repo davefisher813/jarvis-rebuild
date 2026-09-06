@@ -53,12 +53,21 @@ function readSize(raw: unknown): TextSize {
   return raw === "larger" || raw === "largest" || raw === "default" ? raw : DEFAULT_APPEARANCE.textSize;
 }
 
+// UP-PLAT-10 (2026-09-06): still written, and still read first. This is the
+// MIRROR now, not the only copy: data/SettingsService.ts holds the account's
+// version under the "appearance" key and AppShell reconciles the two at boot.
+// The mirror is what makes the first paint synchronous and what makes an
+// offline or signed-out launch behave exactly as it always has, so it stays.
 const STORAGE_KEY = "jarvis.appearance";
 
 interface AppearanceContextValue {
   appearance: Appearance;
   setTheme: (t: Theme) => void;
   setTextSize: (t: TextSize) => void;
+  // UP-PLAT-10 (2026-09-06): the whole object at once, for the one caller
+  // that has the account's copy in hand and must not apply it in two steps
+  // (two renders, two writes to the root, a visible flicker between them).
+  applyAppearance: (a: Partial<Appearance>) => void;
 }
 
 const AppearanceContext = createContext<AppearanceContextValue | null>(null);
@@ -119,6 +128,10 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     appearance,
     setTheme: (theme) => setAppearance((a) => ({ ...a, theme })),
     setTextSize: (textSize) => setAppearance((a) => ({ ...a, textSize })),
+    applyAppearance: (patch) => setAppearance((a) => ({
+      theme: patch.theme ?? a.theme,
+      textSize: patch.textSize ?? a.textSize,
+    })),
   };
 
   return (

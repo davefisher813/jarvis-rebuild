@@ -142,6 +142,19 @@ const IDENTITY_KEYS: readonly string[] = [
   "jarvis.music.v1", // the remembered playlist per context
 ];
 
+// UP-PLAT-10 (2026-09-06), a decision worth writing down rather than acting
+// on: the appearance keys (jarvis.appearance and the SettingsService mirror
+// under its own versioned prefix, data/SettingsService.ts) are now MIRRORS of
+// the account's own copy
+// in scalar_setting, which is the condition the upgrade named for moving them
+// onto the list above. They stay off it anyway. A mirror is only a mirror
+// when there is an account behind it, and this function cannot tell: the
+// demo and local builds have no server, and there Clear Local Data would be
+// throwing away the person's chosen theme and text size with no second copy.
+// That is exactly the asymmetry this file's own comment is built on, and
+// clearing them buys nothing: the boot in shell/AppShell.tsx pulls the
+// account's copy and overwrites the mirror with it anyway.
+
 // Everything clearLocalData clears, plus the keys that name the person who
 // was signed in. Used by signOut and by deleteAccount.
 export function clearSignedOutData(storage: Pick<Storage, "removeItem"> = localStorage): void {

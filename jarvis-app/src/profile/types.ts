@@ -55,11 +55,10 @@ export interface ProfileData {
   // every one of them. They sit beside payday now, on the record that
   // already syncs and that the AI context already reads.
   envelopes?: Envelope[];
-  // UP-PLAT-09 (2026-09-06): the text size the person chose, on the record
-  // that syncs, so a new phone is already at their size. Absent means the
-  // shipped scale; the local mirror in appearance/AppearanceProvider.tsx is
-  // what makes the first paint synchronous.
-  textSize?: "default" | "larger" | "largest";
+  // UP-PLAT-09 put textSize here and UP-PLAT-10 (2026-09-06) moved it out
+  // again, to scalar_setting under the "appearance" key, so the two axes of
+  // one screen live in one place instead of two. Nothing shipped with it on
+  // the profile, so there is nothing to migrate: see data/SettingsService.ts.
   // AI Control (addendum items 18-22): master level + per-feature pins.
   // Absent means Draft Only (the default; also where onboarding Skip lands).
   // Stored on the profile so it syncs; mirrored into the levelStore singleton
