@@ -9,7 +9,7 @@ import { isSessionPR, lastHeader, lastSessionFor } from "./prs";
 import { readGymSettings, rackFrom } from "./settings";
 import { rampFor } from "./ramp";
 import { suggestFor, type Suggestion } from "./progression";
-import { pairLabels, fillerFor, nextInPair } from "./pairs";
+import { groupLabels, fillerFor, nextInGroup, groupOf } from "./groups";
 import type { LibraryEntry } from "./library";
 import { newExerciseKey } from "./library";
 import SetStrip from "./SetStrip";
@@ -212,9 +212,14 @@ export default function SessionScreen({
     return pos === null ? undefined : lastHit?.sets[pos];
   };
 
-  const labels = pairLabels(dayExercises);
+  // UP-ATH-17 (2026-09-06): a group, not a pair. Two members behave exactly
+  // as they did; three or more finally can exist. `partner` is the next
+  // member in day order, which for a pair is the same exercise it always was.
+  const labels = groupLabels(dayExercises);
   const pairLabel = labels.get(exercise.id);
-  const partner = exercise.pairWith ? dayExercises.find((e) => e.id === exercise.pairWith) : undefined;
+  const members = groupOf(exercise, dayExercises).filter((e) => !e.filler);
+  const here = members.findIndex((e) => e.id === exercise.id);
+  const partner = members.length > 1 && here >= 0 ? members[(here + 1) % members.length] : undefined;
   const partnerLabel = partner ? labels.get(partner.id) : undefined;
   const partnerLiveIdx = partner ? live.exercises.findIndex((e) => e.exerciseId === partner.id) : -1;
   const filler = fillerFor(exercise, dayExercises);
@@ -271,7 +276,7 @@ export default function SessionScreen({
   for (const e of live.exercises) {
     loggedByExerciseId[e.exerciseId] = e.sets.filter((x) => !x.warmup && !x.skipped).length;
   }
-  const pairNextId = nextInPair(exercise, dayExercises, loggedByExerciseId);
+  const pairNextId = nextInGroup(exercise, dayExercises, loggedByExerciseId);
   const pairNext = pairNextId ? dayExercises.find((e) => e.id === pairNextId) : undefined;
   const pairNextLiveIdx = pairNext ? live.exercises.findIndex((e) => e.exerciseId === pairNext.id) : -1;
 
@@ -399,9 +404,10 @@ export default function SessionScreen({
         </div></div>
       )}
 
-      {/* PAIRS (catalog §4.2) and SUPERSET FLOW (D8-C). One row, two states:
-          while the pair is mid-round it says whose turn it actually is, and
-          otherwise it is the plain switch it always was. */}
+      {/* GROUPS (catalog §4.2, widened by UP-ATH-17) and SUPERSET FLOW
+          (D8-C). One row, two states: while the group is mid-round it says
+          whose turn it actually is, and otherwise it is the plain switch it
+          always was, pointing at the next member in the day's own order. */}
       {partner && partnerLiveIdx >= 0 && (
         <div className="pad-x">
           <button className="row-create" onClick={() => onMove(pairNextLiveIdx >= 0 ? pairNextLiveIdx : partnerLiveIdx)}>

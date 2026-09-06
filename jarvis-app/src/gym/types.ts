@@ -138,6 +138,14 @@ export interface Exercise {
    *  A1/A2 notation (catalog §4.2). Pairing is symmetric: both sides carry
    *  the other's id. */
   pairWith?: string;
+  /** UP-ATH-17 (2026-09-06): the group this exercise belongs to, when it is
+   *  in one. Every coach's sheet has a tri-set or a circuit on it and
+   *  `pairWith` above is exactly two by design, so A3 had no way to exist.
+   *  A group is however many exercises share one id, order comes from the
+   *  day's own list, and a PAIR IS A GROUP OF TWO: gym/groups.ts reads a
+   *  symmetric pairWith as one, so nothing written before this migrates and
+   *  every existing program keeps its labels and its flow untouched. */
+  groupId?: string;
   /** Offered during the rest of its paired parent lift instead of standing
    *  around (catalog §4.2): "Rest 2:00 -- or do your T-Spine Rotations." */
   filler?: boolean;

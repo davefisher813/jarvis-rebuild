@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateDay, estimateDaySec, trimTargets, pairsIn, leverOffers, projectFinishMs, overBudgetMin, nextLever, type FitPlan } from "./fit";
+import { estimateDay, estimateDaySec, trimTargets, groupsIn, leverOffers, projectFinishMs, overBudgetMin, nextLever, type FitPlan } from "./fit";
 import { DEFAULT_PLATES, DEFAULT_BAR, type RackConfig } from "./ramp";
 import type { ProgramDay, Exercise, SetEntry, Workout, WorkoutExercise } from "./types";
 

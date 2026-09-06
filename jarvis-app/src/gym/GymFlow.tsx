@@ -19,7 +19,7 @@ import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, type LiveSession } from "./liveSession";
 import { bumpStrip } from "./strip";
 import { buildLibrary } from "./library";
-import { pairLabels, pairExercises, unpairExercise } from "./pairs";
+import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
   moveExerciseToDay, copyExerciseToDays, moveDayBetweenPrograms, applyExerciseEdit, duplicateDayFresh,
@@ -377,7 +377,7 @@ type RowMenu =
 type Picker =
   | { kind: "moveExerciseToDay"; weekId: string; dayId: string; exId: string }
   | { kind: "copyExerciseToDays"; weekId: string; dayId: string; exId: string }
-  | { kind: "pairWith"; weekId: string; dayId: string; exId: string }
+  | { kind: "groupWith"; weekId: string; dayId: string; exId: string }
   | { kind: "moveDayProgram"; weekId: string; day: ProgramDay }
   | { kind: "moveDayWeek"; targetProgramId: string; day: ProgramDay }
   | { kind: "pinDays"; weekId: string; day: ProgramDay };
@@ -834,19 +834,24 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       showToast({ message: `Copied to ${toDayIds.length} ${toDayIds.length === 1 ? "day" : "days"}` });
     }
   };
-  const pairAction = async (weekId: string, dayId: string, aId: string, bId: string) => {
+  // UP-ATH-17 (2026-09-06): a group, however many. Two is the pair this has
+  // always made; three or more is the tri-set and the circuit every coach's
+  // sheet has on it and this app could not hold.
+  const groupAction = async (weekId: string, dayId: string, aId: string, ids: string[]) => {
     const week = program?.data.weeks.find((w) => w.id === weekId);
     const day = week?.days.find((d) => d.id === dayId);
-    if (!week || !day) return;
-    if (await saveDays(weekId, week.days.map((d) => (d.id === dayId ? { ...d, exercises: pairExercises(day.exercises, aId, bId) } : d)))) {
-      showToast({ message: "Paired" });
+    if (!week || !day || ids.length === 0) return;
+    const next = groupExercises(day.exercises, aId, ids, () => nid("g"));
+    if (await saveDays(weekId, week.days.map((d) => (d.id === dayId ? { ...d, exercises: next } : d)))) {
+      const n = ids.length + 1;
+      showToast({ message: n === 2 ? "Paired" : capAfterNumber(n + " grouped") });
     }
   };
-  const unpairAction = async (weekId: string, dayId: string, exId: string) => {
+  const ungroupAction = async (weekId: string, dayId: string, exId: string) => {
     const week = program?.data.weeks.find((w) => w.id === weekId);
     const day = week?.days.find((d) => d.id === dayId);
     if (!week || !day) return;
-    await saveDays(weekId, week.days.map((d) => (d.id === dayId ? { ...d, exercises: unpairExercise(day.exercises, exId) } : d)));
+    await saveDays(weekId, week.days.map((d) => (d.id === dayId ? { ...d, exercises: ungroupExercise(day.exercises, exId) } : d)));
   };
   // GYM-F-12 (2026-09-05): target first, source second, and the toast says
   // what actually happened. This used to remove the day from the source and
@@ -1536,10 +1541,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       }
       const dayExercises = program?.data.weeks.find((w) => w.id === weekId)?.days.find((d) => d.id === dayId)?.exercises ?? [];
       if (dayExercises.length > 1) {
-        if (exercise.pairWith) {
-          actions.push({ label: "Unpair", onClick: () => void unpairAction(weekId, dayId, exercise.id) });
+        if (groupOf(exercise, dayExercises).length > 1) {
+          actions.push({ label: "Ungroup", onClick: () => void ungroupAction(weekId, dayId, exercise.id) });
         } else {
-          actions.push({ label: "Pair With...", onClick: () => setPicker({ kind: "pairWith", weekId, dayId, exId: exercise.id }) });
+          actions.push({ label: "Group With...", onClick: () => setPicker({ kind: "groupWith", weekId, dayId, exId: exercise.id }) });
         }
       }
       actions.push({ label: "Delete...", onClick: () => setSheet({ kind: "exercise", weekId, dayId, exId: exercise.id }) });
@@ -1612,15 +1617,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         />
       );
     }
-    if (picker.kind === "pairWith") {
+    if (picker.kind === "groupWith") {
       const week = program?.data.weeks.find((w) => w.id === picker.weekId);
       const day = week?.days.find((d) => d.id === picker.dayId);
       const items: PickItem[] = (day?.exercises ?? []).filter((e) => e.id !== picker.exId).map((e) => ({ id: e.id, label: e.name }));
       return (
         <PickSheet
-          title="Pair With"
+          title="Group With"
           items={items}
-          onPick={(ids) => { setPicker(null); void pairAction(picker.weekId, picker.dayId, picker.exId, ids[0]!); }}
+          multi
+          confirmLabel={(n) => (n === 0 ? "Pick at Least One" : n === 1 ? "Make a Pair" : capAfterNumber("Group These " + (n + 1)))}
+          onPick={(ids) => { setPicker(null); void groupAction(picker.weekId, picker.dayId, picker.exId, ids); }}
           onCancel={() => setPicker(null)}
         />
       );
@@ -1753,7 +1760,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   if (openDayId && activeWeek) {
     const openDay = activeWeek.days.find((d) => d.id === openDayId) ?? null;
     if (openDay) {
-      const labels = pairLabels(openDay.exercises);
+      const labels = groupLabels(openDay.exercises);
       const lastForDay = lastWorkoutForDay(openDay.id);
       return (
         <>

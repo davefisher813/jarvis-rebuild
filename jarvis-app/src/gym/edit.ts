@@ -30,13 +30,16 @@ export function duplicateExercise(day: ProgramDay, exerciseId: string): ProgramD
   const i = day.exercises.findIndex((e) => e.id === exerciseId);
   if (i < 0) return day;
   const src = day.exercises[i]!;
-  const copy: Exercise = { ...src, id: nid("e"), sets: freshSets(src.sets), pairWith: undefined };
+  // UP-ATH-17 (2026-09-06): a copy joins no group either. The original keeps
+  // its place in the rotation; a duplicate silently taking a turn in it would
+  // be an A4 nobody asked for.
+  const copy: Exercise = { ...src, id: nid("e"), sets: freshSets(src.sets), pairWith: undefined, groupId: undefined };
   const exercises = [...day.exercises.slice(0, i + 1), copy, ...day.exercises.slice(i + 1)];
   return { ...day, exercises };
 }
 
 function duplicateExerciseFresh(e: Exercise): Exercise {
-  return { ...e, id: nid("e"), sets: freshSets(e.sets), pairWith: undefined };
+  return { ...e, id: nid("e"), sets: freshSets(e.sets), pairWith: undefined, groupId: undefined };
 }
 
 // GYM-F-05 (2026-09-05): every day copy in this file was rebuilt from an
@@ -53,11 +56,19 @@ function duplicateExerciseFresh(e: Exercise): Exercise {
  *  there is nothing in the copy for it to point at. */
 function duplicateExercisesFresh(exercises: Exercise[]): Exercise[] {
   const idMap = new Map(exercises.map((e) => [e.id, nid("e")]));
+  // UP-ATH-17 (2026-09-06): groups are remapped the same way pairs are, onto
+  // fresh ids, so the copy's circuit is the COPY's circuit. Sharing a groupId
+  // across two days would make editing one day's tri-set rearrange another's.
+  const groupMap = new Map<string, string>();
+  for (const e of exercises) if (e.groupId && !groupMap.has(e.groupId)) groupMap.set(e.groupId, nid("g"));
   return exercises.map((e) => {
     const copy: Exercise = { ...e, id: idMap.get(e.id)!, sets: freshSets(e.sets) };
     const partner = e.pairWith ? idMap.get(e.pairWith) : undefined;
     if (partner) copy.pairWith = partner;
     else delete copy.pairWith;
+    const group = e.groupId ? groupMap.get(e.groupId) : undefined;
+    if (group) copy.groupId = group;
+    else delete copy.groupId;
     return copy;
   });
 }
@@ -112,7 +123,7 @@ export function moveExerciseToDay(weeks: ProgramWeek[], fromDayId: string, exerc
       if (d.id !== fromDayId) return d;
       const i = d.exercises.findIndex((e) => e.id === exerciseId);
       if (i < 0) return d;
-      moved = { ...d.exercises[i]!, pairWith: undefined };
+      moved = { ...d.exercises[i]!, pairWith: undefined, groupId: undefined };
       return { ...d, exercises: d.exercises.filter((e) => e.id !== exerciseId) };
     }),
   }));
@@ -203,9 +214,9 @@ export async function moveDayBetweenPrograms(
 
 /** Apply an ExerciseSheet draft onto the exercise it edited. The sheet owns
  *  every field it renders, so a cleared note or a switched-off ramp really is
- *  gone; `pairWith` is the one Exercise field the sheet has no state for at
- *  all (pairing is set from the row menu, catalog §4.2), so it rides through
- *  the edit untouched.
+ *  gone; `pairWith` and `groupId` are the Exercise fields the sheet has no
+ *  state for at all (grouping is set from the row menu, catalog §4.2), so
+ *  they ride through the edit untouched.
  *
  *  GYM-F-03 (2026-09-05): GymFlow.tsx:1224-1226 replaced the exercise with
  *  the bare draft, so changing the reps on either half of an A1/A2 pair
@@ -214,7 +225,15 @@ export async function moveDayBetweenPrograms(
  *  half, and the partner was left pointing at an exercise that no longer
  *  pointed back. */
 export function applyExerciseEdit(existing: Exercise, draft: Omit<Exercise, "id">): Exercise {
-  return { ...draft, id: existing.id, ...(existing.pairWith ? { pairWith: existing.pairWith } : {}) };
+  return {
+    ...draft,
+    id: existing.id,
+    ...(existing.pairWith ? { pairWith: existing.pairWith } : {}),
+    // UP-ATH-17 (2026-09-06): groupId rides through an edit for exactly the
+    // same reason pairWith does, and GYM-F-03 is the bug that happens when it
+    // does not: editing one member of a circuit would drop it out of one.
+    ...(existing.groupId ? { groupId: existing.groupId } : {}),
+  };
 }
 
 // GYM-F-28 (2026-09-05): ensureExerciseKey had no caller. Keys are minted at

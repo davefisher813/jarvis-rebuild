@@ -2,6 +2,13 @@ import type { CondBlock, ProgramDay, Exercise, Workout, WorkoutExercise } from "
 import type { RackConfig } from "./ramp";
 import { rampFor } from "./ramp";
 import { paceFor, WORK_SEC, REST_FLOOR_SEC, DEFAULT_REST_SEC, RAMP_SEC_PER_SET } from "./pacing";
+import { groupOf } from "./groups";
+
+/** UP-ATH-17 (2026-09-06): in a group of two or more, so trimming it would
+ *  break the alternation. Reads a legacy pairWith as a group of two. */
+function isGrouped(ex: Exercise, exercises: Exercise[]): boolean {
+  return groupOf(ex, exercises).length > 1;
+}
 
 // TIME-BOXED SESSIONS, D5-C (Training Catalog V2, approved 2026-08-31).
 // Dave: "If I want to do a lift that normally takes an hour in 30 min it can
@@ -47,16 +54,21 @@ export function perSetSec(history: Workout[], ex: Pick<Exercise, "name" | "kind"
   return WORK_SEC + effRest(ex, restCut);
 }
 
-/** Symmetric, non-filler A1/A2 pairs in a day, each counted once. */
-export function pairsIn(day: Pick<ProgramDay, "exercises">): Array<[Exercise, Exercise]> {
-  const out: Array<[Exercise, Exercise]> = [];
+/** Non-filler groups in a day, each counted once, in day order.
+ *
+ *  UP-ATH-17 (2026-09-06): this was pairsIn and returned exactly two. A
+ *  circuit shares its rest the same way a pair does, so the superset saving
+ *  is priced across whatever the group actually holds. A pair is a group of
+ *  two and prices identically to before. */
+export function groupsIn(day: Pick<ProgramDay, "exercises">): Exercise[][] {
+  const out: Exercise[][] = [];
   const seen = new Set<string>();
   for (const a of day.exercises) {
-    if (!a.pairWith || a.filler || seen.has(a.id)) continue;
-    const b = day.exercises.find((e) => e.id === a.pairWith);
-    if (!b || b.filler || b.pairWith !== a.id) continue;
-    seen.add(a.id); seen.add(b.id);
-    out.push([a, b]);
+    if (a.filler || seen.has(a.id)) continue;
+    const members = groupOf(a, day.exercises).filter((e) => !e.filler);
+    if (members.length < 2) continue;
+    for (const m of members) seen.add(m.id);
+    out.push(members);
   }
   return out;
 }
@@ -69,7 +81,7 @@ export function pairsIn(day: Pick<ProgramDay, "exercises">): Array<[Exercise, Ex
 export function trimTargets(day: Pick<ProgramDay, "exercises">): Record<string, number> {
   const out: Record<string, number> = {};
   day.exercises.forEach((ex, i) => {
-    if (i === 0 || ex.filler || ex.pairWith) return;
+    if (i === 0 || ex.filler || isGrouped(ex, day.exercises)) return;
     if (ex.sets.length >= 3) out[ex.id] = 1;
   });
   return out;
@@ -113,12 +125,13 @@ export function estimateDaySec(day: ProgramDay, history: Workout[], rack: RackCo
     if (ex.ramp) sec += rampFor(ex, rack).length * RAMP_SEC_PER_SET;
   }
   if (plan.superset) {
-    // Alternating a true pair shares the rest: one rest per round instead of
-    // two. Priced from stated rests -- the saving is an estimate and says so.
-    for (const [a, b] of pairsIn(day)) {
-      const roundsA = Math.max(0, a.sets.length - (plan.trims?.[a.id] ?? 0));
-      const roundsB = Math.max(0, b.sets.length - (plan.trims?.[b.id] ?? 0));
-      sec -= Math.min(roundsA, roundsB) * Math.min(effRest(a, plan.restCut), effRest(b, plan.restCut));
+    // Alternating a group shares the rest: one rest per round instead of one
+    // per member. Priced from stated rests -- the saving is an estimate and
+    // says so. UP-ATH-17: a group of three saves two rests a round, not one.
+    for (const g of groupsIn(day)) {
+      const rounds = Math.min(...g.map((x) => Math.max(0, x.sets.length - (plan.trims?.[x.id] ?? 0))));
+      const rest = Math.min(...g.map((x) => effRest(x, plan.restCut)));
+      sec -= rounds * rest * (g.length - 1);
     }
   }
   if (day.warmUp?.length) sec += (day.warmUpMin ?? 0) * 60;
@@ -177,10 +190,10 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
   }
   // 2. Superset the pairs.
   {
-    const pairs = pairsIn(day);
+    const pairs = groupsIn(day);
     const save = saveOf({ ...plan, superset: true }, { ...plan, superset: false });
     if (pairs.length > 0 && save >= 1) {
-      const name = pairs.length === 1 ? `Superset ${pairs[0]![0].name} + ${pairs[0]![1].name}` : "Superset the pairs";
+      const name = pairs.length === 1 ? `Superset ${pairs[0]!.map((x) => x.name).join(" + ")}` : "Superset the groups";
       offers.push({ key: "superset", name, sub: `saves ~${save} min`, on: !!plan.superset, saveMin: save });
     }
   }
@@ -272,14 +285,16 @@ export function projectFinishMs(live: LiveFitState, day: ProgramDay | null, hist
     }
   }
   if (live.superset && day) {
-    for (const [a, b] of pairsIn(day)) {
+    for (const g of groupsIn(day)) {
       const remOf = (x: Exercise) => {
         const le = live.exercises.find((e) => e.exerciseId === x.id && !e.custom);
         if (!le || le.skipped) return 0;
         const logged = le.sets.filter((s) => !s.warmup && !s.skipped).length;
         return Math.max(0, Math.max(0, x.sets.length - (live.trims?.[x.id] ?? 0)) - logged);
       };
-      sec -= Math.min(remOf(a), remOf(b)) * Math.min(effRest(a, live.restCut), effRest(b, live.restCut));
+      const rounds = Math.min(...g.map(remOf));
+      const rest = Math.min(...g.map((x) => effRest(x, live.restCut)));
+      sec -= rounds * rest * (g.length - 1);
     }
   }
   if (day?.warmUp?.length && !live.warmSkipped && !anyLogged) {
@@ -322,7 +337,7 @@ export function nextLever(live: LiveFitState, day: ProgramDay | null, _history: 
   // day ("trim a curl set"), never on what the athlete came to do.
   for (let i = day.exercises.length - 1; i >= 1; i--) {
     const ex = day.exercises[i]!;
-    if (ex.filler || ex.pairWith) continue;
+    if (ex.filler || isGrouped(ex, day.exercises)) continue;
     const trimmed = live.trims?.[ex.id] ?? 0;
     const planned = ex.sets.length - trimmed;
     if (ex.sets.length < 3 || planned <= 2) continue;
