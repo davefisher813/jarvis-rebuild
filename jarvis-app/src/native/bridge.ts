@@ -37,8 +37,12 @@ export interface HealthWorkoutRecord {
   end: number;
   // HKWorkoutActivityType name, lowercased ("running", "traditionalStrengthTraining").
   activityType: string;
-  // Active energy in kcal when HealthKit has it.
-  calories?: number;
+  // BAN-3 (2026-09-05): an active-energy field sat here. Health rail 3 is a
+  // schema-level ban, and HealthKit offering the number is not a reason to
+  // hold it: a field that exists gets read, and a read number gets rendered.
+  // The Swift plugin does not request it either. The privacy law test scanned
+  // src/health only, which is why this survived a year of sweeps; it scans
+  // src/native now too.
   // Recording source ("Apple Watch"), display only.
   sourceName?: string;
 }

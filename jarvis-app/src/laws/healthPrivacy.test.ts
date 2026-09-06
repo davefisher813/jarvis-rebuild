@@ -30,6 +30,19 @@ const SOURCES = ALL.filter((f) => /\.(ts|tsx)$/.test(f) && !isTest(f));
 const read = (f: string) => readFileSync(f, "utf8");
 const rel = (f: string) => f.slice(SRC.length + 1);
 
+// BAN-3 (2026-09-05): the body-data ban below scanned src/health only, so an
+// `calories?: number` field on HealthWorkoutRecord sat in the staged native
+// bridge (src/native/bridge.ts) for three weeks without ever firing it. The
+// rail is about a NUMBER existing, not about which folder declares it, so
+// every module that carries body data is scanned: src/native is where Apple
+// Health arrives, and it is the likeliest place for the next one to appear.
+const BODY_DATA_ROOTS = [SRC, join(process.cwd(), "src", "native")];
+const BODY_DATA_SOURCES = BODY_DATA_ROOTS.flatMap((root) =>
+  walk(root)
+    .filter((f) => /\.(ts|tsx)$/.test(f) && !isTest(f))
+    .map((f) => ({ file: f, name: f.slice(join(process.cwd(), "src").length + 1) })),
+);
+
 // Strip both comment shapes so a comment may legitimately NAME the thing
 // this file exists to ban (every source file in src/health does, in its own
 // header), the same convention laws.test.ts already uses for "the app never
@@ -60,18 +73,29 @@ describe("HEALTH LAW: no composite score of a person, ever expressible", () => {
 });
 
 describe("HEALTH LAW: no calorie, macro, weight, or body-composition field", () => {
-  // Rail 3, schema-level. Scoped to src/health so this cannot be satisfied
-  // by simply not USING such a field somewhere in a screen; it cannot be
-  // declared anywhere in the module, typed or otherwise.
-  it("no such vocabulary anywhere in src/health", () => {
+  // Rail 3, schema-level. Scoped to the modules that carry body data so this
+  // cannot be satisfied by simply not USING such a field somewhere in a
+  // screen; it cannot be declared anywhere in them, typed or otherwise.
+  it("no such vocabulary anywhere in src/health or src/native", () => {
     const banned = /\b(calorie|calories|macro|macros|bodyfat|body_fat|bodycomposition|body_composition|weightkg|weightlb|bodyweight|body_weight)\b/i;
     const bad: string[] = [];
-    for (const f of SOURCES) {
-      strip(read(f)).split("\n").forEach((line, i) => {
-        if (banned.test(line)) bad.push(rel(f) + ":" + (i + 1) + " " + line.trim().slice(0, 80));
+    for (const { file, name } of BODY_DATA_SOURCES) {
+      strip(read(file)).split("\n").forEach((line, i) => {
+        if (banned.test(line)) bad.push(name + ":" + (i + 1) + " " + line.trim().slice(0, 80));
       });
     }
     expect(bad).toEqual([]);
+  });
+
+  // The specific hole BAN-3 closed, named so a regression is unmistakable:
+  // the staged HealthKit workout record carries no energy field of any name,
+  // and the bridge exposes no method that could fetch one.
+  it("the staged HealthKit workout record carries no energy field", () => {
+    const src = read(join(process.cwd(), "src", "native", "bridge.ts"));
+    const start = src.indexOf("export interface HealthWorkoutRecord");
+    expect(start, "HealthWorkoutRecord must exist").toBeGreaterThan(-1);
+    const body = strip(src.slice(start, src.indexOf("\n}", start)));
+    expect(body).not.toMatch(/\b(calories|energy|kcal|activeEnergy|kilojoules)\b/i);
   });
 });
 
