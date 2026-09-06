@@ -169,6 +169,12 @@ export default function SignIn() {
             <Mail size={20} /> Continue with Email
           </button>
         </div>
+        {/* UP-LAUNCH-10 (2026-09-05): Hide My Email hands the app a relay
+            address, and a relay address does not match the one on an existing
+            password account, so Apple would quietly create a SECOND JARVIS
+            account with none of the person's things in it. Nothing in the
+            flow can detect that has happened, so it is said before it does. */}
+        <p className="signin-tag">If you already have a JARVIS account, continue with email so you keep it.</p>
         {error && <div className="pad-x"><div className="input-error">{error}</div></div>}
 
         <p className="signin-legal">

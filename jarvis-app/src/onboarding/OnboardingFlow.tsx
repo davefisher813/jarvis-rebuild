@@ -15,6 +15,7 @@ import { NEW_USER_TABS } from "../shell/destinations";
 import { dismissSplash } from "../shared/splash";
 import { attemptWrite } from "../shared/guard";
 import { requestNotificationPermission } from "../shared/notifications";
+import { useOptionalSession } from "../auth/AuthProvider";
 
 const ic = (d: string) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
@@ -122,6 +123,16 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   // outright once they have tapped a card.
   const picked = useRef(false);
   const hydrated = useRef(false);
+  // UP-LAUNCH-10 (2026-09-05): Apple sends the person's name exactly once, on
+  // the first authorization, and AuthProvider parks it in the auth user's
+  // metadata because there is no profile yet at that moment. This is where it
+  // is spent: as the first answer, already filled in, still editable. Nothing
+  // else reads it, and an account that did not come from Apple has nothing
+  // here, which is simply an empty field.
+  const authName = useOptionalSession()?.user?.user_metadata?.["name"];
+  useEffect(() => {
+    if (typeof authName === "string" && authName.trim()) setName((cur) => cur || authName.trim());
+  }, [authName]);
   useEffect(() => {
     let live = true;
     void (async () => {

@@ -12,6 +12,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import { emit } from "../events";
 import { apiUrl, webOrigin } from "../shared/apiBase";
+import { appleNativeAvailable, signInWithAppleNative } from "./appleSignIn";
 
 // Auth state for the app. Wraps Supabase Auth. When no backend is configured
 // (sandbox), session stays null and the methods report that clearly, so the
@@ -71,10 +72,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ready,
       recovery,
       backendConfigured: !!supabase,
+      // UP-LAUNCH-10 (2026-09-05): SHELL-F-18 put the button on Sign In and
+      // wired it to this, which was the WEB redirect on every platform. On
+      // the phone that bounces the person out to Safari for a sign-in iOS can
+      // do in a sheet with Face ID, and it redirects back to an origin the
+      // App Store build does not have. Native gets Apple's own sheet and
+      // hands Supabase the identity token; the web keeps the redirect.
+      //
+      // The name is captured HERE and nowhere else, because Apple sends it
+      // exactly once, on the first authorization, and never again. It goes
+      // into the auth user's metadata so onboarding can offer it as the
+      // default without a second round trip.
       signInWithApple: async () => {
         if (!supabase) throw new Error("Auth backend not configured");
-        // Real build swaps in Apple's official Sign in with Apple flow.
-        await supabase.auth.signInWithOAuth({ provider: "apple" });
+        if (!appleNativeAvailable()) {
+          await supabase.auth.signInWithOAuth({ provider: "apple" });
+          return;
+        }
+        const apple = await signInWithAppleNative();
+        const { error } = await supabase.auth.signInWithIdToken({
+          provider: "apple",
+          token: apple.identityToken,
+          nonce: apple.nonce,
+        });
+        if (error) throw error;
+        if (apple.name) {
+          // Best effort: a failed metadata write must not undo a sign-in that
+          // worked. The name is a convenience, the session is the point.
+          await supabase.auth.updateUser({ data: { name: apple.name } }).catch(() => { /* onboarding asks */ });
+        }
       },
       signInWithEmail: async (email: string) => {
         if (!supabase) throw new Error("Auth backend not configured");

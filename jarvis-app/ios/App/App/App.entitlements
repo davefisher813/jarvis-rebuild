@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  UP-LAUNCH-10 (2026-09-05): Sign in with Apple.
+
+  The capability has two halves and both are required: this entitlement in the
+  app, and the capability enabled on the App ID in the Apple Developer account.
+  Without the entitlement Apple's sheet fails at runtime with an authorization
+  error that says nothing useful; without the App ID capability the build will
+  not sign at all.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.developer.applesignin</key>
+    <array>
+        <string>Default</string>
+    </array>
+</dict>
+</plist>

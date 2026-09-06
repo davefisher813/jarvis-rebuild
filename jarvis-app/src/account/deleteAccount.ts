@@ -61,6 +61,22 @@ export const OWNED_TABLES: readonly { table: string; column: string }[] = [
 
 export const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 
+// APPLE'S REVOCATION, DELIBERATELY NOT HERE YET (UP-LAUNCH-10, 2026-09-05).
+//
+// Apple asks that an app supporting Sign in with Apple call its token
+// revocation endpoint when an account is deleted. Doing it needs two things
+// this app does not have: the user's Apple refresh token, which arrives once
+// in the session as provider_refresh_token and is not stored anywhere, and a
+// client secret that is an ES256 JWT signed with a key from the Apple
+// Developer account, which does not exist until enrollment. Writing the call
+// against neither would be writing something that cannot be run or tested.
+//
+// What it needs, when the enrollment exists: capture provider_refresh_token
+// at sign-in into a service-role table beside google_tokens, mint the client
+// secret from APPLE_TEAM_ID, APPLE_KEY_ID and APPLE_PRIVATE_KEY, and POST it
+// with the token to https://appleid.apple.com/auth/revoke here, before the
+// auth user goes.
+
 export const BUCKET = "user-files";
 const PAGE = 1000;
 // Two levels is the whole path convention (user-files/{uid}/{entityId}/{file},
