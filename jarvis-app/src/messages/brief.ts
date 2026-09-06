@@ -8,6 +8,7 @@
 // actually writes again.
 
 import { noDashes } from "../ai/suggestions";
+import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
 
 export interface Brief {
   summary: string;
@@ -26,7 +27,7 @@ const SUMMARY_MAX = 120;
 type Cache = Record<string, Brief>;
 
 export const BRIEF_SYSTEM =
-  "You output only a JSON object, nothing else.";
+  "You output only a JSON object, nothing else.\n" + HOSTILE_CLAUSE;
 
 export function briefPrompt(convo: string): string {
   return (
@@ -42,7 +43,8 @@ export function briefPrompt(convo: string): string {
     "Bad: \"This is an automated reminder that Dave has a video appointment with Resolve Psychiatric Services at 1:00 pm ET on Wednesday, September 23rd\"\n" +
     "replies: three short reply options the reader could send, each under " + REPLY_MAX + " words, " +
     "in a plain human voice. No greetings, no signatures.\n\n" +
-    convo
+    // UP-MIND-06 (2026-09-05): the whole conversation is outside text.
+    untrustedBlock(convo)
   );
 }
 

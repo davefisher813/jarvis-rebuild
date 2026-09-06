@@ -1,4 +1,5 @@
 import { noDashes } from "../ai/suggestions";
+import { HOSTILE_CLAUSE, untrustedBlock, untrustedText } from "./untrusted";
 
 // THE PROMISE SWEEP (E5, Dave 2026-08-20: "add every single email feature").
 //
@@ -41,13 +42,18 @@ export const SWEEP_SYSTEM = [
   "Reply with ONLY a JSON array. Each item: {\"i\": <index of the message>, \"text\": \"<the promise as a short task, Title Case, max 8 words>\", \"due\": \"YYYY-MM-DD\" or null}.",
   "Use a due date ONLY when the sender named a day. Never invent one.",
   "An empty array is a correct answer. Never guess.",
+  HOSTILE_CLAUSE,
 ].join("\n");
 
 const MAX_BODY = 700;
 
+// UP-MIND-06 (2026-09-05): the index label stays OUTSIDE the fence, because
+// parseSweep matches on it and a body that could rewrite its own index
+// could file a promise against a different thread. Everything the other
+// side wrote goes inside.
 export function sweepPrompt(items: SentItem[], todayISO: string): string {
   const lines = items.map((it, i) =>
-    `[${i}] to: ${it.to} | subject: ${it.subject}\n${it.body.slice(0, MAX_BODY)}`);
+    `[${i}] to: ${untrustedText(it.to)} | subject: ${untrustedText(it.subject)}\n${untrustedBlock(it.body.slice(0, MAX_BODY))}`);
   return `Today is ${todayISO}.\n\n` + lines.join("\n\n---\n\n");
 }
 

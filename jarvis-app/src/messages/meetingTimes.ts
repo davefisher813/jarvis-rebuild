@@ -1,4 +1,5 @@
 import type { EventItem } from "../schedule/types";
+import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
 
 // PICK A TIME, FROM YOUR ACTUAL CALENDAR (N1, Dave 2026-08-20).
 //
@@ -40,6 +41,7 @@ export const MEETING_SYSTEM = [
   "Use 24-hour times. Only include times the sender actually proposed.",
   "If the email proposes no specific times, reply with an empty array.",
   "Never invent a time, a date, or a duration you were not given. Default duration is 60 when unstated.",
+  HOSTILE_CLAUSE,
 ].join("\n");
 
 // A cheap gate before an expensive call. Running the extractor over every
@@ -51,8 +53,9 @@ export function mightProposeTimes(text: string): boolean {
   return TIME_HINT.test(text || "");
 }
 
+// UP-MIND-06 (2026-09-05): sender, subject and body are all theirs.
 export function meetingPrompt(from: string, subject: string, body: string, todayISO: string): string {
-  return `Today is ${todayISO}.\nFrom: ${from}\nSubject: ${subject}\n\n${body.slice(0, 2000)}`;
+  return `Today is ${todayISO}.\n\n` + untrustedBlock(`From: ${from}\nSubject: ${subject}\n\n${body.slice(0, 2000)}`);
 }
 
 export function parseMeetingTimes(raw: string, todayISO: string): ProposedTime[] {

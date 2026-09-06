@@ -1,5 +1,6 @@
 import { JARVIS_VOICE } from "../ai/voice";
 import { cleanBody } from "./bodyText";
+import { HOSTILE_CLAUSE, untrustedText } from "./untrusted";
 
 // Hand off: not everything in your inbox is yours.
 //
@@ -52,13 +53,17 @@ export function handoffPrompt(target: HandoffTarget, subject: string, gist: stri
       "Two sentences maximum. No greeting block, no signature, no subject line. " +
       "Never apologise, never explain why it is being forwarded, never say 'per my last email'. " +
       "Output only the note.",
+      HOSTILE_CLAUSE,
       voice.trim() ? "\nWrite it as this person would write it:\n" + voice.trim() : "",
     ].filter(Boolean).join("\n"),
     user:
       "Forward this to " + target.name +
       (target.relationship ? " (" + target.relationship + ")" : "") +
-      ".\nSubject: " + subject +
-      (gist ? "\nWhat it is: " + gist : "") +
+      // UP-MIND-06 (2026-09-05): the subject is the sender's words and the
+      // gist is a model's reading of them. Both are cleaned; there is no
+      // body here to fence.
+      ".\nSubject: " + untrustedText(subject) +
+      (gist ? "\nWhat it is: " + untrustedText(gist) : "") +
       "\nAsk them to handle it.",
   };
 }

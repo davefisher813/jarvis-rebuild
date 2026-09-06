@@ -12,6 +12,7 @@ import { dayPhrase } from "../money/bills";
 //   - No shame copy. The task is the promise, phrased as the promise.
 
 import { noDashes } from "../ai/suggestions";
+import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
 
 const KEY = "jarvis.mail.promised.v1";
 const CAP = 300;
@@ -45,10 +46,14 @@ export const COMMITMENT_SYSTEM =
   "said THEY would do. Only their own promises, never someone else's. " +
   'Reply with ONLY JSON: {"text":"...","due":"YYYY-MM-DD"} or {"text":""} when they promised nothing. ' +
   "text is an action starting with a verb, under 60 characters, in their own terms " +
-  '("Send the coach the roster"). Include "due" ONLY if they named a day; never guess one.';
+  '("Send the coach the roster"). Include "due" ONLY if they named a day; never guess one.\n' +
+  HOSTILE_CLAUSE;
 
+// UP-MIND-06 (2026-09-05): the user wrote this message, but a reply quotes
+// the message it is answering, so the text below still carries whatever the
+// other side wrote. Fenced like every other body.
 export function commitmentPrompt(body: string, todayISO: string): string {
-  return "Today is " + todayISO + ".\nThe user wrote:\n" + body.slice(0, 1500);
+  return "Today is " + todayISO + ".\nThe user wrote:\n" + untrustedBlock(body.slice(0, 1500));
 }
 
 // Tolerant parse. Anything malformed, empty, or dateless-but-claiming-a-date

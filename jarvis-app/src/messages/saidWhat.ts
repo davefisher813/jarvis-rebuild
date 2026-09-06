@@ -1,4 +1,5 @@
 import { noDashes } from "../ai/suggestions";
+import { HOSTILE_CLAUSE, untrustedBlock, untrustedText } from "./untrusted";
 
 // WHAT DID I TELL THEM? (N11, Dave 2026-08-20).
 //
@@ -28,6 +29,7 @@ export const SAID_SYSTEM = [
   "QUOTE them verbatim. Never paraphrase, never summarise, never combine two sentences into one.",
   "Reply with ONLY a JSON array. Each item: {\"i\": <index of the message>, \"quote\": \"<verbatim sentence>\"}.",
   "If nothing they wrote answers the question, reply with an empty array. An empty array is a correct answer.",
+  HOSTILE_CLAUSE,
 ].join("\n");
 
 export function saidQuery(person: string, about: string): string {
@@ -40,7 +42,10 @@ export function saidPrompt(
   question: string,
   items: { subject: string; dateISO: string; body: string }[],
 ): string {
-  const lines = items.map((m, i) => `[${i}] ${m.dateISO} · ${m.subject}\n${m.body.slice(0, 900)}`);
+  // UP-MIND-06 (2026-09-05): a sent message quotes what was sent to it, so
+  // the body is still outside text. The index and date stay outside the
+  // fence: parseSaid resolves the quote against the item at that index.
+  const lines = items.map((m, i) => `[${i}] ${m.dateISO} · ${untrustedText(m.subject)}\n${untrustedBlock(m.body.slice(0, 900))}`);
   return `Question: ${question}\n\n` + lines.join("\n\n---\n\n");
 }
 

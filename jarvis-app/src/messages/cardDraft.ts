@@ -1,5 +1,6 @@
 import { JARVIS_VOICE, STYLE_SCOPE_RULE } from "../ai/voice";
 import { noDashes } from "../ai/suggestions";
+import { HOSTILE_CLAUSE, untrustedBlock, untrustedText } from "./untrusted";
 
 // DRAFTING ON THE CARD (U1 and U3, Dave 2026-08-20).
 //
@@ -27,6 +28,7 @@ export const CARD_REPLY_SYSTEM = [
   "One to three sentences. Answer the actual question. No greeting block, no signature.",
   "If the email asks for a decision the user has not made, write the reply that BUYS TIME honestly, naming when they will answer.",
   "Reply with ONLY the message body.",
+  HOSTILE_CLAUSE,
 ].join("\n");
 
 export const CARD_NUDGE_SYSTEM = [
@@ -46,14 +48,18 @@ export const CARD_NUDGE_SYSTEM = [
 export function cardReplyPrompt(from: string, subject: string, gist: string, body: string, voice = ""): { system: string; user: string } {
   return {
     system: voice.trim() ? CARD_REPLY_SYSTEM + "\n\nWrite it as this person would write it:\n" + voice.trim() : CARD_REPLY_SYSTEM,
-    user: `From: ${from}\nSubject: ${subject}\nWhat it wants: ${gist}\n\n${body.slice(0, 1500)}`,
+    // UP-MIND-06 (2026-09-05): the sender wrote every line of this.
+    user: untrustedBlock(`From: ${from}\nSubject: ${subject}\nWhat it wants: ${gist}\n\n${body.slice(0, 1500)}`),
   };
 }
 
 export function cardNudgePrompt(to: string, subject: string, days: number, voice = ""): { system: string; user: string } {
   return {
     system: voice.trim() ? CARD_NUDGE_SYSTEM + "\n\nWrite it as this person would write it:\n" + voice.trim() : CARD_NUDGE_SYSTEM,
-    user: `The message went to ${to}, subject "${subject}", ${days} days ago. Draft the follow-up.`,
+    // The nudge carries no body, only the recipient and the subject the
+    // user themselves sent; cleaned anyway, because a subject can be a
+    // reply to one they were sent (UP-MIND-06).
+    user: `The message went to ${untrustedText(to)}, subject "${untrustedText(subject)}", ${days} days ago. Draft the follow-up.`,
   };
 }
 

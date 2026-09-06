@@ -2,6 +2,7 @@ import type { ThreadRow } from "../connections/google/map";
 import { noDashes } from "../ai/suggestions";
 import { capAfterNumber } from "../shared/casing";
 import type { ActProposal } from "./mailAct";
+import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
 
 // Triage (email 1): one AI pass sorts the inbox into what needs Dave, what is
 // worth knowing, and noise, with a one-line gist per thread so junk never has
@@ -75,6 +76,8 @@ Leave "act" out for anything speculative, for marketing with a deadline, and for
 
 Reply with ONLY a JSON array, one object per thread: [{"id":"...","bucket":"needs_you|worth_knowing|noise","gist":"...","by":"...","act":{...}}]
 
+${HOSTILE_CLAUSE}
+
 THREADS:
 `;
 
@@ -115,10 +118,15 @@ export const TRIAGE_SCHEMA: Record<string, unknown> = {
   required: ["threads"],
 };
 
+// UP-MIND-06 (2026-09-05): from, subject and snippet are all written by
+// whoever sent the mail, so the whole listing goes inside the untrusted
+// fence and the prompt above says what the fence means. The ids are ours
+// and parseTriage drops any the model returns that we did not send, so a
+// forged id inside the fence buys nothing.
 export function buildTriageInput(rows: ThreadRow[]): string {
-  return TRIAGE_PROMPT + JSON.stringify(
+  return TRIAGE_PROMPT + untrustedBlock(JSON.stringify(
     rows.map((r) => ({ id: r.id, from: r.from, subject: r.subject, snippet: r.snippet.slice(0, 200) })),
-  );
+  ));
 }
 
 // Tolerant parse: fences and prose stripped, unknown ids dropped, bad buckets
