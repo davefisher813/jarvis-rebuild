@@ -162,3 +162,38 @@ describe("SchedulePage: weather reaches the day view (S6-Q41)", () => {
     expect(container.querySelector(".weather-inline")).toBeNull();
   });
 });
+
+// SCHED-F-13 (2026-09-05), option A: "Day head open total and Plan My Day
+// open total disagree for the same day." The head summed its Open ROWS, which
+// count a soft block busy and drop any gap under thirty minutes; the plan
+// sheet counts soft blocks open because the planner schedules over them when
+// the day is tight. The head answers "can I take this on", so it is the
+// planner's number now.
+describe("the day head counts open time the way the planner does", () => {
+  const day = {
+    ...base,
+    selected: "2026-05-21",
+    todayDate: "2026-05-20",
+    mode: "day" as const,
+    dayEvents: [{ id: "e1", data: { title: "Board Call", date: "2026-05-21", start: "09:00", end: "10:00", category: "orgB" } }],
+    locked: [{ s: 12 * 60, e: 13 * 60, label: "Lunch", soft: true }],
+    windowStartMin: 7 * 60,
+    windowEndMin: 21 * 60,
+  };
+
+  it("a soft block is open time, so the head and the plan sheet say the same hours", async () => {
+    const { openMinutes } = await import("./planLoad");
+    const { container } = render(<SchedulePage {...day} />);
+    expect(container.querySelector(".sc-dayhead .sc-fact")!.textContent).toContain("13h open");
+    // The same number the plan sheet builds from, field for field.
+    expect(openMinutes(day.dayEvents, day.locked, 7 * 60, 21 * 60)).toBe(13 * 60);
+  });
+
+  it("a hard block is still busy on both", async () => {
+    const { openMinutes } = await import("./planLoad");
+    const hard = { ...day, locked: [{ s: 12 * 60, e: 13 * 60, label: "School Run" }] };
+    const { container } = render(<SchedulePage {...hard} />);
+    expect(container.querySelector(".sc-dayhead .sc-fact")!.textContent).toContain("12h open");
+    expect(openMinutes(hard.dayEvents, hard.locked, 7 * 60, 21 * 60)).toBe(12 * 60);
+  });
+});

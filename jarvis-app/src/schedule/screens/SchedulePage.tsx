@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "../../sh
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, openSlots, minToHHMM, addDays } from "../calendar";
 import { isFocusRange } from "../../routine/types";
+import { openMinutes } from "../planLoad";
 import { catColor } from "../../shared/categories";
 import { pressable } from "../../shared/pressable";
 import SkeletonRows from "../../shared/SkeletonRows";
@@ -380,7 +381,27 @@ export default function SchedulePage({
   // An open slot that has gone is not an offer, so a past gap never renders,
   // folded or not. Past EVENTS are a record of the day and keep their rows.
   const pastShown = pastEntries.filter((en) => en.kind !== "gap");
-  const openMin = ahead.filter((en) => en.kind === "gap").reduce((acc, en) => acc + (toMin(en.end) - toMin(en.start)), 0);
+  // SCHED-F-13 (2026-09-05), option A: the head's open total is the
+  // PLANNER'S number. It used to be the sum of the Open ROWS below it, which
+  // count a soft block (Lunch) as busy and drop any gap under thirty
+  // minutes, so the day head said "12h open" and Plan My Day said "13h" for
+  // the same day. The number answers "can I take this on", and the planner is
+  // what would answer it: it schedules over a soft block when the day is
+  // tight, and it does not round quarter hours away. The Open ROWS keep their
+  // own stricter rule, because a row that spans a Protected row is the
+  // 2026-08-10 bug (Dave's screenshot: "Open 8:00 AM - 9:00 PM" straight
+  // across five protected blocks).
+  //
+  // A standing proposal stays BUSY here, as it has been since blend 2026-08-22:
+  // it is time this day has spoken for. The plan sheet counts it open because
+  // that sheet is where the proposal is being made, and it has to have room
+  // to place it.
+  const openMin = openMinutes(
+    dayEvents,
+    [...locked, ...proposedBusy.map((b) => ({ ...b, label: "" }))],
+    foldable ? Math.max(windowStartMin ?? 8 * 60, Math.ceil(nowMin / 15) * 15) : (windowStartMin ?? 8 * 60),
+    windowEndMin ?? 21 * 60,
+  );
   const blockCount = entries.filter((en) => en.kind === "event" || en.kind === "locked").length;
   const countLine: React.ReactNode[] = [];
   if (openMin > 0) countLine.push(<span key="o"><b>{gapLabel(openMin)}</b> open</span>);

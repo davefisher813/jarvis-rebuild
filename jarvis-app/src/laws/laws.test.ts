@@ -3687,8 +3687,16 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     const facts = src.slice(src.indexOf("const countLine"), src.indexOf("return ("));
     expect(facts, "a block count is never pushed onto the line").not.toMatch(/blockCount\}<\/b>/);
     // On today the number counts FORWARD: an hour that has gone is not open.
-    expect(src, "open time is summed over what is ahead, not the whole day")
-      .toMatch(/const openMin = ahead\.filter\(\(en\) => en\.kind === "gap"\)/);
+    //
+    // SCHED-F-13 (2026-09-05), option A: the number is the PLANNER'S now
+    // (planLoad's openMinutes), not the sum of the Open rows, because the day
+    // head and Plan My Day were answering the same question with different
+    // arithmetic: soft blocks busy here, open there. The fact this law is
+    // about is unchanged and still checked: on today the count starts at now.
+    expect(src, "open time is the planner's own count, so the head and the plan sheet agree")
+      .toMatch(/const openMin = openMinutes\(/);
+    expect(src, "on today the count starts at now, not at the top of the window")
+      .toMatch(/foldable \? Math\.max\(windowStartMin \?\? 8 \* 60, Math\.ceil\(nowMin \/ 15\) \* 15\)/);
   });
 
   // The head carries ONE action and it is not a fill. Running Late? and Copy
