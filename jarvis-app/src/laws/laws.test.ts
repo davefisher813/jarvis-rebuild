@@ -35,6 +35,9 @@ const CSS = ALL.filter((f) => f.endsWith(".css")).map((f) => readFileSync(f, "ut
 
 const read = (f: string) => readFileSync(f, "utf8");
 const rel = (f: string) => f.slice(SRC.length + 1);
+// ruled.css alone: the skin every card wears, and the only place a row is
+// made transparent, so it is the only place a swipe reveal has to be hidden.
+const RULED = readFileSync(join(SRC, "styles/ruled.css"), "utf8");
 
 describe("LAW: no em dashes, anywhere", () => {
   // Cost: three separate sweeps missed these, because they hide as —
@@ -4386,5 +4389,97 @@ describe("LAW: a count, never a run", () => {
     const restore = svc.slice(svc.indexOf("async restoreCompletion"), svc.indexOf("async restoreCompletion") + 900);
     expect(restore).toContain("doneCount");
     expect(restore).toContain("lastCounted");
+  });
+});
+
+// EVERY SWIPE REVEAL IS HIDDEN AT REST, AND THE ROSTER IS NOT A MEMORY TEST
+// (2026-09-06, found by Dave on his phone: a green Done rail down the left of
+// every task row, every bill and every reminder, on Life, on Today and on
+// every area page).
+//
+// The ruled skin makes rows TRANSPARENT, because a ruled card is a glass card
+// and an opaque row would paint a card on a card. That trade has a price:
+// a reveal under a transparent row is no longer covered, so ruled.css hides
+// every reveal explicitly and un-hides it only while the row carries an
+// inline translateX. The hiding is a hand-written roster of class names.
+//
+// UP-CORE-15 added a reveal (.task-done-rail, the leading rail a right swipe
+// slides the row off) and did not add a line to that roster. Nothing failed:
+// tsc cannot see a CSS roster, no unit test renders the ruled skin, and the
+// isolated component looks right because outside .ruled the row still paints
+// an opaque ground. It shipped, and it was visible on every list in the app.
+//
+// So the roster stops being something to remember. Every element rendered
+// between a swipe container and the row that moves is a reveal, and this law
+// reads them out of the markup and holds ruled.css to them.
+describe("swipe reveals are hidden at rest (2026-09-06)", () => {
+  // container class -> the class on the element that actually translates
+  // container class -> every class that can carry the inline translateX, i.e.
+  // the thing that moves. The slice between the two is the reveal layer.
+  const CONTAINERS: Array<[string, string[]]> = [
+    ["task-swipe", ["task-row", "set-chip", "swipe-shell", "rem-row"]],
+    ["notice-swipe", ["notice-card"]],
+    ["sched-strip", ["sched-row"]],
+  ];
+  // Decoration INSIDE a reveal, not a reveal itself: these are children of an
+  // element the roster already hides, so hiding them again would say nothing.
+  const INNER = new Set(["ic", "swipe-label", "cb", "sched-act", "sched-act-quiet"]);
+
+  function revealsIn(jsx: string): string[] {
+    const found: string[] = [];
+    for (const [container, movers] of CONTAINERS) {
+      let from = 0;
+      for (;;) {
+        const start = jsx.indexOf(container, from);
+        if (start === -1) break;
+        from = start + container.length;
+        // the slice from the container to the element that moves
+        const ends = movers.map((m) => jsx.indexOf(m, from)).filter((i) => i > -1);
+        // No mover after this container means the markup is shaped in a way
+        // this scan does not understand; say so rather than reading on into
+        // unrelated JSX and reporting half the file as a missing reveal.
+        expect(ends.length, `${container} with nothing that moves after it`).toBeGreaterThan(0);
+        const slice = jsx.slice(from, Math.min(...ends));
+        for (const m of slice.matchAll(/className=["']([a-z0-9 -]+)["']/g)) {
+          for (const cls of m[1]!.split(/\s+/)) {
+            if (cls && !INNER.has(cls) && !found.includes(cls)) found.push(cls);
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  // Every `visibility: hidden` selector in ruled.css, as a set of class names.
+  const hidden = new Set<string>();
+  for (const m of RULED.matchAll(/([^{}]+)\{[^{}]*visibility:\s*hidden[^{}]*\}/g)) {
+    for (const c of m[1]!.matchAll(/\.([a-z0-9-]+)/g)) hidden.add(c[1]!);
+  }
+
+  it("ruled.css hides every reveal the markup renders", () => {
+    const missing: string[] = [];
+    for (const f of ALL.filter((x) => x.endsWith(".tsx") && !isTest(x))) {
+      for (const cls of revealsIn(read(f))) {
+        if (!hidden.has(cls)) missing.push(`${rel(f)}: .${cls}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  // The half that makes hiding survivable: a hidden reveal comes back while
+  // the row is moving. Without this the roster above would simply delete
+  // every swipe action in the app.
+  it("a moving row un-hides what is under it", () => {
+    for (const [container] of CONTAINERS) {
+      const re = new RegExp(`\\.ruled[^{}]*\\.${container}:has\\(> \\[style\\*="translateX"\\][^{}]*\\)[^{}]*\\{[^{}]*visibility:\\s*visible`);
+      expect(RULED, `${container} has no un-hide rule`).toMatch(re);
+    }
+  });
+
+  // And the reason the roster is needed at all: rows inside a ruled card are
+  // transparent, so a reveal is hidden rather than covered. If this ever goes
+  // back to an opaque row, the roster can go with it.
+  it("rows inside a ruled card are transparent, which is why hiding is needed", () => {
+    expect(RULED).toMatch(/\.ruled \.card \.task-row[^{}]*\{[^{}]*background:\s*transparent/);
   });
 });

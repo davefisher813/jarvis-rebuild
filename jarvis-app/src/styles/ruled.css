@@ -70,6 +70,14 @@
 .ruled .card .task-row, .ruled .card .sched-row, .ruled .card .row, .ruled .card .anytime-row,
 .ruled .card .notice-card, .ruled .card .notice-card-row, .ruled .card .stream-card > .task-row { background: transparent; }
 .ruled .card .task-swipe > .task-del, .ruled .card .task-swipe > .task-snooze,
+/* UP-CORE-15 shipped a new reveal, the leading green Done rail, and did not
+   add it here. Every ruled card is a glass card, so its rows are transparent
+   by the rule above and a reveal is hidden rather than covered: the rail was
+   the one reveal nothing hid, so it showed through every task row, every bill
+   and every reminder, on Life, on Today and on every area page. The roster
+   below is the whole contract, and laws.test.ts now holds it to the markup so
+   the next reveal cannot be added without a line here. */
+.ruled .card .task-swipe > .task-done-rail,
 .ruled .card .task-swipe > .mail-arch, .ruled .card .task-swipe > .mail-letgo,
 .ruled .card .notice-swipe > .notice-dismiss, .ruled .card .notice-swipe > .notice-alt, .ruled .card .notice-swipe > .notice-delete,
 .ruled .card .sched-strip > .sched-actions { visibility: hidden; }
