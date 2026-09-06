@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, useOptionalFiles, useFileStore, useOptionalGym } from "../data/NotesProvider";
+import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, usePeople, useOptionalFiles, useFileStore, useOptionalGym } from "../data/NotesProvider";
+import { useOptionalGoogle } from "../connections/google/GoogleSession";
+import { lastContactFor } from "../people/lastContact";
 import { usePickFile, PICK_ANY } from "../shared/usePickFile";
 import { routeFile, parseRouteAnswer, ROUTE_PROMPT, DESTINATION_LABEL, isPdf, type FileDestination } from "../files/route";
 import { fileStem, sizeLabel } from "../files/types";
@@ -55,7 +57,12 @@ const SEND = (
 );
 
 interface PendingChoice {
-  command: ChatCommand;
+  // A command that matched more than one task (the Uncertainty Protocol).
+  command?: ChatCommand;
+  // UP-MIND-03 (2026-09-05): a QUESTION that named more than one person.
+  // Same bounded chooser, same tap, so ambiguity is a question back rather
+  // than a confident answer about the wrong Marco.
+  question?: string;
   options: CommandTarget[];
 }
 
@@ -70,7 +77,12 @@ export default function ChatFlow({ onOpen }: {
   const schedule = useSchedule();
   const notes = useNotes();
   const catsSvc = useCategories();
+  const peopleSvc = usePeople();
   const strands = useOptionalStrands();
+  // UP-MIND-03: "when did I last talk to Marco" reads the cached Gmail
+  // lookup the person card already uses. Optional, because Chat has to
+  // render with no Google provider above it, and the answer says so.
+  const google = useOptionalGoogle();
   const ai = useAI();
   const gather = useAIContext();
 
@@ -128,6 +140,10 @@ export default function ChatFlow({ onOpen }: {
     // "never checked" from "checked, genuinely caught up" (needsYou: 0 either
     // way), so a missing connection reads as unknown, never as a false all-clear.
     const mail = loadMailSnapshot();
+    const people = await peopleSvc.list().catch(() => []);
+    // UP-MIND-03: the mail account that can answer "when did we last talk".
+    // Null with no session, which the answer distinguishes from "never".
+    const mailApi = google?.apis("mail")[0]?.api ?? null;
     return {
       today,
       nowHHMM: nowHHMM(new Date()),
@@ -138,6 +154,16 @@ export default function ChatFlow({ onOpen }: {
       // is capped at 6 by the snapshot; mail.needsYou is what actually needs
       // him, which is the number Today and the Email tab both show.
       mailNeedsYou: mail.ts > 0 ? { total: mail.needsYou, threads: mail.threads.map((t) => ({ id: t.id, subject: t.subject })) } : null,
+      people: people.map((p) => ({
+        id: p.id,
+        name: p.data.name,
+        ...(p.data.email ? { email: p.data.email } : {}),
+        ...(p.data.birthday ? { birthday: p.data.birthday } : {}),
+        ...(p.data.relationship ? { relationship: p.data.relationship } : {}),
+      })),
+      waiting: mail.waiting,
+      ...(mailApi ? { lastContact: (email: string) => lastContactFor(mailApi, email, Date.now()) } : {}),
+      now: Date.now(),
     };
   };
 
@@ -181,9 +207,17 @@ export default function ChatFlow({ onOpen }: {
 
   const pickChoice = async (target: CommandTarget) => {
     if (!choice) return;
-    const cmd = choice.command;
+    const { command: cmd, question } = choice;
     setChoice(null);
-    await runCommand(cmd, target);
+    // UP-MIND-03: the tap on a person chip re-runs the same question with
+    // that person pinned, so the tap is both the answer to "which one" and
+    // the answer to what was actually asked.
+    if (question) {
+      const ans = await answerQuestion(question, await snapshot(), { id: target.id });
+      if (ans) await say("jarvis", ans.text, ans.provenance);
+      return;
+    }
+    if (cmd) await runCommand(cmd, target);
   };
 
   const send = async () => {
@@ -220,8 +254,14 @@ export default function ChatFlow({ onOpen }: {
 
         // 2. Deterministic Q&A, still before any AI call.
         if (looksLikeQuestion(text)) {
-          const ans = answerQuestion(text, await snapshot());
-          if (ans) { await say("jarvis", ans.text, ans.provenance); return; }
+          const ans = await answerQuestion(text, await snapshot());
+          if (ans) {
+            await say("jarvis", ans.text, ans.provenance);
+            // UP-MIND-03: more than one person answers to that name. The
+            // chips are the same bounded chooser the command path renders.
+            if (ans.choose) setChoice({ question: text, options: ans.choose.map((o) => ({ id: o.id, text: o.text })) });
+            return;
+          }
           // 3. Grounded AI for the questions the rules cannot read.
           if (!ai.available) {
             await say("jarvis", "I can answer that when you're back online", { kind: "records" });

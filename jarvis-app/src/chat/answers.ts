@@ -7,6 +7,9 @@
 import type { ChatProvenance } from "./types";
 import { capAfterNumber } from "../shared/casing";
 import { shortDate } from "../shared/dateFormat";
+import { namePatterns, openWith } from "../people/mentions";
+import { birthdayLabel } from "../people/birthdays";
+import { agoLabel } from "../people/lastContact";
 
 export interface AnswerSnapshot {
   today: string;
@@ -30,11 +33,28 @@ export interface AnswerSnapshot {
   // Today and the Email tab both said 9. A shape where the count and the
   // preview are one array is a shape that makes that mistake again.
   mailNeedsYou: { total: number; threads: { id: string; subject: string }[] } | null;
+  // UP-MIND-03 (2026-09-05): people as a first-class subject. "What's open
+  // with Marco" was three tabs of hunting; the matchers the person card
+  // already uses (people/mentions.ts) answer it from records, with no AI
+  // call and nothing invented.
+  people: { id: string; name: string; email?: string; birthday?: string; relationship?: string }[];
+  // The threads where the last word is the user's and nobody has answered
+  // (messages/home.ts's MailSnapshot.waiting), keyed by who it went to.
+  waiting: { threadId: string; to: string; subject: string; days: number }[];
+  // Resolves the last message time with an address, or null when there is
+  // none. Absent means no Google session, which is a different answer from
+  // "you have never talked": the reply says which.
+  lastContact?: (email: string) => Promise<number | null>;
+  now?: number;
 }
 
 export interface ChatAnswer {
   text: string;
   provenance: ChatProvenance;
+  // UP-MIND-03: a question that named more than one person it knows. The
+  // bounded chooser the command path already renders, reused for Q&A, so
+  // ambiguity is a question back rather than a confident wrong answer.
+  choose?: { id: string; text: string }[];
 }
 
 const fmt12 = (hhmm: string): string => {
@@ -69,8 +89,125 @@ function findByTitle<T>(items: T[], titleOf: (t: T) => string, q: string): T[] {
   });
 }
 
-export function answerQuestion(raw: string, snap: AnswerSnapshot): ChatAnswer | null {
+
+// --- PEOPLE (UP-MIND-03) ---
+
+type SnapPerson = AnswerSnapshot["people"][number];
+
+// Which of the user's people this text is about. The same narrow matcher the
+// person card uses: the full name always counts, a first name only when it
+// cannot be mistaken for an ordinary word. A wrong link here attaches
+// someone else's work to a name, which is worse than no answer.
+function peopleNamed(query: string, people: SnapPerson[]): SnapPerson[] {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  return people.filter((p) => namePatterns(p.name).some((re) => re.test(q)));
+}
+
+const personRef = (p: SnapPerson) => ({ kind: "person", id: p.id, label: p.name });
+
+// Two or more people answer to the name. The A23 rule is that ambiguity
+// shows the options rather than picking one, so this is the same bounded
+// chooser the command path renders, capped at four.
+function chooser(matches: SnapPerson[]): ChatAnswer {
+  return {
+    text: "Which one?",
+    provenance: { kind: "records", refs: matches.slice(0, 4).map(personRef) },
+    choose: matches.slice(0, 4).map((p) => ({ id: p.id, text: p.name })),
+  };
+}
+
+async function lastTalked(p: SnapPerson, snap: AnswerSnapshot): Promise<ChatAnswer> {
+  const refs = [personRef(p)];
+  if (!p.email) return { text: `${p.name} has no email on file`, provenance: { kind: "records", refs } };
+  if (!snap.lastContact) return { text: `${p.name} · Email isn't connected`, provenance: { kind: "records", refs } };
+  const ms = await snap.lastContact(p.email);
+  if (ms === null) return { text: `Nothing in your mail with ${p.name}`, provenance: { kind: "records", refs } };
+  return { text: `${p.name} · Last talked ${agoLabel(ms, snap.now ?? Date.now())}`, provenance: { kind: "records", refs } };
+}
+
+function openWithPerson(p: SnapPerson, snap: AnswerSnapshot): ChatAnswer {
+  const items = openWith(
+    { name: p.name },
+    snap.tasks.map((t) => ({ id: t.id, text: t.text, done: t.done, due: t.due })),
+    snap.events.map((e) => ({ id: e.id, title: e.title, date: e.date, start: e.start, location: e.location })),
+    snap.today,
+  );
+  const waits = snap.waiting.filter((w) => namePatterns(p.name).some((re) => re.test(w.to)));
+  const refs = [
+    personRef(p),
+    ...items.map((i) => ({ kind: i.kind, id: i.id, label: i.title })),
+    ...waits.map((w) => ({ kind: "thread", id: w.threadId, label: w.subject })),
+  ];
+  if (items.length === 0 && waits.length === 0) {
+    return { text: `Nothing open with ${p.name}`, provenance: { kind: "records", refs: [personRef(p)] } };
+  }
+  const parts: string[] = [];
+  if (items.length) parts.push(`${items.length} open`);
+  if (waits.length) parts.push(`${waits.length} waiting on ${p.name}`);
+  return { text: capAfterNumber(parts.join(" · ")), provenance: { kind: "records", refs } };
+}
+
+function owedTo(p: SnapPerson, snap: AnswerSnapshot): ChatAnswer {
+  const pats = namePatterns(p.name);
+  const ts = snap.tasks.filter((t) => !t.done && pats.some((re) => re.test(t.text)));
+  const refs = [personRef(p), ...ts.map((t) => ({ kind: "task", id: t.id, label: t.text }))];
+  if (ts.length === 0) return { text: `Nothing open naming ${p.name}`, provenance: { kind: "records", refs: [personRef(p)] } };
+  // A fact, not a verdict: these are the open tasks that NAME them. JARVIS
+  // does not decide what is owed to whom.
+  return {
+    text: capAfterNumber(`${ts.length} open ${ts.length === 1 ? "task" : "tasks"} naming ${p.name}`),
+    provenance: { kind: "records", refs },
+  };
+}
+
+function birthdayOf(p: SnapPerson): ChatAnswer {
+  const label = birthdayLabel(p.birthday);
+  const refs = [personRef(p)];
+  if (!label) return { text: `${p.name} has no birthday saved`, provenance: { kind: "records", refs } };
+  return { text: `${p.name} · ${label}`, provenance: { kind: "records", refs } };
+}
+
+// The four shapes, in one place. Returns null when the question is not about
+// a person at all, or names nobody the app knows: the AI path takes it from
+// there, exactly as it did before.
+async function answerAboutPerson(q: string, snap: AnswerSnapshot, pinned?: SnapPerson): Promise<ChatAnswer | null> {
+  const shapes: { re: RegExp; group: number; run: (p: SnapPerson) => Promise<ChatAnswer> | ChatAnswer }[] = [
+    { re: /^when did i (?:last )?(?:talk|speak|email|write) (?:to|with) (.+)$/, group: 1, run: (p) => lastTalked(p, snap) },
+    { re: /^when did i last (?:hear from|contact) (.+)$/, group: 1, run: (p) => lastTalked(p, snap) },
+    { re: /^what(?:'| i)?s open with (.+)$/, group: 1, run: (p) => openWithPerson(p, snap) },
+    { re: /^what do i owe (.+)$/, group: 1, run: (p) => owedTo(p, snap) },
+    { re: /^when(?: i)?s (.+?)(?:'s)? birthday$/, group: 1, run: (p) => birthdayOf(p) },
+    { re: /^when is (.+?)(?:'s)? birthday$/, group: 1, run: (p) => birthdayOf(p) },
+  ];
+  for (const sh of shapes) {
+    const m = q.match(sh.re);
+    if (!m) continue;
+    const query = (m[sh.group] ?? "").trim();
+    if (pinned) return sh.run(pinned);
+    const matches = peopleNamed(query, snap.people);
+    if (matches.length === 0) return null;
+    if (matches.length > 1) return chooser(matches);
+    return sh.run(matches[0]!);
+  }
+  return null;
+}
+
+// UP-MIND-03 (2026-09-05): async, because the last-talked answer reads a
+// cached Gmail lookup. Every other shape still resolves without awaiting
+// anything, and the AI path below it is unchanged.
+//
+// `pinned` is the person the user picked out of the chooser, so a repeat of
+// the same question answers rather than asking again.
+export async function answerQuestion(
+  raw: string,
+  snap: AnswerSnapshot,
+  pinned?: { id: string },
+): Promise<ChatAnswer | null> {
   const q = raw.trim().toLowerCase().replace(/[?.!]+$/, "");
+  const who = pinned ? snap.people.find((p) => p.id === pinned.id) : undefined;
+  const aboutPerson = await answerAboutPerson(q, snap, who);
+  if (aboutPerson) return aboutPerson;
 
   // "what's today" / "what does today look like"
   if (/^(what('| i)?s (on )?today|what does today look like|today)$/.test(q)) {

@@ -26,83 +26,85 @@ const snap = (over: Partial<AnswerSnapshot> = {}): AnswerSnapshot => ({
   ],
   leftToSpend: null,
   mailNeedsYou: null,
+  people: [],
+  waiting: [],
   ...over,
 });
 
 describe("chat deterministic Q&A", () => {
-  it("answers what's today with counts from records", () => {
-    const a = answerQuestion("What's today?", snap());
+  it("answers what's today with counts from records", async () => {
+    const a = await answerQuestion("What's today?", snap());
     expect(a?.text).toBe("2 Events · 1 Task due");
     expect(a?.provenance.kind).toBe("records");
   });
 
-  it("answers what's next with the next event and a ref", () => {
-    const a = answerQuestion("what's next", snap());
+  it("answers what's next with the next event and a ref", async () => {
+    const a = await answerQuestion("what's next", snap());
     expect(a?.text).toBe("Standup · 10 AM");
     expect(a?.provenance.refs?.[0]).toEqual({ kind: "event", id: "e2", label: "Standup" });
   });
 
-  it("says so when nothing is left today", () => {
-    const a = answerQuestion("what's next", snap({ nowHHMM: "21:00" }));
+  it("says so when nothing is left today", async () => {
+    const a = await answerQuestion("what's next", snap({ nowHHMM: "21:00" }));
     expect(a?.text).toBe("Nothing else on the calendar today");
   });
 
-  it("answers when is X for a unique event", () => {
-    const a = answerQuestion("when is dinner with marco?", snap());
+  it("answers when is X for a unique event", async () => {
+    const a = await answerQuestion("when is dinner with marco?", snap());
     expect(a?.text).toBe("Dinner with Marco · Today 7 PM");
   });
 
-  it("answers when is X from tasks when no event matches", () => {
-    const a = answerQuestion("when is call the bank", snap());
+  it("answers when is X from tasks when no event matches", async () => {
+    const a = await answerQuestion("when is call the bank", snap());
     expect(a?.text).toBe("Call the bank · Due today");
     expect(a?.provenance.refs?.[0]?.kind).toBe("task");
   });
 
-  it("returns null on an unknown title instead of guessing", () => {
-    expect(answerQuestion("when is the moon landing", snap())).toBeNull();
+  it("returns null on an unknown title instead of guessing", async () => {
+    expect(await answerQuestion("when is the moon landing", snap())).toBeNull();
   });
 
-  it("answers where is X from the saved location", () => {
-    const a = answerQuestion("where is dinner with marco", snap());
+  it("answers where is X from the saved location", async () => {
+    const a = await answerQuestion("where is dinner with marco", snap());
     expect(a?.text).toBe("Dinner with Marco · Osteria");
   });
 
-  it("is honest when an event has no location", () => {
-    const a = answerQuestion("where is standup", snap());
+  it("is honest when an event has no location", async () => {
+    const a = await answerQuestion("where is standup", snap());
     expect(a?.text).toBe("Standup has no location saved");
   });
 
-  it("passes spend questions through when money is not wired", () => {
-    expect(answerQuestion("how much can i spend", snap())).toBeNull();
+  it("passes spend questions through when money is not wired", async () => {
+    expect(await answerQuestion("how much can i spend", snap())).toBeNull();
   });
 
-  it("returns the money layer's derived line verbatim when present", () => {
-    const a = answerQuestion("what's left to spend", snap({ leftToSpend: "$140 left this week" }));
+  it("returns the money layer's derived line verbatim when present", async () => {
+    const a = await answerQuestion("what's left to spend", snap({ leftToSpend: "$140 left this week" }));
     expect(a?.text).toBe("$140 left this week");
   });
 
   // S6-Q42 (2026-09-05): "Chat cannot see your email." mailNeedsYou null
   // means no snapshot to trust (no Gmail connection, or too stale) -- an
   // unknown, never a false all-clear; an empty array is a real "caught up".
-  it("passes email questions through when there is no snapshot to trust", () => {
-    expect(answerQuestion("what needs me in email", snap())).toBeNull();
-    expect(answerQuestion("what's in my email", snap())).toBeNull();
+  it("passes email questions through when there is no snapshot to trust", async () => {
+    expect(await answerQuestion("what needs me in email", snap())).toBeNull();
+    expect(await answerQuestion("what's in my email", snap())).toBeNull();
   });
 
-  it("says so when the inbox is genuinely caught up", () => {
-    const a = answerQuestion("what needs me in email", snap({ mailNeedsYou: { total: 0, threads: [] } }));
+  it("says so when the inbox is genuinely caught up", async () => {
+    const a = await answerQuestion("what needs me in email", snap({ mailNeedsYou: { total: 0, threads: [] } }));
     expect(a?.text).toBe("Nothing needs you in email");
     expect(a?.provenance.kind).toBe("records");
   });
 
-  it("reports the needs-you count, singular and plural, with refs to the threads", () => {
-    const one = answerQuestion("what needs me in email", snap({ mailNeedsYou: { total: 1, threads: [{ id: "th1", subject: "Invoice due" }] } }));
+  it("reports the needs-you count, singular and plural, with refs to the threads", async () => {
+    const one = await answerQuestion("what needs me in email", snap({ mailNeedsYou: { total: 1, threads: [{ id: "th1", subject: "Invoice due" }] } }));
     // The number-leads-a-line rule (casing.ts): the word right after gets the
     // capital, same as triage.ts's identical "1 Needs you" for this bucket.
     expect(one?.text).toBe("1 Needs you in email");
     expect(one?.provenance.refs).toEqual([{ kind: "thread", id: "th1", label: "Invoice due" }]);
 
-    const many = answerQuestion("what needs me in email", snap({
+    const many = await answerQuestion("what needs me in email", snap({
       mailNeedsYou: { total: 2, threads: [{ id: "th1", subject: "Invoice due" }, { id: "th2", subject: "Reschedule?" }] },
     }));
     expect(many?.text).toBe("2 Need you in email");
@@ -113,8 +115,8 @@ describe("chat deterministic Q&A", () => {
   // it caps at 6 for refs (snapshotRefresh.ts:129-130), and this answer
   // counted the preview: nine threads needing him, Chat said six, Today and
   // the Email tab said nine.
-  it("counts what actually needs him, not the six-thread preview", () => {
-    const a = answerQuestion("what needs me in email", snap({
+  it("counts what actually needs him, not the six-thread preview", async () => {
+    const a = await answerQuestion("what needs me in email", snap({
       mailNeedsYou: {
         total: 9,
         threads: Array.from({ length: 6 }, (_, i) => ({ id: "th" + i, subject: "Subject " + i })),
@@ -216,3 +218,91 @@ describe("law: chat pipeline is deterministic before AI", () => {
     expect(src).toContain('{ kind: "chat", background: false }');
   });
 });
+
+// UP-MIND-03 (2026-09-05): people as a first-class subject. All from records,
+// no AI call, and the same narrow matchers the person card uses, so a wrong
+// name never attaches someone else's work to a person.
+describe("chat answers about a person", () => {
+  const people = [
+    { id: "p1", name: "Marco Silva", email: "marco@example.com", birthday: "1980-03-04", relationship: "Client" },
+    { id: "p2", name: "Nadia Brandt" },
+  ];
+  const withPeople = (over: Partial<AnswerSnapshot> = {}) => snap({
+    people,
+    tasks: [
+      { id: "t1", text: "Send Marco Silva the roster", due: null, done: false },
+      { id: "t2", text: "Call the bank", due: null, done: false },
+      { id: "t3", text: "Old Marco Silva thing", due: null, done: true },
+    ],
+    events: [{ id: "e1", title: "Dinner with Marco Silva", date: "2026-08-20", start: "19:00" }],
+    ...over,
+  });
+
+  it("counts what is open with someone, and cites every row", async () => {
+    const a = (await withPeopleAnswer("what's open with Marco Silva", withPeople()))!;
+    expect(a.text).toBe("2 Open");
+    expect(a.provenance.refs?.map((r) => r.id)).toEqual(["p1", "t1", "e1"]);
+  });
+
+  it("counts a thread still waiting on them alongside the open work", async () => {
+    const a = (await withPeopleAnswer("what's open with Marco Silva", withPeople({
+      waiting: [{ threadId: "th1", to: "Marco Silva", subject: "Field booking", days: 9 }],
+    })))!;
+    expect(a.text).toBe("2 Open · 1 Waiting on Marco Silva");
+    expect(a.provenance.refs?.some((r) => r.kind === "thread")).toBe(true);
+  });
+
+  it("says nothing is open rather than inventing something", async () => {
+    const a = (await withPeopleAnswer("what's open with Nadia Brandt", withPeople()))!;
+    expect(a.text).toBe("Nothing open with Nadia Brandt");
+  });
+
+  it("names the open tasks that mention someone, and never calls them owed", async () => {
+    const a = (await withPeopleAnswer("what do I owe Marco Silva", withPeople()))!;
+    expect(a.text).toBe("1 Open task naming Marco Silva");
+  });
+
+  it("reads the birthday it has, and says so when it has none", async () => {
+    expect((await withPeopleAnswer("when is Marco Silva's birthday", withPeople()))!.text).toBe("Marco Silva · Mar 4");
+    expect((await withPeopleAnswer("when is Nadia Brandt's birthday", withPeople()))!.text).toBe("Nadia Brandt has no birthday saved");
+  });
+
+  it("distinguishes no email on file from no mail connection", async () => {
+    expect((await withPeopleAnswer("when did I last talk to Nadia Brandt", withPeople()))!.text)
+      .toBe("Nadia Brandt has no email on file");
+    expect((await withPeopleAnswer("when did I last talk to Marco Silva", withPeople()))!.text)
+      .toBe("Marco Silva · Email isn't connected");
+  });
+
+  it("reads the last message time when the mail lookup is available", async () => {
+    const now = Date.parse("2026-08-15T12:00:00Z");
+    const a = (await withPeopleAnswer("when did I last talk to Marco Silva", withPeople({
+      now,
+      lastContact: async () => now - 3 * 86400000,
+    })))!;
+    expect(a.text).toBe("Marco Silva · Last talked 3 Days ago");
+  });
+
+  // Two Bills: "Bill" is on the ambiguous list (it is an ordinary word), so
+  // only the full name matches a row, which makes the pick change the answer.
+  it("asks which one when two people answer to the name, and answers on the pick", async () => {
+    const two = withPeople({
+      people: [{ id: "p1", name: "Bill Silva" }, { id: "p9", name: "Bill Diaz" }],
+      tasks: [{ id: "t1", text: "Send Bill Silva the roster", due: null, done: false }],
+      events: [],
+    });
+    const ask = (await answerQuestion("what's open with Bill Silva", two))!;
+    expect(ask.text).toBe("1 Open");
+    const both = (await answerQuestion("what's open with Bill Silva and Bill Diaz", two))!;
+    expect(both.text).toBe("Which one?");
+    expect(both.choose?.map((o) => o.text)).toEqual(["Bill Silva", "Bill Diaz"]);
+    const picked = (await answerQuestion("what's open with Bill Silva and Bill Diaz", two, { id: "p9" }))!;
+    expect(picked.text).toBe("Nothing open with Bill Diaz");
+  });
+
+  it("falls through to the AI path when it knows nobody by that name", async () => {
+    expect(await answerQuestion("what's open with Priya", withPeople())).toBeNull();
+  });
+});
+
+const withPeopleAnswer = (q: string, s: AnswerSnapshot) => answerQuestion(q, s);

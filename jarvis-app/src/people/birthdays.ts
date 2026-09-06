@@ -50,6 +50,18 @@ export interface UpcomingBirthday { id: string; name: string; inDays: number; la
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+// UP-MIND-03 (2026-09-05): the stored birthday as a readable day, or null
+// when nothing usable is stored. No year, ever: the stored one is unreliable
+// and an age nobody asked for is the wrong fact to volunteer.
+export function birthdayLabel(b: string | undefined): string | null {
+  const mmdd = birthdayMonthDay(b);
+  if (!mmdd) return null;
+  const mo = Number(mmdd.slice(0, 2));
+  const day = Number(mmdd.slice(3));
+  const abbr = MONTH_ABBR[mo - 1];
+  return abbr ? abbr + " " + day : null;
+}
+
 export function upcomingBirthdays(people: Person[], todayIso: string, windowDays = 30): UpcomingBirthday[] {
   const todayMs = Date.parse(todayIso + "T00:00:00Z");
   if (!isFinite(todayMs)) return [];
