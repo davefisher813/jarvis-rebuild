@@ -14,9 +14,15 @@ import { seedQuestions, factsFrom } from "./seeds";
 import { NEW_USER_TABS } from "../shell/destinations";
 import { dismissSplash } from "../shared/splash";
 import { attemptWrite } from "../shared/guard";
+import { showToast } from "../shared/toast";
 import { requestNotificationPermission } from "../shared/notifications";
 import { useOptionalSession } from "../auth/AuthProvider";
 import { emit } from "../events";
+import { useAI } from "../ai/useAI";
+import { refreshMailSnapshot } from "../messages/snapshotRefresh";
+import { runSentSweep } from "../messages/sweepRun";
+import { loadMailSnapshot, type MailSnapshot } from "../messages/home";
+import { foundLine, foundRows, openCount, FOUND_CLEAN, FOUND_UNKNOWN } from "./found";
 
 const ic = (d: string) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
@@ -64,6 +70,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const profile = useProfile();
   const categories = useCategories();
   const peopleSvc = usePeople();
+  const ai = useAI();
   const routine = useRoutine();
   const tasksSvc = useTasks();
   // Optional on purpose, same seam as everywhere else the genome is touched:
@@ -102,6 +109,50 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const google = useOptionalGoogle();
   const canConnect = !!google && googleConfigured();
   const [connecting, setConnecting] = useState(false);
+  // UP-MIND-13 (2026-09-05): THE FIRST THIRTY SECONDS. "Connected" and a
+  // Continue button is a receipt for a permission grant, and this is the
+  // moment the whole product has to justify itself. After the account lands,
+  // the app reads the last thirty days and says what it found, in this
+  // person's own mail.
+  //
+  // Three states, and the third is the one that matters: looking, found (or
+  // honestly clean), and COULD NOT READ. A failed fetch must never render as
+  // "your last 30 days are clean" (EMAIL-F-04's exact lesson), so the read
+  // has to succeed before this screen is allowed to claim anything.
+  const [found, setFound] = useState<"idle" | "looking" | "ready" | "unknown">("idle");
+  const [foundSnap, setFoundSnap] = useState<MailSnapshot | null>(null);
+  const lookAtMail = async () => {
+    if (!google) return;
+    // Gate: no mail scope, nothing to look at. The calendar-only path keeps
+    // Continue exactly as it was.
+    if (google.apis("mail").length === 0) return;
+    setFound("looking");
+    try {
+      await refreshMailSnapshot({
+        apis: () => google.apis("mail"),
+        ai,
+        people: async () => (await peopleSvc.list().catch(() => [])).map((p) => ({ id: p.id, ...(p.data.email ? { email: p.data.email } : {}) })),
+      });
+    } catch {
+      // The snapshot is the read that decides whether this screen may speak.
+      setFound("unknown");
+      return;
+    }
+    // The promise sweep is a bonus on top: what THEY said they would do, in
+    // the same thirty days. Its own failure is silent, because the snapshot
+    // already succeeded and the screen has something true to say.
+    if (ai.available) {
+      await runSentSweep({
+        apis: () => google.apis("mail"),
+        complete: (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
+        query: "in:sent -in:chats newer_than:30d",
+        force: true,
+      });
+    }
+    setFoundSnap(loadMailSnapshot());
+    setFound("ready");
+  };
+
   const connectGoogle = async () => {
     if (!google || connecting) return;
     setConnecting(true);
@@ -109,8 +160,14 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       await google.addAccount();
       setGmail(true);
       setCalendar(true);
+      void lookAtMail();
     } catch { /* user closed the chooser: the Later path still works */ }
     finally { setConnecting(false); }
+  };
+
+  const saveFoundTask = async (text: string, due?: string): Promise<boolean> => {
+    const id = await tasksSvc.createTask(text, { ...(due ? { due } : {}) }).catch(() => null);
+    return !!id;
   };
   // Question id -> index of the chosen chip. Absent means unanswered, which
   // is a first-class outcome here: five optional questions, not a form.
@@ -537,6 +594,46 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           <button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>
             {answered > 0 ? "Continue" : "Skip these"}
           </button>
+        </div>
+      </>
+    );
+  } else if (step.kind === "connect" && found !== "idle") {
+    // UP-MIND-13: what the app found, not a tour. Three real rows off the
+    // same ranking the home page uses, each with the sentence it was read
+    // from and one action that genuinely finishes here.
+    const rows = foundSnap ? foundRows(foundSnap, todayISO()) : [];
+    const n = foundSnap ? openCount(foundSnap) : 0;
+    control = (
+      <>
+        <div className="pad-x"><div className="card list-card-ruled">
+          {found === "looking" && (
+            <div className="row"><div className="row-grow"><div className="conn-name">Reading the last 30 days…</div></div></div>
+          )}
+          {found === "unknown" && (
+            <div className="row"><div className="row-grow">
+              <div className="conn-name">{FOUND_UNKNOWN}</div>
+              <div className="conn-meta">Your inbox is connected. JARVIS will look again in a moment.</div>
+            </div></div>
+          )}
+          {found === "ready" && n === 0 && (
+            <div className="row"><div className="row-grow"><div className="conn-name">{FOUND_CLEAN}</div></div></div>
+          )}
+          {found === "ready" && n > 0 && rows.map((r) => (
+            <div className="row" key={r.key}>
+              <div className="row-grow">
+                <div className="conn-name truncate">{r.title}</div>
+                {/* The sender's own sentence, quoted, never a rewrite. */}
+                <div className="conn-meta">{r.sentence}</div>
+              </div>
+              <button className="btn-sm" onClick={() => void (async () => {
+                const ok = await saveFoundTask(r.taskText, r.due);
+                showToast({ message: ok ? "Added to your tasks" : "Couldn't add it · Check your connection and try again" });
+              })()}>Add Task</button>
+            </div>
+          ))}
+        </div></div>
+        <div className="convo-foot">
+          <button className="btn btn-primary btn-block" disabled={found === "looking"} onClick={() => setIdx(idx + 1)}>Continue</button>
         </div>
       </>
     );

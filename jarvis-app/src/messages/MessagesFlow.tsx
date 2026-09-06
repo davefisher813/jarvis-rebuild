@@ -122,7 +122,8 @@ import { nextOpening, BOOK_MIN } from "./bookTime";
 import { suggestAttachment, suggestLine, noteAsText, attachmentFilename, type AttachSuggestion, type Candidate } from "./attachSuggest";
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
 import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
-import { sweepPrompt, parseSweep, needsSweep, liveSweep, loadSweep, saveSweep, SWEEP_SYSTEM, type SentItem } from "./sentSweep";
+import { liveSweep, loadSweep } from "./sentSweep";
+import { runSentSweep } from "./sweepRun";
 import { pressable } from "../shared/pressable";
 import { fullThreadsFor, SENT_BODY_CAP } from "./sentBodies";
 import { laterTaskTitle } from "./deck";
@@ -741,41 +742,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // sent FROM this app. This is the rest: promises he made in the Gmail web
   // client, on his phone, or before JARVIS existed. One capped AI pass, and
   // only when new mail has actually gone out since the last one.
+  // UP-MIND-13 (2026-09-05): the pass itself moved to messages/sweepRun.ts,
+  // so the connect screen can run the same one before this tab has ever
+  // existed. Two implementations of one AI pass is how they drift.
   const runSweep = async () => {
     if (!ai.available) return;
-    try {
-      const list = g.apis("mail");
-      if (list.length === 0) return;
-      const items: SentItem[] = [];
-      let head = "";
-      for (const { api } of list) {
-        // EMAIL-F-03 (2026-09-05): search hits are metadata (no bodies);
-        // sentBodies.ts fetches the real threads, capped and bounded, so the
-        // model reads what he wrote rather than eight subject lines.
-        const metas = await api.searchThreads("in:sent -in:chats", 8).catch(() => []);
-        for (const full of await fullThreadsFor(api, metas)) {
-          const last = full.messages[full.messages.length - 1];
-          if (!last) continue;
-          if (!head) head = last.id;
-          if (alreadyPromised(full.id)) continue;
-          items.push({
-            threadId: full.id,
-            to: displayName(last.to),
-            subject: full.subject,
-            body: cleanBody(last.body),
-            msgId: last.id,
-          });
-        }
-      }
-      if (!needsSweep(head)) return;
-      if (items.length === 0) { saveSweep({ head, promises: [] }); setSweepTick((n) => n + 1); return; }
-      const raw = await ai.complete(
-        [{ role: "user", content: sweepPrompt(items.slice(0, 8), todayISO()) }],
-        SWEEP_SYSTEM,
-      );
-      saveSweep({ head, promises: parseSweep(raw, items) });
-      setSweepTick((n) => n + 1);
-    } catch { /* a missed promise is silent; a wrong task is not */ }
+    const n = await runSentSweep({
+      apis: () => g.apis("mail"),
+      complete: (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
+    });
+    if (n !== null) setSweepTick((x) => x + 1);
   };
 
   // Waiting On is a bonus layer: it loads after the inbox and fails to
