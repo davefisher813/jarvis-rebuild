@@ -199,6 +199,53 @@ export class NotesService {
     return true;
   }
 
+  // A NOTE FOR THIS MEETING, ALREADY LINKED (UP-CORE-08, 2026-09-05).
+  //
+  // Walking into the 2 PM with a page titled and linked is the whole ask.
+  // Everything this needs already existed and had never been put together:
+  // the meeting template (Agenda, Decisions, Action Items), createNote, and
+  // addConnection(kind "event"), whose reverse lookup notesLinkedTo is read
+  // for tasks, projects and people and was never once read for an event.
+  //
+  // The connection LABEL carries the occurrence date, not just the title, so
+  // a weekly stand-up has one note per week rather than every occurrence
+  // pointing at the first one's page. The connection's targetId is still the
+  // series id, because that is what the row can look up.
+  //
+  // The provenance stamp is "event", so the note's own head line says "From
+  // your calendar" and opens the meeting it belongs to.
+  async createForEvent(event: { id: string; title: string; date: string; category?: string }): Promise<string | null> {
+    const title = event.title.trim();
+    if (!title || !event.date) return null;
+    const id = await this.createNote(
+      `${title} · ${shortDateFromMs(new Date(event.date + "T12:00:00").getTime())}`,
+      event.category ?? "",
+      [],
+      madeBy("event", event.id),
+    );
+    if (!id) return null;
+    await this.applyTemplate(id, "meeting");
+    await this.addConnection(id, "event", `${title} · ${event.date}`, event.id);
+    return id;
+  }
+
+  // Which of these events have a note already, in ONE pass over the notes
+  // list. The row needs a yes or no per event and a read per row would be a
+  // list scan per row.
+  async eventsWithNotes(eventIds: string[]): Promise<Set<string>> {
+    const want = new Set(eventIds.filter(Boolean));
+    if (want.size === 0) return new Set();
+    const items = await this.store.listForUser(this.ownerId, ENTITY_NOTE);
+    const out = new Set<string>();
+    for (const it of items) {
+      const d = it.data as unknown as NoteData;
+      for (const c of d.connections ?? []) {
+        if (c.kind === "event" && c.targetId && want.has(c.targetId)) out.add(c.targetId);
+      }
+    }
+    return out;
+  }
+
   async addConnection(
     id: string,
     kind: string,

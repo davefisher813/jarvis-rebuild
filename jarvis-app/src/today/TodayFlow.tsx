@@ -102,6 +102,9 @@ const birthdayStore = localQuietStore("jarvis.birthday.dismissed.v1");
 // `about`, which the sheet has accepted since it was built and no caller
 // ever passed (BRAIN-F-24).
 const BIRTHDAY_ABOUT = "a short happy-birthday message";
+// "HH:MM" as minutes. calendar.ts keeps its own copy private, and this file
+// needs the one comparison (UP-CORE-08's "which event am I inside").
+const minsOf = (hhmm: string): number => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCaptureSheet";
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
@@ -163,6 +166,7 @@ export default function TodayFlow({
   onProfile,
   onEditRoutine,
   onRestoreSpot,
+  onOpenNote,
   onGoBigger,
 }: {
   onGoSchedule: () => void;
@@ -182,13 +186,17 @@ export default function TodayFlow({
   onEditRoutine?: (blockId?: string) => void;
   // Where You Were (addendum item 6): navigate back to a recorded spot.
   onRestoreSpot?: (kind: "note" | "task" | "event" | "gym", id: string) => void;
+  // UP-CORE-08 (2026-09-05): open a note, for the meeting page the Now card
+  // makes. The shell's own navigateToNote; absent means the pill is not
+  // offered rather than tapping into nothing.
+  onOpenNote?: (id: string) => void;
 }) {
   const ai = useAI();
   const gatherContext = useAIContext();
   const google = useGoogle();
   const schedule = useSchedule();
-  // Only ever read to answer "does the thing this bookmark names still
-  // exist" (Law 1); Today renders no note content of its own.
+  // Read to answer "does the thing this bookmark names still exist" (Law 1),
+  // and, since UP-CORE-08, to make and find a meeting's own page.
   const notesSvc = useNotes();
   const tasks = useTasks();
   const profile = useProfile();
@@ -374,6 +382,17 @@ export default function TodayFlow({
   // A dismissal lives in storage, so a bump is what tells the render to go
   // read it again (the same pattern the sweep and goal cards use).
   const [birthdayDismissTick, setBirthdayDismissTick] = useState(0);
+  // UP-CORE-08 (2026-09-05): which of today's events already have a note, in
+  // ONE read (eventsWithNotes scans the note list once), plus the door that
+  // makes one titled and linked the first time and opens it every time
+  // after. Same function the Schedule tab's row glyph calls.
+  const [notedEvents, setNotedEvents] = useState<ReadonlySet<string>>(new Set());
+  const [noteTick, setNoteTick] = useState(0);
+  useEffect(() => {
+    let on = true;
+    notesSvc.eventsWithNotes(todayEvents.map((e) => e.id)).then((set) => { if (on) setNotedEvents(set); }).catch(() => {});
+    return () => { on = false; };
+  }, [notesSvc, todayEvents, noteTick]);
   // UP-CORE-09 (2026-09-05): the Momentum Chain's slot, on the tab where
   // ticks actually happen. Holds the task offered after the last completion;
   // the next tick replaces it and Not Now empties it for the day.
@@ -438,6 +457,17 @@ export default function TodayFlow({
   // A logged call attempt changes what the Call Prep card says about "last
   // talked", so the read that fed it runs again.
   const reloadPeople = async () => { setPeopleTick((n) => n + 1); };
+
+  const openEventNote = async (e: EventItem) => {
+    const existing = await notesSvc.notesLinkedTo(e.id);
+    if (existing[0]) { onOpenNote?.(existing[0].id); return; }
+    let noteId: string | null = null;
+    const ok = await attemptWrite(async () => {
+      noteId = await notesSvc.createForEvent({ id: e.id, title: e.data.title, date: today, category: e.data.category });
+    });
+    setNoteTick((n) => n + 1);
+    if (ok && noteId) onOpenNote?.(noteId);
+  };
 
   // TODAY-F-14 (2026-09-05): a rejection anywhere in here used to be dropped
   // (the effect below never caught it) and setLoading(false) was the last
@@ -1653,6 +1683,13 @@ export default function TodayFlow({
   // GROUP B (items 10-11): the Now line and the gap offer, derived fresh
   // every render (and the minute tick keeps renders coming).
   const nowCtx = nowContext(todayEvents, blocked, nhm);
+  // UP-CORE-08: the event happening right now, if it is an event and not a
+  // protected routine range. The Now card's pill is its page.
+  const insideEvent = todayEvents.find((e) => {
+    const s0 = minsOf(e.data.start);
+    const e0 = e.data.end ? minsOf(e.data.end) : s0 + 60;
+    return s0 <= nowMin && nowMin < e0;
+  }) ?? null;
   const gapKey = today + ":" + (nowCtx.nextStart ?? "end");
   // Pick 1 + pick 31: the goal this gap task moves, when naming it says
   // something the task title did not already say.
@@ -1816,7 +1853,20 @@ export default function TodayFlow({
                 );
               })()}
             </div>
-            <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
+            {/* UP-CORE-08 (2026-09-05): INSIDE A MEETING, THE PILL IS ITS
+                PAGE. An exec pays for walking into the 2 PM with a page
+                titled and linked, and this card is the one surface that
+                knows which meeting he is in. One pill, not two: the title,
+                the time and a verb already fill the row, and while you are
+                IN a thing, its page beats a menu of other things. A routine
+                block is not a meeting and keeps Pick Something. */}
+            {insideEvent && onOpenNote ? (
+              <button className="pill-act" onClick={() => void openEventNote(insideEvent)}>
+                {notedEvents.has(insideEvent.id) ? "Notes" : "Take Notes"}
+              </button>
+            ) : (
+              <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
+            )}
           </div>
         )}
       </div></div>

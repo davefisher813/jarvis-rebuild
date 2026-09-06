@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sourceOpener } from "../shared/openSource";
 import { rowSource } from "../shared/provenance";
-import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useProfile, useOptionalStrands, useOptionalRules, useOptionalGym } from "../data/NotesProvider";
+import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useProfile, useNotes, useOptionalStrands, useOptionalRules, useOptionalGym } from "../data/NotesProvider";
 import { rememberTravel, type TravelMemory } from "./leaveBy";
 import GymFlow, { readActiveProgramId } from "../gym/GymFlow";
 import { doorInfoFor } from "../gym/door";
@@ -105,6 +105,12 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     try { await profileSvc.save({ travel: next }); } catch { /* the event still saved; the memory is a convenience */ }
   };
 
+  // UP-CORE-08 (2026-09-05): which of the day's events already have a note.
+  // ONE read per day, not one per row: notesLinkedTo scans the note list, so
+  // asking it per row would scan it per row.
+  const notesSvc = useNotes();
+  const [notedEvents, setNotedEvents] = useState<ReadonlySet<string>>(new Set());
+  const [noteTick, setNoteTick] = useState(0);
   const cats = useCategories();
   const today = todayISO();
   const t0 = new Date(today + "T00:00:00");
@@ -112,6 +118,27 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   const [selected, setSelected] = useState(today);
   const [dots, setDots] = useState<Record<number, string[]>>({});
   const [dayEvents, setDayEvents] = useState<EventItem[]>([]);
+  useEffect(() => {
+    let on = true;
+    const ids = dayEvents.map((e) => e.id);
+    notesSvc.eventsWithNotes(ids).then((set) => { if (on) setNotedEvents(set); }).catch(() => {});
+    return () => { on = false; };
+  }, [notesSvc, dayEvents, noteTick]);
+
+  // The meeting's own page: made titled and linked the first time, opened
+  // every time after. onNavigate is the shell's route to a note, the same one
+  // a provenance line uses.
+  const openEventNote = async (e: EventItem) => {
+    const existing = await notesSvc.notesLinkedTo(e.id);
+    if (existing[0]) { onNavigate?.("note", existing[0].id); return; }
+    let noteId: string | null = null;
+    const ok = await attemptWrite(async () => {
+      noteId = await notesSvc.createForEvent({ id: e.id, title: e.data.title, date: selected, category: e.data.category });
+    });
+    setNoteTick((n) => n + 1);
+    if (ok && noteId) onNavigate?.("note", noteId);
+  };
+
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   const [catsFull, setCatsFull] = useState<Category[]>([]);
@@ -1250,6 +1277,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     <>
       <SchedulePage
         openSourceFor={openSourceFor}
+        notedEvents={notedEvents}
+        onNotes={onNavigate ? (e) => void openEventNote(e) : undefined}
         proposed={standingProposal}
         dayFooter={proposalFooter}
         year={view.y}

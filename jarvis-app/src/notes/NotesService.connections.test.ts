@@ -96,3 +96,42 @@ describe("promoting one checklist line (UP-CORE-16)", () => {
     expect(note.connections.some((c) => c.kind === "task")).toBe(false);
   });
 });
+
+// UP-CORE-08 (2026-09-05): walking into the 2 PM with a page titled and
+// linked. Everything this needs existed and had never been put together: the
+// meeting template, createNote, and the event connection whose reverse
+// lookup was read for tasks, projects and people and never once for an event.
+describe("a note for this meeting (UP-CORE-08)", () => {
+  it("makes it titled, templated, linked and stamped, and finds it again", async () => {
+    const svc = new NotesService(new Store(new InMemoryAdapter()), "u-meeting");
+    const id = (await svc.createForEvent({ id: "e1", title: "Team sync", date: "2026-09-08", category: "work" }))!;
+    const note = (await svc.note(id))!;
+    expect(note.title).toContain("Team sync");
+    expect(note.category).toBe("work");
+    // The meeting template really is applied: the sections it promises exist.
+    const heads = note.blocks.filter((b) => b.type === "heading").map((b) => b.text);
+    expect(heads).toEqual(["Agenda", "Decisions", "Action Items"]);
+    // The provenance line says where it came from and opens the meeting.
+    expect(note.source).toMatchObject({ type: "event", ref: "e1" });
+    // Both directions of the link work.
+    expect((await svc.notesLinkedTo("e1")).map((n) => n.id)).toEqual([id]);
+    expect([...(await svc.eventsWithNotes(["e1", "e2"]))]).toEqual(["e1"]);
+  });
+
+  // A weekly stand-up is one series id and many occurrences: the label
+  // carries the date so the connection says which one.
+  it("names the occurrence date on the connection", async () => {
+    const svc = new NotesService(new Store(new InMemoryAdapter()), "u-meeting2");
+    const id = (await svc.createForEvent({ id: "e1", title: "Stand-up", date: "2026-09-08" }))!;
+    const note = (await svc.note(id))!;
+    expect(note.connections[0]!.label).toBe("Stand-up · 2026-09-08");
+    expect(note.connections[0]!.targetId).toBe("e1");
+  });
+
+  it("refuses an event with no title or no date", async () => {
+    const svc = new NotesService(new Store(new InMemoryAdapter()), "u-meeting3");
+    expect(await svc.createForEvent({ id: "e1", title: "  ", date: "2026-09-08" })).toBeNull();
+    expect(await svc.createForEvent({ id: "e1", title: "Team sync", date: "" })).toBeNull();
+    expect([...(await svc.eventsWithNotes([]))]).toEqual([]);
+  });
+});

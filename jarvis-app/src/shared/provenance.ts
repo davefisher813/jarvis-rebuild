@@ -20,6 +20,9 @@ export type SourceType =
   | "chat"
   | "file"
   | "plan"
+  // UP-CORE-08 (2026-09-05): a note made FOR a calendar event, from its row
+  // or the Now card. Its ref is the event id, so the line opens the meeting.
+  | "event"
   | "sweep"
   | "reflow"
   | "google_calendar"
@@ -47,6 +50,7 @@ const LABEL: Record<SourceType, string> = {
   chat: "From chat",
   file: "From a file",
   plan: "From your day plan",
+  event: "From your calendar",
   sweep: "Moved by Auto-Sweep",
   reflow: "Moved by re-flow",
   google_calendar: "From Google Calendar",

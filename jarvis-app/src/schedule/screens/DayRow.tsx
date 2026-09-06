@@ -6,7 +6,7 @@ import { fmtTime, fmtDistance } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
 import { attachLabel } from "../attachments";
 import { DUR_CHOICES, durLabel, minutesBetween, endFor } from "../durations";
-import { Check as CheckGlyph } from "../../shared/icons";
+import { Check as CheckGlyph, FileText } from "../../shared/icons";
 import { EventWeatherLine } from "../../weather/WeatherLine";
 import Provenance from "../../shared/Provenance";
 import { leaveByOf } from "../leaveBy";
@@ -59,6 +59,8 @@ export default function DayRow({
   gymDoor,
   firstMove,
   openSourceFor,
+  hasNote = false,
+  onNotes,
 }: {
   e: EventItem;
   conflict: boolean;
@@ -79,6 +81,10 @@ export default function DayRow({
   // UP-CORE-05 (2026-09-05): the way to open this event's source, when the
   // flow has one. Undefined leaves the provenance line a plain fact.
   openSourceFor?: (source: Source) => (() => void) | undefined;
+  // UP-CORE-08 (2026-09-05): this event already has a note, and the way to
+  // open or create one. Absent when the flow cannot write notes.
+  hasNote?: boolean;
+  onNotes?: () => void;
   // Select mode (2026-08-24, bulk delete). The row picks instead of opening,
   // and every control inside it stands down: a half-swiped row under a
   // selection is two gestures fighting, and a time picker opening from a row
@@ -217,6 +223,18 @@ export default function DayRow({
               <span className="sched-badge">Overlaps</span>
             ))}
             {dist && <span className="sched-dist">{dist}</span>}
+            {/* UP-CORE-08 (2026-09-05): the meeting's own page, one tap from
+                the row. The glyph says whether one already exists: filled
+                opens it, hollow makes it, titled and linked, with the
+                meeting template already in it. */}
+            {onNotes && !selecting && (
+              <button
+                type="button"
+                className={"sched-notes" + (hasNote ? " on" : "")}
+                aria-label={hasNote ? "Open Notes" : "Add Notes"}
+                onClick={(ev) => { ev.stopPropagation(); onNotes(); }}
+              ><FileText className="ic" /></button>
+            )}
           </div>
           {/* THE DOT BREAKS (2026-08-23). Dave reported this as "Work Repeats
               daily" with nothing between the category and the recurrence, and

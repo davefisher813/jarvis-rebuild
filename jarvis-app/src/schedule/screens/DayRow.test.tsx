@@ -277,3 +277,24 @@ describe("provenance on an event row", () => {
     expect(onOpen).toHaveBeenCalled();
   });
 });
+
+// UP-CORE-08 (2026-09-05): the meeting's own page, one tap from its row.
+describe("the notes glyph on an event row", () => {
+  it("is there when the flow can write notes, and says whether one exists", () => {
+    const onNotes = vi.fn();
+    const { rerender } = render(
+      <DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onNotes={onNotes} />,
+    );
+    const glyph = screen.getByLabelText("Add Notes");
+    expect(glyph).not.toHaveClass("on");
+    fireEvent.click(glyph);
+    expect(onNotes).toHaveBeenCalled();
+    rerender(<DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onNotes={onNotes} hasNote />);
+    expect(screen.getByLabelText("Open Notes")).toHaveClass("on");
+  });
+
+  it("is absent when the flow has no route to notes", () => {
+    render(<DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} />);
+    expect(screen.queryByLabelText("Add Notes")).toBeNull();
+  });
+});

@@ -88,7 +88,7 @@ export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts, gymDoorFor,
   mode = "month", onMode, weekCells = [], weekRows = [], loading, loadFailed, onRetryLoad, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay,
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
-  locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate, openSourceFor,
+  locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate, openSourceFor, notedEvents, onNotes,
   onShiftBlock, onRetimeBlock, onResizeBlock,
   proposed, dayFooter,
   anytimeItems = [], onToggleTask, onScheduleTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
@@ -153,6 +153,10 @@ export default function SchedulePage({
   onSetEnd?: (id: string, end: string) => void;
   // UP-CORE-05 (2026-09-05): handed down to every row's provenance line.
   openSourceFor?: (source: Source) => (() => void) | undefined;
+  // UP-CORE-08 (2026-09-05): which events already have a note (one batched
+  // read per day, in the flow), and the door to making or opening one.
+  notedEvents?: ReadonlySet<string>;
+  onNotes?: (e: EventItem) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
   onRunningLate?: (mins: number) => void;
@@ -811,6 +815,8 @@ export default function SchedulePage({
                   gymDoor={gymDoorFor?.(en.e) ?? null}
                   weatherDateIso={weatherDateIso}
                   openSourceFor={openSourceFor}
+                  hasNote={notedEvents?.has(en.e.id) ?? false}
+                  onNotes={onNotes ? () => onNotes(en.e) : undefined}
                 />
                 {/* The blend offer. It sits UNDER the block it belongs to,
                     because that is the sentence it is making: this task goes

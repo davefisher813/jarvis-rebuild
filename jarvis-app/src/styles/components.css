@@ -113,6 +113,18 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    what it likes; vertically it takes the 4px that is empty. */
 .sched-badge-btn { background: transparent; font-family: var(--f); position: relative; }
 .sched-badge-btn::after { content: ""; position: absolute; inset: -4px -8px; }
+/* UP-CORE-08 (2026-09-05): the meeting's own page, from its row. Quiet ink
+   until the note exists, then the app's tint, so the row says at a glance
+   whether there is anything to open. Same -4px/-8px touch pad the badge
+   button uses, for the same reason: this sits inside a row that is itself a
+   button, so it takes the empty space and nothing the title needs. */
+.sched-notes { background: transparent; border: 0; padding: 0; margin-left: var(--s-1h); color: var(--tx-quiet);
+  position: relative; display: inline-flex; align-items: center; vertical-align: middle; }
+.sched-notes::after { content: ""; position: absolute; inset: -4px -8px; }
+.sched-notes .ic { width: 15px; height: 15px; }
+/* Red is a verb, so the "already has one" state is INK, not colour: the
+   quiet grey brightens to the ordinary secondary text. */
+.sched-notes.on { color: var(--tx-2); }
 .sched-row-warn { box-shadow: inset 2px 0 0 var(--accent); }
 .input-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-1); }
 /* Capsule law: the inline fix offer wears the smallest capsule. */

@@ -15,6 +15,7 @@ import type { Source, SourceType } from "./provenance";
 // a different costume.
 const ROUTE: Partial<Record<SourceType, string>> = {
   note: "note",
+  event: "event",
   email: "email",
   gmail: "email",
   file: "file",
