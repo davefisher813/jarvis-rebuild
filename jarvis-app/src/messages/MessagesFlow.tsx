@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2 } from "../shared/icons";
+import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass } from "../shared/icons";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
 
@@ -45,6 +45,7 @@ import EvidenceChip from "./EvidenceChip";
 import { anchorNeedsYou, needsAnchor, ANCHOR_CAP } from "./evidencePass";
 import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
 import { takeComposeDraft } from "../chat/composeDraft";
+import { buildLedger, ledgerFloor, type Ledger, type LedgerRow } from "./ledger";
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { recordSweepDay, loadSweepDays, sweepWeek, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
 import ListFloor from "../shared/ListFloor";
@@ -143,7 +144,7 @@ type Draft = { to: string; cc?: string; subject: string; body: string; inReplyTo
 // Without the tag, opening a second-account draft went through the first
 // account's api and 404'd, and a legacy draft sent from the wrong address.
 type DraftRow = { id: string; to: string; subject: string; snippet: string; dateMs?: number; threadId?: string; account?: string };
-type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules" | "purge";
+type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules" | "purge" | "ledger";
 type Filter = "triage" | "all" | "drafts";
 type Outcome = "needs" | "waiting" | "owed";
 let lastOutcome: Outcome = "needs";
@@ -479,6 +480,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // owed list, or null for the list view. Not a copy of the rows: Let It Go
   // shrinks the list under the index and the next card simply surfaces.
   const [waitDeck, setWaitDeck] = useState<number | null>(null);
+  // UP-MIND-11 (2026-09-05): the ledger is a VIEW. Nothing is stored: it is
+  // rebuilt from the task list, Waiting On, the swept promises and the
+  // chases every time it opens, so finishing a task anywhere clears it here.
+  const [ledger, setLedger] = useState<Ledger | null>(null);
   const [nudging, setNudging] = useState<string | null>(null);
   const [acctFilter, setAcctFilter] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
@@ -1209,6 +1214,36 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setView("compose");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composeNonce]);
+
+  // UP-MIND-11 (2026-09-05): THE LEDGER, built. Every half of "what did I
+  // promise, to whom, by when" already existed and none of it was ever on
+  // one screen. Read fresh on every open, from the same stores every other
+  // surface reads, so nothing here can drift from them.
+  const openLedger = useCallback(async () => {
+    const todayIso = todayISO();
+    const answered = rows.filter((r) => !waiting.some((w) => w.threadId === r.id)).map((r) => r.id);
+    const ts = tasks ? await tasks.listTasks().catch(() => []) : [];
+    setLedger(buildLedger({
+      today: todayIso,
+      tasks: ts.map((t) => ({
+        id: t.id,
+        text: t.data.text,
+        done: t.data.done,
+        due: t.data.due ?? null,
+        ...(t.data.fromThread ? { fromThread: t.data.fromThread } : {}),
+        ...(t.data.personId ? { personId: t.data.personId } : {}),
+        ...(t.data.source?.type ? { sourceKind: t.data.source.type } : {}),
+      })),
+      waiting: waiting.map((w) => ({
+        threadId: w.threadId, to: displayName(w.to), subject: w.subject, days: w.waitingDays,
+        ...(personIdFor(w.toEmail) ? { personId: personIdFor(w.toEmail)! } : {}),
+      })),
+      chases: dueChases(loadChases(), todayIso, answered).map((c) => ({ threadId: c.threadId, to: c.to, subject: c.subject })),
+      promises: liveSweep(loadSweep(), loadPromised()),
+    }));
+    setView("ledger");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, waiting, tasks, personIdFor]);
 
   // THE HOME SNAPSHOT (Dave 2026-08-20). Today must render instantly, so it
   // never touches Gmail: the Email tab leaves behind everything the home page
@@ -2368,6 +2403,83 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // thread is shown but never pre-picked, and a VIP is not in the list at
   // all. Delete means Gmail's trash. This app has never called the
   // permanent-delete endpoint and this screen does not either.
+  // UP-MIND-11 (2026-09-05): THE LEDGER. Three sections, one row each, one
+  // prepared action per row. Every action comes from the same handlers the
+  // rest of this tab uses: runAction for a drafted move (through decide, the
+  // one action-decider), MailMoreSheet for its alternates, openThread for
+  // everything else. Nothing new writes anything.
+  if (view === "ledger") {
+    const l = ledger ?? { youOwe: [], theyOweYou: [], late: [], total: 0 };
+    const openRow = (r: LedgerRow) => {
+      if (r.threadId) { void openThread(r.threadId); return; }
+      if (r.taskId) say("That one lives in your tasks");
+    };
+    const act = (r: LedgerRow) => {
+      // A promise becomes a task here, the same write the home page's
+      // promise card performs, with the same receipt and the same failure
+      // path: a toast that only claims a save once the write resolved.
+      if (r.action === "Add Task") {
+        if (!tasks) { say("Tasks aren't available right now"); return; }
+        void (async () => {
+          const id = await tasks.createTask(r.what, {
+            ...(r.threadId ? { fromThread: r.threadId } : {}),
+            ...(r.personId ? { personId: r.personId } : {}),
+            source: madeBy("email", r.threadId ?? ""),
+          }).catch(() => null);
+          say(id ? "Added to your tasks" : "Couldn't add it · Nothing was saved");
+          if (id) void openLedger();
+        })();
+        return;
+      }
+      const w = waiting.find((x) => x.threadId === r.threadId);
+      if (w && r.decision) { void runAction(w, r.decision.primary); return; }
+      openRow(r);
+    };
+    const section = (title: string, rows2: LedgerRow[]) => rows2.length === 0 ? null : (
+      <div key={title}>
+        <div className="sh2 sh2-quiet"><span className="t">{title}</span><span className="n">{rows2.length}</span></div>
+        <div className="pad-x"><div className="card list-card-ruled">
+          {rows2.map((r) => (
+            <div className="row" key={title + ":" + r.key}>
+              <div className="row-grow" {...pressable(() => openRow(r))}>
+                <div className="conn-name truncate">{r.who || r.what}</div>
+                <div className="conn-meta truncate">{r.who ? r.what + " · " + r.since : r.since}</div>
+              </div>
+              <button className="btn-sm" onClick={(e) => { e.stopPropagation(); act(r); }}>{r.action}</button>
+              {r.decision && r.decision.alternates.length > 0 && (() => {
+                const w = waiting.find((x) => x.threadId === r.threadId);
+                return w ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); setMore({ row: w, d: r.decision! }); }}>More</button> : null;
+              })()}
+            </div>
+          ))}
+        </div></div>
+      </div>
+    );
+    return (
+      <div className={"screen ruled " + pushCls} key="ledger">
+        <div className="nav-bar">
+          <button className="nav-back" onClick={() => { setLedger(null); setView("list"); }}>Email</button>
+          <span className="nav-title">Still Open</span>
+        </div>
+        {l.total === 0 ? (
+          <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
+            {/* Calm, not an apology. An empty ledger is the good outcome. */}
+            <div className="empty-title">Nothing Is Open</div>
+            <div className="empty-sub">Nothing you promised and nothing you're waiting on.</div>
+          </div></div></div>
+        ) : (
+          <>
+            {section("You Owe", l.youOwe)}
+            {section("They Owe You", l.theyOweYou)}
+            {section("Late", l.late)}
+            {/* Every list says when it is showing everything. */}
+            <ListFloor>{ledgerFloor(l)}</ListFloor>
+          </>
+        )}
+      </div>
+    );
+  }
+
   if (view === "purge") {
     const piles = senderPiles(unmutedRows, effTriage, vips);
     const picks = purgePicks ?? defaultPicks(piles);
@@ -3589,6 +3701,31 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               </div>
             </div>
           )}
+          {/* UP-MIND-11 (2026-09-05): THE LEDGER. Same chassis as its
+              neighbours. The promise on the row is the count, because the
+              count is the fact that decides whether you open it, and it is
+              honest about being a view: it is built when you tap. */}
+          {(() => {
+            const owed = waiting.filter((w) => decideFor(w).ask !== "nothing").length;
+            const mine = loadMailSnapshot().promises.length;
+            if (owed + mine === 0) return null;
+            return (
+              <div className="pad-x">
+                <div className="launch-row" {...pressable(() => void openLedger())}>
+                  <span className="launch-ic" aria-hidden="true"><Hourglass className="ic" /></span>
+                  <div className="row-grow">
+                    <div className="launch-tt">Still Open</div>
+                    <div className="launch-ss">{capAfterNumber(
+                      (mine > 0 ? mine + " you owe" : "") +
+                      (mine > 0 && owed > 0 ? " \u00b7 " : "") +
+                      (owed > 0 ? owed + " owed to you" : ""),
+                    )}</div>
+                  </div>
+                  <span className="launch-chev" aria-hidden="true">›</span>
+                </div>
+              </div>
+            );
+          })()}
           {/* One at a Time, promoted from a head link to a launcher when
               there is a real run of them to walk. */}
           {(() => {
