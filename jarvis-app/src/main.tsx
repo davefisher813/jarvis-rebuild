@@ -72,9 +72,16 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
 // Toggle a body class while any bottom sheet is open so the floating capture bar
 // hides. Uses a class (not the :has selector) to work on every browser, including
 // older iOS Safari. Watches childList only, so toggling the class cannot re-trigger.
+// `overlay-open` rides along (2026-09-06, Dave from his phone: "when lists
+// inside modals render I can't scroll them. The pages behind them end up
+// scrolling instead"). It pins the page scroller while anything modal is up,
+// so there is nothing behind the scrim left to move. It is a SECOND class
+// rather than a widened `sheet-open`, because sheet-open also hides the tab
+// bar and the capture bar, and a dropdown on a list head must not do that.
 if (typeof document !== "undefined") {
   const syncSheetOpen = () => {
     document.body.classList.toggle("sheet-open", !!document.querySelector(".sheet-scrim"));
+    document.body.classList.toggle("overlay-open", !!document.querySelector(".sheet-scrim, .hmenu-scrim"));
   };
   new MutationObserver(syncSheetOpen).observe(document.body, { childList: true, subtree: true });
 }

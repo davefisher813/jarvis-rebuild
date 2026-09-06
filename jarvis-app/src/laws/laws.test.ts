@@ -4525,3 +4525,79 @@ describe("a row names a link, not a filter (2026-09-06)", () => {
     expect(movesGoal(buildGoalIndex([], goals as never), loose as never)).toBe(true);
   });
 });
+
+// AN OVERLAY'S SCROLL STOPS AT THE OVERLAY (2026-09-06, Dave from his phone:
+// "when lists inside modals render I can't scroll them. The pages behind them
+// end up scrolling instead").
+//
+// A sheet and a dropdown are both fixed portals on document.body, so Chromium's
+// scroll chain from one of their inner lists reaches body and stops: no desktop
+// pass, and no test, could ever see this. iOS chains a fixed overlay straight
+// on to the page under it, which is why it only ever showed up on the phone.
+//
+// Two halves, and it needed both. Every scroller inside an overlay declares
+// where the gesture ends (overscroll-behavior: contain), and the page scroller
+// itself is pinned while anything modal is up, so there is nothing behind the
+// scrim left to move. The roster of scrollers is read out of the markup rather
+// than typed here, so the next list added to a sheet is covered the day it
+// lands.
+describe("an overlay's scroll stops at the overlay (2026-09-06)", () => {
+  // Every class the CSS makes a vertical scroller, and every class it contains.
+  const scrolls = new Set<string>();
+  const contains = new Set<string>();
+  for (const m of CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const body = m[2]!;
+    // the subject of the selector: the last class in the last comma part
+    for (const part of m[1]!.split(",")) {
+      const cls = [...part.matchAll(/\.([a-z0-9-]+)/g)].pop()?.[1];
+      if (!cls) continue;
+      if (/overflow(-y)?:\s*(auto|scroll)/.test(body)) scrolls.add(cls);
+      if (/overscroll-behavior[^:]*:\s*(contain|none)/.test(body)) contains.add(cls);
+    }
+  }
+
+  // The files that put an overlay on the screen: a sheet scrim or the
+  // dropdown's own scrim.
+  const OVERLAYS = COMPONENTS.filter((f) => {
+    const s = read(f);
+    return s.includes("sheet-scrim") || s.includes("hmenu-scrim");
+  });
+  const stringsIn = (src: string) =>
+    [...src.matchAll(/"([a-z0-9 _-]+)"/g)].flatMap((m) => m[1]!.split(/\s+/)).filter(Boolean);
+
+  it("every scroller an overlay renders says where the gesture ends", () => {
+    expect(scrolls.size, "no scrollers found: the CSS scan is broken").toBeGreaterThan(3);
+    const loose: string[] = [];
+    for (const f of OVERLAYS) {
+      for (const cls of new Set(stringsIn(read(f)))) {
+        if (scrolls.has(cls) && !contains.has(cls)) loose.push(`${rel(f)}: .${cls}`);
+      }
+    }
+    expect(loose).toEqual([]);
+  });
+
+  it("the sheet body and the dropdown are two of them", () => {
+    // Named on purpose: these are the two Dave was dragging.
+    expect(contains.has("sheet-form"), ".sheet-form must contain its overscroll").toBe(true);
+    expect(contains.has("hmenu"), ".hmenu must contain its overscroll").toBe(true);
+  });
+
+  it("the page scroller is pinned while anything modal is up", () => {
+    expect(CSS).toMatch(/body\.overlay-open\s+\.app-scroll\s*\{[^{}]*overflow:\s*hidden/);
+    // and the document itself stops bouncing under the sheet on iOS
+    expect(CSS).toMatch(/body\.overlay-open\s*\{[^{}]*overscroll-behavior:\s*none/);
+  });
+
+  it("both scrims set the class that pins it", () => {
+    const main = read(join(SRC, "main.tsx"));
+    expect(main).toMatch(/classList\.toggle\("overlay-open",[^\n]*\.sheet-scrim,\s*\.hmenu-scrim/);
+  });
+
+  it("and sheet-open stays narrow, so a dropdown never hides the tab bar", () => {
+    // sheet-open also hides the tab bar and the capture bar (uniformity.css).
+    // Widening it to catch dropdowns would have been the cheap fix and would
+    // have made every list head flash its chrome away.
+    const main = read(join(SRC, "main.tsx"));
+    expect(main).toMatch(/classList\.toggle\("sheet-open", !!document\.querySelector\("\.sheet-scrim"\)\)/);
+  });
+});
