@@ -56,7 +56,7 @@ import {
   moveEvent as moveEventAdjust, undoMoveEvent as undoMoveEventAdjust, type MoveOutcome,
   resizeEvent as resizeEventAdjust, undoResizeEvent as undoResizeEventAdjust, type ResizeOutcome,
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
-  pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust,
+  pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust, type PushOutcome,
 } from "../schedule/eventAdjust";
 import { shiftBlock as shiftBlockAdjust, blockShiftFits, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
 import { overlapsOn } from "../schedule/dayEdit";
@@ -624,13 +624,21 @@ export default function TodayFlow({
     });
   };
 
+  // SCHED-F-05 (2026-09-05): a repeating event pushes JUST TODAY'S
+  // occurrence, the same split the other quiet moves make; the series keeps
+  // its weekday. Today is always looking at today, so today is the
+  // occurrence being pushed.
   const onPushTomorrow = async (id: string) => {
-    let fromDate: string | undefined;
-    const ok = await attemptWrite(async () => { const r = await pushEventTomorrowAdjust(id, schedule); fromDate = r.fromDate; });
+    let outcome: PushOutcome | null = null;
+    const ok = await attemptWrite(async () => { outcome = await pushEventTomorrowAdjust(id, today, schedule); });
     await reload();
-    if (!ok || !fromDate) return;
-    const from = fromDate;
-    showToast({ message: "Moved to tomorrow", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => undoPushEventTomorrowAdjust(id, from, schedule)); await reload(); } });
+    const o = outcome as PushOutcome | null;
+    if (!ok || !o?.ok) return;
+    showToast({
+      message: o.repeating ? "Moved to tomorrow · Just today" : "Moved to tomorrow",
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => undoPushEventTomorrowAdjust(id, o, schedule)); await reload(); },
+    });
   };
 
   // THE SAME MOVES, FOR A PROTECTED BLOCK (2026-08-28, Dave: "It should

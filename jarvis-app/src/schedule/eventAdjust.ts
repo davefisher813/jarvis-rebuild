@@ -117,13 +117,41 @@ export async function undoSkipEventToday(id: string, date: string, events: Event
 }
 
 // PUSH TO TOMORROW: one event, one day later, same time.
-export async function pushEventTomorrow(id: string, events: EventWriter): Promise<{ ok: boolean; fromDate?: string }> {
+//
+// SCHED-F-05 (2026-09-05): a REPEATING event pushes ONE OCCURRENCE, exactly
+// as moveEvent does above. This used to call moveDay on the record, which is
+// the series anchor: tapping Tomorrow on a Tuesday "Team sync" from the
+// Overlaps sheet moved every future Team sync to Wednesday, and the toast
+// said "Moved to tomorrow". One writer, one rule, so the row swipe and the
+// overlap sheet cannot tell different stories about the same tap. Takes the
+// viewed date, because which occurrence is being pushed is a fact about the
+// day being looked at, never about the anchor.
+export interface PushOutcome { ok: boolean; repeating: boolean; fromDate?: string; copyId?: string | null }
+
+export async function pushEventTomorrow(id: string, viewedDate: string, events: EventWriter): Promise<PushOutcome> {
   const e = await events.event(id);
-  if (!e) return { ok: false };
-  await events.moveDay(id, addDays(e.date, 1));
-  return { ok: true, fromDate: e.date };
+  if (!e) return { ok: false, repeating: false };
+  const repeating = (e.recurrence ?? "none") !== "none";
+  if (!repeating) {
+    await events.moveDay(id, addDays(e.date, 1));
+    return { ok: true, repeating: false, fromDate: e.date };
+  }
+  await events.addExdate(id, viewedDate);
+  const copyId = await events.createEvent(e.title, {
+    date: addDays(viewedDate, 1), start: e.start, end: e.end,
+    category: e.category || undefined, location: e.location || undefined,
+    // SCHED-F-09: a copy of a door block is still the door.
+    ...(e.gym ? { gym: true } : {}),
+  });
+  return { ok: true, repeating: true, fromDate: viewedDate, copyId };
 }
 
-export async function undoPushEventTomorrow(id: string, fromDate: string, events: EventWriter): Promise<void> {
-  await events.moveDay(id, fromDate);
+export async function undoPushEventTomorrow(id: string, outcome: PushOutcome, events: EventWriter): Promise<void> {
+  if (!outcome.ok || !outcome.fromDate) return;
+  if (!outcome.repeating) {
+    await events.moveDay(id, outcome.fromDate);
+    return;
+  }
+  if (outcome.copyId) await events.deleteEvent(outcome.copyId);
+  await events.removeExdate(id, outcome.fromDate);
 }
