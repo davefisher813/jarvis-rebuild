@@ -48,19 +48,30 @@ describe("MailSnapshotPump", () => {
   });
 
   it("does nothing once connected when the snapshot is already fresh", async () => {
-    const freshTs = Date.now();
-    saveMailSnapshot({ ts: freshTs, needsYou: 0, threads: [], waiting: [], promises: [] });
-    let calls = 0;
-    const api = makeFakeGoogleApi({ listThreads: async () => { calls++; return []; } });
-    render(wrap(<><MailSnapshotPump /><ConnectFromAnywhere /></>, api));
-    await act(async () => {
-      fireEvent.click(screen.getByText("Any Connect"));
-      // Let connect() and the pump's re-fired effect settle.
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(calls).toBe(0);
-    expect(loadMailSnapshot().ts).toBe(freshTs);
+    // Only the clock is faked, not the timers: this case turns on microtasks
+    // settling, not on ticks. 10:00 keeps it clear of the digest windows'
+    // ten-minute leads, which are the other thing that makes check() refresh
+    // (UP-MIND-14) and would otherwise make "fresh means no call" true or
+    // false depending on what time the suite happened to run.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(2026, 7, 15, 10, 0, 0));
+      const freshTs = Date.now();
+      saveMailSnapshot({ ts: freshTs, needsYou: 0, threads: [], waiting: [], promises: [] });
+      let calls = 0;
+      const api = makeFakeGoogleApi({ listThreads: async () => { calls++; return []; } });
+      render(wrap(<><MailSnapshotPump /><ConnectFromAnywhere /></>, api));
+      await act(async () => {
+        fireEvent.click(screen.getByText("Any Connect"));
+        // Let connect() and the pump's re-fired effect settle.
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(calls).toBe(0);
+      expect(loadMailSnapshot().ts).toBe(freshTs);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("refreshes once a token exists and the snapshot is stale or missing", async () => {
@@ -81,6 +92,15 @@ describe("MailSnapshotPump", () => {
   it("re-checks on the interval and refreshes again once the snapshot has gone stale", async () => {
     vi.useFakeTimers();
     try {
+      // UP-MIND-14 gave check() a second reason to refresh: the ten minutes
+      // before a digest window (9:00, 13:00, 17:00), whatever the staleness
+      // clock says. That made this case depend on the wall clock -- run the
+      // suite at 8:22 and the tick 30 minutes later lands at 8:52, inside
+      // the lead before the 9:00 window, and the "no second refresh" step
+      // sees one. 10:00 is clear of every lead, and so are the half-hourly
+      // ticks that follow it through 14:30, so what this proves is the
+      // staleness window, which is what it says it proves.
+      vi.setSystemTime(new Date(2026, 7, 15, 10, 0, 0));
       let calls = 0;
       const api = makeFakeGoogleApi({ listThreads: async () => { calls++; return []; } });
       render(wrap(<><MailSnapshotPump /><ConnectFromAnywhere /></>, api));
