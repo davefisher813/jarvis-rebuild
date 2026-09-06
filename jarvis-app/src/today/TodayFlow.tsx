@@ -22,7 +22,10 @@ import NoticeCard from "./NoticeCard";
 import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
 import { capAfterNumber } from "../shared/casing";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
-import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
+import { birthdaysOn, upcomingBirthdays, type BirthdayHit } from "../people/birthdays";
+import type { Person } from "../people/types";
+import CallPrepSheet from "../people/CallPrepSheet";
+import MessageDraftSheet from "../people/MessageDraftSheet";
 import CheckIn from "./CheckIn";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import EventSheet, { type EventDraft } from "../schedule/screens/EventSheet";
@@ -91,6 +94,12 @@ import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
 // "All its work is done" is an observation, not a verdict: a project he is
 // deliberately holding open can refuse the Close It offer for a few days.
 const closeOfferStore = localQuietStore("jarvis.closeoffer.dismissed.v1");
+// UP-CORE-03 (2026-09-05): the evening-before card, waved off per person.
+const birthdayStore = localQuietStore("jarvis.birthday.dismissed.v1");
+// What the drafted message has to carry. Handed to Messages Drafting as its
+// `about`, which the sheet has accepted since it was built and no caller
+// ever passed (BRAIN-F-24).
+const BIRTHDAY_ABOUT = "a short happy-birthday message";
 import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCaptureSheet";
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
@@ -110,7 +119,7 @@ import { lazyWithRecovery } from "../shell/chunkRecovery";
 import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
-import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph } from "../shared/glyphs";
+import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph } from "../shared/glyphs";
 import { Clock, CircleSlash, BellRing } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 
@@ -353,6 +362,16 @@ export default function TodayFlow({
   }, [routine, profile]);
   const peopleSvc = usePeople();
   const [birthdays, setBirthdays] = useState<BirthdayHit[]>([]);
+  // UP-CORE-03 (2026-09-05): the people themselves, so a birthday row can
+  // open the same Call Prep card and Messages Drafting sheet the People tab
+  // opens. One person store, read once with the birthdays.
+  const [peopleList, setPeopleList] = useState<Person[]>([]);
+  const [msgPerson, setMsgPerson] = useState<{ id: string; about: string } | null>(null);
+  const [callPerson, setCallPerson] = useState<string | null>(null);
+  const [peopleTick, setPeopleTick] = useState(0);
+  // A dismissal lives in storage, so a bump is what tells the render to go
+  // read it again (the same pattern the sweep and goal cards use).
+  const [birthdayDismissTick, setBirthdayDismissTick] = useState(0);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   const [catsFull, setCatsFull] = useState<Category[]>([]);
@@ -407,9 +426,12 @@ export default function TodayFlow({
   // Today's birthdays (derived from People; empty is the normal state).
   useEffect(() => {
     let on = true;
-    peopleSvc.list().then((ps) => { if (on) setBirthdays(birthdaysOn(ps, today)); }).catch(() => {});
+    peopleSvc.list().then((ps) => { if (on) { setBirthdays(birthdaysOn(ps, today)); setPeopleList(ps); } }).catch(() => {});
     return () => { on = false; };
-  }, [peopleSvc, today]);
+  }, [peopleSvc, today, peopleTick]);
+  // A logged call attempt changes what the Call Prep card says about "last
+  // talked", so the read that fed it runs again.
+  const reloadPeople = async () => { setPeopleTick((n) => n + 1); };
 
   // TODAY-F-14 (2026-09-05): a rejection anywhere in here used to be dropped
   // (the effect below never caught it) and setLoading(false) was the last
@@ -1246,6 +1268,13 @@ export default function TodayFlow({
   void goalNudgeTick; // re-derive after a dismissal (same pattern as dismissTick)
   const untouched = untouchedGoal(goalIdx, goalList, goalReach, todaysTasks(taskItems, today), today);
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm, completionsToday) : undefined;
+  // UP-CORE-03: tomorrow's birthday, in the evening only, one at a time,
+  // and silent once waved off. upcomingBirthdays already knows how to say
+  // "Tomorrow" and already handles the year wrap.
+  void birthdayDismissTick; // re-derive after a dismissal
+  const tomorrowBirthday = evening
+    ? upcomingBirthdays(peopleList, today, 1).filter((b) => b.inDays === 1 && !isQuiet(b.id, today, birthdayStore))[0] ?? null
+    : null;
   const weekly = evening ? weekRecap(samples, allEvents, today) : null;
   // Day ring: what today asked for, and how much of it is behind him. Hero
   // tint by daypart. TODAY-F-09 (2026-09-05): the arithmetic lives in
@@ -2125,6 +2154,26 @@ export default function TodayFlow({
         onDismiss={() => { goQuiet(finishedProject.project.id, today, closeOfferStore); setSweepDismissTick((n) => n + 1); }}
       />
     ) : null,
+    // UP-CORE-03 (2026-09-05): THE NIGHT BEFORE. The birthday row on Today
+    // only exists on the day itself, which means the first anyone hears of
+    // it is the morning they are already late for. One quiet line the
+    // evening before, with the message already draftable, is the whole
+    // difference between remembering and scrambling. Only in the evening,
+    // only for tomorrow, and it waves off per person like every other card.
+    tomorrowBirthday ? (
+      <NoticeCard
+        key={"birthday-" + tomorrowBirthday.id}
+        weight={RESUME}
+        icon={<GiftGlyph />}
+        tone="cat-fg-pink"
+        title={tomorrowBirthday.name}
+        sub="Birthday tomorrow"
+        action={tomorrowBirthday.phone
+          ? { label: "Text", onClick: () => setMsgPerson({ id: tomorrowBirthday.id, about: BIRTHDAY_ABOUT }) }
+          : undefined}
+        onDismiss={() => { goQuiet(tomorrowBirthday.id, today, birthdayStore); setBirthdayDismissTick((n) => n + 1); }}
+      />
+    ) : null,
     // PICK 3: THE GOAL NOTHING TODAY TOUCHES. Not a scolding and not a
     // streak: one line of arithmetic he cannot see anywhere else, because
     // nothing on this page has ever mentioned a goal. Quiet for three days
@@ -2697,6 +2746,8 @@ export default function TodayFlow({
       movedLine={movedLine(movedGoals)}
       avatar={initials}
       birthdays={birthdays}
+      onTextPerson={(id) => setMsgPerson({ id, about: BIRTHDAY_ABOUT })}
+      onCallPerson={(id) => setCallPerson(id)}
     />
     {planOpen && (
       <PlanDaySheet
@@ -2743,6 +2794,39 @@ export default function TodayFlow({
           }
         })()}
         onCancel={() => setRevisitSheet(false)}
+      />
+    )}
+    {/* UP-CORE-03 (2026-09-05): the same two person surfaces the People tab
+        mounts, opened from the birthday row. MessageDraftSheet owns no
+        services by law; the Call Prep card gets the same wiring PeopleFlow
+        gives it, so a logged attempt behaves identically from either door. */}
+    {msgPerson && peopleList.find((p) => p.id === msgPerson.id) && (
+      <MessageDraftSheet
+        person={peopleList.find((p) => p.id === msgPerson.id)!}
+        ai={ai}
+        about={msgPerson.about}
+        onClose={() => setMsgPerson(null)}
+      />
+    )}
+    {callPerson && peopleList.find((p) => p.id === callPerson) && (
+      <CallPrepSheet
+        person={peopleList.find((p) => p.id === callPerson)!}
+        onCall={async () => {
+          const out = await peopleSvc.logCallAttempt(callPerson);
+          await reloadPeople();
+          return out;
+        }}
+        onUndoCall={async (prior) => { await peopleSvc.restoreCallAttempt(callPerson, prior); await reloadPeople(); }}
+        onCaptureNote={async (text) => {
+          const person = peopleList.find((p) => p.id === callPerson);
+          if (!person) return false;
+          const noteId = await notesSvc.createNote("Call with " + person.data.name, "");
+          if (!noteId) return false;
+          await notesSvc.addBlock(noteId, { type: "text", text });
+          await notesSvc.addConnection(noteId, "person", person.data.name, person.id);
+          return true;
+        }}
+        onClose={() => setCallPerson(null)}
       />
     )}
     {sheet && (

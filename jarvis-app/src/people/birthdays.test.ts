@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { birthdaysOn } from "./birthdays";
 import type { Person } from "./types";
 
-const person = (id: string, name: string, birthday?: string): Person =>
-  ({ id, data: { name, group: "contacts", birthday } }) as Person;
+const person = (id: string, name: string, birthday?: string, phone?: string): Person =>
+  ({ id, data: { name, group: "contacts", birthday, phone } }) as Person;
 
 describe("birthdaysOn", () => {
   it("matches month-day regardless of stored year, sorted by name", () => {
@@ -72,5 +72,16 @@ describe("upcomingBirthdays", () => {
   it("free-text months work through the same parser as the day-of view", () => {
     const out = upcomingBirthdays([person("a", "A", "August 24")], "2026-08-10");
     expect(out[0]).toMatchObject({ label: "Aug 24" });
+  });
+});
+
+// UP-CORE-03 (2026-09-05): the row's Text and Call pills need a number, and
+// a person without one must not be offered a button that cannot work.
+describe("the number the birthday row's pills need", () => {
+  it("carries a phone when there is one, and nothing when there is not", () => {
+    const withPhone = birthdaysOn([person("1", "Marco", "08-03", "+15551234567")], "2026-08-03");
+    expect(withPhone[0]!.phone).toBe("+15551234567");
+    expect(birthdaysOn([person("2", "Ada", "08-03")], "2026-08-03")[0]!.phone).toBeUndefined();
+    expect(upcomingBirthdays([person("1", "Marco", "08-04", "+15551234567")], "2026-08-03")[0]!.phone).toBe("+15551234567");
   });
 });

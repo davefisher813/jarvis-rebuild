@@ -8,6 +8,10 @@ import type { Person } from "./types";
 export interface BirthdayHit {
   id: string;
   name: string;
+  // UP-CORE-03 (2026-09-05): the number the row's Text and Call pills need.
+  // No phone, no pills: a Message sheet with nowhere to send and a Call Prep
+  // card with nothing to dial are both buttons that do not work.
+  phone?: string;
 }
 
 const MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"];
@@ -42,7 +46,7 @@ export function birthdayMonthDay(b: string | undefined): string | null {
 // January). Feb 29 in a non-leap year lands on Mar 1: a greeting a day late
 // beats one that never fires. Same accuracy stance as birthdaysOn: no ages,
 // the stored year is unreliable.
-export interface UpcomingBirthday { id: string; name: string; inDays: number; label: string }
+export interface UpcomingBirthday { id: string; name: string; inDays: number; label: string; phone?: string }
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -62,7 +66,7 @@ export function upcomingBirthdays(people: Person[], todayIso: string, windowDays
     if (inDays > windowDays) continue;
     const d2 = new Date(t); // re-read so Feb 29 rollover prints its real date
     const label = inDays === 0 ? "Today" : inDays === 1 ? "Tomorrow" : `${MONTH_ABBR[d2.getUTCMonth()]} ${d2.getUTCDate()}`;
-    out.push({ id: p.id, name: p.data.name, inDays, label });
+    out.push({ id: p.id, name: p.data.name, inDays, label, ...(p.data.phone ? { phone: p.data.phone } : {}) });
   }
   return out.sort((a, b) => a.inDays - b.inDays || a.name.localeCompare(b.name));
 }
@@ -75,6 +79,6 @@ export function birthdaysOn(people: Person[], todayIso: string): BirthdayHit[] {
   if (mmdd.length !== 5) return [];
   return people
     .filter((p) => birthdayMonthDay(p.data.birthday) === mmdd)
-    .map((p) => ({ id: p.id, name: p.data.name }))
+    .map((p) => ({ id: p.id, name: p.data.name, ...(p.data.phone ? { phone: p.data.phone } : {}) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

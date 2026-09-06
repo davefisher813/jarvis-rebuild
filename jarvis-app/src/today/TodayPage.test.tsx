@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import TodayPage from "./TodayPage";
@@ -217,6 +217,28 @@ describe("TodayPage", () => {
     expect(screen.queryByText("Birthday")).toBeNull();
     rerender(<TodayPage {...base} birthdays={[{ id: "a", name: "A" }, { id: "b", name: "B" }]} />);
     expect(screen.getByText("Birthdays")).toBeInTheDocument();
+  });
+
+  // UP-CORE-03 (2026-09-05): the birthday row stated the fact and offered
+  // nothing. Both pills open a surface that needs a number, so both are
+  // hidden without one.
+  it("offers Text and Call on a birthday row, and neither without a number", () => {
+    const onText = vi.fn();
+    const onCall = vi.fn();
+    const { rerender } = render(
+      <TodayPage {...base} birthdays={[{ id: "p1", name: "Marco Diaz", phone: "+15551234567" }]}
+        onTextPerson={onText} onCallPerson={onCall} />,
+    );
+    fireEvent.click(screen.getByText("Text"));
+    expect(onText).toHaveBeenCalledWith("p1");
+    fireEvent.click(screen.getByText("Call"));
+    expect(onCall).toHaveBeenCalledWith("p1");
+    rerender(
+      <TodayPage {...base} birthdays={[{ id: "p2", name: "Ada Lovelace" }]}
+        onTextPerson={onText} onCallPerson={onCall} />,
+    );
+    expect(screen.queryByText("Text")).toBeNull();
+    expect(screen.queryByText("Call")).toBeNull();
   });
 
   it("shows the Focus button paired with Plan My Day (daytime only)", () => {

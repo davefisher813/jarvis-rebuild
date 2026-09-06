@@ -212,6 +212,8 @@ export default function TodayPage({
   ring,
   daypart,
   birthdays,
+  onTextPerson,
+  onCallPerson,
   mail,
   onSeeAllMail,
   mailEmpty,
@@ -343,7 +345,13 @@ export default function TodayPage({
   weekly?: WeekRecap | null; // Sunday-evening close-out card
   ring?: { done: number; total: number };
   daypart?: "morning" | "evening" | null;
-  birthdays?: { id: string; name: string }[]; // today's only; absent is the normal state
+  birthdays?: { id: string; name: string; phone?: string }[]; // today's only; absent is the normal state
+  // UP-CORE-03 (2026-09-05): the two things anyone actually does about a
+  // birthday. Both open the app's existing person surfaces (Messages
+  // Drafting, the Call Prep card), and both are hidden when there is no
+  // number to use them with.
+  onTextPerson?: (id: string) => void;
+  onCallPerson?: (id: string) => void;
 }) {
   // THE STREAM SHOWS THREE (Dave 2026-08-26, from the five-way render
   // catalog: "Option 1 with a limit. Have a see all button if it exceeds 3
@@ -426,6 +434,16 @@ export default function TodayPage({
                 {/* A sub under a title is never caps (see InsightsFlow). */}
                 <div className="conn-meta">Turns a year older today</div>
               </div>
+              {/* UP-CORE-03 (2026-09-05): the row said the fact and offered
+                  nothing, so remembering was still entirely on him. Text
+                  opens Messages Drafting with the message already written;
+                  Call opens the Call Prep card. No phone, no pills. */}
+              {b.phone && onTextPerson && (
+                <button type="button" className="pill-act" onClick={() => onTextPerson(b.id)}>Text</button>
+              )}
+              {b.phone && onCallPerson && (
+                <button type="button" className="pill-act" onClick={() => onCallPerson(b.id)}>Call</button>
+              )}
             </div>
           ))}
         </div>
