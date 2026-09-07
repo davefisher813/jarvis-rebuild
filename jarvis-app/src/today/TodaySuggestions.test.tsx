@@ -6,6 +6,7 @@ import { NotesProvider } from "../data/NotesProvider";
 import { AIService } from "../ai/AIService";
 import TodaySuggestions from "./TodaySuggestions";
 import { emit, eventLog } from "../events";
+import { setCategoryRegistry } from "../shared/categories";
 import { todayISO } from "../ai/useAIContext";
 
 // The suggestion card: at most ONE row, never echoing a visible Up Next
@@ -43,14 +44,21 @@ describe("TodaySuggestions planning pattern (Brain Personalization Phase 2, 2026
   beforeEach(() => { eventLog.clear(); });
 
   it("surfaces a real duration-correction pattern, and Remember This clears it", async () => {
+    // BRAIN-F-05's other half (2026-09-06): plan.duration_corrected carries
+    // the category ID (PlanDaySheet.tsx:484), and this fixture used to feed a
+    // word and assert the same word back, which is why nothing here caught
+    // the card printing a raw uuid. Id in, name out.
+    const WORK = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+    setCategoryRegistry([{ id: WORK, name: "Work", color: "blue" }]);
     for (let i = 0; i < 3; i++) {
-      emit({ type: "plan.duration_corrected", entityType: "task", entityId: `t${i}`, props: { category: "work", n: 20 } });
+      emit({ type: "plan.duration_corrected", entityType: "task", entityId: `t${i}`, props: { category: WORK, n: 20 } });
     }
     render(<NotesProvider userId="u3"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/^Noticed ·/));
     await waitFor(() => expect(screen.getByText("Dismiss")).toBeInTheDocument());
-    expect(screen.getByText(/work tasks run 20 min long/)).toBeInTheDocument();
+    expect(screen.getByText(/Work tasks run 20 min long/)).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(WORK))).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Remember This"));
     await waitFor(() => expect(screen.queryByText(/Your work tasks/)).not.toBeInTheDocument());
   });

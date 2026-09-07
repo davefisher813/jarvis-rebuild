@@ -10,7 +10,7 @@ import {
 import { correctionStats, derivationMuted } from "./moments";
 import {
   MIN_COUNT as MIN_TIMING_SAMPLES, MIN_AVG_ABS_MIN,
-  planningPatternObservation, type DurationCorrection,
+  durationLeader, planningPatternObservation, type DurationCorrection,
 } from "../today/planningPatterns";
 import type { Strand, DerivationKey } from "./strands/types";
 import { capAfterNumber } from "../shared/casing";
@@ -193,12 +193,21 @@ function timingRow(rows: WindowRow[], nowMs: number): Omit<Readiness, "state"> &
   const counts = new Map<string, number>();
   for (const c of corrections) counts.set(c.category, (counts.get(c.category) ?? 0) + 1);
   const have = Math.max(0, ...counts.values());
+  const lead = durationLeader(corrections, nowMs);
   const spoken = planningPatternObservation(corrections, nowMs);
   const detail = spoken
     ? `${have} corrections in one area, all running the same way`
-    : have >= MIN_TIMING_SAMPLES
-      ? `${have} corrections in one area · Not all the same way, or under ${MIN_AVG_ABS_MIN} minutes on average · Read from this device's log`
-      : `Needs ${MIN_TIMING_SAMPLES} corrections in one area, same way, ${MIN_AVG_ABS_MIN} minutes or more · Read from this device's log`;
+    : lead
+      // BRAIN-F-05's other half (2026-09-06): this detector resolves its
+      // category through catName now, so once the gate is met the ONE
+      // remaining reason for silence is an area that no longer has a name.
+      // Same answer slipRow gives above, from the same cause. Without this
+      // branch the panel would report a met gate as an unmet one, which is
+      // the one thing an instrument may never do.
+      ? "The area in front is one JARVIS can no longer name"
+      : have >= MIN_TIMING_SAMPLES
+        ? `${have} corrections in one area · Not all the same way, or under ${MIN_AVG_ABS_MIN} minutes on average · Read from this device's log`
+        : `Needs ${MIN_TIMING_SAMPLES} corrections in one area, same way, ${MIN_AVG_ABS_MIN} minutes or more · Read from this device's log`;
   return {
     key: "task_timing", label: "How Long Tasks Take",
     have, need: MIN_TIMING_SAMPLES, unit: "corrections in one area", detail, met: spoken !== null,

@@ -227,6 +227,19 @@ describe("the two detectors that read something other than task rows", () => {
     expect(r.state).not.toBe("ready");
     expect(r.detail).toContain("same way");
   });
+
+  it("task timing whose area no longer exists says the area cannot be named", () => {
+    // BRAIN-F-05's other half (2026-09-06): this detector resolves its
+    // category through catName now, so a met gate can end in silence for a
+    // reason that has nothing to do with the evidence. Reporting that as
+    // "not all the same way" would be the panel telling Dave something false
+    // about his own data, which is worse than the empty screen it replaced.
+    const rows = recent(4, { type: "plan.duration_corrected", category: "3fa85f64-5717-4562-b3fc-2c963f66afa6", n: 20 });
+    const r = pick(readiness(rows, [], [], NOW), "task_timing");
+    expect(r.have).toBe(4);
+    expect(r.state).not.toBe("ready");
+    expect(r.detail).toContain("no longer name");
+  });
 });
 
 describe("people rhythm reads the person on the mail", () => {

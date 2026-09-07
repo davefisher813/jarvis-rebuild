@@ -8,8 +8,9 @@ import { repetitionsLine, countEnactment, MIN_TO_SHOW } from "../tasks/automatic
 import { readiness } from "../brain/readiness";
 import {
   MIN_COMPLETIONS, MIN_SLIPS_LEADER, MIN_PLAN_PICKS, MIN_PERSON_HANDLED,
-  deriveCompletionWindow, deriveSlipCategory, derivePlanRate,
+  deriveAll, deriveCompletionWindow, deriveSlipCategory, derivePlanRate,
 } from "../brain/derive";
+import { planningPatternObservation } from "../today/planningPatterns";
 import { setCategoryRegistry } from "../shared/categories";
 import type { WindowRow } from "../brain/window";
 
@@ -5206,5 +5207,87 @@ describe("every pass over the log carries the Contacts its derivations read (202
     const PUMP = read(join(SRC, "brain/BrainPump.tsx"));
     expect(PUMP, "the day can be decided without one of its inputs")
       .toMatch(/if \(!strands \|\| !people\) return;/);
+  });
+});
+
+// A DERIVATION NEVER SPEAKS A CATEGORY ID (2026-09-06).
+//
+// BRAIN-F-05 was found once, in one file, and fixed there. The durable log
+// carries the category ID (TasksService emits t.category on a push,
+// PlanDaySheet.tsx:484 emits it on a duration correction), so every detector
+// that mentions an area has the same trap under it, and the second one was
+// still open a day later: today/planningPatterns.ts printed
+// "3fa85f64-5717-4562-b3fc-2c963f66afa6 tasks run 25 min long" on the card,
+// and accepting that wrote a strand carrying the uuid into every AI prompt
+// from then on.
+//
+// So this is the law that would have caught it everywhere rather than in one
+// file. The first check is structural over deriveAll, which enumerates its own
+// detectors, so a ninth detector is covered the day it is added. The eighth
+// lives outside that list and is named directly. Scope, stated plainly: this
+// reaches the derivations, which is where an id becomes a FACT. Two prompt
+// assemblers put a raw category id into AI text as well (review/seal.ts:364
+// says so in its own comment, schedule/planDayAI.ts:99), and neither is a
+// derivation; they are not in this law and they are not fixed here.
+describe("a derivation never speaks a category id (2026-09-06)", () => {
+  const CAT = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+  const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  const NOW2 = Date.parse("2026-09-06T12:00:00");
+  const drow = (over: Partial<WindowRow>): WindowRow => ({
+    type: "task.completed", day: "2026-08-20", h: 10, category: null, n: null, flag: null, kind: null, ...over,
+  });
+  // Everything an id-carrying detector could want, all of it keyed to one
+  // category that the registry may or may not know about.
+  const ROWS: WindowRow[] = [
+    ...Array.from({ length: 12 }, (_, i) => drow({ h: 9, day: `2026-08-0${(i % 9) + 1}`, category: CAT })),
+    ...Array.from({ length: 8 }, (_, i) => drow({ type: "task.pushed", category: CAT, day: `2026-08-1${i}` })),
+  ];
+  const CORR = Array.from({ length: 4 }, () => ({ category: CAT, deltaMin: 20, ts: NOW2 - 86400000 }));
+  const said = (ds: { title: string; sub: string; strandText: string }[]) =>
+    ds.map((d) => `${d.title} ${d.sub} ${d.strandText}`).join(" ");
+
+  it("nothing deriveAll produces carries a raw id, whatever the registry holds", () => {
+    setCategoryRegistry([]);
+    const gone = deriveAll(ROWS, [], NOW2);
+    expect(said(gone), "a derivation printed an id nobody can read").not.toMatch(UUID);
+    expect(gone.map((d) => d.derivation), "an area with no name still spoke").not.toContain("slip_category");
+    setCategoryRegistry([{ id: CAT, name: "Money", color: "green" }]);
+    const live = deriveAll(ROWS, [], NOW2);
+    expect(said(live)).not.toMatch(UUID);
+    expect(live.map((d) => d.derivation), "a live area stopped being spoken about").toContain("slip_category");
+    expect(said(live)).toContain("Money");
+  });
+
+  it("the eighth detector, which lives outside deriveAll, obeys the same rule", () => {
+    setCategoryRegistry([]);
+    expect(planningPatternObservation(CORR, NOW2), "a deleted area still produced an observation").toBeNull();
+    setCategoryRegistry([{ id: CAT, name: "Money", color: "green" }]);
+    const spoke = planningPatternObservation(CORR, NOW2);
+    expect(spoke?.text).not.toMatch(UUID);
+    expect(spoke?.text).toContain("Money");
+  });
+
+  it("both producers resolve through the one registry, not a copy of it", () => {
+    for (const f of ["brain/derive.ts", "today/planningPatterns.ts"]) {
+      expect(read(join(SRC, f)), f + " stopped resolving areas to their names")
+        .toMatch(/import \{ catName \} from "\.\.\/shared\/categories"/);
+    }
+  });
+
+  it("a category only ever reaches a string as a derivation KEY", () => {
+    // The key stays keyed on the id on purpose: it is what the accept path
+    // matches and what the dismiss memory remembers, so a rename must not
+    // make an answered observation look new and ask again. Every OTHER
+    // interpolation of a category is the defect.
+    for (const f of ["brain/derive.ts", "today/planningPatterns.ts"]) {
+      const lines = read(join(SRC, f))
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .filter((l) => !l.trim().startsWith("//"))
+        .filter((l) => /\$\{[^}]*\bcategory\b[^}]*\}/.test(l));
+      for (const l of lines) {
+        expect(l, f + " speaks a category id: " + l.trim()).toMatch(/const id = /);
+      }
+    }
   });
 });
