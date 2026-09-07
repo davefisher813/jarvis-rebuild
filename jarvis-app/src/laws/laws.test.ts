@@ -5226,9 +5226,10 @@ describe("every pass over the log carries the Contacts its derivations read (202
 // detectors, so a ninth detector is covered the day it is added. The eighth
 // lives outside that list and is named directly. Scope, stated plainly: this
 // reaches the derivations, which is where an id becomes a FACT. Two prompt
-// assemblers put a raw category id into AI text as well (review/seal.ts:364
-// says so in its own comment, schedule/planDayAI.ts:99), and neither is a
-// derivation; they are not in this law and they are not fixed here.
+// assemblers put a raw category id into AI text as well (review/seal.ts and
+// schedule/planDayAI.ts); neither is a derivation, so neither is in this law.
+// They were fixed the same day under the same rule, and the block below is
+// their law.
 describe("a derivation never speaks a category id (2026-09-06)", () => {
   const CAT = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
   const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -5289,5 +5290,54 @@ describe("a derivation never speaks a category id (2026-09-06)", () => {
         expect(l, f + " speaks a category id: " + l.trim()).toMatch(/const id = /);
       }
     }
+  });
+});
+
+// AN AREA REACHES THE MODEL BY ITS NAME OR NOT AT ALL (2026-09-06).
+//
+// The same class as the derivation law above, one layer out. A derivation
+// turns an id into a fact the user reads; a prompt assembler turns one into a
+// sentence the MODEL reads, which is worse in a quiet way: nobody ever sees
+// it, so nothing reports it. Two sites did it.
+//
+// planDayAI's task line put the category id in parentheses after every task,
+// so Plan My Day read "- [id: t1] Call the coach (3fa85f64-...)". The model
+// cannot group by that, cannot match it against the "Life areas: Bridge,
+// Elite Squad, ..." line the profile block already carries, and the tokens are
+// paid for either way. seal's monthly line did the same in "most scheduled
+// time in area <id>", and a seal outlives the areas it counted, so even a
+// correct id can be unresolvable months later.
+//
+// Both now resolve through catName and DROP the clause when the registry
+// cannot name the area, which is the rule deriveSlipCategory set: a sentence
+// about an area nobody can see is not a fact anyone can check.
+describe("a prompt never speaks a category id (2026-09-06)", () => {
+  const PLAN = read(join(SRC, "schedule/planDayAI.ts"));
+  const SEAL = read(join(SRC, "review/seal.ts"));
+
+  it("both assemblers resolve through the one registry", () => {
+    for (const [name, src] of [["schedule/planDayAI.ts", PLAN], ["review/seal.ts", SEAL]] as const) {
+      expect(src, name + " must import catName rather than printing the ref")
+        .toMatch(/import \{ catName \} from "\.\.\/shared\/categories"/);
+    }
+  });
+
+  it("the task line interpolates the resolved name, never the pick's category", () => {
+    // The whole defect was one interpolation. Pin the shape of the line so it
+    // cannot quietly go back to reading the id.
+    expect(PLAN).not.toMatch(/\$\{p\.category\}/);
+    expect(PLAN).toMatch(/catName\(p\.category\)/);
+  });
+
+  it("the month line interpolates the resolved name, never the seal's key", () => {
+    expect(SEAL).not.toMatch(/\$\{hoursTop\.category\}/);
+    expect(SEAL).toMatch(/catName\(hoursTop\.category\)/);
+  });
+
+  it("each drops its clause rather than printing an area it cannot name", () => {
+    // Guarded on the RESOLVED name, not on the raw ref: guarding on the ref is
+    // exactly the bug, since a deleted area still has an id.
+    expect(PLAN).toMatch(/area \?/);
+    expect(SEAL).toMatch(/if \(hoursArea\)/);
   });
 });

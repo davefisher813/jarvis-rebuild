@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { computeSeal, worthSealing, prevMonthKey, SealService, type MonthSealData, ENTITY_MONTH_SEAL } from "./seal";
 import type { WindowRow } from "../brain/window";
 import type { Goal } from "../life/types";
@@ -145,6 +145,7 @@ describe("computeSeal v2: the report's fields", () => {
 // INSIGHTS GETS AN OUTPUT (handoff item 8, decision s2, built 2026-09-04).
 // The seal has been computed and never read since it shipped.
 import { sealLine, sealLines } from "./seal";
+import { setCategoryRegistry } from "../shared/categories";
 
 const sealed = (over: Partial<MonthSealData> = {}): MonthSealData => ({
   month: "2026-08", sealedAt: 1, done: 0, pushed: 0, daysIn: 0, byCategory: {},
@@ -185,5 +186,31 @@ describe("the sealed month, compressed for the Brain", () => {
     expect(out).toHaveLength(2);
     expect(out[0]).toContain("August");
     expect(out[1]).toContain("July");
+  });
+});
+
+// The monthly line reaches every AI prompt through sealLines, and its hours
+// clause printed a category ID: "most scheduled time in area 3fa85f64-...".
+// A seal outlives the areas it counted, so this one also has to survive an
+// area that no longer exists.
+describe("the month's line names the area, never its id (2026-09-06)", () => {
+  afterEach(() => setCategoryRegistry([]));
+
+  it("names the area the user named", () => {
+    setCategoryRegistry([{ id: "c-work", name: "Work", color: "orange" }]);
+    const line = sealLine(sealed({ done: 10, hours: { "c-work": 900, "c-other": 60 } }));
+    expect(line).toContain("most scheduled time in Work");
+    expect(line).not.toContain("c-work");
+  });
+
+  it("drops the clause for an area that no longer exists, rather than printing its id", () => {
+    const line = sealLine(sealed({ done: 10, hours: { "0f8fad5b-d9cb-469f-a165-70867728950e": 900 } }));
+    expect(line).toBe("August 2026: finished 10");
+    expect(line).not.toContain("0f8fad5b");
+    expect(line).not.toContain("scheduled time");
+  });
+
+  it("a month whose only fact was an unnameable area says nothing at all", () => {
+    expect(sealLine(sealed({ hours: { "0f8fad5b-d9cb-469f-a165-70867728950e": 900 } }))).toBe("");
   });
 });

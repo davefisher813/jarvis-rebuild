@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { parsePlanReply, aiPlanDay, planDayUserMessage, planDaySystem } from "./planDayAI";
 import { setAIControl } from "../ai/levelStore";
+import { setCategoryRegistry } from "../shared/categories";
 
 describe("parsePlanReply", () => {
   it("parses a clean JSON array, preserving order", () => {
@@ -223,5 +224,51 @@ describe("rules vs. influences (S4-Q24)", () => {
       strands: [{ id: "r1", text: "Family dinner is non-negotiable", strength: "rule" }],
     });
     expect(r.leanedOn).toEqual(["Family dinner is non-negotiable"]);
+  });
+});
+
+// AN AREA REACHES THE MODEL BY ITS NAME OR NOT AT ALL (2026-09-06). PlanPick
+// carries the category ID, so every task line in this prompt used to read
+// "(3fa85f64-5717-4562-b3fc-2c963f66afa6)". Third instance of BRAIN-F-05's
+// class found in one day; same resolution as the other two.
+describe("the task line names the area, never its id (2026-09-06)", () => {
+  afterEach(() => setCategoryRegistry([]));
+
+  const withCat = (id: string) => ({ id: "t1", text: "Call the coach", category: id, overdue: false });
+
+  it("prints the name the user gave the area", () => {
+    setCategoryRegistry([{ id: "c-elite", name: "Elite Squad", color: "blue" }]);
+    const msg = planDayUserMessage([withCat("c-elite")], [], 540, 1260);
+    expect(msg).toContain("- [id: t1] Call the coach (Elite Squad)");
+    expect(msg).not.toContain("c-elite");
+  });
+
+  it("a uuid never reaches the prompt", () => {
+    const uuid = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+    setCategoryRegistry([{ id: uuid, name: "Bridge", color: "blue" }]);
+    expect(planDayUserMessage([withCat(uuid)], [], 540, 1260)).not.toContain(uuid);
+  });
+
+  it("an area the registry cannot name is omitted, not guessed at", () => {
+    // Same rule as deriveSlipCategory and planningPatternObservation: the
+    // clause goes rather than printing an id nobody can check. catName blanks
+    // a uuid-shaped ref it cannot resolve, which is the shape every real
+    // category id has (shared/categories.ts:59).
+    const gone = "0f8fad5b-d9cb-469f-a165-70867728950e";
+    const msg = planDayUserMessage([withCat(gone)], [], 540, 1260);
+    expect(msg).toContain("- [id: t1] Call the coach\n");
+    expect(msg).not.toContain(gone);
+    expect(msg).not.toContain("()");
+  });
+
+  it("a task with no area is unchanged", () => {
+    const msg = planDayUserMessage([{ id: "t1", text: "Call the coach", category: "", overdue: false }], [], 540, 1260);
+    expect(msg).toContain("- [id: t1] Call the coach\n");
+  });
+
+  it("still marks overdue after the area", () => {
+    setCategoryRegistry([{ id: "c1", name: "Work", color: "orange" }]);
+    const msg = planDayUserMessage([{ id: "t1", text: "Invoice", category: "c1", overdue: true }], [], 540, 1260);
+    expect(msg).toContain("- [id: t1] Invoice (Work) [OVERDUE]");
   });
 });

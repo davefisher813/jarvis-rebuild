@@ -2,6 +2,7 @@ import { JARVIS_VOICE } from "../ai/voice";
 import type { AIService, AIMessage } from "../ai/AIService";
 import type { EventItem } from "./types";
 import { fmtTime } from "./calendar";
+import { catName } from "../shared/categories";
 import { effectiveLevel, aiCallAllowed, refusalMessage } from "../ai/aiGate";
 import { getAIControl } from "../ai/levelStore";
 
@@ -96,7 +97,22 @@ export const PLAN_SCHEMA: Record<string, unknown> = {
 
 export function planDayUserMessage(picks: PlanPick[], events: EventItem[], startMin: number, endMin: number, opts: AIPlanOpts = {}): string {
   const { work, energy, gentle, profile } = opts;
-  const taskLines = picks.map((p) => `- [id: ${p.id}] ${p.text}${p.category ? ` (${p.category})` : ""}${p.overdue ? " [OVERDUE]" : ""}`);
+  // AN AREA REACHES THE MODEL BY ITS NAME OR NOT AT ALL (2026-09-06, the third
+  // instance of BRAIN-F-05's class in one day). PlanPick.category is a category
+  // ID: ScheduleFlow reads t.category off the task and hands it straight here,
+  // so every task line in this prompt has read
+  // "- [id: t1] Call the coach (3fa85f64-5717-4562-b3fc-2c963f66afa6)".
+  //
+  // That is worse than sending nothing. The model cannot group by it, cannot
+  // match it to the "Life areas: Bridge, Elite Squad, ..." line the profile
+  // block already carries, and pays for the tokens either way. Resolved
+  // through the same runtime registry deriveSlipCategory and
+  // planningPatternObservation use; an area the registry cannot name is
+  // omitted rather than guessed at, exactly as they do.
+  const taskLines = picks.map((p) => {
+    const area = p.category ? catName(p.category) : "";
+    return `- [id: ${p.id}] ${p.text}${area ? ` (${area})` : ""}${p.overdue ? " [OVERDUE]" : ""}`;
+  });
   const evLines = events.length
     ? events
         .slice()

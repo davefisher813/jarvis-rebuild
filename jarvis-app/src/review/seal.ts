@@ -6,6 +6,7 @@ import type { WindowRow, WindowClient } from "../brain/window";
 import { readWindow, readWindowWithSource } from "../brain/window";
 import { completionBand, taskDone, slipLeader } from "../brain/derive";
 import { liveGoals, goalTags } from "../bigger/reach";
+import { catName } from "../shared/categories";
 import type { Goal } from "../life/types";
 import type { Workout } from "../gym/types";
 import type { GymService } from "../gym/GymService";
@@ -360,8 +361,15 @@ export function sealLine(s: MonthSealData): string {
   // went; it never says where it should have gone, and it never names the
   // areas that got none, because "you scheduled nothing for X" reaching a
   // model as a fact is one paraphrase away from coming back as a reprimand.
+  // Same rule as the task line and the two derivations: the area is named the
+  // way the user named it, or the clause is dropped. `hours` keys are category
+  // IDs, and a seal outlives the areas it counted, so a months-old seal can
+  // hold an id nothing can resolve. The comment above said "by id" and meant
+  // it; that id then rode into every prompt as "most scheduled time in area
+  // 3fa85f64-...", which says nothing and costs tokens to say it.
   const hoursTop = topHours(s.hours);
-  if (hoursTop) parts.push(`most scheduled time in area ${hoursTop.category}`);
+  const hoursArea = hoursTop ? catName(hoursTop.category) : "";
+  if (hoursArea) parts.push(`most scheduled time in ${hoursArea}`);
   if (parts.length === 0) return "";
   return `${monthName(s.month)} ${s.month.slice(0, 4)}: ${parts.join(", ")}`;
 }
