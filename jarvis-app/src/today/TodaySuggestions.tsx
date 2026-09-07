@@ -20,7 +20,7 @@ import { routineBlockCandidate } from "./routinePatterns";
 import { addDays } from "../schedule/calendar";
 import type { ProtectedBlock } from "../routine/types";
 import { emit } from "../events";
-import { aiFailureLine } from "../ai/failureLine";
+import { aiFailure, type AIFailure } from "../ai/failureLine";
 import { rankOpen } from "../upnext/upnext";
 import { Lightbulb } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
@@ -73,7 +73,10 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // The catch below used to just clear the cache; nothing distinguished
   // "JARVIS has nothing today" from "JARVIS is broken." aiFailureLine
   // already exists, tested, and was wired to Email only.
-  const [aiError, setAiError] = useState<string | null>(null);
+  // TRACE-04 (2026-09-07): the WHOLE failure, not just its headline. The
+  // reason travels beside the line so the card can put it somewhere nothing
+  // clamps it; see the notice below.
+  const [aiError, setAiError] = useState<AIFailure | null>(null);
 
   const persist = useCallback((c: DayCache) => { setCache(c); writeCache(today, c); }, [today]);
 
@@ -195,7 +198,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         // day getting remembered forever. aiFailureLine reads the proxy's
         // own upstream error, same message a real "Sign in again" or "Rate
         // limited" deserves rather than silence.
-        if (on) { setCache(null); setAiError(aiFailureLine(e, "Today's suggestions didn't come back")); }
+        if (on) { setCache(null); setAiError(aiFailure(e, "Today's suggestions didn't come back")); }
       }
     })();
     return () => { on = false; };
@@ -461,11 +464,25 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         </button>
       </div>
     ) : (
+      /* TRACE-04 (2026-09-07): THE REASON IS NOT A SUB. ai/failureLine.ts
+         exists so the upstream's own actionable sentence survives (Dave lost
+         two weeks to a wrong error in 2026-09-02), and this card then handed
+         it to the one slot that cannot hold it. A uniform card's sub is a
+         single clamped nowrap line (.notice-card-uniform .conn-meta), so on
+         his phone it read "Today's suggestions didn't come back · Serv...",
+         and measured in the built app at 390x844 the shredded-sub latch
+         dropped it outright: the reason was not on screen at all. Both are
+         the same defect, and both throw away the half he can act on.
+         So the reason goes in the foot, which is inside the same card, below
+         the uniform row, and is neither clamped nor reachable by the latch.
+         The headline keeps the row and the row keeps its 72; the card grows
+         only by the reason, only when a call actually failed. The sub is
+         gone because it said what the title says. */
       <NoticeCard
         icon={<Lightbulb className="ic" />}
         tone="cat-fg-slate"
         title="Couldn't check today's suggestions"
-        sub={aiError}
+        foot={aiError.reason ? <div className="pad-x"><div className="notice-why">{aiError.reason}</div></div> : undefined}
         onDismiss={() => setAiError(null)}
       />
     );

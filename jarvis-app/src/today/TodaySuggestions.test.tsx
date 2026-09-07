@@ -275,24 +275,39 @@ describe("TodaySuggestions AI failure is honest, not silent (S4-Q27)", () => {
     return new AIService({ available: true, getToken: () => "t", fetchImpl });
   }
 
-  // The quiet line (Law 3E) can wrap a trailing number in its own span, so
-  // the sub's real text is checked against the line's whole textContent
-  // rather than a single text node, same as the being-known moments test
-  // above does for its own conn-meta line.
-  const subSays = (re: RegExp) => screen.getByText((_, el) => el?.className === "conn-meta" && re.test(el.textContent ?? ""));
+  // TRACE-04 (2026-09-07): these two asserted the reason lived in the card's
+  // SUB, which is the one clamped nowrap line on a uniform card, and is how
+  // Dave ended up reading "Serv..." on his phone. The reason lives in the
+  // card's foot now, where nothing clamps it, so that is where they look.
+  const reasonSays = (re: RegExp) => screen.getByText((_, el) => el?.className === "notice-why" && re.test(el.textContent ?? ""));
 
   it("a failed call surfaces the real reason, not silence", async () => {
     render(<NotesProvider userId="u-err1"><TodaySuggestions ai={failingAI(500, "upstream blew up")} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(/Noticed · Couldn't check today's suggestions/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/Noticed · Couldn't check today's suggestions/));
-    await waitFor(() => expect(subSays(/Server said 500/)).toBeInTheDocument());
+    await waitFor(() => expect(reasonSays(/Server said 500/)).toBeInTheDocument());
+    // And nowhere near the slot that would cut it off.
+    expect(document.querySelector(".notice-card .conn-meta")).toBeNull();
   });
 
   it("a sign-in failure names itself, not a generic server error", async () => {
     render(<NotesProvider userId="u-err2"><TodaySuggestions ai={failingAI(401, "")} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/^Noticed ·/));
-    await waitFor(() => expect(subSays(/Sign in again/)).toBeInTheDocument());
+    await waitFor(() => expect(reasonSays(/Sign in again/)).toBeInTheDocument());
+  });
+
+  // THE WHOLE SENTENCE, NOT ITS FIRST HALF. The upstream's message is the
+  // only actionable thing on this card, and the September 2nd fix that
+  // recovered it was being undone by the slot it was rendered into.
+  it("renders the upstream's own message whole", async () => {
+    const upstream = "model: claude-sonnet-4-5-20250929 is not available on this key";
+    const body = JSON.stringify({ error: "Upstream error", detail: JSON.stringify({ type: "error", error: { message: upstream } }) });
+    render(<NotesProvider userId="u-err4"><TodaySuggestions ai={failingAI(502, body)} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Noticed ·/));
+    await waitFor(() => expect(reasonSays(/./)).toBeInTheDocument());
+    expect(reasonSays(/./).textContent).toBe("Server said 502 · " + upstream);
   });
 
   it("dismissing the failure notice clears it", async () => {

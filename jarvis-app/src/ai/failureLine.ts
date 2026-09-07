@@ -31,14 +31,37 @@ function upstreamMessage(detail: string): string | null {
   return null;
 }
 
-/** One honest line for a failed AI call, with the upstream's own words. */
-export function aiFailureLine(e: unknown, fallback: string): string {
+// TRACE-04 (2026-09-07): AND THEN THE CARD CUT IT OFF. Everything above was
+// built so the upstream's own actionable sentence survives, and What JARVIS
+// Knows then handed it to a notice card whose sub is one clamped line: on
+// Dave's phone it read "Today's suggestions didn't come back · Serv...", and
+// measured in the built app at 390x844 the shredded-sub latch dropped the sub
+// outright, so the reason was not on screen at all. A caller that has room
+// for the reason needs it apart from the headline, so it can put it where
+// nothing clamps it. `reason` is the half the fallback does not already say,
+// and it is null when there is nothing but the fallback to report.
+export interface AIFailure {
+  /** The whole thing, one line: what failed, then why. */
+  line: string;
+  /** Just the why, when the proxy gave one. */
+  reason: string | null;
+}
+
+export function aiFailure(e: unknown, fallback: string): AIFailure {
   const raw = e instanceof Error ? e.message : typeof e === "string" ? e : "";
   const m = /^AI request failed \((\d{3})\)\.?\s*([\s\S]*)$/.exec(raw);
-  if (!m) return humanError(e, fallback);
+  if (!m) return { line: humanError(e, fallback), reason: null };
   const status = Number(m[1]);
   const said = upstreamMessage(m[2] ?? "");
   const who = status === 401 ? "Sign in again" : status === 429 ? "Rate limited, try again in a minute" : `Server said ${status}`;
-  const line = said ? `${who} · ${said}` : who;
-  return (fallback + " · " + line).slice(0, MAX + fallback.length + 3);
+  const reason = said ? `${who} · ${said}` : who;
+  return {
+    line: (fallback + " · " + reason).slice(0, MAX + fallback.length + 3),
+    reason: reason.slice(0, MAX),
+  };
+}
+
+/** One honest line for a failed AI call, with the upstream's own words. */
+export function aiFailureLine(e: unknown, fallback: string): string {
+  return aiFailure(e, fallback).line;
 }

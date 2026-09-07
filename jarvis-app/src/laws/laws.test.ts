@@ -5434,3 +5434,37 @@ describe("the AI context carries a checklist as a count (TRACE-03, 2026-09-07)",
     expect(src).not.toMatch(/steps\.map\(/);
   });
 });
+
+// AN UPSTREAM ERROR IS READ WHOLE OR IT IS NOT WORTH RECOVERING (TRACE-04,
+// 2026-09-07).
+//
+// ai/failureLine.ts was written on 2026-09-02 because Dave lost two weeks to
+// a card that named the wrong service, and its whole job is to keep the
+// upstream's own actionable sentence. What JARVIS Knows then rendered that
+// sentence into a notice card's sub, which on a uniform card is ONE clamped
+// nowrap line (.notice-card-uniform .conn-meta). His phone showed "Today's
+// suggestions didn't come back · Serv...", and measured in the built app at
+// 390x844 the shredded-sub latch dropped it outright. A fix undone by the
+// slot it renders into is not a fix, so the slot is what this law holds.
+describe("an AI failure's reason renders whole (TRACE-04, 2026-09-07)", () => {
+  it("no producer hands a failure reason to a clamped sub", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const src = read(f);
+      if (!/aiFailure/.test(src)) continue;
+      // The whole class: the reason must not travel as `sub`, on any card.
+      for (const m of src.matchAll(/sub=\{[^}]*(aiError|aiFailure)[^}]*\}/g)) bad.push(rel(f) + ": " + m[0]);
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("the line it does render into never clamps, wraps or ellipses", () => {
+    // Pulled out of the CSS rather than trusted: this is exactly the pair
+    // that broke last time, a component fixed and a stylesheet undoing it.
+    const rule = /\.notice-why\s*\{([^}]*)\}/.exec(RULED);
+    expect(rule, "ruled.css must style .notice-why").not.toBeNull();
+    const body = rule![1]!;
+    expect(body).toMatch(/white-space:\s*normal/);
+    expect(body).not.toMatch(/line-clamp|text-overflow:\s*ellipsis|white-space:\s*nowrap/);
+  });
+});

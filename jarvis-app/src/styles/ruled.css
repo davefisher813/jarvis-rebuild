@@ -107,6 +107,21 @@
   font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; }
 .ruled .stream-card .notice-card .conn-meta { font-size: calc(12.5px * var(--type-scale)); }
 
+/* AN UPSTREAM ERROR IS READ, NOT GLANCED AT (TRACE-04, 2026-09-07).
+   ai/failureLine.ts exists because Dave lost two weeks in 2026-09-02 to a
+   card that named the wrong service, and the sentence it recovered was then
+   handed to a notice sub, which is one clamped nowrap line
+   (.notice-card-uniform .conn-meta). It read "Serv..." on his phone; measured
+   in the built app the shredded-sub latch dropped it entirely. So the reason
+   sits in the card's foot instead, and this rule is the whole point of moving
+   it: it WRAPS. No clamp, no ellipsis, no nowrap, at any length, at any
+   --type-scale. Whatever the server said, he can read all of it.
+   The ink and the 12.5/1.45 are the readiness panel's reading line, which is
+   the app's existing answer to "a sentence a phone must not cut in half". */
+.ruled .notice-card .notice-why { font-size: calc(12.5px * var(--type-scale));
+  color: var(--tx-3); line-height: 1.45; white-space: normal; overflow-wrap: anywhere;
+  padding-bottom: var(--s-2); }
+
 /* ---------- SECTION HEADS: 12.5 / 700 / 0.1em caps, leader stays ---------
    Q-02, ruled at phone size against the 11 and the 12. */
 .ruled .sh2 .t { font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.1em; }
