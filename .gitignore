@@ -1,7 +1,15 @@
 # Root-level ignores. jarvis-app/ has its own; this covers the repo root,
 # where an npm run from the wrong directory used to leave stray files that
 # got committed by accident (a vitest cache landed in git this way).
+# The trailing slash matters and was missing the case that bit: "node_modules/"
+# matches a DIRECTORY only, so a node_modules SYMLINK (which is what a git
+# worktree gets, pointed at the real install so every worktree shares one copy)
+# is not ignored, and a `git add -A` in that worktree commits three symlinks.
+# Checking that commit out into the real repo then replaces the real
+# node_modules with a link to itself and takes the toolchain down with it.
+# Both forms, so neither shape can be added again.
 node_modules/
+node_modules
 dist/
 *.log
 
