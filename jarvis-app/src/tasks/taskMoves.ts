@@ -21,6 +21,7 @@ import type { AIService } from "../ai/AIService";
 import type { TaskData } from "../notes/types";
 import { breakdownPrompt, parseBreakdown } from "./breakdown";
 import { nextFreeSlot, addMinutes } from "../schedule/calendar";
+import { madeBy } from "../shared/provenance";
 
 // LIFE-F-15 (2026-09-05): this said five fields, though both callers hand it
 // a whole TaskItem. Undo of a Break It Down rebuilt the original from those
@@ -52,6 +53,19 @@ interface ScheduleWriter {
 // still ahead. An overdue task used to book its block on the date it was due,
 // so the one move you most want on a late task put an hour on a day that is
 // already gone and nothing showed up on today.
+//
+// TRACE-01 (2026-09-07, Dave: "there is no trace of events or steps (for
+// tasks) anywhere in the app"). This wrote the block with no sourceTaskId,
+// which is the one field the whole app reads to know a task already has a
+// time. Every other door onto the calendar sets it (ScheduleService.
+// commitPlan, Start Fifteen in TasksFlow and CategoryDetail); this one never
+// did, from the day it was written. Three things followed, all of them what
+// he was looking at: anytime.ts:32 kept the task in the Anytime strip above
+// a block of itself, Plan My Day and the Day Loop kept offering work that
+// was already booked, and Move to Anytime on that block minted a SECOND copy
+// of the task because eventMoves.ts:47 only skips that when the link exists.
+// The block also carries where it came from, so the row says so out loud:
+// the trace he says is missing is a fact the app had and never wrote down.
 export async function scheduleTask(
   taskId: string,
   today: string,
@@ -68,6 +82,8 @@ export async function scheduleTask(
     start,
     end: addMinutes(start, 60),
     category: t.category || undefined,
+    sourceTaskId: taskId,
+    source: madeBy("task", taskId),
   });
   return { ok: true, date, start };
 }

@@ -5341,3 +5341,54 @@ describe("a prompt never speaks a category id (2026-09-06)", () => {
     expect(SEAL).toMatch(/if \(hoursArea\)/);
   });
 });
+
+// EVERY DOOR ONTO THE CALENDAR THAT COMES FROM A TASK CARRIES THE TASK
+// (TRACE-01, 2026-09-07).
+//
+// Dave: "there is no trace of events or steps (for tasks) anywhere in the
+// app". Half of that was one missing field. `sourceTaskId` is the only thing
+// the app reads to know a task already has a time, and four separate readers
+// depend on it: the Anytime strip (schedule/anytime.ts), Plan My Day's
+// candidate set (ScheduleFlow and TodayFlow build it inline), the Day Loop's
+// liveBlocks, and Move to Anytime, which mints a duplicate task when the link
+// is missing (schedule/eventMoves.ts, whose comment names this bug as the
+// reason its branch exists). Add to Schedule set none of it, so the task sat
+// in the strip above a block of itself for as long as that function existed.
+//
+// Structural, not a name check: an event whose title comes from something's
+// `.text` is being made out of a task, because in this codebase events carry
+// `.title` and tasks carry `.text`. Any such call has to hand over the id.
+// The next door somebody adds fails here rather than on his phone.
+describe("a block made from a task links back to it (TRACE-01, 2026-09-07)", () => {
+  // The options object, read by balancing braces rather than by a regex: the
+  // literals here run to six lines and a lazy [\s\S]*? stops at the first
+  // nested `}` (`category: t.category || undefined` is fine, `...(end ? {} :
+  // {})` is not).
+  function optsOf(src: string, from: number): string | null {
+    const open = src.indexOf("{", from);
+    if (open < 0) return null;
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}" && --depth === 0) return src.slice(open, i + 1);
+    }
+    return null;
+  }
+
+  it("every createEvent whose title is a task's text sets sourceTaskId", () => {
+    const bad: string[] = [];
+    let seen = 0;
+    for (const f of SOURCES) {
+      const src = read(f);
+      for (const m of src.matchAll(/createEvent\(\s*([A-Za-z_$][\w$.]*\.text)\s*,/g)) {
+        seen++;
+        const opts = optsOf(src, m.index + m[0].length);
+        if (!opts || !/\bsourceTaskId\b/.test(opts)) bad.push(rel(f) + ": createEvent(" + m[1] + ", ...)");
+      }
+    }
+    expect(bad).toEqual([]);
+    // A floor, so a rename of the field cannot pass this law by matching
+    // nothing at all.
+    expect(seen).toBeGreaterThanOrEqual(5);
+  });
+});

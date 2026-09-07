@@ -23,6 +23,11 @@ export type SourceType =
   // UP-CORE-08 (2026-09-05): a note made FOR a calendar event, from its row
   // or the Now card. Its ref is the event id, so the line opens the meeting.
   | "event"
+  // TRACE-01 (2026-09-07): a calendar block Add to Schedule made out of a
+  // task. The block already links back through sourceTaskId; this is the
+  // half a person can read on the row, so an hour that appeared on Tuesday
+  // says where it came from instead of looking hand-drawn.
+  | "task"
   | "sweep"
   | "reflow"
   | "google_calendar"
@@ -55,6 +60,7 @@ const LABEL: Record<SourceType, string> = {
   chat: "From chat",
   file: "From a file",
   plan: "From your day plan",
+  task: "From a task",
   event: "From your calendar",
   sweep: "Moved by Auto-Sweep",
   reflow: "Moved by re-flow",
