@@ -5157,3 +5157,54 @@ describe("the card form is not exempt from the shredded sub law (2026-09-06)", (
     expect(NOTICE).toMatch(/!\(subNode && !subDropped\) \? " notice-card-solo"/);
   });
 });
+
+// THE DAY'S PASS DECIDES WITH EVERY INPUT ITS DETECTORS READ (2026-09-06).
+//
+// Dave, on his phone: "i dont see any trace of jarvis learning anything."
+// One of the reasons was four characters wide. BrainPump called
+// brainMoments(rows, list) and stopped there, and the people argument
+// defaults to an empty array (brain/moments.ts:72), so nothing threw, nothing
+// warned, and the two people derivations were handed no Contacts at all in
+// the ONE pass that writes the day's keys. TodaySuggestions did assemble the
+// list and pass it, which changed nothing, because readChosen only ever maps
+// keys the pass already stored for today.
+//
+// The law is about the shape of the mistake rather than the one file that
+// made it. A defaulted argument on the seam between the log and the
+// derivations means any caller can decide a whole day with half the inputs
+// and record that decision, so every caller hands over all of them.
+describe("every pass over the log carries the Contacts its derivations read (2026-09-06)", () => {
+  // Comments stripped first: this file and BrainPump both quote the broken
+  // call in prose, and a law that reads its own explanation as evidence is
+  // no law at all.
+  const code = (f: string) => read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  const CALLERS = SOURCES.filter((f) => !f.endsWith("brain/moments.ts") && /\bbrainMoments\(/.test(code(f)));
+
+  it("every brainMoments call site passes a people list", () => {
+    expect(CALLERS.length, "nothing calls brainMoments any more").toBeGreaterThan(0);
+    for (const f of CALLERS) {
+      for (const call of code(f).match(/brainMoments\([^)]*\)/g) ?? []) {
+        expect(call.split(",").length, f + " decides the day without Contacts")
+          .toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it("the pump reads Contacts through the one place that assembles them", () => {
+    // peopleFacts.ts is that place: local caches only, never a fetch, and an
+    // empty list on any failure. A second assembly would be a second set of
+    // rules about what a derivation may know about a person.
+    const PUMP = read(join(SRC, "brain/BrainPump.tsx"));
+    expect(PUMP, "the pump grew its own idea of who the user knows").toContain("peopleForDerivation");
+    expect(PUMP).toContain("useOptionalPeople");
+  });
+
+  it("a pass with an input missing does not answer for the day", () => {
+    // consolidate() writes the day's keys and every later read maps them, so
+    // a decision made with a service still absent is a decision that stands
+    // until tomorrow. Waiting costs nothing; deciding early costs a fact.
+    const PUMP = read(join(SRC, "brain/BrainPump.tsx"));
+    expect(PUMP, "the day can be decided without one of its inputs")
+      .toMatch(/if \(!strands \|\| !people\) return;/);
+  });
+});

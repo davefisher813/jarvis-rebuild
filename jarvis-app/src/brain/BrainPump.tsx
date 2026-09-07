@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
-import { useOptionalStrands } from "../data/NotesProvider";
+import { useOptionalPeople, useOptionalStrands } from "../data/NotesProvider";
 import { supabase } from "../auth/supabaseClient";
 import { readWindow, type WindowClient } from "./window";
 import { brainMoments } from "./moments";
+import { peopleForDerivation } from "./peopleFacts";
 import { consolidate, readConsolidation } from "./nightly";
 import { todayISO } from "../ai/useAIContext";
 import { armFocusCompletion } from "../events/focus";
@@ -27,12 +28,29 @@ import { armFocusCompletion } from "../events/focus";
 // happen while that screen is mounted.
 export default function BrainPump({ dayKey }: { dayKey: string }) {
   const strands = useOptionalStrands();
+  // THE PASS DECIDES WITH EVERY INPUT, OR IT DOES NOT DECIDE (2026-09-06).
+  //
+  // This pass ran brainMoments(rows, list) with no people argument, so
+  // derivePeopleRhythm and deriveGoneQuiet were handed the empty default
+  // (moments.ts:72) in the one pass that writes the day's keys. TodaySuggestions
+  // assembles the list and passes it, but readChosen (nightly.ts:123) only maps
+  // keys already stored for today, so that never helped: the two people facts
+  // were reachable only on a day the pass found nothing at all. A pass that
+  // decides with half its inputs and then records that decision locks the other
+  // half out until tomorrow.
+  const people = useOptionalPeople();
   const ranFor = useRef("");
 
   useEffect(() => armFocusCompletion(), []);
 
   useEffect(() => {
-    if (!strands) return;
+    // Both services come from the same provider (NotesProvider.tsx:147 wraps
+    // :161), so in the shipped tree this can only be both or neither. The guard
+    // is written on both anyway, because the rule it states is the one the bug
+    // broke: this component decides the day with everything it needs, or it
+    // waits. A harness that mounts it with a partial provider gets a pass that
+    // stays silent rather than one that quietly answers for the day.
+    if (!strands || !people) return;
     const today = todayISO();
     // Already decided, by an earlier mount or by a screen that beat us to
     // it. Nothing to spend a window read on.
@@ -44,12 +62,16 @@ export default function BrainPump({ dayKey }: { dayKey: string }) {
     let live = true;
     void (async () => {
       try {
-        const [rows, list] = await Promise.all([
+        const [rows, list, folk] = await Promise.all([
           readWindow(supabase as unknown as WindowClient | null, Date.now()),
           strands.list(),
+          // The one place that assembles the list (peopleFacts.ts:17): local
+          // caches only, never a fetch, and an empty list on any failure.
+          // Same three reads TodaySuggestions.tsx:110 already makes here.
+          peopleForDerivation(people),
         ]);
         if (!live) return;
-        consolidate(brainMoments(rows, list), today);
+        consolidate(brainMoments(rows, list, folk), today);
       } catch {
         // A failed window read means no decision today, which is exactly
         // what consolidate refuses to write anyway: an empty set is not an
@@ -58,7 +80,7 @@ export default function BrainPump({ dayKey }: { dayKey: string }) {
       }
     })();
     return () => { live = false; };
-  }, [strands, dayKey]);
+  }, [strands, people, dayKey]);
 
   return null;
 }
