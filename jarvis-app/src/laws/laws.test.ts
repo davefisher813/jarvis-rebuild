@@ -1302,13 +1302,26 @@ describe("LAW: stored shapes are versioned", () => {
   // the Tasks tab called the same records Tasks, which taught him that filing
   // work into a project moved it somewhere else. Prop names may stay `step`;
   // the words a reader sees may not.
+  //
+  // TRACE-02 (2026-09-07): this scanned COMPONENTS, so it only ever read
+  // .tsx, and global search's why-line rendered "Steps: pick the tiles" from
+  // search/search.ts for as long as that line existed. Copy is not a
+  // property of a file extension. The scan is every source now, plus the
+  // label form a .ts file uses: a bare quoted "Steps" handed to a renderer,
+  // which neither of the JSX patterns above can see.
+  //
+  // gym/metrics.ts is the one exemption and it is not a task: "Steps" there
+  // is the Apple Health walking metric, whose name belongs to Apple.
   it("no surface calls a task a step", () => {
     const bad: string[] = [];
-    for (const f of COMPONENTS) {
+    const allowed = ["gym/metrics.ts"];
+    for (const f of SOURCES) {
+      if (allowed.includes(rel(f))) continue;
       for (const m of read(f).matchAll(/(placeholder|title|aria-label)="([^"]*\bSteps?\b[^"]*)"/g)) {
         bad.push(rel(f) + ": " + m[2]);
       }
       for (const m of read(f).matchAll(/>\s*(Steps?)\s*</g)) bad.push(rel(f) + ": " + m[1]);
+      for (const m of read(f).matchAll(/"(Steps?)"/g)) bad.push(rel(f) + ": " + m[1]);
     }
     expect(bad).toEqual([]);
   });

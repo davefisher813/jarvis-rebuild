@@ -107,8 +107,13 @@ export function runSearch(query: string, data: SearchInput): SearchResults {
   // The block line that matched, so a note hit says which line put it here.
   const noteWhy = (d: NoteData) => has(d.title) ? undefined
     : whyFrom(q, [["Note", noteBlockText(d).split(BLOCK_JOIN).find((part) => part.toLowerCase().includes(q))]]);
+  // TRACE-02 (2026-09-07): the label a person reads is Checklist, never
+  // Steps. "No surface calls a task a step" (pick 30, laws.test.ts) has been
+  // law since the project page and the Tasks tab called the same records two
+  // different things; TaskSheet's own group says Checklist. This line said
+  // "Steps:" because the law scanned .tsx only and a why-line lives in a .ts.
   const stepWhy = (t: TaskItem) => has(t.data.text) ? undefined
-    : whyFrom(q, [["Steps", (t.data.steps ?? []).find((s) => s.text.toLowerCase().includes(q))?.text]]);
+    : whyFrom(q, [["Checklist", (t.data.steps ?? []).find((s) => s.text.toLowerCase().includes(q))?.text]]);
   return {
     events: data.events
       .filter((e) => has(e.data.title) || has(e.data.location))

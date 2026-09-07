@@ -210,6 +210,22 @@
 .ruled .r-k-one > .r-cat, .ruled .r-k-one > .r-parent { flex: 1 1 5.5em; }
 .ruled .r-k-one > .r-person { flex: 0 1 auto; max-width: 4.5em; }
 .ruled .r-k-one > .r-est, .ruled .r-k-one > .r-rec { flex: 0 0 auto; }
+/* THE STEP COUNT IN THE RIGHT SLOT (TRACE-02, 2026-09-07). Dave: "there is
+   no trace of events or steps (for tasks) anywhere in the app." Contract 4.1
+   names three things this slot can hold and this is the third, so it is the
+   contract's own right slot and nothing new: section 5 rules it 12.5/600,
+   --tx-2, tabular. Tabular because a column of these must not jitter, the
+   same reason the estimate above carries it.
+   Never shrinks: 4.1 puts the name last in the truncation order and the
+   right slot first in what is protected, so the words on line two give up
+   room before this does.
+   The numerals take section 5's inline number emphasis (the same rule the
+   readiness panel's fraction wears), because "2 of 5" read as one flat grey
+   run is exactly the undifferentiated meta line that ruling exists to end. */
+.ruled .task-row > .tr-steps { flex-shrink: 0; align-self: center;
+  font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-medium);
+  color: var(--tx-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ruled .task-row > .tr-steps b { font-weight: var(--w-semi); color: var(--tx-1); }
 .ruled .r-bar { width: 4px; height: 11px; border-radius: 2px; flex-shrink: 0; }
 .ruled .r-goal { font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-normal); color: var(--tx-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

@@ -111,10 +111,13 @@ describe("search reaches inside things", () => {
     strands: [{ id: "s1", data: { text: "Books the dentist in the morning", category: "routine", source: "watched", strength: "influence", status: "active", createdAt: "2026-05-01" } } as never],
   };
 
-  it("matches a task's steps, an event's location and a person's fields, and says which", () => {
+  // TRACE-02 (2026-09-07): this asserted the vocabulary leak. The app says
+  // Checklist everywhere a person reads it (TaskSheet's own group); only the
+  // types and props stay `step`.
+  it("matches a task's checklist, an event's location and a person's fields, and says which", () => {
     const r = runSearch("dentist", deep);
     expect(r.tasks[0]!.id).toBe("t2");
-    expect(r.tasks[0]!.why).toBe("Steps: call the dentist");
+    expect(r.tasks[0]!.why).toBe("Checklist: call the dentist");
     expect(r.people[0]!.why).toBe("Notes: Dentist for the kids");
     expect(r.files[0]!.name).toBe("dentist-receipt.pdf");
     expect(r.facts[0]!.text).toBe("Books the dentist in the morning");

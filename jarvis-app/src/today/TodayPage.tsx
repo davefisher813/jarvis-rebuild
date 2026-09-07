@@ -75,6 +75,11 @@ function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOp
     setTimeout(() => { pending.current = false; setLocalDone(false); onToggle?.(); }, 600);
   };
   const dist = u && today ? distanceFor(t.data, today) : null;
+  // TRACE-02 (2026-09-07): the checklist rollup, display only. Same numbers
+  // the task sheet's own Checklist group prints (TaskSheet.tsx:329), read off
+  // the record rather than recomputed anywhere else.
+  const steps = t.data.steps?.length ?? 0;
+  const stepsDone = (t.data.steps ?? []).filter((s) => s.done).length;
   // SAY IT ONCE. The reason line the dealt card owes (reasonFor) leads with
   // the due distance: "Due today", "Waiting 2 days". The kicker chip now says
   // exactly that, so when a chip renders, the reason's due-part is dropped
@@ -113,9 +118,27 @@ function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOp
               : <span className="r-goal r-cat">No category</span>}
         </div>
       </div>
-      {onStart && !done && (
+      {/* THE RIGHT SLOT SAYS THE CHECKLIST IS THERE (TRACE-02, 2026-09-07).
+          Dave: "there is no trace of events or steps (for tasks) anywhere in
+          the app." A task can carry a checklist and it rendered in exactly
+          two places in the whole app: the sheet you typed it into, and a
+          search why-line. Close the sheet and the row was byte-identical to
+          a task with nothing on it.
+          Contract 4.1 rules this slot as holding exactly ONE of an action
+          pill, a duration, or a step count, and the count is "used only where
+          no action applies" -- which is every Today task row but the dealt
+          one, whose Start pill owns the slot. So Start still wins, and the
+          count fills a slot that was empty rather than crowding one that was
+          not (lint rule 7, right-slot arity: never two children).
+          Omitted entirely when the task has no checklist: no zeros, no
+          placeholder (4.11). */}
+      {onStart && !done ? (
         <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(); }}>Start</button>
-      )}
+      ) : steps > 0 ? (
+        <span className="tr-steps" aria-label={`Checklist ${stepsDone} of ${steps} done`}>
+          <b>{stepsDone}</b> of <b>{steps}</b>
+        </span>
+      ) : null}
     </div>
   );
 }
