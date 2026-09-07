@@ -5,6 +5,7 @@ import {
   completionBand, slipCounts, slipLeader, planOutcomes,
   taskDone, workoutDone, emailHandled, personHandled,
   deriveSlipCategory, derivePlanRate, derivePeopleRhythm, deriveGoneQuiet,
+  deriveCompletionNoBand, deriveSlipNoLeader,
   type DerivePerson,
 } from "./derive";
 import { correctionStats, derivationMuted } from "./moments";
@@ -12,7 +13,7 @@ import {
   MIN_COUNT as MIN_TIMING_SAMPLES, MIN_AVG_ABS_MIN,
   durationLeader, planningPatternObservation, type DurationCorrection,
 } from "../today/planningPatterns";
-import type { Strand, DerivationKey } from "./strands/types";
+import { NO_PATTERN_TWIN, type Strand, type DerivationKey } from "./strands/types";
 import { capAfterNumber } from "../shared/casing";
 
 // WHY IS NOTHING LEARNING (Dave, 2026-09-06: "i dont see any trace of jarvis
@@ -77,47 +78,84 @@ function stateOf(met: boolean, have: number, need: number): ReadinessState {
   return "waiting";
 }
 
+// A built row plus WHICH derivation would speak from it right now, or null
+// for silence. It used to be a bare `met` boolean, and a boolean stopped
+// being enough on 2026-09-07: a question with two possible answers needs the
+// panel to know which of them is live, because the nod-test mute is recorded
+// per derivation and muting the band says nothing about the absence.
+type Built = Omit<Readiness, "state"> & { speaks: DerivationKey | null };
+
 // The three band detectors are one shape with three sets of rows: 10-plus
 // samples AND one 3-hour stretch holding 40 percent of them. The second half
 // is very likely why Dave sees nothing, so it is never folded into a bare
 // "not yet": the count says the evidence is there and the detail says the
 // shape is not.
-function bandRow(key: DerivationKey, label: string, unit: string, done: WindowRow[]): Omit<Readiness, "state"> & { met: boolean } {
+//
+// NO PATTERN (2026-09-07): completion_window can now answer in the other
+// direction, and `absence` is that answer when it is live. This stays ONE
+// row, because there is one question ("when do tasks get done?") and the two
+// derivations are two answers to it, not two things to wait for. Two rows
+// would put "When Tasks Get Done" on the panel twice, each reporting the
+// other's silence as its own failure. training_window and email_window pass
+// nothing here and read exactly as they did.
+function bandRow(key: DerivationKey, label: string, unit: string, done: WindowRow[], absence: DerivationKey | null = null): Built {
   const band = completionBand(done);
   const have = done.length;
   const detail = band
     ? `One 3-hour stretch holds ${band.count} of them`
-    : have >= MIN_COMPLETIONS
-      ? `${have} ${unit}, spread across the day · One 3-hour stretch has to hold ${BAND_PCT} percent`
-      : `Needs ${MIN_COMPLETIONS} ${unit} · One 3-hour stretch holding ${BAND_PCT} percent of them`;
-  return { key, label, have, need: MIN_COMPLETIONS, unit, detail, met: band !== null };
+    : absence
+      // Not amber forever any more. The gate is met, the shape is absent, and
+      // the absence is what JARVIS has to say: the row reports a finding, in
+      // the same tense the spoken branches above and below use.
+      ? `${have} ${unit}, spread across the day, with no 3-hour stretch in front`
+      : have >= MIN_COMPLETIONS
+        ? `${have} ${unit}, spread across the day · One 3-hour stretch has to hold ${BAND_PCT} percent`
+        : `Needs ${MIN_COMPLETIONS} ${unit} · One 3-hour stretch holding ${BAND_PCT} percent of them`;
+  return { key, label, have, need: MIN_COMPLETIONS, unit, detail, speaks: band ? key : absence };
 }
 
-function slipRow(rows: WindowRow[]): Omit<Readiness, "state"> & { met: boolean } {
+function slipRow(rows: WindowRow[]): Built {
   const ranked = slipCounts(rows);
   const have = ranked[0]?.n ?? 0;
   const lead = slipLeader(rows);
   const spoken = deriveSlipCategory(rows);
+  // NO PATTERN (2026-09-07): the other answer to the same question. Asked of
+  // the detector, never re-derived here, so the panel and the Brain cannot
+  // disagree about this row. Read ABOVE the unnamed-area branch because the
+  // two are mutually exclusive by construction (the absence requires
+  // slipLeader to be null, the unnamed branch requires it not to be), and
+  // this order says which one is the wider case.
+  const absent = deriveSlipNoLeader(rows);
   let detail: string;
   if (spoken) {
     detail = `${have} pushes in one area, clear of every other`;
+  } else if (absent) {
+    // Dave's own row, amber forever: 66 pushes with nothing in front is not a
+    // wait for a shape, it IS the shape.
+    detail = `${have} pushes in the busiest area, and no area clear of the rest`;
   } else if (lead) {
     // BRAIN-F-05's other half: the leader is a category id, and an id that no
     // longer resolves to a name gets no derivation, because a sentence about
     // an area nobody can see is not a fact anyone can check.
     detail = "The area in front is one JARVIS can no longer name";
-  } else if (have >= MIN_SLIPS_LEADER) {
-    detail = `${have} pushes lead · No area is pushed ${SLIP_LEAD_RATIO} times as often as the next`;
   } else {
+    // The branch that used to sit here read "N pushes lead · No area is
+    // pushed 2 times as often as the next", and it is gone because it is now
+    // UNREACHABLE, not because it was wrong. Reaching it needed the gate met
+    // and no leader, which is exactly the state deriveSlipNoLeader speaks in,
+    // so the branch above it always answers first. That line was Dave's own
+    // row for a month; it is a finding now rather than a wait, and leaving a
+    // dead copy of it here would describe a state the panel cannot be in.
     detail = `Needs ${MIN_SLIPS_LEADER} pushes in one area, ${SLIP_LEAD_RATIO} times as often as the next`;
   }
   return {
     key: "slip_category", label: "The Area That Slips",
-    have, need: MIN_SLIPS_LEADER, unit: "pushes in one area", detail, met: spoken !== null,
+    have, need: MIN_SLIPS_LEADER, unit: "pushes in one area", detail,
+    speaks: spoken ? "slip_category" : absent ? "slip_no_leader" : null,
   };
 }
 
-function planRow(rows: WindowRow[]): Omit<Readiness, "state"> & { met: boolean } {
+function planRow(rows: WindowRow[]): Built {
   const outcomes = planOutcomes(rows);
   const have = outcomes.length;
   const done = outcomes.filter((r) => r.flag === true).length;
@@ -129,11 +167,11 @@ function planRow(rows: WindowRow[]): Omit<Readiness, "state"> & { met: boolean }
       : `Needs ${MIN_PLAN_PICKS} plan picks resolved, then a rate clearly high or clearly low`;
   return {
     key: "plan_rate", label: "Whether Plans Finish",
-    have, need: MIN_PLAN_PICKS, unit: "plan picks resolved", detail, met: spoken !== null,
+    have, need: MIN_PLAN_PICKS, unit: "plan picks resolved", detail, speaks: spoken ? "plan_rate" : null,
   };
 }
 
-function peopleRow(rows: WindowRow[], people: DerivePerson[]): Omit<Readiness, "state"> & { met: boolean } {
+function peopleRow(rows: WindowRow[], people: DerivePerson[]): Built {
   const byPerson = personHandled(rows);
   let have = 0;      // the best count for somebody with no label yet
   let labelled = 0;  // the best count for somebody already labelled
@@ -158,7 +196,7 @@ function peopleRow(rows: WindowRow[], people: DerivePerson[]): Omit<Readiness, "
   }
   return {
     key: "people_rhythm", label: "The Person You Email Most",
-    have, need: MIN_PERSON_HANDLED, unit: "emails with one person", detail, met: spoken !== null,
+    have, need: MIN_PERSON_HANDLED, unit: "emails with one person", detail, speaks: spoken ? "people_rhythm" : null,
   };
 }
 
@@ -166,7 +204,7 @@ function peopleRow(rows: WindowRow[], people: DerivePerson[]): Omit<Readiness, "
 // report: somebody who has gone quiet has no rows in a 30-day window BY
 // DEFINITION. Its evidence is people the user labelled whose last contact is
 // known, so that is what the count counts.
-function quietRow(people: DerivePerson[], nowMs: number): Omit<Readiness, "state"> & { met: boolean } {
+function quietRow(people: DerivePerson[], nowMs: number): Built {
   const candidates = people.filter((p) => p.label?.trim() && typeof p.lastMs === "number" && p.lastMs > 0);
   const spoken = deriveGoneQuiet(people, nowMs);
   const detail = spoken
@@ -177,7 +215,7 @@ function quietRow(people: DerivePerson[], nowMs: number): Omit<Readiness, "state
   return {
     key: "gone_quiet", label: "Who Has Gone Quiet",
     have: candidates.length, need: 1, unit: "labelled people with a known last contact",
-    detail, met: spoken !== null,
+    detail, speaks: spoken ? "gone_quiet" : null,
   };
 }
 
@@ -186,7 +224,7 @@ function quietRow(people: DerivePerson[], nowMs: number): Omit<Readiness, "state
 // pulls (window.ts READ_TYPES). Worth saying plainly on the row: the live
 // detector reads this device's own log, so this is the one row where a server
 // window can hold more than the detector will see.
-function timingRow(rows: WindowRow[], nowMs: number): Omit<Readiness, "state"> & { met: boolean } {
+function timingRow(rows: WindowRow[], nowMs: number): Built {
   const corrections: DurationCorrection[] = rows
     .filter((r) => r.type === "plan.duration_corrected" && !!r.category && typeof r.n === "number")
     .map((r) => ({ category: r.category!, deltaMin: r.n!, ts: rowMs(r) }));
@@ -210,7 +248,7 @@ function timingRow(rows: WindowRow[], nowMs: number): Omit<Readiness, "state"> &
         : `Needs ${MIN_TIMING_SAMPLES} corrections in one area, same way, ${MIN_AVG_ABS_MIN} minutes or more · Read from this device's log`;
   return {
     key: "task_timing", label: "How Long Tasks Take",
-    have, need: MIN_TIMING_SAMPLES, unit: "corrections in one area", detail, met: spoken !== null,
+    have, need: MIN_TIMING_SAMPLES, unit: "corrections in one area", detail, speaks: spoken ? "task_timing" : null,
   };
 }
 
@@ -233,7 +271,13 @@ export function readiness(rows: WindowRow[], strands: Strand[], people: DerivePe
     strands.map((s) => s.data.derivation).filter((d): d is DerivationKey => !!d),
   );
   const built = [
-    bandRow("completion_window", "When Tasks Get Done", "completions", taskDone(rows)),
+    bandRow(
+      "completion_window", "When Tasks Get Done", "completions", taskDone(rows),
+      // NO PATTERN (2026-09-07): the other answer to the same question. Asked
+      // of the detector itself, never re-derived here, so the panel and the
+      // Brain cannot disagree about this row either.
+      deriveCompletionNoBand(rows) ? "completion_no_band" : null,
+    ),
     slipRow(rows),
     planRow(rows),
     bandRow("training_window", "When You Train", "sessions", workoutDone(rows)),
@@ -242,17 +286,28 @@ export function readiness(rows: WindowRow[], strands: Strand[], people: DerivePe
     quietRow(people, nowMs),
     timingRow(rows, nowMs),
   ];
-  return built.map(({ met, ...r }) => {
+  return built.map(({ speaks, ...r }) => {
     // Every line here leads with a count, so every line goes through the
     // leading-number casing rule, the same way derive.ts's own subs do.
     const detail = capAfterNumber(r.detail ?? "");
-    if (known.has(r.key)) {
+    // NO PATTERN (2026-09-07): a row is one QUESTION, and a question is
+    // answered once he has accepted either answer to it. Without the twin
+    // here, accepting "finishes across the whole day" would leave this row
+    // reporting the band detector's silence forever, which is the exact
+    // amber-forever reading this change exists to end.
+    const twin = NO_PATTERN_TWIN[r.key];
+    if (known.has(r.key) || (twin && known.has(twin))) {
       return { ...r, state: "known" as const, detail: "JARVIS already knows this one" };
     }
-    if (derivationMuted(stats.get(r.key))) {
+    // Muted is asked of the side that would actually speak. The nod test is
+    // recorded per derivation, so a band detector he has corrected twice says
+    // nothing about whether the absence may still be offered, and reporting
+    // the pair as one mute would make the panel claim a silence that is not
+    // there. With nothing live, the question's own key answers, as before.
+    if (derivationMuted(stats.get(speaks ?? r.key))) {
       return { ...r, state: "muted" as const, detail: "Corrected or deleted twice, so it stopped offering this" };
     }
-    return { ...r, detail, state: stateOf(met, r.have, r.need) };
+    return { ...r, detail, state: stateOf(speaks !== null, r.have, r.need) };
   });
 }
 

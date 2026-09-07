@@ -263,3 +263,103 @@ describe("the accuracy record (what makes the nod test operational)", () => {
     expect(dumped).not.toContain("sentence about the user");
   });
 });
+
+// THE EVIDENCE FLIPPED (2026-09-07). A no-pattern fact and the fact it denies
+// are two answers to one question, so they get two derivation keys (see
+// NO_PATTERN_TWIN, and the reasoning above it in types.ts). Two keys is what
+// keeps the nod test honest and lets JARVIS change its mind when his life
+// changes; the price is a genome that could hold both, and these pin that
+// price paid.
+describe("a no-pattern fact and the fact it denies never sit in the genome together", () => {
+  let ctx: ReturnType<typeof make>;
+  beforeEach(() => { ctx = make(); });
+
+  const BAND = "Gets things done between 9 PM and 12 AM in the evening";
+  const SPREAD = "Finishes things across the whole day rather than in one stretch";
+
+  it("accepting the absence retires the band it contradicts", async () => {
+    await ctx.svc.accept(BAND, "energy", "completion_window", [{ day: TODAY, a: 21 }], TODAY);
+    const r = await ctx.svc.accept(SPREAD, "energy", "completion_no_band", [], TODAY);
+    expect(r.outcome).toBe("created");
+    expect(r.outcome === "created" && r.replaced).toBe(true);
+    const all = await ctx.svc.list();
+    expect(all).toHaveLength(1);
+    expect(all[0]!.data.text).toBe(SPREAD);
+    expect(all[0]!.data.derivation).toBe("completion_no_band");
+  });
+
+  it("and the flip runs the other way too, so a life that develops a band is heard", async () => {
+    // Same shape, opposite direction: he accepted "across the whole day" in
+    // September, his evenings tighten up, and the band detector speaks again.
+    // This is the case that separate keys exist to make possible at all: on a
+    // shared key the accepted absence would have suppressed the band forever.
+    await ctx.svc.accept(SPREAD, "energy", "completion_no_band", [], TODAY);
+    const r = await ctx.svc.accept(BAND, "energy", "completion_window", [{ day: TODAY, a: 21 }], TODAY);
+    expect(r.outcome === "created" && r.replaced).toBe(true);
+    const all = await ctx.svc.list();
+    expect(all).toHaveLength(1);
+    expect(all[0]!.data.text).toBe(BAND);
+  });
+
+  it("retiring the twin emits no strand.deleted, so an honest flip never mutes a correct detector", async () => {
+    // The nod test reads strand.deleted as "this derivation was wrong about
+    // him" and switches it off after two. The band was not wrong; his life
+    // changed. Emitting here would cost him the detector after two flips.
+    await ctx.svc.accept(BAND, "energy", "completion_window", [], TODAY);
+    ctx.events.length = 0;
+    await ctx.svc.accept(SPREAD, "energy", "completion_no_band", [], TODAY);
+    expect(ctx.events.map((e) => e.type)).toEqual(["strand.created"]);
+  });
+
+  it("the twin's slot is the slot being taken, so a full category still lets the flip through", async () => {
+    // The retired fact is excluded from the cap count. Without that, holding
+    // a full energy bucket would refuse the replacement AND keep the fact it
+    // was replacing, which is the worst of both.
+    await ctx.svc.accept(BAND, "energy", "completion_window", [], TODAY);
+    for (let i = 0; i < STRAND_CAP_PER_CATEGORY - 1; i++) await ctx.svc.add("energy fact " + i, "energy", TODAY);
+    expect((await ctx.svc.list()).filter((x) => x.data.category === "energy")).toHaveLength(STRAND_CAP_PER_CATEGORY);
+    const r = await ctx.svc.accept(SPREAD, "energy", "completion_no_band", [], TODAY);
+    expect(r.outcome).toBe("created");
+    expect((await ctx.svc.list()).filter((x) => x.data.category === "energy")).toHaveLength(STRAND_CAP_PER_CATEGORY);
+  });
+
+  it("a derivation with no twin retires nothing, and says nothing was replaced", async () => {
+    await ctx.svc.accept("Trains between 4 PM and 7 PM", "routine", "training_window", [], TODAY);
+    const r = await ctx.svc.accept("Deals with email in the morning", "work_style", "email_window", [], TODAY);
+    expect(r.outcome === "created" && r.replaced).toBeUndefined();
+    expect(await ctx.svc.list()).toHaveLength(2);
+  });
+});
+
+describe("the slip pair retires the same way, because the rule is the pair's, not the fact's", () => {
+  let ctx: ReturnType<typeof make>;
+  beforeEach(() => { ctx = make(); });
+
+  const NAMED = "Admin tasks tend to slip and need extra room";
+  const EVERY = "Tasks slip across every area, none more than the rest";
+
+  it("accepting the absence retires the named area, and the other way round", async () => {
+    await ctx.svc.accept(NAMED, "work_style", "slip_category", [{ day: TODAY, a: 1 }], TODAY);
+    const r = await ctx.svc.accept(EVERY, "work_style", "slip_no_leader", [], TODAY);
+    expect(r.outcome === "created" && r.replaced).toBe(true);
+    expect((await ctx.svc.list()).map((s) => s.data.text)).toEqual([EVERY]);
+    const back = await ctx.svc.accept(NAMED, "work_style", "slip_category", [{ day: TODAY, a: 1 }], TODAY);
+    expect(back.outcome === "created" && back.replaced).toBe(true);
+    expect((await ctx.svc.list()).map((s) => s.data.text)).toEqual([NAMED]);
+  });
+
+  it("retiring across the pair still emits no strand.deleted", async () => {
+    await ctx.svc.accept(NAMED, "work_style", "slip_category", [], TODAY);
+    ctx.events.length = 0;
+    await ctx.svc.accept(EVERY, "work_style", "slip_no_leader", [], TODAY);
+    expect(ctx.events.map((e) => e.type)).toEqual(["strand.created"]);
+  });
+
+  it("the two pairs are independent: the energy answer survives a work_style flip", async () => {
+    await ctx.svc.accept("Finishes things across the whole day rather than in one stretch", "energy", "completion_no_band", [], TODAY);
+    await ctx.svc.accept(NAMED, "work_style", "slip_category", [], TODAY);
+    await ctx.svc.accept(EVERY, "work_style", "slip_no_leader", [], TODAY);
+    const held = (await ctx.svc.list()).map((s) => s.data.derivation).sort();
+    expect(held).toEqual(["completion_no_band", "slip_no_leader"]);
+  });
+});

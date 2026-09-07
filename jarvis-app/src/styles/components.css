@@ -3703,6 +3703,16 @@ body.selecting .voice-dock { display: none; }
    escape hatch for the whole section, not one of the actions in it, so it
    wears the bare-text treatment rather than competing with the card buttons
    above it. */
+/* THE STACKED OFFER (2026-09-07). A notice that states a claim and asks him to
+   accept it gives the words the whole width and puts the verb underneath. The
+   two-line clamp comes off with it: on this card the sentence and its count ARE
+   the card, and clipping either one is clipping the thing he is deciding about.
+   Reached only through NoticeCard's `stack`, so no other notice moves. */
+.notice-card-stack .conn-name,
+.notice-card-stack .conn-meta { white-space: normal; display: block; -webkit-line-clamp: none; overflow: visible; text-overflow: clip; }
+.notice-stack { display: flex; padding: 0 var(--s-3) var(--s-2h); }
+.notice-stack .pill-act { width: 100%; justify-content: center; min-height: var(--tap-min); }
+
 .notice-clear-row { display: flex; justify-content: flex-end; padding: var(--s-1) var(--s-4) 0; }
 
 /* A past row is dimmed to 0.45, and that dimming used to take the selection

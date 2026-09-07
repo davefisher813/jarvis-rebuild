@@ -62,6 +62,7 @@ export default function NoticeCard({
   foot,
   form = "card",
   uniform = true,
+  stack = false,
   // Read by the stream's ranker, not by this component; declared so the
   // props are typed at every call site.
   weight,
@@ -115,6 +116,21 @@ export default function NoticeCard({
   // one-line form does to one. Everything else here is a phrase this app
   // wrote itself and can be trusted to fit.
   uniform?: boolean;
+  /* THE VERB MOVES UNDER THE WORDS WHEN THE WORDS ARE THE POINT (2026-09-07).
+     Measured at 390x844: the right slot's capsule takes 139px of a 326px row,
+     which leaves the text 133px. That is fine for a card whose words are a
+     label and whose verb is the point ("Nadia Brandt" / Reply). It is wrong
+     for a card that states a CLAIM and asks him to accept it forever: "You
+     train between 5 PM and 8 PM" over "14 Sessions there, out of your last
+     14" came out as "You train between 5 P..." over "14 Sessions there, out
+     of yo...", both halves destroyed, with Remember This sitting in clean
+     space beside them.
+     Stacked, the words get the whole width and the capsule sits under them.
+     It is still a capsule (contract 4.4, always a capsule), and stacking an
+     action that does not fit beside its neighbours is the move 4.12 already
+     rules for sheets. Only a producer that knows its words carry the decision
+     asks for this; every other notice keeps the row it has. */
+  stack?: boolean;
   weight?: number;
   receipt?: boolean;
   // Read only by rankStream (2026-08-26): marks the one element the stream
@@ -282,7 +298,7 @@ export default function NoticeCard({
             <div className="conn-name" ref={(el) => { factRef.current = el; }}>{title}</div>
             {subNode && !subDropped && <div className="conn-meta" ref={(el) => { subRef.current = el; }}>{subNode}</div>}
           </div>
-          {action ? (
+          {action && !stack ? (
             <button
               className="pill-act"
               onClick={(e) => { e.stopPropagation(); action.onClick(); }}
@@ -293,6 +309,13 @@ export default function NoticeCard({
             <div className="chev" />
           ) : null}
         </div>
+        {action && stack && (
+          <div className="notice-stack">
+            <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
+              {action.label}
+            </button>
+          </div>
+        )}
         {alt && effForm === "card" && form === "row" && (
           /* An expanded row surfaces its alt as a visible second capsule:
              the swipe reveal exists, but the whole point of expanding was
@@ -364,6 +387,7 @@ export default function NoticeCard({
                first" to a single line. A uniform height that throws away a
                quarter of the sentence is the wrong uniform height. */
             + (uniform && (effForm === "card" || effForm === "row") ? " notice-card-uniform" : "")
+            + (stack ? " notice-card-stack" : "")
             /* A UNIFORM CARD IS TWO LINES TALL, and how it spends them is
                its own business. With a sub, that is one line each. WITHOUT
                one, the title takes both, which costs nothing: the card is

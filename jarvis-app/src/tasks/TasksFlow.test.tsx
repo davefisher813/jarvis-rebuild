@@ -1,14 +1,24 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { useEffect, useState } from "react";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useTasks, useCategories, useNotes } from "../data/NotesProvider";
+import { NotesProvider, useTasks, useCategories, useNotes, usePeople } from "../data/NotesProvider";
 import type { TasksService } from "./TasksService";
 import type { NotesService } from "../notes/NotesService";
 import TasksFlow from "./TasksFlow";
 import { todayISO } from "./grouping";
 import { subscribeToast } from "../shared/toast";
+
+// UP-MIND-01 class (2026-09-07): MessageDraftSheet has accepted `voice`
+// since PeopleFlow started passing it; this door (a task's own "Text
+// <name>" row) never gathered it and never passed it. Mocked here so the
+// prop reaching the sheet can be asserted directly, the same way a defect
+// with no visible DOM trace has to be caught.
+const draftProps: { voice?: string }[] = [];
+vi.mock("../people/MessageDraftSheet", () => ({
+  default: (props: { voice?: string }) => { draftProps.push(props); return null; },
+}));
 
 // LIFE-F-01 (2026-09-05): "Swipe Tomorrow re-dates the task to TODAY for
 // anyone east of UTC." TasksFlow computed tomorrow by serialising local
@@ -179,5 +189,35 @@ describe("TasksFlow set aside receipt (LIFE-F-13)", () => {
     } finally {
       stop();
     }
+  });
+});
+
+function SeededTextPerson() {
+  const tasks = useTasks();
+  const people = usePeople();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const pid = (await people.create({ name: "Nadia Brandt", group: "contacts", phone: "555-0101" }))!;
+      await tasks.createTask("Confirm the venue", { due: todayISO(), personId: pid });
+      setReady(true);
+    })();
+  }, [tasks, people]);
+  return ready ? <TasksFlow /> : null;
+}
+
+describe("TasksFlow: the task's Text door hands the sheet a real voice (UP-MIND-01 class)", () => {
+  it("gathers How You Write before the sheet opens, same as every other door", async () => {
+    draftProps.length = 0;
+    render(<NotesProvider userId="text-voice-tasks"><SeededTextPerson /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Confirm the venue")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Confirm the venue"));
+    fireEvent.click(await screen.findByText("Text Nadia Brandt"));
+    await waitFor(() => expect(draftProps.length).toBeGreaterThan(0));
+    // BEFORE the fix, MessageDraftSheet was never even passed a voice prop
+    // (personSheet's about carried the task text, nothing else). AFTER,
+    // gatherContext + voiceToText resolve to at least the identity line
+    // every real context carries.
+    await waitFor(() => expect(draftProps.at(-1)!.voice).toMatch(/^User: /));
   });
 });

@@ -24,6 +24,7 @@ import HeadMenu from "../../shared/HeadMenu";
 import { useLongPress } from "../../shared/useLongPress";
 import { haptics } from "../../shared/haptics";
 import { ParentLineGlyph } from "../../shared/glyphs";
+import StepCount, { stepsOf, hasUnfinishedSteps } from "../../shared/StepCount";
 import { Nums } from "../../bigger/GoalRowRuled";
 import type { ParentLine } from "../../life/parent";
 
@@ -190,6 +191,9 @@ export function TaskRow({
   // filter, where every row would say the same word.
   const dist = distanceFor(t, today);
   const chip = dist && !t.done && !(muteToday && dist.kind === "today") ? dist : null;
+  // TRACE-02b (2026-09-07): the checklist rollup, display only, counted by
+  // the one shared piece Today's rows already use.
+  const steps = stepsOf(t);
   const prevDone = useRef(t.done);
   const [burst, setBurst] = useState(false);
   // Optimistic completion: flip + burst immediately, hold the real toggle
@@ -408,8 +412,33 @@ export function TaskRow({
             it can never double up with the tag row-tags now renders above:
             the two were written to divide the same information, not repeat
             it. */}
+        {/* A TASK UNDERWAY SAYS WHERE HE IS, NOT "BEGIN" (TRACE-02b, ruled
+            2026-09-07 on "whatever makes the most sense").
+
+            Dave: "there is no trace of events or steps (for tasks) anywhere
+            in the app." TRACE-02 gave the count to Today the day before and
+            this row, the one he actually lives on, still answered Start on
+            every open task: onStart is passed unconditionally below (line
+            740), so a task carrying a five item checklist was byte-identical
+            to a task carrying nothing.
+
+            Contract 4.1 holds this slot to exactly one thing and says the
+            count is used only where no action applies. It applies here:
+            "2 of 5" is a task already begun, and Start offers to begin it.
+            The move he wants on a row like that is to open it and tick the
+            next item, which is the row tap, unchanged, and a better move
+            than Start's fifteen minute timer anyway.
+
+            A caller's own pill still wins (Do It, Drop): those are that
+            surface's standing action, not the generic Start. A fully ticked
+            list is not underway, so Start comes back (hasUnfinishedSteps
+            carries the reasoning, and the sheet makes the same turn with its
+            Close Task offer). Still exactly one child either way, which is
+            lint rule 7. */}
         {selecting ? null : action && !shownDone
           ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>{action.label}</button>
+          : !shownDone && hasUnfinishedSteps(steps)
+          ? <StepCount {...steps} />
           : onStart && !shownDone
           ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(item.id); }}>Start</button>
           : u && u.kind === "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules, useBrainDocs } from "../data/NotesProvider";
+import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules, useBrainDocs, useOptionalStrands } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
-import { goalTone } from "../shared/categories";
+import { goalTone, catName } from "../shared/categories";
 import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
@@ -121,7 +121,7 @@ import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCa
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { scheduleTask, breakDownTask as splitIntoSteps, undoBreakdown, splitLine, type BreakdownResult } from "../tasks/taskMoves";
-import { identityToText, voiceToText } from "../ai/context";
+import { identityToText, voiceToText, contextToText } from "../ai/context";
 import { meetingPrep, type PrepPerson } from "./meetingPrep";
 import { loadLastContact } from "../people/lastContact";
 import { useAIContext } from "../ai/useAIContext";
@@ -168,6 +168,17 @@ const WIN_ICO = (
 );
 const UpNextFlow = lazyWithRecovery(() => import("../upnext/UpNextFlow"));
 const FreshStartFlow = lazyWithRecovery(() => import("../upnext/FreshStartFlow"));
+
+// BRAIN-F-05 class (2026-09-07): a hard line is typed as a name ("the
+// school", "gym time"), never a category's id, so the re-flow guard has to
+// resolve the moved block's category to that name before heldBy ever has a
+// chance to match. Pulled out as its own function (rather than left inline
+// in runReflow) so this composition is provable without driving the whole
+// Plan My Day accept flow: catName and heldBy are each already exhaustively
+// tested, this is the one line that puts them together correctly.
+export function reflowHold(lines: HardLine[], event: { data: { title: string; category: string } } | undefined): HardLine | null {
+  return heldBy(lines, { action: "reflow", blockTitle: event?.data.title, category: catName(event?.data.category) });
+}
 
 // Read-only aggregation over the (already tested) Schedule and Tasks services.
 export default function TodayFlow({
@@ -218,6 +229,12 @@ export default function TodayFlow({
 }) {
   const ai = useAI();
   const gatherContext = useAIContext();
+  // UP-MIND-23 class (2026-09-07): ScheduleFlow's own Plan My Day has ridden
+  // with the full brain (profile + attributed strands) since item 04's
+  // attribution work; this screen's copy of the same call never picked up
+  // either, so a plan built from Today reasoned from routine hours and
+  // energy alone. See onAIPlan below.
+  const strandsSvc = useOptionalStrands();
   const brainDocs = useBrainDocs();
   const google = useGoogle();
   const schedule = useSchedule();
@@ -403,6 +420,22 @@ export default function TodayFlow({
   // opens. One person store, read once with the birthdays.
   const [peopleList, setPeopleList] = useState<Person[]>([]);
   const [msgPerson, setMsgPerson] = useState<{ id: string; about: string } | null>(null);
+  // UP-MIND-01 class (2026-09-07): the mail-notice card drafts above
+  // (cardVoiceRef) already read the How You Write doc; this second, older
+  // MessageDraftSheet door - opened from the birthday row - never gathered
+  // it, so a text drafted from a birthday sounded like nobody.
+  const [msgVoice, setMsgVoice] = useState("");
+  useEffect(() => {
+    const person = msgPerson ? peopleList.find((p) => p.id === msgPerson.id) : undefined;
+    if (!person) { setMsgVoice(""); return; }
+    let live = true;
+    void gatherContext({ personId: person.id, personName: person.data.name })
+      .then((c) => voiceToText(c, { styleRule: false }))
+      .catch(() => "")
+      .then((v) => { if (live) setMsgVoice(v); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [msgPerson?.id]);
   const [callPerson, setCallPerson] = useState<string | null>(null);
   const [peopleTick, setPeopleTick] = useState(0);
   // A dismissal lives in storage, so a bump is what tells the render to go
@@ -1100,12 +1133,27 @@ export default function TodayFlow({
   const energy = chrono !== "neutral" ? { chronotype: chrono, peakStartMin: peak.s, peakEndMin: peak.e } : undefined;
   const sizing = daySizing(prevMood);
   const onAIPlan = ai.available
-    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number, background: boolean) => aiPlanDay(ai, picks, planEvents, s, e, {
-        work: { startMin: routineData.workStartMin, endMin: routineData.workEndMin },
-        energy,
-        gentle: sizing.light,
-        background,
-      })
+    ? async (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number, background: boolean) => {
+        // Same wire as ScheduleFlow's onAIPlan: the profile line (routine,
+        // goals, patterns) and strands ride with their real ids so the
+        // model can honestly say which fact changed the plan (item 04
+        // attribution). Strands are best-effort - a plan without
+        // attribution beats no plan - but the profile is not: a failed
+        // gatherContext here fails the same way ScheduleFlow's does.
+        const ctx = await gatherContext();
+        let strandList: { id: string; text: string; strength?: "influence" | "rule" }[] = [];
+        try {
+          strandList = strandsSvc ? (await strandsSvc.active()).map((x) => ({ id: x.id, text: x.data.text, strength: x.data.strength })) : [];
+        } catch { /* a plan without attribution beats no plan */ }
+        return aiPlanDay(ai, picks, planEvents, s, e, {
+          work: { startMin: routineData.workStartMin, endMin: routineData.workEndMin },
+          energy,
+          gentle: sizing.light,
+          profile: contextToText(ctx),
+          strands: strandList,
+          background,
+        });
+      }
     : undefined;
   const minLabel = (m: number) => {
     const t = fmtTime(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
@@ -1613,8 +1661,10 @@ export default function TodayFlow({
     // UP-MIND-20 (2026-09-05): a block the user's Values protect is never
     // moved for them, whatever the level or the confidence, and the hold
     // leaves a receipt rather than a day that silently did not re-flow.
+    // See reflowHold above (BRAIN-F-05 class): the category has to resolve
+    // to its name before a Protect line can ever match it.
     const protectedMove = res.moves
-      .map((m) => ({ m, l: heldBy(valueLines, { action: "reflow", blockTitle: todayEvents.find((e) => e.id === m.eventId)?.data.title, category: todayEvents.find((e) => e.id === m.eventId)?.data.category }) }))
+      .map((m) => ({ m, l: reflowHold(valueLines, todayEvents.find((e) => e.id === m.eventId)) }))
       .find((x) => x.l);
     if (protectedMove?.l) { showToast({ message: heldLine(protectedMove.l) }); return; }
     const ok = await attemptWrite(async () => {
@@ -3172,6 +3222,7 @@ export default function TodayFlow({
         person={peopleList.find((p) => p.id === msgPerson.id)!}
         ai={ai}
         about={msgPerson.about}
+        voice={msgVoice}
         onClose={() => setMsgPerson(null)}
       />
     )}

@@ -969,6 +969,7 @@ export default function CategoryDetail({
           metricDefs={metricDefs}
           metricLogs={metricLogs}
           goals={goalsHere.map((g): HealthGoalRow => ({ id: g.id, title: g.title, tone: g.tone, body: g.line, status: g.status, bar: g.bar }))}
+          onOpenGoal={onOpenGoal}
           tasks={open}
           // A reminder's second line is its time; a task's is its parent.
           kickerOf={(t) => { const rem = t.data.reminder?.time; return t.data.reminder && rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null; }}

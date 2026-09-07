@@ -143,6 +143,22 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   // needs to say. The sheet owns no services and sends nothing; the user
   // taps Open in Messages and sends it themselves.
   const [textTo, setTextTo] = useState<{ person: Person; about: string } | null>(null);
+  // UP-MIND-01 class (2026-09-07): the sheet's OWN email path two lines
+  // above this (medium === "email") already gathers voice before drafting;
+  // the text path that opens MessageDraftSheet never did, so a text drafted
+  // from Chat sounded like nobody while the email drafted from the same
+  // command sounded like him.
+  const [textVoice, setTextVoice] = useState("");
+  useEffect(() => {
+    if (!textTo) { setTextVoice(""); return; }
+    let live = true;
+    void gather({ personId: textTo.person.id, personName: textTo.person.data.name })
+      .then((c) => voiceToText(c, { styleRule: false }))
+      .catch(() => "")
+      .then((v) => { if (live) setTextVoice(v); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textTo?.person.id]);
   // The email draft, shown in the bubble with an Open button. Never sent
   // from here, and never sent by anything this path touches.
   const [emailDraft, setEmailDraft] = useState<{ to: string; name: string; body: string } | null>(null);
@@ -800,6 +816,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
           person={textTo.person}
           ai={ai}
           {...(textTo.about ? { about: textTo.about } : {})}
+          voice={textVoice}
           onClose={() => setTextTo(null)}
         />
       )}

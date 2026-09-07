@@ -94,26 +94,46 @@ describe("a met gate reads as ready", () => {
 });
 
 describe("the count is met and the second condition is not: the reading Dave was missing", () => {
-  it("twelve completions spread across the day is not ready, and says so", () => {
-    // One an hour: real evidence, no band. The count alone would have read
-    // as ready, which is exactly the lie this panel exists to stop telling.
+  // NO PATTERN (2026-09-07): this case moved sides. Completions spread across
+  // the day used to be the panel's headline example of "the count is met and
+  // the second condition is not", and it was Dave's own row: 158 completions,
+  // amber, waiting for a shape that his life does not have. It is not waiting
+  // any more, because the absence is now a fact the detector can say, so the
+  // row reports a finding. The reading it used to give is still pinned below,
+  // on the two band detectors that have no absence twin.
+  it("workouts spread across the day are not ready, and say what is missing", () => {
     const rows = Array.from({ length: 24 }, (_, i) =>
-      row({ h: i, day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}` }));
-    const r = pick(readiness(rows, [], [], NOW), "completion_window");
+      row({ h: i, kind: "workout", day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}` }));
+    const r = pick(readiness(rows, [], [], NOW), "training_window");
     expect(r.have).toBe(24);
     expect(r.state).toBe("close");
     expect(r.detail).toContain("spread across the day");
     expect(r.detail).toContain("40");
   });
 
-  it("a slip leader that does not double the runner up says that, not 'not yet'", () => {
+  // NO PATTERN (2026-09-07): this case moved sides too, for the same reason
+  // the completion one above did. A gate met with no area in front is Dave's
+  // own row, and it is a finding now, not a wait. The "not yet" reading it
+  // used to give is still pinned, on the two states that really are waits:
+  // thin evidence (below), and a leader JARVIS cannot name (further down).
+  it("a slip leader that does not double the runner up is a finding, not a wait", () => {
     const rows = [
       ...many(6, { type: "task.pushed", category: "cat-admin" }),
       ...many(5, { type: "task.pushed", category: "cat-home" }),
     ];
     const r = pick(readiness(rows, [], [], NOW), "slip_category");
     expect(r.have).toBe(6);
-    expect(r.state).toBe("close");
+    expect(r.state).toBe("ready");
+    expect(r.detail).toContain("no area clear of the rest");
+  });
+
+  it("thin evidence still says what it is waiting for, ratio and all", () => {
+    const rows = [
+      ...many(3, { type: "task.pushed", category: "cat-admin" }),
+      ...many(2, { type: "task.pushed", category: "cat-home" }),
+    ];
+    const r = pick(readiness(rows, [], [], NOW), "slip_category");
+    expect(r.state).not.toBe("ready");
     expect(r.detail).toContain("2 times as often");
   });
 
@@ -273,5 +293,124 @@ describe("gone quiet", () => {
     expect(r.have).toBe(1);
     expect(r.state).not.toBe("ready");
     expect(r.detail).toContain("Nobody you labelled has been quiet");
+  });
+});
+
+// NO PATTERN IS A FACT (Dave, 2026-09-07). His row read
+//   When Tasks Get Done  158/10  AMBER  158 completions, spread across the day
+//                                       One 3-hour stretch has to hold 40 percent
+// forever, because his life has no band and never will have one on that
+// evidence. The detector can now say the absence, so the row has to stop
+// reporting a wait that is over.
+describe("no pattern: the row stops waiting once the absence is the answer", () => {
+  const flat = (n: number): WindowRow[] =>
+    Array.from({ length: n }, (_, i) => row({ h: i % 24, day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}` }));
+
+  it("completions with no band read ready, and the detail states the shape", () => {
+    const r = pick(readiness(flat(24), [], [], NOW), "completion_window");
+    expect(r.have).toBe(24);
+    expect(r.state).toBe("ready");
+    expect(r.detail).toContain("no 3-hour stretch in front");
+    // And it stops printing a gate it has already cleared.
+    expect(r.detail).not.toContain("has to hold");
+  });
+
+  it("below the count gate it is still waiting, because thin evidence is not a finding", () => {
+    const r = pick(readiness(flat(MIN_COMPLETIONS - 1), [], [], NOW), "completion_window");
+    expect(r.state).not.toBe("ready");
+    expect(r.detail).toContain("40");
+  });
+
+  it("stays ONE row: the absence never gets a row of its own", () => {
+    const keys = readiness(flat(24), [], [], NOW).map((r) => r.key);
+    expect(keys).not.toContain("completion_no_band");
+    expect(keys.filter((k) => k === "completion_window")).toHaveLength(1);
+  });
+
+  it("an accepted absence reads known on the question's own row", () => {
+    const r = pick(readiness(flat(24), [strand("completion_no_band")], [], NOW), "completion_window");
+    expect(r.state).toBe("known");
+    expect(r.detail).toContain("already knows");
+  });
+
+  it("an accepted band still reads known when the evidence has since flipped", () => {
+    // He holds "gets things done between 9 and midnight", his life spread
+    // out, and the absence is now what the detector would offer. The row is
+    // about the question, and he has answered it, so it is not a wait.
+    const r = pick(readiness(flat(24), [strand("completion_window")], [], NOW), "completion_window");
+    expect(r.state).toBe("known");
+  });
+
+  it("muting the band does not mute the absence, and the panel says so", () => {
+    // The nod test is per derivation: he corrected the BAND sentence twice.
+    // That is not a verdict on a sentence he has never been offered.
+    const rows = [
+      ...flat(24),
+      row({ type: "strand.deleted", kind: "completion_window" }),
+      row({ type: "strand.corrected", kind: "completion_window" }),
+    ];
+    expect(pick(readiness(rows, [], [], NOW), "completion_window").state).toBe("ready");
+  });
+
+  it("muting the absence mutes the row while the absence is what would speak", () => {
+    const rows = [
+      ...flat(24),
+      row({ type: "strand.deleted", kind: "completion_no_band" }),
+      row({ type: "strand.corrected", kind: "completion_no_band" }),
+    ];
+    const r = pick(readiness(rows, [], [], NOW), "completion_window");
+    expect(r.state).toBe("muted");
+    expect(r.detail).toContain("Corrected or deleted twice");
+  });
+});
+
+// THE SECOND ROW DAVE WAS MISSING. His panel read
+//   The Area That Slips  66/5  AMBER  66 pushes lead
+//                                     No area is pushed 2 times as often as the next
+// and would have read that forever, because his pushing is even. The absence
+// is a fact now, so the row reports one.
+describe("no pattern: the slip row stops waiting once the absence is the answer", () => {
+  const pushed = (cat: string, n: number, from = 1): WindowRow[] =>
+    Array.from({ length: n }, (_, i) => row({ type: "task.pushed", category: cat, h: 10, day: `2026-08-${String(from + (i % 20)).padStart(2, "0")}` }));
+
+  it("pushes with no area in front read ready, and the detail states the shape", () => {
+    const r = pick(readiness([...pushed("cat-admin", 15), ...pushed("cat-home", 14)], [], [], NOW), "slip_category");
+    expect(r.have).toBe(15);
+    expect(r.state).toBe("ready");
+    expect(r.detail).toContain("no area clear of the rest");
+    expect(r.detail).not.toContain("2 times as often");
+  });
+
+  it("below the count gate it is still waiting, because thin evidence is not a finding", () => {
+    const rows = [...pushed("cat-admin", MIN_SLIPS_LEADER - 1), ...pushed("cat-home", MIN_SLIPS_LEADER - 1)];
+    const r = pick(readiness(rows, [], [], NOW), "slip_category");
+    expect(r.state).not.toBe("ready");
+    expect(r.detail).toContain("2 times as often");
+  });
+
+  it("a leader JARVIS cannot name still reads as the unnameable area, not as an absence", () => {
+    // Both halves are silent there, and the row has to say WHICH silence it
+    // is: an even spread and a pattern with no name are different answers.
+    setCategoryRegistry([{ id: "cat-home", name: "Home", color: "green" }]);
+    const rows = [...pushed("3fa85f64-5717-4562-b3fc-2c963f66afa6", 12), ...pushed("cat-home", 3)];
+    const r = pick(readiness(rows, [], [], NOW), "slip_category");
+    expect(r.state).not.toBe("ready");
+    expect(r.detail).toContain("no longer name");
+  });
+
+  it("stays ONE row, and an accepted absence reads known on it", () => {
+    const rows = [...pushed("cat-admin", 15), ...pushed("cat-home", 14)];
+    expect(readiness(rows, [], [], NOW).map((r) => r.key)).not.toContain("slip_no_leader");
+    const r = pick(readiness(rows, [strand("slip_no_leader")], [], NOW), "slip_category");
+    expect(r.state).toBe("known");
+  });
+
+  it("muting the named-area sentence does not mute the absence", () => {
+    const rows = [
+      ...pushed("cat-admin", 15), ...pushed("cat-home", 14),
+      row({ type: "strand.deleted", kind: "slip_category" }),
+      row({ type: "strand.corrected", kind: "slip_category" }),
+    ];
+    expect(pick(readiness(rows, [], [], NOW), "slip_category").state).toBe("ready");
   });
 });

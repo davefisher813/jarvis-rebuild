@@ -2,13 +2,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useOptionalStrands, useTasks, useChat } from "../data/NotesProvider";
+import { NotesProvider, useOptionalStrands, useTasks, useChat, usePeople } from "../data/NotesProvider";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import ChatFlow, { recentTurns } from "./ChatFlow";
+import type { AIService } from "../ai/AIService";
 
 // jsdom has no scrollIntoView; ChatFlow's own autoscroll effect calls it on
 // every message, unrelated to what this file is testing.
 Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {});
+
+// UP-MIND-01 class (2026-09-07): the "text" branch of runDraft opens
+// MessageDraftSheet directly and never gathered a voice before this fix.
+// available: true is all that branch reads off ai; nothing else on this
+// path calls complete().
+vi.mock("../ai/useAI", () => ({ useAI: () => ({ available: true } as unknown as AIService) }));
+const draftProps: { voice?: string }[] = [];
+vi.mock("../people/MessageDraftSheet", () => ({
+  default: (props: { voice?: string }) => { draftProps.push(props); return null; },
+}));
 
 // S4-Q23 (2026-09-04): "Chat writes permanent facts with no undo." ChatFlow
 // had no test file at all before this one -- every capture typed into Chat
@@ -239,5 +250,29 @@ describe("UP-MIND-04: the AI path carries the conversation", () => {
     many.push(turn("user", "latest"));
     const out = recentTurns(many, "latest");
     expect(out.reduce((n, t) => n + t.content.length, 0)).toBeLessThan(8000);
+  });
+});
+
+// UP-MIND-01 class (2026-09-07): "draft a text to X" opens MessageDraftSheet
+// straight from ChatFlow, on a door of its own separate from the email
+// branch two lines up in runDraft (which already gathered voice). This one
+// never did, so a text drafted from Chat sounded like nobody.
+describe("ChatFlow: drafting a text gathers a real voice first (UP-MIND-01 class)", () => {
+  it("passes MessageDraftSheet a non-empty voice, not the missing prop it used to get", async () => {
+    draftProps.length = 0;
+    let peopleRef: ReturnType<typeof usePeople> | null = null;
+    function Grab() { peopleRef = usePeople(); return null; }
+    render(
+      <NotesProvider userId="chat-text-voice">
+        <Grab />
+        <ChatFlow />
+      </NotesProvider>,
+    );
+    await waitFor(() => expect(peopleRef).toBeTruthy());
+    await act(async () => { await peopleRef!.create({ name: "Nadia Brandt", group: "contacts", phone: "555-0101" }); });
+    sendText("draft a text to Nadia Brandt about the venue");
+    await waitFor(() => expect(screen.getByText("Drafting a text to Nadia Brandt")).toBeInTheDocument());
+    await waitFor(() => expect(draftProps.length).toBeGreaterThan(0));
+    await waitFor(() => expect(draftProps.at(-1)!.voice).toMatch(/^User: /));
   });
 });

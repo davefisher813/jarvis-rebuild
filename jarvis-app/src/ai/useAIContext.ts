@@ -3,10 +3,11 @@ import {
   useProfile, usePeople, useBrainDocs, useTasks, useSchedule, useCategories, useRoutine, useGoals, useProjects, useMoney,
   useOptionalProfile, useOptionalPeople, useOptionalBrainDocs, useOptionalTasks, useOptionalSchedule,
   useOptionalCategories, useOptionalRoutine, useOptionalGoals, useOptionalProjects, useOptionalMoney,
-  useOptionalStrands, useOptionalDecisions, useOptionalSeal, useOptionalMetrics, useOptionalGym,
+  useOptionalStrands, useOptionalDecisions, useOptionalSeal, useOptionalMetrics, useOptionalGym, useOptionalNotes,
 } from "../data/NotesProvider";
 import type { StrandsService } from "../brain/strands/StrandsService";
 import type { DecisionService } from "../decisions/DecisionService";
+import type { NotesService } from "../notes/NotesService";
 import type { SealService } from "../review/seal";
 import type { MetricsService } from "../gym/MetricsService";
 import type { GymService } from "../gym/GymService";
@@ -75,6 +76,11 @@ interface ContextServices {
   // above, for the same reason: no gym store means a thinner context, never
   // a broken one, and no gym history means no training lines at all.
   gym?: GymService | null;
+  // UP-MIND-23 class (2026-09-07): notes, the fourth thing this function's
+  // own comment below already promised ("plus decisions and notes it reads
+  // for exactly this") but never wired. Same seam: no notes store means no
+  // "Note: <title>" line in a scoped prompt, never a broken one.
+  notes?: NotesService | null;
 }
 
 // Session 5: the ONE assembler behind every AI feature. Routine, goals,
@@ -233,7 +239,7 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIC
     try {
       const [decisionRecords, noteItems] = await Promise.all([
         s.decisions ? s.decisions.list().catch(() => []) : Promise.resolve([]),
-        Promise.resolve([] as { title: string; connections?: { type: string; id: string }[] }[]),
+        s.notes ? s.notes.list().catch(() => []) : Promise.resolve([] as { title: string; connections?: { type: string; id: string }[] }[]),
       ]);
       const links = loadLinks();
       related = relatedLines(about, {
@@ -355,10 +361,11 @@ export function useAIContext(): (about?: ContextAbout) => Promise<AIContext> {
   const seal = useOptionalSeal();
   const metrics = useOptionalMetrics();
   const gym = useOptionalGym();
+  const notes = useOptionalNotes();
 
   return useCallback(
-    (about?: ContextAbout) => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym }, about),
-    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym],
+    (about?: ContextAbout) => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes }, about),
+    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes],
   );
 }
 
@@ -383,9 +390,10 @@ export function useOptionalAIContext(): (about?: ContextAbout) => Promise<AICont
   const seal = useOptionalSeal();
   const metrics = useOptionalMetrics();
   const gym = useOptionalGym();
+  const notes = useOptionalNotes();
 
   return useCallback(async (about?: ContextAbout) => {
     if (!profile || !people || !docs || !tasks || !schedule || !cats || !routine || !goals || !projects || !money) return null;
-    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym }, about);
-  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym]);
+    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes }, about);
+  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes]);
 }

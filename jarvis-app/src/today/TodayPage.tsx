@@ -22,6 +22,7 @@ import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap }
 import { capAfterNumber } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
 import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph } from "../shared/glyphs";
+import StepCount, { stepsOf } from "../shared/StepCount";
 import type { ParentLine } from "../life/parent";
 
 const localISODate = () => {
@@ -78,8 +79,10 @@ function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOp
   // TRACE-02 (2026-09-07): the checklist rollup, display only. Same numbers
   // the task sheet's own Checklist group prints (TaskSheet.tsx:329), read off
   // the record rather than recomputed anywhere else.
-  const steps = t.data.steps?.length ?? 0;
-  const stepsDone = (t.data.steps ?? []).filter((s) => s.done).length;
+  // TRACE-02b (2026-09-07): counted by the shared piece now, because the
+  // Tasks page needed the same slot and section 0 allows exactly one version
+  // of it. Today's own answer is unchanged.
+  const steps = stepsOf(t.data);
   // SAY IT ONCE. The reason line the dealt card owes (reasonFor) leads with
   // the due distance: "Due today", "Waiting 2 days". The kicker chip now says
   // exactly that, so when a chip renders, the reason's due-part is dropped
@@ -134,10 +137,8 @@ function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOp
           placeholder (4.11). */}
       {onStart && !done ? (
         <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(); }}>Start</button>
-      ) : steps > 0 ? (
-        <span className="tr-steps" aria-label={`Checklist ${stepsDone} of ${steps} done`}>
-          <b>{stepsDone}</b> of <b>{steps}</b>
-        </span>
+      ) : steps.total > 0 ? (
+        <StepCount {...steps} />
       ) : null}
     </div>
   );

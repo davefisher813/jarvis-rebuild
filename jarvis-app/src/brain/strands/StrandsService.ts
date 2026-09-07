@@ -1,7 +1,7 @@
 import type { Store, ItemData } from "@core";
 import type { EventInput } from "../../events";
 import {
-  ENTITY_STRAND, STRAND_CAP_TOTAL, STRAND_CAP_PER_CATEGORY, EVIDENCE_CAP,
+  ENTITY_STRAND, STRAND_CAP_TOTAL, STRAND_CAP_PER_CATEGORY, EVIDENCE_CAP, NO_PATTERN_TWIN,
   type Strand, type StrandData, type StrandCategory, type StrandEvidence, type StrandStrength, type DerivationKey,
 } from "./types";
 
@@ -24,7 +24,10 @@ import {
 // caller has to say something true about each and "null" could only ever
 // carry one message for two very different situations.
 export type AcceptResult =
-  | { outcome: "created"; id: string }    // new strand, JARVIS learned it
+  // new strand, JARVIS learned it. `replaced` when it took the place of the
+  // opposite answer to the same question (see the twin retirement below), so
+  // the caller can say that out loud instead of quietly losing a fact.
+  | { outcome: "created"; id: string; replaced?: true }
   | { outcome: "refreshed"; id: string }  // already knew; receipts brought up to date
   | { outcome: "full"; id?: undefined };  // genome or category at its cap
 
@@ -72,8 +75,26 @@ export class StrandsService {
       await this.refreshEvidence(existing, evidence, today);
       return { outcome: "refreshed", id: existing.id };
     }
-    if (all.length >= STRAND_CAP_TOTAL) return { outcome: "full" };
-    if (all.filter((s) => s.data.category === category).length >= STRAND_CAP_PER_CATEGORY) return { outcome: "full" };
+    // THE EVIDENCE FLIPPED (2026-09-07). A no-pattern fact and the fact it
+    // denies are two answers to one question (NO_PATTERN_TWIN in types.ts),
+    // so accepting one has to retire the other: a genome holding both
+    // "gets things done between 9 PM and midnight" AND "finishes things
+    // across the whole day" would ride every prompt as a contradiction.
+    //
+    // The twin is excluded from the caps below, because its slot is the slot
+    // being taken, and it is deleted AFTER the create, so a create that
+    // throws leaves the old fact standing rather than losing both.
+    //
+    // Deleted WITHOUT a strand.deleted event, which is the one thing to get
+    // right here. That event feeds the nod test (moments.ts), which reads a
+    // deletion as "this derivation was wrong about him". The twin was not
+    // wrong; his life changed. Emitting would mute a correct detector after
+    // two honest flips.
+    const twinKey = NO_PATTERN_TWIN[derivation];
+    const twin = twinKey ? all.find((s) => s.data.derivation === twinKey) ?? null : null;
+    const others = twin ? all.filter((s) => s.id !== twin.id) : all;
+    if (others.length >= STRAND_CAP_TOTAL) return { outcome: "full" };
+    if (others.filter((s) => s.data.category === category).length >= STRAND_CAP_PER_CATEGORY) return { outcome: "full" };
     const data: StrandData = {
       text: text.trim(),
       category,
@@ -87,6 +108,10 @@ export class StrandsService {
     };
     const id = await this.store.create(this.ownerId, ENTITY_STRAND, data as unknown as ItemData);
     this.emit?.({ type: "strand.created", entityType: ENTITY_STRAND, entityId: id, props: { kind: derivation, category } });
+    if (twin) {
+      await this.store.delete(this.ownerId, twin.id);
+      return { outcome: "created", id, replaced: true };
+    }
     return { outcome: "created", id };
   }
 

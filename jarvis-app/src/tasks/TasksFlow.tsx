@@ -26,7 +26,7 @@ import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFi
 import { useCategoryEstimates, useTaskEstimate } from "../schedule/useTaskEstimate";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
-import { identityToText } from "../ai/context";
+import { identityToText, voiceToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "./firstStep";
 import { rankOpen } from "../upnext/upnext";
 import { FIFTEEN } from "./rightNow";
@@ -98,6 +98,23 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     return () => { on = false; };
   }, [peopleSvc, peopleTick]);
   const [personSheet, setPersonSheet] = useState<{ kind: "call" | "text"; personId: string; about: string } | null>(null);
+  // UP-MIND-01 class (2026-09-07): the How You Write doc plus the
+  // Writing-bucket facts, same as every other place that opens
+  // MessageDraftSheet (PeopleFlow.tsx, DeckFlow.tsx). This one never gathered
+  // it, so a text drafted from a task sounded like nobody while the same
+  // reply drafted from People sounded like him.
+  const [msgVoice, setMsgVoice] = useState("");
+  useEffect(() => {
+    const person = personSheet?.kind === "text" ? people.find((p) => p.id === personSheet.personId) : undefined;
+    if (!person) { setMsgVoice(""); return; }
+    let live = true;
+    void gatherContext({ personId: person.id, personName: person.data.name })
+      .then((c) => (c ? voiceToText(c, { styleRule: false }) : ""))
+      .catch(() => "")
+      .then((v) => { if (live) setMsgVoice(v); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [personSheet?.kind, personSheet?.personId]);
   // UP-CORE-12 (2026-09-05): the syllabus door. A photographed syllabus is a
   // semester of work in one page, and the app could read a schedule photo and
   // a gym program while the shape that produces TASKS had no extractor.
@@ -936,6 +953,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
             person={people.find((p) => p.id === personSheet.personId)!}
             ai={ai}
             about={personSheet.about}
+            voice={msgVoice}
             onClose={() => setPersonSheet(null)}
           />
         )

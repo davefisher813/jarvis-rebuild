@@ -174,7 +174,7 @@ function deriveFixtureCompletions(): WindowRow[] {
 
 // THE BRAIN STOPS STARVING (build handoff item 1 and 3, built 2026-09-04).
 // Two new detectors under the gates the original four already use.
-import { deriveTrainingWindow, deriveEmailWindow, workoutDone, emailHandled, taskDone } from "./derive";
+import { deriveTrainingWindow, deriveEmailWindow, workoutDone, emailHandled, taskDone, completionBand } from "./derive";
 
 const taskDoneCount = (rows: WindowRow[]) => taskDone(rows).length;
 
@@ -243,5 +243,164 @@ describe("deriveAll carries the new detectors", () => {
     expect(keys).toContain("completion_window");
     expect(keys).toContain("training_window");
     expect(keys).toContain("email_window");
+  });
+});
+
+// NO PATTERN IS A FACT (Dave, 2026-09-07). 158 completions, no band, and
+// every AI prompt got nothing about when his work lands. These pin the
+// absence detector to the SAME evidence bar as the fact it answers for, and
+// pin the pair as mutually exclusive: exactly one of them can ever speak.
+import { deriveCompletionNoBand, bestBand, MIN_COMPLETIONS } from "./derive";
+
+// Dave's own shape, scaled down: completions on every hour of the clock, so
+// no 3-hour stretch comes near 40 percent of them.
+const flat = (n: number): WindowRow[] =>
+  Array.from({ length: n }, (_, i) => row({ h: i % 24, day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}` }));
+
+describe("no pattern: completions with no band", () => {
+  it("says nothing below the count gate, however flat the day", () => {
+    // The whole point of the count gate: "no pattern in nine completions" is
+    // not a finding, it is an empty month.
+    expect(deriveCompletionNoBand(flat(MIN_COMPLETIONS - 1))).toBeNull();
+  });
+
+  it("speaks at the same count gate its twin needs, and not one row earlier", () => {
+    expect(deriveCompletionNoBand(flat(MIN_COMPLETIONS - 1))).toBeNull();
+    expect(deriveCompletionNoBand(flat(MIN_COMPLETIONS))).not.toBeNull();
+  });
+
+  it("says the exact sentence that goes into the genome", () => {
+    const d = deriveCompletionNoBand(flat(24))!;
+    expect(d.derivation).toBe("completion_no_band");
+    expect(d.category).toBe("energy");
+    expect(d.title).toBe("Your tasks get done across the whole day");
+    // 24 completions, one per hour: the fullest 3-hour stretch holds 3.
+    expect(d.sub).toBe("3 Finishes in the fullest 3-hour stretch, out of your last 24");
+    expect(d.strandText).toBe("Finishes things across the whole day rather than in one stretch");
+  });
+
+  it("carries no receipts, because an absence has no day to point at", () => {
+    // deriveGoneQuiet already ships evidence: [] for the same reason. Six
+    // recent days under a fact that says nothing is banded would be either
+    // cherry-picked or misleading, and no receipt beats a misleading one.
+    expect(deriveCompletionNoBand(flat(24))!.evidence).toEqual([]);
+  });
+
+  it("stays quiet when there IS a band, so the positive fact speaks alone", () => {
+    const banded = [...done(12, 10), ...done(4, 20, 5)];
+    expect(deriveCompletionWindow(banded)).not.toBeNull();
+    expect(deriveCompletionNoBand(banded)).toBeNull();
+  });
+
+  it("a month of gym evenings is not a flat day of tasks", () => {
+    // taskDone drops kind "workout", so 30 sessions cannot carry this over
+    // its count gate any more than they can carry the positive twin over it.
+    const gym = Array.from({ length: 30 }, (_, i) => row({ h: 18, kind: "workout", day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}` }));
+    expect(deriveCompletionNoBand(gym)).toBeNull();
+  });
+
+  it("deriveAll offers one answer to the question, never both", () => {
+    const flatKeys = deriveAll(flat(24)).map((d) => d.derivation);
+    expect(flatKeys).toContain("completion_no_band");
+    expect(flatKeys).not.toContain("completion_window");
+    const bandedKeys = deriveAll([...done(12, 10), ...done(4, 20, 5)]).map((d) => d.derivation);
+    expect(bandedKeys).toContain("completion_window");
+    expect(bandedKeys).not.toContain("completion_no_band");
+  });
+});
+
+describe("bestBand: one definition of the fullest stretch", () => {
+  it("answers the same start and count completionBand does when a band exists", () => {
+    const rows = [...done(12, 10), ...done(4, 20, 5)];
+    expect(bestBand(taskDone(rows))).toEqual(completionBand(taskDone(rows)));
+  });
+
+  it("still answers when nothing dominates, which is what the absence reports", () => {
+    const rows = taskDone(flat(24));
+    expect(completionBand(rows)).toBeNull();
+    expect(bestBand(rows).count).toBe(3);
+  });
+});
+
+// The second half of the 2026-09-07 ruling. 66 pushes and no area in front,
+// so slip_category says nothing and the model is free to pick an area. The
+// true answer is that it is across the board.
+import { deriveSlipNoLeader, MIN_SLIPS_LEADER } from "./derive";
+
+const pushed = (cat: string, n: number, from = 1): WindowRow[] =>
+  Array.from({ length: n }, (_, i) => row({ type: "task.pushed", category: cat, day: `2026-08-${String(from + (i % 20)).padStart(2, "0")}` }));
+
+describe("no pattern: pushes with no area in front", () => {
+  beforeEach(() => {
+    setCategoryRegistry([
+      { id: "cat-admin", name: "Admin", color: "blue" },
+      { id: "cat-home", name: "Home", color: "green" },
+      { id: "cat-work", name: "Work", color: "red" },
+    ]);
+  });
+
+  it("says nothing below the count gate, however level the areas", () => {
+    const rows = [...pushed("cat-admin", MIN_SLIPS_LEADER - 1), ...pushed("cat-home", MIN_SLIPS_LEADER - 1)];
+    expect(deriveSlipNoLeader(rows)).toBeNull();
+  });
+
+  it("speaks at the same count gate its twin needs, and not one push earlier", () => {
+    const under = [...pushed("cat-admin", MIN_SLIPS_LEADER - 1), ...pushed("cat-home", MIN_SLIPS_LEADER - 1)];
+    const on = [...pushed("cat-admin", MIN_SLIPS_LEADER), ...pushed("cat-home", MIN_SLIPS_LEADER)];
+    expect(deriveSlipNoLeader(under)).toBeNull();
+    expect(deriveSlipNoLeader(on)).not.toBeNull();
+  });
+
+  it("says the exact sentence that goes into the genome", () => {
+    const d = deriveSlipNoLeader([...pushed("cat-admin", 15), ...pushed("cat-home", 14), ...pushed("cat-work", 13)])!;
+    expect(d.derivation).toBe("slip_no_leader");
+    expect(d.category).toBe("work_style");
+    expect(d.title).toBe("Tasks slip across every area, not one");
+    expect(d.sub).toBe("Pushed 15 times in the busiest area, 14 in the next");
+    expect(d.strandText).toBe("Tasks slip across every area, none more than the rest");
+    expect(d.evidence).toEqual([]);
+  });
+
+  it("names no area, so it survives a category nobody can name any more", () => {
+    // Its twin needs catName and goes silent without one. This one says
+    // nothing about any single area, so there is nothing to resolve, and
+    // naming one would contradict the fact it is stating.
+    setCategoryRegistry([]);
+    const rows = [...pushed("cat-admin", 8), ...pushed("cat-home", 7)];
+    expect(deriveSlipCategory(rows)).toBeNull();
+    const d = deriveSlipNoLeader(rows)!;
+    expect(d).not.toBeNull();
+    expect(d.title).not.toContain("cat-");
+    expect(d.strandText).not.toContain("cat-");
+  });
+
+  it("stays quiet when one area DOES lead, so the positive fact speaks alone", () => {
+    const leading = [...pushed("cat-admin", 12), ...pushed("cat-home", 3)];
+    expect(deriveSlipCategory(leading)).not.toBeNull();
+    expect(deriveSlipNoLeader(leading)).toBeNull();
+  });
+
+  it("stays quiet when a leader exists that JARVIS cannot name", () => {
+    // A pattern nobody can name is still a pattern. Saying "it is everywhere"
+    // over the top of it would be false, so both halves stay silent and the
+    // readiness row says why.
+    setCategoryRegistry([{ id: "cat-home", name: "Home", color: "green" }]);
+    const rows = [...pushed("3fa85f64-5717-4562-b3fc-2c963f66afa6", 12), ...pushed("cat-home", 3)];
+    expect(deriveSlipCategory(rows)).toBeNull();
+    expect(deriveSlipNoLeader(rows)).toBeNull();
+  });
+
+  it("a single area over the gate is a leader, never an absence", () => {
+    expect(deriveSlipNoLeader(pushed("cat-admin", 9))).toBeNull();
+    expect(deriveSlipCategory(pushed("cat-admin", 9))).not.toBeNull();
+  });
+
+  it("deriveAll offers one answer to the question, never both", () => {
+    const level = deriveAll([...pushed("cat-admin", 15), ...pushed("cat-home", 14)]).map((d) => d.derivation);
+    expect(level).toContain("slip_no_leader");
+    expect(level).not.toContain("slip_category");
+    const leading = deriveAll([...pushed("cat-admin", 12), ...pushed("cat-home", 3)]).map((d) => d.derivation);
+    expect(leading).toContain("slip_category");
+    expect(leading).not.toContain("slip_no_leader");
   });
 });

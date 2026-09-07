@@ -5,16 +5,43 @@
 // skeleton with no card and no retry until another tab was visited. The
 // page now renders with what it has and the toast carries the retry.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { useEffect, useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider } from "../data/NotesProvider";
+import { NotesProvider, usePeople, useTasks } from "../data/NotesProvider";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { ScheduleService } from "../schedule/ScheduleService";
+import { setCategoryRegistry } from "../shared/categories";
+import { heldBy } from "../brain/hardLines";
+import { todayISO } from "../schedule/calendar";
+import type { AIService } from "../ai/AIService";
 import TodayFlow from "./TodayFlow";
 
 const showToast = vi.fn();
 vi.mock("../shared/toast", () => ({ showToast: (...a: unknown[]) => showToast(...a), hideToast: () => {} }));
+
+// UP-MIND-01 class (2026-09-07): the birthday row's own "Text" door opens
+// MessageDraftSheet without ever gathering voice, same bug as the Tasks and
+// Chat doors fixed alongside it.
+const draftProps: { voice?: string }[] = [];
+vi.mock("../people/MessageDraftSheet", () => ({
+  default: (props: { voice?: string }) => { draftProps.push(props); return null; },
+}));
+
+// UP-MIND-23 class (2026-09-07): onAIPlan below.
+vi.mock("../ai/useAI", () => ({ useAI: () => ({ available: true } as unknown as AIService) }));
+const aiPlanOpts: { profile?: string; strands?: unknown[] }[] = [];
+vi.mock("../schedule/planDayAI", async () => {
+  const actual = await vi.importActual<typeof import("../schedule/planDayAI")>("../schedule/planDayAI");
+  return {
+    ...actual,
+    aiPlanDay: (...args: unknown[]) => {
+      aiPlanOpts.push(args[5] as { profile?: string; strands?: unknown[] });
+      return Promise.resolve({ items: [], leanedOn: [] });
+    },
+  };
+});
 
 Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {});
 
@@ -137,5 +164,125 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     const chain = screen.getByText(/Keep going/).closest(".notice-swipe")!;
     fireEvent.click(chain.querySelector(".notice-dismiss")!);
     await waitFor(() => expect(screen.queryByText(/Keep going/)).toBeNull());
+  });
+});
+
+// BRAIN-F-05 class (2026-09-07): the day re-flow's Values guard compared a
+// hard line's typed word against the moved block's raw category id, so a
+// Protect line on a real area ("School", "Gym") never once held a move: the
+// id it was checking could not spell what the user typed. Same bug shape as
+// the two prompt leaks fixed the same week (planDayAI.ts, review/seal.ts),
+// here on the automatic re-flow path instead of a prompt.
+describe("TodayFlow: a Protect line matches the area's name, not its id (BRAIN-F-05 class)", () => {
+  afterEach(() => setCategoryRegistry([]));
+
+  it("holds a move once the category resolves to the name the user typed", async () => {
+    const { reflowHold } = await import("./TodayFlow");
+    // A real category id: uuid-shaped, and nothing like the word it names,
+    // the same fixture shape planDayAI.test.ts and seal.test.ts landed on
+    // after a first attempt ("c-school") accidentally still spelled "school".
+    const id = "0f8fad5b-d9cb-469f-a165-70867728950e";
+    setCategoryRegistry([{ id, name: "School", color: "blue" }]);
+    const line = { kind: "protect" as const, match: "School" };
+    const event = { data: { title: "Pickup", category: id } };
+
+    // BEFORE the fix this call passed the raw id as `category`, which is
+    // exactly what a direct heldBy call still does here: no match.
+    const beforeFix = heldBy([line], { action: "reflow", blockTitle: event.data.title, category: event.data.category });
+    expect(beforeFix).toBeNull();
+
+    // AFTER: reflowHold resolves the id to "School" first, so the line the
+    // user actually typed holds the move.
+    const afterFix = reflowHold([line], event);
+    expect(afterFix).toEqual(line);
+  });
+
+  it("still returns null for a category with no hard line on it", async () => {
+    const { reflowHold } = await import("./TodayFlow");
+    const workId = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+    setCategoryRegistry([{ id: workId, name: "Work", color: "orange" }]);
+    const line = { kind: "protect" as const, match: "School" };
+    expect(reflowHold([line], { data: { title: "Standup", category: workId } })).toBeNull();
+  });
+
+  it("a deleted category (unresolvable id) never falls back to matching the raw id", async () => {
+    const { reflowHold } = await import("./TodayFlow");
+    const line = { kind: "protect" as const, match: "0f8fad5b-d9cb-469f-a165-70867728950e" };
+    expect(reflowHold([line], { data: { title: "Gone", category: "0f8fad5b-d9cb-469f-a165-70867728950e" } })).toBeNull();
+  });
+});
+
+// UP-MIND-01 class (2026-09-07): the birthday card's "Text" button, the
+// third of three MessageDraftSheet doors missing voice (Tasks and Chat are
+// the other two, fixed the same commit set).
+describe("TodayFlow: the birthday card's Text door gathers a real voice (UP-MIND-01 class)", () => {
+  function SeededBirthday() {
+    const people = usePeople();
+    const [ready, setReady] = useState(false);
+    useEffect(() => {
+      (async () => {
+        // Local calendar day, not toISOString (reads UTC and would land on
+        // the wrong day near midnight in some zones - the exact class of
+        // bug todayISO in ai/useAIContext.ts exists to avoid).
+        const now = new Date();
+        const mmdd = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        await people.create({ name: "Priya Shah", group: "contacts", phone: "555-0102", birthday: mmdd });
+        setReady(true);
+      })();
+    }, [people]);
+    return ready ? (
+      <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+        <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+      </GoogleSessionProvider>
+    ) : null;
+  }
+
+  it("passes MessageDraftSheet a non-empty voice", async () => {
+    draftProps.length = 0;
+    render(<NotesProvider userId="today-birthday-voice"><SeededBirthday /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Priya Shah")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Text" }));
+    await waitFor(() => expect(draftProps.length).toBeGreaterThan(0));
+    // BEFORE the fix this prop was simply never passed. AFTER, it resolves
+    // to at least the identity line every real context carries.
+    await waitFor(() => expect(draftProps.at(-1)!.voice).toMatch(/^User: /));
+  });
+});
+
+// UP-MIND-23 class (2026-09-07): ScheduleFlow's Plan My Day has passed
+// `profile` (the assembled context, as text) and attributed `strands` to
+// aiPlanDay since item 04's attribution work landed. Today's own copy of
+// the same call never picked up either option, so a plan built from Today
+// reasoned from routine hours and energy alone - the model could never cite
+// a fact or a pattern the way a Schedule-built plan already can.
+describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND-23 class)", () => {
+  function SeededPlanTask() {
+    const tasks = useTasks();
+    const [ready, setReady] = useState(false);
+    useEffect(() => {
+      (async () => {
+        await tasks.createTask("Draft the proposal", { due: todayISO() });
+        setReady(true);
+      })();
+    }, [tasks]);
+    return ready ? (
+      <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+        <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+      </GoogleSessionProvider>
+    ) : null;
+  }
+
+  it("passes a real profile and a strands array, not the options Schedule alone used to get", async () => {
+    aiPlanOpts.length = 0;
+    render(<NotesProvider userId="today-planday-brain"><SeededPlanTask /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Draft the proposal")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Plan My Day/ }));
+    await waitFor(() => expect(aiPlanOpts.length).toBeGreaterThan(0));
+    const opts = aiPlanOpts[0]!;
+    // BEFORE the fix, this options object had no `profile` key at all and
+    // `strands` was never sent (undefined, not even an empty array).
+    expect(typeof opts.profile).toBe("string");
+    expect(opts.profile).toContain("User:");
+    expect(Array.isArray(opts.strands)).toBe(true);
   });
 });

@@ -44,6 +44,34 @@ describe("NotesService note linking", () => {
   });
 });
 
+// UP-MIND-23 class (2026-09-07): brain/related.ts has expected a `notes` list
+// shaped like this (title + connections{type,id}) since it shipped, ready to
+// say "Note: <title>" for anything linked to the person or project a scoped
+// prompt is about. Nothing called it - useAIContext.ts hardcoded an empty
+// array instead - so this is what that caller can finally read.
+describe("NotesService.list (UP-MIND-23 class)", () => {
+  it("renames kind/targetId to the type/id shape relatedLines reads", async () => {
+    const svc = new NotesService(new Store(new InMemoryAdapter()), "u-list");
+    const id = (await svc.createNote("Kickoff notes", "work"))!;
+    await svc.addConnection(id, "project", "Website Redesign", "prj_1");
+    const list = await svc.list();
+    expect(list).toEqual([{ title: "Kickoff notes", connections: [{ type: "project", id: "prj_1" }] }]);
+  });
+
+  it("drops connections with no targetId rather than passing an undefined id along", async () => {
+    const svc = new NotesService(new Store(new InMemoryAdapter()), "u-list2");
+    const id = (await svc.createNote("Loose thought", ""))!;
+    await svc.addConnection(id, "category", "Health");
+    expect(await svc.list()).toEqual([{ title: "Loose thought", connections: [] }]);
+  });
+
+  it("an untitled note still lists, matching every other reader's fallback", async () => {
+    const svc = new NotesService(new Store(new InMemoryAdapter()), "u-list3");
+    await svc.createNote("Untitled", "");
+    expect(await svc.list()).toEqual([{ title: "Untitled", connections: [] }]);
+  });
+});
+
 // UP-CORE-16 (2026-09-05): meeting notes produce action items one at a time,
 // and the only way out of the note was the bulk screen, which promotes the
 // whole list. One line, promoted where it sits, with the same rules

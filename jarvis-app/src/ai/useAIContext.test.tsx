@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { NotesProvider, useDecisions, useStrands, useProfile } from "../data/NotesProvider";
+import { NotesProvider, useDecisions, useStrands, useProfile, useNotes, usePeople } from "../data/NotesProvider";
 import { useAIContext, useOptionalAIContext, todayISO } from "./useAIContext";
 
 // Brain Personalization Phase 3. Both hooks funnel through one gatherFrom, so
@@ -143,6 +143,42 @@ describe("useOptionalAIContext: cashFlow follows the same gate as the Money tab 
     await waitFor(async () => {
       const ctx = await result.current();
       expect(ctx?.cashLine).toBeFalsy();
+    });
+  });
+});
+
+// UP-MIND-23 class (2026-09-07): a scoped prompt has said "Already decided:
+// <x>" for a linked decision since B5; the identical line for a linked NOTE
+// never appeared, because this hook fed relatedLines a hardcoded [] instead
+// of ever calling NotesService.list(). This proves the wire end to end: a
+// note connected to a person now surfaces as "Note: <title>" the moment the
+// prompt is scoped to that person, the same way the decision above does.
+describe("useOptionalAIContext carries a linked note (UP-MIND-23 class)", () => {
+  it('folds a note connected to the person into "Note: <title>"', async () => {
+    function Seed({ onDone }: { onDone: (personId: string) => void }) {
+      const notes = useNotes();
+      const people = usePeople();
+      void (async () => {
+        const personId = (await people.create({ name: "Nadia Brandt", group: "contacts" }))!;
+        const noteId = (await notes.createNote("Venue options", "work"))!;
+        await notes.addConnection(noteId, "person", "Nadia Brandt", personId);
+        onDone(personId);
+      })();
+      return null;
+    }
+    let personId = "";
+    const { result } = renderHook(() => useOptionalAIContext(), {
+      wrapper: ({ children }) => (
+        <NotesProvider userId="u-linked-note">
+          <Seed onDone={(id) => { personId = id; }} />
+          {children}
+        </NotesProvider>
+      ),
+    });
+    await waitFor(() => expect(personId).not.toBe(""));
+    await waitFor(async () => {
+      const ctx = await result.current({ personId, personName: "Nadia Brandt" });
+      expect(ctx?.related).toContain("Note: Venue options");
     });
   });
 });

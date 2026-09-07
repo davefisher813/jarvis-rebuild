@@ -43,10 +43,58 @@ export type StrandStatus = "active" | "paused";
 //                    the cached last-contact lookup the person card already
 //                    runs, not the event log: a person who has gone quiet
 //                    has no rows in a 30-day window by definition.
+//
+// NO PATTERN IS A FACT (Dave, 2026-09-07). Two of these detectors can now
+// answer their question in the other direction, and the absence gets its own
+// key:
+//
+//   completion_no_band  158 completions and no 3-hour stretch holding 40
+//                       percent of them. Every AI prompt used to get nothing
+//                       here, so the model was free to assume there is a best
+//                       time to put hard work. There is not, and saying so
+//                       stops the guess.
+//   slip_no_leader      66 pushes and no area in front. "Which area slips" is
+//                       a question the model will otherwise answer by picking
+//                       one, so this stops a false attribution rather than
+//                       adding one.
+//
+// Only these two. training_window and email_window have the same band shape
+// and the absence of a band there changes nothing any consumer does; plan_rate
+// already speaks in both directions. A no-pattern fact earns its key by
+// changing what JARVIS does, not by describing the user back at himself.
 export type DerivationKey =
   | "completion_window" | "slip_category" | "plan_rate" | "task_timing"
   | "training_window" | "email_window"
-  | "people_rhythm" | "gone_quiet";
+  | "people_rhythm" | "gone_quiet"
+  | "completion_no_band" | "slip_no_leader";
+
+// THE TWO ANSWERS TO ONE QUESTION, and why they are two keys rather than one.
+//
+// Sharing a key with the positive twin would make the pair impossible to
+// contradict: accepting either would suppress the other forever
+// (moments.ts filters on the derivation a strand already holds). That reads
+// as safe and is not. A shared key also shares the nod test, so deleting
+// "finishes across the whole day" twice would mute the BAND detector, and a
+// correction of one sentence would be counted against a different one. The
+// nod test measures whether a sentence is right; these are different
+// sentences making opposite claims, so they need separate records.
+//
+// The cost of separate keys is the contradiction: both facts sitting in the
+// genome at once, riding every prompt. That is closed here rather than left
+// to luck. deriveAll can only ever emit ONE half of a pair (each detector
+// returns null when its twin speaks), so the two can never be OFFERED
+// together; and StrandsService.accept retires the twin's strand when the
+// other half is accepted, so they can never be HELD together either. The
+// window in which a genome holds both is zero wide.
+//
+// Read by: StrandsService (the retirement), brain/readiness.ts (one panel row
+// per question, not two), and the law that pins both.
+export const NO_PATTERN_TWIN: Partial<Record<DerivationKey, DerivationKey>> = {
+  completion_window: "completion_no_band",
+  completion_no_band: "completion_window",
+  slip_category: "slip_no_leader",
+  slip_no_leader: "slip_category",
+};
 
 // One receipt. Meaning of a/b depends on the derivation and is decided by the
 // renderer: completion_window a=hour; slip_category a=count;

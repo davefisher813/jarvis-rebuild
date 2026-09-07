@@ -37,7 +37,10 @@ export function urgencyFor(task: TaskData, today: string): Urgency | null {
   const diff = Math.round((atMidnight(task.due).getTime() - atMidnight(today).getTime()) / DAY);
   // Dailies never go overdue (roadmap v2): a missed recurring task is just
   // there today. The streak already paused; the red tag would be shame.
-  if (diff < 0 && task.recurrence) return { label: "TODAY", kind: "today" };
+  // BUG (2026-09-07): this read `task.recurrence` (truthy for weekly and
+  // monthly too), so a weekly task 40 days late still showed TODAY instead
+  // of OVERDUE. The comment always said "dailies" - the code now does too.
+  if (diff < 0 && task.recurrence === "daily") return { label: "TODAY", kind: "today" };
   if (diff < 0) return { label: "OVERDUE", kind: "overdue" };
   if (diff === 0) return { label: "TODAY", kind: "today" };
   const dt = atMidnight(task.due);
@@ -67,7 +70,11 @@ export function distanceFor(task: TaskData, today: string): Distance | null {
   if (task.done || !task.due) return null;
   const diff = Math.round((atMidnight(today).getTime() - atMidnight(task.due).getTime()) / DAY);
   if (diff < 0) return null;
-  if (diff === 0 || task.recurrence) return { label: "TODAY", kind: "today" };
+  // BUG (2026-09-07): same fix as urgencyFor above - this read `task.recurrence`
+  // (truthy for weekly and monthly too), so a weekly task 40 days late
+  // printed "TODAY" forever instead of climbing the same ladder every other
+  // late task climbs.
+  if (diff === 0 || task.recurrence === "daily") return { label: "TODAY", kind: "today" };
   if (diff === 1) return { label: "1 DAY LATE", kind: "late" };
   if (diff < 7) return { label: `${diff} DAYS LATE`, kind: "late" };
   if (diff < 30) {

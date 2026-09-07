@@ -509,6 +509,28 @@ export class NotesService {
     return this.store.listForUser(this.ownerId, ENTITY_TASK);
   }
 
+  // UP-MIND-23 class (2026-09-07): brain/related.ts has taken a `notes` list
+  // shaped like this since the day it shipped (title + connections, the same
+  // shape decisions.list() already returns for its own kind), so a scoped AI
+  // context could say "Note: <title>" the same way it says "Already decided:
+  // <x>". Nothing ever called it: useAIContext.ts passed a hardcoded []
+  // instead, so a note connected to the person or project being written
+  // about never once reached the prompt. Connection.kind/targetId are
+  // renamed here to relatedLines' type/id - the two modules picked different
+  // words for the same idea before either could see the other's shape.
+  async list(): Promise<{ title: string; connections?: { type: string; id: string }[] }[]> {
+    const items = await this.store.listForUser(this.ownerId, ENTITY_NOTE);
+    return items.map((it) => {
+      const d = it.data as unknown as NoteData;
+      return {
+        title: d.title || "Untitled",
+        connections: (d.connections ?? [])
+          .filter((c) => !!c.targetId)
+          .map((c) => ({ type: c.kind, id: c.targetId! })),
+      };
+    });
+  }
+
   // offline controls pass through to the engine store
   goOffline() {
     this.store.goOffline();

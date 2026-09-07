@@ -80,14 +80,25 @@ function partOfDay(h: number): string {
  *  or nothing dominates. One definition, two readers, no drift. */
 export function completionBand(done: WindowRow[]): { start: number; count: number } | null {
   if (done.length < MIN_COMPLETIONS) return null;
+  const b = bestBand(done);
+  if (b.count / done.length < MIN_BAND_SHARE) return null;
+  return b;
+}
+
+/** The FULLEST 3-hour stretch and its count, with no gate on it at all: ties
+ *  break to the earliest start, exactly as they always have. Split out
+ *  2026-09-07 so completionBand keeps one definition of "the fullest stretch"
+ *  and the no-pattern twin can report the same number without re-implementing
+ *  the scan. On an empty list it answers midnight and zero, which no caller
+ *  reaches: both callers gate on MIN_COMPLETIONS first. */
+export function bestBand(done: WindowRow[]): { start: number; count: number } {
   let best = 0;
   let bestCount = -1;
   for (let start = 0; start <= 21; start++) {
     const count = done.filter((r) => r.h >= start && r.h < start + 3).length;
     if (count > bestCount) { bestCount = count; best = start; }
   }
-  if (bestCount / done.length < MIN_BAND_SHARE) return null;
-  return { start: best, count: bestCount };
+  return { start: best, count: Math.max(0, bestCount) };
 }
 
 /** Task completions only: GymService emits task.completed with kind
@@ -116,6 +127,50 @@ export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
     sub: capAfterNumber(`${bestCount} finishes there, out of your last ${done.length}`),
     strandText: `Gets things done between ${from} and ${to} ${partOfDay(best)}`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: best })),
+  };
+}
+
+// 1b. The same question, answered the other way: enough completions to be
+// sure, and no stretch of the day that holds them.
+//
+// NO PATTERN IS A FACT (Dave, 2026-09-07: a detector may say "no pattern",
+// but only where the absence changes what JARVIS does). This one qualifies.
+// He has 158 completions in 30 days and no band, so completion_window says
+// nothing, and every AI prompt has therefore carried NOTHING about when his
+// work lands. A model given nothing assumes there is a best time to put the
+// hard thing and plans toward it. "Finishes things across the whole day
+// rather than in one stretch" is the fact that stops that guess.
+//
+// The gate is the SAME count gate as the positive twin, deliberately: below
+// MIN_COMPLETIONS this stays silent, because "no pattern in three
+// completions" is not a finding, it is an empty month.
+//
+// NO RECEIPTS, on purpose. Every other watched strand carries per-day
+// evidence, and the honest answer here is that a per-day receipt of a
+// whole-window absence is either cherry-picked (the six widest days) or
+// misleading (six recent days that happen to look banded, sitting under a
+// fact that says nothing is). deriveGoneQuiet already ships evidence: [] for
+// the same reason, an absence has no rows to show. The checkable number is
+// the sub, which the card shows at the moment of the tap.
+export function deriveCompletionNoBand(rows: WindowRow[]): Derived | null {
+  const done = taskDone(rows);
+  if (done.length < MIN_COMPLETIONS) return null;
+  // There IS a stretch that holds the month: the positive twin speaks and
+  // this one has nothing to add. Exactly one of the pair can ever fire.
+  if (completionBand(done)) return null;
+  const band = bestBand(done);
+  return {
+    derivation: "completion_no_band",
+    category: "energy",
+    title: "Your tasks get done across the whole day",
+    // The shape, never the volume: "158 completions" as a headline is a
+    // score, and a life is not scored here. The pair of numbers says the
+    // fullest stretch of his day still holds well under half of it, which is
+    // the whole finding, and it is the same sentence shape the positive twin
+    // uses ("12 Finishes there, out of your last 16").
+    sub: capAfterNumber(`${band.count} finishes in the fullest 3-hour stretch, out of your last ${done.length}`),
+    strandText: "Finishes things across the whole day rather than in one stretch",
+    evidence: [],
   };
 }
 
@@ -171,6 +226,45 @@ export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
     sub: capAfterNumber(`Pushed ${n} times in 30 days, the most of any category`),
     strandText: `${name} tasks tend to slip and need extra room`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: 1 })),
+  };
+}
+
+// 2b. The same question, answered the other way: enough pushes to be sure,
+// and no area that leads them.
+//
+// NO PATTERN IS A FACT (Dave, 2026-09-07). He has 66 pushes in 30 days and no
+// area in front, so slip_category says nothing. "Which area slips" is then a
+// question the model answers by picking one, and the true answer is that none
+// of them does: it is across the board. So this stops a false attribution
+// rather than adding one, which is why it qualified and the two other band
+// detectors did not.
+//
+// Three things it deliberately does NOT do. It names no area, because naming
+// one would contradict the fact; it therefore needs no catName and no
+// registry, unlike its twin, and survives a deleted category. It does not
+// lead with the total, because "66 pushes" as a headline is a verdict, and
+// the fact is the shape: the busiest area against the next one. And it stays
+// silent when there IS a leader JARVIS simply cannot name (slipLeader answers,
+// deriveSlipCategory does not), because a pattern nobody can name is still a
+// pattern, and saying "it is everywhere" over the top of it would be false.
+//
+// No receipts, for the same reason deriveCompletionNoBand carries none: the
+// evidence is the comparison on the card, and there is no honest per-day row
+// to show for an absence.
+export function deriveSlipNoLeader(rows: WindowRow[]): Derived | null {
+  const ranked = slipCounts(rows);
+  const top = ranked[0];
+  // The same count gate its twin needs, on the same number: the busiest area.
+  if (!top || top.n < MIN_SLIPS_LEADER) return null;
+  if (slipLeader(rows)) return null;
+  const next = ranked[1]?.n ?? 0;
+  return {
+    derivation: "slip_no_leader",
+    category: "work_style",
+    title: "Tasks slip across every area, not one",
+    sub: capAfterNumber(`Pushed ${top.n} times in the busiest area, ${next} in the next`),
+    strandText: "Tasks slip across every area, none more than the rest",
+    evidence: [],
   };
 }
 
@@ -382,7 +476,12 @@ export function deriveGoneQuiet(people: DerivePerson[], nowMs: number): Derived 
 export function deriveAll(rows: WindowRow[], people: DerivePerson[] = [], nowMs = Date.now()): Derived[] {
   return [
     deriveCompletionWindow(rows),
+    // NO PATTERN (2026-09-07): the absence twin sits next to the fact it
+    // answers for, and the pair is mutually exclusive by construction, so at
+    // most one of these two is ever in the list.
+    deriveCompletionNoBand(rows),
     deriveSlipCategory(rows),
+    deriveSlipNoLeader(rows),
     derivePlanRate(rows),
     deriveTrainingWindow(rows),
     deriveEmailWindow(rows),

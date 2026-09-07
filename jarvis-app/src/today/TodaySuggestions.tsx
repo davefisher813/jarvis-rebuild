@@ -297,8 +297,15 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     // on an id, so "you already told me this" and "the Brain is full" both
     // came out as "The Brain is full", which was a lie in the common case.
     let outcome: string | null = null;
+    // NO PATTERN (2026-09-07): accepting one answer to a question retires the
+    // opposite answer, when he was holding it (StrandsService.accept). A fact
+    // leaving his genome is not something to do behind his back, so the tap
+    // that caused it says so.
+    let replaced = false;
     const ok = await attemptWrite(async () => {
-      outcome = (await strandsSvc.accept(m.strandText, m.category, m.derivation, m.evidence, today)).outcome;
+      const r = await strandsSvc.accept(m.strandText, m.category, m.derivation, m.evidence, today);
+      outcome = r.outcome;
+      replaced = r.outcome === "created" && r.replaced === true;
     });
     const landed: string | null = outcome;
     if (!ok || !landed) return false;
@@ -311,7 +318,8 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     }
     haptics.success();
     showToast({
-      message: landed === "created" ? "JARVIS will remember that"
+      message: landed === "created"
+        ? (replaced ? "JARVIS will remember that · It replaced what it thought before" : "JARVIS will remember that")
         : landed === "refreshed" ? "JARVIS already knew · Receipts updated"
           : "The Brain is full · Prune it in What JARVIS Knows",
     });
@@ -430,6 +438,11 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         tone="cat-fg-yellow"
         title={pattern.text}
         sub={pattern.sub}
+        /* THE EVIDENCE IS NOT OPTIONAL ON AN OFFER (2026-09-07). See the note
+           on the moment cards below: this card asks him to accept a claim, so
+           the claim and the count behind it both have to survive. */
+        uniform={false}
+        stack
         action={{ label: pattern.stale ? "Still True" : pattern.routineBlock ? "Add to Routine" : "Remember This", onClick: () => void acceptPattern() }}
         onDismiss={dismissThis}
       />
@@ -503,6 +516,27 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
           tone="cat-fg-yellow"
           title={m.title}
           sub={m.sub}
+          /* THE EVIDENCE IS NOT OPTIONAL ON AN OFFER (2026-09-07).
+             Measured at 390x844: "Remember This" is 139px of a 326px row, so a
+             derived sentence takes both of a uniform card's lines and the
+             shredded-sub law then DROPS the sub rather than shredding it. That
+             law is right everywhere else and wrong here, because the sub is
+             not decoration on this card, it is the receipt: "21 Finishes in
+             the fullest 3-hour stretch, out of your last 158" is the whole
+             reason to believe the sentence above it. Asking somebody to
+             accept a claim about themselves forever, with the evidence
+             silently removed, is the one case where a fixed height costs more
+             than it buys.
+             Opting out is the escape hatch Dave already ruled for mail
+             (NoticeCard's own note, 2026-08-25 "mail stays"), for the same
+             reason: content this card cannot promise will fit. And the
+             uniform ruling was about the TODAY STREAM looking like three
+             different components; this component renders only on What JARVIS
+             Knows (pinned by laws.test.ts:1551), in a list of at most three
+             cards that are all the same kind, so nothing here is being made
+             uneven against a neighbour of another sort. */
+          uniform={false}
+          stack
           action={{ label: "Remember This", onClick: () => void acceptMoment(m) }}
           onDismiss={() => dismissMoment(m)}
         />

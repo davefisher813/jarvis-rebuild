@@ -9,9 +9,13 @@ import { readiness } from "../brain/readiness";
 import {
   MIN_COMPLETIONS, MIN_SLIPS_LEADER, MIN_PLAN_PICKS, MIN_PERSON_HANDLED,
   deriveAll, deriveCompletionWindow, deriveSlipCategory, derivePlanRate,
+  deriveCompletionNoBand, deriveSlipNoLeader, SLIP_LEAD_RATIO,
 } from "../brain/derive";
+import { NO_PATTERN_TWIN, type DerivationKey } from "../brain/strands/types";
 import { planningPatternObservation } from "../today/planningPatterns";
 import { setCategoryRegistry } from "../shared/categories";
+import { stepsOf, hasUnfinishedSteps } from "../shared/StepCount";
+import type { TaskData } from "../notes/types";
 import type { WindowRow } from "../brain/window";
 
 // THE LAWS, AS TESTS.
@@ -5038,14 +5042,32 @@ describe("LAW: the readiness panel reports the gates the Brain enforces (2026-09
   });
 
   it("every detector in deriveAll has a row, so none of them can fail invisibly", () => {
-    // deriveAll's own list, read out of the source: a ninth detector added
-    // there without a readiness row would be a detector that goes quiet with
-    // no way to ask why, which is the exact state this panel ended.
+    // deriveAll's own list, read out of the source: a detector added there
+    // without a readiness row would be a detector that goes quiet with no way
+    // to ask why, which is the exact state this panel ended.
+    //
+    // NO PATTERN (2026-09-07): a no-pattern twin is NOT a detector of its own
+    // on this panel. It is the other answer to a question that already has a
+    // row, and bandRow/slipRow report it there, so the pairs are discounted
+    // from the count rather than each demanding a second row. The check still
+    // bites exactly as hard: a genuinely new detector is not in the twin map,
+    // so it raises the required row count by one and fails without a row.
     const block = DERIVE.slice(DERIVE.indexOf("export function deriveAll"));
     const called = [...block.matchAll(/derive([A-Z]\w+)\(/g)].map((m) => m[1]!).filter((n) => n !== "All");
     expect(called.length, "deriveAll stopped listing its detectors").toBeGreaterThanOrEqual(7);
+    const pairs = Object.keys(NO_PATTERN_TWIN).length / 2;
     const keys = new Set(readiness([], [], [], NOW).map((r) => r.key));
-    expect(keys.size).toBeGreaterThanOrEqual(called.length + 1); // the seven plus task_timing
+    expect(keys.size).toBeGreaterThanOrEqual(called.length - pairs + 1); // the detectors, less their twins, plus task_timing
+  });
+
+  it("the twin map is a set of pairs, and every pair hangs off a row that exists", () => {
+    // The map is what lets a no-pattern fact share a row, retire its opposite
+    // and read as known. A one-way entry would break all three quietly.
+    const keys = new Set(readiness([], [], [], NOW).map((r) => r.key));
+    for (const [a, b] of Object.entries(NO_PATTERN_TWIN) as [DerivationKey, DerivationKey][]) {
+      expect(NO_PATTERN_TWIN[b], a + " points at " + b + ", which does not point back").toBe(a);
+      expect(keys.has(a) || keys.has(b), "neither half of " + a + "/" + b + " has a panel row").toBe(true);
+    }
   });
 
   it("the instrument is actually rendered, not just computed", () => {
@@ -5064,6 +5086,118 @@ describe("LAW: the readiness panel reports the gates the Brain enforces (2026-09
     // And when the day's pass has never recorded a day, it says so rather
     // than leaving that fourth failure indistinguishable from the others.
     expect(panel).toContain("readConsolidation");
+  });
+});
+
+// NO PATTERN IS A FACT, AND IT COSTS THE SAME EVIDENCE (2026-09-07).
+//
+// Dave ruled that a detector may say "no pattern" as a fact, but only where
+// the absence changes what JARVIS does. The danger in that ruling is obvious
+// the moment it is granted: an absence is the easiest thing in the world to
+// find. Every detector in this app is silent on a fresh account, and a
+// no-pattern fact built without a floor would turn every one of those
+// silences into a sentence about the user on day one, written from nothing.
+//
+// So the floor is the twin's own floor. A no-pattern derivation speaks only
+// where the fact it denies would have had enough evidence to speak, and it
+// stays quiet everywhere else. "No pattern in three completions" is not a
+// finding, it is an empty month.
+describe("LAW: a no-pattern fact needs the same evidence as the fact it denies (2026-09-07)", () => {
+  const flat = (n: number, over: Partial<WindowRow> = {}): WindowRow[] =>
+    Array.from({ length: n }, (_, i) => ({
+      type: "task.completed", day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}`,
+      h: i % 24, category: null, n: null, flag: null, kind: null, ...over,
+    }));
+
+  it("the completion absence is silent one row below its twin's gate and speaks on it", () => {
+    expect(deriveCompletionNoBand(flat(MIN_COMPLETIONS - 1)), "spoke from thin evidence").toBeNull();
+    expect(deriveCompletionNoBand(flat(MIN_COMPLETIONS)), "stayed silent on evidence its twin would speak from").not.toBeNull();
+  });
+
+  it("the slip absence is silent one push below its twin's gate and speaks on it", () => {
+    setCategoryRegistry([{ id: "cat-admin", name: "Admin", color: "blue" }, { id: "cat-home", name: "Home", color: "green" }]);
+    const level = (n: number): WindowRow[] => [
+      ...flat(n, { type: "task.pushed", category: "cat-admin" }),
+      ...flat(n, { type: "task.pushed", category: "cat-home" }),
+    ];
+    expect(deriveSlipNoLeader(level(MIN_SLIPS_LEADER - 1)), "spoke from thin evidence").toBeNull();
+    expect(deriveSlipNoLeader(level(MIN_SLIPS_LEADER)), "stayed silent on evidence its twin would speak from").not.toBeNull();
+  });
+
+  it("an absence never speaks over a pattern that exists, even an unnameable one", () => {
+    // The other way a no-pattern fact could lie: a real leader is in front
+    // and JARVIS just cannot put a name to it. Saying "it is everywhere"
+    // there would be false, so both halves stay silent.
+    setCategoryRegistry([{ id: "cat-home", name: "Home", color: "green" }]);
+    const rows = [
+      ...flat(MIN_SLIPS_LEADER * SLIP_LEAD_RATIO + 2, { type: "task.pushed", category: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }),
+      ...flat(2, { type: "task.pushed", category: "cat-home" }),
+    ];
+    expect(deriveSlipCategory(rows)).toBeNull();
+    expect(deriveSlipNoLeader(rows)).toBeNull();
+  });
+
+  it("an empty account produces no no-pattern fact at all", () => {
+    // The failure this law exists to prevent, stated as a case: nothing
+    // watched, nothing to say, and nothing written into the genome.
+    expect(deriveAll([]).map((d) => d.derivation)).toEqual([]);
+  });
+
+  it("a pair never speaks together, in either direction", () => {
+    // One question, one answer. Both at once would put a contradiction in
+    // front of him, and if he took both, into every AI prompt he ever sends.
+    const spread = deriveAll(flat(24)).map((d) => d.derivation);
+    expect(spread).toContain("completion_no_band");
+    expect(spread).not.toContain("completion_window");
+    const banded = deriveAll(flat(24, { h: 10 })).map((d) => d.derivation);
+    expect(banded).toContain("completion_window");
+    expect(banded).not.toContain("completion_no_band");
+    setCategoryRegistry([{ id: "cat-admin", name: "Admin", color: "blue" }, { id: "cat-home", name: "Home", color: "green" }]);
+    const even = deriveAll([
+      ...flat(9, { type: "task.pushed", category: "cat-admin" }),
+      ...flat(8, { type: "task.pushed", category: "cat-home" }),
+    ]).map((d) => d.derivation);
+    expect(even).toContain("slip_no_leader");
+    expect(even).not.toContain("slip_category");
+    const leading = deriveAll([
+      ...flat(12, { type: "task.pushed", category: "cat-admin" }),
+      ...flat(2, { type: "task.pushed", category: "cat-home" }),
+    ]).map((d) => d.derivation);
+    expect(leading).toContain("slip_category");
+    expect(leading).not.toContain("slip_no_leader");
+  });
+
+  it("every no-pattern key in the twin map is reachable from deriveAll", () => {
+    // A key in the map that nothing emits would be dead machinery holding a
+    // retirement rule over a fact that can never be offered.
+    const DERIVE = read(join(SRC, "brain/derive.ts"));
+    const block = DERIVE.slice(DERIVE.indexOf("export function deriveAll"));
+    for (const k of Object.keys(NO_PATTERN_TWIN)) {
+      expect(DERIVE, k + " is in the twin map but no detector produces it").toContain('derivation: "' + k + '"');
+      const fn = [...DERIVE.matchAll(/export function (derive\w+)\(/g)].map((m) => m[1]!);
+      expect(fn.some((n) => block.includes(n + "(")), "deriveAll stopped calling a detector").toBe(true);
+    }
+  });
+
+  it("a no-pattern fact states what is, and never tells him what to do", () => {
+    // Facts, never prescriptions. The absence is the easiest place in this
+    // codebase to slip into advice, because "there is no best time" is one
+    // word away from "so stop trying to time-block".
+    const advice = /\b(you should|try to|consider|make sure|stop |start )\b/i;
+    setCategoryRegistry([{ id: "cat-admin", name: "Admin", color: "blue" }, { id: "cat-home", name: "Home", color: "green" }]);
+    const spoken = [
+      ...deriveAll(flat(24)),
+      ...deriveAll([
+        ...flat(9, { type: "task.pushed", category: "cat-admin" }),
+        ...flat(8, { type: "task.pushed", category: "cat-home" }),
+      ]),
+    ];
+    expect(spoken.map((d) => d.derivation)).toContain("slip_no_leader");
+    for (const d of spoken) {
+      expect(d.title, d.derivation + " title advises").not.toMatch(advice);
+      expect(d.sub, d.derivation + " sub advises").not.toMatch(advice);
+      expect(d.strandText, d.derivation + " strand advises").not.toMatch(advice);
+    }
   });
 });
 
@@ -5466,5 +5600,163 @@ describe("an AI failure's reason renders whole (TRACE-04, 2026-09-07)", () => {
     const body = rule![1]!;
     expect(body).toMatch(/white-space:\s*normal/);
     expect(body).not.toMatch(/line-clamp|text-overflow:\s*ellipsis|white-space:\s*nowrap/);
+  });
+});
+
+// THE RIGHT SLOT HOLDS ONE THING, AND A TASK UNDERWAY SAYS WHICH ONE
+// (TRACE-02b, 2026-09-07).
+//
+// Dave, the day after TRACE-02 gave Today's rows a step count: "there is no
+// trace of events or steps (for tasks) anywhere in the app." He lives on
+// Life > Tasks, and that row answered Start on every open task, because
+// onStart is passed there unconditionally (TasksPage.tsx:740). A task
+// carrying a five item checklist rendered byte-identical to a task carrying
+// nothing.
+//
+// Ruled: a task with an unfinished checklist shows its count instead of
+// Start. "2 of 5" is a task he has already begun and Start offers to begin
+// it; where he is in the list is the more useful fact, and the move he wants
+// is the row tap, which did not change. That reads contract 4.1 literally
+// rather than bending it ("a step count, used only where no action applies"):
+// for a task underway, the Start action does not apply.
+//
+// Measured in chromium at 390x844 against the built app, on Life > Tasks with
+// the checklist seeded through the task sheet. Before, every open row:
+// BUTTON.pill-act "Start", 61.98px wide, rgb(255,43,60), 13px/700, row 59.80.
+// After, the part-done row: SPAN.tr-steps "2 of 5", 40.14px, rgba(235,235,245,
+// 0.82), 12.5px/600, tabular-nums, row 59.80 unchanged. The fully ticked row
+// and the row with no checklist kept "Start" to the pixel.
+//
+// Two things can break this later and both are held here: something putting a
+// second child in the slot (lint rule 7), and something restoring Start over
+// an unfinished checklist.
+describe("a task underway shows its count, not Start, and the slot stays one child (TRACE-02b, 2026-09-07)", () => {
+  const PAGE = read(join(SRC, "tasks/screens/TasksPage.tsx"));
+
+  // The right slot's whole expression, read by balancing braces rather than
+  // by a regex: the chain runs to five lines and carries JSX with its own
+  // braces in every arm.
+  const slot = (() => {
+    const at = PAGE.indexOf("{selecting ? null :");
+    let depth = 0;
+    for (let i = at; i >= 0 && i < PAGE.length; i++) {
+      if (PAGE[i] === "{") depth++;
+      else if (PAGE[i] === "}" && --depth === 0) return PAGE.slice(at, i + 1);
+    }
+    return "";
+  })();
+
+  it("the slot's chain is where the row keeps it", () => {
+    expect(slot, "the right slot is one expression on the task row").toBeTruthy();
+  });
+
+  it("an unfinished checklist is what earns the slot, and a finished one hands it back", () => {
+    // The predicate the row branches on, exercised rather than read. A fully
+    // ticked list is not underway: the sheet makes the same turn at the same
+    // moment, dropping the item talk for Close Task (TaskSheet.tsx:359).
+    const list = (done: number, total: number) =>
+      ({ steps: Array.from({ length: total }, (_, i) => ({ text: "item " + i, done: i < done })) }) as TaskData;
+    expect(hasUnfinishedSteps(stepsOf(list(0, 0))), "no checklist: Start").toBe(false);
+    expect(hasUnfinishedSteps(stepsOf(list(0, 5))), "nothing ticked yet: the count").toBe(true);
+    expect(hasUnfinishedSteps(stepsOf(list(2, 5))), "part done: the count").toBe(true);
+    expect(hasUnfinishedSteps(stepsOf(list(5, 5))), "every item done: Start returns").toBe(false);
+    expect(stepsOf(list(2, 5))).toEqual({ done: 2, total: 5 });
+    // No checklist field at all is the same answer as an empty one.
+    expect(hasUnfinishedSteps(stepsOf({} as TaskData))).toBe(false);
+  });
+
+  it("the precedence is caller's pill, then the count, then Start, then the date", () => {
+    // A caller-supplied pill (Do It, Drop) is that surface's standing action
+    // and still wins; only the generic Start gives way.
+    const order = ["action.onClick", "hasUnfinishedSteps(steps)", "onStart(item.id)", "URGENCY_CLASS"];
+    let last = -1;
+    for (const mark of order) {
+      const at = slot.indexOf(mark);
+      expect(at, mark + " is in the slot's chain").toBeGreaterThan(-1);
+      expect(at, mark + " comes after " + (order[order.indexOf(mark) - 1] ?? "the top")).toBeGreaterThan(last);
+      last = at;
+    }
+    // A done row says nothing in this slot, the count included.
+    expect(slot).toMatch(/!shownDone && hasUnfinishedSteps\(steps\)/);
+  });
+
+  it("every arm of the chain renders exactly one element", () => {
+    // Lint rule 7, right-slot arity: fail if a task row's right slot has more
+    // than one child. Four arms, four elements, no wrapper and no list.
+    const opens = slot.match(/<[A-Za-z]/g) ?? [];
+    expect(opens.length, "one element per arm").toBe(4);
+    expect(slot, "no fragment smuggling a second child in").not.toMatch(/<>|<React\.Fragment/);
+    expect(slot, "and nothing mapped into it").not.toMatch(/\.map\(/);
+  });
+
+  it("the count has one definition and both surfaces use it", () => {
+    // Section 0: no screen defines its own version of a shared component.
+    // The markup lives in shared/StepCount and nowhere else, so Today and
+    // Tasks cannot drift apart on the treatment ruled in section 5.
+    const handRolled = COMPONENTS
+      .filter((f) => !f.endsWith("shared/StepCount.tsx"))
+      .filter((f) => /className="tr-steps"/.test(read(f)))
+      .map(rel);
+    expect(handRolled).toEqual([]);
+    for (const f of ["tasks/screens/TasksPage.tsx", "today/TodayPage.tsx"]) {
+      expect(read(join(SRC, f)), rel(join(SRC, f)) + " uses the shared count")
+        .toMatch(/from "[./]*shared\/StepCount"/);
+    }
+  });
+});
+
+// A CARD THAT ASKS YOU TO ACCEPT A FACT SHOWS THE FACT AND ITS RECEIPT
+// (2026-09-07, measured off the shipped build at 390x844).
+//
+// The offer card is the only door into the genome: JARVIS proposes, and the
+// tap on Remember This is what writes a sentence that then rides every AI
+// prompt for good. Twice in two days that card destroyed the thing it was
+// asking about. First the shredded-sub latch DROPPED the evidence line
+// entirely, so the claim stood with no receipt. Turning the uniform height
+// off put the line back and the right slot's capsule then took 139px of a
+// 326px row, leaving 133px, and both halves came out as
+// "You train between 5 P..." over "14 Sessions there, out of yo...".
+//
+// So the words get the width and the verb goes underneath. This law is not
+// about a pixel: it is that a person is never asked to agree to a claim about
+// himself with the claim or its evidence cut in half.
+describe("an offer card never clips the claim or its receipt (2026-09-07)", () => {
+  const CARD = read(join(SRC, "today/NoticeCard.tsx"));
+  const SUGG = read(join(SRC, "today/TodaySuggestions.tsx"));
+
+  it("both cards that ask him to remember something stack, and neither is clamped", () => {
+    // Two mounts carry an accept: the pattern/routine offer and the day's
+    // extra moments. Both must opt out of the uniform clamp AND stack, since
+    // either alone leaves one of the two lines shredded.
+    const offers = SUGG.split("<NoticeCard").filter((b) => /Remember This|Still True|Add to Routine/.test(b));
+    expect(offers.length, "expected the two accept mounts").toBeGreaterThanOrEqual(2);
+    for (const o of offers) {
+      expect(o, "an offer card must not wear the uniform clamp").toMatch(/uniform=\{false\}/);
+      expect(o, "an offer card puts its verb under the words").toMatch(/\bstack\b/);
+    }
+  });
+
+  it("stacking moves the action out of the right slot, it does not add a second one", () => {
+    // Contract lint rule 7 is the right slot's arity. A stacked card must
+    // render the capsule below INSTEAD of beside, never as well as.
+    expect(CARD).toMatch(/action && !stack \?/);
+    expect(CARD).toMatch(/action && stack &&/);
+  });
+
+  it("a stacked card unclamps both lines", () => {
+    const CSS_ = read(join(SRC, "styles/components.css"));
+    const rule = /\.notice-card-stack \.conn-name,\s*\.notice-card-stack \.conn-meta \{([^}]*)\}/.exec(CSS_);
+    expect(rule, "the stacked card needs its own unclamp").toBeTruthy();
+    expect(rule![1]).toMatch(/-webkit-line-clamp:\s*none/);
+    expect(rule![1]).toMatch(/white-space:\s*normal/);
+  });
+
+  it("the stacked capsule still meets the tap minimum", () => {
+    const CSS_ = read(join(SRC, "styles/components.css"));
+    expect(CSS_).toMatch(/\.notice-stack \.pill-act \{[^{}]*min-height:\s*var\(--tap-min\)/);
+  });
+
+  it("no other notice moved: stack is off unless a producer asks", () => {
+    expect(CARD).toMatch(/stack = false/);
   });
 });
