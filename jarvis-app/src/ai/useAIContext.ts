@@ -272,7 +272,18 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIC
       flagged: x.data.flagged,
     })),
     categories: cs.map((c) => ({ name: c.data.name })),
-    tasks: tk.map((t) => ({ text: t.data.text, done: t.data.done, category: t.data.category })),
+    // TRACE-03 (2026-09-07): the checklist rollup, counted here so the item
+    // text never enters the assembler at all. Omitted on a task with no
+    // checklist rather than sent as a zero.
+    tasks: tk.map((t) => {
+      const steps = t.data.steps ?? [];
+      return {
+        text: t.data.text,
+        done: t.data.done,
+        category: t.data.category,
+        ...(steps.length > 0 ? { steps: { done: steps.filter((s) => s.done).length, total: steps.length } } : {}),
+      };
+    }),
     events: ev.map((e) => ({ title: e.data.title, start: e.data.start })),
     voice,
     values,

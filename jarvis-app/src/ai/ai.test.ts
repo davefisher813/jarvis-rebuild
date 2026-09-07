@@ -277,3 +277,43 @@ describe("read-back: decisions, sealed months, and strand order", () => {
     expect(assembleContext({}).writingFacts).toEqual([]);
   });
 });
+
+// TRACE-03 (2026-09-07). Dave: "there is no trace of events or steps (for
+// tasks) anywhere in the app." The deepest half of that was here: a task
+// reached the model as three fields, so the checklist he wrote was invisible
+// to the thing meant to be helping him with it. A count travels, never the
+// item text.
+describe("a task's checklist reaches the model as a count (TRACE-03)", () => {
+  const withList = assembleContext({
+    name: "Alex",
+    tasks: [{ text: "Redo the kitchen", done: false, steps: { done: 3, total: 5 } }],
+  });
+  const without = assembleContext({ name: "Alex", tasks: [{ text: "Redo the kitchen", done: false }] });
+
+  it("the open task line carries the rollup", () => {
+    expect(withList.openTasks).toEqual(["Redo the kitchen (checklist 3 of 5 done)"]);
+    expect(contextToText(withList)).toContain("Open tasks: Redo the kitchen (checklist 3 of 5 done)");
+  });
+
+  it("a task with no checklist is byte-identical to before", () => {
+    expect(without.openTasks).toEqual(["Redo the kitchen"]);
+    expect(contextToText(without)).toBe("User: Alex (personal template)\nOpen tasks: Redo the kitchen");
+  });
+
+  // The count is a FACT about the record, never an instruction about it
+  // (house rule: JARVIS states what is, it does not advise). And an empty
+  // checklist is no checklist: no zeros where there is nothing.
+  it("says nothing at all when the checklist is empty", () => {
+    const empty = assembleContext({ name: "Alex", tasks: [{ text: "Redo the kitchen", done: false, steps: { done: 0, total: 0 } }] });
+    expect(empty.openTasks).toEqual(["Redo the kitchen"]);
+  });
+
+  // The two narrower renderings have different consumers and neither one
+  // sends the open task list. Pinned so this change cannot leak into a
+  // drafting prompt later.
+  it("the drafting and deciding prompts are untouched", () => {
+    expect(voiceToText(withList)).toBe(voiceToText(without));
+    expect(identityToText(withList)).toBe(identityToText(without));
+    expect(identityToText(withList)).not.toContain("checklist");
+  });
+});

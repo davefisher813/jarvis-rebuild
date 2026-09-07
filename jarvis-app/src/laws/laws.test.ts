@@ -5405,3 +5405,32 @@ describe("a block made from a task links back to it (TRACE-01, 2026-09-07)", () 
     expect(seen).toBeGreaterThanOrEqual(5);
   });
 });
+
+// A CHECKLIST REACHES THE MODEL AS A COUNT, NEVER AS ITS WORDS (TRACE-03,
+// 2026-09-07).
+//
+// Until this the AI context typed a task as { text, done, category }, so
+// JARVIS was never told a checklist existed at all: ask it to plan the day
+// and it did not know five items were written on a task and three were done.
+// The fix sends "3 of 5". The reason it sends only that is the reason this is
+// a law and not a comment: the item text is free text about his life, this
+// path already discriminates carefully about what leaves the device, and the
+// shape of the input is what makes the leak impossible rather than merely
+// unlikely. The rollup is counted at the gather (useAIContext), so the words
+// never enter the assembler at all.
+describe("the AI context carries a checklist as a count (TRACE-03, 2026-09-07)", () => {
+  it("the context input takes a count pair, not the items", () => {
+    const src = read(join(SRC, "ai/context.ts"));
+    expect(src).toMatch(/steps\?: \{ done: number; total: number \}/);
+    // No path from an ITEM's own words into a prompt line. `t.text` on the
+    // rollup line is the TASK's name, which has always travelled; what must
+    // never appear is a step being read, mapped or joined for its words.
+    expect(src).not.toMatch(/steps[^\n]*(\.map\(|\.join\(|\bs\.text\b)/);
+  });
+
+  it("the gather counts and hands over nothing else", () => {
+    const src = read(join(SRC, "ai/useAIContext.ts"));
+    expect(src).toMatch(/steps: \{ done: steps\.filter\(\(s\) => s\.done\)\.length, total: steps\.length \}/);
+    expect(src).not.toMatch(/steps\.map\(/);
+  });
+});

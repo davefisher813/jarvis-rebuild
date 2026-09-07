@@ -12,7 +12,16 @@ export interface AIContextInput {
   // register = how JARVIS writes to them (casual | professional | unset).
   peopleDetail?: { name: string; label?: string; register?: string; flagged?: boolean }[];
   categories?: { name: string }[];
-  tasks?: { text: string; done: boolean; category?: string }[];
+  // TRACE-03 (2026-09-07, Dave: "there is no trace of events or steps (for
+  // tasks) anywhere in the app"). A task shaped as three fields is a task
+  // with no checklist, so ask JARVIS about a task, or to plan the day, or to
+  // break something down, and the model did not know five items were already
+  // written on it and three of them done. The ROLLUP travels, never the item
+  // text: this path discriminates carefully about what leaves the device and
+  // the items are free text about his life, and five item texts per task
+  // would flood a prompt that already carries every open task. "3 of 5" is
+  // the fact; the words stay home.
+  tasks?: { text: string; done: boolean; category?: string; steps?: { done: number; total: number } }[];
   events?: { title: string; start: string }[];
   voice?: string;
   values?: string;
@@ -154,7 +163,13 @@ export function assembleContext(input: AIContextInput): AIContext {
     people: input.people ?? [],
     peopleDetail: input.peopleDetail,
     categories: (input.categories ?? []).map((c) => c.name),
-    openTasks: (input.tasks ?? []).filter((t) => !t.done).map((t) => t.text),
+    // TRACE-03: the checklist rides the task's own line, in the same
+    // parenthetical shape the goals line already uses, and only when there is
+    // one. A task with no checklist reads exactly as it did before, which is
+    // what keeps every existing prompt byte-identical.
+    openTasks: (input.tasks ?? []).filter((t) => !t.done).map((t) => (
+      t.steps && t.steps.total > 0 ? `${t.text} (checklist ${t.steps.done} of ${t.steps.total} done)` : t.text
+    )),
     events: (input.events ?? []).map((e) => ({ title: e.title, start: e.start })),
     voice: input.voice?.trim() ?? "",
     values: input.values?.trim() ?? "",
