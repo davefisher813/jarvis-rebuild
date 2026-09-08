@@ -13,7 +13,7 @@ import type { MetricsService } from "../gym/MetricsService";
 import type { GymService } from "../gym/GymService";
 import { trainingLines } from "../gym/trainingContext";
 import { readGymSettings, rackFrom } from "../gym/settings";
-import { protectedRangesFor } from "../routine/types";
+import { protectedRangesFor, DEFAULT_ROUTINE } from "../routine/types";
 import { occursOn } from "../schedule/calendar";
 import { sealLines } from "../review/seal";
 import { rankForRecall } from "../brain/recall";
@@ -94,20 +94,30 @@ export type ContextAbout = Anchor;
 
 async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIContext> {
   const today = todayISO();
+  // BRAIN-F-12 class (2026-09-05): every OPTIONAL read below this point is
+  // wrapped ("thinner context, never a broken one"). These thirteen were not,
+  // although every one of them is exactly the same kind of failure -- a
+  // dropped connection, a server hiccup -- and each has an honest empty
+  // shape to fall back to. One rejection here used to reject the whole
+  // function, which means Plan My Day (both copies: this file backs
+  // TodayFlow's and ScheduleFlow's onAIPlan) went dead with no error, no
+  // toast, nothing: the tap just did nothing. Individual .catch() per read
+  // so a single flaky store costs that one section of the prompt, not the
+  // prompt.
   const [p, ppl, tk, cs, ev, voice, values, philosophy, rt, gl, pj, mn, habits] = await Promise.all([
-    s.profile.get(),
-    s.people.list(),
-    s.tasks.listTasks(),
-    s.cats.list(),
-    s.schedule.eventsOn(today),
-    s.docs.get("writing"),
-    s.docs.get("values"),
-    s.docs.get("philosophy"),
-    s.routine.get(),
-    s.goals.list(),
-    s.projects.list(),
-    s.money.list(),
-    s.docs.get("habits"),
+    s.profile.get().catch(() => null),
+    s.people.list().catch(() => []),
+    s.tasks.listTasks().catch(() => []),
+    s.cats.list().catch(() => []),
+    s.schedule.eventsOn(today).catch(() => []),
+    s.docs.get("writing").catch(() => ""),
+    s.docs.get("values").catch(() => ""),
+    s.docs.get("philosophy").catch(() => ""),
+    s.routine.get().catch(() => ({ ...DEFAULT_ROUTINE })),
+    s.goals.list().catch(() => []),
+    s.projects.list().catch(() => []),
+    s.money.list().catch(() => []),
+    s.docs.get("habits").catch(() => ""),
   ]);
   // What JARVIS knows (Brain Layer 2 bridge): active strands, one line each.
   // Best-effort; a strand read failure must never cost the user their prompt.

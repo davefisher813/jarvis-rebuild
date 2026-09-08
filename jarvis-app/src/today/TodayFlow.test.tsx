@@ -276,6 +276,18 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
     aiPlanOpts.length = 0;
     render(<NotesProvider userId="today-planday-brain"><SeededPlanTask /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Draft the proposal")).toBeInTheDocument());
+    // THE DAY LOOP (item 14) drafts today the instant loading finishes,
+    // which has already happened by the line above -- so a standing draft
+    // for today exists before this test ever opens the sheet. PlanDaySheet
+    // seeds from that draft on purpose (merge phase 1: "the card already
+    // showed him a plan; re-plan must not silently renumber it"), and a
+    // sheet seeded from a draft stands its AI refine down -- also on
+    // purpose, per its own comment. Dismissing the card first, the same tap
+    // a real person has ("Not Today"), is what actually reaches the
+    // AI-refine path this test means to prove; opening the sheet against a
+    // live draft proves nothing here, because the refine is SUPPOSED to
+    // stand down in that case.
+    fireEvent.click(screen.getByRole("button", { name: "Not Today" }));
     fireEvent.click(screen.getByRole("button", { name: /Plan My Day/ }));
     await waitFor(() => expect(aiPlanOpts.length).toBeGreaterThan(0));
     const opts = aiPlanOpts[0]!;
