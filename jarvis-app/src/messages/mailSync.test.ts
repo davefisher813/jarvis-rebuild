@@ -5,6 +5,7 @@ import { loadRules, saveRule } from "./rules";
 import { loadMuted, mute } from "./mute";
 import { loadLetGo, letGo } from "./letGo";
 import { loadLinks, linkThread } from "./threadLink";
+import { setAtDesk, loadDesk } from "./desk";
 
 // S2-5: "Everything JARVIS learns about your mail is device-only." These
 // four stores are real localStorage, real per-device -- the whole point of
@@ -18,28 +19,33 @@ function fakeStorage() {
 }
 
 describe("mailSnapshot", () => {
-  // EMAIL-F-19 (2026-09-05): five stores now. Project links were the one
-  // thing JARVIS learned about his mail that never left the device, so a
-  // thread filed on the phone was unfiled everywhere else.
-  it("is exactly what the five stores hold, nothing more", () => {
+  // EMAIL-F-19 (2026-09-05): project links were the one thing JARVIS learned
+  // about his mail that never left the device, so a thread filed on the phone
+  // was unfiled everywhere else.
+  // UP-MIND-09 (2026-09-08): six now. The desk store MUST cross devices or
+  // the feature is a lie: the whole promise is that a thread set aside on the
+  // phone is sitting on the laptop when he gets there.
+  it("is exactly what the six stores hold, nothing more", () => {
     const storage = fakeStorage();
     toggleVip("ridgeley@x.com", storage);
     saveRule("promo@x.com", "noise", storage);
     mute("t1", storage);
     letGo("t2", storage);
     linkThread("t3", { type: "project", id: "p1", label: "Ridgeley", subject: "The waiver" }, storage);
+    setAtDesk("t4", () => Date.parse("2026-09-08T10:00:00Z"), storage);
     expect(mailSnapshot(storage)).toEqual({
       vips: ["ridgeley@x.com"],
       rules: { "promo@x.com": "noise" },
       muted: ["t1"],
       letGo: ["t2"],
       links: { t3: { type: "project", id: "p1", label: "Ridgeley", subject: "The waiver" } },
+      desk: { t4: "2026-09-08T10:00:00.000Z" },
     });
   });
 
   it("empty stores snapshot to empty, not missing", () => {
     const storage = fakeStorage();
-    expect(mailSnapshot(storage)).toEqual({ vips: [], rules: {}, muted: [], letGo: [], links: {} });
+    expect(mailSnapshot(storage)).toEqual({ vips: [], rules: {}, muted: [], letGo: [], links: {}, desk: {} });
   });
 });
 
@@ -121,5 +127,34 @@ describe("hydrateMailFromProfile", () => {
     const grown = hydrateMailFromProfile({ vips: many }, storage);
     expect(grown.vips).toHaveLength(VIP_MAX);
     expect(loadVips(storage)).toHaveLength(VIP_MAX);
+  });
+});
+
+// UP-MIND-09: the desk store hydrates like the keyed ones. A thread set aside
+// on the phone has to BE set aside on the laptop; that is the entire feature.
+describe("hydrateMailFromProfile: at a desk", () => {
+  it("pulls set-aside threads down and writes them to storage", () => {
+    const storage = fakeStorage();
+    const grown = hydrateMailFromProfile({ desk: { t9: "2026-09-08T10:00:00.000Z" } }, storage);
+    expect(grown.desk).toEqual({ t9: "2026-09-08T10:00:00.000Z" });
+    expect(loadDesk(storage)).toEqual({ t9: "2026-09-08T10:00:00.000Z" });
+  });
+
+  it("unions the two devices, and this device's own time for a thread wins", () => {
+    const storage = fakeStorage();
+    setAtDesk("t1", () => Date.parse("2026-09-08T09:00:00Z"), storage);
+    const grown = hydrateMailFromProfile(
+      { desk: { t1: "2026-09-01T09:00:00.000Z", t2: "2026-09-07T09:00:00.000Z" } },
+      storage,
+    );
+    expect(grown.desk).toEqual({
+      t1: "2026-09-08T09:00:00.000Z",
+      t2: "2026-09-07T09:00:00.000Z",
+    });
+  });
+
+  it("an empty desk in the profile changes nothing", () => {
+    const storage = fakeStorage();
+    expect(hydrateMailFromProfile({ desk: {} }, storage).desk).toBeUndefined();
   });
 });

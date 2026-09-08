@@ -3,6 +3,7 @@ import { loadRules, KEY as RULES_KEY, type SenderRules } from "./rules";
 import { loadMuted, KEY as MUTED_KEY } from "./mute";
 import { loadLetGo, KEY as LETGO_KEY } from "./letGo";
 import { loadLinks, KEY as LINKS_KEY, type LinkMap } from "./threadLink";
+import { loadDesk, KEY as DESK_KEY, type DeskMap } from "./desk";
 
 // EVERYTHING JARVIS LEARNS ABOUT YOUR MAIL IS DEVICE-ONLY (S2-5,
 // 2026-09-04). VIPs, sender rules, mutes, and let-go each live in their own
@@ -22,6 +23,10 @@ export interface MailMirror {
   // the one mail store that never left the device, so a thread filed on the
   // phone was unfiled on the iPad.
   links?: LinkMap;
+  // UP-MIND-09: which threads are waiting for a desk. This one MUST cross
+  // devices or the feature is a lie -- the whole promise is that a thread set
+  // aside on the phone is sitting on the laptop when you get there.
+  desk?: DeskMap;
 }
 
 // The snapshot written to the profile after any local write to any of the
@@ -33,6 +38,7 @@ export function mailSnapshot(storage: Pick<Storage, "getItem"> = localStorage): 
     muted: loadMuted(storage),
     letGo: loadLetGo(storage),
     links: loadLinks(storage),
+    desk: loadDesk(storage),
   };
 }
 
@@ -108,6 +114,21 @@ export function hydrateMailFromProfile(
     if (Object.keys(links).length !== Object.keys(local).length) {
       try { storage.setItem(LINKS_KEY, JSON.stringify(links)); } catch { /* private mode */ }
       out.links = links;
+    }
+  }
+
+  // UP-MIND-09: keyed like rules and links, so the local side wins a
+  // conflict on the same thread -- but the union is what matters here, since
+  // a thread set aside on either device is set aside. A thread CLEARED on one
+  // device stays cleared there and is not resurrected by this merge only
+  // because clearing also rewrites the mirror; that is the same shape the
+  // other keyed stores have and the same trade S2-5 accepted.
+  if (mail.desk && Object.keys(mail.desk).length) {
+    const local = loadDesk(storage);
+    const desk = { ...mail.desk, ...local };
+    if (Object.keys(desk).length !== Object.keys(local).length) {
+      try { storage.setItem(DESK_KEY, JSON.stringify(desk)); } catch { /* private mode */ }
+      out.desk = desk;
     }
   }
 

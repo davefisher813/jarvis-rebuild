@@ -28,7 +28,14 @@ export type AskKind =
   | "answer"      // you asked something and need a human reply
   | "nothing";    // a receipt or confirmation. Owes you nothing.
 
-export type ActionFamily = "reply" | "channel" | "route" | "convert" | "close";
+// UP-MIND-09 added "defer". The taxonomy had no slot for it and the gap was
+// load-bearing: "route" means routing to ANOTHER HUMAN (a law test pins that
+// -- the only route-family action offered without a named colleague is
+// Forward), and a deferral routes to a PLACE. Filing it under route would
+// have quietly broken the meaning of route for every other reader. Deferring
+// is its own thing: the thread is unchanged, nobody is contacted, and it
+// comes back on its own.
+export type ActionFamily = "reply" | "channel" | "route" | "convert" | "close" | "defer";
 
 export interface MailAction {
   key: string;
@@ -104,6 +111,10 @@ export interface ActionOpts {
   // buttons that do nothing, which is worse than a shorter sheet.
   canTask?: boolean;
   canSchedule?: boolean;
+  // UP-MIND-09: the surface can set a thread aside for a desk. False on any
+  // caller with nowhere to put it (the Today card, which can only draft), so
+  // the label never promises what that surface cannot perform.
+  canDesk?: boolean;
 }
 
 export interface Decision {
@@ -150,6 +161,10 @@ const A = {
   addBill: (): MailAction => ({ key: "add_bill", label: "Add as Bill", family: "convert", channel: "none" }),
   addTask: (): MailAction => ({ key: "add_task", label: "Add as Task", family: "convert", channel: "none" }),
   blockTime: (): MailAction => ({ key: "block_time", label: "Block Time For It", family: "convert", channel: "none" }),
+  // UP-MIND-09 (email handoff E7). Not a close (it comes back), not a convert
+  // (it makes nothing), not a channel (it reaches nobody): the thread stays
+  // exactly as it is and only the PLACE changes.
+  atDesk: (): MailAction => ({ key: "at_desk", label: "At a Desk", family: "defer", channel: "none" }),
   stop: (): MailAction => ({ key: "stop", label: "Stop Tracking", family: "close", channel: "none" }),
   handled: (): MailAction => ({ key: "handled", label: "Mark Handled", family: "close", channel: "none" }),
   quiet: (): MailAction => ({ key: "quiet", label: "Always Quiet This Sender", family: "close", channel: "none" }),
@@ -256,6 +271,12 @@ export function decide(
       break;
     }
   }
+  // UP-MIND-09: offered on EVERY thread, whatever the ask. "I cannot do this
+  // here" is a fact about where the person is standing, not about what the
+  // thread wants, so gating it per ask-kind would be gating it on the wrong
+  // question -- the same mistake this file was written to correct. It goes
+  // last: it is the move for when none of the moves above can happen yet.
+  if (opts.canDesk !== false) alternates = [...alternates, A.atDesk()];
   // Never offer the same key twice, and never offer the primary again.
   const seen = new Set([primary.key]);
   alternates = alternates.filter((a) => (seen.has(a.key) ? false : (seen.add(a.key), true)));
@@ -277,6 +298,9 @@ export function promises(a: MailAction): string {
     case "add_bill": return "Files it under Money";
     case "add_task": return "Makes a task";
     case "block_time": return "Books the next free slot";
+    // UP-MIND-09: says both halves, because the deferral is only trustworthy
+    // if the person knows it comes back on its own.
+    case "at_desk": return "Waits for a desk, comes back there";
     case "stop": return "Stops counting the days";
     case "handled": return "Off your list";
     case "quiet": return "Future mail goes quiet";

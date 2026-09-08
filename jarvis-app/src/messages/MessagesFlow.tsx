@@ -114,6 +114,7 @@ import { clearedToday, bumpCleared, closeOut } from "./cleared";
 import { railClass, railToneForWaiting, railToneForDeadline, ageBands, showBandHeads } from "./rows";
 import { DEFAULT_ANSWERS } from "./quickAnswers";
 import { loadLetGo, letGo, undoLetGo } from "./letGo";
+import { loadDesk, setAtDesk, clearAtDesk, deskCount, deskLine, dropAtDesk, deskRows, isDeskNow, minsOfDay, DESK_WIDE_MIN_PX, type DeskMap } from "./desk";
 import { closeCandidates, closeLine, amnestyDue, amnestyLine, amnestyPromise, markClosed, lastClose,
   saveClosedBatch, loadClosedBatch, clearClosedBatch, closedBatchLive, putBackLine, type ClosedBatch } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
@@ -382,6 +383,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [handTargets, setHandTargets] = useState<HandoffTarget[] | null>(null);
   const [handing, setHanding] = useState(false);
   const [muted, setMuted] = useState<string[]>(() => loadMuted());
+  // UP-MIND-09: threads set aside for a desk, and whether this open IS one.
+  const [desk, setDesk] = useState<DeskMap>(() => loadDesk());
+  const [atADesk, setAtADesk] = useState(false);
   // Undo: the last destructive action, and how to put it back. One deep, which
   // is all anyone ever uses, and it expires with the toast.
   const [undo, setUndo] = useState<{ label: string; run: () => void } | null>(null);
@@ -422,6 +426,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (grown.muted) setMuted(grown.muted);
       // EMAIL-F-19: project links hydrate like the rest now.
       if (grown.links) setLinks(grown.links);
+      if (grown.desk) setDesk(grown.desk);
       setMailHydrated(true);
       // EMAIL-F-30 (2026-09-05): mirror the MERGED result straight back, so
       // the next device to hydrate gets both sides rather than whichever one
@@ -439,6 +444,38 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (!mailHydrated) return;
     void profileSvc?.save({ mail: mailSnapshot() }).catch(() => {});
   }, [profileSvc, mailHydrated]);
+
+  // UP-MIND-09: is THIS open a desk? Decided once per mount and on a width
+  // change, never on a timer: a section that appears under the person's thumb
+  // while they are reading is the nagging this feature promised not to do.
+  //
+  // The hour half uses desk.ts's default end-of-day. Reading the person's own
+  // routine work-end is the better answer and the store already takes it as an
+  // argument; MessagesFlow has no routine service in scope today, so that is a
+  // wire-up waiting for one, not a redesign.
+  useEffect(() => {
+    // matchMedia is feature-detected, not assumed: it is absent under jsdom
+    // and its listener API is the old addListener on Safari before 14. Width
+    // is the fallback and answers the same question; losing the live update
+    // on a resize costs a section that appears on the next open instead.
+    const mq = typeof window.matchMedia === "function"
+      ? window.matchMedia(`(min-width: ${DESK_WIDE_MIN_PX}px)`)
+      : null;
+    const wide = () => (mq ? mq.matches : window.innerWidth >= DESK_WIDE_MIN_PX);
+    const read = () => setAtADesk(isDeskNow(wide() ? DESK_WIDE_MIN_PX : 0, minsOfDay(new Date())));
+    read();
+    if (!mq) return;
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", read);
+      return () => mq.removeEventListener("change", read);
+    }
+    const legacy = mq as MediaQueryList & {
+      addListener?: (fn: () => void) => void;
+      removeListener?: (fn: () => void) => void;
+    };
+    legacy.addListener?.(read);
+    return () => legacy.removeListener?.(read);
+  }, []);
   const [noiseGroups, setNoiseGroups] = useState<Record<string, boolean>>({});
   const [closeDone, setCloseDone] = useState(false);
   // EMAIL-F-08 (2026-09-05): what the last Close It Out archived, for the
@@ -1059,6 +1096,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       case "handled":
         dropRow(row.threadId, "Marked handled");
         return;
+      // UP-MIND-09. Nothing is archived, nothing is sent, nothing leaves the
+      // account: the thread stops being HERE and starts being THERE. The
+      // toast says where it went, because a row that just vanished with the
+      // word "Later" is the mark-unread black hole wearing a nicer label.
+      case "at_desk": {
+        setDesk(setAtDesk(row.threadId));
+        mirrorMail();
+        setWaiting((ws) => ws.filter((x) => x.threadId !== row.threadId));
+        say("Waiting for a desk", { label: "Undo", run: () => {
+          setDesk(clearAtDesk(row.threadId));
+          mirrorMail();
+          void loadWaiting();
+        } });
+        return;
+      }
       case "quiet":
         // Future mail from this address sorts to Noise. The thread itself is
         // untouched, same as every other exit in this section.
@@ -2460,7 +2512,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // Muted threads never surface, however many replies land. The mail itself is
   // untouched in Gmail.
   const unmutedRows = dropMuted(rows, muted);
-  const visibleRows = acctFilter ? unmutedRows.filter((r) => r.account === acctFilter) : unmutedRows;
+  const acctRows = acctFilter ? unmutedRows.filter((r) => r.account === acctFilter) : unmutedRows;
+  // UP-MIND-09: a thread set aside for a desk leaves the list HERE, so it is
+  // gone from every downstream reader at once (the buckets, the deck, the
+  // sweep piles) rather than each one having to remember. The removal has to
+  // be visible or the deferral is not trustworthy enough to use twice.
+  const deskWaiting = deskRows(acctRows, desk);
+  const visibleRows = dropAtDesk(acctRows, desk);
   // N4 (2026-08-20): VIPs come LAST, because a VIP is the one rule allowed to
   // overrule both the model and his own filing. Mail from his attorney
   // surfaces the moment it lands whatever anything else thinks.
@@ -3720,6 +3778,30 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <span className="sort-bar-fill" style={{ width: (sortProg.done / sortProg.total) * 100 + "%" }} />
           </div>
         </div>
+      )}
+
+      {/* UP-MIND-09: THE THREADS THAT WERE WAITING FOR THIS.
+          Two states, and both matter.
+
+          At a desk: they come back TOGETHER, at the top, longest-waiting
+          first, before the person starts triaging anything new. That is the
+          whole promise -- the thread deferred on the phone is the first thing
+          on the laptop.
+
+          Not at a desk: one quiet line, so the count is never invisible.
+          NEVER LOST is the law; a set-aside thread the person cannot see the
+          shape of is mark-unread with extra steps. It does not link, badge,
+          or escalate, because the person already said "not here" and
+          answering that with a prod is the nagging this feature refuses. */}
+      {results === null && filter !== "drafts" && deskCount(desk) > 0 && (
+        atADesk && deskWaiting.length > 0 ? (
+          <>
+            <div className="sh2 sh2-quiet"><span className="t">For a Desk</span><span className="n">{deskWaiting.length}</span></div>
+            <div className="list-flat">{deskWaiting.map((r) => threadRow(r))}</div>
+          </>
+        ) : (
+          <div className="pad-x conn-meta">{deskLine(desk)}</div>
+        )
       )}
 
       {filter === "drafts" ? (
