@@ -41,16 +41,16 @@ describe("provenance", () => {
   });
 
   // UP-CORE-05 (2026-09-05): a thing can carry both where it came from and
-  // an automated move, and only one line fits on a row. Today's move is the
-  // answer to "why is this here?"; an older one is history.
-  it("a move made today outranks the origin, and an older move does not", () => {
+  // an automated move. Auto-Sweep moves are kept internal and never displayed.
+  it("Auto-Sweep moves stay internal, never shown on rows", () => {
     const from: Source = { type: "paste", ts: new Date(2026, 7, 10, 9, 0).getTime() };
     const movedToday: Source = { type: "sweep", ts: new Date(2026, 7, 15, 6, 0).getTime() };
     const movedBefore: Source = { type: "sweep", ts: new Date(2026, 7, 14, 6, 0).getTime() };
-    expect(rowSource(from, movedToday, now)).toBe(movedToday);
+    // rowSource skips sweep moves (keeps origin instead) so rows never show sweep provenance
+    expect(rowSource(from, movedToday, now)).toBe(from);
     expect(rowSource(from, movedBefore, now)).toBe(from);
     expect(rowSource(from, undefined, now)).toBe(from);
-    expect(rowSource(undefined, movedToday, now)).toBe(movedToday);
+    expect(rowSource(undefined, movedToday, now)).toBeUndefined();
     expect(rowSource(undefined, undefined, now)).toBeUndefined();
   });
 });

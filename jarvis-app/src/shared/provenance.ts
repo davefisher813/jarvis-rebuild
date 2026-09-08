@@ -84,19 +84,22 @@ function sameDay(a: Date, b: Date): boolean {
 
 // UP-CORE-05 (2026-09-05): WHICH LINE A ROW SHOWS. A thing can carry both
 // where it came from and an automated move, and they are different facts.
-// A move made TODAY is the one that answers the question the person is
-// actually asking ("why is this here?"); an older move is history nobody is
-// looking for, so the origin comes back. One rule, so a task row, an event
-// row and a sheet cannot each answer it differently.
+// Auto-Sweep moves are kept internal (for UI state) but never displayed;
+// other moves made TODAY answer "why is this here?"; older moves are history,
+// so the origin comes back. One rule, so a task row, an event row and a sheet
+// cannot each answer it differently.
 export function rowSource(source: Source | undefined, moved: Source | undefined, now: () => number = Date.now): Source | undefined {
-  if (moved && sameDay(new Date(moved.ts), new Date(now()))) return moved;
+  if (moved && moved.type !== "sweep" && sameDay(new Date(moved.ts), new Date(now()))) return moved;
   return source;
 }
 
 // "From Smart Paste · 2:14 PM" today, "From Smart Paste · Aug 12" earlier.
 // Null for a missing or unknown source so callers can render nothing.
+// Auto-Sweep receipts (sweep type) render nothing — the fact that a task moved
+// is kept internal; the row shows where it came from instead.
 export function sourceLine(source: Source | undefined, now: () => number = Date.now): string | null {
   if (!source || !LABEL[source.type]) return null;
+  if (source.type === "sweep") return null;
   const d = new Date(source.ts);
   const when = sameDay(d, new Date(now()))
     ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
