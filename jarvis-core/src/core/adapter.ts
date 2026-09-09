@@ -76,4 +76,9 @@ export interface DataAdapter {
   // covers it). Services pass their type so a list never becomes a full
   // table scan; omitting it is reserved for whole-account flows (backup).
   listForUser(ownerId: string, entityType?: string): Promise<Item[]>;
+
+  // UP-LAUNCH-13: Retrieve the user's subscription tier from the server.
+  // Returns 'god' (unlimited), 'paid' (subscription active), or 'free' (trial/unpaid).
+  // Defaults to 'free' if not set or if the migration has not been applied yet.
+  getSubscriptionTier(): Promise<string>;
 }

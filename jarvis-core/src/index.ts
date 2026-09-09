@@ -18,3 +18,11 @@ export type { StorePersistence, SyncState } from "./core/store.js";
 export { mergePatch, stripNulls, toWire } from "./core/patch.js";
 export { REQUIREMENTS, STEPS } from "./core/spec.js";
 export type { Ctx, Requirement, Step, StepResult } from "./core/spec.js";
+export type { SubscriptionTier } from "./core/subscriptionTier.js";
+export {
+  DEFAULT_TIER,
+  isValidTier,
+  isTierPaid,
+  isTierUnlimited,
+  tierDisplayName,
+} from "./core/subscriptionTier.js";

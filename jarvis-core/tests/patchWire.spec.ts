@@ -48,6 +48,9 @@ function jsonbAdapter(): DataAdapter & { received: ItemData[]; rows: Map<string,
     async listForUser(o: string) {
       return [...rows.entries()].map(([id, data]) => ({ id, ownerId: o, entityType: "event", data, serverTime: 1 }));
     },
+    async getSubscriptionTier() {
+      return "free";
+    },
   };
 }
 

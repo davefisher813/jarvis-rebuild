@@ -125,4 +125,10 @@ export class InMemoryAdapter implements DataAdapter {
   snapshotCount(): number {
     return this.db.size;
   }
+
+  // UP-LAUNCH-13: In-memory tier provider for tests. Defaults to 'free'.
+  // Tests can extend this adapter to set tiers if needed.
+  async getSubscriptionTier(): Promise<string> {
+    return "free";
+  }
 }

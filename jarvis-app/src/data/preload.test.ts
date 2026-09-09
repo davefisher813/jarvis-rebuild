@@ -186,6 +186,7 @@ class HeldRefresh implements DataAdapter {
     // is what a round trip that started earlier actually returns.
     return new Promise<Item[]>((resolve) => { this.release = () => resolve(snapshot); });
   }
+  getSubscriptionTier() { return this.inner.getSubscriptionTier(); }
   /** Let the held refresh land. */
   land(): void { const r = this.release; this.release = null; r?.(); }
 }

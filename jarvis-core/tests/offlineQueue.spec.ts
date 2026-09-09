@@ -178,6 +178,7 @@ describe("reconnect failure mid-drain", () => {
       apply: (o: string, id: string, p: ItemData, st?: ServerTime) => inner.apply(o, id, p, st),
       del: (o: string, id: string) => inner.del(o, id),
       listForUser: (o: string, t?: string) => inner.listForUser(o, t),
+      getSubscriptionTier: () => inner.getSubscriptionTier(),
     };
   }
 
@@ -289,6 +290,7 @@ describe("PLUMB-F-01: an offline create's id is a bare uuid", () => {
       apply: (o: string, id: string, p: ItemData, st?: ServerTime) => inner.apply(o, id, p, st),
       del: (o: string, id: string) => inner.del(o, id),
       listForUser: (o: string, t?: string) => inner.listForUser(o, t),
+      getSubscriptionTier: () => inner.getSubscriptionTier(),
     };
     const store = new Store(adapter);
     store.goOffline();
@@ -312,6 +314,7 @@ describe("PLUMB-F-01: an offline create's id is a bare uuid", () => {
       apply: (o: string, id: string, p: ItemData, st?: ServerTime) => inner.apply(o, id, p, st),
       del: (o: string, id: string) => inner.del(o, id),
       listForUser: (o: string, t?: string) => inner.listForUser(o, t),
+      getSubscriptionTier: () => inner.getSubscriptionTier(),
     };
     const store = new Store(adapter);
     store.goOffline();
@@ -339,6 +342,7 @@ describe("PLUMB-F-02: overlapping reconnects share one drain", () => {
       apply: async (o: string, id: string, p: ItemData, st?: ServerTime) => { await wait(); applied.push(p); return inner.apply(o, id, p, st); },
       del: async (o: string, id: string) => { await wait(); return inner.del(o, id); },
       listForUser: (o: string, t?: string) => inner.listForUser(o, t),
+      getSubscriptionTier: () => inner.getSubscriptionTier(),
     };
   }
 
@@ -507,6 +511,7 @@ describe("PLUMB-F-09: a write that finds the signal gone is queued, not lost", (
       apply: async (o, id, p, st) => { guard(); return real.apply(o, id, p, st); },
       del: async (o, id) => { guard(); return real.del(o, id); },
       listForUser: (o, t) => real.listForUser(o, t),
+      getSubscriptionTier: () => real.getSubscriptionTier(),
     };
     return { adapter, real };
   }
@@ -536,6 +541,7 @@ describe("PLUMB-F-09: a write that finds the signal gone is queued, not lost", (
       apply: async (o, i, p, st) => { if (fail) { fail = false; throw { status: 503, message: "upstream" }; } return real.apply(o, i, p, st); },
       del: (o, i) => real.del(o, i),
       listForUser: (o, t) => real.listForUser(o, t),
+      getSubscriptionTier: () => real.getSubscriptionTier(),
     };
     const store = new Store(adapter);
     expect(await store.update("U", id, { text: "Call the coach back" })).toBe("queued");

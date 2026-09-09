@@ -171,6 +171,19 @@ export class SupabaseAdapter implements DataAdapter {
     }
     return out;
   }
+
+  // UP-LAUNCH-13: Fetch the user's subscription tier from the server.
+  // Returns 'god' (unlimited), 'paid' (subscription active), or 'free' (trial/unpaid).
+  // Defaults to 'free' if not set.
+  async getSubscriptionTier(): Promise<string> {
+    const { data: tier, error } = await this.db.rpc("get_subscription_tier");
+    if (error) {
+      // If the RPC doesn't exist yet (migration not applied), default to 'free'.
+      if (isMissingFunction(error)) return "free";
+      throw error;
+    }
+    return tier ?? "free";
+  }
 }
 
 // Convenience factory. Pass an access token (Supabase Auth session) so RLS sees

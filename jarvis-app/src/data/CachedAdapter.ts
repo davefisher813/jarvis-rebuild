@@ -156,6 +156,10 @@ export class CachedAdapter implements DataAdapter {
       if (next) writePreload(ownerId, t, next);
     }
   }
+
+  async getSubscriptionTier(): Promise<string> {
+    return this.inner.getSubscriptionTier();
+  }
 }
 
 // PLUMB-F-03 (2026-09-05): every entity type this build knows about, taken
