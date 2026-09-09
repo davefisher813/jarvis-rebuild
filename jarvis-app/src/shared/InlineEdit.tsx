@@ -166,6 +166,62 @@ export default function InlineEdit({
       contentEditable
       suppressContentEditableWarning
       data-placeholder={placeholder}
+      /* THE ORDINARY TYPING FEATURES, TURNED ON (Dave 2026-09-09: "I want all
+         normal typing features and the BEST ONES").
+         A contenteditable div gets none of the help a real text field gets by
+         default on iOS: no sentence capitals, no autocorrect, no red squiggle
+         under a misspelling. Every one of those is a thing his thumbs were
+         doing by hand. They are attributes, not behavior we write, so the
+         platform's own keyboard does the work.
+         enterKeyHint labels the return key for what THIS field's Enter
+         actually does: on a canvas block Enter opens the next block, so the
+         key says "return"; on a plain field it commits, so it says "done"
+         (see the Enter branch in onKeyDown, which is where both are decided). */
+      spellCheck
+      autoCapitalize="sentences"
+      autoCorrect="on"
+      enterKeyHint={onEnter ? "enter" : "done"}
+      onPaste={(e) => {
+        // PASTE ARRIVES AS HTML UNLESS YOU STOP IT. The default paste drops
+        // the source's own markup -- spans, styles, nested divs, whole
+        // tables -- straight into the block. The save only ever reads
+        // textContent, so the formatting is invisibly discarded anyway, but
+        // the DOM it built stays behind and the caret starts landing inside
+        // structures this editor never made.
+        // execCommand is deprecated and used deliberately: it is the only
+        // insert that goes through the browser's OWN undo stack, so Cmd+Z
+        // and shake-to-undo still walk back a paste. A manual range
+        // insertion would type the text in and orphan the undo history.
+        const text = e.clipboardData?.getData("text/plain");
+        if (!text) return;
+        e.preventDefault();
+        // jsdom has no execCommand at all, and a browser may refuse it.
+        // Falling back to a range insert keeps the paste working; only the
+        // undo entry is lost, which is the cheaper half to lose.
+        const exec = (document as Document & { execCommand?: (c: string, ui: boolean, v: string) => boolean }).execCommand;
+        if (typeof exec !== "function") {
+          const sel = window.getSelection();
+          const flat = text.replace(/\s*\n+\s*/g, " ").replace(/\r/g, "");
+          if (sel && sel.rangeCount) {
+            const range = sel.getRangeAt(0);
+            range.deleteContents();
+            const node = document.createTextNode(flat);
+            range.insertNode(node);
+            range.setStartAfter(node);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+          dirty.current = e.currentTarget.textContent ?? "";
+          return;
+        }
+        // A block is a line. Newlines in the pasted run would put line
+        // breaks inside one block, which is not a shape this model has --
+        // paragraphs are blocks, made by Enter. Runs of whitespace collapse
+        // to one space so a pasted paragraph reads as a sentence rather
+        // than arriving with the source document's line wrapping baked in.
+        document.execCommand("insertText", false, text.replace(/\s*\n+\s*/g, " ").replace(/\r/g, ""));
+      }}
       onBlur={(e) => {
         const t = (e.currentTarget.textContent ?? "").trim();
         // Rich handoff: the raw text node was set out-of-band, so React does

@@ -552,6 +552,45 @@ export default function NotesFlow({
     });
   };
 
+  // AN EMPTY NOTE OPENS READY TO TYPE (Dave 2026-09-09, from his phone: "in
+  // notes there is nothing showing that you are ready to type on a line.
+  // There's no blinking line or anything. That's the most standard typing
+  // feature ever.")
+  //
+  // He is describing the blank note exactly as it opened: a title, a dashed
+  // +, and the words "Nothing here yet". There was no line, so there was no
+  // caret to blink in it -- before you could type a single character you had
+  // to know that the chips along the bottom (Text, Heading, List) were how a
+  // page gets its first line. Every notes app anyone has used opens with the
+  // caret already in the body, and the reason is that a blank page asking to
+  // be configured is not a blank page.
+  //
+  // So a note with nothing in it gets one empty text block, and the caret
+  // goes in it. It writes a real block rather than faking a line, because a
+  // fake one has to become real on the first keystroke and that seam is where
+  // the first character of a thought gets dropped.
+  //
+  // Three deliberate details:
+  //   - once per note id, so deleting the last block leaves the page empty.
+  //     Deleting the line you are on is an instruction, not a state to undo.
+  //   - outside the undo history (no snap()), so the first Undo in a new note
+  //     is the writer's first edit and never the line itself vanishing.
+  //   - it waits for `current`, so it sees the note's real blocks and cannot
+  //     fire against a stale empty render.
+  const primedNote = useRef<string | null>(null);
+  useEffect(() => {
+    if (screen !== "editor" || !currentId || !current) return;
+    if (current.blocks.length > 0 || primedNote.current === currentId) return;
+    primedNote.current = currentId;
+    const id = currentId;
+    void enqueue(async () => {
+      let newId: string | null = null;
+      await attemptWrite(async () => { newId = await svc.addBlock(id, starterBlock("text")); });
+      await loadCurrent(id);
+      if (newId) setFocusBlockId(newId);
+    });
+  }, [screen, currentId, current, enqueue, attemptWrite, svc, loadCurrent]);
+
   // The swipe's File: an area, or "" to unfile. Closes on the pick.
   const [filing, setFiling] = useState<string | null>(null);
   const fileUnder = async (id: string, category: string) => {

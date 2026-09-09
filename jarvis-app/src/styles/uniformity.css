@@ -256,7 +256,27 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
    ruled-manuscript editorial mode it replaced, it wants to read as an
    inviting page, not blank paper, so "Write Something" stays put whether
    or not the block is focused (italicized in components.css). */
-[contenteditable][data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-4); pointer-events: none; }
+/* THE PLACEHOLDER WAS EATING THE CARET (Dave 2026-09-09: "in notes there is
+   nothing showing that you are ready to type on a line. There's no blinking
+   line or anything. That's the most standard typing feature ever.")
+   The cue was generated content sitting IN FLOW inside the editable box, and
+   an empty contenteditable whose only child is a ::before has no text
+   position of its own for WebKit to draw a caret at: the caret is either
+   collapsed to nothing or parked past the end of the cue, which on a phone
+   reads as no caret at all. Every empty line in a note is that case, which
+   is why it was the whole editor and not one field.
+   Two rules, and both are needed. The cue goes OUT OF FLOW, so it can no
+   longer own the line box or the caret's position; the caret then draws at
+   the true text origin, in front of the words the cue is offering. Out of
+   flow alone would leave an empty block with nothing in flow at all, and a
+   line box is what a caret gets its HEIGHT from -- so a zero-width inline
+   box holds the line open. It renders nothing, it is generated content so it
+   never reaches textContent, and it costs no layout.
+   Scoped to :empty, so a line with words in it is untouched. */
+[contenteditable][data-placeholder]:empty { position: relative; }
+[contenteditable][data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-4); pointer-events: none;
+  position: absolute; left: 0; top: 0; right: 0; }
+[contenteditable][data-placeholder]:empty::after { content: ""; display: inline-block; width: 0; }
 /* stacked title + description (template rows) */
 .row-stack { display:flex; flex-direction:column; flex:1; min-width:0; gap:2px; }
 .row-stack .conn-name { flex:none; }

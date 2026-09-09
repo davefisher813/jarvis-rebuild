@@ -1957,9 +1957,29 @@ button {
 
 /* FORM FOLLOWS DECISION (Law 3E, 2026-08-22). Two forms, one stream.
    TODAY-F-18 (2026-09-05): there were three. The headliner's rules
-   (.notice-hl, .hl-tile, .hl-title, .hl-acts, .hl-sub, .hl-verbs) went with
+   (.notice-hl, .hl-tile, .hl-title, .hl-sub, .hl-verbs) went with
    its branch in NoticeCard.tsx: the stream stopped promoting anything to a
    headliner on 2026-08-22 and nothing has asked for the form since. */
+
+/* EXCEPT .hl-acts, WHICH THE ROW STILL RENDERS (Dave 2026-09-09, photographed
+   in Heads Up: a bare "Done" hanging outside the grouped card's rounded
+   corner, flush left against nothing, with the hairline of the next row
+   running through the space beside it).
+   TODAY-F-18 swept .hl-acts out with the headliner's CSS, but NoticeCard.tsx
+   renders it for a case that was never the headliner: an EXPANDED row
+   surfacing its alt as a visible second capsule. A class with no rules is a
+   bare block box, so the capsule left the card the moment Dave tapped a row
+   with two verbs -- every missed reminder in the stream ("Ask Again in 15m"
+   + "Done") is one of these.
+   It is the same shape .row-acts already is, and it answers to the same law:
+   the verbs own their own line at the row's inset, they wrap instead of
+   overflowing, and no capsule is ever wider than the card holding it. Right
+   aligned because that is the column the primary capsule just vacated, so
+   the eye does not have to travel to find the second choice. */
+.hl-acts { display: flex; flex-wrap: wrap; justify-content: flex-end;
+  gap: var(--s-2); padding: 0 var(--s-4) var(--s-3h); }
+.hl-acts .btn-sm { flex: 0 1 auto; max-width: 100%; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
 /* Verb rows: one line, fact plus capsule. The card slims down so a stack of
    rows reads as a list, not a pile of cards. */
 .notice-card-row { padding-top: 2px; padding-bottom: 2px; }
@@ -2521,6 +2541,18 @@ button {
 .conn-name, .lib-name, .sched-title, .task-title, .restore-title, .tip-title,
 .sh2 .t, .empty-title, .msg-name, .proj-title, .pagebar-title {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* THE THREE STEPS ARE THE APP'S OWN SENTENCE, AND ONE OF THEM DID NOT FIT
+   (measured 2026-09-09 at 390x844, the default phone: "Connect Gmail and
+   Calendar" shipped as "Connect Gmail and Cale…", and at 320 it loses more).
+   Same reading BROWSER-F-06 gave .pagehead-title just below: the no-wrap law
+   is for titles the WORLD writes, where an ellipsis is the honest answer to a
+   sender name of unknown length. These three are copy this app wrote, they
+   are a promise about what the next two minutes cost, and they are the first
+   words anyone reads. A promise with its second half cut off is not a
+   truncation problem; it is a title that needs a second line.
+   Three fixed rows on one screen, so nothing below them can be pushed off. */
+.ob-screen .card > .row > .row-grow > .conn-name {
+  white-space: normal; overflow: visible; text-overflow: clip; }
 /* BROWSER-F-06 (2026-09-05): .pagehead-title is off this list. It is 34px
    bold with -0.03em tracking in a 358px column, which is 15 characters, and
    two of the app's OWN page names are longer: "What JARVIS Knows" rendered as
@@ -3001,6 +3033,22 @@ button {
 .doc .li-marker { display: inline-block; width: 24px; text-indent: 0; }
 .doc .block-h { font-size: calc(21px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.01em; margin-top: var(--s-4); }
 .doc [contenteditable] { caret-color: var(--accent); outline: none; }
+/* AND YOU CAN SEE WHICH LINE YOU ARE ON (Dave 2026-09-09, the same report as
+   the caret: "nothing showing that you are ready to type on a line").
+   `outline: none` above is still right -- a browser focus ring drawn around a
+   paragraph makes a document look like a form -- but removing it left the
+   canvas with no answer at all to "where am I", and the caret alone is one
+   hairline of red on a black page, on a phone, in a hand.
+   The mark is the smallest one that can be seen: the accent, 2px, at the
+   left margin of the block holding the caret, sitting in the padding the
+   page already has so no text moves when it appears. Same accent the caret
+   is drawn in, so the line and the caret read as one thing, and it is gone
+   the instant focus leaves. Held at 55% because it is an orientation cue,
+   not an alarm. */
+.doc .block-row::before { content: ""; position: absolute; left: calc(-1 * var(--s-2)); top: 3px; bottom: 3px;
+  width: 2px; border-radius: 1px; background: var(--accent); opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out); pointer-events: none; }
+.doc .block-row:focus-within::before { opacity: 0.55; }
 /* Block chrome only when the block is active: writing first, controls second. */
 .block-row .block-menu-btn { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
 .block-row:focus-within .block-menu-btn, .block-row:hover .block-menu-btn { opacity: 1; }
