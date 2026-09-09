@@ -114,6 +114,10 @@ describe("TodayFlow: Undo after deleting an event (TODAY-F-11)", () => {
     notifyFreshLists(ENTITY_EVENT);
     await waitFor(() => expect(screen.getByText("Lift")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Lift"));
+    // EVENTS ARE FIRST-CLASS (2026-09-09): tapping an event opens its PAGE
+    // now, the way tapping a project or a goal always has. The sheet is one
+    // tap further in, on the page's Edit.
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     await screen.findByText("Edit Event");
     fireEvent.click(screen.getByText("Delete Event"));
     await waitFor(() => expect(showToast.mock.calls.some((c) => (c[0] as { message: string }).message === "Event deleted")).toBe(true));
@@ -271,6 +275,23 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
       </GoogleSessionProvider>
     ) : null;
   }
+
+  // A TEST THAT ONLY PASSES BEFORE 6 PM (found 2026-09-09 at 19:04, going red
+  // with nothing having changed; it reproduces on an untouched checkout).
+  // Today shifts into its EVENING posture at the later of 6 PM and the end of
+  // work hours (today/evening.ts, isEvening), and in that posture there is no
+  // day-draft card, so there is no "Not Today" to tap and this test could not
+  // reach the refine path it exists to prove. The clock is pinned to a morning
+  // so the posture is the one the test is written for, at every hour anyone
+  // runs it. shouldAdvanceTime keeps real time moving underneath, which is
+  // what waitFor needs to resolve at all.
+  beforeEach(() => {
+    const morning = new Date();
+    morning.setHours(10, 0, 0, 0);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(morning);
+  });
+  afterEach(() => { vi.useRealTimers(); });
 
   it("passes a real profile and a strands array, not the options Schedule alone used to get", async () => {
     aiPlanOpts.length = 0;

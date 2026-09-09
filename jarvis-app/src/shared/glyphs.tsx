@@ -272,6 +272,19 @@ export function PulseGlyph({ className = "ic" }: { className?: string }) {
 // The target the Goals page already wears, at kicker size, in goal green,
 // before a goal's name on a task row. Shape says "goal" before the words
 // do; a category on the same line wears nothing and reads plainer for it.
+// THE EVENT MARK (2026-09-09, when events became first-class). A task filed
+// to an event leads its parent line with a calendar, drawn here rather than
+// imported so it sits on the same 24-box, the same stroke and the same
+// currentColor as the goal target and the project pie beside it. One glyph
+// per kind, learned once.
+export function EventMark() {
+  return (
+    <svg className="r-gm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3.5" y="5" width="17" height="15" rx="3" /><path d="M8 3v4M16 3v4M3.5 10.5h17" />
+    </svg>
+  );
+}
+
 export function GoalMark() {
   return (
     <svg className="r-gm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden="true">
@@ -318,11 +331,16 @@ export function ProjectPie({ pct, className = "pp" }: { pct: number | null; clas
 // lives, and the contract says a task that moves nothing "says the category
 // name, plain". The class carries the kind so the sheet never has to know a
 // category's name or its colour.
-export function ParentLineGlyph({ p }: { p: { kind: "project" | "goal" | "category"; name: string; tone: string; pct: number | null } }) {
+export function ParentLineGlyph({ p }: { p: { kind: "event" | "project" | "goal" | "category"; name: string; tone: string; pct: number | null } }) {
   return (
     <span className={"r-goal r-parent" + (p.kind === "category" ? " r-parent-plain" : "")}>
       <span className={"r-pg " + p.tone}>
-        {p.kind === "project" ? <ProjectPie pct={p.pct} className="pp pp-sm" />
+        {/* EVENTS ARE FIRST-CLASS (2026-09-09): a task filed to an event
+            leads with the calendar mark, in the event's own category colour,
+            the same law every other kind on this line already follows. One
+            glyph per kind, learned once. */}
+        {p.kind === "event" ? <EventMark />
+          : p.kind === "project" ? <ProjectPie pct={p.pct} className="pp pp-sm" />
           : p.kind === "goal" ? <GoalMark />
           : <span className="r-pdot" />}
       </span>

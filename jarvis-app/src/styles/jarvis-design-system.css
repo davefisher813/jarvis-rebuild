@@ -374,7 +374,22 @@ html, body {
   font-family: var(--f); background: var(--bg); color: var(--tx-1);
   -webkit-font-smoothing: antialiased; line-height: var(--lh-default);
   font-size: var(--t-h3); letter-spacing: var(--track-default); font-weight: var(--w-normal);
+  /* THE DOCUMENT ITSELF MUST NOT BE SCROLLABLE (2026-09-09, Dave: "I still
+     can't scroll up and down with modals. It moves the screen behind them.")
+     100vh on iOS is the LARGE viewport -- the height the page would have with
+     the browser toolbar hidden -- so with the toolbar showing, this made the
+     body taller than what anyone can see, and the document had a real scroll
+     range of about a toolbar's height. That is the "screen behind" that moved.
+     The 2026-09-06 fix pinned .app-scroll and set overscroll-behavior on the
+     body, and both were right, but neither could help: overscroll-behavior
+     governs CHAINING at a scroll port's boundary, and this document was not
+     chaining, it was scrolling, because it genuinely had somewhere to go.
+     100dvh is the height that is actually visible, so the document has no
+     range at all and there is nothing behind any overlay left to move. .app-shell
+     has preferred dvh since it was written; this is the line that never
+     followed. 100vh stays first as the fallback for anything without dvh. */
   min-height: 100vh;
+  min-height: 100dvh;
 }
 /* Force page background per theme so it can never fall back to the wrong theme */
 html[data-theme="dark"], html[data-theme="dark"] body { background-color: #000000 !important; }

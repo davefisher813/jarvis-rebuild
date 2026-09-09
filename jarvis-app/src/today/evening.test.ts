@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isEvening, eveningStats, eveningSummary, weekRecap, EVENING_TASKS_NOTE } from "./evening";
+import { isEvening, eveningStats, eveningSummary, weekRecap, todayPlan, todayPlanLine, EVENING_TASKS_NOTE } from "./evening";
 import { DEFAULT_ROUTINE } from "../routine/types";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
@@ -139,5 +139,69 @@ describe("eveningSummary and what moved (pick 4)", () => {
   });
   it("still leads with the win on a day that only moved a goal", () => {
     expect(eveningSummary({ ...stats, thingsDone: 0 }, "Moved 2 goals")).toBe("Moved 2 goals");
+  });
+});
+
+// HOW TODAY WENT (Dave, on the list since 2026-09-07: "'How did I do today'
+// never re-evaluated"; built 2026-09-09). The plan he committed in the morning
+// was written to storage, scored at midnight into an event log, and read only
+// by planCap to size the next plan. He was never shown it.
+//
+// The property that matters is in the name of the complaint: the answer has to
+// change when the day does. These tests hold a pick list still and move the
+// TASKS, which is what the card does on every render.
+describe("todayPlan: the day is scored against the plan, every time it is asked", () => {
+  const pick = (id: string, text: string, done: boolean): TaskItem =>
+    ({ id, entityType: "task", data: { text, category: "", done } } as unknown as TaskItem);
+
+  it("joins the committed picks to the tasks as they stand", () => {
+    const tasks = [pick("a", "Call the bank", true), pick("b", "Write the brief", false)];
+    const p = todayPlan(["a", "b"], tasks)!;
+    expect(p.total).toBe(2);
+    expect(p.done).toBe(1);
+    expect(p.picks.map((x) => x.text)).toEqual(["Call the bank", "Write the brief"]);
+  });
+
+  it("keeps the order he picked them in, not the order the tasks arrive in", () => {
+    const tasks = [pick("b", "Second", false), pick("a", "First", false)];
+    expect(todayPlan(["a", "b"], tasks)!.picks.map((x) => x.text)).toEqual(["First", "Second"]);
+  });
+
+  // THE WHOLE POINT. Same picks, a task ticked off between two asks, and the
+  // answer moves. Nothing here is cached, stamped, or keyed on a day.
+  it("re-evaluates: ticking a pick off changes the answer on the next ask", () => {
+    const before = [pick("a", "Call the bank", false), pick("b", "Write the brief", false)];
+    expect(todayPlan(["a", "b"], before)!.done).toBe(0);
+    const after = [pick("a", "Call the bank", true), pick("b", "Write the brief", false)];
+    expect(todayPlan(["a", "b"], after)!.done).toBe(1);
+    const all = [pick("a", "Call the bank", true), pick("b", "Write the brief", true)];
+    expect(todayPlan(["a", "b"], all)!.done).toBe(2);
+  });
+
+  it("says nothing at all when no plan was committed", () => {
+    expect(todayPlan([], [pick("a", "Call the bank", false)])).toBeNull();
+  });
+
+  // A deleted task is not a miss. The app cannot tell "handled another way"
+  // from "abandoned", and guessing punitively is the one reading it must not
+  // take: the pick leaves the card rather than counting against him.
+  it("drops a pick whose task is gone rather than scoring it as missed", () => {
+    const p = todayPlan(["a", "gone"], [pick("a", "Call the bank", true)])!;
+    expect(p.total).toBe(1);
+    expect(p.done).toBe(1);
+    expect(todayPlan(["gone"], [])).toBeNull();
+  });
+
+  it("leads with the win, and a finished plan is a sentence rather than a fraction", () => {
+    const done = todayPlan(["a"], [pick("a", "One", true)])!;
+    expect(todayPlanLine(done)).toBe("The one you picked, done");
+    const all = todayPlan(["a", "b"], [pick("a", "One", true), pick("b", "Two", true)])!;
+    expect(todayPlanLine(all)).toBe("Everything you picked, done");
+    const some = todayPlan(["a", "b"], [pick("a", "One", true), pick("b", "Two", false)])!;
+    expect(todayPlanLine(some)).toBe("1 of 2 Done");
+    const none = todayPlan(["a", "b"], [pick("a", "One", false), pick("b", "Two", false)])!;
+    // Nothing done yet says what was picked, and never counts the misses.
+    expect(todayPlanLine(none)).toBe("2 Picked this morning");
+    expect(todayPlanLine(none)).not.toMatch(/left|missed|behind|failed/i);
   });
 });

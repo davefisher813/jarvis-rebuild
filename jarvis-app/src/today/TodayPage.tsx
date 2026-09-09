@@ -18,7 +18,7 @@ import { useCondensed } from "../shared/PageHeader";
 import { useSyncState } from "../data/useSyncState";
 import { Burst, useBurst } from "../shared/Burst";
 import type { BurstSize } from "../shared/completion";
-import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
+import { eveningSummary, todayPlanLine, EVENING_TASKS_NOTE, type EveningStats, type TodayPlan, type WeekRecap } from "./evening";
 import { capAfterNumber } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
 import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph } from "../shared/glyphs";
@@ -224,7 +224,6 @@ export default function TodayPage({
   onStartTask,
   proposedDay,
   dayFooter,
-  checkIn,
   blendMap,
   gymDoorFor,
   nowCard,
@@ -234,6 +233,7 @@ export default function TodayPage({
   onSearch,
   onProfile,
   evening,
+  plan = null,
   weekly,
   ring,
   daypart,
@@ -351,7 +351,6 @@ export default function TodayPage({
   proposedDay?: import("./YourDay").ProposedDay;
   dayFooter?: ReactNode;
   // The evening mood question. Its own notice: it is not a suggestion.
-  checkIn?: ReactNode;
   // Blend offers for today's blocks (see YourDay). Built by the flow.
   blendMap?: import("./YourDay").BlendMap;
   // UP-ATH-02 (2026-09-06): the Training Door on a gym block, built by the
@@ -371,6 +370,9 @@ export default function TodayPage({
   onSearch?: () => void;
   onProfile?: () => void;
   evening?: EveningStats;
+  /** Today's committed picks, joined to the tasks as they stand. Null when no
+      plan was committed today. Evening only; the flow gates it. */
+  plan?: TodayPlan | null;
   weekly?: WeekRecap | null; // Sunday-evening close-out card
   ring?: { done: number; total: number };
   daypart?: "morning" | "evening" | null;
@@ -674,6 +676,37 @@ export default function TodayPage({
       </div>
       <div ref={condProbe} />
 
+      {/* HOW TODAY WENT (Dave, on the list since 2026-09-07: "'How did I do
+          today' never re-evaluated"; built 2026-09-09).
+          The plan he commits every morning was written to storage, scored at
+          midnight into an event log, and read only by planCap to size the NEXT
+          plan. The one person it was about never saw it.
+          It is a receipt, not a set of controls: the same tasks are already
+          tappable in Still Open below, and two places to tick one thing off is
+          the repetition this page keeps having to remove. Every render
+          re-derives it from the tasks as they stand right now
+          (today/evening.ts, todayPlan), so ticking one off downstairs changes
+          this the moment it happens, which is the whole of what
+          "re-evaluated" had to mean. Evening only, and silent on a day with no
+          committed plan. */}
+      {plan && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">How Today Went</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            <div className="row">
+              <div className="row-grow"><div className="conn-name">{todayPlanLine(plan)}</div></div>
+              <DayRing done={plan.done} total={plan.total} />
+            </div>
+            {plan.picks.map((p) => (
+              <div className="row" key={p.id}>
+                <div className={"task-check" + (p.done ? " done" : "")} aria-hidden="true" />
+                <div className="row-grow"><div className={"conn-name" + (p.done ? " pick-done" : "")}>{p.text}</div></div>
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+
       {/* THE DAY'S OWN ORDER (Dave 2026-08-19: "the order should have the
           same flow as the day", amended by Your Move 2026-08-26): Your Move
           → Email → Reminders → Your Day → Tomorrow. Nothing about this
@@ -846,7 +879,6 @@ export default function TodayPage({
           opposite of that: it is the last thing on the page because it is
           the last thing in the day, and it reads as a close-out instead of
           an interruption. */}
-      {checkIn && <div className="today-checkin">{checkIn}</div>}
 
       <div className="screen-foot" />
     </div>

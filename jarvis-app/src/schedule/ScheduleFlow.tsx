@@ -14,6 +14,7 @@ import { pausedCategoryIds } from "../categories/kinds";
 import { workWindowOf } from "./planMeta";
 import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
+import EventDetailPage from "./screens/EventDetailPage";
 import { weekRowsFor } from "./weekRows";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
@@ -311,6 +312,23 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   const dayOverlaps = overlapsOn(allEvents, selected).filter((o) => !isKept(o, selected));
   const conflicts = new Set<string>(dayOverlaps.flatMap((o) => [o.a.id, o.b.id]));
   const [fixing, setFixing] = useState<Overlap | null>(null);
+  // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07; built
+  // 2026-09-09). Tapping an event opens its PAGE now, the way tapping a
+  // project or a goal has always opened theirs. The sheet is still the only
+  // place a field is edited; it is one tap away on the page's Edit.
+  const [detail, setDetail] = useState<{ id: string; occurrence?: string } | null>(null);
+  const [detailNotes, setDetailNotes] = useState<{ id: string; title: string }[]>([]);
+  // What has been written about this event. Read when the page opens rather
+  // than kept for every event on the calendar: notesLinkedTo is one query and
+  // the page is one event.
+  useEffect(() => {
+    if (!detail) { setDetailNotes([]); return; }
+    let on = true;
+    notesSvc.notesLinkedTo(detail.id)
+      .then((rows) => { if (on) setDetailNotes(rows.map((n) => ({ id: n.id, title: n.title }))); })
+      .catch(() => { if (on) setDetailNotes([]); });
+    return () => { on = false; };
+  }, [detail, notesSvc, noteTick]);
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
   const checkConflict = (date: string, startT: string, endT: string) => {
     const others = eventsForDate(allEvents, date).filter((e) => !(sheet && sheet.mode === "edit" && e.id === sheet.id));
@@ -320,7 +338,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
 
   // PICK 23: one upward index per render pass, the same shape Today builds.
   const goalIdx = buildGoalIndex(projList, liveGoals(goalList));
-  const parentIdx = useMemo(() => buildParentIndex(projList, goalList, taskItems), [projList, goalList, taskItems]);
+  const parentIdx = useMemo(() => buildParentIndex(projList, goalList, taskItems, allEvents), [projList, goalList, taskItems, allEvents]);
   const realToday = todayISO();
   const plannedTaskIds = new Set(dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
   const planCandidates = taskItems
@@ -838,6 +856,16 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   };
 
   const onToggleTask = async (id: string) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reloadTasks(); };
+  // EVENTS ARE FIRST-CLASS (2026-09-09): a task added from an event's own page
+  // is FILED to it (eventId), born in the event's area, and due on the day it
+  // has to be ready for. Those three are what make it the event's task rather
+  // than a loose one that happens to mention it.
+  const addEventStep = async (eventId: string, ev: EventItem, text: string) => {
+    const ok = await attemptWrite(() => tasksSvc.createTask(text, { eventId, category: ev.data.category, due: ev.data.date }));
+    await reloadTasks();
+    if (!ok) return;
+    showToast({ message: "Added to " + ev.data.title });
+  };
 
   // Give-back: move a timed block back to Anytime. If it came from a task the
   // task still exists, so deleting the block returns it to the strip; a manual
@@ -1280,6 +1308,34 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     return <GymFlow door={gymDoor.opened} onBack={() => { gymDoor.close(); void reload(); }} />;
   }
 
+  // THE EVENT'S OWN PAGE (2026-09-09). Same shape the gym door above uses and
+  // the same one Brain's category page uses: a pushed screen, not a route.
+  // Everything it renders is read here and handed down, so the page holds no
+  // service of its own and cannot disagree with the list that pushed it.
+  if (detail) {
+    const ev = allEvents.find((x) => x.id === detail.id);
+    if (ev) {
+      const steps = taskItems
+        .filter((t) => t.data.eventId === detail.id)
+        .map((t) => ({ id: t.id, text: t.data.text, done: !!t.data.done }));
+      const linked = detailNotes;
+      return (
+        <EventDetailPage
+          event={ev}
+          occurrence={detail.occurrence}
+          onBack={() => setDetail(null)}
+          onEdit={() => { const d = detail; setDetail(null); void openEdit(d.id, d.occurrence); }}
+          steps={steps}
+          onToggleStep={(id) => void onToggleTask(id)}
+          onOpenStep={onNavigate ? (id) => onNavigate("tasks", id) : undefined}
+          onAddStep={(text) => void addEventStep(detail.id, ev, text)}
+          linkedNotes={linked}
+          onOpenNote={onNavigate ? (id) => onNavigate("notes", id) : undefined}
+        />
+      );
+    }
+  }
+
   return (
     <>
       <SchedulePage
@@ -1313,7 +1369,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
         onNext={onNext}
         onSelect={setSelected}
         onNew={() => setSheet({ mode: "new" })}
-        onOpenEvent={openEdit}
+        onOpenEvent={(id, occurrenceDate) => setDetail({ id, occurrence: occurrenceDate })}
         onPickSlot={onPickSlot}
         onPlanDay={() => setPlanOpen(true)}
         onUpload={ai.available ? () => setUploadOpen(true) : undefined}

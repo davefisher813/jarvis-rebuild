@@ -27,13 +27,20 @@ function Seeded({ kind }: { kind?: "org" }) {
 }
 
 describe("CategoryDetail", () => {
-  it("plain category: Up Next with the open task, Add rows, NO Projects block", async () => {
+  // EVERY AREA PAGE SHOWS ALL FOUR (Dave 2026-09-09, ruling it directly:
+  // "every single page that shows your categories shows goals shows projects
+  // shows tasks it should show events and they should all have an add
+  // button"). Projects used to be gated on the area being an ORG, which this
+  // test asserted; that gate is gone, so the assertion inverts.
+  it("every area page shows Projects, Goals Here, Coming Up and Up Next, each with its add", async () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Email Sam")).toBeInTheDocument());
-    expect(screen.getByText("Up Next")).toBeInTheDocument();
-    expect(screen.getByText("Add Task")).toBeInTheDocument();
-    // Bridge suggests plain, so the org module must not render
-    expect(screen.queryByText("Projects")).not.toBeInTheDocument();
+    for (const head of ["Projects", "Goals Here", "Coming Up", "Up Next"]) {
+      expect(screen.getByText(head), head + " must stand on every area page").toBeInTheDocument();
+    }
+    for (const add of ["Add Project", "Add Goal", "Add Event", "Add Task"]) {
+      expect(screen.getByText(add), add + " must be offered on every area page").toBeInTheDocument();
+    }
     // nothing happened yet: no Record section, no fake receipt
     expect(screen.queryByText("Record")).not.toBeInTheDocument();
   });
@@ -43,6 +50,45 @@ describe("CategoryDetail", () => {
     await waitFor(() => expect(screen.getByText("Projects")).toBeInTheDocument());
     expect(screen.getByText("Golf Event")).toBeInTheDocument();
     expect(screen.getByText("Add Project")).toBeInTheDocument();
+  });
+
+  // Dave 2026-09-09, from the Bridge area: "I should be able to add goals from
+  // the screen in the pic. I can with tasks and projects only." Goals Here was
+  // gated on there already BEING a goal, so an area with none showed no
+  // section and offered no door: the only way to start one was to leave for
+  // Bigger Picture and tag it back to the area by hand.
+  it("Goals Here stands on an area with no goals, and its Add Goal opens the sheet", async () => {
+    render(<NotesProvider userId="u3"><Seeded /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Email Sam")).toBeInTheDocument());
+    // The section is there before any goal is, exactly as Projects is.
+    expect(screen.getByText("Goals Here")).toBeInTheDocument();
+    const add = screen.getByText("Add Goal");
+    expect(add).toBeInTheDocument();
+    fireEvent.click(add);
+    await waitFor(() => expect(screen.getByText("New Goal")).toBeInTheDocument());
+  });
+
+  // Dave 2026-09-09, on the Bridge page: "There's also no events section on
+  // these pages." There was one, and it was gated on the area already HAVING
+  // an event and sat below Up Next, Notes and People, which is under the fold
+  // on a phone. It now stands like Projects does, above the task list, with
+  // its own door.
+  it("Coming Up stands on an area with no events, and its Add Event opens the sheet", async () => {
+    render(<NotesProvider userId="u4"><Seeded /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Email Sam")).toBeInTheDocument());
+    expect(screen.getByText("Coming Up")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Add Event"));
+    await waitFor(() => expect(screen.getByText("New Event")).toBeInTheDocument());
+  });
+
+  // The calendar is the most time-bound thing an area owns, so it goes above
+  // the task list rather than below everything.
+  it("Coming Up sits above Up Next, not under the fold", async () => {
+    const { container } = render(<NotesProvider userId="u5"><Seeded /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Email Sam")).toBeInTheDocument());
+    const heads = [...container.querySelectorAll(".sh2 .t")].map((e) => e.textContent);
+    expect(heads.indexOf("Coming Up")).toBeGreaterThan(-1);
+    expect(heads.indexOf("Coming Up")).toBeLessThan(heads.indexOf("Up Next"));
   });
 });
 

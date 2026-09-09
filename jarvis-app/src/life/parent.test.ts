@@ -61,3 +61,39 @@ describe("parentForTask", () => {
     expect(parentForTask(idx(), tasks[4]!)).toBeNull();
   });
 });
+
+// EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07: "events aren't
+// first-class entities"; built 2026-09-09). A task can belong to an EVENT now,
+// the way it has always been able to belong to a project, and the row says so.
+describe("the event a task belongs to", () => {
+  const EV = [{ id: "e1", data: { title: "Saturday Tournament", date: "2026-09-12", start: "09:00", category: "sport" } }] as never;
+
+  it("a task filed to an event leads its line with the event", () => {
+    const t = { id: "t1", data: { text: "Print the roster", category: "sport", done: false, eventId: "e1" } } as never;
+    const p = parentForTask(buildParentIndex([], [], [t], EV), t)!;
+    expect(p.kind).toBe("event");
+    expect(p.name).toBe("Saturday Tournament");
+  });
+
+  // The event decides WHEN the task has to be done, which is the stronger
+  // statement of where it lives. The project is still on the sheet.
+  it("the event outranks the project when a task carries both", () => {
+    const proj = { id: "p1", data: { title: "Season Ops", category: "sport" } } as never;
+    const t = { id: "t1", data: { text: "Print the roster", category: "sport", done: false, eventId: "e1", projectId: "p1" } } as never;
+    expect(parentForTask(buildParentIndex([proj], [], [t], EV), t)!.kind).toBe("event");
+  });
+
+  // The index is optional so this could land without touching a call site.
+  // A caller with no events to hand must fall straight through to the line it
+  // always drew, never to a blank one.
+  it("falls through to the project when the index has no events", () => {
+    const proj = { id: "p1", data: { title: "Season Ops", category: "sport" } } as never;
+    const t = { id: "t1", data: { text: "Print the roster", category: "sport", done: false, eventId: "e1", projectId: "p1" } } as never;
+    expect(parentForTask(buildParentIndex([proj], [], [t]), t)!.kind).toBe("project");
+  });
+
+  it("an eventId pointing at nothing is not a parent, it is no parent", () => {
+    const t = { id: "t1", data: { text: "Print the roster", category: "", done: false, eventId: "gone" } } as never;
+    expect(parentForTask(buildParentIndex([], [], [t], EV), t)).toBeNull();
+  });
+});

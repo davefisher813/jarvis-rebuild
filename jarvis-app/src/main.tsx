@@ -87,6 +87,12 @@ if (typeof document !== "undefined") {
   const syncSheetOpen = () => {
     document.body.classList.toggle("sheet-open", !!document.querySelector(".sheet-scrim"));
     document.body.classList.toggle("overlay-open", !!document.querySelector(".sheet-scrim, .hmenu-scrim"));
+    // 2026-09-09: the root wears it too, read straight off the body so there
+    // is one decision and not two. Body overflow is supposed to propagate to
+    // the viewport while the root is `visible`, and on iOS that has not always
+    // been true, so the document gets pinned by name rather than by
+    // inheritance. Harmless everywhere the propagation already works.
+    document.documentElement.classList.toggle("overlay-open", document.body.classList.contains("overlay-open"));
   };
   new MutationObserver(syncSheetOpen).observe(document.body, { childList: true, subtree: true });
 }

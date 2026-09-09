@@ -30,9 +30,9 @@ import { birthdaysOn, upcomingBirthdays, type BirthdayHit } from "../people/birt
 import type { Person } from "../people/types";
 import CallPrepSheet from "../people/CallPrepSheet";
 import MessageDraftSheet from "../people/MessageDraftSheet";
-import CheckIn from "./CheckIn";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import EventSheet, { type EventDraft } from "../schedule/screens/EventSheet";
+import EventDetailPage from "../schedule/screens/EventDetailPage";
 import BlockSheet, { type BlockDraft } from "../schedule/screens/BlockSheet";
 import PlanDaySheet from "../schedule/screens/PlanDaySheet";
 import { aiPlanDay } from "../schedule/planDayAI";
@@ -42,11 +42,13 @@ import { daySizing } from "../schedule/daySizing";
 import { shiftFutureEvents, shiftPlan, restoreShift } from "../schedule/runningLate";
 import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders, ensureTaskReminders } from "../shared/notifications";
 import { badgeCount, setAppBadge } from "../shared/badge";
-import { isEvening, eveningStats, weekRecap } from "./evening";
+import { isEvening, eveningStats, weekRecap, todayPlan } from "./evening";
+import { pendingPicks } from "../events/planOutcome";
 import { readSamples } from "../shared/timeSense";
 import { settleDuePlans } from "../events/pipeline";
 import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
+import { sheetEvents } from "../schedule/sheetEvents";
 import { inheritFromThread } from "../messages/threadTasks";
 import { endOfAct, type MailAct } from "../messages/mailAct";
 import { dayPhrase } from "../money/bills";
@@ -706,7 +708,7 @@ export default function TodayFlow({
     // the same TaskSheet the Tasks tab opens, so a project, an extra area or
     // an if-then plan set from Tasks would silently vanish the moment the
     // task was edited from home instead. Same sheet, same fields, both ends.
-    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin } });
+    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin } });
   };
 
   // Tappable schedule rows (roadmap v2): an event on Today opens the same
@@ -714,9 +716,33 @@ export default function TodayFlow({
   // (B1-5, 2026-09-04: this sheet is the same EventSheet ScheduleFlow opens,
   // so it offers the same until/taskIds/Training Door controls; it has to
   // load and save the same fields or those controls lie).
-  const onOpenEvent = async (id: string) => {
+  const openEventSheet = async (id: string) => {
     const e = await schedule.event(id);
     if (e) setEventSheet({ id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+  };
+  // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07; built
+  // 2026-09-09). Tapping an event opens its PAGE, here as well as on Schedule.
+  // Today has no route to another tab, so it mounts the same page itself
+  // rather than sending him somewhere: one door, one destination, wherever the
+  // event was tapped. Edit on the page opens the sheet this used to open.
+  const [eventDetail, setEventDetail] = useState<string | null>(null);
+  const [eventDetailNotes, setEventDetailNotes] = useState<{ id: string; title: string }[]>([]);
+  useEffect(() => {
+    if (!eventDetail) { setEventDetailNotes([]); return; }
+    let on = true;
+    notesSvc.notesLinkedTo(eventDetail)
+      .then((rows) => { if (on) setEventDetailNotes(rows.map((n) => ({ id: n.id, title: n.title }))); })
+      .catch(() => { if (on) setEventDetailNotes([]); });
+    return () => { on = false; };
+  }, [eventDetail, notesSvc]);
+  const onOpenEvent = (id: string) => { setEventDetail(id); };
+  // A task added from an event's page is FILED to it, born in its area, and
+  // due on the day it has to be ready for. Same three facts ScheduleFlow's
+  // copy writes; both go through TasksService.createTask's eventId.
+  const addEventStep = async (eventId: string, ev: EventItem, text: string) => {
+    const ok = await attemptWrite(() => tasks.createTask(text, { eventId, category: ev.data.category, due: ev.data.date }));
+    await reload();
+    if (ok) showToast({ message: "Added to " + ev.data.title });
   };
 
   // THE SAME ROW, THE SAME MOVES (2026-08-28). Schedule's day list could
@@ -1032,6 +1058,7 @@ export default function TodayFlow({
         await tasks.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
         await tasks.setDue(sheet.id, draft.due || null);
         await tasks.setProject(sheet.id, draft.projectId ?? null);
+        await tasks.setEvent(sheet.id, draft.eventId ?? null);
         await tasks.setRecurrence(sheet.id, rec || null);
         await tasks.setPlan(sheet.id, draft.plan ?? null);
         await tasks.setSteps(sheet.id, draft.steps ?? []);
@@ -1404,7 +1431,7 @@ export default function TodayFlow({
   const goalIdx = buildGoalIndex(projList, liveGoals(goalList));
   // WHERE A TASK LIVES (The Row and Health, 2026-09-02): the row's second
   // line, project first, then the goal it moves, then the category.
-  const parentIdx = useMemo(() => buildParentIndex(projList, goalList, taskItems), [projList, goalList, taskItems]);
+  const parentIdx = useMemo(() => buildParentIndex(projList, goalList, taskItems, allEvents), [projList, goalList, taskItems, allEvents]);
   const goalReach = (id: string) => {
     const g = goalList.find((x) => x.id === id);
     return g ? reachOf(taskItems, projList, g) : { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
@@ -1461,6 +1488,13 @@ export default function TodayFlow({
   const tomorrowBirthday = evening
     ? upcomingBirthdays(peopleList, today, 1).filter((b) => b.inDays === 1 && !isQuiet(b.id, today, birthdayStore))[0] ?? null
     : null;
+  // HOW TODAY WENT (Dave, on the list since 2026-09-07; built 2026-09-09).
+  // Read every render, joined every render: pendingPicks is a storage read of
+  // what he committed this morning and todayPlan joins it to the tasks as they
+  // stand at this instant. Nothing memoised on purpose. The whole complaint
+  // was that the answer was computed once and never asked again, and a
+  // useMemo keyed on the wrong thing is exactly how that comes back.
+  const plan = evening ? todayPlan(pendingPicks(today), taskItems) : null;
   const weekly = evening ? weekRecap(samples, allEvents, today) : null;
   // Day ring: what today asked for, and how much of it is behind him. Hero
   // tint by daypart. TODAY-F-09 (2026-09-05): the arithmetic lives in
@@ -1883,6 +1917,26 @@ export default function TodayFlow({
   const gymDoor = useGymDoor(todayEvents, today, today);
 
   if (loading) return <SkeletonScreen />;
+
+  // THE EVENT'S OWN PAGE (2026-09-09), pushed the same way the gym door and
+  // Brain's category page are: a screen, not a route. Read here and handed
+  // down, so the page holds no service of its own.
+  if (eventDetail) {
+    const ev = allEvents.find((x) => x.id === eventDetail) ?? todayEvents.find((x) => x.id === eventDetail);
+    if (ev) {
+      return (
+        <EventDetailPage
+          event={ev}
+          onBack={() => setEventDetail(null)}
+          onEdit={() => { const id = eventDetail; setEventDetail(null); void openEventSheet(id); }}
+          steps={taskItems.filter((t) => t.data.eventId === eventDetail).map((t) => ({ id: t.id, text: t.data.text, done: !!t.data.done }))}
+          onToggleStep={(id) => void onToggleTask(id)}
+          onAddStep={(text) => void addEventStep(eventDetail, ev, text)}
+          linkedNotes={eventDetailNotes}
+        />
+      );
+    }
+  }
   // UP-ATH-02 (2026-09-06): walking through the Training Door mounts the gym
   // whole, exactly as Schedule does it, and coming back re-reads the day so
   // the block shows its fresh stamp.
@@ -3063,6 +3117,7 @@ export default function TodayFlow({
       // answered before the tap instead.
       burstSizeOf={(t) => (t.data.done ? "small" : burstSize(movedByTask(t.data, t.id)?.moved ?? null))}
       evening={evening}
+      plan={plan}
       ring={ring}
       daypart={daypart}
       onToggleTask={onToggleTask}
@@ -3147,7 +3202,6 @@ export default function TodayFlow({
       // put an AI suggestion immediately under the check-in's mood chips with
       // nothing between them, so the suggestion read as part of the question.
       // They are unrelated: one asks how today felt, the other proposes work.
-      checkIn={<CheckIn onChanged={() => { void reload(); }} />}
       onSearch={onSearch}
       onProfile={onProfile}
       onSeeAllSchedule={onGoSchedule}
@@ -3249,6 +3303,7 @@ export default function TodayFlow({
     )}
     {sheet && (
       <TaskSheet
+        events={sheetEvents(allEvents, today)}
         mode="edit"
         initial={sheet.initial}
         categories={categories}

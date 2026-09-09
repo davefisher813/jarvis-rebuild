@@ -22,7 +22,15 @@ export interface AIContextInput {
   // would flood a prompt that already carries every open task. "3 of 5" is
   // the fact; the words stay home.
   tasks?: { text: string; done: boolean; category?: string; steps?: { done: number; total: number } }[];
-  events?: { title: string; start: string }[];
+  // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07; built
+  // 2026-09-09). This carried a title and a start and nothing else, for TODAY
+  // only, so the one thing JARVIS could say about the calendar was what was on
+  // it in the next few hours. It could not answer "what is coming this week",
+  // could not know a thing was two towns away, and could not know an event had
+  // work hanging off it, because until this week an event could not own any.
+  // Three optional fields, all absent unless the event carries them, so a
+  // today-only caller renders byte for byte what it always did.
+  events?: { title: string; start: string; date?: string; location?: string; open?: number }[];
   voice?: string;
   values?: string;
   philosophy?: string;
@@ -91,7 +99,7 @@ export interface AIContext {
   peopleDetail?: { name: string; label?: string; register?: string; flagged?: boolean }[];
   categories: string[];
   openTasks: string[];
-  events: { title: string; start: string }[];
+  events: { title: string; start: string; date?: string; location?: string; open?: number }[];
   voice: string;
   values: string;
   philosophy: string;
@@ -170,7 +178,13 @@ export function assembleContext(input: AIContextInput): AIContext {
     openTasks: (input.tasks ?? []).filter((t) => !t.done).map((t) => (
       t.steps && t.steps.total > 0 ? `${t.text} (checklist ${t.steps.done} of ${t.steps.total} done)` : t.text
     )),
-    events: (input.events ?? []).map((e) => ({ title: e.title, start: e.start })),
+    events: (input.events ?? []).map((e) => ({
+      title: e.title,
+      start: e.start,
+      ...(e.date ? { date: e.date } : {}),
+      ...(e.location ? { location: e.location } : {}),
+      ...(e.open ? { open: e.open } : {}),
+    })),
     voice: input.voice?.trim() ?? "",
     values: input.values?.trim() ?? "",
     philosophy: input.philosophy?.trim() ?? "",
@@ -240,7 +254,24 @@ export function contextToText(ctx: AIContext): string {
   } else if (ctx.people?.length) lines.push(`Key people: ${ctx.people.join(", ")}`);
   if (ctx.categories?.length) lines.push(`Life areas: ${ctx.categories.join(", ")}`);
   if (ctx.openTasks?.length) lines.push(`Open tasks: ${ctx.openTasks.join("; ")}`);
-  if (ctx.events?.length) lines.push(`Today's schedule: ${ctx.events.map((e) => `${to12h(e.start)} ${e.title}`).join("; ")}`);
+  if (ctx.events?.length) {
+    // One line for today, a second for what is coming, so the model cannot
+    // read Thursday's game as happening this afternoon. An event says where it
+    // is when it knows, and how much is still open against it when anything is
+    // filed to it: both are facts it now carries, and both are the difference
+    // between naming the calendar and reasoning about it.
+    const render = (e: { title: string; start: string; date?: string; location?: string; open?: number }, withDay: boolean) =>
+      [withDay && e.date ? `${e.date} ${to12h(e.start)}` : to12h(e.start), e.title,
+        e.location ? `at ${e.location}` : null,
+        e.open ? `${e.open} open` : null].filter(Boolean).join(" ");
+    // The date IS the signal: today's events are passed without one (which is
+    // every caller that existed before this, so they render byte for byte what
+    // they always did), and anything further out carries the day it lands on.
+    const todays = ctx.events.filter((e) => !e.date);
+    const ahead = ctx.events.filter((e) => !!e.date);
+    if (todays.length) lines.push(`Today's schedule: ${todays.map((e) => render(e, false)).join("; ")}`);
+    if (ahead.length) lines.push(`Coming up: ${ahead.map((e) => render(e, true)).join("; ")}`);
+  }
   // Every field below is optional at runtime: contexts are also hand-built in
   // tests and older callers, and a missing key must never crash a prompt.
   if (ctx.routineLine) lines.push(`Routine: ${ctx.routineLine}`);

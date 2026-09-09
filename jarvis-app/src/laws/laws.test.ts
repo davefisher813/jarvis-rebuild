@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { reachOf } from "../bigger/reach";
 import { movesLine } from "../today/goalPulse";
@@ -3113,19 +3113,18 @@ describe("LAW 10: one taxonomy -- the category is the area", () => {
 // Five findings across Today, Tasks, Notes and Email, each with the same
 // shape: a good rule already existed and one screen was quietly exempt.
 describe("LAW 11: cards show their work, tags earn their shape, and no screen is exempt from the diet", () => {
-  // FINDING 1. The evening check-in feeds daySizing and pattern awareness,
-  // and said none of it: "does how did today feel actually provide value?"
-  // is a question the card itself should have answered. The card states its
-  // purpose, and the confirmation states the CONSEQUENCE of the answer
-  // given -- only "under" resizes tomorrow, so only "under" may claim to.
-  it("the mood card says what it is for, and the answer states its real consequence", () => {
-    const src = read(join(SRC, "today/CheckIn.tsx"));
-    expect(src, "the card carries its purpose line").toMatch(/sub="Shapes tomorrow's plan"/);
-    expect(src, "an underwater answer confirms the lighter tomorrow")
-      .toMatch(/v === "under" \? "Noted · Tomorrow runs lighter on purpose"/);
-    // The claim must stay honest: daySizing only lightens on "under", so no
-    // other answer may promise a change of shape.
-    expect(src).not.toMatch(/"fire" \? "Noted · Tomorrow/);
+  // FINDING 1, REPEALED (Dave 2026-09-09: "How did today feel is either
+  // getting deleted right now, or you are going to offer me a solution right
+  // now"). He took the first option. The card asked a question every evening
+  // and he never wanted to answer it; a card whose only defence was that it
+  // fed daySizing is a card that was costing more attention than it bought.
+  // today/CheckIn.tsx is deleted, and the law that made sure it explained
+  // itself goes with it rather than standing over a file nobody can open.
+  it("the evening mood card is gone, and nothing renders it", () => {
+    expect(existsSync(join(SRC, "today/CheckIn.tsx")), "CheckIn.tsx must stay deleted").toBe(false);
+    for (const f of COMPONENTS) {
+      expect(read(f), rel(f) + " must not mount the retired check-in").not.toMatch(/<CheckIn[\s/>]/);
+    }
   });
 
   // FINDING 2. The urgency tag sat at the same size and weight as the
@@ -4618,6 +4617,36 @@ describe("an overlay's scroll stops at the overlay (2026-09-06)", () => {
     expect(main).toMatch(/classList\.toggle\("overlay-open",[^\n]*\.sheet-scrim,\s*\.hmenu-scrim/);
   });
 
+  // 2026-09-09, Dave: "I still can't scroll up and down with modals. It moves
+  // the screen behind them." The 2026-09-06 rules above were right and could
+  // not work, because .app-scroll was not the only scroller: `min-height:
+  // 100vh` on the body is the LARGE viewport on iOS, so the document itself
+  // carried a real scroll range of about a toolbar's height. A document with
+  // somewhere to go does not need to chain to move, which is why an
+  // overscroll-behavior rule could never reach it.
+  it("the document is never taller than what the person can see", () => {
+    const ds = read(join(SRC, "styles/jarvis-design-system.css"));
+    const decl = ds.match(/html,\s*body\s*\{[^{}]*\}/);
+    expect(decl, "html, body block must exist").toBeTruthy();
+    // 100vh may stay as the fallback, but dvh has to be the last word.
+    expect(decl![0]).toMatch(/min-height:\s*100dvh/);
+    const vh = decl![0].lastIndexOf("100vh");
+    const dvh = decl![0].lastIndexOf("100dvh");
+    expect(dvh, "100dvh must come after the 100vh fallback").toBeGreaterThan(vh);
+  });
+
+  it("and the document itself is pinned while an overlay is up, not just the page scroller", () => {
+    expect(CSS).toMatch(/body\.overlay-open\s*\{[^{}]*overflow:\s*hidden/);
+    expect(CSS).toMatch(/html\.overlay-open\s*\{[^{}]*overflow:\s*hidden/);
+    const main = read(join(SRC, "main.tsx"));
+    expect(main, "the root has to be given the class for that rule to fire")
+      .toMatch(/documentElement\.classList\.toggle\("overlay-open"/);
+  });
+
+  it("the page scroller never hands a gesture outside itself", () => {
+    expect(CSS).toMatch(/\.app-scroll\s*\{[^{}]*overscroll-behavior:\s*contain/);
+  });
+
   it("and sheet-open stays narrow, so a dropdown never hides the tab bar", () => {
     // sheet-open also hides the tab bar and the capture bar (uniformity.css).
     // Widening it to catch dropdowns would have been the cheap fix and would
@@ -4742,6 +4771,38 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
       .filter((f) => !f.endsWith("tasks/screens/TasksPage.tsx"))
       .filter((f) => read(f).includes("r-k-one"));
     expect(others.map(rel)).toEqual([]);
+  });
+
+  // DEFECT 1, THE OTHER HALF (2026-09-09, Dave photographing a task row:
+  // "It shouldn't be 3 lines"). The clamp above only ever governed what was
+  // INSIDE .r-k, and two facts were rendered as block-level siblings BELOW
+  // it -- the plan's cue and the provenance line -- so a task carrying either
+  // one was a third line that no clamp could see. Contract 4.1 has no
+  // exceptions in it: "Two lines, always: no third line."
+  it("nothing on the task row renders below the second line", () => {
+    // Everything the row says under its title is inside the one clamped
+    // container. The check is structural: after the .r-k div closes, the only
+    // thing left before the title column closes is the close itself.
+    const block = /<div className="r-k r-k-one">([\s\S]*?)<\/div>\s*<\/div>/.exec(PAGE);
+    expect(block, "the r-k container and the column close together").toBeTruthy();
+    expect(block![1], "the cue is on the line").toMatch(/className="r-goal r-cue"/);
+    expect(block![1], "so is provenance").toMatch(/<Provenance/);
+    // And the classes those two used to own as their own rows are gone from
+    // the page, so the shape cannot quietly come back.
+    expect(PAGE, "no block-level cue row").not.toMatch(/className="task-cue"/);
+  });
+
+  it("the row's provenance is the compact fact, and gives up the tap padding that would not fit", () => {
+    expect(PAGE, "the row asks for the label without the timestamp").toMatch(/<Provenance compact/);
+    const r = ruleOf(RULED, ".ruled .r-k-one > .prov-line");
+    expect(r, "provenance is sized for the line it now shares").toBeTruthy();
+    // 15px meta type is taller than the 19px clamp: it would be sliced.
+    expect(r).toMatch(/font-size:\s*calc\(12\.5px/);
+    // The 44px expansion is 13px of transparent border top and bottom, which
+    // inside a clipped 19px line is cut off, and uncut would reach into the
+    // title's own tap target. The full target lives on the sheet.
+    expect(r).toMatch(/border-top:\s*0/);
+    expect(r).toMatch(/margin-block:\s*0/);
   });
 
   it("the priority on the line is the ruled one: chip, then words, then the rest", () => {

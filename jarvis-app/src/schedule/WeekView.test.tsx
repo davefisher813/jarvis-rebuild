@@ -102,6 +102,10 @@ describe("Schedule: editing one occurrence of a repeating event", () => {
     for (let i = 0; i < 7; i++) fireEvent.click(screen.getByLabelText("Next"));
     await waitFor(() => expect(screen.getByText("Team Sync")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Team Sync"));
+    // EVENTS ARE FIRST-CLASS (2026-09-09): tapping an event opens its PAGE
+    // now, the way tapping a project or a goal always has. The sheet is one
+    // tap further in, on the page's Edit.
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     // The Date field names the occurrence in front of him, not the anchor.
     await waitFor(() => expect(screen.getByLabelText("Date")).toHaveValue(nextWeek));
     fireEvent.click(screen.getByLabelText("Apply to"));
@@ -148,6 +152,10 @@ describe("Schedule: Undo after a delete puts the whole event back", () => {
     const stop = subscribeToast((t) => { if (t?.message === "Event deleted") undo = t.onAction; });
     try {
       fireEvent.click(screen.getByText("Lift"));
+      // EVENTS ARE FIRST-CLASS (2026-09-09): tapping an event opens its PAGE
+      // now, the way tapping a project or a goal always has. The sheet is one
+      // tap further in, on the page's Edit.
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
       await screen.findByText("Edit Event");
       fireEvent.click(screen.getByText("Delete Event"));
       await waitFor(() => expect(undo).toBeTruthy());
@@ -216,6 +224,10 @@ describe("Schedule: All Events plus a new date moves the whole series", () => {
     for (let i = 0; i < 7; i++) fireEvent.click(screen.getByLabelText("Next"));
     await waitFor(() => expect(screen.getByText("Team Sync")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Team Sync"));
+    // EVENTS ARE FIRST-CLASS (2026-09-09): tapping an event opens its PAGE
+    // now, the way tapping a project or a goal always has. The sheet is one
+    // tap further in, on the page's Edit.
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     await screen.findByText("Edit Event");
     // Apply To is already All Events; the Date field moves the day (the
     // sheet's Tomorrow chip writes the same field).

@@ -14,7 +14,8 @@ import type { GymService } from "../gym/GymService";
 import { trainingLines } from "../gym/trainingContext";
 import { readGymSettings, rackFrom } from "../gym/settings";
 import { protectedRangesFor, DEFAULT_ROUTINE } from "../routine/types";
-import { occursOn } from "../schedule/calendar";
+import { occursOn, addDays } from "../schedule/calendar";
+import type { EventItem } from "../schedule/types";
 import { sealLines } from "../review/seal";
 import { rankForRecall } from "../brain/recall";
 import { pulseLines } from "../brain/pulse";
@@ -119,6 +120,33 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIC
     s.money.list().catch(() => []),
     s.docs.get("habits").catch(() => ""),
   ]);
+  // EVENTS ARE FIRST-CLASS (2026-09-09), the third gap: the calendar the
+  // Brain could see stopped at midnight tonight. The next week is read the way
+  // the rest of the app reads a repeating calendar, through occursOn, so a
+  // weekly practice anchored months ago is on the list; a plain listEvents
+  // date filter would have missed every one of them (BRAIN-F-07 learned that
+  // the hard way on the area page). Capped at a week, and at 12 rows, because
+  // a prompt is a budget: past that it stops being context and starts being
+  // the calendar.
+  let ahead: { id: string; date: string; data: EventItem["data"] }[] = [];
+  try {
+    const all = await s.schedule.listEvents();
+    for (let i = 1; i <= 7 && ahead.length < 12; i++) {
+      const iso = addDays(today, i);
+      for (const e of all) if (occursOn(e.data, iso)) ahead.push({ id: e.id, date: iso, data: e.data });
+    }
+  } catch { /* thinner context, never a broken one */ }
+  // How much is still open against an event, now that a task can belong to
+  // one. Counted from the task list already read above, so this costs no
+  // second query, and absent (rather than zero) when nothing is filed to it.
+  const openByEvent = new Map<string, number>();
+  for (const t of tk) {
+    const id = t.data.eventId;
+    if (!id || t.data.done) continue;
+    openByEvent.set(id, (openByEvent.get(id) ?? 0) + 1);
+  }
+  const openFor = (id: string) => openByEvent.get(id) ?? 0;
+
   // What JARVIS knows (Brain Layer 2 bridge): active strands, one line each.
   // Best-effort; a strand read failure must never cost the user their prompt.
   //
@@ -300,7 +328,30 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIC
         ...(steps.length > 0 ? { steps: { done: steps.filter((s) => s.done).length, total: steps.length } } : {}),
       };
     }),
-    events: ev.map((e) => ({ title: e.data.title, start: e.data.start })),
+    // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07; built
+    // 2026-09-09). Today's events, then the next week's, each carrying where
+    // it is and how much is still open against it. Before this the Brain saw a
+    // title and a time for today and nothing else: it could not answer "what
+    // is coming this week", did not know a thing was two towns away, and could
+    // not know an event had work hanging off it, because an event could not
+    // own work until this week.
+    // Today's carry no date, which is how context.ts tells the two lines
+    // apart, and is exactly the shape every caller sent before this.
+    events: [
+      ...ev.map((e) => ({
+        title: e.data.title,
+        start: e.data.start,
+        ...(e.data.location ? { location: e.data.location } : {}),
+        ...(openFor(e.id) ? { open: openFor(e.id) } : {}),
+      })),
+      ...ahead.map((e) => ({
+        title: e.data.title,
+        start: e.data.start,
+        date: e.date,
+        ...(e.data.location ? { location: e.data.location } : {}),
+        ...(openFor(e.id) ? { open: openFor(e.id) } : {}),
+      })),
+    ],
     voice,
     values,
     philosophy,

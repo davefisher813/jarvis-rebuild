@@ -86,7 +86,7 @@ function Spark({ pts }: { pts: number[] }) {
 
 export default function HealthBody({
   program, workouts, training, today, isEvening, gymEvent, metricDefs, metricLogs, goals, tasks, kickerOf, parentOf,
-  onStart, onOpenGym, onOpenMetric, onManageMetrics, onOpenGoal, onToggleTask, onOpenTask, onDeleteTask, onSnoozeTask, onStartTask, onAddTask, insights, more,
+  onStart, onOpenGym, onOpenMetric, onManageMetrics, onOpenGoal, onAddGoal, onToggleTask, onOpenTask, onDeleteTask, onSnoozeTask, onStartTask, onAddTask, insights, more,
   healthLoggers, onOpenHealthLogger, onOpenHealthMore,
 }: {
   program: Program | null;
@@ -111,6 +111,9 @@ export default function HealthBody({
   onOpenMetric: (def: MetricDef) => void;
   onManageMetrics: () => void;
   onOpenGoal?: (id: string) => void;
+  /** Opens the new-goal sheet, pre-tagged to this area. Absent for a caller
+      that has no goal sheet to open, and the row then does not render. */
+  onAddGoal?: () => void;
   onToggleTask: (id: string) => void;
   onOpenTask?: (id: string) => void;
   onDeleteTask?: (id: string) => void;
@@ -256,14 +259,20 @@ export default function HealthBody({
 
       {insights}
 
-      {goals.length > 0 && (
+      {/* ADD GOAL, HERE TOO (Dave 2026-09-09: "I still can't add goals here").
+          The org area page got its door on 09-09; a health area renders this
+          body instead and had the same gate on it, so an area with no goal
+          showed no section and offered nothing. Same shape as the org page:
+          the section stands, the count chip is what hides. */}
+      {(goals.length > 0 || !!onAddGoal) && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Goals Here</span><span className="n">{goals.length}</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Goals Here</span>{goals.length > 0 && <span className="n">{goals.length}</span>}</div>
           <div className="pad-x"><div className="card list-card-ruled">
             {goals.map((g) => (
               <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.body} status={g.status} bar={g.bar}
                 onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined} />
             ))}
+            {onAddGoal && <button className="row-create" onClick={onAddGoal}>Add Goal</button>}
           </div></div>
         </>
       )}

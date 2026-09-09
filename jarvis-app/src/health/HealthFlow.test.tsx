@@ -396,7 +396,25 @@ describe("HealthFlow: an offer is a thing, not a sentence", () => {
   // The toast store is module-level and an action toast holds the slot
   // against a plain one (SHARED-F-09), so each case starts from empty.
   beforeEach(() => resetToasts());
-  const at = (h: number, m = 0) => new Date("2026-09-08T00:00:00").getTime() + h * 3600000 + m * 60000;
+  // A TEST ANCHORED TO A CALENDAR DATE EXPIRES (found 2026-09-09, in the
+  // afternoon: three of these went red with nothing having changed).
+  // The offsets below are hours past a midnight, and that midnight used to be
+  // the literal 2026-09-08. firstFixedCommitment (nightBefore.ts) keeps only
+  // commitments strictly AFTER now, so at(31) -- 7am on the 9th -- was in the
+  // future when the file was written, in the future at 05:00 UTC on the 9th,
+  // and in the PAST by 14:00, at which point the screen correctly rendered
+  // "Nothing Fixed Tomorrow Yet" and the offer these cases exist to check was
+  // never on screen. From the 10th on it would have failed at every hour of
+  // the day, so this was a bomb, not a flake.
+  // Anchoring to TODAY's midnight keeps every offset meaning what it meant --
+  // at(31) is still tomorrow at 7am, the first bell -- and the clock can no
+  // longer age it out. The fixed DATES elsewhere in this block are passed as
+  // props and compared to each other, never to now, so they stay as they are.
+  const at = (h: number, m = 0) => {
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    return midnight.getTime() + h * 3600000 + m * 60000;
+  };
 
   it("The Night Before offers a wind-down at a real time", async () => {
     const store = new Store(new InMemoryAdapter());

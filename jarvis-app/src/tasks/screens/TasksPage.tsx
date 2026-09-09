@@ -375,6 +375,27 @@ export function TaskRow({
               : <span className="r-goal r-cat">
                   {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || "No category"}
                 </span>}
+            {/* A1: the cue, where he will see it while scanning. The whole
+                sentence is on the sheet; the row carries the trigger, which
+                is the half that has to be recognisable in the moment.
+
+                DEFECT 1, THE HALF THAT WAS MISSED (Dave 2026-09-09, on his
+                phone, photographing "Submit job apps" over "Personal" over
+                "3:30 PM": "It shouldn't be 3 lines"). DEFECT 1 clamped .r-k
+                to one line box on 2026-09-06 and stopped there, but the cue
+                was never ON .r-k -- it was a block-level div rendered AFTER
+                it, so every task carrying a plan was a third line no clamp
+                could see. Contract 4.1 rules it in as many words: "Two
+                lines, always: no third line."
+                It goes second on the line, ahead of the person and the
+                estimate, because the cue is the one fact on this row that
+                says WHEN the thing happens, and a trigger he cannot see
+                while scanning is a plan he does not keep. Category first
+                still: where a task lives is what he sorts by. Everything
+                after it yields in the order it already did, and an item that
+                no longer fits leaves the line whole rather than clipped --
+                the mechanism DEFECT 1 built. */}
+            {t.plan && <span className="r-goal r-cue">{cueLine(t.plan)}</span>}
             {/* UP-CORE-17 (2026-09-05): the person this is about, and the
                 door to their card. */}
             {person && (person.onOpen
@@ -384,24 +405,32 @@ export function TaskRow({
                 where he is deciding what to pick up. A fact, only when set. */}
             {t.estimateMin ? <span className="r-goal r-est"><Nums text={durLabel(t.estimateMin)} /></span> : null}
             {t.recurrence && <span className="r-goal r-rec">{t.recurrence}</span>}
+            {/* Provenance Line (addendum item 8): auto-created rows say where
+                they came from; hand-made rows render nothing here. */}
+            {/* SHARED-F-17 (2026-09-05): "From an email · Aug 12" was a plain
+                line everywhere, although the entity carries source.ref and the
+                app has a route for the types it names. openSourceFor hands
+                back a handler only for a source this flow can actually reach,
+                so a line that cannot be opened stays a plain fact instead of
+                becoming a button that does nothing. */}
+            {/* UP-CORE-05 (2026-09-05): a task Auto-Sweep pulled to today says
+                so, for the day, above where it came from. A date that changed
+                overnight with nothing explaining it is the "did I do that?"
+                moment this line exists to end (rowSource picks which fact). */}
+            {/* AND IT WAS THE OTHER THIRD LINE (2026-09-09). The cue moved onto
+                this line the same day; this was the second block-level div
+                sitting under .r-k, so an auto-created task with a category was
+                three lines for exactly the same reason, and contract 4.1 does
+                not have an exception for provenance.
+                It goes LAST, which is the honest ranking of it: where a row
+                came from matters less than where it lives, when it happens,
+                who it is about, how long it takes and whether it repeats. Last
+                also means it is the first thing to leave when the line runs
+                out, whole rather than clipped -- and the full line, with its
+                own tap and its own 44px target, is on the sheet one tap away,
+                where it has always been. */}
+            <Provenance compact source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
           </div>
-          {/* A1: the cue, where he will see it while scanning. The whole
-              sentence is on the sheet; the row carries the trigger, which is
-              the half that has to be recognisable in the moment. */}
-          {t.plan && <div className="task-cue">{cueLine(t.plan)}</div>}
-          {/* Provenance Line (addendum item 8): auto-created rows say where
-              they came from; hand-made rows render nothing here. */}
-          {/* SHARED-F-17 (2026-09-05): "From an email · Aug 12" was a plain
-              line everywhere, although the entity carries source.ref and the
-              app has a route for the types it names. openSourceFor hands
-              back a handler only for a source this flow can actually reach,
-              so a line that cannot be opened stays a plain fact instead of
-              becoming a button that does nothing. */}
-          {/* UP-CORE-05 (2026-09-05): a task Auto-Sweep pulled to today says
-              so, for the day, above where it came from. A date that changed
-              overnight with nothing explaining it is the "did I do that?"
-              moment this line exists to end (rowSource picks which fact). */}
-          <Provenance source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
         </div>
         {/* The urgency label steps aside for Start, exactly as it does on
             Today: knowing a thing is due is worth less than a way to begin

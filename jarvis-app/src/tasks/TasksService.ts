@@ -60,7 +60,7 @@ export class TasksService {
   // set the precedent; Store.create takes the id straight through.
   async createTask(
     text: string,
-    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string; done?: boolean; lastDone?: string } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; eventId?: string; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string; done?: boolean; lastDone?: string } = {},
     id?: string,
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
@@ -74,6 +74,12 @@ export class TasksService {
     // Pick 26: the thread this task came from, so its siblings can teach the
     // next one where it belongs.
     if (opts.fromThread) data.fromThread = opts.fromThread;
+    // EVENTS ARE FIRST-CLASS (2026-09-09): the event this task belongs to, the
+    // same way projectId below files it to a project. Written at creation
+    // because that is when the link is known: a task added from an event's own
+    // page IS that event's task, and inferring it later from a title is the
+    // exact wrong link (see life/parent.ts on tags versus where a thing lives).
+    if (opts.eventId) data.eventId = opts.eventId;
     // UP-CORE-17 / UP-MIND-10 (2026-09-05): who this task is about. Set from
     // the bounded chooser, or from the sender when the task was born out of
     // a thread. Written at creation either way, because the person is known
@@ -116,6 +122,7 @@ export class TasksService {
       extraCategories: t.extraCategories,
       due: t.due ?? null,
       recurrence: t.recurrence,
+      eventId: t.eventId,
       projectId: t.projectId,
       bill: t.bill,
       reminder: t.reminder,
@@ -375,6 +382,18 @@ export class TasksService {
     const t = await this.getTask(id);
     if (!t) return false;
     await this.store.update(this.ownerId, id, { projectId: projectId ?? null });
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  // EVENTS ARE FIRST-CLASS (2026-09-09). The event a task belongs to, settable
+  // and clearable from the task sheet the same way setProject above is. Null
+  // clears it: a task that stops belonging to Saturday is a real edit, and
+  // leaving a stale eventId behind would keep it on that event's page forever.
+  async setEvent(id: string, eventId: string | null): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    await this.store.update(this.ownerId, id, { eventId: eventId ?? null });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }

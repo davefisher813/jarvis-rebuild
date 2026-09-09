@@ -225,6 +225,26 @@
 .ruled .r-k-one > .r-cat, .ruled .r-k-one > .r-parent { flex: 1 1 5.5em; }
 .ruled .r-k-one > .r-person { flex: 0 1 auto; max-width: 4.5em; }
 .ruled .r-k-one > .r-est, .ruled .r-k-one > .r-rec { flex: 0 0 auto; }
+/* The cue (2026-09-09) does not shrink and does not wrap its own text: it is
+   a time or a short place, and half of "3:30 PM" is not a trigger anybody can
+   act on. It leaves the line whole or not at all, like the estimate beside
+   it, and it sits ahead of both the person and the estimate in the markup
+   because it is the fact that says when. */
+.ruled .r-k-one > .r-cue { flex: 0 0 auto; }
+/* Provenance joined the line too (2026-09-09), last and quietest. Two things
+   have to change for it to belong here rather than on a row of its own: it
+   wears the line's type (it was --t-meta, 15px, which is taller than the
+   19px clamp and would have been sliced through the middle of its own
+   letters), and it gives up the 44px tap expansion, which is 13px of
+   transparent border above and below -- inside a clipped 19px line that
+   border is cut off, and even uncut it would reach up into the title's own
+   tap target and make two controls share pixels. The openable line keeps its
+   full target on the sheet, which is where a source is actually opened from
+   with a thumb. On the row it stays a tap, just a row-sized one, exactly as
+   the person beside it already is. */
+.ruled .r-k-one > .prov-line { flex: 0 0 auto; font-size: calc(12.5px * var(--type-scale));
+  color: var(--tx-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-top: 0; border-bottom: 0; margin-block: 0; line-height: inherit; }
 /* THE STEP COUNT IN THE RIGHT SLOT (TRACE-02, 2026-09-07). Dave: "there is
    no trace of events or steps (for tasks) anywhere in the app." Contract 4.1
    names three things this slot can hold and this is the third, so it is the

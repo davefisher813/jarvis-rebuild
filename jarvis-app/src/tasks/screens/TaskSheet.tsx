@@ -6,7 +6,7 @@ import type { TaskStep } from "../../notes/types";
 import Provenance from "../../shared/Provenance";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
-import { FileText, CheckSquare, Clock, Hourglass, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X } from "../../shared/icons";
+import { FileText, CheckSquare, Clock, Hourglass, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X, CalendarDays} from "../../shared/icons";
 import { DUR_CHOICES, durLabel } from "../../schedule/durations";
 import { RepeatGlyph, PinGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
@@ -17,6 +17,13 @@ import { addDays } from "../../schedule/calendar";
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
 export interface TaskDraft {
   text: string; category: string; extraCategories?: string[]; due: string; repeat: string; projectId?: string;
+  // EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not tied to task
+  // modals"). The event this task belongs to, by id, exactly as projectId
+  // above names its project. The event page could file a task to itself from
+  // the day it was built; this is the other direction, which is the one a
+  // person actually reaches for -- the task already exists and it belongs to
+  // Saturday.
+  eventId?: string;
   // A1 (2026-08-20): the if-then plan, when he set one.
   plan?: IfThen;
   // STEPS (2026-09-04): the checklist inside this task, whole-array like the
@@ -32,6 +39,10 @@ export interface TaskDraft {
   closeNow?: boolean;
 }
 export interface SheetProject { id: string; title: string }
+/** An event this sheet can file a task to. `when` is a rendered day, not a
+ *  date: the menu has to disambiguate two events with the same name, and a
+ *  raw ISO string in a picker is a machine talking. */
+export interface SheetEvent { id: string; title: string; when: string }
 
 const isoOf = (d: Date) => {
   const y = d.getFullYear();
@@ -74,6 +85,7 @@ export default function TaskSheet({
   categoryMinutes = {},
   people = [],
   projects = [],
+  events = [],
   source,
   openSourceFor,
   onSave,
@@ -99,6 +111,9 @@ export default function TaskSheet({
   // plans on one trigger cancel each other out.
   otherPlans?: { id: string; text: string; plan?: IfThen }[];
   projects?: SheetProject[];
+  /** Events a task can be filed to. Empty for a caller with none to hand, and
+      the row then does not render, the same way Project's does not. */
+  events?: SheetEvent[];
   categories: SheetCategory[];
   // UP-CORE-02: the learned median minutes per category (schedule's
   // learnedDurations, three samples inside thirty days or silence), so the
@@ -167,6 +182,7 @@ export default function TaskSheet({
   const [due, setDue] = useState(initial?.due ?? "");
   const [repeat, setRepeat] = useState(initial?.repeat ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
+  const [eventId, setEventId] = useState(initial?.eventId ?? "");
   const [personId, setPersonId] = useState(initial?.personId ?? "");
   // UP-CORE-02: null means he has not said how long, which is different from
   // zero and is what lets the learned median keep answering.
@@ -251,6 +267,7 @@ export default function TaskSheet({
   const primaryName = categories.find((c) => c.id === category)?.name ?? "";
   const areaWord = cats.length === 0 ? "None" : cats.length === 1 ? primaryName : `${primaryName} +${cats.length - 1}`;
   const projectWord = projects.find((p) => p.id === projectId)?.title ?? "None";
+  const eventWord = events.find((e) => e.id === eventId)?.title ?? "None";
   const personWord = people.find((p) => p.id === personId)?.name ?? "None";
 
   // closeNow: the "Close Task" offer under a fully-checked list calls
@@ -266,7 +283,7 @@ export default function TaskSheet({
     // BRAIN-F-09 (2026-09-05): a failed write used to hold this latch on
     // "Saving" forever, and Cancel (the only way out) took the draft with it.
     const r = onSave({
-      text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined,
+      text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined, eventId: eventId || undefined,
       // Only a plan that will actually work is saved. A weak one is worse
       // than none: it feels like a plan and carries no effect.
       plan: planTouched && isUsable(draftPlan) ? draftPlan : undefined,
@@ -448,6 +465,22 @@ export default function TaskSheet({
                 <HeadMenu variant="value" ariaLabel="Project" value={projectId} label={projectWord} off={projectId === ""}
                   options={[{ value: "", label: "None" }, ...projects.map((p) => ({ value: p.id, label: p.title }))]}
                   onPick={setProjectId} />
+              </div>
+            )}
+            {/* EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not
+                tied to task modals"). The event page could file a task to
+                itself from the day it was built, and that was the wrong half
+                to build first: the common case is a task that already exists
+                and belongs to Saturday. The menu names the day beside the
+                title, because two practices called "Practice" are not the
+                same practice. */}
+            {events.length > 0 && (
+              <div className="row xs-row">
+                <Tile tone="sky"><CalendarDays className="ic" /></Tile>
+                <div className="conn-name">Event</div>
+                <HeadMenu variant="value" ariaLabel="Event" value={eventId} label={eventWord} off={eventId === ""}
+                  options={[{ value: "", label: "None" }, ...events.map((e) => ({ value: e.id, label: e.title + " \u00b7 " + e.when }))]}
+                  onPick={setEventId} />
               </div>
             )}
           </div></div>

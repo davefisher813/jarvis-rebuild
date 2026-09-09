@@ -63,6 +63,29 @@ export function recordPicks(day: string, picks: string[], storage: PlanStorage =
 }
 
 /**
+ * The picks committed for one local day, in the order they were picked, or an
+ * empty list if no plan was committed for it.
+ *
+ * "HOW DID I DO TODAY" WAS NEVER RE-EVALUATED (Dave, on the list since
+ * 2026-09-07, unblocked 2026-09-09). resolvePendingPlans below only ever looks
+ * at days that have ALREADY PASSED, by design: a pick is scored on whether it
+ * was done by the end of its own local day, and that answer does not exist
+ * until the day is over. The consequence nobody had closed is that the plan he
+ * commits in the morning is invisible for the rest of the day. It is written
+ * to storage, it is scored at midnight into an event log, and the only thing
+ * that ever reads the score is planCap, which uses it to size the NEXT plan.
+ * He is never shown how the day he is standing in is going.
+ *
+ * This is the reader that lets a live surface ask. It is deliberately not a
+ * score: it hands back the picks, and the caller joins them to the tasks as
+ * they are RIGHT NOW, so the answer re-derives on every render instead of
+ * being computed once and cached into staleness.
+ */
+export function pendingPicks(day: string, storage: PlanStorage = localPlanStorage): string[] {
+  return readPending(storage).find((p) => p.day === day)?.picks ?? [];
+}
+
+/**
  * Resolve every pending plan whose day has passed. Emits one plan.outcome per
  * pick (n = position, flag = done that same local day) and clears resolved
  * plans. Today's own plan stays pending until tomorrow.

@@ -73,8 +73,30 @@
    the body is the half that stops the document itself rubber-banding under
    the sheet on iOS. Scroll position survives, because overflow: hidden pins a
    scroll container rather than resetting it. */
+/* STILL MOVING (2026-09-09, Dave: "I still can't scroll up and down with
+   modals. It moves the screen behind them. Is this an iOS thing?")
+   It is an iOS thing and it is fixable; the half that was missing is that
+   `.app-scroll` was never the only scroller on the page. `min-height: 100vh`
+   on the body (jarvis-design-system.css, now dvh) left the DOCUMENT with a
+   real scroll range of about a toolbar's height on iOS Safari, and a document
+   with somewhere to go is not something overscroll-behavior can stop -- that
+   property governs chaining at a boundary, not scrolling within range. So a
+   drag inside a sheet that reached the end of the sheet's own list, or one
+   that began on the scrim beside it, moved the page behind exactly as he
+   describes.
+   The body rule fixes the cause; this pins the document while an overlay is
+   up as well, so nothing depends on that one measurement being right on every
+   iOS version. Body overflow propagates to the viewport while the root is
+   `visible`, which is the spec'd route; the root carries the class too
+   because WebKit has not always taken it. Scroll position survives: overflow
+   pins a scroll container, it does not reset one. */
 body.overlay-open .app-scroll { overflow: hidden; }
-body.overlay-open { overscroll-behavior: none; }
+body.overlay-open { overscroll-behavior: none; overflow: hidden; }
+html.overlay-open { overflow: hidden; }
+/* And the page scroller never hands a gesture to whatever is outside it,
+   overlay or no overlay. Without this the same chain exists on an ordinary
+   page: scroll a list to its end and iOS carries the drag into the document. */
+.app-scroll { overscroll-behavior: contain; }
 
 /* Inline editing: clean caret, no default focus box. */
 [contenteditable] { outline: none; caret-color: var(--tint); }
@@ -3463,8 +3485,14 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 
 /* A1 · THE CUE ON A ROW. Quiet but present: the trigger is the half that has
    to be recognisable in the moment, and it earns one line under the name. */
-.task-cue { font-size: var(--t-meta); color: var(--tx-3); margin-top: 1px; }
-.task-cue::before { content: "\2192  "; color: var(--tx-4); }
+/* THE CUE JOINED THE LINE IT BELONGED ON (2026-09-09). It was .task-cue, a
+   block-level div under .r-k, which made a third line on every task carrying
+   a plan -- the row Dave photographed. It is now a span inside .r-k, so the
+   arrow rides with the words and the one-line clamp governs it like every
+   other fact on that line. The time is tabular so a column of cues does not
+   jitter as the digits change, the same reason the step count is. */
+.r-cue { color: var(--tx-3); font-variant-numeric: tabular-nums; }
+.r-cue::before { content: "\2192\00a0"; color: var(--tx-4); }
 /* The whole if-then sentence, read back under the fields while he writes it,
    so he sees the plan he is actually making. */
 .input-hint { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); font-style: italic; }
@@ -4845,3 +4873,19 @@ body.selecting .voice-dock { display: none; }
   font-size: calc(19px * var(--type-scale)); font-weight: 800; text-align: center; padding: 4px 6px; font-variant-numeric: tabular-nums; }
 .cr-extra:focus { outline: 2px solid var(--blue); }
 .cr-extra::placeholder { color: var(--tx-4); font-weight: 600; }
+
+/* HOW TODAY WENT (2026-09-09): a pick that got done reads as struck through
+   and stepped back, the same treatment a skipped set chip already wears. It
+   is a receipt, so the finished half should look finished rather than
+   competing with the half that is still open. */
+.pick-done { color: var(--tx-3); text-decoration: line-through; }
+
+/* THE EVENT'S OWN PAGE (2026-09-09, when events became first-class). The
+   title sits inside the head card rather than in the nav bar, because an
+   event's name is often a sentence and the bar is 15 characters wide (the
+   same reading BROWSER-F-06 gave .pagehead-title): it wraps here instead of
+   ellipsing there. The url is a machine string nobody reads to the end, so it
+   takes one line and stops. */
+.ev-title { font-size: calc(24px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: var(--track-h2); line-height: var(--lh-snug); }
+.ev-url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

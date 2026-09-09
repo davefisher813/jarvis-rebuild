@@ -127,3 +127,74 @@ export function weekRecap(
 
 // Shown under the Still Open card. Tone: permission, not pressure.
 export const EVENING_TASKS_NOTE = "Waits for tomorrow · Tonight is yours";
+
+// --- HOW TODAY WENT (Dave, on the list since 2026-09-07: "'How did I do
+// today' never re-evaluated"; unblocked 2026-09-09) ---
+//
+// Plan My Day commits picks every morning. recordPicks writes them, midnight
+// scores them into plan.outcome events, and planCap reads the score to size
+// the NEXT plan. Nothing in between ever tells him how the day he is IN is
+// going against the day he chose. The plan was a decision he made and then
+// never heard about again.
+//
+// This is the join, and it is a pure function on purpose: picks in, tasks as
+// they are at this instant, answer out. Nothing is cached and nothing is
+// stamped, so the card re-derives every time Today renders. Tick a pick off
+// at 9 PM and the answer changes at 9 PM. That is the whole of what
+// "re-evaluated" has to mean.
+//
+// It reads the tasks rather than the outcome log because the log is
+// deliberately empty for today: a pick is scored on whether it was done by the
+// end of its own local day, and that fact does not exist yet. The live view
+// and the settled score therefore cannot disagree; they answer at different
+// times, from the same evidence.
+
+export interface PlanPick {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface TodayPlan {
+  picks: PlanPick[];
+  done: number;
+  total: number;
+}
+
+/**
+ * Today's committed picks joined to their tasks right now. Null when no plan
+ * was committed today, or when every pick has since been deleted: a card about
+ * a plan that does not exist would be a card about nothing.
+ *
+ * A pick whose task was deleted drops out entirely rather than counting as a
+ * miss. The app cannot tell a task deleted because it was handled another way
+ * from one deleted because it was abandoned, and guessing punitively is the
+ * one reading it must not take.
+ */
+export function todayPlan(pickIds: string[], tasks: TaskItem[]): TodayPlan | null {
+  if (pickIds.length === 0) return null;
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const picks: PlanPick[] = [];
+  for (const id of pickIds) {
+    const t = byId.get(id);
+    if (!t) continue;
+    picks.push({ id, text: t.data.text, done: !!t.data.done });
+  }
+  if (picks.length === 0) return null;
+  return { picks, done: picks.filter((p) => p.done).length, total: picks.length };
+}
+
+// The line over the card. It leads with what got done, which is the standing
+// tone law on this page (see eveningSummary above), and it never names a
+// number of misses: the picks themselves are listed under it, and an unticked
+// one says what it says without being counted at him.
+//
+// The all-done case gets its own sentence rather than "5 of 5", because a
+// finished plan is not a fraction, it is a finished plan.
+export function todayPlanLine(p: TodayPlan): string {
+  if (p.done === p.total) return p.total === 1 ? "The one you picked, done" : "Everything you picked, done";
+  if (p.done === 0) return capAfterNumber(`${p.total} picked this morning`);
+  // "2 of 5 Done" is the house form for a measurement (shared/casing.ts uses
+  // this exact example), so the line is written to land on it.
+  return capAfterNumber(`${p.done} of ${p.total} done`);
+}

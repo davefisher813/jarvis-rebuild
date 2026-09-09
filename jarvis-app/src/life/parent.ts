@@ -17,11 +17,12 @@
 
 import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
+import type { EventItem } from "../schedule/types";
 import type { Goal } from "./types";
 import { catColor, catName } from "../shared/categories";
 import { projectProgress } from "../bigger/progress";
 
-export type ParentKind = "project" | "goal" | "category";
+export type ParentKind = "event" | "project" | "goal" | "category";
 
 export interface ParentLine {
   kind: ParentKind;
@@ -34,12 +35,18 @@ export interface ParentLine {
 
 export interface ParentIndex {
   projects: Map<string, { title: string; tone: string; pct: number | null }>;
+  /** EVENTS ARE FIRST-CLASS (2026-09-09). An event a task belongs to, by the
+   *  event's own id. Empty for a caller that has no events to hand, which is
+   *  every caller that has not been given them yet: an absent index reads as
+   *  "no event parent" and the row falls through to the project it always
+   *  used, so this could be added without touching a single call site. */
+  events: Map<string, { title: string; tone: string }>;
 }
 
 /** Build once per render pass; every row on the page reads from it.
  *  `goals` is still taken so every call site keeps its shape, and because a
  *  task that can be filed to a goal directly would read it again. */
-export function buildParentIndex(projects: Project[], _goals: Goal[], tasks: TaskItem[]): ParentIndex {
+export function buildParentIndex(projects: Project[], _goals: Goal[], tasks: TaskItem[], events: EventItem[] = []): ParentIndex {
   const pmap = new Map<string, { title: string; tone: string; pct: number | null }>();
   for (const p of projects) {
     pmap.set(p.id, {
@@ -48,11 +55,25 @@ export function buildParentIndex(projects: Project[], _goals: Goal[], tasks: Tas
       pct: projectProgress(tasks, p.id)?.pct ?? null,
     });
   }
-  return { projects: pmap };
+  const emap = new Map<string, { title: string; tone: string }>();
+  for (const e of events) {
+    emap.set(e.id, { title: e.data.title, tone: "cat-fg-" + catColor(e.data.category ?? "") });
+  }
+  return { projects: pmap, events: emap };
 }
 
 /** Where this task lives, or null when it has no project, no goal and no category. */
 export function parentForTask(idx: ParentIndex, task: TaskItem): ParentLine | null {
+  // THE EVENT COMES FIRST (2026-09-09). A task filed to an event is DEFINED by
+  // it: the roster has to be printed before Saturday's tournament, and that is
+  // a stronger statement of where the task lives than the project it also sits
+  // in. A task with both still belongs to the project; the row says the thing
+  // that decides when it has to happen, and the project is one tap away on the
+  // sheet. A task with no event falls straight through to the line this
+  // function has always drawn.
+  const eid = task.data.eventId;
+  const e = eid ? idx.events.get(eid) : undefined;
+  if (e) return { kind: "event", name: e.title, tone: e.tone, pct: null };
   const pid = task.data.projectId;
   const p = pid ? idx.projects.get(pid) : undefined;
   if (p) return { kind: "project", name: p.title, tone: p.tone, pct: p.pct };

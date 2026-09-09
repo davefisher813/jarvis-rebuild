@@ -12,6 +12,7 @@ import { useProjects, useGoals } from "../data/NotesProvider";
 import type { Goal } from "../life/types";
 import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
+import { sheetEvents, type SheetEvent as SheetEventRow } from "../schedule/sheetEvents";
 import { rowSource, type Source } from "../shared/provenance";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import type { Project } from "../projects/types";
@@ -77,6 +78,17 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   const svc = useTasks();
   const cats = useCategories();
   const schedule = useSchedule();
+  // EVENTS ARE FIRST-CLASS (2026-09-09): the task sheet can file a task to an
+  // event, so this page has to know what is coming. Read once, the same shape
+  // every other sheet uses (schedule/sheetEvents.ts).
+  const [sheetEventList, setSheetEventList] = useState<SheetEventRow[]>([]);
+  useEffect(() => {
+    let on = true;
+    schedule.listEvents()
+      .then((all) => { if (on) setSheetEventList(sheetEvents(all, todayISO())); })
+      .catch(() => { if (on) setSheetEventList([]); });
+    return () => { on = false; };
+  }, [schedule]);
   const notesSvc = useNotes();
   const ai = useAI();
   const gatherContext = useAIContext();
@@ -460,7 +472,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     // plan rides into the sheet (2026-08-25): without it the sheet's fields
     // start empty, save() sees an untouched plan, and setPlan(id, null) below
     // silently erased the task's if-then on EVERY edit.
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin, personId: t.personId }, source: rowSource(t.source, t.moved) });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin, personId: t.personId }, source: rowSource(t.source, t.moved) });
   };
 
   // When arriving via a note connection, open that task. SHELL-F-12: on the
@@ -486,13 +498,14 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, plan: draft.plan, steps: draft.steps, estimateMin: draft.estimateMin, personId: draft.personId }));
+      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, estimateMin: draft.estimateMin, personId: draft.personId }));
     } else if (sheet?.mode === "edit") {
       saved = await attemptWrite(async () => {
         await svc.editText(sheet.id, draft.text);
         await svc.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
         await svc.setDue(sheet.id, draft.due || null);
         await svc.setProject(sheet.id, draft.projectId ?? null);
+        await svc.setEvent(sheet.id, draft.eventId ?? null);
         await svc.setRecurrence(sheet.id, rec || null);
         await svc.setPlan(sheet.id, draft.plan ?? null);
         await svc.setSteps(sheet.id, draft.steps ?? []);
@@ -852,6 +865,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
       {sheet && (
         <TaskSheet
           projects={projects.map((p) => ({ id: p.id, title: p.data.title }))}
+          events={sheetEventList}
           mode={sheet.mode}
           initial={sheet.initial}
           source={sheet.mode === "edit" ? sheet.source : undefined}

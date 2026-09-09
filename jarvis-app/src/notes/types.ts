@@ -148,6 +148,16 @@ export interface TaskData {
   // under (see messages/threadTasks.ts), and so a task can find its way back
   // to the conversation that produced it. Optional and additive.
   fromThread?: string;
+  // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07: "events
+  // aren't first-class entities"; built 2026-09-09). A task can belong to an
+  // EVENT, the same way it can belong to a project: "print the roster" hangs
+  // off Saturday's tournament and the tournament can say what has to happen
+  // before it. Until this existed an event was the one thing in the app that
+  // could be linked TO from a note and never own anything itself.
+  // The id is the event's, not an occurrence's: a task belongs to the series
+  // the way it belongs to a project, and the row reads the next occurrence.
+  // Optional and additive, like projectId below.
+  eventId?: string;
   projectId?: string; // the project this task belongs to (Session 6). Optional
   // field on the existing task entity, so no registry migration is needed.
   due?: string | null;

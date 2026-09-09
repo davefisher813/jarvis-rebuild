@@ -234,9 +234,22 @@ export default function EventSheet({
     : [];
   // Anything left over, so a deliberate attach is never blocked by the
   // ranking having an opinion.
-  const rest = canAttach
+  //
+  // RANDOM TASKS IN AN EVENT MODAL (Dave 2026-09-09, photographing a New Event
+  // in Family offering "Add api $" and "Find a better way to integrate
+  // decisions"). This took the first four open tasks in the app, in whatever
+  // order the list arrived in, with no relationship to the event being made.
+  // `offers` above is the ranked half and earns its rows: every one carries the
+  // reason it is being offered. This half carried none, so four rows of noise
+  // sat under four rows of reasoning and looked like the same list.
+  //
+  // Scoped to the event's own AREA, which is the one relationship a
+  // half-written event reliably has: a Family event offers Family tasks, and
+  // an event with no area yet offers nothing rather than guessing. That is the
+  // difference between a shortcut and a slot machine.
+  const rest = canAttach && category
     ? (attachTasks ?? [])
-      .filter((t) => !t.done && !taskIds.includes(t.id) && !offers.some((o) => o.task.id === t.id))
+      .filter((t) => !t.done && t.category === category && !taskIds.includes(t.id) && !offers.some((o) => o.task.id === t.id))
       .slice(0, 4)
     : [];
 

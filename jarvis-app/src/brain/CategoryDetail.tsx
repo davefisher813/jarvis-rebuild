@@ -32,9 +32,12 @@ import { comingUpFor, gymDoorOn, type UpcomingRow } from "./comingUp";
 import { FIFTEEN } from "../tasks/rightNow";
 import { attemptWrite } from "../shared/guard";
 import { buildParentIndex, parentForTask } from "../life/parent";
+import { sheetEvents } from "../schedule/sheetEvents";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import ProjectSheet from "../projects/ProjectSheet";
+import GoalSheet from "../life/GoalSheet";
 import CategorySheet, { type CategoryDraft } from "../categories/screens/CategorySheet";
+import EventSheet from "../schedule/screens/EventSheet";
 import GymFlow from "../gym/GymFlow";
 import { useGym, useMetrics, useHealth } from "../data/NotesProvider";
 // S5-Q29 (2026-09-04): the four highest-value loggers grafted from the
@@ -117,7 +120,7 @@ function groupByDay(recent: RecordEntry[]): { day: string; rows: RecordEntry[] }
 }
 const NOTES_CAP = 4;
 
-type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project" } | { kind: "edit" };
+type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project" } | { kind: "goal" } | { kind: "event" } | { kind: "edit" };
 
 
 // The category page (2026-08-03), replacing the read-only archive. Pages are
@@ -892,7 +895,7 @@ export default function CategoryDetail({
   };
   // The parent line every task row wears (life/parent.ts), from the same
   // three lists the Life tab reads.
-  const parentIdx = buildParentIndex(allProjects, goals, allTasks);
+  const parentIdx = buildParentIndex(allProjects, goals, allTasks, allEvents);
 
   // BRAIN-F-09 (2026-09-05): every sheet on this page latches its Save button
   // on the first tap, and none of these three writes was guarded, so a failed
@@ -901,7 +904,7 @@ export default function CategoryDetail({
   // the write actually landed.
   const saveTask = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
-    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, steps: draft.steps }));
+    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, eventId: draft.eventId, steps: draft.steps }));
     if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();
@@ -933,6 +936,157 @@ export default function CategoryDetail({
     if (pe) parts.push(`${pe} ${pe === 1 ? "person" : "people"}`);
     return parts.length ? capAfterNumber(`Untags ${parts.join(", ")}`) : null;
   })();
+
+  // EVERY AREA PAGE SHOWS ALL FOUR, AND EVERY ONE HAS AN ADD (Dave 2026-09-09,
+  // ruling it directly: "every single page that shows your categories shows
+  // goals shows projects shows tasks it should show events and they should all
+  // have an add button and that's it").
+  // Held as one piece so a health area (which renders HealthBody instead of the
+  // ordinary body) gets exactly the same four sections rather than a second
+  // copy that drifts. Nothing here is gated on the area's kind or on the
+  // section already holding something: every one stands, every one ends in its
+  // own create row, and the count chip is the only thing that hides.
+  const areaSections = (
+    <>
+      {/* EVERY AREA PAGE SHOWS ALL FOUR, AND EVERY ONE HAS AN ADD (Dave
+          2026-09-09, ruling it directly: "every single page that shows your
+          categories shows goals shows projects shows tasks it should show
+          events and they should all have an add button and that's it").
+          Projects used to be gated on the area being an ORG, which is why a
+          plain area had no Projects section and no way to start one. The gate
+          is gone: Projects, Goals Here, Coming Up and Up Next now stand on
+          every area page whether or not they hold anything, each ending in its
+          own create row. The count chip is the only thing that hides. */}
+      {/* Project health, not a project list (2026-08-10, Dave: "make it
+              more than just a list"). The Projects lens's own row: the pie
+              in the area's colour, the state and what it moves on the
+              second line, the next action under it, the week's count as a
+              chip. A project with no open task says Stalled out loud. */}
+          <div className="sh2 sh2-quiet"><span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}</div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {projects.map((p) => {
+              const next = nextActionOf(allTasks, p.id);
+              const projTasks = allTasks.filter((t) => t.data.projectId === p.id);
+              const taskIds = new Set(projTasks.map((t) => t.id));
+              const weekAgoMs = nowMs - 7 * 86400000;
+              const doneWeek = completionSamples().filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
+              const doneAll = projTasks.filter((t) => t.data.done).length;
+              const pct = projTasks.length > 0 ? Math.round((doneAll / projTasks.length) * 100) : null;
+              const overdue = projTasks.filter((t) => !t.data.done && !!t.data.due && t.data.due < today).length;
+              // ONE GREY LINE (Dave 2026-09-02, from the area page: "way too
+              // much sub grey text. Reformat it"). The title, then one line:
+              // the next move, or the one word for a project that has none
+              // (Paused, Stalled in the warning ink). The week's count and
+              // any overdue ride as chips ahead of it; the goal it moves is
+              // the Goals Here card two sections down, not a third line.
+              const stalled = !next && p.data.status !== "on_hold";
+              const line = next
+                ? `Next: ${next.data.text}${next.data.due ? ` \u00b7 ${dayPhrase(next.data.due, today)}` : ""}`
+                : p.data.status === "on_hold" ? "Paused" : "Stalled \u00b7 No next action";
+              return (
+                <div {...pressable(() => onOpenProject?.(p.id))} className="task-row p2 proj-row-ruled" key={p.id}>
+                  <div className="task-check-tap"><span className={"pp-slot cat-fg-" + cat.data.color}><ProjectPie pct={pct} /></span></div>
+                  <div className="task-title">
+                    <span className="task-name">{p.data.title}</span>
+                    <div className="r-k">
+                      {doneWeek > 0 && <span className="uchip u-done">{doneWeek} done</span>}
+                      {overdue > 0 && <span className="uchip u-late">{overdue} late</span>}
+                      <span className={"r-goal r-cat" + (stalled ? " r-stalled" : "")}>{line}</span>
+                    </div>
+                  </div>
+                  {CHEV}
+                </div>
+              );
+            })}
+            <button className="row-create" onClick={() => setSheet({ kind: "project" })}>Add Project</button>
+          </div></div>
+
+      {/* A GOAL STARTS WHERE IT LIVES (Dave 2026-09-09, from the Bridge area:
+          "I should be able to add goals from the screen in the pic. I can with
+          tasks and projects only").
+          Projects and Up Next both end in their own create row, and this
+          section had none -- and, worse, the whole section was gated on there
+          already being a goal, so an area with none offered no door at all and
+          the only way to start one was to leave for Bigger Picture and tag it
+          back. The section now stands whether or not it holds anything, the
+          way Projects does, and the count chip is what hides when it is empty.
+          A goal reaches an area through its TAGS (reach.ts's byCategory), so
+          the new goal opens already tagged with this one; the sheet still
+          shows the tag, so it can be changed or joined by another before it
+          saves. Nothing about how a goal is stored moves: this is the same
+          GoalSheet Bigger Picture opens, with the area filled in. */}
+      <div className="sh2 sh2-quiet"><span className="t">Goals Here</span>{goalsHere.length > 0 && <span className="n">{goalsHere.length}</span>}</div>
+      {/* B3-5 (2026-09-04): the project rows above open; these had no
+          onOpen at all, so GoalRowRuled (gated on that prop) never
+          rendered a role, a handler or the chevron. */}
+      <div className="pad-x"><div className="card list-card-ruled">
+        {goalsHere.map((g) => (
+          <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar}
+            onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined} />
+        ))}
+        <button className="row-create" onClick={() => setSheet({ kind: "goal" })}>Add Goal</button>
+      </div></div>
+
+      {/* WHAT IS ON THE CALENDAR FOR THIS PART OF LIFE (Dave 2026-09-09:
+          "there's also no events section on these pages").
+          There was one, and two things were wrong with it: it was gated on
+          this area already HAVING an event, so an area with none showed
+          nothing and offered no way to make one, and it sat below Up Next,
+          Notes and People, which is under the fold on every phone. An event is
+          the most time-bound thing an area owns, so it goes above the task
+          list, and it stands whether or not it holds anything, the way
+          Projects and Goals Here now do.
+          The rows stay read-only and the Schedule tab still owns editing;
+          Add Event opens the same EventSheet it does, with the area filled
+          in. comingUpFor walks the days through occursOn, so a weekly
+          practice shows its NEXT date rather than being dropped for having an
+          anchor in the past (BRAIN-F-07). */}
+      <div className="sh2 sh2-quiet"><span className="t">Coming Up</span>{upcoming.length > 0 && <span className="n">{upcoming.length}</span>}</div>
+      <div className="pad-x"><div className="card list-card-ruled sched-card"><div className="sched-list">
+        {upcoming.map((e) => {
+          const p = dayPhrase(e.date, today);
+          const when = p.charAt(0).toUpperCase() + p.slice(1);
+          const t = e.start ? fmtTime(e.start) : null;
+          return (
+            <div className="sched-row" key={e.id}>
+              <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All day</span>}</div>
+              <div className="sched-body">
+                <div className="sched-title">{e.title}</div>
+                <div className="sched-cat"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}<span className="sched-sep">{"\u00b7"}</span>{when}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button className="row-create" onClick={() => setSheet({ kind: "event" })}>Add Event</button>
+      </div></div>
+
+      <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{open.length > 0 && <span className="n">{open.length}</span>}</div>
+      {/* THE SAME ROW AS EVERYWHERE (Dave 2026-09-02, on the Health page:
+          "should render as a task there like it does everywhere else. It
+          should have the same clearing ability as well"). */}
+      <div className="pad-x"><div className="card list-card-ruled">
+        {open.map((t) => {
+          const rem = t.data.reminder?.time;
+          return (
+            <TaskRow
+              key={t.id}
+              item={t}
+              today={today}
+              kicker={t.data.reminder && rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null}
+              parent={parentForTask(parentIdx, t)}
+              onToggle={(id) => void toggle(id)}
+              onOpen={onOpenTask}
+              onDelete={(id) => void deleteTask(id)}
+              onSnooze={t.data.reminder ? undefined : (id) => void snoozeTask(id)}
+              onStart={t.data.reminder ? undefined : (id) => void startTask(id)}
+            />
+          );
+        })}
+        <button className="row-create" onClick={() => setSheet({ kind: "task" })}>Add Task</button>
+      </div></div>
+    </>
+  );
 
   return (
     // THE HEALTH PAGE WEARS THE RULINGS (2026-09-02, Check, Health, Stop):
@@ -969,6 +1123,7 @@ export default function CategoryDetail({
           metricDefs={metricDefs}
           metricLogs={metricLogs}
           goals={goalsHere.map((g): HealthGoalRow => ({ id: g.id, title: g.title, tone: g.tone, body: g.line, status: g.status, bar: g.bar }))}
+          onAddGoal={() => setSheet({ kind: "goal" })}
           onOpenGoal={onOpenGoal}
           tasks={open}
           // A reminder's second line is its time; a task's is its parent.
@@ -1086,7 +1241,9 @@ export default function CategoryDetail({
             </>
           }
         />
-      ) : (
+      ) : null}
+      {kind === "health" && areaSections}
+      {kind !== "health" && (
         <>
       {/* THE AREA PAGE WEARS THE RULINGS (Brain onto the rulings, Dave
           2026-09-02, picked "Today's own tiles, then the receipt" and "The
@@ -1207,118 +1364,9 @@ export default function CategoryDetail({
         </>
       )}
 
-      {upcoming.length > 0 && (
-        <>
-          {/* What is on the calendar for this part of life. Read-only rows on
-              purpose: the schedule tab owns editing. The Schedule's own row:
-              the time in its column, the title, the day under it. */}
-          <div className="sh2 sh2-quiet"><span className="t">Coming Up</span><span className="n">{upcoming.length}</span></div>
-          <div className="pad-x"><div className="card list-card-ruled sched-card"><div className="sched-list">
-            {upcoming.map((e) => {
-              const p = dayPhrase(e.date, today);
-              const when = p.charAt(0).toUpperCase() + p.slice(1);
-              const t = e.start ? fmtTime(e.start) : null;
-              return (
-                <div className="sched-row" key={e.id}>
-                  <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All day</span>}</div>
-                  <div className="sched-body">
-                    <div className="sched-title">{e.title}</div>
-                    <div className="sched-cat"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}<span className="sched-sep">{"\u00b7"}</span>{when}</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div></div></div>
-        </>
-      )}
 
-      {isOrg && (
-        <>
-          {/* Project health, not a project list (2026-08-10, Dave: "make it
-              more than just a list"). The Projects lens's own row: the pie
-              in the area's colour, the state and what it moves on the
-              second line, the next action under it, the week's count as a
-              chip. A project with no open task says Stalled out loud. */}
-          <div className="sh2 sh2-quiet"><span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}</div>
-          <div className="pad-x"><div className="card list-card-ruled">
-            {projects.map((p) => {
-              const next = nextActionOf(allTasks, p.id);
-              const projTasks = allTasks.filter((t) => t.data.projectId === p.id);
-              const taskIds = new Set(projTasks.map((t) => t.id));
-              const weekAgoMs = nowMs - 7 * 86400000;
-              const doneWeek = completionSamples().filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
-              const doneAll = projTasks.filter((t) => t.data.done).length;
-              const pct = projTasks.length > 0 ? Math.round((doneAll / projTasks.length) * 100) : null;
-              const overdue = projTasks.filter((t) => !t.data.done && !!t.data.due && t.data.due < today).length;
-              // ONE GREY LINE (Dave 2026-09-02, from the area page: "way too
-              // much sub grey text. Reformat it"). The title, then one line:
-              // the next move, or the one word for a project that has none
-              // (Paused, Stalled in the warning ink). The week's count and
-              // any overdue ride as chips ahead of it; the goal it moves is
-              // the Goals Here card two sections down, not a third line.
-              const stalled = !next && p.data.status !== "on_hold";
-              const line = next
-                ? `Next: ${next.data.text}${next.data.due ? ` \u00b7 ${dayPhrase(next.data.due, today)}` : ""}`
-                : p.data.status === "on_hold" ? "Paused" : "Stalled \u00b7 No next action";
-              return (
-                <div {...pressable(() => onOpenProject?.(p.id))} className="task-row p2 proj-row-ruled" key={p.id}>
-                  <div className="task-check-tap"><span className={"pp-slot cat-fg-" + cat.data.color}><ProjectPie pct={pct} /></span></div>
-                  <div className="task-title">
-                    <span className="task-name">{p.data.title}</span>
-                    <div className="r-k">
-                      {doneWeek > 0 && <span className="uchip u-done">{doneWeek} done</span>}
-                      {overdue > 0 && <span className="uchip u-late">{overdue} late</span>}
-                      <span className={"r-goal r-cat" + (stalled ? " r-stalled" : "")}>{line}</span>
-                    </div>
-                  </div>
-                  {CHEV}
-                </div>
-              );
-            })}
-            <button className="row-create" onClick={() => setSheet({ kind: "project" })}>Add Project</button>
-          </div></div>
-        </>
-      )}
 
-      {goalsHere.length > 0 && (
-        <>
-          <div className="sh2 sh2-quiet"><span className="t">Goals Here</span><span className="n">{goalsHere.length}</span></div>
-          {/* B3-5 (2026-09-04): the project rows above open; these had no
-              onOpen at all, so GoalRowRuled (gated on that prop) never
-              rendered a role, a handler or the chevron. */}
-          <div className="pad-x"><div className="card list-card-ruled">
-            {goalsHere.map((g) => (
-              <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar}
-                onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined} />
-            ))}
-          </div></div>
-        </>
-      )}
-
-      <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{open.length > 0 && <span className="n">{open.length}</span>}</div>
-      {/* THE SAME ROW AS EVERYWHERE (Dave 2026-09-02, on the Health page:
-          "should render as a task there like it does everywhere else. It
-          should have the same clearing ability as well"). */}
-      <div className="pad-x"><div className="card list-card-ruled">
-        {open.map((t) => {
-          const rem = t.data.reminder?.time;
-          return (
-            <TaskRow
-              key={t.id}
-              item={t}
-              today={today}
-              kicker={t.data.reminder && rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null}
-              parent={parentForTask(parentIdx, t)}
-              onToggle={(id) => void toggle(id)}
-              onOpen={onOpenTask}
-              onDelete={(id) => void deleteTask(id)}
-              onSnooze={t.data.reminder ? undefined : (id) => void snoozeTask(id)}
-              onStart={t.data.reminder ? undefined : (id) => void startTask(id)}
-            />
-          );
-        })}
-        <button className="row-create" onClick={() => setSheet({ kind: "task" })}>Add Task</button>
-      </div></div>
+      {areaSections}
 
       {notes.length > 0 && (
         <>
@@ -1338,12 +1386,40 @@ export default function CategoryDetail({
       <div className="screen-foot" />
 
       {sheet.kind === "task" && (
-        <TaskSheet mode="new" categories={sheetCats} initial={{ category: categoryId }} onSave={saveTask} onCancel={() => setSheet({ kind: "closed" })} />
+        <TaskSheet mode="new" categories={sheetCats} events={sheetEvents(allEvents, today)} initial={{ category: categoryId }} onSave={saveTask} onCancel={() => setSheet({ kind: "closed" })} />
       )}
       {sheet.kind === "project" && (
         <ProjectSheet mode="new" categories={allCats} goals={goals} initial={{ category: categoryId }}
           onSave={async (d) => {
             const ok = await attemptWrite(() => projectsSvc.create(d));
+            if (!ok) return false;
+            setSheet({ kind: "closed" });
+            await reload();
+            return true;
+          }}
+          onCancel={() => setSheet({ kind: "closed" })} />
+      )}
+      {sheet.kind === "event" && (
+        <EventSheet
+          mode="new"
+          categories={sheetCats}
+          initial={{ date: today, category: categoryId }}
+          onSave={async (d) => {
+            const ok = await attemptWrite(() => schedule.createEvent(d.title, {
+              date: d.date, start: d.start, end: d.end || undefined, category: d.category,
+              location: d.location || undefined, recurrence: d.recurrence === "none" ? undefined : d.recurrence,
+            }));
+            if (!ok) return false;
+            setSheet({ kind: "closed" });
+            await reload();
+            return true;
+          }}
+          onCancel={() => setSheet({ kind: "closed" })} />
+      )}
+      {sheet.kind === "goal" && (
+        <GoalSheet mode="new" categories={allCats} initial={{ title: "", state: "on_track", tags: [categoryId] }}
+          onSave={async (d) => {
+            const ok = await attemptWrite(() => goalsSvc.create(d));
             if (!ok) return false;
             setSheet({ kind: "closed" });
             await reload();

@@ -106,3 +106,18 @@ export function sourceLine(source: Source | undefined, now: () => number = Date.
     : shortDateFromMs(source.ts);
   return `${LABEL[source.type]} · ${when}`;
 }
+
+/** The same fact with the WHEN left off, for a row that has to share one line
+ *  with everything else it carries (2026-09-09, when provenance moved onto the
+ *  task row's meta line to stop being a third line).
+ *  It is the cue's own bargain, one section over in TasksPage: the row carries
+ *  the half you recognise at a glance and the sheet carries the sentence. "From
+ *  an email" is what makes a row make sense; the date is what you check once,
+ *  deliberately, and that is a sheet's job. It is also the difference between a
+ *  fact that fits beside a category and one that does not -- measured at 390,
+ *  "From an email · Sep 2" left the line and "From an email" stayed on it. */
+export function sourceLabel(source: Source | undefined): string | null {
+  if (!source || !LABEL[source.type]) return null;
+  if (source.type === "sweep") return null;
+  return LABEL[source.type];
+}

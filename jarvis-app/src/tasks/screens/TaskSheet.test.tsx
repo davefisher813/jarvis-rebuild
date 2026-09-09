@@ -440,3 +440,47 @@ describe("TaskSheet steps", () => {
     expect(onSave.mock.calls[0]![0].closeNow).toBeUndefined();
   });
 });
+
+// EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not tied to task
+// modals"). The event page could file a task to itself from the day it was
+// built, and that was the wrong half first: the common case is a task that
+// already exists and belongs to Saturday.
+describe("the event a task belongs to", () => {
+  const EVENTS = [
+    { id: "e1", title: "Saturday Tournament", when: "Sat, Sep 12 9:00AM" },
+    { id: "e2", title: "Practice", when: "Tomorrow 5:00PM" },
+  ];
+
+  it("offers the event row when the caller has events, and saves the pick", () => {
+    const onSave = vi.fn();
+    render(<TaskSheet mode="new" categories={[]} events={EVENTS} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getByText("Event")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Event"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Saturday Tournament/ }));
+    fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "Print the roster" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalled();
+    expect((onSave.mock.calls[0]![0] as { eventId?: string }).eventId).toBe("e1");
+  });
+
+  // The menu names the day beside the title: two events called "Practice" are
+  // not the same practice, and a picker that cannot tell them apart files the
+  // task to the wrong one.
+  it("names the day beside the title, so two events with one name are two rows", () => {
+    render(<TaskSheet mode="new" categories={[]} events={EVENTS} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Event"));
+    expect(screen.getByRole("menuitemradio", { name: /Practice · Tomorrow 5:00PM/ })).toBeInTheDocument();
+  });
+
+  it("a caller with no events renders no row at all, the same as Project", () => {
+    render(<TaskSheet mode="new" categories={[]} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.queryByText("Event")).not.toBeInTheDocument();
+  });
+
+  it("an existing task opens showing the event it is already filed to", () => {
+    render(<TaskSheet mode="edit" categories={[]} events={EVENTS}
+      initial={{ text: "Print the roster", category: "", due: "", repeat: "", eventId: "e2" }}
+      onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getByLabelText("Event")).toHaveTextContent("Practice");
+  });
+});
