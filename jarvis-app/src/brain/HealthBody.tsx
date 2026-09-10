@@ -41,7 +41,11 @@ export type HealthLoggerKey = "lightsOut" | "tookIt" | "callIt" | "pointAtIt";
 export interface HealthLoggerRow {
   key: HealthLoggerKey;
   label: string;
-  sub: string | null;
+  /** What tapping it does. Always said, including before the first log. */
+  sub: string;
+  /** The last thing logged, short enough for a tile's value slot ("Today",
+   *  "7/10"). Null before anything is logged, and the tile says Log it. */
+  value: string | null;
 }
 
 /** "7h 20m" for minutes past an hour, "45 min" under it, "184 lb", "3/5", "Yes". */
@@ -77,7 +81,7 @@ function Spark({ pts }: { pts: number[] }) {
 export default function HealthBody({
   program, workouts, training, today, isEvening, gymEvent, metricDefs, metricLogs,
   onStart, onOpenGym, onOpenMetric, onManageMetrics, insights, sections, more,
-  healthLoggers, onOpenHealthLogger, onOpenHealthMore,
+  healthLoggers, onOpenHealthLogger, onOpenHealthMore, onOpenMedication, medSub,
 }: {
   program: Program | null;
   workouts: Workout[];
@@ -102,9 +106,13 @@ export default function HealthBody({
   sections?: ReactNode;
   /** Streaks, notes, the week's receipt: the quiet tail, as handed in. */
   more?: ReactNode;
-  /** S5-Q29: the four grafted one-tap loggers, in display order. */
+  /** S5-Q29: the grafted one-tap loggers, in display order. */
   healthLoggers: HealthLoggerRow[];
   onOpenHealthLogger: (key: HealthLoggerKey) => void;
+  /** Dave 2026-09-10: "medication related stuff should all be its own page."
+   *  The door to it, and the one line it says about itself. */
+  onOpenMedication?: () => void;
+  medSub?: string | null;
   /** HMN-F-06 (2026-09-05): the door to the rest of the health module.
    *  Absent on every template but Student, and the row is absent with it:
    *  a row that opens nothing is worse than no row. */
@@ -124,7 +132,17 @@ export default function HealthBody({
   // Every day of the program except the one already offered above it.
   const otherDays = (program?.data.weeks ?? []).flatMap((w) => w.days).filter((d) => d.id !== next?.day.id);
 
-  const metricTile = (def: MetricDef) => {
+  // THE ACTIVITY RAMP, ASSIGNED (Dave 2026-09-10: "the lack of color is a
+  // major issue in the health pages... All workout apps are vibrant with
+  // colors. Especially neon colors"). Every tile in the log grid takes a hue
+  // off the ramp by its position, the way Fitness gives move, exercise and
+  // stand each their own. Stable per position rather than random, so a tile
+  // does not change colour when another one is logged, and the same metric
+  // keeps the same colour every time the page is opened.
+  const RAMP = ["hl-lime", "hl-cyan", "hl-pink", "hl-violet", "hl-amber", "hl-blue"];
+  const hueAt = (i: number) => RAMP[i % RAMP.length]!;
+
+  const metricTile = (def: MetricDef, i: number) => {
     const mine = metricLogs.filter((l) => l.data.metricId === def.id && l.data.date <= today).sort((a, b) => a.data.date.localeCompare(b.data.date));
     const latest = mine[mine.length - 1];
     const val = tileValue(def, latest);
@@ -134,16 +152,31 @@ export default function HealthBody({
     // meta line until there is a log to date.
     const meta = !latest ? null : latest.data.date === today ? "Today" : (() => { const p = dayPhrase(latest.data.date, today); return p.charAt(0).toUpperCase() + p.slice(1); })();
     return (
-      <div {...pressable(() => onOpenMetric(def))} className="h-tile" key={def.id}>
+      <div {...pressable(() => onOpenMetric(def))} className={"h-tile hue-" + hueAt(i)} key={def.id}>
         <div className="ht-w">{def.data.name}</div>
         <div className="ht-n">
-          {val ? val.map((p, i) => <span key={i}>{p.big}{p.small && <small>{p.small}</small>}</span>) : <span className="ht-none">Log it</span>}
+          {val ? val.map((p, j) => <span key={j}>{p.big}{p.small && <small>{p.small}</small>}</span>) : <span className="ht-none">Log it</span>}
         </div>
         {meta && <div className="ht-m">{meta}</div>}
         {pts.length >= 2 && <Spark pts={pts} />}
       </div>
     );
   };
+
+  // ONE PLACE TO LOG (Dave 2026-09-10: "Daily logs should be combined with
+  // metrics in the most efficient way possible"). Daily Log was four rows in
+  // a card and Metrics was a grid of tiles directly under it: two heads, two
+  // shapes, two scroll-lengths, for the one question "what am I writing down
+  // today". They are one grid now. A logger tile carries the same three slots
+  // a metric tile does -- the name, the value or Log it, and when it last
+  // happened -- so nothing had to be invented to make them sit together.
+  const loggerTile = (l: HealthLoggerRow, i: number) => (
+    <div {...pressable(() => onOpenHealthLogger(l.key))} className={"h-tile hue-" + hueAt(i)} key={l.key}>
+      <div className="ht-w">{l.label}</div>
+      <div className="ht-n">{l.value ? <span>{l.value}</span> : <span className="ht-none">Log it</span>}</div>
+      <div className="ht-m">{l.sub}</div>
+    </div>
+  );
 
   return (
     <>
@@ -185,14 +218,21 @@ export default function HealthBody({
           </div>
         )}
         {/* The rest of the week's work, one tap each. The suggested day is not
-            repeated here -- it is the button above -- and Open Session ends
-            the row because starting from nothing is the last resort, not the
-            first offer. */}
+            repeated here -- it is the button above.
+            OPEN SESSION DOES NOT SCROLL (Dave 2026-09-10: "There is no 'open
+            session' button anywhere. It needs to be visible in the card"). It
+            WAS there, at the end of the chip run, which on a five-day program
+            is two swipes off the right edge of the phone -- so the one option
+            that does not depend on the program was the one option he could
+            not see. It sits outside the scroller now, pinned to the end of
+            the row: the program days scroll past it, it never moves. */}
         {program && (
-          <div className="h-pick" role="group" aria-label="Start another session">
-            {otherDays.map((d) => (
-              <button className="h-pick-c" key={d.id} onClick={() => onStart(d.id)}>{d.name}</button>
-            ))}
+          <div className="h-pick-wrap">
+            <div className="h-pick" role="group" aria-label="Start another session">
+              {otherDays.map((d) => (
+                <button className="h-pick-c" key={d.id} onClick={() => onStart(d.id)}>{d.name}</button>
+              ))}
+            </div>
             <button className="h-pick-c h-pick-new" onClick={() => onStart(SCRATCH_DAY_ID)}>{SCRATCH_DAY_NAME}</button>
           </div>
         )}
@@ -232,44 +272,44 @@ export default function HealthBody({
           healthLoggers. The verbs survive where they belong, on the big button
           inside each screen, because there "Lights Out" is what you are
           telling the app, not what you are choosing between. */}
-      <div className="sh2 sh2-quiet"><span className="t">Daily Log</span></div>
-      <div className="pad-x"><div className="card list-card-ruled">
-        {healthLoggers.map((l) => (
-          <div {...pressable(() => onOpenHealthLogger(l.key))} className="task-row p2" key={l.key}>
-            <div className="task-title">
-              <span className="task-name">{l.label}</span>
-              {l.sub && <div className="r-k"><span className="r-goal r-cat">{l.sub}</span></div>}
-            </div>
-            {CHEV}
-          </div>
-        ))}
-        {/* HMN-F-06: seventeen more screens were written, tested and
-            unreachable. They live behind this one row rather than seventeen
-            more rows on a page that is already long. */}
-        {onOpenHealthMore && (
-          <div {...pressable(onOpenHealthMore)} className="task-row p2">
-            <div className="task-title">
-              <span className="task-name">More</span>
-              <div className="r-k"><span className="r-goal r-cat">Sharing, refills, the week, the locker</span></div>
-            </div>
-            {CHEV}
+      <div className="sh2 sh2-quiet"><span className="t">Daily Log</span>
+        <button className="see-all pill-action" onClick={onManageMetrics}>Add</button></div>
+      <div className="pad-x"><div className="h-tiles">
+        {healthLoggers.map((l, i) => loggerTile(l, i))}
+        {shownMetrics.map((d, i) => metricTile(d, healthLoggers.length + i))}
+        {shownMetrics.length === 0 && (
+          <div {...pressable(onManageMetrics)} className="h-tile h-tile-add">
+            <div className="ht-w">Track Anything</div>
+            <div className="ht-n"><span className="ht-none">Add</span></div>
+            <div className="ht-m">Sleep, bodyweight, soreness, or your own</div>
           </div>
         )}
       </div></div>
-
-      {/* THE NUMBERS: tiles, each with its sparkline once there is history. */}
-      <div className="sh2 sh2-quiet"><span className="t">Metrics</span>{shownMetrics.length > 0 && <span className="n">{shownMetrics.length}</span>}
-        <button className="see-all pill-action" onClick={onManageMetrics}>Add</button></div>
-      {shownMetrics.length === 0 ? (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div {...pressable(onManageMetrics)} className="task-row p2">
-            <div className="task-title"><span className="task-name">Track anything you want</span>
-              <div className="r-k"><span className="r-goal r-cat">Sleep, bodyweight, soreness, or your own</span></div></div>
-            {CHEV}
-          </div>
+      {/* MEDICATION IS ITS OWN PAGE NOW (Dave 2026-09-10: "medication related
+          stuff should all be its own page"), so it is a row rather than a tile
+          in the grid: it is a door to a page, not a thing you log in one tap.
+          HMN-F-06's More row keeps the rest of the module behind it. */}
+      {(onOpenMedication || onOpenHealthMore) && (
+        <div className="pad-x h-doors"><div className="card list-card-ruled">
+          {onOpenMedication && (
+            <div {...pressable(onOpenMedication)} className="task-row p2">
+              <div className="task-title">
+                <span className="task-name">Medication</span>
+                <div className="r-k"><span className="r-goal r-cat">{medSub ?? "Doses, refills, and the window"}</span></div>
+              </div>
+              {CHEV}
+            </div>
+          )}
+          {onOpenHealthMore && (
+            <div {...pressable(onOpenHealthMore)} className="task-row p2">
+              <div className="task-title">
+                <span className="task-name">More</span>
+                <div className="r-k"><span className="r-goal r-cat">Sharing, the week, the locker</span></div>
+              </div>
+              {CHEV}
+            </div>
+          )}
         </div></div>
-      ) : (
-        <div className="pad-x"><div className="h-tiles">{shownMetrics.map(metricTile)}</div></div>
       )}
 
       {insights}

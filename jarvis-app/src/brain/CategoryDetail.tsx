@@ -237,6 +237,13 @@ export default function CategoryDetail({
   // or Business page has no use for The Third Practice or The Bag.
   const [template, setTemplate] = useState<TemplateKey | null>(null);
   const [healthMore, setHealthMore] = useState(false);
+  // MEDICATION IS ITS OWN PAGE (Dave 2026-09-10: "medication related stuff
+  // should all be its own page"). It was scattered: the dose logger sat in the
+  // daily-log rows, while Refill Runway, The Med Window and Take This to the
+  // Doctor sat three levels down under More > Medication. Four things about
+  // one subject, in two different places, neither of which says "medication"
+  // on the way in. One door now, and everything about it behind that door.
+  const [medPage, setMedPage] = useState(false);
   const [healthDeep, setHealthDeep] = useState<HealthScreenKey | null>(null);
   // Full event rows (the `events` state above is the thin shape the week
   // receipt needs); the health candidates below are built from these.
@@ -719,8 +726,52 @@ export default function CategoryDetail({
       />
     );
   }
+  if (medPage) {
+    const last = tookIt[tookIt.length - 1];
+    const lastWord = last ? (() => { const p = agoPhrase(localDayParts(last.data.at).day, today); return p.charAt(0).toUpperCase() + p.slice(1); })() : null;
+    const medRows = healthMoreRows.filter((r) => r.group === "Medication");
+    return (
+      <div className="screen ruled health-ruled">
+        <div className="nav-bar">
+          <button className="nav-back" aria-label="Back" onClick={() => setMedPage(false)}></button>
+          <div className="nav-title">{cat.data.name}</div>
+        </div>
+        <div className="nav-large">Medication</div>
+        {/* The dose comes first because it is the thing with a clock on it;
+            everything under it is about the dose, not beside it. */}
+        <div className="sh2 sh2-quiet"><span className="t">Today</span></div>
+        <div className="pad-x"><div className="card list-card-ruled">
+          <div {...pressable(() => setHealthScreen("tookIt"))} className="task-row p2">
+            <div className="task-title">
+              <span className="task-name">Log a Dose</span>
+              <div className="r-k"><span className="r-goal r-cat">{lastWord ? "Last dose " + lastWord.toLowerCase() : "Marks the moment, never a tally"}</span></div>
+            </div>
+            {CHEV}
+          </div>
+        </div></div>
+        {medRows.length > 0 && (
+          <>
+            <div className="sh2 sh2-quiet"><span className="t">Keeping Track</span></div>
+            <div className="pad-x"><div className="card list-card-ruled">
+              {medRows.map((r) => (
+                <div {...pressable(() => setHealthDeep(r.key))} className="task-row p2" key={r.key}>
+                  <div className="task-title">
+                    <span className="task-name">{r.label}</span>
+                    <div className="r-k"><span className="r-goal r-cat">{r.sub}</span></div>
+                  </div>
+                  {CHEV}
+                </div>
+              ))}
+            </div></div>
+          </>
+        )}
+        <div className="screen-foot" />
+      </div>
+    );
+  }
   if (healthMore) {
-    const groups = [...new Set(healthMoreRows.map((r) => r.group))];
+    // Medication has its own page now, so it is not one of More's groups.
+    const groups = [...new Set(healthMoreRows.filter((r) => r.group !== "Medication").map((r) => r.group))];
     return (
       <div className="screen ruled health-ruled">
         <div className="nav-bar">
@@ -798,15 +849,29 @@ export default function CategoryDetail({
   // always says what tapping it does, with the last log appended when there is
   // one. Nothing about the stored records or their keys changes: this is the
   // label, and the label is the whole complaint.
-  const loggedLine = (at: number) => "Logged " + agoPhrase(localDayParts(at).day, today);
-  const withLog = (what: string, at: number | null) => (at === null ? what : `${what} · ${loggedLine(at)}`);
+  // ONE GRID, SO THE VALUE IS THE TILE'S OWN (Dave 2026-09-10: "Daily logs
+  // should be combined with metrics in the most efficient way possible"). A
+  // logger is a tile now, the same three slots a metric tile has, so its last
+  // log becomes the tile's VALUE ("Today", "7/10") and the explanation stays
+  // on the meta line where it belongs. Medication is gone from this list: it
+  // is a page of its own ("medication related stuff should all be its own
+  // page") and a door, not a one-tap log.
+  const whenLogged = (at: number | undefined) => {
+    if (at == null) return null;
+    const p = agoPhrase(localDayParts(at).day, today);
+    return p.charAt(0).toUpperCase() + p.slice(1);
+  };
   const lastCallIt = callIt[callIt.length - 1];
   const healthLoggers: HealthLoggerRow[] = kind !== "health" ? [] : [
-    { key: "lightsOut", label: "Bedtime", sub: withLog("When the night ended", lightsOut[lightsOut.length - 1]?.data.at ?? null) },
-    { key: "tookIt", label: "Medication", sub: withLog("A dose, and its timeline", tookIt[tookIt.length - 1]?.data.at ?? null) },
-    { key: "callIt", label: "How Hard It Was", sub: lastCallIt ? `${loggedLine(lastCallIt.data.at)} · ${lastCallIt.data.rpe}/10` : "Rate the session, 1 to 10" },
-    { key: "pointAtIt", label: "Where It Hurts", sub: withLog("Tap the spot on a body map", pointAtIt[pointAtIt.length - 1]?.data.at ?? null) },
+    { key: "lightsOut", label: "Bedtime", sub: "When the night ended", value: whenLogged(lightsOut[lightsOut.length - 1]?.data.at) },
+    { key: "callIt", label: "How Hard It Was", sub: "Rate the session, 1 to 10", value: lastCallIt ? `${lastCallIt.data.rpe}/10` : null },
+    { key: "pointAtIt", label: "Where It Hurts", sub: "Tap the spot on a body map", value: whenLogged(pointAtIt[pointAtIt.length - 1]?.data.at) },
   ];
+  const medSub = (() => {
+    const at = tookIt[tookIt.length - 1]?.data.at;
+    const w = whenLogged(at);
+    return w ? `Last dose ${w.toLowerCase()} · Refills and the window` : "Doses, refills, and the window";
+  })();
 
   // D11-C/D13-A/C: the insight surfaces, health-kind pages only. Every piece
   // degrades to absent on its own (INSIGHT_MIN_PAIRED inside correlate(),
@@ -1155,7 +1220,9 @@ export default function CategoryDetail({
           healthLoggers={healthLoggers}
           onOpenHealthLogger={(key) => setHealthScreen(key)}
           // HMN-F-06: Student only, and absent rather than disabled.
-          onOpenHealthMore={healthMoreRows.length > 0 ? () => setHealthMore(true) : undefined}
+          onOpenHealthMore={healthMoreRows.some((r) => r.group !== "Medication") ? () => setHealthMore(true) : undefined}
+          onOpenMedication={() => setMedPage(true)}
+          medSub={medSub}
           // Projects, Goals Here, Coming Up, Up Next: the SAME block every
           // other area page renders, handed in rather than re-declared, so
           // the health page cannot show two of any of them (Dave 2026-09-10).

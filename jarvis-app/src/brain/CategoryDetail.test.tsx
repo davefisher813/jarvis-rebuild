@@ -7,6 +7,10 @@ import "@testing-library/jest-dom";
 import { NotesProvider, useTasks, useCategories, useProjects } from "../data/NotesProvider";
 import CategoryDetail from "./CategoryDetail";
 
+// The one log section (Dave 2026-09-10: "Daily logs should be combined with
+// metrics in the most efficient way possible").
+const LOG_HEAD = "Daily Log";
+
 // The category page (2026-08-03): a receipts-and-actions page, not an archive.
 
 function Seeded({ kind }: { kind?: "org" }) {
@@ -375,17 +379,24 @@ function SeededHealth() {
 // big button inside each screen, where a verb is what you are telling the app
 // rather than what you are choosing between.
 describe("CategoryDetail health loggers (S5-Q29)", () => {
-  it("names all four by what they are, and says what each does before anything is logged", async () => {
+  // ONE GRID (Dave 2026-09-10: "Daily logs should be combined with metrics in
+  // the most efficient way possible"), and medication behind its own door
+  // ("medication related stuff should all be its own page").
+  it("names the loggers by what they are, as tiles in the one log grid", async () => {
     render(<NotesProvider userId="hl1"><SeededHealth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Daily Log")).toBeInTheDocument());
-    const row = (name: string) => screen.getByText(name).closest(".task-row") as HTMLElement;
-    expect(row("Bedtime")).toHaveTextContent("When the night ended");
-    expect(row("Medication")).toHaveTextContent("A dose, and its timeline");
-    expect(row("How Hard It Was")).toHaveTextContent("Rate the session, 1 to 10");
-    expect(row("Where It Hurts")).toHaveTextContent("Tap the spot on a body map");
+    await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
+    const tile = (name: string) => screen.getByText(name).closest(".h-tile") as HTMLElement;
+    expect(tile("Bedtime")).toHaveTextContent("When the night ended");
+    expect(tile("How Hard It Was")).toHaveTextContent("Rate the session, 1 to 10");
+    expect(tile("Where It Hurts")).toHaveTextContent("Tap the spot on a body map");
+    // Every tile takes a hue off the activity ramp, by position.
+    expect(tile("Bedtime").className).toMatch(/\bhue-hl-/);
+    // Medication is a door to its own page, not a tile in the grid.
+    expect(screen.getByText("Medication").closest(".h-tile")).toBeNull();
+    expect(screen.getByText("Medication").closest(".task-row")).toBeTruthy();
     // The gesture names are gone from the page itself.
     for (const gone of ["Lights Out", "Took It", "Call It", "Point at It"]) {
-      expect(screen.queryByText(gone), gone + " is not a row name any more").not.toBeInTheDocument();
+      expect(screen.queryByText(gone), gone + " is not a name on this page any more").not.toBeInTheDocument();
     }
     // Ate Before, the fifth of the module's own "one-tap loggers," stays
     // dormant: it needs a source of calendar candidates this page has none
@@ -393,7 +404,16 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     expect(screen.queryByText("Ate Before")).not.toBeInTheDocument();
   });
 
-  it("Bedtime logs through HealthService and the row remembers it on return", async () => {
+  it("Medication opens a page of its own, with the dose and the rest of it", async () => {
+    render(<NotesProvider userId="hl5"><SeededHealth /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Medication"));
+    await waitFor(() => expect(screen.getByText("Log a Dose")).toBeInTheDocument());
+    expect(screen.getByText("Refill Runway")).toBeInTheDocument();
+    expect(screen.getByText("The Med Window")).toBeInTheDocument();
+  });
+
+  it("Bedtime logs through HealthService and the tile remembers it on return", async () => {
     render(<NotesProvider userId="hl2"><SeededHealth /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Bedtime")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Bedtime"));
@@ -403,7 +423,8 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     fireEvent.click(screen.getByText("Lights Out", { selector: "button" }));
     await waitFor(() => expect(screen.getByText("Good night.")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Done"));
-    await waitFor(() => expect(screen.getByText(/Logged Today/)).toBeInTheDocument());
+    // The tile's VALUE slot is the last log now, not a sentence on line two.
+    await waitFor(() => expect(screen.getByText("Bedtime").closest(".h-tile")).toHaveTextContent("Today"));
   });
 
   it("How Hard It Was logs an RPE and the row shows it back, out of 10", async () => {
@@ -414,7 +435,7 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     fireEvent.click(screen.getByLabelText("Effort 7 of 10"));
     await waitFor(() => expect(screen.getByText("Logged 7 Of 10")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Done"));
-    await waitFor(() => expect(screen.getByText("Logged Today · 7/10")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("How Hard It Was").closest(".h-tile")).toHaveTextContent("7/10"));
   });
 
   it("Where It Hurts logs a tapped spot and stays honest: no severity, no name, anywhere on the row", async () => {
@@ -427,7 +448,7 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     fireEvent.click(map, { clientX: 100, clientY: 60 });
     await waitFor(() => expect(screen.getByText("Logged")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Done"));
-    await waitFor(() => expect(screen.getByText("Where It Hurts").closest(".task-row")).toHaveTextContent("Logged Today"));
+    await waitFor(() => expect(screen.getByText("Where It Hurts").closest(".h-tile")).toHaveTextContent("Today"));
     expect(screen.queryByText(/\d\/10|severe|mild|injury/i)).not.toBeInTheDocument();
   });
 });
@@ -672,7 +693,7 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
     fireEvent.click(screen.getByLabelText("Back"));
     await waitFor(() => expect(screen.getByText("The Night Before")).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("Back"));
-    await waitFor(() => expect(screen.getByText("Daily Log")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
     expect(screen.queryByText(/^Wind Down at /)).not.toBeInTheDocument();
   });
 
@@ -682,11 +703,14 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
   // an adult on a monthly script has the same use for it as an athlete, and
   // none of the parent or season half, because those questions do not exist
   // on a Personal page.
-  it("Personal opens the medication screens, and none of the parent or season ones", async () => {
+  // The medication screens moved off More and onto their own page (Dave
+  // 2026-09-10: "medication related stuff should all be its own page"), so
+  // Personal reaches them through Medication and More holds the rest.
+  it("Personal reaches the medication screens through Medication, and no parent or season ones anywhere", async () => {
     render(<NotesProvider userId="hm3"><SeededHealthMore template="personal" /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Daily Log")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
     expect(screen.getByText("Bedtime")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("More"));
+    fireEvent.click(screen.getByText("Medication"));
     expect(await screen.findByText("Refill Runway")).toBeInTheDocument();
     expect(screen.getByText("The Med Window")).toBeInTheDocument();
     expect(screen.getByText("Take This to the Doctor")).toBeInTheDocument();
@@ -704,7 +728,7 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
 describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", () => {
   it("shows one Add Project, one Add Goal, one Add Event and one Add Task", async () => {
     render(<NotesProvider userId="hd1"><SeededHealth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Daily Log")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
     for (const label of ["Add Project", "Add Goal", "Add Event", "Add Task"]) {
       expect(screen.getAllByText(label), label + " appears exactly once").toHaveLength(1);
     }
@@ -718,7 +742,7 @@ describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", (
   // begin one from scratch").
   it("puts a head over the training card and offers a session from scratch", async () => {
     render(<NotesProvider userId="hd2"><SeededHealth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Daily Log")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
     expect(screen.getByText("Training")).toBeInTheDocument();
     // With no program yet there is nothing to pick between, so the card says
     // so and the chip row stays away rather than offering an empty choice.

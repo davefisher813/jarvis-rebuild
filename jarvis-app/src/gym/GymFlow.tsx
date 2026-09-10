@@ -41,6 +41,7 @@ import { libraryRows, renameLift, mergeLifts, isEmptyPatch, type LibraryRow } fr
 import ActionSheet, { PickSheet, type SheetAction, type PickItem } from "./ActionSheet";
 import SetStrip from "./SetStrip";
 import ReorderList from "../shared/ReorderList";
+import SwipeDelete from "../shared/SwipeDelete";
 import { usePushDepth } from "../shared/pushNav";
 import { pressable } from "../shared/pressable";
 import { useLongPress } from "../shared/useLongPress";
@@ -792,6 +793,48 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   const saveDays = async (weekId: string, days: ProgramDay[]): Promise<boolean> => {
     if (!program) return false;
     return saveWeeks(program.data.weeks.map((w) => (w.id === weekId ? { ...w, days } : w)));
+  };
+
+  // THE SWIPE'S OWN DELETES (Dave 2026-09-10: "It's way too hard to delete
+  // stuff especially"). A swipe is already a deliberate gesture, so it does
+  // not stack a confirmation on top of itself; it hands back an Undo instead,
+  // which is the pattern every other list in this app uses and the one that
+  // survives a mis-swipe between sets. The day comes back in its own place
+  // and the workout under its own id, so nothing that pointed at either is
+  // orphaned by the round trip.
+  const removeDayNow = async (weekId: string, dayId: string) => {
+    const week = program?.data.weeks.find((w) => w.id === weekId);
+    const kept = week?.days.find((d) => d.id === dayId);
+    if (!week || !kept) return;
+    // The whole pre-delete list is the snapshot, so Undo restores the day in
+    // the position it was in rather than at the end of the week.
+    const before = week.days;
+    if (openDayId === dayId) setOpenDayId(null);
+    const ok = await saveDays(weekId, before.filter((d) => d.id !== dayId));
+    if (!ok) return;
+    showToast({
+      message: kept.name + " deleted",
+      actionLabel: "Undo",
+      onAction: () => void saveDays(weekId, before),
+    });
+  };
+  const removeWorkoutNow = async (id: string, name: string) => {
+    const kept = workouts.find((w) => w.id === id);
+    if (!kept) return;
+    // Guarded like every other write in this file: a delete that failed
+    // offline must say so rather than letting the row reappear with no
+    // explanation on the next reload.
+    const ok = await attemptWrite(() => svc.removeWorkout(id));
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: name + " deleted",
+      actionLabel: "Undo",
+      // A workout is derived-from, never pointed-at, so coming back under a
+      // new id costs nothing: PRs, history and the week dots all recompute
+      // from the list itself.
+      onAction: () => void (async () => { await attemptWrite(() => svc.saveWorkout({ ...kept.data })); await reload(); })(),
+    });
   };
 
   // ---- REORDER + DUPLICATE + MOVE (catalog §3.2-3.4) ----
@@ -1949,12 +1992,21 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
                 const d = activeWeek.days.find((x) => x.id === id);
                 if (!d) return null;
                 return (
-                  <DayRow
-                    day={d}
-                    onOpen={() => { setReorderTarget(null); setOpenDayId(d.id); }}
-                    onPin={() => setPicker({ kind: "pinDays", weekId: activeWeek.id, day: d })}
-                    onMenu={() => setRowMenu({ kind: "day", weekId: activeWeek.id, day: d })}
-                  />
+                  // SWIPE TO DELETE A DAY (Dave 2026-09-10: "It's way too hard
+                  // to delete stuff especially"). Off while the list is in
+                  // reorder mode, because two gestures on one row is neither.
+                  <SwipeDelete
+                    label={d.name}
+                    enabled={reorderTarget !== "days"}
+                    onDelete={() => void removeDayNow(activeWeek.id, d.id)}
+                  >
+                    <DayRow
+                      day={d}
+                      onOpen={() => { setReorderTarget(null); setOpenDayId(d.id); }}
+                      onPin={() => setPicker({ kind: "pinDays", weekId: activeWeek.id, day: d })}
+                      onMenu={() => setRowMenu({ kind: "day", weekId: activeWeek.id, day: d })}
+                    />
+                  </SwipeDelete>
                 );
               }}
             />
@@ -2195,15 +2247,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
                   // Tappable since 2026-08-09: these rows were inert, which
                   // made a mislogged workout permanent. The detail sheet
                   // carries the delete.
-                  <div className="row" role="button" tabIndex={0} key={w.id} onClick={() => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}>
-                    <div className="row-grow">
-                      <div className="conn-name truncate">{w.data.dayName}</div>
-                      {/* Partial work is stated as the fact it is: never a
-                          percentage, never a shortfall. */}
-                      <div className="conn-meta">{monthDay(w.data.date)} · {mins} min · {logged === total ? capAfterNumber(`${total} ${total === 1 ? "exercise" : "exercises"}`) : capAfterNumber(`${logged} of ${total} exercises`)}</div>
+                  // ...and to delete a mislogged session, which until now
+                  // meant opening it and finding the delete inside (Dave
+                  // 2026-09-10).
+                  <SwipeDelete key={w.id} label={w.data.dayName} onDelete={() => void removeWorkoutNow(w.id, w.data.dayName)}>
+                    <div className="row" role="button" tabIndex={0} onClick={() => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}>
+                      <div className="row-grow">
+                        <div className="conn-name truncate">{w.data.dayName}</div>
+                        {/* Partial work is stated as the fact it is: never a
+                            percentage, never a shortfall. */}
+                        <div className="conn-meta">{monthDay(w.data.date)} · {mins} min · {logged === total ? capAfterNumber(`${total} ${total === 1 ? "exercise" : "exercises"}`) : capAfterNumber(`${logged} of ${total} exercises`)}</div>
+                      </div>
+                      {CHEV}
                     </div>
-                    {CHEV}
-                  </div>
+                  </SwipeDelete>
                 );
               })}
             </div></div>

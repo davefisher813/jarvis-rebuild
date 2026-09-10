@@ -1344,6 +1344,13 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    .task-row under it), so it carries pan-y itself rather than inheriting it
    from a class it does not always have. */
 .swipe-shell { touch-action: pan-y; }
+/* THE GYM GETS THE GESTURE TOO (Dave 2026-09-10: "there is no way to swipe on
+   stuff to take action. Make sure the days and history ect have that action.
+   It's way too hard to delete stuff especially"). shared/SwipeDelete wraps a
+   row that carries its own padding and height, exactly as .swipe-shell does,
+   so this adds the ground, the slide and the pan-y and nothing else. */
+.swipe-row { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+.swipe-row.dragging { transition: none; }
 .task-row.swiping { transition: none; }
 .task-check-tap { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
   flex-shrink: 0; margin: -8px 0; cursor: pointer; }

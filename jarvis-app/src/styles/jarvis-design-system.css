@@ -193,6 +193,33 @@
      move; verified by the token values being the same two hexes. */
   --good-fill: #30D158; --warn-fill: #FF9F0A;
   --yellow: #FFD60A; --teal: #40C8E0; --mint: #66D4CF; --pink: #FF375F;
+
+  /* ---------- THE ACTIVITY RAMP (Dave 2026-09-10) ------------------------
+     "The lack of color is a major issue in the health pages... All workout
+     apps are vibrant with colors. Especially neon colors. Implement it now."
+     He is right and the reason is not taste. Every other tab in this app has
+     a colour system doing WORK: an area's dot, a category tint, red for
+     tappable, good/warn for status. The health page had none of that, because
+     nothing on it is an area and nothing on it is a status, so it came out
+     grey on grey with one blue square.
+     Apple's Fitness app solves the same problem the same way: a fixed, very
+     saturated ramp where each colour MEANS one measure -- move, exercise,
+     stand, and the five heart-rate zones -- so a glance reads as data rather
+     than decoration. These are that ramp, using the iOS system hues this app
+     already ships wherever one exists (--pink and --blue are literally the
+     same hexes as above), plus the two neons the ring set adds.
+     SCOPE: these are FILLS, GLYPHS and BIG NUMBERS on the health surfaces.
+     Nothing here overrides --good / --warn / --tint / --accent, so every
+     status word, every tappable red and every contrast law is untouched --
+     which is the "without violating our rules that are already implemented"
+     half of the ask. The -tint pairs are the 12%-alpha grounds these sit on,
+     the same relationship --good-tint has to --good. */
+  --hl-lime: #A6FF00; --hl-lime-tint: rgba(166,255,0,0.14);
+  --hl-cyan: #00E5FF; --hl-cyan-tint: rgba(0,229,255,0.14);
+  --hl-pink: #FF375F; --hl-pink-tint: rgba(255,55,95,0.16);
+  --hl-amber: #FF9F0A; --hl-amber-tint: rgba(255,159,10,0.16);
+  --hl-violet: #BF5AF2; --hl-violet-tint: rgba(191,90,242,0.16);
+  --hl-blue: #0A84FF; --hl-blue-tint: rgba(10,132,255,0.16);
   /* --tint is the colour of things that are tappable but are not buttons: the
      nav "+", back chevrons, links, sliders, steppers, action-sheet items.
      It was blue here and red in light theme, so the same control changed
@@ -298,6 +325,19 @@
      worst of all, a green tile tinted over the page, 1.86 -> 4.79. The
      saturated pair lives on in --good-fill / --warn-fill for fills. */
   --warn: #8A5A00; --good: #1A7439;
+  /* THE ACTIVITY RAMP, LIGHT. Neon is tuned to be read on black; on a white
+     card #A6FF00 measures about 1.2:1, which is not a colour, it is a smear.
+     These are the same six hues taken down to values that clear AA as text on
+     a white card and on the light page, so the ramp MEANS the same thing in
+     both themes and no health surface needs a per-class light override. The
+     -tint grounds keep their hue and their alpha: a tint is a wash behind
+     something else, never the thing being read. */
+  --hl-lime: #4C8C00; --hl-lime-tint: rgba(76,140,0,0.14);
+  --hl-cyan: #00707E; --hl-cyan-tint: rgba(0,112,126,0.14);
+  --hl-pink: #C9184A; --hl-pink-tint: rgba(201,24,74,0.14);
+  --hl-amber: #8A5A00; --hl-amber-tint: rgba(138,90,0,0.14);
+  --hl-violet: #7A2FA6; --hl-violet-tint: rgba(122,47,166,0.14);
+  --hl-blue: #0064D2; --hl-blue-tint: rgba(0,100,210,0.14);
   --good-fill: #34C759; --warn-fill: #FF9500;
   --yellow: #FFCC00; --teal: #30B0C7; --mint: #00C7BE; --pink: #FF2D55;
   /* ONE LIGHT RED (Dave, 2026-08-22: "the red still isn't Jarvis red").

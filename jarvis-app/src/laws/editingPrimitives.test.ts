@@ -78,6 +78,11 @@ describe("law: one swipe controller", () => {
       // snap-back transition the task rows have always carried).
       "money/MoneyFlow.tsx": "task-row",
       "today/RemindersStrip.tsx": "rem-row",
+      // Dave 2026-09-10: "Make sure the days and history ect have that
+      // action. It's way too hard to delete stuff especially." The gym had
+      // no gesture at all; shared/SwipeDelete is the small version of the
+      // pattern and .swipe-row is its moving element.
+      "shared/SwipeDelete.tsx": "swipe-row",
     };
     const css = read(join(SRC, "styles", "components.css")) + read(join(SRC, "styles", "ruled.css"));
     const usesSwipe = FILES.filter((f) => rel(f) !== "shared/useSwipe.ts" && /from "[^"]*shared\/useSwipe"/.test(read(f))).map(rel);
@@ -107,6 +112,7 @@ describe("law: one swipe controller", () => {
       "notifications/NotificationsFlow.tsx": "a notification is cleared, not finished",
       "gym/SetStrip.tsx": "a set is logged by its own big button, mid-lift, with numbers attached",
       "today/TodayFlow.tsx": "the Now card's gap row is an offer to START, and starting is not completing",
+      "shared/SwipeDelete.tsx": "a program day and a logged session are records; a record has nothing to complete",
     };
     const usesSwipe = FILES.filter((f) => rel(f) !== "shared/useSwipe.ts" && /from "[^"]*shared\/useSwipe"/.test(read(f))).map(rel);
     const bad: string[] = [];

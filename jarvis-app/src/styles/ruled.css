@@ -581,9 +581,20 @@
    a sparkline where there is history. Everything else on the page is the
    ruled row. */
 .ruled .h-hero-wrap { padding-top: var(--s-2); }
-.ruled .h-hero-card { overflow: hidden; }
+.ruled .h-hero-card { overflow: hidden; box-shadow: inset 0 0 0 1px var(--hl-lime-tint), 0 10px 30px rgba(0,0,0,0.5); }
+[data-theme="light"] .ruled .h-hero-card { box-shadow: inset 0 0 0 1px var(--hl-lime-tint), var(--shadow-card); }
+/* The Start pill on the hero is the page's primary move, so it is the one
+   filled control here and it wears the ramp rather than the app's red: on a
+   training card, "go" is green everywhere a person has ever trained. */
+.ruled .h-hero .pill-act { background: var(--hl-lime); color: var(--on-fill-dark); font-weight: var(--w-bold); }
 .ruled .h-hero { display: flex; align-items: center; gap: 12px; padding: 14px 16px 10px; cursor: pointer; }
-.ruled .h-hero-ico { width: 40px; height: 40px; border-radius: 12px; background: var(--blue-tint); color: var(--blue);
+/* THE ONE COLOURED THING ON THE PAGE WAS THIS SQUARE, AND IT WAS BLUE (Dave
+   2026-09-10: "the lack of color is a major issue in the health pages... All
+   workout apps are vibrant with colors. Especially neon colors"). Training
+   takes the ramp's lime, which is the hue Fitness gives to exercise, and the
+   card behind it gets a lime rim and a lime bloom so the section that IS the
+   page reads as lit rather than as another grey slab. */
+.ruled .h-hero-ico { width: 40px; height: 40px; border-radius: 12px; background: var(--hl-lime-tint); color: var(--hl-lime);
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .ruled .h-hero-ico .ic { width: 22px; height: 22px; }
 .ruled .h-hero-b { flex: 1; min-width: 0; }
@@ -597,15 +608,23 @@
    horizontal run under it, scrolled rather than wrapped so the card's height
    never moves, and Open Session ends the run. Chip type matches .uchip's
    register: small, quiet, tappable, no fill until pressed. */
-.ruled .h-pick { display: flex; gap: 7px; padding: 2px 16px 12px; overflow-x: auto; scrollbar-width: none; }
+/* The program days scroll; Open Session does not (Dave 2026-09-10: "There is
+   no 'open session' button anywhere. It needs to be visible in the card").
+   The wrap is the flex row that holds both, so the pinned button keeps its
+   width and the scroller takes whatever is left. */
+.ruled .h-pick-wrap { display: flex; align-items: center; gap: 7px; padding: 2px 16px 12px; min-width: 0; }
+.ruled .h-pick { display: flex; gap: 7px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent); }
 .ruled .h-pick::-webkit-scrollbar { display: none; }
 .ruled .h-pick-c { flex-shrink: 0; font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-medium); color: var(--tx-2);
   background: var(--press-3); border: none; border-radius: var(--r-pill); padding: 7px 12px; white-space: nowrap;
   max-width: 46vw; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .ruled .h-pick-c:active { opacity: 0.6; }
-/* Starting from nothing is the last resort on the row, so it reads as an
-   outline rather than another sibling: same size, no ground. */
-.ruled .h-pick-c.h-pick-new { background: transparent; box-shadow: inset 0 0 0 1px var(--rim-card); color: var(--tx-3); }
+/* Pinned, and it wears the training accent so it reads as the one option on
+   the row that does not come from the program. */
+.ruled .h-pick-c.h-pick-new { background: var(--hl-lime-tint); color: var(--hl-lime);
+  font-weight: var(--w-semi); max-width: none; }
 /* WEEKLY VOLUME, ONE CARD (Dave 2026-09-10: "insights are weak and random it
    seems. Make them of actual use to the user and render it an appealing
    way"). A row per muscle: the name, a track with the studied band tinted and
@@ -618,20 +637,22 @@
 .ruled .vol-name { width: 33%; flex-shrink: 0; font-size: calc(13px * var(--type-scale)); color: var(--tx-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .vol-track { position: relative; flex: 1; min-width: 0; height: 6px; border-radius: 3px; background: var(--press-3); }
-.ruled .vol-band { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--good-tint); }
+.ruled .vol-band { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--hl-lime-tint); }
 .ruled .vol-dot { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; }
-.ruled .vol-dot.vol-in { background: var(--good); }
+.ruled .vol-dot.vol-in { background: var(--hl-lime); box-shadow: 0 0 6px var(--hl-lime-tint); }
 .ruled .vol-dot.vol-under, .ruled .vol-dot.vol-over { background: var(--warn); }
 .ruled .vol-n { width: 26px; flex-shrink: 0; text-align: right; font-size: calc(13px * var(--type-scale));
   font-weight: var(--w-semi); font-variant-numeric: tabular-nums; }
-.ruled .vol-n.vol-in { color: var(--good); }
+.ruled .vol-n.vol-in { color: var(--hl-lime); }
 .ruled .vol-n.vol-under, .ruled .vol-n.vol-over { color: var(--warn); }
 .ruled .h-week { display: flex; justify-content: space-between; padding: 2px 18px 14px; }
 .ruled .h-day { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
   letter-spacing: 0.06em; color: var(--tx-4); }
 .ruled .h-day i { width: 10px; height: 10px; border-radius: 50%; background: var(--press-3); display: block; }
-.ruled .h-day.on i { background: var(--good-fill); }
-.ruled .h-day.today i { box-shadow: 0 0 0 2px var(--tx-1); }
+/* Trained days glow the way a closed ring does, rather than sitting flat. */
+.ruled .h-day.on i { background: var(--hl-lime); box-shadow: 0 0 8px var(--hl-lime-tint); }
+.ruled .h-day.today i { box-shadow: 0 0 0 2px var(--hl-cyan); }
+.ruled .h-day.today.on i { box-shadow: 0 0 0 2px var(--hl-cyan), 0 0 8px var(--hl-lime-tint); }
 .ruled .h-day.today { color: var(--tx-1); }
 .ruled .h-last .task-name { font-weight: var(--w-medium); }
 .ruled .h-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -647,7 +668,44 @@
 .ruled .ht-n small { font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: 0; margin-left: 2px; }
 .ruled .ht-none { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-4); }
 .ruled .ht-m { font-size: calc(11.5px * var(--type-scale)); color: var(--tx-4); margin-top: 4px; }
-.ruled .ht-spark { position: absolute; right: 10px; bottom: 10px; width: 64px; height: 22px; color: var(--blue); }
+.ruled .ht-spark { position: absolute; right: 10px; bottom: 10px; width: 64px; height: 22px; color: var(--hl-blue); }
+
+/* ---------- THE LOG GRID'S HUES (Dave 2026-09-10) -------------------------
+   Every tile takes one hue off the activity ramp by its position in the grid,
+   the way Fitness gives move, exercise and stand each their own: the label,
+   the big value and the sparkline all wear it, over a wash of the same hue,
+   with a hairline rim so a tile has an edge instead of dissolving into the
+   page. Assigned by POSITION, so a tile never changes colour because another
+   one was logged, and a metric keeps its colour across every visit.
+   The value is the only text here big enough and bold enough to carry a
+   saturated hue; the meta line stays on the grey ramp, which is what keeps
+   the grid readable rather than a bag of highlighters. */
+.ruled .h-tile[class*="hue-"] { box-shadow: inset 0 0 0 1px var(--h-tint), 0 8px 24px rgba(0,0,0,0.55); }
+[data-theme="light"] .ruled .h-tile[class*="hue-"] { box-shadow: inset 0 0 0 1px var(--h-tint), var(--shadow-card); }
+/* The wash goes on as a background LAYER over the tile's own ground, not as a
+   ::before -- the sparkline is an absolutely-positioned direct child, and a
+   blanket `> * { position: relative }` to sit above an overlay would have
+   dropped it into the flow and put it under the value. */
+.ruled .h-tile[class*="hue-"] { background-image: linear-gradient(var(--h-tint), var(--h-tint)); }
+.ruled .h-tile[class*="hue-"] .ht-w { color: var(--h-hue); opacity: 0.9; }
+.ruled .h-tile[class*="hue-"] .ht-n { color: var(--h-hue); }
+.ruled .h-tile[class*="hue-"] .ht-spark { color: var(--h-hue); }
+/* An empty tile does not shout: Log it stays on the grey ramp, so a lit tile
+   means something was actually logged. */
+.ruled .h-tile[class*="hue-"] .ht-none { color: var(--tx-4); }
+.ruled .hue-hl-lime   { --h-hue: var(--hl-lime);   --h-tint: var(--hl-lime-tint); }
+.ruled .hue-hl-cyan   { --h-hue: var(--hl-cyan);   --h-tint: var(--hl-cyan-tint); }
+.ruled .hue-hl-pink   { --h-hue: var(--hl-pink);   --h-tint: var(--hl-pink-tint); }
+.ruled .hue-hl-violet { --h-hue: var(--hl-violet); --h-tint: var(--hl-violet-tint); }
+.ruled .hue-hl-amber  { --h-hue: var(--hl-amber);  --h-tint: var(--hl-amber-tint); }
+.ruled .hue-hl-blue   { --h-hue: var(--hl-blue);   --h-tint: var(--hl-blue-tint); }
+/* The add-a-metric tile is a door, not a reading, so it wears the dashed
+   outline every empty create surface in the app wears and no hue at all. */
+.ruled .h-tile-add { box-shadow: inset 0 0 0 1px var(--rim-card); }
+.ruled .h-tile-add .ht-m { color: var(--tx-4); }
+/* The two doors under the grid (Medication, More) get the breath the grid
+   above them would otherwise eat. */
+.ruled .h-doors { margin-top: 10px; }
 
 /* ---------- THE WEEK (D2, approved 2026-09-01; The Week catalog, 2026-09-02)
    Seven day-rows in one card. Weekday and date left (today in a white disc),

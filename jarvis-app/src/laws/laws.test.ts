@@ -4441,7 +4441,10 @@ describe("swipe reveals are hidden at rest (2026-09-06)", () => {
   // container class -> every class that can carry the inline translateX, i.e.
   // the thing that moves. The slice between the two is the reveal layer.
   const CONTAINERS: Array<[string, string[]]> = [
-    ["task-swipe", ["task-row", "set-chip", "swipe-shell", "rem-row"]],
+    // "swipe-row" is shared/SwipeDelete's mover (Dave 2026-09-10, the gym
+    // swipe): without it here the scan reads straight past the moving element
+    // and reports the row's own contents as an unhidden reveal.
+    ["task-swipe", ["task-row", "set-chip", "swipe-shell", "rem-row", "swipe-row"]],
     ["notice-swipe", ["notice-card"]],
     ["sched-strip", ["sched-row"]],
   ];
