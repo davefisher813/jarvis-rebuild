@@ -200,7 +200,14 @@ export default function LiftDetailScreen({
                   <circle key={i} cx={p.x} cy={p.y} r={4} fill="var(--good)" />
                 ) : null)}
               </svg>
-              <div className="conn-meta">{agoPhrase(sessions[0]!.date, todayIso)} to {agoPhraseLower(sessions[sessions.length - 1]!.date, todayIso)} · {sessions.length} sessions · {prs.size} PR{prs.size === 1 ? "" : "s"}</div>
+              {/* Three facts in one grey run-on, and the two that matter --
+                  how many sessions and how many bests -- were at the end of
+                  it. Chips, aligned, the PR count in the ramp's lime. */}
+              <div className="se-chips">
+                <span className="se-chip se-chip-when">{agoPhrase(sessions[0]!.date, todayIso)} to {agoPhraseLower(sessions[sessions.length - 1]!.date, todayIso)}</span>
+                <span className="se-chip se-chip-last">{sessions.length}<em>Sessions</em></span>
+                {prs.size > 0 && <span className="se-chip se-chip-best">{prs.size}<em>{prs.size === 1 ? "PR" : "PRs"}</em></span>}
+              </div>
             </div></div>
           )}
 

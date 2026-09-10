@@ -1244,3 +1244,114 @@
 .ruled.health-ruled .stat-row .stat-tile:nth-child(2) .stat-num { color: var(--hl-cyan); }
 .ruled.health-ruled .stat-row .stat-tile:nth-child(3) .stat-num { color: var(--hl-pink); }
 .ruled.health-ruled .stat-row .stat-tile:nth-child(4) .stat-num { color: var(--hl-violet); }
+
+/* ---------- THE SESSION AND THE SET STRIP (Dave 2026-09-10) ---------------
+   "You barely added color. All you did for the most part was swap our Jarvis
+   red for green. I specifically said to work AROUND our coloring rules and
+   ADD color. I also said to kill grey subtext throughout and you did none of
+   that."
+   Both halves were fair. The last pass changed one button and painted a few
+   tokens; every line of METADATA on these screens -- which is most of what is
+   on them mid-lift -- was still --tx-3 prose joined by middots. So this block
+   is about the subtext, not the buttons: every fact that was a grey sentence
+   becomes a chip with an edge, a colour that means something, and a label
+   quieter than the value it labels. The rule for which hue: lime is done or
+   good, cyan is a reading or a reference, amber is time and load, pink is a
+   miss, and the grey ramp is left for LABELS only -- never for facts. */
+
+/* The chip. One shape for every fact on a training screen: a quiet uppercase
+   label, then the value in the hue, on a wash of the same hue. */
+.ruled.health-ruled .se-chip { display: inline-flex; align-items: baseline; gap: 5px; flex-shrink: 0;
+  font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi); font-variant-numeric: tabular-nums;
+  padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap;
+  color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+.ruled.health-ruled .se-chip em { font-style: normal; font-size: calc(9.5px * var(--type-scale));
+  font-weight: var(--w-bold); letter-spacing: 0.07em; text-transform: uppercase; opacity: 0.75; }
+.ruled.health-ruled .se-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+/* On the hero the chips sit under a 19px title, so they take a tighter top. */
+.ruled.health-ruled .h-hero-chips { margin-top: 6px; }
+.ruled.health-ruled .se-chip-best { color: var(--hl-lime); background: var(--hl-lime-tint); }
+.ruled.health-ruled .se-chip-last, .ruled.health-ruled .se-chip-time { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+.ruled.health-ruled .se-chip-budget, .ruled.health-ruled .se-chip-pair { color: var(--hl-violet); background: var(--hl-violet-tint); }
+.ruled.health-ruled .se-chip-over { color: var(--hl-amber); background: var(--hl-amber-tint); }
+.ruled.health-ruled .se-chip-when, .ruled.health-ruled .se-chip-game { color: var(--tx-3); background: var(--press-3); }
+/* The three states of an exercise in the session list. */
+.ruled.health-ruled .se-chip-done { color: var(--hl-lime); background: var(--hl-lime-tint); }
+.ruled.health-ruled .se-chip-skip { color: var(--hl-amber); background: var(--hl-amber-tint); }
+.ruled.health-ruled .se-chip-todo { color: var(--tx-3); background: transparent; box-shadow: inset 0 0 0 1px var(--rim-card); }
+
+/* WHERE YOU ARE, DRAWN. Filled for finished, ringed for the current one,
+   hollow for what is left -- the shape every training app uses because it is
+   read in a glance and a caps sentence is not. */
+.ruled.health-ruled .se-prog { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ruled.health-ruled .se-dots { display: inline-flex; align-items: center; gap: 5px; }
+.ruled.health-ruled .se-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--press-3); display: block; }
+.ruled.health-ruled .se-dot.done { background: var(--hl-lime); }
+.ruled.health-ruled .se-dot.skip { background: var(--hl-amber); }
+.ruled.health-ruled .se-dot.on { background: var(--hl-cyan); box-shadow: 0 0 0 2px var(--hl-cyan-tint), 0 0 8px var(--hl-cyan-tint); }
+.ruled.health-ruled .se-count { font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold);
+  color: var(--hl-cyan); font-variant-numeric: tabular-nums; }
+.ruled.health-ruled .se-count em { font-style: normal; color: var(--tx-3); font-weight: var(--w-medium); }
+
+/* NOW is a position, so it is lit rather than subdued. */
+.ruled.health-ruled .se-now { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: 0.07em; text-transform: uppercase; padding: 4px 9px; border-radius: var(--r-pill);
+  color: var(--on-fill-dark); background: var(--hl-cyan); }
+
+/* The set kicker. SET 1 was the same grey as everything under it. */
+.ruled.health-ruled .se-kick { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--hl-cyan); margin-bottom: 2px; }
+.ruled.health-ruled .se-kick.se-kick-next { color: var(--hl-amber); }
+/* The PR mark, the loudest good thing a session can say. */
+.ruled.health-ruled .se-pr { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: 0.07em; text-transform: uppercase; padding: 4px 9px; border-radius: var(--r-pill);
+  color: var(--on-fill-dark); background: var(--hl-lime); box-shadow: 0 0 12px var(--hl-lime-tint); }
+
+/* The plates, as plates. */
+.ruled.health-ruled .se-plates { display: flex; flex-wrap: wrap; gap: 6px; }
+.ruled.health-ruled .se-plate { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-bold);
+  font-variant-numeric: tabular-nums; color: var(--hl-amber); background: var(--hl-amber-tint);
+  padding: 3px 10px; border-radius: var(--r-pill); }
+.ruled.health-ruled .se-plate-k { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-4); margin-top: 5px; }
+
+/* An exercise note is the athlete's own words, so it is italic and shaded
+   rather than another grey fact line. */
+.ruled.health-ruled .se-note { font-size: calc(13px * var(--type-scale)); font-style: italic;
+  color: var(--tx-quiet); margin-top: 8px; }
+
+/* HOW IT MOVED: three meanings, three colours, at rest AND when picked. A
+   dot carries the hue while the chip is unpicked, so the scale is readable
+   before anything is chosen. */
+.ruled.health-ruled .chip.mv { position: relative; padding-left: 26px; }
+.ruled.health-ruled .chip.mv::before { content: ""; position: absolute; left: 11px; top: 50%; margin-top: -3.5px;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--mv-hue); }
+.ruled.health-ruled .chip.mv.mv-clean { --mv-hue: var(--hl-lime); }
+.ruled.health-ruled .chip.mv.mv-grind { --mv-hue: var(--hl-amber); }
+.ruled.health-ruled .chip.mv.mv-missed { --mv-hue: var(--hl-pink); }
+.ruled.health-ruled .chip.mv.active { color: var(--mv-hue); background: var(--mv-tint); box-shadow: inset 0 0 0 1px var(--mv-hue); }
+.ruled.health-ruled .chip.mv.mv-clean.active { --mv-tint: var(--hl-lime-tint); }
+.ruled.health-ruled .chip.mv.mv-grind.active { --mv-tint: var(--hl-amber-tint); }
+.ruled.health-ruled .chip.mv.mv-missed.active { --mv-tint: var(--hl-pink-tint); }
+
+/* ---------- AND THE GREY SUBTEXT EVERYWHERE ELSE ON THESE SCREENS --------
+   "I'm so sick of this gray text everywhere." The app's default metadata ink
+   is --tx-3 on a card and --tx-4 for anything past-tense, which is right for
+   a mail list and wrong for a screen someone reads between sets with a bar in
+   their hands. On health and gym surfaces only, the fact line steps up one
+   rung and its NUMBERS take the reading hue, so a row has a hierarchy instead
+   of two weights of grey. Labels stay quiet, which is what keeps this legible
+   rather than loud. */
+.ruled.health-ruled .conn-meta { color: var(--tx-2); }
+.ruled.health-ruled .conn-meta b, .ruled.health-ruled .conn-name b { color: var(--hl-cyan); font-weight: var(--w-semi); }
+/* An eyebrow on these screens is a LABEL, so it keeps the quiet ramp -- but
+   --tx-4 was the past-state grey, which is invisible on a phone in a gym. */
+.ruled.health-ruled .eyebrow { color: var(--tx-3); }
+/* The remaining fact lines on these screens, one rung up out of the grey. */
+.ruled.health-ruled .bp-sub, .ruled.health-ruled .r-goal.r-cat,
+.ruled.health-ruled .sched-cat { color: var(--tx-2); }
+.ruled.health-ruled .ht-m { color: var(--tx-3); }
+/* A tile with nothing in it yet is the ONE place the dim grey still belongs:
+   it is an absence, not a reading, and lighting it would say something was
+   logged when nothing was. */
+.ruled.health-ruled .ht-none { color: var(--tx-4); }

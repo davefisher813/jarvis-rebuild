@@ -124,8 +124,15 @@ export default function HealthBody({
   const when = gymEvent
     ? `${isEvening ? "Tonight" : "Today"} ${fmtTime(gymEvent.start).time} ${fmtTime(gymEvent.start).ap}`
     : next?.when === "today" ? "Today" : next?.when === "tomorrow" ? "Tomorrow" : next?.when ? next.when : "Next up";
-  const heroLine = next
-    ? capAfterNumber([when, `${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`, ...(est > 0 ? [`About ${est}m`] : [])].join(" · "))
+  // The hero's own facts, as chips rather than a middot sentence (Dave
+  // 2026-09-10: "kill grey subtext throughout"). When leads, because it is
+  // the one that decides whether you are doing this now.
+  const heroChips = next
+    ? [
+        { k: "", v: when, hue: "se-chip-time" },
+        { k: next.day.exercises.length === 1 ? "Lift" : "Lifts", v: String(next.day.exercises.length), hue: "se-chip-last" },
+        ...(est > 0 ? [{ k: "Min", v: String(est), hue: "se-chip-budget" }] : []),
+      ]
     : null;
   const dots = training?.weekDots ?? new Array<boolean>(7).fill(false);
   const shownMetrics = activeMetrics(metricDefs);
@@ -203,7 +210,13 @@ export default function HealthBody({
             <span className="h-hero-ico"><BarbellGlyph /></span>
             <div className="h-hero-b">
               <div className="h-hero-t">{next.day.name}</div>
-              {heroLine && <div className="h-hero-s">{heroLine}</div>}
+              {heroChips && (
+                <div className="se-chips h-hero-chips">
+                  {heroChips.map((c) => (
+                    <span className={"se-chip " + c.hue} key={c.k + c.v}>{c.v}{c.k && <em>{c.k}</em>}</span>
+                  ))}
+                </div>
+              )}
             </div>
             <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(next.day.id); }}>Start</button>
           </div>
@@ -245,7 +258,15 @@ export default function HealthBody({
           <div {...pressable(onOpenGym)} className="task-row p2 h-last">
             <div className="task-title">
               <span className="task-name">Last session</span>
-              <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(`${training.last.dayName} · ${agoPhrase(training.last.date, today)} · ${training.last.minutes}m`)}</span></div>
+              {/* KILL THE GREY SUBTEXT (Dave 2026-09-10). Three facts joined
+                  by middots in one grey: which day, how long ago, how many
+                  minutes. Each is its own chip now, and the day name -- the
+                  one a person is actually scanning for -- leads in full ink. */}
+              <div className="r-k">
+                <span className="se-chip se-chip-last">{training.last.dayName}</span>
+                <span className="se-chip se-chip-when">{capAfterNumber(agoPhrase(training.last.date, today))}</span>
+                <span className="se-chip se-chip-budget">{training.last.minutes}<em>Min</em></span>
+              </div>
             </div>
             {CHEV}
           </div>
@@ -253,10 +274,13 @@ export default function HealthBody({
         {training?.pr && (
           <div className="task-row p2">
             <div className="task-title">
-              <span className="task-name">{training.pr.name} · {training.pr.text}</span>
-              <div className="r-k"><span className="r-goal r-cat">New best · {agoPhrase(training.pr.date, today)}</span></div>
+              <span className="task-name">{training.pr.name}</span>
+              <div className="r-k">
+                <span className="se-chip se-chip-best">{training.pr.text}</span>
+                <span className="se-chip se-chip-when">{capAfterNumber(agoPhrase(training.pr.date, today))}</span>
+              </div>
             </div>
-            <span className="gstat gstat-good">PR</span>
+            <span className="se-pr">PR</span>
           </div>
         )}
       </div></div>

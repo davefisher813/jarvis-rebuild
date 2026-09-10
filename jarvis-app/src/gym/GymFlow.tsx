@@ -296,8 +296,14 @@ function DayRow({ day, onOpen, onPin, onMenu }: { day: ProgramDay; onOpen: () =>
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
         <div className="conn-name truncate">{day.name}</div>
-        <div className="conn-meta">
-          {day.exercises.length} {day.exercises.length === 1 ? "exercise" : "exercises"}
+        {/* KILL THE GREY SUBTEXT (Dave 2026-09-10). "6 exercises" under every
+            day in the same grey turned the one number that distinguishes them
+            into wallpaper. It is a chip, and an empty day says so in amber
+            rather than reading as a day with work in it. */}
+        <div className="r-k">
+          <span className={"se-chip " + (day.exercises.length === 0 ? "se-chip-todo" : "se-chip-last")}>
+            {day.exercises.length === 0 ? "Empty" : <>{day.exercises.length}<em>{day.exercises.length === 1 ? "Lift" : "Lifts"}</em></>}
+          </span>
         </div>
       </div>
       {/* PINS, D4, preview dress: the weekday claim is the row's trailing
@@ -1323,7 +1329,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         {/* Meta, not a kicker: inside .grp a bare eyebrow inherits the
             accent-chrome kicker red, and this line is information (RED IS A
             VERB). Quiet sentence-case meta like every other date line. */}
-        <div className="pad-x"><div className="conn-meta">{monthDay(w.data.date)} · {mins} min{w.data.backdated ? " · Logged Later" : ""}</div></div>
+        <div className="pad-x"><div className="se-chips">
+          <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
+          <span className="se-chip se-chip-budget">{mins}<em>Min</em></span>
+          {w.data.backdated && <span className="se-chip se-chip-skip">Logged Later</span>}
+        </div></div>
         {/* HOW IT WENT, ON THE SESSION ITSELF (Dave 2026-09-10). These two were
             on the health home page, next to bedtime and bodyweight, which put
             a fact about ONE workout in the place a person writes down facts
@@ -2297,7 +2307,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
                         <div className="conn-name truncate">{w.data.dayName}</div>
                         {/* Partial work is stated as the fact it is: never a
                             percentage, never a shortfall. */}
-                        <div className="conn-meta">{monthDay(w.data.date)} · {mins} min · {logged === total ? capAfterNumber(`${total} ${total === 1 ? "exercise" : "exercises"}`) : capAfterNumber(`${logged} of ${total} exercises`)}</div>
+                        {/* Three facts, three chips, aligned -- the date, the
+                            minutes, and how much of the plan was actually
+                            logged. It was one grey sentence joined by middots
+                            and the completeness fact was the last thing on it. */}
+                        <div className="r-k">
+                          <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
+                          <span className="se-chip se-chip-budget">{mins}<em>Min</em></span>
+                          <span className={"se-chip " + (logged === total ? "se-chip-done" : "se-chip-skip")}>
+                            {logged === total ? <>{total}<em>{total === 1 ? "Lift" : "Lifts"}</em></> : <>{logged}<em>of {total}</em></>}
+                          </span>
+                        </div>
                       </div>
                       {CHEV}
                     </div>

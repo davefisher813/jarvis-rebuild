@@ -43,7 +43,13 @@ describe("D2: last time is wired everywhere sets render", () => {
     // rename keeps the whole D2 surface pointed at the same history.
     expect(s).toContain("lastHeader(history, exercise, exercise.kind)");
     expect(s).toContain("lastSessionFor(history, exercise, exercise.kind)");
-    expect(s).toMatch(/Best: \$\{header\.best\}/);
+    // KILL THE GREY SUBTEXT (Dave 2026-09-10): the header was one grey
+    // run-on -- every set from last time, the date, then the best -- so the
+    // number that matters mid-lift was the last thing on a wrapped line. Same
+    // three facts, three chips, best leading in the ramp's ink.
+    expect(s).toContain("se-chip-best");
+    expect(s).toMatch(/\{header\.best\}/);
+    expect(s).toMatch(/\{header\.last\}/);
     expect(s).toContain("onMatchLast={lastHit");
     expect(s).toContain("onLog(entryFrom(src))");
   });
@@ -60,9 +66,13 @@ describe("D2: last time is wired everywhere sets render", () => {
     expect(src("settings.ts")).toContain("showLast: true");
   });
 
-  it("the strip renders the reference on chips and ghosts, quiet meta never a shout", () => {
+  it("the strip renders the reference on chips and ghosts, as a fact with an edge", () => {
     const s = src("SetStrip.tsx");
-    expect(s).toMatch(/\{last && <div className="conn-meta">\{last\}<\/div>\}/);
+    // It WAS .conn-meta, which on a set chip put the one thing a lifter is
+    // actually looking for mid-set (what they did last time) in the faintest
+    // ink on the row. It is a chip now, in the reading hue, with "Last" as
+    // the quiet half (Dave 2026-09-10).
+    expect(s).toMatch(/\{last && <div className="r-k"><span className="se-chip se-chip-last">/);
     expect(s).toContain("set-last-act");
   });
 });

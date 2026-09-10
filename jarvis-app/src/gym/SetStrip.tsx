@@ -133,7 +133,11 @@ export default function SetStrip({
               <div className="row set-chip-ghost" role="button" tabIndex={0} key={g.id}
                 onClick={() => onLogGhost?.(i)}>
                 <div className="row-grow">
-                  <div className="eyebrow">Not Logged Yet</div>
+                  {/* The work still ahead. It said NOT LOGGED YET in the same
+                      grey caps every other kicker uses, which made the one row
+                      on the strip that is an INSTRUCTION look like the rows
+                      that are records. */}
+                  <div className="se-kick se-kick-next">Up Next</div>
                   <div className="conn-name">{kind === "done" ? "Mark Done" : formatSet(fx, g)}</div>
                   {/* D2 tap-to-match: the faint last-time line is itself the
                       door to logging those exact numbers -- the row still
@@ -219,11 +223,16 @@ function SetChipRow({
         }}
       >
         <div className="row-grow">
-          <div className="eyebrow">{kicker}</div>
+          {/* KILL THE GREY SUBTEXT (Dave 2026-09-10). SET 1 / 220 lb x 3 /
+              Last: 270 lb x 4 were three greys stacked, and the one that
+              mattered mid-lift -- what you did last time -- was the faintest
+              of the three. The kicker takes the ramp, and last time becomes a
+              chip: a fact with an edge, not a footnote. */}
+          <div className="se-kick">{kicker}</div>
           <div className="conn-name">{label}</div>
-          {last && <div className="conn-meta">{last}</div>}
+          {last && <div className="r-k"><span className="se-chip se-chip-last"><em>Last</em>{last.replace(/^Last:\s*/, "")}</span></div>}
         </div>
-        {pr && <span className="pill pill-good">PR</span>}
+        {pr && <span className="se-pr">PR</span>}
         {/* The chip is a door (preview anatomy): say so. */}
         {!disabled && <div className="chev" />}
       </div>
@@ -231,10 +240,15 @@ function SetChipRow({
   );
 }
 
-const MOVED_OPTIONS: { value: "clean" | "grind" | "missed"; label: string }[] = [
-  { value: "clean", label: "All Clean" },
-  { value: "grind", label: "Last One Was a Grind" },
-  { value: "missed", label: "Missed One" },
+// COLOUR-CODED, BECAUSE THEY ARE A SCALE (Dave 2026-09-10: "They use pills.
+// They use chips. They use color coding. They use dots"). Three chips in one
+// identical grey asked the reader to parse three sentences to find the good
+// one. Clean is lime, a grind is amber, a miss is pink -- the same three
+// meanings the ramp already carries everywhere else on these screens.
+const MOVED_OPTIONS: { value: "clean" | "grind" | "missed"; label: string; hue: string }[] = [
+  { value: "clean", label: "All Clean", hue: "mv-clean" },
+  { value: "grind", label: "Last One Was a Grind", hue: "mv-grind" },
+  { value: "missed", label: "Missed One", hue: "mv-missed" },
 ];
 // A warm-up is supposed to move well, so marking one says nothing about the
 // work and the progression engine ignores it (D6). No chips on a ramp set.
@@ -251,10 +265,18 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
 }) {
   return (
     <div className="set-chip-editor">
+      {/* PLATE MATH READS AS PLATES (Dave 2026-09-10). "45 · 35 · 5 · 2.5"
+          over a grey "Per side" is a sentence about plates; a lifter loading a
+          bar wants to SEE them. Each number is its own chip, in the ramp's
+          amber, and the label is the quiet half. */}
       {plates && !entry.skipped && (
         <div className="row"><div className="row-grow">
-          <div className="conn-name">{plates}</div>
-          <div className="conn-meta">Per side</div>
+          <div className="se-plates">
+            {plates.split(/\s*[·,]\s*/).filter(Boolean).map((p, i) => (
+              <span className="se-plate" key={p + i}>{p}</span>
+            ))}
+          </div>
+          <div className="se-plate-k">Per side</div>
         </div></div>
       )}
       {kind === "done" ? (
@@ -278,7 +300,7 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
           <div className="input-label">How Did It Move?</div>
           <div className="chip-row chip-wrap-row">
             {MOVED_OPTIONS.map((o) => (
-              <div key={o.value} className={"chip" + (entry.moved === o.value ? " active" : "")} role="button" tabIndex={0}
+              <div key={o.value} className={"chip mv " + o.hue + (entry.moved === o.value ? " active" : "")} role="button" tabIndex={0}
                 aria-pressed={entry.moved === o.value}
                 onClick={() => onPatch({ moved: entry.moved === o.value ? undefined : o.value })}>
                 {o.label}

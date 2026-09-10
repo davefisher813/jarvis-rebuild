@@ -323,17 +323,34 @@ export default function SessionScreen({
       )}
 
       <div className="pad-x"><div className="card pad">
-        <div className="eyebrow">
-          Exercise {idx + 1} of {live.exercises.length}
-          {pairLabel && ` · ${pairLabel}`}
-          {gameLine && ` · ${gameLine}`}
+        {/* WHERE YOU ARE, AS A PICTURE (Dave 2026-09-10: "you barely added
+            color... I also said to kill grey subtext throughout and you did
+            none of that"). "Exercise 1 of 7" was a grey caps line doing the
+            work a progress meter does in every training app ever shipped. It
+            is a run of dots now -- filled for finished, ringed for the one
+            you are on, hollow for what is left -- with the count beside it.
+            Nothing is added that was not already true; it is the same fact,
+            drawn instead of spelled. */}
+        <div className="se-prog">
+          <span className="se-dots" aria-label={`Exercise ${idx + 1} of ${live.exercises.length}`}>
+            {live.exercises.map((e, i) => (
+              <i key={e.exerciseId + i} className={"se-dot" + (i === idx ? " on" : e.skipped ? " skip" : e.sets.length > 0 ? " done" : "")} />
+            ))}
+          </span>
+          <span className="se-count">{idx + 1}<em>/{live.exercises.length}</em></span>
+          {pairLabel && <span className="se-chip se-chip-pair">{pairLabel}</span>}
+          {gameLine && <span className="se-chip se-chip-game">{gameLine}</span>}
         </div>
         {/* D5-C: the projected finish rides the header the whole session --
             amber only when actually over, never red (time pressure is a
-            warning, not a verb). */}
+            warning, not a verb). Two facts, so two chips, aligned: a sentence
+            joined by a middot made the reader parse a clause to find a clock. */}
         {finishMs != null && (
-          <div className="conn-meta">
-            Finish {over != null && over >= 3 ? <span className="fit-over">~{clock(finishMs)}</span> : <>~{clock(finishMs)}</>} · budget {clock(live.startedAt + (live.budgetMin ?? 0) * 60_000)}
+          <div className="se-chips">
+            <span className={"se-chip" + (over != null && over >= 3 ? " se-chip-over" : " se-chip-time")}>
+              <em>Finish</em>{clock(finishMs)}
+            </span>
+            <span className="se-chip se-chip-budget"><em>Budget</em>{clock(live.startedAt + (live.budgetMin ?? 0) * 60_000)}</span>
           </div>
         )}
         <div className="p3-q">{exercise.name}</div>
@@ -343,12 +360,19 @@ export default function SessionScreen({
             line the Up Next card has carried since Group B item 12; never a
             modal, and it never stops the session. */}
         <HyperfocusLine guard={guard} />
+        {/* THE HISTORY, AS FACTS RATHER THAN A PARAGRAPH. This was one grey
+            run-on: every set from last time, then the date, then the best,
+            all joined by middots and wrapping to three lines. Best is the
+            number that matters mid-lift, so it leads, in the ramp's ink; last
+            time and its date follow as their own chips. */}
         {header && (
-          <div className="bp-sub">
-            {`Last: ${header.last} · ${monthDay(header.date)}`}{header.best ? ` · Best: ${header.best}` : ""}
+          <div className="se-chips">
+            {header.best && <span className="se-chip se-chip-best"><em>Best</em>{header.best}</span>}
+            <span className="se-chip se-chip-last"><em>Last</em>{header.last}</span>
+            <span className="se-chip se-chip-when">{monthDay(header.date)}</span>
           </div>
         )}
-        {exercise.note && <div className="bp-sub">{exercise.note}</div>}
+        {exercise.note && <div className="se-note">{exercise.note}</div>}
       </div></div>
 
       {/* THE CATCH-UP BANNER (D5-C): "Fall behind and one quiet banner
@@ -524,11 +548,24 @@ export default function SessionScreen({
           <div className="row" role="button" tabIndex={0} key={e.exerciseId + i} onClick={() => onMove(i)}>
             <div className="row-grow">
               <div className="conn-name truncate">{e.name}</div>
-              {/* Row meta is quiet sentence case, never a shouting eyebrow
-                  (gym reformat 2026-08-31). */}
-              <div className="conn-meta">{e.skipped ? "Skipped" : e.sets.length > 0 ? `${e.sets.length} Logged` : "Not started"}</div>
+              {/* THREE STATES, THREE COLOURS, NO SENTENCE (Dave 2026-09-10:
+                  "kill grey subtext throughout"). "3 Logged" / "Not started" /
+                  "Skipped" were the same grey, so the one thing this list is
+                  for -- seeing at a glance what is done -- took reading seven
+                  lines of identical text. Done is lime, skipped is amber,
+                  untouched is a hollow outline that says To Do. */}
+              <div className="r-k">
+                {e.skipped
+                  ? <span className="se-chip se-chip-skip">Skipped</span>
+                  : e.sets.length > 0
+                    ? <span className="se-chip se-chip-done">{e.sets.length} {e.sets.length === 1 ? "Set" : "Sets"}</span>
+                    : <span className="se-chip se-chip-todo">To Do</span>}
+              </div>
             </div>
-            {i === idx ? <span className="pill pill-subdued">Now</span> : CHEV}
+            {/* NOW is the one row you are standing on. It was .pill-subdued,
+                which is the app's neutral grey pill, so it read as a disabled
+                control rather than a position. It takes the ramp's cyan. */}
+            {i === idx ? <span className="se-now">Now</span> : CHEV}
           </div>
         ))}
         {/* ADD MID-SESSION (catalog §3.10): an exercise that was never in

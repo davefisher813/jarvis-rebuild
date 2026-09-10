@@ -86,7 +86,10 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
                 {/* Row meta is quiet sentence case app-wide (gym
                     reformat 2026-08-31); eyebrows are kickers, not
                     sublines. */}
-                <div className="conn-meta">{trendLine(r)}</div>
+                {/* KILL THE GREY SUBTEXT (Dave 2026-09-10): the trend is the
+                    whole reason this row exists, so it wears the reading hue
+                    rather than the same grey as the name above it. */}
+                <div className="r-k"><span className="se-chip se-chip-last">{trendLine(r)}</span></div>
               </div>
               <Sparkline workouts={workouts} name={r.name} exerciseKey={r.exerciseKey} kind={r.kind} />
               {/* V2 anatomy: the session count is a pill, not prose. */}
@@ -106,7 +109,7 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
               <div className="row" key={d.key}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{d.name}</div>
-                  <div className="conn-meta">{d.n > 1 ? `Done ${d.n} times` : "Done"}</div>
+                  <div className="r-k"><span className="se-chip se-chip-done">{d.n > 1 ? <>{d.n}<em>Times</em></> : "Done"}</span></div>
                 </div>
               </div>
             ))}
