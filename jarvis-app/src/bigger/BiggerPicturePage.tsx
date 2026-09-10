@@ -11,6 +11,7 @@ import SkeletonRows from "../shared/SkeletonRows";
 import { FolderOpenGlyph, TargetGlyph, GoalMark, ProjectPie } from "../shared/glyphs";
 import GoalRowRuled, { Bar, Nums } from "./GoalRowRuled";
 import { capAfterNumber } from "../shared/casing";
+import { fmtDay } from "../decisions/DecisionsFlow";
 
 // YOUR LIFE (the Life Merge, Dave 2026-08-26: "it's stupid having them
 // separate"; THE UNIFICATION, Dave 2026-08-29: "there's just too much
@@ -96,6 +97,14 @@ export default function BiggerPicturePage({
 }) {
   // The sealed-off half of the page: done projects fold to one quiet line.
   const [doneOpen, setDoneOpen] = useState(false);
+  // ...and so do done goals now (Dave 2026-09-09: "should done tasks be in
+  // their own area? Whatever the best task management apps do is what we
+  // should do"). They do: Things has the Logbook, Todoist has Completed,
+  // OmniFocus has Completed perspectives. A finished thing leaves the working
+  // list and stays reachable. This page already worked that way for projects
+  // and did not for goals, so an achieved goal sat forever in the middle of
+  // the live ones under its area head.
+  const [doneGoalsOpen, setDoneGoalsOpen] = useState(false);
 
   if (loading) {
     return (
@@ -133,7 +142,14 @@ export default function BiggerPicturePage({
 
   const openRows = projectRows.filter((r) => bucketOf(r) !== "done");
   const doneRows = projectRows.filter((r) => bucketOf(r) === "done");
-  const liveGoals = goals.filter((g) => !g.data.dropped);
+  // A GOAL HE FINISHED IS NOT LIVE WORK. It leaves the area cards and lands
+  // in the Done section at the foot of the lens, newest first, exactly as a
+  // done project already does. Dropped goals are a different thing (abandoned,
+  // not finished) and stay hidden as they always were.
+  const liveGoals = goals.filter((g) => !g.data.dropped && g.data.state !== "achieved");
+  const doneGoals = goals
+    .filter((g) => !g.data.dropped && g.data.state === "achieved")
+    .sort((a, b) => (b.data.achievedOn ?? "").localeCompare(a.data.achievedOn ?? ""));
 
   const goalById = new Map(goals.map((g) => [g.id, g] as const));
   const projRow = ({ project, progress, stalled }: ProjectRow, nested: boolean) => {
@@ -272,9 +288,21 @@ export default function BiggerPicturePage({
   const goalRowRuled = (g: Goal) => {
     const r = reachOfGoal(g.id);
     const ms = measureOfGoal?.(g.id) ?? null;
+    const finished = g.data.state === "achieved" || !!g.data.dropped;
+    // DONE IS MARKED OFF LIKE ON TRACK, AND SAID ONCE (Dave 2026-09-09:
+    // "Done should be marker off like 'on track'", after "Goals says 'done'
+    // twice"). Both are true at the same time and the fix is not the capsule,
+    // it is the line: the capsule is the status, so the LINE has to carry
+    // something else. For a goal he finished, that is when he finished it,
+    // which is the fact a Logbook row exists to show. Where the record has no
+    // date (goals achieved before the stamp landed) the line stays quiet
+    // rather than inventing one, and the capsule says it alone.
+    const body = g.data.state === "achieved"
+      ? (g.data.achievedOn ? "Finished " + fmtDay(g.data.achievedOn) : "")
+      : ms ? ms.line : reachLine(r, finished);
     return (
       <GoalRowRuled key={g.id} title={g.data.title} tone={goalTone(g.data.tags)}
-        body={ms ? ms.line : reachLine(r, g.data.state === "achieved" || !!g.data.dropped)} status={statusOf?.(g.id) ?? null}
+        body={body} status={statusOf?.(g.id) ?? null}
         bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)} />
     );
   };
@@ -341,7 +369,12 @@ export default function BiggerPicturePage({
       <div className="screen ruled">
         <PageHeader title={title} />
         {segments}
-        {offer}
+        {/* THE ASK LIVES WITH ITS OWN KIND (Dave 2026-09-09: "why is there a
+            random goal at the top that I can't even click on"). The one ask is
+            a stalled PROJECT; on the Goals segment it was the only project on
+            screen, wearing a target, so it read as a goal he had never made.
+            It shows on Projects, and on the unlensed frame that holds both. */}
+        {projectsLens && offer}
         {projectsLens ? (
           <>
             {/* One card per area, in the frame's order, exactly as the Goals
@@ -392,7 +425,22 @@ export default function BiggerPicturePage({
                 {ruledCard(unhomed.map(goalRowRuled))}
               </div>
             )}
-            {addRow("Add Goal", onAddGoal)}
+            {/* THE LOGBOOK (Dave 2026-09-09: "should done tasks be in their
+                own area? Whatever the best task management apps do is what we
+                should do"). One folded line, opened by tap, ending in Add Goal
+                -- byte for byte the receipt the Projects lens above already
+                uses, because a finished goal and a finished project should
+                not need two different mental models. */}
+            {doneGoals.length > 0 ? (
+              <div className="pad-x"><div className="card list-card-ruled list-tail">
+                <button className="receipt-line" onClick={() => setDoneGoalsOpen((v) => !v)}>
+                  <span className="rl-t">{capAfterNumber(`${doneGoals.length} Done ${doneGoals.length === 1 ? "goal" : "goals"}`)}</span>
+                  <div className="chev" />
+                </button>
+                {doneGoalsOpen && doneGoals.map(goalRowRuled)}
+                <button className="row-create" onClick={onAddGoal}>Add Goal</button>
+              </div></div>
+            ) : addRow("Add Goal", onAddGoal)}
           </>
         )}
         <div className="screen-foot" />

@@ -484,3 +484,49 @@ describe("the event a task belongs to", () => {
     expect(screen.getByLabelText("Event")).toHaveTextContent("Practice");
   });
 });
+
+// THE PICKERS FILL EACH OTHER IN (Dave 2026-09-09: "task modals need to
+// include events and goals as well. It should be smart so example: if someone
+// selects a project or event connected to a goal or category it should
+// autofill when it can").
+describe("TaskSheet: the smart Where group", () => {
+  const PROJ = [{ id: "pr1", title: "Kitchen Remodel", category: "c2", goalTitle: "Build a Six-Month Runway" }];
+  const EV = [{ id: "e1", title: "Practice", when: "Saturday 9AM", category: "c1" }];
+
+  it("picking a project answers the empty Area and names the goal it climbs to", () => {
+    const onSave = vi.fn();
+    render(<TaskSheet mode="new" categories={CATS} projects={PROJ} onSave={onSave} onCancel={() => {}} />);
+    // The Goal row is DERIVED, so with no project picked there is nothing to derive.
+    expect(screen.queryByText("Goal")).toBeNull();
+    expect(screen.getByLabelText("Area").textContent).toContain("None");
+    fireEvent.click(screen.getByLabelText("Project"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Kitchen Remodel/ }));
+    expect(screen.getByLabelText("Area").textContent).toContain("Money");
+    expect(screen.getByText("Goal")).toBeInTheDocument();
+    expect(document.querySelector(".row-val")).toHaveTextContent("Build a Six-Month Runway");
+    fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "Call the contractor" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0].projectId).toBe("pr1");
+    expect(onSave.mock.calls[0]![0].category).toBe("c2");
+  });
+
+  it("picking an event answers the empty Area too", () => {
+    render(<TaskSheet mode="new" categories={CATS} events={EV} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Event"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Practice/ }));
+    expect(screen.getByLabelText("Area").textContent).toContain("Work");
+  });
+
+  it("never argues with an area he set himself", () => {
+    render(<TaskSheet mode="new" categories={CATS} projects={PROJ} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Area"));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Work/ }));
+    // The multi menu stays open while picking, so close it by its own control
+    // (the trigger is the first match; the open list carries the label too).
+    fireEvent.click(screen.getAllByLabelText("Area")[0]!);
+    fireEvent.click(screen.getByLabelText("Project"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Kitchen Remodel/ }));
+    expect(screen.getByLabelText("Area").textContent).toContain("Work");
+    expect(screen.getByLabelText("Area").textContent).not.toContain("Money");
+  });
+});

@@ -35,7 +35,7 @@ import { identityToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "../tasks/firstStep";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
-import { TargetGlyph } from "../shared/glyphs";
+import { TargetGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import NoticeCard from "../today/NoticeCard";
 
 // Hoisted: a fresh object per render would make every consumer's memo stale.
@@ -311,6 +311,18 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   // update() resolving false means the row is gone (a stale cache id): a
   // failed save to the person tapping, so it throws into the guard.
   const mustUpdate = async (p: Promise<boolean>) => { if (!(await p)) throw new Error("row missing"); };
+
+  // The goal a project climbs to, by title, for the task sheet's derived Goal
+  // row (Dave 2026-09-09: "task modals need to include events and goals as
+  // well... it should autofill when it can"). Dropped and achieved goals do
+  // not answer: a task filed today is not "for" something he abandoned or
+  // already finished.
+  const goalTitleOf = (id: string | undefined) => {
+    if (!id) return undefined;
+    const g = goals.find((x) => x.id === id);
+    return g && !g.data.dropped && g.data.state !== "achieved" ? g.data.title : undefined;
+  };
+
   // THE ONE ASK. The quiet-area card retired with the area entity; the
   // stalled project is the ask now, still at most one.
   // THE ONE ASK AS A NOTICE ROW (Goals and Projects, Dave 2026-09-02: "A
@@ -318,18 +330,36 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   // anatomy as a mail notice on Today: the tile in orange, the project's
   // name, one line of why, one pill. Not Now is the swipe. It sits in the
   // list instead of over it. The promo card stays for the unlensed frame.
+  // THREE THINGS WERE WRONG WITH THIS ROW (Dave 2026-09-09: "why is there a
+  // random goal at the top that I can't even click on? Remove this or give
+  // the concept real value to the user and it has to be fully functional").
+  //
+  // It is a stalled PROJECT, and it was wearing the goal target, which is the
+  // glyph every goal row on that same screen wears -- so on the Goals segment
+  // it read as a goal he did not recognise. It now wears the folder, the mark
+  // its own kind uses everywhere else.
+  //
+  // Its body did nothing. A notice row is tappable when it is given onOpen
+  // (NoticeCard :269), and this one never was, so the one thing a person
+  // instinctively does with a named row -- tap the name -- was dead. It opens
+  // the project now.
+  //
+  // And it was showing on the Goals segment, where nothing else on screen is
+  // a project. The ask lives with its own kind: Projects, and the unlensed
+  // frame that shows both. See the `offer` gate in BiggerPicturePage.
   const stalledRow = stalled ? (
     <div className="heads-up-stream stream-grouped one-ask-row">
       <div className="card stream-card">
         <NoticeCard
           form="row"
-          icon={<TargetGlyph />}
+          icon={<FolderOpenGlyph />}
           tone="cat-fg-orange"
           title={stalled.data.title}
           sub={projStep && projStep.projectId === stalled.id ? "Start with: " + projStep.step : "Nothing is moving here"}
           action={projStep && projStep.projectId === stalled.id
             ? { label: projStepBusy ? "Adding..." : "Add", onClick: () => void projStepAccept() }
             : { label: projStepBusy ? "Thinking..." : "First Step", onClick: () => void projStepAsk() }}
+          onOpen={() => setDetailId(stalled.id)}
           onDismiss={projStepDismiss}
         />
       </div>
@@ -471,11 +501,14 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     if (!g) return null;
     const c = measureCtxFor(g);
     const h = healthOf(g, measureState(g.data.measure, c), g.data.measure, c, openWorkOf(reachOfGoal(id)));
-    // SAY IT ONCE (Dave 2026-09-09: "Goals says 'done' twice"). The row's own
-    // line already reads "Done" for an achieved goal (reachLine's finished
-    // branch), so a DONE capsule beside it is the same word twice on one row.
-    // The capsule speaks only when it adds something the line does not.
-    if (h === "done") return null;
+    // SAY IT ONCE, AND SAY IT IN THE CAPSULE (Dave 2026-09-09: "Goals says
+    // 'done' twice", then "Done should be marker off like 'on track'"). Both
+    // asks are the same ask: the status belongs in the status capsule, so the
+    // row's LINE gives up the word and carries the finish date instead (see
+    // goalRowRuled). Killing the capsule was the wrong half to cut -- it left
+    // the one goal on the page with no badge at all, which is what he was
+    // objecting to in the first place.
+    if (h === "done") return { text: HEALTH_LABEL[h], tone: "good" };
     if (h === "on_track") return { text: HEALTH_LABEL[h], tone: "good" };
     return null;
   }, [extraOf, goals, measureCtxFor, reachOfGoal]);
@@ -659,7 +692,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
             <TaskSheet
               mode="new"
               categories={categories.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}
-              projects={projects.map((p) => ({ id: p.id, title: p.data.title }))}
+              projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
               initial={{ category: proj?.data.category ?? "", projectId: sheet.projectId }}
               onSave={async (d: TaskDraft) => {
                 await attemptWrite(() => tasksSvc.createTask(d.text, {
@@ -693,7 +726,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
               // whose due date was the only thing that changed. It is the
               // same sheet the Tasks tab opens, so it now reads and writes
               // exactly what TasksFlow.openEdit and TasksFlow.onSave do.
-              projects={projects.map((p) => ({ id: p.id, title: p.data.title }))}
+              projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
               otherPlans={tasks.map((x) => ({ id: x.id, text: x.data.text, plan: x.data.plan }))}
               selfId={sheet.id}
               source={t.data.source}

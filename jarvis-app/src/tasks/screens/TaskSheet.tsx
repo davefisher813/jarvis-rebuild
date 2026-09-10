@@ -8,7 +8,7 @@ import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
 import { FileText, CheckSquare, Clock, Hourglass, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X, CalendarDays} from "../../shared/icons";
 import { DUR_CHOICES, durLabel } from "../../schedule/durations";
-import { RepeatGlyph, PinGlyph } from "../../shared/glyphs";
+import { RepeatGlyph, PinGlyph, TargetGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
 import SheetBar from "../../shared/SheetBar";
 import HeadMenu from "../../shared/HeadMenu";
@@ -38,11 +38,17 @@ export interface TaskDraft {
   // Save should also mark the task done. Never set by the ordinary Save tap.
   closeNow?: boolean;
 }
-export interface SheetProject { id: string; title: string }
+/** A project this sheet can file a task to. The extra two fields are what
+ *  makes the picker SMART (Dave 2026-09-09: "if someone selects a project or
+ *  event connected to a goal or category it should autofill when it can"): a
+ *  project already knows its area and the goal it climbs to, so a task filed
+ *  to it should not make him say either one again. Both optional, so a caller
+ *  with only ids and titles keeps working exactly as before. */
+export interface SheetProject { id: string; title: string; category?: string; goalTitle?: string }
 /** An event this sheet can file a task to. `when` is a rendered day, not a
  *  date: the menu has to disambiguate two events with the same name, and a
  *  raw ISO string in a picker is a machine talking. */
-export interface SheetEvent { id: string; title: string; when: string }
+export interface SheetEvent { id: string; title: string; when: string; category?: string }
 
 const isoOf = (d: Date) => {
   const y = d.getFullYear();
@@ -184,6 +190,36 @@ export default function TaskSheet({
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
   const [eventId, setEventId] = useState(initial?.eventId ?? "");
   const [personId, setPersonId] = useState(initial?.personId ?? "");
+
+  // THE PICKERS FILL EACH OTHER IN (Dave 2026-09-09: "It should be smart so
+  // example: if someone selects a project or event connected to a goal or
+  // category it should autofill when it can"). A project and an event both
+  // already carry an area; making him pick it a second time is the app
+  // knowing the answer and asking anyway.
+  //
+  // It only fills a BLANK area, and only the primary one. Overwriting an area
+  // he set by hand would be the app arguing with him, and adding to the extra
+  // set would silently spread a task across areas he never chose. So: if the
+  // field is empty, answer it; otherwise leave it entirely alone.
+  const fillAreaFrom = (cat: string | undefined) => {
+    if (!cat) return;
+    setCats((cur) => (cur.length > 0 ? cur : [cat]));
+  };
+  const pickProject = (id: string) => {
+    setProjectId(id);
+    fillAreaFrom(projects.find((p) => p.id === id)?.category);
+  };
+  const pickEvent = (id: string) => {
+    setEventId(id);
+    fillAreaFrom(events.find((e) => e.id === id)?.category);
+  };
+  // THE GOAL THIS TASK IS FOR. A task does not get filed to a goal directly:
+  // a goal owns projects and a project owns tasks (Architecture C), so the
+  // goal is DERIVED from the project rather than picked, and the row is here
+  // to answer "what is this for" without a trip to the goal page. It shows
+  // only when the picked project actually climbs to one -- an empty Goal row
+  // on every task would be a question with no answer.
+  const goalTitle = projects.find((p) => p.id === projectId)?.goalTitle ?? "";
   // UP-CORE-02: null means he has not said how long, which is different from
   // zero and is what lets the learned median keep answering.
   const [estimateMin, setEstimateMin] = useState<number | null>(initial?.estimateMin ?? null);
@@ -464,7 +500,21 @@ export default function TaskSheet({
                 <div className="conn-name">Project</div>
                 <HeadMenu variant="value" ariaLabel="Project" value={projectId} label={projectWord} off={projectId === ""}
                   options={[{ value: "", label: "None" }, ...projects.map((p) => ({ value: p.id, label: p.title }))]}
-                  onPick={setProjectId} />
+                  onPick={pickProject} />
+              </div>
+            )}
+            {/* WHAT THIS IS FOR (Dave 2026-09-09: "task modals need to include
+                events and goals as well"). Derived, not picked: a goal owns
+                projects and a project owns tasks, so filing the task to the
+                project has already answered the goal question, and a second
+                picker that could disagree with the first is a bug waiting to
+                be filed. It appears only when the project climbs to a live
+                goal. */}
+            {goalTitle && (
+              <div className="row xs-row">
+                <Tile tone="red"><TargetGlyph /></Tile>
+                <div className="conn-name">Goal</div>
+                <div className="row-val">{goalTitle}</div>
               </div>
             )}
             {/* EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not
@@ -480,7 +530,7 @@ export default function TaskSheet({
                 <div className="conn-name">Event</div>
                 <HeadMenu variant="value" ariaLabel="Event" value={eventId} label={eventWord} off={eventId === ""}
                   options={[{ value: "", label: "None" }, ...events.map((e) => ({ value: e.id, label: e.title + " \u00b7 " + e.when }))]}
-                  onPick={setEventId} />
+                  onPick={pickEvent} />
               </div>
             )}
           </div></div>

@@ -69,6 +69,38 @@ describe("LifeFlow", () => {
     expect(screen.queryByText("Add Project")).toBeNull();
   });
 
+  // THE LOGBOOK, AND THE BADGE (Dave 2026-09-09: "Done should be marker off
+  // like 'on track'. Also should done tasks be in their own area? Whatever
+  // the best task management apps do is what we should do"). They fold it
+  // away and keep it reachable, so an achieved goal leaves the area cards for
+  // a folded receipt, and its row wears the DONE capsule with the finish date
+  // on the line -- the status said once, in the place status lives.
+  it("an achieved goal leaves the live list for a folded Done section", async () => {
+    function DoneSeeded() {
+      const g = useGoals(); const c = useCategories();
+      const [ready, setReady] = useState(false);
+      useEffect(() => {
+        void (async () => {
+          const money = (await c.create("Money", "green"))!;
+          await g.create({ title: "Build a six-month runway", state: "on_track", tags: [money] });
+          await g.create({ title: "Get Health Insurance", state: "achieved", achievedOn: "2026-09-04", tags: [money] });
+          setReady(true);
+        })();
+      }, [g, c]);
+      return ready ? <LifeFlow segment="goals" /> : null;
+    }
+    render(<NotesProvider userId="u1"><DoneSeeded /></NotesProvider>);
+    await screen.findByText("Build a six-month runway", {}, { timeout: 3000 });
+    // Folded: the finished goal is not on screen, only its count.
+    expect(screen.queryByText("Get Health Insurance")).toBeNull();
+    const receipt = screen.getByText("1 Done goal");
+    fireEvent.click(receipt);
+    const row = (await screen.findByText("Get Health Insurance")).closest(".goal-row-ruled") as HTMLElement;
+    expect(row.querySelector(".gstat")).toHaveTextContent("Done");
+    // Said ONCE: the line carries the date, not the word again.
+    expect(row.querySelector(".r-goal")).toHaveTextContent("Finished September 4");
+  });
+
   it("a deep link picks its segment over the session memory", async () => {
     render(<NotesProvider userId="u1"><Seeded segment="goals" /></NotesProvider>);
     await waitFor(() => expect(screen.getByRole("tab", { name: "Goals" })).toHaveAttribute("aria-selected", "true"));

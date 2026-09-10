@@ -176,6 +176,22 @@ describe("healthOf (pick 15)", () => {
   it("says no measure rather than guessing", () => {
     expect(healthOf(goal(), null, undefined, ctx(), 0)).toBe("unmeasured");
   });
+  // IF THE ROW DRAWS A BAR, IT SAYS ON TRACK (Dave 2026-09-09: "everything
+  // with a green bar should say 'on track'. If not, explain why and the logic
+  // because it's very confusing to the user why one says on track and others
+  // don't"). His screenshot had a goal at 0 of 1 wearing ON TRACK and one at
+  // 9 of 11 wearing nothing, because only the first had a `measure`. Filed
+  // projects are a finish line too, and they draw the same bar.
+  it("a goal measured only by its filed projects is on track, not unmeasured", () => {
+    const filed = ctx({
+      reach: { filedIds: ["p1", "p2"], taggedIds: [], openTagged: 2, progress: { done: 9, total: 11, pct: 82 } },
+    });
+    expect(healthOf(goal(), null, undefined, filed, 2)).toBe("on_track");
+    // ...and a goal with no bar of any kind still gets no capsule, which is
+    // the whole rule: the badge follows the bar.
+    const bare = ctx({ reach: { filedIds: [], taggedIds: ["t1"], openTagged: 1, progress: null } });
+    expect(healthOf(goal(), null, undefined, bare, 1)).toBe("unmeasured");
+  });
   it("calls a rhythm behind when the window is mostly gone and it is not", () => {
     // Sunday, one of three done.
     const sunday = new Date("2026-08-23T18:00:00").getTime();

@@ -823,6 +823,14 @@ export default function CategoryDetail({
   // shows their pulse; Bigger Picture owns the goal itself. Health earns a
   // word only when the eye should catch it, the same law as the BP list.
   const goalIdx = buildGoalIndex(allProjects, liveGoals(goals));
+  // The goal a project climbs to, by title, for the task sheet's derived Goal
+  // row. Dropped and achieved goals do not answer: a task filed today is not
+  // "for" something he abandoned or already finished.
+  const goalTitleOf = (id: string | undefined) => {
+    if (!id) return undefined;
+    const g = goals.find((x) => x.id === id);
+    return g && !g.data.dropped && g.data.state !== "achieved" ? g.data.title : undefined;
+  };
   const goalsHere = (goalIdx.byCategory.get(categoryId) ?? [])
     .map((id) => goals.find((g) => g.id === id))
     .filter((g): g is Goal => !!g)
@@ -1385,8 +1393,15 @@ export default function CategoryDetail({
       )}
       <div className="screen-foot" />
 
+      {/* THE SAME SHEET EVERYWHERE (Dave 2026-09-09: "task modals need to
+          include events and goals as well"). This one was handing over
+          categories and events and no projects, so the area page was the one
+          door where a new task could not be filed to the project it belongs
+          to, and the derived Goal row had nothing to derive from. */}
       {sheet.kind === "task" && (
-        <TaskSheet mode="new" categories={sheetCats} events={sheetEvents(allEvents, today)} initial={{ category: categoryId }} onSave={saveTask} onCancel={() => setSheet({ kind: "closed" })} />
+        <TaskSheet mode="new" categories={sheetCats} events={sheetEvents(allEvents, today)}
+          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
+          initial={{ category: categoryId }} onSave={saveTask} onCancel={() => setSheet({ kind: "closed" })} />
       )}
       {sheet.kind === "project" && (
         <ProjectSheet mode="new" categories={allCats} goals={goals} initial={{ category: categoryId }}

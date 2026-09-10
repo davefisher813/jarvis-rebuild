@@ -28,6 +28,11 @@ export interface SheetEvent {
   title: string;
   /** A rendered day, for the menu. Never an ISO string: a picker is read. */
   when: string;
+  /** The event's own area, so the sheet can answer the Area question for him
+   *  when he files a task to this event (Dave 2026-09-09: "if someone selects
+   *  a project or event connected to a goal or category it should autofill
+   *  when it can"). Blank when the event has no area, which fills nothing. */
+  category?: string;
 }
 
 /** Human day for the picker: Today, Tomorrow, then the weekday and date. */
@@ -63,7 +68,7 @@ export function sheetEvents(events: EventItem[], today: string, days = 30, max =
       if (out.length >= max) break;
       seen.add(e.id);
       const t = fmtTime(e.data.start);
-      out.push({ id: e.id, title: e.data.title, when: `${dayWord(iso, today)} ${t.time}${t.ap}` });
+      out.push({ id: e.id, title: e.data.title, when: `${dayWord(iso, today)} ${t.time}${t.ap}`, category: e.data.category || undefined });
     }
   }
   return out;

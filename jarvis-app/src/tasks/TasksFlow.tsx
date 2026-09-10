@@ -157,6 +157,17 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   const [goals, setGoals] = useState<Goal[]>([]);
   useEffect(() => { let on = true; goalsSvc.list().then((g) => { if (on) setGoals(g); }); return () => { on = false; }; }, [goalsSvc]);
   const goalIdx = buildGoalIndex(projects, liveGoals(goals));
+  // The goal a project climbs to, by title, for the task sheet's derived Goal
+  // row (Dave 2026-09-09: "task modals need to include events and goals as
+  // well... it should autofill when it can"). Dropped and achieved goals do
+  // not answer: a task filed today is not "for" something he abandoned or
+  // already finished.
+  const goalTitleOf = (id: string | undefined) => {
+    if (!id) return undefined;
+    const g = goals.find((x) => x.id === id);
+    return g && !g.data.dropped && g.data.state !== "achieved" ? g.data.title : undefined;
+  };
+
   // WHERE A TASK LIVES (The Row and Health, 2026-09-02): project, goal or
   // category, with the project's progress for its pie. Built once per pass.
   const parentIdx = useMemo(() => buildParentIndex(projects, goals, allItems), [projects, goals, allItems]);
@@ -850,7 +861,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         onDeleteTask={onDeleteRow}
         onDeleteMany={onDeleteMany}
         onDoneMany={onDoneMany}
-        projects={projects.map((p) => ({ id: p.id, title: p.data.title }))}
+        projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
         onMoveMany={onMoveMany}
         onSnoozeTask={onSnooze}
         onClearDone={onClearDone}
@@ -864,7 +875,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
       />
       {sheet && (
         <TaskSheet
-          projects={projects.map((p) => ({ id: p.id, title: p.data.title }))}
+          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
           events={sheetEventList}
           mode={sheet.mode}
           initial={sheet.initial}

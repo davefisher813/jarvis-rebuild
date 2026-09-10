@@ -4592,6 +4592,14 @@ body.selecting .voice-dock { display: none; }
 .dd.dd-value .dd-cv { color: var(--tx-4); opacity: 1; width: 7px; height: 7px; margin-left: 4px; }
 .dd.dd-value .dd-w { max-width: 52vw; }
 .dd.dd-value.dd-open { background: transparent; opacity: 0.6; }
+/* A ROW'S VALUE WITH NO MENU BEHIND IT (2026-09-09): the Goal row on the task
+   sheet, which is DERIVED from the project the task is filed to rather than
+   picked. It takes .dd-value's type so it sits on the same optical line as
+   every picker beside it, and --tx-3 so it reads as an answer the sheet is
+   giving rather than a control that would do nothing if tapped. */
+.xs-group .row-val { margin-left: auto; max-width: 52vw; color: var(--tx-3);
+  font-size: calc(15.5px * var(--type-scale)); text-align: right;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ==========================================================================
    THE DROPDOWN MENU (shared/HeadMenu, Fewer Buttons 2026-09-02). Portaled

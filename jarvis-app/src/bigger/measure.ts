@@ -306,9 +306,27 @@ export function healthOf(
     if (through > 0.5 && state.done / state.target < through - 0.2) return "behind";
   }
 
-  if (openWork === 0 && !state) return "unmeasured";
+  // IF THE ROW DRAWS A BAR, IT SAYS ON TRACK (Dave 2026-09-09: "everything
+  // with a green bar should say 'on track'. If not, explain why and the logic
+  // because it's very confusing to the user why one says on track and others
+  // don't").
+  //
+  // He was right and the old rule was indefensible. "Lock in Premier 17U
+  // Team" at 0 of 1 wore ON TRACK because it had a `measure`; "Make apartment
+  // aesthetic" at 9 of 11 wore nothing, because its fraction comes from its
+  // FILED PROJECTS instead. Both draw the same green bar from the same kind
+  // of arithmetic, so the distinction was the data model's, not his, and the
+  // less-finished one got the better badge.
+  //
+  // A bar IS the progress claim. Drawing one and then refusing to say the
+  // goal is on track is the page disagreeing with itself. So: measured by a
+  // finish line, or measured by the projects filed under it, both count as
+  // measured. A goal with neither -- only tagged tasks, only a title -- has
+  // no bar, gets no capsule, and that is the whole rule.
+  const barred = !!state || !!ctx.reach.progress;
+  if (!barred && openWork === 0) return "unmeasured";
   if (idle(ctx)) return "idle";
-  if (!state) return "unmeasured";
+  if (!barred) return "unmeasured";
   return "on_track";
 }
 
