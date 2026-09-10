@@ -256,8 +256,18 @@ export function healthOf(
   ctx: MeasureContext,
   openWork: number,
 ): Health {
+  // DONE IS SOMETHING HE SAYS, NOT SOMETHING THE NUMBERS DECIDE (Dave
+  // 2026-09-09: "Projects and goals are automatically clearing as done without
+  // my consent. Unless the user says otherwise a done confirmation should be
+  // MANDATORY to clear items").
+  // The first line is his own mark and stays. The second used to call a goal
+  // DONE the moment its measure was met -- 12 of 12, target hit -- which is
+  // the app closing something on his behalf, from arithmetic, with no tap
+  // anywhere. A met measure means it is READY to close, and the goal page's
+  // Mark Achieved is where that happens. Until then it is on track, which is
+  // true, and nothing anywhere says finished.
   if (goal.data.state === "achieved") return "done";
-  if (state?.met) return "done";
+  if (state?.met) return "on_track";
 
   // Behind is only claimable against a date AND a finish line. Without both,
   // there is no pace to be behind of, and saying so would be a guess.

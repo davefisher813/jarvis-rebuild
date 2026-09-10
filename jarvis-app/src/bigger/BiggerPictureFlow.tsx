@@ -471,7 +471,12 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     if (!g) return null;
     const c = measureCtxFor(g);
     const h = healthOf(g, measureState(g.data.measure, c), g.data.measure, c, openWorkOf(reachOfGoal(id)));
-    if (h === "on_track" || h === "done") return { text: HEALTH_LABEL[h], tone: "good" };
+    // SAY IT ONCE (Dave 2026-09-09: "Goals says 'done' twice"). The row's own
+    // line already reads "Done" for an achieved goal (reachLine's finished
+    // branch), so a DONE capsule beside it is the same word twice on one row.
+    // The capsule speaks only when it adds something the line does not.
+    if (h === "done") return null;
+    if (h === "on_track") return { text: HEALTH_LABEL[h], tone: "good" };
     return null;
   }, [extraOf, goals, measureCtxFor, reachOfGoal]);
   // PICK 17: the drop writes the decision FIRST, then marks the goal. Order

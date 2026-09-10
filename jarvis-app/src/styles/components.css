@@ -1820,11 +1820,15 @@ button {
 }
 
 /* === Session 6.6: connected Bigger Picture === */
-/* The next-action line on a project row: quieter than the counts line above
-   it, single line, never wraps (row height stays uniform). */
+/* The next-action line on a project row. */
 /* The project's next action is the single most useful string on this row and
    it was clipping a quarter of itself at 320 wide. */
-.bp-next { color: var(--tx-4); }
+/* AND IT WAS ALSO THE DIMMEST (Dave 2026-09-09: the Next line "doesn't stand
+   out at all and should"). It wore --tx-4, the token reserved for finished
+   and past states, while carrying the one live instruction on the row. It
+   now takes --tx-2, one step brighter than the --tx-3 lines around it, which
+   is the same ruling .ruled .r-next b got on the ruled lens. */
+.bp-next { color: var(--tx-2); }
 .bp-sub.bp-next.truncate { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Person pass: chip rows inside sheets wrap instead of scrolling (a sheet has

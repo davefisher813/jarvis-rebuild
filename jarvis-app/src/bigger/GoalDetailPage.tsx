@@ -260,7 +260,18 @@ export default function GoalDetailPage({
           by due date: a goal watching a busy area would otherwise print a
           wall, and the remainder gets a count, not a button that goes
           nowhere. */}
-      {shown.length > 0 && (
+      {/* A NEW GOAL IS EMPTY (Dave 2026-09-09: "I just created the open up my
+          own business goal and a bunch of tasks randomly populated it").
+          This section listed every open task in the AREAS the goal is tagged
+          to, which on a brand new goal is fourteen tasks it has nothing to do
+          with. It is the same mistake life/parent.ts already ruled on: a tag
+          is a saved filter over a CATEGORY, so it says what a goal MOVES, never
+          what the goal OWNS, and a page that prints the filter as the goal's
+          own work is putting words in his mouth.
+          It renders only when he has actually filed something to this goal, so
+          a goal he just made shows nothing until he puts something in it. The
+          tag reach still feeds ranking and Plan My Day, where it belongs. */}
+      {shown.length > 0 && projects.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">From Your Areas</span><span className="n">{taggedOpen.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">

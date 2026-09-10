@@ -1088,7 +1088,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       // reads (workouts before this session, then with it) -- never a
       // separate "did I hit it" heuristic. A goal already achieved is
       // never re-celebrated.
-      const goalHits: { title: string; line: string }[] = [];
+      const goalHits: { id: string; title: string; line: string }[] = [];
       if (goalsSvc) {
         const after: Workout[] = [...workouts, { id: "pending", data }];
         for (const g of goals) {
@@ -1099,8 +1099,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
           if (before.met) continue;
           const afterState = m.kind === "lift" ? liftMeasureState(m as LiftMeasure, after) : trainingMeasureState(m as TrainingMeasure, after, endedAt);
           if (afterState.met) {
-            goalHits.push({ title: g.data.title, line: afterState.line });
-            try { await goalsSvc.update(g.id, { state: "achieved" }); } catch { /* offline: the session is saved either way, and healthOf derives "done" straight from the workout the next time it reads it */ }
+            // HITTING THE NUMBER IS NOT SAYING IT IS DONE (Dave 2026-09-09:
+            // "Projects and goals are automatically clearing as done without
+            // my consent. Unless the user says otherwise a done confirmation
+            // should be MANDATORY to clear items"). This used to write
+            // state: "achieved" right here, so a goal closed itself out on the
+            // way to the receipt and he found it gone. The detection and the
+            // celebration are unchanged; the close-out is now a button on the
+            // receipt, and only his tap writes it.
+            goalHits.push({ id: g.id, title: g.data.title, line: afterState.line });
           }
         }
       }
@@ -1746,7 +1753,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   }
 
   const receiptEl = receipt
-    ? <ReceiptSheet dayName={receipt.dayName} receipt={receipt.receipt} workouts={workouts} onDone={() => setReceipt(null)} />
+    ? <ReceiptSheet
+        dayName={receipt.dayName}
+        receipt={receipt.receipt}
+        workouts={workouts}
+        onDone={() => setReceipt(null)}
+        onAchieveGoal={goalsSvc ? (id) => {
+          // His tap, his write. Offline it fails quietly the way every other
+          // gym write does: the workout is already saved, and the goal simply
+          // stays open until the next tap lands.
+          void (async () => {
+            try { await goalsSvc.update(id, { state: "achieved" }); await reload(); } catch { /* offline: the goal stays open, nothing is lost */ }
+          })();
+        } : undefined}
+      />
     : null;
 
   const switcherEl = switcherOpen ? (

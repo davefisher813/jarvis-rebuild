@@ -3,24 +3,28 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useEffect, useState } from "react";
-import { NotesProvider, useProjects, useGoals, useTasks } from "../data/NotesProvider";
+import { NotesProvider, useProjects, useGoals, useTasks, useCategories } from "../data/NotesProvider";
 import LifeFlow from "./LifeFlow";
 import { todayISO } from "../tasks/grouping";
 
 // LIFE (ruled 2026-09-01): Tasks and Your Life, one tab, three zoom levels.
 // Seeds first, mounts the flow after: the flow reads its lists on mount, and
 // the test is about the page, not about live repaints.
+// The area is seeded as a real category record, not the bare string "money":
+// both lenses group by the ids the frame actually holds, so a made-up id lands
+// everything in More Work and proves nothing about the heads.
 function Seeded({ segment }: { segment?: "tasks" | "projects" | "goals" }) {
-  const p = useProjects(); const g = useGoals(); const t = useTasks();
+  const p = useProjects(); const g = useGoals(); const t = useTasks(); const c = useCategories();
   const [ready, setReady] = useState(false);
   useEffect(() => {
     void (async () => {
-      const goalId = await g.create({ title: "Build a six-month runway", state: "on_track", tags: ["money"] });
-      await p.create({ title: "Kitchen remodel", status: "active", goalId: goalId ?? undefined, category: "money" });
-      await t.createTask("Pay the deposit", { category: "money", due: todayISO() });
+      const money = (await c.create("Money", "green"))!;
+      const goalId = await g.create({ title: "Build a six-month runway", state: "on_track", tags: [money] });
+      await p.create({ title: "Kitchen remodel", status: "active", goalId: goalId ?? undefined, category: money });
+      await t.createTask("Pay the deposit", { category: money, due: todayISO() });
       setReady(true);
     })();
-  }, [p, g, t]);
+  }, [p, g, t, c]);
   return ready ? <LifeFlow segment={segment} /> : null;
 }
 
@@ -34,7 +38,7 @@ describe("LifeFlow", () => {
     expect(screen.getByRole("tab", { name: "Tasks" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("Projects groups projects under their goal as a head with the pie row; Goals shows goals only", async () => {
+  it("Projects groups projects under their AREA with the pie row; Goals shows goals only", async () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
     await screen.findByText("Pay the deposit", {}, { timeout: 3000 });
     fireEvent.click(screen.getByRole("tab", { name: "Projects" }));
@@ -42,13 +46,18 @@ describe("LifeFlow", () => {
     await screen.findByText("Add Project");
     const row = screen.getAllByText("Kitchen remodel").map((e) => e.closest(".task-row")).find(Boolean) as HTMLElement;
     expect(row).toBeTruthy();
-    // Goals and Projects (2026-09-02): the goal is written once, as the head
-    // over its projects, full title with the mark; the row carries the
-    // progress pie where a task's check sits and no goal line of its own.
-    const head = screen.getByText("Build a six-month runway");
-    expect(head.closest(".sh2.gh-goal")!.querySelector(".gh-mark .r-gm")).toBeTruthy();
+    // THE CATEGORY IS THE ORGANIZER (Dave 2026-09-09: "projects should be
+    // organized much more like goals. The category should be the main
+    // organizer. Right now it's a list of projects"). So the head over a
+    // project is its area's, with the area dot, exactly as on the Goals lens,
+    // and the goal moved onto the row as its .r-is-goal chip. The row still
+    // carries the progress pie where a task's check sits.
+    const head = row.closest(".pad-x")!.previousElementSibling as HTMLElement;
+    expect(head.className).toMatch(/\bsh2\b/);
+    expect(head.querySelector(".cat-dot")).toBeTruthy();
+    expect(head.className, "the retired goal head is gone").not.toMatch(/gh-goal/);
     expect(row.querySelector(".pp")).toBeTruthy();
-    expect(row.querySelector(".r-is-goal")).toBeNull();
+    expect(row.querySelector(".r-is-goal")).toHaveTextContent("Build a six-month runway");
     expect(screen.getByText("Add Project")).toBeInTheDocument();
     expect(screen.queryByText("Add Goal")).toBeNull();
 

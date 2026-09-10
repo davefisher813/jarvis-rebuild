@@ -141,8 +141,14 @@ describe("healthOf (pick 15)", () => {
   it("is done when the record says achieved, whatever the numbers", () => {
     expect(healthOf(goal({ state: "achieved" }), part, { kind: "count", target: 12 }, ctx(), 5)).toBe("done");
   });
-  it("is done when the finish line is reached", () => {
-    expect(healthOf(goal(), met, { kind: "count", target: 12 }, ctx(), 3)).toBe("done");
+  // DONE IS SOMETHING HE SAYS (Dave 2026-09-09: "Projects and goals are
+  // automatically clearing as done without my consent. Unless the user says
+  // otherwise a done confirmation should be MANDATORY to clear items").
+  // Hitting the number is the strongest possible on_track, not a close-out:
+  // the record has to say achieved, and only he can put that there.
+  it("does not close itself out when the finish line is reached", () => {
+    expect(healthOf(goal(), met, { kind: "count", target: 12 }, ctx(), 3)).toBe("on_track");
+    expect(healthOf(goal({ state: "achieved" }), met, { kind: "count", target: 12 }, ctx(), 3)).toBe("done");
   });
   it("is behind once the date has passed", () => {
     expect(healthOf(goal({ by: "2026-08-01" }), part, { kind: "count", target: 12 }, ctx(), 3)).toBe("behind");

@@ -79,7 +79,12 @@ export interface Receipt {
    *  as always); GymFlow.finish computes this separately, against the SAME
    *  before/after evidence goalMeasures.ts already reads, and attaches it
    *  here so ReceiptSheet has one Receipt to read, not two data sources. */
-  goalHits: { title: string; line: string }[];
+  /*  ...and it carries the goal's id because hitting the number is no longer
+   *  the same as closing the goal out. Dave 2026-09-09: "Projects and goals
+   *  are automatically clearing as done without my consent. Unless the user
+   *  says otherwise a done confirmation should be MANDATORY to clear items."
+   *  The receipt celebrates the hit and offers the close-out; he taps it. */
+  goalHits: { id: string; title: string; line: string }[];
 }
 
 /**

@@ -357,11 +357,20 @@
 .ruled .proj-row-ruled .task-title, .ruled .goal-row-ruled .task-title { min-width: 0; }
 .ruled .r-next { font-size: calc(12.5px * var(--type-scale)); color: var(--tx-quiet); margin-top: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* THE NEXT MOVE LEADS, SO IT HAS TO READ LIKE IT (Dave 2026-09-09: the Next
+   line "should either be color coded or a white/grey contrast like the lines
+   above it. It doesn't stand out at all and should"). It was the quietest
+   thing on the row while being the only thing on it he can act on. The
+   label keeps --tx-quiet, which BROWSER-F-09 requires of live metadata; the
+   action takes --tx-2, one step brighter than the --tx-3 progress line
+   above, so the row's brightest ink after the title is the actual move. Same
+   device as `.r-goal b`, which already brightens the fact inside a line. */
+.ruled .r-next b { font-weight: var(--w-medium); color: var(--tx-2); }
 .ruled .task-row .r-goal b { font-weight: var(--w-semi); color: var(--tx-2); }
-/* The goal as a head over its projects: the mark in the goal's colour, then
-   the title in the same quiet caps every other head wears. Written once. */
-.ruled .sh2.gh-goal .gh-mark { display: inline-flex; order: 0; align-self: center; flex-shrink: 0; }
-.ruled .sh2.gh-goal .gh-mark .r-gm { width: 13px; height: 13px; color: currentColor; }
+/* (The goal as a head over its projects, .sh2.gh-goal, is retired. The
+   Projects lens groups by area like the Goals lens does, so the head is the
+   area's and the goal rides on the row as an .r-is-goal chip. Dave
+   2026-09-09: "the category should be the main organizer".) */
 
 /* ---------- THE GOALS LENS: one card, status capsule on the right ---------
    Each goal a ruled row: the target in the goal's category colour where the

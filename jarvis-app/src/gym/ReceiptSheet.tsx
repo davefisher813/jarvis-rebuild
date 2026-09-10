@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { Receipt } from "./prs";
 import type { Workout } from "./types";
@@ -14,12 +15,16 @@ import { doneCount } from "./history";
 // names the done-kind work instead of folding it into a number. Each name
 // also gets a plain count fact ("done N times") pulled from history plus this
 // session -- a count, never a streak, never red, never a target.
-export default function ReceiptSheet({ dayName, receipt, workouts, onDone }: {
+export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onAchieveGoal }: {
   dayName: string;
   receipt: Receipt;
   workouts: Workout[];
   onDone: () => void;
+  /** Dave 2026-09-09: the close-out is his to make, so the goal-hit row ends
+   *  in a button rather than the goal having already closed itself. */
+  onAchieveGoal?: (id: string) => void;
 }) {
+  const [closed, setClosed] = useState<string[]>([]);
   const tiles: { num: string; label: string }[] = [
     { num: String(receipt.minutes), label: receipt.minutes === 1 ? "Minute" : "Minutes" },
     { num: String(receipt.exercises), label: receipt.exercises === 1 ? "Exercise" : "Exercises" },
@@ -79,15 +84,24 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone }: {
                   precedent for. */}
               <div className="grp"><div className="eyebrow">Goal Hit</div></div>
               <div className="card banner-good">
-                {receipt.goalHits.map((g) => (
-                  <div className="row" key={g.title}>
-                    <div className="row-grow">
-                      <div className="conn-name truncate">{g.title}</div>
-                      <div className="conn-meta">{g.line}</div>
+                {receipt.goalHits.map((g) => {
+                  const done = closed.includes(g.id);
+                  return (
+                    <div className="row" key={g.id}>
+                      <div className="row-grow">
+                        <div className="conn-name truncate">{g.title}</div>
+                        <div className="conn-meta">{g.line}</div>
+                      </div>
+                      {/* THE CLOSE-OUT IS HIS (Dave 2026-09-09). The goal used
+                          to be written achieved before this sheet even opened.
+                          Now the row says he hit the number and offers the
+                          close; the pill is the receipt for taking it. */}
+                      {onAchieveGoal && !done
+                        ? <button className="pill-act" onClick={() => { setClosed((c) => [...c, g.id]); onAchieveGoal(g.id); }}>Mark Done</button>
+                        : <span className="pill pill-good">{done ? "Done" : "Goal"}</span>}
                     </div>
-                    <span className="pill pill-good">Goal</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}

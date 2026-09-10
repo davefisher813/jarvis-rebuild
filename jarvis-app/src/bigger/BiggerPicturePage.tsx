@@ -212,14 +212,19 @@ export default function BiggerPicturePage({
 
   // ---- THE RULED LENSES (Goals and Projects, Dave 2026-09-02) ----
   //
-  // Projects lens: "The progress pie, three lines" and "Under their goal".
-  // The folder is gone. A project's glyph is a ring in its category colour
-  // that fills as its tasks close, sitting where a task's check sits, so a
-  // project row and a task row are the same skeleton. Line two is the
-  // fraction, the open count and the learned size; line three is the next
-  // move. Projects group under the goal they climb to, the goal written once
-  // as a head with its mark, never on a row; a project with no live goal
-  // sits under its category head instead.
+  // Projects lens: "The progress pie, three lines". The folder is gone. A
+  // project's glyph is a ring in its category colour that fills as its tasks
+  // close, sitting where a task's check sits, so a project row and a task row
+  // are the same skeleton. Line two is the fraction, the open count, the
+  // learned size and the goal it climbs to; line three is the next move.
+  //
+  // THE CATEGORY IS THE ORGANIZER (Dave 2026-09-09: "projects should be
+  // organized much more like goals. The category should be the main
+  // organizer. Right now it's a list of projects"). Goals group by area, so
+  // projects do too, under the same catHead with the same dot: one frame, one
+  // rule, and the eight areas he already thinks in are the shelf both lists
+  // sit on. The goal moved off the head and onto the row as a chip, where a
+  // task row already wears its parent, so nothing about lineage was lost.
   const pieRow = ({ project, progress, stalled }: ProjectRow) => {
     const next = nextActionTextOf?.(project.id);
     const hold = holdLineOf?.(project.id) ?? null;
@@ -227,13 +232,30 @@ export default function BiggerPicturePage({
     const paced = paceLineOf?.(project.id) ?? null;
     const canClose = closable({ project, progress, stalled, lastAt: null });
     const line = hold ?? (progressLabel(progress, stalled) + (sized ? " \u00b7 " + sized : ""));
+    const filed = project.data.goalId ? goalById.get(project.data.goalId) : undefined;
     return (
       <div className="task-row p2 proj-row-ruled" role="button" tabIndex={0} key={project.id} onClick={() => onOpenProject(project.id)}>
         <div className="task-check-tap"><span className={"pp-slot cat-fg-" + catColor(project.data.category ?? "")}><ProjectPie pct={progress ? progress.pct : null} /></span></div>
         <div className="task-title">
           <span className="task-name">{project.data.title}</span>
-          <div className="r-k"><span className={"r-goal" + (hold || stalled ? " r-stalled" : "")}><Nums text={line} /></span></div>
-          {next && <div className="r-next">Next: {next}</div>}
+          {/* The progress fact leads, the goal rides behind it: .r-k wraps
+              whole items off the end, so the fact he came for is the one
+              that cannot be the item that drops. */}
+          <div className="r-k">
+            <span className={"r-goal" + (hold || stalled ? " r-stalled" : "")}><Nums text={line} /></span>
+            {filed && !filed.data.dropped && (
+              <span className={"r-goal r-is-goal " + goalTone(filed.data.tags)}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span>
+            )}
+          </div>
+          {/* THE NEXT MOVE HAS TO LOOK LIKE THE POINT (Dave 2026-09-09: the
+              Next line "should either be color coded or a white/grey contrast
+              like the lines above it. It doesn't stand out at all"). The label
+              keeps --tx-quiet, which is the token live metadata is required to
+              wear (BROWSER-F-09), and the action itself takes --tx-2, one
+              step BRIGHTER than the progress line above it. So the brightest
+              ink on the row after the title is the thing he would actually
+              do next. */}
+          {next && <div className="r-next">Next: <b>{next}</b></div>}
         </div>
         {canClose && onCloseProject
           ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onCloseProject(project.id); }}>Close</button>
@@ -257,13 +279,9 @@ export default function BiggerPicturePage({
     );
   };
 
-  const goalHead = (g: Goal, n: number) => (
-    <div className="sh2 sh2-quiet gh-goal">
-      <span className={"gh-mark " + goalTone(g.data.tags)}><GoalMark /></span>
-      <span className="t">{g.data.title}</span>
-      <span className="n">{n}</span>
-    </div>
-  );
+  // (The goal-as-head, .sh2.gh-goal, is gone with the goal-first grouping it
+  // existed for: the Projects lens groups by area now, and a project says its
+  // goal on its own row instead. Dave 2026-09-09.)
   const catHead = (c: { id: string; name: string }, n: number) => (
     <div className="sh2 sh2-quiet">
       <span className={"cat-dot cat-bg-" + catColor(c.id)} />
@@ -317,13 +335,8 @@ export default function BiggerPicturePage({
       liveGoals.filter((g) => homeOf(g) === c.id).map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g }; }),
     ).map((x) => x.goal);
     // Goals in the frame's order: homed goals section by section, then the
-    // ones with no home. The Projects lens walks this list for its heads.
+    // ones with no home.
     const unhomed = liveGoals.filter((g) => homeOf(g) === null);
-    const orderedGoals = [...sections.flatMap((c) => goalIdsHomed(c)), ...unhomed];
-    // A project climbs to a live goal or it does not; the ones that do not
-    // sit under their category, and the true orphans under More Work.
-    const goalless = openRows.filter((r) => !(r.project.data.goalId && goalIds.has(r.project.data.goalId)));
-    const goallessOrphans = goalless.filter((r) => !sectionIds.has(r.project.data.category ?? ""));
     return (
       <div className="screen ruled">
         <PageHeader title={title} />
@@ -331,20 +344,18 @@ export default function BiggerPicturePage({
         {offer}
         {projectsLens ? (
           <>
-            {orderedGoals.map((g) => {
-              const mine = openRows.filter((r) => r.project.data.goalId === g.id);
-              if (mine.length === 0) return null;
-              return <div key={g.id}>{goalHead(g, mine.length)}{ruledCard(mine.map(pieRow))}</div>;
-            })}
+            {/* One card per area, in the frame's order, exactly as the Goals
+                lens above does it. A project with no live area is not forced
+                into one: it lands in More Work, adoption one tap away. */}
             {sections.map((c) => {
-              const loose = goalless.filter((r) => (r.project.data.category ?? "") === c.id);
-              if (loose.length === 0) return null;
-              return <div key={c.id}>{catHead(c, loose.length)}{ruledCard(loose.map(pieRow))}</div>;
+              const mine = openRows.filter((r) => (r.project.data.category ?? "") === c.id);
+              if (mine.length === 0) return null;
+              return <div key={c.id}>{catHead(c, mine.length)}{ruledCard(mine.map(pieRow))}</div>;
             })}
-            {goallessOrphans.length > 0 && (
+            {orphanRows.length > 0 && (
               <div>
-                <div className="sh2 sh2-quiet"><span className="t">More Work</span><span className="n">{goallessOrphans.length}</span></div>
-                {ruledCard(goallessOrphans.map(pieRow))}
+                <div className="sh2 sh2-quiet"><span className="t">More Work</span><span className="n">{orphanRows.length}</span></div>
+                {ruledCard(orphanRows.map(pieRow))}
               </div>
             )}
             {/* ONE CARD, NOT A STACK OF PILLS (Dave 2026-09-02: "I don't want
