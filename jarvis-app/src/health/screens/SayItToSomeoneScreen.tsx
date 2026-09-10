@@ -64,7 +64,7 @@ export default function SayItToSomeoneScreen({
   }, [name, phone, touched]);
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Say It to Someone</div>

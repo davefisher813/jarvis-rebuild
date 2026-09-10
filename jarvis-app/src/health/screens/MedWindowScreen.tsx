@@ -18,7 +18,7 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Med Window</div>

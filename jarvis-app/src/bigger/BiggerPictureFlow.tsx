@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions } from "../data/NotesProvider";
+import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions, useOptionalGym } from "../data/NotesProvider";
 import type { Project, ProjectData } from "../projects/types";
 import type { Goal, GoalData } from "../life/types";
 import { goalEvidenceDays, comebackLine, heavyWord } from "../review/life";
@@ -21,6 +21,7 @@ import { measureState, paceLine, healthOf, HEALTH_LABEL, type MeasureContext } f
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
 import { supabase } from "../auth/supabaseClient";
 import type { WindowClient } from "../brain/window";
+import type { Workout } from "../gym/types";
 import { holdLine, sizeOf, sizeLine } from "../projects/shape";
 import { openWorkOf } from "../today/goalPulse";
 import GoalDetailPage from "./GoalDetailPage";
@@ -92,6 +93,17 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   const [goals, setGoals] = useState<Goal[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  // ONE GOAL, ONE STORY (Dave 2026-09-10, on health-specific goals). A lift or
+  // training goal is measured off the WORKOUT LOG, not off filed projects, and
+  // measureState has always known how to read one -- it just needs the
+  // workouts (measure.ts:126). This flow never passed them, so a squat goal
+  // read as a full bar on the health page and as "No Measure" on the Life >
+  // Goals lens two taps away: the same goal telling two different stories.
+  // Optional because the gym service is not mounted in every test harness,
+  // and absent simply means those two measure kinds read as unmeasured, which
+  // is exactly what they did before.
+  const gymSvc = useOptionalGym();
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [payoff, setPayoff] = useState<{ kind: "project" | "goal"; title: string; line: string } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(openId ?? null);
@@ -116,11 +128,12 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
-    const [p, g, c, t] = await Promise.all([
+    const [p, g, c, t, w] = await Promise.all([
       projectsSvc.list(), goalsSvc.list(), catsSvc.list(), tasksSvc.listTasks(),
+      gymSvc ? gymSvc.listWorkouts() : Promise.resolve([] as Workout[]),
     ]);
-    setProjects(p); setGoals(g); setCategories(c); setTasks(t); setLoading(false);
-  }, [projectsSvc, goalsSvc, catsSvc, tasksSvc]);
+    setProjects(p); setGoals(g); setCategories(c); setTasks(t); setWorkouts(w); setLoading(false);
+  }, [projectsSvc, goalsSvc, catsSvc, tasksSvc, gymSvc]);
   useEffect(() => { void reload(); }, [reload]);
 
   useEffect(() => {
@@ -472,7 +485,10 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     samples,
     today,
     now: Date.now(),
-  }), [reachOfGoal, tasks, projects, samples, today]);
+    // See the comment on `workouts` above: without this a lift goal reads
+    // unmeasured here and fully measured on the health page.
+    workouts,
+  }), [reachOfGoal, tasks, projects, samples, today, workouts]);
   const goalMeasure = goalDetail ? measureState(goalDetail.data.measure, measureCtxFor(goalDetail)) : null;
   // The one extra word a goal row wears on Your Life (picks 17/18): a
   // comeback leads as a win, effort without movement reads as weight, and

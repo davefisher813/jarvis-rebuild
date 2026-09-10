@@ -29,7 +29,7 @@ export default function WhatTheySeeScreen({
   const visibleBody = sharedView(pointAtIt, grants);
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">What They See</div>

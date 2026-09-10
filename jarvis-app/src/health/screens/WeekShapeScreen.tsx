@@ -10,7 +10,7 @@ export default function WeekShapeScreen({ shape, onOpenTwoDaysOff, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Week Shape</div>

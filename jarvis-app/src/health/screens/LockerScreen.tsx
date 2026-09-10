@@ -22,7 +22,7 @@ export default function LockerScreen({
   const missing = LOCKER_DOC_KINDS.filter((k) => !present.some((d) => d.data.kind === k));
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Locker</div>

@@ -10,7 +10,7 @@ export default function ThirdPracticeScreen({ offers, onProtectGap, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Third Practice</div>

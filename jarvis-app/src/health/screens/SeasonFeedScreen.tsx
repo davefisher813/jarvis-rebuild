@@ -51,7 +51,7 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
 
   if (draft) {
     return (
-      <div className="screen ruled">
+      <div className="screen ruled health-ruled">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={() => setDraft(null)}></button>
           <div className="nav-title truncate">{draft.org}</div>
@@ -79,7 +79,7 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
   }
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Season Feed</div>

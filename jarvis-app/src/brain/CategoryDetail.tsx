@@ -449,7 +449,18 @@ export default function CategoryDetail({
   // sat offering Start on a session already logged, open to a double entry.
   // BRAIN-F-07 (2026-09-05): the door is gymDoor, the block marked `gym`,
   // not "whatever this page had first on today's list".
-  if (gymOpen) return <GymFlow areaId={categoryId} startDayId={gymStartDay ?? undefined} startDoorEventId={gymDoor?.id} onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }} />;
+  // WORKOUT LOGGING BELONGS WITH THE WORKOUT (Dave 2026-09-10: "how hard it
+  // was, where it hurts, anything related to an actual workout should go where
+  // people are logging their workout data. It makes no sense for someone to
+  // open up a workout, log it in one section, and then log the intensity of it
+  // on the home page. That's not it").
+  //
+  // Both screens are still THESE screens -- same HealthService, same records,
+  // same Back On Track handling -- they are simply reached from the gym now.
+  // Which means the gym's own return has to move BELOW them: it used to be the
+  // first return in this function, so a health screen opened from inside the
+  // gym could never render. It sits after them now, and closing one lands back
+  // in the gym because gymOpen is still true. (See the block below.)
   // S5-Q29: the four grafted Health screens, unmodified from the dormant
   // module -- they were always presentational (props in, callbacks out),
   // never wired to a store of their own. onBack just closes the screen;
@@ -512,6 +523,23 @@ export default function CategoryDetail({
           setHealthDeep("sayItToSomeone");
         }}
         onBack={() => setHealthScreen(null)}
+      />
+    );
+  }
+  if (gymOpen) {
+    return (
+      <GymFlow
+        areaId={categoryId}
+        startDayId={gymStartDay ?? undefined}
+        startDoorEventId={gymDoor?.id}
+        // The two workout-shaped loggers, offered where the workout is: on the
+        // receipt the moment it is finished, and on any logged session opened
+        // from Recent or History ("if somebody wants to rate their workout or
+        // describe what it was like they can go back to that day, log into the
+        // history and put it there").
+        onRateSession={() => setHealthScreen("callIt")}
+        onLogSoreSpot={() => setHealthScreen("pointAtIt")}
+        onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }}
       />
     );
   }
@@ -861,11 +889,16 @@ export default function CategoryDetail({
     const p = agoPhrase(localDayParts(at).day, today);
     return p.charAt(0).toUpperCase() + p.slice(1);
   };
-  const lastCallIt = callIt[callIt.length - 1];
+  // WHAT STAYS ON THE HOME PAGE IS WHAT YOU LOG DAILY (Dave 2026-09-10:
+  // "anything related to an actual workout should go where people are logging
+  // their workout data... anything that someone will log daily you can leave
+  // on the home page that's fine"). Bedtime is a daily fact about the day.
+  // How Hard It Was and Where It Hurts are facts about a SESSION, and a
+  // session is a thing you open, so they moved into the gym: the receipt, and
+  // any logged session reopened from Recent or History. His own metrics
+  // (sleep, bodyweight, protein) are his to place and stay where he put them.
   const healthLoggers: HealthLoggerRow[] = kind !== "health" ? [] : [
     { key: "lightsOut", label: "Bedtime", sub: "When the night ended", value: whenLogged(lightsOut[lightsOut.length - 1]?.data.at) },
-    { key: "callIt", label: "How Hard It Was", sub: "Rate the session, 1 to 10", value: lastCallIt ? `${lastCallIt.data.rpe}/10` : null },
-    { key: "pointAtIt", label: "Where It Hurts", sub: "Tap the spot on a body map", value: whenLogged(pointAtIt[pointAtIt.length - 1]?.data.at) },
   ];
   const medSub = (() => {
     const at = tookIt[tookIt.length - 1]?.data.at;
@@ -901,6 +934,9 @@ export default function CategoryDetail({
   const backOff = kind === "health" ? backOffSignal(workouts, nowMs) : null;
   const offerLighter = kind === "health" && shouldOfferLighterWeek(backOff);
   const hasInsights = plateaus.length > 0 || correlations.length > 0 || rangeRows.length > 0 || offerLighter;
+  // The head's count chip: how many findings there actually are, so the
+  // section says its own size like every other head on the page does.
+  const insightCount = plateaus.length + correlations.length + (rangeRows.length > 0 ? 1 : 0) + (offerLighter ? 1 : 0);
 
   // Goals reaching this category through tags (Architecture C). The page
   // shows their pulse; Bigger Picture owns the goal itself. Health earns a
@@ -914,10 +950,30 @@ export default function CategoryDetail({
     const g = goals.find((x) => x.id === id);
     return g && !g.data.dropped && g.data.state !== "achieved" ? g.data.title : undefined;
   };
+  // HEALTH GOALS ARE A DIFFERENT ANIMAL (Dave 2026-09-10: "health specific
+  // goals are like workout goals and like in the health page. That should be a
+  // little bit different to me. It shouldn't just be like everything else").
+  //
+  // The difference is real and it is not cosmetic: a lift or training goal is
+  // measured BY THE APP, off the workout log, so it never needs a human to
+  // update it -- liftMeasureState and trainingMeasureState read it straight
+  // out of the sessions. A business goal has to be told where it stands. So
+  // the row says which kind it is, and the section on a health area is named
+  // for what it holds.
+  //
+  // The cap of three went with it. It was a preview cap from when Goals Here
+  // was a teaser under the fold; since 09-09 this is the SECTION, and a cap on
+  // a section silently hides goals with nothing offering to show the rest.
+  const goalKindChip = (m: Goal["data"]["measure"]) => {
+    if (!m) return null;
+    if (m.kind === "lift") return { text: "Lift", hue: "hue-hl-lime" };
+    if (m.kind === "training") return { text: "Sessions", hue: "hue-hl-cyan" };
+    if (m.kind === "cadence") return { text: "Rhythm", hue: "hue-hl-violet" };
+    return null;
+  };
   const goalsHere = (goalIdx.byCategory.get(categoryId) ?? [])
     .map((id) => goals.find((g) => g.id === id))
     .filter((g): g is Goal => !!g)
-    .slice(0, 3)
     .map((g) => {
       const reach = reachOf(allTasks, allProjects, g);
       const ctx: MeasureContext = { reach, tasks: allTasks, projects: allProjects.filter((p) => p.data.goalId === g.id), samples, today, now: nowMs, workouts };
@@ -931,6 +987,7 @@ export default function CategoryDetail({
         status: (h === "behind" || h === "idle") ? { text: HEALTH_LABEL[h], tone: "warn" as const }
           : (h === "on_track" || h === "done") ? { text: HEALTH_LABEL[h], tone: "good" as const } : null,
         bar: ms ? { done: ms.done, total: ms.target, pct: ms.pct } : reach.progress,
+        kind: goalKindChip(g.data.measure),
       };
     });
 
@@ -1106,16 +1163,31 @@ export default function CategoryDetail({
           shows the tag, so it can be changed or joined by another before it
           saves. Nothing about how a goal is stored moves: this is the same
           GoalSheet Bigger Picture opens, with the area filled in. */}
-      <div className="sh2 sh2-quiet"><span className="t">Goals Here</span>{goalsHere.length > 0 && <span className="n">{goalsHere.length}</span>}</div>
+      {/* ...and on a health area it is named for what it holds (Dave
+          2026-09-10). Same records, same sheet, same tags: a training goal is
+          an ordinary goal with a lift or training measure on it, which is why
+          it can appear on the Life > Goals lens too. What changes here is that
+          the section says what these goals ARE, and each row wears the kind of
+          measurement behind it. */}
+      <div className="sh2 sh2-quiet"><span className="t">{kind === "health" ? "Training Goals" : "Goals Here"}</span>{goalsHere.length > 0 && <span className="n">{goalsHere.length}</span>}</div>
       {/* B3-5 (2026-09-04): the project rows above open; these had no
           onOpen at all, so GoalRowRuled (gated on that prop) never
           rendered a role, a handler or the chevron. */}
       <div className="pad-x"><div className="card list-card-ruled">
         {goalsHere.map((g) => (
-          <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar}
+          <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar} kind={g.kind}
             onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined} />
         ))}
         <button className="row-create" onClick={() => setSheet({ kind: "goal" })}>Add Goal</button>
+        {/* A LIFT GOAL IS SET ON THE LIFT (Dave 2026-09-10). "315 on the squat"
+            needs the exercise, its unit and its whole history to make any
+            sense of the number, and the gym already owns the sheet that has
+            all three (LiftGoalSheet, opened from a lift's own page). Rather
+            than build a second, poorer version of it here that would have to
+            ask which lift first, this row walks him to the one that works. */}
+        {kind === "health" && (
+          <button className="row-create row-create-quiet" onClick={() => setGymOpen(true)}>Set a Lift Goal in the Gym</button>
+        )}
       </div></div>
 
       {/* WHAT IS ON THE CALENDAR FOR THIS PART OF LIFE (Dave 2026-09-09:
@@ -1132,8 +1204,19 @@ export default function CategoryDetail({
           in. comingUpFor walks the days through occursOn, so a weekly
           practice shows its NEXT date rather than being dropped for having an
           anchor in the past (BRAIN-F-07). */}
+      {/* ONE SHAPE FOR ALL FOUR (Dave 2026-09-10: "I can also tell that events
+          is going to render differently on that page. It's clear as day
+          because that that has a glass look where it says add event and the
+          rest don't").
+          He read it right off the screen. An empty Projects / Goals / Up Next
+          section is a card holding ONE create row, and `.card:has(>
+          .row-create:only-child)` strips the ground so it reads as a line of
+          red text. Coming Up always rendered its .sched-list wrapper, empty or
+          not, so the create row was never an only child and the slab stayed.
+          The wrapper renders only when it has rows now, so all four sections
+          are the same shape empty and the same shape full. */}
       <div className="sh2 sh2-quiet"><span className="t">Coming Up</span>{upcoming.length > 0 && <span className="n">{upcoming.length}</span>}</div>
-      <div className="pad-x"><div className="card list-card-ruled sched-card"><div className="sched-list">
+      <div className="pad-x"><div className={"card list-card-ruled" + (upcoming.length > 0 ? " sched-card" : "")}>{upcoming.length > 0 && <div className="sched-list">
         {upcoming.map((e) => {
           const p = dayPhrase(e.date, today);
           const when = p.charAt(0).toUpperCase() + p.slice(1);
@@ -1145,10 +1228,21 @@ export default function CategoryDetail({
                 <div className="sched-title">{e.title}</div>
                 <div className="sched-cat"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}<span className="sched-sep">{"\u00b7"}</span>{when}</div>
               </div>
+              {/* THE GYM BLOCK IS NOT A NOTICE, IT IS A DOOR (Dave 2026-09-10,
+                  on making the health page read as training). Today's gym
+                  block sat here as an inert calendar row while the card at the
+                  top of the same page offered Start on the same session --
+                  two renderings of one thing, one of which did nothing. It
+                  starts the session, carrying the block's own event id so
+                  finishing stamps the block, which is the whole reason
+                  gymDoor exists (B5). */}
+              {gymDoor?.id === e.id && (
+                <button className="pill-act" onClick={() => { setGymStartDay(null); setGymOpen(true); }}>Start</button>
+              )}
             </div>
           );
         })}
-      </div>
+      </div>}
       <button className="row-create" onClick={() => setSheet({ kind: "event" })}>Add Event</button>
       </div></div>
 
@@ -1229,52 +1323,28 @@ export default function CategoryDetail({
           sections={areaSections}
           insights={hasInsights ? (
             <>
-              <div className="sh2 sh2-quiet"><span className="t">Insights</span></div>
+              {/* INSIGHTS, NOT A WALL OF GREY (Dave 2026-09-10: "I hate the
+                  look of the insights... it just looks like pure text. It's
+                  just all gray text. The alignment's off... They use pills.
+                  They use chips. They use color coding. They use dots. They
+                  italicize. They shade. And you are just so lazy with it").
+                  Every card was a title in one grey and a sentence in another,
+                  with facts joined by middots -- so the eye had nothing to
+                  land on and every card looked like every other card. Each one
+                  now leads with a coloured dot and a chip that says what KIND
+                  of finding it is, the numbers are lifted out of the prose
+                  into their own aligned slots, and the citation shades back to
+                  a footnote. Same facts, same honesty, same "correlation not
+                  cause" -- read in a glance instead of a paragraph. */}
+              <div className="sh2 sh2-quiet"><span className="t">Insights</span><span className="n">{insightCount}</span></div>
               <div className="pad-x">
-                {plateaus.map((p) => (
-                  <div className="card rep-gap banner-warn" key={"plateau-" + p.name}>
-                    <div className="row">
-                      <div className="row-grow">
-                        <div className="conn-name">{capAfterNumber(`${p.name} · ${p.flatSessions} sessions with no new best`)}</div>
-                        <div className="conn-meta">Best was {p.peakValue} on {p.peakDate} · Now {p.currentValue}</div>
-                      </div>
-                    </div>
-                    {p.whatChanged.map((r) => (
-                      <div className="row" key={r.label}>
-                        <div className="row-grow"><div className="conn-name">{r.label}</div></div>
-                        <div className="conn-meta">{r.moving}{r.unit ? ` ${r.unit}` : ""} to {r.flat}{r.unit ? ` ${r.unit}` : ""}</div>
-                      </div>
-                    ))}
-                    <div className="row"><div className="row-grow"><div className="conn-meta">Correlation, not cause</div></div></div>
-                  </div>
-                ))}
-                {correlations.map((c) => (
-                  <div className="card pad rep-gap banner-blue" key={c.exerciseName + "-" + c.metricName}>
-                    <div className="conn-name">{c.exerciseName} × {c.metricName}</div>
-                    <div className="conn-meta">{c.line}</div>
-                  </div>
-                ))}
-                {/* ONE CARD, NOT ONE PER MUSCLE (Dave 2026-09-10: "insights
-                    are weak and random it seems. Make them of actual use to
-                    the user and render it an appealing way").
-                    This was a separate card per muscle group, and every one
-                    of them repeated the SAME two lines -- the same studied
-                    range and the same citation -- so seven muscles produced
-                    seven cards whose only differing content was a name and a
-                    number, and the thing he actually saw on screen was a
-                    stack of identical academic references. That is exactly
-                    "weak and random".
-                    It is one card now: a row per muscle, the set count, and a
-                    track showing where that count sits against the studied
-                    band, so the useful fact (which muscles are under, in, or
-                    over) is readable in one glance without reading a word.
-                    The citation is a footnote, said once, because it is the
-                    same source for every row and honesty does not require
-                    repeating it seven times. */}
                 {rangeRows.length > 0 && (
-                  <div className="card rep-gap vol-card">
-                    <div className="row"><div className="row-grow"><div className="conn-name">Weekly Volume</div>
-                      <div className="conn-meta">{capAfterNumber(`Hard sets per muscle · Studied range ${rangeRows[0]!.range.low}-${rangeRows[0]!.range.high}`)}</div></div></div>
+                  <div className="card ins-card rep-gap">
+                    <div className="ins-head">
+                      <span className="ins-dot hue-hl-lime" />
+                      <span className="ins-t">Weekly Volume</span>
+                      <span className="ins-chip hue-hl-lime">{capAfterNumber(`${rangeRows[0]!.range.low}-${rangeRows[0]!.range.high} studied`)}</span>
+                    </div>
                     {rangeRows.map((r) => {
                       const band = r.sets < r.range.low ? "under" : r.sets > r.range.high ? "over" : "in";
                       // The track runs 0 to one-and-a-half times the top of the
@@ -1292,13 +1362,55 @@ export default function CategoryDetail({
                         </div>
                       );
                     })}
-                    <div className="row"><div className="row-grow"><div className="conn-meta">{rangeRows[0]!.range.source}</div></div></div>
+                    <div className="ins-cite">{rangeRows[0]!.range.source}</div>
                   </div>
                 )}
+                {plateaus.map((p) => (
+                  <div className="card ins-card rep-gap" key={"plateau-" + p.name}>
+                    <div className="ins-head">
+                      <span className="ins-dot hue-hl-amber" />
+                      <span className="ins-t">{p.name}</span>
+                      <span className="ins-chip hue-hl-amber">{capAfterNumber(`${p.flatSessions} flat`)}</span>
+                    </div>
+                    {/* The two numbers that matter, side by side and aligned,
+                        rather than a sentence you have to read to compare. */}
+                    <div className="ins-pair">
+                      <div className="ins-cell"><span className="ins-k">Best</span><span className="ins-v">{p.peakValue}</span><span className="ins-sub">{p.peakDate}</span></div>
+                      <div className="ins-cell"><span className="ins-k">Now</span><span className="ins-v ins-v-warn">{p.currentValue}</span><span className="ins-sub">Latest</span></div>
+                    </div>
+                    {p.whatChanged.length > 0 && (
+                      <div className="ins-rows">
+                        {p.whatChanged.map((r) => (
+                          <div className="ins-row" key={r.label}>
+                            <span className="ins-k">{r.label}</span>
+                            <span className="ins-move"><b>{r.moving}{r.unit ? ` ${r.unit}` : ""}</b><i className="ins-arrow" /><b>{r.flat}{r.unit ? ` ${r.unit}` : ""}</b></span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="ins-cite">Correlation, not cause</div>
+                  </div>
+                ))}
+                {correlations.map((c) => (
+                  <div className="card ins-card rep-gap" key={c.exerciseName + "-" + c.metricName}>
+                    <div className="ins-head">
+                      <span className="ins-dot hue-hl-cyan" />
+                      <span className="ins-t">{c.exerciseName}</span>
+                      <span className="ins-chip hue-hl-cyan">{c.metricName}</span>
+                    </div>
+                    <div className="ins-line">{c.line}</div>
+                    <div className="ins-cite">Correlation, not cause</div>
+                  </div>
+                ))}
                 {offerLighter && (
-                  <div className="card pad rep-gap banner-warn">
-                    <div className="conn-name">A Lighter Week, If You Want It</div>
-                    <div className="conn-meta">Several grinds and misses lately · Never a prescription, just an offer</div>
+                  <div className="card ins-card rep-gap" key="lighter">
+                    <div className="ins-head">
+                      <span className="ins-dot hue-hl-pink" />
+                      <span className="ins-t">A Lighter Week, If You Want It</span>
+                      <span className="ins-chip hue-hl-pink">Offer</span>
+                    </div>
+                    <div className="ins-line">Several grinds and misses lately.</div>
+                    <div className="ins-cite">Never a prescription, just an offer</div>
                   </div>
                 )}
               </div>

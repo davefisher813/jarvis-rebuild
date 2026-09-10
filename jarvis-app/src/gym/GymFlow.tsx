@@ -476,8 +476,16 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
 // The gym track: programs in the user's own words, weeks as the time axis,
 // the set strip as the same object in the plan and in the live session, the
 // in-gym loop, live PRs, and an honest receipt.
-export default function GymFlow({ onBack, door, startDayId, startDoorEventId, areaId }: {
+export default function GymFlow({ onBack, door, startDayId, startDoorEventId, areaId, onRateSession, onLogSoreSpot }: {
   onBack: () => void;
+  /** WORKOUT LOGGING BELONGS WITH THE WORKOUT (Dave 2026-09-10: "how hard it
+   *  was, where it hurts, anything related to an actual workout should go
+   *  where people are logging their workout data"). The area page owns the
+   *  HealthService screens; the gym owns the moments they belong to. Absent
+   *  when the gym is mounted somewhere with no health module, and the rows
+   *  are absent with them. */
+  onRateSession?: () => void;
+  onLogSoreSpot?: () => void;
   /** UP-PLAT-26 (2026-09-06): the area this gym lives under, so starting a
    *  session can record a Where You Were spot that actually leads back here.
    *  The restore door (shell/AppShell.tsx) opens a Brain AREA and then the
@@ -1306,7 +1314,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
     const dirty = JSON.stringify(workoutDraft) !== JSON.stringify(w.data.exercises);
     const closeWorkout = () => { setViewWorkout(null); setWorkoutDraft(null); };
     return (
-      <div className="screen ruled">
+      <div className="screen ruled health-ruled">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={closeWorkout}></button>
           <div className="nav-title">{w.data.dayName}</div>
@@ -1316,6 +1324,37 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
             accent-chrome kicker red, and this line is information (RED IS A
             VERB). Quiet sentence-case meta like every other date line. */}
         <div className="pad-x"><div className="conn-meta">{monthDay(w.data.date)} · {mins} min{w.data.backdated ? " · Logged Later" : ""}</div></div>
+        {/* HOW IT WENT, ON THE SESSION ITSELF (Dave 2026-09-10). These two were
+            on the health home page, next to bedtime and bodyweight, which put
+            a fact about ONE workout in the place a person writes down facts
+            about their day. Rating a session is something you do to a session,
+            so it is offered here, on the session -- including weeks later,
+            reopened from Recent or History. */}
+        {(onRateSession || onLogSoreSpot) && (
+          <>
+            <div className="sh2 sh2-quiet"><span className="t">How It Went</span></div>
+            <div className="pad-x"><div className="card list-card-ruled">
+              {onRateSession && (
+                <div {...pressable(onRateSession)} className="task-row p2">
+                  <div className="task-title">
+                    <span className="task-name">How Hard It Was</span>
+                    <div className="r-k"><span className="r-goal r-cat">Rate the session, 1 to 10</span></div>
+                  </div>
+                  {CHEV}
+                </div>
+              )}
+              {onLogSoreSpot && (
+                <div {...pressable(onLogSoreSpot)} className="task-row p2">
+                  <div className="task-title">
+                    <span className="task-name">Where It Hurts</span>
+                    <div className="r-k"><span className="r-goal r-cat">Tap the spot on a body map</span></div>
+                  </div>
+                  {CHEV}
+                </div>
+              )}
+            </div></div>
+          </>
+        )}
         {/* EDIT A FINISHED WORKOUT (catalog §3.7): tap any set to edit or
             delete it, add one you forgot, all through the same set strip
             that planned and logged it. PRs and the receipt are both derived
@@ -1398,7 +1437,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         // and muscle on the entry itself.
         : { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, exerciseKey: liveEx.exerciseKey, sets: liveEx.plan ?? [], ...(liveEx.program ?? {}) })
       : planned ?? (liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined);
-    if (!exercise) return <div className="screen ruled" />;
+    if (!exercise) return <div className="screen ruled health-ruled" />;
     return (
       <SessionScreen
         live={live}
@@ -1808,6 +1847,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         receipt={receipt.receipt}
         workouts={workouts}
         onDone={() => setReceipt(null)}
+        onRateSession={onRateSession}
+        onLogSoreSpot={onLogSoreSpot}
         onAchieveGoal={goalsSvc ? (id) => {
           // His tap, his write. Offline it fails quietly the way every other
           // gym write does: the workout is already saved, and the goal simply
@@ -1875,7 +1916,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       const lastForDay = lastWorkoutForDay(openDay.id);
       return (
         <>
-          <div className="screen ruled">
+          <div className="screen ruled health-ruled">
             <div className="nav-bar">
               <button className="nav-back" aria-label="Back" onClick={() => setOpenDayId(null)}></button>
               <div className="nav-title truncate">{openDay.name}</div>
@@ -1967,7 +2008,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   if (multiWeek && openWeekId && activeWeek) {
     return (
       <>
-        <div className="screen ruled">
+        <div className="screen ruled health-ruled">
           <div className="nav-bar">
             <button className="nav-back" aria-label="Back" onClick={() => setOpenWeekId(null)}></button>
             <div className="nav-title truncate">{activeWeek.label}</div>
@@ -2028,7 +2069,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
 
   return (
     <>
-      <div className="screen ruled">
+      <div className="screen ruled health-ruled">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={onBack}></button>
           <div className="nav-title truncate">{program ? program.data.name : "Training"}</div>

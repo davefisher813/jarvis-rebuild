@@ -14,7 +14,7 @@ export default function DoctorReportScreen({ report, onExport, onCopy, onBack }:
   onBack: () => void;
 }) {
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Take This to the Doctor</div>

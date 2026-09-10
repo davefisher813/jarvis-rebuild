@@ -23,7 +23,7 @@ export default function AteBeforeScreen({
   const open = candidates.filter((c) => !(c.eventId in answered));
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Ate Before</div>

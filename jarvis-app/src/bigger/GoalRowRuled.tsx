@@ -21,13 +21,20 @@ export function Bar({ p }: { p: Progress }) {
   return <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, p.pct) + "%" }} /></div>;
 }
 
-export default function GoalRowRuled({ title, tone, body, status, bar, onOpen }: {
+export default function GoalRowRuled({ title, tone, body, status, bar, kind, onOpen }: {
   title: string;
   /** A cat-fg-* class: the goal's home colour. */
   tone: string;
   body: string;
   status: { text: string; tone: "good" | "warn" } | null;
   bar: Progress | null;
+  /** WHAT KIND OF GOAL THIS IS (Dave 2026-09-10: "health specific goals are
+   *  like workout goals... That should be a little bit different to me. It
+   *  shouldn't just be like everything else"). A short chip -- LIFT, SESSIONS
+   *  -- so a goal measured off the workout log reads as one at a glance
+   *  instead of looking like every other goal in the app. Absent on a goal
+   *  with no measure of its own, and the chip is absent with it. */
+  kind?: { text: string; hue: string } | null;
   onOpen?: () => void;
 }) {
   return (
@@ -36,6 +43,7 @@ export default function GoalRowRuled({ title, tone, body, status, bar, onOpen }:
       <div className="task-title">
         <span className="task-name">{title}</span>
         <div className="r-k">
+          {kind && <span className={"gkind " + kind.hue}>{kind.text}</span>}
           <span className="r-goal"><Nums text={body} /></span>
           {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
         </div>

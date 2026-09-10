@@ -382,15 +382,19 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
   // ONE GRID (Dave 2026-09-10: "Daily logs should be combined with metrics in
   // the most efficient way possible"), and medication behind its own door
   // ("medication related stuff should all be its own page").
-  it("names the loggers by what they are, as tiles in the one log grid", async () => {
+  it("keeps only the daily things on the home page, as tiles in the one log grid", async () => {
     render(<NotesProvider userId="hl1"><SeededHealth /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
     const tile = (name: string) => screen.getByText(name).closest(".h-tile") as HTMLElement;
     expect(tile("Bedtime")).toHaveTextContent("When the night ended");
-    expect(tile("How Hard It Was")).toHaveTextContent("Rate the session, 1 to 10");
-    expect(tile("Where It Hurts")).toHaveTextContent("Tap the spot on a body map");
     // Every tile takes a hue off the activity ramp, by position.
     expect(tile("Bedtime").className).toMatch(/\bhue-hl-/);
+    // WORKOUT LOGGING BELONGS WITH THE WORKOUT (Dave 2026-09-10): rating a
+    // session and pointing at what hurts are facts about ONE workout, so they
+    // are offered on the session, not beside bedtime and bodyweight.
+    for (const gone of ["How Hard It Was", "Where It Hurts"]) {
+      expect(screen.queryByText(gone), gone + " is not on the home page").not.toBeInTheDocument();
+    }
     // Medication is a door to its own page, not a tile in the grid.
     expect(screen.getByText("Medication").closest(".h-tile")).toBeNull();
     expect(screen.getByText("Medication").closest(".task-row")).toBeTruthy();
@@ -427,30 +431,10 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     await waitFor(() => expect(screen.getByText("Bedtime").closest(".h-tile")).toHaveTextContent("Today"));
   });
 
-  it("How Hard It Was logs an RPE and the row shows it back, out of 10", async () => {
-    render(<NotesProvider userId="hl3"><SeededHealth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("How Hard It Was")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("How Hard It Was"));
-    await waitFor(() => expect(screen.getByText("How Hard Was That")).toBeInTheDocument());
-    fireEvent.click(screen.getByLabelText("Effort 7 of 10"));
-    await waitFor(() => expect(screen.getByText("Logged 7 Of 10")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Done"));
-    await waitFor(() => expect(screen.getByText("How Hard It Was").closest(".h-tile")).toHaveTextContent("7/10"));
-  });
-
-  it("Where It Hurts logs a tapped spot and stays honest: no severity, no name, anywhere on the row", async () => {
-    render(<NotesProvider userId="hl4"><SeededHealth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Where It Hurts")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Where It Hurts"));
-    await waitFor(() => expect(screen.getByText("Where Is It")).toBeInTheDocument());
-    const map = document.querySelector(".body-map") as HTMLElement;
-    map.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 300, right: 200, bottom: 300, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-    fireEvent.click(map, { clientX: 100, clientY: 60 });
-    await waitFor(() => expect(screen.getByText("Logged")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Done"));
-    await waitFor(() => expect(screen.getByText("Where It Hurts").closest(".h-tile")).toHaveTextContent("Today"));
-    expect(screen.queryByText(/\d\/10|severe|mild|injury/i)).not.toBeInTheDocument();
-  });
+  // (The RPE rater and the body map moved into the gym on 2026-09-10 -- they
+  // are facts about a session, so they are offered on the receipt and on any
+  // logged session reopened from Recent or History. GymFlow's own tests cover
+  // the rows; HealthService's cover the records.)
 });
 
 // BRAIN-F-02 (2026-09-05): "Moved to tomorrow" was a no-op east of UTC.
@@ -732,9 +716,15 @@ describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", (
     for (const label of ["Add Project", "Add Goal", "Add Event", "Add Task"]) {
       expect(screen.getAllByText(label), label + " appears exactly once").toHaveLength(1);
     }
-    for (const head of ["Projects", "Goals Here", "Coming Up", "Up Next"]) {
+    // On a health area the goals section is named for what it holds (Dave
+    // 2026-09-10: "health specific goals are like workout goals... That should
+    // be a little bit different to me"), and it offers the gym's own lift-goal
+    // door as a second, quieter row.
+    for (const head of ["Projects", "Training Goals", "Coming Up", "Up Next"]) {
       expect(screen.getAllByText(head), head + " is one section").toHaveLength(1);
     }
+    expect(screen.queryByText("Goals Here"), "the generic head is not used on a health area").toBeNull();
+    expect(screen.getByText("Set a Lift Goal in the Gym")).toBeInTheDocument();
   });
 
   // THE TRAINING CARD IS A CHOICE (Dave 2026-09-10: "There's not even a header

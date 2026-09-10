@@ -23,7 +23,7 @@ export default function ShareLineScreen({
   const grantedFor = (c: HealthCategoryId) => grants.find((g) => g.category === c)?.granted ?? DEFAULT_GRANTED[c];
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Share Line</div>

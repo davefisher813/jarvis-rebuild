@@ -15,7 +15,7 @@ export default function TookItScreen({ timeline, onLog, onBack }: {
   const recent = [...timeline].reverse().slice(0, 14);
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Medication</div>

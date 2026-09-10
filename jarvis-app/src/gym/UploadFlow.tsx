@@ -82,7 +82,7 @@ export default function UploadFlow({ ai, initialFile, onSave, onCancel }: {
     const fixing: Exercise | null = fix ? days[fix.dayIdx]?.exercises[fix.exIdx] ?? null : null;
     return (
       <>
-        <div className="screen ruled">
+        <div className="screen ruled health-ruled">
           <div className="nav-bar">
             <button className="nav-back" aria-label="Back" onClick={() => setDraft(null)}></button>
             <div className="nav-title truncate">{draft.name}</div>

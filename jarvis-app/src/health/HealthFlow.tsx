@@ -74,7 +74,7 @@ function defaultWeekDates(startMs: number = Date.now()): string[] {
 // a screen of its own with the same nav bar the real ones carry.
 function NothingHere({ title, sub, onBack }: { title: string; sub: string; onBack: () => void }) {
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
       </div>

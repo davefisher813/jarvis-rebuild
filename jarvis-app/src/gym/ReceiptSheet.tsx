@@ -15,7 +15,7 @@ import { doneCount } from "./history";
 // names the done-kind work instead of folding it into a number. Each name
 // also gets a plain count fact ("done N times") pulled from history plus this
 // session -- a count, never a streak, never red, never a target.
-export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onAchieveGoal }: {
+export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onAchieveGoal, onRateSession, onLogSoreSpot }: {
   dayName: string;
   receipt: Receipt;
   workouts: Workout[];
@@ -23,6 +23,13 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onAch
   /** Dave 2026-09-09: the close-out is his to make, so the goal-hit row ends
    *  in a button rather than the goal having already closed itself. */
   onAchieveGoal?: (id: string) => void;
+  /** RATE IT WHERE IT HAPPENED (Dave 2026-09-10: "how hard it was, where it
+   *  hurts, anything related to an actual workout should go where people are
+   *  logging their workout data"). The moment after finishing is the moment a
+   *  person actually knows the answer, so the receipt asks. Both close the
+   *  receipt on the way, because each opens a full screen. */
+  onRateSession?: () => void;
+  onLogSoreSpot?: () => void;
 }) {
   const [closed, setClosed] = useState<string[]>([]);
   const tiles: { num: string; label: string }[] = [
@@ -102,6 +109,19 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onAch
                     </div>
                   );
                 })}
+              </div>
+            </>
+          )}
+          {(onRateSession || onLogSoreSpot) && (
+            <>
+              <div className="grp"><div className="eyebrow">How It Went</div></div>
+              <div className="card">
+                {onRateSession && (
+                  <button className="row row-act" onClick={() => { onDone(); onRateSession(); }}>Rate It, 1 to 10</button>
+                )}
+                {onLogSoreSpot && (
+                  <button className="row row-act" onClick={() => { onDone(); onLogSoreSpot(); }}>Something Hurts</button>
+                )}
               </div>
             </>
           )}

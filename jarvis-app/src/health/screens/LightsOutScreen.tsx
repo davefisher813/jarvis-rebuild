@@ -17,7 +17,7 @@ export default function LightsOutScreen({ last, onLog, onBack }: {
   };
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Bedtime</div>

@@ -44,7 +44,7 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onBac
   };
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Where It Hurts</div>

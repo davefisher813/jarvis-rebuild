@@ -29,7 +29,7 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
   const recent = [...history].reverse().slice(0, 10);
 
   return (
-    <div className="screen ruled">
+    <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">How Hard It Was</div>
