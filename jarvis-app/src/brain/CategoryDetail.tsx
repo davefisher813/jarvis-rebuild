@@ -72,7 +72,7 @@ import type { Workout } from "../gym/types";
 import { buildGoalIndex, liveGoals, reachOf, reachLine } from "../bigger/reach";
 import { measureState, healthOf, HEALTH_LABEL, type MeasureContext } from "../bigger/measure";
 import { goalTone } from "../shared/categories";
-import HealthBody, { type HealthGoalRow } from "./HealthBody";
+import HealthBody from "./HealthBody";
 import { openWorkOf } from "../today/goalPulse";
 import { MetricLogSheet, AddMetricSheet } from "../gym/MetricsCard";
 import type { MetricDef, MetricLog } from "../gym/metrics";
@@ -783,11 +783,29 @@ export default function CategoryDetail({
   // summary above, so a fact about today reads the same everywhere on this
   // page. Call It's row also carries the number the screen itself already
   // shows in its own history (session-RPE, never a verdict on it).
+  // SAY WHAT THE ROW DOES (Dave 2026-09-10: "the log it names make no sense
+  // and there has to be a much cleaner way to do that. Right now I won't even
+  // attempt to use it").
+  //
+  // The four rows were named after the GESTURE -- Lights Out, Took It, Call
+  // It, Point at It -- which is how the health module talks to itself, not how
+  // a person scanning a page decides whether to tap something. Worse, the
+  // second line only appeared once he had ALREADY logged one, so the state
+  // where he most needed to know what a row was is the state where the row
+  // explained nothing.
+  //
+  // Now the name is the noun ("Medication", not "Took It") and the second line
+  // always says what tapping it does, with the last log appended when there is
+  // one. Nothing about the stored records or their keys changes: this is the
+  // label, and the label is the whole complaint.
+  const loggedLine = (at: number) => "Logged " + agoPhrase(localDayParts(at).day, today);
+  const withLog = (what: string, at: number | null) => (at === null ? what : `${what} · ${loggedLine(at)}`);
+  const lastCallIt = callIt[callIt.length - 1];
   const healthLoggers: HealthLoggerRow[] = kind !== "health" ? [] : [
-    { key: "lightsOut", label: "Lights Out", sub: lightsOut.length ? "Logged " + agoPhrase(localDayParts(lightsOut[lightsOut.length - 1]!.data.at).day, today) : null },
-    { key: "tookIt", label: "Took It", sub: tookIt.length ? "Logged " + agoPhrase(localDayParts(tookIt[tookIt.length - 1]!.data.at).day, today) : null },
-    { key: "callIt", label: "Call It", sub: callIt.length ? `Logged ${agoPhrase(localDayParts(callIt[callIt.length - 1]!.data.at).day, today)} · ${callIt[callIt.length - 1]!.data.rpe}/10` : null },
-    { key: "pointAtIt", label: "Point at It", sub: pointAtIt.length ? "Logged " + agoPhrase(localDayParts(pointAtIt[pointAtIt.length - 1]!.data.at).day, today) : null },
+    { key: "lightsOut", label: "Bedtime", sub: withLog("When the night ended", lightsOut[lightsOut.length - 1]?.data.at ?? null) },
+    { key: "tookIt", label: "Medication", sub: withLog("A dose, and its timeline", tookIt[tookIt.length - 1]?.data.at ?? null) },
+    { key: "callIt", label: "How Hard It Was", sub: lastCallIt ? `${loggedLine(lastCallIt.data.at)} · ${lastCallIt.data.rpe}/10` : "Rate the session, 1 to 10" },
+    { key: "pointAtIt", label: "Where It Hurts", sub: withLog("Tap the spot on a body map", pointAtIt[pointAtIt.length - 1]?.data.at ?? null) },
   ];
 
   // D11-C/D13-A/C: the insight surfaces, health-kind pages only. Every piece
@@ -1130,13 +1148,6 @@ export default function CategoryDetail({
           gymEvent={gymDoor ? { start: gymDoor.start } : null}
           metricDefs={metricDefs}
           metricLogs={metricLogs}
-          goals={goalsHere.map((g): HealthGoalRow => ({ id: g.id, title: g.title, tone: g.tone, body: g.line, status: g.status, bar: g.bar }))}
-          onAddGoal={() => setSheet({ kind: "goal" })}
-          onOpenGoal={onOpenGoal}
-          tasks={open}
-          // A reminder's second line is its time; a task's is its parent.
-          kickerOf={(t) => { const rem = t.data.reminder?.time; return t.data.reminder && rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null; }}
-          parentOf={(t) => parentForTask(parentIdx, t)}
           onStart={(dayId) => { setGymStartDay(dayId); setGymOpen(true); }}
           onOpenGym={() => setGymOpen(true)}
           onOpenMetric={(def) => setMetricSheet({ kind: "log", def })}
@@ -1145,12 +1156,10 @@ export default function CategoryDetail({
           onOpenHealthLogger={(key) => setHealthScreen(key)}
           // HMN-F-06: Student only, and absent rather than disabled.
           onOpenHealthMore={healthMoreRows.length > 0 ? () => setHealthMore(true) : undefined}
-          onToggleTask={(id) => void toggle(id)}
-          onOpenTask={onOpenTask}
-          onDeleteTask={(id) => void deleteTask(id)}
-          onSnoozeTask={(id) => void snoozeTask(id)}
-          onStartTask={(id) => void startTask(id)}
-          onAddTask={() => setSheet({ kind: "task" })}
+          // Projects, Goals Here, Coming Up, Up Next: the SAME block every
+          // other area page renders, handed in rather than re-declared, so
+          // the health page cannot show two of any of them (Dave 2026-09-10).
+          sections={areaSections}
           insights={hasInsights ? (
             <>
               <div className="sh2 sh2-quiet"><span className="t">Insights</span></div>
@@ -1178,14 +1187,47 @@ export default function CategoryDetail({
                     <div className="conn-meta">{c.line}</div>
                   </div>
                 ))}
-                {rangeRows.map((r) => (
-                  <div className="card rep-gap" key={r.muscle}>
-                    <div className="row">
-                      <div className="row-grow"><div className="conn-name">{MUSCLE_LABEL[r.muscle]} · {r.sets} sets this week</div><div className="conn-meta">{r.range.note}</div></div>
-                    </div>
-                    <div className="row"><div className="row-grow"><div className="conn-meta">{r.range.source}</div></div></div>
+                {/* ONE CARD, NOT ONE PER MUSCLE (Dave 2026-09-10: "insights
+                    are weak and random it seems. Make them of actual use to
+                    the user and render it an appealing way").
+                    This was a separate card per muscle group, and every one
+                    of them repeated the SAME two lines -- the same studied
+                    range and the same citation -- so seven muscles produced
+                    seven cards whose only differing content was a name and a
+                    number, and the thing he actually saw on screen was a
+                    stack of identical academic references. That is exactly
+                    "weak and random".
+                    It is one card now: a row per muscle, the set count, and a
+                    track showing where that count sits against the studied
+                    band, so the useful fact (which muscles are under, in, or
+                    over) is readable in one glance without reading a word.
+                    The citation is a footnote, said once, because it is the
+                    same source for every row and honesty does not require
+                    repeating it seven times. */}
+                {rangeRows.length > 0 && (
+                  <div className="card rep-gap vol-card">
+                    <div className="row"><div className="row-grow"><div className="conn-name">Weekly Volume</div>
+                      <div className="conn-meta">{capAfterNumber(`Hard sets per muscle · Studied range ${rangeRows[0]!.range.low}-${rangeRows[0]!.range.high}`)}</div></div></div>
+                    {rangeRows.map((r) => {
+                      const band = r.sets < r.range.low ? "under" : r.sets > r.range.high ? "over" : "in";
+                      // The track runs 0 to one-and-a-half times the top of the
+                      // band, so "well over" still lands ON the track instead of
+                      // running off the end of it.
+                      const span = r.range.high * 1.5;
+                      return (
+                        <div className="vol-row" key={r.muscle}>
+                          <div className="vol-name">{MUSCLE_LABEL[r.muscle]}</div>
+                          <div className="vol-track">
+                            <span className="vol-band" style={{ left: `${(r.range.low / span) * 100}%`, width: `${((r.range.high - r.range.low) / span) * 100}%` }} />
+                            <span className={"vol-dot vol-" + band} style={{ left: `${Math.min(100, (r.sets / span) * 100)}%` }} />
+                          </div>
+                          <div className={"vol-n vol-" + band}>{r.sets}</div>
+                        </div>
+                      );
+                    })}
+                    <div className="row"><div className="row-grow"><div className="conn-meta">{rangeRows[0]!.range.source}</div></div></div>
                   </div>
-                ))}
+                )}
                 {offerLighter && (
                   <div className="card pad rep-gap banner-warn">
                     <div className="conn-name">A Lighter Week, If You Want It</div>
@@ -1250,7 +1292,10 @@ export default function CategoryDetail({
           }
         />
       ) : null}
-      {kind === "health" && areaSections}
+      {/* (The health page gets areaSections through HealthBody's `sections`
+          prop, so it lands above the quiet tail instead of after it, and there
+          is exactly one render of it. Dave 2026-09-10: "there's duplicate add
+          buttons on the page".) */}
       {kind !== "health" && (
         <>
       {/* THE AREA PAGE WEARS THE RULINGS (Brain onto the rulings, Dave

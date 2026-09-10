@@ -32,7 +32,7 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
     <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">Call It</div>
+        <div className="nav-title">How Hard It Was</div>
       </div>
 
       <div className="pad-x"><div className="card pad">

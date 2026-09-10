@@ -369,37 +369,47 @@ function SeededHealth() {
   return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
 }
 
+// THE ROWS ARE NOUNS THAT SAY WHAT THEY DO (Dave 2026-09-10: "the log it
+// names make no sense and there has to be a much cleaner way to do that.
+// Right now I won't even attempt to use it"). The gesture names moved to the
+// big button inside each screen, where a verb is what you are telling the app
+// rather than what you are choosing between.
 describe("CategoryDetail health loggers (S5-Q29)", () => {
-  it("offers all four loggers with no sub-line before anything is logged", async () => {
+  it("names all four by what they are, and says what each does before anything is logged", async () => {
     render(<NotesProvider userId="hl1"><SeededHealth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Log It")).toBeInTheDocument());
-    expect(screen.getByText("Lights Out")).toBeInTheDocument();
-    expect(screen.getByText("Took It")).toBeInTheDocument();
-    expect(screen.getByText("Call It")).toBeInTheDocument();
-    expect(screen.getByText("Point at It")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Daily Log")).toBeInTheDocument());
+    const row = (name: string) => screen.getByText(name).closest(".task-row") as HTMLElement;
+    expect(row("Bedtime")).toHaveTextContent("When the night ended");
+    expect(row("Medication")).toHaveTextContent("A dose, and its timeline");
+    expect(row("How Hard It Was")).toHaveTextContent("Rate the session, 1 to 10");
+    expect(row("Where It Hurts")).toHaveTextContent("Tap the spot on a body map");
+    // The gesture names are gone from the page itself.
+    for (const gone of ["Lights Out", "Took It", "Call It", "Point at It"]) {
+      expect(screen.queryByText(gone), gone + " is not a row name any more").not.toBeInTheDocument();
+    }
     // Ate Before, the fifth of the module's own "one-tap loggers," stays
     // dormant: it needs a source of calendar candidates this page has none
     // of yet.
     expect(screen.queryByText("Ate Before")).not.toBeInTheDocument();
   });
 
-  it("Lights Out logs through HealthService and the row remembers it on return", async () => {
+  it("Bedtime logs through HealthService and the row remembers it on return", async () => {
     render(<NotesProvider userId="hl2"><SeededHealth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Lights Out")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Lights Out"));
+    await waitFor(() => expect(screen.getByText("Bedtime")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Bedtime"));
     await waitFor(() => expect(screen.getByText("One Tap, One Time")).toBeInTheDocument());
-    // The screen's nav title and its own big button both read "Lights Out";
-    // the button is the one with the primary class.
+    // Inside the screen the verb is the point: the button is what you press
+    // when the night is over.
     fireEvent.click(screen.getByText("Lights Out", { selector: "button" }));
     await waitFor(() => expect(screen.getByText("Good night.")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Done"));
-    await waitFor(() => expect(screen.getByText("Logged Today")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Logged Today/)).toBeInTheDocument());
   });
 
-  it("Call It logs an RPE and the row shows it back, out of 10", async () => {
+  it("How Hard It Was logs an RPE and the row shows it back, out of 10", async () => {
     render(<NotesProvider userId="hl3"><SeededHealth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Call It")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Call It"));
+    await waitFor(() => expect(screen.getByText("How Hard It Was")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("How Hard It Was"));
     await waitFor(() => expect(screen.getByText("How Hard Was That")).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("Effort 7 of 10"));
     await waitFor(() => expect(screen.getByText("Logged 7 Of 10")).toBeInTheDocument());
@@ -407,17 +417,17 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     await waitFor(() => expect(screen.getByText("Logged Today · 7/10")).toBeInTheDocument());
   });
 
-  it("Point at It logs a tapped spot and stays honest: no severity, no name, anywhere on the row", async () => {
+  it("Where It Hurts logs a tapped spot and stays honest: no severity, no name, anywhere on the row", async () => {
     render(<NotesProvider userId="hl4"><SeededHealth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Point at It")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Point at It"));
+    await waitFor(() => expect(screen.getByText("Where It Hurts")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Where It Hurts"));
     await waitFor(() => expect(screen.getByText("Where Is It")).toBeInTheDocument());
     const map = document.querySelector(".body-map") as HTMLElement;
     map.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 300, right: 200, bottom: 300, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
     fireEvent.click(map, { clientX: 100, clientY: 60 });
     await waitFor(() => expect(screen.getByText("Logged")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Done"));
-    await waitFor(() => expect(screen.getByText("Point at It").closest(".task-row")).toHaveTextContent("Logged Today"));
+    await waitFor(() => expect(screen.getByText("Where It Hurts").closest(".task-row")).toHaveTextContent("Logged Today"));
     expect(screen.queryByText(/\d\/10|severe|mild|injury/i)).not.toBeInTheDocument();
   });
 });
@@ -662,7 +672,7 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
     fireEvent.click(screen.getByLabelText("Back"));
     await waitFor(() => expect(screen.getByText("The Night Before")).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("Back"));
-    await waitFor(() => expect(screen.getByText("Log It")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Daily Log")).toBeInTheDocument());
     expect(screen.queryByText(/^Wind Down at /)).not.toBeInTheDocument();
   });
 
@@ -674,8 +684,8 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
   // on a Personal page.
   it("Personal opens the medication screens, and none of the parent or season ones", async () => {
     render(<NotesProvider userId="hm3"><SeededHealthMore template="personal" /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Log It")).toBeInTheDocument());
-    expect(screen.getByText("Lights Out")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Daily Log")).toBeInTheDocument());
+    expect(screen.getByText("Bedtime")).toBeInTheDocument();
     fireEvent.click(screen.getByText("More"));
     expect(await screen.findByText("Refill Runway")).toBeInTheDocument();
     expect(screen.getByText("The Med Window")).toBeInTheDocument();
@@ -683,5 +693,36 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
     expect(screen.queryByText("The Share Line")).not.toBeInTheDocument();
     expect(screen.queryByText("The Third Practice")).not.toBeInTheDocument();
     expect(screen.queryByText("The Handoff")).not.toBeInTheDocument();
+  });
+});
+
+// ONE OF EACH SECTION, ONE OF EACH ADD (Dave 2026-09-10: "there's duplicate
+// add buttons on the page"). HealthBody drew its own Goals Here and Up Next;
+// the shared area block drew Projects, Goals Here, Coming Up and Up Next; the
+// health page rendered both. The block is handed to HealthBody now, so there
+// is exactly one definition of those sections in the app.
+describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", () => {
+  it("shows one Add Project, one Add Goal, one Add Event and one Add Task", async () => {
+    render(<NotesProvider userId="hd1"><SeededHealth /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Daily Log")).toBeInTheDocument());
+    for (const label of ["Add Project", "Add Goal", "Add Event", "Add Task"]) {
+      expect(screen.getAllByText(label), label + " appears exactly once").toHaveLength(1);
+    }
+    for (const head of ["Projects", "Goals Here", "Coming Up", "Up Next"]) {
+      expect(screen.getAllByText(head), head + " is one section").toHaveLength(1);
+    }
+  });
+
+  // THE TRAINING CARD IS A CHOICE (Dave 2026-09-10: "There's not even a header
+  // above it. It should encourage the user to select a workout for the day or
+  // begin one from scratch").
+  it("puts a head over the training card and offers a session from scratch", async () => {
+    render(<NotesProvider userId="hd2"><SeededHealth /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Daily Log")).toBeInTheDocument());
+    expect(screen.getByText("Training")).toBeInTheDocument();
+    // With no program yet there is nothing to pick between, so the card says
+    // so and the chip row stays away rather than offering an empty choice.
+    expect(screen.getByText("Set Up a Program")).toBeInTheDocument();
+    expect(document.querySelector(".h-pick")).toBeNull();
   });
 });

@@ -108,10 +108,10 @@ describe("BrainFlow: a live-session deep-link lands in the gym, not the category
     }
     render(<NotesProvider userId="b-gym1"><Seeded /></NotesProvider>);
     // GymFlow's own empty state (no program seeded here) proves the gym
-    // mounted immediately -- the ordinary health page's "Log It" section
+    // mounted immediately -- the ordinary health page's "Daily Log" section
     // never gets a chance to render.
     await waitFor(() => expect(screen.getByText("No Program Yet")).toBeInTheDocument());
-    expect(screen.queryByText("Log It")).not.toBeInTheDocument();
+    expect(screen.queryByText("Daily Log")).not.toBeInTheDocument();
   });
 
   // BRAIN-F-04 (2026-09-05): the flag was cleared only by a bottom-tab tap, so

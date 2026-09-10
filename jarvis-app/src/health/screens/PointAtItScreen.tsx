@@ -47,7 +47,7 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onBac
     <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">Point at It</div>
+        <div className="nav-title">Where It Hurts</div>
       </div>
 
       <div className="pad-x"><div className="card pad">

@@ -4,19 +4,14 @@ import type { TrainingSummary } from "../gym/summary";
 import { agoPhrase } from "../gym/summary";
 import type { MetricDef, MetricLog } from "../gym/metrics";
 import { activeMetrics, numericValue } from "../gym/metrics";
-import { nextDayFor } from "../gym/nextDay";
+import { nextDayFor, SCRATCH_DAY_ID, SCRATCH_DAY_NAME } from "../gym/nextDay";
 import { todayDow } from "../gym/pins";
 import { estimateDay } from "../gym/fit";
 import { readGymSettings, rackFrom } from "../gym/settings";
-import type { Progress } from "../bigger/progress";
-import GoalRowRuled from "../bigger/GoalRowRuled";
 import { BarbellGlyph } from "../shared/glyphs";
 import { capAfterNumber } from "../shared/casing";
 import { fmtTime } from "../schedule/calendar";
 import { dayPhrase } from "../money/bills";
-import { TaskRow } from "../tasks/screens/TasksPage";
-import type { TaskItem } from "../tasks/TasksService";
-import type { ParentLine } from "../life/parent";
 import { pressable } from "../shared/pressable";
 
 // THE HEALTH PAGE (Check, Health, Stop, Dave 2026-09-02: "The next session,
@@ -33,11 +28,6 @@ import { pressable } from "../shared/pressable";
 
 const CHEV = <div className="chev" />;
 const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
-
-export interface HealthGoalRow {
-  id: string; title: string; tone: string; body: string;
-  status: { text: string; tone: "good" | "warn" } | null; bar: Progress | null;
-}
 
 // S5-Q29 (2026-09-04): the four highest-value loggers from the dormant
 // Health module (Track 3's student-athlete health track), grafted onto this
@@ -85,8 +75,8 @@ function Spark({ pts }: { pts: number[] }) {
 }
 
 export default function HealthBody({
-  program, workouts, training, today, isEvening, gymEvent, metricDefs, metricLogs, goals, tasks, kickerOf, parentOf,
-  onStart, onOpenGym, onOpenMetric, onManageMetrics, onOpenGoal, onAddGoal, onToggleTask, onOpenTask, onDeleteTask, onSnoozeTask, onStartTask, onAddTask, insights, more,
+  program, workouts, training, today, isEvening, gymEvent, metricDefs, metricLogs,
+  onStart, onOpenGym, onOpenMetric, onManageMetrics, insights, sections, more,
   healthLoggers, onOpenHealthLogger, onOpenHealthMore,
 }: {
   program: Program | null;
@@ -98,31 +88,18 @@ export default function HealthBody({
   gymEvent: { start: string } | null;
   metricDefs: MetricDef[];
   metricLogs: MetricLog[];
-  goals: HealthGoalRow[];
-  /** Up Next: the open tasks and reminders tagged here, as the rows the
-   *  Tasks page draws (2026-09-02, "like it does everywhere else"). */
-  tasks: TaskItem[];
-  /** A reminder's time for its second line; null for a task, whose line
-   *  is its parent. */
-  kickerOf: (t: TaskItem) => string | null;
-  parentOf?: (t: TaskItem) => ParentLine | null;
+  /** The day to start, by id. SCRATCH_DAY_ID starts an empty session. */
   onStart: (dayId: string) => void;
   onOpenGym: () => void;
   onOpenMetric: (def: MetricDef) => void;
   onManageMetrics: () => void;
-  onOpenGoal?: (id: string) => void;
-  /** Opens the new-goal sheet, pre-tagged to this area. Absent for a caller
-      that has no goal sheet to open, and the row then does not render. */
-  onAddGoal?: () => void;
-  onToggleTask: (id: string) => void;
-  onOpenTask?: (id: string) => void;
-  onDeleteTask?: (id: string) => void;
-  onSnoozeTask?: (id: string) => void;
-  /** Start (fifteen minutes on it) for a task; reminders never get one. */
-  onStartTask?: (id: string) => void;
-  onAddTask: () => void;
   /** The insight cards, when any qualified; rendered as handed in. */
   insights?: ReactNode;
+  /** Projects, Goals Here, Coming Up and Up Next: the four sections EVERY
+   *  area page shows, defined once by CategoryDetail and handed in, so the
+   *  health page cannot grow a second copy of them (Dave 2026-09-10:
+   *  "there's duplicate add buttons on the page"). */
+  sections?: ReactNode;
   /** Streaks, notes, the week's receipt: the quiet tail, as handed in. */
   more?: ReactNode;
   /** S5-Q29: the four grafted one-tap loggers, in display order. */
@@ -144,6 +121,8 @@ export default function HealthBody({
     : null;
   const dots = training?.weekDots ?? new Array<boolean>(7).fill(false);
   const shownMetrics = activeMetrics(metricDefs);
+  // Every day of the program except the one already offered above it.
+  const otherDays = (program?.data.weeks ?? []).flatMap((w) => w.days).filter((d) => d.id !== next?.day.id);
 
   const metricTile = (def: MetricDef) => {
     const mine = metricLogs.filter((l) => l.data.metricId === def.id && l.data.date <= today).sort((a, b) => a.data.date.localeCompare(b.data.date));
@@ -168,7 +147,23 @@ export default function HealthBody({
 
   return (
     <>
-      {/* THE HERO: the next session, with Start on it, and the week under it. */}
+      {/* TRAINING: A CHOICE, NOT A VERDICT (Dave 2026-09-10: "It almost always
+          says leg day. There's not even a header above it. It should encourage
+          the user to select a workout for the day or begin one from scratch.
+          It can suggest one based on that day that's fine but this is a
+          terrible way to start the page as of now").
+          Three things were wrong. The card was the first thing on the page
+          with no head over it, so it read as chrome rather than a section. It
+          named one day and gave one button, which presents a decision already
+          made -- and if the rotation's pick is not what he is doing today, the
+          page has nothing for him. And there was no way at all to log a
+          session that is not in the program.
+          So: the suggestion still leads, and says out loud that it is a
+          suggestion; every OTHER day of the program sits under it as a chip
+          that starts it in one tap; and Open Session starts an empty one he
+          fills as he goes. Nothing about how a session is stored moves. */}
+      <div className="sh2 sh2-quiet"><span className="t">Training</span>
+        <button className="see-all pill-action" onClick={onOpenGym}>Program</button></div>
       <div className="pad-x h-hero-wrap"><div className="card list-card-ruled h-hero-card">
         {next ? (
           <div {...pressable(onOpenGym)} className="h-hero">
@@ -187,6 +182,18 @@ export default function HealthBody({
               <div className="h-hero-s">{program ? "Add a day to train" : "A few lifts, a few days, and the page fills itself"}</div>
             </div>
             {CHEV}
+          </div>
+        )}
+        {/* The rest of the week's work, one tap each. The suggested day is not
+            repeated here -- it is the button above -- and Open Session ends
+            the row because starting from nothing is the last resort, not the
+            first offer. */}
+        {program && (
+          <div className="h-pick" role="group" aria-label="Start another session">
+            {otherDays.map((d) => (
+              <button className="h-pick-c" key={d.id} onClick={() => onStart(d.id)}>{d.name}</button>
+            ))}
+            <button className="h-pick-c h-pick-new" onClick={() => onStart(SCRATCH_DAY_ID)}>{SCRATCH_DAY_NAME}</button>
           </div>
         )}
         <div className="h-week" aria-label="Days trained this week">
@@ -214,10 +221,18 @@ export default function HealthBody({
         )}
       </div></div>
 
-      {/* LOG IT (S5-Q29): the four grafted one-tap loggers. Same row anatomy
+      {/* DAILY LOG (S5-Q29): the four grafted one-tap loggers. Same row anatomy
           as the Metrics section's own empty-state row below, so the page
-          reads as one design rather than two features bolted together. */}
-      <div className="sh2 sh2-quiet"><span className="t">Log It</span></div>
+          reads as one design rather than two features bolted together.
+          The head was "Log It", the rows were "Lights Out / Took It / Call It
+          / Point at It", and the whole group was named after the gestures
+          rather than the things (Dave 2026-09-10: "the log it names make no
+          sense... Right now I won't even attempt to use it"). The rows are
+          nouns now and each says what it does; see CategoryDetail's
+          healthLoggers. The verbs survive where they belong, on the big button
+          inside each screen, because there "Lights Out" is what you are
+          telling the app, not what you are choosing between. */}
+      <div className="sh2 sh2-quiet"><span className="t">Daily Log</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
         {healthLoggers.map((l) => (
           <div {...pressable(() => onOpenHealthLogger(l.key))} className="task-row p2" key={l.key}>
@@ -235,7 +250,7 @@ export default function HealthBody({
           <div {...pressable(onOpenHealthMore)} className="task-row p2">
             <div className="task-title">
               <span className="task-name">More</span>
-              <div className="r-k"><span className="r-goal r-cat">Sharing, medication, the week, the locker</span></div>
+              <div className="r-k"><span className="r-goal r-cat">Sharing, refills, the week, the locker</span></div>
             </div>
             {CHEV}
           </div>
@@ -259,49 +274,17 @@ export default function HealthBody({
 
       {insights}
 
-      {/* ADD GOAL, HERE TOO (Dave 2026-09-09: "I still can't add goals here").
-          The org area page got its door on 09-09; a health area renders this
-          body instead and had the same gate on it, so an area with no goal
-          showed no section and offered nothing. Same shape as the org page:
-          the section stands, the count chip is what hides. */}
-      {(goals.length > 0 || !!onAddGoal) && (
-        <>
-          <div className="sh2 sh2-quiet"><span className="t">Goals Here</span>{goals.length > 0 && <span className="n">{goals.length}</span>}</div>
-          <div className="pad-x"><div className="card list-card-ruled">
-            {goals.map((g) => (
-              <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.body} status={g.status} bar={g.bar}
-                onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined} />
-            ))}
-            {onAddGoal && <button className="row-create" onClick={onAddGoal}>Add Goal</button>}
-          </div></div>
-        </>
-      )}
-
-      <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{tasks.length > 0 && <span className="n">{tasks.length}</span>}</div>
-      {/* THE SAME ROW AS EVERYWHERE (Dave 2026-09-02: "Add task on the same
-          page as well should render as a task there like it does everywhere
-          else after. It should have the same clearing ability as well").
-          The Tasks page's own row: the rounded-square check, the distance
-          chip, the parent line (a reminder shows its time instead), Start
-          on a task, Tomorrow and Delete on the swipe. Nothing here is a
-          second kind of task row any more. */}
-      <div className="pad-x"><div className="card list-card-ruled">
-        {tasks.map((t) => (
-          <TaskRow
-            key={t.id}
-            item={t}
-            today={today}
-            kicker={kickerOf(t)}
-            parent={parentOf?.(t) ?? null}
-            onToggle={onToggleTask}
-            onOpen={onOpenTask}
-            onDelete={onDeleteTask}
-            onSnooze={t.data.reminder ? undefined : onSnoozeTask}
-            onStart={t.data.reminder ? undefined : onStartTask}
-          />
-        ))}
-        <button className="row-create" onClick={onAddTask}>Add Task</button>
-      </div></div>
+      {/* ONE DEFINITION OF THE FOUR SECTIONS (Dave 2026-09-10: "there's
+          duplicate add buttons on the page").
+          This body used to draw its own Goals Here and Up Next. When the area
+          page grew Projects, Goals Here, Coming Up and Up Next as one shared
+          block on 09-09, the health page got that block AND kept these two, so
+          he scrolled past Goals Here twice and Add Task twice. A second copy
+          of a section is a second copy of every rule about it, which is how
+          they drift; there is one copy now and it is handed in here, so the
+          health page and every other area page can never disagree about what
+          those sections are or where their create rows go. */}
+      {sections}
 
       {more}
     </>

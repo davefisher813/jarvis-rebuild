@@ -18,7 +18,7 @@ export default function TookItScreen({ timeline, onLog, onBack }: {
     <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">Took It</div>
+        <div className="nav-title">Medication</div>
       </div>
 
       <div className="pad-x"><div className="card pad">

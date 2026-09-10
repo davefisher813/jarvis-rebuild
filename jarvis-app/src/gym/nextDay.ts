@@ -9,6 +9,16 @@ import { nextPinnedDay, pinnedTo, WEEKDAY_ABBR } from "./pins";
 // keeps rotating from the last session. Multi-week blocks return null: which
 // day comes next across weeks is a product decision the catalog left open.
 
+// START ONE FROM SCRATCH (Dave 2026-09-10: the Health page "should encourage
+// the user to select a workout for the day or begin one from scratch"). A
+// session that belongs to no program day: it starts empty and SessionScreen's
+// Add Exercise fills it, which is the path an empty program day already takes
+// (GymFlow.requestStart skips the fit sheet when there is nothing to price).
+// The id is a sentinel, never a real day's, so the rotation simply does not
+// find it and offers day one next, and nothing else in the gym has to know.
+export const SCRATCH_DAY_ID = "scratch";
+export const SCRATCH_DAY_NAME = "Open Session";
+
 export interface NextDay {
   day: ProgramDay;
   /** "today" when pinned to today, "tomorrow", a weekday abbreviation when

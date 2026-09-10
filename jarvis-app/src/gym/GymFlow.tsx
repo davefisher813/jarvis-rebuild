@@ -25,7 +25,7 @@ import {
   moveExerciseToDay, copyExerciseToDays, moveDayBetweenPrograms, applyExerciseEdit, duplicateDayFresh,
 } from "./edit";
 import { pinLabel, todayDow, pinnedTo, nextPinnedDay, WEEKDAY_ABBR, WEEKDAY_FULL } from "./pins";
-import { nextDayFor } from "./nextDay";
+import { nextDayFor, SCRATCH_DAY_ID, SCRATCH_DAY_NAME } from "./nextDay";
 import { muscleMapFromProgram } from "./insights";
 import { sameLiftAnyKind } from "./identity";
 import { estimateDay, type FitPlan } from "./fit";
@@ -989,6 +989,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
     const existing = readLive();
     if (existing && hasWork(existing.exercises) && isStillActive(existing, todayISO())) { enterSession(existing); return; }
     if (!program) return;
+    // The scratch sentinel is not a program day and never will be: it starts
+    // an empty session the athlete fills with Add Exercise. requestStart
+    // already routes an exercise-free day straight past the fit sheet.
+    if (startDayId === SCRATCH_DAY_ID) {
+      requestStart({ id: SCRATCH_DAY_ID, name: SCRATCH_DAY_NAME, exercises: [] }, { doorEventId: startDoorEventId });
+      return;
+    }
     const day = program.data.weeks.flatMap((w) => w.days).find((d) => d.id === startDayId);
     if (day) requestStart(day, { doorEventId: startDoorEventId });
   }, [startDayId, startDoorEventId, startHandled, loaded, program]);

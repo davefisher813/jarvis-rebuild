@@ -589,6 +589,43 @@
 .ruled .h-hero-b { flex: 1; min-width: 0; }
 .ruled .h-hero-t { font-size: calc(19px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .h-hero-s { font-size: calc(13px * var(--type-scale)); color: var(--tx-3); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* PICK THE SESSION, DO NOT BE HANDED ONE (Dave 2026-09-10: the hero "should
+   encourage the user to select a workout for the day or begin one from
+   scratch. It can suggest one based on that day that's fine but this is a
+   terrible way to start the page as of now"). The suggestion keeps the hero
+   and the Start pill; every other day of the program is a chip on one
+   horizontal run under it, scrolled rather than wrapped so the card's height
+   never moves, and Open Session ends the run. Chip type matches .uchip's
+   register: small, quiet, tappable, no fill until pressed. */
+.ruled .h-pick { display: flex; gap: 7px; padding: 2px 16px 12px; overflow-x: auto; scrollbar-width: none; }
+.ruled .h-pick::-webkit-scrollbar { display: none; }
+.ruled .h-pick-c { flex-shrink: 0; font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-medium); color: var(--tx-2);
+  background: var(--press-3); border: none; border-radius: var(--r-pill); padding: 7px 12px; white-space: nowrap;
+  max-width: 46vw; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.ruled .h-pick-c:active { opacity: 0.6; }
+/* Starting from nothing is the last resort on the row, so it reads as an
+   outline rather than another sibling: same size, no ground. */
+.ruled .h-pick-c.h-pick-new { background: transparent; box-shadow: inset 0 0 0 1px var(--rim-card); color: var(--tx-3); }
+/* WEEKLY VOLUME, ONE CARD (Dave 2026-09-10: "insights are weak and random it
+   seems. Make them of actual use to the user and render it an appealing
+   way"). A row per muscle: the name, a track with the studied band tinted and
+   a dot where the week's hard sets actually landed, and the number in the
+   ink of its verdict. Under the band is warning ink, over the band is warning
+   ink, inside it is good -- the same two fact colours the rest of the app
+   uses, so nothing new is invented and nothing is scored. */
+.ruled .vol-card { padding: 14px 16px 6px; }
+.ruled .vol-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.ruled .vol-name { width: 33%; flex-shrink: 0; font-size: calc(13px * var(--type-scale)); color: var(--tx-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .vol-track { position: relative; flex: 1; min-width: 0; height: 6px; border-radius: 3px; background: var(--press-3); }
+.ruled .vol-band { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--good-tint); }
+.ruled .vol-dot { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; }
+.ruled .vol-dot.vol-in { background: var(--good); }
+.ruled .vol-dot.vol-under, .ruled .vol-dot.vol-over { background: var(--warn); }
+.ruled .vol-n { width: 26px; flex-shrink: 0; text-align: right; font-size: calc(13px * var(--type-scale));
+  font-weight: var(--w-semi); font-variant-numeric: tabular-nums; }
+.ruled .vol-n.vol-in { color: var(--good); }
+.ruled .vol-n.vol-under, .ruled .vol-n.vol-over { color: var(--warn); }
 .ruled .h-week { display: flex; justify-content: space-between; padding: 2px 18px 14px; }
 .ruled .h-day { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
   letter-spacing: 0.06em; color: var(--tx-4); }
