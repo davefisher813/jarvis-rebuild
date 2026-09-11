@@ -1,6 +1,7 @@
 import type { TaskItem } from "./TasksService";
 import type { TaskData, Recurrence } from "../notes/types";
 import { daysBetween } from "../upnext/upnext";
+import { capAfterNumber } from "../shared/casing";
 
 // Lifecycle policy (ADHD strategy Phase 1): tasks age with dignity. Set Aside
 // clears the ancient-overdue graveyard, First Step targets the task that keeps
@@ -55,11 +56,24 @@ export function firstStepCandidate(tasks: TaskItem[], today: string, pausedCats?
 // card is a row in the list now, and a row gets one line). It states the
 // fact that qualified the task, in the distance words the rows already use:
 // the pushes when it has been pushed enough, else the days late.
-export function slidingLine(t: TaskItem, today: string): string {
+//
+// TWO THINGS, TWO WEIGHTS (Dave 2026-09-11: "Keep sliding and pushed 8 times
+// should not be identical styling wise. Might make sense to make one of those
+// notifications a chip"). It was one flat run -- "Keeps sliding · Pushed 8
+// times" -- in one ink, so the STATE and the EVIDENCE for it looked like the
+// same kind of fact and the middot was doing all the separating. They are not
+// the same kind of fact: "Keeps sliding" is a verdict this app reached, and
+// "Pushed 8 times" is the count it reached it from. The verdict is the chip;
+// the count is the line under it.
+export const SLIDING_TAG = "Keeps Sliding";
+
+/** The evidence behind the tag. Null when there is none worth stating, and
+ *  the chip then stands alone. */
+export function slidingLine(t: TaskItem, today: string): string | null {
   const slips = t.data.slips ?? 0;
-  if (slips >= FIRST_STEP_SLIPS) return `Keeps sliding \u00b7 Pushed ${slips} times`;
+  if (slips >= FIRST_STEP_SLIPS) return capAfterNumber(`Pushed ${slips} times`);
   const days = t.data.due ? daysBetween(t.data.due, today) : 0;
-  return days > 0 ? `Keeps sliding \u00b7 ${days} days late` : "Keeps sliding";
+  return days > 0 ? capAfterNumber(`${days} days late`) : null;
 }
 
 // Dismissal memory (same shape as pattern dismissals): a dismissed First Step

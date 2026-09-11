@@ -23,7 +23,7 @@ import { todayISO } from "./grouping";
 import { nextFreeSlot, addMinutes, addDays } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
-import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage, slidingLine } from "./lifecycle";
+import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage, slidingLine, SLIDING_TAG } from "./lifecycle";
 import { useCategoryEstimates, useTaskEstimate } from "../schedule/useTaskEstimate";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
@@ -704,7 +704,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // "First step for" the task, Add, and the swipe to decline.
   const fsOn = !!fsCandidate && (filter === "today" || filter === "overdue" || filter === "all");
   const fsStalled = fsOn && fsCandidate && !(fsStep && fsStep.taskId === fsCandidate.id)
-    ? { id: fsCandidate.id, line: slidingLine(fsCandidate, today), action: { label: fsBusy ? "Thinking..." : "First Step", onClick: () => void fsAsk() } }
+    ? { id: fsCandidate.id, tag: SLIDING_TAG, line: slidingLine(fsCandidate, today), action: { label: fsBusy ? "Thinking..." : "First Step", onClick: () => void fsAsk() } }
     : null;
   const fsNotice = fsOn && fsCandidate && fsStep && fsStep.taskId === fsCandidate.id ? (
     <NoticeCard

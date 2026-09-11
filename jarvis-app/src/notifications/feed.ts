@@ -1,7 +1,7 @@
 import type { TaskItem } from "../tasks/TasksService";
 import type { EventItem } from "../schedule/types";
 import type { Goal } from "../life/types";
-import { firstStepCandidate, slidingLine } from "../tasks/lifecycle";
+import { firstStepCandidate, slidingLine, SLIDING_TAG } from "../tasks/lifecycle";
 
 export type NudgeKind = "sliding" | "overdue" | "due_today" | "event" | "goal_risk";
 // A1 (audit 2026-08-21): every row on this screen was a dead end. Ten
@@ -54,7 +54,13 @@ export function buildFeed(input: FeedInput, today: string, nowHHMM?: string, dis
   // task the Tasks list hoists (the same pick, lifecycle's), with its
   // sliding line as the why. Finishing it or waving it off is one tap.
   const sliding = firstStepCandidate(input.tasks, today);
-  if (sliding) out.push({ id: "sl-" + sliding.id, kind: "sliding", title: sliding.data.text, sub: slidingLine(sliding, today), when: "", entity: "task", entityId: sliding.id });
+  // slidingLine is the EVIDENCE now, and it can be absent (Dave 2026-09-11:
+  // the verdict became a chip on the row). A notification has one sub line
+  // and no chip slot, so here the two are said as the sentence they were.
+  if (sliding) {
+    const why = slidingLine(sliding, today);
+    out.push({ id: "sl-" + sliding.id, kind: "sliding", title: sliding.data.text, sub: why ? `${SLIDING_TAG} \u00b7 ${why}` : SLIDING_TAG, when: "", entity: "task", entityId: sliding.id });
+  }
   for (const t of input.tasks) {
     if (t.data.done || !t.data.due) continue;
     if (t.data.due < today) out.push({ id: "ov-" + t.id, kind: "overdue", title: t.data.text, sub: "Overdue", when: "", entity: "task", entityId: t.id });

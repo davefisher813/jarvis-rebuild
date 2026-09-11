@@ -531,13 +531,22 @@ export default function TodayPage({
     // calendar buttons"). Those two are .row-act in a centring wrapper, which
     // is what a standalone action under a card looks like in this app; a
     // full-width left-aligned row with a chevron was a LIST row pretending to
-    // be a button. The waiting count rides inside it, because it is the fact
-    // that makes the button worth tapping.
+    // be a button.
+    //
+    // A BUTTON'S LABEL IS ITS LABEL (Dave 2026-09-11: "Focus got mixed up with
+    // 23"). The waiting count rode inside the pill as a bare number chip, and
+    // a bare number tucked against a verb inside one rounded shape does not
+    // read as two facts -- it reads as one garbled label, "Focus 23". The
+    // count is worth keeping (it is the fact that makes the button worth
+    // tapping, and the Focus flow itself never states how deep the deck is),
+    // so it stays, saying what it counts. A chip that is a whole phrase can
+    // never be swallowed by the word in front of it, and it is set off in its
+    // own weight and ink so the eye takes them as two things.
     <div key="waiting" className="notice-clear-row focus-row">
       <button className="row-act" onClick={onUpNext}>
         <BullseyeGlyph />
-        Focus
-        {(upNextWaiting ?? 0) > 0 && <span className="fc-n">{upNextWaiting}</span>}
+        <span className="fc-t">Focus</span>
+        {(upNextWaiting ?? 0) > 0 && <span className="fc-n">{upNextWaiting} Waiting</span>}
       </button>
     </div>
   ) : null;

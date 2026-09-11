@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { slidingLine } from "./lifecycle";
+import { slidingLine, SLIDING_TAG } from "./lifecycle";
 
 // THE KEEPS SLIDING ROW (Fewer Buttons, Dave 2026-09-02: "I don't like all
 // those floating buttons"). The First Step offer was a card floating above
@@ -21,6 +21,7 @@ describe("The Keeps Sliding row", () => {
 
   it("the offer is the task's own row: its id, the sliding line, First Step as the pill", () => {
     expect(stalled).toContain("id: fsCandidate.id");
+    expect(stalled).toContain("tag: SLIDING_TAG");
     expect(stalled).toContain("line: slidingLine(fsCandidate, today)");
     expect(stalled).toMatch(/label: fsBusy \? "Thinking\.\.\." : "First Step"/);
     expect(stalled, "the offer never renders as a notice row").not.toContain("<NoticeCard");
@@ -41,7 +42,7 @@ describe("The Keeps Sliding row", () => {
     const page = readFileSync(join(__dirname, "screens", "TasksPage.tsx"), "utf8");
     expect(page).toMatch(/groupItems\(stalledItem \? items\.filter\(\(it\) => it\.id !== stalledItem\.id\) : items/);
     expect(page).toMatch(/\{gi === 0 && stalledRow\}/);
-    expect(page).toMatch(/kicker=\{stalled\.line\} kickerTone="stalled" action=\{stalled\.action\}/);
+    expect(page).toMatch(/tag=\{stalled\.tag\} kicker=\{stalled\.line\} kickerTone="stalled" action=\{stalled\.action\}/);
   });
 
   it("the old card anatomy stays gone, and the row is the page's notice", () => {
@@ -61,9 +62,14 @@ describe("The Keeps Sliding row", () => {
     expect(accept).toContain("projectId: fsCandidate.data.projectId");
   });
 
-  it("the why line states the fact that qualified the task", () => {
-    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-08-25" } }, "2026-09-02")).toBe("Keeps sliding \u00b7 8 days late");
-    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-09-01", slips: 3 } }, "2026-09-02")).toBe("Keeps sliding \u00b7 Pushed 3 times");
-    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: null } }, "2026-09-02")).toBe("Keeps sliding");
+  // TWO THINGS, TWO WEIGHTS (Dave 2026-09-11: "Keep sliding and pushed 8 times
+  // should not be identical styling wise"). The label is the chip (SLIDING_TAG,
+  // rendered as .slide-tag) and the evidence is the line beside it, so the
+  // function returns the evidence alone and nothing when there is none.
+  it("the why line states the fact that qualified the task, without the label", () => {
+    expect(SLIDING_TAG).toBe("Keeps Sliding");
+    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-08-25" } }, "2026-09-02")).toBe("8 Days late");
+    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-09-01", slips: 3 } }, "2026-09-02")).toBe("Pushed 3 times");
+    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: null } }, "2026-09-02")).toBe(null);
   });
 });

@@ -289,6 +289,17 @@
    to meaning Health and done. */
 .ruled [class*="cat-fg-"] > .r-gm, .ruled .r-goal.r-is-goal[class*="cat-fg-"] > .r-gm { color: currentColor; }
 .ruled .r-goal.r-is-goal[class*="cat-fg-"] > .r-goal-t { color: var(--tx-2); }
+/* COLOUR CODED WHERE THE GOAL IS THE SORT (Dave 2026-09-11: "The goals in
+   projects should also be color coated"). Everywhere else the goal chip is a
+   parent line -- one of several things a row belongs to -- so its name stays
+   grey and only the mark carries the hue, which is the rule two blocks up. On
+   the Projects lens the goal is the ONE thing distinguishing rows inside a
+   card that is already all one category, so the name takes the hue too and a
+   card of projects can be read by colour before it is read by word. Opt-in by
+   class, never by position, so no other surface picks this up by accident.
+   The ink is the category's own per-theme text token (--cat-tx-* / --cat-dtx-*
+   via cat-fg-*), which is the AA-safe one; nothing is washed or mixed. */
+.ruled .r-goal.r-is-goal.r-goal-lit[class*="cat-fg-"] > .r-goal-t { color: currentColor; font-weight: var(--w-semi); }
 
 /* ---------- THE PARENT LINE (The Row and Health, Dave 2026-09-02: "The
    parent's own glyph leads the line"; the vertical bar is gone) -----------
@@ -385,7 +396,11 @@
    check sits, the measure line, the status word as a capsule right-aligned,
    and the thin bar. The capsule is the fact the page exists to show, so it
    is the one thing on the row allowed a fill. */
-.ruled .goal-row-ruled .r-k { gap: 8px; }
+/* THE TWO LENSES SHARE ONE SECOND LINE (Dave 2026-09-11: "Style the containers
+   in projects to look more like goals"). Same gap, same chip-then-fact-then-
+   capsule order, so a card of projects and a card of goals sit under each other
+   on the Life page as two readings of one layout rather than two designs. */
+.ruled .goal-row-ruled .r-k, .ruled .proj-row-ruled .r-k { gap: 8px; }
 .ruled .goal-row-ruled .bp-bar { margin-top: 6px; }
 /* THE KIND CHIP ON A GOAL ROW (Dave 2026-09-10: health goals "should be a
    little bit different"). Small, uppercase, hue off the activity ramp, LEADING
@@ -1363,3 +1378,14 @@
    it is an absence, not a reading, and lighting it would say something was
    logged when nothing was. */
 .ruled.health-ruled .ht-none { color: var(--tx-4); }
+
+/* THE VERDICT IS A CHIP, THE EVIDENCE IS A LINE (Dave 2026-09-11: "Keep
+   sliding and pushed 8 times should not be identical styling wise. Might make
+   sense to make one of those notifications a chip"). They were one flat run
+   in one ink, separated by a middot doing all the work. "Keeps Sliding" is a
+   conclusion this app reached; "Pushed 8 times" is the count behind it. The
+   chip carries the warning weight so the state reads at a glance, and the
+   count stays on the row's ordinary fact line beside it. */
+.ruled .slide-tag { flex-shrink: 0; font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: 0.07em; text-transform: uppercase; padding: 2px 7px; border-radius: var(--r-pill);
+  color: var(--warn); background: var(--warn-tint); white-space: nowrap; }

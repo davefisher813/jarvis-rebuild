@@ -171,6 +171,26 @@ export function bucketOf(row: ProjectRow): Bucket {
   return row.stalled ? "stalled" : "moving";
 }
 
+// THE PROJECT'S STATUS CAPSULE (Dave 2026-09-11: "goals looks way better than
+// projects. Style the containers in projects to look more like goals"). The
+// goal row's far-right capsule is most of what makes it read better: one word
+// that says whether the thing is fine, in the one place this app puts status.
+// A project already knows the same answer -- it is the bucket the page has
+// sorted by since Wave 1 -- so the row can simply say it, in the goal row's
+// own vocabulary (On Track / Stalled / Done) so a project and a goal never
+// name the same state two ways.
+//
+// UNSTARTED STAYS SILENT. A project with no tasks has not earned "On Track"
+// and has not failed either; a capsule there would be a claim about nothing,
+// and the row's line already says "No tasks yet".
+export function projStatus(row: ProjectRow): { text: string; tone: "good" | "warn" } | null {
+  const b = bucketOf(row);
+  if (b === "done") return { text: "Done", tone: "good" };
+  if (b === "stalled") return { text: "Stalled", tone: "warn" };
+  if (b === "moving") return { text: "On Track", tone: "good" };
+  return null;
+}
+
 // True when the work is finished but the project has not been closed. The row
 // offers to close itself; nothing closes silently.
 export function closable(row: ProjectRow): boolean {

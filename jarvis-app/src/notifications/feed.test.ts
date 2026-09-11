@@ -15,7 +15,10 @@ describe("buildFeed", () => {
     // Pay invoice is 23 days late, so it also leads as the task that keeps
     // sliding (2026-09-02), then reads again as overdue.
     expect(feed.map((n) => n.kind)).toEqual(["sliding", "overdue", "due_today", "event"]);
-    expect(feed[0]!.sub).toBe("Keeps sliding \u00b7 23 days late");
+    // TWO THINGS, TWO WEIGHTS (2026-09-11): the row splits the verdict into a
+    // chip and the evidence into a line; a notification has one sub line and no
+    // chip slot, so it rejoins them, in the house casing both halves now carry.
+    expect(feed[0]!.sub).toBe("Keeps Sliding \u00b7 23 Days late");
     expect(feed[3]!.when).toBe("09:00");
     expect(feed.find((n) => n.title === "Done thing")).toBeUndefined();
   });

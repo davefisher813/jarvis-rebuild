@@ -108,13 +108,17 @@ describe("TasksPage", () => {
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20"), tk("b", "2026-05-20"), tk("c", "2026-05-20")]} today="2026-05-20"
         onStartTask={() => {}}
-        stalled={{ id: "b", line: "Keeps sliding \u00b7 Pushed 5 times", action: { label: "First Step", onClick: onFirst } }} />,
+        stalled={{ id: "b", tag: "Keeps Sliding", line: "Pushed 5 times", action: { label: "First Step", onClick: onFirst } }} />,
     );
     const names = [...container.querySelectorAll(".task-row .task-name")].map((e) => e.textContent);
     expect(names).toEqual(["b", "a", "c"]);
     expect(names.filter((n) => n === "b")).toHaveLength(1);
     const row = container.querySelector(".task-row")!;
-    expect(row.querySelector(".r-goal.r-stalled")).toHaveTextContent("Keeps sliding");
+    // TWO KINDS OF FACT, TWO WEIGHTS (Dave 2026-09-11: "Keep sliding and
+    // pushed 8 times should not be identical styling wise"). The verdict is
+    // the chip; the count it was reached from is the line beside it.
+    expect(row.querySelector(".slide-tag")).toHaveTextContent("Keeps Sliding");
+    expect(row.querySelector(".r-goal.r-stalled")).toHaveTextContent("Pushed 5 times");
     expect(row.querySelector(".task-check")).toBeTruthy();
     const pill = row.querySelector(".pill-act")!;
     expect(pill).toHaveTextContent("First Step");

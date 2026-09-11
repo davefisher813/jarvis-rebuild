@@ -89,9 +89,11 @@ describe("TodayPage", () => {
     // be all the way up top under your move and replace that small grey
     // subtext that renders the up next page"). Both called onUpNext, so the
     // page was carrying one destination twice; the count survives as the chip
-    // that makes it worth tapping.
+    // that makes it worth tapping -- SAYING WHAT IT COUNTS (Dave 2026-09-11:
+    // "Focus got mixed up with 23"), so the verb and the count can never fuse
+    // into one label.
     expect(screen.getByText("Focus")).toBeInTheDocument();
-    expect(document.querySelector(".focus-row .fc-n")).toHaveTextContent("2");
+    expect(document.querySelector(".focus-row .fc-n")).toHaveTextContent("2 Waiting");
     // one dealt card means one task row, however deep the deck is
     expect(container.querySelectorAll(".task-row").length).toBe(1);
     // the old daytime task list stays replaced

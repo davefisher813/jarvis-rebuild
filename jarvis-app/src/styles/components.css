@@ -2749,11 +2749,17 @@ button {
    rather than from a class of its own; this adds only the two things those
    two buttons do not have -- centring rather than flex-end, the glyph's
    sizing, and the waiting count as a chip inside the pill. */
+/* TWO FACTS, TWO SHAPES (Dave 2026-09-11: "Focus got mixed up with 23"). The
+   count was a bare number in the same rounded run as the verb, so "Focus" and
+   "23" fused into one label. It says what it counts now, and it is separated
+   the way this app separates a label from its evidence everywhere else: its
+   own weight, its own ink, and a hairline it sits behind. */
 .focus-row { justify-content: center; padding-bottom: var(--s-1); }
 .focus-row .row-act { gap: var(--s-2); }
 .focus-row .row-act .ic { width: 17px; height: 17px; flex-shrink: 0; }
-.focus-row .row-act .fc-n { font-size: var(--t-eyebrow); font-weight: var(--w-bold); letter-spacing: 0.04em;
-  color: var(--tx-2); background: var(--press-5); padding: 2px 8px; border-radius: var(--r-pill);
+.focus-row .row-act .fc-t { font-weight: var(--w-semi); }
+.focus-row .row-act .fc-n { font-size: var(--t-eyebrow); font-weight: var(--w-medium); letter-spacing: 0.02em;
+  color: var(--tx-2); padding-left: var(--s-2); border-left: 1px solid var(--card-bd);
   font-variant-numeric: tabular-nums; margin-left: var(--s-1); }
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).

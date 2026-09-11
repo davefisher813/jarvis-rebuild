@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import PageHeader from "../shared/PageHeader";
 import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
-import { progressLabel, bucketOf, closable, rankGoals } from "./progress";
+import { progressLabel, bucketOf, closable, projStatus, rankGoals } from "./progress";
 import type { GoalReach } from "./reach";
 import { reachLine } from "./reach";
 import type { MeasureState } from "./measure";
@@ -247,6 +247,7 @@ export default function BiggerPicturePage({
     const sized = sizeLineOf?.(project.id) ?? null;
     const paced = paceLineOf?.(project.id) ?? null;
     const canClose = closable({ project, progress, stalled, lastAt: null });
+    const status = projStatus({ project, progress, stalled, lastAt: null });
     const line = hold ?? (progressLabel(progress, stalled) + (sized ? " \u00b7 " + sized : ""));
     const filed = project.data.goalId ? goalById.get(project.data.goalId) : undefined;
     return (
@@ -254,14 +255,30 @@ export default function BiggerPicturePage({
         <div className="task-check-tap"><span className={"pp-slot cat-fg-" + catColor(project.data.category ?? "")}><ProjectPie pct={progress ? progress.pct : null} /></span></div>
         <div className="task-title">
           <span className="task-name">{project.data.title}</span>
-          {/* The progress fact leads, the goal rides behind it: .r-k wraps
-              whole items off the end, so the fact he came for is the one
-              that cannot be the item that drops. */}
+          {/* ONE SECOND LINE, TWO LENSES (Dave 2026-09-11: "goals looks way
+              better than projects. Style the containers in projects to look
+              more like goals... The goals in projects should also be color
+              coated"). The goal row's second line is [chip] [fact] [status,
+              far right], and that anatomy is what makes it read: something
+              identifying on the left, the number in the middle, the verdict
+              pinned to the edge. This line is that line now. The goal chip
+              takes the leading slot the kind chip holds on a goal row and
+              wears its goal's own colour rather than the grey every other
+              parent line wears, so a card of projects is colour-sorted by
+              what each one climbs toward; the progress fact keeps the
+              middle; and the status capsule -- the same .gstat in the same
+              two tones -- takes the right.
+
+              The pie stays the row's progress meter, so no bar is added
+              under it: the goal row draws a bar because its glyph is a
+              static target, and doubling the fraction here would state the
+              same number three times on one row. */}
           <div className="r-k">
-            <span className={"r-goal" + (hold || stalled ? " r-stalled" : "")}><Nums text={line} /></span>
             {filed && !filed.data.dropped && (
-              <span className={"r-goal r-is-goal " + goalTone(filed.data.tags)}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span>
+              <span className={"r-goal r-is-goal r-goal-lit " + goalTone(filed.data.tags)}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span>
             )}
+            <span className={"r-goal" + (hold || stalled ? " r-stalled" : "")}><Nums text={line} /></span>
+            {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
           </div>
           {/* THE NEXT MOVE HAS TO LOOK LIKE THE POINT (Dave 2026-09-09: the
               Next line "should either be color coded or a white/grey contrast

@@ -127,6 +127,7 @@ export function TaskRow({
   parent = null,
   kicker = null,
   kickerTone = null,
+  tag = null,
   action = null,
   burstSize = "small",
   openSourceFor,
@@ -167,6 +168,10 @@ export function TaskRow({
   // The kicker in the warning ink: the line is a fact about the task
   // stalling, not where it lives (the First Step offer, 2026-09-02).
   kickerTone?: "stalled" | null;
+  /** THE VERDICT AS A CHIP (Dave 2026-09-11). "Keeps Sliding" is something
+   *  the app CONCLUDED; the kicker under it is the count it concluded from.
+   *  Two kinds of fact, so two weights: the chip leads, the count follows. */
+  tag?: string | null;
   // A caller's own trailing pill in place of Start (First Step on the
   // task that keeps sliding). One pill per row, always.
   action?: { label: string; onClick: () => void } | null;
@@ -368,8 +373,11 @@ export function TaskRow({
               line whole instead of taking a row of its own. */}
           <div className="r-k r-k-one">
             {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
-            {kicker
-              ? <span className={"r-goal r-cat" + (kickerTone === "stalled" ? " r-stalled" : "")}>{kicker}</span>
+            {(kicker || tag)
+              ? <>
+                  {tag && <span className="slide-tag">{tag}</span>}
+                  {kicker && <span className={"r-goal r-cat" + (kickerTone === "stalled" ? " r-stalled" : "")}>{kicker}</span>}
+                </>
               : parent
               ? <ParentLineGlyph p={parent} />
               : <span className="r-goal r-cat">
@@ -547,7 +555,7 @@ export default function TasksPage({
   // ink where the parent would be, First Step in place of Start, and the
   // check, swipe and open it always had. Nothing to dismiss; the row costs
   // no space the task was not already taking.
-  stalled?: { id: string; line: string; action: { label: string; onClick: () => void } } | null;
+  stalled?: { id: string; tag: string; line: string | null; action: { label: string; onClick: () => void } } | null;
   // Momentum Chain: a suggestion element pinned under the row it follows.
   momentum?: { afterId: string; el: React.ReactNode } | null;
   // The goal a task moves, from the flow's goal index (see Row.goal).
@@ -618,7 +626,7 @@ export default function TasksPage({
       item={stalledItem} today={today} onToggle={onToggle} onOpen={onOpenTask}
       onDelete={onDeleteTask} onSnooze={onSnoozeTask} onRename={onRenameTask}
       muteToday={filter === "today"}
-      kicker={stalled.line} kickerTone="stalled" action={stalled.action}
+      tag={stalled.tag} kicker={stalled.line} kickerTone="stalled" action={stalled.action}
     />
   ) : null;
   return (
