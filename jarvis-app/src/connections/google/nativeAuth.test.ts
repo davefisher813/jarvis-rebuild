@@ -15,9 +15,12 @@ const CLIENT = "123-abc.apps.googleusercontent.com";
 
 beforeEach(() => { resetAppUrlForTest(); });
 
-// The flow hashes the verifier before it opens anything, and a hash is a
-// promise, so one microtask is not enough to reach the sheet.
-const settle = () => new Promise((r) => setTimeout(r, 0));
+// The flow hashes the verifier before it opens anything. That hash runs off
+// the main thread, so no fixed wait is guaranteed to outlast it: a single
+// setTimeout(0) was enough on a quiet laptop and not on a loaded CI runner,
+// where the sheet had not opened yet, the test read opened[0] as undefined,
+// and the late flow then subscribed after the next test's reset and answered
+// its URL. Tests wait for the sheet itself (rig().opening) instead.
 
 describe("the iOS client's own scheme", () => {
   it("reverses the client id, which is both the redirect and the URL scheme", () => {
@@ -114,15 +117,20 @@ describe("the whole native connect", () => {
     const opened: string[] = [];
     let closed = 0;
     let timerFired: (() => void) | null = null;
+    let markOpen: () => void = () => {};
+    // Resolves once the sheet is open, which is after the hash, the
+    // subscription and the timer: everything a test goes on to poke.
+    const opening = new Promise<void>((res) => { markOpen = res; });
     return {
       opened,
+      opening,
       closedCount: () => closed,
       fireTimer: () => timerFired?.(),
       deps: {
         // The client id is passed rather than read from the build env, the
         // same way config.ts's googleConfigured takes the web one.
         clientId: CLIENT,
-        open: async (u: string) => { if (overrides.failOpen) throw new Error("no pod"); opened.push(u); },
+        open: async (u: string) => { if (overrides.failOpen) throw new Error("no pod"); opened.push(u); markOpen(); },
         close: async () => { closed += 1; },
         subscribe: onAppUrl,
         setTimer: (fn: () => void) => { timerFired = fn; return 1; },
@@ -134,7 +142,7 @@ describe("the whole native connect", () => {
   it("opens the sheet, takes the code from the callback, and closes it", async () => {
     const r = rig();
     const p = requestGoogleCodeNative({}, r.deps);
-    await settle();
+    await r.opening;
     expect(r.opened).toHaveLength(1);
     const state = new URL(r.opened[0]!).searchParams.get("state")!;
     await deliverAppUrl(`com.googleusercontent.apps.123-abc:/oauth2redirect?code=the-code&state=${state}`);
@@ -147,7 +155,7 @@ describe("the whole native connect", () => {
   it("a sheet swiped away gives up instead of spinning forever", async () => {
     const r = rig();
     const p = requestGoogleCodeNative({}, r.deps);
-    await settle();
+    await r.opening;
     r.fireTimer();
     await expect(p).rejects.toThrow(/timed out/);
   });
@@ -160,7 +168,7 @@ describe("the whole native connect", () => {
   it("leaves other deep links alone while it waits", async () => {
     const r = rig();
     const p = requestGoogleCodeNative({}, r.deps);
-    await settle();
+    await r.opening;
     const seen: string[] = [];
     // A realistic second handler: it claims its own scheme and passes on
     // everything else, which is the contract every handler on this bus has.
@@ -175,7 +183,7 @@ describe("the whole native connect", () => {
   it("unsubscribes when it is done, so a second sign-in is not answered by the first", async () => {
     const r = rig();
     const p = requestGoogleCodeNative({}, r.deps);
-    await settle();
+    await r.opening;
     const state = new URL(r.opened[0]!).searchParams.get("state")!;
     await deliverAppUrl(`com.googleusercontent.apps.123-abc:/oauth2redirect?code=one&state=${state}`);
     await p;
