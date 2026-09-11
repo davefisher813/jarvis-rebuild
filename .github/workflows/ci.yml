@@ -20,6 +20,10 @@ on:
   schedule:
     - cron: "0 9 * * 1"
 
+# Node 22, not 20 (2026-09-11). Node 20 left support in April 2026, and the
+# suite has outgrown it: @supabase/realtime-js wants the native WebSocket that
+# arrived in 22, and the badge tests read the global navigator that arrived in
+# 21. On 20 those failed here and nowhere else.
 jobs:
   core:
     name: jarvis-core
@@ -31,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: jarvis-core/package-lock.json
       - run: npm ci
@@ -48,7 +52,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: |
             jarvis-app/package-lock.json
@@ -84,7 +88,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       # Advisory, not a gate: a high-severity advisory in a dev-only
       # dependency should tell somebody, not stop a deploy at midnight.
       - name: jarvis-app
