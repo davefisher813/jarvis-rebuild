@@ -50,8 +50,17 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: jarvis-app/package-lock.json
+          cache-dependency-path: |
+            jarvis-app/package-lock.json
+            jarvis-core/package-lock.json
       - run: npm ci
+      # The @core alias compiles the engine's source as part of the app, so the
+      # engine's own imports (@supabase/supabase-js) resolve from
+      # jarvis-core/node_modules, not from here. Without this install the
+      # typecheck stopped at "Cannot find module" and nothing after it ran.
+      - name: Engine dependencies (for the @core alias)
+        run: npm ci
+        working-directory: jarvis-core
       - run: npx tsc --noEmit
       - run: npx eslint src
       # The laws suite is the reason this file exists, so it is named rather
