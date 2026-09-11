@@ -401,6 +401,16 @@
    capsule order, so a card of projects and a card of goals sit under each other
    on the Life page as two readings of one layout rather than two designs. */
 .ruled .goal-row-ruled .r-k, .ruled .proj-row-ruled .r-k { gap: 8px; }
+/* THE LINE THAT CANNOT WRAP (Dave 2026-09-11: "4 lines is way too much"). The
+   capsule is pushed right by margin-left:auto, so in a wrapping row every
+   item that can shrink will, and the capsule lands on a line of its own the
+   moment the three of them together exceed the width -- which at iPhone width
+   is always. One item shrinks: the goal, whose name stays recognisable when
+   cut. The fraction and the capsule are facts that mean nothing half-printed,
+   so they hold their width and the row stays two lines plus the next move. */
+.ruled .proj-row-ruled .r-k { flex-wrap: nowrap; }
+.ruled .proj-row-ruled .r-k .r-is-goal { min-width: 0; flex-shrink: 1; }
+.ruled .proj-row-ruled .r-k .r-frac { flex-shrink: 0; white-space: nowrap; overflow: visible; }
 .ruled .goal-row-ruled .bp-bar { margin-top: 6px; }
 /* THE KIND CHIP ON A GOAL ROW (Dave 2026-09-10: health goals "should be a
    little bit different"). Small, uppercase, hue off the activity ramp, LEADING

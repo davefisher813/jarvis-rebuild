@@ -244,12 +244,35 @@ export default function BiggerPicturePage({
   const pieRow = ({ project, progress, stalled }: ProjectRow) => {
     const next = nextActionTextOf?.(project.id);
     const hold = holdLineOf?.(project.id) ?? null;
-    const sized = sizeLineOf?.(project.id) ?? null;
-    const paced = paceLineOf?.(project.id) ?? null;
     const canClose = closable({ project, progress, stalled, lastAt: null });
     const status = projStatus({ project, progress, stalled, lastAt: null });
-    const line = hold ?? (progressLabel(progress, stalled) + (sized ? " \u00b7 " + sized : ""));
+    // THE LINE PAYS RENT (Dave 2026-09-11: "4 lines is way too much", of a row
+    // reading title / goal / "9 of 11 Done \u00b7 2 Open \u00b7 About 2h" / a capsule
+    // that had wrapped to its own line / Next). Two of those facts were not
+    // earning their space. "2 Open" is eleven minus nine, which the fraction
+    // beside it already states, and "About 2h" is a property of the project
+    // rather than of today, so it belongs on the project's own page. Dropping
+    // both is what buys the fourth line back, and what lets the capsule sit
+    // inline where it was always meant to.
+    //
+    // The word Done goes with them: the capsule on the same line says the
+    // state now, so the fraction only has to be a fraction.
+    const line = hold ?? (progress ? `${progress.done} of ${progress.total}` : "No tasks yet");
     const filed = project.data.goalId ? goalById.get(project.data.goalId) : undefined;
+    // COLOUR IT BY WHERE IT LIVES, NOT BY WHETHER IT WAS TAGGED (Dave
+    // 2026-09-11: "the color of the goal... that's supposed to be color coded
+    // so that raise 100k for bridge should be in the color it's supposed to
+    // be"). goalTone reads the goal's OWN tags and falls back to the house
+    // brand when none of them names a live area -- which is why a Bridge goal
+    // sitting in the Bridge card rendered in no colour at all. A project is
+    // already filed to an area, and the card it is in IS that area, so that
+    // is the honest fallback: the goal takes its own home colour when it has
+    // one, and otherwise the colour of the shelf it is sitting on.
+    const goalHue = filed
+      ? (goalTone(filed.data.tags) === "cat-fg-brand"
+        ? "cat-fg-" + catColor(project.data.category ?? "")
+        : goalTone(filed.data.tags))
+      : "";
     return (
       <div className="task-row p2 proj-row-ruled" role="button" tabIndex={0} key={project.id} onClick={() => onOpenProject(project.id)}>
         <div className="task-check-tap"><span className={"pp-slot cat-fg-" + catColor(project.data.category ?? "")}><ProjectPie pct={progress ? progress.pct : null} /></span></div>
@@ -272,12 +295,21 @@ export default function BiggerPicturePage({
               The pie stays the row's progress meter, so no bar is added
               under it: the goal row draws a bar because its glyph is a
               static target, and doubling the fraction here would state the
-              same number three times on one row. */}
+              same number three times on one row.
+
+              NOTHING SHRINKS EXCEPT THE GOAL (Dave 2026-09-11, on the first
+              build of this line: "4 lines is way too much"). Every item was
+              shrinkable, so at iPhone width the capsule's margin-left:auto
+              pushed it past the end and it wrapped to a line of its own. The
+              fraction and the capsule hold their width now and the goal name
+              is the one thing allowed to ellipse, which is correct on the
+              merits too: a truncated goal is still recognisable, a truncated
+              fraction is not a number. */}
           <div className="r-k">
             {filed && !filed.data.dropped && (
-              <span className={"r-goal r-is-goal r-goal-lit " + goalTone(filed.data.tags)}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span>
+              <span className={"r-goal r-is-goal r-goal-lit " + goalHue}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span>
             )}
-            <span className={"r-goal" + (hold || stalled ? " r-stalled" : "")}><Nums text={line} /></span>
+            <span className={"r-goal r-frac" + (hold || stalled ? " r-stalled" : "")}><Nums text={line} /></span>
             {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
           </div>
           {/* THE NEXT MOVE HAS TO LOOK LIKE THE POINT (Dave 2026-09-09: the
