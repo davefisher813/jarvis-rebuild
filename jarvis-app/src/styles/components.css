@@ -2743,15 +2743,18 @@ button {
    keeps that row's place and padding, but it is a real control rather than a
    grey caps sentence: the bullseye, the verb in full ink, and the count of
    what is waiting as a chip on the right. */
-.focus-cta { display: flex; align-items: center; gap: var(--s-2h); width: 100%; text-align: left;
-  background: none; border: 0; font-family: var(--f); padding: var(--s-2) var(--s-4) var(--s-1);
-  min-height: var(--tap-min); }
-.focus-cta .ic { width: 18px; height: 18px; color: var(--tint); flex-shrink: 0; }
-.focus-cta .fc-t { flex: 1; min-width: 0; font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tint); }
-.focus-cta .fc-n { flex-shrink: 0; font-size: var(--t-eyebrow); font-weight: var(--w-bold); letter-spacing: 0.04em;
-  color: var(--tx-2); background: var(--press-3); padding: 3px 9px; border-radius: var(--r-pill);
-  font-variant-numeric: tabular-nums; }
-.focus-cta:active { opacity: 0.6; }
+/* FOCUS IS THE CENTRED PILL (Dave 2026-09-11: "Focus should be centered on
+   the page and styled just like clear all and add to calendar buttons"). It
+   IS .row-act in .notice-clear-row now, so the shape comes from the app
+   rather than from a class of its own; this adds only the two things those
+   two buttons do not have -- centring rather than flex-end, the glyph's
+   sizing, and the waiting count as a chip inside the pill. */
+.focus-row { justify-content: center; padding-bottom: var(--s-1); }
+.focus-row .row-act { gap: var(--s-2); }
+.focus-row .row-act .ic { width: 17px; height: 17px; flex-shrink: 0; }
+.focus-row .row-act .fc-n { font-size: var(--t-eyebrow); font-weight: var(--w-bold); letter-spacing: 0.04em;
+  color: var(--tx-2); background: var(--press-5); padding: 2px 8px; border-radius: var(--r-pill);
+  font-variant-numeric: tabular-nums; margin-left: var(--s-1); }
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
    A card with an absolutely-positioned corner dismiss and a one-row body puts

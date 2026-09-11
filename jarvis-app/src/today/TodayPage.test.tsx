@@ -91,7 +91,7 @@ describe("TodayPage", () => {
     // page was carrying one destination twice; the count survives as the chip
     // that makes it worth tapping.
     expect(screen.getByText("Focus")).toBeInTheDocument();
-    expect(document.querySelector(".focus-cta .fc-n")).toHaveTextContent("2");
+    expect(document.querySelector(".focus-row .fc-n")).toHaveTextContent("2");
     // one dealt card means one task row, however deep the deck is
     expect(container.querySelectorAll(".task-row").length).toBe(1);
     // the old daytime task list stays replaced

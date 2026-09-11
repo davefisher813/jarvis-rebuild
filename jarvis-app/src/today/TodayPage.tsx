@@ -224,6 +224,7 @@ export default function TodayPage({
   onStartTask,
   proposedDay,
   dayFooter,
+  dayPrimary,
   blendMap,
   gymDoorFor,
   nowCard,
@@ -350,6 +351,8 @@ export default function TodayPage({
   // YourDay: there is one schedule on this page now, not two.
   proposedDay?: import("./YourDay").ProposedDay;
   dayFooter?: ReactNode;
+  /** The draft's Accept, which rides Plan My Day's row (Dave 2026-09-11). */
+  dayPrimary?: ReactNode;
   // The evening mood question. Its own notice: it is not a suggestion.
   // Blend offers for today's blocks (see YourDay). Built by the flow.
   blendMap?: import("./YourDay").BlendMap;
@@ -523,12 +526,20 @@ export default function TodayPage({
   // still says how many are waiting because that is the fact that makes it
   // worth tapping.
   const waitingReceipt = upNextTop && onUpNext ? (
-    <button key="waiting" className="focus-cta" onClick={onUpNext}>
-      <BullseyeGlyph />
-      <span className="fc-t">Focus</span>
-      {(upNextWaiting ?? 0) > 0 && <span className="fc-n">{upNextWaiting}</span>}
-      <div className="chev" />
-    </button>
+    // ...and it is the app's own centred pill (Dave 2026-09-11: "Focus should
+    // be centered on the page and styled just like clear all and add to
+    // calendar buttons"). Those two are .row-act in a centring wrapper, which
+    // is what a standalone action under a card looks like in this app; a
+    // full-width left-aligned row with a chevron was a LIST row pretending to
+    // be a button. The waiting count rides inside it, because it is the fact
+    // that makes the button worth tapping.
+    <div key="waiting" className="notice-clear-row focus-row">
+      <button className="row-act" onClick={onUpNext}>
+        <BullseyeGlyph />
+        Focus
+        {(upNextWaiting ?? 0) > 0 && <span className="fc-n">{upNextWaiting}</span>}
+      </button>
+    </div>
   ) : null;
 
   // THE RECAP IS NOT A WALL (Dave's screenshot 2026-08-26: fifteen bare rows
@@ -833,6 +844,7 @@ export default function TodayPage({
         events={dayEvents}
         proposed={proposedDay}
         footer={dayFooter}
+        primary={dayPrimary}
         nowHead={!evening ? nowCard : undefined}
         locked={locked}
         now={now}

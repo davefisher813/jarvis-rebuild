@@ -2164,17 +2164,16 @@ export default function TodayFlow({
           // the fact instead of floating under it.
           <div className="row">
             <RowIcon kind="event" />
+            {/* THE PRODUCER SAYS THE TWO HALVES (Dave 2026-09-11: "title case
+                isn't being applied in the subtext in the now pill. 'until'
+                should be capitalized"). This used to find the split itself
+                with lastIndexOf(" until ") and print the tail verbatim, so a
+                mid-sentence "until" became the first word of its own line in
+                lowercase. nowContext hands over `head` and `tail` now, each
+                already written as the line it is. */}
             <div className="row-stack">
-              {(() => {
-                const at = nowCtx.line.lastIndexOf(" until ");
-                if (at < 0) return <div className="conn-name truncate">{nowCtx.line}</div>;
-                return (
-                  <>
-                    <div className="conn-name truncate">{nowCtx.line.slice(0, at)}</div>
-                    <div className="conn-meta truncate">{nowCtx.line.slice(at + 1)}</div>
-                  </>
-                );
-              })()}
+              <div className="conn-name truncate">{nowCtx.head ?? nowCtx.line}</div>
+              {nowCtx.tail && <div className="conn-meta truncate">{nowCtx.tail}</div>}
             </div>
             {/* UP-CORE-08 (2026-09-05): INSIDE A MEETING, THE PILL IS ITS
                 PAGE. An exec pays for walking into the 2 PM with a page
@@ -2271,30 +2270,28 @@ export default function TodayFlow({
           ))}
         </>
       )}
-      {/* ONE BUTTON, NOT FOUR FLOATING (Dave 2026-09-11: "I really don't like
-          the bottom of the page having 4 floating buttons and two of them are
-          not centered like the rest on the page... Get rid of not today").
+      {/* FOUR FLOATING BUTTONS BECAME ONE ROW (Dave 2026-09-10 and 09-11).
           The bottom of Today had accumulated Focus, Plan My Day, Accept the
           Day and Not Today, on two different grids, none of them the page's
-          own column. Focus moved to Your Move and Plan My Day took its slot;
-          Not Today is gone, because declining a draft is what NOT tapping
-          Accept already does, and the draft clears itself at midnight. The
-          decision it made is still reachable: the draft's own rows each carry
-          their edit, and Plan My Day rebuilds it. */}
-      <div className="day-foot">
-        <button className="btn btn-primary btn-sm" onClick={() => void acceptDraft()}>Accept the Day</button>
-      </div>
-      {/* ...and the decline survives as a quiet line, not a fourth button.
-          Clearing the draft has to stay reachable: Plan My Day stands its AI
+          own column. Focus went to Your Move as a centred pill; Accept moved
+          UP into Plan My Day's row (draftPrimary below, YourDay's `primary`
+          slot) so the two decisions about the day sit side by side instead of
+          two sections apart. This is the quiet decline under them: clearing a
+          draft has to stay reachable, because Plan My Day stands its AI
           refine down while a draft is standing, on purpose ("the card already
-          showed him a plan; re-plan must not silently renumber it"), so with
-          no way to clear one, re-planning a day could never reach the refine
-          at all. Same .receipt-line every quiet secondary in this app wears,
-          under the primary rather than beside it. */}
+          showed him a plan; re-plan must not silently renumber it"). Same
+          .receipt-line every quiet secondary in this app wears. */}
       <button className="receipt-line" onClick={dismissDraft}>
         <span className="rl-t">Not Today</span>
       </button>
     </>
+  ) : null;
+
+  // ACCEPT SITS BESIDE PLAN MY DAY (Dave 2026-09-11). Handed to YourDay as its
+  // `primary` so it shares that row; it keeps the fill, because committing
+  // every hour of the day is the bigger of the two moves on it.
+  const draftPrimary = draftStanding ? (
+    <button className="plan-cta plan-cta-block" onClick={() => void acceptDraft()}>Accept the Day</button>
   ) : null;
 
   // Slippage stated out loud below Everything; automatic (receipted) at it.
@@ -3239,6 +3236,7 @@ export default function TodayFlow({
       nowCard={nowSection}
       proposedDay={proposedDay}
       dayFooter={draftFooter}
+      dayPrimary={draftPrimary}
       reminders={
         <RemindersStrip
           items={reminders}

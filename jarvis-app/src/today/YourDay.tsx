@@ -282,6 +282,7 @@ export default function YourDay({
   now,
   nowLabel,
   onSeeAll,
+  primary,
   onPlanDay,
   onPlanTomorrow,
   tomorrowShown = false,
@@ -314,6 +315,12 @@ export default function YourDay({
   now: string;
   nowLabel: string;
   onSeeAll: () => void;
+  /** ACCEPT SITS BESIDE PLAN MY DAY (Dave 2026-09-11: "Accept the day and plan
+   *  my day should be next to each other where plan my day currently is").
+   *  The draft's commit button, handed in so it shares this row rather than
+   *  floating under the anytime fold two sections below it. Absent when no
+   *  draft is standing, and the row is one button wide again. */
+  primary?: React.ReactNode;
   onPlanDay?: () => void;
   onPlanTomorrow?: () => void;
   // WAVE 4 (2026-08-29): true when the page is already rendering a Tomorrow
@@ -441,9 +448,9 @@ export default function YourDay({
   const [lateOpen, setLateOpen] = useState(false);
   const hasFuture = !!onRunningLate && events.some((e) => (!e.data.recurrence || e.data.recurrence === "none") && e.data.start >= now);
 
-  const planButton = onPlanDay || onPlanTomorrow || hasFuture ? (
+  const planButton = onPlanDay || primary || onPlanTomorrow || hasFuture ? (
     <>
-      <div className="plan-cta-row">
+      <div className={"plan-cta-row" + (primary && onPlanDay ? " plan-cta-pair" : "")}>
         {/* B15 (2026-08-23): ONE FILL PER SCREEN, and the fill belongs to
             whichever action advances the WHOLE screen.
 
@@ -463,6 +470,11 @@ export default function YourDay({
             button rather than a pair -- and it takes the fill Focus used to
             hold, because with Focus gone it is the only thing here. */}
         {onPlanDay && <button className={"plan-cta plan-cta-block" + (footer ? " plan-cta-ghost" : "")} onClick={onPlanDay}><CalIcon />Plan My Day</button>}
+        {/* The fill stays with Accept: it commits every hour of the day at
+            once, which is the bigger of the two moves on this row, and
+            .plan-cta-ghost above already steps Plan My Day down whenever a
+            draft is standing. One fill per screen (B15). */}
+        {primary}
       </div>
       {(onPlanTomorrow || hasFuture) && (
         <div className="plan-cta-row plan-cta-pair">

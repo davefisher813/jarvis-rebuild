@@ -164,6 +164,40 @@ describe("LAW: Apple HIG casing", () => {
       !/^[a-z]/.test(w) || (i > 0 && i < words.length - 1 && SMALL.has(w.toLowerCase())));
   };
 
+  // A LINE STARTS WITH A CAPITAL (Dave 2026-09-11: "title case isn't being
+  // applied in the subtext in the now pill. 'until' should be capitalized.
+  // Make sure the rules are in place and being followed").
+  //
+  // The Now card was slicing a SENTENCE in half and rendering the tail as its
+  // own line, so "In: Gym until 11:30 AM" became a title and a meta line
+  // reading "until 11:30 AM" -- correct inside a sentence, wrong as the first
+  // word of a line. The fix was to stop parsing prose at the render site, and
+  // this is the rule that keeps it fixed: a component may not cut a display
+  // string apart and print the pieces. Producers hand over the pieces.
+  it("no component slices a sentence and renders the tail as its own line", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const src = read(f);
+      // `x.slice(at + 1)` / `x.slice(i + 7)` straight into JSX, where `at`
+      // came from an indexOf on a space-padded word. The shape, not the name.
+      for (const m of src.matchAll(/(\w+)\.(?:lastIndexOf|indexOf)\(\s*["'`]\s[a-z]/g)) {
+        bad.push(rel(f) + ": splits " + m[1] + " on a mid-sentence word");
+      }
+    }
+    expect(bad, "hand the halves down from the producer instead").toEqual([]);
+  });
+
+  // And the two halves the Now card actually renders are written as lines.
+  it("nowContext hands down head and tail, each capitalised", () => {
+    const src = read(join(SRC, "today/nowContext.ts"));
+    expect(src, "the producer declares both halves").toMatch(/head: string \| null;\s*\n\s*tail: string \| null;/);
+    // Every literal assigned to head/tail opens with a capital or a number.
+    for (const m of src.matchAll(/\b(?:head|tail): `([^`]*)`/g)) {
+      const t = m[1]!;
+      expect(t, "a line starts with a capital: " + t).toMatch(/^(\$\{|[A-Z0-9])/);
+    }
+  });
+
   it("nav titles and section titles are Title Case", () => {
     const bad: string[] = [];
     for (const f of COMPONENTS) {
@@ -2914,17 +2948,16 @@ describe("LAW 8: a proposal proves itself before it renders, and Accept never de
           .toMatch(/btn-secondary/);
       }
     }
-    // And Today's draft foot is ONE button. Not Today survives there as the
-    // quiet .receipt-line every secondary in this app wears, under the
-    // primary rather than beside it, because clearing a draft has to stay
-    // reachable: Plan My Day stands its AI refine down while one is standing.
+    // Today has no draft FOOT at all any more (Dave 2026-09-11: "Accept the
+    // day and plan my day should be next to each other where plan my day
+    // currently is"). Accept is handed to YourDay as its `primary` and rides
+    // Plan My Day's row; Not Today is the quiet .receipt-line under them,
+    // because clearing a draft has to stay reachable -- Plan My Day stands
+    // its AI refine down while one is standing.
     const today = read(join(SRC, "today/TodayFlow.tsx"));
-    // One button between the foot's tags. (A loose [^>]* cannot be used here:
-    // the handler is an arrow function and contains its own ">".)
-    const foot = today.slice(today.indexOf('<div className="day-foot">'));
-    const footInner = foot.slice(0, foot.indexOf("</div>"));
-    expect(footInner.match(/<button/g)?.length, "Today's draft foot holds Accept alone").toBe(1);
-    expect(footInner, "and that one is Accept").toContain("Accept the Day");
+    expect(today, "the floating draft foot is gone").not.toContain('<div className="day-foot">');
+    expect(today, "Accept rides the plan row as one .plan-cta")
+      .toMatch(/const draftPrimary = draftStanding \? \(\s*\n\s*<button className="plan-cta plan-cta-block"/);
     expect(today, "and Not Today is the quiet receipt line, never a second pill")
       .toMatch(/<button className="receipt-line" onClick=\{dismissDraft\}>/);
     expect(today, "no btn-shaped Not Today on Today").not.toMatch(/className="btn[^"]*"[^>]*>Not Today</);
