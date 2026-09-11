@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
