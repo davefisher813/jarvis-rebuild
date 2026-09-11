@@ -67,7 +67,15 @@
    that ground would cover the glass, so rows are transparent and the reveal
    buttons are hidden until a swipe moves the row: a row mid-swipe or left
    open carries an inline translateX, and :has() reads it. */
+/* .rem-row was missing from this list (Dave 2026-09-11: "Reminders is not in
+   glass like everything else on the home page"). It is a swipe surface, so
+   UP-CORE-15 gave it `background: var(--bg)` -- opaque page black -- exactly
+   as it gave .task-row, and .task-row is on this line while .rem-row never
+   was. So the Reminders card was the one card on Today painting flat black
+   over its own frosted ground: the glass was there the whole time, with two
+   opaque rows sitting on top of it. */
 .ruled .card .task-row, .ruled .card .sched-row, .ruled .card .row, .ruled .card .anytime-row,
+.ruled .card .rem-row,
 .ruled .card .notice-card, .ruled .card .notice-card-row, .ruled .card .stream-card > .task-row { background: transparent; }
 .ruled .card .task-swipe > .task-del, .ruled .card .task-swipe > .task-snooze,
 /* UP-CORE-15 shipped a new reveal, the leading green Done rail, and did not

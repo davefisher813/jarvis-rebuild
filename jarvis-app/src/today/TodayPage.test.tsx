@@ -85,7 +85,13 @@ describe("TodayPage", () => {
     // SAY IT ONCE: the reason's due-part ("Waiting 2 days") is what the chip
     // now says, so it is not printed a second time under the kicker.
     expect(screen.queryByText("Waiting 2 days")).toBeNull();
-    expect(screen.getByText("2 More waiting \u00b7 Skip deals the next one")).toBeInTheDocument();
+    // FOCUS REPLACED THE RECEIPT (Dave 2026-09-11: "The focus button should
+    // be all the way up top under your move and replace that small grey
+    // subtext that renders the up next page"). Both called onUpNext, so the
+    // page was carrying one destination twice; the count survives as the chip
+    // that makes it worth tapping.
+    expect(screen.getByText("Focus")).toBeInTheDocument();
+    expect(document.querySelector(".focus-cta .fc-n")).toHaveTextContent("2");
     // one dealt card means one task row, however deep the deck is
     expect(container.querySelectorAll(".task-row").length).toBe(1);
     // the old daytime task list stays replaced

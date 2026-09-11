@@ -133,15 +133,22 @@ export default function RemindersStrip({
             <Plus className="ic" />Add a Reminder
           </button>
         )}
-        {/* Trailing in-list action (button law O4). One tap hands every
-            reminder to iOS Calendar, which is the only thing on the phone
-            that can actually make them go off. */}
-        {items.length > 0 && onAddAllToCalendar && (
-          <button className="row row-act" onClick={onAddAllToCalendar}>
+      </div></div>
+      {/* OUTSIDE THE CARD, LIKE CLEAR ALL (Dave 2026-09-11: "the add all to
+          calendar button should render exactly the same as the clear all
+          button above it. Not inside the container").
+          It was a trailing in-list row, which put a full-width control inside
+          a card of reminders -- so it read as a third reminder rather than as
+          the thing you do WITH the reminders. Clear All two sections up is the
+          same shape of action and it hangs under its card; this one hangs the
+          same way, same row, same pill. */}
+      {items.length > 0 && onAddAllToCalendar && (
+        <div className="notice-clear-row">
+          <button className="row-act" onClick={onAddAllToCalendar}>
             <CalendarPlus className="ic" />Add All to Calendar
           </button>
-        )}
-      </div></div>
+        </div>
+      )}
     </>
   );
 }

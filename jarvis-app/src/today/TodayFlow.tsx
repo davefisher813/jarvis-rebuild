@@ -1741,7 +1741,7 @@ export default function TodayFlow({
   }, [loading, evening, slippedCount, dayDraft]);
 
   // Hook order is unconditional: this must sit ABOVE the loading return.
-  const [remSheet, setRemSheet] = useState<{ mode: "new" } | { mode: "edit"; id: string; text: string; reminder: ReminderInfo } | null>(null);
+  const [remSheet, setRemSheet] = useState<{ mode: "new" } | { mode: "edit"; id: string; text: string; reminder: ReminderInfo; due?: string | null; category?: string } | null>(null);
 
   // EVERY HOOK SITS ABOVE THE EARLY RETURN. React counts hooks by call order,
   // so one declared below `if (loading) return` runs on some renders and not
@@ -2031,6 +2031,21 @@ export default function TodayFlow({
           // now says out loud, which is the tell that the sentence was the
           // real content all along.
           <>
+          {/* ONE ROW WHEN THERE IS ONE FACT (Dave 2026-09-11: "'Now' has a
+              visual bug. Everything is out of alignment and wrapping for no
+              reason").
+              With nothing teed up, this card drew .now-line-one -- its own
+              padded, baseline-aligned, nowrap line -- and then a SECOND full
+              .row underneath holding nothing but Pick Something pushed right
+              by margin-left:auto. The fact used one grid and the action used
+              another, the pill hung under empty space, and "35m open / until
+              Gym 11:00 AM" sat on a baseline the rest of the card does not
+              use. That is the same defect the inside-a-block branch below
+              already fixed in August ("the style looks awful. It's also extra
+              vertical for no reason"); this branch never got the treatment.
+              .now-line-one stays for the case it was written for -- a header
+              ABOVE a suggestion -- where it really is a line of its own. */}
+          {gapPick && (
           <div className="now-line-one">
             <span className="now-gap">{shortSpan(nowCtx.gapMin)} open</span>
             <span className="now-until">
@@ -2045,6 +2060,7 @@ export default function TodayFlow({
                 snapshot, so it costs no read of its own. */}
             {nextOutdoor && <EventWeatherLine dateIso={today} start={nextOutdoor.data.start} />}
           </div>
+          )}
           {gapPick ? (
             // The task name and its buttons do NOT share a line. On a 390px
             // phone two pills plus a title truncated the title to "Create B...",
@@ -2113,14 +2129,19 @@ export default function TodayFlow({
             // NO DEAD ENDS IN NOW (Dave 2026-08-19, "the more I can do without
             // thinking, the better"): when nothing is teed up, Now still hands
             // him the one-tap way in instead of stating the time and stopping.
+            // ...on ONE row with the fact it belongs to (Dave 2026-09-11).
             <div className="row">
-              <div className="momentum-actions">
-                {/* MERGE B: Plan My Day used to sit here as well as in the
-                    day's own button row a few hundred pixels below, which is
-                    the same verb twice in one section. This card is about the
-                    next few minutes; planning the day belongs to the day. */}
-                <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
+              <RowIcon kind="event" />
+              <div className="row-stack">
+                <div className="conn-name truncate">{shortSpan(nowCtx.gapMin)} open</div>
+                <div className="conn-meta truncate">Until {nowCtx.nextTitle ?? "your next event"} {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</div>
+                {nextOutdoor && <EventWeatherLine dateIso={today} start={nextOutdoor.data.start} />}
               </div>
+              {/* MERGE B: Plan My Day used to sit here as well as in the
+                  day's own button row a few hundred pixels below, which is
+                  the same verb twice in one section. This card is about the
+                  next few minutes; planning the day belongs to the day. */}
+              <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
             </div>
           )}
           </>
@@ -2227,12 +2248,20 @@ export default function TodayFlow({
     <>
       {dayDraft.anytime.length > 0 && (
         <>
-          <div className="row">
-            <button className="draft-more" aria-expanded={draftMoreOpen} onClick={() => setDraftMoreOpen((o) => !o)}>
-              <span className="t">{capAfterNumber(`${dayDraft.anytime.length} more in Anytime`)}</span>
-              <div className={"chev chev-down" + (draftMoreOpen ? " chev-open" : "")} />
-            </button>
-          </div>
+          {/* THE FOLD THE APP ALREADY HAS (Dave 2026-09-11: "put 6 more anytime
+              in a more appropriate place that follows the formatting and
+              styling rules. It doesn't seem to be"). It was .draft-more: a
+              red, --t-meta, left-aligned link on its own bare .row, floating
+              under the card with the page's own column nowhere near it. Every
+              other folded pile in this app -- "13 More waiting", "4 More
+              Emails in Your Inbox", the done-projects receipt -- is a
+              .receipt-line, which is the quiet caps row with the chevron on
+              the right, and it sits at the foot of the thing it folds. Same
+              control, same behaviour, the house shape. */}
+          <button className="receipt-line" aria-expanded={draftMoreOpen} onClick={() => setDraftMoreOpen((o) => !o)}>
+            <span className="rl-t">{capAfterNumber(`${dayDraft.anytime.length} More in Anytime`)}</span>
+            <div className={"chev chev-down" + (draftMoreOpen ? " chev-open" : "")} />
+          </button>
           {draftMoreOpen && dayDraft.anytime.map((a) => (
             <div className="row" key={a.id}>
               <RowIcon kind="task" />
@@ -2242,20 +2271,29 @@ export default function TodayFlow({
           ))}
         </>
       )}
-      {/* Two buttons, not three: Your Day already carries Plan My Day above
-          the list, and a More Options here would be a second door to the
-          same sheet on one screen. */}
+      {/* ONE BUTTON, NOT FOUR FLOATING (Dave 2026-09-11: "I really don't like
+          the bottom of the page having 4 floating buttons and two of them are
+          not centered like the rest on the page... Get rid of not today").
+          The bottom of Today had accumulated Focus, Plan My Day, Accept the
+          Day and Not Today, on two different grids, none of them the page's
+          own column. Focus moved to Your Move and Plan My Day took its slot;
+          Not Today is gone, because declining a draft is what NOT tapping
+          Accept already does, and the draft clears itself at midnight. The
+          decision it made is still reachable: the draft's own rows each carry
+          their edit, and Plan My Day rebuilds it. */}
       <div className="day-foot">
         <button className="btn btn-primary btn-sm" onClick={() => void acceptDraft()}>Accept the Day</button>
-        {/* SCHEDULE AUDIT 2026-08-29: bare .btn-sm is press-3 with
-          `color: var(--tint)` -- red TEXT -- and this one sits directly
-          beside the red-filled Accept. Two reds of equal weight arguing
-          about which one you meant, the same bug Just This One had on
-          Tasks. btn-secondary is the identical pill with neutral text; the
-          .btn-sm:not(.btn-secondary) guard in components.css exists
-          precisely so this class combination keeps the small sizing. */}
-        <button className="btn btn-sm btn-secondary" onClick={dismissDraft}>Not Today</button>
       </div>
+      {/* ...and the decline survives as a quiet line, not a fourth button.
+          Clearing the draft has to stay reachable: Plan My Day stands its AI
+          refine down while a draft is standing, on purpose ("the card already
+          showed him a plan; re-plan must not silently renumber it"), so with
+          no way to clear one, re-planning a day could never reach the refine
+          at all. Same .receipt-line every quiet secondary in this app wears,
+          under the primary rather than beside it. */}
+      <button className="receipt-line" onClick={dismissDraft}>
+        <span className="rl-t">Not Today</span>
+      </button>
     </>
   ) : null;
 
@@ -2691,12 +2729,27 @@ export default function TodayFlow({
     if (!ok) return;
     showToast({ message: "Snoozed to " + fmtTime(to).time + fmtTime(to).ap });
   };
-  const onSaveReminder = async (text: string, r: ReminderInfo) => {
+  // A DAY AND AN AREA, NOT JUST A CLOCK (Dave 2026-09-11: "I can't even
+  // select a date for a reminder. Expand the booking options"). A reminder has
+  // always been a TASK carrying a ReminderInfo, so `due` and `category` were
+  // there the whole time and this door simply never wrote them.
+  const onSaveReminder = async (text: string, r: ReminderInfo, extra: { due: string | null; category: string }) => {
     const sheet = remSheet;
     setRemSheet(null);
     if (!sheet) return;
-    if (sheet.mode === "new") await attemptWrite(() => tasks.createReminder(text, r));
-    else await attemptWrite(async () => { await tasks.editText(sheet.id, text); await tasks.editReminder(sheet.id, r); });
+    if (sheet.mode === "new") {
+      await attemptWrite(async () => {
+        const id = await tasks.createTask(text, { reminder: r, category: extra.category, due: extra.due });
+        return !!id;
+      });
+    } else {
+      await attemptWrite(async () => {
+        await tasks.editText(sheet.id, text);
+        await tasks.editReminder(sheet.id, r);
+        await tasks.setDue(sheet.id, extra.due);
+        await tasks.setCategory(sheet.id, extra.category);
+      });
+    }
     await reload();
   };
   // B4 (2026-09-04): "If You Miss It" defaults every reminder to "Ask Again
@@ -2786,7 +2839,7 @@ export default function TodayFlow({
 
   const openReminder = (id: string) => {
     const t = taskItems.find((x) => x.id === id);
-    if (t?.data.reminder) setRemSheet({ mode: "edit", id, text: t.data.text, reminder: t.data.reminder });
+    if (t?.data.reminder) setRemSheet({ mode: "edit", id, text: t.data.text, reminder: t.data.reminder, due: t.data.due ?? null, category: t.data.category ?? "" });
   };
 
   // U1/U3 (2026-08-20): the home card drafts and sends. Before this it named
@@ -3397,8 +3450,9 @@ export default function TodayFlow({
     {remSheet && (
       <ReminderSheet
         mode={remSheet.mode}
-        initial={remSheet.mode === "edit" ? { text: remSheet.text, reminder: remSheet.reminder } : undefined}
-        onSave={(text, r) => void onSaveReminder(text, r)}
+        initial={remSheet.mode === "edit" ? { text: remSheet.text, reminder: remSheet.reminder, due: remSheet.due, category: remSheet.category } : undefined}
+        categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color as string }))}
+        onSave={(text, r, extra) => void onSaveReminder(text, r, extra)}
         onDelete={remSheet.mode === "edit" ? () => void onDeleteReminder() : undefined}
         onAddToCalendar={remSheet.mode === "edit" ? () => void addRemindersToCalendar([remSheet.id]) : undefined}
         onCancel={() => setRemSheet(null)}

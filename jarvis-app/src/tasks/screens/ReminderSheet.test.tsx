@@ -21,7 +21,36 @@ describe("ReminderSheet", () => {
     fireEvent.click(screen.getByLabelText("If you miss it"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Let It Go" }));
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith("Meds", { time: "21:00", days: [1, 2, 3, 4, 5], onMiss: "let_go" });
+    // A DAY AND AN AREA RIDE ALONG NOW (Dave 2026-09-11: "I can't even select
+    // a date for a reminder. Expand the booking options"). A reminder is a
+    // task carrying a ReminderInfo, and this sheet only ever wrote the
+    // reminder half; the task's own due and category come through as `extra`.
+    expect(onSave).toHaveBeenCalledWith("Meds", { time: "21:00", days: [1, 2, 3, 4, 5], onMiss: "let_go" },
+      { due: null, category: "" });
+  });
+
+  it("takes a day, and a day with no rhythm reads as Just Once", () => {
+    const onSave = vi.fn();
+    render(<ReminderSheet onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Reminder"), { target: { value: "Call the pharmacy" } });
+    fireEvent.click(screen.getByText("Tomorrow"));
+    expect(screen.getByLabelText("Repeat").textContent).toContain("Just Once");
+    fireEvent.click(screen.getByText("Save"));
+    const [, r, extra] = onSave.mock.calls[0]!;
+    expect(extra.due, "the day is written to the task's own due").toBeTruthy();
+    expect(r.days, "Just Once stores no day pattern, which is what once means").toBeUndefined();
+  });
+
+  it("files to an area when the caller has areas to offer, and shows no row when it does not", () => {
+    const onSave = vi.fn();
+    const { rerender } = render(<ReminderSheet onSave={onSave} onCancel={() => {}} />);
+    expect(screen.queryByLabelText("Area")).toBeNull();
+    rerender(<ReminderSheet onSave={onSave} onCancel={() => {}} categories={[{ id: "c1", name: "Health", color: "green" }]} />);
+    fireEvent.change(screen.getByLabelText("Reminder"), { target: { value: "Meds" } });
+    fireEvent.click(screen.getByLabelText("Area"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Health/ }));
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![2].category).toBe("c1");
   });
 
   // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save used to

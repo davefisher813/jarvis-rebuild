@@ -3,8 +3,10 @@ import { DAY_PRESETS } from "../reminders";
 import type { ReminderInfo } from "../../notes/types";
 import { automaticityOf, automaticityLine } from "../automaticity";
 import { FormSheet, Group, Row, FieldRow, MenuRow, Strip, Note, DeleteRow, ErrorLine } from "../../shared/FormSheet";
-import { Clock, CalendarPlus } from "../../shared/icons";
+import { Clock, CalendarPlus, Calendar, Tag } from "../../shared/icons";
 import { BellGlyph, RepeatGlyph, WarningGlyph } from "../../shared/glyphs";
+import { todayISO } from "../grouping";
+import { addDays } from "../../schedule/calendar";
 
 // TWO TAPS (Dave 2026-08-19). A reminder needs a name, a time, and how often.
 // That is the entire form. No category, no duration, no end date, no project,
@@ -21,6 +23,26 @@ const QUICK_TIMES = [
   { v: "21:00", label: "9 PM" },
 ];
 
+// A DAY, NOT JUST A CLOCK (Dave 2026-09-11: "Reminder modal is too limited. I
+// can't even select a date for a reminder. Expand the booking options").
+//
+// He is right and the omission was structural, not an oversight of the form:
+// a reminder is a TASK carrying a ReminderInfo, and this sheet only ever wrote
+// the reminder half. So every reminder landed with no due date -- "remind me
+// Thursday" was unsayable, and a one-off reminder was unsayable with it,
+// because Repeat's only options were Every Day, Weekdays and Weekends. Three
+// things are added, all of them fields the task entity already had:
+//   the DAY it starts (the task's own `due`),
+//   Just Once as a repeat, which is what a date without a rhythm means,
+//   and the AREA, so "Meds" can live on the Health page like everything else.
+const QUICK_DAYS = [
+  { key: "today", label: "Today" },
+  { key: "tomorrow", label: "Tomorrow" },
+  { key: "none", label: "No Date" },
+];
+/** Every Day / Weekdays / Weekends, plus the one-off the list never had. */
+const ONCE = "Just Once";
+
 const sameDays = (a?: number[], b?: number[]) => {
   if (!a && !b) return true;
   if (!a || !b) return false;
@@ -30,20 +52,30 @@ const sameDays = (a?: number[], b?: number[]) => {
 export default function ReminderSheet({
   initial,
   mode = "new",
+  categories = [],
   onSave,
   onDelete,
   onAddToCalendar,
   onCancel,
 }: {
-  initial?: { text: string; reminder: ReminderInfo };
+  initial?: { text: string; reminder: ReminderInfo; due?: string | null; category?: string };
   mode?: "new" | "edit";
-  onSave: (text: string, r: ReminderInfo) => void;
+  /** The areas this reminder can be filed to. Empty for a caller with none to
+   *  hand, and the row then does not render, the same way the task sheet's
+   *  Person and Project rows do not. */
+  categories?: { id: string; name: string; color: string }[];
+  onSave: (text: string, r: ReminderInfo, extra: { due: string | null; category: string }) => void;
   onDelete?: () => void;
   onAddToCalendar?: () => void;
   onCancel: () => void;
 }) {
   const [text, setText] = useState(initial?.text ?? "");
   const [time, setTime] = useState(initial?.reminder.time ?? "08:00");
+  const [due, setDue] = useState(initial?.due ?? "");
+  const [category, setCategory] = useState(initial?.category ?? "");
+  // "Just Once" is the absence of a rhythm, so it is what the picker reads
+  // when a date is set and no day pattern is: nothing new is stored for it.
+  const [once, setOnce] = useState(!!initial?.due && !initial?.reminder.days);
   const auto = automaticityOf(initial?.reminder.doneCount ?? 0);
   const autoLine = automaticityLine(auto);
   const [days, setDays] = useState<number[] | undefined>(initial?.reminder.days);
@@ -58,7 +90,8 @@ export default function ReminderSheet({
     if (!text.trim()) { setErr(true); return; }
     if (saving) return;
     setSaving(true);
-    onSave(text.trim(), { ...initial?.reminder, time, days, onMiss });
+    onSave(text.trim(), { ...initial?.reminder, time, days: once ? undefined : days, onMiss },
+      { due: due || null, category });
   };
 
   return (
@@ -82,13 +115,45 @@ export default function ReminderSheet({
             >{q.label}</div>
           ))}
         </Strip>
-        <MenuRow tone="sky" glyph={<RepeatGlyph />} label="Repeat" value={preset?.label ?? ""} word={preset?.label ?? "Custom"} ariaLabel="Repeat"
-          options={DAY_PRESETS.map((p) => ({ value: p.label, label: p.label }))}
-          onPick={(v) => setDays(DAY_PRESETS.find((p) => p.label === v)?.days)} />
+        {/* THE DAY. It sits under the clock because a reminder is answered
+            "at 8, on Thursday", never the other way round; the strip carries
+            the two days a reminder is actually set for, and the field takes
+            anything else. No Date is a real answer, and the one a daily
+            reminder wants. */}
+        <FieldRow tone="indigo" glyph={<Calendar className="ic" />} label="Day" type="date" value={due} onChange={(v) => { setDue(v); if (v) setOnce(true); }} ariaLabel="Day" />
+        <Strip>
+          {QUICK_DAYS.map((q) => {
+            const v = q.key === "today" ? todayISO() : q.key === "tomorrow" ? addDays(todayISO(), 1) : "";
+            const on = due === v;
+            return (
+              <div key={q.key} className={"chip" + (on ? " active" : "")} role="button" tabIndex={0} aria-pressed={on}
+                onClick={() => { setDue(v); if (v) setOnce(true); else setOnce(false); }}>{q.label}</div>
+            );
+          })}
+        </Strip>
+        <MenuRow tone="sky" glyph={<RepeatGlyph />} label="Repeat" value={once ? ONCE : preset?.label ?? ""} word={once ? ONCE : preset?.label ?? "Custom"} ariaLabel="Repeat"
+          options={[{ value: ONCE, label: ONCE }, ...DAY_PRESETS.map((p) => ({ value: p.label, label: p.label }))]}
+          onPick={(v) => {
+            if (v === ONCE) { setOnce(true); if (!due) setDue(todayISO()); return; }
+            setOnce(false);
+            setDays(DAY_PRESETS.find((p) => p.label === v)?.days);
+          }} />
         <MenuRow tone="sand" glyph={<WarningGlyph />} label="If You Miss It" value={onMiss} ariaLabel="If you miss it"
           options={[{ value: "nag", label: "Ask Again in 15m" }, { value: "let_go", label: "Let It Go" }]}
           onPick={(v) => setOnMiss(v as "nag" | "let_go")} />
       </Group>
+      {/* AND WHERE IT BELONGS. A reminder was the one thing in this app that
+          could not be filed, so "Meds" never appeared on the Health page and
+          nothing about it counted anywhere. Same picker, same ids, same dots
+          as every other Area row. */}
+      {categories.length > 0 && (
+        <Group label="Where">
+          <MenuRow tone="blue" glyph={<Tag className="ic" />} label="Area" value={category} ariaLabel="Area"
+            word={categories.find((c) => c.id === category)?.name ?? "None"} off={category === ""}
+            options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
+            onPick={setCategory} />
+        </Group>
+      )}
       {/* D1 · REPETITIONS, NOT STREAKS (2026-08-20). Keller et al. 2021:
           what predicted automaticity was how often the plan was actually
           enacted, median 59 days among those who formed the habit. So this

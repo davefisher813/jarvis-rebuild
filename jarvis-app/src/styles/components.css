@@ -2731,11 +2731,27 @@ button {
    Anytime" line becomes the thing you tap). A disclosure, not a verb: per
    the red law, tappable non-button text wears --tint, and the drawn chevron
    says "opens here". Expands in place, like the email fold. */
-.draft-more { background: none; border: 0; width: 100%; text-align: left; padding: 0;
-  min-height: var(--tap-min); display: flex; align-items: center; gap: 6px; font-family: var(--f); }
-.draft-more .t { color: var(--tint); font-size: var(--t-meta); font-weight: var(--w-semi); }
-.draft-more .chev { border-color: var(--tint); }
-[data-theme="light"] .draft-more .t { color: var(--on-light-red, var(--tint)); }
+/* (.draft-more is retired. "N more in Anytime" was a red left-aligned link on
+   a bare row, floating under the card in nobody's column; it is a
+   .receipt-line now, the same folded-pile control every other section in this
+   app uses. Dave 2026-09-11: "put 6 more anytime in a more appropriate place
+   that follows the formatting and styling rules.") */
+
+/* FOCUS, WHERE THE QUESTION IS ASKED (Dave 2026-09-11: "The focus button
+   should be all the way up top under your move and replace that small grey
+   subtext that renders the up next page"). It replaces a .receipt-line, so it
+   keeps that row's place and padding, but it is a real control rather than a
+   grey caps sentence: the bullseye, the verb in full ink, and the count of
+   what is waiting as a chip on the right. */
+.focus-cta { display: flex; align-items: center; gap: var(--s-2h); width: 100%; text-align: left;
+  background: none; border: 0; font-family: var(--f); padding: var(--s-2) var(--s-4) var(--s-1);
+  min-height: var(--tap-min); }
+.focus-cta .ic { width: 18px; height: 18px; color: var(--tint); flex-shrink: 0; }
+.focus-cta .fc-t { flex: 1; min-width: 0; font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tint); }
+.focus-cta .fc-n { flex-shrink: 0; font-size: var(--t-eyebrow); font-weight: var(--w-bold); letter-spacing: 0.04em;
+  color: var(--tx-2); background: var(--press-3); padding: 3px 9px; border-radius: var(--r-pill);
+  font-variant-numeric: tabular-nums; }
+.focus-cta:active { opacity: 0.6; }
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
    A card with an absolutely-positioned corner dismiss and a one-row body puts

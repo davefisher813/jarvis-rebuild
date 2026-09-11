@@ -2897,8 +2897,15 @@ describe("LAW 8: a proposal proves itself before it renders, and Accept never de
   });
 
   // THE CHROME HALF OF THE AUDIT, pinned so it cannot quietly return.
-  it("Not Today is never accent text beside the red Accept fill", () => {
-    for (const f of ["schedule/ScheduleFlow.tsx", "today/TodayFlow.tsx"]) {
+  // TODAY DROPPED NOT TODAY ENTIRELY (Dave 2026-09-11: "Get rid of not
+  // today"). Declining a draft is what NOT tapping Accept already does, and
+  // the draft clears itself at midnight, so the button was a second way to do
+  // nothing sitting beside the one way to do something. Schedule keeps its
+  // own, where the draft is the whole screen and walking away is less
+  // obvious; the law still holds it to the neutral variant there.
+  it("wherever Not Today is still offered, it is never accent text beside the red Accept fill", () => {
+    const OFFERS = ["schedule/ScheduleFlow.tsx"];
+    for (const f of OFFERS) {
       const src = read(join(SRC, f));
       const notToday = [...src.matchAll(/className="([^"]*)"[^>]*>Not Today</g)].map((m) => m[1]!);
       expect(notToday.length, f + " still offers Not Today").toBeGreaterThan(0);
@@ -2907,6 +2914,20 @@ describe("LAW 8: a proposal proves itself before it renders, and Accept never de
           .toMatch(/btn-secondary/);
       }
     }
+    // And Today's draft foot is ONE button. Not Today survives there as the
+    // quiet .receipt-line every secondary in this app wears, under the
+    // primary rather than beside it, because clearing a draft has to stay
+    // reachable: Plan My Day stands its AI refine down while one is standing.
+    const today = read(join(SRC, "today/TodayFlow.tsx"));
+    // One button between the foot's tags. (A loose [^>]* cannot be used here:
+    // the handler is an arrow function and contains its own ">".)
+    const foot = today.slice(today.indexOf('<div className="day-foot">'));
+    const footInner = foot.slice(0, foot.indexOf("</div>"));
+    expect(footInner.match(/<button/g)?.length, "Today's draft foot holds Accept alone").toBe(1);
+    expect(footInner, "and that one is Accept").toContain("Accept the Day");
+    expect(today, "and Not Today is the quiet receipt line, never a second pill")
+      .toMatch(/<button className="receipt-line" onClick=\{dismissDraft\}>/);
+    expect(today, "no btn-shaped Not Today on Today").not.toMatch(/className="btn[^"]*"[^>]*>Not Today</);
   });
 
   // HISTORY, three chapters now. Read all of them before touching this again.

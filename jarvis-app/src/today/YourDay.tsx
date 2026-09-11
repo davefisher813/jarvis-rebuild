@@ -441,9 +441,9 @@ export default function YourDay({
   const [lateOpen, setLateOpen] = useState(false);
   const hasFuture = !!onRunningLate && events.some((e) => (!e.data.recurrence || e.data.recurrence === "none") && e.data.start >= now);
 
-  const planButton = onPlanDay || onFocus || onPlanTomorrow || hasFuture ? (
+  const planButton = onPlanDay || onPlanTomorrow || hasFuture ? (
     <>
-      <div className={"plan-cta-row" + (onPlanDay && onFocus ? " plan-cta-pair" : "")}>
+      <div className="plan-cta-row">
         {/* B15 (2026-08-23): ONE FILL PER SCREEN, and the fill belongs to
             whichever action advances the WHOLE screen.
 
@@ -457,8 +457,12 @@ export default function YourDay({
             draftFooter in TodayFlow), so it is the honest signal for "a
             bigger decision is on this screen" without threading a new prop
             down for a fact the component already has. */}
-        {onFocus && <button className={"plan-cta plan-cta-block" + (footer ? " plan-cta-ghost" : "")} onClick={onFocus}><FocusIcon />Focus</button>}
-        {onPlanDay && <button className={"plan-cta plan-cta-block" + (onFocus || footer ? " plan-cta-ghost" : "")} onClick={onPlanDay}><CalIcon />Plan My Day</button>}
+        {/* PLAN MY DAY TAKES THE SLOT (Dave 2026-09-11: "Plan my day should
+            take the place of focus"). Focus moved to Your Move, where the
+            question it answers is actually asked, so this row holds one
+            button rather than a pair -- and it takes the fill Focus used to
+            hold, because with Focus gone it is the only thing here. */}
+        {onPlanDay && <button className={"plan-cta plan-cta-block" + (footer ? " plan-cta-ghost" : "")} onClick={onPlanDay}><CalIcon />Plan My Day</button>}
       </div>
       {(onPlanTomorrow || hasFuture) && (
         <div className="plan-cta-row plan-cta-pair">

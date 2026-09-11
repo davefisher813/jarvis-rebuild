@@ -21,7 +21,7 @@ import type { BurstSize } from "../shared/completion";
 import { eveningSummary, todayPlanLine, EVENING_TASKS_NOTE, type EveningStats, type TodayPlan, type WeekRecap } from "./evening";
 import { capAfterNumber } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
-import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph } from "../shared/glyphs";
+import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph, BullseyeGlyph } from "../shared/glyphs";
 import StepCount, { stepsOf } from "../shared/StepCount";
 import type { ParentLine } from "../life/parent";
 
@@ -510,9 +510,23 @@ export default function TodayPage({
       />
     </StreamMember>
   ) : null;
-  const waitingReceipt = upNextTop && (upNextWaiting ?? 0) > 0 && onUpNext ? (
-    <button key="waiting" className="receipt-line" onClick={onUpNext}>
-      <span className="rl-t">{capAfterNumber(`${upNextWaiting} More waiting · Skip deals the next one`)}</span>
+  // FOCUS BELONGS TO YOUR MOVE (Dave 2026-09-11: "The focus button should be
+  // all the way up top under your move and replace that small grey subtext
+  // that renders the up next page").
+  //
+  // Those two were always the same door -- TodayPage passed `onUpNext` to
+  // YourDay as `onFocus`, and this receipt called `onUpNext` too -- so the
+  // page carried one destination twice: once as a filled red button floating
+  // at the bottom between two other buttons, and once as a grey caps line
+  // here, which is where a person is actually standing when they want the
+  // next thing. One control now, in the place the question gets asked, and it
+  // still says how many are waiting because that is the fact that makes it
+  // worth tapping.
+  const waitingReceipt = upNextTop && onUpNext ? (
+    <button key="waiting" className="focus-cta" onClick={onUpNext}>
+      <BullseyeGlyph />
+      <span className="fc-t">Focus</span>
+      {(upNextWaiting ?? 0) > 0 && <span className="fc-n">{upNextWaiting}</span>}
       <div className="chev" />
     </button>
   ) : null;
