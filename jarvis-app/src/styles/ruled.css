@@ -1396,6 +1396,15 @@
    conclusion this app reached; "Pushed 8 times" is the count behind it. The
    chip carries the warning weight so the state reads at a glance, and the
    count stays on the row's ordinary fact line beside it. */
+/* AND IT IS NOT THE URGENCY COLOUR (Dave 2026-09-11: "Keeps sliding needs
+   another color"). It shipped in warn amber, which is what the urgency chip
+   beside it wears, so TODAY and KEEPS SLIDING rendered as one amber run
+   broken by a gap -- and they are not the same kind of fact at all. TODAY is
+   the calendar's answer; Keeps Sliding is the app's own read of a pattern.
+   Violet off the activity ramp is the one hue on this row that collides with
+   nothing: not the amber to its left, not the red of First Step to its right,
+   not the green of a good status. The ramp ships AA-safe values for both
+   themes, so this needs no colour of its own. */
 .ruled .slide-tag { flex-shrink: 0; font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
   letter-spacing: 0.07em; text-transform: uppercase; padding: 2px 7px; border-radius: var(--r-pill);
-  color: var(--warn); background: var(--warn-tint); white-space: nowrap; }
+  color: var(--hl-violet); background: var(--hl-violet-tint); white-space: nowrap; }
