@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { runAutoReplyPass, blockIdOf, runningFocusBlock } from "./autoReplyPump";
+import { runAutoReplyPass, blockIdOf, runningFocusBlock } from "./autoReplyPass";
 import { setAutoReplyEnabled, loadAutoState } from "./autoReply";
 import { toggleVip } from "./vip";
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";

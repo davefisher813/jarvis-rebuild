@@ -8,7 +8,7 @@ import { attachLabel } from "../attachments";
 import { DUR_CHOICES, durLabel, minutesBetween, endFor } from "../durations";
 import { Check as CheckGlyph, FileText } from "../../shared/icons";
 import { EventWeatherLine } from "../../weather/WeatherLine";
-import Provenance from "../../shared/Provenance";
+import Provenance from "../../shared/ProvenanceLine";
 import { leaveByOf } from "../leaveBy";
 import { rowSource, type Source } from "../../shared/provenance";
 

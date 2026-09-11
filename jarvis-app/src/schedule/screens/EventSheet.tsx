@@ -11,7 +11,7 @@ import { catColor } from "../../shared/categories";
 import { untilError } from "../repeats";
 import SheetBar from "../../shared/SheetBar";
 import { BUFFER_CHOICES, TRAVEL_CHOICES, leaveByOf, travelFor, type TravelMemory } from "../leaveBy";
-import Provenance from "../../shared/Provenance";
+import Provenance from "../../shared/ProvenanceLine";
 import type { Source } from "../../shared/provenance";
 import HeadMenu from "../../shared/HeadMenu";
 import { Tile } from "../../shared/FormSheet";

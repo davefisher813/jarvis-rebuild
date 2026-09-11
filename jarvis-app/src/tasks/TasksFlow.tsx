@@ -172,7 +172,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // category, with the project's progress for its pie. Built once per pass.
   const parentIdx = useMemo(() => buildParentIndex(projects, goals, allItems), [projects, goals, allItems]);
 
-  // SHARED-F-17 (2026-09-05): PROVENANCE OPENS ITS SOURCE. Provenance.tsx has
+  // SHARED-F-17 (2026-09-05): PROVENANCE OPENS ITS SOURCE. ProvenanceLine.tsx has
   // rendered a button since it was written, for any caller that could supply
   // the navigation, and no caller ever did: "From an email · Aug 12" under a
   // task was a line you could tap forever. The routes exist, they were just

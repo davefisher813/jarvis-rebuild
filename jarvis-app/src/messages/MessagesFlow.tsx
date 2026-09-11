@@ -1636,7 +1636,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // threads already loaded." The pass used to be an effect right here, over
   // this tab's `rows`, which meant the one courtesy that exists for the time
   // he is NOT looking at his email only ran while he was. It is
-  // autoReplyPump.ts now, ticked from AppShell by AutoReplyPump.tsx, which
+  // autoReplyPass.ts now, ticked from AppShell by AutoReplyPump.tsx, which
   // polls the inbox during a focus block, keys the block on the LOCAL day,
   // and holds a busy flag so two passes cannot answer the same VIP twice.
   // This tab keeps the switch (Settings, below) and nothing else.

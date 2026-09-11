@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useGoogle } from "../connections/google/GoogleSession";
 import { useOptionalProfile, useOptionalRoutine, useOptionalBrainDocs } from "../data/NotesProvider";
 import { emit } from "../events";
-import { runAutoReplyPass } from "./autoReplyPump";
+import { runAutoReplyPass } from "./autoReplyPass";
 import { autoReplyEnabled } from "./autoReply";
 
 // How often a pass runs. Two minutes is prompt enough for a courtesy (the
@@ -16,7 +16,7 @@ export const AUTO_REPLY_TICK_MS = 2 * 60e3;
 // GoogleSessionProvider, beside MailOutboxPump and MailSnapshotPump -- the
 // same "outlives every screen" spot -- so the one thing in this app that
 // sends without a tap keeps its promise while the phone is face down. The
-// work is autoReplyPump.ts; this is the api lookup, the services, the tick,
+// work is autoReplyPass.ts; this is the api lookup, the services, the tick,
 // and the re-entrancy guard. Renders nothing.
 export default function AutoReplyPump() {
   const g = useGoogle();

@@ -4,7 +4,7 @@ import { fmtTime } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
 import { pressable } from "../../shared/pressable";
 import { CalendarDays, ListChecks, StickyNote, User, Tag } from "../../shared/icons";
-import Provenance from "../../shared/Provenance";
+import Provenance from "../../shared/ProvenanceLine";
 import { rowSource } from "../../shared/provenance";
 import InlineEdit from "../../shared/InlineEdit";
 

@@ -448,7 +448,7 @@ describe("the burst escalates with what the tick moved", () => {
   });
 });
 
-// SHARED-F-17 (2026-09-05): Provenance.tsx has rendered a button since it was
+// SHARED-F-17 (2026-09-05): ProvenanceLine.tsx has rendered a button since it was
 // written, for any caller that could supply the navigation, and no caller
 // ever did. "From an email · Aug 12" under a task was a line you could tap
 // forever.

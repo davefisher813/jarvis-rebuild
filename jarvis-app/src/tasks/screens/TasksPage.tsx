@@ -13,7 +13,7 @@ import { categoriesOf } from "../categories";
 import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory, SheetProject } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
-import Provenance from "../../shared/Provenance";
+import Provenance from "../../shared/ProvenanceLine";
 import { rowSource, type Source } from "../../shared/provenance";
 import { capAfterNumber } from "../../shared/casing";
 import { cueLine } from "../ifThen";

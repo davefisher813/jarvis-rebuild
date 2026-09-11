@@ -22,7 +22,7 @@ const KEY = "jarvis.mail.autoreply.v1";
 
 // EMAIL-F-16 (2026-09-05): the switch itself, which used to be a private
 // const inside MessagesFlow. It lives here now because the thing that acts on
-// it (autoReplyPump.ts, mounted in AppShell) is not the tab that owns the
+// it (autoReplyPass.ts, ticked from AppShell) is not the tab that owns the
 // toggle: a courtesy that only runs while he is looking at Email is not a
 // courtesy. Per device, on purpose: this is the one thing in the app that
 // sends without a tap.

@@ -5,7 +5,7 @@ import { catColor } from "../../shared/categories";
 import { Burst } from "../../shared/Burst";
 import InlineEdit from "../../shared/InlineEdit";
 import { useLongPress } from "../../shared/useLongPress";
-import Provenance from "../../shared/Provenance";
+import Provenance from "../../shared/ProvenanceLine";
 import { HyperfocusLine, useHyperfocusGuard } from "../../today/useHyperfocusGuard";
 import type { Source } from "../../shared/provenance";
 import { connIcon, type Conn } from "./Connections";

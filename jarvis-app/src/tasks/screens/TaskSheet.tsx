@@ -3,7 +3,7 @@ import { categoriesOf, setCategories } from "../categories";
 import { useRef, useState, type ReactNode } from "react";
 import type { ColorSlot } from "../../categories/types";
 import type { TaskStep } from "../../notes/types";
-import Provenance from "../../shared/Provenance";
+import Provenance from "../../shared/ProvenanceLine";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
 import { FileText, CheckSquare, Clock, Hourglass, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X, CalendarDays} from "../../shared/icons";
