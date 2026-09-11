@@ -105,8 +105,16 @@ export default function TaskSheet({
   linkedNotes = [],
   onOpenNote,
   onAddNote,
+  slidingNote,
 }: {
   mode: "new" | "edit";
+  /** ONE NEGATIVE PER ROW (Dave 2026-09-11: "We also don't need 'pushed 8
+   *  times', it's two negative notifications. It's too much. It can be inside
+   *  the task but not there"). The list row says the verdict once, as the
+   *  Keeps Sliding chip; the count that earned the verdict is evidence, and
+   *  evidence belongs where a person goes to do something about it. It rides
+   *  under Due, because the pushing IS the due date's history. */
+  slidingNote?: string | null;
   initial?: Partial<TaskDraft>;
   // The id of the task being edited, so the clash check can skip its own
   // plan. Without it, editing a task that owns a cue reported the task as
@@ -424,7 +432,9 @@ export default function TaskSheet({
           <div className="pad-x"><div className="card xs-group">
             <div className="row xs-row">
               <Tile tone="orange"><Clock className="ic" /></Tile>
-              <div className="conn-name">Due</div>
+              <div className="conn-name">Due
+                {slidingNote && <div className="conn-meta">{slidingNote}</div>}
+              </div>
               <HeadMenu variant="value" ariaLabel="Due" value={dueMode} label={dueWord} off={dueMode === "none"}
                 options={[
                   { value: "none", label: "None" }, { value: "today", label: "Today" }, { value: "tomorrow", label: "Tomorrow" },

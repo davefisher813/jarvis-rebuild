@@ -704,7 +704,15 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // "First step for" the task, Add, and the swipe to decline.
   const fsOn = !!fsCandidate && (filter === "today" || filter === "overdue" || filter === "all");
   const fsStalled = fsOn && fsCandidate && !(fsStep && fsStep.taskId === fsCandidate.id)
-    ? { id: fsCandidate.id, tag: SLIDING_TAG, line: slidingLine(fsCandidate, today), action: { label: fsBusy ? "Thinking..." : "First Step", onClick: () => void fsAsk() } }
+    // ONE NEGATIVE PER ROW (Dave 2026-09-11: "We also don't need 'pushed 8
+    // times', it's two negative notifications. It's too much. It can be inside
+    // the task but not there"). The chip is the whole message on the row --
+    // "Keeps Sliding" already implies it has been pushed, so printing the
+    // count beside it scolds twice for one fact, and at iPhone width the
+    // second half truncated to "Pushed 8 ti..." anyway. The count moves into
+    // the task's own sheet, under Due, where someone who wants the history
+    // can find it while they are actually changing the date.
+    ? { id: fsCandidate.id, tag: SLIDING_TAG, line: null, action: { label: fsBusy ? "Thinking..." : "First Step", onClick: () => void fsAsk() } }
     : null;
   const fsNotice = fsOn && fsCandidate && fsStep && fsStep.taskId === fsCandidate.id ? (
     <NoticeCard
@@ -887,6 +895,12 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
           onSave={onSave}
           otherPlans={allItems.map((t) => ({ id: t.id, text: t.data.text, plan: t.data.plan }))}
           selfId={sheet.mode === "edit" ? sheet.id : undefined}
+          // The evidence the row gave up: stated where the date is changed.
+          slidingNote={(() => {
+            if (sheet.mode !== "edit") return null;
+            const t = allItems.find((x) => x.id === sheet.id);
+            return t ? slidingLine(t, today) : null;
+          })()}
           onSchedule={sheet.mode === "edit" ? onScheduleTask : undefined}
           onBreakDown={sheet.mode === "edit" && ai.available ? (t) => void breakDown(t) : undefined}
           onTextPerson={(() => {

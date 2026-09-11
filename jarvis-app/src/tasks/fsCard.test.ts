@@ -19,10 +19,20 @@ describe("The Keeps Sliding row", () => {
   const notice = src.slice(src.indexOf("const fsNotice"), src.indexOf(") : null;", src.indexOf("const fsNotice")));
   const stalled = src.slice(src.indexOf("const fsStalled"), src.indexOf(": null;", src.indexOf("const fsStalled")));
 
-  it("the offer is the task's own row: its id, the sliding line, First Step as the pill", () => {
+  // ONE NEGATIVE PER ROW (Dave 2026-09-11: "We also don't need 'pushed 8
+  // times', it's two negative notifications. It's too much. It can be inside
+  // the task but not there"). The chip is the whole message on the row; the
+  // count that earned it moves into the task's own sheet, under Due.
+  it("the offer is the task's own row: its id, the chip alone, First Step as the pill", () => {
     expect(stalled).toContain("id: fsCandidate.id");
     expect(stalled).toContain("tag: SLIDING_TAG");
-    expect(stalled).toContain("line: slidingLine(fsCandidate, today)");
+    expect(stalled).toContain("line: null");
+    expect(stalled, "the count never rides beside the chip").not.toContain("line: slidingLine");
+    const flow = readFileSync(join(__dirname, "TasksFlow.tsx"), "utf8");
+    expect(flow, "the evidence is handed to the sheet instead").toContain("slidingNote={");
+    expect(flow).toContain("slidingLine(t, today)");
+    const sheet = readFileSync(join(__dirname, "screens", "TaskSheet.tsx"), "utf8");
+    expect(sheet).toContain("{slidingNote && <div className=\"conn-meta\">{slidingNote}</div>}");
     expect(stalled).toMatch(/label: fsBusy \? "Thinking\.\.\." : "First Step"/);
     expect(stalled, "the offer never renders as a notice row").not.toContain("<NoticeCard");
     expect(src).toContain("stalled={fsStalled}");
