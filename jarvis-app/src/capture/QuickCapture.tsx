@@ -18,6 +18,8 @@ import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import { weekdayLongDate, shortDateFromMs } from "../shared/dateFormat";
 import { formatMoney } from "../money/types";
+import { DAY_PRESETS } from "../tasks/reminders";
+import { daysSummary } from "../routine/types";
 import Dictate from "../shared/Dictate";
 
 // "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
@@ -63,6 +65,15 @@ function fmtClock(hhmm: string): string {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+// 2026-09-11: any `days` used to read "Weekdays". The reminder sheet's own
+// presets name Mon-Fri and Sat-Sun; any other set is named day by day.
+function reminderDays(days?: number[]): string {
+  const set = [...new Set(days ?? [])];
+  if (!days || set.length === 7) return "Daily";
+  const preset = DAY_PRESETS.find((p) => p.days && p.days.length === set.length && p.days.every((d) => set.includes(d)));
+  return preset?.label ?? daysSummary(set);
+}
+
 function readWord(s: SavedEntity): string {
   if (s.reminder) return "Reminder";
   if (s.bill) return "Bill";
@@ -83,7 +94,7 @@ function readFacts(s: SavedEntity, names: { person?: string; project?: string })
   // MEANS in ReminderInfo, so the receipt says it rather than leaving the
   // person to find out tomorrow morning.
   if (s.recurrence) out.push(REPEAT_WORD[s.recurrence] ?? s.recurrence);
-  else if (s.reminder) out.push(s.reminder.days ? "Weekdays" : "Daily");
+  else if (s.reminder) out.push(reminderDays(s.reminder.days));
   if (names.person) out.push(names.person);
   if (names.project) out.push(names.project);
   return out;
@@ -222,15 +233,16 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     const prs = (await projectsSvc.list().catch(() => [])).map((p) => ({ id: p.id, title: p.data.title }));
     setPeople(ps);
     setProjects(prs);
-    let out: SavedEntity[] = [];
+    // 2026-09-11: filled as each entity lands, so a save that fails on the
+    // second line still shows the receipt and Undo for the first.
+    const out: SavedEntity[] = [];
     // A full genome refuses a fact, and that refusal has a reason worth
     // stating: "Nothing to save in that" would be false, since the sentence
     // was read perfectly and there was simply nowhere to put it.
     let refused = false;
-    const ok = await attemptWrite(async () => {
-      out = await smartPasteSave(t, { ...deps(categories, { people: ps, projects: prs }), onFactRefused: () => { refused = true; } });
-    });
-    if (!ok || out.length === 0) {
+    const ok = await attemptWrite(() =>
+      smartPasteSave(t, { ...deps(categories, { people: ps, projects: prs }), onFactRefused: () => { refused = true; } }, out));
+    if (out.length === 0) {
       // The middle dot, not a full stop: the short-copy law forbids a
       // sentence boundary in rendered copy, and this is the exact string
       // TodaySuggestions already says for the identical refusal.

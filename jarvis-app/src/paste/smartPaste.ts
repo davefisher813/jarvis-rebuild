@@ -52,6 +52,9 @@ export interface SavedEntity {
   // Person only: the card exactly as it was before this sentence touched it,
   // so Undo restores rather than deletes. Absent when the card was created.
   priorPerson?: PersonData;
+  // Person only (2026-09-11): the fields this sentence wrote. update() merges,
+  // so restoring priorPerson alone left a field the card never had.
+  personKeys?: (keyof PersonData)[];
   // The line exactly as pasted. Both halves of the learned-rules loop derive
   // their trigger from THIS and never from title, so the correction that
   // teaches a rule and the lookup that applies it key on the same string.
@@ -190,9 +193,20 @@ async function aiImprove(line: string, deps: PasteDeps): Promise<CaptureResult |
 
 // Save a paste. Returns what was created, in order, for the receipt, the
 // refile chips, and undo.
-export async function smartPasteSave(text: string, deps: PasteDeps): Promise<SavedEntity[]> {
+//
+// 2026-09-11: `saved` is filled as each entity lands, so a caller whose save
+// throws on the second line still holds the first (receipt, Undo), and the
+// paste is marked seen either way so a retry is flagged, not duplicated.
+export async function smartPasteSave(text: string, deps: PasteDeps, saved: SavedEntity[] = []): Promise<SavedEntity[]> {
+  try {
+    return await saveEntities(text, deps, saved);
+  } finally {
+    if (saved.length) markPasteSeen(text);
+  }
+}
+
+async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[]): Promise<SavedEntity[]> {
   const { entities } = parsePaste(text, deps.today, { people: deps.people, projects: deps.projects });
-  const saved: SavedEntity[] = [];
   for (const e of entities) {
     // QUICK ADD (handoff 5.0). A standing fact about the user goes straight
     // into the genome as a told-rank strand: no AI call (a model never gets
@@ -241,18 +255,24 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
       const hits = all.filter((p) => p.data.name.toLowerCase() === line.name.toLowerCase()
         || p.data.name.toLowerCase().startsWith(line.name.toLowerCase() + " "));
       if (hits.length <= 1) {
+        const before = hits[0];
+        // 2026-09-11: a note is ADDED to the card, never swapped in: "Mike
+        // works at Acme" used to wipe "Allergic to nuts; kids Ava, Leo".
+        const priorNotes = before?.data.notes ?? "";
+        const notes = !priorNotes ? line.value
+          : priorNotes.split("\n").some((l) => l.trim() === line.value) ? priorNotes
+            : `${priorNotes}\n${line.value}`;
         const patch = line.field === "relationship" ? { relationship: line.value }
           : line.field === "phone" ? { phone: line.value }
             : line.field === "email" ? { email: line.value }
-              : { notes: line.value };
-        const before = hits[0];
+              : { notes };
         const id = before
           ? (await deps.peopleSvc.update(before.id, patch) ? before.id : null)
           : await deps.peopleSvc.create({ name: line.name, group: "contacts", ...patch });
         if (id) {
           const s: SavedEntity = {
             id, kind: "person", title: personReceipt(line), raw: e.raw,
-            ...(before ? { priorPerson: before.data } : {}),
+            ...(before ? { priorPerson: before.data, personKeys: Object.keys(patch) as (keyof PersonData)[] } : {}),
           };
           saved.push(s);
           recordCapture({ id, kind: "person", title: s.title, ts: Date.now() });
@@ -317,7 +337,6 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
       recordCapture({ id, kind: s.kind, title: s.title, ts: Date.now() });
     }
   }
-  if (saved.length) markPasteSeen(text);
   return saved;
 }
 
@@ -336,8 +355,13 @@ export async function undoSaved(
   }
   if (s.kind === "person") {
     if (!deps.peopleSvc) return;
-    if (s.priorPerson) await deps.peopleSvc.update(s.id, s.priorPerson);
-    else await deps.peopleSvc.remove(s.id);
+    if (s.priorPerson) {
+      // 2026-09-11: update() merges, so a field the card did not have is
+      // cleared explicitly (undefined is the store's "remove", patch.ts).
+      const prior = s.priorPerson;
+      const cleared = Object.fromEntries((s.personKeys ?? []).filter((k) => prior[k] === undefined).map((k) => [k, undefined]));
+      await deps.peopleSvc.update(s.id, { ...prior, ...cleared });
+    } else await deps.peopleSvc.remove(s.id);
     return;
   }
   if (s.kind === "fact") {
@@ -392,16 +416,20 @@ export async function refileSaved(
     if (!id) return null;
     next = { ...s, id, kind: "fact", factCategory: cat };
   } else {
+    // 2026-09-11: a person capture's title is the receipt ("Saved Sarah's
+    // number") and the card edit is undone below, so the line as pasted is
+    // what has to land, or the number itself is lost.
+    const text = s.kind === "person" ? (s.raw ?? s.title) : s.title;
     const result: CaptureResult = {
       kind: toKind,
-      title: s.title,
+      title: s.kind === "person" ? titleCase(text) : text,
       ...(s.date ? { date: s.date } : {}),
       ...(s.start ? { start: s.start } : {}),
-      ...(toKind === "note" ? { notes: s.title } : {}),
+      ...(toKind === "note" ? { notes: text } : {}),
     };
     const { id } = await applyCapture(result, deps, deps.categories, deps.today, madeBy("paste"));
     if (!id) return null;
-    next = { ...s, id, kind: toKind };
+    next = { ...s, id, kind: toKind, title: result.title };
   }
   try {
     await undoSaved(s, deps);

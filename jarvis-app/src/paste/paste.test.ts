@@ -743,3 +743,93 @@ describe("the person lane", () => {
     expect(entities[0]!.person?.field).toBe("relationship");
   });
 });
+
+// 2026-09-11: the person lane's writes, its Undo, and its refile, against the
+// real contact store.
+import { PeopleService } from "../people/PeopleService";
+
+function rigWithPeople(): PasteDeps & { peopleStore: PeopleService } {
+  const store = new Store(new InMemoryAdapter());
+  const peopleStore = new PeopleService(store, U);
+  const base = {
+    ai: { available: false, complete: async () => "not json" } as unknown as AIService,
+    gather: async () => { throw new Error("no context in tests"); },
+    tasks: new TasksService(store, U),
+    schedule: new ScheduleService(store, U),
+    notes: new NotesService(store, U),
+    categories: [],
+    today: TODAY,
+    peopleSvc: peopleStore,
+  } as unknown as PasteDeps;
+  return Object.assign(base, { peopleStore });
+}
+
+describe("the person lane on a real card", () => {
+  it("adds a note to the card's notes instead of replacing them, once", async () => {
+    const deps = rigWithPeople();
+    const id = (await deps.peopleStore.create({ name: "Mike", group: "contacts", notes: "Allergic to nuts; kids Ava, Leo" }))!;
+    await smartPasteSave("Mike works at Acme", deps);
+    expect((await deps.peopleStore.get(id))!.data.notes).toBe("Allergic to nuts; kids Ava, Leo\nAcme");
+    // The same line again adds nothing.
+    await smartPasteSave("Mike moved to Acme", deps);
+    expect((await deps.peopleStore.get(id))!.data.notes).toBe("Allergic to nuts; kids Ava, Leo\nAcme");
+  });
+
+  it("Undo clears a field the card did not have and restores the rest", async () => {
+    const deps = rigWithPeople();
+    const id = (await deps.peopleStore.create({ name: "Sarah", group: "contacts", relationship: "Sister" }))!;
+    const [s] = await smartPasteSave("Sarah's number is 555 0134", deps);
+    expect((await deps.peopleStore.get(id))!.data.phone).toBe("555 0134");
+    await undoSaved(s!, deps);
+    const after = (await deps.peopleStore.get(id))!.data;
+    expect(after.phone).toBeUndefined();
+    expect("phone" in after).toBe(false);
+    expect(after).toMatchObject({ name: "Sarah", relationship: "Sister" });
+  });
+
+  it("Undo of an appended note puts the old notes back", async () => {
+    const deps = rigWithPeople();
+    const id = (await deps.peopleStore.create({ name: "Mike", group: "contacts", notes: "Allergic to nuts" }))!;
+    const [s] = await smartPasteSave("Mike works at Acme", deps);
+    await undoSaved(s!, deps);
+    expect((await deps.peopleStore.get(id))!.data.notes).toBe("Allergic to nuts");
+  });
+
+  it("refiling to a task or a note keeps what was pasted, not the receipt", async () => {
+    const deps = rigWithPeople();
+    const id = (await deps.peopleStore.create({ name: "Sarah", group: "contacts" }))!;
+    const [s] = await smartPasteSave("Sarah's number is 555 0134", deps);
+    expect(s!.title).toBe("Saved Sarah's number");
+    const asTask = await refileSaved(s!, "task", deps);
+    const task = await deps.tasks.task(asTask!.id);
+    expect(task!.text).toContain("555 0134");
+    expect(asTask!.title).toBe(task!.text);
+    // The card edit was undone by the refile.
+    expect((await deps.peopleStore.get(id))!.data.phone).toBeUndefined();
+
+    const [s2] = await smartPasteSave("Sarah's email is sarah@example.com", deps);
+    const asNote = await refileSaved(s2!, "note", deps);
+    const note = await deps.notes.note(asNote!.id);
+    expect(JSON.stringify(note)).toContain("Sarah's email is sarah@example.com");
+  });
+});
+
+// 2026-09-11: a save that throws partway used to leave the first entity saved
+// with nothing holding it: no receipt, no Undo, and the paste not marked seen.
+describe("a paste that fails partway", () => {
+  it("hands back what landed and marks the paste seen", async () => {
+    const deps = rig({ n: 0 }, false);
+    const create = deps.tasks.createTask.bind(deps.tasks);
+    let n = 0;
+    deps.tasks.createTask = (async (...a: Parameters<TasksService["createTask"]>) => {
+      if (++n === 2) throw new Error("offline");
+      return create(...a);
+    }) as TasksService["createTask"];
+    const text = "call the plumber back\nrenew the domain";
+    const out: import("./smartPaste").SavedEntity[] = [];
+    await expect(smartPasteSave(text, deps, out)).rejects.toThrow("offline");
+    expect(out).toHaveLength(1);
+    expect(await deps.tasks.task(out[0]!.id)).not.toBeNull();
+    expect(pasteSeenAge(text)).not.toBeNull();
+  });
+});
