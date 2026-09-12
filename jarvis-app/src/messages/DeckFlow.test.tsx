@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -8,6 +8,11 @@ import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { AIService } from "../ai/AIService";
 import type { ThreadRow } from "../connections/google/map";
 import DeckFlow from "./DeckFlow";
+import { SESSION_KEY, loadSweepSession } from "./sweepSession";
+
+// E-19: a session parked by one test must not be offered to the next.
+beforeEach(() => { localStorage.removeItem(SESSION_KEY); });
+type Fn = Mock<(...args: any[]) => void>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 // Regression for the audit-2026-08-07 HIGH: card A's in-flight prepare
 // resolving AFTER the deck advanced to card B used to land A's thread and
@@ -70,7 +75,7 @@ describe("DeckFlow prepare race", () => {
           apiFor={() => api}
           threads={[row("tA", "Alpha", "First"), row("tB", "Bravo", "Second")]}
           queueSend={vi.fn()}
-          onDone={vi.fn()} onOpenThread={vi.fn()}
+          onDone={vi.fn()} onPark={vi.fn()} onOpenThread={vi.fn()}
           onEditReply={vi.fn()} onHandled={vi.fn()}
         />
       </NotesProvider>,
@@ -112,7 +117,7 @@ describe("DeckFlow prepare race", () => {
           apiFor={() => api}
           threads={[row("tA", "Alpha", "First")]}
           queueSend={vi.fn()}
-          onDone={vi.fn()} onOpenThread={vi.fn()}
+          onDone={vi.fn()} onPark={vi.fn()} onOpenThread={vi.fn()}
           onEditReply={vi.fn()} onHandled={onHandled}
         />
       </NotesProvider>,
@@ -146,7 +151,7 @@ describe("DeckFlow re-prepare", () => {
           apiFor={apiFor}
           threads={threads}
           queueSend={vi.fn()}
-          onDone={vi.fn()} onOpenThread={vi.fn()}
+          onDone={vi.fn()} onPark={vi.fn()} onOpenThread={vi.fn()}
           onEditReply={vi.fn()} onHandled={vi.fn()}
         />
       </NotesProvider>
@@ -194,7 +199,7 @@ describe("DeckFlow progress bar", () => {
         threads={threads}
         limitMs={limitMs}
         queueSend={vi.fn()}
-        onDone={vi.fn()} onOpenThread={vi.fn()}
+        onDone={vi.fn()} onPark={vi.fn()} onOpenThread={vi.fn()}
         onEditReply={vi.fn()} onHandled={vi.fn()}
       />
     </NotesProvider>,
@@ -262,3 +267,180 @@ function BreakTasks() {
   tasks.createTask = async () => { throw new Error("storage down"); };
   return null;
 }
+
+// Push D (Email Build Master 2026-09-12): the Sweep can be put down (E-19)
+// and zero on the clock is a question (E-21).
+describe("DeckFlow parked session", () => {
+  const plainApi = () => makeFakeGoogleApi({
+    getThread: async (id: string) => gThread(id, "Alpha", "First", "BODY"),
+    searchThreads: async () => [],
+  });
+  const three = () => [row("tA", "Alpha", "First"), row("tB", "Bravo", "Second"), row("tC", "Cara", "Third")];
+  const mount = (threads: ThreadRow[], opts: { onDone?: Fn; onPark?: Fn; limitMs?: number; now?: () => number } = {}) => render(
+    <NotesProvider userId="u-park">
+      <DeckFlow
+        ai={new AIService({ available: false })}
+        apiFor={() => plainApi()}
+        threads={threads}
+        limitMs={opts.limitMs}
+        now={opts.now}
+        queueSend={vi.fn()}
+        onDone={opts.onDone ?? vi.fn()} onPark={opts.onPark ?? vi.fn()} onOpenThread={vi.fn()}
+        onEditReply={vi.fn()} onHandled={vi.fn()}
+      />
+    </NotesProvider>,
+  );
+
+  it("persists the hand on every advance, and the back button parks instead of finishing", async () => {
+    localStorage.removeItem(SESSION_KEY);
+    const onDone = vi.fn(); const onPark = vi.fn();
+    mount(three(), { onDone, onPark });
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Later"));
+    await screen.findByText("Bravo");
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    const s = loadSweepSession();
+    expect(s?.handIds).toEqual(["tA", "tB", "tC"]);
+    expect(s?.idx).toBe(1);
+    expect(s?.receipts?.later).toBe(1);
+    fireEvent.click(screen.getByText("Email"));
+    expect(onPark).toHaveBeenCalledWith(1);
+    expect(onDone).not.toHaveBeenCalled();
+    // Still parked at the second card, with the card's headline for the offer.
+    expect(loadSweepSession()?.idx).toBe(1);
+    expect(loadSweepSession()?.planText).toBe("Open and reply");
+  });
+
+  it("offers Continue Where You Left Off on a fresh parked hand, and Continue lands on that card", async () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ handIds: ["tA", "tB", "tC"], idx: 1, planText: "Open and reply", savedAt: Date.now() - 60_000,
+      receipts: { sent: 0, bills: 0, scheduled: 0, tasks: 0, archived: 1, later: 0 }, elapsedMs: 30_000 }));
+    const onDone = vi.fn();
+    const { container } = mount(three(), { onDone });
+    expect(await screen.findByText("Continue Where You Left Off")).toBeInTheDocument();
+    expect(screen.getByText("Parked · 2 of 3")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha")).toBeNull(); // no card prepared behind the offer
+    fireEvent.click(screen.getByText("Continue"));
+    expect(await screen.findByText("Bravo")).toBeInTheDocument();
+    expect(container.querySelector(".sweep-ring-n")!.textContent).toBe("2");
+    // Finishing the hand reports BOTH sittings' receipts and clears the store.
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Later"));
+    await screen.findByText("Cara");
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Later"));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    const [handled, ms, receipts] = onDone.mock.calls[0]!;
+    expect(handled).toBe(3);
+    expect(ms).toBeGreaterThanOrEqual(30_000);
+    expect(receipts).toMatchObject({ archived: 1, later: 2 });
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
+  });
+
+  it("Start Over clears the store and deals from the top", async () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ handIds: ["tB", "tC"], idx: 1, savedAt: Date.now() - 1000 }));
+    mount(three());
+    expect(await screen.findByText("Parked · 2 of 2")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Start Over"));
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
+  });
+
+  it("a stale parked hand (older than the session) is never offered", async () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ handIds: ["tB", "tC"], idx: 1, savedAt: Date.now() - 6 * 60_000 }));
+    mount(three());
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText(/Continue Where You Left Off/)).toBeNull();
+  });
+
+  it("backing out of an untouched hand leaves nothing parked", async () => {
+    localStorage.removeItem(SESSION_KEY);
+    const onPark = vi.fn();
+    mount(three(), { onPark });
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Email"));
+    expect(onPark).toHaveBeenCalledWith(0);
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
+  });
+});
+
+describe("DeckFlow time's up (E-21)", () => {
+  const plainApi = () => makeFakeGoogleApi({
+    getThread: async (id: string) => gThread(id, "Alpha", "First", "BODY"),
+    searchThreads: async () => [],
+  });
+  // A clock the test moves: the session is 2 seconds long and `now` jumps
+  // past it on demand, so nothing here waits on real time.
+  const mountTimed = (onDone: Fn, clock: { t: number }) => render(
+    <NotesProvider userId="u-timeup">
+      <DeckFlow
+        ai={new AIService({ available: false })}
+        apiFor={() => plainApi()}
+        threads={[row("tA", "Alpha", "First"), row("tB", "Bravo", "Second")]}
+        limitMs={2000}
+        now={() => clock.t}
+        queueSend={vi.fn()}
+        onDone={onDone} onPark={vi.fn()} onOpenThread={vi.fn()}
+        onEditReply={vi.fn()} onHandled={vi.fn()}
+      />
+    </NotesProvider>,
+  );
+  const tick = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 300)); }); };
+
+  it("at zero shows the Time's up card over the current one instead of ending", async () => {
+    localStorage.removeItem(SESSION_KEY);
+    const onDone = vi.fn(); const clock = { t: 1_000_000 };
+    const { container } = mountTimed(onDone, clock);
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    clock.t += 2500;
+    await tick();
+    expect(await screen.findByText(/Time’s up · 1 of 2/)).toBeInTheDocument();
+    expect(onDone).not.toHaveBeenCalled();
+    // The card behind is still on screen, dimmed and untappable.
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(container.querySelector(".sweep-card.sweep-behind")).toBeTruthy();
+    // Its actions are gone: one filled red on screen, the question on top.
+    expect(screen.queryByText("Later")).toBeNull();
+    expect(container.querySelectorAll(".btn-primary").length).toBe(1);
+    // Stop routes to the finish.
+    fireEvent.click(screen.getByText("Stop"));
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("5 More Minutes puts time back on the clock and the card back in play", async () => {
+    localStorage.removeItem(SESSION_KEY);
+    const onDone = vi.fn(); const clock = { t: 2_000_000 };
+    const { container } = mountTimed(onDone, clock);
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    clock.t += 2500;
+    await tick();
+    await screen.findByText(/Time’s up/);
+    fireEvent.click(screen.getByText("5 More Minutes"));
+    clock.t += 30_000;
+    await tick();
+    expect(screen.queryByText(/Time’s up/)).toBeNull();
+    expect(container.querySelector(".sweep-clock")!.textContent).toMatch(/^4:[23]\d$/);
+    expect(screen.getByText("Later")).toBeInTheDocument();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("Finish This One stops the clock for one card, then finishes", async () => {
+    localStorage.removeItem(SESSION_KEY);
+    const onDone = vi.fn(); const clock = { t: 3_000_000 };
+    const { container } = mountTimed(onDone, clock);
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    clock.t += 2500;
+    await tick();
+    await screen.findByText(/Time’s up/);
+    fireEvent.click(screen.getByText("Finish This One"));
+    expect(container.querySelector(".sweep-clock")!.textContent).toBe("Last One");
+    clock.t += 60_000; // the clock is off: more time passing changes nothing
+    await tick();
+    expect(screen.queryByText(/Time’s up/)).toBeNull();
+    fireEvent.click(screen.getByText("Later"));
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    // Bravo was never dealt: this one meant this one.
+    expect(screen.queryByText("Bravo")).toBeNull();
+  });
+});

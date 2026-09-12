@@ -892,6 +892,7 @@ describe("LAW: one filled red per screen", () => {
       "schedule/ScheduleFlow.tsx": "the Anytime guard is a modal over the page, not a second button in it",
       "gym/MetricsCard.tsx": "MetricLogSheet and AddMetricSheet are separate portals, each mounted alone by CategoryDetail's metricSheet state; never both on screen together",
       "gym/SessionScreen.tsx": "cond ternary: Start the Clock for a conditioning block, Log Set for a strip, never both",
+      "messages/DeckFlow.tsx": "the resume offer (Continue) is an early return before any card; the time's-up card (Finish This One) mounts only while the card's own actions are gated off by !timeUp",
     };
 
     const bad: string[] = [];

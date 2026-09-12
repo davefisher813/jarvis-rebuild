@@ -124,7 +124,7 @@ import { loadLetGo, letGo, undoLetGo } from "./letGo";
 import { loadDesk, setAtDesk, clearAtDesk, deskCount, deskLine, dropAtDesk, deskRows, isDeskNow, minsOfDay, DESK_WIDE_MIN_PX, type DeskMap } from "./desk";
 import { closeCandidates, closeLine, amnestyDue, amnestyLine, amnestyPromise, markClosed, lastClose,
   saveClosedBatch, loadClosedBatch, clearClosedBatch, closedBatchLive, putBackLine, type ClosedBatch } from "./weeklyClose";
-import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
+import { speakable, canSpeak, speak, stopSpeaking, pauseSpeaking, resumeSpeaking, nextSentence } from "./readAloud";
 import { attachOffer, amountIn } from "./attachmentKind";
 import { enqueueOutbox, removeFromOutbox, patchOutbox, holdUntil, sendSlots, holdLine, whenLabel, INTERRUPTED_LINE, type OutboxItem } from "./outbox";
 import { useOutbox } from "./useOutbox";
@@ -484,7 +484,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // week the card promises it can be put back in.
   const [closedBatch, setClosedBatch] = useState<ClosedBatch | null>(() => loadClosedBatch());
   const [closeBusy, setCloseBusy] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
+  // E-22 (Push D): idle, playing, or paused at a sentence. Stop and the
+  // natural end both return it to idle; Pause keeps the place.
+  const [speaking, setSpeaking] = useState<"idle" | "playing" | "paused">("idle");
   const [attachDone, setAttachDone] = useState(false);
   const [attachBusy, setAttachBusy] = useState(false);
   // S2-8: fetching the note's full content (title + blocks) to render it as
@@ -2567,6 +2569,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             recordSweepDay(todayISO(), n);
             setDeadStats({ n, ms, receipts }); setView("dead");
           }}
+          onPark={(n) => {
+            // E-19 (Push D): backing out parks the hand; no finish screen.
+            // What this sitting truly cleared still colours the day (10A).
+            setDeckRows(null); setDrainMs(undefined);
+            recordSweepDay(todayISO(), n);
+            setView("list");
+          }}
           onOpenThread={(id) => void openThread(id)}
           onEditReply={(t, body) => {
             const r = buildReply(t.messages[t.messages.length - 1]!, body);
@@ -2605,6 +2614,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   if (view === "dead" && deadStats) {
     const sv = sweepWeek(loadSweepDays(), todayISO());
     const lines = receiptLines(deadStats.receipts);
+    // E-20 (Push D): what is still waiting, counted exactly the way the
+    // Sweep card's own number is (splitByBucket over the visible rows under
+    // the effective triage), so the finish screen and the list agree.
+    const stillNeed = splitByBucket(visibleRows, effTriage).needsYou.length;
     return (
       <div className={"screen sweep-finish " + pushCls} key="dead">
         <div className="sweep-finish-body">
@@ -2619,6 +2632,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="sweep-receipts">
               {lines.map((l) => <div className="sweep-receipt" key={l}>→ {capAfterNumber(l)}</div>)}
             </div>
+          )}
+          {(stillNeed > 0 || deadStats.n > 0) && (
+            <Facts className="sweep-finish-facts" facts={[
+              stillNeed > 0 ? { text: stillNeed + " still need you" } : { text: "Nothing else needs you", tone: "good" },
+            ]} />
           )}
           <div className="sweep-streak">
             <div className="sweep-streak-row" aria-label={"Cleared " + sv.cleared + " of the last 7 days"}>
@@ -4628,20 +4646,36 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   aloud. The play control is the trailing pill, because this
                   row performs rather than navigates and a chevron would lie
                   about that. EMAIL-F-25: the pill follows the voice. */}
-              {sweepReady && canSpeak() && (
-                <div className="row" {...pressable(() => {
-                  if (speaking) { stopSpeaking(); setSpeaking(false); return; }
+              {sweepReady && canSpeak() && (() => {
+                // E-22: the row itself is Play/Pause; Next and Stop sit
+                // beside it while the voice is going or paused. Pills, not
+                // a chevron: this row performs, it never navigates.
+                const play = () => {
+                  if (speaking === "paused") { setSpeaking(resumeSpeaking() ? "playing" : "idle"); return; }
                   const notices = mailNotices(loadMailSnapshot(), todayISO());
-                  setSpeaking(speak(speakable(notices, inboxSentence(notices, loadMailSnapshot())), () => setSpeaking(false)));
-                })}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
-                  <div className="row-grow">
-                    <div className="conn-name">Read It to Me</div>
-                    <div className="conn-meta">Senders and gists only {"\u00b7"} Never the message</div>
+                  const ok = speak(speakable(notices, inboxSentence(notices, loadMailSnapshot())), () => setSpeaking("idle"));
+                  setSpeaking(ok ? "playing" : "idle");
+                };
+                const pause = () => { pauseSpeaking(); setSpeaking("paused"); };
+                return (
+                  <div className={"row" + (speaking !== "idle" ? " mail-read-live" : "")} {...pressable(() => (speaking === "playing" ? pause() : play()))}>
+                    <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
+                    <div className="row-grow">
+                      <div className="conn-name">Read It to Me</div>
+                      <div className="conn-meta">Senders and gists only {"\u00b7"} Never the message</div>
+                    </div>
+                    <div className="mail-read-acts">
+                      {speaking !== "idle" && (
+                        <button className="pill-act" onClick={(e) => { e.stopPropagation(); setSpeaking(nextSentence() ? "playing" : "idle"); }}>Next</button>
+                      )}
+                      {speaking !== "idle" && (
+                        <button className="pill-act" onClick={(e) => { e.stopPropagation(); stopSpeaking(); setSpeaking("idle"); }}>Stop</button>
+                      )}
+                      <span className="pill-act">{speaking === "playing" ? "Pause" : "Play"}</span>
+                    </div>
                   </div>
-                  <span className="pill-act">{speaking ? "Stop" : "Play"}</span>
-                </div>
-              )}
+                );
+              })()}
               {/* Standing Rules is what you built; it was a foot link and is
                   a row like the rest now (EM7's first half, ahead of Push
                   B, because a foot with one link left in it is not a foot). */}

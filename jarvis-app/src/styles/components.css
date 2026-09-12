@@ -3048,6 +3048,14 @@ button {
    row pill is the Music capsule now: neutral dim fill, red label -- one
    button language everywhere. The hue-mismatch that outlawed fills in O.5
    was an ACCENT wash; a press-neutral fill cannot go brown. */
+/* E-22 (Push D): Read It to Me wears up to three pills (Next, Stop, and the
+   Play/Pause the row itself answers to). Same anatomy as the gym library's
+   row actions, on the plain skin. */
+.mail-read-acts { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+/* While the voice is going the row wraps and the three pills take their own
+   line, right-aligned, instead of crushing the row's name to "Read I…". */
+.row.mail-read-live { flex-wrap: wrap; }
+.mail-read-live .mail-read-acts { flex-basis: 100%; justify-content: flex-end; padding-top: 2px; }
 .pill-act { position: relative; flex-shrink: 0; align-self: center; background: var(--press-3); border: 0; border-radius: var(--r-pill);
   color: var(--tint); font-family: var(--f); font-size: calc(13px * var(--type-scale)); font-weight: var(--w-semi); padding: 6px 12.5px; }
 /* GYM-F-26 (2026-09-05): ONE VISIBLE DOOR TO A ROW'S MENU. Catalog §3.12 made
@@ -4019,6 +4027,19 @@ body.selecting .voice-dock { display: none; }
 .sweep-ev-why { font-size: var(--t-meta); color: var(--tx-3);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
+/* E-19 / E-21 (Push D): the resume offer and the time's-up card share the
+   sweep card's anatomy (kicker, verb, actions) so they read as the same
+   surface asking a question, not a dialog dropped on it. The card behind
+   time's up dims and stops taking taps; the choice is about a thing he
+   can still see. The parked plan text reads as the quiet quote it was. */
+.sweep-timeup { position: relative; z-index: 3; margin-bottom: var(--s-3); }
+/* Three answers, stacked: "5 More Minutes" does not fit half a phone. */
+.sweep-timeup .deck-secondary { flex-direction: column; }
+.sweep-behind { opacity: 0.45; pointer-events: none; }
+.sweep-resume-plan { font-size: var(--t-body); color: var(--tx-3); font-style: italic;
+  margin-top: calc(-1 * var(--s-2)); margin-bottom: var(--s-2);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word; }
+
 /* L2 in embryo: the hand has a floor and says so. */
 .sweep-floor { text-align: center; font-size: var(--t-meta); color: var(--tx-3);
   padding: var(--s-3) 0 var(--s-1); }
@@ -4037,6 +4058,8 @@ body.selecting .voice-dock { display: none; }
 .sweep-receipt { color: var(--tx-2); font-size: var(--t-body); }
 
 /* 10A: the honest streak. Squares that color in and never reset. */
+/* E-20 (Push D): one fact under the receipts, the list's own count. */
+.sweep-finish-facts { justify-content: center; margin-top: var(--s-3); }
 .sweep-streak { margin-top: var(--s-6); display: flex; flex-direction: column; align-items: center; gap: var(--s-2); }
 .sweep-streak-row { display: flex; gap: var(--s-1h); }
 /* An empty square must be VISIBLY empty (bench walk 2026-08-25: on the

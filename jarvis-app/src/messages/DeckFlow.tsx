@@ -18,6 +18,7 @@ import { fmtTime, todayISO } from "../schedule/calendar";
 import { settleAll } from "./settle";
 import { quickAnswers } from "./quickAnswers";
 import { dealHand, estimateOf, EMPTY_RECEIPTS, handledOf, type SweepReceipts, SESSION_MS } from "./sweep";
+import { loadSweepSession, saveSweepSession, clearSweepSession, isFreshSession, resumeHand, type SweepSession } from "./sweepSession";
 import { Burst } from "../shared/Burst";
 import { madeBy } from "../shared/provenance";
 
@@ -51,7 +52,10 @@ function discSlot(key: string): string {
   return DISC_SLOTS[h % DISC_SLOTS.length]!;
 }
 
-export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDone, onOpenThread, onEditReply, onHandled }: {
+// E-21 (Push D): the clock hitting zero is a question now, not a verdict.
+const MORE_MS = 5 * 60_000;
+
+export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDone, onPark, onOpenThread, onEditReply, onHandled, now = Date.now }: {
   ai: AIService;
   apiFor: (account?: string) => GoogleApi | null;
   threads: ThreadRow[];
@@ -64,6 +68,11 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   // Email list.
   queueSend: (input: { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; account?: string }) => void;
   onDone: (handled: number, ms: number, receipts: SweepReceipts) => void;
+  // E-19 (Push D): backing out PARKS the session instead of finishing it.
+  // The parent leaves the Sweep without the finish screen; the hand and the
+  // receipts wait in the session store for the next visit. `handled` is
+  // what this sitting truly did, so the day can still colour in (10A).
+  onPark: (handled: number) => void;
   // A custom session length from the drain sheet. The default is a session
   // too now (SESSION_MS): an untimed sweep is an inbox with a nicer face.
   limitMs?: number;
@@ -73,6 +82,8 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   onOpenThread: (id: string) => void;
   onEditReply: (thread: ThreadFull, body: string) => void;
   onHandled: (threadId: string, archived: boolean) => void;
+  // Tests only: the clock the session store is judged fresh against.
+  now?: () => number;
   }) {
   const tasks = useTasks();
   const schedule = useSchedule();
@@ -99,7 +110,22 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   // 3A: the hand. At most nine, the rest stay face-down in the deck. The
   // ring, the progress bar, and "the deck keeps the rest" all speak about
   // the hand, never about the pile.
-  const hand = useMemo(() => dealHand(threads), [threads]);
+  //
+  // E-19: a parked session, if one is fresh and any of its cards are still
+  // in the deck, is offered first. Continue re-deals the PARKED hand (the
+  // same cards in the same seats, minus any handled elsewhere since); Start
+  // Over deals a fresh one from the top of the pile.
+  const [parked] = useState<{ session: SweepSession; hand: ThreadRow[]; idx: number } | null>(() => {
+    const s = loadSweepSession();
+    if (!isFreshSession(s, now(), limitMs ?? SESSION_MS)) return null;
+    const r = resumeHand(s, threads);
+    return r ? { session: s, ...r } : null;
+  });
+  const [resumeChoice, setResumeChoice] = useState<"continue" | "fresh" | null>(parked ? null : "fresh");
+  const hand = useMemo(
+    () => (resumeChoice === "continue" && parked ? parked.hand : dealHand(threads)),
+    [threads, resumeChoice, parked],
+  );
   const [idx, setIdx] = useState(0);
   const [thread, setThread] = useState<ThreadFull | null>(null);
   const [plan, setPlan] = useState<DeckPlan | null>(null);
@@ -115,8 +141,16 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   // 7A: receipts, counted as the actions land. A session abandoned halfway
   // still reports exactly what it truly did.
   const receipts = useRef<SweepReceipts>({ ...EMPTY_RECEIPTS });
-  const started = useRef(Date.now());
-  const sessionMs = limitMs ?? SESSION_MS;
+  const started = useRef(now());
+  // What an earlier sitting of this same session already did (E-19).
+  const carried = useRef<{ receipts: SweepReceipts; elapsedMs: number }>({ receipts: { ...EMPTY_RECEIPTS }, elapsedMs: 0 });
+  // E-21: 5 More Minutes stretches the session; Finish This One stops the
+  // clock for exactly one card. Both are choices he makes at zero, never
+  // something the app does for him.
+  const [extraMs, setExtraMs] = useState(0);
+  const [timeUp, setTimeUp] = useState(false);
+  const [lastOne, setLastOne] = useState(false);
+  const sessionMs = (limitMs ?? SESSION_MS) + extraMs;
   const [left, setLeft] = useState<number>(sessionMs);
   const done = useRef(false);
   // Generation counter for prepare (audit 2026-08-07). Later and Archive stay
@@ -131,6 +165,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   // dropped on the floor.
   const prepGen = useRef(0);
   const row = hand[idx];
+  const planTextRef = useRef<string | undefined>(undefined);
 
   const prepare = useCallback(async (r: ThreadRow) => {
     const gen = ++prepGen.current;
@@ -200,39 +235,101 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   rowRef.current = row;
   const rowId = row?.id;
   useEffect(() => {
-    if (rowId && rowRef.current) void prepareRef.current(rowRef.current);
-  }, [rowId]);
+    // E-19: nothing is prepared while the resume offer is up; the card that
+    // gets prepared is the one he chose to see.
+    if (resumeChoice !== null && rowId && rowRef.current) void prepareRef.current(rowRef.current);
+  }, [rowId, resumeChoice]);
+
+  const totalReceipts = () => {
+    const c = carried.current.receipts;
+    const r = receipts.current;
+    return { sent: c.sent + r.sent, bills: c.bills + r.bills, scheduled: c.scheduled + r.scheduled, tasks: c.tasks + r.tasks, archived: c.archived + r.archived, later: c.later + r.later };
+  };
 
   const finish = useCallback(() => {
     if (done.current) return;
     done.current = true;
-    onDone(handledOf(receipts.current), Date.now() - started.current, receipts.current);
+    // A natural finish is one of the two things that clears the parked
+    // session (E-19); the other is Start Over.
+    clearSweepSession();
+    const all = totalReceipts();
+    onDone(handledOf(all), carried.current.elapsedMs + (now() - started.current), all);
   }, [onDone]);
 
-  // 5A: the session clock. At zero it stops dead and that IS done: the cards
-  // still in the hand go back to the deck without guilt, because the deal was
-  // five minutes, not the pile. Mid-card is fine: the card was a proposal,
-  // and an undecided proposal costs nothing.
+  // E-19: what the store holds for this hand. Written on every advance and
+  // whenever the card's plan lands (the plan text is what the resume card
+  // shows as "where you were"). Never an event: law 8.
+  const writeSession = (at: number, planText?: string) => {
+    if (done.current) return;
+    saveSweepSession({
+      handIds: hand.map((h) => h.id),
+      idx: at,
+      ...(planText ? { planText } : {}),
+      savedAt: now(),
+      receipts: totalReceipts(),
+      elapsedMs: carried.current.elapsedMs + (now() - started.current),
+    });
+  };
+
+  // Parking: the back button. A session with nothing done and nothing
+  // advanced is not worth offering back, so it leaves quietly and the store
+  // stays clear; anything else is written and offered next time.
+  const park = () => {
+    if (done.current) return;
+    const all = totalReceipts();
+    const touched = idx > 0 || handledOf(all) > 0;
+    if (touched && idx < hand.length) writeSession(idx, planTextRef.current);
+    else clearSweepSession();
+    done.current = true;
+    onPark(handledOf(receipts.current));
+  };
+
+  const continueParked = () => {
+    if (!parked) return;
+    carried.current = { receipts: parked.session.receipts ?? { ...EMPTY_RECEIPTS }, elapsedMs: parked.session.elapsedMs ?? 0 };
+    started.current = now();
+    setIdx(parked.idx);
+    setResumeChoice("continue");
+  };
+  const startOver = () => {
+    clearSweepSession();
+    started.current = now();
+    setResumeChoice("fresh");
+  };
+
+  // 5A: the session clock. Zero still means the deal is over: the cards
+  // still in the hand go back to the deck without guilt, because the deal
+  // was five minutes, not the pile. E-21 (Push D): but zero used to end the
+  // session DEAD, mid-card, with a reply he had already read and was about
+  // to send. Zero is now a question with three honest answers: finish just
+  // this card (no clock), five more minutes, or stop. The clock does not
+  // run while the resume offer is up, and not at all once he chose to
+  // finish this one.
   useEffect(() => {
+    if (resumeChoice === null || lastOne) return;
     const id = setInterval(() => {
-      const remaining = sessionMs - (Date.now() - started.current);
+      const remaining = sessionMs - (now() - started.current);
       setLeft(remaining);
       if (remaining <= 0 && !done.current) {
         clearInterval(id);
-        finish();
+        setTimeUp(true);
       }
     }, 250);
     return () => clearInterval(id);
-  }, [sessionMs, finish]);
+  }, [sessionMs, resumeChoice, lastOne]);
 
   // 6A then advance: the card dies on screen FIRST, then the deck moves. The
   // receipts were already counted by the caller; this is presentation.
   const advance = (archivedRow: boolean) => {
     if (row) onHandled(row.id, archivedRow);
     setKilling(true);
+    // E-19: persisted on every advance, so a park (or a killed tab) after
+    // this card resumes at the next one.
+    if (idx + 1 < hand.length) writeSession(idx + 1);
     killTimer.current = setTimeout(() => {
       setKilling(false);
-      if (idx + 1 >= hand.length) finish();
+      // E-21: Finish This One means this one, and then the finish screen.
+      if (idx + 1 >= hand.length || lastOne) finish();
       else setIdx(idx + 1);
     }, 340);
   };
@@ -256,7 +353,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   // thing that changes is the words, so a chip can never behave differently
   // from the button beside it.
   const runPrimary = async (shortReply?: string) => {
-    if (!row || !thread || busy || killing) return;
+    if (!row || !thread || busy || killing || timeUp) return;
     if (!plan) { onOpenThread(row.id); return; }
     const api = apiFor(row.account);
     if (!api) return;
@@ -322,7 +419,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   };
 
   const later = async () => {
-    if (!row || busy || killing) return;
+    if (!row || busy || killing || timeUp) return;
     setBusy(true);
     try {
       // todayISO is LOCAL. toISOString().slice(0,10) is UTC, so tapping
@@ -341,13 +438,41 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   };
 
   const archive = async () => {
-    if (!row || busy || killing) return;
+    if (!row || busy || killing || timeUp) return;
     const cleared = await archiveRemote(row.id, row.account);
     if (!cleared) showToast({ message: "Couldn't archive it · Still in your inbox" });
     else receipts.current.archived += 1;
     emit({ type: "action", props: { name: "email.deck.handled", kind: "archive" } });
     advance(cleared);
   };
+
+  // E-19: the resume offer, before any card. The hand behind it is the
+  // parked one, so "4 of 9" is the seat he left, not a fresh deal's.
+  if (resumeChoice === null && parked) {
+    return (
+      <div className="screen ruled" key="deck-resume">
+        <div className="nav-bar">
+          <button className="nav-back" onClick={() => { done.current = true; onPark(0); }}>Email</button>
+          <span className="nav-title">The Sweep</span>
+          <span className="nav-action" />
+        </div>
+        <div className="pad-x sweep-hold">
+          <div className="card pad deck-card sweep-card">
+            <div className="sweep-kicker-row"><span className="eyebrow">{"Parked \u00b7 " + (parked.idx + 1) + " of " + parked.hand.length}</span></div>
+            <div className="sweep-verb">Continue Where You Left Off</div>
+            {parked.session.planText && <div className="sweep-resume-plan">{parked.session.planText}</div>}
+            <div className="deck-actions">
+              <button className="btn btn-primary btn-block" onClick={continueParked}>Continue</button>
+              <div className="deck-secondary">
+                <button className="btn btn-secondary" onClick={startOver}>Start Over</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="screen-foot" />
+      </div>
+    );
+  }
 
   if (!row) return null;
 
@@ -373,6 +498,9 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
     plan?.kind === "event" ? "Ready for the Schedule" :
     plan?.kind === "task" ? "Task prepped" :
     plan ? "Nothing needed" : "No plan · You drive";
+  // E-19: the store remembers the headline once it is known, so the resume
+  // card can say where he was in his own prepared words.
+  planTextRef.current = preparing ? undefined : headline;
 
   // 2A: the ring counts DOWN. Remaining includes the card on screen.
   const remaining = hand.length - idx;
@@ -381,10 +509,12 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   return (
     <div className="screen ruled" key={"deck" + row.id}>
       <div className="nav-bar">
-        <button className="nav-back" onClick={finish}>Email</button>
+        {/* E-19: leaving parks; it no longer finishes. */}
+        <button className="nav-back" onClick={park}>Email</button>
         {/* 5A: the clock is the title. It only runs down, and zero means
-            done, never "you failed to finish". */}
-        <span className="nav-title sweep-clock">{fmtClock(Math.max(0, left))}</span>
+            done, never "you failed to finish". E-21: on Finish This One the
+            clock is gone and the title says what is left instead. */}
+        <span className="nav-title sweep-clock">{lastOne ? "Last One" : fmtClock(Math.max(0, left))}</span>
         {/* 2A: the countdown ring. Never a total: the hand is at most nine,
             so this number only ever shrinks toward the finish. */}
         <span className="nav-action sweep-ring-slot">
@@ -403,7 +533,22 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
         {/* The next card's edge, so the hand reads as a hand and the current
             card visibly has somewhere to go when it dies. */}
         {idx + 1 < hand.length && <div className="card sweep-under" aria-hidden="true" />}
-        <div className={"card pad deck-card sweep-card" + (killing ? " sweep-kill" : "")}>
+        {/* E-21: time's up, as a card over the one he was on. The card behind
+            stays visible so the choice is about a thing he can see. */}
+        {timeUp && (
+          <div className="card pad deck-card sweep-timeup" role="dialog" aria-label="Time's up">
+            <div className="sweep-kicker-row"><span className="eyebrow">Session over</span></div>
+            <div className="sweep-verb">{"Time\u2019s up \u00b7 " + (idx + 1) + " of " + hand.length}</div>
+            <div className="deck-actions">
+              <button className="btn btn-primary btn-block" onClick={() => { setTimeUp(false); setLastOne(true); }}>Finish This One</button>
+              <div className="deck-secondary">
+                <button className="btn btn-secondary" onClick={() => { setTimeUp(false); setExtraMs((e) => e + MORE_MS); }}>5 More Minutes</button>
+                <button className="btn btn-secondary" onClick={finish}>Stop</button>
+              </div>
+            </div>
+          </div>
+        )}
+        <div className={"card pad deck-card sweep-card" + (killing ? " sweep-kill" : "") + (timeUp ? " sweep-behind" : "")} aria-hidden={timeUp || undefined}>
           <div className="sweep-burst"><Burst show={killing} /></div>
           <div className="sweep-kicker-row">
             <span className="eyebrow">{kicker}</span>
@@ -421,7 +566,10 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
             </div>
           )}
 
-          <div className="deck-actions">
+          {/* E-21: behind the time's-up card the actions are gone, not
+              dimmed: one filled red on screen (the law), and the question
+              on top is the only thing to answer. */}
+          {!timeUp && <div className="deck-actions">
             <button className="btn btn-primary btn-block" disabled={preparing || busy || killing} onClick={() => void runPrimary()}>
               {preparing ? "..." : plan ? primaryLabel(plan) : "Open & Reply"}
             </button>
@@ -433,7 +581,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
               <button className="btn btn-secondary" disabled={busy || killing} onClick={() => void later()}>Later</button>
               <button className="btn btn-secondary" disabled={busy || killing} onClick={() => void archive()}>Archive</button>
             </div>
-          </div>
+          </div>}
 
           {/* THE EVIDENCE, not the headline (4A). Sender, subject, and the
               one-line why. It sits under the decision because the decision

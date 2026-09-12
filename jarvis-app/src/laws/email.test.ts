@@ -107,3 +107,31 @@ describe("EMAIL law 6: proposed and due never collide", () => {
     expect(src).toMatch(/if \(opts\.proposedDate && !data\.due\) data\.proposedDate/);
   });
 });
+
+// Push D (E-19) and Push F (E-26): the parked Sweep and the compose
+// autosave are UI state that carries his prepared reply and his half-typed
+// mail. Neither is an event, and no event writer may read them: the event
+// log stays free of free text, wherever the text came from.
+describe("EMAIL law 8: no event writer reads the sweep session or the compose draft", () => {
+  const WRITERS = walk(join(SRC, "events")).filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f));
+  const STORES = ["jarvis.mail.sweep.session", "jarvis.mail.composeDraft", "messages/sweepSession", "messages/composeDraft"];
+  it("the stores' keys and modules never appear under events/", () => {
+    expect(WRITERS.length).toBeGreaterThan(0);
+    const bad: string[] = [];
+    for (const f of WRITERS) {
+      const src = read(f);
+      for (const s of STORES) if (src.includes(s)) bad.push(rel(f) + ": " + s);
+    }
+    expect(bad).toEqual([]);
+  });
+  it("and the store modules never emit an event", () => {
+    const stores = ["messages/sweepSession.ts", "messages/composeDraft.ts"]
+      .map((p) => join(SRC, p)).filter((p) => { try { statSync(p); return true; } catch { return false; } });
+    expect(stores.length).toBeGreaterThan(0);
+    for (const p of stores) {
+      const src = read(p);
+      expect(src, rel(p) + " imports the event bus").not.toMatch(/from "\.\.\/events/);
+      expect(src, rel(p) + " emits").not.toMatch(/\bemit\(/);
+    }
+  });
+});

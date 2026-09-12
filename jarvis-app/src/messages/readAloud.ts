@@ -39,31 +39,95 @@ export function canSpeak(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
 }
 
-// EMAIL-F-25 (2026-09-05): "Read It to Me pill stays on Stop after the speech
-// ends." This returned true and never said another word, so the pill sat on
-// Stop after the voice had finished: tapping it cancelled nothing and flipped
-// to Play, and it took a second tap to hear anything. `onEnd` fires when the
-// utterance finishes, is cancelled, or errors, which are the three ways the
-// speaking stops, so the control can follow the voice instead of the tap.
-export function speak(text: string, onEnd?: () => void): boolean {
-  if (!canSpeak() || !text.trim()) return false;
+// E-22 (Push D, 2026-09-12): PAUSE AND NEXT. The whole summary was one
+// utterance, so the only control was Stop, and a pause meant starting the
+// thirty seconds over. SpeechSynthesis has pause()/resume(), but the resume
+// position is unreliable across engines (Safari drops the tail, Chrome
+// stalls after a pause of more than a few seconds), so this player does
+// not trust it: it speaks one SENTENCE per utterance and keeps the sentence
+// index itself. Pause cancels and remembers the index; Play from paused
+// speaks that sentence again from its start; Next cancels and speaks the
+// following one. Each sentence is one notice's line, so the laws above are
+// untouched: it still says what the cards say, and never a body.
+//
+// EMAIL-F-25 (2026-09-05): "Read It to Me pill stays on Stop after the
+// speech ends." `onEnd` fires once when the LAST sentence finishes, is
+// cancelled by Stop, or errors, so the control follows the voice instead of
+// the tap. A Pause is not an end: the row shows Play again and the index
+// waits.
+
+export function sentencesOf(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0);
+}
+
+interface Player { sentences: string[]; at: number; onEnd?: () => void }
+let player: Player | null = null;
+let gen = 0;
+
+function speakAt(pl: Player): boolean {
+  const text = pl.sentences[pl.at];
+  if (text === undefined) { const end = pl.onEnd; player = null; end?.(); return false; }
+  const myGen = ++gen;
   try {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.05;
-    if (onEnd) {
-      let done = false;
-      const fire = () => { if (done) return; done = true; onEnd(); };
-      u.onend = fire;
-      u.onerror = fire;
-    }
+    let fired = false;
+    const fire = () => {
+      if (fired || myGen !== gen || player !== pl) return; // paused, skipped, or stopped: not an end
+      fired = true;
+      pl.at += 1;
+      speakAt(pl);
+    };
+    u.onend = fire;
+    u.onerror = fire;
     window.speechSynthesis.speak(u);
     return true;
   } catch {
+    player = null;
     return false;
   }
 }
 
-export function stopSpeaking(): void {
+/** Speak `text` from the top. Returns whether anything is speaking. */
+export function speak(text: string, onEnd?: () => void): boolean {
+  if (!canSpeak() || !text.trim()) return false;
+  const sentences = sentencesOf(text);
+  if (sentences.length === 0) return false;
+  player = { sentences, at: 0, ...(onEnd ? { onEnd } : {}) };
+  return speakAt(player);
+}
+
+/** Cancel the voice, keep the place. The row goes back to Play. */
+export function pauseSpeaking(): void {
+  gen += 1; // orphan the in-flight utterance's end handler
   try { window.speechSynthesis?.cancel(); } catch { /* not available */ }
+}
+
+/** Play from where Pause left off. False when there is nothing paused. */
+export function resumeSpeaking(): boolean {
+  if (!player || !canSpeak()) return false;
+  return speakAt(player);
+}
+
+/** Skip to the next sentence. False when that was the last one (onEnd has
+ *  fired) or nothing is playing. */
+export function nextSentence(): boolean {
+  if (!player || !canSpeak()) return false;
+  gen += 1;
+  try { window.speechSynthesis.cancel(); } catch { /* not available */ }
+  player.at += 1;
+  return speakAt(player);
+}
+
+export function stopSpeaking(): void {
+  gen += 1;
+  const pl = player;
+  player = null;
+  try { window.speechSynthesis?.cancel(); } catch { /* not available */ }
+  // Stop is an end: the control follows the voice (EMAIL-F-25).
+  pl?.onEnd?.();
 }
