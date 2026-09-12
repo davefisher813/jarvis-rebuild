@@ -69,7 +69,7 @@ describe("standing rules are undoable", () => {
     expect(Object.keys(loadRules())).toHaveLength(2);
     const left = clearRule("A@X.com"); // case-insensitive, like saving
     expect(left["a@x.com"]).toBeUndefined();
-    expect(left["b@x.com"]).toBe("needs_you");
+    expect(left["b@x.com"]).toEqual({ bucket: "needs_you", enabled: true });
     expect(loadRules()["a@x.com"]).toBeUndefined(); // persisted
   });
 

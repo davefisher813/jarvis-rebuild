@@ -494,8 +494,10 @@ describe("the unsubscribe sweep", () => {
   });
 
   it("NEVER claims it worked: 'asked them to stop' is the truth", () => {
-    expect(sweepReceipt(2, 1)).toBe("Asked 2 senders to stop · filed 1 to Noise");
-    expect(sweepReceipt(0, 0)).toBe("Nothing changed");
+    expect(sweepReceipt(2, ["Ridgeley"])).toBe("Asked 2 senders to stop · filed Ridgeley to Noise");
+    // E-23: the filed half names them; past three it counts the rest.
+    expect(sweepReceipt(0, ["Ridgeley", "Wei", "Nadia", "GEICO"])).toBe("Filed Ridgeley, Wei, Nadia +1 to Noise");
+    expect(sweepReceipt(0, [])).toBe("Nothing changed");
   });
 });
 

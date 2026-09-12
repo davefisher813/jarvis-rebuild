@@ -216,7 +216,7 @@ describe("sender rules", () => {
     const after = applyRules(map, [row("t1", "promo@dd.com")], rules);
     expect(after.t1!.bucket).toBe("noise");
     expect(after.t1!.gist).toBe("promo!"); // the gist is still true, only the bucket moves
-    expect(loadRules(storage)).toEqual({ "promo@dd.com": "noise" });
+    expect(loadRules(storage)).toEqual({ "promo@dd.com": { bucket: "noise", enabled: true } });
   });
 
   it("no rule, no change; garbage storage loads as no rules", () => {

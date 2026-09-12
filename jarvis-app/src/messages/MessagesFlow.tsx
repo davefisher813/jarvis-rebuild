@@ -3,7 +3,7 @@ import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
 import { leadFor, faceSlot } from "./rowAnatomy";
-import { Facts, waitingFor } from "./factsLine";
+import { Facts, waitingFor, ruleAccountFact } from "./factsLine";
 import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
 import type { TaskItem } from "../tasks/TasksService";
 import NoticeCard from "../today/NoticeCard";
@@ -21,7 +21,8 @@ import { selfBlankGuard,
   fillSkipped, splitByBucket, noiseLine, sortByDeadline, byRank, applyKnownPeople, knownSenderEmails,
   type TriageMap, type Bucket,
 } from "./triage";
-import { loadRules, saveRule, clearRule, applyRules, type SenderRules } from "./rules";
+import { loadRules, saveRule, clearRule, applyRules, setRuleEnabled, setRuleAccount, type SenderRules } from "./rules";
+import { ruleApplies } from "./ruleScope";
 import DeckFlow from "./DeckFlow";
 import MailSwipe from "./MailSwipe";
 import LetGoSwipe from "./LetGoSwipe";
@@ -2379,7 +2380,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // sender rule. Anything the model alone called noise stays in the pile
     // and still archives on a tap. Nobody is watching this one, which is
     // exactly why it may not act on a guess.
-    const ruled = new Set(rows.filter((r) => rules[r.fromEmail.toLowerCase()] === "noise").map((r) => r.id));
+    // E-24: a rule that is off or scoped to another inbox grounds nothing.
+    const ruled = new Set(rows.filter((r) => {
+      const rule = rules[r.fromEmail.toLowerCase()];
+      return !!rule && rule.bucket === "noise" && ruleApplies(rule, r.account);
+    }).map((r) => r.id));
     const safe = autoArchivable(noise, (id) => ruled.has(id));
     // UP-MIND-20 (2026-09-05): the gate order is confidence, then Values.
     // A stated hard line ("never file anything from the school") outranks
@@ -2744,7 +2749,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }
 
   if (view === "purge") {
-    const piles = senderPiles(unmutedRows, effTriage, vips);
+    // E-29: the same rows the list shows (account chip and desk honoured),
+    // so Clean Out never counts what the Sweep does not.
+    const piles = senderPiles(visibleRows, effTriage, vips);
     const picks = purgePicks ?? defaultPicks(piles);
     const n = selectedCount(piles, picks);
     const toggle = (email: string) => {
@@ -2832,20 +2839,42 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <Card>
           {filed.length === 0 ? (
             <div className="row"><div className="row-grow"><div className="conn-meta">Nothing filed yet.</div></div></div>
-          ) : filed.map(([sender, bucket]) => (
-            <div className="row" key={sender}>
+          ) : filed.map(([sender, rule]) => {
+            const mailAccts = g.accounts.filter((a) => a.mail);
+            return (
+            <div className={"row rule-row" + (rule.enabled ? "" : " rule-off")} key={sender}>
               <div className="row-grow">
                 <div className="line-between">
                   {/* The rule's storage key is an address. The row underneath
                     a Waiting On entry has used nameFor since August; this one
                     printed the key (2026-08-25). */}
                 <span className="conn-name truncate">{nameFor(names, sender, prettyHandle(sender.split("@")[0] ?? "") ?? sender)}</span>
-                  <span className="conn-meta">{BUCKET_LABEL[bucket]}</span>
+                  <span className="conn-meta">{BUCKET_LABEL[rule.bucket]}</span>
                 </div>
+                {/* E-24: the rule's scope and its switch, as facts (K.3: On
+                    is the one toned fact). The account chips appear only
+                    when there is more than one inbox to choose between. */}
+                <Facts facts={ruleAccountFact(rule.account ? acctLabel(rule.account) : undefined, rule.enabled)} />
               </div>
-              <button className="quiet-action" onClick={() => { setRules(clearRule(sender)); mirrorMail(); }}>Undo</button>
+              <div className="rule-acts">
+                <button className="pill-act" onClick={() => { setRules(setRuleEnabled(sender, !rule.enabled)); mirrorMail(); }}>{rule.enabled ? "Turn Off" : "Turn On"}</button>
+                <button className="quiet-action" onClick={() => { setRules(clearRule(sender)); mirrorMail(); }}>Undo</button>
+              </div>
+              {/* The chips take a full line under the row so no account
+                  label is ever clipped behind the controls. */}
+              {mailAccts.length > 1 && (
+                <div className="msg-chips rule-scope">
+                  <button className={"chip" + (!rule.account ? " on" : "")} onClick={() => { setRules(setRuleAccount(sender, undefined)); mirrorMail(); }}>All</button>
+                  {mailAccts.map((a) => (
+                    <button key={a.email} className={"chip" + (rule.account === a.email.toLowerCase() ? " on" : "")} onClick={() => { setRules(setRuleAccount(sender, a.email)); mirrorMail(); }}>
+                      {acctLabel(a.email)}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </Card>
         {/* UP-MIND-17 (2026-09-05): the receipt for every sender asked to
             stop. It says when, and whether it worked, and only offers the
@@ -4021,7 +4050,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               not having read something is not evidence about it. */}
           {(() => {
             if (closeDone) return null;
-            const set = closeCandidates(unmutedRows, effTriage, vips, Date.now());
+            const set = closeCandidates(visibleRows, effTriage, vips, Date.now()); // E-29
             // 9A: the clock OR the pile. Three weeks of avoidance should not
             // have to wait for Sunday; that wait is the avoidance loop with
             // the app's help.
@@ -4484,17 +4513,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   // it falls through to the Noise rule, which is the outcome
                   // that does not depend on anyone else's server.
                   let ended = 0;
-                  let filed = 0;
+                  // E-23: the receipt names who was filed, and its Undo
+                  // takes back every rule THIS batch wrote, one clearRule
+                  // each, never a rule from before it.
+                  const filed: SweepCandidate[] = [];
                   for (const c of sweep) {
                     markAsked(c.sender);
                     const u = c.canUnsub ? unsubbable[c.sender] : undefined;
                     if (u && await requestUnsub(u, accountOfSender(c.sender), c.sender)) { ended++; continue; }
                     setRules(saveRule(c.sender, "noise"));
-                    filed++;
+                    filed.push(c);
                   }
-                  if (filed) mirrorMail();
+                  if (filed.length) mirrorMail();
                   setSweep([]);
-                  say(sweepReceipt(ended, filed), undefined, 4000);
+                  say(sweepReceipt(ended, filed.map((c) => c.name)), filed.length ? {
+                    label: "Undo",
+                    run: () => {
+                      let next = rules;
+                      for (const c of filed) next = clearRule(c.sender);
+                      setRules(next);
+                      mirrorMail();
+                    },
+                  } : undefined, 6000);
                 })(),
               }}
               alt={{ label: "Leave them", onClick: () => { sweep.forEach((c) => markAsked(c.sender)); setSweep([]); } }}
@@ -4537,7 +4577,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               archives actually happen, and the other two are the lists on
               this screen. A zero is not dressed up as an achievement. */}
           {triageState === "ready" && (() => {
-            const line = closeOut(cleared, rows.length, needsYou.length);
+            const line = closeOut(cleared, visibleRows.length, needsYou.length); // E-29
             // Null means there is nothing true to say: nothing cleared and
             // things still owed. The Needs You section already carries that.
             if (!line) return null;
@@ -4585,15 +4625,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   the row says so rather than silently disagreeing with the
                   number above it. EMAIL-F-18: and says where the number
                   came from until the inbox has been read to the bottom. */}
-              {unmutedRows.length > 0 && (
+              {visibleRows.length > 0 && (
                 <div className="row" {...pressable(() => { setPurgePicks(null); void deepLoad(); setView("purge"); })}>
                   <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Clean Out</div>
+                    {/* E-29: counted over visibleRows, the list's own rows,
+                        and the row says which accounts it means so a
+                        disagreement with the Sweep's number is legible. */}
                     <div className="conn-meta">{capAfterNumber(
-                      unmutedRows.length + (unmutedRows.length === 1 ? " thread" : " threads")
-                      + " \u00b7 " + senderPiles(unmutedRows, effTriage, vips).length + " senders"
-                      + (g.accounts.length > 1 ? " \u00b7 All accounts" : "")
+                      visibleRows.length + (visibleRows.length === 1 ? " thread" : " threads")
+                      + " \u00b7 " + senderPiles(visibleRows, effTriage, vips).length + " senders"
+                      + (g.accounts.length > 1 ? " \u00b7 " + (acctFilter ? acctLabel(acctFilter) : "All Accounts") : "")
                       + (atEnd ? " \u00b7 In the inbox" : " \u00b7 Loaded so far"),
                     )}</div>
                   </div>

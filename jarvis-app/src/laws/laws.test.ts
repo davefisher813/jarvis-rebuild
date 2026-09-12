@@ -3142,9 +3142,10 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
     const src = read(join(SRC, "messages/MessagesFlow.tsx"));
     const at = src.indexOf('<div className="conn-name">Clean Out</div>');
     expect(at, "Clean Out is a Tools row").toBeGreaterThan(-1);
-    const row = src.slice(at, at + 700);
-    expect(row, "the thread count leads").toMatch(/capAfterNumber\(\s*unmutedRows\.length \+/);
-    expect(row, "then the sender count").toMatch(/senderPiles\(unmutedRows, effTriage, vips\)\.length \+ " senders"/);
+    const row = src.slice(at, at + 900);
+    // E-29 (2026-09-12): counted over visibleRows, the list's own rows.
+    expect(row, "the thread count leads").toMatch(/capAfterNumber\(\s*visibleRows\.length \+/);
+    expect(row, "then the sender count").toMatch(/senderPiles\(visibleRows, effTriage, vips\)\.length \+ " senders"/);
     expect(row, "and the scope, with both tails leading capitalized")
       .toMatch(/\(atEnd \? " \\u00b7 In the inbox" : " \\u00b7 Loaded so far"\)/);
   });

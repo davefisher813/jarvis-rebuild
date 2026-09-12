@@ -1,5 +1,6 @@
 import { loadVips, VIP_MAX, KEY as VIP_KEY } from "./vip";
 import { loadRules, KEY as RULES_KEY, type SenderRules } from "./rules";
+import { migrateRules } from "./ruleScope";
 import { loadMuted, KEY as MUTED_KEY } from "./mute";
 import { loadLetGo, KEY as LETGO_KEY } from "./letGo";
 import { loadLinks, KEY as LINKS_KEY, type LinkMap } from "./threadLink";
@@ -83,7 +84,9 @@ export function hydrateMailFromProfile(
 
   if (mail.rules && Object.keys(mail.rules).length) {
     const local = loadRules(storage);
-    const rules = { ...mail.rules, ...local };
+    // E-24: the mirror may hold v1 strings from another build; every entry
+    // is read in the v2 shape before it is merged or handed to the UI.
+    const rules = migrateRules({ ...mail.rules, ...local });
     if (Object.keys(rules).length !== Object.keys(local).length) {
       try { storage.setItem(RULES_KEY, JSON.stringify(rules)); } catch { /* private mode */ }
       out.rules = rules;

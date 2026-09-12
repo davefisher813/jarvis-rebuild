@@ -3048,6 +3048,14 @@ button {
    row pill is the Music capsule now: neutral dim fill, red label -- one
    button language everywhere. The hue-mismatch that outlawed fills in O.5
    was an ACCENT wash; a press-neutral fill cannot go brown. */
+/* E-24 (Push E): a Standing Rules row carries its scope facts, the account
+   chips when there is more than one inbox, and two controls stacked at the
+   trailing edge. Off dims the name, never hides the row: off is not gone. */
+.rule-row { align-items: flex-start; flex-wrap: wrap; }
+.rule-row .rule-scope { flex-basis: 100%; flex-wrap: wrap; overflow: visible; margin: var(--s-1) 0 0; padding: 0; }
+.rule-acts { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-1h); flex-shrink: 0; }
+.rule-off .conn-name { color: var(--tx-3); }
+
 /* E-22 (Push D): Read It to Me wears up to three pills (Next, Stop, and the
    Play/Pause the row itself answers to). Same anatomy as the gym library's
    row actions, on the plain skin. */

@@ -62,9 +62,16 @@ export function sweepSub(list: SweepCandidate[]): string {
 // The receipt. Two verbs, because two different things happened, and lying
 // about which is which is how someone keeps getting mail they were told had
 // stopped.
-export function sweepReceipt(ended: number, filed: number): string {
+//
+// E-23 (Push E, 2026-09-12): the filed half NAMES the senders. "filed 3 to
+// Noise" was a count he could not check; the names are the receipt, and the
+// toast's Undo (in MessagesFlow) takes back every rule this batch wrote.
+export function sweepReceipt(ended: number, filed: readonly string[]): string {
   const bits: string[] = [];
   if (ended > 0) bits.push(ended === 1 ? "Asked 1 sender to stop" : `Asked ${ended} senders to stop`);
-  if (filed > 0) bits.push(filed === 1 ? "filed 1 to Noise" : `filed ${filed} to Noise`);
+  if (filed.length > 0) {
+    const shown = filed.slice(0, 3).join(", ") + (filed.length > 3 ? ` +${filed.length - 3}` : "");
+    bits.push((ended > 0 ? "filed " : "Filed ") + shown + " to Noise");
+  }
   return bits.join(" · ") || "Nothing changed";
 }

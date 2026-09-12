@@ -50,7 +50,7 @@ describe("EMAIL law 2: an offer is a NoticeCard, one shape", () => {
     for (const title of ["title={sweepSub(sweep)}", 'title={"File " + tossName(toss.sender) + " as Noise?"}', 'title="Clear Noise Automatically?"']) {
       const at = FLOW.indexOf(title);
       expect(at, title + " is an offer title").toBeGreaterThan(-1);
-      const mount = FLOW.slice(FLOW.lastIndexOf("<NoticeCard", at), at + 2200);
+      const mount = FLOW.slice(FLOW.lastIndexOf("<NoticeCard", at), at + 3200);
       expect(mount, title + " carries one capsule").toMatch(/action=\{\{/);
       expect(mount, title + " carries its no as the alt").toMatch(/alt=\{\{ label: "[A-Z][a-z]/);
     }
@@ -132,6 +132,25 @@ describe("EMAIL law 8: no event writer reads the sweep session or the compose dr
       const src = read(p);
       expect(src, rel(p) + " imports the event bus").not.toMatch(/from "\.\.\/events/);
       expect(src, rel(p) + " emits").not.toMatch(/\bemit\(/);
+    }
+  });
+});
+
+// EM9 / E-24: the doc's fuller Standing Rules model (conditions, exceptions,
+// a scope beyond the account) was the alternate option and was not chosen.
+// The v2 type is exactly bucket + account + enabled, and stays that way.
+describe("EMAIL law 3: Standing Rules stay sender-only", () => {
+  it("SenderRule carries bucket, account and enabled, and nothing else", () => {
+    const src = read(join(SRC, "messages/ruleScope.ts"));
+    const m = /export interface SenderRule \{([\s\S]*?)\n\}/.exec(src);
+    expect(m, "ruleScope.ts declares SenderRule").toBeTruthy();
+    const fields = m![1]!.split("\n")
+      .map((l) => l.replace(/\/\/.*$/, "").trim())
+      .filter(Boolean)
+      .map((l) => l.replace(/\??:.*$/, ""));
+    expect(fields.sort()).toEqual(["account", "bucket", "enabled"]);
+    for (const banned of ["condition", "exceptions", "scope"]) {
+      expect(src.toLowerCase(), "no " + banned).not.toMatch(new RegExp("\\b" + banned + "s?\\??:"));
     }
   });
 });

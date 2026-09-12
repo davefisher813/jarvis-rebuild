@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mailSnapshot, hydrateMailFromProfile } from "./mailSync";
 import { loadVips, toggleVip, VIP_MAX } from "./vip";
-import { loadRules, saveRule } from "./rules";
+import { loadRules, saveRule, type SenderRules } from "./rules";
 import { loadMuted, mute } from "./mute";
 import { loadLetGo, letGo } from "./letGo";
 import { loadLinks, linkThread } from "./threadLink";
@@ -35,7 +35,7 @@ describe("mailSnapshot", () => {
     setAtDesk("t4", () => Date.parse("2026-09-08T10:00:00Z"), storage);
     expect(mailSnapshot(storage)).toEqual({
       vips: ["ridgeley@x.com"],
-      rules: { "promo@x.com": "noise" },
+      rules: { "promo@x.com": { bucket: "noise", enabled: true } },
       muted: ["t1"],
       letGo: ["t2"],
       links: { t3: { type: "project", id: "p1", label: "Ridgeley", subject: "The waiver" } },
@@ -53,14 +53,14 @@ describe("hydrateMailFromProfile", () => {
   it("with nothing local, pulls every field down from the profile and writes it back to storage", () => {
     const storage = fakeStorage();
     const grown = hydrateMailFromProfile(
-      { vips: ["a@x.com"], rules: { "b@x.com": "noise" }, muted: ["t1"], letGo: ["t2"] },
+      { vips: ["a@x.com"], rules: { "b@x.com": { bucket: "noise", enabled: true } }, muted: ["t1"], letGo: ["t2"] },
       storage,
     );
-    expect(grown).toEqual({ vips: ["a@x.com"], rules: { "b@x.com": "noise" }, muted: ["t1"], letGo: ["t2"] });
+    expect(grown).toEqual({ vips: ["a@x.com"], rules: { "b@x.com": { bucket: "noise", enabled: true } }, muted: ["t1"], letGo: ["t2"] });
     // Actually landed in storage, not just returned -- the next load's
     // synchronous read has to see it without waiting on the network again.
     expect(loadVips(storage)).toEqual(["a@x.com"]);
-    expect(loadRules(storage)).toEqual({ "b@x.com": "noise" });
+    expect(loadRules(storage)).toEqual({ "b@x.com": { bucket: "noise", enabled: true } });
     expect(loadMuted(storage)).toEqual(["t1"]);
     expect(loadLetGo(storage)).toEqual(["t2"]);
   });
@@ -97,14 +97,15 @@ describe("hydrateMailFromProfile", () => {
   it("on a keyed store the local decision wins the conflict, and the rest still lands", () => {
     const storage = fakeStorage();
     saveRule("both@x.com", "worth_knowing", storage);
-    const grown = hydrateMailFromProfile(
-      { rules: { "both@x.com": "noise", "onlyprofile@x.com": "noise" } },
-      storage,
-    );
+    // E-24: the profile still carries v1 strings from a device on the old
+    // build; they arrive in the v2 shape, on, scoped to every account.
+    const v1 = { "both@x.com": "noise", "onlyprofile@x.com": "noise" } as unknown as SenderRules;
+    const grown = hydrateMailFromProfile({ rules: v1 }, storage);
     // The sender this device just filed keeps this device's answer; the one
     // it has never seen arrives.
-    expect(grown.rules).toEqual({ "both@x.com": "worth_knowing", "onlyprofile@x.com": "noise" });
-    expect(loadRules(storage)).toEqual({ "both@x.com": "worth_knowing", "onlyprofile@x.com": "noise" });
+    const on = (bucket: "noise" | "worth_knowing") => ({ bucket, enabled: true });
+    expect(grown.rules).toEqual({ "both@x.com": on("worth_knowing"), "onlyprofile@x.com": on("noise") });
+    expect(loadRules(storage)).toEqual({ "both@x.com": on("worth_knowing"), "onlyprofile@x.com": on("noise") });
   });
 
   it("says nothing changed when the profile carries nothing this device lacks", () => {
