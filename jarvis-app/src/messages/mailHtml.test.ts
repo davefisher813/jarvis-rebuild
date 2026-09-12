@@ -32,6 +32,17 @@ describe("sanitizeMailHtml", () => {
     expect(out).toMatch(/\.b\{background:none\}/);
     expect(out).not.toMatch(/javascript:/);
   });
+  it("cannot be tricked into closing its own <style> early (2026-09-11)", () => {
+    // One pass deleting "</style" turned "</sty</stylele>" back into "</style>".
+    const evil = sanitizeMailHtml(`<style>p{color:red}</sty</stylele><iframe src=https://evil></iframe></style><p>hi</p>`);
+    expect(evil).not.toMatch(/<iframe/i);
+    expect(evil).toMatch(/<style>p\{color:red\}/);
+    const head = evil.slice(0, evil.indexOf("<body>"));
+    expect(head.match(/<\/style>/g)?.length).toBe(head.match(/<style>/g)?.length);
+    const frame = new DOMParser().parseFromString(evil, "text/html");
+    expect(frame.querySelector("iframe")).toBeNull();
+    expect(frame.querySelector("body p")?.textContent).toBe("hi");
+  });
   it("un-pins a mail that fixes html and body to 100% height, after the mail's own rules", () => {
     const i = out.lastIndexOf("<style>");
     expect(out.slice(i)).toMatch(/html, body \{ height: auto !important/);

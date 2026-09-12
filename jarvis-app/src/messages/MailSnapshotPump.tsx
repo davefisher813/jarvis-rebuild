@@ -5,7 +5,8 @@ import { useOptionalPeople } from "../data/NotesProvider";
 import { refreshMailSnapshot } from "./snapshotRefresh";
 import { loadMailSnapshot } from "./home";
 import { loadWindows, peekLine, DEFAULT_WINDOWS } from "./batching";
-import { buildMailDigests, inRefreshLead } from "./mailDigest";
+import { buildMailDigests, inRefreshLead, REFRESH_LEAD_MIN } from "./mailDigest";
+import { loadVips } from "./vip";
 import { ensureMailDigests } from "../shared/notifications";
 
 // How old the snapshot must be before this pump bothers rebuilding it --
@@ -16,7 +17,10 @@ const REFRESH_STALE_MS = 4 * 3600e3;
 // How often this checks, while mounted, whether the snapshot has gone stale
 // since the last check. Cheap -- one localStorage read when nothing is due
 // -- so a session left open for days still self-heals without a reload.
-const CHECK_INTERVAL_MS = 30 * 60e3;
+// 2026-09-11: 5 minutes, not 30. The pre-window look (inRefreshLead) is only
+// REFRESH_LEAD_MIN (10) wide, so a half-hourly check landed in it for about
+// one window in three and the rest fired off a stale snapshot.
+const CHECK_INTERVAL_MS = 5 * 60e3;
 
 // S6-Q34 (2026-09-04): "the email band only fills if you visit the Email
 // tab." The home-page snapshot's only writer used to be MessagesFlow's own
@@ -41,9 +45,13 @@ export default function MailSnapshotPump() {
     const snap = loadMailSnapshot();
     const w = loadWindows();
     const rows = snap.threads.map((t) => ({ id: t.id, from: t.from, fromEmail: t.fromEmail, inInbox: true }));
+    // 2026-09-11: every snapshot thread IS a Needs You thread, so say so, and
+    // pass the VIPs like the Email tab's peek does. With neither, the digest
+    // read "nothing urgent" about exactly the threads that needed him.
+    const buckets = Object.fromEntries(snap.threads.map((t) => [t.id, { bucket: "needs_you" }]));
     void ensureMailDigests(buildMailDigests(
       w.windows.length ? w.windows : DEFAULT_WINDOWS.windows,
-      peekLine(rows),
+      peekLine(rows, buckets, loadVips()),
       snap.ts,
     ));
   };
@@ -57,8 +65,11 @@ export default function MailSnapshotPump() {
       // UP-MIND-14: ten minutes before a window, look again whatever the
       // staleness clock says. The digest that fires at the window start is
       // supposed to be about this morning, not about breakfast yesterday.
-      const dueSoon = inRefreshLead(w.windows.length ? w.windows : DEFAULT_WINDOWS.windows, nowMin);
-      if (!dueSoon && Date.now() - loadMailSnapshot().ts < REFRESH_STALE_MS) { arm(); return; }
+      const age = Date.now() - loadMailSnapshot().ts;
+      // 2026-09-11: once per lead, not on every 5-minute check inside it.
+      const dueSoon = inRefreshLead(w.windows.length ? w.windows : DEFAULT_WINDOWS.windows, nowMin)
+        && age >= REFRESH_LEAD_MIN * 60e3;
+      if (!dueSoon && age < REFRESH_STALE_MS) { arm(); return; }
       busy.current = true;
       void refreshMailSnapshot({
         apis: () => g.apis("mail"),

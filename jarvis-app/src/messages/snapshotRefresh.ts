@@ -61,6 +61,16 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+// 2026-09-11: "answered" is read off the thread itself: its last message is
+// from someone who is not him. It used to be "in the inbox but not in
+// Waiting On", and Waiting On is capped at five and skips anything under two
+// days old, so a thread still waiting on them counted as answered and its
+// chase never fired. MessagesFlow uses this same function.
+export function answeredThreadIds(rows: ThreadRow[], myEmails: string[]): string[] {
+  const mine = new Set(myEmails.map((e) => e.trim().toLowerCase()).filter(Boolean));
+  return rows.filter((r) => r.fromEmail && !mine.has(r.fromEmail.trim().toLowerCase())).map((r) => r.id);
+}
+
 export interface SnapshotRefreshDeps {
   /** Same accessor GoogleSession's useGoogle() exposes: g.apis("mail"). */
   apis: () => { email: string; api: GoogleApi }[];
@@ -166,7 +176,7 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
   const personIdFor = deps.people ? makePersonIdFor(await deps.people().catch(() => [])) : noPersonId;
 
   const todayIso = todayISO();
-  const answeredThreads = rows.filter((r) => !waiting.some((w) => w.threadId === r.id)).map((r) => r.id);
+  const answeredThreads = answeredThreadIds(rows, list.map((a) => a.email));
 
   saveMailSnapshot({
     ts: Date.now(),

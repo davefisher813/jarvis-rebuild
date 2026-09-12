@@ -101,6 +101,7 @@ const RESTORE_WORDS: SettleWords = {
 };
 import { inboxSentence } from "./inboxBrief";
 import { dueChases, loadChases, CHASE_DAYS, CHASE_DEFAULT } from "./followUp";
+import { answeredThreadIds } from "./snapshotRefresh";
 import { loadVips, toggleVip, isVip, applyVips, vipLine, VIP_MAX } from "./vip";
 import { mailSnapshot, hydrateMailFromProfile } from "./mailSync";
 import { collapseNoise, collapseLine } from "./collapse";
@@ -1317,7 +1318,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // surface reads, so nothing here can drift from them.
   const openLedger = useCallback(async () => {
     const todayIso = todayISO();
-    const answered = rows.filter((r) => !waiting.some((w) => w.threadId === r.id)).map((r) => r.id);
+    const answered = answeredThreadIds(rows, g.accounts.map((a) => a.email));
     const ts = tasks ? await tasks.listTasks().catch(() => []) : [];
     setLedger(buildLedger({
       today: todayIso,
@@ -1377,7 +1378,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const todayIso = todayISO();
     // A thread whose last message is no longer HIS has answered itself, which
     // is the same derivation Waiting On uses, so the two can never disagree.
-    const answeredThreads = rows.filter((r) => !waiting.some((w) => w.threadId === r.id)).map((r) => r.id);
+    // 2026-09-11: read off the last sender, not "not in waiting" (see
+    // answeredThreadIds: waiting is capped and skips anything under 2 days).
+    const answeredThreads = answeredThreadIds(rows, g.accounts.map((a) => a.email));
     const map = selfBlankGuard(
       applyRules(triage, rows, rules),
       rows,

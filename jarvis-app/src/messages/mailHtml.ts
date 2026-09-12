@@ -85,7 +85,10 @@ export function sanitizeMailHtml(html: string, opts: { dark?: boolean } = {}): s
   a { color: #0A84FF; }
   body > * { max-width: 100%; }
 </style>`;
-  const own = sheets.filter((c) => c.trim()).map((c) => `<style>${c.replace(/<\/style/gi, "")}</style>`).join("\n");
+  // 2026-09-11: every "<" becomes the CSS escape \3C, not a deleted "</style":
+  // deleting once let "</sty</stylele>" rebuild a closing tag and smuggle raw
+  // markup into the head. With no "<" left, no tag can close or open.
+  const own = sheets.filter((c) => c.trim()).map((c) => `<style>${c.replace(/</g, "\\3C ")}</style>`).join("\n");
   // After the mail's own rules, so it wins: the frame is sized to the
   // content by the reader, and a mail that pins html/body to 100% height
   // (TikTok's does, with !important) would otherwise grow to meet every

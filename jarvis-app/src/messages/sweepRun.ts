@@ -46,19 +46,21 @@ export async function runSentSweep(deps: SweepRunDeps): Promise<number | null> {
   try {
     const list = deps.apis();
     if (list.length === 0) return null;
-    const items: SentItem[] = [];
-    let head = "";
+    const perAccount: SentItem[][] = [];
+    const heads: string[] = [];
     for (const { api } of list) {
       // EMAIL-F-03: search hits are metadata with no bodies. sentBodies.ts
       // fetches the real threads, capped and bounded, so the model reads
       // what was written rather than eight subject lines.
       const metas = await api.searchThreads(deps.query ?? "in:sent -in:chats", SWEEP_CAP).catch(() => []);
+      const mine: SentItem[] = [];
+      let newest = "";
       for (const full of await fullThreadsFor(api, metas)) {
         const last = full.messages[full.messages.length - 1];
         if (!last) continue;
-        if (!head) head = last.id;
+        if (!newest) newest = last.id;
         if (alreadyPromised(full.id)) continue;
-        items.push({
+        mine.push({
           threadId: full.id,
           to: displayName(last.to),
           subject: full.subject,
@@ -66,7 +68,18 @@ export async function runSentSweep(deps: SweepRunDeps): Promise<number | null> {
           msgId: last.id,
         });
       }
+      perAccount.push(mine);
+      if (newest) heads.push(newest);
     }
+    // 2026-09-11: the cap is shared in turns, one from each account, so a
+    // second account is not sliced away behind the first one's eight; and
+    // the head covers every account's newest, so new mail on any of them
+    // counts as new. One account: exactly the old list and the old head.
+    const items: SentItem[] = [];
+    for (let i = 0; items.length < SWEEP_CAP && perAccount.some((a) => i < a.length); i++) {
+      for (const a of perAccount) if (i < a.length && items.length < SWEEP_CAP) items.push(a[i]!);
+    }
+    const head = heads.join(",");
     if (!deps.force && !needsSweep(head)) return null;
     if (items.length === 0) { saveSweep({ head, promises: [] }); return 0; }
     const raw = await deps.complete(

@@ -8,6 +8,15 @@ import { GoogleSessionProvider, useGoogle } from "../connections/google/GoogleSe
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import MailSnapshotPump from "./MailSnapshotPump";
 import { saveMailSnapshot, loadMailSnapshot } from "./home";
+import { toggleVip } from "./vip";
+
+// The digest scheduler is native-only (a no-op in jsdom); record what the
+// pump asks it to schedule so the line itself can be checked.
+const digests = vi.hoisted(() => ({ calls: [] as { title: string }[][] }));
+vi.mock("../shared/notifications", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../shared/notifications")>()),
+  ensureMailDigests: async (specs: { title: string }[]) => { digests.calls.push(specs); },
+}));
 
 // S6-Q34: the timer/staleness wiring itself, following TodayOutboxPump's
 // "render just the pump, nothing else mounted" pattern. The build behind the
@@ -30,7 +39,7 @@ function wrap(node: React.ReactNode, api: ReturnType<typeof makeFakeGoogleApi>) 
   );
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => { localStorage.clear(); digests.calls = []; });
 
 describe("MailSnapshotPump", () => {
   it("does nothing with no token, even once mounted and the interval has ticked", async () => {
@@ -119,6 +128,56 @@ describe("MailSnapshotPump", () => {
       // snapshot stale and refreshes again.
       await act(async () => { await vi.advanceTimersByTimeAsync(4 * 3600e3); });
       expect(calls).toBeGreaterThanOrEqual(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("looks again in the ten minutes before a window, once (2026-09-11)", async () => {
+    // A 30-minute check from 8:40 next ran at 9:10, past the 9:00 window, so
+    // the digest fired off the 8:40 snapshot. Now it lands inside 8:50-9:00.
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date(2026, 7, 15, 8, 40, 0));
+      let calls = 0;
+      const api = makeFakeGoogleApi({ listThreads: async () => { calls++; return []; } });
+      render(wrap(<><MailSnapshotPump /><ConnectFromAnywhere /></>, api));
+      await act(async () => {
+        fireEvent.click(screen.getByText("Any Connect"));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(calls).toBe(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60e3); }); // 8:50
+      expect(calls).toBe(2);
+      await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60e3); });  // 8:55
+      expect(calls).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the digest names the Needs You threads and VIPs, never 'nothing urgent' about them (2026-09-11)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(2026, 7, 15, 10, 0, 0));
+      // A VIP counts as a person even from an address that looks automated.
+      toggleVip("no-reply@school.org");
+      saveMailSnapshot({
+        ts: Date.now(), needsYou: 2, waiting: [], promises: [],
+        threads: [
+          { id: "t1", from: "Sarah Lee", fromEmail: "sarah@x.com", subject: "Waiver", gist: "Needs the waiver" },
+          { id: "t2", from: "School", fromEmail: "no-reply@school.org", subject: "Pickup", gist: "Pickup change" },
+        ],
+      });
+      const api = makeFakeGoogleApi({});
+      render(wrap(<><MailSnapshotPump /><ConnectFromAnywhere /></>, api));
+      await act(async () => {
+        fireEvent.click(screen.getByText("Any Connect"));
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      const last = digests.calls[digests.calls.length - 1];
+      expect(last?.[0]?.title).toBe("2 People wrote · Sarah and 1 other need you");
     } finally {
       vi.useRealTimers();
     }

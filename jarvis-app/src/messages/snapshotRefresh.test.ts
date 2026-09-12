@@ -114,6 +114,29 @@ describe("refreshMailSnapshot: builds the home snapshot with no component mounte
     expect(snap.chases?.some((c) => c.threadId === "tc1")).toBe(true);
   });
 
+  it("a chase stays live while his message is still the last one, and retires once they reply (2026-09-11)", async () => {
+    // Both threads are in the inbox and neither is in Waiting On (too new,
+    // and searchThreads returns nothing), which used to count BOTH as answered.
+    setChase({ threadId: "mine", to: "Coach Sam", subject: "Practice plan", setISO: "2026-09-01", days: 2 });
+    setChase({ threadId: "theirs", to: "Wei", subject: "Roster", setISO: "2026-09-01", days: 2 });
+    const now = Date.now();
+    const api = makeFakeGoogleApi({
+      listThreads: async () => [
+        { id: "mine", messages: [
+          msg("a1", "Coach Sam <sam@x.com>", "Practice plan", "Plan?", ["INBOX"], now - 3600e3),
+          msg("a2", "Me <ME@example.com>", "Re: Practice plan", "Here it is", ["SENT"], now - 60e3),
+        ] },
+        { id: "theirs", messages: [
+          msg("b1", "Me <me@example.com>", "Roster", "Roster attached", ["SENT"], now - 3600e3),
+          msg("b2", "Wei <wei@example.com>", "Re: Roster", "Thanks!", ["INBOX"], now - 60e3),
+        ] },
+      ],
+      getProfile: async () => ({ emailAddress: "me@example.com" }),
+    });
+    await refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api }], ai: noAI });
+    expect(loadMailSnapshot().chases?.map((c) => c.threadId)).toEqual(["mine"]);
+  });
+
   it("does nothing when no account has a live token", async () => {
     await refreshMailSnapshot({ apis: () => [], ai: noAI });
     // EMPTY, untouched -- no write happened at all.
