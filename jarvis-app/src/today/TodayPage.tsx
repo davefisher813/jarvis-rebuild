@@ -19,6 +19,12 @@ import { useSyncState } from "../data/useSyncState";
 import { Burst, useBurst } from "../shared/Burst";
 import type { BurstSize } from "../shared/completion";
 import { eveningSummary, todayPlanLine, EVENING_TASKS_NOTE, type EveningStats, type TodayPlan, type WeekRecap } from "./evening";
+import MoveHeadliner from "./MoveHeadliner";
+
+// The urgency chip shouts from CSS (.uchip is uppercase); the headliner's
+// facts line does not, so the same word arrives here in Title Case.
+const titleWord = (s?: string | null): string | null =>
+  (s ? s.split(" ").map((w) => (w[0] ?? "") + w.slice(1).toLowerCase()).join(" ") : null);
 import { capAfterNumber } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
 import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph, BullseyeGlyph } from "../shared/glyphs";
@@ -211,6 +217,11 @@ export default function TodayPage({
   upNext,
   upNextWaiting,
   upNextReason,
+  moveCategory,
+  moveEstimate,
+  moveReason,
+  onWhyMove,
+  onOtherChoices,
   freshStart,
   locked,
   onOpenEvent,
@@ -309,6 +320,20 @@ export default function TodayPage({
   /** The dealt card's reason line (reasonFor, computed by the flow). */
   upNextReason?: string | null;
   upNext?: TaskItem[];
+  // C-24 (Astra, 2026-09-12): the headliner's other two facts and its two
+  // doors. All optional: a harness that renders this page without them gets
+  // the title, the urgency and the reason, which is still the answer.
+  /** The dealt task's area, as the dot plus its name. */
+  moveCategory?: { name: string; slot: string } | null;
+  /** "20m", the task's own estimate or its area's usual. */
+  moveEstimate?: string | null;
+  /** Why this one, now: "Fits before Deep Work". The sky fact, and silent
+   *  when the pick has no placement to claim. */
+  moveReason?: string | null;
+  /** Opens the Why sheet (C-25). */
+  onWhyMove?: () => void;
+  /** Opens Other Good Choices. */
+  onOtherChoices?: () => void;
   freshStart?: () => void;
   locked?: { s: number; e: number; label: string; id?: string }[];
   onOpenEvent?: (id: string) => void;
@@ -498,20 +523,32 @@ export default function TodayPage({
   // The section answers ONE question at the top of the page. In the evening
   // there is no dealt card and the stream stays what it was: Heads Up.
   const upNextTop = !evening ? upNext?.[0] : undefined;
-  const dealtRow = upNextTop ? (
-    <StreamMember key="dealt" weight={DEALT} anchor>
-      <TaskRow
-        t={upNextTop}
-        u={urgencyFor(upNextTop.data, today)}
-        parent={parentOf?.(upNextTop)}
-        today={today}
-        burstSize={burstSizeOf?.(upNextTop) ?? "small"}
-        sub={upNextReason ?? undefined}
-        onToggle={() => onToggleTask?.(upNextTop.id)}
-        onOpen={() => onOpenTask?.(upNextTop.id)}
-        onStart={onStartTask ? () => onStartTask(upNextTop.id) : undefined}
-      />
-    </StreamMember>
+  // C-24 (Astra, 2026-09-12): the dealt task LEADS the band as a headliner
+  // instead of riding the stream as one uniform row. It is the only thing on
+  // this page that gets promoted, the notices under it keep their uniform,
+  // and the runners-up are a quiet row rather than a third voice. The stream
+  // is built from the notices alone now; its anchor rule still holds for the
+  // day the dealt task ever rejoins it.
+  const headliner = upNextTop ? (
+    <MoveHeadliner
+      title={upNextTop.data.text}
+      facts={{
+        // The chip's own word, in the sentence case a fact wears: the caps
+        // on a .uchip come from CSS, and a fact is not a chip (H2).
+        urgency: titleWord(urgencyFor(upNextTop.data, today)?.label),
+        category: moveCategory ?? null,
+        estimate: moveEstimate ?? null,
+        reason: moveReason ?? null,
+      }}
+      // The count is what the sheet actually holds, not the whole deck: "2
+      // more" opens two. The deck's own number lives on the Focus row.
+      otherCount={Math.min(2, upNextWaiting ?? 0)}
+      onToggle={onToggleTask ? () => onToggleTask(upNextTop.id) : undefined}
+      onStart={onStartTask ? () => onStartTask(upNextTop.id) : undefined}
+      onWhy={onWhyMove}
+      onOther={onOtherChoices}
+      onOpen={() => onOpenTask?.(upNextTop.id)}
+    />
   ) : null;
   // FOCUS BELONGS TO YOUR MOVE (Dave 2026-09-11: "The focus button should be
   // all the way up top under your move and replace that small grey subtext
@@ -768,11 +805,11 @@ export default function TodayPage({
           row (the headliner is retired, see stream.ts); the deck behind
           the dealt task folds to the waiting receipt. Evening has no dealt
           card, so the stream stays what it always was there: Heads Up. */}
-      {(headsUp.length > 0 || dealtRow) && (() => {
+      {(headsUp.length > 0 || headliner) && (() => {
         // FORM FOLLOWS DECISION (Law 3E). The stream ranks its members;
         // the producers only declare weight, form is decided here, in one
         // place, so no card can promote itself.
-        const ranked = rankStream([dealtRow, ...headsUp]);
+        const ranked = rankStream([...headsUp]);
         // STRIP THE BOXES, SHOW THREE (Dave 2026-08-26, five-way catalog:
         // "Option 1 with a limit. Have a see all button if it exceeds 3
         // things"). The cap counts ROWS: the ranker has already put the
@@ -800,9 +837,14 @@ export default function TodayPage({
               {/* ONE CARD, THREE ROWS (Dave 2026-08-26: bare rows "don't
                   look like the rest of the home page"). The rows keep
                   Option 1's economy and ride inside one grouped card, the
-                  same material as every other band on Today. */}
-              {shownRows.length > 0 && (
+                  same material as every other band on Today.
+                  C-24: the headliner rides the same card, at its head. The
+                  harness draws this band without a card at all, but every
+                  band on the real page has one and Push A did not change
+                  that; the anatomy inside it is the harness's. */}
+              {(shownRows.length > 0 || headliner) && (
                 <div className="card stream-card">
+                  {headliner}
                   {/* THE PINNED CARD IS REPEALED, IN THE STREAM (Dave
                       2026-08-26, picking Option 1 with the tradeoff stated:
                       long titles truncate to one line, tap opens the full
