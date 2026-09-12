@@ -5011,15 +5011,43 @@ body.selecting .voice-dock { display: none; }
    Start and the Why chip on the same line. The notices under it keep the
    uniform row they have had since Combine B. The runners-up are the quiet
    row below, never a second headliner. */
-.hl { padding: var(--s-1) 0 var(--s-2h); }
-.hl-head { display: flex; align-items: center; gap: var(--s-2h); }
+/* ONE LEFT EDGE (Dave 2026-09-12, photographed: "a real eye sore... the
+   first thing a user sees. It needs to look perfect"). The first cut gave
+   .hl no horizontal inset at all, so the facts line hung at the card's raw
+   edge, while the buttons inherited the notice row's .hl-acts padding and
+   sat 16px in, and the title sat 44px further in beside the ring. Three
+   edges on one card. This is the task-row anatomy now: the card's s-4
+   inset, a 44px ring column, s-3, then ONE text column -- the same
+   calc(s-4 + 44px + s-3) edge the hairlines under it are drawn to, so the
+   title, the facts, the verbs and every row below all start on one line. */
+.hl { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-3) var(--s-4) var(--s-3h); }
+/* The ring column, always reserved. The 44px tap target centres on the
+   title's own line height and overflows above and below it, the same trick
+   .task-check-tap's -8px margins pull on a 44px row. */
+.hl-lead { flex: 0 0 44px; height: calc(20px * var(--type-scale) * 1.15); display: flex; align-items: center; justify-content: center; }
+.hl-lead .task-check-tap { margin: 0; }
+.hl-body { flex: 1; min-width: 0; }
 .hl-title { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.01em; line-height: 1.15; min-width: 0; }
+.hl .facts { margin-top: 3px; }
 /* Left, under the facts they belong to, as the harness draws them. The
-   specificity is deliberate: a generic rule on this page right-aligns
-   anything named like an action row, and these are not a trailing slot. */
-.hl .hl-acts { display: flex; align-items: center; justify-content: flex-start; gap: var(--s-2); margin-top: var(--s-2); }
-/* The runners-up row. A count and a chevron: it is a door, not a list. */
-.hl-other { cursor: pointer; }
+   specificity is deliberate: the generic .hl-acts above is a notice row's
+   trailing verb line and carries that row's inset and right alignment;
+   inside the headliner the verbs sit in the text column, which already has
+   its inset, so this resets both. */
+.hl .hl-acts { display: flex; align-items: center; justify-content: flex-start; gap: var(--s-2); margin-top: var(--s-2h); padding: 0; }
+/* The runners-up row. A count and a chevron: it is a door, not a list. The
+   hairline above it is drawn to the shared text edge like every other
+   divider in this card; without it the headliner and the row ran together
+   as one block of dead space. */
+.hl-other { cursor: pointer; position: relative; }
+/* No glyph of its own, so its words start at the text edge directly: a
+   row that started at the card edge under a headliner that does not was
+   the last of the three edges the photograph showed. */
+.stream-card > .hl-other { padding-left: calc(var(--s-4) + 44px + var(--s-3)); }
+.stream-card > .hl + .hl-other::before,
+.stream-card > .hl-other + .pad-x::before {
+  content: ""; position: absolute; left: calc(var(--s-4) + 44px + var(--s-3));
+  right: 0; top: 0; height: 0.5px; background: var(--divider); }
 .hl-other .r-count { color: var(--tx-3); font-size: var(--t-meta); }
 
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the

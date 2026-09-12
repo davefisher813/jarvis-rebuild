@@ -50,36 +50,49 @@ export default function MoveHeadliner({
 }) {
   return (
     <>
+      {/* ONE LEFT EDGE (Dave 2026-09-12, photographed: "The 'text Shawna'
+          is a real eye sore... It's the first thing a user sees"). The first
+          cut put the ring and the title on one line and let the facts and
+          the buttons fall out under BOTH of them, so the card had three left
+          edges: the facts at the card's edge, the buttons at a notice row's
+          inset, the title beside the ring. It is the task-row anatomy now,
+          the same one every row under it uses: a 44px ring column, then one
+          text column that holds the title, the facts and the verbs, all
+          starting at the card's shared text edge. The ring column is always
+          reserved so the words line up with the rows below even on a page
+          that mounts this without a toggle. */}
       <div className="hl">
-        <div className="hl-head">
+        <div className="hl-lead">
           {onToggle && (
             <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={onToggle}>
               <div className="task-check" />
             </div>
           )}
+        </div>
+        <div className="hl-body">
           {/* The title is the door, the same contract every task row on this
               page keeps: the words open the task, the pill is the verb. */}
           <div className="hl-title" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={onOpen}>{title}</div>
-        </div>
-        <div className="facts">
-          {/* At most one coloured fact per line is the law (K.3, extended in
-              laws/astra.test.ts). Urgency is the one that gets the colour
-              when it exists, because a date is the fact that changes what he
-              does; the reason takes sky only when there is no urgency to
-              say. The area and the state word carry their own colour by
-              rule and do not count. */}
-          {facts.urgency && <span className="fact warn">{facts.urgency}</span>}
-          {facts.category && (
-            <span className="fact cat"><span className={"cd cat-bg-" + facts.category.slot} />{facts.category.name}</span>
-          )}
-          {facts.estimate && <span className="fact">{facts.estimate}</span>}
-          {facts.reason && <span className={"fact" + (facts.urgency ? "" : " sky")}>{facts.reason}</span>}
-        </div>
-        <div className="hl-acts">
-          {onStart && <button type="button" className="btn btn-primary btn-sm" onClick={onStart}>Start</button>}
-          {/* The Why chip is the same anatomy as the mail evidence chip: a
-              claim you can open to see the working behind it. */}
-          {onWhy && <button type="button" className="why" onClick={onWhy}>Why</button>}
+          <div className="facts">
+            {/* At most one coloured fact per line is the law (K.3, extended in
+                laws/astra.test.ts). Urgency is the one that gets the colour
+                when it exists, because a date is the fact that changes what he
+                does; the reason takes sky only when there is no urgency to
+                say. The area and the state word carry their own colour by
+                rule and do not count. */}
+            {facts.urgency && <span className="fact warn">{facts.urgency}</span>}
+            {facts.category && (
+              <span className="fact cat"><span className={"cd cat-bg-" + facts.category.slot} />{facts.category.name}</span>
+            )}
+            {facts.estimate && <span className="fact">{facts.estimate}</span>}
+            {facts.reason && <span className={"fact" + (facts.urgency ? "" : " sky")}>{facts.reason}</span>}
+          </div>
+          <div className="hl-acts">
+            {onStart && <button type="button" className="btn btn-primary btn-sm" onClick={onStart}>Start</button>}
+            {/* The Why chip is the same anatomy as the mail evidence chip: a
+                claim you can open to see the working behind it. */}
+            {onWhy && <button type="button" className="why" onClick={onWhy}>Why</button>}
+          </div>
         </div>
       </div>
       {otherCount > 0 && onOther && (
