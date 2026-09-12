@@ -383,3 +383,73 @@ export function identityToText(ctx: AIContext): string {
   if (ctx.values) lines.push(`Values: ${ctx.values}`);
   return lines.join("\n");
 }
+
+// ---------------------------------------------------------------------------
+// THE PACKS (section 6, Astra pass 2026-09-12)
+//
+// The three renderings above are the app's context PACKS, and now they are
+// called that: one name per prompt shape, so a caller picks a pack rather than
+// guessing which "toText" is the right one. The old names stay exported and
+// are what the existing callers still use; these are the same functions, not
+// copies, so there is no second rendering to keep in step.
+export const fullPack = contextToText;
+export const identityPack = identityToText;
+
+/** The writing pack. `channel` names where the words are going, because the
+ *  same voice writes an email and a text differently and a prompt that does
+ *  not say which is asking the model to guess. Omitted renders exactly what
+ *  voiceToText always did. */
+export function voicePack(ctx: AIContext, opts: { channel?: string; styleRule?: boolean } = {}): string {
+  const { channel, ...rest } = opts;
+  const base = voiceToText(ctx, rest);
+  return channel ? `${base}\nWriting for: ${channel}` : base;
+}
+
+/** What Your Move and the gap offer need, and nothing else.
+ *
+ *  This is the pack for the one question "what should I do right now", so it
+ *  carries the things that answer it: what is due or late with what it feeds,
+ *  how much open time there actually is, when this person works best, how long
+ *  their categories really take, and what they have pushed so often that
+ *  offering it again without saying so would be dishonest. It deliberately
+ *  leaves out the money lines, the months, the pulse and the training: none of
+ *  them decides which task comes next, and every one of them is tokens.
+ *
+ *  The `now` half is passed in rather than read here, because this module is
+ *  pure and the clock is not. */
+export function movePack(
+  ctx: AIContext,
+  now: {
+    /** Open minutes before the next commitment, from nowContext. */
+    openMin?: number | null;
+    /** Due and overdue, each already carrying its goal lineage where it has
+     *  one ("Call the field · Moves Spring season"). */
+    due?: string[];
+    /** Area priority, in order, derived from the user's own rule strands. */
+    areaPriority?: string[];
+    /** "Admin usually takes 25 min", from the learned per-category durations. */
+    learnedDurations?: string[];
+    /** Tasks pushed three or more times, which is a fact about the task and
+     *  not about the person: it is here so a suggestion can say so out loud
+     *  rather than offering the same thing a fourth time in silence. */
+    pushedOften?: string[];
+  } = {},
+): string {
+  const lines: string[] = [];
+  lines.push(`User: ${ctx.name}`);
+  if (now.due?.length) lines.push(`Due or late: ${now.due.join("; ")}`);
+  else if (ctx.openTasks?.length) lines.push(`Open tasks: ${ctx.openTasks.join("; ")}`);
+  if (typeof now.openMin === "number") lines.push(`Open time right now: ${now.openMin} minutes`);
+  if (ctx.events?.length) {
+    const todays = ctx.events.filter((e) => !e.date);
+    if (todays.length) lines.push(`Today's schedule: ${todays.map((e) => `${to12h(e.start)} ${e.title}`).join("; ")}`);
+  }
+  if (now.areaPriority?.length) lines.push(`Area priority (their own rules): ${now.areaPriority.join(" > ")}`);
+  if (ctx.patternLine) lines.push(`Patterns: ${ctx.patternLine}`);
+  if (now.learnedDurations?.length) lines.push(`How long things actually take: ${now.learnedDurations.join("; ")}`);
+  if (now.pushedOften?.length) lines.push(`Pushed three or more times: ${now.pushedOften.join("; ")}`);
+  if (ctx.goals?.length) lines.push(`Goals: ${ctx.goals.join("; ")}`);
+  if (ctx.routineLine) lines.push(`Routine: ${ctx.routineLine}`);
+  if (ctx.strands?.length) lines.push(`Known about the user (watched or confirmed by them): ${ctx.strands.join("; ")}`);
+  return lines.join("\n");
+}

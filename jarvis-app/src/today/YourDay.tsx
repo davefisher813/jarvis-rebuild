@@ -8,6 +8,7 @@ import ProposedRow from "../schedule/screens/ProposedRow";
 import DayRow from "../schedule/screens/DayRow";
 import type { AttachInfo } from "../schedule/attachments";
 import { holdersIn, holderFor, holderKey, spanOf, type HoldRange } from "../schedule/nesting";
+import { stateForEvent, stateForBlock } from "../schedule/stateWord";
 import HeldTasks from "../schedule/screens/HeldTasks";
 import LockedRow from "../schedule/screens/LockedRow";
 import type { PlanBlock } from "../schedule/planDay";
@@ -70,8 +71,12 @@ const todayISODate = () => {
 function DaySet({
   events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, onOpenBlock, blendMap = {}, proposed, fromMin, expandHeld = false,
   conflicts, attachMap, firstMoveMap, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow,
-  onShiftBlock, onRetimeBlock, onResizeBlock, gymDoorFor,
+  onShiftBlock, onRetimeBlock, onResizeBlock, gymDoorFor, stateWords = false,
 }: {
+  // C-28 (Astra, 2026-09-12): draw the state word on every row of this set.
+  // Today asks for it; the Schedule tab takes it in Push C, which is why it
+  // is a flag and not simply always on.
+  stateWords?: boolean;
   events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void;
   onEditRoutine?: (blockId?: string) => void;
   // The actual tap target on a locked row (2026-08-28): opens BlockSheet
@@ -170,6 +175,7 @@ function DaySet({
           isNext={en.ev.id === nextId}
           isPast={isPast(en.ev, now)}
           now={now}
+          {...(stateWords ? { state: stateForEvent(en.ev.data, { today: todayISODate(), nowMin }) } : {})}
           onOpen={onOpenEvent ? () => onOpenEvent(en.ev.id) : undefined}
           onShift={onShift ? (m) => onShift(en.ev.id, m) : undefined}
           onMoveTo={onMoveTo ? (t) => onMoveTo(en.ev.id, t) : undefined}
@@ -218,6 +224,7 @@ function DaySet({
           key={"lock-" + i}
           l={en.l}
           past={en.l.e <= nowMin}
+          {...(stateWords ? { state: stateForBlock(en.l) } : {})}
           onOpen={blockId && onOpenBlock ? () => onOpenBlock(blockId) : onEditRoutine ? () => onEditRoutine(blockId) : undefined}
           heldCount={evs.length + props.length}
           onShift={onShiftBlock && blockId ? (m) => onShiftBlock(blockId, m) : undefined}
@@ -594,10 +601,10 @@ export default function YourDay({
               expanded, which is the ticker's own content. Deciding whether a
               thing should scroll by measuring something other than that thing
               is how the feature switched itself off. */}
-          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} firstMoveMap={firstMoveMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} gymDoorFor={gymDoorFor} /></div>
+          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} firstMoveMap={firstMoveMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} gymDoorFor={gymDoorFor} stateWords /></div>
           {measuring && (
             <div ref={measureRef} className="day-measure" aria-hidden="true">
-              <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />
+              <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
             </div>
           )}
         </div>
@@ -638,8 +645,8 @@ export default function YourDay({
           onClickCapture={(e) => { e.stopPropagation(); setPausedSticky(true); }}
         >
           <div className="ticker-track">
-            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />
-            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />
+            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
+            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
           </div>
         </div>
         {/* Says what the tap does, because a list that stops when you touch

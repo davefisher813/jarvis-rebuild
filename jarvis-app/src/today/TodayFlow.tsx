@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules, useBrainDocs, useOptionalStrands } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
-import { goalTone, catName } from "../shared/categories";
+import { goalTone, catName, catColor as catColorOf } from "../shared/categories";
 import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
@@ -19,6 +19,8 @@ import ReportFlow, { reportSeen, markReportSeen } from "../review/ReportPage";
 import { monthName as monthTitle } from "../review/report";
 import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
+import WhySheet from "./WhySheet";
+import OtherChoicesSheet from "./OtherChoicesSheet";
 import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
@@ -520,6 +522,10 @@ export default function TodayFlow({
   const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
+  // C-24 / C-25: the headliner's two doors. Why opens the reasons behind the
+  // pick; Other Good Choices opens the two behind it.
+  const [whyOpen, setWhyOpen] = useState(false);
+  const [choicesOpen, setChoicesOpen] = useState(false);
   // THE MONTHLY REPORT (2026-08-25). Arrives as one row in the notice
   // stream, unannounced, when the previous month is sealed and this device
   // has not read it. No countdown, no teaser: anticipating a landmark
@@ -1512,6 +1518,26 @@ export default function TodayFlow({
     return ["Keep going", why?.toLowerCase(), mins ? durLabel(mins) : null].filter(Boolean).join(" \u00b7 ");
   };
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm, completionsToday) : undefined;
+  // C-24 (Astra, 2026-09-12): the headliner's own two facts. The area is a
+  // dot plus plain words (G4), and the length is the task's own estimate
+  // before its area's usual, the order every other surface asks in. Evening
+  // has no dealt task, so it has no headliner either.
+  const moveTask = !evening ? upNextAll[0] ?? null : null;
+  const moveCategory = moveTask
+    ? { name: catName(moveTask.data.category) || "No category", slot: catColorOf(moveTask.data.category) }
+    : null;
+  const moveEstimate = moveTask
+    ? `${moveTask.data.estimateMin ?? estimates[moveTask.data.category ?? ""] ?? 45} min`
+    : null;
+  // C-25: the fragments behind the pick, in the ranker's own order, plus the
+  // goal it moves when naming it says something the title did not. Nothing
+  // here is written for the sheet.
+  const moveReasons = moveTask
+    ? [
+      ...reasonFor(moveTask, today, inPeakNow).split(" · "),
+      movesLine(goalTitleForTask(goalIdx, moveTask), moveTask.data.text),
+    ].filter((x): x is string => !!x)
+    : [];
   // UP-CORE-03: tomorrow's birthday, in the evening only, one at a time,
   // and silent once waved off. upcomingBirthdays already knows how to say
   // "Tomorrow" and already handles the year wrap.
@@ -2029,8 +2055,13 @@ export default function TodayFlow({
         // applies, at the other door a task becomes work.
         pausedCats,
       );
-  const gapTask = gapPick ? taskItems.find((t) => t.id === gapPick.id) ?? null : null;
-  const gapMoves = gapTask ? movesLine(goalTitleForTask(goalIdx, gapTask), gapTask.data.text) : null;
+  // C-24: the gap fill is DATA now, not a second offer. When the task the
+  // ranker dealt is also the one that fits the open window, the headliner
+  // says so in its own facts line ("Fits before Deep Work"); when it is not,
+  // nothing anywhere claims it does. Nothing else reads gapPick.
+  const movePlacement = moveTask && gapPick?.id === moveTask.id && nowCtx.nextTitle
+    ? `Fits before ${nowCtx.nextTitle}`
+    : null;
 
   // Approved V2 anatomy (preview 2026-08-15): the free window reads as two
   // stat tiles (sky until, green open); inside an event the event tile leads;
@@ -2076,87 +2107,21 @@ export default function TodayFlow({
               vertical for no reason"); this branch never got the treatment.
               .now-line-one stays for the case it was written for -- a header
               ABOVE a suggestion -- where it really is a line of its own. */}
-          {gapPick && (
-          <div className="now-line-one">
-            <span className="now-gap">{shortSpan(nowCtx.gapMin)} open</span>
-            <span className="now-until">
-              &middot; until {nowCtx.nextTitle ?? "your next event"} {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}
-            </span>
-            {/* UP-CORE-20 (2026-09-05): the outdoor line, where the next
-                commitment is outdoors. It has been under the event's own row
-                on both tabs since weather shipped; the Now card is the one
-                surface that says what is coming and never said this about
-                it. Same threshold gate (weather.ts's eventLine returns null
-                when there is nothing worth saying) and the same cached
-                snapshot, so it costs no read of its own. */}
-            {nextOutdoor && <EventWeatherLine dateIso={today} start={nextOutdoor.data.start} />}
-          </div>
-          )}
-          {gapPick ? (
-            // The task name and its buttons do NOT share a line. On a 390px
-            // phone two pills plus a title truncated the title to "Create B...",
-            // which is the one piece of information the card exists to carry.
-            // START RIDES THE ROW; THE OTHER TWO ARE A SWIPE (Dave 2026-08-25,
-            // pick 5A). The note this replaces was right at the time: two
-            // pills PLUS a title truncated the title to "Create B...", the one
-            // thing the card exists to say. One pill is a different sum, and
-            // .pill-act caps itself at 9.5rem so the title keeps the rest.
+          {/* The header line above the suggestion went with the suggestion
+              (C-24): the row below says the same two facts, on the one grid
+              this card uses, with the outdoor line under them. */}
+          {(
+            // C-24 (Astra, 2026-09-12): NOW STOPPED DEALING ITS OWN TASK.
             //
-            // Set a Start and Not Now move to the swipe every other row in this
-            // app already uses for its secondary actions, so nothing new is
-            // being taught and the card gets ~280px back.
-            // TODAY-F-23 (2026-09-05): the same reveal, reachable without a
-            // touchscreen: long-press or right-click the row, or tab into one
-            // of these two buttons and the rail opens around it.
-            <div className="task-swipe now-swipe" onFocus={nowSwipe.revealFocus}>
-              <button data-reveal className="task-snooze" onClick={() => setRitual({
-                taskId: gapPick.id,
-                text: gapPick.text,
-                firstMove: proposeFirstMove(gapPick.text),
-                startHHMM: nextStart(nhm),
-                minutes: DEFAULT_MINUTES,
-              })} aria-label="Set a start time">
-                <Clock className="ic" />
-                <span className="swipe-label">Set a Start</span>
-              </button>
-              <button data-reveal className="task-del" onClick={() => setGapDismissed(gapKey)} aria-label="Not now">
-                <CircleSlash className="ic" />
-                <span className="swipe-label">Not Now</span>
-              </button>
-              <div
-                className={"task-row now-row" + (nowSwipe.dragging ? " swiping" : "")}
-                style={nowSwipe.dx ? { transform: `translateX(${nowSwipe.dx}px)` } : undefined}
-                {...nowSwipe.handlers}
-              >
-                <RowIcon kind="task" />
-                {/* TODAY-F-07: the words open the task, which is the tap the
-                    Start pill used to carry. Same anatomy as a Tasks row,
-                    where the title is the door and the pill is the verb. */}
-                <div className="row-stack" role="button" tabIndex={0} onClick={() => void onOpenTask(gapPick.id)}>
-                  <div className="conn-name truncate">{gapPick.text}</div>
-                  {/* PICK 1: NOW SAYS WHAT IT MOVES (Dave 2026-08-22). "Fits
-                      this gap" is the card's own premise restated: it is IN
-                      the gap, he can see that. When the task points at a goal,
-                      that slot carries the one thing he cannot see from here,
-                      and pick 31 keeps it quiet when the goal only repeats the
-                      task's own words. Two dot segments, never three: a third
-                      wraps on a 390px phone. */}
-                  <div className="conn-meta truncate">{gapPick.estimateMin} min · {gapMoves ?? "Fits this gap"}</div>
-                </div>
-                {/* B15 (2026-08-23): red TEXT, not a red fill. On a screen
-                    where Accept the Day commits every hour of the day, the
-                    fill belongs to the bigger move.
-                    TODAY-F-07 (2026-09-05): and Start now STARTS, the same
-                    verb Your Move's Start carries, sized to the estimate this
-                    card is already showing. It used to open the edit sheet,
-                    so two identical pills two rows apart did two different
-                    things. Opening the task is still one tap away, on the
-                    row's own words, and the swipe still holds Set a Start for
-                    a later time. */}
-                <button className="pill-act" onClick={(e) => { e.stopPropagation(); if (gapTask) void startBlock(gapTask, gapPick.estimateMin); }}>Start</button>
-              </div>
-            </div>
-          ) : (
+            // This card used to draw a second task pick, with its own Start,
+            // its own swipe and its own reason line, a few hundred pixels
+            // under Your Move's. Two surfaces on one screen each offering
+            // "the thing to do next", chosen by different derivations, is the
+            // repetition this page keeps having to remove; the headliner is
+            // where that offer lives now. The gap fill still exists as data
+            // (nowContext.ts) and still feeds what the headliner can say
+            // about fitting the gap. Now says what he is inside of, or how
+            // much is open and until when, and hands over one door.
             // NO DEAD ENDS IN NOW (Dave 2026-08-19, "the more I can do without
             // thinking, the better"): when nothing is teed up, Now still hands
             // him the one-tap way in instead of stating the time and stopping.
@@ -3210,6 +3175,11 @@ export default function TodayFlow({
       upNext={upNextRows}
       upNextWaiting={Math.max(0, upNextAll.length - 1)}
       upNextReason={upNextAll[0] ? reasonFor(upNextAll[0], today, inPeakNow) : null}
+      moveCategory={moveCategory}
+      moveEstimate={moveEstimate}
+      moveReason={movePlacement}
+      onWhyMove={moveTask ? () => setWhyOpen(true) : undefined}
+      onOtherChoices={moveTask && upNextAll.length > 1 ? () => setChoicesOpen(true) : undefined}
       blendMap={blendMap}
       gymDoorFor={gymDoor.doorFor}
       onStartTask={(id) => {
@@ -3422,6 +3392,35 @@ export default function TodayFlow({
       <Suspense fallback={null}>
         <UpNextFlow onClose={() => { setUpNextOpen(false); void reload(); }} />
       </Suspense>
+    )}
+    {/* C-25: why this one, and the two taps that say whether it was right.
+        The fragments are the ranker's own, plus the placement when the pick
+        fits the open window. */}
+    {whyOpen && moveTask && (
+      <WhySheet
+        taskId={moveTask.id}
+        reasons={[...moveReasons, ...(movePlacement ? [movePlacement] : [])]}
+        onClose={() => setWhyOpen(false)}
+      />
+    )}
+    {/* C-24: the two ranked behind the headliner, each startable, and one
+        quiet way through to What Now. */}
+    {choicesOpen && moveTask && (
+      <OtherChoicesSheet
+        offeredId={moveTask.id}
+        choices={upNextAll.slice(1, 3).map((t) => ({
+          id: t.id,
+          text: t.data.text,
+          facts: reasonFor(t, today, inPeakNow),
+        }))}
+        onStart={(id) => {
+          const t = taskItems.find((x) => x.id === id);
+          if (t) void startFifteen(t);
+        }}
+        onOpen={(id) => void onOpenTask(id)}
+        onPickSomethingElse={() => setUpNextOpen(true)}
+        onClose={() => setChoicesOpen(false)}
+      />
     )}
     {freshOpen && (
       <Suspense fallback={null}>

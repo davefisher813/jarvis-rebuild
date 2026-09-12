@@ -5006,6 +5006,22 @@ body.selecting .voice-dock { display: none; }
 .row-star svg { width: 16px; height: 16px; display: block; }
 .row-star.on { color: var(--yellow); }
 
+/* THE YOUR MOVE HEADLINER (C-24, Push B). The one task he is meant to do
+   next, the only promoted thing on the page: title, one facts line, then
+   Start and the Why chip on the same line. The notices under it keep the
+   uniform row they have had since Combine B. The runners-up are the quiet
+   row below, never a second headliner. */
+.hl { padding: var(--s-1) 0 var(--s-2h); }
+.hl-head { display: flex; align-items: center; gap: var(--s-2h); }
+.hl-title { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.01em; line-height: 1.15; min-width: 0; }
+/* Left, under the facts they belong to, as the harness draws them. The
+   specificity is deliberate: a generic rule on this page right-aligns
+   anything named like an action row, and these are not a trailing slot. */
+.hl .hl-acts { display: flex; align-items: center; justify-content: flex-start; gap: var(--s-2); margin-top: var(--s-2); }
+/* The runners-up row. A count and a chevron: it is a door, not a list. */
+.hl-other { cursor: pointer; }
+.hl-other .r-count { color: var(--tx-3); font-size: var(--t-meta); }
+
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
    mail EvidenceChip: a surface hands that component this class rather than
    forking it, and the sheet it opens is the Why sheet (C-25). */

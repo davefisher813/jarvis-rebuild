@@ -31,6 +31,8 @@ import type { ReactNode } from "react";
 // existed on Schedule's copy. Today gets it for free now instead of a
 // second one having to be built and, eventually, drift.
 
+import { toneFor, type StateWord } from "../stateWord";
+
 export interface LockedRowRange {
   s: number;
   e: number;
@@ -43,10 +45,13 @@ export interface LockedRowRange {
 }
 
 export default function LockedRow({
-  l, past, onOpen, onShift, onRetime, onResize, heldCount, onFillBlock, children,
+  l, past, onOpen, onShift, onRetime, onResize, heldCount, onFillBlock, children, state = null,
 }: {
   l: LockedRowRange;
   past: boolean;
+  // C-28 (Astra, 2026-09-12): derived by the caller through
+  // schedule/stateWord.ts, never stored. Opt-in, like DayRow's.
+  state?: StateWord | null;
   onOpen?: () => void;
   onShift?: (mins: number) => void;
   onRetime?: (startMin: number) => void;
@@ -108,6 +113,9 @@ export default function LockedRow({
               {l.label}
             </div>
             <div className="sched-cat">
+              {/* C-28 (Astra, 2026-09-12): the state word, ahead of the
+                  kicker that describes the same block in a sentence. */}
+              {state && <span className={"fact st " + toneFor(state)}>{state}</span>}
               {kicker}
               <span className="sched-sep">&middot;</span>
               {onResize ? (

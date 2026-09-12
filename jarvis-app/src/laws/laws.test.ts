@@ -1634,10 +1634,19 @@ describe("LAW: stored shapes are versioned", () => {
   // once. It has already survived one rebase; this is so the next one is not
   // a matter of luck. Verified end to end against the demo on 2026-08-24:
   // "About 45 min · Moves Weekly date night".
-  it("the Now card still says what its task moves", () => {
+  // AMENDED (C-24, Astra, 2026-09-12). The Now card no longer deals a task
+  // at all: two surfaces on one screen each offering "the thing to do next",
+  // chosen by different derivations, was the repetition this page keeps
+  // having to remove. The RULING survives and moves with the offer, which is
+  // the only reason this amendment is allowed: the surface that offers a
+  // task still has to say what the task is for. That is the headliner now,
+  // and the same movesLine derivation feeds it.
+  it("the offer still says what its task moves", () => {
     const src = read(SRC + "/today/TodayFlow.tsx");
-    expect(src, "gapMoves must be derived").toMatch(/const gapMoves = .*movesLine\(/);
-    expect(src, "and rendered in the Now meta").toMatch(/\{gapMoves \?\? "Fits this gap"\}/);
+    expect(src, "movesLine must be derived for the headliner").toMatch(/movesLine\(goalTitleForTask\(goalIdx, moveTask\)/);
+    expect(src, "and the Now card must not deal a second task").not.toMatch(/\{gapMoves \?\? "Fits this gap"\}/);
+    // The reasons reach the Why sheet, which is where the whole list lives.
+    expect(src).toMatch(/reasons=\{\[\.\.\.moveReasons/);
   });
 
   // A GOAL'S LINE IS DERIVED ONCE. Two passes over the same data drift: the

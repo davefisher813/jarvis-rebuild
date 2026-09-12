@@ -75,16 +75,15 @@ describe("TodayPage", () => {
     expect(screen.getByText("Your Move")).toBeInTheDocument();
     expect(screen.queryByText("Up Next")).toBeNull(); // the section is gone, not renamed twice
     expect(screen.queryByText("See All")).toBeNull();
-    // THE RULED ROW (2026-09-01): the ring is never category-coloured, the
-    // category rides the kicker bar, and urgency is a chip on the kicker line
-    // that says the DISTANCE. Two days past 2026-05-18 on 2026-05-20.
-    expect(container.querySelector(".task-check.cat-bd-sky")).toBeNull();
-    expect(container.querySelector(".task-row .r-bar")).toBeNull(); // the bar retired 2026-09-02
-    expect(container.querySelector(".uchip.u-late")).toHaveTextContent("2 DAYS LATE");
-    expect(container.querySelector(".urgency-red")).toBeNull(); // the trailing label is gone
-    // SAY IT ONCE: the reason's due-part ("Waiting 2 days") is what the chip
-    // now says, so it is not printed a second time under the kicker.
-    expect(screen.queryByText("Waiting 2 days")).toBeNull();
+    // C-24 (Astra, 2026-09-12): the dealt task is the band's HEADLINER now,
+    // not one uniform row in the stream. Title, one facts line, then Start
+    // and Why. The ruled-row anatomy this used to pin belongs to the rows
+    // under it, which are unchanged.
+    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
+    expect(container.querySelectorAll(".hl .facts .fact").length).toBeGreaterThan(0);
+    // The urgency is the headliner's one coloured fact, and it says the
+    // distance, the same words the chip used to.
+    expect(container.querySelector(".hl .fact.warn")).toHaveTextContent("Overdue");
     // FOCUS REPLACED THE RECEIPT (Dave 2026-09-11: "The focus button should
     // be all the way up top under your move and replace that small grey
     // subtext that renders the up next page"). Both called onUpNext, so the
@@ -94,29 +93,35 @@ describe("TodayPage", () => {
     // into one label.
     expect(screen.getByText("Focus")).toBeInTheDocument();
     expect(document.querySelector(".focus-row .fc-n")).toHaveTextContent("2 Waiting");
-    // one dealt card means one task row, however deep the deck is
-    expect(container.querySelectorAll(".task-row").length).toBe(1);
+    // C-24: one headliner, and no task row left in the stream at all.
+    expect(container.querySelectorAll(".hl-title").length).toBe(1);
+    expect(container.querySelectorAll(".heads-up-stream .task-row").length).toBe(0);
     // the old daytime task list stays replaced
     expect(screen.queryByText("Today\u2019s Tasks")).toBeNull();
   });
 
-  it("the reason line keeps only what the chip does not already say", () => {
-    // "Due today · your focus peak": the chip says TODAY, so the line says
-    // just the peak. A reason that is ONLY the due-part renders no line.
+  // C-24 (Astra, 2026-09-12): the headliner's facts line, in the harness's
+  // own order: the urgency in warn, the area as a dot plus plain words, the
+  // length, and the placement in sky. At most one coloured fact, which is the
+  // law in laws/astra.test.ts; the area dot does not count toward it.
+  it("the headliner says why this one, on one facts line", () => {
     const { container, rerender } = render(
-      <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} upNextReason={"Due today \u00b7 your focus peak"} onUpNext={() => {}} />,
+      <TodayPage {...base} upNext={[tk("due", "2026-05-20")]}
+        moveCategory={{ name: "Personal", slot: "teal" }} moveEstimate="20 min"
+        moveReason="Fits before Deep Work" onUpNext={() => {}} />,
     );
-    expect(container.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
-    // "Together" (2026-09-01): the reason is the second line now, sentence
-    // case, after the chip. No third line, no caps eyebrow.
-    expect(container.querySelector(".r-k .r-why")).toHaveTextContent("Your focus peak");
-    expect(container.querySelector(".task-title .eyebrow")).toBeNull();
-    expect(screen.queryByText(/Due today/)).toBeNull();
-    // A reason that was only the due-part leaves the line to the goal, or,
-    // with no goal, the category.
-    rerender(<TodayPage {...base} upNext={[tk("due", "2026-05-20")]} upNextReason="Due today" onUpNext={() => {}} />);
-    expect(container.querySelector(".r-k .r-why")).toBeNull();
-    expect(container.querySelector(".r-k .r-goal")).toBeTruthy();
+    const facts = container.querySelector(".hl .facts")!;
+    expect(facts).toHaveTextContent("Today");
+    expect(facts).toHaveTextContent("Personal");
+    expect(facts).toHaveTextContent("20 min");
+    expect(facts).toHaveTextContent("Fits before Deep Work");
+    expect(facts.querySelector(".fact.cat .cd.cat-bg-teal")).toBeTruthy();
+    // The urgency owns the colour when there is one, so the placement stays
+    // quiet beside it: one coloured fact per line.
+    expect(facts.querySelectorAll(".fact.warn, .fact.good, .fact.sky, .fact.purp, .fact.red").length).toBe(1);
+    // With no date to lead on, the placement takes the sky it was given.
+    rerender(<TodayPage {...base} upNext={[tk("nodate", null)]} moveReason="Fits before Deep Work" onUpNext={() => {}} />);
+    expect(container.querySelector(".hl .fact.sky")).toHaveTextContent("Fits before Deep Work");
   });
 
   it("shows three, folds the rest behind See All in the head, Less refolds", () => {
@@ -141,24 +146,23 @@ describe("TodayPage", () => {
     const streamRows = () =>
       container.querySelectorAll(".heads-up-stream .notice-vrow").length +
       container.querySelectorAll(".heads-up-stream .task-row").length;
-    // Shown: FAILING, WAITING, then NEW -- the three heaviest non-anchor
-    // members. The dealt task is DEALT-weight and the stream's anchor
-    // (2026-08-26, "I don't want a task wedged in between 2 arrows"):
-    // FAILING(90) outranks its 71, so the WHOLE notice block rides above
-    // it, not just FAILING, which pushes the anchor itself down to fold
-    // with the lightest notice (Old Thread) instead of riding mid-list.
+    // C-24 (Astra, 2026-09-12): the dealt task left the stream for the
+    // headliner, so the cap counts notices alone. Three shown, the lightest
+    // folded, and the headliner above them is never part of the fold: it is
+    // the one thing on this page that does not hide.
     expect(streamRows()).toBe(3);
     expect(screen.getByText("Day Is Sliding")).toBeInTheDocument();
     expect(screen.getByText("Fresh Offer")).toBeInTheDocument();
     expect(screen.queryByText("Old Thread")).toBeNull();
-    expect(screen.queryByText("over")).toBeNull(); // the dealt task's title
+    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
     fireEvent.click(screen.getByText("See All"));
-    expect(streamRows()).toBe(5);
+    expect(streamRows()).toBe(4);
     expect(screen.getByText("Old Thread")).toBeInTheDocument();
-    expect(screen.getByText("over")).toBeInTheDocument();
+    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
     fireEvent.click(screen.getByText("Less"));
     expect(streamRows()).toBe(3);
-    expect(screen.queryByText("over")).toBeNull();
+    // The headliner is outside the fold in both states.
+    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
   });
 
   it("rows down a pinned card too: one grammar, no exceptions in the stream", () => {
@@ -191,7 +195,11 @@ describe("TodayPage", () => {
   // wedged in between 2 arrows." The dealt task is now the stream's anchor:
   // FAILING outranks it, so the WHOLE block (FAILING AND WAITING, not just
   // the notice that outranks it) moves above, and the task trails both.
-  it("the dealt task no longer wedges between a FAILING notice and a WAITING one", () => {
+  // C-24 (Astra, 2026-09-12): the wedge this was written for cannot happen
+  // now, because the dealt task is not in the stream: it leads the band and
+  // the notices rank among themselves under it. The ordering it pinned still
+  // holds for the notices, and the headliner leads both.
+  it("the notices rank among themselves, under the headliner", () => {
     const notice = (title: string, weight: number) => (
       <NoticeCard key={title} weight={weight} icon={null} title={title} action={{ label: "Do It", onClick: () => {} }} />
     );
@@ -201,10 +209,9 @@ describe("TodayPage", () => {
     );
     const stream = container.querySelector(".heads-up-stream")!;
     const texts = stream.textContent!;
-    // FAILING first, then WAITING, then the dealt task trailing both --
-    // never between them.
+    // FAILING first, then WAITING. The headliner leads the card above both.
     expect(texts.indexOf("Day Is Sliding")).toBeLessThan(texts.indexOf("Money Waits"));
-    expect(texts.indexOf("Money Waits")).toBeLessThan(texts.indexOf("over"));
+    expect(texts.indexOf("over")).toBeLessThan(texts.indexOf("Day Is Sliding"));
   });
 
   it("shows today's birthdays above Up Next, and nothing on ordinary days", () => {
