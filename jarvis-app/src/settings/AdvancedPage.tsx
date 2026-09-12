@@ -1,13 +1,26 @@
 import { useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { useChat } from "../data/NotesProvider";
+import { useChat, useSettings } from "../data/NotesProvider";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import { clearLocalData } from "./clearLocalData";
-import { Head, Card, Row, DangerRow, Foot } from "./kit";
+import { Head, Card, Row, DangerRow, Foot, Switch } from "./kit";
+import { readDoneClearing, type DoneClearing } from "../bigger/doneClearing";
+import { SETTING_DONE_CLEARING } from "../data/SettingsService";
 
 export default function AdvancedPage({ onBack, onExport }: { onBack: () => void; onExport?: () => void }) {
   const chat = useChat();
+  const settings = useSettings();
+  // WHO SAYS A THING IS DONE (Dave 2026-09-12: "the user should be able to
+  // decide if it automatically clears or needs permission"). Off is Ask First,
+  // which is the 2026-09-09 ruling and the default; on hands the decision back
+  // to the arithmetic. One switch, because there are only two answers, and it
+  // covers projects and goals together: they are the same question.
+  const [doneClearing, setDoneClearing] = useState<DoneClearing>(() => readDoneClearing());
+  const setClearing = (next: DoneClearing) => {
+    setDoneClearing(next);
+    void settings?.set(SETTING_DONE_CLEARING, next);
+  };
   const [confirm, setConfirm] = useState(false);
   const [chatArmed, setChatArmed] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
@@ -25,6 +38,13 @@ export default function AdvancedPage({ onBack, onExport }: { onBack: () => void;
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Advanced" back="Settings" onBack={onBack} />
+      <Head label="Projects and Goals" />
+      <Card>
+        <Switch label="Clear Done Automatically"
+          meta="Off, a finished project or goal waits for you to close it"
+          on={doneClearing === "auto"}
+          onToggle={() => setClearing(doneClearing === "auto" ? "ask" : "auto")} />
+      </Card>
       <Head label="Data" />
       <Card>
         <Row label="Export Data" value="JSON" onClick={onExport} />

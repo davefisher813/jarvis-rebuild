@@ -64,7 +64,7 @@ import { showToast } from "../shared/toast";
 import { useOneShot } from "./intents";
 import { attemptWrite } from "../shared/guard";
 import { useAppearance, type Appearance } from "../appearance/AppearanceProvider";
-import { SETTING_APPEARANCE } from "../data/SettingsService";
+import { SETTING_APPEARANCE, SETTING_DONE_CLEARING } from "../data/SettingsService";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -302,6 +302,12 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       // launch that reaches the network.
       const storedAppearance = await settings?.pull<Partial<Appearance>>(SETTING_APPEARANCE);
       if (storedAppearance) appearanceRef.current.applyAppearance(storedAppearance);
+      // 2026-09-12: and the same for whether a finished thing closes itself
+      // (bigger/doneClearing.ts). Pulled for the mirror's sake only: every
+      // reader takes it synchronously off the mirror, so there is nothing to
+      // apply here. A phone that has not synced reads Ask First, which is the
+      // half that cannot close anything behind him.
+      void settings?.pull<string>(SETTING_DONE_CLEARING);
             const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
       setTabKeys(keys);
       if (firstBoot.current) {

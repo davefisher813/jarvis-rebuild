@@ -7,6 +7,7 @@ import type { LiftMeasure, TrainingMeasure } from "../gym/goalMeasures";
 import { liftMeasureState, trainingMeasureState } from "../gym/goalMeasures";
 import { daysBetween } from "../upnext/upnext";
 import { capAfterNumber } from "../shared/casing";
+import { clearsDoneAutomatically } from "./doneClearing";
 
 // ---------------------------------------------------------------------------
 // A GOAL WITH A FINISH LINE (Dave's picks 13, 14, 15, built 2026-08-24).
@@ -255,6 +256,10 @@ export function healthOf(
   m: Measure | undefined,
   ctx: MeasureContext,
   openWork: number,
+  // 2026-09-12: the other half of his "unless the user says otherwise". Under
+  // Clear Automatically a met measure reads done again, which is what this did
+  // before the 2026-09-09 ruling. Passed in, so this stays a pure function.
+  autoClear: boolean = clearsDoneAutomatically(),
 ): Health {
   // DONE IS SOMETHING HE SAYS, NOT SOMETHING THE NUMBERS DECIDE (Dave
   // 2026-09-09: "Projects and goals are automatically clearing as done without
@@ -267,7 +272,7 @@ export function healthOf(
   // Mark Achieved is where that happens. Until then it is on track, which is
   // true, and nothing anywhere says finished.
   if (goal.data.state === "achieved") return "done";
-  if (state?.met) return "on_track";
+  if (state?.met) return autoClear ? "done" : "on_track";
 
   // Behind is only claimable against a date AND a finish line. Without both,
   // there is no pace to be behind of, and saying so would be a guess.

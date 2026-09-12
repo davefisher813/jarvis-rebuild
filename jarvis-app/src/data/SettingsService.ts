@@ -193,3 +193,12 @@ export class SettingsService {
 // last-write-wins should mean "the last time I changed my appearance",
 // not a race between two halves of it.
 export const SETTING_APPEARANCE = "appearance";
+
+// WHO SAYS A THING IS DONE (Dave 2026-09-09: "Projects and goals are
+// automatically clearing as done without my consent. Unless the user says
+// otherwise a done confirmation should be MANDATORY to clear items", and
+// 2026-09-12: "the user should be able to decide if it automatically clears or
+// needs permission"). His own "unless the user says otherwise", made real: one
+// key, "ask" or "auto", read by bigger/doneClearing.ts. Ask First is the
+// default, because that is the ruling until he changes it here.
+export const SETTING_DONE_CLEARING = "doneClearing";

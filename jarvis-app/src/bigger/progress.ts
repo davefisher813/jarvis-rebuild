@@ -3,6 +3,7 @@ import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import { capAfterNumber } from "../shared/casing";
 import { daysBetween } from "../upnext/upnext";
+import { clearsDoneAutomatically } from "./doneClearing";
 
 // Bigger Picture (roadmap v2, Session 6). "What you're working toward and what
 // is ACTUALLY moving." The word actually is the whole design: every number here
@@ -163,11 +164,19 @@ export const BUCKET_LABEL: Record<Bucket, string> = {
 // it. That is the whole of pick 6: clearsProject already existed in
 // shared/completion.ts and only ran at the instant of a tick, so a project
 // that finished any other way stayed open forever.
-export function bucketOf(row: ProjectRow): Bucket {
+//
+// 2026-09-12: unless he asked to be asked. Under Ask First (the default, and
+// the 2026-09-09 ruling) a project with every task ticked is READY, not closed:
+// it keeps reading On Track until someone taps Mark Done, because folding a
+// project away as finished is a claim only he gets to make. Under Clear
+// Automatically the arithmetic decides, exactly as it did before. The setting
+// is Settings, Advanced; see bigger/doneClearing.ts. Passed in rather than read
+// here so the derivation stays a pure function of its arguments.
+export function bucketOf(row: ProjectRow, autoClear: boolean = clearsDoneAutomatically()): Bucket {
   if (row.project.data.status === "done") return "done";
   const p = row.progress;
   if (!p) return "unstarted";
-  if (p.done >= p.total) return "done";
+  if (p.done >= p.total && autoClear) return "done";
   return row.stalled ? "stalled" : "moving";
 }
 

@@ -71,8 +71,18 @@ describe("wave 1: sections are derived, not typed", () => {
     stalled, lastAt: null,
   });
 
-  it("a project whose tasks are all done is Done, even if nobody closed it", () => {
-    expect(bucketOf(R("active", 23, 23))).toBe("done");
+  // 2026-09-12 (Dave: "the user should be able to decide if it automatically
+  // clears or needs permission"). This used to be unconditional, which is what
+  // he objected to on 09-09: the app folding a project away as finished on its
+  // own. Under Ask First, 23 of 23 ticked means READY, and the row keeps
+  // reading On Track until someone taps Mark Done; under Clear Automatically
+  // the arithmetic closes it, exactly as it did before.
+  it("a project whose tasks are all done closes itself only when he asked it to", () => {
+    expect(bucketOf(R("active", 23, 23), true)).toBe("done");
+    expect(bucketOf(R("active", 23, 23), false)).toBe("moving");
+    // Closed by hand is Done under either setting: that one is his own mark.
+    expect(bucketOf(R("done", 23, 23), false)).toBe("done");
+    expect(bucketOf(R("done", 2, 23), false)).toBe("done");
   });
 
   it("a project with no tasks has not started, it is not moving", () => {
