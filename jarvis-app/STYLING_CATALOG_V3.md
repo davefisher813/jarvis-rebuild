@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.22 (2026-08-24)
+# JARVIS Styling Catalog V4.25 (2026-09-12)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -505,6 +505,38 @@ He was right, and the cause is the trap this catalog already names twice: **a to
 **DARK CANNOT MOVE, BY CONSTRUCTION.** Dark's chrome was already `#FF2B3C`, so every repointed rule resolves to the identical value. Proven, not asserted: More, Today and Tasks are byte-identical with the old rules re-injected, and Schedule's only difference was traced to the repaint that injecting a stylesheet causes at all, which vanishes when the injection is held constant.
 
 **WHAT DELIBERATELY DID NOT CHANGE.** The tab bar. `.tab.active` colours the icon AND its label from one value, the way Apple's own tab bars do. Splitting them would put `#FF2B3C` dots four pixels above a `#DA0012` word, which reads worse than either, and taking the label up to brand red would drop permanent navigation text to 3.38:1. Fills also keep `#E2051E`: no full-red-channel colour can carry white text at 4.5:1, so a red that carries white has to be darker, and that is a different job from a glyph.
+
+## §AC. Email, the focus-and-honesty pass (V4.25, Dave's picks 2026-09-12, thirty items approved as recommended, built in Pushes A through I)
+
+The harness (`JARVIS_EMAIL_PREVIEW_2026_09_12.html`) is the approved mock; where a sentence here and the harness disagree on a visual, the harness wins. Every rule below is held by a law in `src/laws/email.test.ts` or `src/laws/laws.test.ts`, each proven to bite before it shipped.
+
+**EM1 · THE FIRST SCREEN ASKS ONE QUESTION (2026-09-12).** View chips, then the outcome segments (Needs You / Waiting On / Nothing Owed), then the Needs You list with **Sweep** as the section's head action, then a quiet **Tools** head at the bottom holding Clean Out, the timed drain, Read It to Me and Standing Rules. Search and the account chips draw on All Mail, where the harness puts them.
+
+**EM2 · ONE ROW ANATOMY (2026-09-12).** Wherever a thread row renders: sender white and semibold on line one with the time quiet at the right, or a deadline chip in the time's place, never both; the gist or subject on line two, bold only when unread; the account as small-caps text after it, never a pill. Unread is weight, never a dot.
+
+**EM3 · THE LEADING COLUMN IS ONE DECISION (2026-09-12).** A person gets a face, warm and stable per sender; a machine keeps the 3px rail, centred in the same 34px slot, lit only for a stated deadline. `rowAnatomy.ts` decides, once, and a test holds the both-signals rule.
+
+**EM4 · ROW RHYTHM (2026-09-12).** 10px row padding, the headline clamps at two lines, the account rides line one, the subject may wrap to two.
+
+**EM5 · FACTS IN MAIL (2026-09-12).** Non-interactive per-row data (what a thread waits for, the sender's own words, a rule's account and switch) renders as `.facts` through one component, `factsLine.tsx`, middle dots between fragments, at most one semantic colour per line (K.3). Filled chips and capsules are for things you tap.
+
+**EM6 · A JSX TEXT NODE CANNOT CARRY A BACKSLASH ESCAPE (2026-09-12).** `\u00b7` between a `>` and a `<` renders as a literal; inside braces it is a string. Law 3 scans every component.
+
+**EM7 · ONE SHAPE FOR EVERY OFFER (2026-09-12).** The batch unsubscribe and the auto-noise offer are a `NoticeCard` with one capsule and a quiet alt in the user's voice; a completed batch is a receipt line that names the senders and carries one Undo; Standing Rules is a Tools row, not a foot link.
+
+**EM8 · EVERY COUNT HONOURS THE ACCOUNT CHIP AND THE DESK (2026-09-12).** The Sweep's number, the segments' numbers, Clean Out's piles, the weekly close and the close-out line all count `visibleRows`, and the Clean Out row names its scope ("All Accounts" or the account's label) so a disagreement is legible rather than silent. Search runs against the chosen account and its floor says which.
+
+**EM9 · STANDING RULES STAY SENDER-ONLY, WITH AN ACCOUNT AND A SWITCH (2026-09-12).** A rule is `{bucket, account?, enabled}` and nothing more; Off keeps the mapping and stops the rule being consulted; the account chips are a full-width line under the row, and the facts line says "Account: All · On". The v1 store migrates on read under the same key.
+
+**EM10 · THE WINDOWS EDITOR IS A LIST (2026-09-12).** Days read Su Mo Tu We Th Fr Sa and invert when on, never the red fill; each window is a "9 AM · 45m" row with a chevron into a single-window editor; a window that would run past midnight is refused with an inline line, never truncated; the sheet says "Times are device local"; the escape hatch on the curtain says **Open Anyway**, the words the sheet already promises; "Same on Every Device" is a per-device opt-in to the mail mirror.
+
+**THE SWEEP CAN BE PUT DOWN, AND ZERO IS A QUESTION (2026-09-12).** Backing out parks the hand (`jarvis.mail.sweep.session.v1`) and the next visit within a session offers "Continue Where You Left Off" with the seat and the parked plan text; the clock at zero shows a "Time's up · 5 of 9" card over the current one (whose own actions are gone, so one filled red stays on screen) with Finish This One, 5 More Minutes, Stop; the finish screen ends with "N still need you". Read It to Me speaks one sentence per utterance so Pause and Next are real.
+
+**THE COMPOSER KEEPS HIS WORDS ON THE DEVICE (2026-09-12).** Every change autosaves to `jarvis.mail.composeDraft.v1`; Cancel's Gmail draft is still the only Gmail Drafts write; For You leads with "Continue Your Reply" when a local reply has a thread and words; a From row of account chips sits above To when there is more than one inbox; the Drafts chip says "25+" once any account hits its cap.
+
+**ONE TASK PER THREAD, ON EVERY MANUAL PATH (2026-09-12).** The Sweep's task card and Later, the ledger's Add Task, the attachment offer, the waiting row's Add Task and the Later picker each ask `dupTaskGuard.ts` first and offer Open Task instead of a second task. A Needs You row's swipe reveals Later, in the defer amber, which asks Tonight / Tomorrow / Pick a Day. A proposed day the sender named but the app could not resolve is a chip on the task, never a due date; the two never sit on one task.
+
+**WHAT NEVER BECOMES AN EVENT (2026-09-12).** The parked Sweep and the compose autosave are UI state; no event writer reads either store and the store modules never emit.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
