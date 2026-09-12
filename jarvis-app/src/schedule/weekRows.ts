@@ -34,12 +34,15 @@ const dowOf = (date: string) => (new Date(date + "T00:00:00").getDay() + 6) % 7;
 export function weekRowsFor(dates: string[], events: EventItem[], routine: RoutineData, today?: { date: string; nowMin: number }): WeekRow[] {
   return dates.map((date) => {
     const dow = dowOf(date);
-    const win = planWindowFor(routine, dow);
+    // 2026-09-11: the routine speaks JS getDay (0=Sun), not the row's Mon=0;
+    // passing dow put Monday's blocks on Tuesday and weekend hours on Sun/Mon.
+    const jsDow = new Date(date + "T00:00:00").getDay();
+    const win = planWindowFor(routine, jsDow);
     // Today's open time starts now, the way the Day view counts it; a day
     // ahead counts its whole waking window.
     const openFrom = today && today.date === date ? Math.max(win.wakeMin, today.nowMin) : win.wakeMin;
     const evs = eventsForDate(events, date);
-    const locked = protectedRangesFor(routine, dow);
+    const locked = protectedRangesFor(routine, jsDow);
     const blocks: WeekBlock[] = [
       // Containers first, so an event inside one paints over its outline.
       ...locked.map((l) => ({ s: l.s, e: l.e, category: "", title: l.label, hollow: true })),

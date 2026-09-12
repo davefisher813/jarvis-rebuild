@@ -38,6 +38,19 @@ describe("weekRowsFor", () => {
     const rows = weekRowsFor(dates, [], DEFAULT_ROUTINE, { date: "2026-09-02", nowMin: 23 * 60 + 59 });
     expect(rows[2]!.openMin).toBe(0);
   });
+
+  // 2026-09-11: the routine's days are JS getDay (1=Mon), the row's dow is
+  // Mon=0. A Monday-only block must land on Monday, weekend hours on Sat/Sun.
+  it("reads the routine in its own day convention", () => {
+    const routine = {
+      ...DEFAULT_ROUTINE,
+      weekendDifferent: true, weekendWakeMin: 10 * 60, weekendSleepMin: 23 * 60,
+      protectedBlocks: [{ id: "g", label: "Gym", startMin: 18 * 60, endMin: 19 * 60, days: [1] }],
+    };
+    const rows = weekRowsFor(dates, [], routine);
+    expect(rows.map((r) => r.blocks.map((b) => b.title))).toEqual([["Gym"], [], [], [], [], [], []]);
+    expect(rows.map((r) => r.windowS)).toEqual([420, 420, 420, 420, 420, 600, 600]);
+  });
 });
 
 describe("the week's own line", () => {

@@ -13,6 +13,7 @@
 
 import { planDay, type PlanBlock, type PlanTask } from "../schedule/planDay";
 import type { EventItem } from "../schedule/types";
+import { splitProtectedRanges, type ProtectedRange } from "../routine/types";
 
 export interface DayDraft {
   date: string;
@@ -193,7 +194,7 @@ export interface DraftInputs {
   events: EventItem[];
   startMin: number;
   endMin: number;
-  blocked: { s: number; e: number; label: string; soft?: boolean; kind?: string }[];
+  blocked: ProtectedRange[];
   maxBlocks: number | null;
   estimateFor: (category: string) => number;
 }
@@ -212,9 +213,9 @@ export function draftDay(inp: DraftInputs): DayDraft {
     ...(c.windowS !== undefined ? { windowS: c.windowS } : {}),
     ...(c.windowE !== undefined ? { windowE: c.windowE } : {}),
   }));
-  const hard = inp.blocked.filter((b) => !b.soft && b.kind !== "focus").map((b) => ({ s: b.s, e: b.e }));
-  const soft = inp.blocked.filter((b) => b.soft && b.kind !== "focus").map((b) => ({ s: b.s, e: b.e, label: b.label }));
-  const focus = inp.blocked.filter((b) => b.kind === "focus").map((b) => ({ s: b.s, e: b.e }));
+  // 2026-09-11: the block's mode decides (modeOf, via the shared split), not
+  // kind === "focus" alone, so a Work or Errands block holds picks here too.
+  const { hard, soft, focus } = splitProtectedRanges(inp.blocked);
   const plan = planDay(tasks, inp.events, inp.startMin, inp.endMin, 10, hard, soft, focus);
   return {
     date: inp.date,
@@ -250,7 +251,7 @@ export interface EditInputs {
   events: EventItem[];
   startMin: number;
   endMin: number;
-  blocked: { s: number; e: number; label: string; soft?: boolean; kind?: string }[];
+  blocked: ProtectedRange[];
   estimateFor: (category: string) => number;
 }
 
@@ -269,9 +270,7 @@ export function editDraft(standing: DayDraft, inp: EditInputs): DayDraft {
       ...(c.windowE !== undefined ? { windowE: c.windowE } : {}),
     });
   }
-  const hard = inp.blocked.filter((b) => !b.soft && b.kind !== "focus").map((b) => ({ s: b.s, e: b.e }));
-  const soft = inp.blocked.filter((b) => b.soft && b.kind !== "focus").map((b) => ({ s: b.s, e: b.e, label: b.label }));
-  const focus = inp.blocked.filter((b) => b.kind === "focus").map((b) => ({ s: b.s, e: b.e }));
+  const { hard, soft, focus } = splitProtectedRanges(inp.blocked);
   const plan = planDay(tasks, inp.events, inp.startMin, inp.endMin, 10, hard, soft, focus);
 
   // The leftovers pool is rebuilt, not patched: anything the pool offers that

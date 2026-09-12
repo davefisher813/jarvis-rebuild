@@ -53,6 +53,16 @@ describe("drafting", () => {
     expect(d.anytime.map((t) => t.id)).toEqual(["a"]);
   });
 
+  // 2026-09-11: the block's mode decides whether it holds picks, the same
+  // modeOf every other surface uses, not kind === "focus" alone.
+  it("a block whose mode holds tasks pulls picks in; a focus block set to protect keeps them out", () => {
+    const base = { date: "2026-08-15", candidates: [cand("a", "Task")], events: [], startMin: 9 * 60, endMin: 17 * 60, maxBlocks: 3, estimateFor: () => 45 };
+    const held = draftDay({ ...base, blocked: [{ s: 14 * 60, e: 16 * 60, label: "Work Hours", kind: "work" }] });
+    expect(held.blocks.map((b) => b.start)).toEqual(["14:00"]);
+    const walled = draftDay({ ...base, startMin: 14 * 60, blocked: [{ s: 14 * 60, e: 16 * 60, label: "Deep Work", kind: "focus", mode: "protects" }] });
+    expect(walled.blocks.map((b) => b.start)).toEqual(["16:00"]);
+  });
+
   it("drafts persist per date and do not leak across days", () => {
     writeDraft(draftDay({ date: "2026-08-15", candidates: [cand("a", "T")], events: [], startMin: 540, endMin: 1020, blocked: [], maxBlocks: 3, estimateFor: () => 30 }));
     expect(readDraft("2026-08-15")).not.toBeNull();
