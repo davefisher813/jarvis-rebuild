@@ -22,6 +22,8 @@
 //     metric like any other number, but no food database, macro targets, or
 //     barcode scanner is built around it.
 
+import type { HueName } from "../health/hue";
+
 export const ENTITY_METRIC_DEF = "metric_def";
 export const ENTITY_METRIC_LOG = "metric_log";
 
@@ -51,6 +53,13 @@ export interface MetricDefData {
    *  measure reads "since" a metric started); kept for the same reason
    *  goals stamp one, in case a future surface needs the age of the data. */
   createdOn: string;
+  /** HIS COLOUR FOR IT (Health R4 / H-04, 2026-09-12). A metric's tile used
+   *  to take whatever hue its position in the grid handed it; it takes the
+   *  hue of what it MEASURES now, and this is where he overrides that. Left
+   *  undefined a metric is a reading and reads cyan -- see hueForMetric() in
+   *  health/hue.ts, which is the only thing that resolves this field.
+   *  Type-only import, so nothing in gym pulls health code at runtime. */
+  hue?: HueName;
 }
 export interface MetricDef { id: string; data: MetricDefData }
 

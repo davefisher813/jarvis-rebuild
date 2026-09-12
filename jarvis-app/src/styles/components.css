@@ -4352,7 +4352,12 @@ body.selecting .voice-dock { display: none; }
 /* THE PREVIEW IS THE SPEC (2026-09-01): a ghost is a quiet chip -- its own
    rounded surface like the logged chips it will become, dashed edge, no
    list hairlines. */
-.set-chip-ghost { opacity: 0.75; background: var(--press-1); border: 1px dashed var(--tx-4);
+/* R2, Health (Dave's picks 2026-09-12): no opacity on a row or card that
+   carries text. A ghost was dimmed to 0.75 on top of already-quiet ink, which
+   on a phone held at arm's length in a gym is two dims stacked. The dashed
+   edge is what says "not yet", and it stays; the ink underneath is now read
+   at full strength. */
+.set-chip-ghost { background: var(--press-1); border: 1px dashed var(--tx-4);
   border-radius: var(--r-md); margin-bottom: var(--s-2); }
 /* The list hairline rule (.row + .row) must not thin a ghost's own dashed
    top edge. */
@@ -4367,8 +4372,10 @@ body.selecting .voice-dock { display: none; }
    paint. */
 .sheet-scrim .set-chip { background: var(--surface-3); }
 /* THE RAMP (D3-A, 2026-08-31): a warm-up chip is quieter than the work it
-   leads into -- present, tappable, and visibly not the set that counts. */
-.set-chip-warm { opacity: 0.72; }
+   leads into -- present, tappable, and visibly not the set that counts.
+   R2 (2026-09-12) takes the 0.72 off: a warm-up says so in its own kicker
+   (Warm-up, per the set-state vocabulary), and a word is a better way to say
+   it than half-erasing the numbers. */
 /* THE SUGGESTION'S TWO DOORS (D6-A, 2026-08-31). Accept and Keep sit side
    by side because they are the same size of decision; the quiet one is the
    one that changes nothing. Both are capsules -- a bare text pair here
@@ -5004,3 +5011,18 @@ body.selecting .voice-dock { display: none; }
    forking it, and the sheet it opens is the Why sheet (C-25). */
 .why { display: inline-flex; align-items: center; gap: 4px; min-height: 34px; padding: 5px 10px; border: 0; border-radius: var(--r-pill);
   font-family: var(--f); font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold); color: var(--accent-tx); background: var(--red-tint); cursor: pointer; }
+
+/* ==========================================================================
+   THE HEALTH PASS (V4.24, Dave's picks 2026-09-12). HUE BY MEANING, R4.
+   A health surface declares the hue of what it is showing BY NAME and this
+   resolves the pair the skin in ruled.css paints with. The names are
+   health/hue.ts's HueName and are the harness's own: hblue rather than blue,
+   because blue here is medication and the app already has an accent blue.
+   Nothing below restyles a surface; it only makes the pair available to one
+   that asks. */
+[data-hue="lime"]   { --h-hue: var(--hl-lime);   --h-tint: var(--hl-lime-tint); }
+[data-hue="cyan"]   { --h-hue: var(--hl-cyan);   --h-tint: var(--hl-cyan-tint); }
+[data-hue="amber"]  { --h-hue: var(--hl-amber);  --h-tint: var(--hl-amber-tint); }
+[data-hue="violet"] { --h-hue: var(--hl-violet); --h-tint: var(--hl-violet-tint); }
+[data-hue="hblue"]  { --h-hue: var(--hl-blue);   --h-tint: var(--hl-blue-tint); }
+[data-hue="pink"]   { --h-hue: var(--hl-pink);   --h-tint: var(--hl-pink-tint); }

@@ -627,12 +627,18 @@
    a sparkline where there is history. Everything else on the page is the
    ruled row. */
 .ruled .h-hero-wrap { padding-top: var(--s-2); }
-.ruled .h-hero-card { overflow: hidden; box-shadow: inset 0 0 0 1px var(--hl-lime-tint), 0 10px 30px rgba(0,0,0,0.5); }
-[data-theme="light"] .ruled .h-hero-card { box-shadow: inset 0 0 0 1px var(--hl-lime-tint), var(--shadow-card); }
-/* The Start pill on the hero is the page's primary move, so it is the one
-   filled control here and it wears the ramp rather than the app's red: on a
-   training card, "go" is green everywhere a person has ever trained. */
-.ruled .h-hero .pill-act { background: var(--hl-lime); color: var(--on-fill-dark); font-weight: var(--w-bold); }
+ /* GLASS, LIKE EVERY OTHER CARD (Health R5, Dave's picks 2026-09-12). The
+   hero wore a lime rim and a 30px bloom so the section that IS the page read
+   as lit. Against the approved harness it reads as the one card in the app
+   that glows, which is the tell of a mock rather than the app. It is a plain
+   .card now: same 18px radius, same glass, same shadow as everywhere. */
+.ruled .h-hero-card { overflow: hidden; }
+/* THE PRIMARY MOVE IN HEALTH IS JARVIS RED (Health R1, 2026-09-12), and that
+   includes the hero's Start pill. It had the ramp's lime on the argument that
+   "go" is green in every training app; the ruling is that lime is DATA in
+   Health and the app's one red is what a person taps. So the pill is the
+   standard capsule primary and says nothing of its own about colour. */
+.ruled .h-hero .pill-act { font-weight: var(--w-bold); }
 .ruled .h-hero { display: flex; align-items: center; gap: 12px; padding: 14px 16px 10px; cursor: pointer; }
 /* THE ONE COLOURED THING ON THE PAGE WAS THIS SQUARE, AND IT WAS BLUE (Dave
    2026-09-10: "the lack of color is a major issue in the health pages... All
@@ -743,10 +749,11 @@
 .ruled .h-day { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
   letter-spacing: 0.06em; color: var(--tx-4); }
 .ruled .h-day i { width: 10px; height: 10px; border-radius: 50%; background: var(--press-3); display: block; }
-/* Trained days glow the way a closed ring does, rather than sitting flat. */
-.ruled .h-day.on i { background: var(--hl-lime); box-shadow: 0 0 8px var(--hl-lime-tint); }
+/* A trained day is lime and TODAY is a cyan ring; neither glows (Health R5,
+   2026-09-12). The 8px bloom went with the hero's. */
+.ruled .h-day.on i { background: var(--hl-lime); }
 .ruled .h-day.today i { box-shadow: 0 0 0 2px var(--hl-cyan); }
-.ruled .h-day.today.on i { box-shadow: 0 0 0 2px var(--hl-cyan), 0 0 8px var(--hl-lime-tint); }
+.ruled .h-day.today.on i { box-shadow: 0 0 0 2px var(--hl-cyan); }
 .ruled .h-day.today { color: var(--tx-1); }
 .ruled .h-last .task-name { font-weight: var(--w-medium); }
 .ruled .h-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -755,38 +762,61 @@
   -webkit-backdrop-filter: blur(40px) saturate(1.8); backdrop-filter: blur(40px) saturate(1.8); }
 [data-theme="light"] .ruled .h-tile { background: var(--surface-1); box-shadow: var(--shadow-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .ruled .h-tile:active { opacity: 0.8; }
-.ruled .ht-w { font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-3);
+/* THE TILE, AT THE HARNESS'S SIZES (Health R6, 2026-09-12). The word goes to
+   13px and the number to 34px: the tile is read across a room between sets,
+   and 10.5/26 is a dashboard's proportion, not a fitness app's. The token
+   scale is untouched -- these are the two values the approved harness draws
+   and nothing else moves with them. */
+.ruled .ht-w { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ruled .ht-n { font-size: calc(26px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.03em; line-height: 1.05; margin-top: 6px;
+.ruled .ht-n { font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.03em; line-height: 1.05; margin-top: 4px;
   font-variant-numeric: tabular-nums; display: flex; gap: 6px; align-items: baseline; }
-.ruled .ht-n small { font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: 0; margin-left: 2px; }
-.ruled .ht-none { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-4); }
-.ruled .ht-m { font-size: calc(11.5px * var(--type-scale)); color: var(--tx-4); margin-top: 4px; }
+.ruled .ht-n small { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: 0; margin-left: 3px; }
+/* An absence is the one thing on the tile that is not a reading, so it keeps
+   the quiet grey and shrinks back to label size (R2 names it the one --tx-4
+   survivor in Health). */
+.ruled .ht-none { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-4); }
+.ruled .ht-m { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); margin-top: 3px; }
 .ruled .ht-spark { position: absolute; right: 10px; bottom: 10px; width: 64px; height: 22px; color: var(--hl-blue); }
 
-/* ---------- THE LOG GRID'S HUES (Dave 2026-09-10) -------------------------
-   Every tile takes one hue off the activity ramp by its position in the grid,
-   the way Fitness gives move, exercise and stand each their own: the label,
-   the big value and the sparkline all wear it, over a wash of the same hue,
-   with a hairline rim so a tile has an edge instead of dissolving into the
-   page. Assigned by POSITION, so a tile never changes colour because another
-   one was logged, and a metric keeps its colour across every visit.
-   The value is the only text here big enough and bold enough to carry a
-   saturated hue; the meta line stays on the grey ramp, which is what keeps
-   the grid readable rather than a bag of highlighters. */
-.ruled .h-tile[class*="hue-"] { box-shadow: inset 0 0 0 1px var(--h-tint), 0 8px 24px rgba(0,0,0,0.55); }
-[data-theme="light"] .ruled .h-tile[class*="hue-"] { box-shadow: inset 0 0 0 1px var(--h-tint), var(--shadow-card); }
+/* ---------- THE LOG GRID'S HUES: BY MEANING (Health R4 / H-04, Dave's picks
+   2026-09-12) ---------------------------------------------------------------
+   The 09-10 pass gave every tile a hue off the ramp BY ITS POSITION in the
+   grid, the way Fitness gives move, exercise and stand each their own. That
+   was stable, which was the point, but it was stable the way a seating chart
+   is: the same tile changed colour the moment a shortcut was added above it,
+   and two readings that mean nothing alike wore the same hue because they
+   happened to be neighbours.
+   A tile takes the hue of WHAT IT MEASURES now, never its grid slot:
+   lime is logged work, sets, PRs, done. Cyan is the rest timer, the current
+   set, readings and reference values. Amber is time, duration, load, plates.
+   Violet is sleep and bedtime. Blue is medication. Pink is discomfort.
+   health/hue.ts is the one place that mapping is written; the tile declares
+   the result by name in data-hue and components.css resolves the pair.
+   Everything else about the tile is unchanged: the label, the big value and
+   the sparkline wear the hue over a wash of the same hue, with a hairline rim
+   so a tile has an edge instead of dissolving into the page. The value is the
+   only text here big enough and bold enough to carry a saturated hue; the
+   meta line stays on the grey ramp, which is what keeps the grid readable
+   rather than a bag of highlighters. */
+.ruled .h-tile[data-hue] { box-shadow: inset 0 0 0 1px var(--h-tint), 0 8px 24px rgba(0,0,0,0.55); }
+[data-theme="light"] .ruled .h-tile[data-hue] { box-shadow: inset 0 0 0 1px var(--h-tint), var(--shadow-card); }
 /* The wash goes on as a background LAYER over the tile's own ground, not as a
    ::before -- the sparkline is an absolutely-positioned direct child, and a
    blanket `> * { position: relative }` to sit above an overlay would have
    dropped it into the flow and put it under the value. */
-.ruled .h-tile[class*="hue-"] { background-image: linear-gradient(var(--h-tint), var(--h-tint)); }
-.ruled .h-tile[class*="hue-"] .ht-w { color: var(--h-hue); opacity: 0.9; }
-.ruled .h-tile[class*="hue-"] .ht-n { color: var(--h-hue); }
-.ruled .h-tile[class*="hue-"] .ht-spark { color: var(--h-hue); }
+.ruled .h-tile[data-hue] { background-image: linear-gradient(var(--h-tint), var(--h-tint)); }
+/* R2: no opacity on anything in Health that carries text. The label was
+   dimmed to 0.9 to sit under its number; it sits under its number because it
+   is 13px against 34px, which is the hierarchy doing the work. */
+.ruled .h-tile[data-hue] .ht-w { color: var(--h-hue); }
+.ruled .h-tile[data-hue] .ht-n { color: var(--h-hue); }
+.ruled .h-tile[data-hue] .ht-spark { color: var(--h-hue); }
 /* An empty tile does not shout: Log it stays on the grey ramp, so a lit tile
    means something was actually logged. */
-.ruled .h-tile[class*="hue-"] .ht-none { color: var(--tx-4); }
+.ruled .h-tile[data-hue] .ht-none { color: var(--tx-4); }
+/* The class form stays for the insight dot and chip, which take the same pair
+   and are not tiles. */
 .ruled .hue-hl-lime   { --h-hue: var(--hl-lime);   --h-tint: var(--hl-lime-tint); }
 .ruled .hue-hl-cyan   { --h-hue: var(--hl-cyan);   --h-tint: var(--hl-cyan-tint); }
 .ruled .hue-hl-pink   { --h-hue: var(--hl-pink);   --h-tint: var(--hl-pink-tint); }
@@ -1227,12 +1257,17 @@
    --warn, and things that are DESTRUCTIVE or a plain verb keep the app's red.
    Nothing here overrides a token, so every contrast law still holds. */
 
-/* THE PRIMARY MOVE ON A TRAINING SCREEN IS GO, AND GO IS GREEN. Start, Log a
-   set, Finish: on every workout app a person has ever used, the button that
-   commits work is green, and red means stop or delete. The app's red keeps
-   every destructive and secondary verb. */
-.ruled.health-ruled .btn-primary { background: var(--hl-lime); color: var(--on-fill-dark); }
-.ruled.health-ruled .btn-primary:active { opacity: 0.75; }
+/* THE PRIMARY MOVE IN HEALTH IS JARVIS RED (Health R1, Dave's picks
+   2026-09-12). The 09-10 pass gave Start, Log a set and Finish the ramp's
+   lime on the argument that every workout app paints "go" green. Held up
+   against the approved harness that argument loses to a bigger one: the ramp
+   is how DATA reads at a glance on these screens, and a button wearing a data
+   hue spends the one colour that was carrying meaning. Health keeps the app's
+   one red for the thing you tap, exactly like every other module, and lime
+   goes back to meaning logged work. The :active override goes with it -- the
+   standard primary already presses correctly, and R2 bans opacity on anything
+   in Health that carries text. */
+.ruled.health-ruled .btn-primary { background: var(--accent-fill); color: #fff; }
 .ruled.health-ruled .btn-danger, .ruled.health-ruled .btn-destructive { background: var(--red); color: #fff; }
 
 /* Section heads: the caps stay quiet, but the count chip beside them takes
@@ -1322,7 +1357,8 @@
 .ruled.health-ruled .se-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--press-3); display: block; }
 .ruled.health-ruled .se-dot.done { background: var(--hl-lime); }
 .ruled.health-ruled .se-dot.skip { background: var(--hl-amber); }
-.ruled.health-ruled .se-dot.on { background: var(--hl-cyan); box-shadow: 0 0 0 2px var(--hl-cyan-tint), 0 0 8px var(--hl-cyan-tint); }
+/* The ring around NOW stays; the 8px bloom behind it does not (R5). */
+.ruled.health-ruled .se-dot.on { background: var(--hl-cyan); box-shadow: 0 0 0 2px var(--hl-cyan-tint); }
 .ruled.health-ruled .se-count { font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold);
   color: var(--hl-cyan); font-variant-numeric: tabular-nums; }
 .ruled.health-ruled .se-count em { font-style: normal; color: var(--tx-3); font-weight: var(--w-medium); }
@@ -1336,10 +1372,79 @@
 .ruled.health-ruled .se-kick { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--hl-cyan); margin-bottom: 2px; }
 .ruled.health-ruled .se-kick.se-kick-next { color: var(--hl-amber); }
-/* The PR mark, the loudest good thing a session can say. */
+
+/* ---------- THE FACTS LINE, IN HEALTH (Health R7, Dave's picks 2026-09-12)
+   ---------------------------------------------------------------------------
+   Astra's .facts primitive carries warn / good / sky / purp / red, which are
+   the app's INTENT colours: is this late, is this fine, is this the thing you
+   tap. A health row is not asking any of those. It is showing six kinds of
+   reading at once -- 48 min, 14 sets, 185 x 5, 1 PR -- and the ramp exists so
+   those read apart at a glance. So the ramp's six hues are available as fact
+   variants here, and here only.
+   This is also the one place K.3 is relaxed: a health facts line may carry
+   more than one coloured datum (the 09-10 ruling, R7). What does NOT relax is
+   what may take a hue. A NUMBER, a time, a unit or a state word may. A label
+   or a connective word may not, ever -- that is the difference between a line
+   that reads at a glance and a line of highlighters, and the law in
+   laws/healthSkin.test.ts holds it.
+   Styles only in this push: no health surface has adopted .facts yet, and
+   each takes it when its own push lands (Session in B, the Health page in C).
+   Same discipline Astra Push A shipped its primitives under. */
+.ruled.health-ruled .fact.lime   { color: var(--hl-lime);   font-weight: var(--w-semi); }
+.ruled.health-ruled .fact.cyan   { color: var(--hl-cyan);   font-weight: var(--w-semi); }
+.ruled.health-ruled .fact.amber  { color: var(--hl-amber);  font-weight: var(--w-semi); }
+.ruled.health-ruled .fact.violet { color: var(--hl-violet); font-weight: var(--w-semi); }
+.ruled.health-ruled .fact.hblue  { color: var(--hl-blue);   font-weight: var(--w-semi); }
+.ruled.health-ruled .fact.pink   { color: var(--hl-pink);   font-weight: var(--w-semi); }
+/* A state word takes the ramp too, and stays small caps rather than a pill. */
+.ruled.health-ruled .fact.st.lime  { color: var(--hl-lime); }
+.ruled.health-ruled .fact.st.cyan  { color: var(--hl-cyan); }
+.ruled.health-ruled .fact.st.amber { color: var(--hl-amber); }
+/* R2: the facts line's own ink is --tx-2 in Health, one rung up from the
+   app's --tx-3, because it is read between sets at arm's length. */
+.ruled.health-ruled .facts { color: var(--tx-2); }
+
+/* ---------- THE SET ROW'S STATES, AND THE BAR THAT LOGS THEM (Health R9 /
+   R8, Dave's picks 2026-09-12) ----------------------------------------------
+   Styles only in this push, the way the Astra primitives landed: the set
+   strip takes these when Push B gives it stateWord.ts, and the Log bar when
+   Push B hides the chrome behind it. They are here rather than there because
+   the skin is one file and one push, and a half-painted block is how a screen
+   ends up with two vocabularies.
+   The vocabulary: the current set is CYAN, the hue this module already uses
+   for "the reading you are on". It is not inverted steel, which read as a
+   disabled row, and it is not red, which in Health is the thing you tap. A
+   finished set is lime, the hue of logged work. What is still ahead is quiet
+   ink at full strength -- an Up next kicker, no dimming (R2). */
+.ruled.health-ruled .se-kick.now { color: var(--hl-cyan); }
+.ruled.health-ruled .se-kick.done { color: var(--hl-lime); }
+/* NOW, on the open set chip: a 1.5px cyan inset rule, which is an edge rather
+   than a fill, so the numbers inside stay the loudest thing in the row. */
+.ruled.health-ruled .setrow-now { box-shadow: inset 0 0 0 1.5px var(--hl-cyan); }
+
+/* THE REST CLOCK IS THE SCREEN (R4: cyan is the rest timer). It is read from
+   across a rack with a bar on your back, so it is 56px and tabular -- the
+   figures must not shuffle sideways as the seconds tick. */
+.ruled.health-ruled .rest-clock { font-size: calc(56px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: -0.02em; line-height: 1; color: var(--hl-cyan); text-align: center; }
+
+/* THE LOG BAR (R8). One sticky bar owning the bottom edge of a live session,
+   with exactly one primary on it, which is the note editor's .editor-bar
+   geometry and deliberately so: the app already has one answer for "this
+   screen is a task and the tab bar is out of the way", and a second one would
+   be a second answer to the same question. The button goes full width here
+   because there is only ever one of it and it is pressed with a thumb between
+   sets. */
+.ruled.health-ruled .logbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  padding: var(--s-3) var(--s-4) calc(var(--s-3) + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  background: linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 38%); display: flex; justify-content: center; }
+[data-theme="light"] .ruled.health-ruled .logbar { background: linear-gradient(180deg, rgba(242,242,247,0), var(--bg) 38%); }
+.ruled.health-ruled .logbar .btn { width: 100%; }
+/* The PR mark, the loudest good thing a session can say. Lime fill, no bloom
+   behind it (R5): the hue is already the loudest thing on the screen. */
 .ruled.health-ruled .se-pr { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
   letter-spacing: 0.07em; text-transform: uppercase; padding: 4px 9px; border-radius: var(--r-pill);
-  color: var(--on-fill-dark); background: var(--hl-lime); box-shadow: 0 0 12px var(--hl-lime-tint); }
+  color: var(--on-fill-dark); background: var(--hl-lime); }
 
 /* The plates, as plates. */
 .ruled.health-ruled .se-plates { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1376,15 +1481,21 @@
    rung and its NUMBERS take the reading hue, so a row has a hierarchy instead
    of two weights of grey. Labels stay quiet, which is what keeps this legible
    rather than loud. */
+/* R2 (2026-09-12): --tx-2 is the floor for supporting text in Health, and
+   .conn-meta was already there. Stated rather than assumed, because the law
+   below scans this block for anything quieter. */
 .ruled.health-ruled .conn-meta { color: var(--tx-2); }
 .ruled.health-ruled .conn-meta b, .ruled.health-ruled .conn-name b { color: var(--hl-cyan); font-weight: var(--w-semi); }
 /* An eyebrow on these screens is a LABEL, so it keeps the quiet ramp -- but
-   --tx-4 was the past-state grey, which is invisible on a phone in a gym. */
-.ruled.health-ruled .eyebrow { color: var(--tx-3); }
+   --tx-4 was the past-state grey, which is invisible on a phone in a gym.
+   R2 (2026-09-12) takes it one further rung, to --tx-2: on the harness there
+   is no supporting text in Health below --tx-2, and Log it is the one --tx-4
+   survivor on the page. */
+.ruled.health-ruled .eyebrow { color: var(--tx-2); }
 /* The remaining fact lines on these screens, one rung up out of the grey. */
 .ruled.health-ruled .bp-sub, .ruled.health-ruled .r-goal.r-cat,
 .ruled.health-ruled .sched-cat { color: var(--tx-2); }
-.ruled.health-ruled .ht-m { color: var(--tx-3); }
+.ruled.health-ruled .ht-m { color: var(--tx-2); }
 /* A tile with nothing in it yet is the ONE place the dim grey still belongs:
    it is an absence, not a reading, and lighting it would say something was
    logged when nothing was. */

@@ -335,19 +335,31 @@
      values instead of measuring them. The contrast numbers above stay as
      the record of what was traded for it. */
   --warn: #FF9500; --good: #34C759;
-  /* THE ACTIVITY RAMP, LIGHT. Neon is tuned to be read on black; on a white
-     card #A6FF00 measures about 1.2:1, which is not a colour, it is a smear.
-     These are the same six hues taken down to values that clear AA as text on
-     a white card and on the light page, so the ramp MEANS the same thing in
-     both themes and no health surface needs a per-class light override. The
-     -tint grounds keep their hue and their alpha: a tint is a wash behind
-     something else, never the thing being read. */
-  --hl-lime: #4C8C00; --hl-lime-tint: rgba(76,140,0,0.14);
-  --hl-cyan: #00707E; --hl-cyan-tint: rgba(0,112,126,0.14);
-  --hl-pink: #C9184A; --hl-pink-tint: rgba(201,24,74,0.14);
-  --hl-amber: #8A5A00; --hl-amber-tint: rgba(138,90,0,0.14);
-  --hl-violet: #7A2FA6; --hl-violet-tint: rgba(122,47,166,0.14);
-  --hl-blue: #0064D2; --hl-blue-tint: rgba(0,100,210,0.14);
+  /* THE ACTIVITY RAMP, LIGHT, IS THE DARK RAMP (Health R3 / H-03, Dave's
+     picks 2026-09-12). The six values below used to be the neon taken down
+     until it cleared AA as text on a white card, because on a white card
+     #A6FF00 measures about 1.2:1, which is not a colour, it is a smear.
+     That reasoning was sound and he overruled it, the same way he overruled
+     the darkened --good / --warn pair directly above: light stops darkening
+     the ramp, and the same six hex values ship in both themes.
+     The ruling is his, and so is the trade. The ramp exists so DATA reads at
+     a glance -- a lime PR, a cyan reading, an amber duration -- and a hue
+     that changes value between themes stops meaning one thing. He looked at
+     both and picked the vivid one. What this costs is real and is written
+     here so nobody re-derives it as a bug: as TEXT on the light page these
+     miss AA, worst at lime. What protects the light theme is that the ramp
+     is data ink on numerals at 34px and on tiles that carry their own -tint
+     wash -- never body copy, never a label, never a control's only signal.
+     The -tint grounds keep their hue and their alpha, matching dark's: a
+     tint is a wash behind something else, never the thing being read.
+     Law 3 in laws/healthSkin.test.ts pins the two ramps equal, so a
+     future contrast pass cannot quietly darken light back. */
+  --hl-lime: #A6FF00; --hl-lime-tint: rgba(166,255,0,0.14);
+  --hl-cyan: #00E5FF; --hl-cyan-tint: rgba(0,229,255,0.14);
+  --hl-pink: #FF375F; --hl-pink-tint: rgba(255,55,95,0.16);
+  --hl-amber: #FF9F0A; --hl-amber-tint: rgba(255,159,10,0.16);
+  --hl-violet: #BF5AF2; --hl-violet-tint: rgba(191,90,242,0.16);
+  --hl-blue: #0A84FF; --hl-blue-tint: rgba(10,132,255,0.16);
   --good-fill: #34C759; --warn-fill: #FF9500;
   --yellow: #FFCC00; --teal: #30B0C7; --mint: #00C7BE; --pink: #FF2D55;
   /* ONE LIGHT RED (Dave, 2026-08-22: "the red still isn't Jarvis red").

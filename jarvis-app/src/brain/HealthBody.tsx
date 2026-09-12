@@ -13,6 +13,8 @@ import { capAfterNumber } from "../shared/casing";
 import { fmtTime } from "../schedule/calendar";
 import { dayPhrase } from "../money/bills";
 import { pressable } from "../shared/pressable";
+import type { HueKind } from "../health/hue";
+import { hueFor, hueForMetric } from "../health/hue";
 
 // THE HEALTH PAGE (Check, Health, Stop, Dave 2026-09-02: "The next session,
 // then the week, then the numbers"; after "I don't like any of these" on
@@ -38,6 +40,17 @@ const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 // today's practice/game calendar candidates, a real integration question
 // this page has no answer to yet, so it stays dormant with the rest.
 export type HealthLoggerKey = "lightsOut" | "tookIt" | "callIt" | "pointAtIt";
+/** What each logger MEASURES, which is what decides its hue (Health R4 /
+ *  H-04, 2026-09-12). Total over the key union on purpose: a new logger
+ *  cannot land without somebody saying what it is a reading of.
+ *  Call It is how hard a session was -- effort is a reading taken about
+ *  training, not the training itself, so it is cyan rather than lime. */
+const LOGGER_KIND: Record<HealthLoggerKey, HueKind> = {
+  lightsOut: "sleep",
+  tookIt: "medication",
+  callIt: "reading",
+  pointAtIt: "discomfort",
+};
 export interface HealthLoggerRow {
   key: HealthLoggerKey;
   label: string;
@@ -139,17 +152,15 @@ export default function HealthBody({
   // Every day of the program except the one already offered above it.
   const otherDays = (program?.data.weeks ?? []).flatMap((w) => w.days).filter((d) => d.id !== next?.day.id);
 
-  // THE ACTIVITY RAMP, ASSIGNED (Dave 2026-09-10: "the lack of color is a
-  // major issue in the health pages... All workout apps are vibrant with
-  // colors. Especially neon colors"). Every tile in the log grid takes a hue
-  // off the ramp by its position, the way Fitness gives move, exercise and
-  // stand each their own. Stable per position rather than random, so a tile
-  // does not change colour when another one is logged, and the same metric
-  // keeps the same colour every time the page is opened.
-  const RAMP = ["hl-lime", "hl-cyan", "hl-pink", "hl-violet", "hl-amber", "hl-blue"];
-  const hueAt = (i: number) => RAMP[i % RAMP.length]!;
-
-  const metricTile = (def: MetricDef, i: number) => {
+  // THE ACTIVITY RAMP, ASSIGNED BY MEANING (Health R4 / H-04, Dave's picks
+  // 2026-09-12). It used to be assigned by POSITION -- first tile lime,
+  // second cyan, round the ramp -- which was stable, and that was the whole
+  // argument for it. But it was stable the way a seating chart is: adding a
+  // shortcut above a tile changed that tile's colour, and bedtime and a
+  // bodyweight reading wore the same hue whenever they landed side by side.
+  // A tile takes the hue of what it MEASURES now. health/hue.ts holds the
+  // mapping; nothing here knows a hex or an order.
+  const metricTile = (def: MetricDef) => {
     const mine = metricLogs.filter((l) => l.data.metricId === def.id && l.data.date <= today).sort((a, b) => a.data.date.localeCompare(b.data.date));
     const latest = mine[mine.length - 1];
     const val = tileValue(def, latest);
@@ -159,7 +170,7 @@ export default function HealthBody({
     // meta line until there is a log to date.
     const meta = !latest ? null : latest.data.date === today ? "Today" : (() => { const p = dayPhrase(latest.data.date, today); return p.charAt(0).toUpperCase() + p.slice(1); })();
     return (
-      <div {...pressable(() => onOpenMetric(def))} className={"h-tile hue-" + hueAt(i)} key={def.id}>
+      <div {...pressable(() => onOpenMetric(def))} className="h-tile" data-hue={hueForMetric(def)} key={def.id}>
         <div className="ht-w">{def.data.name}</div>
         <div className="ht-n">
           {val ? val.map((p, j) => <span key={j}>{p.big}{p.small && <small>{p.small}</small>}</span>) : <span className="ht-none">Log it</span>}
@@ -177,8 +188,8 @@ export default function HealthBody({
   // today". They are one grid now. A logger tile carries the same three slots
   // a metric tile does -- the name, the value or Log it, and when it last
   // happened -- so nothing had to be invented to make them sit together.
-  const loggerTile = (l: HealthLoggerRow, i: number) => (
-    <div {...pressable(() => onOpenHealthLogger(l.key))} className={"h-tile hue-" + hueAt(i)} key={l.key}>
+  const loggerTile = (l: HealthLoggerRow) => (
+    <div {...pressable(() => onOpenHealthLogger(l.key))} className="h-tile" data-hue={hueFor(LOGGER_KIND[l.key])} key={l.key}>
       <div className="ht-w">{l.label}</div>
       <div className="ht-n">{l.value ? <span>{l.value}</span> : <span className="ht-none">Log it</span>}</div>
       <div className="ht-m">{l.sub}</div>
@@ -299,8 +310,8 @@ export default function HealthBody({
       <div className="sh2 sh2-quiet"><span className="t">Daily Log</span>
         <button className="see-all pill-action" onClick={onManageMetrics}>Add</button></div>
       <div className="pad-x"><div className="h-tiles">
-        {healthLoggers.map((l, i) => loggerTile(l, i))}
-        {shownMetrics.map((d, i) => metricTile(d, healthLoggers.length + i))}
+        {healthLoggers.map((l) => loggerTile(l))}
+        {shownMetrics.map((d) => metricTile(d))}
         {shownMetrics.length === 0 && (
           <div {...pressable(onManageMetrics)} className="h-tile h-tile-add">
             <div className="ht-w">Track Anything</div>

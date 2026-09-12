@@ -387,8 +387,13 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
     const tile = (name: string) => screen.getByText(name).closest(".h-tile") as HTMLElement;
     expect(tile("Bedtime")).toHaveTextContent("When the night ended");
-    // Every tile takes a hue off the activity ramp, by position.
-    expect(tile("Bedtime").className).toMatch(/\bhue-hl-/);
+    // Every tile takes a hue off the activity ramp BY WHAT IT MEASURES, not
+    // by its slot in the grid (Health R4 / H-04, Dave's picks 2026-09-12).
+    // Bedtime is sleep, and sleep is violet, wherever it lands and whatever
+    // is logged beside it -- which is the whole point of the change: the old
+    // by-position rule recoloured this tile the moment a shortcut appeared
+    // above it.
+    expect(tile("Bedtime").dataset.hue).toBe("violet");
     // WORKOUT LOGGING BELONGS WITH THE WORKOUT (Dave 2026-09-10): rating a
     // session and pointing at what hurts are facts about ONE workout, so they
     // are offered on the session, not beside bedtime and bodyweight.

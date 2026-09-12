@@ -27,6 +27,19 @@ const COMPONENTS = walk(SRC).filter((f) => f.endsWith(".tsx") && !/\.test\.tsx$/
 const read = (f: string) => readFileSync(f, "utf8");
 const CSS = read(join(SRC, "styles/components.css"));
 
+// A HEALTH SURFACE, for the K.3 exception below. Everything under health/ and
+// gym/ renders inside a .health-ruled root, as does any file that sets the
+// class itself. HEALTH_BODIES is the short list of shared bodies that carry
+// no root of their own because they are rendered INTO one -- HealthBody is
+// CategoryDetail's health branch and nothing else ever mounts it. Kept as a
+// list rather than guessed at, so adding a body to it is a decision somebody
+// makes on purpose.
+const HEALTH_BODIES = ["brain/HealthBody.tsx"];
+export function isHealthSurface(f: string): boolean {
+  const r = rel(f);
+  return r.startsWith("health/") || r.startsWith("gym/") || HEALTH_BODIES.includes(r) || read(f).includes("health-ruled");
+}
+
 // The state words, G5. Closed: a new one is a ruling, added here on purpose.
 export const STATE_WORDS = [
   "FIXED", "FOCUS", "PROTECTED", "FLEXIBLE", "PROPOSED", "LIVE", "COMPLETED",
@@ -73,10 +86,21 @@ describe("ASTRA law 3: the Remember star leads the row and is never its control"
 
 // K.3 extended: one coloured fact per .facts line. .fact.st and .fact.cat
 // carry their own colour by rule and do not count.
+//
+// HEALTH IS THE EXCEPTION (Health R7, Dave's ruling 2026-09-10, written down
+// 2026-09-12). A health row shows six readings at once -- 48 min, 14 sets,
+// 185 x 5, 1 PR -- and the activity ramp exists precisely so those read apart
+// at a glance; one hue per line would put five of them back in grey and undo
+// the thing the ramp was added for. So this scan skips health surfaces, and
+// laws/healthSkin.test.ts picks them up with the rule that actually binds
+// there: a hue may land on a number, a time, a unit or a state word, and
+// never on a label or a connective word. The exception is a DIFFERENT law,
+// not an absence of one.
 describe("ASTRA law 4: at most one coloured fact per .facts line", () => {
   it("no .facts block carries two of warn, good, sky, purp, red", () => {
     const bad: string[] = [];
     for (const f of COMPONENTS) {
+      if (isHealthSurface(f)) continue;
       const src = read(f);
       const re = /className=(?:"facts"|\{"facts|\{`facts)/g;
       let m: RegExpExecArray | null;

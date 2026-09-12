@@ -812,6 +812,16 @@ describe("LAW: one filled red per screen", () => {
     const ALLOWED = new Set([
       // Buttons and pills: the fill means "tap this".
       ".btn-primary", ".plan-cta", ".mode-go", ".mode-hero .mode-go",
+      // Health's primary, restated rather than inherited (Health R1, Dave's
+      // picks 2026-09-12). The health block had overridden .btn-primary to
+      // the activity ramp's lime on the argument that "go" is green in a
+      // workout app; the ruling reverses that -- the ramp is data ink on
+      // these screens and the app's one red is what a person taps. The rule
+      // stays written out instead of deleted so the reversal is visible at
+      // the point the override used to be, and so healthSkin.test.ts law 1
+      // has something to assert against. Same claim as .btn-primary above,
+      // same shape, on the same kind of control.
+      ".ruled.health-ruled .btn-primary",
       ".bench-act.prim", ".chip.chip-on",
       // Small round controls whose whole body is the control.
       ".ob-check-row", ".convo-send", ".voice-mic", ".voice-orb",
