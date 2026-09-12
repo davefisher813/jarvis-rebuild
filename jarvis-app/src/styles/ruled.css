@@ -425,6 +425,15 @@
 /* A second create row under the first is a SECOND door, not a second primary:
    it takes the quiet ramp so the section still has exactly one red verb. */
 .ruled .row-create.row-create-quiet { color: var(--tx-3); font-weight: var(--w-medium); }
+/* An informational row wearing .row-create's shape (Health goals, Dave's ask
+   2026-09-12: "Set one from a lift or a metric where you log it") but with
+   nothing to tap -- the base class sets cursor: pointer for the button it is
+   everywhere else, and this is the one place it is a plain div instead. */
+.ruled .row-create-static { cursor: default; }
+/* Two pills sharing a row's trailing slot (Your Lifts, Dave's ask 2026-09-12:
+   "the list of exercises there's a goal option" -- Goal sits beside Edit,
+   not in place of it). */
+.ruled .lib-row-acts { display: flex; gap: 6px; }
 .ruled .gstat { margin-left: auto; flex-shrink: 0; font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.06em;
   text-transform: uppercase; padding: 3px 7px; border-radius: var(--r-pill); white-space: nowrap; }
 .ruled .gstat-good { color: var(--good); background: var(--good-tint); }

@@ -511,6 +511,42 @@ function SeededMetric() {
   return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
 }
 
+describe("CategoryDetail metric goal (Dave's ask 2026-09-12: \"wherever you can enter data\")", () => {
+  it("offers Set a Goal from the metric's own log sheet, and the saved goal shows up in Training Goals", async () => {
+    render(<NotesProvider userId="mg1"><SeededMetric /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Sleep"));
+    fireEvent.click(await screen.findByText("Set a Goal"));
+    expect(screen.getByText("New Goal")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("e.g. Sleep Target"), { target: { value: "Sleep 8h" } });
+    // The log sheet is still open underneath (a nested sheet, same shape
+    // GymFlow's own goal sheet takes over Lift Detail), so both carry a Save
+    // -- the goal sheet's is the one mounted last.
+    const saves = screen.getAllByRole("button", { name: "Save" });
+    fireEvent.click(saves[saves.length - 1]!);
+    // The goal reads at a glance as a metric goal (goalKindChip), the same
+    // way a lift goal reads LIFT -- not lumped in as an ordinary goal.
+    expect(await screen.findByText("Sleep 8h")).toBeInTheDocument();
+    expect(screen.getByText("Metric")).toBeInTheDocument();
+  });
+
+  it("shows the running state, not a bare Set a Goal, once a goal already exists", async () => {
+    render(<NotesProvider userId="mg2"><SeededMetric /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Sleep"));
+    fireEvent.click(await screen.findByText("Set a Goal"));
+    fireEvent.change(screen.getByPlaceholderText("e.g. Sleep Target"), { target: { value: "Sleep 8h" } });
+    const saves = screen.getAllByRole("button", { name: "Save" });
+    fireEvent.click(saves[saves.length - 1]!);
+    await screen.findByText("Sleep 8h");
+    // Close and reopen the log sheet: the goal it just saved should answer
+    // for itself instead of offering to set a new one over it.
+    const cancels = screen.getAllByText("Cancel");
+    fireEvent.click(cancels[cancels.length - 1]!);
+    fireEvent.click(await screen.findByText("Sleep"));
+    expect(await screen.findByText(/\u00b7 Edit Goal$/)).toBeInTheDocument();
+    expect(screen.queryByText("Set a Goal")).toBeNull();
+  });
+});
+
 describe("CategoryDetail metric log delete (BRAIN-F-15)", () => {
   it("says deleted only once the delete landed", async () => {
     const seen: string[] = [];
@@ -715,21 +751,33 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
 // health page rendered both. The block is handed to HealthBody now, so there
 // is exactly one definition of those sections in the app.
 describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", () => {
-  it("shows one Add Project, one Add Goal, one Add Event and one Add Task", async () => {
+  it("shows one Add Project, one Add Event and one Add Task -- and no generic Add Goal on health", async () => {
     render(<NotesProvider userId="hd1"><SeededHealth /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
-    for (const label of ["Add Project", "Add Goal", "Add Event", "Add Task"]) {
+    for (const label of ["Add Project", "Add Event", "Add Task"]) {
       expect(screen.getAllByText(label), label + " appears exactly once").toHaveLength(1);
     }
     // On a health area the goals section is named for what it holds (Dave
     // 2026-09-10: "health specific goals are like workout goals... That should
-    // be a little bit different to me"), and it offers the gym's own lift-goal
-    // door as a second, quieter row.
+    // be a little bit different to me").
     for (const head of ["Projects", "Training Goals", "Coming Up", "Up Next"]) {
       expect(screen.getAllByText(head), head + " is one section").toHaveLength(1);
     }
     expect(screen.queryByText("Goals Here"), "the generic head is not used on a health area").toBeNull();
-    expect(screen.getByText("Set a Lift Goal in the Gym")).toBeInTheDocument();
+    // THE DOOR MOVED, THE LIST DID NOT (Dave 2026-09-12: "wherever you can
+    // enter data would be a better idea"). Neither the generic Add Goal nor
+    // the gym redirect stand on this page any more -- both were a second,
+    // worse door to the sheet a lift or a metric's own screen already opens.
+    expect(screen.queryByText("Add Goal")).toBeNull();
+    expect(screen.queryByText("Set a Lift Goal in the Gym")).toBeNull();
+    // With nothing filed yet, the section still says where a goal starts.
+    expect(screen.getByText("Set one from a lift or a metric where you log it")).toBeInTheDocument();
+  });
+
+  it("a non-health area keeps its own Add Goal door untouched", async () => {
+    render(<NotesProvider userId="hd2"><SeededArea /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Goals Here")).toBeInTheDocument());
+    expect(screen.getByText("Add Goal")).toBeInTheDocument();
   });
 
   // THE TRAINING CARD IS A CHOICE (Dave 2026-09-10: "There's not even a header

@@ -75,6 +75,9 @@ import { goalTone } from "../shared/categories";
 import HealthBody from "./HealthBody";
 import { openWorkOf } from "../today/goalPulse";
 import { MetricLogSheet, AddMetricSheet } from "../gym/MetricsCard";
+import MetricGoalSheet from "../gym/MetricGoalSheet";
+import type { MetricMeasure } from "../gym/metricGoals";
+import { metricMeasureState } from "../gym/metricGoals";
 import type { MetricDef, MetricLog } from "../gym/metrics";
 import { newMetricDefData, activeMetrics, pulsePlan } from "../gym/metrics";
 import { chartableExercises, liftSessions } from "../gym/chartData";
@@ -226,6 +229,12 @@ export default function CategoryDetail({
   const [metricDefs, setMetricDefs] = useState<MetricDef[]>([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
   const [metricSheet, setMetricSheet] = useState<{ kind: "log"; def: MetricDef } | { kind: "add" } | null>(null);
+  // A GOAL OPTION WHERE THE DATA IS (Dave 2026-09-12): a second, independent
+  // sheet rather than a third `metricSheet` kind, mirroring how GymFlow keeps
+  // `liftGoalSheetOpen` beside `liftDetailFor` -- the goal sheet opens FROM
+  // the log sheet (see MetricLogSheet's onSetGoal) without closing it, the
+  // same nested-sheet shape the gym already uses.
+  const [metricGoalFor, setMetricGoalFor] = useState<MetricDef | null>(null);
   // S5-Q29 (2026-09-04): the four grafted Health loggers, health-kind pages
   // only, same read/reload shape as the metric strip just above.
   const healthSvc = useHealth();
@@ -969,6 +978,11 @@ export default function CategoryDetail({
     if (m.kind === "lift") return { text: "Lift", hue: "hue-hl-lime" };
     if (m.kind === "training") return { text: "Sessions", hue: "hue-hl-cyan" };
     if (m.kind === "cadence") return { text: "Rhythm", hue: "hue-hl-violet" };
+    // A goal set on a reading (Dave's ask 2026-09-12) reads at a glance the
+    // same way a lift or training goal does: hue-hl-cyan, the ramp's
+    // reading/reference colour (R4), not lime -- a metric is being watched,
+    // not logged work the way a set is.
+    if (m.kind === "metric") return { text: "Metric", hue: "hue-hl-cyan" };
     return null;
   };
   const goalsHere = (goalIdx.byCategory.get(categoryId) ?? [])
@@ -976,7 +990,7 @@ export default function CategoryDetail({
     .filter((g): g is Goal => !!g)
     .map((g) => {
       const reach = reachOf(allTasks, allProjects, g);
-      const ctx: MeasureContext = { reach, tasks: allTasks, projects: allProjects.filter((p) => p.data.goalId === g.id), samples, today, now: nowMs, workouts };
+      const ctx: MeasureContext = { reach, tasks: allTasks, projects: allProjects.filter((p) => p.data.goalId === g.id), samples, today, now: nowMs, workouts, metricLogs };
       const ms = measureState(g.data.measure, ctx);
       const h = healthOf(g, ms, g.data.measure, ctx, openWorkOf(reach));
       return {
@@ -1168,7 +1182,21 @@ export default function CategoryDetail({
           an ordinary goal with a lift or training measure on it, which is why
           it can appear on the Life > Goals lens too. What changes here is that
           the section says what these goals ARE, and each row wears the kind of
-          measurement behind it. */}
+          measurement behind it.
+          THE DOOR MOVED, THE LIST DID NOT (Dave 2026-09-12: "I had said I
+          wanted actual health goals elsewhere... wherever you can enter data
+          would be a better idea"). Add Goal and Set a Lift Goal in the Gym
+          were both generic dashboard buttons standing in front of a sheet
+          that had to ask "which lift" or "which kind of goal" all over
+          again -- the exact second-guess D12-A/C's LiftMeasure already
+          answered by moving lift goals onto the lift itself. Now every
+          health-kind goal starts at the reading it is about: a lift goal
+          from Your Lifts or a lift's own page (LiftGoalSheet), a metric goal
+          from that metric's own log sheet (MetricGoalSheet, gym/metricGoals.ts).
+          This section keeps doing what a section always does here -- showing
+          what is filed under this area -- and stops being a second, worse
+          door to the same sheets. Every other category still gets its Add
+          Goal row; only health's redundant doors are gone. */}
       <div className="sh2 sh2-quiet"><span className="t">{kind === "health" ? "Training Goals" : "Goals Here"}</span>{goalsHere.length > 0 && <span className="n">{goalsHere.length}</span>}</div>
       {/* B3-5 (2026-09-04): the project rows above open; these had no
           onOpen at all, so GoalRowRuled (gated on that prop) never
@@ -1178,15 +1206,11 @@ export default function CategoryDetail({
           <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar} kind={g.kind}
             onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined} />
         ))}
-        <button className="row-create" onClick={() => setSheet({ kind: "goal" })}>Add Goal</button>
-        {/* A LIFT GOAL IS SET ON THE LIFT (Dave 2026-09-10). "315 on the squat"
-            needs the exercise, its unit and its whole history to make any
-            sense of the number, and the gym already owns the sheet that has
-            all three (LiftGoalSheet, opened from a lift's own page). Rather
-            than build a second, poorer version of it here that would have to
-            ask which lift first, this row walks him to the one that works. */}
-        {kind === "health" && (
-          <button className="row-create row-create-quiet" onClick={() => setGymOpen(true)}>Set a Lift Goal in the Gym</button>
+        {kind !== "health" && (
+          <button className="row-create" onClick={() => setSheet({ kind: "goal" })}>Add Goal</button>
+        )}
+        {kind === "health" && goalsHere.length === 0 && (
+          <div className="row-create row-create-quiet row-create-static">Set one from a lift or a metric where you log it</div>
         )}
       </div></div>
 
@@ -1704,11 +1728,22 @@ export default function CategoryDetail({
 
       {metricSheet?.kind === "log" && (() => {
         const existingLog = metricLogs.find((l) => l.data.metricId === metricSheet.def.id && l.data.date === today);
+        // A goal makes sense on a number moving toward or away from
+        // somewhere (weight, minutes slept) and not on a yes/no or a 1-5
+        // scale, which has no "target" that means anything more than the
+        // scale itself already says.
+        const goalable = metricSheet.def.data.type === "number" || metricSheet.def.data.type === "minutes";
+        const metricGoal = goalable
+          ? goals.find((g) => g.data.state !== "achieved" && g.data.measure?.kind === "metric" && (g.data.measure as MetricMeasure).metricId === metricSheet.def.id)
+          : undefined;
+        const goalLine = metricGoal ? metricMeasureState(metricGoal.data.measure as MetricMeasure, metricLogs).line : null;
         return (
           <MetricLogSheet
             def={metricSheet.def}
             date={today}
             initial={existingLog}
+            goalLine={goalLine}
+            onSetGoal={goalable ? () => setMetricGoalFor(metricSheet.def) : undefined}
             onSave={(value) => void metricWrite(() => metricsSvc.logMetric(metricSheet.def.id, today, value), () => setMetricSheet(null))}
             // B3-8 (2026-09-04): removeLog existed, tested, with no caller.
             // Undo re-logs the same value, matching every other delete's Undo.
@@ -1728,6 +1763,49 @@ export default function CategoryDetail({
               });
             } : undefined}
             onCancel={() => setMetricSheet(null)}
+          />
+        );
+      })()}
+      {metricGoalFor && (() => {
+        const def = metricGoalFor;
+        const goal = goals.find((g) => g.data.state !== "achieved" && g.data.measure?.kind === "metric" && (g.data.measure as MetricMeasure).metricId === def.id);
+        const latest = metricLogs.filter((l) => l.data.metricId === def.id).sort((a, b) => a.data.date.localeCompare(b.data.date)).pop();
+        return (
+          <MetricGoalSheet
+            metricId={def.id}
+            metricName={def.data.name}
+            unit={def.data.unit}
+            currentValue={latest?.data.value}
+            {...(goal ? { initial: { title: goal.data.title, measure: goal.data.measure as MetricMeasure, ...(goal.data.by ? { by: goal.data.by } : {}) } } : {})}
+            healthCategoryIds={[categoryId]}
+            onSave={async (data) => {
+              const ok = await attemptWrite(() => (goal ? goalsSvc.update(goal.id, data) : goalsSvc.create(data)));
+              if (!ok) return;
+              setMetricGoalFor(null);
+              await reload();
+            }}
+            {...(goal ? {
+              onDelete: async () => {
+                // Reversible without a confirm, like every other delete in
+                // this app: create() takes an explicit id, so Undo puts back
+                // the SAME goal rather than a copy of it.
+                const snapshot = goal.data;
+                const goalId = goal.id;
+                const ok = await attemptWrite(() => goalsSvc.remove(goalId));
+                if (!ok) return;
+                setMetricGoalFor(null);
+                await reload();
+                showToast({
+                  message: "Goal deleted",
+                  actionLabel: "Undo",
+                  onAction: () => void (async () => {
+                    const back = await attemptWrite(() => goalsSvc.create(snapshot, goalId));
+                    if (back) await reload();
+                  })(),
+                });
+              },
+            } : {})}
+            onCancel={() => setMetricGoalFor(null)}
           />
         );
       })()}

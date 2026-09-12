@@ -50,8 +50,12 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
   // own sheet knows how to pick an exercise and a target set; this one does
   // not). This sheet neither edits nor destroys one: it is carried through
   // on save exactly as it arrived, and the menu below reads "None" for it
-  // rather than pretending the goal has no finish line.
-  const externalMeasure = initial?.measure?.kind === "lift" || initial?.measure?.kind === "training" ? initial.measure : undefined;
+  // rather than pretending the goal has no finish line. A metric measure
+  // (Dave's ask 2026-09-12) is the same story one level over: it is set from
+  // the metric's own log sheet, which knows the unit and the running
+  // history, and this generic sheet is no better equipped to edit it than it
+  // is a lift target.
+  const externalMeasure = initial?.measure?.kind === "lift" || initial?.measure?.kind === "training" || initial?.measure?.kind === "metric" ? initial.measure : undefined;
   // PICKS 13 + 14: the finish line and the date. Both optional, both derived
   // once set: nothing here asks him to report a status, only to say what
   // "done" means and when he wants it.

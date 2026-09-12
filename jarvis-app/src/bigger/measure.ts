@@ -5,6 +5,9 @@ import type { GoalReach } from "./reach";
 import type { Workout } from "../gym/types";
 import type { LiftMeasure, TrainingMeasure } from "../gym/goalMeasures";
 import { liftMeasureState, trainingMeasureState } from "../gym/goalMeasures";
+import type { MetricLog } from "../gym/metrics";
+import type { MetricMeasure } from "../gym/metricGoals";
+import { metricMeasureState } from "../gym/metricGoals";
 import { daysBetween } from "../upnext/upnext";
 import { capAfterNumber } from "../shared/casing";
 import { clearsDoneAutomatically } from "./doneClearing";
@@ -50,8 +53,15 @@ export interface ProjectsMeasure { kind: "projects" }
 // goals across the whole app and does not know how a set is logged), and
 // are re-exported here so a caller importing "the measure kinds" finds all
 // five in one place.
-export type Measure = CountMeasure | CadenceMeasure | ProjectsMeasure | LiftMeasure | TrainingMeasure;
+// A GOAL ON A READING (Dave's ask 2026-09-12): the sixth finish line,
+// alongside D12-A/C's lift and training measures. Same reasoning as those
+// two -- a metric goal is set FROM THE METRIC (its own log sheet knows the
+// unit and the running history; this module composes goals across the whole
+// app and does not know how a reading is logged), so MetricMeasure and its
+// state function live in gym/metricGoals.ts and are re-exported here.
+export type Measure = CountMeasure | CadenceMeasure | ProjectsMeasure | LiftMeasure | TrainingMeasure | MetricMeasure;
 export type { LiftMeasure, TrainingMeasure } from "../gym/goalMeasures";
+export type { MetricMeasure } from "../gym/metricGoals";
 
 // LIFE-F-22 (2026-09-05): CADENCE_LABEL and measureLabel both went. The
 // cadence sheet writes "a week" and "a month" inline where it draws them,
@@ -82,6 +92,10 @@ export interface MeasureContext {
    *  unmeasured until a caller that HAS the workout list (the Health page)
    *  passes it. */
   workouts?: Workout[];
+  /** The same optional-and-additive contract as `workouts`, for a metric
+   *  measure (Dave's ask 2026-09-12): absent, a weight goal reads as
+   *  unmeasured rather than guessing at a reading it was never handed. */
+  metricLogs?: MetricLog[];
 }
 
 const DAY = 86400000;
@@ -126,6 +140,7 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
   // correctly regardless, because it checks goal.data.state first.
   if (m.kind === "lift") return ctx.workouts ? liftMeasureState(m, ctx.workouts) : null;
   if (m.kind === "training") return ctx.workouts ? trainingMeasureState(m, ctx.workouts, ctx.now) : null;
+  if (m.kind === "metric") return ctx.metricLogs ? metricMeasureState(m, ctx.metricLogs) : null;
 
   if (m.kind === "cadence") {
     const done = completionsIn(ctx, windowStart(m.per, ctx.now));
@@ -278,12 +293,13 @@ export function healthOf(
   // there is no pace to be behind of, and saying so would be a guess.
   if (goal.data.by && state && m && m.kind !== "cadence" && state.target > 0) {
     const days = daysBetween(ctx.today, goal.data.by);
-    if (m.kind === "lift" || m.kind === "training") {
+    if (m.kind === "lift" || m.kind === "training" || m.kind === "metric") {
       // seenRate below reads Time Sense TASK completions -- the wrong
-      // evidence for a gym goal, and a lift/training goal's own tags may
-      // legitimately match unrelated Health-category tasks (that is how it
-      // surfaces in Bigger Picture at all, see reach.ts). Rather than pace
-      // against evidence that has nothing to do with the bar, the only
+      // evidence for a gym goal or a metric goal alike (a weight goal's own
+      // tags may legitimately match unrelated Health-category tasks, which
+      // is how it surfaces in Bigger Picture at all, see reach.ts, and has
+      // nothing to do with the number on the scale). Rather than pace
+      // against evidence that has nothing to do with the reading, the only
       // claim available this wave is the undisputed one: the date passed
       // and it is still not met.
       if (days < 0) return "behind";

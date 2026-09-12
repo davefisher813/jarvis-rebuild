@@ -1298,6 +1298,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         rows={libraryRows(library, workouts, hiddenKeys)}
         todayIso={todayISO()}
         onOpen={(r) => setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) })}
+        // THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list
+        // of exercises there's a goal option"). Walks straight into the lift
+        // it is about and opens the same LiftGoalSheet Lift Detail's own Set
+        // Goal row opens, rather than a second, poorer sheet built here that
+        // would have had to ask which lift first.
+        onSetGoal={(r) => {
+          setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) });
+          setLiftGoalSheetOpen(true);
+        }}
         onRename={(r, name) => void applyPatch(renameLift(workouts, allPrograms, r, name, newExerciseKey), `Renamed to ${name.trim()}`)}
         onMerge={(loser, survivorKey) => {
           const survivor = libraryRows(library, workouts, hiddenKeys).find((x) => x.key === survivorKey);

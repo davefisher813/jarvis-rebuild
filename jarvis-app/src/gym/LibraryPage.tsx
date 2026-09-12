@@ -12,7 +12,7 @@ import { PickSheet, type PickItem } from "./ActionSheet";
 //
 // Presentational, like every screen in this folder: rows in, callbacks out.
 // The writes live in gym/libraryEdit.ts and are run by GymFlow.
-export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge, onToggleHidden, onBack }: {
+export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge, onToggleHidden, onSetGoal, onBack }: {
   rows: LibraryRow[];
   todayIso: string;
   onOpen: (row: LibraryRow) => void;
@@ -21,6 +21,11 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
    *  same way: numbers from two different measures cannot share a series. */
   onMerge: (loser: LibraryRow, survivorKey: string) => void;
   onToggleHidden: (row: LibraryRow) => void;
+  /** THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list of
+   *  exercises there's a goal option"). Optional so a caller with no goal
+   *  wiring at all (there is none today) still renders this page exactly as
+   *  it did before -- the pill is absent with the prop. */
+  onSetGoal?: (row: LibraryRow) => void;
   onBack: () => void;
 }) {
   const [editing, setEditing] = useState<LibraryRow | null>(null);
@@ -65,7 +70,10 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
                     {r.hidden ? " · Hidden" : ""}
                   </div>
                 </div>
-                <button className="pill-act" onClick={(e) => { e.stopPropagation(); openEdit(r); }}>Edit</button>
+                <div className="lib-row-acts">
+                  {onSetGoal && <button className="pill-act" onClick={(e) => { e.stopPropagation(); onSetGoal(r); }}>Goal</button>}
+                  <button className="pill-act" onClick={(e) => { e.stopPropagation(); openEdit(r); }}>Edit</button>
+                </div>
               </div>
             ))}
           </div></div>

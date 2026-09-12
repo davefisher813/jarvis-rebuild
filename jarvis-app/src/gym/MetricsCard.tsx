@@ -25,8 +25,18 @@ const PULSE_ICO = <PulseGlyph />;
 /** One metric, one day, one control shaped for its type: a stepper for a
  *  number or minutes, five chips for a 1-5 scale, a switch for yes/no --
  *  never a bare number pad guessing what the type means. */
-export function MetricLogSheet({ def, date, initial, onSave, onDelete, onCancel }: {
+export function MetricLogSheet({ def, date, initial, goalLine, onSetGoal, onSave, onDelete, onCancel }: {
   def: MetricDef; date: string; initial?: MetricLog;
+  /** THE GOAL OPTION, WHERE THE DATA IS (Dave 2026-09-12, from the Health
+   *  category page: "wherever you can enter data would be a better idea...
+   *  when you enter your weight there's an option"). Present only for a
+   *  metric a goal makes sense on (number and minutes; see the caller) --
+   *  absent, the row is absent with it. `goalLine` is the running state
+   *  ("176 of 170 lb") when a goal already exists, so this sheet never
+   *  computes it itself: like everything in this folder, it takes state in
+   *  and hands taps out. */
+  goalLine?: string | null;
+  onSetGoal?: () => void;
   onSave: (value: { value?: number; yes?: boolean }) => void;
   /** B3-8 (2026-09-04): the delete this sheet always should have offered.
    *  removeLog existed in the service, tested, with no caller; this sheet had
@@ -77,6 +87,11 @@ export function MetricLogSheet({ def, date, initial, onSave, onDelete, onCancel 
             </div>
           )}
         </div>
+        {onSetGoal && (
+          <div className="pad-x">
+            <button className="row-create row-create-quiet" onClick={onSetGoal}>{goalLine ? `${goalLine} · Edit Goal` : "Set a Goal"}</button>
+          </div>
+        )}
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-launch btn-block" disabled={!scalePicked} onClick={() => {
             if (!scalePicked) return;

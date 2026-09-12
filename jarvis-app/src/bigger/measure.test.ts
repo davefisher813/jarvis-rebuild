@@ -238,3 +238,40 @@ describe("to-date for new goals, to-go for committed ones (Life View pick 8)", (
     expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("12 of 12 Done");
   });
 });
+
+// Dave's ask 2026-09-12: a metric goal is the sixth finish line, wired the
+// same optional-and-additive way lift/training goals already are (D12).
+describe("measureState: metric (Dave's ask 2026-09-12)", () => {
+  const m: Measure = { kind: "metric", metricId: "m1", metricName: "Bodyweight", unit: "lb", direction: "down", target: 170, startValue: 190 };
+
+  it("reads as unmeasured without ctx.metricLogs, the same optional contract workouts already has", () => {
+    expect(measureState(m, ctx())).toBeNull();
+  });
+
+  it("delegates to metricMeasureState once metricLogs is handed in", () => {
+    const c = ctx({ metricLogs: [{ id: "l1", data: { metricId: "m1", date: "2026-08-20", value: 180, at: 0 } }] });
+    const s = measureState(m, c)!;
+    expect(s.done).toBe(180);
+    expect(s.pct).toBe(50);
+  });
+});
+
+describe("healthOf: a metric goal paces like a lift goal, not like a count (Dave's ask 2026-09-12)", () => {
+  const m: Measure = { kind: "metric", metricId: "m1", metricName: "Bodyweight", unit: "lb", direction: "down", target: 170, startValue: 190 };
+  const partial = { done: 180, target: 170, pct: 50, met: false, line: "" };
+
+  it("is behind once the date passes, without pacing off Time Sense evidence that has nothing to do with a reading", () => {
+    // A count/cadence goal at 50% with a hot seen-rate would NOT be behind
+    // (see the passing case below); this asserts the metric goal takes the
+    // lift/training branch (date-only) rather than that straight-line one.
+    const c = ctx({
+      reach: { filedIds: ["a"], taggedIds: [], openTagged: 0, progress: null },
+      samples: [{ id: "a", t: NOW - DAY }, { id: "a", t: NOW - 2 * DAY }, { id: "a", t: NOW - 3 * DAY }],
+    });
+    expect(healthOf(goal({ by: "2026-08-01" }), partial, m, c, 0)).toBe("behind");
+  });
+
+  it("is not behind before the date, whatever the pace looks like", () => {
+    expect(healthOf(goal({ by: "2026-09-30" }), partial, m, ctx(), 0)).toBe("on_track");
+  });
+});
