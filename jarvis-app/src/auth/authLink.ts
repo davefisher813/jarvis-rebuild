@@ -16,10 +16,19 @@ import { webOrigin } from "../shared/apiBase";
 // the app, and the token in it is redeemed by the client that is actually
 // running.
 //
-// Supabase sends one of two shapes, and both are handled because which one
-// arrives depends on a project setting nobody remembers changing:
+// Supabase sends one of three shapes, and all three are handled because which
+// one arrives depends on a project setting nobody remembers changing:
 //   ?code=...                    the PKCE flow, redeemed with exchangeCodeForSession
 //   ?token_hash=...&type=...     the older link, redeemed with verifyOtp
+//   #access_token=...&refresh_token=...
+//                                the implicit flow: the session itself, handed
+//                                straight to setSession (2026-09-12)
+//
+// That third one is what the DEFAULT email template sends to a client created
+// without a flowType, which is this app's client (auth/supabaseClient.ts). On
+// the web detectSessionInUrl swallowed it before anyone noticed; on the phone
+// the URL arrives here instead, and reading only the first two shapes meant a
+// magic link or a reset link did nothing at all, with no message.
 // Anything with an `error` is Supabase saying no, usually an expired link,
 // and that has to reach the person rather than being dropped.
 
@@ -41,6 +50,7 @@ export function authRedirectTo(): string | undefined {
 export type AuthLink =
   | { kind: "code"; code: string }
   | { kind: "otp"; tokenHash: string; type: string }
+  | { kind: "session"; accessToken: string; refreshToken: string }
   | { kind: "error"; message: string };
 
 /**
@@ -62,6 +72,12 @@ export function parseAuthLink(url: URL): AuthLink | null {
   const code = get("code");
   if (code) return { kind: "code", code };
 
+  // Both halves or neither: a session without its refresh token would last an
+  // hour and then sign him out again, which is worse than saying nothing.
+  const accessToken = get("access_token");
+  const refreshToken = get("refresh_token");
+  if (accessToken && refreshToken) return { kind: "session", accessToken, refreshToken };
+
   return null;
 }
 
@@ -79,6 +95,7 @@ export interface AuthClient {
   auth: {
     exchangeCodeForSession(code: string): Promise<{ error: { message: string } | null }>;
     verifyOtp(params: { token_hash: string; type: string }): Promise<{ error: { message: string } | null }>;
+    setSession(params: { access_token: string; refresh_token: string }): Promise<{ error: { message: string } | null }>;
   };
 }
 
@@ -95,7 +112,9 @@ export async function redeemAuthLink(url: URL, client: AuthClient): Promise<Link
   try {
     const res = link.kind === "code"
       ? await client.auth.exchangeCodeForSession(link.code)
-      : await client.auth.verifyOtp({ token_hash: link.tokenHash, type: link.type });
+      : link.kind === "session"
+        ? await client.auth.setSession({ access_token: link.accessToken, refresh_token: link.refreshToken })
+        : await client.auth.verifyOtp({ token_hash: link.tokenHash, type: link.type });
     if (res.error) return { ok: false, message: humanAuthError(res.error.message) };
     return { ok: true };
   } catch (e) {

@@ -12,6 +12,7 @@ const client = (over: Partial<AuthClient["auth"]> = {}): AuthClient => ({
   auth: {
     exchangeCodeForSession: vi.fn(async () => ({ error: null })),
     verifyOtp: vi.fn(async () => ({ error: null })),
+    setSession: vi.fn(async () => ({ error: null })),
     ...over,
   } as AuthClient["auth"],
 });
@@ -32,6 +33,18 @@ describe("what an incoming link is", () => {
     // A URL's hash is not part of its searchParams, which is exactly how a
     // link that works in one project silently does nothing in another.
     expect(parseAuthLink(new URL("jarvis://auth#code=fromhash"))).toEqual({ kind: "code", code: "fromhash" });
+  });
+
+  // 2026-09-12: the shape the DEFAULT email template sends to a client created
+  // without a flowType, which is this app's. Reading only code and token_hash
+  // meant a magic link or a reset link on the phone did nothing, silently.
+  it("reads the session the implicit link carries in its hash", () => {
+    expect(parseAuthLink(new URL("jarvis://auth#access_token=at1&refresh_token=rt1&type=magiclink")))
+      .toEqual({ kind: "session", accessToken: "at1", refreshToken: "rt1" });
+  });
+
+  it("ignores an access token with no refresh token, which would sign him out in an hour", () => {
+    expect(parseAuthLink(new URL("jarvis://auth#access_token=at1&type=magiclink"))).toBeNull();
   });
 
   it("carries an error through instead of dropping it", () => {
@@ -57,6 +70,12 @@ describe("redeeming it", () => {
     const c = client();
     await redeemAuthLink(new URL("jarvis://auth?token_hash=t&type=recovery"), c);
     expect(c.auth.verifyOtp).toHaveBeenCalledWith({ token_hash: "t", type: "recovery" });
+  });
+
+  it("hands an implicit link's session straight to the client", async () => {
+    const c = client();
+    expect(await redeemAuthLink(new URL("jarvis://auth#access_token=at1&refresh_token=rt1"), c)).toEqual({ ok: true });
+    expect(c.auth.setSession).toHaveBeenCalledWith({ access_token: "at1", refresh_token: "rt1" });
   });
 
   it("says what went wrong in words a person can act on", async () => {
