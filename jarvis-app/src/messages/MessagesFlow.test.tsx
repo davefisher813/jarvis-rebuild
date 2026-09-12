@@ -185,7 +185,8 @@ describe("MessagesFlow (threads)", () => {
     // the verb is retired. "1 Thread Needs You" said in three lines what the
     // switch says in one.
     expect(screen.queryByText("1 Thread Needs You")).toBeNull();
-    expect(screen.getByText("The Sweep")).toBeInTheDocument();
+    // E-02 (2026-09-12): the Sweep is the head's own capsule now, not a card.
+    expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
     expect(screen.getByText(/Ridgeley needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
     // SPEC MOVED (V2 anatomy, 2026-08-15): the count is a pill beside the line.
@@ -243,10 +244,11 @@ describe("MessagesFlow (threads)", () => {
     ]));
     const { container } = render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("Needs You");
-    const lead = container.querySelector(".msg-headline")!;
+    await screen.findByRole("tab", { name: /Needs You/ });
+    // EM2 (2026-09-12): the sender leads line one, the gist is line two.
+    const lead = container.querySelector(".mline2")!;
     expect(lead).toHaveTextContent("Ridgeley needs the waiver by Friday.");
-    const from = container.querySelector(".msg-from")!;
+    const from = container.querySelector(".mfrom")!;
     expect(from).toHaveTextContent("Ridgeley");
   });
 
@@ -340,6 +342,9 @@ describe("MessagesFlow (threads)", () => {
     });
     render(wrap(<MessagesFlow ai={ai} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
+    // EM1 (2026-09-12): search lives on the All view; For You opens on the
+    // outcome switch.
+    fireEvent.click(await screen.findByText("All"));
     fireEvent.change(await screen.findByPlaceholderText("Search All Mail"), { target: { value: "invoice" } });
     fireEvent.click(await screen.findByText("What Did I Say About This?"));
     expect(await screen.findByText(/I will send the invoice Friday\./)).toBeInTheDocument();
@@ -566,8 +571,10 @@ describe("MessagesFlow (threads)", () => {
   it("renders the demo fixture instead of the setup state when demoMail is set", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured={false} demoMail />));
     // SPEC MOVED (E14, 2026-08-23): the count and the verb ride the head.
-    expect(await screen.findByText("Needs You")).toBeInTheDocument();
-    expect(screen.getByText("The Sweep")).toBeInTheDocument();
+    // E-02 (2026-09-12): the switch tab and the section head both say
+    // Needs You, and the Sweep is the head's own capsule.
+    expect(await screen.findByRole("tab", { name: /Needs You/ })).toBeInTheDocument();
+    expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
     expect(screen.queryByText("Connect Your Email")).not.toBeInTheDocument();
   });
 

@@ -64,7 +64,7 @@ function wrap(node: React.ReactNode) {
 const tabLabels = () => screen.getAllByRole("tab").map((t) => (t.textContent ?? "").replace(/\d+$/, ""));
 
 describe("DemoMail vs the real Email flow: the anatomy stays one thing", () => {
-  it("the demo shows the same title, search box, chips, deck cards, outcome tabs, and fold as the connected inbox", async () => {
+  it("the demo shows the same title, chips, Sweep head, Tools, outcome tabs, and fold as the connected inbox", async () => {
     // The connected, triaged real inbox: one thread that needs him, one
     // that's noise (so Clean Out has something to clean), one sent thread
     // old enough to be Waiting On.
@@ -74,27 +74,31 @@ describe("DemoMail vs the real Email flow: the anatomy stays one thing", () => {
     ]));
     const { unmount } = render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("The Sweep");
+    await screen.findByText(/^Sweep \u00b7 About/);
     await screen.findByRole("tab", { name: /Waiting On/ });
 
     expect(document.querySelector(".pagehead-title")).toHaveTextContent("Email");
-    expect(screen.getByPlaceholderText("Search All Mail")).toBeInTheDocument();
+    // EM1 (2026-09-12): For You opens on the outcome switch; search lives
+    // on the All view.
+    expect(screen.queryByPlaceholderText("Search All Mail")).toBeNull();
     expect(screen.getByText("For You")).toBeInTheDocument();
     expect(screen.getByText("All")).toBeInTheDocument();
     expect(screen.getByText(/^Drafts/)).toBeInTheDocument();
-    expect(screen.getByText("The Sweep")).toBeInTheDocument();
+    expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
     expect(screen.getByText("Clean Out")).toBeInTheDocument();
     expect(tabLabels()).toEqual(["Needs You", "Waiting On"]);
     expect(screen.getByText("The Rest")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("All"));
+    expect(await screen.findByPlaceholderText("Search All Mail")).toBeInTheDocument();
     unmount();
 
     // The demo fixture, through the SAME component's demoMail branch --
     // never a second, hand-copied shell.
     render(wrap(<MessagesFlow ai={noAI} configured={false} demoMail />));
-    await screen.findByText("The Sweep");
+    await screen.findByText(/^Sweep \u00b7 About/);
 
     expect(document.querySelector(".pagehead-title")).toHaveTextContent("Email");
-    expect(screen.getByPlaceholderText("Search All Mail")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Search All Mail")).toBeNull();
     expect(screen.getByText("For You")).toBeInTheDocument();
     expect(screen.getByText("All")).toBeInTheDocument();
     expect(screen.getByText(/^Drafts/)).toBeInTheDocument();

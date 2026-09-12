@@ -142,3 +142,24 @@ describe("storage", () => {
     expect(w.on).toBe(false);
   });
 });
+
+// E-38 (Dave's picks 2026-09-12): the one line under the Email title while
+// windows are on. It says the next thing that happens to the door.
+import { windowStatusLine } from "./batching";
+describe("windowStatusLine", () => {
+  const w = { on: true, days: [1, 2, 3, 4, 5], windows: [{ startMin: 9 * 60, minutes: 45 }, { startMin: 13 * 60, minutes: 45 }] };
+  // Monday 2026-09-14.
+  const at = (h: number, m = 0) => new Date(2026, 8, 14, h, m);
+  it("is empty when windows are off", () => {
+    expect(windowStatusLine({ ...w, on: false }, at(9, 10))).toBe("");
+  });
+  it("inside a window it says when the door closes", () => {
+    expect(windowStatusLine(w, at(9, 10))).toBe("Closes at 9:45\u00a0AM");
+  });
+  it("between windows it says when the door opens again", () => {
+    expect(windowStatusLine(w, at(11))).toBe("Opens again at 1\u00a0PM");
+  });
+  it("after the last window it looks to tomorrow", () => {
+    expect(windowStatusLine(w, at(18))).toBe("Opens again at 9\u00a0AM tomorrow");
+  });
+});

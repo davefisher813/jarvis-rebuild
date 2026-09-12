@@ -21,7 +21,8 @@ describe("DemoMail fixture", () => {
     const tabs = screen.getAllByRole("tab");
     expect(tabs.map((t) => t.textContent)).toEqual(["Needs You3", "Waiting On4"]);
     expect(screen.getByText("The Rest")).toBeInTheDocument();
-    expect(screen.getByText("The Sweep")).toBeInTheDocument();
+    // E-02 (2026-09-12): the Sweep is the Needs You head's capsule, not a card.
+    expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
     // Needs You shows first; Waiting On's rows are one tap over.
     expect(screen.getByText("Northwind Cloud")).toBeInTheDocument();
     expect(screen.queryByText(/Summitgear · Missing Items/)).toBeNull();

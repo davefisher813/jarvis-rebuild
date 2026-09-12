@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass } from "../shared/icons";
+import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock } from "../shared/icons";
+import { leadFor, faceSlot } from "./rowAnatomy";
+import "../styles/mail-rows.css";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
 
@@ -123,7 +125,7 @@ import { attachOffer, amountIn } from "./attachmentKind";
 import { enqueueOutbox, removeFromOutbox, patchOutbox, holdUntil, sendSlots, holdLine, whenLabel, INTERRUPTED_LINE, type OutboxItem } from "./outbox";
 import { useOutbox } from "./useOutbox";
 import { subscribeSent } from "./sendPump";
-import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, type WindowSettings } from "./batching";
+import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, windowStatusLine, type WindowSettings } from "./batching";
 import WindowsSheet from "./WindowsSheet";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
 import { saidEmpty, askSaid } from "./saidWhat";
@@ -186,15 +188,10 @@ function draftTo(raw: string): string {
   return displayName(m?.[1] ?? one) || one;
 }
 
-// 8A: a stable warm color per sender, drawn from the category fills so the
-// on-color contrast is already held at 4.5:1 by a law test. Red is absent on
-// purpose: red is a verb (L1), never an identity.
-const FACE_SLOTS = ["yellow", "sky", "green", "orange", "teal", "pink", "purple", "blue"] as const;
-export function faceSlot(key: string): string {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return FACE_SLOTS[h % FACE_SLOTS.length]!;
-}
+// 8A's faceSlot lives in rowAnatomy.ts now (EM3, 2026-09-12), beside the
+// rest of the leading-column decision; re-exported so nothing that imported
+// it from here has to move.
+export { faceSlot };
 
 const AUTONOISE_KEY = "jarvis.mail.autonoise.v1";
 // Small enough that one request is fast and well under the proxy's input cap.
@@ -3579,83 +3576,70 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // never archive something that needs you.
   const threadRow = (r: ThreadRow, gist?: string, selectable = false, alwaysStrong = false) => {
     const selecting = selectable && picked !== null;
+    // NEEDS YOU IS ALREADY A VERDICT (alwaysStrong). Gmail's raw unread flag
+    // used to be the only thing that made a subject line pop; three of
+    // Dave's four Needs You rows had already been read elsewhere and so
+    // rendered in the same dim tone as their meta line. A section built by
+    // triage, not by read status, should not let an unrelated flag decide
+    // which of its own rows look important. Everything in it earned its
+    // bold. Unread is WEIGHT, never a dot (EM2).
+    const strong = r.unread || alwaysStrong;
+    // EM3: the leading column is one decision, made in rowAnatomy.ts and
+    // tested there, not a three-branch expression in JSX.
+    const lead = leadFor({ from: r.from, fromEmail: r.fromEmail, bucket: effTriage[r.id]?.bucket, by: effTriage[r.id]?.by, displayName: displayName(r.from) });
     return (
     <MailSwipe
       key={r.id}
       onArchive={() => archiveRow(r)}
       onDelete={() => void trashThread(r.id, r.account)}
     >
-    <div className="row" {...pressable(() => (selecting ? togglePick(r.id) : void openThread(r.id)))}
+    {/* THE MAIL ROW (EM2 to EM4, Dave's picks 2026-09-12, against the
+        approved harness): one anatomy wherever a thread row renders. A 34px
+        lead slot; line one is the sender, the VIP star, and either the time
+        or the deadline chip at the right, never both; line two is the gist
+        or the subject, bold only when unread, with the account as small
+        caps after it, text and not a pill. Still a .row, so the card's
+        hairlines, press state and tap height are the same as every grouped
+        list in the app; mail-rows.css only says what sits inside. */}
+    <div className="row mrow" {...pressable(() => (selecting ? togglePick(r.id) : void openThread(r.id)))}
       aria-pressed={selecting ? picked!.has(r.id) : undefined}>
-      {/* Reserved column: read and unread rows share one text edge. */}
-      {selecting ? (
-        <span className={"cb" + (picked!.has(r.id) ? " on" : "")} aria-label={picked!.has(r.id) ? "Picked" : "Not picked"}>{picked!.has(r.id) ? "\u2713" : ""}</span>
-      ) : effTriage[r.id]?.bucket === "noise" || isMachineAddress(r.fromEmail) ? (
-        // 8A: a machine keeps the hairline rail. The signal is the triage
-        // bucket plus the no-reply address rule, which is exactly the
-        // knowledge the app already had and never spent: List-Unsubscribe is
-        // not on ThreadRow (the list is built from thread metadata), so
-        // reaching for it here would have meant a header fetch per row.
-        // A machine's rail lights for a DEADLINE (a bill due is a real
-        // tone) but never for mere unreadness: six unread promos wearing six
-        // solid red rails was a red status column down the whole All tab,
-        // which is L1's exact sin. Unread still bolds the headline.
-        //
-        // THE RAIL SITS IN THE SAME SLOT A FACE WOULD. The rail itself is
-        // 3px, the face is 34px; without a matching slot, a machine row's
-        // text starts 31px to the left of a person row's text, and a list
-        // that mixes both kinds of sender reads as unaligned. Dave's
-        // screenshot of Custom Ink (a face) next to GitHub and Supabase
-        // (rails) shows exactly that stagger. .msg-lead is the reserved
-        // column the comment above already promised and the rail alone
-        // never got.
-        <span className="msg-lead">
-          <span className={railClass(false, railToneForDeadline(effTriage[r.id]?.by))} aria-label={r.unread ? "unread" : undefined}></span>
-        </span>
-      ) : (
-        // 8A: A PERSON GETS A FACE. Warm, stable per sender, and big enough
-        // that your eyes triage the list before your brain has to read it.
-        <span className={"msg-face cat-bg-" + faceSlot(r.fromEmail || r.from)} aria-hidden="true">
-          {(displayName(r.from)[0] || "?").toUpperCase()}
-        </span>
-      )}
-      <div className="row-grow">
-        <div className="msg-line">
-          <span className="msg-from truncate">{displayName(r.from)}</span>
+      <span className="mlead">
+        {selecting ? (
+          <span className={"cb" + (picked!.has(r.id) ? " on" : "")} aria-label={picked!.has(r.id) ? "Picked" : "Not picked"}>{picked!.has(r.id) ? "\u2713" : ""}</span>
+        ) : lead.kind === "rail" ? (
+          // 8A: a machine keeps the rail, lit only for a DEADLINE the sender
+          // stated and never for mere unreadness. It sits centred in the
+          // same slot a face would, so a list that mixes people and machines
+          // shares one text edge (the Custom Ink / GitHub stagger).
+          <span className={"mrail" + (lead.railTone === "warn" ? " due" : "")} aria-label={r.unread ? "unread" : undefined}></span>
+        ) : (
+          // 8A: a person gets a face. Warm, stable per sender, and big
+          // enough that your eyes triage the list before your brain reads.
+          <span className={"mface cat-bg-" + lead.face} aria-hidden="true">{lead.initial}</span>
+        )}
+      </span>
+      <div className="ms">
+        <div className="mline1">
+          <span className={"mfrom" + (strong ? " strong" : "")}>{displayName(r.from)}</span>
           {/* N4: a VIP is marked where he reads, not buried in a setting. */}
-          {isVip(r.fromEmail, vips) && <span className="msg-vip" aria-label="Always gets through">★</span>}
-          {/* ONE VOCABULARY FOR ONE FIELD (2026-08-25). The chip printed the
-              model's raw phrase, sliced at 20 characters and mid-word, while
-              the Today card ran the identical field through byLabel and read
-              "Today" / "Tomorrow". Same email, two descriptions. */}
-          {/* UP-MIND-12 (2026-09-05): the deadline IS the chip, and when the
-              sentence behind it was found verbatim the chip takes a tap and
-              shows those words. With no evidence it renders exactly as it
-              always did: a plain amber phrase, no dead control. */}
+          {isVip(r.fromEmail, vips) && <span className="mstar" aria-label="Always gets through">\u2605</span>}
+          {/* ONE VOCABULARY FOR ONE FIELD (2026-08-25): the deadline runs
+              through byLabel, the same words the Today card uses. UP-MIND-12:
+              the deadline IS the chip, and when the sentence behind it was
+              found verbatim the chip takes a tap and shows those words. It
+              stands in the time's place; the two never render together. */}
           {effTriage[r.id]?.by
             ? <EvidenceChip
-                className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}
-                // UP-MIND-18 (2026-09-05): plain when the claim can show
-                // the sentence it came from, hedged when it cannot.
+                className={"mdue" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}
                 label={labelFor(byLabel(effTriage[r.id]!.by), effTriage[r.id]!.byEv)}
                 evidence={effTriage[r.id]!.byEv}
                 onOpenSource={(msgId) => void openThread(r.id, msgId)}
               />
-            : <span className="msg-when">{fmtWhen(r.dateMs)}</span>}
+            : <span className="mwhen">{fmtWhen(r.dateMs)}</span>}
         </div>
-        {/* NEEDS YOU IS ALREADY A VERDICT. Gmail's raw unread flag used to be
-            the only thing that made a subject line pop; three of Dave's
-            four Needs You rows had already been read (on another device,
-            or by him scrolling past) and so rendered in the same dim tone
-            as their meta line. A section built by triage, not by read
-            status, should not let an unrelated flag decide which of its
-            own rows look important. That produced a list that was mostly
-            grey with one bright row, which Dave read as noise: "too much
-            grey subtext ... gives me anxiety." Everything in this section
-            already earned its bold. */}
-        <div className={"msg-headline" + (r.unread || alwaysStrong ? " msg-strong" : "")}>
-          {gist ?? r.subject}{!gist && r.count > 1 ? " · " + r.count : ""}
-          {g.accounts.length > 1 && r.account && <span className="msg-acct">{acctLabel(r.account)}</span>}
+        <div className={"mline2" + (strong ? " strong" : "")}>
+          {gist ?? r.subject}{!gist && r.count > 1 ? " \u00b7 " + r.count : ""}
+          {g.accounts.length > 1 && r.account && <span className="macct">{acctLabel(r.account)}</span>}
         </div>
       </div>
     </div>
@@ -3682,16 +3666,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           onDiscard={() => discardSend(item.id)}
         />
       ))}
-      {/* The tripwire, defused (2026-08-22): this row used to TURN THE
-          FEATURE ON, one stray tap and the tab starts closing with no
-          explanation. It opens the editor now; nothing closes until Start
-          is tapped inside it, with every window on screen. When windows are
-          already on, the same editor is one tap away for adjusting. */}
-      <div className="pad-x">
-        <button className="row-act" onClick={() => setEditWindows(true)}>
-          {windows.on ? "Email Windows" : "Open Email on a Schedule"}
-        </button>
-      </div>
+      {/* E-38 (Dave's picks 2026-09-12): while windows are on, one quiet
+          line under the title says the next thing that happens to the door.
+          The control itself (the tripwire defused 2026-08-22: it opens the
+          editor, never turns anything on) lives in Tools at the foot of the
+          page now, with the other things that are not today's mail. */}
+      {windows.on && windowStatusLine(windows, new Date()) && (
+        <div className="mwin">{windowStatusLine(windows, new Date())}</div>
+      )}
       {editWindows && !curtained && (
         <WindowsSheet
           initial={windows}
@@ -3700,7 +3682,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           onClose={() => setEditWindows(false)}
         />
       )}
-      <div className="pad-x">
+      {/* THE FIRST SCREEN ASKS ONE QUESTION (EM1, Dave's picks 2026-09-12).
+          Search and the account chips draw on the All view, where the
+          harness puts them; For You opens on the outcome switch. An account
+          filter already set stays visible on For You so the counts it
+          narrows (EM8) are never narrowed by something off screen. */}
+      {!forYou && <div className="pad-x">
         <input
           className="msg-input msg-search" placeholder="Search All Mail" value={search}
           onChange={(e) => {
@@ -3727,7 +3714,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             {saidBusy ? "Reading your sent mail…" : "What Did I Say About This?"}
           </button>
         )}
-      </div>
+      </div>}
       {said !== null && (
         <div className="pad-x"><div className="card">
           {said.length === 0 ? (
@@ -3744,7 +3731,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <button className="row-act" onClick={() => setSaid(null)}>Clear</button>
         </div></div>
       )}
-      {g.accounts.length > 1 && (
+      {g.accounts.length > 1 && (!forYou || acctFilter !== null) && (
         <div className="pad-x msg-chips">
           <button className={"chip" + (acctFilter === null ? " on" : "")} onClick={() => setAcctFilter(null)}>All Accounts</button>
           {g.accounts.filter((a) => a.mail).map((a) => (
@@ -3903,7 +3890,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="empty-title">{results !== null ? "No Matches" : atEnd ? "Inbox Empty" : "Nothing More Loaded"}</div>
             {results === null && !atEnd && (
               <>
-                <div className="empty-sub">Everything loaded is dealt with \u00b7 There may be more in your inbox</div>
+                <div className="empty-sub">Everything loaded is dealt with {"\u00b7"} There may be more in your inbox</div>
                 <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>
               </>
             )}
@@ -3946,189 +3933,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {!atEnd && <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>}
             </div></div></div>
           )}
-          {/* THE MISSION DECK (Dave 2026-08-26, approved as "a combo of
-              a/c"). His words, on finding the Sweep behind a small side
-              button: "People wouldn't think those render into unique major
-              features." He was right. The flagship modes were footnotes:
-              the Sweep behind a see-all link, the drain behind a quiet
-              line, the Clean Out behind a foot pill.
-              The deck makes the two flagships the biggest objects on the
-              tab, each carrying its count and its honest cost, and the
-              launcher rows below it give every other mode a full-width
-              target with a reason to tap. The tiny links are gone. */}
-          {triageState === "ready" && (needsYou.length > 0 || unmutedRows.length > 0) && (
-            <div className="pad-x mode-deck">
-              {needsYou.length > 0 && (
-                <div className="mode-card mode-hero" {...pressable(() => { setDeckRows(needsYou); setView("deck"); })}>
-                  <div className="mode-name">The Sweep</div>
-                  <div className="mode-n">{needsYou.length}</div>
-                  {/* CASING LAW APPLIES TO SCORECARDS (Dave 2026-08-29).
-                      The line read as a continuation of the display number
-                      above it, so it shipped lowercase -- but it is its own
-                      element, and every other sub in the app leads each
-                      segment with a capital ("A timed drain \u00b7 It stops
-                      itself"). Same rule here, no exception for cards. */}
-                  <div className="mode-why">{(needsYou.length === 1 ? "Needs you" : "Need you") + " \u00b7 " + sweepEstimate(needsYou.length)}</div>
-                  <div className="mode-go">Start</div>
-                </div>
-              )}
-              {unmutedRows.length > 0 && (
-                <div className="mode-card" {...pressable(() => { setPurgePicks(null); void deepLoad(); setView("purge"); })}>
-                  <div className="mode-name">Clean Out</div>
-                  <div className="mode-n">{unmutedRows.length}</div>
-                  {/* THE SURVIVING HALF IS THE USEFUL HALF (Dave 2026-08-29).
-                      .mode-why is deliberately clamped to one nowrap line so
-                      every mode card is the same height whatever the sender
-                      count -- that is right and stays. But the string read
-                      "in the inbox \u00b7 12 senders", so the ellipsis ate the
-                      NUMBER and left the filler: his screenshot shows
-                      "in the inbox \u00b7 12 se...". The card already says Clean
-                      Out and already shows 16 in display type, so "in the
-                      inbox" is the half a reader can infer and the sender
-                      count is the half they cannot. Leading with the count
-                      means an overflow now costs the inferable words. */}
-                  {/* EMAIL-F-18 (2026-09-05): "In the inbox" was a claim
-                      about all of Gmail attached to a count of one loaded
-                      page. It says where the number came from until the
-                      inbox has actually been read to the bottom. */}
-                  <div className="mode-why">{capAfterNumber(senderPiles(unmutedRows, effTriage, vips).length + " senders") + (atEnd ? " \u00b7 In the inbox" : " \u00b7 Loaded so far")}</div>
-                  <div className="mode-go mode-go-quiet">Open</div>
-                </div>
-              )}
-            </div>
-          )}
-          {/* The timed drain, promoted from a quiet line to a launcher. The
-              picker it opens is the same one it always opened. */}
-          {triageState === "ready" && needsYou.length > 0 && !drainOpen && (
-            <div className="pad-x">
-              <div className="launch-row" {...pressable(() => setDrainOpen(true))}>
-                <span className="launch-ic" aria-hidden="true"><Clock className="ic" /></span>
-                <div className="row-grow">
-                  <div className="launch-tt">Only a Few Minutes?</div>
-                  <div className="launch-ss">A timed drain · It stops itself</div>
-                </div>
-                <span className="launch-chev" aria-hidden="true">›</span>
-              </div>
-            </div>
-          )}
-          {triageState === "ready" && needsYou.length > 0 && drainOpen && (
-            <div className="pad-x drain-pick">
-              <div className="eyebrow">Give Me</div>
-              <div className="msg-chips">
-                {PRESETS.map((m) => (
-                  <button key={m} className={"chip" + (minutes === m ? " on" : "")}
-                    onClick={() => { setMinutes(saveMinutes(m)); setMinutesText(String(m)); }}>{m} min</button>
-                ))}
-                {/* EMAIL-F-26 (2026-09-05): "Drain minutes field snaps to 5
-                    the moment it is cleared." Every keystroke used to be
-                    clamped, and clampMinutes(NaN) is 5, so backspacing the 5
-                    of "5" put a 5 straight back and typing 15 gave 51. The
-                    field holds what he typed while he is typing; the clamp
-                    happens when he leaves it, which is when the number is
-                    finished. An empty box falls back to the saved number
-                    rather than inventing one. */}
-                <input
-                  className="msg-input drain-input" type="number" min={1} max={60} value={minutesText}
-                  aria-label="Minutes"
-                  onChange={(e) => {
-                    setMinutesText(e.target.value);
-                    const n = parseInt(e.target.value, 10);
-                    if (isFinite(n)) setMinutes(clampMinutes(n));
-                  }}
-                  onBlur={() => {
-                    const n = parseInt(minutesText, 10);
-                    const saved = saveMinutes(isFinite(n) ? n : minutes);
-                    setMinutes(saved);
-                    setMinutesText(String(saved));
-                  }}
-                />
-              </div>
-              <div className="promo-acts">
-                <button className="promo-pill" onClick={() => {
-                  saveMinutes(minutes);
-                  setDrainMs(minutes * 60000);
-                  setDeckRows(needsYou);
-                  setDrainOpen(false);
-                  setView("deck");
-                }}>Start the Drain</button>
-              </div>
-            </div>
-          )}
-          {/* UP-MIND-11 (2026-09-05): THE LEDGER. Same chassis as its
-              neighbours. The promise on the row is the count, because the
-              count is the fact that decides whether you open it, and it is
-              honest about being a view: it is built when you tap. */}
-          {(() => {
-            const owed = waiting.filter((w) => decideFor(w).ask !== "nothing").length;
-            const mine = loadMailSnapshot().promises.length;
-            if (owed + mine === 0) return null;
-            return (
-              <div className="pad-x">
-                <div className="launch-row" {...pressable(() => void openLedger())}>
-                  <span className="launch-ic" aria-hidden="true"><Hourglass className="ic" /></span>
-                  <div className="row-grow">
-                    <div className="launch-tt">Still Open</div>
-                    <div className="launch-ss">{capAfterNumber(
-                      (mine > 0 ? mine + " you owe" : "") +
-                      (mine > 0 && owed > 0 ? " \u00b7 " : "") +
-                      (owed > 0 ? owed + " owed to you" : ""),
-                    )}</div>
-                  </div>
-                  <span className="launch-chev" aria-hidden="true">›</span>
-                </div>
-              </div>
-            );
-          })()}
-          {/* One at a Time, promoted from a head link to a launcher when
-              there is a real run of them to walk. */}
-          {(() => {
-            const owed = waiting.filter((w) => decideFor(w).ask !== "nothing");
-            if (owed.length < 2) return null;
-            const oldest = Math.max(...owed.map((w) => w.waitingDays));
-            return (
-              <div className="pad-x">
-                <div className="launch-row" {...pressable(() => setWaitDeck(0))}>
-                  <span className="launch-ic" aria-hidden="true"><MessageSquare className="ic" /></span>
-                  <div className="row-grow">
-                    <div className="launch-tt">One at a Time</div>
-                    <div className="launch-ss">{capAfterNumber(owed.length + " waiting on answers \u00b7 oldest is " + oldest + (oldest === 1 ? " day" : " days"))}</div>
-                  </div>
-                  <span className="launch-chev" aria-hidden="true">›</span>
-                </div>
-              </div>
-            );
-          })()}
-          {/* N12 (2026-08-20): thirty seconds of speech for the car or the gym.
-              It says the SAME things the cards say, and never reads a body
-              aloud: a private message read out with other people in the car
-              is a real harm and nothing here is worth it. */}
-          {/* ONE CHASSIS FOR EVERY LAUNCHER (Dave 2026-08-29: "I don't like
-              the display at the bottom of the screen"). This was the last
-              plain card in the launcher column: two launch-rows and then one
-              odd card doing the same job in older clothes. Same chassis as
-              its neighbours now -- icon tile, title, promise -- with the
-              play control as the trailing pill, because this row performs
-              rather than navigates and a chevron would lie about that. */}
-          {needsYou.length > 0 && canSpeak() && (
-            <div className="pad-x">
-              <div className="launch-row" {...pressable(() => {
-                if (speaking) { stopSpeaking(); setSpeaking(false); return; }
-                const notices = mailNotices(loadMailSnapshot(), todayISO());
-                // EMAIL-F-25 (2026-09-05): the pill follows the voice. It
-                // used to be set from speak()'s return alone, so it stayed on
-                // Stop after the speech ended.
-                setSpeaking(speak(speakable(notices, inboxSentence(notices, loadMailSnapshot())), () => setSpeaking(false)));
-              })}>
-                <span className="launch-ic" aria-hidden="true"><Volume2 className="ic" /></span>
-                <div className="row-grow">
-                  <div className="launch-tt">Read It to Me</div>
-                  <div className="launch-ss">Senders and gists only · Never the message</div>
-                </div>
-                <span className="pill-act">{speaking ? "Stop" : "Play"}</span>
-              </div>
-            </div>
-          )}
-
           {/* N14: once a week, everything nobody chased. Needs-you is NEVER
               in the set, whatever its age, and neither is unsorted mail:
               not having read something is not evidence about it. */}
@@ -4243,8 +4047,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   none of them the reason you opened the tab. The mode deck
                   above already says where to start, so no head here needs to
                   compete with it and all three recede into a spine. */}
-              {/* The switch above names the section and counts it; a head
-                  here would say it twice (the repetition law). */}
+              {/* E-02 (Dave's picks 2026-09-12): the Sweep is the section's
+                  head action, a capsule at the far right carrying its own
+                  estimate, in place of the Mission Deck card that used to
+                  sit above the whole page. The switch above counts the
+                  section; the head names it and holds its one verb, which
+                  is the shape every other head with an action wears. */}
+              <div className="sh2 sh2-quiet">
+                <span className="t">Needs You</span>
+                <button className="see-all pill-action" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>
+                  {"Sweep \u00b7 " + sweepEstimate(needsYou.length)}
+                </button>
+              </div>
               <div className="pad-x"><div className="card list-card-ruled">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist, false, true))}
               </div></div>
@@ -4253,8 +4067,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   waiting for next time" under a COMPLETE list of three:
                   those 27 were The Rest, a different list with its own pill
                   a scroll below. A floor may only count what it is the
-                  floor OF. */}
-              <ListFloor>That&rsquo;s every one that needs you.</ListFloor>
+                  floor OF.
+                  E-04 (2026-09-12): and it may only claim "every one" once
+                  an account has answered short. Off a full page it says what
+                  it is showing and offers the next page, the same honesty
+                  the All list's floor already keeps (EMAIL-F-18). */}
+              {atEnd ? (
+                <ListFloor>That&rsquo;s every one that needs you.</ListFloor>
+              ) : (
+                <ListFloor>
+                  <>
+                    <div>That&rsquo;s every one loaded so far.</div>
+                    <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>
+                  </>
+                </ListFloor>
+              )}
             </>
           )}
           {waiting.length > 0 && (() => {
@@ -4617,29 +4444,182 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           )}
         </div>
       )}
-      {/* The two jobs that are not today's mail, at the floor of the screen
-          where they cannot compete with it. Standing Rules is what you built;
-          Clean Out is 11C, the account rather than the day. Both are quiet on
-          purpose: neither is a thing you should be pulled into while you are
-          trying to get through the morning, and a bulk-delete door that
-          shouts is a bulk-delete door somebody taps on momentum. */}
-      {(Object.keys(rules).length > 0 || muted.length > 0 || unmutedRows.length > 0) && (
-        <div className="pad-x foot-links">
-          {(Object.keys(rules).length > 0 || muted.length > 0) && (
-            <button className="quiet-action" onClick={() => setView("rules")}>Standing Rules</button>
-          )}
-          {/* WAVE 4, DUPLICATE DOORS (2026-08-29). The Mission Deck's own
-              note says "the tiny links are gone", and this one never went:
-              a Clean Out foot pill sat under a Clean Out mode card carrying
-              the same handler, on every render where triage was ready.
-              It is not deleted, because the deck card is gated on
-              triageState === "ready" and this is the only door before then.
-              It is now the FALLBACK it was supposed to become. */}
-          {unmutedRows.length > 0 && triageState !== "ready" && (
-            <button className="quiet-action" onClick={() => { setPurgePicks(null); void deepLoad(); setView("purge"); }}>Clean Out</button>
-          )}
+      {/* TOOLS (EM1 / E-01, Dave's picks 2026-09-12, against the approved
+          harness). Everything on this tab that is not today's mail, in one
+          quiet head at the foot of the page: the Mission Deck's two cards,
+          the three launcher rows and the foot links used to be four
+          different shapes for the same kind of thing, stacked ABOVE the
+          list they were tools for. Dave's screenshot opened on a red card
+          and three launchers before the first thread. The first screen
+          asks one question now (the outcome switch and the Needs You list);
+          these are the drawers under it, every one the same row. */}
+      {filter !== "drafts" && results === null && (() => {
+        const sweepReady = triageState === "ready" && needsYou.length > 0;
+        const owed = waiting.filter((w) => decideFor(w).ask !== "nothing");
+        const mine = loadMailSnapshot().promises.length;
+        const ruleCount = Object.keys(rules).length;
+        const showRules = ruleCount > 0 || muted.length > 0;
+        const oldest = owed.length ? Math.max(...owed.map((w) => w.waitingDays)) : 0;
+        return (
+          <>
+            <div className="sh2 sh2-quiet"><span className="t">Tools</span></div>
+            <div className="pad-x"><div className="card list-card-ruled">
+              {/* 11C: the account rather than the day. EM8: this count is
+                  unmuted and NOT account-filtered, unlike the Sweep's, and
+                  the row says so rather than silently disagreeing with the
+                  number above it. EMAIL-F-18: and says where the number
+                  came from until the inbox has been read to the bottom. */}
+              {unmutedRows.length > 0 && (
+                <div className="row" {...pressable(() => { setPurgePicks(null); void deepLoad(); setView("purge"); })}>
+                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
+                  <div className="row-grow">
+                    <div className="conn-name">Clean Out</div>
+                    <div className="conn-meta">{capAfterNumber(
+                      unmutedRows.length + (unmutedRows.length === 1 ? " thread" : " threads")
+                      + " \u00b7 " + senderPiles(unmutedRows, effTriage, vips).length + " senders"
+                      + (g.accounts.length > 1 ? " \u00b7 All accounts" : "")
+                      + (atEnd ? " \u00b7 In the inbox" : " \u00b7 Loaded so far"),
+                    )}</div>
+                  </div>
+                  <div className="chev" />
+                </div>
+              )}
+              {/* The timed drain. The picker it opens is the same one it
+                  always opened, under the card. */}
+              {sweepReady && (
+                <div className="row" {...pressable(() => setDrainOpen((v) => !v))} aria-expanded={drainOpen}>
+                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
+                  <div className="row-grow">
+                    <div className="conn-name">Only a Few Minutes?</div>
+                    <div className="conn-meta">A timed drain {"\u00b7"} It stops itself</div>
+                  </div>
+                  <div className="chev" />
+                </div>
+              )}
+              {/* UP-MIND-11: THE LEDGER. The promise on the row is the
+                  count, because the count is the fact that decides whether
+                  you open it, and it is honest about being a view: it is
+                  built when you tap. */}
+              {owed.length + mine > 0 && (
+                <div className="row" {...pressable(() => void openLedger())}>
+                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Hourglass className="ic" /></span>
+                  <div className="row-grow">
+                    <div className="conn-name">Still Open</div>
+                    <div className="conn-meta">{capAfterNumber(
+                      (mine > 0 ? mine + " you owe" : "") +
+                      (mine > 0 && owed.length > 0 ? " \u00b7 " : "") +
+                      (owed.length > 0 ? owed.length + " owed to you" : ""),
+                    )}</div>
+                  </div>
+                  <div className="chev" />
+                </div>
+              )}
+              {/* One at a Time, when there is a real run of them to walk. */}
+              {owed.length >= 2 && (
+                <div className="row" {...pressable(() => setWaitDeck(0))}>
+                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><MessageSquare className="ic" /></span>
+                  <div className="row-grow">
+                    <div className="conn-name">One at a Time</div>
+                    <div className="conn-meta">{capAfterNumber(owed.length + " waiting on answers \u00b7 oldest is " + oldest + (oldest === 1 ? " day" : " days"))}</div>
+                  </div>
+                  <div className="chev" />
+                </div>
+              )}
+              {/* N12: thirty seconds of speech for the car or the gym. It
+                  says the SAME things the cards say, and never reads a body
+                  aloud. The play control is the trailing pill, because this
+                  row performs rather than navigates and a chevron would lie
+                  about that. EMAIL-F-25: the pill follows the voice. */}
+              {sweepReady && canSpeak() && (
+                <div className="row" {...pressable(() => {
+                  if (speaking) { stopSpeaking(); setSpeaking(false); return; }
+                  const notices = mailNotices(loadMailSnapshot(), todayISO());
+                  setSpeaking(speak(speakable(notices, inboxSentence(notices, loadMailSnapshot())), () => setSpeaking(false)));
+                })}>
+                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
+                  <div className="row-grow">
+                    <div className="conn-name">Read It to Me</div>
+                    <div className="conn-meta">Senders and gists only {"\u00b7"} Never the message</div>
+                  </div>
+                  <span className="pill-act">{speaking ? "Stop" : "Play"}</span>
+                </div>
+              )}
+              {/* Standing Rules is what you built; it was a foot link and is
+                  a row like the rest now (EM7's first half, ahead of Push
+                  B, because a foot with one link left in it is not a foot). */}
+              {showRules && (
+                <div className="row" {...pressable(() => setView("rules"))}>
+                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><ListChecks className="ic" /></span>
+                  <div className="row-grow">
+                    <div className="conn-name">Standing Rules</div>
+                    <div className="conn-meta">{capAfterNumber(
+                      (ruleCount > 0 ? ruleCount + (ruleCount === 1 ? " sender filed" : " senders filed") : "") +
+                      (ruleCount > 0 && muted.length > 0 ? " \u00b7 " : "") +
+                      (muted.length > 0 ? muted.length + (muted.length === 1 ? " thread muted" : " threads muted") : ""),
+                    )}</div>
+                  </div>
+                  <div className="chev" />
+                </div>
+              )}
+              {/* The tripwire, defused (2026-08-22): this row opens the
+                  editor and nothing closes until Start is tapped inside it,
+                  with every window on screen. E-38 moved it here from the
+                  top of the page. */}
+              <div className="row" {...pressable(() => setEditWindows(true))}>
+                <span className="row-ico cat-bg-graphite" aria-hidden="true"><CalendarClock className="ic" /></span>
+                <div className="row-grow">
+                  <div className="conn-name">Email Windows</div>
+                  <div className="conn-meta">{windows.on ? "On \u00b7 " + windowStatusLine(windows, new Date()) : "Open email on a schedule"}</div>
+                </div>
+                <div className="chev" />
+              </div>
+            </div></div>
+      {triageState === "ready" && needsYou.length > 0 && drainOpen && (
+        <div className="pad-x drain-pick">
+          <div className="eyebrow">Give Me</div>
+          <div className="msg-chips">
+            {PRESETS.map((m) => (
+              <button key={m} className={"chip" + (minutes === m ? " on" : "")}
+                onClick={() => { setMinutes(saveMinutes(m)); setMinutesText(String(m)); }}>{m} min</button>
+            ))}
+            {/* EMAIL-F-26 (2026-09-05): "Drain minutes field snaps to 5
+                the moment it is cleared." Every keystroke used to be
+                clamped, and clampMinutes(NaN) is 5, so backspacing the 5
+                of "5" put a 5 straight back and typing 15 gave 51. The
+                field holds what he typed while he is typing; the clamp
+                happens when he leaves it, which is when the number is
+                finished. An empty box falls back to the saved number
+                rather than inventing one. */}
+            <input
+              className="msg-input drain-input" type="number" min={1} max={60} value={minutesText}
+              aria-label="Minutes"
+              onChange={(e) => {
+                setMinutesText(e.target.value);
+                const n = parseInt(e.target.value, 10);
+                if (isFinite(n)) setMinutes(clampMinutes(n));
+              }}
+              onBlur={() => {
+                const n = parseInt(minutesText, 10);
+                const saved = saveMinutes(isFinite(n) ? n : minutes);
+                setMinutes(saved);
+                setMinutesText(String(saved));
+              }}
+            />
+          </div>
+          <div className="promo-acts">
+            <button className="promo-pill" onClick={() => {
+              saveMinutes(minutes);
+              setDrainMs(minutes * 60000);
+              setDeckRows(needsYou);
+              setDrainOpen(false);
+              setView("deck");
+            }}>Start the Drain</button>
+          </div>
         </div>
       )}
+          </>
+        );
+      })()}
       {/* Everything else this thread could become, one swipe from the row. */}
       {/* UP-MIND-19: the capture sheet, prefilled. The decision is the
           thread's own sentence, the link is the person it is with, and the

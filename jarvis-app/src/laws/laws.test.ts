@@ -580,7 +580,7 @@ describe("LAW: Apple HIG casing", () => {
   // called --good, and once as a card whose background never applied. Both
   // passed every other gate, because tests do not look at pixels.
   it("no stylesheet references a custom property that was never defined", () => {
-    const css = ["jarvis-design-system.css", "uniformity.css", "components.css"]
+    const css = ["jarvis-design-system.css", "uniformity.css", "components.css", "mail-rows.css"]
       .map((f) => read(SRC + "/styles/" + f)).join("\n");
     const defined = new Set([...css.matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1]!));
     // Fallback forms, var(--x, something), are safe by construction.
@@ -600,7 +600,7 @@ describe("LAW: Apple HIG casing", () => {
   // rest, which is worse than not growing at all: it is a screen that comes
   // apart at 1.3x.
   it("no font-size in a stylesheet is a bare pixel value", () => {
-    const files = ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css"];
+    const files = ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css", "mail-rows.css"];
     const bad: string[] = [];
     for (const f of files) {
       const css = read(SRC + "/styles/" + f);
@@ -656,7 +656,7 @@ describe("LAW: Apple HIG casing", () => {
   // walks, only for text that is on screen at the moment it looks. This
   // catches it at the declaration, which is where it is actually made.
   it("the brand red is never used for a job it cannot do", () => {
-    const files = ["jarvis-design-system.css", "uniformity.css", "components.css"];
+    const files = ["jarvis-design-system.css", "uniformity.css", "components.css", "mail-rows.css"];
     const bad: string[] = [];
     for (const f of files) {
       const css = read(SRC + "/styles/" + f);
@@ -3121,16 +3121,23 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
     expect(askKindOf("ordering lunch")).toBe("answer");
   });
 
-  // The mode card's one-line clamp is deliberate (equal card heights). What
-  // it clips must therefore be the inferable half.
-  it("Clean Out leads its sub with the fact the card cannot otherwise show", () => {
+  // The mode card's one-line clamp was deliberate (equal card heights), so
+  // what it clipped had to be the inferable half. EM1 / EM8 (2026-09-12):
+  // the card is a Tools row now, and the row's job is to be HONEST about
+  // its own number: it is unmuted and not account-filtered, unlike the
+  // Sweep's count above it, and EMAIL-F-18's "loaded so far" tail still
+  // holds until the inbox has been read to the bottom. The law is that the
+  // sub leads with the count and names its scope, so a disagreement with
+  // the number above it is legible rather than silent.
+  it("Clean Out leads its sub with its own count and says what that count is of", () => {
     const src = read(join(SRC, "messages/MessagesFlow.tsx"));
-    // EMAIL-F-18 (2026-09-05): the tail is a branch now, because "In the
-    // inbox" is a claim about all of Gmail that the card only earns once the
-    // inbox has been read to the bottom. The law is unchanged: the sender
-    // count still leads, and both tails still lead with a capital.
-    expect(src, "the sender count leads, so an overflow costs the filler")
-      .toMatch(/mode-why">\{capAfterNumber\(senderPiles\([^)]*\)\.length \+ " senders"\) \+ \(atEnd \? " \\u00b7 In the inbox" : " \\u00b7 Loaded so far"\)\}/);
+    const at = src.indexOf('<div className="conn-name">Clean Out</div>');
+    expect(at, "Clean Out is a Tools row").toBeGreaterThan(-1);
+    const row = src.slice(at, at + 700);
+    expect(row, "the thread count leads").toMatch(/capAfterNumber\(\s*unmutedRows\.length \+/);
+    expect(row, "then the sender count").toMatch(/senderPiles\(unmutedRows, effTriage, vips\)\.length \+ " senders"/);
+    expect(row, "and the scope, with both tails leading capitalized")
+      .toMatch(/\(atEnd \? " \\u00b7 In the inbox" : " \\u00b7 Loaded so far"\)/);
   });
 });
 
@@ -3347,17 +3354,23 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
   // stopped at the mode deck, where the sublines shipped as lowercase
   // fragments; and Read It to Me was the last plain card in a column of
   // launch-rows. One casing law, one launcher chassis.
-  it("scorecard sublines lead capitalized, and Read It to Me rides the launcher chassis", () => {
+  // EM1 / E-02 (2026-09-12): the scorecard is gone. The Sweep is the Needs
+  // You head's own capsule and carries sweepEstimate, which leads with a
+  // capital of its own (checked below); the launchers are Tools rows on the
+  // one .row chassis every grouped list uses. The half of this law that
+  // survives is the half that was ever about behaviour: a row that performs
+  // carries a control where its neighbours carry a chevron.
+  it("the Sweep rides the Needs You head, and Read It to Me carries a control, not a chevron", () => {
     const flow = read(join(SRC, "messages/MessagesFlow.tsx"));
-    expect(flow, "Sweep subline leads capitalized").toMatch(/"Needs you" : "Need you"/);
-    // EMAIL-F-18: both tails, because the honest one depends on whether the
-    // whole inbox has actually been loaded. Each still leads with a capital.
-    expect(flow, "Clean Out subline caps its count and its tail")
-      .toMatch(/capAfterNumber\(senderPiles\(unmutedRows, effTriage, vips\)\.length \+ " senders"\) \+ \(atEnd \? " \\u00b7 In the inbox" : " \\u00b7 Loaded so far"\)/);
-    const rimIdx = flow.indexOf("Read It to Me");
-    const rim = flow.slice(Math.max(0, rimIdx - 900), rimIdx + 900);
-    expect(rim, "same chassis as its neighbours").toMatch(/launch-row/);
-    expect(rim, "a row that performs carries a control, not a chevron").not.toMatch(/launch-chev/);
+    const head = flow.indexOf('<span className="t">Needs You</span>');
+    expect(head, "Needs You has a head").toBeGreaterThan(-1);
+    expect(flow.slice(head, head + 400), "the Sweep is its head action, with its estimate")
+      .toMatch(/see-all pill-action[\s\S]*"Sweep \\u00b7 " \+ sweepEstimate\(needsYou\.length\)/);
+    const rimIdx = flow.indexOf('<div className="conn-name">Read It to Me</div>');
+    expect(rimIdx, "Read It to Me is a Tools row").toBeGreaterThan(-1);
+    const rim = flow.slice(rimIdx, rimIdx + 400);
+    expect(rim, "a row that performs carries a control, not a chevron").toMatch(/pill-act/);
+    expect(rim).not.toMatch(/className="chev"/);
   });
 
   it("the sweep estimate itself leads with a capital", async () => {

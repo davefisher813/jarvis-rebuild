@@ -180,6 +180,22 @@ export function closedLine(w: WindowSettings, now: Date): string {
   return "Opens " + DAY_NAME[next.getDay()];
 }
 
+// E-38 (Email Build Master, Dave's picks 2026-09-12): the one quiet line
+// under the Email title while windows are on. It answers the next thing
+// that will happen to the door, in the same words the curtain uses: while a
+// window is open, when it closes; while he has opened early, when it opens
+// again on its own. Empty when windows are off or nothing is scheduled.
+export function windowStatusLine(w: WindowSettings, now: Date): string {
+  if (!w.on) return "";
+  const mins = now.getHours() * 60 + now.getMinutes();
+  if (w.days.includes(now.getDay())) {
+    const cur = w.windows.find((x) => mins >= x.startMin && mins < x.startMin + x.minutes);
+    if (cur) return "Closes at " + minLabel(cur.startMin + cur.minutes);
+  }
+  const line = closedLine(w, now);
+  return line ? line.replace(/^Opens/, "Opens again") : "";
+}
+
 // ---- 1B: THE PEEK (Dave 2026-08-25, the Anti-Inbox catalog) ----
 //
 // The door already answered WHEN. It never answered the question that

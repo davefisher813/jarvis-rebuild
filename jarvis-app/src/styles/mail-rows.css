@@ -1,0 +1,60 @@
+/* ==========================================================================
+   THE MAIL ROW (Email Build Master section 2, Dave's picks 2026-09-12,
+   against the approved harness JARVIS_EMAIL_PREVIEW_2026_09_12.html).
+   One anatomy wherever a thread row renders, replacing the msg-line /
+   msg-headline pair: a 34px lead slot, then line one (sender, the VIP star,
+   and either the time or the deadline chip at the right, never both), then
+   line two (the subject or the gist, bold only when unread, the account as
+   small caps after it). Imported by messages/, and it touches none of
+   ruled.css's selectors: the row still wears .row for the card's hairlines,
+   press state and tap height, and this sheet only says what sits inside it.
+   ========================================================================== */
+
+/* EM4: 10px vertical padding, the two lines top-aligned to the lead. */
+.ruled .row.mrow { align-items: flex-start; gap: var(--s-2h); padding-top: var(--s-2h); padding-bottom: var(--s-2h); }
+/* The hairline between two mail rows runs to the text edge, like every
+   other grouped list with a leading column. */
+.card .row.mrow + .row.mrow::before { left: calc(var(--s-4) + 34px + var(--s-2h)); }
+
+/* EM3: one column shape. The lead slot is always 34px; a face or a rail
+   sits centred in it, so a list that mixes people and machines still shares
+   one text edge. */
+.mlead { flex: 0 0 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
+/* A person's mark. The hue comes from .cat-bg-<slot> (rowAnatomy.ts's
+   faceSlot), whose on-colour contrast a law already holds at 4.5:1. */
+.mface { width: 30px; height: 30px; border-radius: var(--r-circle); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: calc(13px * var(--type-scale)); font-weight: var(--w-bold); }
+/* A machine's mark: the 3px rail, quiet by default, warn when the sender
+   stated a deadline. Never lit for unreadness (8A). */
+.mrail { width: 3px; height: 26px; border-radius: 2px; background: var(--tx-4); }
+.mrail.due { background: var(--warn-fill); }
+
+.ms { flex: 1; min-width: 0; }
+.mline1 { display: flex; align-items: baseline; gap: var(--s-1h); min-width: 0; }
+/* EM2: the sender is the row's first word, semibold; unread takes bold
+   (weight, never a dot -- the alwaysStrong rule for Needs You stands). */
+.mfrom { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1);
+  letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mfrom.strong { font-weight: var(--w-bold); }
+/* N4: the VIP mark, where he reads. */
+.mstar { color: var(--yellow); font-size: calc(12px * var(--type-scale)); flex: 0 0 auto; }
+/* The time, or in its place the deadline chip. One or the other. */
+.mwhen { margin-left: auto; flex: 0 0 auto; font-size: calc(13px * var(--type-scale)); color: var(--tx-3);
+  font-variant-numeric: tabular-nums; }
+.mdue { margin-left: auto; flex: 0 0 auto; font-size: calc(11.5px * var(--type-scale)); font-weight: var(--w-bold);
+  padding: 2px 7px; border-radius: var(--r-pill); background: var(--warn-tint); color: var(--warn); white-space: nowrap; }
+/* byRank >= 900 ("no rush"): a deadline that is not pressing is quiet. */
+.mdue.soft { background: var(--press-3); color: var(--tx-3); }
+/* EM2: the subject or the gist. Quiet when read, the page's ink when not. */
+.mline2 { font-size: calc(14px * var(--type-scale)); color: var(--tx-3); margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mline2.strong { color: var(--tx-1); font-weight: var(--w-semi); }
+/* The account, as small caps after the subject: text, never a pill. */
+.macct { font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--tx-4); margin-left: var(--s-1h); }
+
+/* EM1 / E-38: the one quiet line under the title while Email Windows are
+   on -- when it opens again, or when it closes -- in place of the row-act
+   that used to sit above the whole page. The full control lives in Tools. */
+.mwin { font-size: calc(13px * var(--type-scale)); color: var(--tx-3); padding: 0 var(--s-4) var(--s-2); }

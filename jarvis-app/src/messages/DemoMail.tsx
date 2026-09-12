@@ -7,11 +7,12 @@
 import { useEffect, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { showToast } from "../shared/toast";
-import { Plus } from "../shared/icons";
+import { Plus, Archive, Clock, Volume2, CalendarClock } from "../shared/icons";
+import { leadFor } from "./rowAnatomy";
 import { saveMailSnapshot } from "./home";
 import { decide } from "./mailAction";
 import { nameFor } from "./names";
-import { railClass, railToneForWaiting, railToneForDeadline } from "./rows";
+import { railClass, railToneForWaiting } from "./rows";
 import { EnvelopeGlyph } from "../shared/glyphs";
 import ListFloor from "../shared/ListFloor";
 
@@ -95,31 +96,15 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
   return (
     <div className="screen ruled">
       <PageHeader title="Email" actions={<BarAction label="New Message" onClick={() => setComposing(true)}><Plus className="ic" /></BarAction>} />
-      <div className="pad-x">
-        <input className="msg-input msg-search" placeholder="Search All Mail" onFocus={demoTap} readOnly />
-      </div>
+      {/* EM1 (2026-09-12): the first screen opens on the view chips and the
+          outcome switch; search lives on the All view, which the demo does
+          not draw. The demo never shows an anatomy the app does not have. */}
       <div className="pad-x msg-chips">
         <button className="chip on" onClick={demoTap}>For You</button>
         <button className="chip" onClick={demoTap}>All</button>
         <button className="chip" onClick={demoTap}>Drafts</button>
       </div>
 
-      {/* The demo never shows an anatomy the app does not have, so when the
-          Mission Deck landed (2026-08-26) it landed here the same day. */}
-      <div className="pad-x mode-deck">
-        <div className="mode-card mode-hero" role="button" tabIndex={0} onClick={demoTap}>
-          <div className="mode-name">The Sweep</div>
-          <div className="mode-n">{NEEDS.length}</div>
-          <div className="mode-why">Need you &middot; About 2 min</div>
-          <div className="mode-go">Start</div>
-        </div>
-        <div className="mode-card" role="button" tabIndex={0} onClick={demoTap}>
-          <div className="mode-name">Clean Out</div>
-          <div className="mode-n">14</div>
-          <div className="mode-why">6 Senders &middot; In the inbox</div>
-          <div className="mode-go mode-go-quiet">Open</div>
-        </div>
-      </div>
       {/* THE OUTCOME SWITCH (ruled 2026-09-01), the same one MessagesFlow
           draws: one section at a time, counts on the labels. The demo never
           shows an anatomy the app does not have. */}
@@ -133,21 +118,36 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
         </div>
       </div>
       {outcome === "needs" && (<>
+      {/* E-02 (2026-09-12): the Sweep is the head's own capsule, the same
+          shape MessagesFlow draws, in place of the Mission Deck card. */}
+      <div className="sh2 sh2-quiet">
+        <span className="t">Needs You</span>
+        <button className="see-all pill-action" onClick={demoTap}>Sweep {"\u00b7"} About 2 min</button>
+      </div>
+      {/* EM2 to EM4: the mail row, one anatomy with the live page's. Every
+          row in Needs You earned its bold (alwaysStrong on the live page). */}
       <div className="pad-x"><div className="card list-card-ruled">
-        {NEEDS.map((r) => (
-          <div className="row" role="button" tabIndex={0} key={r.from} onClick={demoTap}>
-            <span className={railClass(!!r.unread, railToneForDeadline(r.due))}></span>
-            <div className="row-grow">
-              <div className="msg-line">
-                <span className="msg-from truncate">{r.from}</span>
-                {r.due ? <span className="msg-due">{r.due}</span> : <span className="msg-when">{r.when}</span>}
+        {NEEDS.map((r) => {
+          const lead = leadFor({ from: r.from, fromEmail: r.from.toLowerCase().replace(/\s+/g, "") + "@example.com", by: r.due?.toLowerCase(), displayName: r.from });
+          return (
+          <div className="row mrow" role="button" tabIndex={0} key={r.from} onClick={demoTap}>
+            <span className="mlead">
+              {lead.kind === "rail"
+                ? <span className={"mrail" + (lead.railTone === "warn" ? " due" : "")}></span>
+                : <span className={"mface cat-bg-" + lead.face} aria-hidden="true">{lead.initial}</span>}
+            </span>
+            <div className="ms">
+              <div className="mline1">
+                <span className="mfrom strong">{r.from}</span>
+                {r.due ? <span className="mdue">{r.due}</span> : <span className="mwhen">{r.when}</span>}
               </div>
-              <div className={"msg-headline" + (r.unread ? " msg-strong" : "")}>{r.sub}</div>
+              <div className="mline2 strong">{r.sub}</div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div></div>
-      <ListFloor />
+      <ListFloor>That&rsquo;s every one that needs you.</ListFloor>
       </>)}
 
       {outcome === "waiting" && (<>
@@ -182,6 +182,44 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           </div>
         </div>
       </div>
+
+      {/* TOOLS (EM1 / E-01, 2026-09-12): the drawers under the list, one
+          quiet head, the same rows the live page draws. */}
+      <div className="sh2 sh2-quiet"><span className="t">Tools</span></div>
+      <div className="pad-x"><div className="card list-card-ruled">
+        <div className="row" role="button" tabIndex={0} onClick={demoTap}>
+          <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
+          <div className="row-grow">
+            <div className="conn-name">Clean Out</div>
+            <div className="conn-meta">14 threads {"\u00b7"} 6 senders {"\u00b7"} In the inbox</div>
+          </div>
+          <div className="chev" />
+        </div>
+        <div className="row" role="button" tabIndex={0} onClick={demoTap}>
+          <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
+          <div className="row-grow">
+            <div className="conn-name">Only a Few Minutes?</div>
+            <div className="conn-meta">A timed drain {"\u00b7"} It stops itself</div>
+          </div>
+          <div className="chev" />
+        </div>
+        <div className="row" role="button" tabIndex={0} onClick={demoTap}>
+          <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
+          <div className="row-grow">
+            <div className="conn-name">Read It to Me</div>
+            <div className="conn-meta">Senders and gists only {"\u00b7"} Never the message</div>
+          </div>
+          <span className="pill-act">Play</span>
+        </div>
+        <div className="row" role="button" tabIndex={0} onClick={demoTap}>
+          <span className="row-ico cat-bg-graphite" aria-hidden="true"><CalendarClock className="ic" /></span>
+          <div className="row-grow">
+            <div className="conn-name">Email Windows</div>
+            <div className="conn-meta">Open email on a schedule</div>
+          </div>
+          <div className="chev" />
+        </div>
+      </div></div>
 
       {onConnect && (
         <div className="pad-x conn-action">
