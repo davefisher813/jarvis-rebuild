@@ -18,6 +18,16 @@ export const config = { runtime: "edge" };
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
+// WHICH CLIENT A TOKEN BELONGS TO (2026-09-11). Google refreshes a token only
+// with the client that issued it, and the refresh path below always sent the
+// web client and its secret. A token from the iPhone's native connect was
+// issued to the iOS client, so every silent refresh on the phone failed and
+// "stays signed in" never held there. The client is recorded INSIDE the
+// encrypted value (no schema change): native tokens are stored as
+// "ios:" + token. Google refresh tokens begin "1//", so the tag cannot
+// collide with one.
+const IOS_TAG = "ios:";
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
@@ -56,6 +66,9 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   const clientId = process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "";
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+  // The iOS OAuth client (UP-LAUNCH-12). Optional: only the native connect
+  // and the refresh of the tokens it stored need it.
+  const iosClientId = process.env.VITE_GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_IOS_CLIENT_ID || "";
   const tokenKey = process.env.GOOGLE_TOKEN_KEY || "";
   const supaUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
   const supaAnon = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
@@ -99,7 +112,6 @@ export default async function handler(req: Request): Promise<Response> {
     // checked against that client's own scheme rather than trusted: a
     // redirect_uri parameter accepted verbatim is how an exchange endpoint
     // becomes somebody else's.
-    const iosClientId = process.env.VITE_GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_IOS_CLIENT_ID || "";
     const iosScheme = iosClientId.endsWith(".apps.googleusercontent.com")
       ? "com.googleusercontent.apps." + iosClientId.slice(0, -".apps.googleusercontent.com".length)
       : "";
@@ -138,7 +150,7 @@ export default async function handler(req: Request): Promise<Response> {
       await fetch(rest, {
         method: "POST",
         headers: { ...svc, Prefer: "resolution=merge-duplicates" },
-        body: JSON.stringify({ user_id: userId, email, token_enc: await encrypt(tok.refresh_token, tokenKey), updated_at: new Date().toISOString() }),
+        body: JSON.stringify({ user_id: userId, email, token_enc: await encrypt((native ? IOS_TAG : "") + tok.refresh_token, tokenKey), updated_at: new Date().toISOString() }),
       });
     }
     return json({ accessToken: tok.access_token, email, expiresIn: tok.expires_in ?? 3600, remembered: !!tok.refresh_token });
@@ -149,19 +161,38 @@ export default async function handler(req: Request): Promise<Response> {
     const rowRes = await fetch(rest + "?user_id=eq." + userId + "&email=eq." + encodeURIComponent(email) + "&select=token_enc", { headers: svc });
     const rows = rowRes.ok ? ((await rowRes.json()) as { token_enc: string }[]) : [];
     if (rows.length !== 1) return json({ error: "No stored sign-in" }, 410);
-    let refreshToken: string;
+    let stored: string;
     try {
-      refreshToken = await decrypt(rows[0]!.token_enc, tokenKey);
+      stored = await decrypt(rows[0]!.token_enc, tokenKey);
     } catch {
       return json({ error: "Stored sign-in unreadable" }, 410);
     }
-    const r = await fetch(TOKEN_URL, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ refresh_token: refreshToken, client_id: clientId, client_secret: clientSecret, grant_type: "refresh_token" }),
-    });
-    const tok = (await r.json()) as { access_token?: string; expires_in?: number; error?: string };
-    if (!r.ok || !tok.access_token) {
+    const tagged = stored.startsWith(IOS_TAG);
+    const refreshToken = tagged ? stored.slice(IOS_TAG.length) : stored;
+    type Tok = { access_token?: string; expires_in?: number; error?: string };
+    const refreshWith = async (params: Record<string, string>): Promise<{ ok: boolean; tok: Tok }> => {
+      const r = await fetch(TOKEN_URL, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ refresh_token: refreshToken, grant_type: "refresh_token", ...params }),
+      });
+      return { ok: r.ok, tok: (await r.json()) as Tok };
+    };
+    const viaWeb = () => refreshWith({ client_id: clientId, client_secret: clientSecret });
+    // The iOS client has no secret; the token alone proves it (see IOS_TAG).
+    const viaIos = () => refreshWith({ client_id: iosClientId });
+    // A tagged token goes straight to the iOS client. An untagged one is web,
+    // or a native token stored before the tag existed: try web, then iOS, and
+    // only treat the grant as revoked if every client it could belong to
+    // refuses it, so a phone's token is never deleted for being tried against
+    // the wrong client first.
+    let res = tagged && iosClientId ? await viaIos() : await viaWeb();
+    if ((!res.ok || !res.tok.access_token) && !tagged && iosClientId) {
+      const second = await viaIos();
+      if (second.ok && second.tok.access_token) res = second;
+    }
+    const tok = res.tok;
+    if (!res.ok || !tok.access_token) {
       if (tok.error === "invalid_grant") {
         // Revoked at Google: forget it so the app re-asks interactively once.
         await fetch(rest + "?user_id=eq." + userId + "&email=eq." + encodeURIComponent(email), { method: "DELETE", headers: svc });
