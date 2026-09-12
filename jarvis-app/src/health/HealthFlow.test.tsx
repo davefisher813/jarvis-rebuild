@@ -259,6 +259,22 @@ describe("HealthFlow: The Locker tracks expiry with zero medical judgment", () =
     fireEvent.click(screen.getByText("Save It"));
     await waitFor(() => expect(screen.getByText("Worth a Look")).toBeInTheDocument());
   });
+
+  // 2026-09-11: Remove had no catch, so a failed delete said nothing at all.
+  it("a Remove that fails says so", async () => {
+    localStorage.clear();
+    const store = new Store(new InMemoryAdapter());
+    const svc = new HealthService(store, "u1");
+    svc.logLockerDoc({ kind: "physical", label: "Physical", expiresAt: "2027-01-01" });
+    await svc.flush();
+    svc.removeLockerDoc = () => Promise.reject(new Error("offline"));
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    render(<HealthFlow service={svc} initialScreen="locker" onExit={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(seen).toContain("Couldn't save · Check your connection"));
+    stop();
+  });
 });
 
 describe("HealthFlow: The Handoff carries no body data", () => {

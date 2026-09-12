@@ -110,8 +110,9 @@ const SAME_SPOT_RADIUS = 0.06;
  *  -- no severity, no trend, no name. Only clusters spanning at least
  *  `minSessions` distinct days are returned, so a single sore Tuesday never
  *  surfaces as a pattern. */
-export function stillThere(entries: PointAtItEntry[], minSessions = 3): StillTherePattern[] {
-  type Cluster = { side: "front" | "back"; points: { x: number; y: number; at: number }[] };
+type Cluster = { side: "front" | "back"; points: { x: number; y: number; at: number }[] };
+
+function clusterTaps(entries: PointAtItEntry[]): Cluster[] {
   const clusters: Cluster[] = [];
   for (const e of entries) {
     const { x, y, at, side } = e.data;
@@ -121,6 +122,17 @@ export function stillThere(entries: PointAtItEntry[], minSessions = 3): StillThe
     if (hit) hit.points.push({ x, y, at });
     else clusters.push({ side, points: [{ x, y, at }] });
   }
+  return clusters;
+}
+
+function spotKeyOf(c: Cluster): string {
+  const cx = c.points.reduce((s, p) => s + p.x, 0) / c.points.length;
+  const cy = c.points.reduce((s, p) => s + p.y, 0) / c.points.length;
+  return cx.toFixed(2) + "," + cy.toFixed(2);
+}
+
+export function stillThere(entries: PointAtItEntry[], minSessions = 3): StillTherePattern[] {
+  const clusters = clusterTaps(entries);
   const out: StillTherePattern[] = [];
   for (const c of clusters) {
     const days = new Set(c.points.map((p) => localDay(p.at)));
@@ -136,10 +148,8 @@ export function stillThere(entries: PointAtItEntry[], minSessions = 3): StillThe
     // than the sessions.
     const sortedDays = [...days].sort();
     const span = daysBetween(sortedDays[0]!, sortedDays[sortedDays.length - 1]!) + 1;
-    const cx = c.points.reduce((s, p) => s + p.x, 0) / c.points.length;
-    const cy = c.points.reduce((s, p) => s + p.y, 0) / c.points.length;
     out.push({
-      spotKey: cx.toFixed(2) + "," + cy.toFixed(2),
+      spotKey: spotKeyOf(c),
       side: c.side,
       sessions: days.size,
       days: span,
@@ -160,19 +170,15 @@ export interface StillThereSummaryRow {
 }
 
 export function stillThereSummary(entries: PointAtItEntry[], pattern: StillTherePattern): StillThereSummaryRow[] {
-  const SAME_SPOT = 0.06;
+  // 2026-09-11: dates the very taps stillThere grouped. This used to re-pick
+  // taps within the radius of the rounded centre, so a chained cluster
+  // (0.40, 0.45, 0.50, 0.55) read "4 sessions" over only 2 dates.
   const days = new Set<string>();
-  const out: StillThereSummaryRow[] = [];
-  for (const e of entries) {
-    if (e.data.side !== pattern.side) continue;
-    const [cx, cy] = pattern.spotKey.split(",").map(Number) as [number, number];
-    if (Math.hypot(e.data.x - cx, e.data.y - cy) > SAME_SPOT) continue;
-    const day = localDay(e.data.at);
-    if (days.has(day)) continue;
-    days.add(day);
-    out.push({ date: day, side: e.data.side });
+  for (const c of clusterTaps(entries)) {
+    if (c.side !== pattern.side || spotKeyOf(c) !== pattern.spotKey) continue;
+    for (const p of c.points) days.add(localDay(p.at));
   }
-  return out.sort((a, b) => a.date.localeCompare(b.date));
+  return [...days].sort().map((date) => ({ date, side: pattern.side }));
 }
 
 // UP-ATH-05 (2026-09-06): the thing a human actually receives. stillThere

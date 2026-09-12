@@ -18,6 +18,10 @@ import {
 import { defaultGrants, updateGrant } from "./shareLine";
 import { queueHealthLog, flushPending, readPending, type Storage2, type PendingHealthLog } from "./offlineQueue";
 
+// Module-level, like offlineQueue's: more than one HealthService can front
+// the same store (HealthFlow builds its own when none is handed in).
+let grantTail: Promise<unknown> = Promise.resolve();
+
 // The Store-backed half of the health module. Consent grants and the five
 // loggers, following the same shape as GymService and CategoriesService:
 // a thin class over Store, keyed by ownerId, emitting through onEvent.
@@ -45,7 +49,16 @@ export class HealthService {
   /** Revoke or grant one category. One tap, no negotiation screen: this is
    *  the entire consent-change surface, deliberately with no confirmation
    *  step and no reason field. */
-  async setGrant(category: HealthCategoryId, granted: boolean): Promise<ConsentGrant[]> {
+  setGrant(category: HealthCategoryId, granted: boolean): Promise<ConsentGrant[]> {
+    // 2026-09-11: one grant write at a time. This is a read-modify-write of
+    // the one consent record, so two quick toggles each read the same grants
+    // and the second write undid the first. Same chain as offlineQueue's tail.
+    const run = grantTail.then(() => this.writeGrant(category, granted));
+    grantTail = run.catch(() => undefined);
+    return run;
+  }
+
+  private async writeGrant(category: HealthCategoryId, granted: boolean): Promise<ConsentGrant[]> {
     const items = await this.store.listForUser(this.ownerId, ENTITY_HEALTH_CONSENT);
     const current = items[0] ? (items[0].data as unknown as ConsentGrantsData).grants : defaultGrants(Date.now());
     const next = updateGrant(current, category, granted, Date.now());

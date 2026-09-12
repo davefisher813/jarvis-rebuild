@@ -33,6 +33,27 @@ describe("HealthService: the Share Line", () => {
     // revocation is real: nothing else moved.
     expect(after.find((g) => g.category === "logistics")?.granted).toBe(true);
   });
+
+  // 2026-09-11: two quick toggles each read the same record, and the second
+  // write undid the first.
+  it("two toggles in flight at once both land", async () => {
+    const s = svc();
+    await Promise.all([s.setGrant("fuel", true), s.setGrant("sleep", true)]);
+    const after = await s.getConsent();
+    expect(after.find((g) => g.category === "fuel")?.granted).toBe(true);
+    expect(after.find((g) => g.category === "sleep")?.granted).toBe(true);
+  });
+
+  it("a failed grant write does not jam the next one", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const s = new HealthService(store, "athlete1");
+    const list = store.listForUser.bind(store);
+    store.listForUser = () => Promise.reject(new Error("offline"));
+    await expect(s.setGrant("fuel", true)).rejects.toThrow("offline");
+    store.listForUser = list;
+    await s.setGrant("sleep", true);
+    expect((await s.getConsent()).find((g) => g.category === "sleep")?.granted).toBe(true);
+  });
 });
 
 describe("HealthService: Lights Out", () => {

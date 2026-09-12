@@ -557,7 +557,13 @@ export default function HealthFlow({
             svc.logLockerDoc({ kind, label: LOCKER_DOC_LABEL[kind], expiresAt });
             void reload();
           }}
-          onRemove={(id) => { void svc.removeLockerDoc(id).then(reload); }}
+          // 2026-09-11: a failed Remove used to say nothing and leave the doc
+          // there; same catch as every other write on this flow.
+          onRemove={(id) => {
+            void svc.removeLockerDoc(id)
+              .then(reload)
+              .catch(() => showToast({ message: WRITE_FAILED_MESSAGE }));
+          }}
           onBack={onExit}
         />
       );
