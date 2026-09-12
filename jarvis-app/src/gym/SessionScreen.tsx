@@ -134,7 +134,10 @@ export default function SessionScreen({
   const workLogged = logged.filter((s) => !s.warmup).length;
   const rampLeft = ramp.slice(rampLogged);
   const ghost = [...rampLeft, ...planEx.sets.slice(workLogged)];
-  const [keptPlan, setKeptPlan] = useState(false);
+  // 2026-09-11: kept per exercise. This screen stays mounted as the athlete
+  // moves through the session, so one flag meant Keep on Bench also dismissed
+  // Squat's suggestion, and every lift after it, for the rest of the session.
+  const [keptPlan, setKeptPlan] = useState<string[]>([]);
   const [swapOpen, setSwapOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   // GYM-F-01 (2026-09-05): the rest is a deadline on the live session, not a
@@ -149,7 +152,7 @@ export default function SessionScreen({
   // THE PROGRESSION ENGINE (D6-A): a ghost with its reason, offered once,
   // before the first working set. Accepting logs it AND moves the plan;
   // Keep dismisses it and changes nothing at all.
-  const suggestion = workLogged === 0 && !keptPlan ? suggestFor(history, exercise) : null;
+  const suggestion = workLogged === 0 && !keptPlan.includes(exercise.id) ? suggestFor(history, exercise) : null;
 
   // D5-C: "the session header shows projected finish against your budget the
   // whole time." Re-projected on a slow tick; only sessions that chose a
@@ -423,7 +426,7 @@ export default function SessionScreen({
               onAcceptSuggestion?.(suggestion);
               startRest();
             }}>Log {formatSet(exercise, suggestion.next)}</button>
-            <button className="pill-act pill-quiet" onClick={() => setKeptPlan(true)}>Keep {formatSet(exercise, suggestion.from)}</button>
+            <button className="pill-act pill-quiet" onClick={() => setKeptPlan((k) => (k.includes(exercise.id) ? k : [...k, exercise.id]))}>Keep {formatSet(exercise, suggestion.from)}</button>
           </div>
         </div></div>
       )}

@@ -77,6 +77,18 @@ describe("PR direction is baked into the kind", () => {
     expect(scoreOf("done", {})).toBeNull();
     expect(beats("done", {}, {})).toBe(false);
   });
+  // 2026-09-11: an empty attempt used to score 0 on a faster-wins lift, and 0
+  // beats every real time: the chip took the PR pill, the header read
+  // "Best: Empty", and no sprint after it could be a record again.
+  it("an attempt with no time is not a time, and never a record", () => {
+    expect(scoreOf("time_faster", {})).toBeNull();
+    expect(scoreOf("time_faster", { v: 0 })).toBeNull();
+    expect(beats("time_faster", {}, { v: 4.64 })).toBe(false);
+    expect(beats("time_faster", { v: 4.61 }, {})).toBe(false);
+    expect(scoreOf("distance_time", { v: 3 })).toBeNull();
+    expect(scoreOf("distance_time", { t: 24 })).toBeNull();
+    expect(beats("distance_time", { v: 3 }, { v: 3, t: 27 })).toBe(false);
+  });
 });
 
 describe("volume is only claimed where it is real", () => {

@@ -223,7 +223,12 @@ export function scoreOf(kind: MeasureKind, s: SetLog, unit?: string): { value: n
     case "rounds":
       return { value: s.r ?? 0, lowerWins: false };
     case "time_faster":
-      return { value: s.v ?? 0, lowerWins: true };
+      // 2026-09-11: no time logged is not a time. A missing v scored 0, and 0
+      // beats every real time, so an empty attempt took the PR pill, the
+      // header read "Best: Empty", and no time after it could ever be a
+      // record again. Same guard goalMeasures uses against a 0 target
+      // (GYM-F-20); an attempt with nothing in it simply has no score.
+      return has(s.v) ? { value: s.v, lowerWins: true } : null;
     case "time_longer":
     case "distance":
     case "height":
@@ -231,7 +236,8 @@ export function scoreOf(kind: MeasureKind, s: SetLog, unit?: string): { value: n
     case "distance_time":
       // Pace, and ONLY against the same distance (see prs.ts): comparing a
       // one-mile pace to a ten-mile pace and calling it a record is a lie.
-      return { value: (s.t ?? 0) / Math.max(1e-9, s.v ?? 0), lowerWins: true };
+      // 2026-09-11: and a pace needs both halves, for the reason above.
+      return has(s.v) && has(s.t) ? { value: s.t / s.v, lowerWins: true } : null;
     case "done":
       return null;
   }

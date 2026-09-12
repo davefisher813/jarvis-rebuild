@@ -1446,7 +1446,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         // to read from, so it carries its own clock, rest target, ramp, note
         // and muscle on the entry itself.
         : { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, exerciseKey: liveEx.exerciseKey, sets: liveEx.plan ?? [], ...(liveEx.program ?? {}) })
-      : planned ?? (liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined);
+      // 2026-09-11: by id first, never by slot. `planned` is the day's
+      // exercise at this INDEX, so reordering or deleting the day's list
+      // mid-session showed one lift while the sets were written into another:
+      // the saved workout said Rows with curl numbers, and the PR went to
+      // Rows. programExerciseFor is the same id match the custom path uses.
+      : behind ?? planned ?? (liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined);
     if (!exercise) return <div className="screen ruled health-ruled" />;
     return (
       <SessionScreen
