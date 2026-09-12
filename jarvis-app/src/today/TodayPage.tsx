@@ -841,7 +841,10 @@ export default function TodayPage({
           report itself non-empty. */}
       {mail && !mailEmpty && (
         <div className="sh2 sh2-quiet">
-          <span className="t">Email</span>
+          {/* C-26 (Astra, 2026-09-12): the band is named for what it wants
+              from him, not for the app it came out of. Open Inbox stays, and
+              the rows under it are untouched. */}
+          <span className="t">Needs You</span>
           {onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>Open Inbox</button>}
         </div>
       )}

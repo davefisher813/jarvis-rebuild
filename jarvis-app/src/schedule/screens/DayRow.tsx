@@ -11,6 +11,7 @@ import { EventWeatherLine } from "../../weather/WeatherLine";
 import Provenance from "../../shared/ProvenanceLine";
 import { leaveByOf } from "../leaveBy";
 import { rowSource, type Source } from "../../shared/provenance";
+import { toneFor, type StateWord } from "../stateWord";
 
 // One event row on the Schedule day list. Same anatomy as before, plus the
 // roadmap-v2 basics: swipe left reveals Push 15 / Tomorrow (recurring events
@@ -61,6 +62,7 @@ export default function DayRow({
   openSourceFor,
   hasNote = false,
   onNotes,
+  state = null,
 }: {
   e: EventItem;
   conflict: boolean;
@@ -104,6 +106,11 @@ export default function DayRow({
   // (attachments.ts's firstMoveOf), when it has one. Resolved by the caller,
   // same shape as attach above, so this row stays a pure renderer.
   firstMove?: string;
+  // C-28 (Astra, 2026-09-12): the row's state word, derived by the caller
+  // through schedule/stateWord.ts and never stored. Opt-in: Today passes it
+  // now, and the Schedule tab takes it when Push C rebuilds these rows, so
+  // one surface can wear the vocabulary before the other does.
+  state?: StateWord | null;
 }) {
   const t = fmtTime(e.data.start);
   const endT = e.data.end ? fmtTime(e.data.end) : null;
@@ -257,6 +264,9 @@ export default function DayRow({
               which also brings it under the dot-break casing law instead of
               slipping past it on a technicality. */}
           <div className="sched-cat">
+            {/* C-28: the state word leads the facts line, in the closed
+                vocabulary every day surface now speaks. */}
+            {state && <span className={"fact st " + toneFor(state)}>{state}</span>}
             <span className={"cat-dot cat-bg-" + catColor(e.data.category)} />
             {/* No area: say so, don't leave a dot hanging before the first
                 separator (Dave 2026-09-04; same words the task rows use). */}
