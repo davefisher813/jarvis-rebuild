@@ -444,3 +444,45 @@ describe("DeckFlow time's up (E-21)", () => {
     expect(screen.queryByText("Bravo")).toBeNull();
   });
 });
+
+// E-30 (Push H): one task per thread, on the Sweep's Later too.
+import { existingTaskFor } from "./dupTaskGuard";
+describe("DeckFlow one task per thread", () => {
+  it("Later twice on the same thread, across two sittings, leaves exactly one task", async () => {
+    localStorage.removeItem(SESSION_KEY);
+    const api = makeFakeGoogleApi({
+      getThread: async (id: string) => gThread(id, "Alpha", "First", "BODY"),
+      searchThreads: async () => [],
+    });
+    let seen: TasksSvc | null = null;
+    const Grab = () => { seen = useTasks(); return null; };
+    const mountOnce = () => render(
+      <NotesProvider userId="u-dup">
+        <Grab />
+        <DeckFlow
+          ai={new AIService({ available: false })}
+          apiFor={() => api}
+          threads={[row("tDup", "Alpha", "First")]}
+          queueSend={vi.fn()}
+          onDone={vi.fn()} onPark={vi.fn()} onOpenThread={vi.fn()}
+          onEditReply={vi.fn()} onHandled={vi.fn()}
+        />
+      </NotesProvider>,
+    );
+    const first = mountOnce();
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Later"));
+    await waitFor(async () => expect(existingTaskFor("tDup", await seen!.listTasks())).not.toBeNull());
+    first.unmount();
+    localStorage.removeItem(SESSION_KEY);
+    mountOnce();
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Later"));
+    await act(async () => { await new Promise((r) => setTimeout(r, 100)); });
+    const all = (await seen!.listTasks()).filter((t) => t.data.fromThread === "tDup");
+    expect(all).toHaveLength(1);
+  });
+});
+type TasksSvc = ReturnType<typeof useTasks>;

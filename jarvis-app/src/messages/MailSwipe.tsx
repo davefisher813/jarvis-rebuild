@@ -1,4 +1,4 @@
-import { Archive, Trash2 } from "../shared/icons";
+import { Archive, Trash2, Clock } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 
 // Swipe a mail row: Archive, or Delete.
@@ -17,19 +17,31 @@ import { useSwipe } from "../shared/useSwipe";
 // filing tray is exactly the pair worth not guessing between. The reveal
 // width is UNCHANGED at 176: the labels are short enough for 88px, and
 // widening the reveal would cover more of the row you are deciding about.
+//
+// E-28 (Push H, 2026-09-12): a Needs You row also reveals Later, in the
+// design system's defer amber, ahead of Archive. Three actions, three slots
+// of 88: the reveal grows to 264 only on the rows that carry it.
 export default function MailSwipe({
   onArchive,
   onDelete,
+  onLater,
   children,
 }: {
   onArchive: () => void;
   onDelete: () => void;
+  onLater?: () => void;
   children: React.ReactNode;
 }) {
-  const swipe = useSwipe({ revealW: 176 });
+  const swipe = useSwipe({ revealW: onLater ? 264 : 176 });
 
   return (
     <div className="task-swipe">
+      {onLater && (
+        <button className="mail-later" onClick={onLater} aria-label="Later">
+          <Clock className="ic" />
+          <span className="swipe-label">Later</span>
+        </button>
+      )}
       <button className="mail-arch" onClick={onArchive} aria-label="Archive">
         <Archive className="ic" />
         <span className="swipe-label">Archive</span>

@@ -142,6 +142,9 @@ import { nextOpening, BOOK_MIN } from "./bookTime";
 import { suggestAttachment, suggestLine, noteAsText, attachmentFilename, type AttachSuggestion, type Candidate } from "./attachSuggest";
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
 import { draftKey, loadLocalDraft, loadLocalDrafts, saveLocalDraft, clearLocalDraft, continuableReply, restoreInto, type LocalDrafts } from "./composeDraft";
+import { findTaskForThread, taskTitleOf } from "./dupTaskGuard";
+import LaterSheet, { TONIGHT_HHMM, type LaterPick } from "./LaterSheet";
+import { snoozeNotice } from "./snoozeNotice";
 import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
 import { liveSweep, loadSweep } from "./sentSweep";
 import { runSentSweep } from "./sweepRun";
@@ -254,7 +257,9 @@ function fmtWhen(ms: number): string {
 // so junk is never opened. The headline counts what needs Dave, never unread.
 // Threads are the unit throughout; search is server-side over the whole
 // mailbox. Without AI the tab is an honest threaded list, no fake triage.
-export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false, openThreadId, threadNonce, onThreadConsumed, openDraftId, draftNonce, onDraftConsumed, composeNonce, onComposeConsumed }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void; openThreadId?: string; openDraftId?: string;
+export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , onOpenTask, demoMail = false, openThreadId, threadNonce, onThreadConsumed, openDraftId, draftNonce, onDraftConsumed, composeNonce, onComposeConsumed }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void;
+  // E-30: where "Open Task" goes when a thread already has one.
+  onOpenTask?: (id: string) => void; openThreadId?: string; openDraftId?: string;
   // EMAIL-F-06 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
   // These two ids were the only intents the tab bar did not clear, and the
   // jump refs below live inside a flow the shell remounts on every tab
@@ -1180,8 +1185,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       }
       case "add_task": {
         if (!tasks) { say("Tasks aren't available right now"); return; }
+        // E-30: one task per thread. An open one is offered, not doubled.
+        const dup = await findTaskForThread(tasks, row.threadId);
+        if (dup) { sayAlreadyTask(dup); return; }
         const id = await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
           due: todayISO(),
+          fromThread: row.threadId,
           source: madeBy("email", row.threadId),
           ...(personIdFor(row.toEmail) ? { personId: personIdFor(row.toEmail)! } : {}),
         });
@@ -1582,7 +1591,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // actually are; everything else is the raw query, unchanged. Nothing here
   // is an AI call: Gmail search is what already ran.
   const runSearch = useCallback(async (raw?: string) => {
-    const list = g.apis("mail");
+    // E-33: an account chip narrows the search the way it narrows the list.
+    const list = g.apis("mail").filter((a) => !acctFilter || a.email === acctFilter);
     const typed = (raw ?? search).trim();
     if (list.length === 0 || !typed) return;
     const { query, person } = expandQuery(typed, searchPeople);
@@ -1605,7 +1615,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setSearching(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [g, search, searchPeople]);
+  }, [g, search, searchPeople, acctFilter]);
 
   // UP-MIND-15: it answers as you type, from three characters. Debounced so
   // walking to "marco" is one request, not four.
@@ -2242,6 +2252,44 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => { setToast(null); setUndo(null); }, ms);
   };
+  // E-30: the one receipt every guarded path prints. Open Task rides the
+  // toast's action slot when the shell gave us somewhere to go.
+  const sayAlreadyTask = (dup: TaskItem) => {
+    say("Already a task \u00b7 " + taskTitleOf(dup), onOpenTask ? { label: "Open Task", run: () => onOpenTask(dup.id) } : undefined);
+  };
+
+  // E-28: Later from a Needs You row. The sheet asks when; the task is made
+  // exactly as the Sweep's Later makes it (fromThread, no archive), guarded
+  // by E-30, and Tonight also snoozes the thread's Today notices until the
+  // evening so it visibly comes back.
+  const [laterFor, setLaterFor] = useState<ThreadRow | null>(null);
+  const laterRow = async (r: ThreadRow, pick: LaterPick) => {
+    setLaterFor(null);
+    if (!tasks) { say("Tasks aren't available right now"); return; }
+    try {
+      const dup = await findTaskForThread(tasks, r.id);
+      if (dup) { sayAlreadyTask(dup); return; }
+      const id = await tasks.createTask(laterTaskTitle(displayName(r.from), r.subject), {
+        due: pick.due,
+        fromThread: r.id,
+        source: madeBy("email", r.id),
+        ...(personIdFor(r.fromEmail) ? { personId: personIdFor(r.fromEmail)! } : {}),
+      });
+      if (!id) { say("Couldn't save it \u00b7 Nothing lost"); return; }
+      if (pick.when === "tonight") {
+        const today = todayISO();
+        snoozeNotice("reply:" + r.id, TONIGHT_HHMM, today);
+        snoozeNotice("deadline:" + r.id, TONIGHT_HHMM, today);
+        say("Saved for tonight \u00b7 Back on Today at 6 PM");
+      } else if (pick.when === "tomorrow") {
+        say("Saved for tomorrow");
+      } else {
+        say("Saved for " + dayPhrase(pick.due, todayISO()));
+      }
+    } catch (e) {
+      say(humanError(e, "Couldn't save it \u00b7 Nothing lost"));
+    }
+  };
 
   // 11C: BULK DELETE, the same shape as archive and the same honesty.
   // Trash, never the permanent-delete endpoint: that is the standing law and
@@ -2740,6 +2788,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (r.action === "Add Task") {
         if (!tasks) { say("Tasks aren't available right now"); return; }
         void (async () => {
+          // E-30: one task per thread.
+          const dup = r.threadId ? await findTaskForThread(tasks, r.threadId) : null;
+          if (dup) { sayAlreadyTask(dup); return; }
           const id = await tasks.createTask(r.what, {
             ...(r.threadId ? { fromThread: r.threadId } : {}),
             ...(r.personId ? { personId: r.personId } : {}),
@@ -3680,8 +3731,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       } else if (tasks) {
                         // Law 2: an all-day invite has a date and no time.
                         // It stays a date rather than becoming a 9am nobody
-                        // wrote down.
-                        const id = await tasks.createTask(ev.title, { due: ev.date, source: madeBy("email", thread.id) });
+                        // wrote down. E-30: one task per thread.
+                        const dup = await findTaskForThread(tasks, thread.id);
+                        if (dup) { sayAlreadyTask(dup); return; }
+                        const id = await tasks.createTask(ev.title, { due: ev.date, fromThread: thread.id, source: madeBy("email", thread.id) });
                         if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
                         say("Added to your tasks · " + dayPhrase(ev.date, todayISO()) + extra, undefined, 3500);
                       } else {
@@ -3694,9 +3747,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     // button that does nothing, silently. The sheet's own file
                     // legislated against this shape; this card never got it.
                     if (!tasks) { say("Tasks aren't available right now", undefined, 3000); return; }
+                    // E-30: one task per thread.
+                    const dup = await findTaskForThread(tasks, thread.id);
+                    if (dup) { sayAlreadyTask(dup); return; }
                     const id = offer.kind === "bill" && offer.amount != null
-                      ? await tasks.createTask(offer.title, { bill: { amount: offer.amount }, source: madeBy("email", thread.id) })
-                      : await tasks.createTask(offer.title, { source: madeBy("email", thread.id) });
+                      ? await tasks.createTask(offer.title, { bill: { amount: offer.amount }, fromThread: thread.id, source: madeBy("email", thread.id) })
+                      : await tasks.createTask(offer.title, { fromThread: thread.id, source: madeBy("email", thread.id) });
                     // createTask returns null for blank text without throwing.
                     if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
                     say(offer.kind === "bill" && offer.amount != null
@@ -3776,6 +3832,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       key={r.id}
       onArchive={() => archiveRow(r)}
       onDelete={() => void trashThread(r.id, r.account)}
+      // E-28: only a Needs You row (alwaysStrong is that section's mark)
+      // carries Later; a search hit or an All Mail row keeps two actions.
+      {...(alwaysStrong && !selecting ? { onLater: () => setLaterFor(r) } : {})}
     >
     {/* THE MAIL ROW (EM2 to EM4, Dave's picks 2026-09-12, against the
         approved harness): one anatomy wherever a thread row renders. A 34px
@@ -3857,6 +3916,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           page now, with the other things that are not today's mail. */}
       {windows.on && windowStatusLine(windows, new Date()) && (
         <div className="mwin">{windowStatusLine(windows, new Date())}</div>
+      )}
+      {/* E-28: the Later picker for a Needs You row. */}
+      {laterFor && (
+        <LaterSheet
+          who={displayName(laterFor.from)}
+          today={todayISO()}
+          onPick={(p) => void laterRow(laterFor, p)}
+          onClose={() => setLaterFor(null)}
+        />
       )}
       {editWindows && !curtained && (
         <WindowsSheet
@@ -4105,7 +4173,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             )}
             {/* EMAIL-F-18: search results are their own complete answer, so
                 they keep the plain floor; the inbox gets the honest one. */}
-            {results !== null ? <ListFloor /> : mailFloor()}
+            {results !== null
+              ? <ListFloor>{"That\u2019s everything" + (g.accounts.length > 1 ? " \u00b7 " + (acctFilter ? acctLabel(acctFilter) : "All accounts") : ".")}</ListFloor>
+              : mailFloor()}
           </>
         )
       ) : (

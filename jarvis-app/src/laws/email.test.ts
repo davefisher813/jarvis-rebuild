@@ -197,3 +197,29 @@ describe("EMAIL law 5: windows cannot cross midnight, and the editor says so", (
     expect(sheet, "no clamp of the length to fit").not.toMatch(/Math\.min\([^)]*24 \* 60 - edStart/);
   });
 });
+
+// E-30: one task per thread, checked (not just documented) on every manual
+// path. commitments.ts's catcher and the safety net dedupe on their own
+// lists; the Sweep, the ledger, the attachment offer, the waiting row and
+// the Later picker all ask dupTaskGuard first. The behavioral half lives in
+// DeckFlow.test.tsx (Later twice, one task) and dupTaskGuard.test.ts.
+describe("EMAIL law 2: every manual task path asks for an existing task first", () => {
+  const guardedBefore = (src: string, anchor: string, label: string) => {
+    const at = src.indexOf(anchor);
+    expect(at, label + " exists").toBeGreaterThan(-1);
+    const before = src.slice(Math.max(0, at - 900), at);
+    expect(before, label + " asks findTaskForThread before it writes").toMatch(/await findTaskForThread\(/);
+  };
+  it("the Sweep's task card and its Later", () => {
+    const deck = read(join(SRC, "messages/DeckFlow.tsx"));
+    guardedBefore(deck, 'await tasks.createTask(plan.task.title', "Add Task & Next");
+    guardedBefore(deck, "await tasks.createTask(laterTaskTitle(displayName(row.from), row.subject)", "the Sweep's Later");
+  });
+  it("the ledger, the attachment offer, the waiting row, and the Later picker", () => {
+    guardedBefore(FLOW, "const id = await tasks.createTask(r.what, {", "the ledger's Add Task");
+    guardedBefore(FLOW, "const id = await tasks.createTask(ev.title, { due: ev.date, fromThread: thread.id", "the attachment offer's all-day invite");
+    guardedBefore(FLOW, "? await tasks.createTask(offer.title, { bill: { amount: offer.amount }, fromThread: thread.id", "the attachment offer");
+    guardedBefore(FLOW, "const id = await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? \"\"), {\n          due: todayISO(),", "the waiting row's Add Task");
+    guardedBefore(FLOW, "const id = await tasks.createTask(laterTaskTitle(displayName(r.from), r.subject), {", "the Later picker");
+  });
+});

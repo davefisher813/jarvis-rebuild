@@ -19,6 +19,7 @@ import { settleAll } from "./settle";
 import { quickAnswers } from "./quickAnswers";
 import { dealHand, estimateOf, EMPTY_RECEIPTS, handledOf, type SweepReceipts, SESSION_MS } from "./sweep";
 import { loadSweepSession, saveSweepSession, clearSweepSession, isFreshSession, resumeHand, type SweepSession } from "./sweepSession";
+import { findTaskForThread, taskTitleOf } from "./dupTaskGuard";
 import { Burst } from "../shared/Burst";
 import { madeBy } from "../shared/provenance";
 
@@ -402,9 +403,18 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
         cleared = await archiveRemote(row.id, row.account);
         receipts.current.scheduled += 1;
       } else if (plan.kind === "task" && plan.task) {
-        await tasks.createTask(plan.task.title, { due: plan.task.due ?? null, fromThread: row.id, source: madeBy("email", row.id), ...(personIdFor(row.fromEmail) ? { personId: personIdFor(row.fromEmail)! } : {}) });
-        cleared = await archiveRemote(row.id, row.account);
-        receipts.current.tasks += 1;
+        // E-30: one task per thread. An open one already says this; the
+        // mail is still handled (archived), the task is simply not doubled.
+        const dup = await findTaskForThread(tasks, row.id);
+        if (dup) {
+          showToast({ message: "Already a task \u00b7 " + taskTitleOf(dup) });
+          cleared = await archiveRemote(row.id, row.account);
+          receipts.current.archived += 1;
+        } else {
+          await tasks.createTask(plan.task.title, { due: plan.task.due ?? null, fromThread: row.id, source: madeBy("email", row.id), ...(personIdFor(row.fromEmail) ? { personId: personIdFor(row.fromEmail)! } : {}) });
+          cleared = await archiveRemote(row.id, row.account);
+          receipts.current.tasks += 1;
+        }
       } else {
         cleared = await archiveRemote(row.id, row.account);
         receipts.current.archived += 1;
@@ -424,7 +434,11 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
     try {
       // todayISO is LOCAL. toISOString().slice(0,10) is UTC, so tapping
       // Later after 5pm west of UTC filed the task due TOMORROW.
-      await tasks.createTask(laterTaskTitle(displayName(row.from), row.subject), { due: todayISO(), fromThread: row.id, source: madeBy("email", row.id), ...(personIdFor(row.fromEmail) ? { personId: personIdFor(row.fromEmail)! } : {}) });
+      // E-30: one task per thread. Later on a thread that already has an
+      // open task keeps that task and still defers the card.
+      const dup = await findTaskForThread(tasks, row.id);
+      if (dup) showToast({ message: "Already a task \u00b7 " + taskTitleOf(dup) });
+      else await tasks.createTask(laterTaskTitle(displayName(row.from), row.subject), { due: todayISO(), fromThread: row.id, source: madeBy("email", row.id), ...(personIdFor(row.fromEmail) ? { personId: personIdFor(row.fromEmail)! } : {}) });
       emit({ type: "action", props: { name: "email.deck.later" } });
       receipts.current.later += 1;
       advance(false); // stays in the inbox: the task is the reminder, the mail is the evidence

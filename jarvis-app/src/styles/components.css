@@ -1354,9 +1354,17 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
    Stacking, not shrinking: the icon keeps its meaning at 20px and the word
    goes under it. */
-.task-del, .task-snooze, .mail-arch, .mail-letgo {
+.task-del, .task-snooze, .mail-arch, .mail-letgo, .mail-later {
   flex-direction: column; gap: 5px; padding: 0 var(--s-1); }
-.task-del .ic, .task-snooze .ic, .mail-arch .ic, .mail-letgo .ic { width: 20px; height: 20px; }
+.task-del .ic, .task-snooze .ic, .mail-arch .ic, .mail-letgo .ic, .mail-later .ic { width: 20px; height: 20px; }
+/* E-28 (Push H): Later on a Needs You row, in the defer amber (black text,
+   10.2:1), the third slot of the reveal. */
+.mail-later { position: absolute; top: 0; right: 176px; bottom: 0; width: 88px; border: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--warn-fill); color: var(--on-fill-dark); }
+/* E-28: the Pick a Day row of the Later sheet holds the date input and Save. */
+.later-day { gap: var(--s-2); }
+.later-day .xs-input { flex: 0 0 auto; }
 .swipe-label { font-family: var(--f); font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi);
   letter-spacing: .01em; line-height: 1; white-space: nowrap; }
 /* V4 full-bleed law (Dave 2026-08-18, "revise the email visuals... layout"):
