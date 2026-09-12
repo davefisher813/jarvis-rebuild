@@ -127,3 +127,24 @@ describe("commitment catcher", () => {
   });
 });
 
+// E-31 (2026-09-12): a day the user named that is not a date on this
+// device's calendar is a PROPOSAL on the task, never a due date.
+describe("parseCommitment: a proposed day (E-31)", () => {
+  it("keeps a relative day as words, chipped on the task, not as a due date", () => {
+    const c = parseCommitment('{"text":"Send the roster","due":"next week"}', "2026-08-05")!;
+    expect(c.due).toBeUndefined();
+    expect(c.proposedDate).toBe("next week");
+    expect(commitmentLine(c, "2026-08-05")).toBe("Caught: Send the roster · next week (proposed)");
+  });
+  it("a real date is still a due date, and never both", () => {
+    const c = parseCommitment('{"text":"Send the roster","due":"2026-08-14"}', "2026-08-05")!;
+    expect(c.due).toBe("2026-08-14");
+    expect(c.proposedDate).toBeUndefined();
+  });
+  it("drops a proposal that is not a plain short phrase", () => {
+    const c = parseCommitment('{"text":"Send it","due":"see [attached]"}', "2026-08-05")!;
+    expect(c.proposedDate).toBeUndefined();
+    const long = parseCommitment('{"text":"Send it","due":"sometime after the season wraps up and everyone is back"}', "2026-08-05")!;
+    expect(long.proposedDate).toBeUndefined();
+  });
+});

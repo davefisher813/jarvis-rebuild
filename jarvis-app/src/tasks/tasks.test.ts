@@ -380,3 +380,18 @@ describe("a person on a task (UP-CORE-17)", () => {
     expect((await svc.task(back))?.personId ?? null).toBeNull();
   });
 });
+
+// E-31 / law 6 (2026-09-12): a proposed day and a due date never sit on one
+// task. The service refuses the pair; the catcher never emits it.
+describe("proposed day vs due date", () => {
+  it("keeps a proposal only when there is no due date", async () => {
+    const svc = new TasksService(new Store(new InMemoryAdapter()), "u-e31");
+    const a = (await svc.createTask("Send the roster", { proposedDate: "next week" }))!;
+    const b = (await svc.createTask("Send the invoice", { due: "2026-08-14", proposedDate: "next week" }))!;
+    const all = await svc.listTasks();
+    expect(all.find((t) => t.id === a)!.data.proposedDate).toBe("next week");
+    const withDue = all.find((t) => t.id === b)!.data;
+    expect(withDue.due).toBe("2026-08-14");
+    expect(withDue.proposedDate).toBeUndefined();
+  });
+});

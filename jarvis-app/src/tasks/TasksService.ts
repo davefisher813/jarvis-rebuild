@@ -60,7 +60,7 @@ export class TasksService {
   // set the precedent; Store.create takes the id straight through.
   async createTask(
     text: string,
-    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; eventId?: string; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string; done?: boolean; lastDone?: string } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; eventId?: string; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string; done?: boolean; lastDone?: string; proposedDate?: string } = {},
     id?: string,
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
@@ -70,6 +70,11 @@ export class TasksService {
     const extras = (opts.extraCategories ?? []).filter((c) => c && c !== data.category);
     if (extras.length) data.extraCategories = [...new Set(extras)];
     if (opts.due) data.due = opts.due;
+    // E-31 / law 6 (2026-09-12): a proposed day is what a task carries when
+    // the user named one the app could not resolve. A real due date beats
+    // it, and the two never sit on one record: a row with both would be a
+    // deadline and a guess about the same day at once.
+    if (opts.proposedDate && !data.due) data.proposedDate = opts.proposedDate.trim().slice(0, 24);
     if (opts.fromNote) data.fromNote = opts.fromNote;
     // Pick 26: the thread this task came from, so its siblings can teach the
     // next one where it belongs.

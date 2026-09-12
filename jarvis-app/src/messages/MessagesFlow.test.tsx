@@ -1347,3 +1347,27 @@ describe("a Today email tap does not stick (EMAIL-F-06)", () => {
     expect(screen.queryByText("Need the waiver by Friday")).not.toBeInTheDocument();
   });
 });
+
+// E-16 (2026-09-12): Not for Me corrects ONE thread. The sender's other mail
+// is untouched and no standing rule is written.
+describe("Not for Me is a thread correction, not a sender rule (E-16)", () => {
+  it("moves the thread out of Needs You and writes nothing to the sender rules", async () => {
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "needs_you", gist: "Ridgeley needs the waiver by Friday." },
+      { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    render(wrap(<MessagesFlow ai={ai} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Ridgeley needs the waiver by Friday."));
+    fireEvent.click(await screen.findByText("Not for Me"));
+    expect(localStorage.getItem("jarvis.mail.rules.v1")).toBeNull();
+    expect(JSON.parse(localStorage.getItem("jarvis.mail.threadOverride.v1") || "{}")).toEqual({ t1: "worth_knowing" });
+    fireEvent.click(screen.getByText("Email"));
+    await waitFor(() => expect(screen.queryByRole("tab", { name: /Needs You/ })).toBeNull());
+    // And back again: the same capsule, tapped while set, clears it.
+    fireEvent.click(await screen.findByText("The Rest"));
+    fireEvent.click(await screen.findByText("Ridgeley needs the waiver by Friday."));
+    fireEvent.click(await screen.findByText("Not for Me"));
+    expect(localStorage.getItem("jarvis.mail.threadOverride.v1")).toBe("{}");
+  });
+});

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { THREAD_STATE_LABEL, type Brief } from "./brief";
 import EvidenceChip from "./EvidenceChip";
 import type { Evidence } from "./evidence";
+import type { Bucket } from "./triage";
 import { haptics } from "../shared/haptics";
 
 // WHERE THIS STANDS (UP-MIND-19, Email E9, 5.6 and 5.13; Brain build order 5).
@@ -29,8 +30,12 @@ export default function ThreadStateCard({
   defaultOpen = false,
   onRemember,
   onOpenSource,
+  override,
+  onOverride,
 }: {
-  brief: Brief;
+  /** Null when the pass established nothing: the card then draws only the
+   *  two correction capsules, if it has them, and nothing else. */
+  brief: Brief | null;
   /** UP-MIND-12: the sentence the claim came from, when one was anchored. */
   evidence?: Evidence;
   /** True from the ledger, where this IS the landing view. */
@@ -38,14 +43,29 @@ export default function ThreadStateCard({
   /** Opens the Decisions capture sheet, prefilled with the sentence. */
   onRemember?: (decision: string) => void;
   onOpenSource?: (sourceMsgId: string) => void;
+  /** E-16 (Dave's picks 2026-09-12): this thread's own correction to
+   *  triage, when he has made one. Not the sender rule: that stays on the
+   *  chips below the messages, and this touches no other thread. */
+  override?: Bucket | null;
+  /** Needs Me / Not for Me. Tapping the one already set clears it. */
+  onOverride?: (bucket: "needs_you" | "worth_knowing" | null) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const has = !!brief.state || !!brief.agreed?.length || !!brief.unresolved?.length || !!brief.deadline || !!brief.next;
-  if (!has && !brief.decision) return null;
+  const has = !!brief && (!!brief.state || !!brief.agreed?.length || !!brief.unresolved?.length || !!brief.deadline || !!brief.next);
+  if (!has && !brief?.decision && !onOverride) return null;
   return (
     <div className="card msg-summary">
       <div className="eyebrow">Where This Stands</div>
-      {brief.state && (
+      {/* E-16: two capsules that answer the question for THIS thread only.
+          The sender's other mail is untouched and no rule is written; the
+          chips under the messages are still the only way to set one. */}
+      {onOverride && (
+        <div className="msg-chips msg-override">
+          <button className={"chip" + (override === "needs_you" ? " on" : "")} onClick={() => { haptics.selection(); onOverride(override === "needs_you" ? null : "needs_you"); }}>Needs Me</button>
+          <button className={"chip" + (override === "worth_knowing" ? " on" : "")} onClick={() => { haptics.selection(); onOverride(override === "worth_knowing" ? null : "worth_knowing"); }}>Not for Me</button>
+        </div>
+      )}
+      {brief?.state && (
         <div className="row">
           <div className="row-grow"><div className="conn-name">{THREAD_STATE_LABEL[brief.state]}</div></div>
           {has && (
@@ -55,7 +75,7 @@ export default function ThreadStateCard({
           )}
         </div>
       )}
-      {open && (
+      {open && brief && (
         <div className="pad-x">
           {brief.deadline && (
             <div className="line-between">
@@ -81,7 +101,7 @@ export default function ThreadStateCard({
       {/* The one-tap route into the Decisions log. The sentence is the
           thread's own words, shown before anything is written, and the tap
           opens the capture sheet rather than filing it. */}
-      {brief.decision && onRemember && (
+      {brief?.decision && onRemember && (
         <div className="row">
           <div className="row-grow">
             <div className="conn-name">Worth Remembering?</div>

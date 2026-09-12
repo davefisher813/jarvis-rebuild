@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock } from "../shared/icons";
+import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
 import { leadFor, faceSlot } from "./rowAnatomy";
-import { Facts } from "./factsLine";
+import { Facts, waitingFor } from "./factsLine";
+import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
+import type { TaskItem } from "../tasks/TasksService";
 import NoticeCard from "../today/NoticeCard";
 import "../styles/mail-rows.css";
 import type { AIService } from "../ai/AIService";
@@ -499,6 +501,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [sweep, setSweep] = useState<SweepCandidate[]>([]);
   const [unsubbable, setUnsubbable] = useState<Record<string, Unsub>>({});
   const [links, setLinks] = useState<LinkMap>(() => loadLinks());
+  // E-16 (2026-09-12): this thread's own correction to triage, apart from
+  // the sender rules. Same shape, keyed by thread.
+  const [overrides, setOverrides] = useState<ThreadOverrides>(() => loadOverrides());
+  // E-32: the tasks born from the open thread, read on open for the Linked
+  // head. Read-only surfacing of data that already exists.
+  const [threadTasks, setThreadTasks] = useState<TaskItem[]>([]);
   const [projects, setProjects] = useState<{ id: string; title: string; category?: string }[]>([]);
   const [said, setSaid] = useState<{ quote: string; dateISO: string; subject: string; threadId: string }[] | null>(null);
   const [saidBusy, setSaidBusy] = useState(false);
@@ -1895,6 +1903,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (full.messages.length === 0) return;
       setThread(full);
       setView("detail");
+      // E-32: what this thread already produced, for the Linked head.
+      setThreadTasks([]);
+      if (tasks) void tasks.listTasks().then((ts) => setThreadTasks(ts.filter((t) => t.data.fromThread === id))).catch(() => {});
       // Remember who CAN be unsubscribed from, for the batch sweep. Read off
       // a thread already fetched; the sweep never triggers a fetch of its own.
       const um = full.messages[full.messages.length - 1];
@@ -2534,7 +2545,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // that regardless of order (it force-sets needs_you unconditionally for
   // its own short, opted-in list); this pass only ever lifts an ordinary
   // known contact into visibility, never past it.
-  const effTriage = applyVips(applyKnownPeople(applyRules(triage, rows, rules), rows, knownSenders), rows, vips);
+  // E-16: a thread's own correction beats the sender rule for that thread
+  // and nothing else; the VIP pass stays last, the one rule allowed to
+  // overrule everything (N4).
+  const effTriage = applyVips(applyKnownPeople(applyOverrides(applyRules(triage, rows, rules), overrides), rows, knownSenders), rows, vips);
 
   if (view === "deck") {
     if (!g.hasToken || !deckRows || deckRows.length === 0) { setView("list"); return null; }
@@ -3223,15 +3237,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               anything. */}
           {(() => {
             const b = briefFor(thread.messages[thread.messages.length - 1]?.id || thread.id);
-            if (!b) return null;
+            if (!b && !triaged) return null;
             const ev = effTriage[thread.id]?.byEv;
             return (
               <ThreadStateCard
-                brief={b}
+                brief={b ?? null}
                 {...(ev ? { evidence: ev } : {})}
                 defaultOpen={fromLedger}
                 onOpenSource={(msgId) => setFocusMsg(msgId)}
                 onRemember={(decision) => setKeepDecision({ decision, threadId: thread.id })}
+                {...(triaged ? {
+                  override: overrides[thread.id] ?? null,
+                  // E-16: this thread only. No sender rule is written here;
+                  // the chips under the messages are the only way to set one.
+                  onOverride: (b) => {
+                    setOverrides(b ? saveOverride(thread.id, b) : clearOverride(thread.id));
+                    say(b === "needs_you" ? "Needs you \u00b7 This thread only" : b === "worth_knowing" ? "Not for you \u00b7 This thread only" : "Back to what the sort said", undefined, 2500);
+                  },
+                } : {})}
               />
             );
           })()}
@@ -3289,6 +3312,46 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               Forward survives, because forwarding an automated notice to a
               person is a real move. Reply does not, and the line says why
               rather than leaving a hole where a button was. */}
+          {/* E-32 LINKED (Dave's picks 2026-09-12): what this thread has
+              already become, above the reply block. The tasks born from it
+              (fromThread), and the project it was linked to. Read-only:
+              every one of these writes exists already, this only shows them
+              where the thread is. A decision kept from a thread carries no
+              thread id on its record, so it is not listed here; that is a
+              data-model change section 5 does not make. */}
+          {(threadTasks.length > 0 || links[thread.id]) && (() => {
+            const link = links[thread.id];
+            return (
+              <>
+                <div className="sh2 sh2-quiet"><span className="t">Linked</span><span className="n">{threadTasks.length + (link ? 1 : 0)}</span></div>
+                <div className="card list-card-ruled">
+                  {threadTasks.map((t) => (
+                    <div className="row" key={t.id}>
+                      <span className="row-ico cat-bg-graphite" aria-hidden="true"><ListChecks className="ic" /></span>
+                      <div className="row-grow">
+                        <div className="conn-name">{t.data.text}</div>
+                        <Facts facts={[
+                          { text: "Task" },
+                          t.data.done ? { text: "Done" }
+                            : t.data.due ? { text: capAfterNumber(dayPhrase(t.data.due, todayISO())) }
+                            : t.data.proposedDate ? { text: t.data.proposedDate + " (proposed)" } : null,
+                        ]} />
+                      </div>
+                    </div>
+                  ))}
+                  {link && (
+                    <div className="row">
+                      <span className="row-ico cat-bg-graphite" aria-hidden="true"><FolderKanban className="ic" /></span>
+                      <div className="row-grow">
+                        <div className="conn-name">{link.label}</div>
+                        <Facts facts={[{ text: link.type === "project" ? "Project" : link.type === "goal" ? "Goal" : "Organization" }]} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
           {noReply ? (
             <>
               <div className="msg-actions">
@@ -4123,6 +4186,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   the head stays only as the slot the deck's controls use. */}
               <div className="sh2 sh2-quiet outcome-head">
                 <span className="t">Waiting On</span>
+                {/* E-35: the list is capped at five (waiting.ts); at the cap,
+                    the rest is one search away, on the same sent-mail read. */}
+                {waiting.length >= 5 && (
+                  <button className="see-all pill-action" onClick={() => { setFilter("all"); setSearch("in:sent newer_than:90d"); void runSearch("in:sent newer_than:90d"); }}>See All</button>
+                )}
                 {/* E6: one decision on screen, nothing else. Not a batch
                     verb, which this head is forbidden (a batch here would
                     send real emails); each card still takes its own tap. */}
@@ -4177,17 +4245,27 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
                       onLetGo={() => dropRow(w.threadId)}
                     >
-                    <div className="row" {...pressable(() => void startNudge(w))}>
+                    {/* E-17 (2026-09-12): the two lists stay disjoint sources
+                        (section 0), but a thread that is in BOTH says so here
+                        and opens rather than nudges: they wrote back, and a
+                        nudge would answer a reply he has not read. E-35: what
+                        this thread is waiting FOR, as a fact, from the same
+                        askKindOf that picked the verb. */}
+                    {(() => { const also = needsYou.some((r) => r.id === w.threadId); return (
+                    <div className="row" {...pressable(() => (also ? void openThread(w.threadId) : void startNudge(w)))}>
                       <span className={railClass(false, railToneForWaiting(d.tone))}></span>
                       <div className="row-grow">
                         <div className="msg-line">
                           <span className="conn-name truncate">{nudging === w.threadId ? "Drafting…" : d.primary.label}</span>
                         </div>
-                        <div className="conn-meta msg-gist">
-                          {nameFor(names, w.toEmail, w.to)} · {w.subject}
-                          {opens[w.threadId] ? " · " + waitingLine(w, opens[w.threadId]!) : ""}
-                          {g.accounts.length > 1 && w.account && <span className="msg-acct">{acctLabel(w.account)}</span>}
-                        </div>
+                        <Facts facts={[
+                          { text: nameFor(names, w.toEmail, w.to) },
+                          { text: w.subject },
+                          waitingFor(d.ask),
+                          also ? { text: "Also needs you", tone: "warn" } : null,
+                          opens[w.threadId] ? { text: waitingLine(w, opens[w.threadId]!) } : null,
+                          g.accounts.length > 1 && w.account ? { text: acctLabel(w.account) } : null,
+                        ]} />
                       </div>
                       {/* EMAIL-F-22 (2026-09-05): "Waiting On alternates are
                           swipe-only in the common single-row case; swipe is
@@ -4204,6 +4282,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         <button className="pill-act" onClick={(e) => { e.stopPropagation(); setMore({ row: w, d }); }}>More</button>
                       )}
                     </div>
+                    ); })()}
                     </LetGoSwipe>
                   ))}
                   </div></div>

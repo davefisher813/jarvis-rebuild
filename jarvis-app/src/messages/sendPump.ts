@@ -131,7 +131,7 @@ export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promi
           const c = parseCommitment(raw2, today);
           if (!c) return;
           markPromised(threadForPromise);
-          await tasks.createTask(c.text, { due: c.due ?? null, source: madeBy("email", threadForPromise) });
+          await tasks.createTask(c.text, { due: c.due ?? null, ...(c.proposedDate ? { proposedDate: c.proposedDate } : {}), fromThread: threadForPromise, source: madeBy("email", threadForPromise) });
           emit({ type: "action", props: { name: "email.commitment.caught" } });
           showToast({ message: commitmentLine(c, todayISO()) }, 4000);
         } catch { /* a missed catch is silent; a wrong task is not */ }

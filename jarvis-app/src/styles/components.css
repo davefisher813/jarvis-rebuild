@@ -1176,6 +1176,9 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    "Remodel Bridge Website" rendered as three-line chips: a chip at three
    lines is a card in costume. They scroll sideways now, each on one line,
    which is what .chip-row two hundred lines up has always done. */
+/* E-16 (2026-09-12): the two thread-correction capsules on the state card,
+   a chip row like the sender's, under the eyebrow. */
+.msg-override { margin-top: var(--s-2); }
 .msg-chips { display: flex; gap: var(--s-2); margin-bottom: var(--s-2);
   overflow-x: auto; scrollbar-width: none; padding-bottom: var(--s-1); }
 .msg-chips::-webkit-scrollbar { display: none; }

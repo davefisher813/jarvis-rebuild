@@ -20,6 +20,12 @@ const CAP = 300;
 export interface Commitment {
   text: string;   // the task title, in the user's own terms
   due?: string;   // YYYY-MM-DD when they named a day
+  /** E-31 (2026-09-12): the day they named when it could not be resolved
+   *  to a date on THIS device's calendar ("next week", "end of month", a
+   *  weekday with no date). Offered on the task as a proposal chip, never
+   *  as a due date: a due date the app guessed is the exact wrong deadline.
+   *  Never set alongside `due` (law 6, section 7). */
+  proposedDate?: string;
 }
 
 export function loadPromised(): string[] {
@@ -74,9 +80,18 @@ export function parseCommitment(raw: string, todayISO: string): Commitment | nul
   const t = noDashes(text.trim()).slice(0, 60);
   if (!t) return null;
   const out: Commitment = { text: t };
-  if (typeof due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(due.trim())) {
-    // A date in the past is a misread, not a deadline.
-    if (due.trim() >= todayISO) out.due = due.trim();
+  if (typeof due === "string" && due.trim()) {
+    const d = due.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      // A date in the past is a misread, not a deadline.
+      if (d >= todayISO) out.due = d;
+    } else if (d.length <= 24 && !/[{}\[\]"<>]/.test(d)) {
+      // E-31: a relative or ambiguous day the model handed back as words.
+      // It is a proposal, chipped on the task, never a due date. Short and
+      // plain, or dropped: a phrase with brackets or quotes in it is not a
+      // day anybody named.
+      out.proposedDate = noDashes(d);
+    }
   }
   return out;
 }
@@ -86,5 +101,7 @@ export function parseCommitment(raw: string, todayISO: string): Commitment | nul
 // is the bug this signature exists to prevent, and a default would let a
 // caller keep the old behaviour by forgetting (2026-08-25).
 export function commitmentLine(c: Commitment, today: string): string {
-  return c.due ? "Caught: " + c.text + " · By " + dayPhrase(c.due, today) : "Caught: " + c.text;
+  if (c.due) return "Caught: " + c.text + " · By " + dayPhrase(c.due, today);
+  if (c.proposedDate) return "Caught: " + c.text + " · " + c.proposedDate + " (proposed)";
+  return "Caught: " + c.text;
 }

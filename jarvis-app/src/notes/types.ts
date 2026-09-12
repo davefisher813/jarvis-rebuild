@@ -161,6 +161,10 @@ export interface TaskData {
   projectId?: string; // the project this task belongs to (Session 6). Optional
   // field on the existing task entity, so no registry migration is needed.
   due?: string | null;
+  /** E-31 (2026-09-12): the day the user named in their own reply when it
+   *  could not be resolved to a date ("next week"). A proposal on the row,
+   *  never a due date, and never present alongside one (law 6). */
+  proposedDate?: string;
   recurrence?: Recurrence;
   // Lifecycle policy (ADHD strategy Phase 1). All optional and additive.
   slips?: number; // times the due date was pushed later

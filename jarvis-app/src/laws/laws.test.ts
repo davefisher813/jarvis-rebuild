@@ -379,6 +379,11 @@ describe("LAW: Apple HIG casing", () => {
       for (const m of src.matchAll(/<button[\s\S]*?>\s*([^<>{}\n]{2,60}?)\s*<\/button>/g)) {
         const t = m[1]!.trim();
         if (/className=\{?"[^"]*\bseg\b/.test(m[0]!)) continue;
+        // E-16 (Dave's picks 2026-09-12, approved on the Email harness): "Not
+        // for Me" is a verdict on a thread, the pair of "Needs Me", not a
+        // plea for the app to do him a favour. The regex cannot tell a
+        // verdict from a plea; this one is named so it does not have to.
+        if (t === "Not for Me") continue;
         if (BEGS.test(t)) bad.push(rel(f) + ' [begs]: "' + t + '"');
         if (CONFESSES.test(t)) bad.push(rel(f) + ' [confesses]: "' + t + '"');
       }

@@ -76,3 +76,34 @@ describe("EMAIL law 3: no JSX text node carries a backslash escape", () => {
     expect(bad).toEqual([]);
   });
 });
+
+// E-16 (section 7, item 4): the per-thread override never leaks into the
+// sender rule. threadOverride.ts's own test proves the store writes no
+// SenderRules entry; this pins the one place the UI writes it, so nobody
+// wires Not for Me to saveRule "for consistency" later.
+describe("EMAIL law 4: Not for Me corrects the thread, never the sender", () => {
+  it("the override handler writes threadOverride and nothing else", () => {
+    const at = FLOW.indexOf("onOverride: (b) =>");
+    expect(at, "ThreadStateCard is handed an override handler").toBeGreaterThan(-1);
+    const handler = FLOW.slice(at, at + 600);
+    expect(handler).toMatch(/saveOverride\(thread\.id, b\)/);
+    expect(handler).toMatch(/clearOverride\(thread\.id\)/);
+    expect(handler, "no sender rule from a thread correction").not.toMatch(/saveRule\(/);
+  });
+  it("the correction is applied after the sender rule and before the VIP pass", () => {
+    expect(FLOW).toMatch(/applyVips\(applyKnownPeople\(applyOverrides\(applyRules\(/);
+  });
+});
+
+// E-31 (section 7, item 6): a proposed day and a due date never sit on one
+// task. The catcher never emits both, and the service refuses the pair.
+describe("EMAIL law 6: proposed and due never collide", () => {
+  it("parseCommitment writes one or the other", () => {
+    const src = read(join(SRC, "messages/commitments.ts"));
+    expect(src).toMatch(/if \(\/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\/\.test\(d\)\) \{[\s\S]{0,200}\} else if/);
+  });
+  it("TasksService drops a proposal when a due date is present", () => {
+    const src = read(join(SRC, "tasks/TasksService.ts"));
+    expect(src).toMatch(/if \(opts\.proposedDate && !data\.due\) data\.proposedDate/);
+  });
+});

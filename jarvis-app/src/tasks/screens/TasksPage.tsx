@@ -373,6 +373,10 @@ export function TaskRow({
               line whole instead of taking a row of its own. */}
           <div className="r-k r-k-one">
             {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
+            {/* E-31 (2026-09-12): a day he named in his own reply that the
+                catcher could not resolve. A proposal in the chip's slot, in
+                quiet ink, never a deadline; a real due date replaces it. */}
+            {!chip && !t.done && t.proposedDate && <span className="uchip u-proposed">{t.proposedDate} (proposed)</span>}
             {(kicker || tag)
               ? <>
                   {tag && <span className="slide-tag">{tag}</span>}
