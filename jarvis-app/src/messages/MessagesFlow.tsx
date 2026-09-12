@@ -2182,6 +2182,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // here now, and the timer is held so one toast cannot clear the next one
   // early either: one toast, one timer, one undo.
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 2026-09-12: and released with the screen. A toast timer that outlived the
+  // page called setState six seconds after unmount; on CI the test environment
+  // had been torn down by then too, and the whole suite went red on "window
+  // is not defined" from a timer nobody was waiting for.
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
   const say = (msg: string, undoable?: { label: string; run: () => void }, ms = 6000) => {
     setToast(msg);
     setUndo(undoable ?? null);
