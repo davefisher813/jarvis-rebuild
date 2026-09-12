@@ -122,26 +122,20 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
   // and the app reached its light-safe values through a list of class names
   // that .gstat-good, .fact-good, .rep-win-val and .rep-delta-up were never
   // added to. The token has to be right, because a list cannot be.
-  it("light --good and --warn clear AA on every ground they land on", () => {
-    const page = "#F3F4F9", card = "#FFFFFF";
-    const cases: Array<[string, string, string]> = [
-      ["--good", "the page", page],
-      ["--good", "a white card", card],
-      ["--good", "its own tint on the page", `rgba(52,199,89,0.14) over ${page}`],
-      ["--good", "its own tint on a card", `rgba(52,199,89,0.14) over ${card}`],
-      ["--warn", "the page", page],
-      ["--warn", "a white card", card],
-      ["--warn", "its own tint on the page", `rgba(255,149,0,0.14) over ${page}`],
-      ["--warn", "its own tint on a card", `rgba(255,149,0,0.14) over ${card}`],
-    ];
-    for (const [name, where, ground] of cases) {
-      const parts = ground.split(" over ");
-      const bg = parts.length === 2
-        ? `rgb(${overC(parts[0]!, parts[1]!).join(",")})`
-        : ground;
-      const cr = contrast(tokenIn("light", name), bg);
-      expect(cr, `light ${name} on ${where} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
-    }
+  //
+  // AMENDED (Astra, Dave's ruling 2026-09-12): Apple's light system colours,
+  // as shipped, are the palette, including as text. He saw the measured
+  // darker pair and chose the real colours. So this no longer measures the
+  // two tokens against their grounds; it pins them to the exact iOS values,
+  // which is the ruling made checkable. The old numbers stay in the token
+  // comment as the record of what was traded.
+  it("light --good and --warn are Apple's light system green and orange, exactly", () => {
+    expect(tokenIn("light", "--good").toUpperCase()).toBe("#34C759");
+    expect(tokenIn("light", "--warn").toUpperCase()).toBe("#FF9500");
+    // And the fills they used to differ from are the same values now, in
+    // light as in dark: one green, one orange, whatever the job.
+    expect(tokenIn("light", "--good-fill").toUpperCase()).toBe(tokenIn("light", "--good").toUpperCase());
+    expect(tokenIn("light", "--warn-fill").toUpperCase()).toBe(tokenIn("light", "--warn").toUpperCase());
   });
 
   // The saturated pair did not disappear, it changed job: anything with no

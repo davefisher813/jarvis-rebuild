@@ -705,7 +705,9 @@ export default function TodayPage({
                 gated; a mild day renders nothing here. */}
             <MorningWeatherLine todayIso={localISODate()} />
           </div>
-          {ring && <DayRing done={ring.done} total={ring.total} />}
+          {/* C-23 (Astra, 2026-09-12): in the evening the ring lives inside
+              How Today Went below and nowhere else, so the hero copy goes. */}
+          {ring && !evening && <DayRing done={ring.done} total={ring.total} />}
         </div>
       </div>
       <div ref={condProbe} />

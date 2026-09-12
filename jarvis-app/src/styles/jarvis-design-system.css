@@ -323,8 +323,18 @@
      good on a white card 2.22 -> 5.83, warn on a white card 2.20 -> 5.93,
      good on the page 2.02 -> 5.31, warn on the page 2.00 -> 5.40, and the
      worst of all, a green tile tinted over the page, 1.86 -> 4.79. The
-     saturated pair lives on in --good-fill / --warn-fill for fills. */
-  --warn: #8A5A00; --good: #1A7439;
+     saturated pair lives on in --good-fill / --warn-fill for fills.
+
+     THE ASTRA PASS (Dave's ruling, 2026-09-12): Apple's light system
+     colours, as shipped, are the palette, including as text. The darkened
+     pair above was measured, and he looked at it and chose the real
+     colours anyway: the light Today, Brain and Schedule screens he approved
+     wear #34C759 and #FF9500 as words, the same hexes the fills already
+     used. So --good and --warn resolve to the fills again in light, exactly
+     as they always did in dark, and the BROWSER-F-04 law now pins these two
+     values instead of measuring them. The contrast numbers above stay as
+     the record of what was traded for it. */
+  --warn: #FF9500; --good: #34C759;
   /* THE ACTIVITY RAMP, LIGHT. Neon is tuned to be read on black; on a white
      card #A6FF00 measures about 1.2:1, which is not a colour, it is a smear.
      These are the same six hues taken down to values that clear AA as text on
@@ -381,8 +391,11 @@
   --accent-chip: transparent;
   --accent-chip-bd: #DA0012;
   --accent-chip-tx: #DA0012;
-  --red-tint: rgba(204,5,27,0.10); --warn-tint: rgba(255,149,0,0.14); --good-tint: rgba(52,199,89,0.14);
-  --blue-tint: rgba(0,122,255,0.12); --yellow-tint: rgba(255,204,0,0.14);
+  /* Astra pass (2026-09-12): the washes step up to the strengths the approved
+     harness draws them at, 18/18/16/18, so a tinted tile in daylight has a
+     visible body under the lighter ink above. The red wash is untouched. */
+  --red-tint: rgba(204,5,27,0.10); --warn-tint: rgba(255,149,0,0.18); --good-tint: rgba(52,199,89,0.18);
+  --blue-tint: rgba(0,122,255,0.16); --yellow-tint: rgba(255,204,0,0.18);
   --glass-bg: rgba(255,255,255,0.78);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
   --nav-bg: rgba(250,250,252,0.86);

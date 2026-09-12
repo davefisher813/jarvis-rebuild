@@ -171,12 +171,13 @@
 [data-theme="light"] .ruled .st-late { color: var(--on-light-red, #B8001A); }
 
 /* ---------- THE DAY RING: flat, one colour, no gradient, no glow ---------
-   "Keep them completely separate." The ring counts due work and captions
-   itself DUE; the capacity bar is time and lives on Schedule. The
-   red-to-orange gradient and drop-shadow it wore broke both the one-red
-   law and the no-glow ruling, so the fill is the completion green, the same
-   green a task ring turns when it is done. */
-.ruled .day-ring .fill { stroke: var(--good-fill); filter: none; }
+   "Keep them completely separate." The ring counts due work and says so in
+   its own disc (done over total); the capacity bar is time and lives on
+   Schedule. The red-to-orange gradient and drop-shadow it wore broke both
+   the one-red law and the no-glow ruling, so the fill is the completion
+   green, the same green a task ring turns when it is done. Astra pass
+   (2026-09-12): the ring is .dring in components.css now, a conic gradient
+   with no stroke to override, so this skin has nothing left to say to it. */
 
 /* ---------- THE RULED ROW -------------------------------------------------
    [ ring 24 neutral ][ 10 ][ name 16/500 / kicker: bar · goal · chip ][ Start ]

@@ -329,21 +329,33 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    Each ink is that hue darkened only until it clears 4.6:1 on its own
    chip AND on the page. Derived computationally; the palette law recomputes
    the same pair. */
+/* THE ASTRA PASS (Dave's ruling, 2026-09-12): Apple's light system colours,
+   as shipped, are the palette, including as text. Twelve slots carry an
+   Apple light system colour as their fill (by VALUE: green, teal, blue,
+   indigo, purple, pink, orange and yellow under their own names, plus sky
+   which is Apple cyan #32ADE6, lime which is Apple mint #00C7BE, sand which
+   is Apple brown #A2845E, and red). For those twelve the ink and the glyph
+   are the fill itself, no longer a darkened cousin; the palette law now
+   checks that equality instead of a ratio. The red slot is the one
+   exception and takes ORANGE #FF9500 for both, because red is not a
+   category (see .cat-bg-brand): a category may not wear the tappable red.
+   The other twelve slots are derived, have no Apple twin, and keep the
+   chroma-first values below. */
 [data-theme="light"] {
-  --cat-tx-red: #B42A22;
-  --cat-tx-orange: #945600;
-  --cat-tx-sky: #1F6B8F;
-  --cat-tx-pink: #B5203C;
-  --cat-tx-yellow: #816700;
-  --cat-tx-green: #1E7434;
-  --cat-tx-blue: #005CC1;
-  --cat-tx-teal: #1E6E7C;
+  --cat-tx-red: #FF9500;
+  --cat-tx-orange: #FF9500;
+  --cat-tx-sky: #32ADE6;
+  --cat-tx-pink: #FF2D55;
+  --cat-tx-yellow: #FFCC00;
+  --cat-tx-green: #34C759;
+  --cat-tx-blue: #007AFF;
+  --cat-tx-teal: #30B0C7;
   --cat-tx-graphite: #636366;
-  --cat-tx-purple: #873FAB;
-  --cat-tx-indigo: #504EC3;
+  --cat-tx-purple: #AF52DE;
+  --cat-tx-indigo: #5856D6;
   --cat-tx-magenta: #A12D89;
-  --cat-tx-lime: #00726D;
-  --cat-tx-sand: #755F44;
+  --cat-tx-lime: #00C7BE;
+  --cat-tx-sand: #A2845E;
   --cat-tx-coral: #A54435;
   --cat-tx-amber: #855800;
   --cat-tx-rust: #A83911;
@@ -362,20 +374,22 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    is the same defect as the 08-21 one-token-two-roles bug, in light.
    FIFTEEN of the twenty-four keep Apple's light fill EXACTLY; only the
    nine that miss 3:1 on the page are darkened, and only to the bar. */
+/* Astra pass (2026-09-12): the same twelve take the fill as their glyph too;
+   the rest keep the 3:1 values. */
 [data-theme="light"] {
-  --cat-ic-red: #FF3B30;
-  --cat-ic-orange: #C97500;
-  --cat-ic-sky: #2A93C3;
+  --cat-ic-red: #FF9500;
+  --cat-ic-orange: #FF9500;
+  --cat-ic-sky: #32ADE6;
   --cat-ic-pink: #FF2D55;
-  --cat-ic-yellow: #A78600;
-  --cat-ic-green: #299E46;
+  --cat-ic-yellow: #FFCC00;
+  --cat-ic-green: #34C759;
   --cat-ic-blue: #007AFF;
-  --cat-ic-teal: #2996AA;
+  --cat-ic-teal: #30B0C7;
   --cat-ic-graphite: #89898E;
   --cat-ic-purple: #AF52DE;
   --cat-ic-indigo: #5856D6;
   --cat-ic-magenta: #C838AB;
-  --cat-ic-lime: #009A93;
+  --cat-ic-lime: #00C7BE;
   --cat-ic-sand: #A2845E;
   --cat-ic-coral: #E55E4A;
   --cat-ic-amber: #B87A00;
@@ -971,19 +985,27 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Day progress ring in the Today hero (RDB, Dave 2026-07-29): fills as
    due-today tasks complete; pops once full. Hidden when nothing is due. */
 .today-hero-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
-/* The ring gets a caption so its number cannot be misread as the evening
-   line's (Dave 2026-08-29). Sits under the ring; the wrapper grows to hold
-   it, the 44px ring itself is unchanged. */
-.day-ring { position: relative; width: 44px; flex-shrink: 0; }
-.day-ring .ring-cap { text-align: center; font-size: calc(9px * var(--type-scale)); font-weight: var(--w-semi);
-  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-4); margin-top: 1px; }
-.day-ring svg { transform: rotate(-90deg); }
-.day-ring .track { stroke: var(--press-5); }
-.day-ring .fill { stroke: var(--good-fill); stroke-linecap: round; transition: stroke-dashoffset 500ms var(--ease-out); }
-/* Pinned to the RING's 44px, not to the wrapper: the caption below grew the
-   wrapper, and a full-box inset would have slid the count off centre. */
-.day-ring .count { position: absolute; top: 0; left: 0; right: 0; height: 44px; display: flex; align-items: center; justify-content: center; font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-2); }
-.day-ring.done { animation: ringPop 480ms var(--ease-spring); }
+/* THE HERO RING, .dring (Astra pass, Dave's picks 2026-09-12). The 44px SVG
+   arc with its "Due" caption becomes the 64px conic ring the approved
+   harness draws: completion green over the press ground, done/total inside
+   in tabular figures, the word under the number. It shows all day and hides
+   only when nothing is due; in the evening it renders inside How Today Went
+   and nowhere else (C-23). --pct is set by DayRing.tsx as a custom property,
+   the one kind of inline style the laws allow, because the arc IS geometry.
+   The number still counts what he committed to today (Dave 2026-08-29), and
+   the evening line still counts everything he did; the two never matched and
+   never should. */
+.dring { position: relative; width: 64px; height: 64px; border-radius: var(--r-circle); flex: 0 0 64px;
+  background: conic-gradient(var(--good-fill) 0 var(--pct, 0%), var(--press-3) var(--pct, 0%) 100%);
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px var(--divider); }
+.dring > div { width: 50px; height: 50px; border-radius: var(--r-circle); background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; line-height: 1; }
+/* Inside a card the disc takes the card's own ground, so the ring does not
+   punch a page-coloured hole in a white card. */
+.card .dring > div { background: var(--surface-1); }
+.dring b { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
+.dring span { font-size: calc(8px * var(--type-scale)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: 2px; }
+.dring.done { animation: ringPop 480ms var(--ease-spring); }
 @keyframes ringPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
 
 /* Skeleton building blocks for loading screens (pairs with .skel-line etc.).
@@ -1011,7 +1033,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 [data-theme="dark"] .today-hero.hero-morning { background: linear-gradient(180deg, rgba(255,159,10,0.07), transparent 85%); }
 [data-theme="dark"] .today-hero.hero-evening { background: linear-gradient(180deg, rgba(94,155,255,0.06), transparent 85%); }
 
-@media (prefers-reduced-motion: reduce) { .burst i, .day-ring.done { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .burst i, .dring.done { animation: none; } }
 
 /* Tap/press feedback on interactive rows + buttons. Press uses press-5 so the
    highlight actually reads on OLED dark (press-3 was invisible; RDB, Dave
@@ -4933,3 +4955,52 @@ body.selecting .voice-dock { display: none; }
 .ev-title { font-size: calc(24px * var(--type-scale)); font-weight: var(--w-bold);
   letter-spacing: var(--track-h2); line-height: var(--lh-snug); }
 .ev-url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ==========================================================================
+   THE ASTRA PASS (V4.23, Dave's picks 2026-09-12). The primitives every new
+   or rebuilt row in the approved harness (JARVIS_ASTRA_PREVIEW_2026_09_12.html)
+   is drawn with. The names are the harness's own and are final. Nothing in
+   this section restyles a surface that exists today; a surface takes these
+   when its own push lands, and the hero ring (.dring, above) is the one
+   surface Push A changed.
+   ========================================================================== */
+
+/* .facts: the row's second line as facts, not a sentence (G3, G6). Flex,
+   wraps, quiet ink. Adjacent facts are separated by a middle dot the CSS
+   draws, so no string ever carries one. */
+.facts { display: flex; flex-wrap: wrap; align-items: center; gap: 1px 0; margin-top: 2px;
+  font-size: calc(14px * var(--type-scale)); color: var(--tx-3); line-height: 1.35; }
+.fact + .fact::before { content: "\00B7"; color: var(--tx-4); margin: 0 6px; }
+/* A fact that carries meaning takes its intent colour, semibold. At most one
+   of these per .facts line (K.3, extended by the law in laws/astra.test.ts);
+   .fact.st and .fact.cat do not count toward it. */
+.fact.warn { color: var(--warn); font-weight: var(--w-semi); }
+.fact.good { color: var(--good); font-weight: var(--w-semi); }
+.fact.sky { color: var(--cat-sky); font-weight: var(--w-semi); }
+.fact.purp { color: var(--cat-purple); font-weight: var(--w-semi); }
+.fact.red { color: var(--accent-tx); font-weight: var(--w-semi); }
+/* Category is a 7px dot in the category colour plus plain text, never
+   coloured text (G4). The dot wears .cat-bg-<slot>. */
+.fact.cat { font-weight: var(--w-semi); color: var(--tx-2); display: inline-flex; align-items: center; gap: 5px; }
+.fact.cat .cd { width: 7px; height: 7px; border-radius: var(--r-circle); display: inline-block; flex-shrink: 0; }
+/* The state word (G5): coloured small caps, never a filled pill. Colour from
+   the variant beside it; gray is the quiet one. The words themselves are a
+   closed set, pinned by the law. */
+.fact.st { font-size: calc(11px * var(--type-scale)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; align-self: center; }
+.fact.st.gray { color: var(--tx-quiet); }
+
+/* .row-star: the Remember glyph. A 16px outline star at the leading edge of
+   a row, before the glyph column, quiet until the row's entity has a linked
+   strand, then filled yellow. It is not the row's control: the row's one
+   control is still whatever sits in the trailing slot, and the law in
+   laws/astra.test.ts keeps the star at the front. */
+.row-star { flex: 0 0 16px; width: 16px; height: 16px; padding: 0; border: 0; background: none; color: var(--tx-4);
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font: inherit; }
+.row-star svg { width: 16px; height: 16px; display: block; }
+.row-star.on { color: var(--yellow); }
+
+/* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
+   mail EvidenceChip: a surface hands that component this class rather than
+   forking it, and the sheet it opens is the Why sheet (C-25). */
+.why { display: inline-flex; align-items: center; gap: 4px; min-height: 34px; padding: 5px 10px; border: 0; border-radius: var(--r-pill);
+  font-family: var(--f); font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold); color: var(--accent-tx); background: var(--red-tint); cursor: pointer; }

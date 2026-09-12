@@ -1042,10 +1042,25 @@ describe("LAW: one filled red per screen", () => {
       // so the ink has room to stay saturated.
       const l = txVar("light", slot, "tx");
       if (!l) { bad.push(`${slot}: no --cat-tx-${slot} light text variant`); continue; }
-      const rl = ratio(l, "#F2F2F7");
-      if (rl < 4.5) bad.push(`${slot} (light text): ${l} on #F2F2F7 is ${rl.toFixed(2)}:1`);
       const fill = light[slot];
       if (!fill) { bad.push(`${slot}: no light fill to mix its chip from`); continue; }
+      // THE ASTRA PASS (Dave's ruling, 2026-09-12): Apple's light system
+      // colours, as shipped, are the palette, including as text. A slot whose
+      // light fill IS an Apple light system colour wears that fill as its ink
+      // and its glyph, no ratio asked; the red slot alone takes orange, since a
+      // category never wears the tappable red. The derived slots, which have
+      // no Apple twin, keep the chroma-first checks below.
+      const APPLE_LIGHT = new Set(["#FF3B30", "#FF9500", "#FFCC00", "#34C759", "#00C7BE", "#30B0C7", "#32ADE6", "#007AFF", "#5856D6", "#AF52DE", "#FF2D55", "#A2845E"]);
+      if (APPLE_LIGHT.has(fill.toUpperCase())) {
+        const want = slot === "red" ? "#FF9500" : fill.toUpperCase();
+        if (l.toUpperCase() !== want) bad.push(`${slot} (light text): ${l}, Apple light is ${want}`);
+        const gl = txVar("light", slot, "ic");
+        if (!gl) bad.push(`${slot}: no --cat-ic-${slot} light glyph variant`);
+        else if (gl.toUpperCase() !== want) bad.push(`${slot} (light glyph): ${gl}, Apple light is ${want}`);
+        continue;
+      }
+      const rl = ratio(l, "#F2F2F7");
+      if (rl < 4.5) bad.push(`${slot} (light text): ${l} on #F2F2F7 is ${rl.toFixed(2)}:1`);
       const ch = (i: number) => Math.round(
         parseInt(fill.slice(1 + 2 * i, 3 + 2 * i), 16) * 0.18 +
         parseInt("F2F2F7".slice(2 * i, 2 * i + 2), 16) * 0.82,
