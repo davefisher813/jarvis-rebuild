@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { posix } from "node:path";
 import { reachOf } from "../bigger/reach";
 import { movesLine } from "../today/goalPulse";
 import { healthOf, measureState } from "../bigger/measure";
@@ -27,7 +27,13 @@ import type { WindowRow } from "../brain/window";
 // Adding a law here is cheap and permanent. When a new one is agreed, write it
 // as a check in this file in the same session, not "later".
 
-const SRC = join(process.cwd(), "src");
+// Forward slashes on every OS (2026-09-11, Dave: "fix everything you can").
+// The checks below compare paths to literals like "/bench/" and
+// "tasks/filters.ts"; on Windows the native join produced backslashes, so 25
+// laws failed there while passing on CI. posix.join is the same function on
+// Linux, so nothing any law checks has changed.
+const { join } = posix;
+const SRC = join(process.cwd().replace(/\\/g, "/"), "src");
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
