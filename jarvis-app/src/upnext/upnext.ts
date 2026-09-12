@@ -91,10 +91,11 @@ export function isOffTrack(tasks: TaskItem[], today: string, nowMin: number): bo
 
 // The split: keep the top FRESH_KEEP of the deck (due-or-overdue only), move
 // the rest of today's open load to tomorrow. Recurring tasks roll on their own
-// schedule and are never moved.
+// schedule and are never moved. 2026-09-11: bills never move either (the
+// carve-out Auto-Sweep, Set Aside and swipe-snooze keep), so they stay put.
 export function freshStartPlan(tasks: TaskItem[], today: string): FreshStartPlan {
   const openDue = rankOpen(tasks, today).filter(
-    (t) => t.data.due && daysBetween(today, t.data.due) <= 0 && !t.data.recurrence,
+    (t) => t.data.due && daysBetween(today, t.data.due) <= 0 && !t.data.recurrence && !t.data.bill,
   );
   return { keep: openDue.slice(0, FRESH_KEEP), move: openDue.slice(FRESH_KEEP) };
 }

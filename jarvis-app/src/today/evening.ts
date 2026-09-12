@@ -7,7 +7,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import type { RoutineData } from "../routine/types";
 import { capAfterNumber } from "../shared/casing";
 import { todayISO as isoOf } from "../schedule/calendar";
-import { dayRing } from "./todayData";
+import { dayRing, countsDoneToday } from "./todayData";
 
 // Evening starts at the later of 6 PM and the end of work hours, and runs to
 // midnight (after midnight the clock is morning again, whatever it feels like).
@@ -171,14 +171,16 @@ export interface TodayPlan {
  * from one deleted because it was abandoned, and guessing punitively is the
  * one reading it must not take.
  */
-export function todayPlan(pickIds: string[], tasks: TaskItem[]): TodayPlan | null {
+export function todayPlan(pickIds: string[], tasks: TaskItem[], today: string = isoOf()): TodayPlan | null {
   if (pickIds.length === 0) return null;
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const picks: PlanPick[] = [];
   for (const id of pickIds) {
     const t = byId.get(id);
     if (!t) continue;
-    picks.push({ id, text: t.data.text, done: !!t.data.done });
+    // 2026-09-11: a ticked recurring pick rolls its due and stamps lastDone
+    // rather than done, so it is counted the way the ring counts (TODAY-F-09).
+    picks.push({ id, text: t.data.text, done: countsDoneToday(t, today) });
   }
   if (picks.length === 0) return null;
   return { picks, done: picks.filter((p) => p.done).length, total: picks.length };

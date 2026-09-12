@@ -94,6 +94,14 @@ describe("freshStartPlan", () => {
     expect(plan.keep.map((t) => t.id)).toEqual([a.id, b.id, c.id]);
     expect(plan.move.map((t) => t.id).sort()).toEqual([d.id, e.id].sort());
   });
+
+  // 2026-09-11: bills never move (Auto-Sweep, Set Aside, swipe-snooze).
+  it("never moves a bill", () => {
+    const list = [task(T), task(T), task(T), task(T, false, { bill: { amount: 1200 } })];
+    const plan = freshStartPlan(list, T);
+    expect([...plan.keep, ...plan.move].some((t) => t.data.bill)).toBe(false);
+    expect(plan.move).toEqual([]);
+  });
 });
 
 describe("date helpers", () => {

@@ -103,6 +103,7 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
     fireBurst();
     setTimeout(async () => {
       try {
+        const before = await svc.task(t.id);
         const ok = await attemptWrite(() => svc.toggleDone(t.id));
         if (!ok) return;
         await reload();
@@ -113,10 +114,12 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
         // Undo (2026-08-09): the one-card mode is the easiest place in the app
         // to fat-finger a completion, and it was the one completion without a
         // way back. Same toast contract as the Tasks page.
-        showToast({
+        // 2026-09-11: Undo restores the pre-tick snapshot (LIFE-F-02 /
+        // SHARED-F-03), never a second toggleDone, which re-rolls a recurring task.
+        if (before) showToast({
           message: "Task completed",
           actionLabel: "Undo",
-          onAction: async () => { await svc.toggleDone(t.id); await reload(); },
+          onAction: async () => { await attemptWrite(() => svc.restoreCompletion(t.id, before)); await reload(); },
         });
       } finally {
         completing.current = false;

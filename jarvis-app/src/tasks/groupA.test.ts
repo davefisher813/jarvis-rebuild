@@ -99,6 +99,19 @@ describe("Auto-Sweep", () => {
     expect((await tasks.task(b))!.due).toBe("2026-08-13");
   });
 
+  // 2026-09-11: a recurring task keeps its anchor day (LIFE-F-03), the same
+  // carve-out Set Aside and Fresh Start make; the sweep neither moves it nor
+  // counts a slip against it.
+  it("never moves a recurring task", async () => {
+    const tasks = svc();
+    const m = (await tasks.createTask("Pay the gym", { due: "2026-08-13", recurrence: "monthly" }))!;
+    const receipt = await runAutoSweep(tasks, TODAY);
+    expect(receipt).toBeNull();
+    const after = (await tasks.task(m))!;
+    expect(after.due).toBe("2026-08-13");
+    expect(after.slips).toBeUndefined();
+  });
+
   it("runs once per day: the second open does not resweep", async () => {
     const tasks = svc();
     await tasks.createTask("Old one", { due: "2026-08-13" });

@@ -144,14 +144,19 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
                     <button className="pill-act" onClick={(e) => {
                       e.stopPropagation();
                       void (async () => {
+                        // 2026-09-11: Undo puts back the pre-tap snapshot
+                        // (SHARED-F-03), never a second toggleDone; and every
+                        // row for this task goes, since the sliding one can also
+                        // be overdue, and Done on the twin un-completed it.
+                        const before = await tasksSvc.task(n.entityId);
                         const ok = await attemptWrite(() => tasksSvc.toggleDone(n.entityId));
                         if (!ok) return;
                         haptics.selection();
-                        setFeed((f) => f.filter((x) => x.id !== n.id));
-                        showToast({
+                        setFeed((f) => f.filter((x) => !(x.entity === "task" && x.entityId === n.entityId)));
+                        if (before) showToast({
                           message: "Done",
                           actionLabel: "Undo",
-                          onAction: async () => { await attemptWrite(() => tasksSvc.toggleDone(n.entityId)); await reload(); },
+                          onAction: async () => { await attemptWrite(() => tasksSvc.restoreCompletion(n.entityId, before)); await reload(); },
                         });
                       })();
                     }}>Done</button>

@@ -204,4 +204,14 @@ describe("todayPlan: the day is scored against the plan, every time it is asked"
     expect(todayPlanLine(none)).toBe("2 Picked this morning");
     expect(todayPlanLine(none)).not.toMatch(/left|missed|behind|failed/i);
   });
+
+  // 2026-09-11: a ticked recurring pick rolls its due and stamps lastDone
+  // instead of done (TODAY-F-09); it is still a pick that got done today.
+  it("counts a recurring pick ticked today as done", () => {
+    const daily = ({ id: "dog", data: { text: "Walk the dog", category: "", done: false, due: "2026-07-30", recurrence: "daily", lastDone: TODAY } }) as unknown as TaskItem;
+    const stale = ({ id: "cat", data: { text: "Feed the cat", category: "", done: false, due: TODAY, recurrence: "daily", lastDone: "2026-07-28" } }) as unknown as TaskItem;
+    const p = todayPlan(["dog", "cat"], [daily, stale], TODAY)!;
+    expect(p.picks.map((x) => x.done)).toEqual([true, false]);
+    expect(p.done).toBe(1);
+  });
 });

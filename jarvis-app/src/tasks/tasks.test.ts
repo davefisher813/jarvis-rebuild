@@ -275,6 +275,25 @@ describe("recreateFrom (undo-after-delete restores the whole task)", () => {
     expect(restored!.steps).toBeUndefined();
     expect(restored!.bill).toBeUndefined();
   });
+
+  // 2026-09-11: the whitelist dropped done, lastDone, the run and slips, so
+  // Undo on a completed task brought it back open.
+  it("a completed task comes back completed, with its run and slips, under its own id", async () => {
+    const svc = new TasksService(new Store(new InMemoryAdapter()), "u1");
+    const id = (await svc.createTask("Water plants", { due: "2026-09-05", recurrence: "weekly" }))!;
+    await svc.setDue(id, "2026-09-06");
+    await svc.toggleDone(id);
+    const one = (await svc.createTask("Email Sam"))!;
+    await svc.toggleDone(one);
+    for (const x of [id, one]) {
+      const snapshot = (await svc.task(x))!;
+      await svc.deleteTask(x);
+      expect(await svc.recreateFrom(snapshot, x)).toBe(x);
+      expect(await svc.task(x)).toEqual(snapshot);
+    }
+    expect((await svc.task(one))!.done).toBe(true);
+    expect((await svc.task(id))!.slips).toBe(1);
+  });
 });
 
 // SHARED-F-03 (2026-09-05): "Undo re-does." The completion toast lives for

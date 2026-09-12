@@ -116,24 +116,17 @@ export class TasksService {
   //
   // LIFE-F-15 (2026-09-05): with the deleted row's id, the task comes back as
   // itself rather than as a copy, so a note linked to it still opens it.
+  //
+  // 2026-09-11: routed through createTask's whitelist it still dropped done,
+  // lastDone, the run and slips, so Undo on a completed task brought it back
+  // open. A snapshot is a whole record and is written back as one, the way
+  // ScheduleService.recreateFrom (SCHED-F-09) does for events.
   async recreateFrom(t: TaskData, id?: string): Promise<string | null> {
-    return this.createTask(t.text, {
-      category: t.category || undefined,
-      extraCategories: t.extraCategories,
-      due: t.due ?? null,
-      recurrence: t.recurrence,
-      eventId: t.eventId,
-      projectId: t.projectId,
-      bill: t.bill,
-      reminder: t.reminder,
-      plan: t.plan,
-      steps: t.steps,
-      estimateMin: t.estimateMin,
-      personId: t.personId,
-      fromNote: t.fromNote,
-      fromThread: t.fromThread,
-      source: t.source,
-    }, id);
+    if (!t.text || !t.text.trim()) return null;
+    const data: TaskData = { ...t, text: t.text.trim() };
+    const newId = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData, id);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_TASK, entityId: newId });
+    return newId;
   }
 
   async toggleDone(id: string): Promise<boolean> {

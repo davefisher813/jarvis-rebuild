@@ -82,8 +82,11 @@ export function clearReceipt(): void {
 
 // Which tasks a sweep touches: dated before today, not done, not a bill,
 // not set aside (asideFrom implies due was cleared, so due catches it).
+// 2026-09-11: not recurring either, as Set Aside and Fresh Start already
+// rule: a recurring task keeps its weekday/month-day anchor (LIFE-F-03), and
+// moving it re-dated a monthly task and counted slips against a habit.
 export function sweepable(items: TaskItem[], today: string): TaskItem[] {
-  return items.filter((t) => !t.data.done && !t.data.bill && !!t.data.due && t.data.due < today);
+  return items.filter((t) => !t.data.done && !t.data.bill && !t.data.recurrence && !!t.data.due && t.data.due < today);
 }
 
 // Run the sweep once for today. Returns the receipt (also persisted for the

@@ -457,7 +457,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     // LIFE-F-11: only what the Area filter is showing, which is what the
     // button's count says.
     const done = visible("done");
-    const snapshot = done.map((t) => ({ ...t.data }));
+    const snapshot = done.map((t) => ({ id: t.id, data: { ...t.data } }));
     const ok = await attemptWrite(async () => { for (const t of done) await svc.deleteTask(t.id); });
     await reload();
     if (!ok) return;
@@ -465,11 +465,11 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
       message: `Cleared ${snapshot.length} completed`,
       actionLabel: "Undo",
       onAction: async () => {
+        // 2026-09-11: recreateFrom restores the whole record, done and
+        // lastDone included, under the old id; a second toggleDone would
+        // re-open them and log a fresh completion.
         await attemptWrite(async () => {
-          for (const d of snapshot) {
-            const id = await svc.recreateFrom(d);
-            if (id) await svc.toggleDone(id); // they come back DONE, as they were
-          }
+          for (const d of snapshot) await svc.recreateFrom(d.data, d.id);
         });
         await reload();
       },
@@ -548,7 +548,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     if (sheet?.mode === "edit") {
       const t = await svc.task(sheet.id);
       const ok = await attemptWrite(() => svc.deleteTask(sheet.id));
-      if (ok && t) offerUndoTask(t);
+      if (ok && t) offerUndoTask(sheet.id, t);
     }
     setSheet(null);
     await reload();
@@ -557,7 +557,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   const onDeleteRow = async (id: string) => {
     const t = await svc.task(id);
     const ok = await attemptWrite(() => svc.deleteTask(id));
-    if (ok && t) offerUndoTask(t);
+    if (ok && t) offerUndoTask(id, t);
     await reload();
   };
 
@@ -573,10 +573,10 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // trust in the Undo as well, since the two numbers have to agree.
   const onDeleteMany = async (ids: string[]) => {
     if (ids.length === 0) return;
-    const kept: TaskData[] = [];
+    const kept: { id: string; data: TaskData }[] = [];
     for (const id of ids) {
       const t = await svc.task(id);
-      if (t) kept.push(t);
+      if (t) kept.push({ id, data: t });
     }
     let gone = 0;
     await attemptWrite(async () => {
@@ -593,7 +593,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         // it was rather than leaving the user to undo six times.
         await attemptWrite(async () => {
           for (const t of kept.slice(0, n)) {
-            await svc.recreateFrom(t);
+            await svc.recreateFrom(t.data, t.id);
           }
         });
         await reload();
@@ -636,13 +636,14 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     showToast({ message: (ids.length === 1 ? "Task moved to " : ids.length + " tasks moved to ") + name });
   };
 
-  // Recreate a just-deleted task if the user taps Undo.
-  const offerUndoTask = (t: TaskData) => {
+  // Recreate a just-deleted task if the user taps Undo, under its old id
+  // (LIFE-F-15) so a note linked to it still opens it.
+  const offerUndoTask = (id: string, t: TaskData) => {
     showToast({
       message: "Task deleted",
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(() => svc.recreateFrom(t));
+        await attemptWrite(() => svc.recreateFrom(t, id));
         await reload();
       },
     });

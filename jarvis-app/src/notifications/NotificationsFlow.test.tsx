@@ -1,11 +1,12 @@
 // SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useEffect, useState } from "react";
 import { NotesProvider, useTasks } from "../data/NotesProvider";
 import NotificationsFlow from "./NotificationsFlow";
+import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
 
 describe("NotificationsFlow", () => {
   it("shows caught-up empty state with no data", async () => {
@@ -50,5 +51,55 @@ describe("NotificationsFlow: Dismiss without the swipe", () => {
     expect(dismiss).toBeTruthy();
     fireEvent.click(dismiss);
     expect(screen.queryAllByText("Call the plumber").length).toBe(rows.length - 1);
+  });
+});
+
+// 2026-09-11: one overdue task shows twice (sliding + overdue). Done cleared
+// only the tapped row, so Done on the twin toggled it back to not-done; and
+// Undo was a second toggleDone, which rolls a recurring task forward again.
+describe("NotificationsFlow: Done and Undo on a task", () => {
+  let svc: ReturnType<typeof useTasks> | null = null;
+  let taskId = "";
+  function Seeded({ weekly }: { weekly?: boolean }) {
+    const tasks = useTasks();
+    const [ready, setReady] = useState(false);
+    useEffect(() => {
+      svc = tasks;
+      void tasks.createTask("Water plants", { due: "2020-01-01", ...(weekly ? { recurrence: "weekly" as const } : {}) })
+        .then((id) => { taskId = id!; setReady(true); });
+    }, [tasks, weekly]);
+    return ready ? <NotificationsFlow /> : null;
+  }
+
+  beforeEach(() => { localStorage.clear(); resetToasts(); });
+
+  it("Done clears every row for the task, so the twin cannot un-complete it", async () => {
+    render(<NotesProvider userId="u-notif-done-twin"><Seeded /></NotesProvider>);
+    const rows = await screen.findAllByText("Water plants");
+    expect(rows.length).toBe(2); // sliding + overdue
+    fireEvent.click(screen.getAllByText("Done")[0]!);
+    await waitFor(() => expect(screen.queryAllByText("Water plants")).toHaveLength(0));
+    expect((await svc!.task(taskId))!.done).toBe(true);
+  });
+
+  it("Undo restores a recurring task as it was, never rolls it forward again", async () => {
+    let toast: ToastState | null = null;
+    const unsub = subscribeToast((t) => { toast = t; });
+    try {
+      render(<NotesProvider userId="u-notif-done-undo"><Seeded weekly /></NotesProvider>);
+      await screen.findAllByText("Water plants");
+      fireEvent.click(screen.getAllByText("Done")[0]!);
+      await waitFor(() => expect(screen.queryAllByText("Water plants")).toHaveLength(0));
+      expect((await svc!.task(taskId))!.due).not.toBe("2020-01-01");
+
+      act(() => { (toast as ToastState | null)?.onAction?.(); });
+      await waitFor(async () => {
+        const after = (await svc!.task(taskId))!;
+        expect(after.done).toBe(false);
+        expect(after.due).toBe("2020-01-01");
+      });
+    } finally {
+      unsub();
+    }
   });
 });
