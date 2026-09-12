@@ -6,7 +6,7 @@ import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta"
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
-import { todayISO, fmtTime, addMinutes, minToHHMM, shiftFitsDay } from "../schedule/calendar";
+import { todayISO, fmtTime, addMinutes, minToHHMM, shiftFitsDay, nextOccurrence, addDays, daysBetween } from "../schedule/calendar";
 import { ENTITY_EVENT, type EventItem } from "../schedule/types";
 import { ENTITY_TASK } from "../notes/types";
 import { useFreshLists } from "../data/useFreshLists";
@@ -513,7 +513,7 @@ export default function TodayFlow({
     return () => { on = false; };
   }, [projectsSvc, goalsSvc]);
   const [sheet, setSheet] = useState<{ mode: "edit"; id: string; initial: TaskDraft } | null>(null);
-  const [eventSheet, setEventSheet] = useState<{ id: string; initial: EventDraft } | null>(null);
+  const [eventSheet, setEventSheet] = useState<{ id: string; occurrence: string; initial: EventDraft } | null>(null);
   // THE SAME TAP AS AN EVENT (2026-08-28, Dave: "when I click on something in
   // the schedule it should allow me to edit it like a normal scheduled
   // event"). Same shape as eventSheet above, for a protected block.
@@ -716,9 +716,17 @@ export default function TodayFlow({
   // (B1-5, 2026-09-04: this sheet is the same EventSheet ScheduleFlow opens,
   // so it offers the same until/taskIds/Training Door controls; it has to
   // load and save the same fields or those controls lie).
+  //
+  // SCHED-F-03 here too (2026-09-11): the sheet names the OCCURRENCE, not the
+  // series' first date. Today seeded e.date, so a weekly event that began in
+  // August opened dated August, and "This Event" dropped its split there
+  // while today's occurrence stayed put. Same resolution ScheduleFlow.openEdit
+  // uses; from Today the next occurrence from today is today's.
   const openEventSheet = async (id: string) => {
     const e = await schedule.event(id);
-    if (e) setEventSheet({ id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+    if (!e) return;
+    const occurrence = (e.recurrence ?? "none") !== "none" ? nextOccurrence(e, todayISO()) ?? e.date : e.date;
+    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
   };
   // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07; built
   // 2026-09-09). Tapping an event opens its PAGE, here as well as on Schedule.
@@ -933,17 +941,26 @@ export default function TodayFlow({
     const id = eventSheet.id;
     const recurring = (eventSheet.initial.recurrence ?? "none") !== "none";
     if (recurring && scope === "this") {
-      // Same split ScheduleFlow.onSave uses: exdate the series on this date,
-      // stand the edited occurrence up as its own event.
+      // Same split ScheduleFlow.onSave uses: exdate the series on the
+      // occurrence the sheet opened on (not the draft's date, which he may
+      // have changed), stand the edited occurrence up as its own event.
+      const occurrence = eventSheet.occurrence;
       await attemptWrite(async () => {
-        await schedule.addExdate(id, draft.date);
+        await schedule.addExdate(id, occurrence);
         const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined });
         if (splitId && draft.gym) await schedule.editGymDoor(splitId, true);
       });
     } else {
+      const occurrence = eventSheet.occurrence;
       await attemptWrite(async () => {
         await schedule.editTitle(id, draft.title);
         if (!recurring) await schedule.moveDay(id, draft.date);
+        // SCHED-F-11, as ScheduleFlow.onSave: All Events plus a new date
+        // slides the whole series by the days the occurrence moved.
+        else if (draft.date !== occurrence) {
+          const cur = await schedule.event(id);
+          if (cur) await schedule.moveDay(id, addDays(cur.date, daysBetween(occurrence, draft.date)));
+        }
         await schedule.editTime(id, draft.start);
         await schedule.editEnd(id, draft.end);
         await schedule.editRecurrence(id, draft.recurrence);
@@ -964,9 +981,21 @@ export default function TodayFlow({
   // provenance and no skipped days, wearing a new id that orphaned any plan
   // draft pointing at it. B1-3 gave tasks one recreateFrom for exactly this
   // reason; SCHED-F-09 gave events theirs, and this is the second caller.
-  const onDeleteEvent = async () => {
+  //
+  // 2026-09-11: and "This Event" deletes THIS EVENT. EventSheet passes the
+  // Apply To choice for a repeating event, and this handler used to take no
+  // argument, so This Event deleted the whole series. Same as
+  // ScheduleFlow.onDelete: skip the one occurrence, keep the series.
+  const onDeleteEvent = async (scope?: "this" | "series") => {
     if (!eventSheet) return;
     const id = eventSheet.id;
+    if ((eventSheet.initial.recurrence ?? "none") !== "none" && scope === "this") {
+      const occurrence = eventSheet.occurrence;
+      await attemptWrite(() => schedule.addExdate(id, occurrence));
+      setEventSheet(null);
+      await reload();
+      return;
+    }
     const e = await schedule.event(id);
     const ok = await attemptWrite(() => schedule.deleteEvent(id));
     setEventSheet(null);
@@ -1072,9 +1101,11 @@ export default function TodayFlow({
 
   const onDeleteTask = async () => {
     if (sheet?.mode === "edit") {
-      const t = await tasks.task(sheet.id);
-      const ok = await attemptWrite(() => tasks.deleteTask(sheet.id));
-      if (ok && t) showToast({ message: "Task deleted", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.recreateFrom(t)); await reload(); } });
+      const id = sheet.id;
+      const t = await tasks.task(id);
+      const ok = await attemptWrite(() => tasks.deleteTask(id));
+      // 2026-09-11: back under its own id (LIFE-F-15), so note links hold.
+      if (ok && t) showToast({ message: "Task deleted", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.recreateFrom(t, id)); await reload(); } });
     }
     setSheet(null);
     await reload();
