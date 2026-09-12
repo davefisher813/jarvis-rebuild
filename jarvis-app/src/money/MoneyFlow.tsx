@@ -865,7 +865,10 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
       {billSheet.kind !== "closed" && (
         <BillSheet mode={billSheet.kind === "new" ? "new" : billSheet.kind === "paid" ? "paid" : "edit"}
           paidOn={billSheet.kind === "paid" ? billSheet.paidOn : undefined}
-          initial={editingBill ? { text: editingBill.data.text, due: editingBill.data.due ?? "", recurrence: editingBill.data.recurrence ?? null, bill: editingBill.data.bill! } : undefined}
+          // 2026-09-11: "paid" carries the receipt's read-out in its own
+          // initial; only reading editingBill opened From a Receipt empty.
+          initial={billSheet.kind === "paid" ? billSheet.initial
+            : editingBill ? { text: editingBill.data.text, due: editingBill.data.due ?? "", recurrence: editingBill.data.recurrence ?? null, bill: editingBill.data.bill! } : undefined}
           onSave={saveBill}
           onDelete={billSheet.kind === "edit" ? async () => {
             const gone = editingBill ? { ...editingBill.data } : null;

@@ -231,3 +231,73 @@ describe("BiggerPictureFlow Mark Achieved (LIFE-F-16)", () => {
     }
   });
 });
+
+// 2026-09-11: unpicking a goal's last area saved nothing, because the sheet
+// left the tags key out and the service merge kept the old ones.
+
+let areaRef: { svc: GoalService; id: string } | null = null;
+
+function SeedGoalArea() {
+  const goals = useGoals();
+  const cats = useCategories();
+  const [id, setId] = useState("");
+  useEffect(() => {
+    (async () => {
+      const health = (await cats.create("Health", "green"))!;
+      const gid = (await goals.create({ title: "Sleep by eleven", state: "on_track", tags: [health] }))!;
+      areaRef = { svc: goals, id: gid };
+      setId(gid);
+    })();
+  }, [goals, cats]);
+  return id ? <BiggerPictureFlow openGoalId={id} /> : null;
+}
+
+describe("BiggerPictureFlow goal areas (2026-09-11)", () => {
+  it("removing every area from a goal clears them for good", async () => {
+    render(<NotesProvider userId="u-goal-areas"><SeedGoalArea /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Edit"));
+    await screen.findByText("Edit Goal");
+    fireEvent.click(screen.getByLabelText("Areas"));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^None$/ }));
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => {
+      expect((await areaRef!.svc.get(areaRef!.id))?.data.tags ?? []).toEqual([]);
+    });
+  });
+});
+
+// 2026-09-11: the step sheet inside a project showed Length as None and
+// dropped any change to it; it reads and writes it the way TasksFlow does.
+
+let lenRef: { tasks: TasksService; id: string } | null = null;
+
+function SeedLength() {
+  const projects = useProjects();
+  const tasks = useTasks();
+  const [pid, setPid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const projectId = (await projects.create({ title: "Garage", status: "active" }))!;
+      const id = (await tasks.createTask("Sort the shelves", { projectId, estimateMin: 30 }))!;
+      lenRef = { tasks, id };
+      setPid(projectId);
+    })();
+  }, [projects, tasks]);
+  return pid ? <BiggerPictureFlow openId={pid} /> : null;
+}
+
+describe("BiggerPictureFlow step length (2026-09-11)", () => {
+  it("shows the step's length and saves a change to it", async () => {
+    render(<NotesProvider userId="u-step-length"><SeedLength /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Sort the shelves"));
+    await screen.findByText("Edit Task");
+    const length = screen.getByLabelText("Length");
+    expect(length.textContent).toContain("30m");
+    fireEvent.click(length);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /^1h 30m$/ }));
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => {
+      expect((await lenRef!.tasks.task(lenRef!.id))?.estimateMin).toBe(90);
+    });
+  });
+});

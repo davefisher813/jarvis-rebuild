@@ -8,6 +8,17 @@ import MoneyFlow from "./MoneyFlow";
 import { todayISO } from "../tasks/grouping";
 import type { TemplateKey } from "../categories/defaults";
 
+// 2026-09-11: AI is off for every test here except the receipt read, which
+// flips it on for itself. The encoder needs a real canvas, so it is stubbed.
+const aiState = vi.hoisted(() => ({ available: false, reply: "" }));
+vi.mock("../ai/useAI", () => ({
+  useAI: () => ({ available: aiState.available, complete: async () => aiState.reply }),
+}));
+vi.mock("../shared/imageEncode", async (orig) => ({
+  ...(await orig<typeof import("../shared/imageEncode")>()),
+  encodeImageForVision: async () => ({ data: "x", mediaType: "image/png" }),
+}));
+
 describe("MoneyFlow", () => {
   it("empty -> add account -> shows total, dated as self-reported", async () => {
     render(<NotesProvider userId="u1"><MoneyFlow /></NotesProvider>);
@@ -360,5 +371,46 @@ describe("a Credit account is a debt, typed as a plain number (HMN-F-13)", () =>
     // No minus was typed anywhere, and the total went down by the debt.
     expect(screen.getAllByText("-$2,000").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("$2,000")).not.toBeInTheDocument();
+  });
+});
+
+// 2026-09-11: Read It filled the "paid" sheet's own initial, but the sheet was
+// only ever handed the edit bill's, so From a Receipt opened empty.
+import { useOptionalFiles } from "../data/NotesProvider";
+import { MemoryFileStore } from "../files/FileStore";
+
+function SeededReceipt() {
+  const files = useOptionalFiles();
+  const tasks = useTasks();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    void (async () => {
+      // One bill, so the page is past its empty state and Receipts shows.
+      await tasks.createTask("Rent", { bill: { amount: 100 } });
+      await files!.create({ name: "corner-store.png", path: "p/corner-store.png", mime: "image/png", bytes: 10, scope: "money", addedAt: "2026-09-01" });
+      setReady(true);
+    })();
+  }, [files, tasks]);
+  return ready ? <MoneyFlow /> : null;
+}
+
+describe("Read It prefills From a Receipt", () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); aiState.available = false; aiState.reply = ""; });
+
+  it("opens the sheet with the vendor and total the receipt read", async () => {
+    aiState.available = true;
+    aiState.reply = '{"vendor":"Corner Store","total":42.75,"date":"2026-09-03","currency":"USD"}';
+    vi.spyOn(MemoryFileStore.prototype, "url").mockResolvedValue("blob:receipt");
+    vi.stubGlobal("fetch", vi.fn(async () => ({ blob: async () => new Blob(["x"], { type: "image/png" }) })));
+    render(<NotesProvider userId="receipt-read"><SeededReceipt /></NotesProvider>);
+
+    const readIt = await screen.findByLabelText("Read corner-store.png");
+    // The URL resolves a beat after the row; Read It waits for it.
+    await waitFor(() => {
+      if (!screen.queryByText("From a Receipt")) fireEvent.click(readIt);
+      expect(screen.getByText("From a Receipt")).toBeInTheDocument();
+    });
+    expect((screen.getByLabelText("Bill name") as HTMLInputElement).value).toBe("Corner Store");
+    expect((screen.getByLabelText("Amount in dollars") as HTMLInputElement).value).toBe("42.75");
   });
 });

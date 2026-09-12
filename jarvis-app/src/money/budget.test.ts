@@ -79,6 +79,13 @@ describe("what is actually yours", () => {
     expect(shortLine(leftToSpend(2102, 1240, 450))).toBe("");
   });
 
+  // 2026-09-11: the rows show cents (HMN-F-25, option B), so the total does too.
+  it("keeps the cents the bills carry, without float dust", () => {
+    expect(leftToSpend(1000, 49.99, 0).amount).toBe(950.01);
+    expect(leftToSpend(100.1, 50.05, 0).amount).toBe(50.05);
+    expect(shortLine(leftToSpend(1000, 1012.5, 0))).toBe("$12.50 past this paycheck");
+  });
+
   it("knows when the bills alone are the problem", () => {
     expect(leftToSpend(1000, 1200, 0).short).toBe(true);
     expect(leftToSpend(1000, 900, 300).short).toBe(false); // the reserves did that, not the bills

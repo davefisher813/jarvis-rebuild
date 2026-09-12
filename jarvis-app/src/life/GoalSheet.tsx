@@ -96,7 +96,10 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
       ...(initial?.areaId ? { areaId: initial.areaId } : {}),
       ...(initial?.saved ? { saved: initial.saved } : {}),
       ...(initial?.dropped ? { dropped: initial.dropped } : {}),
-      ...(tags.length ? { tags } : {}),
+      // 2026-09-11: the key is always written. Left out, the service's merge
+      // kept the old areas when the last one was unpicked; undefined is the
+      // clear (the store sends it as null), same as measure and by below.
+      tags: tags.length ? tags : undefined,
       measure: measureOf(),
       by: dated && by ? by : undefined,
       moneyTarget: target.trim() ? Number(target) : undefined,

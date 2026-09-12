@@ -85,7 +85,9 @@ export interface Left {
 }
 
 export function leftToSpend(paycheck: number, billsOut: number, setAside: number): Left {
-  const amount = Math.round(paycheck - billsOut - setAside);
+  // 2026-09-11: to the cent, like the rows above it (HMN-F-25, option B).
+  // Whole dollars made Yours disagree with the bills it was computed from.
+  const amount = Math.round((paycheck - billsOut - setAside) * 100) / 100;
   return { amount, paycheck, billsOut, setAside, short: paycheck - billsOut < 0 };
 }
 

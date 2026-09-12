@@ -719,6 +719,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                   recurrence: d.repeat ? (d.repeat as "daily" | "weekly" | "monthly") : undefined,
                   plan: d.plan,
                   steps: d.steps,
+                  // 2026-09-11: the sheet's Length row, kept as TasksFlow keeps it.
+                  estimateMin: d.estimateMin,
                 }));
                 setSheet({ kind: "closed" });
                 await reload();
@@ -755,6 +757,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                 projectId: t.data.projectId ?? "",
                 plan: t.data.plan,
                 steps: t.data.steps,
+                // 2026-09-11: Length read None here and an edit to it was dropped.
+                estimateMin: t.data.estimateMin,
               }}
               onSave={async (d: TaskDraft) => {
                 const id = sheet.id;
@@ -767,6 +771,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                   await tasksSvc.setRecurrence(id, rec || null);
                   await tasksSvc.setPlan(id, d.plan ?? null);
                   await tasksSvc.setSteps(id, d.steps ?? []);
+                  await tasksSvc.setEstimate(id, d.estimateMin ?? null);
                   if (d.closeNow) await tasksSvc.toggleDone(id);
                 });
                 setSheet({ kind: "closed" });
