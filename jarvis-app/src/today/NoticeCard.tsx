@@ -256,6 +256,9 @@ export default function NoticeCard({
 
   const subNode = sub != null && (typeof sub === "string" ? <Quiet s={sub} heat={heat} /> : sub);
 
+  // TWO VERBS, ONE LINE (2026-09-12): an expanded row with an alt puts both
+  // its verbs on the line under the text, and the trailing slot goes empty.
+  const twoVerbs = !!alt && effForm === "card" && form === "row";
   const inner =
     effForm === "row" ? (
       <div
@@ -298,14 +301,16 @@ export default function NoticeCard({
             <div className="conn-name" ref={(el) => { factRef.current = el; }}>{title}</div>
             {subNode && !subDropped && <div className="conn-meta" ref={(el) => { subRef.current = el; }}>{subNode}</div>}
           </div>
-          {action && !stack ? (
+          {/* An expanded row with two verbs carries neither in the trailing
+              slot: both go on the verbs line below, together. See there. */}
+          {action && !stack && !twoVerbs ? (
             <button
               className="pill-act"
               onClick={(e) => { e.stopPropagation(); action.onClick(); }}
             >
               {action.label}
             </button>
-          ) : onOpen ? (
+          ) : onOpen && !twoVerbs ? (
             <div className="chev" />
           ) : null}
         </div>
@@ -316,12 +321,31 @@ export default function NoticeCard({
             </button>
           </div>
         )}
-        {alt && effForm === "card" && form === "row" && (
+        {twoVerbs && alt && (
           /* An expanded row surfaces its alt as a visible second capsule:
              the swipe reveal exists, but the whole point of expanding was
-             to see the rest. */
-          <div className="hl-acts">
-            <button className="btn btn-sm" onClick={alt.onClick}>{alt.label}</button>
+             to see the rest.
+             TWO VERBS, ONE LINE (Dave 2026-09-12, photographed: "Meds ·
+             Missed at 10:00AM" with Ask Again in the trailing slot and Done
+             alone on a second line, right-aligned, a card's height of
+             nothing between them). The alt used to drop into .hl-acts by
+             itself while the primary stayed up in the row, so the eye had
+             to travel from one capsule to the other across a hole. Both
+             verbs sit on this line now, in the text column, primary first,
+             and the trailing slot above is empty. The empty .row-glyph in
+             front is the spacer that puts them on the text edge exactly,
+             whatever the row's gap is. */
+          <div className="row hl-verbs">
+            <div className="row-glyph" aria-hidden="true" />
+            <div className="hl-acts">
+              {action && !stack && (
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>{action.label}</button>
+              )}
+              {/* The same capsule as the primary, one rung quieter: two
+                  shapes on one line read as two kinds of thing, and these
+                  are two choices of the same kind. */}
+              <button className="pill-act pill-quiet" onClick={(e) => { e.stopPropagation(); alt.onClick(); }}>{alt.label}</button>
+            </div>
           </div>
         )}
         {foot}

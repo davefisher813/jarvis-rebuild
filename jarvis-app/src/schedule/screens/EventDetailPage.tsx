@@ -64,7 +64,7 @@ export default function EventDetailPage({
     const day = d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
     const start = fmtTime(e.start);
     const end = e.end ? fmtTime(e.end) : null;
-    return `${day} · ${start.time}${start.ap}${end ? " to " + end.time + end.ap : ""}`;
+    return `${day} · ${start.time} ${start.ap}${end ? " to " + end.time + " " + end.ap : ""}`;
   })();
   const prov = rowSource(e.source, e.moved);
 

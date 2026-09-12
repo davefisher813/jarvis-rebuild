@@ -2033,6 +2033,15 @@ button {
    the eye does not have to travel to find the second choice. */
 .hl-acts { display: flex; flex-wrap: wrap; justify-content: flex-end;
   gap: var(--s-2); padding: 0 var(--s-4) var(--s-3h); }
+/* TWO VERBS, ONE LINE (Dave 2026-09-12, photographed). An expanded notice
+   row puts BOTH its verbs on a line of their own under the text, primary
+   first, on the text edge: the line is a .row with an empty glyph in front
+   as the spacer, so the verbs start exactly where the title does whatever
+   the row's gap is. It is not a second row, so no hairline above it and no
+   second tap height; it is the first row's verbs, moved down together. */
+.ruled .row.hl-verbs, .row.hl-verbs { padding-top: 0; min-height: 0; }
+.card .row + .row.hl-verbs::before { display: none; }
+.hl-verbs .hl-acts { flex: 1; justify-content: flex-start; padding: 0; }
 .hl-acts .btn-sm { flex: 0 1 auto; max-width: 100%; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 /* Verb rows: one line, fact plus capsule. The card slims down so a stack of

@@ -5910,8 +5910,12 @@ describe("an offer card never clips the claim or its receipt (2026-09-07)", () =
   it("stacking moves the action out of the right slot, it does not add a second one", () => {
     // Contract lint rule 7 is the right slot's arity. A stacked card must
     // render the capsule below INSTEAD of beside, never as well as.
-    expect(CARD).toMatch(/action && !stack \?/);
+    // 2026-09-12: the same arity holds for an expanded row with two verbs
+    // (twoVerbs): both move to the verbs line and the slot goes empty, so
+    // the guard on the slot carries that clause too.
+    expect(CARD).toMatch(/action && !stack && !twoVerbs \?/);
     expect(CARD).toMatch(/action && stack &&/);
+    expect(CARD, "the verbs line carries the primary only when the slot does not").toMatch(/twoVerbs && alt &&[\s\S]{0,1600}action && !stack &&/);
   });
 
   it("a stacked card unclamps both lines", () => {

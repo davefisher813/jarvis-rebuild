@@ -2720,7 +2720,7 @@ export default function TodayFlow({
     const ok = await attemptWrite(() => tasks.snoozeReminder(id, to, today));
     await reload();
     if (!ok) return;
-    showToast({ message: "Snoozed to " + fmtTime(to).time + fmtTime(to).ap });
+    showToast({ message: "Snoozed to " + fmtTime(to).time + " " + fmtTime(to).ap });
   };
   // A DAY AND AN AREA, NOT JUST A CLOCK (Dave 2026-09-11: "I can't even
   // select a date for a reminder. Expand the booking options"). A reminder has
@@ -2765,7 +2765,7 @@ export default function TodayFlow({
     const to = snoozeTime(nhm, 15);
     await attemptWrite(() => tasks.snoozeReminder(id, to, today));
     await reload();
-    showToast({ message: "Asking again at " + fmtTime(to).time + fmtTime(to).ap });
+    showToast({ message: "Asking again at " + fmtTime(to).time + " " + fmtTime(to).ap });
   };
   const missedReminderCards = missedCards.map((r) => (
     <NoticeCard
@@ -2774,7 +2774,7 @@ export default function TodayFlow({
       icon={<BellRing className="ic" />}
       tone="cat-fg-slate"
       title={r.text}
-      sub={"Missed at " + fmtTime(r.time).time + fmtTime(r.time).ap}
+      sub={"Missed at " + fmtTime(r.time).time + " " + fmtTime(r.time).ap}
       action={{ label: "Ask Again in 15m", onClick: () => void onAskAgainReminder(r.id) }}
       alt={{ label: "Done", onClick: () => void onTickReminder(r.id, true) }}
     />
