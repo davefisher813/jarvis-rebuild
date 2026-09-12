@@ -505,9 +505,11 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("The Rest"));
     // SPEC MOVED (8A castes, 2026-08-25): "Archive All" is now "Sweep".
     fireEvent.click(await screen.findByText("Sweep"));
-    // SPEC MOVED (short copy, 2026-08-15)
-    expect(await screen.findByText(/Archived unread 4 times/)).toBeInTheDocument();
-    expect(screen.queryByText("Clear Noise Automatically from Now On")).toBeNull();
+    // SPEC MOVED (short copy, 2026-08-15). E-09 (2026-09-12): the offer is a
+    // NoticeCard, the question is its title and the count is a fact.
+    expect(await screen.findByText("File No as Noise?")).toBeInTheDocument();
+    expect(screen.getByText(/4 Archived unread/)).toBeInTheDocument();
+    expect(screen.queryByText("Clear Noise Automatically?")).toBeNull();
   });
 
   it("archive can be undone from the toast", async () => {

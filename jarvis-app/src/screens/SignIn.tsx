@@ -135,7 +135,7 @@ export default function SignIn() {
           )}
           {error && <div className="input-error">{error}</div>}
           {resetSent && <div className="input-hint">Check your email for a reset link.</div>}
-          {linkSent && <div className="input-hint">Check your email for a sign-in link \u00b7 Open it on this device</div>}
+          {linkSent && <div className="input-hint">Check your email for a sign-in link {"\u00b7"} Open it on this device</div>}
           {/* UP-LAUNCH-11: the link first. A 15 year old does not keep a
               password, a parent on a shared phone should not have to, and
               every password that exists is a password reset waiting to

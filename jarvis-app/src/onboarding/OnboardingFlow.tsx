@@ -732,7 +732,7 @@ function PayoffScreen({ name, briefLabel, seeds, taskTitle, slotLine, saving, on
     <div className="ob-screen ruled">
       <div className="ob-body">
         <div className="ob-card-title">{name ? `You\u2019re set, ${name}.` : "You\u2019re set."}</div>
-        <div className="ob-sub">Here\u2019s your day, already moving.</div>
+        <div className="ob-sub">Here’s your day, already moving.</div>
         <div className="grp"><div className="eyebrow">Today</div></div>
         <div className="pad-x"><div className="card">
           {briefLabel && (

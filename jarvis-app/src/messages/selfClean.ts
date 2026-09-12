@@ -72,8 +72,14 @@ export function tossOffer(counts: TossCounts = loadTossed(), asked: string[] = l
   return best;
 }
 
-export function tossLine(sender: string, n: number): string {
+/** The sender as a word: the local part of the address, spaced and
+ *  capitalised, or the name as given. E-09 (2026-09-12) asks the offer's
+ *  question with it ("File Peloton as Noise?"), so it stands on its own. */
+export function tossName(sender: string): string {
   const who = sender.includes("@") ? sender.split("@")[0]!.replace(/[._-]+/g, " ") : sender;
-  const name = who.charAt(0).toUpperCase() + who.slice(1);
-  return name + " · Archived unread " + n + " times";
+  return who.charAt(0).toUpperCase() + who.slice(1);
+}
+
+export function tossLine(sender: string, n: number): string {
+  return tossName(sender) + " · Archived unread " + n + " times";
 }

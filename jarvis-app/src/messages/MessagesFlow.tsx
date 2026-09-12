@@ -3,6 +3,8 @@ import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock } from "../shared/icons";
 import { leadFor, faceSlot } from "./rowAnatomy";
+import { Facts } from "./factsLine";
+import NoticeCard from "../today/NoticeCard";
 import "../styles/mail-rows.css";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
@@ -37,7 +39,7 @@ import { effectiveLevel } from "../ai/aiGate";
 import { getAIControl } from "../ai/levelStore";
 import { cleanBody, isLong, leadIn, wordCount } from "./bodyText";
 import MailHtmlView from "./MailHtmlView";
-import { recordToss, markAsked, tossOffer, tossLine, loadTossed } from "./selfClean";
+import { recordToss, markAsked, tossOffer, tossName, loadTossed } from "./selfClean";
 import { loadUnsubs, recordUnsub, askedSenders, stillSending, unsubReceipt, canBlock, BLOCK_AFTER, type UnsubRecord } from "./unsubRecords";
 import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt, type SweepCandidate } from "./unsubSweep";
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes } from "./drain";
@@ -3622,7 +3624,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="mline1">
           <span className={"mfrom" + (strong ? " strong" : "")}>{displayName(r.from)}</span>
           {/* N4: a VIP is marked where he reads, not buried in a setting. */}
-          {isVip(r.fromEmail, vips) && <span className="mstar" aria-label="Always gets through">\u2605</span>}
+          {isVip(r.fromEmail, vips) && <span className="mstar" aria-label="Always gets through">{"\u2605"}</span>}
           {/* ONE VOCABULARY FOR ONE FIELD (2026-08-25): the deadline runs
               through byLabel, the same words the Today card uses. UP-MIND-12:
               the deadline IS the chip, and when the sentence behind it was
@@ -4351,20 +4353,30 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {/* ONE offer at a time. Three stacked offers is a form, and the law
               is one line, one action, one quiet dismiss. Self-cleaning wins
               because it ends a sender for good. */}
+          {/* ONE SHAPE FOR EVERY OFFER (EM7 / E-09, Dave's picks 2026-09-12).
+              These three were three different shapes: a card with a full-width
+              red button and a text link under it, twice, and a bare pair of
+              buttons once. Every offer is a NoticeCard now, the same one Today
+              makes its offers with: the question is the title, the facts are
+              a facts line, the one capsule is the yes, and the quiet no is
+              the alt, on the swipe reveal and on the expanded row. */}
           {/* N9 (2026-08-20): the BATCH version of self-cleaning, and it does
               the better thing. Filing hides mail; unsubscribing ends it. Only
               senders he has already thrown away by hand, asked once each,
               and it NEVER claims it worked: some senders ignore the header,
               and a false receipt is worse than no receipt. */}
           {sweep.length > 1 && !toss ? (
-            <div className="pad-x offer-row">
-              <div className="card"><div className="row"><div className="row-grow">
-                <div className="conn-name">{sweepTitle(sweep)}</div>
-                <div className="conn-meta msg-offer-line">{sweepSub(sweep)}</div>
-              </div></div></div>
-              <button
-                className="btn btn-primary btn-block"
-                onClick={() => void (async () => {
+            <NoticeCard
+              icon={<Tag className="ic" />}
+              tone="cat-fg-graphite"
+              uniform={false}
+              title={sweepSub(sweep)}
+              sub={<Facts facts={[{ text: sweepTitle(sweep) }, { text: sweep.map((c) => c.name).slice(0, 3).join(", ") + (sweep.length > 3 ? " +" + (sweep.length - 3) : "") }]} />}
+              action={{
+                // In his voice, like every yes and no on an offer (the casing law's
+                // USER_VOICE list): a decline is not a command.
+                label: sweep.every((c) => c.canUnsub) ? "Yes, end them" : sweep.some((c) => c.canUnsub) ? "Yes, do both" : "Yes, file them",
+                onClick: () => void (async () => {
                   // ASKED MEANS ASKED (2026-08-25). This incremented `ended`
                   // off an un-awaited call, so the receipt said "Asked 3
                   // senders to stop" whether or not a single one went out.
@@ -4386,32 +4398,39 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   if (filed) mirrorMail();
                   setSweep([]);
                   say(sweepReceipt(ended, filed), undefined, 4000);
-                })()}
-              >{sweepSub(sweep)}</button>
-              <button className="quiet-action" onClick={() => { sweep.forEach((c) => markAsked(c.sender)); setSweep([]); }}>Leave them</button>
-            </div>
+                })(),
+              }}
+              alt={{ label: "Leave them", onClick: () => { sweep.forEach((c) => markAsked(c.sender)); setSweep([]); } }}
+            />
           ) : toss ? (
-            <div className="pad-x offer-row">
-              <div className="card"><div className="row"><div className="row-grow">
-                <div className="conn-meta msg-offer-line">{tossLine(toss.sender, toss.n)}</div>
-              </div></div></div>
-              <button
-                className="btn btn-primary btn-block"
-                onClick={() => {
+            <NoticeCard
+              icon={<Tag className="ic" />}
+              tone="cat-fg-graphite"
+              uniform={false}
+              title={"File " + tossName(toss.sender) + " as Noise?"}
+              sub={<Facts facts={[{ text: capAfterNumber(toss.n + " archived unread") }, { text: "Never opened" }]} />}
+              action={{
+                label: "Yes, file them",
+                onClick: () => {
                   setRules(saveRule(toss.sender, "noise"));
                   mirrorMail();
                   markAsked(toss.sender);
                   setToss(null);
                   say("Straight to Noise from now on", undefined, 2500);
-                }}
-              >Yes, file them</button>
-              <button className="quiet-action" onClick={() => { markAsked(toss.sender); setToss(null); }}>No thanks</button>
-            </div>
+                },
+              }}
+              alt={{ label: "No thanks", onClick: () => { markAsked(toss.sender); setToss(null); } }}
+            />
           ) : autoOffer ? (
-            <div className="pad-x offer-row">
-              <button className="btn btn-secondary btn-block" onClick={enableAutoNoise}>Clear Noise Automatically from Now On</button>
-              <button className="quiet-action" onClick={() => setAutoOffer(false)}>Keep it manual</button>
-            </div>
+            <NoticeCard
+              icon={<Tag className="ic" />}
+              tone="cat-fg-graphite"
+              uniform={false}
+              title="Clear Noise Automatically?"
+              sub={<Facts facts={[{ text: "From now on" }, { text: "Named on the receipt each time" }]} />}
+              action={{ label: "Turn It On", onClick: enableAutoNoise }}
+              alt={{ label: "Keep it manual", onClick: () => setAutoOffer(false) }}
+            />
           ) : null}
           {/* E12 (2026-08-23): the close-out. It goes at the bottom because
               that is where you arrive having finished, and it is the only
