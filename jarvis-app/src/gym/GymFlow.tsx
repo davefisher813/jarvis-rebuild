@@ -1425,6 +1425,30 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   }
   if (live) {
     const day = program ? findDay(program.data.weeks, live.dayId) : undefined;
+    // AN OPEN SESSION HAS TO OPEN ON SOMETHING (2026-09-12). The scratch day
+    // starts a session with no exercises on purpose, "one the athlete fills
+    // with Add Exercise" -- but that control lives inside SessionScreen, which
+    // cannot render without a current exercise, so the gym drew an empty screen
+    // with no nav bar and no button, and isStillActive kept that session for
+    // the rest of the day: every later visit landed on the same dead end.
+    //
+    // So the empty session opens the same ExerciseSheet the Add Exercise button
+    // opens. Save and it is a session like any other. Cancel and the empty
+    // session is discarded rather than left behind, which is what Open Session
+    // meant in the first place: the sheet IS the screen until there is a lift.
+    if (live.exercises.length === 0) {
+      return (
+        <ExerciseSheet
+          mode="new"
+          library={library}
+          history={workouts}
+          onSave={(draft) => {
+            patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note }));
+          }}
+          onCancel={() => { clearLive(); enterSession(null); }}
+        />
+      );
+    }
     const liveEx = live.exercises[live.idx];
     const planned = day?.exercises[live.idx];
     // SWAP / ADD MID-SESSION / SAME AS LAST TIME (catalog §3.9, §3.10,
