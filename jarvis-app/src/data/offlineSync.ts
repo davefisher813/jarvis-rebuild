@@ -91,6 +91,11 @@ export function wireOfflineSync(store: Store, alsoFlush?: () => void): () => voi
         : `Kept the newer edits · ${n} held changes were older`,
     });
   });
+  // 2026-09-11: a queue the Store restored from a killed session loads with
+  // the Store already online, so an online launch never replayed it, and a
+  // later edit to a still-held capture went to a row the server never had.
+  // Drain it now, with the same backoff as any other failed reconnect.
+  if (!startsOffline && store.queueLen() > 0) store.reconnect().catch(() => { retryLater(); });
   return () => {
     stopped = true;
     clear();

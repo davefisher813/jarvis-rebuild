@@ -5,7 +5,7 @@
 // These prove the failure lands on a card with a working Try Again, and that
 // the splash is dismissed so the card can be seen.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "./data/NotesProvider";
 import { ProfileService } from "./profile/ProfileService";
@@ -55,5 +55,40 @@ describe("AppGate when the profile read fails (SHELL-F-13)", () => {
     await waitFor(() => expect(screen.getByText("Onboarding Here")).toBeInTheDocument());
     expect(screen.queryByText("Something Went Wrong")).not.toBeInTheDocument();
     expect(captureError).not.toHaveBeenCalled();
+  });
+});
+
+// 2026-09-11: a Supabase token refresh rebuilds every service for the same
+// user. The gate used to drop to "loading" (null) for it, unmounting the shell
+// and everything open in it, about once an hour and on every resume.
+describe("AppGate across a token refresh (same user, new services)", () => {
+  const gate = (token: string) => (
+    <NotesProvider userId="u-gate-refresh" accessToken={token}>
+      <AppGate />
+    </NotesProvider>
+  );
+
+  it("keeps the shell mounted and re-checks quietly", async () => {
+    const read = vi.spyOn(ProfileService.prototype, "isOnboarded").mockResolvedValue(true);
+    const { rerender } = render(gate("t1"));
+    const shell = await screen.findByText("App Shell Here");
+
+    rerender(gate("t2"));
+    expect(shell).toBeInTheDocument(); // the same node: never unmounted
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+    await act(async () => {});
+    expect(shell).toBeInTheDocument();
+  });
+
+  it("a quiet re-check that fails leaves the app on screen, not the failure card", async () => {
+    const read = vi.spyOn(ProfileService.prototype, "isOnboarded").mockResolvedValue(true);
+    const { rerender } = render(gate("t1"));
+    const shell = await screen.findByText("App Shell Here");
+
+    read.mockRejectedValueOnce(new Error("no signal"));
+    rerender(gate("t2"));
+    await waitFor(() => expect(captureError).toHaveBeenCalledTimes(1));
+    expect(shell).toBeInTheDocument();
+    expect(screen.queryByText("Something Went Wrong")).not.toBeInTheDocument();
   });
 });

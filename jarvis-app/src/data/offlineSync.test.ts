@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { Store, InMemoryAdapter } from "@core";
+import { Store, InMemoryAdapter, type QueuedOp } from "@core";
 import { wireOfflineSync } from "./offlineSync";
 import { subscribeToast, hideToast } from "../shared/toast";
 
@@ -198,6 +198,48 @@ describe("the backoff retry after a write finds the signal gone", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// 2026-09-11: a queue restored from a killed session loads with the Store
+// online, and nothing ever drained it on an online launch.
+describe("a held queue restored at launch", () => {
+  const HELD_ID = "5f0c2a4e-1b2d-4c3e-8f4a-0123456789ab";
+  const held = (): QueuedOp[] => [
+    { op: "create", id: HELD_ID, ownerId: "u", entityType: "task", data: { text: "Held" }, queuedAt: 1 },
+  ];
+
+  it("replays on an online launch, with no online event to wait for", async () => {
+    onlineGetter(true);
+    const adapter = new InMemoryAdapter();
+    const store = new Store(adapter, { load: held, save: () => {} });
+    expect(store.queueLen()).toBe(1);
+    wireOfflineSync(store);
+    await vi.waitFor(() => expect(store.queueLen()).toBe(0));
+    expect(await adapter.read("u", HELD_ID)).not.toBeNull();
+  });
+
+  it("a launch replay that fails retries on the backoff", async () => {
+    vi.useFakeTimers();
+    try {
+      onlineGetter(true);
+      const store = new Store(new InMemoryAdapter(), { load: held, save: () => {} });
+      const reconnect = vi.spyOn(store, "reconnect").mockRejectedValueOnce(new Error("still down")).mockResolvedValue(undefined);
+      wireOfflineSync(store);
+      expect(reconnect).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(reconnect).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("an offline launch holds it for the online event", () => {
+    onlineGetter(false);
+    const store = new Store(new InMemoryAdapter(), { load: held, save: () => {} });
+    const reconnect = vi.spyOn(store, "reconnect");
+    wireOfflineSync(store);
+    expect(reconnect).not.toHaveBeenCalled();
   });
 });
 

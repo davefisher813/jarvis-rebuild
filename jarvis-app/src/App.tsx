@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { lazyWithRecovery } from "./shell/chunkRecovery";
 import { useAuth } from "./auth/AuthProvider";
 import { NotesProvider, useProfile } from "./data/NotesProvider";
@@ -31,15 +31,30 @@ export function AppGate({ seedDemo = false }: { seedDemo?: boolean }) {
   const profile = useProfile();
   const [state, setState] = useState<"loading" | "onboarding" | "app" | "failed">("loading");
   const [attempt, setAttempt] = useState(0);
+  // 2026-09-11: every Supabase token refresh (hourly, and on resume) rebuilds
+  // the services, so `profile` changes under a signed-in user. Dropping back
+  // to "loading" for that unmounted the whole shell: open sheets, typed text,
+  // where he was, the in-memory Google tokens. Once the gate has answered, a
+  // new service re-checks quietly and moves only if the answer changed. A
+  // different user never gets here: App keys this gate by user id.
+  const answered = useRef(false);
 
   useEffect(() => {
     let on = true;
-    setState("loading");
+    const quiet = answered.current;
+    if (!quiet) setState("loading");
     profile.isOnboarded().then(
-      (ok) => { if (on) setState(ok ? "app" : "onboarding"); },
+      (ok) => {
+        if (!on) return;
+        answered.current = true;
+        setState(ok ? "app" : "onboarding");
+      },
       (e: unknown) => {
         if (!on) return;
         captureError(e, { where: "AppGate.isOnboarded" });
+        // Already in: the answer we have stands rather than a failure card
+        // replacing what is on screen.
+        if (quiet) return;
         setState("failed");
         dismissSplash();
       },
@@ -102,7 +117,7 @@ export default function App() {
 
   return (
     <NotesProvider userId={session.user.id} accessToken={session.access_token}>
-      <AppGate />
+      <AppGate key={session.user.id} />
     </NotesProvider>
   );
 }
