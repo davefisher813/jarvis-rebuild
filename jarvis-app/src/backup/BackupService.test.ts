@@ -173,6 +173,52 @@ describe("importBundle cross-references", () => {
     expect(rows.find((r) => r.id === ids.taskId)!.data.category).toBe(ids.catId);
   });
 
+  // 2026-09-12: pass one minted a fresh id for a record pass two then skipped
+  // as a content duplicate, so the id it handed out was never created and
+  // everything pointing at it pointed at nothing. Restoring one file into an
+  // account twice left five dangling references (the area on the goal, and the
+  // category on the task, the note, the event and the project), and each record
+  // carrying one differed in content from the row already there, so it came
+  // back as an uncategorized second copy.
+  //
+  // A record the account already holds is recognised by its content now, and
+  // recognising one repeats into the references that point at it. What this
+  // cannot resolve is a REFERENCE CYCLE: the note names the task and the task
+  // names the note, so neither is recognisable until the other already is, and
+  // that cluster is still written a second time. It is written whole and
+  // internally consistent, which is the part that matters: a duplicate a person
+  // can delete, never a record pointing at something that does not exist.
+  it("never leaves a reference pointing at a row that was never created", async () => {
+    const store = new Store(new InMemoryAdapter());
+    await seed(store, "u1");
+    const bundle = await new BackupService(store, "u1").exportBundle();
+
+    // The same content under another account's ids: what a restore onto a fresh
+    // phone looks like, and what a second restore of the same file meets.
+    const other = new Store(new InMemoryAdapter());
+    const otherSvc = new BackupService(other, "u2");
+    expect((await otherSvc.importBundle(bundle)).imported).toBe(7);
+    const again = await otherSvc.importBundle(bundle);
+
+    const rows = await other.listForUser("u2");
+    const ids = new Set(rows.map((r) => r.id));
+    const dangling: string[] = [];
+    for (const r of rows) {
+      for (const key of ["category", "projectId", "fromNote", "goalId", "areaId"]) {
+        const v = (r.data as Record<string, unknown>)[key];
+        if (typeof v === "string" && v && !ids.has(v)) dangling.push(r.entityType + "." + key);
+      }
+    }
+    expect(dangling).toEqual([]);
+    // The single-reference records are all recognised, so nothing is doubled
+    // except the note/task cycle and the event that names the task.
+    expect(again.imported).toBe(3);
+    expect(rows.filter((r) => r.entityType === "category")).toHaveLength(1);
+    expect(rows.filter((r) => r.entityType === "life_area")).toHaveLength(1);
+    expect(rows.filter((r) => r.entityType === "goal")).toHaveLength(1);
+    expect(rows.filter((r) => r.entityType === "project")).toHaveLength(1);
+  });
+
   it("leaves an id alone when the record it points at is not in the bundle", async () => {
     const store = new Store(new InMemoryAdapter());
     await new BackupService(store, "u").importBundle({

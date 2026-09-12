@@ -121,6 +121,17 @@ export class BackupService {
     // Byte-identical twins in one bundle share one new id, because the
     // content dedupe below will only write the first of them: anything
     // pointing at either twin has to land on the row that actually exists.
+    // 2026-09-12: and a record the account already holds under a DIFFERENT id
+    // maps to that row. Pass two skips it as a content duplicate, so a fresh
+    // id minted here would never be created: importing one bundle into an
+    // account twice rewrote the task's category to an id nothing holds, which
+    // made its content differ, which imported the task again as an orphan.
+    // The same happened on a first import against seeded areas.
+    const idByContent = new Map<string, string>();
+    for (const i of rows) {
+      const k = i.entityType + ":" + JSON.stringify(i.data);
+      if (!idByContent.has(k)) idByContent.set(k, i.id);
+    }
     const idMap = new Map<string, string>();
     const idByShape = new Map<string, string>();
     for (const it of bundle.items) {
@@ -132,6 +143,29 @@ export class BackupService {
       let assigned = idByShape.get(shape);
       if (!assigned) { assigned = freshId(); idByShape.set(shape, assigned); }
       idMap.set(oldId, assigned);
+    }
+
+    // Then, repeatedly: a record whose content the account ALREADY holds under
+    // another id maps to that row, because pass two will skip it as a content
+    // duplicate and the fresh id above would never be created. It has to
+    // repeat, since recognising one record rewrites the references that point
+    // at it, which can make the record carrying them identical in turn: the
+    // category is recognised first, then the task that names it, then the note
+    // whose checklist names the task. Runs until nothing new is recognised;
+    // the cap is only there so a pathological bundle cannot spin.
+    for (let pass = 0; pass < 16; pass++) {
+      let changed = false;
+      for (const it of bundle.items) {
+        if (!isImportable(it) || !KNOWN_TYPES.has(it.entityType)) continue;
+        const oldId = typeof it.id === "string" && it.id ? it.id : null;
+        if (!oldId) continue;
+        const mapped = idMap.get(oldId);
+        if (mapped && existingIds.has(mapped)) continue; // already a row here
+        const data = remapReferences(it.entityType, it.data, idMap);
+        const held = idByContent.get(it.entityType + ":" + JSON.stringify(data));
+        if (held && held !== mapped) { idMap.set(oldId, held); changed = true; }
+      }
+      if (!changed) break;
     }
 
     const created: string[] = [];

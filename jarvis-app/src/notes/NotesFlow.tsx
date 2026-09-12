@@ -140,6 +140,13 @@ export default function NotesFlow({
   // shared with the Schedule tab (shared/openSource).
   const openSourceFor = useMemo(() => (onNavigate ? sourceOpener(onNavigate) : undefined), [onNavigate]);
   const [currentId, setCurrentId] = useState<string | null>(null);
+  // 2026-09-12: the same id, readable from inside an await. Every write here
+  // reloads the note afterwards, and a reload that started on the note he just
+  // left finishes after the next one has opened; loadCurrent checks this before
+  // it paints anything, so a stale note can no longer land in the editor. The
+  // ref is set with the state and never separately.
+  const currentIdRef = useRef<string | null>(null);
+  const openCurrentId = useCallback((id: string | null) => { currentIdRef.current = id; setCurrentId(id); }, []);
   // Canvas typing flow: which block should hold the caret after a mutation.
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
   // Undo/redo (2026-08-19, deep writing pass): every block mutation snapshots
@@ -331,6 +338,11 @@ export default function NotesFlow({
       // checked off in Tasks shows checked here on open.
       await svc.reconcileChecklistTasks(id);
       const d = await svc.note(id);
+      // Not the open note any more: he left it while this was in flight. The
+      // editor used to show the old note's blocks while currentId was the new
+      // one, so typing went to blocks the open note does not have and was
+      // dropped, and Delete Note removed the note that was NOT on screen.
+      if (currentIdRef.current !== id) return;
       setCurrent(d ? toEditorNote(d) : null);
       const cs = d?.connections ?? [];
       setConns(cs);
@@ -339,6 +351,7 @@ export default function NotesFlow({
       const checked = await Promise.all(
         cs.map(async (c) => (c.targetId && (await targetGone(c.kind, c.targetId)) ? c.id : null)),
       );
+      if (currentIdRef.current !== id) return;
       setGoneConns(new Set(checked.filter((x): x is string => !!x)));
     },
     [svc, targetGone],
@@ -444,7 +457,7 @@ export default function NotesFlow({
     history.current = [];
     redoStack.current = [];
     setHistTick((t) => t + 1);
-    setCurrentId(id);
+    openCurrentId(id);
     await loadCurrent(id);
     setScreen("editor");
   };
@@ -470,7 +483,7 @@ export default function NotesFlow({
       if (id && key !== "blank") await svc.applyTemplate(id, key);
     });
     if (!id) return;
-    setCurrentId(id);
+    openCurrentId(id);
     await loadCurrent(id);
     setScreen("editor");
   };
@@ -524,7 +537,7 @@ export default function NotesFlow({
     if (!id) return;
     const ok = await attachFile(id, file, file.type.startsWith("image/") ? "photo" : "file");
     if (!ok) { await attemptWrite(() => svc.deleteNote(id!)); await loadList(); return; }
-    setCurrentId(id);
+    openCurrentId(id);
     await loadCurrent(id);
     setScreen("editor");
   };
@@ -1028,7 +1041,7 @@ export default function NotesFlow({
             const kept: NoteData | null = snapshot;
             const deletedId = currentId;
             const sweep = sweepAfter([currentId]);
-            setCurrentId(null);
+            openCurrentId(null);
             await loadList();
             setScreen("list");
             showToast({
