@@ -5022,6 +5022,13 @@ body.selecting .voice-dock { display: none; }
 .hl-other { cursor: pointer; }
 .hl-other .r-count { color: var(--tx-3); font-size: var(--t-meta); }
 
+/* THE SCHEDULE STATE WORDS (C-28, Push C). LIVE rides the Now rule on both
+   day surfaces; a proposed pick nested in its holder carries its facts on
+   the same line as its title, before the Accept. */
+.now-line .fact.st, .sched-now .fact.st { flex-shrink: 0; }
+.block-held-facts { flex-shrink: 0; margin-top: 0; }
+.plan-facts { padding: var(--s-1) 0 var(--s-2); }
+
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
    mail EvidenceChip: a surface hands that component this class rather than
    forking it, and the sheet it opens is the Why sheet (C-25). */

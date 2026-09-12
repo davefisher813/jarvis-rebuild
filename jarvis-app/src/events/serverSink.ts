@@ -71,6 +71,9 @@ const PERSISTED: ReadonlySet<string> = new Set([
   "person.reached",
   "focus.started",
   "focus.completed",
+  // Section 5 (Astra, 2026-09-12): a moved proposal. n, kind and category
+  // are the whole row; nothing about what the block was for rides along.
+  "schedule.override",
 ]);
 
 // Storage seam (same pattern as LocalEventLog) so tests run without a browser.
@@ -145,7 +148,10 @@ export function rowFrom(e: JarvisEvent): EventRow {
     n: typeof p.n === "number" ? p.n : null,
     flag: typeof p.flag === "boolean" ? p.flag : null,
     // kind is a closed vocabulary, never free text; anything unexpected drops.
-    kind: typeof p.kind === "string" && /^[a-z_]{1,24}$/.test(p.kind) ? p.kind : null,
+    // Digits joined the alphabet on 2026-09-12 for the moved0..moved3plus
+    // kinds on task.completed (section 5); a space or a capital still drops
+    // the whole value, which is what keeps a sentence out.
+    kind: typeof p.kind === "string" && /^[a-z0-9_]{1,24}$/.test(p.kind) ? p.kind : null,
     src: "live",
   };
 }

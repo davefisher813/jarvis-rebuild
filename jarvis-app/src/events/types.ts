@@ -8,7 +8,11 @@
 // props, so no schema bump is needed. Bump EVENT_SCHEMA_VERSION only if the
 // envelope shape itself changes, and migrate on read.
 
-export const EVENT_SCHEMA_VERSION = 1;
+// 2 since the Astra pass (2026-09-12, Build Master section 5): task.completed
+// carries n (minutes from the planned start) and a moved kind, and
+// schedule.override is new. The envelope itself is unchanged; the bump marks
+// the point from which a reader may expect those columns to be filled.
+export const EVENT_SCHEMA_VERSION = 2;
 
 export type JsonValue =
   | string
@@ -111,6 +115,11 @@ export type EventType =
   | "health.logged"
   // kind: call | message | checkin, entity_id is the person
   | "person.reached"
+  // C-45 / section 5 (Astra, 2026-09-12): the user moving a block JARVIS
+  // proposed. n = signed minutes from the proposed start to the start he
+  // chose; kind = the routine BlockKind the new start landed in, or event
+  // when it landed in one; category = the task's. No title, no text.
+  | "schedule.override"
   // escape hatch: props.name carries the specific action, no schema bump needed
   | "action";
 

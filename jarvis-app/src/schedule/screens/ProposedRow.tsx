@@ -64,8 +64,12 @@ export default function ProposedRow({
             {catName(block.category)}
             {/* The word does the work the dashes started. Its own segment, so
                 the dot-break casing law applies and it reads as a state, not
-                as part of the category name. */}
-            <span className="prop-tag">&middot; Proposed</span>
+                as part of the category name.
+                C-28 (Astra, 2026-09-12): and the word is the state word now,
+                in the closed vocabulary's own small caps. .prop-tag stays on
+                it for the rule that keeps live information off --tx-4. */}
+            <span className="sched-sep">&middot;</span>
+            <span className="prop-tag fact st gray">Proposed</span>
           </div>
         </div>
       </div>

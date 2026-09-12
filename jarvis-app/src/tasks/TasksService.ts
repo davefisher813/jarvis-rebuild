@@ -172,10 +172,53 @@ export class TasksService {
       recordCompletion(t.category ?? "", new Date(), id);
       // Semantic event for the durable log: completions are what the Brain's
       // completion-window and plan-vs-done derivations read.
-      this.onEvent({ type: "task.completed", entityType: ENTITY_TASK, entityId: id, props: { category: t.category ?? "" } });
+      //
+      // Section 5 (Astra, 2026-09-12; C-45): scheduled against actual. n is
+      // the signed minutes from the block JARVIS planned this task into today
+      // to the minute it was ticked, present only when such a block exists;
+      // kind says how often the task had been pushed before it got done,
+      // moved0 through moved3plus, read off the local log. Both are numbers
+      // about the task's path, never words about the task.
+      const planned = await this.plannedStartToday(id);
+      const now = new Date();
+      const n = planned === null ? undefined : now.getHours() * 60 + now.getMinutes() - planned;
+      const moved = await this.timesPushed(id);
+      const kind = moved >= 3 ? "moved3plus" : `moved${moved}`;
+      this.onEvent({ type: "task.completed", entityType: ENTITY_TASK, entityId: id, props: { category: t.category ?? "", kind, ...(n === undefined ? {} : { n }) } });
     }
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
+  }
+
+  // The start, in minutes from midnight, of the block this task was planned
+  // into TODAY, or null when no such block exists. Read off the calendar's
+  // own rows (an event whose sourceTaskId is this task), which is the one
+  // place a planned time is ever stored.
+  private async plannedStartToday(id: string): Promise<number | null> {
+    try {
+      const today = todayISO();
+      const events = await this.store.listForUser(this.ownerId, "event");
+      const mine = events.find((e) => {
+        const d = e.data as { sourceTaskId?: string; date?: string; start?: string };
+        return d.sourceTaskId === id && d.date === today && typeof d.start === "string";
+      });
+      if (!mine) return null;
+      const p = (mine.data as { start: string }).start.split(":");
+      return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);
+    } catch {
+      return null;
+    }
+  }
+
+  // How many times this task has been pushed, from the device's own log.
+  // Best effort and never fatal: a log that cannot be read counts as never.
+  private async timesPushed(id: string): Promise<number> {
+    try {
+      const { eventLog } = await import("../events");
+      return eventLog.all().filter((e) => e.type === "task.pushed" && e.entityId === id).length;
+    } catch {
+      return 0;
+    }
   }
 
   // LIFE-F-02 / SHARED-F-03 (2026-09-05): Undo on a completion toast used to

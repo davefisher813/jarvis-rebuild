@@ -14,7 +14,8 @@ import SkeletonRows from "../../shared/SkeletonRows";
 import DayRow from "./DayRow";
 import LockedRow from "./LockedRow";
 import AnytimeRow from "./AnytimeRow";
-import ProposedRow from "./ProposedRow";
+import ProposedRow, { blockMinutes } from "./ProposedRow";
+import { stateForEvent, stateForBlock } from "../stateWord";
 import type { TaskItem } from "../../tasks/TasksService";
 import type { ParentLine } from "../../life/parent";
 import type { AttachInfo } from "../attachments";
@@ -311,7 +312,12 @@ export default function SchedulePage({
   // work nested at its own times.
   const holders = locked.filter((l) => isFocusRange(l));
   const heldBy = new Map<string, EventItem[]>();
+  // C-32 (Astra, 2026-09-12): proposals nest by the same test. Today has done
+  // this since 2026-08-24; the Schedule tab drew the same pick as an
+  // unrelated row beside the block it was planned INTO.
+  const heldPropBy = new Map<string, import("../planDay").PlanBlock[]>();
   const nestedIds = new Set<string>();
+  const nestedProps = new Set<string>();
   if (mode === "day") {
     for (const e of dayEvents) {
       const s0 = toMin(e.data.start);
@@ -321,6 +327,15 @@ export default function SchedulePage({
       const key = h.label + "@" + h.s;
       heldBy.set(key, [...(heldBy.get(key) ?? []), e]);
       nestedIds.add(e.id);
+    }
+    for (const b of proposed?.blocks ?? []) {
+      const s0 = toMin(b.start);
+      const e0 = toMin(b.end);
+      const h = holders.find((l) => s0 >= l.s && e0 <= l.e);
+      if (!h) continue;
+      const key = h.label + "@" + h.s;
+      heldPropBy.set(key, [...(heldPropBy.get(key) ?? []), b]);
+      nestedProps.add(b.taskId);
     }
   }
   const entries: Entry[] = [
@@ -338,7 +353,7 @@ export default function SchedulePage({
     // NOT mode-gated. The day list renders under the month grid too, and
     // gating the ROWS on day-mode while the count line counted regardless
     // produced "6 Events · 5 Proposed" above a list showing none of them.
-    ...(proposed?.blocks ?? []).map((b): Entry => ({ kind: "proposed", b, s: toMin(b.start) })),
+    ...(proposed?.blocks ?? []).filter((b) => !nestedProps.has(b.taskId)).map((b): Entry => ({ kind: "proposed", b, s: toMin(b.start) })),
   ].sort((a, b) => a.s - b.s);
   const nowMin = now ? toMin(now) : 0;
   const nextId = isToday ? dayEvents.filter((e) => toMin(e.data.start) >= nowMin).sort((a, b) => toMin(a.data.start) - toMin(b.data.start))[0]?.id : undefined;
@@ -687,6 +702,8 @@ export default function SchedulePage({
               <React.Fragment key="now">
                 <div className="sched-now">
                   <span className="w">Now</span>
+                  {/* C-28: LIVE, on the rule alone. */}
+                  <span className="fact st red">Live</span>
                   <span className="l" />
                   {/* RUNNING LATE? LIVES ON THE RULE (A Cleaner Top): it is
                       an action about this minute, so it belongs on the line
@@ -758,21 +775,23 @@ export default function SchedulePage({
               />
             ) : en.kind === "locked" ? (() => {
               const held = heldBy.get(en.l.label + "@" + en.l.s) ?? [];
+              const heldProps = heldPropBy.get(en.l.label + "@" + en.l.s) ?? [];
               const id = en.l.id;
               return (
               <LockedRow
                 key={"lock-" + i}
                 l={en.l}
                 past={isToday && en.l.e <= nowMin}
+                state={stateForBlock(en.l)}
                 onOpen={id && onOpenBlock ? () => onOpenBlock(id) : () => onEditRoutine?.(id)}
-                heldCount={held.length}
+                heldCount={held.length + heldProps.length}
                 onFillBlock={onFillBlock ? () => onFillBlock(en.l.s, en.l.e) : undefined}
                 onShift={onShiftBlock && id ? (m) => onShiftBlock(id, m) : undefined}
                 onRetime={onRetimeBlock && id ? (s) => onRetimeBlock(id, s) : undefined}
                 onResize={onResizeBlock && id ? (e) => onResizeBlock(id, e) : undefined}
               >
                 {/* The work this block is holding, at its own times. */}
-                {held.length > 0 && (
+                {(held.length > 0 || heldProps.length > 0) && (
                   <div className="block-nest">
                     {held.map((h) => (
                       <div
@@ -786,6 +805,31 @@ export default function SchedulePage({
                         <span className={"cat-dot cat-bg-" + catColor(h.data.category)} />
                         <span className="block-held-t truncate">{h.data.title}</span>
                         <span className="block-held-u">{fmtTime(h.data.start).time}{h.data.end ? "\u2013" + fmtTime(h.data.end).time : ""}</span>
+                      </div>
+                    ))}
+                    {/* C-32 (Astra, 2026-09-12): a proposed pick that lands
+                        inside a holder nests here, the way it already does on
+                        Today, with its own Accept. The hollow dot is the
+                        "not real yet" the proposed row wears everywhere. */}
+                    {heldProps.map((b) => (
+                      <div
+                        className="block-held block-held-prop"
+                        key={"p" + b.taskId}
+                        {...pressable(() => proposed?.onToggle(b.taskId))}
+                        /* the pointer path keeps its own stopPropagation, as
+                           the held block above it does: this row sits inside
+                           the routine row. */
+                        onClick={(ev) => { ev.stopPropagation(); proposed?.onToggle(b.taskId); }}
+                      >
+                        <span className={"cat-dot-hollow cat-bd-" + catColor(b.category)} />
+                        <span className="block-held-t truncate">{b.text}</span>
+                        <span className="facts block-held-facts">
+                          <span className="fact st gray">Proposed</span>
+                          <span className="fact">{blockMinutes(b)}m</span>
+                        </span>
+                        {proposed?.onAccept && (
+                          <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); proposed.onAccept?.(b.taskId); }}>Accept</button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -803,6 +847,7 @@ export default function SchedulePage({
                   isNext={en.e.id === nextId}
                   isPast={isToday ? (en.e.data.end ? toMin(en.e.data.end) : toMin(en.e.data.start) + 60) < nowMin : false}
                   now={isToday ? now! : null}
+                  state={stateForEvent(en.e.data, isToday ? { today: en.e.data.date, nowMin } : null)}
                   onOpen={() => onOpenEvent?.(en.e.id, en.e.data.date)}
                   onShift={onShift ? (m) => onShift(en.e.id, m) : undefined}
                   onMoveTo={onMoveTo ? (t) => onMoveTo(en.e.id, t) : undefined}

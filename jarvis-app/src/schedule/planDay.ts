@@ -11,7 +11,11 @@ import type { EventItem } from "./types";
 // illegal by definition. Dave's own brainstorm called this exact failure:
 // blocking off "work" must not make work tasks impossible for someone with
 // no set hours. "No room" now means the DAY is full, nothing else.
-export interface PlanTask { id: string; text: string; category: string; durationMin: number; windowS?: number; windowE?: number }
+// C-31 (Astra, 2026-09-12): two facts the planner cannot see for itself but
+// is asked to say back: whether the task is due today or already late, and
+// the goal it moves. Both optional; a caller that does not carry them gets a
+// plan whose reasons simply do not mention them.
+export interface PlanTask { id: string; text: string; category: string; durationMin: number; windowS?: number; windowE?: number; due?: "today" | "overdue"; goal?: string | null }
 // A proposed time block for one task. outsideWindow: landed past its
 // preferred work-hours window. overSoft: landed on top of a SOFT routine
 // block (named, so the UI can say "overlaps your Dinner"), which only happens
@@ -19,7 +23,12 @@ export interface PlanTask { id: string; text: string; category: string; duration
 // SCHED-F-04 (2026-09-05): `sitting` is set only on a block that is one of
 // several sittings of the same task (Split It, P13). It travels with the
 // commit so the calendar can say which sitting a block is.
-export interface PlanBlock { taskId: string; text: string; category: string; start: string; end: string; sitting?: number; outsideWindow?: boolean; overSoft?: string }
+// C-31: `why` is the placement ladder, said back. One fragment per rung the
+// block actually climbed, deterministic, in the order the ladder is written:
+// "Due today" / "Overdue", "Fits before {holder}", "Same context as previous
+// pick", "Moves {goal}", "Your peak window". Never a sentence, never a guess;
+// a block with nothing to say carries an empty list.
+export interface PlanBlock { taskId: string; text: string; category: string; start: string; end: string; sitting?: number; outsideWindow?: boolean; overSoft?: string; why?: string[] }
 export interface DayPlan { blocks: PlanBlock[]; unplaced: PlanTask[] }
 
 function toMin(hhmm: string): number {
@@ -74,11 +83,25 @@ export function planDay(
   blocked: { s: number; e: number }[] = [],
   softBlocked: { s: number; e: number; label: string }[] = [],
   focusZones: { s: number; e: number }[] = [],
+  // C-31: the peak window, for the one reason the ladder cannot derive from
+  // the day itself. Optional, like everything after the buffer.
+  opts: { peak?: { s: number; e: number } } = {},
 ): DayPlan {
   const busy = events.map((e) => ({
     s: toMin(e.data.start),
     e: e.data.end ? toMin(e.data.end) : toMin(e.data.start) + 60,
   }));
+  // What a placed block sits in front of, by name: the next event or the
+  // next named soft block starting within a quarter hour of its end. A hard
+  // wall carries no label here, so a block in front of one says nothing
+  // rather than something made up.
+  const named = [
+    ...events.map((e) => ({ s: toMin(e.data.start), label: e.data.title })),
+    ...softBlocked.map((b) => ({ s: b.s, label: b.label })),
+  ].sort((a, b) => a.s - b.s);
+  const holderAfter = (end: number): string | null =>
+    named.find((n) => n.s >= end && n.s - end <= 15 && typeof n.label === "string" && n.label.trim())?.label.trim() ?? null;
+  let prevCategory: string | null = null;
   for (const b of blocked) if (b.e > b.s) busy.push({ s: b.s, e: b.e });
   const soft = softBlocked.filter((b) => b.e > b.s);
   const blocks: PlanBlock[] = [];
@@ -144,13 +167,25 @@ export function planDay(
     }
     const placedS = s;
     const softHit = overSoft ? soft.find((b) => placedS < b.e && b.s < placedS + dur) : undefined;
+    // C-31: the ladder, said back. Each fragment is a fact about THIS
+    // placement the planner can stand behind.
+    const why: string[] = [];
+    if (t.due === "today") why.push("Due today");
+    else if (t.due === "overdue") why.push("Overdue");
+    const before = holderAfter(placedS + dur);
+    if (before) why.push(`Fits before ${before}`);
+    if (prevCategory !== null && prevCategory === t.category) why.push("Same context as previous pick");
+    if (t.goal && t.goal.trim()) why.push(`Moves ${t.goal.trim()}`);
+    if (opts.peak && placedS >= opts.peak.s && placedS < opts.peak.e) why.push("Your peak window");
     blocks.push({
       taskId: t.id, text: t.text, category: t.category,
       start: fromMin(s), end: fromMin(s + dur),
       ...(outside ? { outsideWindow: true } : {}),
       ...(softHit ? { overSoft: softHit.label } : {}),
+      why,
     });
     busy.push({ s, e: s + dur + bufferMin });
+    prevCategory = t.category;
   }
 
   blocks.sort((a, b) => a.start.localeCompare(b.start));

@@ -21,6 +21,10 @@ export interface ProposedDay {
   onToggle: (taskId: string) => void;
   onDuration: (taskId: string, minutes: number) => void;
   onDrop: (taskId: string) => void;
+  // C-32 (Astra, 2026-09-12): accept ONE proposed block, from the row it
+  // nests in. Optional so a caller with only the whole-day Accept keeps
+  // rendering exactly as it did.
+  onAccept?: (taskId: string) => void;
 }
 import { BullseyeGlyph, CalendarGlyph } from "../shared/glyphs";
 
@@ -270,6 +274,9 @@ function NowLine({ label }: { label: string }) {
   return (
     <div className="now-line">
       <span className="now-label">Now {label}</span>
+      {/* C-28: LIVE belongs to the rule itself and to nothing else on the
+          day; it is the one red in the state vocabulary. */}
+      <span className="fact st red">Live</span>
       <span className="now-rule" />
     </div>
   );

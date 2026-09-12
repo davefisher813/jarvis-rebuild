@@ -61,6 +61,24 @@ describe("rowFrom", () => {
     expect(sneaky.kind).toBeNull();
   });
 
+  // Law 10 (Astra, 2026-09-12): the vocabulary grew (section 5) and the
+  // mapper still drops every prop it has no column for. A `text` prop, which
+  // is the one thing the Astra doc kept trying to add, never reaches a row.
+  it("drops a rogue text prop, and lets the section 5 kinds through", () => {
+    const rogue = rowFrom(ev("schedule.override", { props: { n: 25, kind: "focus", category: "cat-1", text: "Call the field about Saturday" } }));
+    expect(rogue.n).toBe(25);
+    expect(rogue.kind).toBe("focus");
+    expect(rogue.category).toBe("cat-1");
+    expect(JSON.stringify(rogue)).not.toContain("Call the field");
+    expect(Object.keys(rogue)).not.toContain("text");
+    // The moved kinds carry a digit and are still one closed token each.
+    for (const k of ["moved0", "moved1", "moved2", "moved3plus"]) {
+      expect(rowFrom(ev("task.completed", { props: { kind: k, n: -12 } })).kind).toBe(k);
+    }
+    // A digit does not open the door to a sentence.
+    expect(rowFrom(ev("task.completed", { props: { kind: "moved 3 times" } })).kind).toBeNull();
+  });
+
   it("stamps the LOCAL day/hour/dow of the moment it happened", () => {
     const ts = new Date(2026, 7, 3, 23, 45).getTime(); // Aug 3 2026, 23:45 local (a Monday)
     const row = rowFrom({ id: "x", ts, v: 1, type: "task.completed" });

@@ -2290,6 +2290,17 @@ export default function TodayFlow({
     <button className="plan-cta plan-cta-block" onClick={() => void acceptDraft()}>Accept the Day</button>
   ) : null;
 
+  // C-29 (Astra, 2026-09-12): once the day is accepted, the draft's own
+  // receipt says so, where the Accept and Not Today used to sit. A quiet
+  // line, not a control: the blocks are real events in the list above it
+  // now, and there is nothing left to decide. No new lifecycle field:
+  // `accepted` has been on the draft since the Day Loop shipped.
+  const draftReceipt = !evening && dayDraft?.accepted && !dayDraft.dismissed && planEvs.length > 0 ? (
+    <div className="receipt-line" aria-label={`Accepted, ${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} planned`}>
+      <span className="rl-t">{capAfterNumber(`Accepted · ${planEvs.length} ${planEvs.length === 1 ? "Block" : "Blocks"}`)}</span>
+    </div>
+  ) : null;
+
   // Slippage stated out loud below Everything; automatic (receipted) at it.
   // TODAY-F-19 (2026-09-05): keyed, like every sibling in the notice stream.
   // These two went in unkeyed, so React matched them by position: when the
@@ -3236,7 +3247,7 @@ export default function TodayFlow({
       today={today}
       nowCard={nowSection}
       proposedDay={proposedDay}
-      dayFooter={draftFooter}
+      dayFooter={draftFooter ?? draftReceipt}
       dayPrimary={draftPrimary}
       reminders={
         <RemindersStrip
@@ -3294,6 +3305,7 @@ export default function TodayFlow({
         onAddTask={addPlanTask}
         onCommit={onPlanCommit}
         onAIPlan={onAIPlan}
+        energy={energy}
         onClose={() => { setPlanOpen(false); setPlanTarget("today"); }}
       />
     )}

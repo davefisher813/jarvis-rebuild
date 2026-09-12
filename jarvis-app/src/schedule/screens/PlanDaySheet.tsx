@@ -83,6 +83,10 @@ const sittingOf = (id: string): number | undefined => {
 //   - PLACING YOU CAN SEE. While placing, the strip pins to the top of the
 //     sheet so the target is on screen. Drag is gone; a tap places.
 //   - TWO FOOTER BUTTONS, always. The primary and Cancel.
+// The reason fragments this sheet shows for a pick: the planner's list,
+// minus the two rungs the sheet already states elsewhere on the same row.
+const sheetWhy = (why: string[] | undefined): string[] => (why ?? []).filter((w) => !/^(Moves |Due today$|Overdue$)/.test(w));
+
 export default function PlanDaySheet({
   events,
   tasks,
@@ -103,9 +107,14 @@ export default function PlanDaySheet({
   chosenCap,
   onClose,
   onAIPlan,
+  energy,
 }: {
   events: EventItem[];
   tasks: PlanCandidate[];
+  // C-31 (Astra, 2026-09-12): the inferred peak window, the same object the
+  // flow already hands the AI pass. The planner says "Your peak window" on a
+  // pick that lands in it, and the line above the groups names it.
+  energy?: { peakStartMin: number; peakEndMin: number };
   startMin: number;
   endMin: number;
   // B1 (2026-08-20): the sheet is told which day it is filling, and says so.
@@ -381,13 +390,17 @@ export default function PlanDaySheet({
           const s = toMin(ov);
           manual.push({ taskId: id, text, category: t.category, start: fromMin(s), end: fromMin(s + dur) });
         } else {
-          auto.push({ id, text, category: t.category, durationMin: dur, ...(t.windowS != null ? { windowS: t.windowS } : {}), ...(t.windowE != null ? { windowE: t.windowE } : {}) });
+          // C-31: the two facts the ladder cannot see on its own. A pick due
+          // today says so; one that is overdue says that instead.
+          const due: "today" | "overdue" | undefined = t.overdue ? "overdue" : t.due === date ? "today" : undefined;
+          auto.push({ id, text, category: t.category, durationMin: dur, ...(t.windowS != null ? { windowS: t.windowS } : {}), ...(t.windowE != null ? { windowE: t.windowE } : {}), ...(due ? { due } : {}), ...(t.goal ? { goal: t.goal } : {}) });
         }
       });
     }
     const manualBusy = manual.map((b) => ({ s: toMin(b.start), e: toMin(b.end) }));
     const { hard, soft, focus } = splitProtectedRanges(blocked);
-    const autoResult = planDay(auto, events, floorMin, effEnd, BUFFER + sizing.extraSlackMin, [...hard.map((b) => ({ s: b.s, e: b.e })), ...manualBusy], soft, focus);
+    const autoResult = planDay(auto, events, floorMin, effEnd, BUFFER + sizing.extraSlackMin, [...hard.map((b) => ({ s: b.s, e: b.e })), ...manualBusy], soft, focus,
+      energy ? { peak: { s: energy.peakStartMin, e: energy.peakEndMin } } : {});
     const blocks = [...manual, ...autoResult.blocks].sort((a, b) => a.start.localeCompare(b.start));
     return { blocks, unplaced: autoResult.unplaced };
   };
@@ -420,6 +433,19 @@ export default function PlanDaySheet({
     if (!placing) return;
     const dur = durFor(placing);
     const clamped = Math.max(startMin, Math.min(effEnd - dur, min));
+    // schedule.override (section 5, C-45): he moved a block JARVIS proposed.
+    // n is the signed minutes from the proposed start to the one he chose,
+    // kind is what the new start landed in (a routine block's kind, or an
+    // event), category is the task's. Nothing about the task itself.
+    const was = blockFor(placing);
+    if (was) {
+      const from = toMin(was.start);
+      const landedBlock = blocked.find((b) => clamped >= b.s && clamped < b.e && b.kind);
+      const landedEvent = events.some((e) => clamped >= toMin(e.data.start) && clamped < (e.data.end ? toMin(e.data.end) : toMin(e.data.start) + 60));
+      const kind = landedBlock?.kind ?? (landedEvent ? "event" : undefined);
+      const category = allTasks.find((t) => t.id === placing)?.category ?? "";
+      emit({ type: "schedule.override", entityType: "task", entityId: placing, props: { n: clamped - from, category, ...(kind ? { kind } : {}) } });
+    }
     setOverride(placing, fromMin(clamped));
     setPlacing(null);
   };
@@ -656,6 +682,17 @@ export default function PlanDaySheet({
               {onAddTask && <div className="empty-sub">Add something below and it lands here picked</div>}</div>
           ) : (
             <div className="p3-list">
+              {/* C-31 (Astra, 2026-09-12): the peak-window line the catalog
+                  promised (U.8), above the groups: when he works best and
+                  where the picks land. Open and picked already sit on the
+                  load line above, so they are not said twice; the line is
+                  silent when neither half is known. */}
+              {(energy || ranges.focus.length > 0) && (
+                <div className="pad-x"><div className="facts plan-facts">
+                  {energy && <span className="fact sky">Peak {label(fromMin(energy.peakStartMin)).replace(/:00/, "")} to {label(fromMin(energy.peakEndMin)).replace(/:00/, "")}</span>}
+                  {ranges.focus[0] && <span className="fact">Picks land in {ranges.focus[0].label}</span>}
+                </div></div>
+              )}
               {groups.map((g) => (
                 <div key={g.key}>
                   <div className="grp"><div className="eyebrow">{g.label} · {g.rows.length}</div></div>
@@ -678,6 +715,17 @@ export default function PlanDaySheet({
                                 card uses, so the two cannot disagree about
                                 when lineage is worth printing. */}
                             {movesLine(t.goal, t.text) && <div className="bp-sub truncate">{movesLine(t.goal, t.text)}</div>}
+                            {/* C-31: one reason fragment per pick, the
+                                planner's own, deterministic. Quiet facts.
+                                The goal line above already says what it
+                                moves and the group heading already says
+                                whether it is due or late, so those two
+                                rungs are not said twice on this sheet. */}
+                            {on && sheetWhy(blockFor(t.id)?.why).length > 0 && (
+                              <div className="facts">
+                                {sheetWhy(blockFor(t.id)?.why).map((w) => <span className="fact" key={w}>{w}</span>)}
+                              </div>
+                            )}
                             {on && blockFor(t.id)?.outsideWindow && (
                               <div className="bp-sub">Outside its work hours</div>
                             )}
