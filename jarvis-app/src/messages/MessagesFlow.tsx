@@ -141,6 +141,7 @@ import { nextOpening, BOOK_MIN } from "./bookTime";
 
 import { suggestAttachment, suggestLine, noteAsText, attachmentFilename, type AttachSuggestion, type Candidate } from "./attachSuggest";
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
+import { draftKey, loadLocalDraft, loadLocalDrafts, saveLocalDraft, clearLocalDraft, continuableReply, restoreInto, type LocalDrafts } from "./composeDraft";
 import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
 import { liveSweep, loadSweep } from "./sentSweep";
 import { runSentSweep } from "./sweepRun";
@@ -561,6 +562,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [acctFilter, setAcctFilter] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
+  // E-25: true once any account answered with its 25-per-account cap, at
+  // which point the real count is unknown and the chip says "25+".
+  const [draftsCapped, setDraftsCapped] = useState(false);
+  // E-26: the device's own autosaved drafts, re-read whenever the view
+  // changes so the "Continue Your Reply" offer is never stale.
+  const [localDrafts, setLocalDrafts] = useState<LocalDrafts>(() => loadLocalDrafts());
   // No AI build: there is no For You chip at all, so the tab opens on All.
   const [filter, setFilter] = useState<Filter>(ai.available ? "triage" : "all");
   // THE OUTCOME SWITCH (ruled 2026-09-01: "a segmented switch across the top
@@ -1237,6 +1244,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // opening it reads through that account and its send leaves from it.
       const per = await Promise.all(list.map(async ({ email, api }) =>
         (await api.listDrafts(25).catch(() => [])).map((d) => ({ d, email }))));
+      setDraftsCapped(per.some((l) => l.length >= 25));
       setDrafts(per.flat().map(({ d, email }) => ({
         id: d.id,
         to: header(d.message, "To"),
@@ -1764,10 +1772,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // receipt only claims it after the write resolved; a failed save keeps him
   // in the composer with his words, because navigating away on a failure is
   // the bug this item is about.
+  // E-26: the composer autosaves to this device on every change, debounced
+  // a beat behind the keystroke. Local only; Gmail Drafts is still written
+  // only by cancelCompose below (laws/email.test.ts, law 1).
+  useEffect(() => {
+    if (view !== "compose") return;
+    const t = setTimeout(() => {
+      saveLocalDraft(draftKey(editingDraftId), {
+        to: draft.to, subject: draft.subject, body: draft.body,
+        ...(draft.cc !== undefined ? { cc: draft.cc } : {}),
+        ...(draft.threadId ? { threadId: draft.threadId } : {}),
+        ...(draft.account ? { account: draft.account } : {}),
+        ...(draft.inReplyTo ? { inReplyTo: draft.inReplyTo } : {}),
+      });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [view, editingDraftId, draft.to, draft.cc, draft.subject, draft.body, draft.threadId, draft.account, draft.inReplyTo]);
+  useEffect(() => { setLocalDrafts(loadLocalDrafts()); }, [view]);
+
   const closeCompose = () => setView(thread && !editingDraftId ? "detail" : "list");
 
   const cancelCompose = async () => {
-    if (!draft.body.trim()) { closeCompose(); return; }
+    if (!draft.body.trim()) { clearLocalDraft(draftKey(editingDraftId)); closeCompose(); return; }
     const api = apiFor(draft.account);
     if (!api) { closeCompose(); return; }
     setSavingDraft(true);
@@ -1778,6 +1804,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (editingDraftId) await api.updateDraft(editingDraftId, raw, draft.threadId);
       else await api.createDraft(raw, draft.threadId);
       setDraftsLoaded(false); // the list is stale now; it reloads on the next visit
+      // E-26: Gmail holds it now; the local copy has done its job.
+      clearLocalDraft(draftKey(editingDraftId));
       setEditingDraftId(null);
       closeCompose();
       say("Saved to Drafts");
@@ -1827,6 +1855,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       ...(personIdFor(draft.to.split(",")[0]?.trim()) ? { personId: personIdFor(draft.to.split(",")[0]?.trim())! } : {}),
     };
     enqueueOutbox(item);
+    clearLocalDraft(draftKey(editingDraftId)); // E-26: queued, so the safety copy goes
     setView("list");
   };
 
@@ -2433,7 +2462,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const startReply = (t: ThreadFull) => {
     const r = buildReply(lastMsg(t), "");
     setEditingDraftId(null);
-    setDraft({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) });
+    // E-26: a reply he was mid-way through on this thread comes back.
+    setDraft(restoreInto<Draft>({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) }, loadLocalDraft("new")));
     setView("compose");
   };
   // S2-4: everyone else on the thread stays on the thread, as Cc, instead of
@@ -2498,7 +2528,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   const startCompose = () => {
     setEditingDraftId(null);
-    setDraft({ to: "", subject: "", body: "" });
+    // E-26: a fresh compose the tab lost comes back; a saved reply does not
+    // (it has a thread, this does not).
+    setDraft(restoreInto<Draft>({ to: "", subject: "", body: "" }, loadLocalDraft("new")));
+    setView("compose");
+  };
+  // E-25: open the autosaved reply from the For You offer.
+  const continueLocalDraft = (key: string) => {
+    const d = localDrafts[key];
+    if (!d) return;
+    setEditingDraftId(key === "new" ? null : key);
+    setDraft({ to: d.to, cc: d.cc, subject: d.subject, body: d.body, inReplyTo: d.inReplyTo, threadId: d.threadId, account: d.account });
     setView("compose");
   };
   const quickReply = (t: ThreadFull, text: string) => {
@@ -2522,10 +2562,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // EMAIL-F-14 (2026-09-05): a reply draft came back stripped of its Cc
       // and its thread, so finishing one from the Drafts list started a new
       // conversation with only the first recipient on it.
-      setDraft({
+      const fresh = {
         to: full.to || "", cc: full.cc || undefined, subject: full.subject, body: full.body,
         threadId: full.threadId || undefined, inReplyTo: full.inReplyTo || undefined, account: acct,
-      });
+      };
+      // E-26: an edit of this Gmail draft the tab lost wins over what Gmail
+      // still holds; it is the newer of the two by construction.
+      const local = loadLocalDraft(draftId);
+      setDraft(local ? { ...fresh, to: local.to, cc: local.cc ?? fresh.cc, subject: local.subject, body: local.body } : fresh);
       setView("compose");
     } catch (e) {
       setError(humanError(e, "Could not open draft"));
@@ -3151,6 +3195,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           </div></div>
         )}
         <div className="pad-x msg-compose">
+          {/* E-11: which inbox it leaves from, chosen rather than inferred,
+              shown only when there is more than one to choose. The chip
+              that is on is the account the send would use either way. */}
+          {(() => {
+            const accts = g.accounts.filter((a) => a.mail);
+            if (accts.length < 2) return null;
+            const from = draft.account ?? accts[0]!.email;
+            return (
+              <div className="msg-chips compose-from" aria-label="From">
+                <span className="compose-from-label">From</span>
+                {accts.map((a) => (
+                  <button key={a.email} className={"chip" + (from === a.email ? " on" : "")} onClick={() => setDraft({ ...draft, account: a.email })}>
+                    {acctLabel(a.email)}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
           <input className="msg-input" placeholder="To" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />
           {/* S2-4: only shown once there is a Cc to review -- Reply All fills
               this in; a plain Reply or a fresh compose never shows an empty
@@ -3859,7 +3921,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         )}
         <button className={"chip" + (filter === "all" ? " on" : "")} onClick={() => setFilter("all")}>All</button>
         <button className={"chip" + (filter === "drafts" ? " on" : "")} onClick={() => setFilter("drafts")}>
-          Drafts {draftsLoaded && drafts.length > 0 ? "(" + drafts.length + ")" : ""}
+          {/* E-25: the real count, or 25+ once any account hit its cap. */}
+          Drafts {draftsLoaded && drafts.length > 0 ? "(" + (draftsCapped ? "25+" : drafts.length) + ")" : ""}
         </button>
       </div>
       {error && <div className="pad-x conn-error">{error}</div>}
@@ -4112,6 +4175,26 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             );
           })()}
 
+          {/* E-25: the reply he was in the middle of, first. The device's
+              own autosave (E-26) with a thread and words in it; Gmail
+              Drafts is not consulted, because this is the one that would
+              otherwise be lost. */}
+          {(() => {
+            const cont = continuableReply(localDrafts);
+            if (!cont) return null;
+            const who = displayName(cont.draft.to.split(",")[0]?.trim() || "") || "them";
+            return (
+              <NoticeCard
+                icon={<CornerUpLeft className="ic" />}
+                tone="cat-fg-graphite"
+                uniform={false}
+                title="Continue Your Reply"
+                sub={<Facts facts={[{ text: "To " + who }, cont.draft.subject ? { text: cont.draft.subject } : null]} />}
+                action={{ label: "Open It", onClick: () => continueLocalDraft(cont.key) }}
+                alt={{ label: "Throw it away", onClick: () => { clearLocalDraft(cont.key); setLocalDrafts(loadLocalDrafts()); } }}
+              />
+            );
+          })()}
           {(() => {
             // The switch: only outcomes that have anything, counts on the
             // labels, and a selection that has emptied falls to the first

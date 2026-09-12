@@ -263,6 +263,8 @@ describe("LAW: Apple HIG casing", () => {
       // E-09 (2026-09-12): the batch-unsubscribe offer's yes, in the same
       // voice as "Yes, file them" beside it, split by what the yes does.
       "Yes, end them", "Yes, do both",
+      // E-25 (2026-09-12): the Continue Your Reply offer's no.
+      "Throw it away",
     ]);
     const BRAND = /^(iCloud|iPhone|iPad|iOS|iMessage|macOS|kg|lb|min|hr)$/;
     // THE LAW ONLY EVER LOOKED ONE WAY (Dave 2026-09-03, pics 2 and 4:

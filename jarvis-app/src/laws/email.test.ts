@@ -154,3 +154,28 @@ describe("EMAIL law 3: Standing Rules stay sender-only", () => {
     }
   });
 });
+
+// E-26: "no autosave" narrows to "no autosave TO GMAIL". The composer keeps
+// a local copy on every debounced change; Gmail Drafts is still written by
+// cancelCompose alone, on the way out, exactly as EMAIL-F-14 built it.
+describe("EMAIL law 1: the composer autosaves locally, and only Cancel writes Gmail Drafts", () => {
+  it("every compose change reaches jarvis.mail.composeDraft.v1 through a debounced effect", () => {
+    const src = read(join(SRC, "messages/composeDraft.ts"));
+    expect(src).toMatch(/DRAFT_KEY = "jarvis\.mail\.composeDraft\.v1"/);
+    const at = FLOW.indexOf("saveLocalDraft(draftKey(editingDraftId)");
+    expect(at, "MessagesFlow autosaves the compose").toBeGreaterThan(-1);
+    const effect = FLOW.slice(FLOW.lastIndexOf("useEffect(", at), at + 900);
+    expect(effect, "debounced a beat behind the keystroke").toMatch(/setTimeout\(/);
+    expect(effect, "keyed on every field").toMatch(/\[view, editingDraftId, draft\.to, draft\.cc, draft\.subject, draft\.body, draft\.threadId, draft\.account, draft\.inReplyTo\]/);
+  });
+  it("cancelCompose's Gmail write path is untouched, and it is the only one", () => {
+    const at = FLOW.indexOf("const cancelCompose = async () => {");
+    expect(at).toBeGreaterThan(-1);
+    const fn = FLOW.slice(at, at + 1400);
+    expect(fn).toMatch(/if \(editingDraftId\) await api\.updateDraft\(editingDraftId, raw, draft\.threadId\);\s*else await api\.createDraft\(raw, draft\.threadId\);/);
+    const writes = FLOW.match(/\b(createDraft|updateDraft)\(/g) ?? [];
+    expect(writes, "Gmail Drafts is written from cancelCompose and nowhere else in MessagesFlow").toHaveLength(2);
+    const store = read(join(SRC, "messages/composeDraft.ts"));
+    expect(store, "the local store never touches Gmail").not.toMatch(/createDraft|updateDraft|connections\/google/);
+  });
+});
