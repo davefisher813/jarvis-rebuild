@@ -248,3 +248,39 @@ describe("law: a task is planned once", () => {
     expect(plan.unplaced).toEqual([]);
   });
 });
+
+// C-31 (Astra, 2026-09-12): every placed block says why it landed where it
+// did, in the ladder's own words, deterministically.
+describe("the placement ladder, said back (C-31)", () => {
+  it("names the rungs the block actually climbed, in ladder order", () => {
+    const plan = planDay(
+      [
+        { id: "a", text: "a", category: "work", durationMin: 30, due: "today" as const, goal: "Ship v2" },
+        { id: "b", text: "b", category: "work", durationMin: 30, due: "overdue" as const },
+        { id: "c", text: "c", category: "home", durationMin: 30 },
+      ],
+      [ev("Standup", "10:10", "10:30")],
+      9 * 60, 12 * 60, 10, [], [], [],
+      { peak: { s: 9 * 60, e: 9 * 60 + 30 } },
+    );
+    const why = (id: string) => plan.blocks.find((b) => b.taskId === id)!.why;
+    // a: 9:00 to 9:30, in the peak, in front of Standup by more than a
+    // quarter hour, so no "fits before".
+    expect(why("a")).toEqual(["Due today", "Moves Ship v2", "Your peak window"]);
+    // b: 9:40 to 10:10, past the peak, the same category as the pick before
+    // it, and Standup starts the minute it ends.
+    expect(why("b")).toEqual(["Overdue", "Fits before Standup", "Same context as previous pick"]);
+    // c: after Standup, a different context, nothing to say.
+    expect(why("c")).toEqual([]);
+  });
+
+  it("says nothing it was not told: no due, no goal, no peak means no such fragment", () => {
+    const plan = planDay([task("t", 30)], [], 9 * 60, 12 * 60);
+    expect(plan.blocks[0]!.why).toEqual([]);
+  });
+
+  it("a hard wall in front of a block is not named, because it has no name here", () => {
+    const plan = planDay([task("t", 30)], [], 9 * 60, 12 * 60, 10, [{ s: 9 * 60 + 30, e: 10 * 60 }]);
+    expect(plan.blocks[0]!.why).toEqual([]);
+  });
+});

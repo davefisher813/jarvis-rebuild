@@ -473,12 +473,41 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     </div>
   ) : null;
 
+  // C-32 (Astra, 2026-09-12): accept ONE block from the row it nests in.
+  // The same write door as Accept the Day (commitPlan), for one block, and
+  // then the draft simply no longer proposes it: the block is a real event
+  // now and liveBlocks already drops a proposal whose task has one. The
+  // whole-day Accept still marks the draft accepted; this does not, because
+  // the rest of the day is still a proposal.
+  const acceptOne = async (taskId: string) => {
+    const b = liveDraftBlocks.find((x) => x.taskId === taskId);
+    if (!b || accepting.current) return;
+    accepting.current = true;
+    try {
+      let ids: string[] = [];
+      const ok = await attemptWrite(async () => {
+        ids = (await svc.commitPlan(selected, [{ taskId: b.taskId, text: b.text, category: b.category, start: b.start, end: b.end }], undefined, { picks: [b.taskId] })).created;
+      });
+      if (!ok) return;
+      setTuning(null);
+      await reload();
+      showToast({
+        message: "Planned 1 block",
+        actionLabel: "Undo",
+        onAction: async () => { await attemptWrite(async () => { for (const id of ids) await svc.deleteEvent(id); }); await reload(); },
+      });
+    } finally {
+      accepting.current = false;
+    }
+  };
+
   const standingProposal = standingDraft && liveDraftBlocks.length > 0 ? {
     blocks: liveDraftBlocks,
     openId: tuning,
     onToggle: (id: string) => setTuning((t) => (t === id ? null : id)),
     onDuration: (id: string, minutes: number) => applyProposalEdit({ minutes: { [id]: minutes } }),
     onDrop: (id: string) => { setTuning(null); applyProposalEdit({ drop: id }); },
+    onAccept: (id: string) => void acceptOne(id),
   } : undefined;
 
   const onAIPlan = ai.available
@@ -1462,6 +1491,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           onAddTask={addPlanTask}
           onCommit={onPlanCommit}
           onAIPlan={onAIPlan}
+          energy={energy}
           onClose={() => setPlanOpen(false)}
         />
       )}

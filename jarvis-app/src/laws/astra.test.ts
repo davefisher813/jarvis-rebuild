@@ -118,6 +118,46 @@ describe("ASTRA law 4: at most one coloured fact per .facts line", () => {
   });
 });
 
+// Law 8 (Astra, Push C): the one carve-out of do-not-touch item 2. COMPLETED
+// is the clock's answer, derived every render, and no schedule entity grows
+// a field to back it. The moment an event carries done, completed or outcome,
+// the state word has become a stored claim about what happened, which is the
+// thing the carve-out was written to forbid.
+describe("ASTRA law 8: COMPLETED is derived from the clock, never stored", () => {
+  it("stateWord derives COMPLETED from now and nothing else", () => {
+    const src = read(join(SRC, "schedule/stateWord.ts"));
+    expect(src).toMatch(/nowMin/);
+    expect(src).not.toMatch(/\.(done|completed|outcome)\b/);
+  });
+
+  it("no schedule entity carries a done, completed or outcome field", () => {
+    const types = read(join(SRC, "schedule/types.ts")).replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(types).not.toMatch(/^\s*(done|completed|outcome)\??:/m);
+    // And nothing under schedule/ writes one onto an event.
+    const bad: string[] = [];
+    for (const f of walk(join(SRC, "schedule")).filter((f) => /\.tsx?$/.test(f) && !/\.test\./.test(f))) {
+      const s = read(f).replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+      if (/\b(done|completed|outcome)\s*:\s*(true|false|"|new Date)/.test(s) && /ENTITY_EVENT|editEvent|updateEvent|createEvent/.test(s)) bad.push(rel(f));
+    }
+    expect(bad).toEqual([]);
+  });
+});
+
+// Law 10 (Astra, Push C): the event vocabulary is closed, and section 5's
+// additions are in it by name. The other half, that a rogue text prop never
+// reaches a row, is pinned where the mapper lives (events/serverSink.test.ts).
+describe("ASTRA law 10: the event vocabulary is closed and named", () => {
+  it("section 5's types exist and the schema version says so", () => {
+    const types = read(join(SRC, "events/types.ts"));
+    expect(types).toMatch(/"schedule\.override"/);
+    expect(types).toMatch(/EVENT_SCHEMA_VERSION = 2/);
+    const sink = read(join(SRC, "events/serverSink.ts"));
+    expect(sink).toMatch(/"schedule\.override"/);
+    // No event type may carry a text column, and the row shape has none.
+    expect(sink).not.toMatch(/^\s*text\??:/m);
+  });
+});
+
 // G5: the state words are a closed set. A literal inside a .fact.st is one
 // of them or the law fails; a dynamic word comes through stateWord.ts when
 // that lands (Push B) and is checked there.
