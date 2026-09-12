@@ -179,3 +179,21 @@ describe("EMAIL law 1: the composer autosaves locally, and only Cancel writes Gm
     expect(store, "the local store never touches Gmail").not.toMatch(/createDraft|updateDraft|connections\/google/);
   });
 });
+
+// E-14: a window is one day's stretch. isOpenNow never wraps past midnight,
+// so a window that would is refused in the editor, with a line, before it
+// can be saved and silently cut at 23:59.
+describe("EMAIL law 5: windows cannot cross midnight, and the editor says so", () => {
+  it("the curtain's math is unchanged and does not wrap", () => {
+    const src = read(join(SRC, "messages/batching.ts"));
+    expect(src).toMatch(/return w\.windows\.some\(\(x\) => mins >= x\.startMin && mins < x\.startMin \+ x\.minutes\);/);
+    expect(src).toMatch(/export function crossesMidnight\(startMin: number, minutes: number\): boolean \{\s*return startMin \+ minutes > 24 \* 60;/);
+  });
+  it("the single-window editor refuses with an inline line and never truncates", () => {
+    const sheet = read(join(SRC, "messages/WindowsSheet.tsx"));
+    expect(sheet).toMatch(/const refused = crossesMidnight\(edStart, edLen\);/);
+    expect(sheet, "Done does nothing while refused").toMatch(/if \(editing === null \|\| refused\) return;/);
+    expect(sheet, "the line is inline, on the editor").toMatch(/\{refused && <div className="win-error" role="alert">\{MIDNIGHT_LINE\}<\/div>\}/);
+    expect(sheet, "no clamp of the length to fit").not.toMatch(/Math\.min\([^)]*24 \* 60 - edStart/);
+  });
+});

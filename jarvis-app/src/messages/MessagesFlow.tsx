@@ -130,7 +130,7 @@ import { attachOffer, amountIn } from "./attachmentKind";
 import { enqueueOutbox, removeFromOutbox, patchOutbox, holdUntil, sendSlots, holdLine, whenLabel, INTERRUPTED_LINE, type OutboxItem } from "./outbox";
 import { useOutbox } from "./useOutbox";
 import { subscribeSent } from "./sendPump";
-import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, windowStatusLine, type WindowSettings } from "./batching";
+import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, windowStatusLine, loadWindowsMirror, saveWindowsMirror, type WindowSettings } from "./batching";
 import WindowsSheet from "./WindowsSheet";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
 import { saidEmpty, askSaid } from "./saidWhat";
@@ -431,6 +431,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // EMAIL-F-19: project links hydrate like the rest now.
       if (grown.links) setLinks(grown.links);
       if (grown.desk) setDesk(grown.desk);
+      // E-14: only lands when this device opted into the windows mirror.
+      if (grown.windows) setWindows(grown.windows);
       setMailHydrated(true);
       // EMAIL-F-30 (2026-09-05): mirror the MERGED result straight back, so
       // the next device to hydrate gets both sides rather than whichever one
@@ -1712,11 +1714,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [windows, setWindows] = useState(() => loadWindows());
   const [peeked, setPeeked] = useState(false);
   const [editWindows, setEditWindows] = useState(false);
-  const applyWindows = (next: WindowSettings) => {
+  // E-14: the sheet's Save also carries the mirror choice; a change to
+  // either is pushed to the profile so an opted-in device sees it next load.
+  const [windowsMirror, setWindowsMirror] = useState(() => loadWindowsMirror());
+  const applyWindows = (next: WindowSettings, mirror?: boolean) => {
     setWindows(next);
     saveWindows(next);
+    if (mirror !== undefined) { setWindowsMirror(mirror); saveWindowsMirror(mirror); }
     setEditWindows(false);
     if (!next.on) setPeeked(false);
+    mirrorMail();
   };
   const curtained = windows.on && !peeked && !isOpenNow(windows, new Date());
 
@@ -3087,7 +3094,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 exists to make unnecessary. The recommended action here is
                 to WAIT, and nothing recommends waiting like the escape
                 hatch being quiet. */}
-            <button className="btn btn-secondary" onClick={() => setPeeked(true)}>Open Early</button>
+            {/* E-13: the sheet promises "Open Anyway always works"; the
+                button says the same words. */}
+            <button className="btn btn-secondary" onClick={() => setPeeked(true)}>Open Anyway</button>
             <button className="quiet-action" onClick={() => setEditWindows(true)}>Adjust My Windows</button>
           </div>
           <div className="mail-door-who">You close email outside your windows</div>
@@ -3108,6 +3117,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         {editWindows && (
           <WindowsSheet
             initial={windows}
+            mirror={windowsMirror}
             onSave={applyWindows}
             onTurnOff={() => applyWindows({ ...windows, on: false })}
             onClose={() => setEditWindows(false)}
@@ -3851,6 +3861,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       {editWindows && !curtained && (
         <WindowsSheet
           initial={windows}
+          mirror={windowsMirror}
           onSave={applyWindows}
           onTurnOff={windows.on ? () => applyWindows({ ...windows, on: false }) : undefined}
           onClose={() => setEditWindows(false)}

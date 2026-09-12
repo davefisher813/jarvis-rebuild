@@ -5,6 +5,7 @@ import { loadMuted, KEY as MUTED_KEY } from "./mute";
 import { loadLetGo, KEY as LETGO_KEY } from "./letGo";
 import { loadLinks, KEY as LINKS_KEY, type LinkMap } from "./threadLink";
 import { loadDesk, KEY as DESK_KEY, type DeskMap } from "./desk";
+import { loadWindows, saveWindows, loadWindowsMirror, windowsForMirror, windowsFromMirror, type WindowSettings } from "./batching";
 
 // EVERYTHING JARVIS LEARNS ABOUT YOUR MAIL IS DEVICE-ONLY (S2-5,
 // 2026-09-04). VIPs, sender rules, mutes, and let-go each live in their own
@@ -28,6 +29,10 @@ export interface MailMirror {
   // devices or the feature is a lie -- the whole promise is that a thread set
   // aside on the phone is sitting on the laptop when you get there.
   desk?: DeskMap;
+  // E-14 (Push G, 2026-09-12): Email Windows, OPT-IN. Present only when
+  // this device has chosen "Same on Every Device"; absent otherwise, so a
+  // device that never opted in neither sends its windows nor takes any.
+  windows?: WindowSettings;
 }
 
 // The snapshot written to the profile after any local write to any of the
@@ -40,6 +45,7 @@ export function mailSnapshot(storage: Pick<Storage, "getItem"> = localStorage): 
     letGo: loadLetGo(storage),
     links: loadLinks(storage),
     desk: loadDesk(storage),
+    ...(loadWindowsMirror(storage) ? { windows: windowsForMirror(loadWindows(storage)) } : {}),
   };
 }
 
@@ -132,6 +138,18 @@ export function hydrateMailFromProfile(
     if (Object.keys(desk).length !== Object.keys(local).length) {
       try { storage.setItem(DESK_KEY, JSON.stringify(desk)); } catch { /* private mode */ }
       out.desk = desk;
+    }
+  }
+
+  // E-14: windows are a single setting, not a set, so there is no union to
+  // take: a device that opted in takes the profile's copy whole, because the
+  // last device to save pushed its copy up and "same on every device" means
+  // that one. A device that has not opted in ignores the field entirely.
+  if (mail.windows && loadWindowsMirror(storage)) {
+    const remote = windowsFromMirror(mail.windows);
+    if (remote && JSON.stringify(remote) !== JSON.stringify(windowsForMirror(loadWindows(storage)))) {
+      saveWindows(remote, storage);
+      out.windows = remote;
     }
   }
 

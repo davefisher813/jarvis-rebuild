@@ -159,3 +159,29 @@ describe("hydrateMailFromProfile: at a desk", () => {
     expect(hydrateMailFromProfile({ desk: {} }, storage).desk).toBeUndefined();
   });
 });
+
+// E-14 (Push G): Email Windows ride the mirror only where this device said so.
+import { saveWindows, loadWindows, saveWindowsMirror, DEFAULT_WINDOWS } from "./batching";
+describe("windows in the mirror (opt-in)", () => {
+  const custom = { on: true, windows: [{ startMin: 8 * 60, minutes: 30 }], days: [1, 3, 5] };
+  it("snapshot leaves windows out unless this device opted in", () => {
+    const storage = fakeStorage();
+    saveWindows(custom, storage);
+    expect(mailSnapshot(storage).windows).toBeUndefined();
+    saveWindowsMirror(true, storage);
+    expect(mailSnapshot(storage).windows).toEqual(custom);
+  });
+  it("hydrate ignores the field on a device that did not opt in, and takes it whole on one that did", () => {
+    const storage = fakeStorage();
+    expect(hydrateMailFromProfile({ windows: custom }, storage).windows).toBeUndefined();
+    expect(loadWindows(storage)).toEqual(DEFAULT_WINDOWS);
+    saveWindowsMirror(true, storage);
+    expect(hydrateMailFromProfile({ windows: custom }, storage).windows).toEqual(custom);
+    expect(loadWindows(storage)).toEqual(custom);
+    // Same again: nothing changed, nothing reported.
+    expect(hydrateMailFromProfile({ windows: custom }, storage).windows).toBeUndefined();
+    // Junk from the profile never lands.
+    expect(hydrateMailFromProfile({ windows: { on: true, windows: [], days: [] } }, storage).windows).toBeUndefined();
+    expect(loadWindows(storage)).toEqual(custom);
+  });
+});

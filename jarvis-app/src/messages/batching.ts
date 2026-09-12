@@ -167,6 +167,42 @@ export function minLabel(startMin: number): string {
 // with no caller; the windows sheet passes minutes.
 
 export const DAY_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
+// E-12 (Push G, 2026-09-12): two letters so Sunday and Saturday, Tuesday and
+// Thursday stop sharing a chip label.
+export const DAY_SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+// E-14: a window is one day's stretch. The curtain's math (isOpenNow) reads
+// `mins < startMin + minutes` and never wraps, so a window that would run
+// past midnight is silently cut at 23:59. The editor asks this first and
+// refuses with a line instead of saving something the curtain will not do.
+export function crossesMidnight(startMin: number, minutes: number): boolean {
+  return startMin + minutes > 24 * 60;
+}
+
+// E-14: whether THIS device mirrors its windows to the profile. Off by
+// default: windows stay device-local unless he says otherwise here, because
+// the phone's 9 / 1 / 5 is not necessarily the laptop's.
+const MIRROR_KEY = "jarvis.mail.windows.mirror.v1";
+export function loadWindowsMirror(storage: Pick<Storage, "getItem"> = localStorage): boolean {
+  try { return storage.getItem(MIRROR_KEY) === "1"; } catch { return false; }
+}
+export function saveWindowsMirror(on: boolean, storage: Pick<Storage, "setItem"> = localStorage): void {
+  try { storage.setItem(MIRROR_KEY, on ? "1" : "0"); } catch { /* private mode */ }
+}
+/** Windows in the mirror's shape: exactly {on, windows, days}, nothing else. */
+export function windowsForMirror(w: WindowSettings): WindowSettings {
+  return { on: w.on, windows: sortW(w.windows).map((x) => ({ startMin: x.startMin, minutes: x.minutes })), days: [...w.days] };
+}
+/** A profile copy, validated the way the local store is. Null for junk. */
+export function windowsFromMirror(p: unknown): WindowSettings | null {
+  if (!p || typeof p !== "object") return null;
+  const w = p as Partial<WindowSettings>;
+  if (typeof w.on !== "boolean" || !Array.isArray(w.windows) || !Array.isArray(w.days)) return null;
+  const windows = sortW(w.windows.filter(validW)).slice(0, MAX_WINDOWS);
+  const days = [...new Set(w.days.filter((d): d is number => typeof d === "number" && d >= 0 && d <= 6))].sort();
+  if (!windows.length || !days.length) return null;
+  return { on: w.on, windows, days };
+}
 const DAY_NAME = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 // The line on the curtain. It says when, never how many are waiting: a count
