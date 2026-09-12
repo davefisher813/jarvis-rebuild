@@ -21,6 +21,9 @@ interface GoogleGlobal {
       login_hint?: string;
       prompt?: string;
       callback: (r: { code?: string; error?: string }) => void;
+      // Google calls this instead of `callback` when the popup never got as far
+      // as an answer: closed by the person, or blocked by the browser.
+      error_callback?: (e: { type?: string }) => void;
     }) => CodeClient;
   } };
 }
@@ -65,6 +68,11 @@ export async function requestGoogleCode(opts: TokenOpts = {}): Promise<string> {
       ...(opts.loginHint ? { login_hint: opts.loginHint } : {}),
       prompt: opts.selectAccount ? "select_account consent" : "consent",
       callback: (r) => (r.code ? resolve(r.code) : reject(new Error(r.error || "No authorization code"))),
+      // 2026-09-12: a closed popup calls neither callback, so without this the
+      // promise never settled and Connections sat on "Connecting..." with every
+      // chip disabled until a reload. Same words the native flow uses for the
+      // same act (nativeAuth.ts: a person backing out is not an error).
+      error_callback: (e) => reject(new Error(e?.type === "popup_closed" ? "Sign-in cancelled" : "Could not open Google sign-in")),
     });
     client.requestCode();
   });

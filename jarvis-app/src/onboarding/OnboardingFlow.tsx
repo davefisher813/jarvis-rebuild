@@ -274,7 +274,14 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           // leaves the field alone instead.
           ...(briefTime ? { briefTime } : {}),
           // Item 22: Skip lands on Draft Only, and the level applies instantly.
-          ai: { level: aiChoice === "everything" ? "everything" as const : "draft" as const },
+          //
+          // 2026-09-12: only when he actually picked a chip, and merged into
+          // what is already there. The step offers two chips, so someone who
+          // had set AI to Off and then ran Redo Setup came back as Draft Only
+          // with background calls allowed; and writing the object whole threw
+          // away every per-feature pin. A skip with nothing stored still reads
+          // as Draft Only, which is DEFAULT_AI_LEVEL (ai/aiGate.ts).
+          ...(aiChoice ? { ai: { ...prof?.ai, level: aiChoice === "everything" ? "everything" as const : "draft" as const } } : {}),
           gmail,
           calendar,
           onboarded: true,

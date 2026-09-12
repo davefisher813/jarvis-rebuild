@@ -199,6 +199,43 @@ describe("OnboardingFlow", () => {
       expect(patch.gmail).toBe(true);
     });
 
+    // 2026-09-12: the AI step offers two chips, Everything and Draft Only, so
+    // a level of "off" could not be seeded into the answer and the skip wrote
+    // Draft Only over it: someone who had chosen zero AI calls came out of Redo
+    // Setup with background calls allowed, and the per-feature pins went with
+    // the object. A level nobody touched is left alone entirely.
+    it("leaves AI Off alone, pins included, when the step is skipped", async () => {
+      const off = { ...EXISTING, ai: { level: "off" as const, pins: { emailDrafts: "everything" as const } } };
+      const get = vi.spyOn(ProfileService.prototype, "get").mockResolvedValue(off as never);
+      const list = vi.spyOn(CategoriesService.prototype, "list").mockResolvedValue([]);
+      const patches: Record<string, unknown>[] = [];
+      vi.spyOn(ProfileService.prototype, "save").mockImplementation(async (p) => { patches.push(p as Record<string, unknown>); return off as never; });
+
+      setup();
+      await waitFor(() => expect(get).toHaveBeenCalled());
+      await waitFor(() => expect(list).toHaveBeenCalled());
+      fireEvent.click(screen.getByText("Skip for now"));
+      await waitFor(() => expect(patches.length).toBe(1));
+      expect(patches[0]!).not.toHaveProperty("ai");
+    });
+
+    // And when the level IS written back, it is merged: the per-feature pins
+    // are not part of the question this step asks.
+    it("keeps the per-feature pins alongside the level", async () => {
+      const pinned = { ...EXISTING, ai: { level: "everything" as const, pins: { emailDrafts: "off" as const } } };
+      const get = vi.spyOn(ProfileService.prototype, "get").mockResolvedValue(pinned as never);
+      const list = vi.spyOn(CategoriesService.prototype, "list").mockResolvedValue([]);
+      const patches: Record<string, unknown>[] = [];
+      vi.spyOn(ProfileService.prototype, "save").mockImplementation(async (p) => { patches.push(p as Record<string, unknown>); return pinned as never; });
+
+      setup();
+      await waitFor(() => expect(get).toHaveBeenCalled());
+      await waitFor(() => expect(list).toHaveBeenCalled());
+      fireEvent.click(screen.getByText("Skip for now"));
+      await waitFor(() => expect(patches.length).toBe(1));
+      expect(patches[0]!.ai).toEqual({ level: "everything", pins: { emailDrafts: "off" } });
+    });
+
     it("a first run still gets the new-user tab bar", async () => {
       const get = vi.spyOn(ProfileService.prototype, "get").mockResolvedValue(null);
       const patches: Record<string, unknown>[] = [];
