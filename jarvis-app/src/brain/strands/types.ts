@@ -18,6 +18,12 @@ export type StrandCategory = "energy" | "work_style" | "writing" | "people" | "v
 export type StrandSource = "watched" | "asked" | "told" | "uploaded";
 export type StrandStrength = "influence" | "rule";
 export type StrandStatus = "active" | "paused";
+// C-42 (Astra, 2026-09-12): what KIND of thing a strand says, beside which
+// bucket it lives in. Optional; the six categories and their caps are
+// unchanged. Derivations write pattern; the add and edit sheet offers the
+// rest as a chooser; Quick Capture prefixes will set it (C-49, Push E).
+// Open item, revisit before launch: thirteen categories with reworked caps.
+export type StrandType = "fact" | "preference" | "constraint" | "routine" | "relationship" | "principle" | "pattern";
 
 // The launch derivations: the only facts the log honestly supports.
 //
@@ -120,12 +126,24 @@ export interface StrandData {
   lastConfirmed: string;
   derivation?: DerivationKey; // watched strands only: which derivation said it
   evidence?: StrandEvidence[]; // watched strands only, capped
+  // C-42: see StrandType. null and absent both mean "not said".
+  type?: StrandType | null;
+  // C-50: the row this strand was written from by its Remember star, when it
+  // was. The star on that row fills while this link exists, and the strand
+  // row wears the same filled star. Written by the star tap (Push E); read
+  // by every strand row from Push D.
+  link?: { entityType: string; entityId: string };
 }
 
 export interface Strand {
   id: string;
   data: StrandData;
 }
+
+export const STRAND_TYPE_LABEL: Record<StrandType, string> = {
+  fact: "Fact", preference: "Preference", constraint: "Constraint", routine: "Routine",
+  relationship: "Relationship", principle: "Principle", pattern: "Pattern",
+};
 
 export const STRAND_CATEGORY_LABEL: Record<StrandCategory, string> = {
   energy: "Energy",

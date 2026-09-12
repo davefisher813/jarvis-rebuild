@@ -19,6 +19,7 @@ import ConnectionsPage from "../connections/ConnectionsPage";
 import EditTabsPage from "./EditTabsPage";
 import AIControlPage from "../settings/AIControlPage";
 import LearnedRulesPage from "../settings/LearnedRulesPage";
+import LearningLabPage from "../settings/LearningLabPage";
 import type { Destination } from "../shell/destinations";
 // Admin is a hidden owner-only surface; its chunk loads on first open.
 const AdminPanel = lazyWithRecovery(() => import("../admin/AdminPanel"));
@@ -96,7 +97,8 @@ export default function MoreFlow({
   if (route === "terms") return <TermsPage onBack={() => setRoute("about")} />;
   if (route === "privacy") return <PrivacyPage onBack={() => setRoute("about")} />;
   if (route === "support") return <SupportPage onBack={() => setRoute("about")} />;
-  if (route === "advanced") return <AdvancedPage onBack={() => setRoute("settings")} onExport={() => setRoute("backup")} />;
+  if (route === "advanced") return <AdvancedPage onBack={() => setRoute("settings")} onExport={() => setRoute("backup")} onLearningLab={() => setRoute("learninglab")} />;
+  if (route === "learninglab") return <LearningLabPage onBack={() => setRoute("advanced")} />;
   if (route === "backup") return <BackupPage onBack={() => setRoute("settings")} />;
 
   return <MorePage extras={extras} onOpenExtra={onOpenExtra} onNavigate={(r) => setRoute(r)} />;

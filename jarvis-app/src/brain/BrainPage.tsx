@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import BrainTop from "./BrainTop";
 import type { CategoryKind } from "../categories/types";
 import PageHeader from "../shared/PageHeader";
 import { filledIcon } from "../shared/filledIcons";
@@ -81,11 +82,21 @@ const KIND_GROUP_ORDER: BrainGroupKind[] = ["org", "health", "people", "plain"];
 
 export default function BrainPage({
   onOpen,
+  onOpenFact,
+  onOpenWatching,
   categories = [],
 }: {
   onOpen: (key: string, name: string) => void;
+  // C-38: a strand tapped in the top bands opens its sheet on What JARVIS
+  // Knows; a WATCHING detector opens that page under its Watching filter.
+  onOpenFact?: (id: string) => void;
+  onOpenWatching?: () => void;
   categories?: BrainCategory[];
 }) {
+  // C-38: how many live bands sit above the nav list. With none, the page is
+  // the flat nav list it has been since V4 and Explore has nothing to be
+  // apart from; with one or two, Explore is the quiet head over the eight.
+  const [bands, setBands] = useState(0);
   // Catalog V3.1 library form (approved 2026-08-18, the Apple Music look):
   // ICON LAW (Dave 2026-08-22): in a list, an icon is FILLED, and color says
   // whose it is. JARVIS's own rows wear the filled brand-red glyph exactly as
@@ -122,6 +133,12 @@ export default function BrainPage({
   return (
     <div className="screen ruled">
       <PageHeader title="Brain" />
+      <BrainTop
+        onOpenFact={(id) => (onOpenFact ? onOpenFact(id) : onOpen("knows", "What JARVIS Knows"))}
+        onOpenWatching={() => (onOpenWatching ? onOpenWatching() : onOpen("knows", "What JARVIS Knows"))}
+        onBands={setBands}
+      />
+      {bands > 0 && <div className="sh2 sh2-quiet"><span className="t">Explore</span></div>}
       <div className="pad-x"><div className="card list-card-ruled nav-card">{NAV_ROWS.map(Row)}</div></div>
       {catRows.length > 0 && (
         <div>

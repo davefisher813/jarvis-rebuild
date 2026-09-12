@@ -49,6 +49,12 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   // A person tapped through from an area page, kept separately from the
   // shell's intent so an explicit tap always wins over a stale link.
   const [personId, setPersonId] = useState<string | undefined>(undefined);
+  // C-38 (Astra, 2026-09-12): a strand tapped in the hub's top bands, and the
+  // filter What JARVIS Knows opens under. Same one-shot shape as the shell's
+  // intents: the id is spent when the page consumes it, the filter when the
+  // page closes.
+  const [topFact, setTopFact] = useState<{ id: string; nonce: number } | null>(null);
+  const [knowsFilter, setKnowsFilter] = useState<"watching" | undefined>(undefined);
 
   // BRAIN-F-03: the deep link, every time it fires, not just at mount. The
   // nonce is in the deps because the shell can ask for the SAME door twice
@@ -117,7 +123,15 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   const detail = (() => {
     if (!open) return null;
     if (open.key === "knows") {
-      return <StrandsPage openId={factOpenId} openNonce={factNonce} onOpenConsumed={onFactConsumed} onBack={() => setOpen(null)} />;
+      return (
+        <StrandsPage
+          openId={topFact?.id ?? factOpenId}
+          openNonce={topFact ? topFact.nonce : factNonce}
+          onOpenConsumed={() => { setTopFact(null); onFactConsumed?.(); }}
+          initialFilter={knowsFilter}
+          onBack={() => { setKnowsFilter(undefined); setOpen(null); }}
+        />
+      );
     }
     if (open.key === "month") {
       return <InsightsFlow onBack={() => setOpen(null)} onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined} />;
@@ -166,5 +180,14 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   })();
 
   if (detail) return <div className={pushCls} key={"d-" + open!.key}>{detail}</div>;
-  return <div className={pushCls} key="base"><BrainPage onOpen={(key, name) => setOpen({ key, name })} categories={categories} /></div>;
+  return (
+    <div className={pushCls} key="base">
+      <BrainPage
+        onOpen={(key, name) => setOpen({ key, name })}
+        onOpenFact={(id) => { setTopFact((t) => ({ id, nonce: (t?.nonce ?? 0) + 1 })); setOpen({ key: "knows", name: "What JARVIS Knows" }); }}
+        onOpenWatching={() => { setKnowsFilter("watching"); setOpen({ key: "knows", name: "What JARVIS Knows" }); }}
+        categories={categories}
+      />
+    </div>
+  );
 }

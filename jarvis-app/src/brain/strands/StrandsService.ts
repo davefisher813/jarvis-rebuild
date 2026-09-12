@@ -2,7 +2,7 @@ import type { Store, ItemData } from "@core";
 import type { EventInput } from "../../events";
 import {
   ENTITY_STRAND, STRAND_CAP_TOTAL, STRAND_CAP_PER_CATEGORY, EVIDENCE_CAP, NO_PATTERN_TWIN,
-  type Strand, type StrandData, type StrandCategory, type StrandEvidence, type StrandStrength, type DerivationKey,
+  type Strand, type StrandData, type StrandCategory, type StrandEvidence, type StrandStrength, type DerivationKey, type StrandType,
 } from "./types";
 
 // The strand store (Brain Layer 2). Every mutation that says something about
@@ -105,6 +105,9 @@ export class StrandsService {
       lastConfirmed: today,
       derivation,
       evidence: evidence.slice(0, EVIDENCE_CAP),
+      // C-42: a derivation is a pattern by definition; the sheet offers the
+      // other kinds for what he types himself.
+      type: "pattern",
     };
     const id = await this.store.create(this.ownerId, ENTITY_STRAND, data as unknown as ItemData);
     this.emit?.({ type: "strand.created", entityType: ENTITY_STRAND, entityId: id, props: { kind: derivation, category } });
@@ -118,7 +121,7 @@ export class StrandsService {
   // The user typed one sentence themselves: source told, the highest rank,
   // because it was deliberate. strength stays influence unless they made it
   // a rule on purpose.
-  async add(text: string, category: StrandCategory, today: string, strength: "influence" | "rule" = "influence"): Promise<string | null> {
+  async add(text: string, category: StrandCategory, today: string, strength: "influence" | "rule" = "influence", type?: StrandType): Promise<string | null> {
     const t = text.trim();
     if (!t) return null;
     const all = await this.list();
@@ -127,6 +130,9 @@ export class StrandsService {
     const data: StrandData = {
       text: t, category, source: "told", strength, status: "active",
       createdAt: today, lastConfirmed: today,
+      // C-42: only when he chose one; an ordinary fact is written exactly as
+      // it always was.
+      ...(type ? { type } : {}),
     };
     const id = await this.store.create(this.ownerId, ENTITY_STRAND, data as unknown as ItemData);
     this.emit?.({ type: "strand.created", entityType: ENTITY_STRAND, entityId: id, props: { category } });
@@ -187,6 +193,13 @@ export class StrandsService {
   // authorship of the sentence.
   async setStrength(s: Strand, strength: StrandStrength): Promise<void> {
     await this.store.update(this.ownerId, s.id, { strength } as unknown as ItemData);
+  }
+
+  // C-42: the kind, changed on purpose from the edit sheet. null clears it.
+  // Source, derivation and strength are untouched: what kind of thing a fact
+  // is says nothing about who said it or how hard it binds.
+  async setType(s: Strand, type: StrandType | null): Promise<void> {
+    await this.store.update(this.ownerId, s.id, { type } as unknown as ItemData);
   }
 
   // Move a strand to a different bucket, in place. Refuses (false) when the

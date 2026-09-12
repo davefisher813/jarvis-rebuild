@@ -8,7 +8,7 @@ import { Head, Card, Row, DangerRow, Foot, Switch } from "./kit";
 import { readDoneClearing, type DoneClearing } from "../bigger/doneClearing";
 import { SETTING_DONE_CLEARING } from "../data/SettingsService";
 
-export default function AdvancedPage({ onBack, onExport }: { onBack: () => void; onExport?: () => void }) {
+export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBack: () => void; onExport?: () => void; onLearningLab?: () => void }) {
   const chat = useChat();
   const settings = useSettings();
   // WHO SAYS A THING IS DONE (Dave 2026-09-12: "the user should be able to
@@ -44,6 +44,12 @@ export default function AdvancedPage({ onBack, onExport }: { onBack: () => void;
           meta="Off, a finished project or goal waits for you to close it"
           on={doneClearing === "auto"}
           onToggle={() => setClearing(doneClearing === "auto" ? "ask" : "auto")} />
+      </Card>
+      {/* C-39 (Astra, 2026-09-12): the numbers behind each detector moved
+          here from What JARVIS Knows, which now says one word per row. */}
+      <Head label="Brain" />
+      <Card>
+        <Row label="Learning Lab" chev onClick={onLearningLab} />
       </Card>
       <Head label="Data" />
       <Card>

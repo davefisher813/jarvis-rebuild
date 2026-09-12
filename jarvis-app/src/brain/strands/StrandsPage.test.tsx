@@ -32,6 +32,8 @@ const svc = {
   setStrength: vi.fn(async () => {}),
   recategorize: vi.fn(async () => true),
   remove: vi.fn(async () => {}),
+  confirm: vi.fn(async () => {}),
+  setType: vi.fn(async () => {}),
 };
 
 // PICK 29 (2026-08-24): the Noticed offer moved off Today and onto this
@@ -51,6 +53,13 @@ const quiet = {
 };
 vi.mock("../../data/NotesProvider", async (orig) => {
   const actual = await orig<typeof import("../../data/NotesProvider")>();
+  // One object, not one per call: TodaySuggestions keys its load effect on
+  // the service identities, as the real provider gives it stable ones. A
+  // stub that minted a new routine service every render re-ran that effect
+  // on every render, which was invisible while the offer had nothing to set
+  // and became an infinite loop the first time a faded strand gave it a card.
+  // Built on first call, because this factory is hoisted above `quiet`.
+  let routine: (Omit<typeof quiet, "get"> & { get: () => Promise<{ protectedBlocks: never[] }> }) | null = null;
   return {
     ...actual,
     useStrands: () => svc,
@@ -59,7 +68,7 @@ vi.mock("../../data/NotesProvider", async (orig) => {
     useProfile: () => quiet,
     useBrainDocs: () => quiet,
     useSchedule: () => quiet,
-    useRoutine: () => ({ ...quiet, get: async () => ({ protectedBlocks: [] }) }),
+    useRoutine: () => (routine ??= { ...quiet, get: async () => ({ protectedBlocks: [] }) }),
   };
 });
 vi.mock("../../ai/useAI", () => ({ useAI: () => ({ available: false, complete: async () => "" }) }));
@@ -84,12 +93,55 @@ describe("StrandsPage renders the genome", () => {
     expect(screen.getByText("Add One Thing")).toBeInTheDocument();
   });
 
-  it("shows each strand with its category and where it came from", async () => {
+  // C-40 (Astra, 2026-09-12): the state word says who said it, the bucket
+  // says where it lives. "Energy · Watched" became LEARNED · Energy.
+  it("shows each strand with its state word and its bucket", async () => {
     svc.list.mockResolvedValue([strand(), strand({ text: "Never schedule calls before 10", category: "work_style", source: "told", derivation: undefined }, "s2")]);
-    render(<StrandsPage onBack={() => {}} />);
+    const { container } = render(<StrandsPage onBack={() => {}} />);
     await screen.findByText("Gets things done mid morning");
-    expect(screen.getByText(/Energy · Watched/)).toBeInTheDocument();
-    expect(screen.getByText(/Work Style · Told/)).toBeInTheDocument();
+    const rows = [...container.querySelectorAll(".strand-row")];
+    expect(rows[0]?.querySelector(".fact.st")?.textContent).toBe("Learned");
+    expect(rows[0]?.textContent).toContain("Energy");
+    expect(rows[1]?.querySelector(".fact.st")?.textContent).toBe("Known");
+    expect(rows[1]?.textContent).toContain("Work Style");
+    // C-50: every strand row leads with the star, hollow until linked.
+    expect(rows.every((r) => r.firstElementChild?.classList.contains("row-star"))).toBe(true);
+    expect(container.querySelectorAll(".row-star.on").length).toBe(0);
+  });
+
+  it("the filter chips are choosers, and Needs Confirmation gathers what is fading (C-40, C-47)", async () => {
+    svc.list.mockResolvedValue([strand(), strand({ text: "Admin happens Friday afternoons", category: "routine", lastConfirmed: "2026-05-01" }, "s2")]);
+    const { container } = render(<StrandsPage onBack={() => {}} />);
+    await waitFor(() => expect(container.querySelectorAll(".strand-row").length).toBe(2));
+    const fading = [...container.querySelectorAll(".strand-row")].find((r) => r.textContent?.includes("Admin happens"));
+    expect(fading?.querySelector(".fact.st")?.textContent).toBe("Fading");
+    expect(fading?.textContent).toContain("115 days unconfirmed");
+    expect(fading?.querySelector(".pill-act")?.textContent).toBe("Still True");
+    fireEvent.click(screen.getByText("Needs Confirmation"));
+    // TodaySuggestions offers the same faded fact as a card above the list,
+    // so the list is read through its rows.
+    const rowTexts = () => [...container.querySelectorAll(".strand-row")].map((r) => r.textContent ?? "");
+    expect(rowTexts().some((t) => t.includes("Gets things done mid morning"))).toBe(false);
+    expect(rowTexts().some((t) => t.includes("Admin happens Friday afternoons"))).toBe(true);
+    fireEvent.click(container.querySelector(".strand-row .pill-act")!);
+    await waitFor(() => expect(svc.confirm).toHaveBeenCalled());
+  });
+
+  it("the sheet says where the fact is used (C-43)", async () => {
+    svc.list.mockResolvedValue([strand()]);
+    render(<StrandsPage onBack={() => {}} />);
+    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    await screen.findByText("Used By");
+    for (const u of ["Schedule", "Plan My Day", "Your Move"]) expect(screen.getByText(u)).toBeInTheDocument();
+  });
+
+  it("What Kind is a chooser on the sheet, and reaches the service only when chosen (C-42)", async () => {
+    render(<StrandsPage onBack={() => {}} />);
+    fireEvent.click(await screen.findByText("Add One Thing"));
+    fireEvent.change(await screen.findByPlaceholderText(/Brainstorms best at night/), { target: { value: "Family dinner is fixed" } });
+    fireEvent.click(screen.getByText("Constraint"));
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(svc.add).toHaveBeenCalledWith("Family dinner is fixed", "work_style", expect.any(String), "influence", "constraint"));
   });
 
   it("opens the receipts, so a claim can always be checked", async () => {
@@ -193,11 +245,10 @@ describe("Make It a Rule (S4-Q24)", () => {
   it("shows Rule on the row and in the detail sheet for a strand already marked one", async () => {
     svc.list.mockResolvedValue([strand({ strength: "rule" })]);
     render(<StrandsPage onBack={() => {}} />);
-    await screen.findByText(/Energy · Watched · Rule/);
+    // On the row it is the RULE state word (C-40); the sheet keeps its eyebrow.
+    await screen.findByText("Rule");
     fireEvent.click(screen.getByText("Gets things done mid morning"));
-    // The row underneath stays mounted behind the sheet, so the marker now
-    // shows twice: once on the row, once in the sheet that opened over it.
-    await waitFor(() => expect(screen.getAllByText(/Energy · Watched · Rule/)).toHaveLength(2));
+    await screen.findByText(/Energy · Watched · Rule/);
   });
 
   it("turning the toggle on for an existing fact and saving calls setStrength, once, with the strand", async () => {
@@ -334,26 +385,19 @@ describe("StrandsPage write guard (BRAIN-F-12)", () => {
 // The readiness panel is only worth building if the screen actually reaches
 // it, which is the lesson this codebase has learned three times. These render
 // the real StrandsPage through the real provider and read the rows back.
-describe("What JARVIS Knows says why the list is not growing", () => {
+// C-39 (Astra, 2026-09-12): the instrument moved to the Learning Lab under
+// Settings (settings/LearningLabPage.test.tsx carries its tests). This page
+// says one word per detector and where the numbers went.
+describe("What JARVIS Knows says one word per detector", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     svc.list.mockResolvedValue([]);
     try { localStorage.clear(); } catch { /* private mode */ }
   });
 
-  it("names where the evidence came from, in plain words", async () => {
-    render(<StrandsPage onBack={() => {}} />);
-    await screen.findByText("The Evidence");
-    // No Supabase client in a test build, so the read falls back to this
-    // device's log, and the panel is required to say so rather than let a
-    // server that was never reached look like a quiet month.
-    expect(screen.getByText(/This device only/)).toBeInTheDocument();
-    expect(screen.getByText("The Last 30 Days")).toBeInTheDocument();
-  });
-
-  it("gives every detector a row, so none of them fails invisibly", async () => {
-    render(<StrandsPage onBack={() => {}} />);
-    await screen.findByText("What JARVIS Is Watching");
+  it("gives every detector a row with a word, and no sentence", async () => {
+    const { container } = render(<StrandsPage onBack={() => {}} />);
+    await screen.findByText("Readiness");
     for (const label of [
       "When Tasks Get Done", "The Area That Slips", "Whether Plans Finish",
       "When You Train", "When Email Gets Done", "The Person You Email Most",
@@ -361,34 +405,19 @@ describe("What JARVIS Knows says why the list is not growing", () => {
     ]) {
       expect(screen.getByText(label), label + " lost its row").toBeInTheDocument();
     }
+    const words = [...container.querySelectorAll(".rdy-row .fact.st")].map((e) => e.textContent);
+    expect(words.length).toBe(8);
+    expect(words.every((w) => w === "Known" || w === "Close" || w === "Waiting")).toBe(true);
+    expect(container.querySelectorAll(".rdy-why").length).toBe(0);
+    expect(screen.getByText(/Numbers behind each gate/)).toBeInTheDocument();
   });
 
-  it("says what each detector is still waiting for, never just nothing", async () => {
-    const { container } = render(<StrandsPage onBack={() => {}} />);
-    await screen.findByText("What JARVIS Is Watching");
-    const whys = [...container.querySelectorAll(".rdy-why")].map((e) => e.textContent ?? "");
-    expect(whys.length).toBeGreaterThanOrEqual(10); // 8 detectors plus the two evidence rows
-    expect(whys.every((w) => w.trim().length > 0)).toBe(true);
-    expect(whys.some((w) => w.includes("Needs 10 completions"))).toBe(true);
-  });
-
-  it("says the day's pass has recorded nothing, which is its own failure", async () => {
-    const { container } = render(<StrandsPage onBack={() => {}} />);
-    await screen.findByText("The Day's Pass");
-    expect(screen.getByText(/No day recorded yet/)).toBeInTheDocument();
-    // And it never fakes a zero for a pass that has not run.
-    const passRow = [...container.querySelectorAll(".rdy-row")]
-      .find((e) => e.textContent?.includes("The Day's Pass"));
-    expect(passRow?.querySelector(".rdy-n")).toBeNull();
-  });
-
-  it("a fact JARVIS already knows reads as known, not as a failure", async () => {
+  it("a fact JARVIS already knows reads Known", async () => {
     svc.list.mockResolvedValue([strand()]); // derivation: completion_window
     const { container } = render(<StrandsPage onBack={() => {}} />);
     await screen.findByText("When Tasks Get Done");
-    const row = [...container.querySelectorAll(".rdy-row")]
-      .find((e) => e.textContent?.includes("When Tasks Get Done"));
-    expect(row?.textContent).toContain("already knows");
-    expect(row?.querySelector(".rdy-n")?.className).toContain("rdy-good");
+    const row = [...container.querySelectorAll(".rdy-row")].find((e) => e.textContent?.includes("When Tasks Get Done"));
+    expect(row?.querySelector(".fact.st")?.textContent).toBe("Known");
+    expect(row?.querySelector(".fact.st")?.className).toContain("good");
   });
 });

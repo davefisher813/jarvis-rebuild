@@ -311,6 +311,13 @@ export function readiness(rows: WindowRow[], strands: Strand[], people: DerivePe
   });
 }
 
+/** The count a WATCHING row says (C-38, C-40): short of the gate it is
+ *  "4 of 5 pushes in one area"; at or past it, the gate has been met and
+ *  "28 of 10" would read as a mistake, so it is the count alone. */
+export function watchingCount(r: Pick<Readiness, "have" | "need" | "unit">): string {
+  return r.have >= r.need ? `${r.have} ${r.unit}` : `${r.have} of ${r.need} ${r.unit}`;
+}
+
 /** The window's own facts, for the line above the rows. Kept here so the
  *  panel holds no numbers of its own. */
 export const READINESS_WINDOW_DAYS = WINDOW_DAYS;

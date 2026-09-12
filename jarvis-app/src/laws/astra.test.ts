@@ -68,8 +68,14 @@ describe("ASTRA law 3: the Remember star leads the row and is never its control"
   it("every .row-star sits before the row's title, never in the trailing slot", () => {
     const bad: string[] = [];
     for (const f of COMPONENTS) {
+      // The glyph's own definition is not a row.
+      if (rel(f) === "shared/RowStar.tsx") continue;
       const src = read(f);
-      let i = src.indexOf("row-star");
+      // Push D: the glyph ships as shared/RowStar.tsx, so the component tag
+      // counts as the star exactly as the literal class does.
+      const STAR = /row-star|<RowStar\b/g;
+      let hit = STAR.exec(src);
+      let i = hit ? hit.index : -1;
       while (i !== -1) {
         // The row this star belongs to is the nearest row opener before it.
         const before = src.slice(0, i);
@@ -77,7 +83,8 @@ describe("ASTRA law 3: the Remember star leads the row and is never its control"
         const between = rowAt === -1 ? before.slice(-400) : before.slice(rowAt);
         if (rowAt === -1) bad.push(`${rel(f)}: a row-star outside any row`);
         else if (/row-grow|conn-name|pill-act|className="cap\b|row-r\b/.test(between)) bad.push(`${rel(f)}: a row-star after the title or in the trailing slot`);
-        i = src.indexOf("row-star", i + 1);
+        hit = STAR.exec(src);
+        i = hit ? hit.index : -1;
       }
     }
     expect(bad).toEqual([]);

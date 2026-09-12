@@ -9,11 +9,25 @@ import { attemptWrite } from "../../shared/guard";
 import PageHeader from "../../shared/PageHeader";
 import { Switch } from "../../settings/kit";
 import {
-  STRAND_CATEGORY_LABEL,
-  type Strand, type StrandCategory, type StrandEvidence, type DerivationKey,
+  STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, NO_PATTERN_TWIN,
+  type Strand, type StrandCategory, type StrandEvidence, type DerivationKey, type StrandType,
 } from "./types";
 import { pressable } from "../../shared/pressable";
-import ReadinessPanel from "./ReadinessPanel";
+import ReadinessPanel, { useReadiness } from "./ReadinessPanel";
+import { stateForStrand, toneForStrandState, STRAND_STATE_LABEL, bucketFor, confidenceWord, isWatching, type StrandBucket } from "./state";
+import { usedBy } from "./usedBy";
+import { daysSince } from "../recall";
+import { watchingCount } from "../readiness";
+import RowStar from "../../shared/RowStar";
+
+// C-40: the filter chips. Choosers, so filled chips. Watching is not a
+// strand bucket: it lists the readiness rows past CLOSE_SHARE of their gate.
+type Filter = "all" | StrandBucket | "watching";
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "all", label: "All" }, { key: "known", label: "Known" }, { key: "learned", label: "Learned" },
+  { key: "watching", label: "Watching" }, { key: "needs", label: "Needs Confirmation" },
+];
+const TYPES = Object.keys(STRAND_TYPE_LABEL) as StrandType[];
 
 // What JARVIS Knows (Brain Layer 2). The genome made visible: every strand,
 // its category, where it came from, and its receipts. Wrongness has an exit
@@ -72,11 +86,13 @@ export function receiptLine(derivation: DerivationKey | undefined, e: StrandEvid
 // the target; the actual Strand is DERIVED from strands on every render
 // (never captured once at mount), so it resolves correctly whichever finishes
 // loading first, the deep link or the list itself.
-export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, onOpenConsumed }: { onBack: () => void; openId?: string;
+export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, onOpenConsumed, initialFilter }: { onBack: () => void; openId?: string;
   // BRAIN-F-04 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
   // Without it a fact opened from Quick Add reopened its sheet on every later
   // visit to What JARVIS Knows.
-  openNonce?: number; onOpenConsumed?: () => void }) {
+  openNonce?: number; onOpenConsumed?: () => void;
+  // C-38: the Brain hub's Needs You opens this page under Watching.
+  initialFilter?: "watching" }) {
   const svc = useStrands();
   const ai = useAI();
   const today = todayISO();
@@ -100,9 +116,28 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
   // user-stated (never promoted here from evidence), so this is the one
   // and only place that can set it.
   const [rule, setRule] = useState(false);
+  // C-42: the kind, a chooser on the sheet. null is "not said".
+  const [kind, setKind] = useState<StrandType | null>(null);
+  const [filter, setFilter] = useState<Filter>(initialFilter ?? "all");
 
   const reload = useCallback(async () => setStrands(await svc.list()), [svc]);
   useEffect(() => { void reload(); }, [reload]);
+
+  // C-39 / C-41: one read, for the panel's words and the rows' confidence.
+  const read = useReadiness(strands);
+  const watching = read.rows.filter((r) => isWatching(r.state));
+  const visible = filter === "all" ? strands : filter === "watching" ? [] : strands.filter((s) => bucketFor(s, today) === filter);
+  // The readiness row a watched strand came from, through the twin map, so a
+  // no-pattern fact reads its count off the question it answered.
+  const readinessFor = (s: Strand) => {
+    const d = s.data.derivation;
+    if (!d) return undefined;
+    return read.rows.find((r) => r.key === d || NO_PATTERN_TWIN[r.key] === d);
+  };
+  const openRow = (s: Strand) => () => {
+    setOpenId(s.id); setEditing(false); setText(s.data.text); setCat(s.data.category);
+    setRule(s.data.strength === "rule"); setKind(s.data.type ?? null);
+  };
 
   // B12 (2026-08-24): the Brain is capped, so a double-tapped Save used to
   // burn a slot on a duplicate belief.
@@ -119,7 +154,10 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       // Only ever pass the fourth argument when it says something other than
       // add()'s own default, so an ordinary fact (the common case) reaches the
       // service exactly as it always did.
-      const id = rule ? await svc.add(text, cat, today, "rule") : await svc.add(text, cat, today);
+      // C-42: the kind rides as a fifth argument only when he chose one.
+      const id = kind
+        ? await svc.add(text, cat, today, rule ? "rule" : "influence", kind)
+        : rule ? await svc.add(text, cat, today, "rule") : await svc.add(text, cat, today);
       showToast({ message: id ? "JARVIS will remember that" : "The Brain is full · Delete one first" });
     });
     setSaving(false);
@@ -150,6 +188,10 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       if (rule !== (open.data.strength === "rule")) {
         await svc.setStrength(open, rule ? "rule" : "influence");
       }
+      // C-42: same rule as strength, only when it actually changed.
+      if (kind !== (open.data.type ?? null)) {
+        await svc.setType(open, kind);
+      }
     });
     setSaving(false);
     if (!ok) return;
@@ -175,6 +217,16 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
     const ok = await attemptWrite(() => svc.confirm(s, today));
     if (!ok) return;
     setOpenId(null);
+    await reload();
+    showToast({ message: "Confirmed" });
+  };
+
+  // C-47: a fading row carries its own Still True, so the answer is one tap
+  // from the list. The row stops fading and keeps its place.
+  const confirmRow = async (s: Strand) => {
+    haptics.selection();
+    const ok = await attemptWrite(() => svc.confirm(s, today));
+    if (!ok) return;
     await reload();
     showToast({ message: "Confirmed" });
   };
@@ -233,39 +285,94 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           of jarvis learning anything"). Above the facts, below the offers,
           because it is the answer to the question this screen makes him ask.
           It reports; it proposes nothing and writes nothing. */}
-      <ReadinessPanel strands={strands} today={today} />
+      {/* C-40: the choosers. Filled chips, because these filter. */}
+      <div className="chip-row chip-wrap-row strand-filters">
+        {FILTERS.map((f) => (
+          <button key={f.key} type="button" className={"chip" + (filter === f.key ? " active" : "")} aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>{f.label}</button>
+        ))}
+      </div>
 
-      {strands.length > 0 && (
-        <div className="sh2 sh2-quiet"><span className="t">What It Knows</span><span className="n">{strands.length}</span></div>
+      <ReadinessPanel read={read} today={today} />
+
+      {filter === "watching" && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Watching</span><span className="n">{watching.length}</span></div>
+          {watching.length === 0 && <div className="empty-state">Nothing is close to its gate yet. The Learning Lab under Settings shows every count.</div>}
+          {watching.length > 0 && (
+            <div className="pad-x"><div className="card list-card-ruled">
+              {watching.map((r) => (
+                <div className="row strand-row" key={r.key}>
+                  <div className="row-grow">
+                    <div className="conn-name">{r.label}</div>
+                    <div className="facts">
+                      <span className="fact st warn">Watching</span>
+                      <span className="fact">{watchingCount(r)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div></div>
+          )}
+        </>
       )}
 
-      {strands.length === 0 && (
+      {filter !== "watching" && visible.length > 0 && (
+        <div className="sh2 sh2-quiet"><span className="t">What It Knows</span><span className="n">{visible.length}</span></div>
+      )}
+
+      {strands.length === 0 && filter !== "watching" && (
         <div className="empty-state">
           Nothing yet. JARVIS only writes here what it has watched you do, or what you tell it. Add one thing below, or just live in the app and let it notice.
         </div>
       )}
+      {strands.length > 0 && filter !== "all" && filter !== "watching" && visible.length === 0 && (
+        <div className="empty-state">Nothing under this one yet.</div>
+      )}
 
-      {strands.length > 0 && (
+      {/* THE STRAND ROW (C-40, C-41, C-43, C-47, C-50; Astra, 2026-09-12).
+          The star leads, then the fact, then one facts line: the state word,
+          Rule when he made it one, the confidence word with its count where
+          the derivation owns one, days unconfirmed when it is fading, Paused
+          when it is, and the bucket. A fading row carries Still True in the
+          trailing slot instead of the chevron; the sheet still opens from the
+          row itself. The eyebrow that said "Energy · Watched" is gone: the
+          state word says who said it, the bucket says where it lives. */}
+      {visible.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled">
-          {strands.map((s) => (
-            <div {...pressable(() => { setOpenId(s.id); setEditing(false); setText(s.data.text); setCat(s.data.category); setRule(s.data.strength === "rule"); })}
-              className={"row strand-row" + (s.data.status === "paused" ? " paused" : "")}
-              key={s.id}
-            >
-              <div className="row-grow">
-                <div className="strand-eyebrow">
-                  {STRAND_CATEGORY_LABEL[s.data.category]} &middot; {SOURCE_LABEL[s.data.source] ?? s.data.source}{s.data.strength === "rule" ? " · Rule" : ""}{s.data.status === "paused" ? " · Paused" : ""}
+          {visible.map((s) => {
+            const st = stateForStrand(s, today);
+            const rr = s.data.source === "watched" || s.data.source === "uploaded" ? readinessFor(s) : undefined;
+            const conf = rr ? confidenceWord(rr.have, rr.need) : null;
+            const fading = st === "FADING";
+            return (
+              <div {...pressable(openRow(s))}
+                className={"row strand-row" + (s.data.status === "paused" ? " paused" : "")}
+                key={s.id}
+              >
+                <RowStar on={!!s.data.link} />
+                <div className="row-grow">
+                  <div className="conn-name">{s.data.text}</div>
+                  <div className="facts">
+                    {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
+                    {s.data.strength === "rule" && <span className="fact st red">Rule</span>}
+                    {conf && <span className={"fact " + (conf === "High" ? "good" : "warn")}>{conf}</span>}
+                    {rr && conf && <span className="fact">{rr.have} {rr.unit}</span>}
+                    {fading && <span className="fact">{daysSince(s.data.lastConfirmed, today)} days unconfirmed</span>}
+                    {s.data.status === "paused" && <span className="fact">Paused</span>}
+                    <span className="fact">{STRAND_CATEGORY_LABEL[s.data.category]}</span>
+                  </div>
                 </div>
-                <div className="conn-name">{s.data.text}</div>
+                {fading
+                  ? <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void confirmRow(s); }}>Still True</button>
+                  : <div className="chev" />}
               </div>
-              <div className="chev" />
-            </div>
-          ))}
+            );
+          })}
         </div></div>
       )}
 
       <div className="pad-x">
-        <button className="row row-act" onClick={() => { setAdding(true); setText(""); setCat("work_style"); setRule(false); }}>Add One Thing</button>
+        <button className="row row-act" onClick={() => { setAdding(true); setText(""); setCat("work_style"); setRule(false); setKind(null); }}>Add One Thing</button>
       </div>
       <div className="screen-foot" />
 
@@ -283,6 +390,12 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
                   <div className="conn-meta">{monthDay(e.day)}</div>
                 </div>
               ))}
+              {/* C-43: where this fact is read. Plain facts, from the static
+                  map, the same words the row wears on the Brain hub. */}
+              <div className="strand-used">
+                <div className="input-label">Used By</div>
+                <div className="facts">{usedBy(open.data.category).map((u) => <span className="fact" key={u}>{u}</span>)}</div>
+              </div>
             </div>
             <div className="pad-x sheet-actions">
               {/* First, and above Edit, because it is the affirmative one and
@@ -313,6 +426,15 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
                 <div className="field"><div className="input-label">Where It Belongs</div>
                   <div className="chip-row">{CATS.map((c) => (
                     <button key={c} className={"chip" + (cat === c ? " active" : "")} onClick={() => setCat(c)}>{STRAND_CATEGORY_LABEL[c]}</button>
+                  ))}</div>
+                </div>
+              )}
+              {/* C-42: what kind of thing it is. A chooser, so filled chips;
+                  tapping the chosen one again clears it. */}
+              {(adding || (open && editing)) && (
+                <div className="field"><div className="input-label">What Kind</div>
+                  <div className="chip-row">{TYPES.map((t) => (
+                    <button key={t} type="button" className={"chip" + (kind === t ? " active" : "")} aria-pressed={kind === t} onClick={() => setKind((k) => (k === t ? null : t))}>{STRAND_TYPE_LABEL[t]}</button>
                   ))}</div>
                 </div>
               )}

@@ -5119,6 +5119,21 @@ body.selecting .voice-dock { display: none; }
 .block-held-facts { flex-shrink: 0; margin-top: 0; }
 .plan-facts { padding: var(--s-1) 0 var(--s-2); }
 
+/* THE BRAIN, PUSH D (C-38 to C-43, C-47, C-50; Astra, 2026-09-12). Strand
+   rows on the hub and on What JARVIS Knows: the star leads, a purple disc
+   says JARVIS-made knowledge (G7), a warn disc with a question mark is a
+   detector still watching. The star on a strand row is a marker, not a
+   control, so it does not invite a tap. */
+.strand-disc { background: var(--cat-purple); }
+.warn-disc { background: var(--warn-fill); }
+.disc-glyph { font-size: calc(15px * var(--type-scale)); font-weight: 800; line-height: 1; }
+.strand-row .lib-disc { flex-shrink: 0; }
+span.row-star { cursor: default; }
+.strand-filters { padding-top: 0; }
+.rdy-receipt { padding-bottom: var(--s-2h); }
+.strand-used { padding-top: var(--s-3); }
+.strand-used .input-label { margin-bottom: var(--s-1); }
+
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
    mail EvidenceChip: a surface hands that component this class rather than
    forking it, and the sheet it opens is the Why sheet (C-25). */

@@ -6,6 +6,7 @@ import { peopleForDerivation } from "../peopleFacts";
 import { readConsolidation } from "../nightly";
 import { daysSince } from "../recall";
 import { readiness, READINESS_WINDOW_DAYS, type Readiness, type ReadinessState } from "../readiness";
+import { readinessWord, toneForReadinessWord } from "./state";
 import { Nums } from "../../bigger/GoalRowRuled";
 import type { DerivePerson } from "../derive";
 import type { Strand } from "./types";
@@ -28,9 +29,60 @@ import type { Strand } from "./types";
 // brain/derive.ts and today/planningPatterns.ts), so it cannot drift into
 // telling him a threshold that is not the one in force.
 //
-// Two bands, because the two questions are different. The first is whether
-// JARVIS is seeing his life at all. The second is what each detector is
-// waiting for.
+// TWO FACES SINCE C-39 (Astra, 2026-09-12). What JARVIS Knows shows the
+// "words" face: one word per detector (Known, Close, Waiting) and a receipt
+// saying where the numbers went. The Learning Lab under Settings shows the
+// "lab" face: the two evidence rows and every detector's have over need with
+// the sentence saying what it still waits for. One read, one set of rows, two
+// renderings, so the word on the Knows page and the number in the Lab can
+// never disagree.
+
+// THE READ, as a hook, so the Knows page, the Lab and the Brain's top bands
+// make the same read through the same client with the same 30-day window.
+// Anything else and one surface would be reporting on a different Brain
+// than the one he has.
+export interface ReadinessRead {
+  rows: Readiness[];
+  source: "server" | "local";
+  /** Rows in the window, for the evidence line. */
+  count: number;
+  failed: boolean;
+  loaded: boolean;
+}
+
+export function useReadiness(strands: Strand[], enabled = true): ReadinessRead {
+  const peopleSvc = useOptionalPeople();
+  const [read, setRead] = useState<WindowRead | null>(null);
+  const [people, setPeople] = useState<DerivePerson[]>([]);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    void (async () => {
+      try {
+        const [w, folk] = await Promise.all([
+          // The same read the detectors do, through the same client, with the
+          // same 30-day window.
+          readWindowWithSource(supabase as unknown as WindowClient | null, Date.now()),
+          peopleForDerivation(peopleSvc),
+        ]);
+        if (!live) return;
+        setRead(w);
+        setPeople(folk);
+      } catch {
+        // Silent automation that fails renders a receipt, never nothing:
+        // an instrument that goes blank when it breaks is the exact defect
+        // this panel was built to end.
+        if (live) setFailed(true);
+      }
+    })();
+    return () => { live = false; };
+  }, [peopleSvc, enabled]);
+
+  const rows = read ? readiness(read.rows, strands, people, Date.now()) : [];
+  return { rows, source: read?.source ?? "local", count: read?.rows.length ?? 0, failed, loaded: read !== null };
+}
 
 const STATE_CLASS: Record<ReadinessState, string> = {
   known: "rdy-good", ready: "rdy-good", close: "rdy-warn", waiting: "", muted: "rdy-off",
@@ -60,55 +112,52 @@ function DetectorRow({ r }: { r: Readiness }) {
   );
 }
 
-export default function ReadinessPanel({ strands, today }: { strands: Strand[]; today: string }) {
-  const peopleSvc = useOptionalPeople();
-  const [read, setRead] = useState<WindowRead | null>(null);
-  const [people, setPeople] = useState<DerivePerson[]>([]);
-  const [failed, setFailed] = useState(false);
+// The words face (C-39): one word per detector, no numbers, and the receipt
+// that says where the numbers went.
+function WordRow({ r }: { r: Readiness }) {
+  const w = readinessWord(r.state);
+  return (
+    <div className="row rdy-row">
+      <div className="row-grow"><div className="conn-name">{r.label}</div></div>
+      <span className={"fact st " + toneForReadinessWord(w)}>{w}</span>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    let live = true;
-    void (async () => {
-      try {
-        const [w, folk] = await Promise.all([
-          // The same read the detectors do, through the same client, with the
-          // same 30-day window. Anything else and the panel would be
-          // reporting on a different Brain than the one he has.
-          readWindowWithSource(supabase as unknown as WindowClient | null, Date.now()),
-          peopleForDerivation(peopleSvc),
-        ]);
-        if (!live) return;
-        setRead(w);
-        setPeople(folk);
-      } catch {
-        // Silent automation that fails renders a receipt, never nothing:
-        // an instrument that goes blank when it breaks is the exact defect
-        // this panel was built to end.
-        if (live) setFailed(true);
-      }
-    })();
-    return () => { live = false; };
-  }, [peopleSvc]);
-
-  if (failed) {
+export default function ReadinessPanel({ read, today, variant = "words" }: { read: ReadinessRead; today: string; variant?: "words" | "lab" }) {
+  if (read.failed) {
     return (
       <>
-        <div className="sh2 sh2-quiet"><span className="t">The Evidence</span></div>
+        <div className="sh2 sh2-quiet"><span className="t">{variant === "lab" ? "The Evidence" : "Readiness"}</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
           <Row label="Could Not Be Read" why="JARVIS could not read your activity just now · Open this screen again on a connection" />
         </div></div>
       </>
     );
   }
-  if (!read) return null;
+  if (!read.loaded) return null;
 
-  const rows = readiness(read.rows, strands, people, Date.now());
+  if (variant === "words") {
+    return (
+      <>
+        <div className="sh2 sh2-quiet"><span className="t">Readiness</span><span className="n">{read.rows.length}</span></div>
+        <div className="pad-x"><div className="card list-card-ruled">
+          {read.rows.map((r) => <WordRow r={r} key={r.key} />)}
+          {/* Not a button: the Lab is three taps away under Settings and
+              this page has no door into More. The line says where, which
+              is the receipt's whole job. */}
+          <div className="receipt-line rdy-receipt"><span className="rl-t">Numbers behind each gate · Settings › Advanced › Learning Lab</span></div>
+        </div></div>
+      </>
+    );
+  }
+
   const pass = readConsolidation();
   const passAge = pass ? daysSince(pass.day, today) : 0;
   const passWhy = !pass
     ? "No day recorded yet · The pass only records a day it had something to propose · A quiet month looks the same"
     : passAge === 0
-      ? "Ran today, and what it chose is offered above"
+      ? "Ran today, and what it chose is offered on What JARVIS Knows"
       : `Last recorded ${passAge} ${passAge === 1 ? "day" : "days"} ago · It reviews once a local day, whenever the app is open`;
 
   return (
@@ -120,7 +169,7 @@ export default function ReadinessPanel({ strands, today }: { strands: Strand[]; 
           why={read.source === "server"
             ? "Read from your account · Everything you have done, on every device"
             : "This device only, not everything you have done"}
-          slot={String(read.rows.length)}
+          slot={String(read.count)}
           tone={read.source === "server" ? "rdy-good" : "rdy-warn"}
         />
         <Row
@@ -130,9 +179,9 @@ export default function ReadinessPanel({ strands, today }: { strands: Strand[]; 
         />
       </div></div>
 
-      <div className="sh2 sh2-quiet"><span className="t">What JARVIS Is Watching</span><span className="n">{rows.length}</span></div>
+      <div className="sh2 sh2-quiet"><span className="t">What JARVIS Is Watching</span><span className="n">{read.rows.length}</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
-        {rows.map((r) => <DetectorRow r={r} key={r.key} />)}
+        {read.rows.map((r) => <DetectorRow r={r} key={r.key} />)}
       </div></div>
     </>
   );
