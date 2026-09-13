@@ -75,6 +75,11 @@ export interface OutboxItem {
   deckVerbatim?: boolean;
   chaseDays?: number;
   nudge?: boolean;
+  // C-56 (Astra, 2026-09-12): the draft the model produced, when this
+  // compose started from one and he edited it. Read once at send, diffed
+  // against body on the device, classified into a closed set, and dropped;
+  // the kind is the only thing that reaches the log.
+  modelBody?: string;
 }
 
 const KEY = "jarvis.mail.outbox.v1";

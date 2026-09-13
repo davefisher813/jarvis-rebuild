@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { AIService } from "../ai/AIService";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../ai/suggestions";
-import { useTasks, useProfile, useBrainDocs, useSchedule, useRoutine, useOptionalStrands, useOptionalPeople } from "../data/NotesProvider";
+import { useTasks, useProfile, useBrainDocs, useSchedule, useRoutine, useOptionalStrands, useOptionalPeople, useOptionalCategories } from "../data/NotesProvider";
 import { peopleForDerivation } from "../brain/peopleFacts";
 import { readWindow, type WindowClient } from "../brain/window";
 import { brainMoments } from "../brain/moments";
@@ -66,6 +66,8 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // UP-MIND-16 (2026-09-05): Contacts, for the two people derivations. The
   // log carries person ids; the names and the labels live here.
   const peopleSvc = useOptionalPeople();
+  // C-59: the area names the people derivation labels with.
+  const catsSvc = useOptionalCategories();
   // Texts of the tasks already visible in Up Next: a suggestion that echoes
   // one of them is repetition, not value (Dave 2026-07-30), and is hidden.
   const [visibleTaskTexts, setVisibleTaskTexts] = useState<Set<string> | null>(null);
@@ -114,7 +116,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
           const [rows, strands, folk] = await Promise.all([
             readWindow(supabase as unknown as WindowClient | null, Date.now()),
             strandsSvc.list(),
-            peopleForDerivation(peopleSvc),
+            peopleForDerivation(peopleSvc, catsSvc ? (await catsSvc.list().catch(() => [])).map((c) => ({ id: c.id, name: c.data.name })) : []),
           ]);
           // THE NIGHTLY PASS (handoff item 2 + decision x3): the day's set is
           // consolidated once per local day and capped at three, instead of

@@ -35,7 +35,7 @@ describe("people rhythm", () => {
 
   it("proposes Work when the threads are linked to a live project", () => {
     const d = derivePeopleRhythm(handled("p1", 12), [{ ...marco, onProject: true }])!;
-    expect(d.apply?.label).toBe("Work");
+    expect(d.apply?.label).toBe("Work collaborator");
   });
 
   // Somebody the user has already labelled needs no proposal, and a person

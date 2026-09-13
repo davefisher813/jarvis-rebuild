@@ -2,7 +2,7 @@ import type { Store, ItemData } from "@core";
 import type { EventInput } from "../../events";
 import {
   ENTITY_STRAND, STRAND_CAP_TOTAL, STRAND_CAP_PER_CATEGORY, EVIDENCE_CAP, NO_PATTERN_TWIN,
-  type Strand, type StrandData, type StrandCategory, type StrandEvidence, type StrandStrength, type DerivationKey, type StrandType,
+  type Strand, type StrandData, type StrandCategory, type StrandEvidence, type StrandStrength, type DerivationKey, type StrandType, type WritingChannel,
 } from "./types";
 
 // The strand store (Brain Layer 2). Every mutation that says something about
@@ -217,6 +217,11 @@ export class StrandsService {
   // authorship of the sentence.
   async setStrength(s: Strand, strength: StrandStrength): Promise<void> {
     await this.store.update(this.ownerId, s.id, { strength } as unknown as ItemData);
+  }
+
+  // C-57: the channel a writing fact is about. null clears it.
+  async setChannel(s: Strand, channel: WritingChannel | null): Promise<void> {
+    await this.store.update(this.ownerId, s.id, { channel } as unknown as ItemData);
   }
 
   // C-42: the kind, changed on purpose from the edit sheet. null clears it.

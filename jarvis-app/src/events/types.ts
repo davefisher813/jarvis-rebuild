@@ -125,6 +125,8 @@ export type EventType =
   // event, a person, a decision); the strand's text never rides along.
   | "strand.starred"
   | "strand.unstarred"
+  // C-56 / section 5 (Astra, 2026-09-12): email.deck_sent (above) gains
+  // kind = the draft edit kind from messages/draftEdit.ts, a closed set.
   // C-37 / section 5 (Astra, 2026-09-12): a self-reported check-in on a
   // goal that nothing can measure yet. kind = ahead | on_track | behind,
   // entity_id = the goal. Never written to the goal's state.

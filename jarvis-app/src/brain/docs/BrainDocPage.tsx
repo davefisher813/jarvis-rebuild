@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { useBrainDocs } from "../../data/NotesProvider";
+import { useBrainDocs, useOptionalStrands, useOptionalRules } from "../../data/NotesProvider";
+import { todayISO } from "../../ai/useAIContext";
+import { WRITING_CHANNEL_LABEL, type Strand, type WritingChannel } from "../strands/types";
+import { stateForStrand, toneForStrandState, STRAND_STATE_LABEL } from "../strands/state";
+import { writingProposals, type WritingProposal } from "../writingProposals";
+import type { LearnedRule } from "../../rules/LearnedRulesService";
+import { attemptWrite } from "../../shared/guard";
+import RowStar from "../../shared/RowStar";
 import { docMeta } from "./types";
 import { useAI } from "../../ai/useAI";
 import { buildVisionMessage } from "../../ai/AIService";
@@ -29,6 +36,40 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   const [loaded, setLoaded] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [reading, setReading] = useState(false);
+  // C-57 / C-56 (Astra, 2026-09-12): on How You Write, the writing facts
+  // grouped by channel, and the draft-edit proposals waiting for a word.
+  const isWriting = topic === "writing";
+  const strandsSvc = useOptionalStrands();
+  const rulesSvc = useOptionalRules();
+  const [writingStrands, setWritingStrands] = useState<Strand[]>([]);
+  const [proposals, setProposals] = useState<WritingProposal[]>([]);
+  const loadWriting = async () => {
+    if (!isWriting) return;
+    try {
+      if (strandsSvc) setWritingStrands((await strandsSvc.list()).filter((s) => s.data.category === "writing" && s.data.status === "active"));
+      if (rulesSvc) setProposals(writingProposals(await rulesSvc.list()));
+    } catch { /* the heads simply do not render */ }
+  };
+  useEffect(() => { void loadWriting(); }, [isWriting, strandsSvc, rulesSvc]);
+  // That's Right: the proposal becomes a writing strand on the email
+  // channel, and the rule is marked announced so it stops asking.
+  const confirmProposal = async (p: WritingProposal) => {
+    if (!strandsSvc || !rulesSvc) return;
+    const today = todayISO();
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => {
+      id = await strandsSvc.add(p.text, "writing", today, "influence", "pattern");
+      if (id) {
+        const made = (await strandsSvc.list()).find((s) => s.id === id);
+        if (made) await strandsSvc.setChannel(made, "email");
+      }
+      await rulesSvc.markAnnounced(p.rule as LearnedRule);
+    });
+    if (!ok) return;
+    if (!id) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    showToast({ message: "Saved to Writing" });
+    await loadWriting();
+  };
   const fileRef = useRef<HTMLInputElement>(null);
 
   // BRAIN-F-12 (2026-09-05): with no catch, one failed read left `loaded`
@@ -56,15 +97,35 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
     return () => { on = false; };
   }, [docs, topic, attempt]);
 
+  // C-16 (Astra, 2026-09-12): AUTOSAVE, the notes blur-save shape. The bar
+  // Save is gone; the doc writes when the canvas loses focus and when a
+  // hard line changes, one write at a time through a queue so a save
+  // started on blur and one started by a chip tap never race each other.
   // Failed saves surface instead of dying silently (audit 2026-07-30).
+  const queueRef = useRef<Promise<void> | null>(null);
+  const latestRef = useRef<{ text: string; lines: HardLine[] }>({ text: "", lines: [] });
+  latestRef.current = { text, lines };
   const save = async () => {
-    try {
-      await docs.save(topic, text.trim(), isValues ? lines : undefined);
-      setDirty(false);
-    } catch {
-      showToast({ message: "Couldn't save · Check your connection" });
-    }
+    const run = async () => {
+      const cur = latestRef.current;
+      try {
+        await docs.save(topic, cur.text.trim(), isValues ? cur.lines : undefined);
+        setDirty(false);
+      } catch {
+        showToast({ message: "Couldn't save · Check your connection" });
+      }
+    };
+    const prev = queueRef.current ?? new Promise<void>((done) => done());
+    queueRef.current = prev.then(run, run);
+    await queueRef.current;
   };
+  // Hard lines save on the change itself; the canvas saves on blur.
+  const linesDirtyRef = useRef(false);
+  useEffect(() => {
+    if (!loaded || !linesDirtyRef.current) return;
+    linesDirtyRef.current = false;
+    void save();
+  }, [lines]);
 
   // Photo-to-doc (Dave 2026-07-30): pick a photo, JARVIS reads it and appends
   // what it learned as editable text. The user reviews, then taps Save; the AI
@@ -98,7 +159,6 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
         title={meta?.title ?? "Note"}
         back="Brain"
         onBack={onBack}
-        actions={<button className="nav-action-text" onClick={save} disabled={!dirty}>{loaded && !dirty ? "Saved" : "Save"}</button>}
       />
       {/* Deep writing pass (2026-08-19): brain docs write on the notes
           canvas, not in a boxed form field. Same typography, same caret. */}
@@ -113,8 +173,51 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
           placeholder={meta?.placeholder}
           value={text}
           onChange={(e) => { setText(e.target.value); setDirty(true); }}
+          onBlur={() => { if (dirty) void save(); }}
           disabled={!loaded}
         />
+        {/* C-57: the writing facts by channel, each row the strand row's
+            anatomy. C-56: a draft-edit rule waiting for a word sits under
+            Email with That's Right. */}
+        {isWriting && (writingStrands.length > 0 || proposals.length > 0) && (
+          (["email", "text", "general"] as WritingChannel[]).map((ch) => {
+            const rows = writingStrands.filter((s) => (s.data.channel ?? "general") === ch);
+            const asks = ch === "email" ? proposals : [];
+            if (rows.length === 0 && asks.length === 0) return null;
+            return (
+              <div key={ch}>
+                <div className="sh2 sh2-quiet"><span className="t">{WRITING_CHANNEL_LABEL[ch]}</span><span className="n">{rows.length + asks.length}</span></div>
+                <div className="card list-card-ruled">
+                  {rows.map((s) => {
+                    const st = stateForStrand(s, todayISO());
+                    return (
+                      <div className="row strand-row" key={s.id}>
+                        <RowStar on={!!s.data.link} />
+                        <div className="row-grow">
+                          <div className="conn-name">{s.data.text}</div>
+                          <div className="facts">
+                            {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
+                            {s.data.strength === "rule" && <span className="fact st red">Rule</span>}
+                            {(s.data.evidence?.length ?? 0) > 0 && <span className="fact">{s.data.evidence!.length} edits</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {asks.map((p) => (
+                    <div className="row strand-row" key={"ask:" + p.rule.id}>
+                      <div className="row-grow">
+                        <div className="conn-name">{p.text}</div>
+                        <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{p.edits} edits</span></div>
+                      </div>
+                      <button type="button" className="pill-act" onClick={() => void confirmProposal(p)}>That's Right</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })
+        )}
         {/* UP-MIND-20: the hard lines. Typed by the user, on their own
             page, and nowhere else: the app never writes a Value. Each chip
             says exactly what it will stop, because a rule that stops an
@@ -131,7 +234,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                   <div className="conn-name">{HARD_LINE_LABEL[l.kind]} · {l.match}</div>
                   <div className="conn-meta">{HARD_LINE_PROMISE[l.kind]}</div>
                 </div>
-                <button className="quiet-action" onClick={() => { setLines(lines.filter((_, j) => j !== i)); setDirty(true); }}>Remove</button>
+                <button className="quiet-action" onClick={() => { linesDirtyRef.current = true; setLines(lines.filter((_, j) => j !== i)); setDirty(true); }}>Remove</button>
               </div>
             ))}
             {lines.length < MAX_HARD_LINES && (
@@ -152,6 +255,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                   className="btn btn-secondary btn-block"
                   disabled={!lineText.trim()}
                   onClick={() => {
+                    linesDirtyRef.current = true;
                     setLines(cleanHardLines([...lines, { kind: lineKind, match: lineText.trim() }]));
                     setLineText("");
                     setDirty(true);

@@ -137,6 +137,7 @@ export default function BrainPage({
         onOpenFact={(id) => (onOpenFact ? onOpenFact(id) : onOpen("knows", "What JARVIS Knows"))}
         onOpenWatching={() => (onOpenWatching ? onOpenWatching() : onOpen("knows", "What JARVIS Knows"))}
         onBands={setBands}
+        areas={categories.map((c) => c.name)}
       />
       {bands > 0 && <div className="sh2 sh2-quiet"><span className="t">Explore</span></div>}
       <div className="pad-x"><div className="card list-card-ruled nav-card">{NAV_ROWS.map(Row)}</div></div>

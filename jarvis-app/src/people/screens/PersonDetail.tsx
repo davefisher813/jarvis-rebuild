@@ -3,6 +3,7 @@ import { personInitials, avatarClass } from "../types";
 import { catColor } from "../../shared/categories";
 import { RowGlyph } from "../../shared/anatomy";
 import { pressable } from "../../shared/pressable";
+import { shortDate } from "../../shared/dateFormat";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -39,6 +40,13 @@ export default function PersonDetail({
   onOpenItem,
   onMessageAbout,
   trustedAdult = false,
+  categoryColors = [],
+  projects = [],
+  onOpenProject,
+  decided = [],
+  onOpenDecision,
+  promises = [],
+  onAddTask,
 }: {
   person: Person;
   onEdit: () => void;
@@ -84,6 +92,17 @@ export default function PersonDetail({
   // about THIS task or THIS meeting, drafted from what it says. Absent when
   // there is no number to text.
   onMessageAbout?: (m: import("../mentions").MentionItem) => void;
+  // C-59 / C-60 / C-61 (Astra, 2026-09-12). Label facts on the hero (the
+  // relationship, the areas as dots), a Projects head with its count, a
+  // Decided with Them head with no count (decisions are never counted), and
+  // the promises he made this person in his own mail, in Still Open.
+  categoryColors?: { name: string; color: string }[];
+  projects?: { id: string; title: string; next?: string | null }[];
+  onOpenProject?: (id: string) => void;
+  decided?: { id: string; decision: string; createdAt: string }[];
+  onOpenDecision?: (id: string) => void;
+  promises?: { threadId: string; text: string; due?: string }[];
+  onAddTask?: (p: { threadId: string; text: string; due?: string }) => void;
 }) {
   const { name, relationship, birthday, notes, color, email, phone, register, flagged } = person.data;
   const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0 || !!lastTalked;
@@ -104,6 +123,14 @@ export default function PersonDetail({
       <div className="person-hero">
         <div className={"av av-72 " + avatarClass(color)}>{personInitials(name)}</div>
         <div className="person-name">{name}</div>
+        {/* C-59: the label facts. The relationship is the one coloured
+            fact; an area is a dot and plain text. */}
+        {(relationship || categoryColors.length > 0) && (
+          <div className="facts person-facts">
+            {relationship && <span className="fact sky">{relationship}</span>}
+            {categoryColors.map((c) => <span className="fact cat" key={c.name}><span className={"cd cat-bg-" + catColor(c.color)} />{c.name}</span>)}
+          </div>
+        )}
         {trustedAdult && <div className="bp-sub">Trusted adult</div>}
       </div>
       {/* Reach them (2026-08-10): the email and phone this card has stored
@@ -180,10 +207,22 @@ export default function PersonDetail({
           in them and time still ahead. Done work and past meetings are left
           out on purpose; a list of everything you ever did together is a
           scrapbook, and he opened this card to know what he owes. */}
-      {openWith.length > 0 && (
+      {(openWith.length > 0 || promises.length > 0) && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Still Open</span><span className="n">{openWith.length}</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Still Open</span><span className="n">{openWith.length + promises.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
+            {/* C-61: what he said he would do, in his own mail to them.
+                The purple fact is the promise; the deadline beside it; Add
+                Task writes the task and the row leaves. */}
+            {promises.map((p) => (
+              <div className="row" key={"promise:" + p.threadId}>
+                <div className="row-grow">
+                  <div className="conn-name">{p.text}</div>
+                  <div className="facts"><span className="fact purp">You promised</span>{p.due && <span className="fact">{shortDate(p.due)}</span>}</div>
+                </div>
+                {onAddTask && <button type="button" className="pill-act" onClick={() => onAddTask(p)}>Add Task</button>}
+              </div>
+            ))}
             {openWith.map((m) => (
               <div className="task-row p2 notif-row" key={m.kind + m.id}
                 role={onOpenItem ? "button" : undefined} tabIndex={onOpenItem ? 0 : undefined}
@@ -197,6 +236,41 @@ export default function PersonDetail({
                   <button className="pill-act" onClick={(e) => { e.stopPropagation(); onMessageAbout(m); }}>Message</button>
                 )}
                 {onOpenItem && !onMessageAbout && <div className="chev"></div>}
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+      {/* C-60: the projects this person is on, with the count. */}
+      {projects.length > 0 && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Projects</span><span className="n">{projects.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {projects.map((p) => (
+              <div className="row" key={p.id} {...(onOpenProject ? pressable(() => onOpenProject(p.id)) : {})}>
+                <div className="row-grow">
+                  <div className="conn-name">{p.title}</div>
+                  {p.next && <div className="facts"><span className="fact sky">Next: {p.next}</span></div>}
+                </div>
+                {onOpenProject && <div className="chev" />}
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+      {/* C-60: decided with them. No count, by law: a count of decisions is
+          a guilt metric. */}
+      {decided.length > 0 && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Decided with Them</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {decided.map((d) => (
+              <div className="row" key={d.id} {...(onOpenDecision ? pressable(() => onOpenDecision(d.id)) : {})}>
+                <div className="row-grow">
+                  <div className="conn-name">{d.decision}</div>
+                  <div className="facts"><span className="fact">{shortDate(d.createdAt)}</span></div>
+                </div>
+                {onOpenDecision && <div className="chev" />}
               </div>
             ))}
           </div></div>

@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { useOptionalStrands } from "../data/NotesProvider";
+import { useOptionalStrands, useOptionalRules, useOptionalDecisions } from "../data/NotesProvider";
+import { writingProposals, type WritingProposal } from "./writingProposals";
+import { derivePrinciple, answerPrinciple, principleAnswered } from "./principle";
+import type { Derived } from "./derive";
+import type { LearnedRule } from "../rules/LearnedRulesService";
+import { linksOf } from "../decisions/types";
 import { todayISO } from "../ai/useAIContext";
 import { rankForRecall, fadedStrands, daysSince } from "./recall";
 import { useReadiness } from "./strands/ReadinessPanel";
@@ -39,21 +44,41 @@ import RowStar from "../shared/RowStar";
 
 type Need =
   | { kind: "watching"; r: Readiness }
-  | { kind: "fading"; s: Strand };
+  | { kind: "fading"; s: Strand }
+  // C-56: a draft-edit rule waiting for a word. C-63: a possible principle.
+  | { kind: "writing"; p: WritingProposal }
+  | { kind: "principle"; d: Derived };
 
 const NEEDS_CAP = 2;
 const SHAPING_CAP = 3;
 
-export default function BrainTop({ onOpenFact, onOpenWatching, onBands }: {
+export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = [] }: {
   onOpenFact: (id: string) => void;
   onOpenWatching: () => void;
   /** How many bands rendered, so the page can put its Explore head over the nav list. */
   onBands?: (n: number) => void;
+  /** C-63: the user's live area names, for the values detector. */
+  areas?: string[];
 }) {
   const svc = useOptionalStrands();
+  const rulesSvc = useOptionalRules();
+  const decisionsSvc = useOptionalDecisions();
   const today = todayISO();
   const [strands, setStrands] = useState<Strand[]>([]);
-  const reload = useCallback(async () => { if (svc) setStrands(await svc.list()); }, [svc]);
+  const [proposals, setProposals] = useState<WritingProposal[]>([]);
+  const [principle, setPrinciple] = useState<Derived | null>(null);
+  const [tick, setTick] = useState(0);
+  const reload = useCallback(async () => {
+    if (svc) setStrands(await svc.list());
+    try { if (rulesSvc) setProposals(writingProposals(await rulesSvc.list())); } catch { /* no proposals */ }
+    try {
+      if (decisionsSvc && areas.length > 0) {
+        const ds = await decisionsSvc.list();
+        const d = derivePrinciple(ds.map((x) => ({ id: x.id, decision: x.data.decision, ruledOut: x.data.ruledOut, links: linksOf(x.data), ruleStrandId: x.data.ruleStrandId, createdAt: x.data.createdAt })), areas);
+        setPrinciple(d && !principleAnswered(d.strandText, today) ? d : null);
+      }
+    } catch { /* no principle */ }
+  }, [svc, rulesSvc, decisionsSvc, areas, today, tick]);
   useEffect(() => { void reload(); }, [reload]);
   // The same read What JARVIS Knows makes, skipped entirely when there is no
   // strand store to put a band over (a harness, a tree outside the provider).
@@ -66,9 +91,13 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands }: {
   const fadedIds = new Set(faded.map((s) => s.id));
   const active = strands.filter((s) => s.data.status === "active" && !fadedIds.has(s.id));
   const shaping = rankForRecall(active, today).slice(0, SHAPING_CAP);
+  // A principle already held as a strand is not a question.
+  const principleHeld = principle ? strands.some((s) => s.data.text === principle.strandText) : false;
   const needs: Need[] = [
     ...read.rows.filter((r) => isWatching(r.state)).map((r): Need => ({ kind: "watching", r })),
     ...faded.map((s): Need => ({ kind: "fading", s })),
+    ...proposals.map((p): Need => ({ kind: "writing", p })),
+    ...(principle && !principleHeld ? [{ kind: "principle" as const, d: principle }] : []),
   ].slice(0, NEEDS_CAP);
 
   const bands = (shaping.length > 0 ? 1 : 0) + (needs.length > 0 ? 1 : 0);
@@ -83,6 +112,44 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands }: {
     if (!ok) return;
     await reload();
     showToast({ message: "Confirmed" });
+  };
+
+  // C-56: That's Right on a draft-edit rule. The strand lands on the email
+  // channel and the rule is marked announced; the row leaves.
+  const confirmWriting = async (p: WritingProposal) => {
+    if (!svc || !rulesSvc) return;
+    haptics.selection();
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => {
+      id = await svc.add(p.text, "writing", today, "influence", "pattern");
+      if (id) { const made = (await svc.list()).find((s) => s.id === id); if (made) await svc.setChannel(made, "email"); }
+      await rulesSvc.markAnnounced(p.rule as LearnedRule);
+    });
+    if (!ok) return;
+    if (!id) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    showToast({ message: "Saved to Writing" });
+    setTick((t) => t + 1);
+  };
+  // C-63: the three answers. That's Right writes the values strand through
+  // accept (watched, with its receipts) and marks it a principle; the other
+  // two rest or close the question on this device.
+  const answerPrincipleWith = async (d: Derived, answer: "right" | "sometimes" | "never") => {
+    if (!svc) return;
+    haptics.selection();
+    if (answer === "right") {
+      let outcome: string | null = null;
+      const ok = await attemptWrite(async () => {
+        const r = await svc.accept(d.strandText, "values", d.derivation, d.evidence, today);
+        outcome = r.outcome;
+        if (r.outcome === "created") { const made = (await svc.list()).find((s) => s.id === r.id); if (made) await svc.setType(made, "principle"); }
+      });
+      if (!ok) return;
+      showToast({ message: outcome === "full" ? "The Brain is full · Prune it in What JARVIS Knows" : "Saved to Values" });
+    } else {
+      answerPrinciple(d.strandText, answer, today);
+      showToast({ message: answer === "sometimes" ? "Asked again in a month" : "Closed" });
+    }
+    setTick((t) => t + 1);
   };
 
   if (!svc || bands === 0) return null;
@@ -127,7 +194,29 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands }: {
         <>
           <div className="sh2"><span className="t">Needs You</span><span className="n">{needs.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
-            {needs.map((n) => n.kind === "watching" ? (
+            {needs.map((n) => n.kind === "writing" ? (
+              <div className="row strand-row" key={"w-" + n.p.rule.id}>
+                <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
+                <div className="row-grow">
+                  <div className="conn-name">{n.p.text}</div>
+                  <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{n.p.edits} edits</span></div>
+                </div>
+                <button type="button" className="pill-act" onClick={() => void confirmWriting(n.p)}>That's Right</button>
+              </div>
+            ) : n.kind === "principle" ? (
+              <div className="row strand-row" key="principle">
+                <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
+                <div className="row-grow">
+                  <div className="conn-name">{n.d.title}</div>
+                  <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{n.d.sub}</span></div>
+                  <div className="dec-outcome-acts">
+                    <button type="button" className="quiet-action" onClick={() => void answerPrincipleWith(n.d, "sometimes")}>Only Sometimes</button>
+                    <button type="button" className="quiet-action" onClick={() => void answerPrincipleWith(n.d, "never")}>Not True</button>
+                  </div>
+                </div>
+                <button type="button" className="pill-act" onClick={() => void answerPrincipleWith(n.d, "right")}>That's Right</button>
+              </div>
+            ) : n.kind === "watching" ? (
               <div {...pressable(onOpenWatching)} className="row strand-row" key={"w-" + n.r.key}>
                 <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
                 <div className="row-grow">

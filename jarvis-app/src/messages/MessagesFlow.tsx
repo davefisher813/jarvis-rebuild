@@ -165,7 +165,7 @@ import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalPr
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { capAfterNumber } from "../shared/casing";
 
-type Draft = { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment };
+type Draft = { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment; modelBody?: string };
 // EMAIL-F-13 (2026-09-05): a draft belongs to the account that listed it.
 // Without the tag, opening a second-account draft went through the first
 // account's api and 404'd, and a legacy draft sent from the wrong address.
@@ -306,7 +306,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // NotesProvider, and a missing context means a plain prompt, never a crash.
   const gatherContext = useOptionalAIContext();
   const voiceText = useCallback(
-    () => gatherContext().then((c) => (c ? voiceToText(c) : "")).catch(() => ""),
+    () => gatherContext().then((c) => (c ? voiceToText(c, { channel: "email" }) : "")).catch(() => ""),
     [gatherContext],
   );
   const authToken = token ?? session?.access_token;
@@ -1855,6 +1855,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       threadId: draft.threadId,
       fromDeck: draft.fromDeck,
       attachment: draft.attachment,
+      ...(draft.fromDeck && draft.modelBody ? { modelBody: draft.modelBody } : {}),
       trackId: newTrackId(),
       dueMs: scheduledAt ?? holdUntil(Date.now()),
       scheduled: scheduledAt !== undefined,
@@ -1910,7 +1911,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setDraft({
       to: item.to, cc: item.cc, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
       threadId: item.threadId, fromDeck: item.fromDeck, account: item.account, handoffTo: item.handoffTo,
-      attachment: item.attachment,
+      attachment: item.attachment, modelBody: item.modelBody,
     });
     setEditingDraftId(item.editingDraftId ?? null);
     if (item.chaseDays !== undefined) setChaseDays(item.chaseDays);
@@ -2690,7 +2691,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // account the thread lives in. Without this it went out on the
             // first account carrying the second account's threadId, which
             // fails on send and fails again on every Retry.
-            setDraft({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true, account: accountOfThread(t.id) });
+            // C-56: the model's draft rides along so the send can say what
+            // he changed, in one word, and nothing else.
+            setDraft({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true, account: accountOfThread(t.id), modelBody: body });
             setView("compose");
           }}
           onHandled={(threadId, archived) => {

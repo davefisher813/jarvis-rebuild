@@ -180,6 +180,15 @@ export class LearnedRulesService {
 
   // First use announces the rule, exactly once. The announcement is the
   // deal: silent creation is licensed by loud existence.
+  // C-56 (Astra, 2026-09-12): a voice rule announces itself as a NEEDS
+  // CONFIRMATION row rather than a toast, and the tap that answers it marks
+  // it announced here. No toast: the row was the announcement.
+  async markAnnounced(rule: LearnedRule): Promise<void> {
+    if (rule.data.announced) return;
+    await this.store.update(this.ownerId, rule.id, { announced: true } as unknown as ItemData);
+    rule.data.announced = true;
+  }
+
   async announceIfFirstUse(rule: LearnedRule): Promise<void> {
     if (rule.data.announced) return;
     await this.store.update(this.ownerId, rule.id, { announced: true } as unknown as ItemData);

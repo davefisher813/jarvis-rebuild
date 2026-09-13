@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { usePeople, useNotes, useCategories, useTasks, useSchedule, useHealth } from "../data/NotesProvider";
+import { usePeople, useNotes, useCategories, useTasks, useSchedule, useHealth, useOptionalProjects, useOptionalDecisions } from "../data/NotesProvider";
+import { loadMailSnapshot } from "../messages/home";
+import { titleCase as titleCaseMail } from "../shared/casing";
+import { loadLinks } from "../messages/threadLink";
+import { linksOf } from "../decisions/types";
 import { openWith as openWithPerson, type MentionItem } from "./mentions";
 import { todayISO } from "../tasks/grouping";
 import { ENTITY_PERSON, type Person } from "./types";
@@ -94,6 +98,14 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   const tasksSvc = useTasks();
   const schedSvc = useSchedule();
   const [still, setStill] = useState<MentionItem[]>([]);
+  // C-60 / C-61 (Astra, 2026-09-12): the projects this person is on (a task
+  // filed under a project with their name, or a thread of theirs linked to
+  // one), the decisions attached to them, and the promises he made them.
+  const projectsSvc = useOptionalProjects();
+  const decisionsSvc = useOptionalDecisions();
+  const [personProjects, setPersonProjects] = useState<{ id: string; title: string; next?: string | null }[]>([]);
+  const [decided, setDecided] = useState<{ id: string; decision: string; createdAt: string }[]>([]);
+  const [promises, setPromises] = useState<{ threadId: string; text: string; due?: string }[]>([]);
 
   // ONE list, everyone (the Inner Circle / Adversarial lists were removed
   // 2026-08-03; the facts they claimed to organize live on each person).
@@ -146,6 +158,44 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     return () => { on = false; };
   }, [currentName, currentId, tasksSvc, schedSvc]);
 
+  useEffect(() => {
+    if (!currentId) { setPersonProjects([]); setDecided([]); setPromises([]); return; }
+    let on = true;
+    void (async () => {
+      try {
+        const [ts, prs, ds] = await Promise.all([
+          tasksSvc.listTasks(),
+          projectsSvc ? projectsSvc.list() : Promise.resolve([]),
+          decisionsSvc ? decisionsSvc.list() : Promise.resolve([]),
+        ]);
+        if (!on) return;
+        const links = loadLinks();
+        const snap = loadMailSnapshot();
+        const theirThreads = new Set(snap.threads.filter((t) => t.personId === currentId).map((t) => t.id));
+        const linkedProjectIds = new Set(Object.entries(links).filter(([tid, l]) => l.type === "project" && theirThreads.has(tid)).map(([, l]) => l.id));
+        const taskProjectIds = new Set(ts.filter((t) => t.data.personId === currentId && t.data.projectId).map((t) => t.data.projectId!));
+        const live = prs.filter((p) => p.data.status !== "done" && (linkedProjectIds.has(p.id) || taskProjectIds.has(p.id)));
+        setPersonProjects(live.map((p) => {
+          const next = ts.find((t) => t.data.projectId === p.id && !t.data.done);
+          return { id: p.id, title: p.data.title, next: next?.data.text ?? null };
+        }));
+        setDecided(ds.filter((d) => linksOf(d.data).some((l) => l.type === "person" && l.id === currentId))
+          .map((d) => ({ id: d.id, decision: d.data.decision, createdAt: d.data.createdAt })));
+        setPromises(snap.promises.filter((p) => p.personId === currentId).map((p) => ({ threadId: p.threadId, text: titleCaseMail(p.text), ...(p.due ? { due: p.due } : {}) })));
+      } catch { if (on) { setPersonProjects([]); setDecided([]); setPromises([]); } }
+    })();
+    return () => { on = false; };
+  }, [currentId, tasksSvc, projectsSvc, decisionsSvc]);
+
+  // C-61: Add Task on a promise writes the task with the person on it and
+  // the row leaves; the same write the Today notice makes.
+  const addPromiseTask = async (p: { threadId: string; text: string; due?: string }) => {
+    const ok = await attemptWrite(() => tasksSvc.createTask(p.text, { due: p.due ?? null, fromThread: p.threadId, ...(currentId ? { personId: currentId } : {}) }));
+    if (!ok) return;
+    setPromises((cur) => cur.filter((x) => x.threadId !== p.threadId));
+    showToast({ message: "Added to Tasks" });
+  };
+
   // LAST TALKED (S6-Q40): one cached Gmail lookup for whichever person is
   // open, the same derivation CategoryDetail already runs per row. Cleared
   // on every person change first, so a stale ago-label from the last card
@@ -160,7 +210,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     if (!msg || !current) { setMsgVoice(""); return; }
     let live = true;
     void gatherCtx({ personId: current.id, personName: current.data.name })
-      .then((c) => (c ? voiceToText(c, { styleRule: false }) : ""))
+      .then((c) => (c ? voiceToText(c, { styleRule: false, channel: "text" }) : ""))
       .catch(() => "")
       .then((v) => { if (live) setMsgVoice(v); });
     return () => { live = false; };
@@ -192,7 +242,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     try {
       let body = "";
       if (ai.available) {
-        const voice = await gatherCtx().then((c) => (c ? voiceToText(c) : "")).catch(() => "");
+        const voice = await gatherCtx().then((c) => (c ? voiceToText(c, { channel: "email" }) : "")).catch(() => "");
         const prompt = checkinPrompt(current!.data.name, lastMs != null ? agoLabel(lastMs, Date.now()) : "a while ago", voice);
         body = noDashes((await ai.complete([{ role: "user", content: prompt.user }], prompt.system, { tier: "write" })).trim());
       }
@@ -396,6 +446,13 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           onCheckIn={current.data.email ? () => void checkIn() : undefined}
           checkingIn={checkingIn}
           openWith={still}
+          categoryColors={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)).filter((c): c is SheetCategoryOpt => !!c).map((c) => ({ name: c.name, color: c.color }))}
+          projects={personProjects}
+          onOpenProject={onOpenItem ? (id) => onOpenItem("project", id) : undefined}
+          decided={decided}
+          onOpenDecision={onOpenItem ? (id) => onOpenItem("decision", id) : undefined}
+          promises={promises}
+          onAddTask={(p) => void addPromiseTask(p)}
           onOpenItem={onOpenItem ? (kind, id) => onOpenItem(kind, id) : undefined} />
         {prepOpen && (
           <CallPrepSheet

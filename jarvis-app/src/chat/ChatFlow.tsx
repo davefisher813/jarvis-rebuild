@@ -154,7 +154,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     if (!textTo) { setTextVoice(""); return; }
     let live = true;
     void gather({ personId: textTo.person.id, personName: textTo.person.data.name })
-      .then((c) => voiceToText(c, { styleRule: false }))
+      .then((c) => voiceToText(c, { styleRule: false, channel: "text" }))
       .catch(() => "")
       .then((v) => { if (live) setTextVoice(v); });
     return () => { live = false; };
@@ -306,7 +306,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     // the draft knows what is already decided with them and does not
     // re-open it.
     const voice = await gather({ personId: person.id, personName: person.data.name })
-      .then((c) => voiceToText(c, { styleRule: false }))
+      .then((c) => voiceToText(c, { styleRule: false, channel: "text" }))
       .catch(() => "");
     let body = "";
     try {

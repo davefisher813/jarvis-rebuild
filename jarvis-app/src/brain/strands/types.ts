@@ -24,6 +24,11 @@ export type StrandStatus = "active" | "paused";
 // rest as a chooser; Quick Capture prefixes will set it (C-49, Push E).
 // Open item, revisit before launch: thirteen categories with reworked caps.
 export type StrandType = "fact" | "preference" | "constraint" | "routine" | "relationship" | "principle" | "pattern";
+// C-57 (Astra, 2026-09-12): which channel a writing fact is about. Email
+// drafts read email and general; text drafts read text and general; every
+// other prompt reads general. Absent means general.
+export type WritingChannel = "email" | "text" | "general";
+export const WRITING_CHANNEL_LABEL: Record<WritingChannel, string> = { email: "Email", text: "Text", general: "General" };
 
 // The launch derivations: the only facts the log honestly supports.
 //
@@ -72,7 +77,11 @@ export type DerivationKey =
   | "completion_window" | "slip_category" | "plan_rate" | "task_timing"
   | "training_window" | "email_window"
   | "people_rhythm" | "gone_quiet"
-  | "completion_no_band" | "slip_no_leader";
+  | "completion_no_band" | "slip_no_leader"
+  // C-63 (Astra, 2026-09-12): a standing rule read off the decisions log
+  // (brain/principle.ts). Not in deriveAll: it reads records, not the
+  // window, and the Brain hub runs it where the records are.
+  | "principle";
 
 // THE TWO ANSWERS TO ONE QUESTION, and why they are two keys rather than one.
 //
@@ -128,6 +137,8 @@ export interface StrandData {
   evidence?: StrandEvidence[]; // watched strands only, capped
   // C-42: see StrandType. null and absent both mean "not said".
   type?: StrandType | null;
+  // C-57: writing strands only. See WritingChannel.
+  channel?: WritingChannel | null;
   // C-50: the row this strand was written from by its Remember star, when it
   // was. The star on that row fills while this link exists, and the strand
   // row wears the same filled star. Written by the star tap (Push E); read

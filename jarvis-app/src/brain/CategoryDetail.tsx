@@ -428,7 +428,7 @@ export default function CategoryDetail({
       const wrow = waitingBy[p.id];
       let body = "";
       if (ai.available) {
-        const voice = await gatherCtx().then((c) => (c ? voiceToText(c) : "")).catch(() => "");
+        const voice = await gatherCtx().then((c) => (c ? voiceToText(c, { channel: "email" }) : "")).catch(() => "");
         const prompt = wrow
           ? nudgePrompt(wrow, voice)
           : checkinPrompt(p.data.name, contact[p.id] != null ? agoLabel(contact[p.id]!, Date.now()) : "a while ago", voice);

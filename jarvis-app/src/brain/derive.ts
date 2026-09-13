@@ -41,6 +41,8 @@ export interface DerivePerson {
   label?: string;
   /** A thread with them is linked to a live project. */
   onProject?: boolean;
+  /** C-59 (Astra, 2026-09-12): an area they share with the user, by name. */
+  area?: string;
   /** Epoch ms of the last message either way, from the cached lookup the
    *  person card already runs. Absent means unknown, which is not quiet. */
   lastMs?: number;
@@ -418,7 +420,9 @@ export function derivePeopleRhythm(rows: WindowRow[], people: DerivePerson[]): D
   const { p, rows: hits } = best;
   const days = [...new Set(hits.map((r) => r.day))].sort();
   const weeks = Math.max(1, Math.round(days.length / 7) || 1);
-  const label = p.onProject ? "Work" : "Frequent";
+  // C-59: a fuller label when the app can see why: a shared area or a live
+  // project makes them a work collaborator, named by the area when known.
+  const label = p.onProject || p.area ? `Work collaborator${p.area ? ` · ${p.area}` : ""}` : "Frequent";
   return {
     derivation: "people_rhythm",
     category: "people",

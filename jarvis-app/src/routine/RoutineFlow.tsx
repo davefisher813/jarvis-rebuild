@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useRoutine } from "../data/NotesProvider";
+import { useRoutine, useOptionalStrands } from "../data/NotesProvider";
+import type { Strand } from "../brain/strands/types";
+import { capAfterNumber } from "../shared/casing";
 import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, defaultModeFor, freeOf, MODE_LABEL, MODE_HELP, FREE_CHANNELS, type RoutineData, type ProtectedBlock, type BlockKind, type BlockMode, type FreeChannel } from "./types";
 import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
@@ -168,6 +170,45 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
   // half-typed hours to the server: it merges onto the last PERSISTED
   // routine, which savedRef holds.
   const savedRef = useRef<RoutineData>(DEFAULT_ROUTINE);
+  // C-62 (Astra, 2026-09-12): LEARNED RHYTHMS. The routine and energy facts
+  // JARVIS watched, each with an Update Routine that moves the matching
+  // block to the hour the fact names (a training band moves the gym block,
+  // a work band the focus block) or adds one when there is none. Receipt
+  // with Undo. Optional store, optional head.
+  const strandsSvc = useOptionalStrands();
+  const [rhythms, setRhythms] = useState<Strand[]>([]);
+  useEffect(() => {
+    if (!strandsSvc) return;
+    let on = true;
+    strandsSvc.list()
+      .then((all) => { if (on) setRhythms(all.filter((s) => s.data.status === "active" && s.data.source === "watched" && (s.data.category === "routine" || s.data.category === "energy") && typeof s.data.evidence?.[0]?.a === "number")); })
+      .catch(() => { /* the head simply does not render */ });
+    return () => { on = false; };
+  }, [strandsSvc]);
+  const rhythmKind = (s: Strand): BlockKind => (s.data.derivation === "training_window" ? "gym" : s.data.derivation === "email_window" ? "work" : "focus");
+  const rhythmHour = (s: Strand): number => Math.max(0, Math.min(23, Math.round(s.data.evidence?.[0]?.a ?? 0)));
+  const rhythmFact = (s: Strand): string => {
+    const n = s.data.evidence?.length ?? 0;
+    const one = n === 1;
+    const unit = s.data.derivation === "training_window" ? (one ? "session" : "sessions") : s.data.derivation === "email_window" ? (one ? "email day" : "email days") : (one ? "day" : "days");
+    return capAfterNumber(`${n} ${unit}`);
+  };
+  const updateRoutine = async (s: Strand) => {
+    const kind = rhythmKind(s);
+    const startMin = rhythmHour(s) * 60;
+    const before = blocks;
+    const hit = blocks.find((b) => (b.kind ?? "other") === kind);
+    const next: ProtectedBlock[] = hit
+      ? blocks.map((b) => (b.id === hit.id ? { ...b, startMin, endMin: startMin + Math.max(30, b.endMin - b.startMin) } : b))
+      : [...blocks, { id: pbId(), label: kind === "gym" ? "Gym" : kind === "work" ? "Email" : "Deep Work", startMin, endMin: startMin + 180, days: [1, 2, 3, 4, 5], kind }];
+    if (!(await writeBlocks(next))) return;
+    const t = fmtTime(toHHMM(startMin));
+    showToast({
+      message: `${hit ? hit.label : kind === "gym" ? "Gym" : kind === "work" ? "Email" : "Deep Work"} ${hit ? "moved to" : "added at"} ${t.time} ${t.ap}`,
+      actionLabel: "Undo",
+      onAction: () => void writeBlocks(before),
+    });
+  };
   const writeBlocks = async (next: ProtectedBlock[]): Promise<boolean> => {
     const before = blocks;
     setData((d) => ({ ...d, protectedBlocks: next }));
@@ -273,6 +314,23 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
         ))}
         <button type="button" className="row row-act" onClick={openAdd}>Add Protected Time</button>
       </Card>
+
+      {rhythms.length > 0 && (
+        <>
+          <Head label="Learned Rhythms" count={rhythms.length} />
+          <Card>
+            {rhythms.map((s) => (
+              <div className="row" key={s.id}>
+                <div className="row-grow">
+                  <div className="conn-name">{s.data.text}</div>
+                  <div className="facts"><span className="fact">Watched</span><span className="fact">{rhythmFact(s)}</span></div>
+                </div>
+                <button type="button" className="pill-act" onClick={() => void updateRoutine(s)}>Update Routine</button>
+              </div>
+            ))}
+          </Card>
+        </>
+      )}
 
       <Head label="Weekends" />
       <Card>

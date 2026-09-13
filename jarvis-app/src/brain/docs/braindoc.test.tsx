@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { Store, InMemoryAdapter } from "@core";
@@ -28,16 +28,20 @@ describe("BrainDocPage", () => {
     );
     expect(screen.getAllByText("How You Write").length).toBeGreaterThan(0);
     const ta = await screen.findByPlaceholderText(/Tone · style/i);
-    fireEvent.change(ta, { target: { value: "Short and direct." } });
-    fireEvent.click(screen.getByText("Save"));
-    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    // C-16 (Astra, 2026-09-12): no Save button; the canvas saves on blur.
+    const spy = vi.spyOn(BrainDocService.prototype, "save");
+    try {
+      fireEvent.change(ta, { target: { value: "Short and direct." } });
+      expect(screen.queryByText("Save")).toBeNull();
+      fireEvent.blur(ta);
+      await waitFor(() => expect(spy).toHaveBeenCalledWith("writing", "Short and direct.", undefined));
+    } finally { spy.mockRestore(); }
   });
 });
 
 // BRAIN-F-12 (2026-09-05): the loader had no catch, so one failed read left
 // this page greyed out for good: `loaded` never flipped, the writing surface
 // stayed disabled, and nothing said why or offered another go.
-import { vi } from "vitest";
 import { subscribeToast } from "../../shared/toast";
 
 describe("BrainDocPage load failure (BRAIN-F-12)", () => {

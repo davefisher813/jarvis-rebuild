@@ -14,7 +14,10 @@ import { loadMailSnapshot } from "../messages/home";
 // Everything here is read from stores the app already keeps. Nothing
 // fetches, nothing costs a request, and a failure anywhere gives a thinner
 // list rather than a broken Today.
-export async function peopleForDerivation(people: PeopleService | null): Promise<DerivePerson[]> {
+// C-59: `areas` names the user's categories so a person filed under one is
+// a work collaborator in that area. Optional; without it the label falls
+// back to the project link alone.
+export async function peopleForDerivation(people: PeopleService | null, areas: { id: string; name: string }[] = []): Promise<DerivePerson[]> {
   if (!people) return [];
   const list = await people.list().catch(() => []);
   if (list.length === 0) return [];
@@ -32,11 +35,13 @@ export async function peopleForDerivation(people: PeopleService | null): Promise
   return list.map((p) => {
     const email = (p.data.email || "").trim().toLowerCase();
     const lastMs = email ? cache[email]?.ms ?? null : null;
+    const area = (p.data.categoryIds ?? []).map((id) => areas.find((a) => a.id === id)?.name).find((n): n is string => !!n);
     return {
       id: p.id,
       name: p.data.name,
       ...(p.data.relationship ? { label: p.data.relationship } : {}),
       ...(onProject.has(p.id) ? { onProject: true } : {}),
+      ...(area ? { area } : {}),
       ...(typeof lastMs === "number" ? { lastMs } : {}),
     };
   });

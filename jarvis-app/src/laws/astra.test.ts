@@ -175,6 +175,21 @@ describe("ASTRA law 10: the event vocabulary is closed and named", () => {
   });
 });
 
+// Law 7 (Astra, Push G): decisions never count, and now the contact card's
+// Decided with Them head is under that rule too: a head with a .n beside it
+// would be the count the rule exists to forbid.
+describe("ASTRA law 7: Decided with Them carries no count", () => {
+  it("the contact card's decided head has no number", () => {
+    const src = read(join(SRC, "people/screens/PersonDetail.tsx"));
+    const at = src.indexOf(">Decided with Them<");
+    expect(at).toBeGreaterThan(0);
+    // The head element that holds the rendered words, opener to closer.
+    const head = src.slice(src.lastIndexOf("<div", at), src.indexOf("</div>", at) + 6);
+    expect(head).not.toMatch(/className="n"/);
+    expect(head).not.toMatch(/decided\.length/);
+  });
+});
+
 // Law 9 (Astra, Push E): the auto-capture guard. The chat decision detector
 // fires on a user turn and never on an assistant turn, and nothing on the
 // chat capture path writes a strand with strength rule: a decision is a

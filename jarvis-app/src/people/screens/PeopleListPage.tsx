@@ -127,7 +127,9 @@ export default function PeopleListPage({
               <div className="task-title">
                 <span className="task-name">{p.data.name}</span>
                 {/* the label, or the honest absence of one; a fact, not a nag */}
-                <div className="r-k"><span className="r-goal r-cat">{p.data.relationship || "No label yet"}</span></div>
+                {/* C-59 (Astra, 2026-09-12): no label is an empty second
+                    line, not a nag. */}
+                <div className="r-k">{p.data.relationship && <span className="r-goal r-cat">{p.data.relationship}</span>}</div>
               </div>
               {CHEV}
             </div>

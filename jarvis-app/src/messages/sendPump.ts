@@ -25,6 +25,9 @@
 import type { GoogleApi } from "../connections/google/api";
 import type { AIService } from "../ai/AIService";
 import type { TasksService } from "../tasks/TasksService";
+import type { LearnedRulesService } from "../rules/LearnedRulesService";
+import { classifyDraftEdit, DRAFT_EDIT_SENTENCE } from "./draftEdit";
+import { DRAFT_EDIT_SCOPE } from "../brain/writingProposals";
 import { encodeEmail } from "../connections/google/map";
 import { humanError } from "../connections/google/humanError";
 import { getOutbox, patchOutbox, removeFromOutbox, enqueueOutbox, dueNow, INTERRUPTED_LINE, type OutboxItem } from "./outbox";
@@ -49,6 +52,8 @@ export interface SendDeps {
   trackOpens: boolean;
   /** The Supabase token registerTrack posts with; undefined outside a session. */
   authToken?: string;
+  /** C-56: where a classified draft edit is recorded; absent means no learning. */
+  rules?: Pick<LearnedRulesService, "recordCorrection"> | null;
 }
 
 export interface SentReceipt { id: string; threadId?: string }
@@ -95,7 +100,16 @@ export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promi
     // DeckFlow's own Send & Next) gets flag: false; a deck draft that needed
     // editing before compose sent it gets flag: true. A send that fails or
     // gets Undone never counts either way.
-    if (item.fromDeck) emit({ type: "email.deck_sent", props: { flag: !item.deckVerbatim } });
+    // C-56 (UP-MIND-25): what he changed between the model's draft and the
+    // text that left, as one word from a closed set. Diffed here, on the
+    // device, and the bodies go no further: only the kind reaches the log
+    // and the rules engine. Two identical kinds make a voice rule.
+    const editKind = item.fromDeck && !item.deckVerbatim && item.modelBody ? classifyDraftEdit(item.modelBody, item.body) : null;
+    if (item.fromDeck) emit({ type: "email.deck_sent", props: { flag: !item.deckVerbatim, ...(editKind ? { kind: editKind } : {}) } });
+    if (editKind && deps.rules) {
+      void deps.rules.recordCorrection("voice", DRAFT_EDIT_SCOPE, editKind, "1", DRAFT_EDIT_SENTENCE[editKind])
+        .catch(() => { /* the next identical edit re-observes it */ });
+    }
     // UP-MIND-16: the row remembers WHO, when the app knows them. entity_id
     // and a regex-gated kind is the whole payload; rowFrom drops the rest.
     emit({

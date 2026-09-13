@@ -201,7 +201,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
         threadId: r.id,
         ...(person ? { personId: person.id, personName: person.data.name } : {}),
       })
-        .then((c) => voiceToText(c, { styleRule: false }))
+        .then((c) => voiceToText(c, { styleRule: false, channel: "email" }))
         .catch(() => "");
       if (!live()) return;
       const { system, user } = buildPlanPrompt(full, voice, today, userVoice);

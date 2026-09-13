@@ -159,10 +159,14 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIC
   // only (voiceToText). Same read, same recall order, just filtered by
   // category rather than a second call to the store.
   let writingFactLines: string[] = [];
+  // C-57: the same facts with their channel, for the narrowed voice prompt.
+  let writingByChannel: { text: string; channel: "email" | "text" | "general" }[] = [];
   try {
     const ranked = s.strands ? rankForRecall(await s.strands.active(), today) : [];
     strandLines = ranked.map((x) => x.data.text);
-    writingFactLines = ranked.filter((x) => x.data.category === "writing").map((x) => x.data.text);
+    const writing = ranked.filter((x) => x.data.category === "writing");
+    writingFactLines = writing.map((x) => x.data.text);
+    writingByChannel = writing.map((x) => ({ text: x.data.text, channel: x.data.channel ?? "general" }));
   } catch { /* thinner context, never a broken one */ }
   // READ-BACK (handoff item 5, second half): settled decisions join the
   // context so JARVIS stops re-asking what was already decided, and can say
@@ -390,6 +394,7 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIC
     strands: scopedStrands ?? strandLines,
     related,
     writingFacts: writingFactLines,
+    writingFactsByChannel: writingByChannel,
     decisions: decisionLines,
     months: monthLines,
     pulse: pulseLinesOut,

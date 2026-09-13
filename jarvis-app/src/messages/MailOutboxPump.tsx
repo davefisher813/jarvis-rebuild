@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGoogle } from "../connections/google/GoogleSession";
 import type { AIService } from "../ai/AIService";
-import { useOptionalProfile, useOptionalTasks } from "../data/NotesProvider";
+import { useOptionalProfile, useOptionalTasks, useOptionalRules } from "../data/NotesProvider";
 import { useOptionalSession } from "../auth/AuthProvider";
 import { pumpOutbox, sweepInterruptedSends, type SendDeps } from "./sendPump";
 
@@ -17,6 +17,8 @@ export default function MailOutboxPump({ ai }: { ai: AIService }) {
   const tasks = useOptionalTasks();
   const profileSvc = useOptionalProfile();
   const session = useOptionalSession();
+  // C-56: the rules store the draft-edit learning writes to.
+  const rules = useOptionalRules();
   // Open tracking is a setting (2026-08-09), read the same way MessagesFlow
   // reads it: missing provider or profile means the default (on).
   const [trackOpens, setTrackOpens] = useState(true);
@@ -36,7 +38,8 @@ export default function MailOutboxPump({ ai }: { ai: AIService }) {
     tasks,
     trackOpens,
     authToken: session?.access_token,
-  }), [g.api, ai, tasks, trackOpens, session]);
+    rules,
+  }), [g.api, ai, tasks, trackOpens, session, rules]);
 
   // EMAIL-F-05: once per process, before the first tick, anything left
   // marked "sending" by a process that died is surfaced as interrupted.

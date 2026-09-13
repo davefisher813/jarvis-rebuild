@@ -9,8 +9,8 @@ import { attemptWrite } from "../../shared/guard";
 import PageHeader from "../../shared/PageHeader";
 import { Switch } from "../../settings/kit";
 import {
-  STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, NO_PATTERN_TWIN,
-  type Strand, type StrandCategory, type StrandEvidence, type DerivationKey, type StrandType,
+  STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, WRITING_CHANNEL_LABEL, NO_PATTERN_TWIN,
+  type Strand, type StrandCategory, type StrandEvidence, type DerivationKey, type StrandType, type WritingChannel,
 } from "./types";
 import { pressable } from "../../shared/pressable";
 import ReadinessPanel, { useReadiness } from "./ReadinessPanel";
@@ -28,6 +28,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "watching", label: "Watching" }, { key: "needs", label: "Needs Confirmation" },
 ];
 const TYPES = Object.keys(STRAND_TYPE_LABEL) as StrandType[];
+const CHANNELS = Object.keys(WRITING_CHANNEL_LABEL) as WritingChannel[];
 
 // What JARVIS Knows (Brain Layer 2). The genome made visible: every strand,
 // its category, where it came from, and its receipts. Wrongness has an exit
@@ -118,6 +119,8 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
   const [rule, setRule] = useState(false);
   // C-42: the kind, a chooser on the sheet. null is "not said".
   const [kind, setKind] = useState<StrandType | null>(null);
+  // C-57: the channel, writing facts only.
+  const [channel, setChannel] = useState<WritingChannel | null>(null);
   const [filter, setFilter] = useState<Filter>(initialFilter ?? "all");
 
   const reload = useCallback(async () => setStrands(await svc.list()), [svc]);
@@ -136,7 +139,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
   };
   const openRow = (s: Strand) => () => {
     setOpenId(s.id); setEditing(false); setText(s.data.text); setCat(s.data.category);
-    setRule(s.data.strength === "rule"); setKind(s.data.type ?? null);
+    setRule(s.data.strength === "rule"); setKind(s.data.type ?? null); setChannel(s.data.channel ?? null);
   };
 
   // B12 (2026-08-24): the Brain is capped, so a double-tapped Save used to
@@ -158,6 +161,11 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       const id = kind
         ? await svc.add(text, cat, today, rule ? "rule" : "influence", kind)
         : rule ? await svc.add(text, cat, today, "rule") : await svc.add(text, cat, today);
+      // C-57: a writing fact says which channel, when he chose one.
+      if (id && cat === "writing" && channel) {
+        const made = (await svc.list()).find((s) => s.id === id);
+        if (made) await svc.setChannel(made, channel);
+      }
       showToast({ message: id ? "JARVIS will remember that" : "The Brain is full · Delete one first" });
     });
     setSaving(false);
@@ -191,6 +199,11 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       // C-42: same rule as strength, only when it actually changed.
       if (kind !== (open.data.type ?? null)) {
         await svc.setType(open, kind);
+      }
+      // C-57: same again for the channel; a fact leaving Writing drops it.
+      const nextChannel = cat === "writing" ? channel : null;
+      if (nextChannel !== (open.data.channel ?? null)) {
+        await svc.setChannel(open, nextChannel);
       }
     });
     setSaving(false);
@@ -372,7 +385,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       )}
 
       <div className="pad-x">
-        <button className="row row-act" onClick={() => { setAdding(true); setText(""); setCat("work_style"); setRule(false); setKind(null); }}>Add One Thing</button>
+        <button className="row row-act" onClick={() => { setAdding(true); setText(""); setCat("work_style"); setRule(false); setKind(null); setChannel(null); }}>Add One Thing</button>
       </div>
       <div className="screen-foot" />
 
@@ -426,6 +439,15 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
                 <div className="field"><div className="input-label">Where It Belongs</div>
                   <div className="chip-row">{CATS.map((c) => (
                     <button key={c} className={"chip" + (cat === c ? " active" : "")} onClick={() => setCat(c)}>{STRAND_CATEGORY_LABEL[c]}</button>
+                  ))}</div>
+                </div>
+              )}
+              {/* C-57: which channel a writing fact is about. Only offered
+                  in Writing; a chooser, so filled chips. */}
+              {(adding || (open && editing)) && cat === "writing" && (
+                <div className="field"><div className="input-label">Channel</div>
+                  <div className="chip-row">{CHANNELS.map((c) => (
+                    <button key={c} type="button" className={"chip" + (channel === c ? " active" : "")} aria-pressed={channel === c} onClick={() => setChannel((k) => (k === c ? null : c))}>{WRITING_CHANNEL_LABEL[c]}</button>
                   ))}</div>
                 </div>
               )}

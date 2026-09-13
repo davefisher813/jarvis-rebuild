@@ -72,6 +72,10 @@ export interface AIContextInput {
   // writing a message and some of which (money, routine) has no business in
   // one.
   writingFacts?: string[];
+  // C-57 (Astra, 2026-09-12): the same facts with their channel, so the
+  // voice prompt for an email draft carries email and general facts and
+  // the one for a text carries text and general. Absent channel is general.
+  writingFactsByChannel?: { text: string; channel: "email" | "text" | "general" }[];
   // Settled decisions, read back (Brain handoff item 5). One line each,
   // newest first, the reason included because the reason is the record's
   // whole purpose. This is what stops JARVIS re-opening a question the user
@@ -118,6 +122,8 @@ export interface AIContext {
   related?: string[];
   // S4-Q25: see AIContextInput.writingFacts.
   writingFacts?: string[];
+  // C-57: see AIContextInput.writingFactsByChannel.
+  writingFactsByChannel?: { text: string; channel: "email" | "text" | "general" }[];
   // Settled decisions, read back (Brain handoff item 5). One line each,
   // newest first, the reason included because the reason is the record's
   // whole purpose. This is what stops JARVIS re-opening a question the user
@@ -200,6 +206,7 @@ export function assembleContext(input: AIContextInput): AIContext {
     strands: (input.strands ?? []).map((s) => s.trim()).filter(Boolean),
     related: (input.related ?? []).map((s) => s.trim()).filter(Boolean),
     writingFacts: (input.writingFacts ?? []).map((s) => s.trim()).filter(Boolean),
+    ...(input.writingFactsByChannel ? { writingFactsByChannel: input.writingFactsByChannel.map((f) => ({ text: f.text.trim(), channel: f.channel })).filter((f) => f.text) } : {}),
     decisions: (input.decisions ?? []).map((d) => d.trim()).filter(Boolean),
     months: (input.months ?? []).map((m) => m.trim()).filter(Boolean),
     pulse: (input.pulse ?? []).map((x) => x.trim()).filter(Boolean),
@@ -328,7 +335,9 @@ export function contextToText(ctx: AIContext): string {
 // one, because its copy is unconditional and this one only appears when the
 // user has written style notes: dropping it there would quietly remove a
 // guardrail from every draft by anyone who has not filled that doc in.
-export function voiceToText(ctx: AIContext, { styleRule = true }: { styleRule?: boolean } = {}): string {
+// C-57: `channel` narrows the writing facts to the channel being written
+// plus general; with none given every writing fact rides, as before.
+export function voiceToText(ctx: AIContext, { styleRule = true, channel }: { styleRule?: boolean; channel?: "email" | "text" | "general" } = {}): string {
   const lines: string[] = [];
   lines.push(`User: ${ctx.name}`);
   if (ctx.peopleDetail?.length) {
@@ -339,7 +348,10 @@ export function voiceToText(ctx: AIContext, { styleRule = true }: { styleRule?: 
   // Scoped to the Writing bucket only: this prompt writes words in the
   // user's voice, not their whole life, so nothing else JARVIS knows rides
   // along with it.
-  if (ctx.writingFacts?.length) lines.push(`Known about how they write (watched or confirmed by them): ${ctx.writingFacts.join("; ")}`);
+  const writing = channel && ctx.writingFactsByChannel
+    ? ctx.writingFactsByChannel.filter((f) => f.channel === channel || f.channel === "general").map((f) => f.text)
+    : ctx.writingFacts ?? [];
+  if (writing.length) lines.push(`Known about how they write (watched or confirmed by them): ${writing.join("; ")}`);
   // UP-MIND-23 (2026-09-05): what is linked to the person being written to.
   // "Already decided: going with Ridgeline" is the difference between a
   // draft that reads informed and one that re-opens a settled question.

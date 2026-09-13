@@ -5153,6 +5153,13 @@ span.row-star { cursor: default; }
 .ms-row.completed .task-name { text-decoration: line-through; color: var(--tx-4); }
 .goal-row-ruled .r-k .fact { font-size: inherit; }
 
+/* CONTACTS, ROUTINE, WRITING, VALUES, PUSH G (C-59 to C-63, C-57, C-56,
+   C-16; Astra, 2026-09-12). The label facts on a contact's hero, the quiet
+   answers under a principle proposal. */
+.person-facts { justify-content: center; margin-top: var(--s-1); }
+.strand-row .dec-outcome-acts { margin-top: var(--s-1); }
+.strand-row .quiet-action { padding-left: 0; }
+
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
    mail EvidenceChip: a surface hands that component this class rather than
    forking it, and the sheet it opens is the Why sheet (C-25). */
