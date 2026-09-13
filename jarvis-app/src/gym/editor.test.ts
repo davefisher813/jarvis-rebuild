@@ -191,7 +191,10 @@ describe("GYM-F-30: Back from a lift returns to History", () => {
   });
 
   it("the lift branch is checked before the History branch, so it renders on top", () => {
-    expect(flow.indexOf("if (liftDetailFor) {")).toBeLessThan(flow.indexOf("if (historyOpen) {"));
+    // Health Push E (H-32): the History branch also yields to an open
+    // workout, so its guard reads historyOpen && !viewWorkout now.
+    expect(flow.indexOf("if (historyOpen && !viewWorkout) {")).toBeGreaterThan(-1);
+    expect(flow.indexOf("if (liftDetailFor) {")).toBeLessThan(flow.indexOf("if (historyOpen && !viewWorkout) {"));
   });
 
   // UP-ATH-21 (2026-09-06): Your Lifts is the second list a lift opens FROM,

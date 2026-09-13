@@ -423,6 +423,8 @@ export default function SessionScreen({
           </div>
         )}
         <div className="p3-q">{exercise.name}</div>
+        {/* H-26: a dumbbell number says which hand it is, on the session too. */}
+        {exercise.load === "each" && <div className="se-chips"><span className="se-chip se-chip-pair"><em>Load</em>Each Dumbbell</span></div>}
         {/* UP-CORE-06 (2026-09-05): the guard, under the title. A workout is
             one of the two places two hours disappear, and the person is by
             definition not looking at their calendar. A fact, in the same

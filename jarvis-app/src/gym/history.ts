@@ -149,3 +149,46 @@ export function movedFact(workouts: Workout[], lift: LiftLike): string | null {
   if (bits.length === 0) return total === 1 ? "All clean across the last marked set" : `All clean across the last ${total} marked sets`;
   return bits.map((b, i) => (i === 0 ? b.charAt(0).toUpperCase() + b.slice(1) : b)).join(", ");
 }
+
+// THE SESSIONS SEGMENT (Health Push E, H-32). Every finished workout, newest
+// first, grouped by the week it fell in: This Week, Last Week, then the
+// month (with the year once it is not this one). Minutes exclude a parked
+// stretch, the way the receipt counts them; sets are working sets logged.
+export interface SessionRow {
+  workout: Workout;
+  date: string;
+  minutes: number;
+  sets: number;
+}
+export interface SessionGroup { label: string; rows: SessionRow[] }
+
+function mondayOfDay(day: string): string {
+  const d = new Date(day + "T00:00:00");
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function weekLabel(date: string, today: string): string {
+  const thisMonday = mondayOfDay(today);
+  const monday = mondayOfDay(date);
+  if (monday === thisMonday) return "This Week";
+  if (daysBetween(monday, thisMonday) === 7) return "Last Week";
+  const d = new Date(date + "T00:00:00");
+  const month = d.toLocaleDateString([], { month: "long" });
+  return d.getFullYear() === new Date(today + "T00:00:00").getFullYear() ? month : month + " " + d.getFullYear();
+}
+
+export function sessionGroups(workouts: Workout[], today: string): SessionGroup[] {
+  const sorted = [...workouts].sort((a, b) => b.data.date.localeCompare(a.data.date) || b.data.startedAt - a.data.startedAt);
+  const groups: SessionGroup[] = [];
+  for (const w of sorted) {
+    const label = weekLabel(w.data.date, today);
+    const sets = w.data.exercises.reduce((n, ex) => ex.skipped ? n : n + ex.sets.filter((s) => !s.skipped && !s.warmup).length, 0);
+    const minutes = Math.max(1, Math.round((w.data.endedAt - w.data.startedAt - (w.data.pausedMs ?? 0)) / 60000));
+    const row: SessionRow = { workout: w, date: w.data.date, minutes, sets };
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.rows.push(row);
+    else groups.push({ label, rows: [row] });
+  }
+  return groups;
+}

@@ -43,6 +43,8 @@ export interface LibraryRow {
    *  program and has never been done. */
   lastDate: string | null;
   hidden: boolean;
+  /** H-23: the names this lift used to go by. */
+  aliases?: string[];
 }
 
 /** Every lift the athlete has, with its count and its last day. Sorted the
@@ -73,6 +75,7 @@ export function libraryRows(library: LibraryEntry[], workouts: Workout[], hidden
       sessions: sessions.get(e.key) ?? 0,
       lastDate: lastDate.get(e.key) ?? null,
       hidden: hidden.has(e.key),
+      ...(e.aliases?.length ? { aliases: e.aliases } : {}),
     }))
     .sort((a, b) => {
       if (a.lastDate && b.lastDate) return b.lastDate.localeCompare(a.lastDate) || a.name.localeCompare(b.name);
@@ -180,3 +183,46 @@ export function mergeLifts(
 }
 
 export { isEmpty as isEmptyPatch };
+
+// ALIASES (Health Push E, H-23). A rename rewrites every sighting to the new
+// name, so the old one would vanish from the library and from search. The
+// old names live in the gym settings, keyed by the lift's key, and these two
+// pure moves keep that map honest through a rename and a merge. Names are
+// compared case-insensitively; the current name is never its own alias.
+export type AliasMap = Record<string, string[]>;
+
+function uniqNames(names: string[], except: string): string[] {
+  const out: string[] = [];
+  const ex = except.trim().toLowerCase();
+  for (const n of names) {
+    const t = n.trim();
+    if (!t || t.toLowerCase() === ex) continue;
+    if (out.some((o) => o.toLowerCase() === t.toLowerCase())) continue;
+    out.push(t);
+  }
+  return out;
+}
+
+/** After renaming: the old name joins the aliases, and the whole list moves
+ *  from the key the row had to the key it carries now (a first rename stamps
+ *  a fresh exerciseKey, so the two can differ). */
+export function aliasesAfterRename(map: AliasMap, fromKey: string, toKey: string, oldName: string, newName: string): AliasMap {
+  const next: AliasMap = { ...map };
+  const carried = [...(map[fromKey] ?? []), ...(fromKey !== toKey ? map[toKey] ?? [] : []), oldName];
+  delete next[fromKey];
+  const list = uniqNames(carried, newName);
+  if (list.length) next[toKey] = list; else delete next[toKey];
+  return next;
+}
+
+/** After a merge: the loser's name and aliases fold into the survivor's,
+ *  under the survivor's (possibly freshly stamped) key. */
+export function aliasesAfterMerge(map: AliasMap, m: { loserKey: string; loserName: string; survivorKey: string; survivorNewKey: string; survivorName: string }): AliasMap {
+  const next: AliasMap = { ...map };
+  const carried = [...(map[m.survivorKey] ?? []), ...(m.survivorNewKey !== m.survivorKey ? map[m.survivorNewKey] ?? [] : []), ...(map[m.loserKey] ?? []), m.loserName];
+  delete next[m.loserKey];
+  delete next[m.survivorKey];
+  const list = uniqNames(carried, m.survivorName);
+  if (list.length) next[m.survivorNewKey] = list; else delete next[m.survivorNewKey];
+  return next;
+}

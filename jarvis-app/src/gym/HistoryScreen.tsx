@@ -1,8 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Workout, MeasureKind } from "./types";
-import { exerciseHistory, trendLine, doneCount } from "./history";
+import { exerciseHistory, trendLine, doneCount, sessionGroups } from "./history";
 import { liftSessions, chartValue } from "./chartData";
 import { sameLiftAnyKind } from "./identity";
+import { monthDay } from "../money/bills";
+import { capAfterNumber } from "../shared/casing";
+import { todayISO } from "../tasks/grouping";
 
 const CHEV = <div className="chev" />;
 
@@ -28,14 +31,24 @@ function Sparkline({ workouts, name, exerciseKey, kind }: { workouts: Workout[];
 // what used to unfold inline here (the day-by-day list) lives there now, so
 // there is one place a lift's whole story reads, not two. Gaps between
 // dates are just gaps.
-export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
+//
+// Health Push E (H-32, Dave's picks 2026-09-12): a Lifts / Sessions control
+// at the top. Lifts is this screen as it was; Sessions is every workout,
+// newest first, grouped by the week it fell in, each row a door to that
+// workout's own editor.
+export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWorkout }: {
   workouts: Workout[]; onBack: () => void;
   // GYM-F-04 (2026-09-05): the key rides along so the lift detail derives the
   // lift's WHOLE history, across a rename, not just what its current name
   // happens to match.
   onOpenLift: (row: { name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string }) => void;
+  /** H-32: a session row opens that workout. Absent, the Sessions segment
+   *  still lists them; the rows just do not open. */
+  onOpenWorkout?: (workout: Workout) => void;
 }) {
+  const [mode, setMode] = useState<"lifts" | "sessions">("lifts");
   const rows = exerciseHistory(workouts);
+  const groups = useMemo(() => sessionGroups(workouts, todayISO()), [workouts]);
 
   // THE `done` BLIND SPOT FIX (catalog §4.8): exerciseHistory skips done-kind
   // work entirely (it produces no number to rank), so without this a whole
@@ -65,7 +78,44 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
         <div className="nav-title">History</div>
       </div>
 
-      {rows.length === 0 ? (
+      <div className="pad-x">
+        <div className="segmented">
+          <button type="button" className={"seg" + (mode === "lifts" ? " active" : "")} onClick={() => setMode("lifts")}>Lifts</button>
+          <button type="button" className={"seg" + (mode === "sessions" ? " active" : "")} onClick={() => setMode("sessions")}>Sessions</button>
+        </div>
+      </div>
+
+      {mode === "sessions" ? (
+        groups.length === 0 ? (
+          <div className="empty-state"><div className="empty-title">No Sessions Yet</div>
+            <div className="empty-sub">Finish a session and it shows up here</div></div>
+        ) : (
+          groups.map((g) => (
+            <div key={g.label}>
+              <div className="sh2 sh2-quiet"><span className="t">{g.label}</span><span className="n">{g.rows.length}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
+                {g.rows.map((r) => (
+                  <div className="row" role="button" tabIndex={0} key={r.workout.id} aria-label={"Open " + r.workout.data.dayName + " " + monthDay(r.date)}
+                    onClick={() => onOpenWorkout?.(r.workout)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenWorkout?.(r.workout); } }}>
+                    <div className="row-grow">
+                      <div className="conn-name truncate">{r.workout.data.dayName}</div>
+                      {/* Three facts: the date, the minutes in the time hue, the
+                          working sets in the logged-work hue. */}
+                      <div className="facts">
+                        <span className="fact">{monthDay(r.date)}</span>
+                        <span className="fact amber">{capAfterNumber(`${r.minutes} min`)}</span>
+                        <span className="fact lime">{r.sets} {r.sets === 1 ? "set" : "sets"}</span>
+                      </div>
+                    </div>
+                    {onOpenWorkout && CHEV}
+                  </div>
+                ))}
+              </div></div>
+            </div>
+          ))
+        )
+      ) : rows.length === 0 ? (
         <div className="empty-state"><div className="empty-title">No Numbers Yet</div>
           {/* B14: not a button, because history is earned in the gym, but the
               bare title read as broken instead of as new. */}
@@ -101,7 +151,7 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
         </>
       )}
 
-      {doneRows.length > 0 && (
+      {mode === "lifts" && doneRows.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Done Work</span></div>
           <div className="pad-x"><div className="card list-card-ruled">

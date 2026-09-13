@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLibrary, searchLibrary, searchLibraryByKind, newExerciseKey } from "./library";
+import { buildLibrary, searchLibrary, searchLibraryByKind, newExerciseKey, withAliases } from "./library";
 import type { Program, Workout } from "./types";
 
 function program(over: Partial<Program["data"]> = {}): Program {
@@ -122,5 +122,24 @@ describe("lastSets carry only the numbers", () => {
     expect(entry.lastSets[0]!.w).toBe(250);
     expect("at" in entry.lastSets[0]!).toBe(false);
     expect("moved" in entry.lastSets[0]!).toBe(false);
+  });
+});
+
+// Health Push E, H-23: an old name still finds the lift.
+describe("aliases", () => {
+  const lib = withAliases([
+    { key: "k1", exerciseKey: "k1", name: "Trap Bar Deadlift", kind: "weight_reps", lastUsed: 2, lastSets: [] },
+    { key: "k2", exerciseKey: "k2", name: "Bench", kind: "weight_reps", lastUsed: 1, lastSets: [] },
+  ], { k1: ["Trap bar DL"], k9: ["Nothing"] });
+
+  it("withAliases hangs the stored names on their entry and nothing else", () => {
+    expect(lib[0]!.aliases).toEqual(["Trap bar DL"]);
+    expect(lib[1]!).not.toHaveProperty("aliases");
+  });
+
+  it("searchLibrary matches an alias as well as the name", () => {
+    expect(searchLibrary(lib, "bar dl").map((e) => e.name)).toEqual(["Trap Bar Deadlift"]);
+    expect(searchLibrary(lib, "bench").map((e) => e.name)).toEqual(["Bench"]);
+    expect(searchLibrary(lib, "nothing")).toEqual([]);
   });
 });

@@ -31,6 +31,9 @@ export interface GymSettings {
    *  being offered by Swap and autocomplete. Absent on every settings blob
    *  written before this, which reads as nothing hidden. */
   hiddenKeys?: string[];
+  /** Health Push E (H-23): the names each lift used to go by, by library
+   *  key, so a rename keeps the old name searchable. See libraryEdit.ts. */
+  aliases?: Record<string, string[]>;
 }
 
 export const DEFAULT_GYM_SETTINGS: GymSettings = {

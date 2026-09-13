@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { libraryRows, libraryKeyOf, renameLift, mergeLifts, isEmptyPatch } from "./libraryEdit";
+import { libraryRows, libraryKeyOf, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge } from "./libraryEdit";
 import { buildLibrary } from "./library";
 import type { Program, Workout, WorkoutExercise } from "./types";
 
@@ -138,5 +138,25 @@ describe("mergeLifts", () => {
     const workouts = [workout("w1", "2026-09-01", [we("Curl")])];
     const rows = libraryRows(buildLibrary([], workouts), workouts);
     expect(isEmptyPatch(mergeLifts(workouts, [], rows[0]!, rows[0]!, () => "one"))).toBe(true);
+  });
+});
+
+// Health Push E, H-23: the old names survive a rename and a merge.
+describe("aliases through rename and merge", () => {
+  it("a rename files the old name under the new key, moves what the old key held, and never keeps the current name", () => {
+    const after = aliasesAfterRename({ "bench:weight_reps": ["Flat Bench"] }, "bench:weight_reps", "ek1", "Bench", "Bench Press");
+    expect(after).toEqual({ ek1: ["Flat Bench", "Bench"] });
+    const again = aliasesAfterRename(after, "ek1", "ek1", "Bench Press", "bench");
+    expect(again).toEqual({ ek1: ["Flat Bench", "Bench Press"] });
+  });
+
+  it("a merge unions both lists plus the loser's name under the survivor's key", () => {
+    const after = aliasesAfterMerge({ l: ["DL"], s: ["Flat Bench"] }, { loserKey: "l", loserName: "Deadlift", survivorKey: "s", survivorNewKey: "ek2", survivorName: "Bench Press" });
+    expect(after).toEqual({ ek2: ["Flat Bench", "DL", "Deadlift"] });
+  });
+
+  it("libraryRows carries an entry's aliases", () => {
+    const rows = libraryRows([{ key: "k1", exerciseKey: "k1", name: "Bench", kind: "weight_reps", lastUsed: 1, lastSets: [], aliases: ["Flat Bench"] }], []);
+    expect(rows[0]!.aliases).toEqual(["Flat Bench"]);
   });
 });

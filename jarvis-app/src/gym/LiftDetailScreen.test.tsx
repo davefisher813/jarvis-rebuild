@@ -91,3 +91,25 @@ describe("the goal card on a lift's page", () => {
     expect(onSetGoal).toHaveBeenCalledTimes(1);
   });
 });
+
+// Health Push E: H-31 the caption, H-34 tap a point.
+describe("LiftDetailScreen: the chart says what it is, and answers a tap", () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(T0); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const two = [workout("2026-08-26", [{ name: "Incline Press", sets: 3 }]), workout("2026-09-02", [{ name: "Incline Press", sets: 3 }])];
+
+  it("the caption names Epley, says it is not a tested max, and carries the unit", () => {
+    render(<LiftDetailScreen {...base} workouts={two} />);
+    expect(screen.getByText("Est 1RM · Epley · not a tested max · lb")).toBeInTheDocument();
+  });
+
+  it("tapping a point reads its date, set, and estimate in the reading hue", () => {
+    render(<LiftDetailScreen {...base} workouts={two} />);
+    expect(screen.queryByText(/Est \d+ lb$/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Session 1 of 2" }));
+    const fact = screen.getByText(/· Est \d+ lb$/);
+    expect(fact).toHaveClass("fact", "cyan");
+    expect(fact.textContent).toMatch(/^Aug 26/);
+  });
+});

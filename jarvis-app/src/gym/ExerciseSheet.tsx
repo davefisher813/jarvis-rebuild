@@ -11,7 +11,7 @@ import SetStrip from "./SetStrip";
 import Stepper from "../shared/Stepper";
 import SheetBar from "../shared/SheetBar";
 import HeadMenu from "../shared/HeadMenu";
-import { Trash2, Dumbbell, Gauge, Timer, PersonStanding, Hourglass, Flame, Shuffle, StickyNote } from "../shared/icons";
+import { Trash2, Dumbbell, Gauge, Timer, PersonStanding, Hourglass, Flame, Shuffle, StickyNote, Link2 } from "../shared/icons";
 import { searchLibrary, newExerciseKey, type LibraryEntry } from "./library";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 
@@ -62,7 +62,7 @@ function Tile({ tone, children }: { tone: string; children: ReactNode }) {
 // In the Session (Rest Timer, Warm-Up Ramp, Filler), Note. The header is
 // the ruled sheet bar (Cancel, the name, Save); Delete sits alone at the
 // very bottom. The set strip keeps its chips, which he approved.
-export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel }: {
+export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel, partner, onPairWith }: {
   mode: "new" | "edit";
   initial?: Exercise;
   /** THE EXERCISE LIBRARY (catalog §3.5): every exercise name ever used,
@@ -76,6 +76,11 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   onSave: (e: Omit<Exercise, "id">) => void;
   onDelete?: () => void;
   onCancel: () => void;
+  /** Health Push E (H-24): who this exercise is grouped with today, as a
+   *  name or names, and the door to the day's own Group With picker. Both
+   *  absent on a new exercise and on a day with nothing else to pair. */
+  partner?: string | null;
+  onPairWith?: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [kind, setKind] = useState<MeasureKind>(initial?.kind ?? "weight_reps");
@@ -94,6 +99,8 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   const [filler, setFiller] = useState(!!initial?.filler);
   const [ramp, setRamp] = useState(!!initial?.ramp);
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | undefined>(initial?.muscleGroup);
+  // H-26: how the weight is written, a label and never a conversion.
+  const [load, setLoad] = useState<"each" | "total">(initial?.load ?? "total");
   // THE CONDITIONING BLOCK (ruled 2026-09-01, built 2026-09-02). Off means
   // this is a strip; a format makes it a clock. The kind follows the format
   // (an AMRAP scores rounds, a For Time scores time, EMOM and Tabata count
@@ -188,6 +195,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
       ...(filler ? { filler: true } : {}),
       ...(ramp ? { ramp: true } : {}),
       ...(muscleGroup ? { muscleGroup } : {}),
+      ...(kind === "weight_reps" && load === "each" ? { load: "each" as const } : {}),
       ...(condBlock ? { cond: condBlock } : {}),
     });
   };
@@ -372,6 +380,21 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 options={[{ value: "none", label: "None" }, ...MUSCLE_GROUPS.map((m) => ({ value: m, label: MUSCLE_LABEL[m] }))]}
                 onPick={(v) => setMuscleGroup(v === "none" ? undefined : (v as MuscleGroup))} />
             </div>
+            {/* LOAD (Health Push E, H-26): whether a dumbbell number is one
+                hand's or the pair's. The chips stay his own numbers either
+                way; this only says how to read them. */}
+            {kind === "weight_reps" && !condBlock && (
+              <div className="row xs-row">
+                <Tile tone="orange"><Dumbbell className="ic" /></Tile>
+                <div className="row-grow">
+                  <div className="conn-name">Load</div>
+                  <div className="conn-meta">{load === "each" ? "The number on each chip is one dumbbell" : "The number on each chip is the whole load"}</div>
+                </div>
+                <HeadMenu variant="value" ariaLabel="Load" value={load}
+                  options={[{ value: "total", label: "Total" }, { value: "each", label: "Each Dumbbell" }]}
+                  onPick={(v) => setLoad(v === "each" ? "each" : "total")} />
+              </div>
+            )}
           </div></div>
 
           {/* IN THE SESSION: what the live screen does with this exercise. */}
@@ -408,6 +431,19 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 </div>
                 <div className={"switch" + (ramp ? "" : " off")} role="switch" aria-checked={ramp} aria-label="Warm-up ramp" tabIndex={0}
                   onClick={() => setRamp((r) => !r)} />
+              </div>
+            )}
+            {/* PAIR WITH (Health Push E, H-24): who this one alternates with,
+                and the door to the day's own Group With picker, so pairing no
+                longer hides behind a long press on the day list. */}
+            {onPairWith && (
+              <div className="row xs-row">
+                <Tile tone="teal"><Link2 className="ic" /></Tile>
+                <div className="row-grow">
+                  <div className="conn-name">Pair With</div>
+                  <div className="conn-meta">{partner ?? "Not paired"}</div>
+                </div>
+                <button className="pill-act pill-neutral" onClick={onPairWith}>{partner ? "Change" : "Choose"}</button>
               </div>
             )}
             {/* FILLER (catalog §4.2): offered during the rest of whatever it is

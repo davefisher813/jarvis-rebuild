@@ -20,7 +20,7 @@ import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, type LiveSession } from "./liveSession";
 import { bumpStrip } from "./strip";
-import { buildLibrary, newExerciseKey } from "./library";
+import { buildLibrary, newExerciseKey, withAliases } from "./library";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
@@ -39,7 +39,7 @@ import ReceiptSheet from "./ReceiptSheet";
 import UploadFlow from "./UploadFlow";
 import HistoryScreen from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
-import { libraryRows, renameLift, mergeLifts, isEmptyPatch, type LibraryRow } from "./libraryEdit";
+import { libraryRows, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, type LibraryRow, type AliasMap } from "./libraryEdit";
 import ActionSheet, { PickSheet, type SheetAction, type PickItem } from "./ActionSheet";
 import SetStrip from "./SetStrip";
 import ReorderList from "../shared/ReorderList";
@@ -624,6 +624,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   // hide shows immediately; the store is still the source of truth.
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [hiddenKeys, setHiddenKeys] = useState<string[]>(() => readGymSettings().hiddenKeys ?? []);
+  // Health Push E (H-23): the old names, by key, read once and written on
+  // every rename and merge (libraryEdit.ts owns the two moves).
+  const [aliasMap, setAliasMap] = useState<AliasMap>(() => readGymSettings().aliases ?? {});
+  const saveAliases = (next: AliasMap) => { setAliasMap(next); writeGymSettings({ ...readGymSettings(), aliases: next }); };
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<RowMenu | null>(null);
   const [picker, setPicker] = useState<Picker | null>(null);
@@ -674,7 +678,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   // THE EXERCISE LIBRARY (catalog §3.5): every exercise ever used, across
   // every program (archived ones included -- real history) and every
   // workout, recomputed only when the underlying data actually changes.
-  const library = useMemo(() => buildLibrary(allPrograms, workouts), [allPrograms, workouts]);
+  const library = useMemo(() => withAliases(buildLibrary(allPrograms, workouts), aliasMap), [allPrograms, workouts, aliasMap]);
 
   // UP-ATH-02 (2026-09-06), THE SEASON LINK's other half. The program row has
   // said "Next Game: Sep 12" since the link shipped, and the two screens an
@@ -1330,21 +1334,26 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       </>
     );
   }
-  if (historyOpen) {
-    return <HistoryScreen workouts={workouts} onBack={() => setHistoryOpen(false)} onOpenLift={(row) => setLiftDetailFor(row)} />;
+  // H-32: a session row opens the workout's own screen (the branch above
+  // this one), and closing it lands back on History.
+  if (historyOpen && !viewWorkout) {
+    return (
+      <HistoryScreen workouts={workouts} onBack={() => setHistoryOpen(false)} onOpenLift={(row) => setLiftDetailFor(row)}
+        onOpenWorkout={(w) => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }} />
+    );
   }
   // UP-ATH-21: the library as a page. Both writes go through the same door,
   // one update per touched workout and program, each guarded: a bulk rewrite
   // that fails partway says so rather than leaving the library half renamed.
   if (libraryOpen) {
-    const applyPatch = async (patch: ReturnType<typeof renameLift>, said: string) => {
+    const applyPatch = async (patch: ReturnType<typeof renameLift>, said: string, after?: () => void) => {
       if (isEmptyPatch(patch)) return;
       const ok = await attemptWrite(async () => {
         for (const w of patch.workouts) await svc.updateWorkout(w.id, { exercises: w.exercises });
         for (const p of patch.programs) await svc.updateProgram(p.id, { weeks: p.weeks });
       });
       await reload();
-      if (ok) showToast({ message: said });
+      if (ok) { showToast({ message: said }); after?.(); }
     };
     return (
       <LibraryPage
@@ -1360,11 +1369,19 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
           setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) });
           setLiftGoalSheetOpen(true);
         }}
-        onRename={(r, name) => void applyPatch(renameLift(workouts, allPrograms, r, name, newExerciseKey), `Renamed to ${name.trim()}`)}
+        // H-23: the key is stamped here rather than inside the patch, so the
+        // old name can be filed under the key the lift carries afterwards.
+        onRename={(r, name) => {
+          const stamped = r.exerciseKey ?? newExerciseKey();
+          void applyPatch(renameLift(workouts, allPrograms, { ...r, exerciseKey: stamped }, name, () => stamped), `Renamed to ${name.trim()}`,
+            () => saveAliases(aliasesAfterRename(aliasMap, r.key, stamped, r.name, name.trim())));
+        }}
         onMerge={(loser, survivorKey) => {
           const survivor = libraryRows(library, workouts, hiddenKeys).find((x) => x.key === survivorKey);
           if (!survivor) return;
-          void applyPatch(mergeLifts(workouts, allPrograms, loser, survivor, newExerciseKey), `Merged into ${survivor.name}`);
+          const key = survivor.exerciseKey ?? newExerciseKey();
+          void applyPatch(mergeLifts(workouts, allPrograms, loser, { ...survivor, exerciseKey: key }, () => key), `Merged into ${survivor.name}`,
+            () => saveAliases(aliasesAfterMerge(aliasMap, { loserKey: loser.key, loserName: loser.name, survivorKey: survivor.key, survivorNewKey: key, survivorName: survivor.name })));
         }}
         onToggleHidden={(r) => {
           const next = hiddenKeys.includes(r.key) ? hiddenKeys.filter((k) => k !== r.key) : [...hiddenKeys, r.key];
@@ -1727,12 +1744,18 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       const week = program.data.weeks.find((w) => w.id === sheet.weekId);
       const day = week?.days.find((d) => d.id === sheet.dayId);
       const existing = sheet.exId ? day?.exercises.find((e) => e.id === sheet.exId) : undefined;
+      // H-24: the partner names, and the door to Group With, only for an
+      // exercise that exists on a day with something else to pair.
+      const mates = existing && day ? groupOf(existing, day.exercises).filter((e) => e.id !== existing.id).map((e) => e.name) : [];
+      const canPair = !!existing && !!day && day.exercises.length > 1;
       return (
         <ExerciseSheet
           mode={existing ? "edit" : "new"}
           initial={existing}
           library={library}
           history={workouts}
+          partner={mates.length ? mates.join(", ") : null}
+          onPairWith={canPair ? () => { setSheet({ kind: "closed" }); setPicker({ kind: "groupWith", weekId: sheet.weekId, dayId: sheet.dayId, exId: existing!.id }); } : undefined}
           onSave={async (draft) => {
             if (!week || !day) return;
             const days = week.days.map((d) => {

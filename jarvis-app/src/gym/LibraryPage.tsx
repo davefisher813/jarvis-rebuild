@@ -69,6 +69,10 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
                     {r.lastDate ? " · Last " + agoPhraseLower(r.lastDate, todayIso) : ""}
                     {r.hidden ? " · Hidden" : ""}
                   </div>
+                  {/* H-23: the names it used to go by, in the reading hue. */}
+                  {r.aliases && r.aliases.length > 0 && (
+                    <div className="facts"><span className="fact cyan">{"Also " + r.aliases.join(", ")}</span></div>
+                  )}
                 </div>
                 <div className="lib-row-acts">
                   {onSetGoal && <button className="pill-act" onClick={(e) => { e.stopPropagation(); onSetGoal(r); }}>Goal</button>}

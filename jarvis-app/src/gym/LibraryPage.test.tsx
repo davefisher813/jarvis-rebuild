@@ -34,3 +34,13 @@ describe("LibraryPage's Goal pill", () => {
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
   });
 });
+
+// Health Push E, H-23: the old names read on the row.
+describe("LibraryPage's alias line", () => {
+  it("lists what the lift used to be called, in the reading hue, only when there is one", () => {
+    const { rerender } = render(<LibraryPage {...base} rows={[row({ aliases: ["Flat Bench", "Bench"] })]} onBack={() => {}} />);
+    expect(screen.getByText("Also Flat Bench, Bench")).toHaveClass("fact", "cyan");
+    rerender(<LibraryPage {...base} rows={[row()]} onBack={() => {}} />);
+    expect(screen.queryByText(/^Also /)).toBeNull();
+  });
+});

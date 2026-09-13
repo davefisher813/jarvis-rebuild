@@ -12,6 +12,7 @@ import { MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 import { capAfterNumber } from "../shared/casing";
 import { agoPhrase, agoPhraseLower } from "./summary";
 import { todayISO } from "../tasks/grouping";
+import { shortDate } from "../shared/dateFormat";
 
 const CHEV = <div className="chev" />;
 
@@ -127,6 +128,8 @@ export default function LiftDetailScreen({
   const plateau = useMemo(() => plateauFlag(sessions, kind, lift, workouts), [sessions, kind, lift, workouts]);
   const shown = activeMetrics(defs);
   const [metricIdx, setMetricIdx] = useState(0);
+  // Health Push E (H-34): the point he tapped, read out under the chart.
+  const [sel, setSel] = useState<number | null>(null);
   const lane = shown[metricIdx];
   const laneVals = useMemo(() => (lane ? weeklyMetricAvg(lane, logs, WEEKS, now) : []), [lane, logs, now]);
   // GYM-F-15 (2026-09-05): this row is about the MUSCLE and cites a published
@@ -194,7 +197,8 @@ export default function LiftDetailScreen({
           ) : (
             <div className="pad-x"><div className="card pad banner-blue">
               <div className="row-stack">
-                <div className="conn-meta">{label}</div>
+                {/* H-31 / H-34: the unit joins the caption. */}
+                <div className="conn-meta">{label}{unit ? " · " + unit : ""}</div>
                 <div className="p3-q blue">{latest != null ? `${latest}${unit ? " " + unit : ""}` : "--"}</div>
               </div>
               <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="lift-chart" role="img"
@@ -204,7 +208,21 @@ export default function LiftDetailScreen({
                 {pts.map((p, i) => prs.has(i) ? (
                   <circle key={i} cx={p.x} cy={p.y} r={4} fill="var(--good)" />
                 ) : null)}
+                {/* H-34: the tapped point, in the reading hue. */}
+                {sel != null && pts[sel] && <circle cx={pts[sel]!.x} cy={pts[sel]!.y} r={4.5} fill="var(--hl-cyan)" />}
+                {/* Each point has a hit area wider than its dot, and answers
+                    the keyboard; no axes are drawn (H-34). */}
+                {pts.map((p, i) => (
+                  <circle key={"h" + i} cx={p.x} cy={p.y} r={10} fill="transparent" role="button" tabIndex={0}
+                    aria-label={`Session ${i + 1} of ${pts.length}`} onClick={() => setSel(i)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(i); } }} />
+                ))}
               </svg>
+              {sel != null && sessions[sel] && (
+                <div className="facts">
+                  <span className="fact cyan">{shortDate(sessions[sel]!.date)} · {formatSet({ kind, unit, timeUnit }, shownTop(sessions[sel]!))} · {kind === "weight_reps" ? "Est" : "Best"} {chartVals[sel]}{unit ? " " + unit : ""}</span>
+                </div>
+              )}
               {/* Three facts in one grey run-on, and the two that matter --
                   how many sessions and how many bests -- were at the end of
                   it. Chips, aligned, the PR count in the ramp's lime. */}

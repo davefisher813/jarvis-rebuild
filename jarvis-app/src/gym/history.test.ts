@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { exerciseHistory, trendLine, doneCount, movedFact } from "./history";
+import { exerciseHistory, trendLine, doneCount, movedFact, sessionGroups } from "./history";
 import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
 
 const wk = (date: string, exercises: WorkoutExercise[]): Workout =>
@@ -93,5 +93,29 @@ describe("movedFact: how it moved, as a fact (catalog §4.5)", () => {
     // Spec moved 2026-09-01: the singular case reads as a sentence now
     // ("the last 1 marked sets" was a live-render copy bug, not a behavior).
     expect(movedFact(workouts, "Bench")).toBe("All clean across the last marked set");
+  });
+});
+
+// Health Push E, H-32: sessions grouped by the week they fell in.
+describe("sessionGroups", () => {
+  const w = (id: string, date: string, mins: number, pausedMs = 0): Workout =>
+    ({ id, data: { programId: "p", dayId: "d", dayName: "Day " + id, date, startedAt: 0, endedAt: mins * 60_000, pausedMs,
+      exercises: [wex("Bench", "weight_reps", [{ w: 100, r: 5 }, { w: 100, r: 5, warmup: true }, { w: 100, r: 5, skipped: true }], "lb")] } });
+
+  it("newest first, This Week, Last Week, then the month, with paused time and warm-ups left out", () => {
+    const groups = sessionGroups([w("a", "2026-08-20", 40), w("b", "2026-09-12", 50, 5 * 60_000), w("c", "2026-09-04", 30), w("d", "2025-12-30", 20)], "2026-09-13");
+    expect(groups.map((g) => [g.label, g.rows.map((r) => r.workout.id)])).toEqual([
+      ["This Week", ["b"]],
+      ["Last Week", ["c"]],
+      ["August", ["a"]],
+      ["December 2025", ["d"]],
+    ]);
+    expect(groups[0]!.rows[0]).toMatchObject({ minutes: 45, sets: 1 });
+  });
+
+  it("two sessions in one week share a head", () => {
+    const groups = sessionGroups([w("a", "2026-09-08", 40), w("b", "2026-09-10", 40)], "2026-09-13");
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.rows.map((r) => r.workout.id)).toEqual(["b", "a"]);
   });
 });

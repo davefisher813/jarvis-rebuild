@@ -134,6 +134,11 @@ export interface Exercise {
   exerciseKey?: string;
   /** Optional per-exercise rest target in seconds (catalog §4.3). */
   restSec?: number;
+  /** Health Push E (H-26): how a weight_reps load is written. "each" means
+   *  the number on every chip is one dumbbell's; absent or "total" means the
+   *  whole load. A label for the person's own numbers, never a conversion:
+   *  nothing doubles or halves a weight on the strength of this flag. */
+  load?: "each" | "total";
   /** The id of another exercise in the SAME day this one alternates with --
    *  A1/A2 notation (catalog §4.2). Pairing is symmetric: both sides carry
    *  the other's id. */

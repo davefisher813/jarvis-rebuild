@@ -9,6 +9,10 @@ import { entryFrom } from "./strip";
 // Free text always still works and always mints a fresh entry.
 
 export interface LibraryEntry {
+  /** Health Push E (H-23): the names this lift used to go by, so a rename
+   *  never makes the old name unsearchable. Attached by withAliases from the
+   *  gym settings; nothing in a workout or program carries them. */
+  aliases?: string[];
   /** exerciseKey when the exercise that produced this entry has one; a
    *  derived name+kind fallback otherwise, so legacy exercises (pre-library)
    *  still show up and are still pickable. */
@@ -102,8 +106,17 @@ export function searchLibrary(library: LibraryEntry[], query: string, limit = 8,
   const hidden = new Set(hiddenKeys);
   const visible = hidden.size ? library.filter((e) => !hidden.has(e.key)) : library;
   const q = query.trim().toLowerCase();
-  const hits = q ? visible.filter((e) => e.name.toLowerCase().includes(q)) : visible;
+  // H-23: an old name still finds the lift.
+  const hits = q ? visible.filter((e) => e.name.toLowerCase().includes(q) || (e.aliases ?? []).some((a) => a.toLowerCase().includes(q))) : visible;
   return hits.slice(0, limit);
+}
+
+/** H-23: hang the stored aliases on the entries they belong to, by key. */
+export function withAliases(library: LibraryEntry[], aliases: Record<string, string[]>): LibraryEntry[] {
+  return library.map((e) => {
+    const a = aliases[e.key];
+    return a && a.length ? { ...e, aliases: a } : e;
+  });
 }
 
 /** Same search, restricted to one measure kind -- the Swap picker only ever

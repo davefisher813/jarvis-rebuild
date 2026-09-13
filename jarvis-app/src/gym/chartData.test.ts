@@ -63,7 +63,8 @@ describe("chartValue / chartLabel", () => {
     const h = [bench("2026-08-10", [set({ w: 185, r: 5 })])];
     const s = liftSessions(h, "Bench", "weight_reps")[0]!;
     expect(chartValue(s)).toBe(e1rm(185, 5));
-    expect(chartLabel("weight_reps")).toBe("Est 1RM");
+    // Health Push E (H-31): the estimate says what it is and is not.
+    expect(chartLabel("weight_reps")).toBe("Est 1RM · Epley · not a tested max");
     expect(chartLabel("reps")).toBe("Best");
   });
 });
