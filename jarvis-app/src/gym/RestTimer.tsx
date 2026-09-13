@@ -44,7 +44,7 @@ export function restRemainingSec(endsAt: number, now: number = Date.now()): numb
  * state on a key change), which is how the countdown restarts clean each
  * time rather than this component tracking which set it belongs to.
  */
-export default function RestTimer({ endsAt, fillerName, onLogFiller, onDismiss, notifyLine }: {
+export default function RestTimer({ endsAt, fillerName, onLogFiller, onDismiss, notifyLine, onExtend }: {
   endsAt: number;
   fillerName?: string;
   onLogFiller?: () => void;
@@ -53,6 +53,9 @@ export default function RestTimer({ endsAt, fillerName, onLogFiller, onDismiss, 
   // athlete has the rest switch off on the Notifications page, and then no
   // notification is armed at all.
   notifyLine?: string;
+  /** H-18 (Health Push B, 2026-09-12): +30s. The caller moves the deadline
+   *  and remounts this on it, which re-arms the notification for free. */
+  onExtend?: () => void;
 }) {
   const [remaining, setRemaining] = useState(() => restRemainingSec(endsAt));
   // A timer that mounts already over (the app came back long after the rest
@@ -101,12 +104,15 @@ export default function RestTimer({ endsAt, fillerName, onLogFiller, onDismiss, 
     <div className="pad-x"><div className="card pad rest-timer">
       <div className="eyebrow">{over ? "Rest Over" : "Resting"}</div>
       <div className="p3-q rest-clock">{mmss(remaining)}</div>
-      {fillerName && !over && (
-        <button className="row-create rest-filler-btn" onClick={onLogFiller}>
-          Or Do {fillerName}
-        </button>
-      )}
-      <button className="row-create" onClick={onDismiss}>{over ? "Continue" : "Skip Rest"}</button>
+      {/* H-18: capsules, as the harness draws them: +30s, Skip Rest and the
+          filler while the rest runs; Continue once it is over. */}
+      <div className="rest-acts">
+        {!over && onExtend && <button className="pill-act" onClick={onExtend}>+30s</button>}
+        <button className={"pill-act" + (over ? "" : " pill-quiet")} onClick={onDismiss}>{over ? "Continue" : "Skip Rest"}</button>
+        {fillerName && !over && (
+          <button className="pill-act pill-quiet rest-filler-btn" onClick={onLogFiller}>Or Do {fillerName}</button>
+        )}
+      </div>
     </div></div>
   );
 }

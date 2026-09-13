@@ -195,3 +195,55 @@ describe("HEALTH law 3: the light activity ramp equals the dark one", () => {
     expect(bad).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// LAW 4 (R2). NO OPACITY ON A ROW OR CARD THAT CARRIES TEXT, IN HEALTH.
+//
+// The 09-10 pass dimmed ghost chips to 0.75, warm-up chips to 0.72, tile
+// labels to 0.9 and the chip's own label to 0.75 on top of ink that was
+// already quiet: two dims stacked, read at arm's length in a gym. R2's rule
+// is that a state is said with a word or a colour and never by half-erasing
+// the text. Only a press state (:active) may fade, and the delete control
+// hidden under a swiped chip is a control, not text.
+// ---------------------------------------------------------------------------
+describe("HEALTH law 4: no opacity on a health row or card that carries text", () => {
+  it("no health selector fades outside a press state", () => {
+    const bad: string[] = [];
+    for (const [name, css] of [["ruled.css", RULED], ["components.css", COMPONENTS_CSS]] as const) {
+      const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const m of bare.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+        const sel = (m[1]!.trim().split("\n").pop() ?? "").trim();
+        if (!/\.(set-chip|se-|ht-|h-)/.test(sel)) continue;
+        if (!/(^|[^-\w])opacity\s*:/.test(m[2]!)) continue;
+        if (/:active/.test(sel)) continue;
+        if (/\.task-del/.test(sel)) continue;
+        bad.push(`${name}: ${sel}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LAW 5 (R8 / H-11). THE SHELL'S CHROME IS HIDDEN WHILE A SESSION IS LIVE.
+//
+// One sticky Log bar owns the bottom edge of a live session, the note
+// editor's geometry, and the tab bar and the capture dock step aside for it.
+// Structural rather than rendered: AppShell's provider tree is expensive to
+// stand up and beside the point; gym/sessionChrome.test.ts proves the store.
+// ---------------------------------------------------------------------------
+describe("HEALTH law 5: the shell hides its chrome while a session is live", () => {
+  it("AppShell reads the session store and its tab bar follows it", () => {
+    const shell = read(join(SRC, "shell/AppShell.tsx"));
+    expect(shell, "the shell must read the store").toMatch(/const sessionOpen = useSessionOpen\(\)/);
+    expect(shell, "and hide the tab bar on it").toMatch(/const showTabBar = [^;]*!sessionOpen/);
+    expect(shell, "the dock follows the tab bar").toMatch(/const showCapture = showTabBar && /);
+  });
+  it("the gym says so on enter and takes it back on park, finish or unmount", () => {
+    const gym = read(join(SRC, "gym/GymFlow.tsx"));
+    expect(gym).toMatch(/setSessionOpen\(!!live\)/);
+    expect(gym).toMatch(/setSessionOpen\(false\)/);
+    const screen = read(join(SRC, "gym/SessionScreen.tsx"));
+    expect(screen, "the session screen renders the Log bar").toMatch(/className="logbar"/);
+  });
+});

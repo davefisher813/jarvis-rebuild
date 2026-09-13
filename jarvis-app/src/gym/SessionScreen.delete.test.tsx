@@ -70,7 +70,8 @@ describe("deleting a logged set in the live session", () => {
     const onSetLogged = vi.fn();
     renderScreen(onSetLogged);
     // Open the chip's editor, then nudge the reps: same count, same ids.
-    fireEvent.click(screen.getByRole("button", { name: /^Set 1, / }));
+    // H-17 / R9 (2026-09-12): a logged chip's kicker says its state.
+    fireEvent.click(screen.getByRole("button", { name: /^Set 1 · Done, / }));
     fireEvent.click(screen.getByRole("button", { name: "More Reps" }));
     expect(onSetLogged).toHaveBeenCalled();
     expect(showToast).not.toHaveBeenCalled();

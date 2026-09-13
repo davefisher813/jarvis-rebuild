@@ -1,13 +1,14 @@
 import { useRef, useState } from "react";
 import type { MeasureKind, SetEntry } from "./types";
 import { entryNoun, fieldsFor, formatSet } from "./measures";
-import { plateLine } from "./ramp";
+import { plateFacts, type PlateFacts } from "./ramp";
+import { setState, setKicker, type SetState } from "./stateWord";
 import { readGymSettings, rackFrom } from "./settings";
 import { duplicateEntry, blankEntry } from "./strip";
 import ReorderList from "../shared/ReorderList";
 import { useSwipe } from "../shared/useSwipe";
 import Stepper from "../shared/Stepper";
-import { Trash2 } from "../shared/icons";
+import { Trash2, Check } from "../shared/icons";
 
 const LONG_PRESS_MS = 550;
 
@@ -64,6 +65,17 @@ export default function SetStrip({
   // PLATE MATH (D8-A): the athlete's own bar and rack, so an open chip can
   // say what to load instead of making them do arithmetic on a gym floor.
   const rack = rackFrom(readGymSettings());
+  // H-17 / R9 (Health Push B, 2026-09-12): the working set the athlete is on
+  // is the first planned working set not yet logged, -1 once they are all
+  // logged. Every row derives its state from its place against it.
+  // A PLAN IS NOT A LOG. The vocabulary belongs to a strip that records
+  // (the live session, which has ghosts, and a finished workout's editor,
+  // which tracks how sets moved); the program's own target strip just says
+  // Set N, because nothing in a plan has happened yet.
+  const isLog = ghost !== undefined || !!moveTracking;
+  const firstWorkGhost = (ghost ?? []).findIndex((g) => !g.warmup);
+  const nowPos = firstWorkGhost < 0 ? -1 : entries.length + firstWorkGhost;
+  const workNoAt = (pos: number) => [...entries, ...(ghost ?? [])].slice(0, pos + 1).filter((s) => !s.warmup).length;
 
   const patch = (id: string, p: Partial<SetEntry>) =>
     onChange(entries.map((e) => (e.id === id ? { ...e, ...p } : e)));
@@ -102,6 +114,8 @@ export default function SetStrip({
               <SetChipRow
                 index={i}
                 entry={e}
+                state={isLog ? setState(e, i, nowPos) : null}
+                workNo={workNoAt(i)}
                 kind={kind}
                 fx={fx}
                 open={openId === id}
@@ -118,7 +132,7 @@ export default function SetStrip({
                   // rack had a unit, and it meant a lifter who HAD set a 20 kg
                   // bar and kg plates (S5-Q32) still never saw plate math.
                   // plateLine converts between the chip's unit and the rack's.
-                  plates={kind === "weight_reps" ? plateLine(e.w ?? 0, rack, unit) : null} />
+                  plates={kind === "weight_reps" ? plateFacts(e.w ?? 0, rack, unit) : null} />
               )}
             </div>
           );
@@ -129,15 +143,15 @@ export default function SetStrip({
           {ghost.map((g, i) => {
             const pos = entries.length + i;
             const lastText = lastFor?.(pos) ?? null;
+            const st = setState(g, pos, nowPos);
             return (
-              <div className="row set-chip-ghost" role="button" tabIndex={0} key={g.id}
+              <div className={"row set-chip-ghost" + (st === "now" ? " setrow-now" : "")} role="button" tabIndex={0} key={g.id}
                 onClick={() => onLogGhost?.(i)}>
                 <div className="row-grow">
-                  {/* The work still ahead. It said NOT LOGGED YET in the same
-                      grey caps every other kicker uses, which made the one row
-                      on the strip that is an INSTRUCTION look like the rows
-                      that are records. */}
-                  <div className="se-kick se-kick-next">Up Next</div>
+                  {/* H-17 / R9 (2026-09-12): the row says its state. The working
+                      set the athlete is on says Now and wears the cyan rule;
+                      the rest say Up Next in quiet ink at full strength. */}
+                  <div className={"se-kick " + st}>{setKicker(st, workNoAt(pos))}</div>
                   <div className="conn-name">{kind === "done" ? "Mark Done" : formatSet(fx, g)}</div>
                   {/* D2 tap-to-match: the faint last-time line is itself the
                       door to logging those exact numbers -- the row still
@@ -164,10 +178,14 @@ export default function SetStrip({
 }
 
 function SetChipRow({
-  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, onDuplicate,
+  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, onDuplicate, state, workNo,
 }: {
   index: number;
   entry: SetEntry;
+  /** H-17 / R9: the row's state word (null on a plan strip) and its
+   *  working-set number. */
+  state: SetState | null;
+  workNo: number;
   kind: MeasureKind;
   fx: { kind: MeasureKind; unit?: string; timeUnit?: string };
   open: boolean;
@@ -191,7 +209,7 @@ function SetChipRow({
   const label = entry.skipped ? "Skipped" : kind === "done" ? (entry.done ? "Done" : "Not Marked Yet") : formatSet(fx, entry);
   // A ramp set is real work but not the work: it says so, and it counts
   // toward nothing (D3-A).
-  const kicker = entry.warmup ? "Warm-Up" : `Set ${index + 1}`;
+  const kicker = state ? setKicker(state, workNo, true) : entry.warmup ? "Warm-Up" : `Set ${workNo}`;
 
   return (
     <div className={"task-swipe set-chip-swipe" + (swipe.dx ? " swipe-open" : "")}>
@@ -228,7 +246,7 @@ function SetChipRow({
               mattered mid-lift -- what you did last time -- was the faintest
               of the three. The kicker takes the ramp, and last time becomes a
               chip: a fact with an edge, not a footnote. */}
-          <div className="se-kick">{kicker}</div>
+          <div className={"se-kick" + (state ? " " + state : "")}>{(state === "done" || state === "warm") && <Check className="ic se-kick-ic" />}{kicker}</div>
           <div className="conn-name">{label}</div>
           {last && <div className="r-k"><span className="se-chip se-chip-last"><em>Last</em>{last.replace(/^Last:\s*/, "")}</span></div>}
         </div>
@@ -261,7 +279,7 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
   moveTracking?: boolean;
   /** PLATE MATH (D8-A): what goes on each side, or null when this rack
    *  cannot build the number exactly -- silence beats a wrong answer. */
-  plates?: string | null;
+  plates?: PlateFacts | null;
 }) {
   return (
     <div className="set-chip-editor">
@@ -269,16 +287,25 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
           over a grey "Per side" is a sentence about plates; a lifter loading a
           bar wants to SEE them. Each number is its own chip, in the ramp's
           amber, and the label is the quiet half. */}
-      {plates && !entry.skipped && (
+      {plates && !entry.skipped && (plates.kind === "plates" ? (
         <div className="row"><div className="row-grow">
           <div className="se-plates">
-            {plates.split(/\s*[·,]\s*/).filter(Boolean).map((p, i) => (
-              <span className="se-plate" key={p + i}>{p}</span>
+            {plates.per.map((p, i) => (
+              <span className="se-plate" key={p + ":" + i}>{p}</span>
             ))}
           </div>
           <div className="se-plate-k">Per side</div>
         </div></div>
-      )}
+      ) : (
+        // H-29 (Health Push B, 2026-09-12): a number the rack cannot build
+        // says so and names the nearest it can, instead of falling silent.
+        <div className="row"><div className="row-grow">
+          <div className="facts">
+            <span className="fact amber">{`Not buildable at ${plates.at}`}</span>
+            {plates.nearest != null && <span className="fact">{`Nearest ${plates.nearest}`}</span>}
+          </div>
+        </div></div>
+      ))}
       {kind === "done" ? (
         <div className="row" role="button" tabIndex={0} onClick={() => onPatch({ done: !entry.done, skipped: false })}>
           <div className="row-grow"><div className="conn-name">{entry.done ? "Done" : "Mark Done"}</div></div>

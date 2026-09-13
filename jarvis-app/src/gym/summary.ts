@@ -1,8 +1,15 @@
-import type { Workout, WorkoutExercise } from "./types";
+import type { Workout, WorkoutData, WorkoutExercise } from "./types";
 import { receiptFor } from "./prs";
 import { exerciseHistory, trendLine } from "./history";
 import { beats } from "./measures";
 import { daysBetween } from "../upnext/upnext";
+
+/** Minutes actually in the gym: the wall clock less any parked time (H-52,
+ *  Health Push B, 2026-09-12). Every reader of a workout's length asks here,
+ *  so a session parked for lunch does not read as a three-hour lift. */
+export function workoutMinutes(w: Pick<WorkoutData, "startedAt" | "endedAt" | "pausedMs">): number {
+  return Math.max(1, Math.round((w.endedAt - w.startedAt - (w.pausedMs ?? 0)) / 60000));
+}
 
 // The Health page's read of the gym (2026-08-25). Pure functions over the
 // workout list; the page shows training without opening the gym. Everything
@@ -57,7 +64,7 @@ export function trainingSummary(workouts: Workout[], today: string): TrainingSum
     ? {
         dayName: newest.data.dayName,
         date: newest.data.date,
-        minutes: Math.max(1, Math.round((newest.data.endedAt - newest.data.startedAt) / 60000)),
+        minutes: workoutMinutes(newest.data),
         exercises: loggedExercises(newest.data.exercises),
       }
     : null;

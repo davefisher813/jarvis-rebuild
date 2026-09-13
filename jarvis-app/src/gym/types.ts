@@ -289,6 +289,12 @@ export interface WorkoutData {
   startedAt: number;
   endedAt: number;
   exercises: WorkoutExercise[];
+  /** H-30 (Health Push B, 2026-09-12): the athlete's own line on the finish
+   *  receipt. Reference, never coaching, like an exercise note. */
+  note?: string;
+  /** H-52: time the session sat parked, so elapsed and the receipt's minutes
+   *  count only the time actually in the gym. Absent means none. */
+  pausedMs?: number;
   /** LOG IT LATER (catalog §3.8): a session entered for a day other than
    *  today. `date` above already carries the real day; this just marks that
    *  the live-session recovery sweep (which treats a stale `date` as an

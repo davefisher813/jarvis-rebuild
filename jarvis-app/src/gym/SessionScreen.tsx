@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout } from "./types";
-import type { LiveSession } from "./liveSession";
-import { overBudgetMin, nextLever, projectFinishMs } from "./fit";
+import { elapsedMs, type LiveSession } from "./liveSession";
+import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
+import { capAfterNumber } from "../shared/casing";
 import { REST_FLOOR_SEC } from "./pacing";
 import { logButtonLabel, plannedEntryAt, entryNoun, formatSet } from "./measures";
 import { newSetId, blankEntry, duplicateEntry, entryFrom } from "./strip";
@@ -29,6 +30,22 @@ const CHEV = (
   <div className="chev" />
 );
 
+// H-52 (Health Push B, 2026-09-12): the time the athlete has actually been in
+// the gym, parked time excluded. Its own second tick, so one number does not
+// re-render the whole screen once a second; visibilitychange re-reads the
+// clock the moment the app is foregrounded, the RestTimer's own lesson.
+function ElapsedClock({ live }: { live: LiveSession }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const t = setInterval(tick, 1000);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", tick); };
+  }, []);
+  const s = Math.floor(elapsedMs(live, now) / 1000);
+  return <span className="fact amber">{`${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`}</span>;
+}
+
 // The in-gym screen. ONE exercise, huge type, readable from a bench, because
 // standing there scrolling is the moment self-consciousness eats people. The
 // big button carries the real numbers so a set that matched the plan is one
@@ -51,6 +68,7 @@ export default function SessionScreen({
   onFit,
   onFinish,
   onBack,
+  onPause,
   // UP-ATH-03 (2026-09-06): the Notifications page's rest switch, read once
   // by GymFlow. Off means the rest timer arms nothing, so the switch is a
   // real switch and not a label on a thing that buzzes anyway.
@@ -95,6 +113,9 @@ export default function SessionScreen({
   onFit: (patch: Partial<LiveSession>) => void;
   onFinish: () => void;
   onBack: () => void;
+  /** H-27 (Health Push B, 2026-09-12): Pause parks the session. Defaults to
+   *  Back, which has parked since GYM-F-14. */
+  onPause?: () => void;
   restNotify?: boolean;
   gameLine?: string;
 }) {
@@ -170,12 +191,42 @@ export default function SessionScreen({
   // One quiet banner, one lever at a time, plus the loosener (D5-C: "A +5
   // min button loosens the budget without ceremony").
   const lever = over != null && over >= 3 ? nextLever(live, programDay, history) : null;
+  // H-28 (Health Push B, 2026-09-12): the banner names the exact change and
+  // what it saves, the capsule says the verb, and every lever has an Undo
+  // that puts the session's own fit state back the way it was.
+  const fitPlan: FitPlan = { restCut: !!live.restCut, superset: !!live.superset, skipCool: !!live.skipCool, trims: live.trims ?? {} };
+  const leverPatch: Partial<LiveSession> | null = !lever ? null
+    : lever.key === "restCut" ? { restCut: true }
+    : lever.key === "trim" ? { trims: { ...(live.trims ?? {}), [lever.exerciseId]: (live.trims?.[lever.exerciseId] ?? 0) + 1 } }
+    : { skipCool: true };
+  const leverSave = lever && leverPatch && programDay
+    ? Math.max(0, Math.round((estimateDaySec(programDay, history, rack, fitPlan) - estimateDaySec(programDay, history, rack, { ...fitPlan, ...leverPatch })) / 60))
+    : 0;
+  const leverName = !lever ? "" : lever.key === "restCut"
+    ? (() => {
+        const rests = (programDay?.exercises ?? []).filter((e) => !e.filler && e.restSec != null).map((e) => e.restSec!);
+        const uniform = rests.length > 0 && rests.every((r) => r === rests[0]);
+        return uniform ? `Rests ${rests[0]} → ${Math.max(REST_FLOOR_SEC, rests[0]! - 30)}s` : "Shorter rests";
+      })()
+    : lever.key === "trim"
+      ? (() => {
+          const ex = programDay?.exercises.find((e) => e.id === lever.exerciseId);
+          const planned = ex ? ex.sets.length - (live.trims?.[ex.id] ?? 0) : 0;
+          return ex ? `Trim ${ex.name} ${planned} → ${planned - 1} sets` : `Trim ${lever.name}`;
+        })()
+      : "Skip the cool-down";
+  const leverVerb = !lever ? "" : lever.key === "restCut" ? "Shorten Rests" : lever.key === "trim" ? "Trim It" : "Skip It";
   const applyLever = () => {
-    if (!lever) return;
-    if (lever.key === "restCut") { onFit({ restCut: true }); showToast({ message: "Rests shortened toward 45s" }); }
-    else if (lever.key === "trim") { onFit({ trims: { ...(live.trims ?? {}), [lever.exerciseId]: (live.trims?.[lever.exerciseId] ?? 0) + 1 } }); showToast({ message: `${lever.name} trimmed by a set · This session only` }); }
-    else { onFit({ skipCool: true }); showToast({ message: "Cool-down skipped" }); }
+    if (!lever || !leverPatch) return;
+    const before: Partial<LiveSession> = { restCut: live.restCut, trims: live.trims, skipCool: live.skipCool };
+    const undo = () => onFit(before);
+    onFit(leverPatch);
+    const message = lever.key === "restCut" ? "Rests shortened toward 45s"
+      : lever.key === "trim" ? `${lever.name} trimmed by a set · This session only`
+      : "Cool-down skipped";
+    showToast({ message, actionLabel: "Undo", onAction: undo });
   };
+  const liftsDone = live.exercises.filter((e) => e.sets.length > 0).length;
 
   // D3-C in session: the day's own blocks, checked off as they happen.
   const warmBlocks = programDay?.warmUp ?? [];
@@ -312,11 +363,16 @@ export default function SessionScreen({
   };
 
   return (
-    <div className="screen ruled health-ruled">
+    <div className="screen ruled health-ruled screen-session">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title truncate">{live.dayName}</div>
-        <button className="nav-action-text" onClick={onFinish}>Finish</button>
+        {/* H-27: Pause beside Finish. Both quiet; the one filled control on
+            this screen is the Log bar's. */}
+        <div className="nav-actions">
+          <button className="nav-action-text nav-action-quiet" onClick={onPause ?? onBack}>Pause</button>
+          <button className="nav-action-text" onClick={onFinish}>Finish</button>
+        </div>
       </div>
 
       {/* LOG IT LATER (catalog §3.8): a backdated session says so, plainly,
@@ -343,6 +399,13 @@ export default function SessionScreen({
           <span className="se-count">{idx + 1}<em>/{live.exercises.length}</em></span>
           {pairLabel && <span className="se-chip se-chip-pair">{pairLabel}</span>}
           {gameLine && <span className="se-chip se-chip-game">{gameLine}</span>}
+        </div>
+        {/* H-52: how long he has actually been in the gym and how far through
+            the day. Parked time is excluded, and says so once there is any. */}
+        <div className="facts se-elapsed">
+          <ElapsedClock live={live} />
+          {(live.pausedMs ?? 0) > 0 && <span className="fact">Paused time excluded</span>}
+          <span className="fact">{capAfterNumber(`${liftsDone} of ${live.exercises.length} lifts`)}</span>
         </div>
         {/* D5-C: the projected finish rides the header the whole session --
             amber only when actually over, never red (time pressure is a
@@ -383,10 +446,15 @@ export default function SessionScreen({
       {over != null && over >= 3 && (
         <div className="pad-x"><div className="catchup banner-warn">
           <div className="grow">
-            {`Running ${over} over`}
-            {lever ? ` · ${lever.key === "restCut" ? "Shorten rests to catch up?" : lever.key === "trim" ? `Trim a ${lever.name} set to catch up?` : "Skip the cool-down to catch up?"}` : ""}
+            <div className="catchup-t">{capAfterNumber(`${over} min over`)}</div>
+            {lever && (
+              <div className="facts">
+                <span className="fact">{leverName}</span>
+                {leverSave > 0 && <span className="fact cyan">{`Saves ${leverSave} min`}</span>}
+              </div>
+            )}
           </div>
-          {lever && <button className="pill-act" onClick={applyLever}>Do It</button>}
+          {lever && <button className="pill-act" onClick={applyLever}>{leverVerb}</button>}
           <button className="pill-act pill-quiet" onClick={() => onFit({ budgetMin: (live.budgetMin ?? 0) + 5 })}>+5 Min</button>
         </div></div>
       )}
@@ -448,17 +516,6 @@ export default function SessionScreen({
       {/* Music Tier 1 (addendum item 5): the gym context's remembered link. */}
       <div className="pad-x"><MusicChip context="gym" /></div>
 
-      {!current.skipped && (
-        <div className="pad-x gym-log">
-          {cond
-            ? <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={() => setClockOpen(true)}>
-                {logged.length === 0 ? "Start the Clock" : "Run It Again"}
-              </button>
-            : <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={log}>
-                {logButtonLabel(planEx, workLogged)}
-              </button>}
-        </div>
-      )}
       {clockOpen && cond && (
         <ConditioningFace
           name={exercise.name}
@@ -479,6 +536,7 @@ export default function SessionScreen({
           onLogFiller={filler && fillerLiveIdx >= 0 ? () => { onMove(fillerLiveIdx); endRest(); } : undefined}
           onDismiss={endRest}
           notifyLine={restNotify ? restLine : undefined}
+          onExtend={() => { onFit({ restEndsAt: restEndsAt + 30_000 }); showToast({ message: "Rest extended 30s" }); }}
         />
       )}
 
@@ -576,6 +634,21 @@ export default function SessionScreen({
         <button className="row-create" onClick={() => setAddOpen(true)}>Add Exercise</button>
       </div></div>
       <div className="screen-foot" />
+
+      {/* THE LOG BAR (H-11 / R8, Health Push B, 2026-09-12): one bar owning
+          the bottom edge with the one primary, the note editor's geometry;
+          the shell has stepped its tab bar and dock aside (gym/sessionChrome). */}
+      {!current.skipped && (
+        <div className="logbar">
+          {cond
+            ? <button className="btn btn-primary btn-launch btn-lg" onClick={() => setClockOpen(true)}>
+                {logged.length === 0 ? "Start the Clock" : "Run It Again"}
+              </button>
+            : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
+                {logButtonLabel(planEx, workLogged)}
+              </button>}
+        </div>
+      )}
 
       {swapOpen && (
         <LibraryPickSheet

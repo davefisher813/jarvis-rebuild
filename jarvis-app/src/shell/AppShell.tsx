@@ -62,6 +62,7 @@ import { useTaskEstimate } from "../schedule/useTaskEstimate";
 import { setOverwhelmed } from "../tasks/overwhelmed";
 import { showToast } from "../shared/toast";
 import { useOneShot } from "./intents";
+import { useSessionOpen } from "../gym/sessionChrome";
 import { attemptWrite } from "../shared/guard";
 import { useAppearance, type Appearance } from "../appearance/AppearanceProvider";
 import { SETTING_APPEARANCE, SETTING_DONE_CLEARING, SETTING_EMAIL_TASKS } from "../data/SettingsService";
@@ -471,7 +472,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // is not the dock and stays: hiding it on a tab you can open from the tab
   // bar would strand you there, which is why these are two flags now and not
   // one.
-  const showTabBar = active === "notes" ? notesChrome : true;
+  // H-11 / R8 (Health Push B, 2026-09-12): a live gym session hides the tab
+  // bar and the dock the way the note editor does; see gym/sessionChrome.ts.
+  const sessionOpen = useSessionOpen();
+  const showTabBar = active === "notes" ? notesChrome : !sessionOpen;
   const showCapture = showTabBar && active !== "chat";
 
   // The boot splash (index.html) stays up until the shell is actually ready,

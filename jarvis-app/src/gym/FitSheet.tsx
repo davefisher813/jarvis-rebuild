@@ -100,7 +100,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
           <div className="fit-line">
             <span>Fits: {est.min} min</span>
             {budget > 0
-              ? <span className={over > 0 ? "fit-over" : "fit-under"}>{over > 0 ? `${over} over` : "Under budget"}</span>
+              ? <span className={over > 0 ? "fit-over" : "fit-under"}>{over > 0 ? `${over} min over` : over < 0 ? `${-over} min under` : "On budget"}</span>
               : <span className="conn-meta">No cap</span>}
           </div>
           {/* The honesty line (D5 "needs D7 for honest numbers"): the sheet

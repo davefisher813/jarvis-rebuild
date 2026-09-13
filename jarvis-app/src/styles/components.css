@@ -4543,6 +4543,11 @@ body.selecting .voice-dock { display: none; }
 .rest-timer { text-align: center; }
 .rest-clock { font-variant-numeric: tabular-nums; margin: var(--s-1) 0; }
 .rest-filler-btn { text-align: center; }
+/* The receipt's note (H-30, Health Push B, 2026-09-12): one quiet field on
+   the sheet's own surface. The sheet is a portal, so this is unscoped. */
+.receipt-note { width: 100%; box-sizing: border-box; min-height: 56px; background: var(--surface-3); border: 0; border-radius: var(--r-md);
+  padding: var(--s-2h) var(--s-3); font-family: var(--f); font-size: var(--t-body); color: var(--tx-1); resize: none; outline: none; caret-color: var(--accent); }
+.receipt-note::placeholder { color: var(--tx-4); }
 
 /* THE FIT SHEET (D5-C, 2026-08-31). The fits line is the sheet's verdict
    row: what the plan costs vs what the athlete has. Over wears amber (time

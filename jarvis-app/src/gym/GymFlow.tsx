@@ -3,8 +3,9 @@ import { createPortal } from "react-dom";
 import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics, useOptionalProfile } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
 import { monthDay, dayPhrase } from "../money/bills";
-import { agoPhraseLower } from "./summary";
-import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type MeasureKind } from "./types";
+import { agoPhraseLower, workoutMinutes } from "./summary";
+import { setSessionOpen } from "./sessionChrome";
+import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
 import { targetLine, formatSet, isCompactPlan } from "./measures";
@@ -16,7 +17,7 @@ import { liftMeasureState, trainingMeasureState, type LiftMeasure, type Training
 import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, type LiveSession } from "./liveSession";
+import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, type LiveSession } from "./liveSession";
 import { bumpStrip } from "./strip";
 import { buildLibrary, newExerciseKey } from "./library";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
@@ -560,7 +561,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   // being logged -- see its doc comment in liveSession.ts.
   const [live, setLive] = useState<LiveSession | null>(() => {
     const s = readLive();
-    return s && isStillActive(s, todayISO()) ? s : null;
+    if (!s || !isStillActive(s, todayISO())) return null;
+    // H-52: a session parked when the app was killed resumes on launch,
+    // and the parked stretch is folded away so its clock does not run on.
+    const back = resumeLive(s);
+    if (back !== s) writeLive(back);
+    return back;
   });
   // The freshest session, updated synchronously by `update` below so two
   // writes in one event handler compose (see patchLive).
@@ -580,15 +586,30 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   const enterSession = (s: LiveSession | null) => {
     parkedRef.current = false;
     setParkedLive(null);
-    setLive(s);
+    // H-52: coming back from parked folds the parked stretch into pausedMs,
+    // so the clock and the receipt count gym time only.
+    const back = s && s.pausedAt ? resumeLive(s) : s;
+    if (back && back !== s) writeLive(back);
+    setLive(back);
   };
   const parkSession = () => {
     const s = readLive();
-    parkedRef.current = !!s;
-    setParkedLive(s);
+    const parked = s ? parkLive(s) : null;
+    if (parked && parked !== s) writeLive(parked);
+    parkedRef.current = !!parked;
+    setParkedLive(parked);
     setLive(null);
+    // H-27: land where the way back is. The day page's only door is Start,
+    // which does resume, but the program page carries the Resume row that
+    // says a session is waiting; Health's hero says it too (Push C).
+    setOpenDayId(null);
+    if (parked) showToast({ message: "Paused · Resume from Health" });
   };
   const [loaded, setLoaded] = useState(false);
+  // H-11 / R8 (Health Push B, 2026-09-12): while a session is on screen the
+  // shell hides its tab bar and dock and the Log bar owns the bottom edge.
+  useEffect(() => { setSessionOpen(!!live); }, [live]);
+  useEffect(() => () => setSessionOpen(false), []);
   // D5: the fit sheet between the tap and the session. Holds the day plus
   // any door context until the athlete says Start.
   const [fitFor, setFitFor] = useState<{ day: ProgramDay; doorEventId?: string; budgetMin?: number } | null>(null);
@@ -597,6 +618,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   const [doorPick, setDoorPick] = useState(false);
   const [doorHandled, setDoorHandled] = useState(false);
   const [receipt, setReceipt] = useState<{ receipt: Receipt; dayName: string } | null>(null);
+  // H-30: the finish waits on the receipt (see finish below).
+  const finishing = useRef<{ data: WorkoutData; door: { id: string; date: string } | null } | null>(null);
   const [viewWorkout, setViewWorkout] = useState<Workout | null>(null);
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutExercise[] | null>(null);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
@@ -1125,71 +1148,102 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
     }
   };
 
+  // THE FINISH IS TWO STEPS (H-30, Health Push B, 2026-09-12). The receipt
+  // opens BEFORE anything is written: Done commits the session, with the note
+  // if he wrote one, and Keep Training closes the receipt and leaves the
+  // session exactly where it was. The live session stays in storage the whole
+  // time, so an app killed mid-receipt resumes the session rather than losing
+  // it. The goal hits are computed here against the pending workout; the
+  // close-out is still his tap on the receipt (Dave 2026-09-09).
   const finish = async () => {
     if (!live) return;
+    if (!hasWork(live.exercises)) {
+      clearLive();
+      enterSession(null);
+      setOpenDayId(null);
+      await reload();
+      showToast({ message: "Nothing logged · Nothing saved" });
+      return;
+    }
     const endedAt = Date.now();
-    const r = receiptFor(live.exercises, workouts, live.startedAt, endedAt);
-    const data = {
+    const pausedMs = live.pausedMs ?? 0;
+    const r = receiptFor(live.exercises, workouts, live.startedAt, endedAt, pausedMs);
+    const data: WorkoutData = {
       programId: live.programId, dayId: live.dayId, dayName: live.dayName, date: live.date,
       startedAt: live.startedAt, endedAt, exercises: live.exercises,
       ...(live.backdated ? { backdated: true } : {}),
+      ...(pausedMs > 0 ? { pausedMs } : {}),
     };
+    // D12: did this session cross a goal from not-met to met? Checked
+    // against the SAME before/after evidence goalMeasures.ts always reads
+    // (workouts before this session, then with it). A goal already achieved
+    // is never re-celebrated, and hitting the number is not saying it is
+    // done: the close-out is a button on the receipt.
+    const goalHits: { id: string; title: string; line: string }[] = [];
+    if (goalsSvc) {
+      const after: Workout[] = [...workouts, { id: "pending", data }];
+      for (const g of goals) {
+        if (g.data.state === "achieved") continue;
+        const m = g.data.measure;
+        if (!m || (m.kind !== "lift" && m.kind !== "training")) continue;
+        const before = m.kind === "lift" ? liftMeasureState(m as LiftMeasure, workouts) : trainingMeasureState(m as TrainingMeasure, workouts, endedAt);
+        if (before.met) continue;
+        const afterState = m.kind === "lift" ? liftMeasureState(m as LiftMeasure, after) : trainingMeasureState(m as TrainingMeasure, after, endedAt);
+        if (afterState.met) goalHits.push({ id: g.id, title: g.data.title, line: afterState.line });
+      }
+    }
+    finishing.current = { data, door: live.doorEventId ? { id: live.doorEventId, date: live.date } : null };
+    setReceipt({ receipt: { ...r, goalHits }, dayName: live.dayName });
+  };
+  const commitFinish = async (note?: string) => {
+    const f = finishing.current;
+    finishing.current = null;
+    setReceipt(null);
+    if (!f) return;
+    const text = note?.trim();
+    const data: WorkoutData = text ? { ...f.data, note: text } : f.data;
     clearLive();
     enterSession(null);
     // Land on the day list, not back on the exercise: the day detail is a
     // dead end after a session, while the program page shows what just
     // happened and what is next.
     setOpenDayId(null);
-    if (hasWork(live.exercises)) {
-      // Queue first, then try: a failed write must never lose the session.
-      queueFinished(data);
-      await flushPending((w) => svc.saveWorkout(w));
-      // D4-C: "when you finish, the block stamps itself done with the real
-      // minutes." Only a session that walked in through the door stamps it,
-      // and a failed stamp never blocks the receipt.
-      if (live.doorEventId && schedule) {
-        try { await schedule.stampTrained(live.doorEventId, live.date, r.minutes); } catch { /* offline: the workout is safe, the stamp can wait */ }
-      }
-      // D12: did this session cross a goal from not-met to met? Checked
-      // against the SAME before/after evidence goalMeasures.ts always
-      // reads (workouts before this session, then with it) -- never a
-      // separate "did I hit it" heuristic. A goal already achieved is
-      // never re-celebrated.
-      const goalHits: { id: string; title: string; line: string }[] = [];
-      if (goalsSvc) {
-        const after: Workout[] = [...workouts, { id: "pending", data }];
-        for (const g of goals) {
-          if (g.data.state === "achieved") continue;
-          const m = g.data.measure;
-          if (!m || (m.kind !== "lift" && m.kind !== "training")) continue;
-          const before = m.kind === "lift" ? liftMeasureState(m as LiftMeasure, workouts) : trainingMeasureState(m as TrainingMeasure, workouts, endedAt);
-          if (before.met) continue;
-          const afterState = m.kind === "lift" ? liftMeasureState(m as LiftMeasure, after) : trainingMeasureState(m as TrainingMeasure, after, endedAt);
-          if (afterState.met) {
-            // HITTING THE NUMBER IS NOT SAYING IT IS DONE (Dave 2026-09-09:
-            // "Projects and goals are automatically clearing as done without
-            // my consent. Unless the user says otherwise a done confirmation
-            // should be MANDATORY to clear items"). This used to write
-            // state: "achieved" right here, so a goal closed itself out on the
-            // way to the receipt and he found it gone. The detection and the
-            // celebration are unchanged; the close-out is now a button on the
-            // receipt, and only his tap writes it.
-            goalHits.push({ id: g.id, title: g.data.title, line: afterState.line });
-          }
-        }
-      }
-      // GYM-F-27 (2026-09-05): the reload has to land BEFORE the receipt
-      // opens. ReceiptSheet counts "Done N times" out of `workouts`, and its
-      // own comment at :55-58 already claimed the reload had happened first.
-      // It had not, so an arm-care day read "Band Pull-Aparts · Done 4 times"
-      // and flickered to 5 a moment later when the refreshed list arrived.
-      await reload();
-      setReceipt({ receipt: { ...r, goalHits }, dayName: live.dayName });
-    } else {
-      await reload();
-      showToast({ message: "Nothing logged · Nothing saved" });
+    // Queue first, then try: a failed write must never lose the session.
+    queueFinished(data);
+    await flushPending((w) => svc.saveWorkout(w));
+    // D4-C: "when you finish, the block stamps itself done with the real
+    // minutes." Only a session that walked in through the door stamps it,
+    // and a failed stamp never blocks anything.
+    if (f.door && schedule) {
+      try { await schedule.stampTrained(f.door.id, f.door.date, workoutMinutes(data)); } catch { /* offline: the workout is safe, the stamp can wait */ }
     }
+    await reload();
   };
+  const keepTraining = () => {
+    finishing.current = null;
+    setReceipt(null);
+  };
+  const receiptEl = receipt
+    ? <ReceiptSheet
+        dayName={receipt.dayName}
+        receipt={receipt.receipt}
+        // The session is not saved until Done, so the receipt's own counts
+        // include it here (GYM-F-27 wanted the count right, not one behind).
+        workouts={finishing.current ? [...workouts, { id: "pending", data: finishing.current.data } as Workout] : workouts}
+        onDone={(note) => void commitFinish(note)}
+        onKeepTraining={live ? keepTraining : undefined}
+        onRateSession={onRateSession}
+        onLogSoreSpot={onLogSoreSpot}
+        onAchieveGoal={goalsSvc ? (id) => {
+          // His tap, his write. Offline it fails quietly the way every other
+          // gym write does: the workout is already saved, and the goal simply
+          // stays open until the next tap lands.
+          void (async () => {
+            try { await goalsSvc.update(id, { state: "achieved" }); await reload(); } catch { /* offline: the goal stays open, nothing is lost */ }
+          })();
+        } : undefined}
+      />
+    : null;
 
   if (uploadOpen) {
     return <UploadFlow ai={ai} onSave={(p) => void saveUploaded(p)} onCancel={() => setUploadOpen(false)} />;
@@ -1328,7 +1382,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   }
   if (viewWorkout && workoutDraft) {
     const w = viewWorkout;
-    const mins = Math.max(1, Math.round((w.data.endedAt - w.data.startedAt) / 60000));
+    const mins = workoutMinutes(w.data);
     const dirty = JSON.stringify(workoutDraft) !== JSON.stringify(w.data.exercises);
     const closeWorkout = () => { setViewWorkout(null); setWorkoutDraft(null); };
     return (
@@ -1490,6 +1544,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       : behind ?? planned ?? (liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined);
     if (!exercise) return <div className="screen ruled health-ruled" />;
     return (
+      <>
       <SessionScreen
         live={live}
         exercise={exercise}
@@ -1507,9 +1562,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         onFit={(patch) => patchLive((l) => ({ ...l, ...patch }))}
         onFinish={() => void finish()}
         onBack={parkSession}
+        onPause={parkSession}
         restNotify={restNotify}
         gameLine={gameLine}
       />
+      {receiptEl}
+      </>
     );
   }
 
@@ -1891,25 +1949,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
     }
     return null;
   }
-
-  const receiptEl = receipt
-    ? <ReceiptSheet
-        dayName={receipt.dayName}
-        receipt={receipt.receipt}
-        workouts={workouts}
-        onDone={() => setReceipt(null)}
-        onRateSession={onRateSession}
-        onLogSoreSpot={onLogSoreSpot}
-        onAchieveGoal={goalsSvc ? (id) => {
-          // His tap, his write. Offline it fails quietly the way every other
-          // gym write does: the workout is already saved, and the goal simply
-          // stays open until the next tap lands.
-          void (async () => {
-            try { await goalsSvc.update(id, { state: "achieved" }); await reload(); } catch { /* offline: the goal stays open, nothing is lost */ }
-          })();
-        } : undefined}
-      />
-    : null;
 
   const switcherEl = switcherOpen ? (
     createPortal(
@@ -2335,7 +2374,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
               {recent.map((w) => {
                 const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;
                 const total = w.data.exercises.length;
-                const mins = Math.max(1, Math.round((w.data.endedAt - w.data.startedAt) / 60000));
+                const mins = workoutMinutes(w.data);
                 return (
                   // Tappable since 2026-08-09: these rows were inert, which
                   // made a mislogged workout permanent. The detail sheet

@@ -141,3 +141,45 @@ export function plateLine(total: number, rack: RackConfig, unit?: string): strin
   const per = platesPerSide(weightIn(total, unit, rack.unit), rack.bar, rack.plates);
   return per && per.length ? per.join(" · ") : null;
 }
+
+/** H-29 (Health Push B, 2026-09-12): the nearest total this rack CAN build
+ *  when it cannot build the one asked for. Lower wins a tie, because it is
+ *  the number the athlete can load without guessing. Null with no plates. */
+export function nearestBuildable(total: number, bar: number, plates: number[]): number | null {
+  if (plates.length === 0) return null;
+  // Every buildable total is the bar plus an even number of plates, so the
+  // grid is 2x the smallest plate; walk it down and up from the nearest
+  // gridline and take whichever lands first, lower on a tie.
+  const step = Math.min(...plates) * 2;
+  const r4 = (x: number) => Number(x.toFixed(4));
+  const ok = (t: number) => {
+    if (t <= bar) return t === bar;
+    const per = platesPerSide(t, bar, plates);
+    return per != null && per.length > 0;
+  };
+  const base = r4(bar + Math.floor((total - bar) / step) * step);
+  let lo: number | null = null;
+  for (let k = 0; k <= 200; k++) { const t = r4(base - k * step); if (t < bar) break; if (ok(t)) { lo = t; break; } }
+  let hi: number | null = null;
+  for (let k = 1; k <= 200; k++) { const t = r4(base + k * step); if (ok(t)) { hi = t; break; } }
+  if (lo == null) return hi;
+  if (hi == null) return lo;
+  return total - lo <= hi - total ? lo : hi;
+}
+
+export type PlateFacts =
+  | { kind: "plates"; per: number[] }
+  | { kind: "none"; at: number; nearest: number | null };
+
+/** What the chip says about the bar: the plates per side, or that the rack
+ *  cannot build this number and the nearest it can (H-29). Null when there is
+ *  nothing on the bar to say. `at` and `nearest` are in the exercise's own
+ *  unit, the one the athlete typed. */
+export function plateFacts(total: number, rack: RackConfig, unit?: string): PlateFacts | null {
+  const w = weightIn(total, unit, rack.unit);
+  if (w <= rack.bar) return null;
+  const per = platesPerSide(w, rack.bar, rack.plates);
+  if (per) return per.length ? { kind: "plates", per } : null;
+  const near = nearestBuildable(w, rack.bar, rack.plates);
+  return { kind: "none", at: total, nearest: near == null ? null : weightIn(near, rack.unit, unit) };
+}

@@ -119,7 +119,9 @@ describe("GYM-F-14: a parked session stays parked", () => {
 
   it("Back parks rather than dropping the session on the floor", () => {
     expect(flow).toContain("onBack={parkSession}");
-    expect(flow).toMatch(/const parkSession = \(\) => \{[^}]*parkedRef\.current = !!s;/);
+    // H-52 (Health Push B, 2026-09-12): the parked session is stamped with
+    // when its clock stopped before the flag is set from it.
+    expect(flow).toMatch(/const parkSession = \(\) => \{[^}]*parkedRef\.current = !!parked;/);
   });
 
   it("every door that opens a session clears the parked flag", () => {
@@ -160,11 +162,16 @@ describe("GYM-F-16: only the lift that is really in the plan moves the plan", ()
 // before the reload that puts the just-finished workout into `workouts`.
 // ReceiptSheet's own comment already claimed the opposite order.
 describe("GYM-F-27: the receipt counts the session it is the receipt for", () => {
-  it("finish reloads before it opens the receipt", () => {
+  // H-30 (Health Push B, 2026-09-12): the receipt now opens BEFORE the
+  // session is written, so Keep Training can hand it back untouched. The
+  // count stays right the other way round: the sheet is handed the list
+  // WITH the pending session in it, never one behind.
+  it("the receipt is handed the pending session, so its counts are not one behind", () => {
     const flow = src("GymFlow.tsx");
-    expect(flow).toMatch(/await reload\(\);\s*\n\s*setReceipt\(\{ receipt: \{ \.\.\.r, goalHits \}/);
-    // and never the other way round
-    expect(flow).not.toMatch(/setReceipt\(\{ receipt[^\n]*\n\s*\} else \{\n\s*showToast\([^\n]*\n\s*\}\n\s*await reload\(\);/);
+    expect(flow).toMatch(/workouts=\{finishing\.current \? \[\.\.\.workouts, \{ id: "pending", data: finishing\.current\.data \} as Workout\] : workouts\}/);
+    // and nothing is written until Done
+    expect(flow).toMatch(/const commitFinish = async \(note\?: string\) => \{[\s\S]*?queueFinished\(data\);/);
+    expect(flow).toMatch(/const finish = async \(\) => \{(?:(?!queueFinished)[\s\S])*setReceipt\(\{ receipt: \{ \.\.\.r, goalHits \}/);
   });
 
   it("the sheet still reads the count out of the reloaded list", () => {

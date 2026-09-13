@@ -97,6 +97,8 @@ export function receiptFor(
   history: Workout[],
   startedAt: number,
   endedAt: number,
+  /** H-52: parked time, excluded from the minutes. */
+  pausedMs = 0,
 ): Receipt {
   let volume = 0;
   let volumeUnit: string | null = null;
@@ -137,7 +139,7 @@ export function receiptFor(
   }
 
   return {
-    minutes: Math.max(1, Math.round((endedAt - startedAt) / 60000)),
+    minutes: Math.max(1, Math.round((endedAt - startedAt - pausedMs) / 60000)),
     exercises: done,
     volume: Math.round(volumeUnit === "kg" ? volume / LB_PER_KG : volume),
     volumeUnit: volume > 0 ? volumeUnit : null,

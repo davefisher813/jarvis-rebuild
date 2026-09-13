@@ -1391,7 +1391,7 @@
   padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap;
   color: var(--hl-cyan); background: var(--hl-cyan-tint); }
 .ruled.health-ruled .se-chip em { font-style: normal; font-size: calc(9.5px * var(--type-scale));
-  font-weight: var(--w-bold); letter-spacing: 0.07em; text-transform: uppercase; opacity: 0.75; }
+  font-weight: var(--w-bold); letter-spacing: 0.07em; text-transform: uppercase; color: var(--tx-2); }
 .ruled.health-ruled .se-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 /* On the hero the chips sit under a 19px title, so they take a tighter top. */
 .ruled.health-ruled .h-hero-chips { margin-top: 6px; }
@@ -1477,6 +1477,23 @@
 /* NOW, on the open set chip: a 1.5px cyan inset rule, which is an edge rather
    than a fill, so the numbers inside stay the loudest thing in the row. */
 .ruled.health-ruled .setrow-now { box-shadow: inset 0 0 0 1.5px var(--hl-cyan); }
+/* THE SET ROW'S STATES, ON THE STRIP (H-17 / R9, Health Push B, 2026-09-12).
+   Done is lime with its check, Now is cyan with the inset rule, Up Next and
+   Warm-Up are quiet ink at full strength, Skipped is quieter still. */
+.ruled.health-ruled .se-kick.next { color: var(--tx-2); }
+.ruled.health-ruled .se-kick.warm { color: var(--tx-2); }
+.ruled.health-ruled .se-kick.skipped { color: var(--tx-3); }
+.ruled.health-ruled .se-kick-ic { width: 10px; height: 10px; vertical-align: -1px; margin-right: 3px; }
+.ruled.health-ruled .set-chip-ghost.setrow-now { border-color: transparent; }
+/* The session screen leaves room for the Log bar (H-11). */
+.ruled.health-ruled.screen-session { padding-bottom: 104px; }
+.ruled.health-ruled .se-elapsed { margin: 6px 0 2px; }
+.ruled.health-ruled .nav-action-quiet { color: var(--tx-2); font-weight: var(--w-medium); }
+/* The catch-up banner (H-28): the minutes over, then the change and its saving. */
+.ruled.health-ruled .catchup-t { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
+/* The rest timer's capsules (H-18). */
+.ruled.health-ruled .rest-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: var(--s-2); }
+.ruled.health-ruled .rest-acts .pill-act { align-self: auto; max-width: none; }
 
 /* THE REST CLOCK IS THE SCREEN (R4: cyan is the rest timer). It is read from
    across a rack with a bar on your back, so it is 56px and tabular -- the

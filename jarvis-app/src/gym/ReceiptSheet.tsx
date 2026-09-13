@@ -15,11 +15,15 @@ import { doneCount } from "./history";
 // names the done-kind work instead of folding it into a number. Each name
 // also gets a plain count fact ("done N times") pulled from history plus this
 // session -- a count, never a streak, never red, never a target.
-export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onAchieveGoal, onRateSession, onLogSoreSpot }: {
+export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKeepTraining, onAchieveGoal, onRateSession, onLogSoreSpot }: {
   dayName: string;
   receipt: Receipt;
   workouts: Workout[];
-  onDone: () => void;
+  /** H-30 (Health Push B, 2026-09-12): Done commits the session, carrying
+   *  the note if he wrote one. */
+  onDone: (note?: string) => void;
+  /** H-30: the quiet way back into the session, before anything is saved. */
+  onKeepTraining?: () => void;
   /** Dave 2026-09-09: the close-out is his to make, so the goal-hit row ends
    *  in a button rather than the goal having already closed itself. */
   onAchieveGoal?: (id: string) => void;
@@ -32,6 +36,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onAch
   onLogSoreSpot?: () => void;
 }) {
   const [closed, setClosed] = useState<string[]>([]);
+  const [note, setNote] = useState("");
   const tiles: { num: string; label: string }[] = [
     { num: String(receipt.minutes), label: receipt.minutes === 1 ? "Minute" : "Minutes" },
     { num: String(receipt.exercises), label: receipt.exercises === 1 ? "Exercise" : "Exercises" },
@@ -41,7 +46,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onAch
   if (receipt.prs.length) tiles.push({ num: String(receipt.prs.length), label: receipt.prs.length === 1 ? "PR" : "PRs" });
 
   return createPortal(
-    <div className="sheet-scrim" onClick={onDone}>
+    <div className="sheet-scrim" onClick={() => onDone(note)}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Session Done</div></div>
@@ -141,9 +146,14 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onAch
               </div>
             </>
           )}
+          {/* H-30: a line of his own on the record. Optional; reference,
+              never coaching, the same as an exercise note. */}
+          <div className="grp"><div className="eyebrow">Note</div></div>
+          <textarea className="receipt-note" rows={2} placeholder="Optional" aria-label="Session note" value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-launch btn-block" onClick={onDone}>Done</button>
+          <button className="btn btn-primary btn-launch btn-block" onClick={() => onDone(note)}>Done</button>
+          {onKeepTraining && <button className="btn btn-block" onClick={onKeepTraining}>Keep Training</button>}
         </div>
       </div>
     </div>,

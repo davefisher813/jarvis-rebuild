@@ -66,6 +66,12 @@ export interface LiveSession {
    *  the app being killed mid-rest, and so the countdown is a function of
    *  the clock rather than of how many timer ticks the webview let fire. */
   restEndsAt?: number;
+  /** H-52 (Health Push B, 2026-09-12): a parked session keeps the clock
+   *  honest. `pausedAt` is stamped when Back or Pause parks it; resuming
+   *  folds now - pausedAt into `pausedMs` and clears it. Elapsed and the
+   *  receipt's minutes read startedAt + pausedMs, never the wall clock alone. */
+  pausedMs?: number;
+  pausedAt?: number;
 }
 
 export interface Storage2 { read(k: string): string | null; write(k: string, v: string): void; remove(k: string): void }
@@ -93,6 +99,25 @@ export function writeLive(s: LiveSession, store: Storage2 = browserStorage()): v
 
 export function clearLive(store: Storage2 = browserStorage()): void {
   store.remove(LIVE_KEY);
+}
+
+/** H-52: park the session, stamping when its clock stopped. Idempotent. */
+export function parkLive(s: LiveSession, now: number = Date.now()): LiveSession {
+  return s.pausedAt ? s : { ...s, pausedAt: now };
+}
+
+/** H-52: resume a parked session, folding the parked stretch into pausedMs. */
+export function resumeLive(s: LiveSession, now: number = Date.now()): LiveSession {
+  if (!s.pausedAt) return s;
+  const { pausedAt, ...rest } = s;
+  return { ...rest, pausedMs: (s.pausedMs ?? 0) + Math.max(0, now - pausedAt) };
+}
+
+/** Time actually in the gym: the wall clock since start, less every parked
+ *  stretch, including one still open. */
+export function elapsedMs(s: LiveSession, now: number = Date.now()): number {
+  const open = s.pausedAt ? Math.max(0, now - s.pausedAt) : 0;
+  return Math.max(0, now - s.startedAt - (s.pausedMs ?? 0) - open);
 }
 
 /**
