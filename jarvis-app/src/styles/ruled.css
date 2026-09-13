@@ -652,7 +652,7 @@
    "go" is green in every training app; the ruling is that lime is DATA in
    Health and the app's one red is what a person taps. So the pill is the
    standard capsule primary and says nothing of its own about colour. */
-.ruled .h-hero .pill-act { font-weight: var(--w-bold); }
+.ruled .h-hero .pill-act { font-weight: var(--w-bold); background: var(--accent-fill); color: #fff; padding: 7px 16px; font-size: calc(14px * var(--type-scale)); }
 .ruled .h-hero { display: flex; align-items: center; gap: 12px; padding: 14px 16px 10px; cursor: pointer; }
 /* THE ONE COLOURED THING ON THE PAGE WAS THIS SQUARE, AND IT WAS BLUE (Dave
    2026-09-10: "the lack of color is a major issue in the health pages... All
@@ -1523,6 +1523,80 @@
    it is an absence, not a reading, and lighting it would say something was
    logged when nothing was. */
 .ruled.health-ruled .ht-none { color: var(--tx-4); }
+
+/* ---------- THE HEALTH PAGE, SIMPLIFIED (Dave 2026-09-13) -----------------
+   "This page would be intimidating overwhelming for me... it needs to be
+   simplified in a good way." Five rulings, each drawn here and nowhere else:
+
+   THE TILE INVITES A LOG. Glass ground with no wash and no hued rim, so four
+   tiles are not four coloured slabs. The hue lives on three things only: the
+   glyph's disc, a filled + that says "tap to log", and the value. An empty
+   tile's Log it wears the hue too: grey read as switched off. The name is a
+   name, in full ink and sentence case, not a caps label shouting its hue. */
+.ruled.health-ruled .h-tiles { gap: 10px; }
+.ruled.health-ruled .h-tile { padding: 12px 12px 13px; min-height: 104px; border-radius: 16px; }
+.ruled.health-ruled .h-tile[data-hue] { background-image: none; box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0,0,0,0.55); }
+[data-theme="light"] .ruled.health-ruled .h-tile[data-hue] { box-shadow: var(--shadow-card); }
+.ruled.health-ruled .ht-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ruled.health-ruled .ht-ico { width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; background: var(--h-tint); color: var(--h-hue); }
+.ruled.health-ruled .ht-ico .ic { width: 16px; height: 16px; }
+.ruled.health-ruled .h-tile .ht-w, .ruled.health-ruled .h-tile[data-hue] .ht-w { flex: 1; min-width: 0; font-size: calc(15px * var(--type-scale));
+  font-weight: var(--w-semi); letter-spacing: -0.01em; text-transform: none; color: var(--tx-1); }
+.ruled.health-ruled .ht-plus { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; background: var(--h-hue); color: var(--on-fill-dark); }
+.ruled.health-ruled .ht-plus .ic { width: 15px; height: 15px; stroke-width: 2.6; }
+.ruled.health-ruled .h-tile .ht-n { margin-top: 12px; font-size: calc(30px * var(--type-scale)); }
+.ruled.health-ruled .h-tile[data-hue] .ht-none { color: var(--h-hue); font-size: calc(17px * var(--type-scale)); }
+.ruled.health-ruled .h-tile .ht-m { margin-top: 2px; font-size: calc(13px * var(--type-scale)); color: var(--tx-2); }
+/* Add a Metric is a door, not a reading: a dashed edge and the app's verb red. */
+.ruled.health-ruled .h-tile-add { background: transparent; box-shadow: none; border: 1.5px dashed var(--tx-4);
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.ruled.health-ruled .h-tile-add .ht-ico { background: var(--press-3); color: var(--tx-1); }
+.ruled.health-ruled .h-tile-add .ht-none { color: var(--tint); }
+
+/* THE TRAINING CARD IS CALM. The name, one facts line, a filled red Start
+   (the one filled primary on this page); the other sessions are outlined
+   buttons with an edge and full ink, so they read as buttons and not as text
+   in a pill; Open Session carries a lime + rather than a lime slab. */
+.ruled.health-ruled .h-hero { padding: 16px 16px 12px; }
+.ruled.health-ruled .h-hero-t { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-bold); }
+.ruled.health-ruled .h-hero-facts { margin-top: 3px; }
+.ruled.health-ruled .h-pick-wrap { padding: 0 16px 14px; gap: 8px; }
+.ruled.health-ruled .h-pick { gap: 8px; }
+.ruled.health-ruled .h-pick-c { min-height: 34px; padding: 0 14px; font-size: calc(13.5px * var(--type-scale)); font-weight: var(--w-semi);
+  color: var(--tx-1); background: transparent; box-shadow: inset 0 0 0 1px var(--tx-4); }
+.ruled.health-ruled .h-pick-c.h-pick-new { display: inline-flex; align-items: center; gap: 5px; color: var(--tx-1);
+  background: var(--press-3); box-shadow: none; }
+.ruled.health-ruled .h-pick-new .ic { width: 14px; height: 14px; color: var(--hl-lime); stroke-width: 2.6; }
+.ruled.health-ruled .h-week { padding: 2px 18px 14px; }
+.ruled.health-ruled .h-last { padding-top: 10px; padding-bottom: 10px; }
+.ruled.health-ruled .h-last-k { display: block; font-size: calc(11px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-2); }
+.ruled.health-ruled .h-last .facts { margin-top: 3px; }
+.ruled.health-ruled .h-last-day { color: var(--tx-1); font-weight: var(--w-semi); }
+
+/* A DOOR SAYS ONE THING, IN ITS HUE. */
+.ruled.health-ruled .h-door-v { flex-shrink: 0; margin-right: 6px; font-size: calc(14px * var(--type-scale));
+  font-weight: var(--w-semi); color: var(--hl-blue); }
+.ruled.health-ruled .h-when { flex-shrink: 0; margin-left: 8px; font-size: calc(13px * var(--type-scale));
+  font-weight: var(--w-semi); color: var(--tx-2); font-variant-numeric: tabular-nums; }
+
+/* A FINDING'S KIND IS A WORD, NOT A PILL, and nothing glows (R5). */
+.ruled.health-ruled .ins-chip { background: transparent; padding: 0; }
+.ruled.health-ruled .ins-dot { box-shadow: none; }
+.ruled.health-ruled .ins-cite { color: var(--tx-2); }
+/* A goal row's kind and state are words in their hue, not pills (Astra G5:
+   a state word is coloured small caps, never a filled pill). Health only:
+   the shared goal row keeps its look on every other page. */
+.ruled.health-ruled .gkind, .ruled.health-ruled .gstat { background: transparent; padding: 0; border-radius: 0; box-shadow: none; }
+
+/* THE CREATES, AT THE FOOT. One compact row, centred, three capsules. */
+.ruled.health-ruled .h-adds { display: flex; flex-wrap: nowrap; justify-content: center; gap: 8px; margin-top: var(--s-6); margin-bottom: var(--s-4); }
+.ruled.health-ruled .h-add { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; padding: 0 14px; white-space: nowrap;
+  border: 0; border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); font-family: var(--f);
+  font-size: calc(13.5px * var(--type-scale)); font-weight: var(--w-semi); cursor: pointer; }
+.ruled.health-ruled .h-add .ic { width: 14px; height: 14px; color: var(--tint); stroke-width: 2.6; }
 
 /* THE VERDICT IS A CHIP, THE EVIDENCE IS A LINE (Dave 2026-09-11: "Keep
    sliding and pushed 8 times should not be identical styling wise. Might make

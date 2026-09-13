@@ -386,7 +386,11 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     render(<NotesProvider userId="hl1"><SeededHealth /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
     const tile = (name: string) => screen.getByText(name).closest(".h-tile") as HTMLElement;
-    expect(tile("Bedtime")).toHaveTextContent("When the night ended");
+    // An empty tile invites the log in its own hue, and carries no sentence
+    // under it (Dave 2026-09-13).
+    expect(tile("Bedtime")).toHaveTextContent("Log it");
+    expect(tile("Bedtime")).not.toHaveTextContent("When the night ended");
+    expect(tile("Bedtime").querySelector(".ht-plus")).toBeTruthy();
     // Every tile takes a hue off the activity ramp BY WHAT IT MEASURES, not
     // by its slot in the grid (Health R4 / H-04, Dave's picks 2026-09-12).
     // Bedtime is sleep, and sleep is violet, wherever it lands and whatever
@@ -755,13 +759,22 @@ describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", (
     render(<NotesProvider userId="hd1"><SeededHealth /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
     for (const label of ["Add Project", "Add Event", "Add Task"]) {
-      expect(screen.getAllByText(label), label + " appears exactly once").toHaveLength(1);
+      expect(screen.getAllByRole("button", { name: label }), label + " appears exactly once").toHaveLength(1);
     }
     // On a health area the goals section is named for what it holds (Dave
     // 2026-09-10: "health specific goals are like workout goals... That should
     // be a little bit different to me").
+    // THE ADDS LIVE AT THE FOOT (Dave 2026-09-13: "that should be at the
+    // very very bottom shouldn't take up a lot of space"). An empty section is
+    // not drawn on a health page, and its create is a capsule in the one row
+    // at the bottom.
     for (const head of ["Projects", "Training Goals", "Coming Up", "Up Next"]) {
-      expect(screen.getAllByText(head), head + " is one section").toHaveLength(1);
+      expect(screen.queryByText(head), head + " is empty here, so it is not drawn").toBeNull();
+    }
+    const adds = document.querySelector(".h-adds");
+    expect(adds, "the creates row is on the page").toBeTruthy();
+    for (const label of ["Add Project", "Add Event", "Add Task"]) {
+      expect(adds!.querySelector(`[aria-label="${label}"]`), label + " lives in the foot row").toBeTruthy();
     }
     expect(screen.queryByText("Goals Here"), "the generic head is not used on a health area").toBeNull();
     // THE DOOR MOVED, THE LIST DID NOT (Dave 2026-09-12: "wherever you can
@@ -770,8 +783,9 @@ describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", (
     // worse door to the sheet a lift or a metric's own screen already opens.
     expect(screen.queryByText("Add Goal")).toBeNull();
     expect(screen.queryByText("Set a Lift Goal in the Gym")).toBeNull();
-    // With nothing filed yet, the section still says where a goal starts.
-    expect(screen.getByText("Set one from a lift or a metric where you log it")).toBeInTheDocument();
+    // And the note that said where a goal starts is gone with its section
+    // (Dave 2026-09-13: "it looks stupid").
+    expect(screen.queryByText("Set one from a lift or a metric where you log it")).toBeNull();
   });
 
   it("a non-health area keeps its own Add Goal door untouched", async () => {
