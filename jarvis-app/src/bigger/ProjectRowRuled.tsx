@@ -1,6 +1,7 @@
 import type { Progress } from "./progress";
 import { Bar, Nums } from "./GoalRowRuled";
 import { FolderOpenGlyph, GoalMark } from "../shared/glyphs";
+import { useLongPress } from "../shared/useLongPress";
 
 // THE PROJECT ROW IS THE GOAL ROW (Dave 2026-09-13: "Let's make the format of
 // projects as much like Goals as possible... the goals page looks much
@@ -21,7 +22,7 @@ import { FolderOpenGlyph, GoalMark } from "../shared/glyphs";
 // The pie is gone from the ring slot: the bar says the same number, and one
 // meter per row is the goal row's rule.
 
-export default function ProjectRowRuled({ title, glyphTone, next = null, goal = null, meter, hold = null, status, bar, onOpen, onClose }: {
+export default function ProjectRowRuled({ title, glyphTone, next = null, goal = null, meter, hold = null, status, bar, onOpen, onClose, onHold }: {
   title: string;
   /** A cat-fg-* class: the project's area colour. */
   glyphTone: string;
@@ -37,9 +38,14 @@ export default function ProjectRowRuled({ title, glyphTone, next = null, goal = 
   onOpen?: () => void;
   /** Present only when every task is done and the project is still open. */
   onClose?: () => void;
+  /** MOVE TO GOAL (Dave 2026-09-13, "do the suggestions as well"): hold the
+   *  row to refile the project without opening its sheet. The tap that ends
+   *  the hold never also opens the project. */
+  onHold?: () => void;
 }) {
+  const press = useLongPress({ onLongPress: () => onHold?.(), enabled: !!onHold });
   return (
-    <div className="task-row p2 goal-row-ruled proj-row-ruled" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={onOpen}>
+    <div {...(onHold ? press : {})} className="task-row p2 goal-row-ruled proj-row-ruled" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={onOpen}>
       <div className="task-check-tap"><span className={"gm-slot " + glyphTone}><FolderOpenGlyph /></span></div>
       <div className="task-title">
         <div className="proj-line1">

@@ -19,7 +19,7 @@ import { loadLinks, linkedThreadsFor } from "../messages/threadLink";
 import { attemptWrite } from "../shared/guard";
 import GoalSheet from "../life/GoalSheet";
 import { rankProjects, projectPace, projectProgress } from "./progress";
-import { reachOf, type GoalReach } from "./reach";
+import { reachOf, type GoalReach, fileableGoals } from "./reach";
 import { measureState, paceLine, healthOf, HEALTH_LABEL, type MeasureContext } from "./measure";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
 import { supabase } from "../auth/supabaseClient";
@@ -871,6 +871,29 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     );
   }
 
+  // MOVE TO GOAL (Dave 2026-09-13, "do the suggestions as well"): refile a
+  // project from its row, on the Projects lens or on a goal's page, with Undo,
+  // without opening its sheet. The service merges the patch, so an undefined
+  // goalId takes the project off its goal, the same write the sheet's None
+  // makes.
+  const moveProject = async (id: string, goalId: string | null) => {
+    const proj = projects.find((x) => x.id === id);
+    if (!proj) return;
+    const before = proj.data.goalId;
+    const ok = await attemptWrite(() => mustUpdate(projectsSvc.update(id, { goalId: goalId ?? undefined })));
+    await reload();
+    if (!ok) return;
+    const name = goalId ? goals.find((g) => g.id === goalId)?.data.title ?? null : null;
+    showToast({
+      message: name ? "Moved to " + name : "Taken off its goal",
+      actionLabel: "Undo",
+      onAction: () => void (async () => {
+        await attemptWrite(() => mustUpdate(projectsSvc.update(id, { goalId: before })));
+        await reload();
+      })(),
+    });
+  };
+
   // Closing a finished project, from the Projects lens or from a goal's page:
   // one write, one payoff, wherever the row is (Dave 2026-09-13, the goal page
   // draws the lens's row now).
@@ -913,6 +936,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           rowOf={(id) => projectRows.find((r) => r.project.id === id)}
           holdLineOf={(id: string) => { const p = projects.find((x) => x.id === id); return p ? holdLine(p.data, today) : null; }}
           onCloseProject={(id) => void closeProject(id)}
+          moveTargets={fileableGoals(goals).map((g) => ({ id: g.id, title: g.data.title }))}
+          onMoveProject={(id, goalId) => void moveProject(id, goalId)}
           nextActionTextOf={nextActionTextOf}
           suggestion={goalSuggestion}
           onBack={() => setGoalDetailId(null)}
@@ -1030,6 +1055,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         onAddProject={() => setSheet({ kind: "newProject", goalId: goals.length === 1 ? goals[0]!.id : undefined })}
         onOpenProject={(id) => setDetailId(id)}
         onCloseProject={(id) => void closeProject(id)}
+        onMoveProject={(id, goalId) => void moveProject(id, goalId)}
         onAddGoal={() => setSheet({ kind: "newGoal" })}
         onOpenGoal={(id) => setGoalDetailId(id)}
       />

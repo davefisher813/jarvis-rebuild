@@ -7,6 +7,7 @@ import type { MeasureState, Health } from "./measure";
 import { HEALTH_LABEL, HEALTH_CLASS, nextMilestone } from "./measure";
 import { CHECKIN_LABEL, type CheckinWord } from "./checkin";
 import ProjectRowRuled from "./ProjectRowRuled";
+import RowActionSheet from "../shared/RowActionSheet";
 import { closable, projStatus, type ProjectRow } from "./progress";
 import { savingsLine, savingsPct, savedNewestFirst, savedTotal } from "./savings";
 import { catColor } from "../shared/categories";
@@ -62,6 +63,8 @@ export default function GoalDetailPage({
   rowOf,
   holdLineOf,
   onCloseProject,
+  moveTargets = [],
+  onMoveProject,
   checkin = null,
   onCheckin,
   onMilestoneDone,
@@ -106,6 +109,9 @@ export default function GoalDetailPage({
   rowOf?: (projectId: string) => ProjectRow | undefined;
   holdLineOf?: (projectId: string) => string | null;
   onCloseProject?: (projectId: string) => void;
+  // Move to Goal from a project row here too (Dave 2026-09-13).
+  moveTargets?: { id: string; title: string }[];
+  onMoveProject?: (projectId: string, goalId: string | null) => void;
   // C-37: the last self-reported check-in, and the tap that records one.
   // The card renders only when the derived health is unmeasured and there is
   // no work to measure; nothing here ever touches GoalData.state.
@@ -156,6 +162,8 @@ export default function GoalDetailPage({
   const [dropWhy, setDropWhy] = useState("");
   const [savingsOpen, setSavingsOpen] = useState(false);
   const [savingsAmt, setSavingsAmt] = useState("");
+  const [moveFor, setMoveFor] = useState<string | null>(null);
+  const movingProject = moveFor ? projects.find((x) => x.id === moveFor) ?? null : null;
   // C-36
   const milestones = goal.data.measure?.kind === "milestones" ? goal.data.measure.items : null;
   const next = nextMilestone(goal.data.measure);
@@ -192,7 +200,7 @@ export default function GoalDetailPage({
             reads, at render time, and is never written back. */}
         {health && <div className={"eyebrow " + HEALTH_CLASS[health]}>{HEALTH_LABEL[health]}</div>}
         {/* C-35: the projects moving it, as a sky fact. Counts only. */}
-        {moving > 0 && <div className="facts"><span className="fact sky">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span></div>}
+        {moving > 0 && goal.data.measure?.kind !== "projects" && <div className="facts"><span className="fact sky">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span></div>}
         {/* The ONLY place counts appear on this page. Honest null: a goal
             with no tasks under it yet says so instead of claiming 0%. A
             dollar target replaces the counts line with the DERIVED savings
@@ -338,7 +346,8 @@ export default function GoalDetailPage({
               status={projStatus(row)}
               bar={row.progress}
               onOpen={() => onOpenProject(p.id)}
-              onClose={closable(row) && onCloseProject ? () => onCloseProject(p.id) : undefined} />
+              onClose={closable(row) && onCloseProject ? () => onCloseProject(p.id) : undefined}
+              onHold={onMoveProject ? () => setMoveFor(p.id) : undefined} />
           );
         })}
         {/* WAVE 4, DUPLICATE DOORS (2026-08-29). On an untagged empty goal
@@ -350,6 +359,13 @@ export default function GoalDetailPage({
             the trip. */}
         {!bottomAddsProject && <button className="row row-act" onClick={onAddProject}>Add Project</button>}
       </div></div>
+
+      {movingProject && onMoveProject && (
+        <RowActionSheet title="Move to Goal" onCancel={() => setMoveFor(null)} actions={[
+          ...moveTargets.map((g) => ({ label: g.title, onPick: () => onMoveProject(movingProject.id, g.id), disabled: g.id === movingProject.data.goalId })),
+          { label: "No Goal", onPick: () => onMoveProject(movingProject.id, null), disabled: !movingProject.data.goalId },
+        ]} />
+      )}
 
       {/* FROM YOUR AREAS IS GONE (Dave 2026-09-13: "Why are all of these random
           tasks and projects and goals combining?"). It listed every open task

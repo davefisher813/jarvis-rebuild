@@ -387,6 +387,9 @@
 /* A goal row (Dave 2026-09-13): what moves it on line two, the count the bar
    draws on the line over the bar with the status at its right edge. */
 .ruled .goal-row-ruled .goal-sub { margin-top: 3px; }
+/* The Projects lens's All / Paused chips (Dave 2026-09-13): a chooser, so
+   filled chips, sitting between the segments and the first area card. */
+.ruled .proj-filters { padding-top: var(--s-1); }
 .ruled .goal-row-ruled .goal-proj { color: var(--cat-sky); font-weight: var(--w-semi); }
 .ruled .goal-row-ruled .goal-meter { display: flex; align-items: center; gap: 8px; margin-top: 6px; min-width: 0; }
 .ruled .goal-row-ruled .goal-meter > .r-goal { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tx-2); }

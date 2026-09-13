@@ -4,13 +4,14 @@ import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
 import { progressLabel, bucketOf, closable, projStatus, rankGoals } from "./progress";
 import type { GoalReach } from "./reach";
-import { reachLine } from "./reach";
+import { reachLine, fileableGoals } from "./reach";
 import type { MeasureState } from "./measure";
 import { catColor, goalTone } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
 import { FolderOpenGlyph, TargetGlyph, GoalMark } from "../shared/glyphs";
 import GoalRowRuled, { Bar } from "./GoalRowRuled";
 import ProjectRowRuled from "./ProjectRowRuled";
+import RowActionSheet from "../shared/RowActionSheet";
 import { nextMilestone } from "./measure";
 import { capAfterNumber } from "../shared/casing";
 import { fmtDay } from "../decisions/DecisionsFlow";
@@ -46,7 +47,7 @@ const TARGET = <TargetGlyph />;
 const FOLDER = <FolderOpenGlyph />;
 
 export default function BiggerPicturePage({
-  goals, reachOfGoal, measureOfGoal, extraOf, statusOf, checkinOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, sizeLineOf, paceLineOf, onCloseProject,
+  goals, reachOfGoal, measureOfGoal, extraOf, statusOf, checkinOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, sizeLineOf, paceLineOf, onCloseProject, onMoveProject,
   lens = "goals", title = "Your Life", segments,
 }: {
   // THE LENS (ruled 2026-09-01, "The Lens plus Lineage rows"). One tree,
@@ -98,6 +99,8 @@ export default function BiggerPicturePage({
   onOpenProject: (id: string) => void;
   // Pick 6: the row offers to close itself where the work is already done.
   onCloseProject?: (id: string) => void;
+  /** Move to Goal: refile a project from its row (Dave 2026-09-13). null takes it off its goal. */
+  onMoveProject?: (projectId: string, goalId: string | null) => void;
 }) {
   // The sealed-off half of the page: done projects fold to one quiet line.
   const [doneOpen, setDoneOpen] = useState(false);
@@ -109,6 +112,10 @@ export default function BiggerPicturePage({
   // and did not for goals, so an achieved goal sat forever in the middle of
   // the live ones under its area head.
   const [doneGoalsOpen, setDoneGoalsOpen] = useState(false);
+  // Move to Goal: the project whose hold opened the sheet (Dave 2026-09-13).
+  const [moveFor, setMoveFor] = useState<string | null>(null);
+  // The Projects lens's Paused filter (Dave 2026-09-13).
+  const [pausedOnly, setPausedOnly] = useState(false);
 
   if (loading) {
     return (
@@ -271,7 +278,8 @@ export default function BiggerPicturePage({
         status={projStatus(row)}
         bar={progress}
         onOpen={() => onOpenProject(project.id)}
-        onClose={closable(row) && onCloseProject ? () => onCloseProject(project.id) : undefined} />
+        onClose={closable(row) && onCloseProject ? () => onCloseProject(project.id) : undefined}
+        onHold={onMoveProject ? () => setMoveFor(project.id) : undefined} />
     );
   };
 
@@ -302,7 +310,7 @@ export default function BiggerPicturePage({
     return (
       <GoalRowRuled key={g.id} title={g.data.title} tone={goalTone(g.data.tags)}
         body={body} status={statusOf?.(g.id) ?? null}
-        moving={finished ? 0 : moving} next={finished ? null : next?.text ?? null}
+        moving={finished || g.data.measure?.kind === "projects" ? 0 : moving} next={finished ? null : next?.text ?? null}
         checkin={finished ? null : checkinOf?.(g.id) ?? null}
         bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)} />
     );
@@ -359,6 +367,17 @@ export default function BiggerPicturePage({
   const showGoals = !projectsLens;
   const showProjects = !lensed || projectsLens;
 
+  // THE PAUSED FILTER (Dave 2026-09-13). Two chips over the Projects lens,
+  // shown only while something is actually on hold: All, the lens as it was,
+  // and Paused, only the projects put on hold. A filter with nothing to
+  // filter is furniture, so it goes away with the last paused project.
+  const isPaused = (r: ProjectRow) => r.project.data.status === "on_hold";
+  const pausedCount = openRows.filter(isPaused).length;
+  const showPausedOnly = pausedOnly && pausedCount > 0;
+  const lensRows = showPausedOnly ? openRows.filter(isPaused) : openRows;
+  const lensOrphans = showPausedOnly ? orphanRows.filter(isPaused) : orphanRows;
+  const movingProject = moveFor ? projectRows.find((r) => r.project.id === moveFor)?.project ?? null : null;
+
   if (lensed) {
     const goalIdsHomed = (c: { id: string }) => rankGoals(
       liveGoals.filter((g) => homeOf(g) === c.id).map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g }; }),
@@ -376,20 +395,34 @@ export default function BiggerPicturePage({
             screen, wearing a target, so it read as a goal he had never made.
             It shows on Projects, and on the unlensed frame that holds both. */}
         {projectsLens && offer}
+        {projectsLens && pausedCount > 0 && (
+          <div className="chip-row chip-wrap-row proj-filters" role="group" aria-label="Show projects">
+            <button type="button" className={"chip" + (!showPausedOnly ? " active" : "")} aria-pressed={!showPausedOnly} onClick={() => setPausedOnly(false)}>All</button>
+            <button type="button" className={"chip" + (showPausedOnly ? " active" : "")} aria-pressed={showPausedOnly} onClick={() => setPausedOnly(true)}>{`Paused ${pausedCount}`}</button>
+          </div>
+        )}
+        {/* MOVE TO GOAL (Dave 2026-09-13): every goal a project can be filed
+            to, the one it is under disabled, and No Goal to take it off. */}
+        {movingProject && onMoveProject && (
+          <RowActionSheet title="Move to Goal" onCancel={() => setMoveFor(null)} actions={[
+            ...fileableGoals(goals, movingProject.data.goalId).map((g) => ({ label: g.data.title, onPick: () => onMoveProject(movingProject.id, g.id), disabled: g.id === movingProject.data.goalId })),
+            { label: "No Goal", onPick: () => onMoveProject(movingProject.id, null), disabled: !movingProject.data.goalId },
+          ]} />
+        )}
         {projectsLens ? (
           <>
             {/* One card per area, in the frame's order, exactly as the Goals
                 lens above does it. A project with no live area is not forced
                 into one: it lands in More Work, adoption one tap away. */}
             {sections.map((c) => {
-              const mine = openRows.filter((r) => (r.project.data.category ?? "") === c.id);
+              const mine = lensRows.filter((r) => (r.project.data.category ?? "") === c.id);
               if (mine.length === 0) return null;
               return <div key={c.id}>{catHead(c, mine.length)}{ruledCard(mine.map(pieRow))}</div>;
             })}
-            {orphanRows.length > 0 && (
+            {lensOrphans.length > 0 && (
               <div>
-                <div className="sh2 sh2-quiet"><span className="t">More Work</span><span className="n">{orphanRows.length}</span></div>
-                {ruledCard(orphanRows.map(pieRow))}
+                <div className="sh2 sh2-quiet"><span className="t">More Work</span><span className="n">{lensOrphans.length}</span></div>
+                {ruledCard(lensOrphans.map(pieRow))}
               </div>
             )}
             {/* ONE CARD, NOT A STACK OF PILLS (Dave 2026-09-02: "I don't want
@@ -402,7 +435,7 @@ export default function BiggerPicturePage({
                 when it is alone (THE PREVIEW IS THE SPEC, 2026-09-01).
                 ...and when there IS no receipt above it, no card either:
                 see addRow below. */}
-            {doneRows.length > 0 ? (
+            {doneRows.length > 0 && !showPausedOnly ? (
               <div className="pad-x"><div className="card list-card-ruled list-tail">
                 <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
                   <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
