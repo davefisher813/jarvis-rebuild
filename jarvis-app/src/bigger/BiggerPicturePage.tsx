@@ -8,8 +8,9 @@ import { reachLine } from "./reach";
 import type { MeasureState } from "./measure";
 import { catColor, goalTone } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
-import { FolderOpenGlyph, TargetGlyph, GoalMark, ProjectPie } from "../shared/glyphs";
-import GoalRowRuled, { Bar, Nums } from "./GoalRowRuled";
+import { FolderOpenGlyph, TargetGlyph, GoalMark } from "../shared/glyphs";
+import GoalRowRuled, { Bar } from "./GoalRowRuled";
+import ProjectRowRuled from "./ProjectRowRuled";
 import { nextMilestone } from "./measure";
 import { capAfterNumber } from "../shared/casing";
 import { fmtDay } from "../decisions/DecisionsFlow";
@@ -244,107 +245,33 @@ export default function BiggerPicturePage({
   // rule, and the eight areas he already thinks in are the shelf both lists
   // sit on. The goal moved off the head and onto the row as a chip, where a
   // task row already wears its parent, so nothing about lineage was lost.
+  // THE PROJECTS LENS ROW IS THE GOAL ROW (Dave 2026-09-13), drawn by
+  // ProjectRowRuled so the Projects lens and a goal's own page can never
+  // disagree about a project. The goal chip wears its goal's home colour, or
+  // the colour of the area card it sits in when the goal has none (Dave
+  // 2026-09-11).
   const pieRow = ({ project, progress, stalled }: ProjectRow) => {
-    const next = nextActionTextOf?.(project.id);
+    const row: ProjectRow = { project, progress, stalled, lastAt: null };
+    const next = nextActionTextOf?.(project.id) ?? null;
     const hold = holdLineOf?.(project.id) ?? null;
-    const canClose = closable({ project, progress, stalled, lastAt: null });
-    const status = projStatus({ project, progress, stalled, lastAt: null });
-    // THE LINE PAYS RENT (Dave 2026-09-11: "4 lines is way too much", of a row
-    // reading title / goal / "9 of 11 Done \u00b7 2 Open \u00b7 About 2h" / a capsule
-    // that had wrapped to its own line / Next). Two of those facts were not
-    // earning their space. "2 Open" is eleven minus nine, which the fraction
-    // beside it already states, and "About 2h" is a property of the project
-    // rather than of today, so it belongs on the project's own page. Dropping
-    // both is what buys the fourth line back, and what lets the capsule sit
-    // inline where it was always meant to.
-    //
-    // The word Done goes with them: the capsule on the same line says the
-    // state now, so the fraction only has to be a fraction.
-    const line = hold ?? (progress ? `${progress.done} of ${progress.total}` : "No tasks yet");
     const filed = project.data.goalId ? goalById.get(project.data.goalId) : undefined;
-    // COLOUR IT BY WHERE IT LIVES, NOT BY WHETHER IT WAS TAGGED (Dave
-    // 2026-09-11: "the color of the goal... that's supposed to be color coded
-    // so that raise 100k for bridge should be in the color it's supposed to
-    // be"). goalTone reads the goal's OWN tags and falls back to the house
-    // brand when none of them names a live area -- which is why a Bridge goal
-    // sitting in the Bridge card rendered in no colour at all. A project is
-    // already filed to an area, and the card it is in IS that area, so that
-    // is the honest fallback: the goal takes its own home colour when it has
-    // one, and otherwise the colour of the shelf it is sitting on.
     const goalHue = filed
       ? (goalTone(filed.data.tags) === "cat-fg-brand"
         ? "cat-fg-" + catColor(project.data.category ?? "")
         : goalTone(filed.data.tags))
       : "";
     return (
-      <div className="task-row p2 proj-row-ruled" role="button" tabIndex={0} key={project.id} onClick={() => onOpenProject(project.id)}>
-        <div className="task-check-tap"><span className={"pp-slot cat-fg-" + catColor(project.data.category ?? "")}><ProjectPie pct={progress ? progress.pct : null} /></span></div>
-        <div className="task-title">
-          {/* CLOSE AND ON TRACK, ONE EDGE (Dave 2026-09-13: "the done and on
-              track buttons, they're not aligned and they just look very weird
-              next to each other... I would like to keep both"). Close sat in
-              the row's trailing slot, centred on two lines, while On Track sat
-              on line two ending wherever that slot let it; rows with a chevron
-              put On Track at a different x again. Close rides the title's
-              line now, On Track the facts line, both right-aligned to the same
-              text edge, and every row keeps its chevron, so the pair stacks
-              and the column of status chips is straight down the card. */}
-          <div className="proj-line1">
-            <span className="task-name">{project.data.title}</span>
-            {canClose && onCloseProject && (
-              <button className="pill-act proj-close" onClick={(e) => { e.stopPropagation(); onCloseProject(project.id); }}>Close</button>
-            )}
-          </div>
-          {/* ONE SECOND LINE, TWO LENSES (Dave 2026-09-11: "goals looks way
-              better than projects. Style the containers in projects to look
-              more like goals... The goals in projects should also be color
-              coated"). The goal row's second line is [chip] [fact] [status,
-              far right], and that anatomy is what makes it read: something
-              identifying on the left, the number in the middle, the verdict
-              pinned to the edge. This line is that line now. The goal chip
-              takes the leading slot the kind chip holds on a goal row and
-              wears its goal's own colour rather than the grey every other
-              parent line wears, so a card of projects is colour-sorted by
-              what each one climbs toward; the progress fact keeps the
-              middle; and the status capsule -- the same .gstat in the same
-              two tones -- takes the right.
-
-              The pie stays the row's progress meter, so no bar is added
-              under it: the goal row draws a bar because its glyph is a
-              static target, and doubling the fraction here would state the
-              same number three times on one row.
-
-              NOTHING SHRINKS EXCEPT THE GOAL (Dave 2026-09-11, on the first
-              build of this line: "4 lines is way too much"). Every item was
-              shrinkable, so at iPhone width the capsule's margin-left:auto
-              pushed it past the end and it wrapped to a line of its own. The
-              fraction and the capsule hold their width now and the goal name
-              is the one thing allowed to ellipse, which is correct on the
-              merits too: a truncated goal is still recognisable, a truncated
-              fraction is not a number. */}
-{/* TWO LINES, COLOUR-CODED (Dave 2026-09-13, from the list that never
-              landed: "We can't have three lines of white and gray text. It's
-              ridiculous... there needs to be some color coding or pills,
-              chips. Just, you have to reorganize it"). The row was the title,
-              then a goal chip, the fraction and the status, then a grey Next
-              line under all of it. The pie in the ring slot already draws the
-              fraction, so the fraction goes; the next move comes up onto line
-              two with a sky label and the action in full ink; the status chip
-              keeps the right edge. A hold says its date in that slot instead,
-              and the goal chip takes it only when there is no next move. */}
-          <div className="r-k">
-            {hold
-              ? <span className="r-goal r-frac r-stalled"><Nums text={hold} /></span>
-              : next
-                ? <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{next}</span></span>
-                : filed && !filed.data.dropped
-                  ? <span className={"r-goal r-is-goal r-goal-lit " + goalHue}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span>
-                  : <span className={"r-goal r-frac" + (stalled ? " r-stalled" : "")}><Nums text={line} /></span>}
-            {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
-          </div>
-        </div>
-        {CHEV}
-      </div>
+      <ProjectRowRuled key={project.id}
+        title={project.data.title}
+        glyphTone={"cat-fg-" + catColor(project.data.category ?? "")}
+        next={next}
+        goal={filed && !filed.data.dropped ? { title: filed.data.title, hue: goalHue } : null}
+        meter={progress ? capAfterNumber(`${progress.done} of ${progress.total} done`) : "No tasks yet"}
+        hold={hold}
+        status={projStatus(row)}
+        bar={progress}
+        onOpen={() => onOpenProject(project.id)}
+        onClose={closable(row) && onCloseProject ? () => onCloseProject(project.id) : undefined} />
     );
   };
 

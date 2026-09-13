@@ -38,7 +38,7 @@ describe("LifeFlow", () => {
     expect(screen.getByRole("tab", { name: "Tasks" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("Projects groups projects under their AREA with the pie row; Goals shows goals only", async () => {
+  it("Projects groups projects under their AREA with the goal-row anatomy; Goals shows goals only", async () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
     await screen.findByText("Pay the deposit", {}, { timeout: 3000 });
     fireEvent.click(screen.getByRole("tab", { name: "Projects" }));
@@ -56,7 +56,11 @@ describe("LifeFlow", () => {
     expect(head.className).toMatch(/\bsh2\b/);
     expect(head.querySelector(".cat-dot")).toBeTruthy();
     expect(head.className, "the retired goal head is gone").not.toMatch(/gh-goal/);
-    expect(row.querySelector(".pp")).toBeTruthy();
+    // THE PROJECT ROW IS THE GOAL ROW (Dave 2026-09-13): the folder where the
+    // goal row carries its target, the count and the bar under it, no pie.
+    expect(row.classList.contains("goal-row-ruled")).toBe(true);
+    expect(row.querySelector(".gm-slot")).toBeTruthy();
+    expect(row.querySelector(".pp")).toBeNull();
     expect(row.querySelector(".r-is-goal")).toHaveTextContent("Build a six-month runway");
     expect(screen.getByText("Add Project")).toBeInTheDocument();
     expect(screen.queryByText("Add Goal")).toBeNull();

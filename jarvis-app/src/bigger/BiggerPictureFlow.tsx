@@ -627,15 +627,6 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     const ok = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, measure: { kind: "milestones", items } })));
     if (ok) await reload();
   };
-  // The watched work, flattened for the page. Same records, seen through the
-  // goal's areas: ticking one here finishes the task everywhere.
-  const goalTagged = useMemo(() => {
-    if (!goalDetail) return [];
-    const ids = new Set(reachOfGoal(goalDetail.id).taggedIds);
-    return tasks.filter((t) => ids.has(t.id)).map((t) => ({
-      id: t.id, text: t.data.text, done: !!t.data.done, due: t.data.due ?? null, category: t.data.category,
-    }));
-  }, [goalDetail, reachOfGoal, tasks]);
   const nextActionTextOf = useCallback(
     (projectId: string) => nextActionOf(tasks, projectId)?.data.text ?? null,
     [tasks],
@@ -880,6 +871,28 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     );
   }
 
+  // Closing a finished project, from the Projects lens or from a goal's page:
+  // one write, one payoff, wherever the row is (Dave 2026-09-13, the goal page
+  // draws the lens's row now).
+  const closeProject = async (id: string) => {
+          // PICK 6: the row closes itself where the work is already finished.
+          // The same write and the same payoff the detail page already used,
+          // so a project finished from the list celebrates identically to one
+          // finished from inside it.
+          const proj = projects.find((x) => x.id === id);
+          if (!proj) return;
+          // LIFE-F-17: same discarded boolean as the detail page's Mark Done.
+          const ok = await attemptWrite(() => mustUpdate(projectsSvc.update(id, { ...proj.data, status: "done" })));
+          await reload();
+          if (!ok) return;
+          const mine = tasks.filter((t) => (t.data as { projectId?: string }).projectId === id);
+          setPayoff({
+            kind: "project",
+            title: proj.data.title,
+            line: payoffLine({ tasksDone: mine.filter((t) => (t.data as { done?: boolean }).done).length }),
+          });
+        };
+
   if (goalDetail && !detail) {
     return (
       <>
@@ -897,9 +910,9 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           onMilestoneDone={(id, done) => void setMilestone(goalDetail, id, done)}
           onAddMilestone={(text) => void addMilestone(goalDetail, text)}
           projects={goalProjects}
-          canTag={categories.length > 0}
-          tagged={goalTagged}
-          onToggleTagged={async (id) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reload(); }}
+          rowOf={(id) => projectRows.find((r) => r.project.id === id)}
+          holdLineOf={(id: string) => { const p = projects.find((x) => x.id === id); return p ? holdLine(p.data, today) : null; }}
+          onCloseProject={(id) => void closeProject(id)}
           nextActionTextOf={nextActionTextOf}
           suggestion={goalSuggestion}
           onBack={() => setGoalDetailId(null)}
@@ -1016,24 +1029,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         // a hidden action.
         onAddProject={() => setSheet({ kind: "newProject", goalId: goals.length === 1 ? goals[0]!.id : undefined })}
         onOpenProject={(id) => setDetailId(id)}
-        onCloseProject={async (id) => {
-          // PICK 6: the row closes itself where the work is already finished.
-          // The same write and the same payoff the detail page already used,
-          // so a project finished from the list celebrates identically to one
-          // finished from inside it.
-          const proj = projects.find((x) => x.id === id);
-          if (!proj) return;
-          // LIFE-F-17: same discarded boolean as the detail page's Mark Done.
-          const ok = await attemptWrite(() => mustUpdate(projectsSvc.update(id, { ...proj.data, status: "done" })));
-          await reload();
-          if (!ok) return;
-          const mine = tasks.filter((t) => (t.data as { projectId?: string }).projectId === id);
-          setPayoff({
-            kind: "project",
-            title: proj.data.title,
-            line: payoffLine({ tasksDone: mine.filter((t) => (t.data as { done?: boolean }).done).length }),
-          });
-        }}
+        onCloseProject={(id) => void closeProject(id)}
         onAddGoal={() => setSheet({ kind: "newGoal" })}
         onOpenGoal={(id) => setGoalDetailId(id)}
       />

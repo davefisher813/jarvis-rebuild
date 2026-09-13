@@ -62,7 +62,7 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
           <div className="r-k goal-sub">
             {kind && <span className={"gkind " + kind.hue}>{kind.text}</span>}
             {moving > 0 && <span className="r-goal goal-proj">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span>}
-            {next && <span className="r-goal fact sky">Next: {next}</span>}
+            {next && <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{next}</span></span>}
             {!status && checkin && <span className="r-goal fact good">Check-in: {checkin}</span>}
           </div>
         )}

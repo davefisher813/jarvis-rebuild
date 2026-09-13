@@ -432,10 +432,12 @@
    gray text... there needs to be some color coding"). A sky small-caps label,
    then the action in full ink, the one thing on the line allowed to ellipse;
    the status chip beside it keeps its width. */
-.ruled .proj-row-ruled .r-next-in { display: inline-flex; align-items: baseline; gap: 6px; flex: 1 1 auto; min-width: 0;
+.ruled .r-next-in { display: inline-flex; align-items: baseline; gap: 6px; flex: 1 1 auto; min-width: 0;
   font-size: calc(13px * var(--type-scale)); }
+/* NEXT is orange (Dave 2026-09-13: "next should be yellow in my opinion or
+   orange"), on a project row and on a goal row's next milestone alike. */
 .ruled .r-next-k { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
-  letter-spacing: 0.06em; text-transform: uppercase; color: var(--cat-sky); }
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--warn); }
 .ruled .r-next-v { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   color: var(--tx-1); font-weight: var(--w-medium); }
 .ruled .goal-row-ruled .bp-bar { margin-top: 6px; }

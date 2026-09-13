@@ -2,10 +2,12 @@ import { useEffect, useState, type CSSProperties } from "react";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
 import type { GoalReach } from "./reach";
-import { reachLine, byDue } from "./reach";
+import { reachLine } from "./reach";
 import type { MeasureState, Health } from "./measure";
 import { HEALTH_LABEL, HEALTH_CLASS, nextMilestone } from "./measure";
 import { CHECKIN_LABEL, type CheckinWord } from "./checkin";
+import ProjectRowRuled from "./ProjectRowRuled";
+import { closable, projStatus, type ProjectRow } from "./progress";
 import { savingsLine, savingsPct, savedNewestFirst, savedTotal } from "./savings";
 import { catColor } from "../shared/categories";
 import { haptics } from "../shared/haptics";
@@ -36,15 +38,11 @@ const TARGET = (
   <TargetGlyph />
 );
 
-export interface TaggedTask { id: string; text: string; done: boolean; due?: string | null; category?: string }
 
 export default function GoalDetailPage({
   goal,
   reach,
   projects,
-  tagged = [],
-  onToggleTagged,
-  canTag = false,
   measure = null,
   pace = null,
   health,
@@ -61,6 +59,9 @@ export default function GoalDetailPage({
   onAddSavings,
   onAchieve,
   moving = 0,
+  rowOf,
+  holdLineOf,
+  onCloseProject,
   checkin = null,
   onCheckin,
   onMilestoneDone,
@@ -74,8 +75,6 @@ export default function GoalDetailPage({
   projects: Project[]; // linked to this goal
   // The open work this goal WATCHES through its areas. Never filed here, never
   // copied here: these are the same task records the Tasks tab renders.
-  tagged?: TaggedTask[];
-  onToggleTagged?: (id: string) => void;
   // PICKS 13/14/15, all DERIVED by the flow and passed in whole so this page
   // holds no second opinion about any of them.
   measure?: MeasureState | null;
@@ -87,7 +86,6 @@ export default function GoalDetailPage({
   onOpenDecision?: (id: string) => void;
   // True when the user actually has areas to pick from. Without it the empty
   // goal would be offered a door that opens onto nothing.
-  canTag?: boolean;
   nextActionTextOf: (projectId: string) => string | null;
   suggestion?: Project | null; // at most one, pre-gated by the caller
   onBack: () => void;
@@ -102,6 +100,12 @@ export default function GoalDetailPage({
   onAchieve?: () => void;
   // C-35 (Astra, 2026-09-12): projects under this goal whose bucket is moving.
   moving?: number;
+  // The goal's projects, drawn with the Projects lens's own row (Dave
+  // 2026-09-13: "mirror goals"): the ranked row for its count and status, the
+  // hold line, and Close when the work is done.
+  rowOf?: (projectId: string) => ProjectRow | undefined;
+  holdLineOf?: (projectId: string) => string | null;
+  onCloseProject?: (projectId: string) => void;
   // C-37: the last self-reported check-in, and the tap that records one.
   // The card renders only when the derived health is unmeasured and there is
   // no work to measure; nothing here ever touches GoalData.state.
@@ -117,25 +121,20 @@ export default function GoalDetailPage({
   // closed AND nothing it watches is still open. Before architecture C this
   // read the filed side only, so a goal could offer to finish itself while
   // eight tagged tasks sat open in the areas it covers.
-  const allWorkDone = !!progress && progress.total > 0 && progress.done >= progress.total && reach.openTagged === 0;
-  // At most five, nearest deadline first. A goal watching a busy area would
-  // otherwise render a wall, and a wall is not a glance.
-  const taggedOpen = byDue(tagged.filter((t) => !t.done));
-  const shown = taggedOpen.slice(0, 5);
-  const moreTagged = taggedOpen.length - shown.length;
+  const allWorkDone = !!progress && progress.total > 0 && progress.done >= progress.total;
   // Reaches NOTHING: no projects, no watched areas, no dollar target. Pick C
   // made "add a project" the wrong first move for this case. Tags are the
   // default way in ("tags by default, attach projects when big enough"), so
   // the loud offer on an empty goal is to name the areas it covers, which
   // costs two taps and usually fills the goal immediately from work that
   // already exists.
-  const empty = projects.length === 0 && !target && reach.taggedIds.length === 0;
+  const empty = projects.length === 0 && !target;
   // WAVE 4, DUPLICATE DOORS (2026-08-29). The page foot renders exactly one
   // primary, and on an empty untagged goal that primary IS "Add a Project".
   // Computed once, here, from the same three conditions the foot uses, so the
   // two can never drift into showing the same door twice or none at all.
   const bottomAddsProject =
-    !!onAchieve && goal.data.state !== "achieved" && !goal.data.dropped && empty && !canTag;
+    !!onAchieve && goal.data.state !== "achieved" && !goal.data.dropped && empty;
   // PICK 25 (Dave 2026-08-22): DECISIONS ATTACH TO THE GOAL. They already
   // could -- goals have been in the attach picker all along -- and the goal
   // page was the one place that never showed the result. The project page has
@@ -193,7 +192,7 @@ export default function GoalDetailPage({
             reads, at render time, and is never written back. */}
         {health && <div className={"eyebrow " + HEALTH_CLASS[health]}>{HEALTH_LABEL[health]}</div>}
         {/* C-35: the projects moving it, as a sky fact. Counts only. */}
-        {moving > 0 && <div className="facts"><span className="fact sky">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"} moving it`)}</span></div>}
+        {moving > 0 && <div className="facts"><span className="fact sky">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span></div>}
         {/* The ONLY place counts appear on this page. Honest null: a goal
             with no tasks under it yet says so instead of claiming 0%. A
             dollar target replaces the counts line with the DERIVED savings
@@ -328,19 +327,18 @@ export default function GoalDetailPage({
       <div className="sh2 sh2-quiet"><span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}</div>
       <div className="pad-x"><div className="card list-card-ruled">
         {projects.map((p) => {
-          const next = nextActionTextOf(p.id);
-          const stalled = !next && p.data.status !== "on_hold";
+          const row: ProjectRow = rowOf?.(p.id) ?? { project: p, progress: null, stalled: false, lastAt: null };
           return (
-            <div className="task-row p2 proj-row-ruled" role="button" tabIndex={0} key={p.id} onClick={() => onOpenProject(p.id)}>
-              <div className="task-check-tap"><span className={"pp-slot cat-fg-" + (p.data.category ? catColor(p.data.category) : "graphite")}><FolderGlyph /></span></div>
-              <div className="task-title">
-                <span className="task-name">{p.data.title}</span>
-                {/* Next action, not counts: what would move this, in one line.
-                    No next action is an honest synonym for stuck. */}
-                <div className="r-k"><span className={"r-goal r-cat" + (stalled ? " r-stalled" : "")}>{next ? `Next: ${next}` : p.data.status === "on_hold" ? "Paused" : "Stalled · No next action"}</span></div>
-              </div>
-              {CHEV}
-            </div>
+            <ProjectRowRuled key={p.id}
+              title={p.data.title}
+              glyphTone={"cat-fg-" + (p.data.category ? catColor(p.data.category) : "graphite")}
+              next={nextActionTextOf(p.id)}
+              meter={row.progress ? capAfterNumber(`${row.progress.done} of ${row.progress.total} done`) : "No tasks yet"}
+              hold={holdLineOf?.(p.id) ?? null}
+              status={projStatus(row)}
+              bar={row.progress}
+              onOpen={() => onOpenProject(p.id)}
+              onClose={closable(row) && onCloseProject ? () => onCloseProject(p.id) : undefined} />
           );
         })}
         {/* WAVE 4, DUPLICATE DOORS (2026-08-29). On an untagged empty goal
@@ -353,66 +351,11 @@ export default function GoalDetailPage({
         {!bottomAddsProject && <button className="row row-act" onClick={onAddProject}>Add Project</button>}
       </div></div>
 
-      {/* ARCHITECTURE C, THE HALF THAT WAS MISSING (Dave 2026-08-22, pick C).
-          Everything pointed DOWN: a goal held projects, a project held tasks,
-          and a task at the bottom of that chain could not say what it was for.
-          Four of his seven projects were unstarted, so for most of his real
-          work the chain was empty and the goal looked idle while he was
-          actively doing the work, just not filing it.
-
-          These are not copies and they were not moved. They are the same task
-          records the Tasks tab renders, seen through the areas this goal
-          watches, and ticking one here finishes it everywhere. Capped at five
-          by due date: a goal watching a busy area would otherwise print a
-          wall, and the remainder gets a count, not a button that goes
-          nowhere. */}
-      {/* A NEW GOAL IS EMPTY (Dave 2026-09-09: "I just created the open up my
-          own business goal and a bunch of tasks randomly populated it").
-          This section listed every open task in the AREAS the goal is tagged
-          to, which on a brand new goal is fourteen tasks it has nothing to do
-          with. It is the same mistake life/parent.ts already ruled on: a tag
-          is a saved filter over a CATEGORY, so it says what a goal MOVES, never
-          what the goal OWNS, and a page that prints the filter as the goal's
-          own work is putting words in his mouth.
-          It renders only when he has actually filed something to this goal, so
-          a goal he just made shows nothing until he puts something in it. The
-          tag reach still feeds ranking and Plan My Day, where it belongs. */}
-      {shown.length > 0 && projects.length > 0 && (
-        <>
-          <div className="sh2 sh2-quiet"><span className="t">From Your Areas</span><span className="n">{taggedOpen.length}</span></div>
-          <div className="pad-x"><div className="card list-card-ruled">
-            {shown.map((t) => {
-              const dist = t.due ? distanceFor({ text: t.text, done: false, due: t.due, category: t.category ?? "" }, todayISO()) : null;
-              return (
-                <div className="task-row p2 proj-step" key={t.id}>
-                  <div
-                    className="task-check-tap"
-                    role="checkbox"
-                    aria-checked={false}
-                    aria-label="Mark done"
-                    onClick={() => { haptics.selection(); onToggleTagged?.(t.id); }}
-                  >
-                    <div className={"task-check cat-bd-" + catColor(t.category ?? "")} />
-                  </div>
-                  <div className="task-title">
-                    <span className="task-name">{t.text}</span>
-                    {t.due && (
-                      <div className="r-k">
-                        {dist && <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>}
-                        <span className="r-goal r-cat">{fmtDay(t.due)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {moreTagged > 0 && (
-              <div className="row"><div className="row-grow"><div className="conn-meta">{capAfterNumber(`${moreTagged} more in these areas`)}</div></div></div>
-            )}
-          </div></div>
-        </>
-      )}
-
+      {/* FROM YOUR AREAS IS GONE (Dave 2026-09-13: "Why are all of these random
+          tasks and projects and goals combining?"). It listed every open task
+          in the areas this goal watches, which is work nobody filed here and
+          nothing on this page could edit, move or remove. A goal's page is its
+          own projects; the tasks live on those projects and on Tasks. */}
       {suggestion && onLinkSuggestion && onDismissSuggestion && (
         <>
           <div className="sh2 sh2-quiet">
@@ -451,9 +394,7 @@ export default function GoalDetailPage({
       {onAchieve && goal.data.state !== "achieved" && !goal.data.dropped && (
         <div className="pad-x conn-action">
           {empty
-            ? (canTag
-              ? <button className="btn btn-primary btn-block" onClick={onEdit}>Choose Its Areas</button>
-              : <button className="btn btn-primary btn-block" onClick={onAddProject}>Add a Project</button>)
+            ? <button className="btn btn-primary btn-block" onClick={onAddProject}>Add a Project</button>
             : allWorkDone
               ? <button className="btn btn-primary btn-block" onClick={onAchieve}>All Work Done, Finish It</button>
               : <button className="btn btn-block" onClick={onAchieve}>Mark Achieved</button>}

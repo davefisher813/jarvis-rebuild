@@ -2,7 +2,6 @@ import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import type { Progress } from "./progress";
-import { categoriesOf } from "../tasks/categories";
 import { capAfterNumber } from "../shared/casing";
 
 // ---------------------------------------------------------------------------
@@ -86,12 +85,23 @@ export function projectsOfGoal(projects: Project[], goalId: string): Project[] {
  * stronger statement of intent.
  */
 export function reachOf(tasks: TaskItem[], projects: Project[], goal: Goal): GoalReach {
+  // A GOAL OWNS WHAT WAS FILED TO IT, AND NOTHING ELSE (Dave 2026-09-13, from
+  // two goal pages on his phone: "what is going on with the logic? Why are all
+  // of these random tasks and projects and goals combining? Figure out what's
+  // wrong and fix it... I can't even manually clean it up").
+  // The tagged route below this note was architecture C: every open task in
+  // an area a goal watched counted as that goal's work. Two goals watching
+  // Bridge showed the same Bridge tasks, a goal row said "5 tagged open" about
+  // work nobody put there, and none of it could be cleaned up by hand because
+  // nothing had ever been attached. The route is closed. A goal's tags still
+  // say which area it lives under; its work is the projects filed to it.
+  // taggedIds and openTagged stay on the shape, always empty, so every reader
+  // of a reach keeps compiling and reads the honest zero.
   const projIds = new Set(projectsOfGoal(projects, goal.id).map((p) => p.id));
-  const tags = new Set(goalTags(goal));
 
   const filedIds: string[] = [];
   const taggedIds: string[] = [];
-  let openTagged = 0;
+  const openTagged = 0;
   let filedDone = 0;
 
   for (const t of tasks) {
@@ -99,12 +109,6 @@ export function reachOf(tasks: TaskItem[], projects: Project[], goal: Goal): Goa
     if (pid && projIds.has(pid)) {
       filedIds.push(t.id);
       if (t.data.done) filedDone++;
-      continue;
-    }
-    if (tags.size === 0) continue;
-    if (categoriesOf(t.data).some((c) => tags.has(c))) {
-      taggedIds.push(t.id);
-      if (!t.data.done) openTagged++;
     }
   }
 
@@ -132,18 +136,15 @@ export function reachLine(r: GoalReach, done = false): string {
     return p0 ? capAfterNumber(`${p0.done} of ${p0.total} done`) : "Done";
   }
   const p = r.progress;
-  if (p) {
-    const base = capAfterNumber(`${p.done} of ${p.total} done`);
-    return r.openTagged > 0 ? `${base} · ${r.openTagged} tagged open` : base;
-  }
+  // Filed work only (2026-09-13): no "tagged open" tail, no open count borrowed
+  // from an area.
+  if (p) return capAfterNumber(`${p.done} of ${p.total} done`);
   // PLAIN WORDS (Dave 2026-09-03, pic 4: "'open in your tags' maybe just
   // open or something"). "In your tags" is this file's own vocabulary
   // leaking onto a goal row: the reader does not think in tags, and the
   // line has to say only what is true, which is that some work under this
   // goal is still open. The sibling line above names its noun ("2 of 5
   // Projects done"), so this one does too, and stops there.
-  if (r.openTagged > 0) return capAfterNumber(`${r.openTagged} ${r.openTagged === 1 ? "task" : "tasks"} open`);
-  if (r.taggedIds.length > 0) return "All of it done";
   return "Nothing under it yet";
 }
 
@@ -189,15 +190,15 @@ export function buildGoalIndex(projects: Project[], goals: Goal[]): GoalIndex {
   return { byProject, byCategory, titleOf, size: goals.length };
 }
 
-/** Goal ids this task moves, filed route first. Empty when it moves nothing. */
+/** Goal ids this task moves: the goal its project is filed to. Empty when it
+ *  moves nothing. Sharing an area with a goal is not moving it (Dave
+ *  2026-09-13); byCategory stays on the index for listing a goal under its
+ *  area, never for claiming a task. */
 export function goalIdsForTask(idx: GoalIndex, task: TaskItem): string[] {
   if (idx.size === 0) return [];
   const out: string[] = [];
   const pid = task.data.projectId;
   if (pid) for (const g of idx.byProject.get(pid) ?? []) if (!out.includes(g)) out.push(g);
-  for (const c of categoriesOf(task.data)) {
-    for (const g of idx.byCategory.get(c) ?? []) if (!out.includes(g)) out.push(g);
-  }
   return out;
 }
 

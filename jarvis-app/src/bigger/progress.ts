@@ -193,6 +193,15 @@ export function bucketOf(row: ProjectRow, autoClear: boolean = clearsDoneAutomat
 // and has not failed either; a capsule there would be a claim about nothing,
 // and the row's line already says "No tasks yet".
 export function projStatus(row: ProjectRow): { text: string; tone: "good" | "warn" } | null {
+  // THE SAME WORD EVERYWHERE, AND THE TRUE ONE (Dave 2026-09-13: "there's a
+  // bug or poor logic with on track for projects. We should literally just
+  // mirror goals"). A project whose every task was done read On Track on the
+  // Projects lens (Ask First keeps it in the open list, and the open list
+  // said On Track) and "Stalled, No next action" on its goal's page (no next
+  // task read as stuck). It is Done, the word a goal whose work is met wears,
+  // with Close offered beside it. A project put on hold says Paused.
+  if (row.project.data.status === "on_hold") return { text: "Paused", tone: "warn" };
+  if (closable(row)) return { text: "Done", tone: "good" };
   const b = bucketOf(row);
   if (b === "done") return { text: "Done", tone: "good" };
   if (b === "stalled") return { text: "Stalled", tone: "warn" };

@@ -42,18 +42,15 @@ describe("reachOf", () => {
     expect(r.progress).toEqual({ done: 1, total: 2, pct: 50 });
   });
 
-  it("reaches tagged work with no filing at all", () => {
+  // Dave 2026-09-13: "Why are all of these random tasks and projects and
+  // goals combining?" An area a goal watches is not work filed to it.
+  it("never reaches a task just because it shares an area with the goal", () => {
     const g = goal("g1", { tags: ["health"] });
-    const tasks = [task("a", { category: "health" }), task("b", { category: "work" })];
+    const tasks = [task("a", { category: "health" }), task("b", { category: "work", extraCategories: ["health"] })];
     const r = reachOf(tasks, projects, g);
-    expect(r.taggedIds).toEqual(["a"]);
-    expect(r.openTagged).toBe(1);
-  });
-
-  it("reads an extra category, not only the primary", () => {
-    const g = goal("g1", { tags: ["health"] });
-    const tasks = [task("a", { category: "work", extraCategories: ["health"] })];
-    expect(reachOf(tasks, projects, g).taggedIds).toEqual(["a"]);
+    expect(r.taggedIds).toEqual([]);
+    expect(r.openTagged).toBe(0);
+    expect(r.progress).toBeNull();
   });
 
   it("counts a task once when it is BOTH filed and tagged, on the filed side", () => {
@@ -85,23 +82,13 @@ describe("reachLine", () => {
     const tasks = [task("a", { projectId: "p1", done: true }), task("b", { projectId: "p1" })];
     expect(reachLine(reachOf(tasks, projects, goal("g1")))).toBe("1 of 2 Done");
   });
-  it("adds the tagged open count beside filed work", () => {
+  it("adds nothing from the goal's areas beside filed work", () => {
     const tasks = [task("a", { projectId: "p1", done: true }), task("b", { category: "health" })];
-    expect(reachLine(reachOf(tasks, projects, goal("g1", { tags: ["health"] })))).toBe("1 of 1 Done · 1 tagged open");
+    expect(reachLine(reachOf(tasks, projects, goal("g1", { tags: ["health"] })))).toBe("1 of 1 Done");
   });
-  it("speaks in open counts when tags are all there is", () => {
-    const tasks = [task("b", { category: "health" }), task("c", { category: "health" })];
-    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("2 Tasks open");
-  });
-  it("counts one task in the singular", () => {
-    const tasks = [task("b", { category: "health" })];
-    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("1 Task open");
-  });
-  // The row says what is true about the work, never in this file's own
-  // vocabulary: "in your tags" was internal wiring showing through.
-  it("says the work is done rather than inventing a percentage", () => {
-    const tasks = [task("b", { category: "health", done: true })];
-    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("All of it done");
+  it("says nothing is under a goal whose areas merely hold open tasks", () => {
+    const tasks = [task("b", { category: "health" }), task("c", { category: "health", done: true })];
+    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("Nothing under it yet");
   });
   it("admits emptiness", () => {
     expect(reachLine(reachOf([], projects, goal("g9")))).toBe("Nothing under it yet");
@@ -116,8 +103,8 @@ describe("the upward index", () => {
   it("points a filed task at its goal", () => {
     expect(goalIdsForTask(idx, task("a", { projectId: "p1" }))).toEqual(["g1"]);
   });
-  it("points a tagged task at its goal with no project", () => {
-    expect(goalIdsForTask(idx, task("a", { category: "health" }))).toEqual(["g2"]);
+  it("never points a task at a goal because of its area", () => {
+    expect(goalIdsForTask(idx, task("a", { category: "health" }))).toEqual([]);
   });
   it("ignores a project filed under a goal that is not in the index", () => {
     expect(goalIdsForTask(idx, task("a", { projectId: "p2" }))).toEqual([]);
@@ -131,9 +118,9 @@ describe("the upward index", () => {
     expect(movesGoal(idx, task("a", { category: "errands" }))).toBe(false);
     expect(goalTitleForTask(idx, task("a", { category: "errands" }))).toBeNull();
   });
-  it("names ONE goal, the filed one, never a list", () => {
+  it("names the goal its project is filed to, and only that one", () => {
     const t = task("a", { projectId: "p1", category: "health" });
-    expect(goalIdsForTask(idx, t)).toEqual(["g1", "g2"]);
+    expect(goalIdsForTask(idx, t)).toEqual(["g1"]);
     expect(goalTitleForTask(idx, t)).toBe("Run a Half");
   });
 });

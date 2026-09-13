@@ -83,7 +83,7 @@ describe("the goal page's milestones and check-in", () => {
       />,
     );
     expect(screen.getByText("Next Milestone")).toBeInTheDocument();
-    expect(screen.getByText("2 Projects moving it")).toBeInTheDocument();
+    expect(screen.getByText("2 Projects")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Done"));
     expect(onDone).toHaveBeenCalledWith("b", true);
     expect(screen.getAllByRole("checkbox").length).toBe(3);

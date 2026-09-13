@@ -4673,13 +4673,21 @@ describe("a row names a link, not a filter (2026-09-06)", () => {
     // The lookup that counts a tag match. If it comes back here, so does the bug.
     expect(src).not.toMatch(/goalIdsForTask\s*\(/);
   });
-  // The other half, so this law cannot be "fixed" by gutting the tag feature:
-  // tags must still answer what a task MOVES, which is what ranks the day.
-  it("tags still say what a task moves", async () => {
-    const { buildGoalIndex, movesGoal } = await import("../bigger/reach");
+  // AND AN AREA NEVER MAKES A TASK A GOAL'S WORK (Dave 2026-09-13, from two
+  // goal pages: "Why are all of these random tasks and projects and goals
+  // combining? Figure out what's wrong and fix it... I can't even manually
+  // clean it up"). The half this law used to guard the other way: tags
+  // answered what a task MOVES, so every task in a watched area moved the
+  // goal, filled its page and ranked the day for it. Closed. A goal's work is
+  // the projects filed to it; its tags only say which area it lives under.
+  it("an area a goal watches never makes a task that goal's work", async () => {
+    const { buildGoalIndex, movesGoal, reachOf } = await import("../bigger/reach");
     const goals = [{ id: "g", data: { title: "G", state: "on_track", tags: ["personal"] } }];
     const loose = { id: "t", data: { text: "x", done: false, createdAt: 0, category: "personal" } };
-    expect(movesGoal(buildGoalIndex([], goals as never), loose as never)).toBe(true);
+    expect(movesGoal(buildGoalIndex([], goals as never), loose as never)).toBe(false);
+    const r = reachOf([loose as never], [], goals[0] as never);
+    expect(r.taggedIds).toEqual([]);
+    expect(r.openTagged).toBe(0);
   });
 });
 

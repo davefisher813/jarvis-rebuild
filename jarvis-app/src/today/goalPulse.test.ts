@@ -47,9 +47,11 @@ describe("movesCount (pick 5)", () => {
   const projects = [proj("p1", { goalId: "g1" })];
   const goals = [goal("g1"), goal("g2", { tags: ["health"] })];
   const idx = buildGoalIndex(projects, goals);
-  it("counts open tasks that point at a goal, either route", () => {
+  // Dave 2026-09-13: a task moves a goal only through the project it is filed
+  // to; sharing the goal's area is not moving it.
+  it("counts open tasks filed toward a goal, and never one that only shares its area", () => {
     const rows = [task("a", { projectId: "p1" }), task("b", { category: "health" }), task("c")];
-    expect(movesCount(idx, rows)).toBe(2);
+    expect(movesCount(idx, rows)).toBe(1);
   });
   it("does not count finished work: the hero is about what is left", () => {
     expect(movesCount(idx, [task("a", { projectId: "p1", done: true })])).toBe(0);
@@ -68,10 +70,10 @@ describe("goalsMovedToday (pick 4)", () => {
   const DAY = 1_000_000;
   const END = DAY + 86400000;
 
-  it("names what today's completions moved", () => {
+  it("names what today's completions moved, through what they were filed to", () => {
     const tasks = [task("a", { projectId: "p1" }), task("b", { category: "health" })];
     const samples = [{ id: "a", t: DAY + 10 }, { id: "b", t: DAY + 20 }];
-    expect(goalsMovedToday(idx, tasks, samples, DAY, END)).toEqual(["Run a Half", "Get Fit"]);
+    expect(goalsMovedToday(idx, tasks, samples, DAY, END)).toEqual(["Run a Half"]);
   });
   it("ignores completions from other days", () => {
     const tasks = [task("a", { projectId: "p1" })];
