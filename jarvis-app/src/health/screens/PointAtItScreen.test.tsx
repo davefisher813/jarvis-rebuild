@@ -27,3 +27,23 @@ describe("Still There? and who it hands you to", () => {
     expect(screen.queryByText("Hand It to Someone")).not.toBeInTheDocument();
   });
 });
+
+// Health Push D, H-46 (2026-09-12): the list beside the map.
+describe("the list beside the map", () => {
+  it("logs a named region at its own coordinate on its own side, once", () => {
+    const onLog = vi.fn();
+    render(<PointAtItScreen patterns={[]} onLog={onLog} onBack={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    fireEvent.click(screen.getByText("Lower Back"));
+    expect(onLog).toHaveBeenCalledWith(0.5, 0.46, "back", "Lower Back");
+    expect(screen.getByText("Logged · Lower Back")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Left Knee"));
+    expect(onLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("the map is still the default, and a pattern names its region when one was picked", () => {
+    render(<PointAtItScreen patterns={[{ ...PATTERN[0]!, region: "Left Knee" }]} onLog={() => {}} onBack={() => {}} />);
+    expect(screen.getByRole("button", { name: "Front" })).toBeInTheDocument();
+    expect(screen.getByText("Left Knee, 3 Sessions")).toBeInTheDocument();
+  });
+});

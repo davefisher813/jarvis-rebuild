@@ -47,18 +47,24 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
             <button className="btn btn-secondary btn-block" onClick={onBack}>Done</button>
           </div>
         ) : (
-          <div className="rpe-blocks">
-            {BLOCKS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                className="rpe-block"
-                style={{ "--i": n } as React.CSSProperties}
-                aria-label={"Effort " + n + " of 10"}
-                onClick={() => submit(n)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="rpe-blocks">
+              {BLOCKS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className="rpe-block"
+                  style={{ "--i": n } as React.CSSProperties}
+                  aria-label={"Effort " + n + " of 10"}
+                  onClick={() => submit(n)}
+                />
+              ))}
+            </div>
+            {/* Health Push D (H-45): the two ends named, and a way out that
+                logs nothing. Skip is quiet because it is not the move. */}
+            <div className="rpe-ends" aria-hidden="true"><span>Easy</span><span>All Out</span></div>
+            <div className="rpe-foot"><button type="button" className="pill-act pill-quiet" onClick={onBack}>Skip</button></div>
+          </>
         )}
       </div>
 

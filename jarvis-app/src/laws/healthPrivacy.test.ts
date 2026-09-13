@@ -243,3 +243,40 @@ describe("HEALTH LAW: everything logs offline", () => {
     expect(helper).toMatch(/queueHealthLog\(/);
   });
 });
+
+
+// The body of one exported interface in health/types.ts, comments stripped.
+function interfaceBody(src: string, name: string): string {
+  const start = src.indexOf("export interface " + name + " {");
+  expect(start, name + " must exist in health/types.ts").toBeGreaterThan(-1);
+  return strip(src.slice(start, src.indexOf("\n}", start)));
+}
+
+describe("HEALTH LAW 6: a medication is a name and an amount, never a schedule", () => {
+  // Health Push D (Build Master 2026-09-12, section 7 item 6; Dave 2026-09-13:
+  // "I just want people to be able to log and track things"). The med
+  // definition and the dose carry nothing a tap could fall short of, so
+  // "missed", "late" and "due" have nothing to compute themselves from.
+  it("MedDefData and TookItData carry no expected, scheduled, target, due, or per-day field", () => {
+    const types = read(join(SRC, "types.ts"));
+    for (const name of ["MedDefData", "TookItData"]) {
+      const body = interfaceBody(types, name);
+      for (const field of ["expected", "scheduledAt", "schedule", "target", "due", "dueAt", "perDay", "timesPerDay", "nextAt", "reminder"]) {
+        expect(body, name + " must not carry " + field).not.toMatch(new RegExp("\\b" + field + "\\s*[?:]"));
+      }
+    }
+  });
+});
+
+describe("HEALTH LAW 7: a meal is text", () => {
+  // Section 7 item 7. The meal shape is the category the Share Line filters
+  // on, the moment, the words, and (Push F) the idempotency clientId. No
+  // amount, no calorie, no macro, no grade can be added without this failing.
+  it("MealData is exactly category, at, text, and clientId", () => {
+    const body = interfaceBody(read(join(SRC, "types.ts")), "MealData");
+    const fields = [...body.matchAll(/^\s*(\w+)\??\s*:/gm)].map((m) => m[1]!);
+    expect(fields).toContain("at");
+    expect(fields).toContain("text");
+    expect(fields.filter((x) => !["category", "at", "text", "clientId"].includes(x))).toEqual([]);
+  });
+});

@@ -15,11 +15,12 @@ import type { Storage2 } from "../gym/liveSession";
 // or a timer can ask while it renders. The rack (bar, plates, unit, last-time
 // on every set) stays in gym/settings.ts; the Health Settings page shows both.
 
-export type ShortcutKey = "bedtime" | "water" | "effort" | "discomfort";
+export type ShortcutKey = "bedtime" | "water" | "meal" | "effort" | "discomfort";
 
 export const SHORTCUTS: { key: ShortcutKey; label: string }[] = [
   { key: "bedtime", label: "Bedtime" },
   { key: "water", label: "Water" },
+  { key: "meal", label: "Meal" },
   { key: "effort", label: "Session Effort" },
   { key: "discomfort", label: "Discomfort" },
 ];

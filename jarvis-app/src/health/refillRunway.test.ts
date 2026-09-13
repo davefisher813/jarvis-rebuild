@@ -68,3 +68,11 @@ describe("refillRunway", () => {
     expect(offer).not.toMatch(/dose|mg|stimulant|pill/i);
   });
 });
+
+// Health Push D: the Filled fact reads the current fill's start.
+describe("refillRunway: filledAt", () => {
+  it("names when the current fill started, and nothing before a fill", () => {
+    expect(refillRunway([], []).filledAt).toBeUndefined();
+    expect(refillRunway([refill(1_000, 30)], [], 2_000).filledAt).toBe(1_000);
+  });
+});

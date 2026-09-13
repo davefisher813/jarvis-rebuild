@@ -14,6 +14,8 @@ import type { MedRefillEntry, TookItEntry } from "./types";
 
 export interface RefillState {
   hasFill: boolean;
+  /** Health Push D: when the current fill started, for the Filled fact. */
+  filledAt?: number;
   dosesInFill: number;
   taken: number; // Took It taps since this fill started
   remaining: number; // dosesInFill - taken, floored at 0
@@ -37,15 +39,16 @@ function currentFill(refills: MedRefillEntry[]): MedRefillEntry | null {
 export function refillRunway(refills: MedRefillEntry[], tookIt: TookItEntry[], now: number = Date.now()): RefillState {
   const fill = currentFill(refills);
   if (!fill) return { hasFill: false, dosesInFill: 0, taken: 0, remaining: 0 };
+  const filledAt = fill.data.filledAt;
   const taken = tookIt.filter((t) => t.data.at >= fill.data.filledAt && t.data.at <= now).length;
   const remaining = Math.max(0, fill.data.dosesInFill - taken);
   const daysElapsed = Math.max(0, (now - fill.data.filledAt) / MS_PER_DAY);
   if (daysElapsed < 1 || taken === 0) {
-    return { hasFill: true, dosesInFill: fill.data.dosesInFill, taken, remaining };
+    return { hasFill: true, filledAt, dosesInFill: fill.data.dosesInFill, taken, remaining };
   }
   const paceDosesPerDay = taken / daysElapsed;
   const runwayDays = paceDosesPerDay > 0 ? Math.floor(remaining / paceDosesPerDay) : undefined;
-  return { hasFill: true, dosesInFill: fill.data.dosesInFill, taken, remaining, paceDosesPerDay, runwayDays };
+  return { hasFill: true, filledAt, dosesInFill: fill.data.dosesInFill, taken, remaining, paceDosesPerDay, runwayDays };
 }
 
 // A call is worth landing on the parent's list once the runway is short

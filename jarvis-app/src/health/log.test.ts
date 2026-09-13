@@ -50,3 +50,27 @@ describe("chronologicalLog", () => {
     expect(chronologicalLog({ day: DAY, lightsOut: [], tookIt: [], callIt: [], pointAtIt: [], workouts: [], metricDefs: [], metricLogs: [] })).toEqual([]);
   });
 });
+
+// Health Push D: the dose row names its med and amount, and a meal is a row.
+describe("chronologicalLog: Push D rows", () => {
+  it("names a dose from its med, keeps a bare dose as Dose, and lists a meal in amber", () => {
+    const rows = chronologicalLog({
+      day: DAY,
+      lightsOut: [], callIt: [], pointAtIt: [], workouts: [], metricDefs: [], metricLogs: [],
+      tookIt: [
+        { id: "k1", data: { category: "medication", at: t(8), medId: "m1" } },
+        { id: "k2", data: { category: "medication", at: t(9), medId: "m1", amount: "1 tab" } },
+        { id: "k3", data: { category: "medication", at: t(10) } },
+      ] as never,
+      medDefs: [{ id: "m1", data: { category: "medication", name: "Vitamin D", amount: "2000 IU", order: 0, at: 1 } }],
+      meals: [{ id: "e1", data: { category: "fuel", at: t(12, 30), text: "Eggs and toast" } }, { id: "e0", data: { category: "fuel", at: t(12) - 86_400_000, text: "Old" } }],
+    });
+    expect(rows.map((r) => [r.title, r.kind, r.detail])).toEqual([
+      ["Vitamin D", "medication", "2000 IU"],
+      ["Vitamin D", "medication", "1 tab"],
+      ["Dose", "medication", null],
+      ["Meal", "meal", "Eggs and toast"],
+    ]);
+    expect(rows[3]!.open).toEqual({ kind: "meal" });
+  });
+});

@@ -143,3 +143,96 @@ describe("HealthService: offline queue is never lost", () => {
     expect(list.some((e) => e.data.at === 1)).toBe(true);
   });
 });
+
+// Health Push D (2026-09-12 picks, built 2026-09-13): meds by name, doses that
+// name them, Undo by the moment, meals, Edit Time.
+describe("HealthService: medications by name", () => {
+  it("adds, lists in order, edits, and removes a med; nothing about it is a schedule", async () => {
+    const s = svc();
+    const a = await s.addMedDef({ name: " Vitamin D ", amount: "2000 IU" });
+    const b = await s.addMedDef({ name: "Iron", amount: "  " });
+    expect(a.data).toEqual({ category: "medication", name: "Vitamin D", amount: "2000 IU", order: 0, at: a.data.at });
+    expect(b.data).not.toHaveProperty("amount");
+    expect((await s.listMedDefs()).map((m) => m.data.name)).toEqual(["Vitamin D", "Iron"]);
+    await s.updateMedDef(b.id, { name: "Iron", amount: "65 mg" });
+    expect((await s.listMedDefs()).find((m) => m.id === b.id)?.data.amount).toBe("65 mg");
+    await s.removeMedDef(a.id);
+    expect((await s.listMedDefs()).map((m) => m.data.name)).toEqual(["Iron"]);
+  });
+
+  it("a dose names its med and amount, and a bare tap carries neither key", async () => {
+    const s = svc();
+    const store = mem();
+    s.logTookIt(1000, store, { medId: "m1", amount: "10 mg" });
+    s.logTookIt(2000, store);
+    await tick();
+    const list = await s.listTookIt(store);
+    expect(list.map((e) => e.data)).toEqual([
+      { category: "medication", at: 1000, medId: "m1", amount: "10 mg" },
+      { category: "medication", at: 2000 },
+    ]);
+  });
+});
+
+describe("HealthService: Undo by the moment", () => {
+  it("takes back a tap that has already landed", async () => {
+    const s = svc();
+    const store = mem();
+    s.logTookIt(1000, store);
+    s.logTookIt(2000, store);
+    await tick();
+    expect(await s.removeTookIt(1000, store)).toBe(true);
+    expect((await s.listTookIt(store)).map((e) => e.data.at)).toEqual([2000]);
+  });
+
+  it("takes back a tap still in the queue, and one that lands while the Undo runs", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const s = new HealthService(store, "athlete1");
+    const q = mem();
+    // The store refuses for a moment, so the tap sits in the queue.
+    const create = store.create.bind(store);
+    store.create = () => Promise.reject(new Error("offline"));
+    s.logLightsOut(5000, q);
+    await tick();
+    expect((await s.listLightsOut(q))[0]?.pending).toBe(true);
+    store.create = create;
+    expect(await s.removeLightsOut(5000, q)).toBe(true);
+    await tick();
+    expect(await s.listLightsOut(q)).toEqual([]);
+  });
+
+  it("says false when there was nothing at that moment", async () => {
+    expect(await svc().removeMeal(42, mem())).toBe(false);
+  });
+});
+
+describe("HealthService: meals and Edit Time", () => {
+  it("logs a meal as text, offline-first, and lists it", async () => {
+    const s = svc();
+    const store = mem();
+    s.logMeal("  Eggs and toast ", 1000, store);
+    await tick();
+    expect((await s.listMeal(store)).map((e) => e.data)).toEqual([{ category: "fuel", at: 1000, text: "Eggs and toast" }]);
+  });
+
+  it("Edit Time rewrites the clock on a landed bedtime", async () => {
+    const s = svc();
+    const store = mem();
+    s.logLightsOut(1000, store);
+    await tick();
+    const row = (await s.listLightsOut(store))[0]!;
+    await s.updateLightsOut(row.id, 900);
+    expect((await s.listLightsOut(store)).map((e) => e.data.at)).toEqual([900]);
+  });
+
+  it("a region rides a Point at It log only when one was named", async () => {
+    const s = svc();
+    const store = mem();
+    s.logPointAtIt({ x: 0.5, y: 0.46, side: "back", region: "Lower Back" }, 1000, store);
+    s.logPointAtIt({ x: 0.2, y: 0.2, side: "front" }, 2000, store);
+    await tick();
+    const list = await s.listPointAtIt(store);
+    expect(list[0]!.data.region).toBe("Lower Back");
+    expect(list[1]!.data).not.toHaveProperty("region");
+  });
+});

@@ -95,6 +95,15 @@ async function drain(
   return saved;
 }
 
+/** Health Push D: drop every queued entry the predicate matches (an Undo on
+ *  a tap that has not left the phone yet). Returns how many went. */
+export function removeQueued(pred: (e: PendingHealthLog) => boolean, store: Storage2 = browserStorage()): number {
+  const all = readPending(store);
+  const kept = all.filter((e) => !pred(e));
+  if (kept.length !== all.length) writePending(kept, store);
+  return all.length - kept.length;
+}
+
 function removeOne(entry: PendingHealthLog, store: Storage2): void {
   const now = readPending(store);
   const key = JSON.stringify(entry);

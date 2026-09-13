@@ -1656,6 +1656,15 @@
 /* One quiet receipt under the log (H-53): what is still waiting to sync. */
 .ruled.health-ruled .h-sync { margin-top: var(--s-2); font-size: calc(13px * var(--type-scale)); color: var(--tx-2); }
 
+/* HEALTH PUSH D (2026-09-12 picks; built 2026-09-13). The Refill Runway's two
+   tiles wear medication blue, which is what blue means in Health; the effort
+   blocks get their two ends named in the quiet text colour; and the Skip
+   under them sits at the right, a way out and not the move. */
+.ruled.health-ruled .stat-row.stat-hblue .stat-tile .stat-num { color: var(--hl-blue); }
+.ruled.health-ruled .rpe-ends { display: flex; justify-content: space-between; margin-top: 6px;
+  font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); }
+.ruled.health-ruled .rpe-foot { display: flex; justify-content: flex-end; margin-top: 10px; }
+
 /* THE VERDICT IS A CHIP, THE EVIDENCE IS A LINE (Dave 2026-09-11: "Keep
    sliding and pushed 8 times should not be identical styling wise. Might make
    sense to make one of those notifications a chip"). They were one flat run

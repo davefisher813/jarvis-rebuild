@@ -29,6 +29,14 @@ export const ENTITY_TOOK_IT = "health_took_it";
 export const ENTITY_CALL_IT = "health_call_it";
 export const ENTITY_POINT_AT_IT = "health_point_at_it";
 
+// Health Push D (Build Master 2026-09-12, section 5; Dave 2026-09-13: "I
+// just want people to be able to log and track things"). A medication is a
+// name and an amount the person typed; a meal is a line of text. Neither
+// carries a schedule, a count per day, or a nutrition number, and the
+// privacy law (healthPrivacy.test.ts, laws 6 and 7) holds both shapes to it.
+export const ENTITY_MED_DEF = "health_med_def";
+export const ENTITY_MEAL = "health_meal";
+
 // Track 3 addenda (catalog Parts 1-8, 2026-08-27): Refill Runway, The Bag,
 // The Locker, Say It to Someone, The Age Rule's once-per-season gate. Same
 // pattern as the five loggers above -- one ENTITY_* const, a *Data
@@ -116,10 +124,44 @@ export interface AteBeforeEntry {
 export interface TookItData {
   category: "medication";
   at: number;
+  /** Health Push D (H-38): which configured med, when the tap named one,
+   *  and the amount as typed at the time. Strings, never a number with a
+   *  unit implied; absent on a bare Log a Dose tap. */
+  medId?: string;
+  amount?: string;
 }
 export interface TookItEntry {
   id: string;
   data: TookItData;
+}
+
+/** A configured medication (Health Push D, H-38): the person's own words
+ *  for the name and the amount, and where it sits in the list. No schedule,
+ *  no times per day, no next-dose time: nothing here can be fallen short of,
+ *  which is the schema keeping the medication page a log and not a nag. */
+export interface MedDefData {
+  category: "medication";
+  name: string;
+  amount?: string;
+  order: number;
+  at: number; // epoch ms this med was added
+}
+export interface MedDefEntry {
+  id: string;
+  data: MedDefData;
+}
+
+/** A meal (Health Push D, H-42): what was eaten, as typed, and when. There
+ *  is no amount, no calorie, no macro and no grade, by the same rail Ate
+ *  Before obeys; the text is the whole record. */
+export interface MealData {
+  category: "fuel";
+  at: number;
+  text: string;
+}
+export interface MealEntry {
+  id: string;
+  data: MealData;
 }
 
 /** Call It (Part 2). End-of-session exertion, one tap on a 0-10 scale.
@@ -147,6 +189,10 @@ export interface PointAtItData {
   y: number;
   side: "front" | "back";
   at: number;
+  /** Health Push D (H-46): the generic region picked from the list, when
+   *  the tap came from the list rather than the map (health/regions.ts). A
+   *  place, never a name for what is wrong with it. */
+  region?: string;
 }
 export interface PointAtItEntry {
   id: string;

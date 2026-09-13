@@ -16,6 +16,7 @@ import type { NoteData, Recurrence } from "../notes/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import { showToast } from "../shared/toast";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import type { TaskItem } from "../tasks/TasksService";
 import { repetitionsLine } from "../tasks/automaticity";
 import { effectiveKind } from "../categories/kinds";
@@ -48,8 +49,13 @@ import LightsOutScreen from "../health/screens/LightsOutScreen";
 import TookItScreen from "../health/screens/TookItScreen";
 import CallItScreen from "../health/screens/CallItScreen";
 import PointAtItScreen from "../health/screens/PointAtItScreen";
-import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry } from "../health/types";
-import { tookItTimeline, stillThere, stillThereSummary, stillThereMessage } from "../health/timelines";
+// Health Push D (2026-09-13): medication by name with its own page, and the
+// Meal shortcut.
+import MedicationScreen from "../health/screens/MedicationScreen";
+import MealScreen from "../health/screens/MealScreen";
+import { doseRows, doseToast } from "../health/meds";
+import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry, MedDefEntry, MealEntry } from "../health/types";
+import { stillThere, stillThereSummary, stillThereMessage } from "../health/timelines";
 import { healthComebackMessage } from "../health/healthComeback";
 // HMN-F-06 (2026-09-05), fork option A: the other fourteen screens of the
 // health module, mounted behind the More row on this page. See the
@@ -265,8 +271,14 @@ export default function CategoryDetail({
   // Full event rows (the `events` state above is the thin shape the week
   // receipt needs); the health candidates below are built from these.
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
-  const [lightsOut, setLightsOut] = useState<LightsOutEntry[]>([]);
-  const [tookIt, setTookIt] = useState<TookItEntry[]>([]);
+  const [lightsOut, setLightsOut] = useState<(LightsOutEntry & { pending?: boolean })[]>([]);
+  const [tookIt, setTookIt] = useState<(TookItEntry & { pending?: boolean })[]>([]);
+  const [medDefs, setMedDefs] = useState<MedDefEntry[]>([]);
+  const [meals, setMeals] = useState<(MealEntry & { pending?: boolean })[]>([]);
+  // Health Push D: a write from the medication page or a toast's Undo bumps
+  // this, so the health read below runs again without a screen changing.
+  const [healthTick, setHealthTick] = useState(0);
+  const bumpHealth = () => setHealthTick((t) => t + 1);
   const [callIt, setCallIt] = useState<CallItEntry[]>([]);
   const [pointAtIt, setPointAtIt] = useState<PointAtItEntry[]>([]);
   // UP-ATH-05 (2026-09-06): the dated Still There? summary, in flight from
@@ -364,8 +376,10 @@ export default function CategoryDetail({
     healthSvc.listTookIt().then((l) => { if (on) setTookIt(l); }).catch(() => {});
     healthSvc.listCallIt().then((l) => { if (on) setCallIt(l); }).catch(() => {});
     healthSvc.listPointAtIt().then((l) => { if (on) setPointAtIt(l); }).catch(() => {});
+    healthSvc.listMedDefs().then((l) => { if (on) setMedDefs(l); }).catch(() => {});
+    healthSvc.listMeal().then((l) => { if (on) setMeals(l); }).catch(() => {});
     return () => { on = false; };
-  }, [healthSvc, healthScreen]);
+  }, [healthSvc, healthScreen, healthTick]);
 
   // A WRITE THAT FAILS SAYS SO (Dave 2026-09-02, "the metrics page literally
   // doesn't work"). For weeks every switch on Add a Metric threw at the
@@ -513,9 +527,20 @@ export default function CategoryDetail({
   // judged is the real one rather than one this tap has already closed. The
   // helper itself refuses to say anything about what was skipped: it names
   // the run that came before, never the days that were not logged.
-  const celebrateHealthLog = (marksBefore: { at: number }[]) => {
-    const msg = healthComebackMessage(marksBefore, today);
-    if (msg) showToast({ message: msg });
+  // Health Push D: returns the line rather than toasting it, because the
+  // loggers raise a receipt with Undo a beat later and toast.ts keeps one
+  // toast; the receipt carries the comeback line when there is one.
+  const celebrateHealthLog = (marksBefore: { at: number }[]): string | null => healthComebackMessage(marksBefore, today);
+  const healthReceipt = (cheer: string | null, said: string, undo: () => void) =>
+    showToast({ message: cheer ?? said, actionLabel: "Undo", onAction: undo });
+  // Health Push D (H-38): the medication page's dose logger. The Took It
+  // screen below spells the same three steps out inline, in the order the
+  // comeback law reads them (celebrate, then write).
+  const logDose = (med?: MedDefEntry) => {
+    const cheer = celebrateHealthLog(tookIt.map((e) => ({ at: e.data.at })));
+    const d = healthSvc.logTookIt(undefined, undefined, med ? { medId: med.id, amount: med.data.amount } : undefined);
+    healthReceipt(cheer, doseToast(med?.data.amount), () => { void healthSvc.removeTookIt(d.at).then(bumpHealth); });
+    bumpHealth();
   };
   if (healthSettingsOpen) {
     return <HealthSettingsPage onBack={() => setHealthSettingsOpen(false)} onEnableWater={() => void ensureWater()} />;
@@ -524,7 +549,14 @@ export default function CategoryDetail({
     return (
       <LightsOutScreen
         last={lightsOut[lightsOut.length - 1] ?? null}
-        onLog={() => { celebrateHealthLog(lightsOut.map((e) => ({ at: e.data.at }))); healthSvc.logLightsOut(); }}
+        // Health Push D (H-41): Undo on the receipt, Edit Time on the last row.
+        onLog={() => {
+          const cheer = celebrateHealthLog(lightsOut.map((e) => ({ at: e.data.at })));
+          const d = healthSvc.logLightsOut();
+          healthReceipt(cheer, "Bedtime logged", () => { void healthSvc.removeLightsOut(d.at).then(bumpHealth); });
+          bumpHealth();
+        }}
+        onEditTime={(id, at) => { void healthSvc.updateLightsOut(id, at).then(bumpHealth).catch(() => showToast({ message: WRITE_FAILED_MESSAGE })); }}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -532,8 +564,29 @@ export default function CategoryDetail({
   if (healthScreen === "tookIt") {
     return (
       <TookItScreen
-        timeline={tookItTimeline(tookIt)}
-        onLog={() => { celebrateHealthLog(tookIt.map((e) => ({ at: e.data.at }))); healthSvc.logTookIt(); }}
+        doses={doseRows(tookIt, medDefs)}
+        meds={medDefs}
+        onLog={(med) => {
+          const cheer = celebrateHealthLog(tookIt.map((e) => ({ at: e.data.at })));
+          const d = healthSvc.logTookIt(undefined, undefined, med ? { medId: med.id, amount: med.data.amount } : undefined);
+          healthReceipt(cheer, doseToast(med?.data.amount), () => { void healthSvc.removeTookIt(d.at).then(bumpHealth); });
+          bumpHealth();
+        }}
+        onUndo={(row) => { void healthSvc.removeTookIt(row.at).then(bumpHealth); }}
+        onBack={() => setHealthScreen(null)}
+      />
+    );
+  }
+  if (healthScreen === "meal") {
+    return (
+      <MealScreen
+        today={meals.filter((m) => localDayParts(m.data.at).day === today)}
+        onLog={(text) => {
+          const d = healthSvc.logMeal(text);
+          showToast({ message: "Meal logged", actionLabel: "Undo", onAction: () => { void healthSvc.removeMeal(d.at).then(bumpHealth); } });
+          bumpHealth();
+        }}
+        onUndo={(m) => { void healthSvc.removeMeal(m.data.at).then(bumpHealth); }}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -542,7 +595,7 @@ export default function CategoryDetail({
     return (
       <CallItScreen
         history={callIt.map((e) => ({ at: e.data.at, rpe: e.data.rpe, durationMin: e.data.durationMin }))}
-        onLog={(rpe) => { celebrateHealthLog(callIt.map((e) => ({ at: e.data.at }))); healthSvc.logCallIt({ rpe }); }}
+        onLog={(rpe) => { const cheer = celebrateHealthLog(callIt.map((e) => ({ at: e.data.at }))); healthSvc.logCallIt({ rpe }); if (cheer) showToast({ message: cheer }); }}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -558,7 +611,7 @@ export default function CategoryDetail({
         // link, so the one action on the screen placed a call with no summary
         // in it. The dates are on the screen, and they travel with the tap.
         summaries={summaries}
-        onLog={(x, y, side) => { healthSvc.logPointAtIt({ x, y, side }); }}
+        onLog={(x, y, side, region) => { healthSvc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) }); }}
         onHandToSomeone={() => {
           setHandOff(stillThereMessage(patterns, summaries));
           setHealthScreen(null);
@@ -786,6 +839,8 @@ export default function CategoryDetail({
         bagEvent={bagEvent}
         onOffer={applyHealthOffer}
         onLandParentTask={landHealthTask}
+        // Health Push D (H-49): the Refill Runway's receipt names the list.
+        parentList={template === "student"}
         // UP-ATH-07 (2026-09-06): Say It to Someone picks from the people
         // this account already keeps, so the number that has to work in a
         // crisis is the one Contacts enrichment keeps fresh rather than a
@@ -799,44 +854,26 @@ export default function CategoryDetail({
   if (medPage) {
     const last = tookIt[tookIt.length - 1];
     const lastWord = last ? (() => { const p = agoPhrase(localDayParts(last.data.at).day, today); return p.charAt(0).toUpperCase() + p.slice(1); })() : null;
-    const medRows = healthMoreRows.filter((r) => r.group === "Medication");
+    // Health Push D (H-38): the page is its own screen now, with the meds by
+    // name, Took It on each, the timeline with Undo, and the Keeping Track
+    // doors. A write that fails says so (Dave 2026-09-02).
+    const medWrite = (write: () => Promise<unknown>) => { write().then(bumpHealth).catch(() => showToast({ message: WRITE_FAILED_MESSAGE })); };
     return (
-      <div className="screen ruled health-ruled">
-        <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={() => setMedPage(false)}></button>
-          <div className="nav-title">{cat.data.name}</div>
-        </div>
-        <div className="nav-large">Medication</div>
-        {/* The dose comes first because it is the thing with a clock on it;
-            everything under it is about the dose, not beside it. */}
-        <div className="sh2 sh2-quiet"><span className="t">Today</span></div>
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div {...pressable(() => setHealthScreen("tookIt"))} className="task-row p2">
-            <div className="task-title">
-              <span className="task-name">Log a Dose</span>
-              <div className="r-k"><span className="r-goal r-cat">{lastWord ? "Last dose " + lastWord.toLowerCase() : "Marks the moment, never a tally"}</span></div>
-            </div>
-            {CHEV}
-          </div>
-        </div></div>
-        {medRows.length > 0 && (
-          <>
-            <div className="sh2 sh2-quiet"><span className="t">Keeping Track</span></div>
-            <div className="pad-x"><div className="card list-card-ruled">
-              {medRows.map((r) => (
-                <div {...pressable(() => setHealthDeep(r.key))} className="task-row p2" key={r.key}>
-                  <div className="task-title">
-                    <span className="task-name">{r.label}</span>
-                    <div className="r-k"><span className="r-goal r-cat">{r.sub}</span></div>
-                  </div>
-                  {CHEV}
-                </div>
-              ))}
-            </div></div>
-          </>
-        )}
-        <div className="screen-foot" />
-      </div>
+      <MedicationScreen
+        title={cat.data.name}
+        meds={medDefs}
+        doses={doseRows(tookIt, medDefs)}
+        lastWord={lastWord}
+        tracks={healthMoreRows.filter((r) => r.group === "Medication").map((r) => ({ key: r.key, label: r.label, sub: r.sub }))}
+        onTook={logDose}
+        onLogDose={() => setHealthScreen("tookIt")}
+        onUndo={(row) => { void healthSvc.removeTookIt(row.at).then(bumpHealth); }}
+        onAddMed={(name, amount) => medWrite(() => healthSvc.addMedDef({ name, amount }))}
+        onEditMed={(id, name, amount) => medWrite(() => healthSvc.updateMedDef(id, { name, amount }))}
+        onRemoveMed={(id) => medWrite(() => healthSvc.removeMedDef(id))}
+        onOpenTrack={(key) => setHealthDeep(key as HealthScreenKey)}
+        onBack={() => setMedPage(false)}
+      />
     );
   }
   if (healthMore) {
@@ -947,6 +984,7 @@ export default function CategoryDetail({
   const lastCall = callIt[callIt.length - 1];
   const healthLoggers: HealthLoggerRow[] = kind !== "health" || !hs ? [] : [
     ...(hs.shortcuts.includes("bedtime") ? [{ key: "lightsOut" as const, label: "Bedtime", sub: "When the night ended", value: whenLogged(lightsOut[lightsOut.length - 1]?.data.at) }] : []),
+    ...(hs.shortcuts.includes("meal") ? [{ key: "meal" as const, label: "Meal", sub: "What you ate", value: whenLogged(meals[meals.length - 1]?.data.at) }] : []),
     ...(hs.shortcuts.includes("effort") ? [{ key: "callIt" as const, label: "Session Effort", sub: "How hard it was, 0 to 10", value: lastCall ? `${lastCall.data.rpe}/10` : null }] : []),
     ...(hs.shortcuts.includes("discomfort") ? [{ key: "pointAtIt" as const, label: "Discomfort", sub: "Where it hurts", value: whenLogged(pointAtIt[pointAtIt.length - 1]?.data.at) }] : []),
   ];
@@ -965,7 +1003,7 @@ export default function CategoryDetail({
     return { dayName: liveSession.dayName, nextExercise: ex?.name ?? null, setNo: Math.min(working + 1, Math.max(planned, working + 1)), setTotal: planned, logged };
   })() : null;
   // H-48: today's log, from the same records the tiles read.
-  const healthLog = kind === "health" ? chronologicalLog({ day: today, lightsOut, tookIt, callIt, pointAtIt, workouts, metricDefs, metricLogs }) : [];
+  const healthLog = kind === "health" ? chronologicalLog({ day: today, lightsOut, tookIt, callIt, pointAtIt, workouts, metricDefs, metricLogs, medDefs, meals }) : [];
   // H-53: what is still waiting to sync, health logs and workouts alike.
   const pendingCount = kind === "health" ? readHealthPending().length + readGymPending().length : 0;
   const openLog = (o: LogOpen) => {

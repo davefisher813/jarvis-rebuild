@@ -42,7 +42,8 @@ export type HueKind =
   | "sleep"
   | "medication"
   | "discomfort"
-  | "water";
+  | "water"
+  | "meal";
 
 const BY_KIND: Record<HueKind, HueName> = {
   sets: "lime",
@@ -58,6 +59,9 @@ const BY_KIND: Record<HueKind, HueName> = {
   // logged work: it is the number itself a person is looking at, not proof
   // that a session happened.
   water: "cyan",
+  // A meal is fuel, and fuel reads in the same hue as load and time: what
+  // went in, beside how long and how heavy. Not lime (nothing was "done").
+  meal: "amber",
 };
 
 /** The hue for a kind of thing. Total over HueKind, so a new kind is a

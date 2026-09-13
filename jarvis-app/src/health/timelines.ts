@@ -96,6 +96,10 @@ export interface StillTherePattern {
   days: number; // span from first tap to last, inclusive
   firstAt: number;
   lastAt: number;
+  /** Health Push D (H-46): the region the person picked from the list, when
+   *  the taps in this cluster named one (the commonest, if they differ). A
+   *  place from a fixed list of twelve, never a name for the injury. */
+  region?: string;
 }
 
 // Same-spot means within this normalized distance of a previous tap. Coarse
@@ -110,19 +114,29 @@ const SAME_SPOT_RADIUS = 0.06;
  *  -- no severity, no trend, no name. Only clusters spanning at least
  *  `minSessions` distinct days are returned, so a single sore Tuesday never
  *  surfaces as a pattern. */
-type Cluster = { side: "front" | "back"; points: { x: number; y: number; at: number }[] };
+type Cluster = { side: "front" | "back"; points: { x: number; y: number; at: number; region?: string }[] };
 
 function clusterTaps(entries: PointAtItEntry[]): Cluster[] {
   const clusters: Cluster[] = [];
   for (const e of entries) {
-    const { x, y, at, side } = e.data;
+    const { x, y, at, side, region } = e.data;
     const hit = clusters.find(
       (c) => c.side === side && c.points.some((p) => Math.hypot(p.x - x, p.y - y) <= SAME_SPOT_RADIUS),
     );
-    if (hit) hit.points.push({ x, y, at });
-    else clusters.push({ side, points: [{ x, y, at }] });
+    const point = region ? { x, y, at, region } : { x, y, at };
+    if (hit) hit.points.push(point);
+    else clusters.push({ side, points: [point] });
   }
   return clusters;
+}
+
+function commonRegion(c: Cluster): string | undefined {
+  const counts = new Map<string, number>();
+  for (const p of c.points) if (p.region) counts.set(p.region, (counts.get(p.region) ?? 0) + 1);
+  let best: string | undefined;
+  let n = 0;
+  for (const [r, k] of counts) if (k > n) { best = r; n = k; }
+  return best;
 }
 
 function spotKeyOf(c: Cluster): string {
@@ -148,6 +162,7 @@ export function stillThere(entries: PointAtItEntry[], minSessions = 3): StillThe
     // than the sessions.
     const sortedDays = [...days].sort();
     const span = daysBetween(sortedDays[0]!, sortedDays[sortedDays.length - 1]!) + 1;
+    const region = commonRegion(c);
     out.push({
       spotKey: spotKeyOf(c),
       side: c.side,
@@ -155,6 +170,7 @@ export function stillThere(entries: PointAtItEntry[], minSessions = 3): StillThe
       days: span,
       firstAt: first,
       lastAt: last,
+      ...(region ? { region } : {}),
     });
   }
   return out.sort((a, b) => b.sessions - a.sessions);

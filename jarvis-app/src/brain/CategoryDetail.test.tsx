@@ -1,7 +1,7 @@
 import { writeLive, clearLive } from "../gym/liveSession";
 // SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { useEffect, useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -643,6 +643,10 @@ import { useProfile } from "../data/NotesProvider";
 import type { TemplateKey } from "../categories/defaults";
 import { addDays } from "../schedule/calendar";
 import { resetToasts } from "../shared/toast";
+
+// Health Push D: a logger's Undo receipt is module-level toast state and
+// blocks plain toasts for five seconds; each test starts clean.
+beforeEach(() => resetToasts());
 
 const seenToasts: string[] = [];
 // UP-ATH-10 (2026-09-06): the action too, because an offer that makes a real

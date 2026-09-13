@@ -5,9 +5,10 @@ import type { EventInput } from "../events";
 import { HealthService } from "./HealthService";
 import type {
   ConsentGrant, HealthCategoryId, LightsOutEntry, AteBeforeEntry, TookItEntry, CallItEntry, PointAtItEntry,
-  MedRefillEntry, BagCheckEntry, LockerDocEntry, LockerDocKind,
+  MedRefillEntry, BagCheckEntry, LockerDocEntry, LockerDocKind, MedDefEntry,
 } from "./types";
-import { stillThere, stillThereSummary, stillThereMessage, tookItTimeline, ateBeforeMarks } from "./timelines";
+import { doseRows, doseToast } from "./meds";
+import { stillThere, stillThereSummary, stillThereMessage, ateBeforeMarks } from "./timelines";
 import { refillRunway, refillOffer } from "./refillRunway";
 import { medWindowDays, type SessionStartCandidate } from "./medWindow";
 import { buildDoctorReport, doctorReportText } from "./doctorReport";
@@ -104,7 +105,7 @@ export default function HealthFlow({
   store, ownerId, service, onEvent, candidates = [], callItDuration, initialScreen = "share", initialHandOff, onExit,
   sportSessions = [], weekDates, athleteAgeYears, monthsInSeason,
   nightBeforeCommitments = [], eatingWindowBlocks = [], sessionStarts = [],
-  bagEvent, ai, onOffer, onLandParentTask, onCommitSeasonFeed, people = [],
+  bagEvent, ai, onOffer, onLandParentTask, onCommitSeasonFeed, people = [], parentList = false,
 }: {
   // HMN-F-06 (2026-09-05), option A: the app hands in the service the rest
   // of it already uses (data/NotesProvider's useHealth), so a dose logged
@@ -165,6 +166,9 @@ export default function HealthFlow({
   // Same EXTERNAL CANDIDATES seam as everything else here: src/health never
   // imports src/people, so whatever wires this module in supplies the list.
   people?: { id: string; name: string; phone: string }[];
+  // Health Push D (H-49): the Refill Runway's receipt names the list the
+  // call landed on. On the Student template that is the parent's list.
+  parentList?: boolean;
 }) {
   const svc = useState(() => service ?? new HealthService(store!, ownerId ?? "", onEvent))[0];
   const [screen, setScreen] = useState<ScreenKey>(initialScreen);
@@ -173,9 +177,10 @@ export default function HealthFlow({
   const [handOff, setHandOff] = useState<string | null>(initialHandOff ?? null);
 
   const [grants, setGrants] = useState<ConsentGrant[]>([]);
-  const [lightsOut, setLightsOut] = useState<LightsOutEntry[]>([]);
+  const [lightsOut, setLightsOut] = useState<(LightsOutEntry & { pending?: boolean })[]>([]);
+  const [medDefs, setMedDefs] = useState<MedDefEntry[]>([]);
   const [ateBefore, setAteBefore] = useState<AteBeforeEntry[]>([]);
-  const [tookIt, setTookIt] = useState<TookItEntry[]>([]);
+  const [tookIt, setTookIt] = useState<(TookItEntry & { pending?: boolean })[]>([]);
   const [callIt, setCallIt] = useState<CallItEntry[]>([]);
   const [pointAtIt, setPointAtIt] = useState<PointAtItEntry[]>([]);
   const [medRefill, setMedRefill] = useState<MedRefillEntry[]>([]);
@@ -185,12 +190,13 @@ export default function HealthFlow({
   const [ageRuleGate, setAgeRuleGate] = useState(false);
 
   const reload = useCallback(async () => {
-    const [g, lo, ab, ti, ci, pa, mr, bc, ld, ta, gate] = await Promise.all([
+    const [g, lo, ab, ti, ci, pa, mr, bc, ld, ta, gate, md] = await Promise.all([
       svc.getConsent(), svc.listLightsOut(), svc.listAteBefore(), svc.listTookIt(), svc.listCallIt(), svc.listPointAtIt(),
       svc.listMedRefill(), svc.listBagCheck(), svc.listLockerDoc(), svc.getTrustedAdult(), svc.wasAgeRuleShown(currentSeason()),
+      svc.listMedDefs(),
     ]);
     setGrants(g); setLightsOut(lo); setAteBefore(ab); setTookIt(ti); setCallIt(ci); setPointAtIt(pa);
-    setMedRefill(mr); setBagCheck(bc); setLockerDocs(ld);
+    setMedRefill(mr); setBagCheck(bc); setLockerDocs(ld); setMedDefs(md);
     setTrustedAdultState(ta ? { name: ta.data.name, phone: ta.data.phone } : { name: "", phone: "" });
     setAgeRuleGate(gate);
   }, [svc]);
@@ -220,10 +226,13 @@ export default function HealthFlow({
   // BACK ON TRACK, EXTENDED TO HEALTH. Reads the mark history BEFORE the new
   // tap lands (same ordering TodayFlow.onToggleTask uses for tasks), so the
   // celebration is judged against the real gap, not one that already closed.
-  const celebrateOnLog = (marksBefore: { at: number }[]) => {
-    const msg = healthComebackMessage(marksBefore, localDay());
-    if (msg) showToast({ message: msg });
-  };
+  // Health Push D: this returns the line instead of toasting it, because the
+  // loggers now raise a receipt with Undo a beat later and toast.ts keeps
+  // one toast: the celebration would have been replaced before it was read.
+  // The receipt carries the comeback line when there is one.
+  const celebrateOnLog = (marksBefore: { at: number }[]): string | null => healthComebackMessage(marksBefore, localDay());
+  const receipt = (cheer: string | null, said: string, undo: () => void) =>
+    showToast({ message: cheer ?? said, actionLabel: "Undo", onAction: undo });
 
   const today = localDay();
 
@@ -292,7 +301,15 @@ export default function HealthFlow({
       return (
         <LightsOutScreen
           last={lightsOut[lightsOut.length - 1] ?? null}
-          onLog={() => { celebrateOnLog(lightsOut.map((e) => ({ at: e.data.at }))); svc.logLightsOut(); void reload(); }}
+          // Health Push D (H-41): the receipt carries Undo, and the last time
+          // can be corrected in place.
+          onLog={() => {
+            const cheer = celebrateOnLog(lightsOut.map((e) => ({ at: e.data.at })));
+            const d = svc.logLightsOut();
+            receipt(cheer, "Bedtime logged", () => { void svc.removeLightsOut(d.at).then(() => reload()); });
+            void reload();
+          }}
+          onEditTime={(id, at) => { void svc.updateLightsOut(id, at).then(() => reload()).catch(() => showToast({ message: WRITE_FAILED_MESSAGE })); }}
           onBack={onExit}
         />
       );
@@ -303,8 +320,9 @@ export default function HealthFlow({
           answered={answeredFor}
           marks={ateBeforeMarks(ateBefore)}
           onMark={(c, ate) => {
-            if (ate) celebrateOnLog(ateBefore.filter((e) => e.data.ate).map((e) => ({ at: e.data.at })));
+            const cheer = ate ? celebrateOnLog(ateBefore.filter((e) => e.data.ate).map((e) => ({ at: e.data.at }))) : null;
             svc.logAteBefore({ eventId: c.eventId, eventTitle: c.eventTitle, date: c.date, ate });
+            if (cheer) showToast({ message: cheer });
             void reload();
           }}
           onBack={onExit}
@@ -313,8 +331,17 @@ export default function HealthFlow({
     case "tookIt":
       return (
         <TookItScreen
-          timeline={tookItTimeline(tookIt)}
-          onLog={() => { celebrateOnLog(tookIt.map((e) => ({ at: e.data.at }))); svc.logTookIt(); void reload(); }}
+          doses={doseRows(tookIt, medDefs)}
+          meds={medDefs}
+          // Health Push D (H-38): the dose names its med and amount, the
+          // receipt says so, and Undo takes the tap back.
+          onLog={(med) => {
+            const cheer = celebrateOnLog(tookIt.map((e) => ({ at: e.data.at })));
+            const d = svc.logTookIt(undefined, undefined, med ? { medId: med.id, amount: med.data.amount } : undefined);
+            receipt(cheer, doseToast(med?.data.amount), () => { void svc.removeTookIt(d.at).then(() => reload()); });
+            void reload();
+          }}
+          onUndo={(row) => { void svc.removeTookIt(row.at).then(() => reload()); }}
           onBack={onExit}
         />
       );
@@ -324,8 +351,9 @@ export default function HealthFlow({
           durationMin={callItDuration}
           history={callIt.map((e) => ({ at: e.data.at, rpe: e.data.rpe, durationMin: e.data.durationMin }))}
           onLog={(rpe) => {
-            celebrateOnLog(callIt.map((e) => ({ at: e.data.at })));
+            const cheer = celebrateOnLog(callIt.map((e) => ({ at: e.data.at })));
             svc.logCallIt({ rpe, durationMin: callItDuration });
+            if (cheer) showToast({ message: cheer });
             void reload();
           }}
           onBack={onExit}
@@ -339,7 +367,7 @@ export default function HealthFlow({
           // HMN-F-23 (2026-09-05): the dated taps behind each pattern, which
           // is what the catalog says gets handed over.
           summaries={summaries}
-          onLog={(x, y, side) => { svc.logPointAtIt({ x, y, side }); void reload(); }}
+          onLog={(x, y, side, region) => { svc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) }); void reload(); }}
           // UP-ATH-05 (2026-09-06): the summary travels with the tap. Before
           // this the button walked to Say It to Someone empty-handed, so the
           // athlete had to remember and retype the dates the screen had just
@@ -354,7 +382,13 @@ export default function HealthFlow({
       return (
         <RefillRunwayScreen
           state={refillRunway(medRefill, tookIt)}
-          onLogFill={(dosesInFill) => { svc.logMedRefill({ filledAt: Date.now(), dosesInFill }); void reload(); }}
+          // Health Push D: the fill counts from the day it was received, and
+          // the receipt carries Undo.
+          onLogFill={(dosesInFill, filledAt) => {
+            const d = svc.logMedRefill({ filledAt, dosesInFill });
+            showToast({ message: "Fill logged", actionLabel: "Undo", onAction: () => { void svc.removeMedRefill(d.at).then(() => reload()); } });
+            void reload();
+          }}
           // HMN-F-22 (2026-09-05): this toast used to fire whether or not
           // there was a seam to land the call on, so a HealthFlow mounted
           // without onLandParentTask said "Sent to the parent's list" with
@@ -363,7 +397,9 @@ export default function HealthFlow({
             const line = refillOffer(refillRunway(medRefill, tookIt));
             // HMN-F-06: the catalog wrote this for a parent's list, and there
             // is one list in this app. The receipt names the list it landed on.
-            if (line) take(onLandParentTask, line, "Added to your list");
+            // Health Push D (H-49): on the Student template the list is the
+            // parent's, and the receipt says which.
+            if (line) take(onLandParentTask, line, parentList ? "Added to the parent's list" : "Added to your list");
           }}
           onBack={onExit}
         />

@@ -3,6 +3,8 @@ import type { EventInput } from "../events";
 import {
   ENTITY_HEALTH_CONSENT, ENTITY_LIGHTS_OUT, ENTITY_ATE_BEFORE, ENTITY_TOOK_IT, ENTITY_CALL_IT, ENTITY_POINT_AT_IT,
   ENTITY_MED_REFILL, ENTITY_BAG_CHECK, ENTITY_LOCKER_DOC, ENTITY_TRUSTED_ADULT, ENTITY_AGE_RULE_SHOWN,
+  ENTITY_MED_DEF, ENTITY_MEAL,
+  type MedDefData, type MedDefEntry, type MealData, type MealEntry,
   type ConsentGrant, type ConsentGrantsData, type HealthCategoryId,
   type LightsOutData, type LightsOutEntry,
   type AteBeforeData, type AteBeforeEntry,
@@ -16,7 +18,7 @@ import {
   type AgeRuleShownData, type AgeRuleShownEntry,
 } from "./types";
 import { defaultGrants, updateGrant } from "./shareLine";
-import { queueHealthLog, flushPending, readPending, type Storage2, type PendingHealthLog } from "./offlineQueue";
+import { queueHealthLog, flushPending, readPending, removeQueued, type Storage2, type PendingHealthLog } from "./offlineQueue";
 
 // Module-level, like offlineQueue's: more than one HealthService can front
 // the same store (HealthFlow builds its own when none is handed in).
@@ -111,8 +113,20 @@ export class HealthService {
     return data;
   }
 
-  async listLightsOut(storage?: Storage2): Promise<LightsOutEntry[]> {
+  async listLightsOut(storage?: Storage2): Promise<(LightsOutEntry & { pending?: boolean })[]> {
     return this.listMerged<LightsOutData>(ENTITY_LIGHTS_OUT, storage, (a, b) => a.at - b.at);
+  }
+
+  /** Health Push D (H-41): Edit Time on the last bedtime. Writes the clock
+   *  and nothing else; only a row that has landed on the store has an id. */
+  async updateLightsOut(id: string, at: number): Promise<void> {
+    const data: LightsOutData = { category: "sleep", at };
+    await this.store.update(this.ownerId, id, data as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_LIGHTS_OUT, entityId: id });
+  }
+
+  removeLightsOut(at: number, storage?: Storage2): Promise<boolean> {
+    return this.removeLogged(ENTITY_LIGHTS_OUT, at, storage);
   }
 
   // ---- Ate Before ----
@@ -129,14 +143,102 @@ export class HealthService {
 
   // ---- Took It ----
 
-  logTookIt(at: number = Date.now(), storage?: Storage2): TookItData {
-    const data: TookItData = { category: "medication", at };
+  logTookIt(at: number = Date.now(), storage?: Storage2, med?: { medId?: string; amount?: string }): TookItData {
+    // Health Push D (H-38): the med and the amount as typed, when the tap
+    // named one. Keys are dropped rather than written undefined (UP-ATH-07).
+    const data: TookItData = {
+      category: "medication", at,
+      ...(med?.medId ? { medId: med.medId } : {}),
+      ...(med?.amount ? { amount: med.amount } : {}),
+    };
     this.logAndQueue(ENTITY_TOOK_IT, data as unknown as Record<string, Json>, storage);
     return data;
   }
 
-  async listTookIt(storage?: Storage2): Promise<TookItEntry[]> {
+  async listTookIt(storage?: Storage2): Promise<(TookItEntry & { pending?: boolean })[]> {
     return this.listMerged<TookItData>(ENTITY_TOOK_IT, storage, (a, b) => a.at - b.at);
+  }
+
+  removeTookIt(at: number, storage?: Storage2): Promise<boolean> {
+    return this.removeLogged(ENTITY_TOOK_IT, at, storage);
+  }
+
+  // ---- Medications by name (Health Push D, H-38) ----
+  //
+  // Configuration, not a log: a med is added, edited and removed like a
+  // metric definition, straight on the store. The doses stay in the offline
+  // queue above; a med def is made once, on a screen, with signal or a retry.
+
+  async listMedDefs(): Promise<MedDefEntry[]> {
+    const items = await this.store.listForUser(this.ownerId, ENTITY_MED_DEF);
+    return items
+      .map((i) => ({ id: i.id, data: i.data as unknown as MedDefData }))
+      .sort((a, b) => a.data.order - b.data.order || a.data.at - b.data.at);
+  }
+
+  async addMedDef(input: { name: string; amount?: string }, at: number = Date.now()): Promise<MedDefEntry> {
+    const existing = await this.listMedDefs();
+    const data: MedDefData = {
+      category: "medication", name: input.name.trim(),
+      ...(input.amount?.trim() ? { amount: input.amount.trim() } : {}),
+      order: existing.length, at,
+    };
+    const id = await this.store.create(this.ownerId, ENTITY_MED_DEF, data as unknown as ItemData);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_MED_DEF, entityId: id });
+    this.onEvent({ type: "health.logged", entityType: ENTITY_MED_DEF, entityId: id, props: { kind: "med_def" } });
+    return { id, data };
+  }
+
+  async updateMedDef(id: string, input: { name: string; amount?: string }): Promise<void> {
+    const current = (await this.listMedDefs()).find((m) => m.id === id);
+    if (!current) return;
+    const data: MedDefData = {
+      category: "medication", name: input.name.trim(),
+      ...(input.amount?.trim() ? { amount: input.amount.trim() } : {}),
+      order: current.data.order, at: current.data.at,
+    };
+    await this.store.update(this.ownerId, id, data as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_MED_DEF, entityId: id });
+  }
+
+  async removeMedDef(id: string): Promise<void> {
+    await this.store.delete(this.ownerId, id);
+    this.onEvent({ type: "entity.deleted", entityType: ENTITY_MED_DEF, entityId: id });
+  }
+
+  // ---- Meal (Health Push D, H-42) ----
+
+  logMeal(text: string, at: number = Date.now(), storage?: Storage2): MealData {
+    const data: MealData = { category: "fuel", at, text: text.trim() };
+    this.logAndQueue(ENTITY_MEAL, data as unknown as Record<string, Json>, storage);
+    return data;
+  }
+
+  async listMeal(storage?: Storage2): Promise<(MealEntry & { pending?: boolean })[]> {
+    return this.listMerged<MealData>(ENTITY_MEAL, storage, (a, b) => a.at - b.at);
+  }
+
+  removeMeal(at: number, storage?: Storage2): Promise<boolean> {
+    return this.removeLogged(ENTITY_MEAL, at, storage);
+  }
+
+  // UNDO A TAP (Health Push D). A logged entry is identified by the moment
+  // it was logged, because that is the one thing both halves of listMerged
+  // agree on: a pending row's "pending-N" id is this class's own invention.
+  // The entry leaves the queue first, then this waits for any flush in
+  // flight (the tap's own is usually still running), then deletes the row if
+  // it landed. Either way the tap is gone once this resolves.
+  private async removeLogged(entityType: string, at: number, storage?: Storage2): Promise<boolean> {
+    const queued = removeQueued((e) => e.entityType === entityType && e.data.at === at, storage);
+    await this.flush(storage).catch(() => 0);
+    const items = await this.store.listForUser(this.ownerId, entityType);
+    const hit = items.find((i) => (i.data as unknown as { at?: number }).at === at);
+    if (hit) {
+      await this.store.delete(this.ownerId, hit.id);
+      this.onEvent({ type: "entity.deleted", entityType, entityId: hit.id });
+      return true;
+    }
+    return queued > 0;
   }
 
   // ---- Call It ----
@@ -154,8 +256,9 @@ export class HealthService {
 
   // ---- Point at It ----
 
-  logPointAtIt(input: { x: number; y: number; side: "front" | "back" }, at: number = Date.now(), storage?: Storage2): PointAtItData {
-    const data: PointAtItData = { category: "body", ...input, at };
+  logPointAtIt(input: { x: number; y: number; side: "front" | "back"; region?: string }, at: number = Date.now(), storage?: Storage2): PointAtItData {
+    const { region, ...rest } = input;
+    const data: PointAtItData = { category: "body", ...rest, at, ...(region ? { region } : {}) };
     this.logAndQueue(ENTITY_POINT_AT_IT, data as unknown as Record<string, Json>, storage);
     return data;
   }
@@ -175,6 +278,10 @@ export class HealthService {
 
   async listMedRefill(storage?: Storage2): Promise<MedRefillEntry[]> {
     return this.listMerged<MedRefillData>(ENTITY_MED_REFILL, storage, (a, b) => a.filledAt - b.filledAt);
+  }
+
+  removeMedRefill(at: number, storage?: Storage2): Promise<boolean> {
+    return this.removeLogged(ENTITY_MED_REFILL, at, storage);
   }
 
   // ---- The Bag (Water With You is a row inside it) ----

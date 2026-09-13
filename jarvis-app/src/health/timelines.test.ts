@@ -152,3 +152,18 @@ describe("Still There?: a counted pattern, never a diagnosis", () => {
     expect(msg.endsWith(STILL_THERE_CLOSING)).toBe(true);
   });
 });
+
+// Health Push D, H-46: a region picked from the list rides its cluster.
+describe("Still There? names the region the taps named", () => {
+  const day = (n: number) => new Date("2026-09-01T12:00:00").getTime() + n * 86_400_000;
+  const at = (n: number, region?: string): PointAtItEntry =>
+    ({ id: "r" + n, data: { category: "body", x: 0.565, y: 0.75, side: "front", at: day(n), ...(region ? { region } : {}) } });
+
+  it("carries the commonest region, and none when no tap named one", () => {
+    const named = stillThere([at(0, "Left Knee"), at(3, "Left Knee"), at(11)], 3);
+    expect(named[0]?.region).toBe("Left Knee");
+    const bare = stillThere([at(0), at(3), at(11)], 3);
+    expect(bare[0]?.region).toBeUndefined();
+    expect("region" in bare[0]!).toBe(false);
+  });
+});

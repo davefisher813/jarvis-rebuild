@@ -2,6 +2,7 @@ import { useRef, useState, type MouseEvent } from "react";
 import type { StillTherePattern, StillThereSummaryRow } from "../timelines";
 import { pressable } from "../../shared/pressable";
 import { shortDate } from "../../shared/dateFormat";
+import { BODY_REGIONS } from "../regions";
 
 // POINT AT IT (Part 6). A body map. Tap where it hurts. Three seconds, one
 // hand, no words. No severity scale, no diagnosis, no condition name: the
@@ -18,14 +19,17 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onBac
   // on the screen rather than shut inside a function nobody called. Dates
   // only: no severity, no name for the spot, same restraint as the pattern.
   summaries?: StillThereSummaryRow[][];
-  onLog: (x: number, y: number, side: "front" | "back") => void;
+  /** Health Push D (H-46): the fourth argument is the region's label when
+   *  the log came from the list; the coordinate is the region's own. */
+  onLog: (x: number, y: number, side: "front" | "back", region?: string) => void;
   onBack: () => void;
   // BRAIN-F-26 (2026-09-05): absent when there is nobody to reach, so the row
   // is not offered rather than dialling a number that will not connect.
   onHandToSomeone?: () => void;
 }) {
   const [side, setSide] = useState<"front" | "back">("front");
-  const [logged, setLogged] = useState<{ x: number; y: number } | null>(null);
+  const [mode, setMode] = useState<"map" | "list">("map");
+  const [logged, setLogged] = useState<{ x: number; y: number; region?: string } | null>(null);
   const mapRef = useRef<HTMLDivElement | null>(null);
 
   const tap = (e: MouseEvent<HTMLDivElement>) => {
@@ -55,6 +59,30 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onBac
         <div className="bp-sub">Tap the spot. That's the whole log, no name for it, no scale.</div>
       </div></div>
 
+      {/* Health Push D (H-46): the list beside the map. A named region logs
+          the same shape as a tap (its own coordinate on the same map), so
+          Still There? clusters both the same way. */}
+      <div className="pad-x">
+        <div className="segmented">
+          <button type="button" className={"seg" + (mode === "map" ? " active" : "")} onClick={() => setMode("map")}>Map</button>
+          <button type="button" className={"seg" + (mode === "list" ? " active" : "")} onClick={() => setMode("list")}>List</button>
+        </div>
+      </div>
+
+      {mode === "list" ? (
+        <div className="pad-x"><div className="card list-card-ruled">
+          {BODY_REGIONS.map((r) => (
+            <div className="row" key={r.label} {...pressable(() => {
+              if (logged) return;
+              setLogged({ x: r.x, y: r.y, region: r.label });
+              onLog(r.x, r.y, r.side, r.label);
+            })} aria-disabled={logged ? "true" : undefined}>
+              <div className="row-grow"><div className="conn-name">{r.label}</div></div>
+            </div>
+          ))}
+        </div></div>
+      ) : (
+      <>
       <div className="pad-x">
         <div className="segmented">
           <button type="button" className={"seg" + (side === "front" ? " active" : "")} onClick={() => setSide("front")}>Front</button>
@@ -83,10 +111,12 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onBac
           )}
         </div>
       </div>
+      </>
+      )}
 
       {logged && (
         <div className="pad-x"><div className="card pad">
-          <div className="conn-name">Logged</div>
+          <div className="conn-name">{logged.region ? "Logged · " + logged.region : "Logged"}</div>
           <button className="btn btn-secondary btn-block" onClick={onBack}>Done</button>
         </div></div>
       )}
@@ -102,7 +132,7 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onBac
               return (
                 <div className="row" key={i}>
                   <div className="row-grow">
-                    <div className="conn-name">Same Spot, {p.sessions} Sessions</div>
+                    <div className="conn-name">{p.region ?? "Same Spot"}, {p.sessions} Sessions</div>
                     <div className="bp-sub">Over {p.days} days</div>
                     {dates.length > 0 && (
                       <div className="bp-sub">Tapped {dates.map((d) => shortDate(d.date)).join(", ")}</div>

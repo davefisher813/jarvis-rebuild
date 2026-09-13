@@ -5,6 +5,11 @@ import "@testing-library/jest-dom";
 import { Store, InMemoryAdapter } from "@core";
 import { AIService } from "../ai/AIService";
 import { subscribeToast, resetToasts } from "../shared/toast";
+
+// Health Push D: the loggers raise a receipt with Undo, which toast.ts keeps
+// for five seconds and lets no plain toast replace. That state is module
+// level, so one test's Undo would swallow the next test's receipt.
+beforeEach(() => resetToasts());
 import HealthFlow from "./HealthFlow";
 import { HealthService } from "./HealthService";
 

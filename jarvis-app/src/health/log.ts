@@ -1,4 +1,4 @@
-import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry } from "./types";
+import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry, MedDefEntry, MealEntry } from "./types";
 import type { Workout } from "../gym/types";
 import type { MetricDef, MetricLog } from "../gym/metrics";
 import { hueForMetric, type HueKind } from "./hue";
@@ -12,7 +12,7 @@ import { capAfterNumber } from "../shared/casing";
 // records the tiles read, so a tile and the log can never disagree.
 
 export type LogOpen =
-  | { kind: "lightsOut" | "tookIt" | "callIt" | "pointAtIt" }
+  | { kind: "lightsOut" | "tookIt" | "callIt" | "pointAtIt" | "meal" }
   | { kind: "workout"; id: string }
   | { kind: "metric"; defId: string };
 
@@ -38,6 +38,9 @@ export interface LogInputs {
   workouts: Workout[];
   metricDefs: MetricDef[];
   metricLogs: MetricLog[];
+  /** Health Push D: the meds by name, so a dose row can say which. */
+  medDefs?: MedDefEntry[];
+  meals?: MealEntry[];
 }
 
 /** The local day's [start, end) in epoch ms. */
@@ -55,7 +58,13 @@ export function chronologicalLog(inp: LogInputs): LogRow[] {
   const inDay = (at: number) => at >= start && at < end;
   const rows: LogRow[] = [];
   for (const e of inp.lightsOut) if (inDay(e.data.at)) rows.push({ id: "lo-" + e.id, kind: "sleep", title: "Bedtime", at: e.data.at, detail: null, open: { kind: "lightsOut" } });
-  for (const e of inp.tookIt) if (inDay(e.data.at)) rows.push({ id: "ti-" + e.id, kind: "medication", title: "Dose", at: e.data.at, detail: null, open: { kind: "tookIt" } });
+  const medById = new Map((inp.medDefs ?? []).map((d) => [d.id, d] as const));
+  for (const e of inp.tookIt) {
+    if (!inDay(e.data.at)) continue;
+    const def = e.data.medId ? medById.get(e.data.medId) : undefined;
+    rows.push({ id: "ti-" + e.id, kind: "medication", title: def?.data.name ?? "Dose", at: e.data.at, detail: e.data.amount ?? def?.data.amount ?? null, open: { kind: "tookIt" } });
+  }
+  for (const e of inp.meals ?? []) if (inDay(e.data.at)) rows.push({ id: "me-" + e.id, kind: "meal", title: "Meal", at: e.data.at, detail: e.data.text, open: { kind: "meal" } });
   for (const e of inp.callIt) if (inDay(e.data.at)) rows.push({ id: "ci-" + e.id, kind: "reading", title: "Session Effort", at: e.data.at, detail: `${e.data.rpe}/10`, open: { kind: "callIt" } });
   for (const e of inp.pointAtIt) if (inDay(e.data.at)) rows.push({ id: "pa-" + e.id, kind: "discomfort", title: "Discomfort", at: e.data.at, detail: null, open: { kind: "pointAtIt" } });
   for (const w of inp.workouts) {

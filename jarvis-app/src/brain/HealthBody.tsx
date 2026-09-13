@@ -53,7 +53,7 @@ const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 // S5-Q29 (2026-09-04): the one-tap loggers grafted from the Health module.
 // Ate Before stays dormant: its screen needs calendar candidates this page
 // has no source for.
-export type HealthLoggerKey = "lightsOut" | "tookIt" | "callIt" | "pointAtIt";
+export type HealthLoggerKey = "lightsOut" | "tookIt" | "callIt" | "pointAtIt" | "meal";
 /** What each logger MEASURES, which is what decides its hue (Health R4 /
  *  H-04, 2026-09-12). Total over the key union on purpose. */
 const LOGGER_KIND: Record<HealthLoggerKey, HueKind> = {
@@ -61,6 +61,7 @@ const LOGGER_KIND: Record<HealthLoggerKey, HueKind> = {
   tookIt: "medication",
   callIt: "reading",
   pointAtIt: "discomfort",
+  meal: "meal",
 };
 export interface HealthLoggerRow {
   key: HealthLoggerKey;
