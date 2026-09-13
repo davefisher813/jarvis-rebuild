@@ -1,60 +1,64 @@
-# Session handoff — 21 Aug 2026
+# Session handoff, 12 Sep 2026
 
-**Remote main: `5c22d31`. Local == remote. Tree clean. All gates green.**
+**Remote main is the Astra pass through Push J. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green, CI green on every push.**
 
 ## What shipped this session
 
-| commit | what |
-|---|---|
-| `0755e81` | Apple Music palette (earlier in session) |
-| `f6ba5e1` | Salmon → white-on-red-tint; screen crawler; ADHD behaviour audit |
-| `5c22d31` | Contrast-auditor alpha bug fixed; design measurement tooling; visual design audit |
+The Astra build (`Claude outputs/JARVIS_ASTRA_BUILD_MASTER_2026_09_12.md`, harness `JARVIS_ASTRA_PREVIEW_2026_09_12.html`), ten pushes, each one commit, one gate, one CI run:
 
-Gates at `5c22d31`: tsc clean · eslint 0 errors (19 warnings, pre-existing) · **1588 tests pass** · build ok.
+| push | commit | what |
+|---|---|---|
+| A | `83aa717` | light tokens, `.facts`, `.row-star`, `.why`, `.dring`, laws 1 to 5 |
+| B | `d302f8a`, `55d2b15` | Today: state vocabulary, Needs You, the headliner, the context packs |
+| C | `67e8d44` | Schedule and Plan My Day: state words, nested proposals, the planner says why, event columns, laws 8 and 10 |
+| D | `18428a4` | Brain: the two-band top, strand state words, one-word readiness, the Learning Lab, strand type |
+| E | `000429f` | Decisions and Capture: chat auto-capture, source and outcome, Make It a Rule, the three prefixes, the star on every row, law 9 |
+| F | `4ff71c3` | Life: projects moving it, milestones, the check-in, `goal.checkin` |
+| G | `8785c73` | Contacts, Routine, Writing, Values: fuller labels, promises and projects on the card, Learned Rhythms, the writing channel, draft-edit learning, the values detector, doc autosave |
+| H | `64b33d3` | Notes: the three blocks, pin, tags and archive, note-to-note links, JARVIS Found |
+| I | `b5d7312` | Insights: This Week, one percent inside reports, law 6 |
+| J | this commit | the catalog's §AA and this document |
 
-## Read this before you push anything
+Between C and D the other Code chat landed the Email pass (Pushes A through I of `JARVIS_EMAIL_BUILD_MASTER_2026_09_12.md`, catalog §AC); Push D was rebased over it cleanly.
 
-**The remote diverged mid-session and a bundle silently never landed.** Two commits (`6ba6612`, `43189d0`) were pushed onto `main` from elsewhere while this session was building on `0755e81`. A "pushed" confirmation had been taken at face value for a commit that was actually still only local.
+## The gate, and where it runs
 
-**Always `git fetch origin main` and compare before building a bundle**, and verify with `git ls-remote origin main` after. The resolution was a plain `git rebase origin/main` — clean, no conflicts — then re-running every gate against the merged code, which is what caught that the test count had moved 1569 → 1588.
+`docs/WORKFLOW_AND_GATE.md` is the contract. On this Windows machine the gate is: `npx tsc --noEmit`, `npx eslint src` (39 known `unused eslint-disable` warnings; a 40th or any error is new), `npx vitest run` with `TZ=UTC` and `NODE_OPTIONS=--no-experimental-webstorage` on this Node 25 box, `npm run build`, `npm run build:legal && git diff --exit-code public/`, the jarvis-core tsc and vitest, and the case-sensitivity scan (`git ls-files | sed -E 's/\.(tsx?|jsx?|mjs|cjs)$//' | sort -u | sort -f | uniq -di`, which must print nothing). CI on Node 22 is the authoritative gate; poll `actions/runs?head_sha=` after every push.
 
-Never force-push to resolve this.
+**Always `git fetch origin` and rebase before pushing.** Another Code chat may be shipping to main; the Email pass landed fourteen commits while Push D was being built. Rebase, rerun the gate on the merged tree, then push. Never force-push.
 
-## The colour change
+**One thing that cost an hour:** three vitest runs started on top of each other (a background run, a retry and a hung worker) and each took seven minutes to time out. Run one suite at a time, with a `timeout`, and kill orphaned `node` processes before starting the next.
 
-`--accent-tx` in dark is now **white**; the red meaning on chip-shaped controls moved to `--accent-chip` (`rgba(255,69,58,0.18)` wash). Dave rejected the salmon `#FC828F` on sight — and any red clearing 4.5:1 on Apple's lighter dark surfaces is forced light enough to read pink, so a red text token was never going to work there. Light theme's chip text is `#B80417` (`#CC051B` measured 4.1:1 on the wash-over-pressed-chip).
+## Every new law was planted first
 
-Three rules that meant *error* rather than *accent* now say `--red`: `.test-bad`, `.test-err`, `.plan-overdue`.
+Laws 3 to 10 of the build master live in `src/laws/astra.test.ts`; law 6 (percent) and law 7 (decisions never count) join laws 8 (COMPLETED derived), 9 (chat capture is user-only, never a rule) and 10 (closed event vocabulary). Each was planted (a violation written into a real component), watched fail, reverted, and the commit message says so. Two existing laws were amended rather than added: law 3 reads the `RowStar` and `EntityStar` tags as the star and knows the named row anatomies; law 11 exempts `brain/BrainTop.tsx` by C-38's own words.
 
-## The auditor was lying, and this matters
+## Departures from the doc, all stated in their commits
 
-`tools/visual-audit.mjs` reported **0 contrast findings** for weeks. Its `rel()` helper matched all digits in a colour string and used the first three, so `rgba(235,235,245,0.3)` was measured as opaque `#EBEBF5`. Every `--tx-*` grey in this app is `rgba` — the whole secondary/tertiary text layer had never been checked.
+- The planner's "N project moving it" and the check-in head "How Is This Going?" follow the app's casing laws where the harness writes them lower-case.
+- Make It a Rule links the strand to the decision through `StrandData.link` rather than a "decision" derivation key with the id in evidence: evidence is numbers and days by law.
+- A WATCHING row on the Brain hub opens What JARVIS Knows rather than running an accept; a detector short of its gate has nothing to accept, and the one past it is already offered there.
+- The values detector derives only the ruled-out half of C-63; the rule-strand half has no data yet because Make It a Rule writes a new strand each time.
+- The draft-edit learning runs on the email deck path; the sms and chat draft surfaces have no send of their own.
+- Month rows on Insights colour moved purple and done plain (one coloured fact per line, law 4) where the harness colours both.
+- Month and week facts read "3 Moved", "2 Tasks pushed" under the leading-number casing law where the harness keeps them lower-case.
 
-Fixed (composites over the real backdrop first). Same 7 passes now return **218 findings**, 192 of them light theme. Verified identical before and after the rebase, so the incoming commits added none of them.
+## Left out on purpose (section 11 stands)
 
-**Open decision, deliberately not made:** light `--tx-3` needs `0.75` alpha (currently `0.60`, measuring 3.1–3.4:1). `--tx-4` at `0.30` measures 1.7–2.5:1 in *both* themes and carries the **inactive tab labels at 2.25:1** — the app's primary navigation. Taking `tx-4` to AA collapses it into `tx-3` and costs a tier of visual quiet. That is Dave's call, not a bug fix. Nothing was changed.
+Prototype palette, layouts and fonts from the Astra zip; the adaptive command bar; the text-link button tier; cyan for schedule; goals off purple; nested folders, version history, semantic search, link preview, note link blocks, Ask JARVIS in notes; the Recent Learning band, the learned-count headline and the Brain Coverage grid; silent learned memories and silent relationship labels; the app-written Values doc; a decision `standing` flag; `ai_draft_edited` with text; event-triggered decision re-evaluation; project status pill changes; the editor rewrite.
 
-## Tooling now in `jarvis-app/tools/`
+## Open items
 
-- **`screen-crawl.mjs`** — proves coverage. The app has no router, so screens are seeded **by name** from `shell/destinations.tsx`, and each seed's heading is compared against its parent's: a tap that lands but doesn't navigate is recorded as a failure, not a pass. That check caught five pages silently not opening while an earlier version reported "30/30 reached". Captures full scroll height; every untapped element goes in a named skip ledger. Last run: 33/33 seeds, 197 unique screens, 386 segments.
-- **`adhd-metrics.mjs`** — per-screen truncation, sub-44px tap targets, density, repeated-action walls, shame copy, unstoppable motion.
-- **`design-metrics.mjs`** — type/colour/spacing/radius/button/hierarchy, from **computed style**, not the stylesheet.
-- **`design-overlay.mjs`** — draws text-ink rails and sub-44px targets onto a screenshot. Ink measured via `Range`, not element boxes (element boxes include padding and invent edges that aren't visible — this produced a false alignment finding before it was corrected).
-
-## Findings not yet acted on
-
-Both audits are project docs: `claude/ADHD_VISUAL_AUDIT_2026_08_21.md` and `claude/VISUAL_DESIGN_AUDIT_2026_08_21.md`. Visual version: https://claude.ai/code/artifact/1b215ef1-7c18-4be8-9d88-e2c98b7d5896
-
-Highest-value unfixed items:
-
-1. **`pickOne` opens the Edit Task form.** `TasksFlow.tsx:445` — "Just Pick One For Me" hands ~20 decisions to someone who just said they can't choose. Code comment says "straight to a task that is already open"; it calls `openEdit()`. The right destination already exists (the What-Now "Just Fifteen" sheet, or Focus/Up Next).
-2. **Red badge fires when nothing is overdue** — `Tasks > Overdue · 0` with a red `5` on the tab.
-3. **`.cb` is 22×22** with no hit-area expansion (`jarvis-design-system.css:311`), used by `RemindersStrip.tsx:56` and `NoteEditor.tsx:116`. The tap-target law only checks `.pill-act`.
-4. **Two shame strings** — `TodayFlow.tsx:1007` ("has moved N days running"), `inboxBrief.ts:38` ("waiting N days on you").
-5. **96 red rules against a four-use law** the CSS states in its own comment; `.sched-loc` paints location names in brand red.
-6. **`.btn.btn-block` paints nothing** — no background, no border, so "I'm Overwhelmed" reads as a heading.
+- Thirteen strand categories with reworked caps before launch (six today; `StrandData.type` already carries the kind).
+- Link preview and note link blocks, revisited later.
+- "Frequent" on a contact's hero waits for a count the card does not have.
+- The demo build has no AI and no milestone or dollar goal, so JARVIS Found, the milestone rows and the dollar ring are covered by tests only; look at them on the phone.
 
 ## Standing constraints
 
-- **Bundle size / code-splitting: do not touch** until Dave says building is done. The main JS chunk is over the 500KB Vite warning; this is known and deliberately deferred.
-- **Never ask for a PAT.** The sandbox cannot push (403). Flow is: `git bundle create` → `SendUserFile` → Dave runs the PowerShell clone-and-push → verify with `git ls-remote`.
+- No em dashes anywhere, comments and strings included.
+- Title Case for anything that names or acts; ALL CAPS only from CSS.
+- One filled primary per screen; every other action is a capsule.
+- Anything visual is mocked first; the harness is the mock. Do not restyle beyond it.
+- Do not touch bundle splitting until Dave says building is done. The main chunk is over the 500KB Vite warning, known and deferred.
+- Do not fix the 39 pre-existing `unused eslint-disable` warnings.

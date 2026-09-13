@@ -538,6 +538,42 @@ The harness (`JARVIS_EMAIL_PREVIEW_2026_09_12.html`) is the approved mock; where
 
 **WHAT NEVER BECOMES AN EVENT (2026-09-12).** The parked Sweep and the compose autosave are UI state; no event writer reads either store and the store modules never emit.
 
+## §AA. The Astra pass (V4.23, Dave's picks 2026-09-12, built in Pushes A through J)
+
+The harness (`Claude outputs/JARVIS_ASTRA_PREVIEW_2026_09_12.html`) is the approved mock; where a sentence here and the harness disagree on a visual, the harness wins, and where the harness and a law below disagree, the law wins and the commit says so. Every rule is held by a test in `src/laws/astra.test.ts` or `src/laws/laws.test.ts`, each planted, watched fail, and reverted before it shipped.
+
+**G2 · THE LIGHT PALETTE IS APPLE'S (2026-09-12).** Dark palette values stay; light repoints green, yellow, orange, blue, purple, teal to Apple's exact iOS light system colours, as shipped, including as text. The contrast assertions on light intent colours are replaced by a pin on those exact values.
+
+**G3 · ONLY REAL CONTROLS LOOK LIKE BUTTONS (2026-09-12).** Facts render as inline text on one line separated by middle dots; filled chips are for choosers and filters only; every other action is a capsule.
+
+**G4 · A FACT WEARS ITS INTENT (2026-09-12).** Grey subtext where it makes the most sense; a fact that carries meaning takes its intent colour instead. A category is a coloured 7px dot plus plain text, never coloured text.
+
+**G5 · THE STATE WORDS ARE A CLOSED SET (2026-09-12).** FIXED, FOCUS, PROTECTED, FLEXIBLE, PROPOSED, LIVE, COMPLETED, KNOWN, LEARNED, WATCHING, NEEDS CONFIRMATION, FADING, RULE, as coloured small caps from CSS, never a filled pill; a new word is a ruling added to the list on purpose.
+
+**G6 · DENSITY (2026-09-12).** One title line, one facts line, one capsule on every new surface. No sentence subs.
+
+**G7 · RED STAYS WHERE IT IS (2026-09-12).** Nav glyphs, steel heads, the energy line, the tint. Cards stay scarce. The capture bar stays static. Purple is goals and JARVIS-made knowledge, sky is time, cyan stays health only.
+
+**G8 · COUNTS, NOT PERCENT (2026-09-12).** Percent is allowed inside Insights reports only, and there only as "26% vs usual 35%" beside an area's hours. Two standing exceptions by Dave's ruling: the goal page's dollar ring and the gym's percent of a lift max. Decisions are never counted, on the Decisions list and on a contact's Decided with Them head alike.
+
+**THE FACTS PRIMITIVE (2026-09-12).** `.facts` replaces the free-form sub on every new or rebuilt row: flex, wrap, 14px, `--tx-3`, children `.fact`, a middle dot drawn between neighbours; `.fact.warn`, `.fact.good`, `.fact.sky`, `.fact.purp`, `.fact.red` carry an intent colour and at most one of them sits on a line (K.3, held by law 4); `.fact.cat` is the dot plus text; `.fact.st` is the state word. Health surfaces keep their own rule (healthSkin).
+
+**THE REMEMBER STAR (2026-09-12).** `.row-star`, a 16px outline star at the leading edge of a row, filled yellow while a strand linked to the row's entity exists. On mail, task, event, people, decision and note rows and on an AI answer in Chat it is a tap that writes a told-rank fact and links it, with Undo; on a strand row it is a marker. It is not the row's control and does not count toward R.1 (law 3).
+
+**THE HERO RING ALL DAY (2026-09-12).** `.dring`, a 64px conic ring in the good fill over the pressed ground, done over total inside, tabular, rendered all day and hidden only when the total is 0. On a dollar goal the same ring shows the dollar measure with the one percent the goal page is allowed.
+
+**THE BRAIN'S TWO-BAND TOP (2026-09-12).** Shaping JARVIS Now (up to three strands in recall order) and Needs You (capped at two: a watching detector, a fading fact, a writing rule waiting for a word, a possible principle) as `sh2` heads, not quiet, above a quiet Explore head over the nav list; with both bands empty the hub is the nav list. No headline count, no Recent Learning, no Coverage grid.
+
+**NEEDS YOU IS THE EMAIL BAND'S HEAD (2026-09-12).** On Today the Needs You head leads the mail band, and the same head on the Brain hub is the one place JARVIS asks; each row carries one capsule.
+
+**MILESTONES ARE A MEASURE (2026-09-12).** `{ kind: "milestones", items }` beside count, cadence and projects; progress is done of total; the goal page shows the next milestone with its Done, the list with the task-check anatomy, and Add Milestone as a row-act.
+
+**COMPLETED IS THE CLOCK'S WORD (2026-09-12).** On past schedule rows COMPLETED is derived from the clock every render and never stored; no schedule entity gains done, completed or outcome (law 8). This is the whole of the do-not-touch carve-out on item 2; items 1 (events are not first-class) and 3 (iOS modals) stand.
+
+**CHECK-IN, DECISIONS, LEARNED RHYTHMS (2026-09-12).** A goal nothing can measure asks Ahead, On Track, Behind and writes an asked-rank strand, never GoalData.state. A decision remembers its source, its expected outcome, its outcome word and every home it is attached to; Make It a Rule writes one values strand linked to the decision. Your Routine's Learned Rhythms moves a block with one tap and an Undo.
+
+**OPEN ITEMS (2026-09-12).** Thirteen strand categories with reworked caps before launch (six today, `StrandData.type` carries the kind). Link preview and note link blocks, revisited later; notes carry quote, divider and callout now.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).
