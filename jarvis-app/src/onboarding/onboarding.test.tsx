@@ -400,3 +400,40 @@ describe("OnboardingFlow asks for notifications in context", () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 });
+
+// Audit 2026-09-11 item 4 (fixed 2026-09-13): a seed that fails leaves the
+// account NOT onboarded, so the next launch asks again instead of opening
+// on nothing.
+describe("finish seeds before it marks the account onboarded", () => {
+  it("a failed area seed writes no profile, releases the button, and a retry goes through", async () => {
+    const onFinish = setup();
+    const create = vi.spyOn(CategoriesService.prototype, "create").mockRejectedValueOnce(new Error("network"));
+    const save = vi.spyOn(ProfileService.prototype, "save");
+
+    fireEvent.click(screen.getByText("Begin"));
+    fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Alex" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    fireEvent.click(screen.getByText("Personal"));
+    fireEvent.click(screen.getByText("Continue"));
+    fireEvent.click(screen.getByText(/add people as I go/));
+    fireEvent.click(screen.getByText("Skip for now"));
+    fireEvent.click(screen.getByText("9 to 5"));
+    fireEvent.click(screen.getByText("Skip these"));
+    fireEvent.click(screen.getByText("Everything"));
+    fireEvent.click(screen.getByText("Continue"));
+    fireEvent.click(screen.getByText("7:00 AM"));
+
+    const enter = screen.getByText("Enter JARVIS");
+    fireEvent.click(enter);
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    await waitFor(() => expect(enter).not.toBeDisabled());
+    expect(onFinish).not.toHaveBeenCalled();
+    expect(save.mock.calls.some(([patch]) => (patch as { onboarded?: boolean }).onboarded === true)).toBe(false);
+
+    fireEvent.click(enter);
+    await waitFor(() => expect(onFinish).toHaveBeenCalled());
+    expect(save.mock.calls.some(([patch]) => (patch as { onboarded?: boolean }).onboarded === true)).toBe(true);
+    create.mockRestore();
+    save.mockRestore();
+  });
+});

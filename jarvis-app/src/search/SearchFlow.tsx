@@ -38,11 +38,16 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
   useEffect(() => {
     let on = true;
     (async () => {
+      // Audit 2026-09-11 item 3 (fixed 2026-09-13): one list read failing
+      // used to reject the whole Promise.all and leave search blank with no
+      // "No matches" state. Each read answers with nothing on its own
+      // failure, so a broken notes read still finds the task.
+      const none = () => [] as never[];
       const [t, e, n, p, pr, ac, g, c, dec, fl, st] = await Promise.all([
-        tasks.listTasks(), schedule.listEvents(), notes.listNotes(), people.list(),
-        projects.list(), money.list(), goals.list(), categories.list(), decisions.list(),
-        files ? files.list("money") : Promise.resolve([]),
-        strands ? strands.list() : Promise.resolve([]),
+        tasks.listTasks().catch(none), schedule.listEvents().catch(none), notes.listNotes().catch(none), people.list().catch(none),
+        projects.list().catch(none), money.list().catch(none), goals.list().catch(none), categories.list().catch(none), decisions.list().catch(none),
+        files ? files.list("money").catch(none) : Promise.resolve([]),
+        strands ? strands.list().catch(none) : Promise.resolve([]),
       ]);
       if (on) setData({ tasks: t, events: e, notes: n, people: p, projects: pr, accounts: ac, goals: g, categories: c, decisions: dec, files: fl, strands: st });
     })();

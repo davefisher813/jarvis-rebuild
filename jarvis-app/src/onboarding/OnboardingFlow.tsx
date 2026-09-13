@@ -265,38 +265,11 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
         // (people and priority are deliberately NOT persisted on the profile:
         // the names become real person entities and the priority becomes a real
         // task below. Audit 2026-08-10 removed the write-only duplicates.)
-        await profile.save({
-          name: name.trim(),
-          template,
-          // SHELL-F-09 (2026-09-05): an unanswered brief time used to write
-          // `undefined`, which since SCHED-F-01 reaches the store as a real
-          // null and clears the time the person had. A skipped question
-          // leaves the field alone instead.
-          ...(briefTime ? { briefTime } : {}),
-          // Item 22: Skip lands on Draft Only, and the level applies instantly.
-          //
-          // 2026-09-12: only when he actually picked a chip, and merged into
-          // what is already there. The step offers two chips, so someone who
-          // had set AI to Off and then ran Redo Setup came back as Draft Only
-          // with background calls allowed; and writing the object whole threw
-          // away every per-feature pin. A skip with nothing stored still reads
-          // as Draft Only, which is DEFAULT_AI_LEVEL (ai/aiGate.ts).
-          ...(aiChoice ? { ai: { ...prof?.ai, level: aiChoice === "everything" ? "everything" as const : "draft" as const } } : {}),
-          gmail,
-          calendar,
-          onboarded: true,
-          // SHELL-F-15 (2026-09-05): the areas step has been through. Whether
-          // it left six areas or none, the account has answered the question,
-          // so first launch must not answer it again. Only on a completed
-          // walk: intro Skip never showed the step at all.
-          ...(complete ? { areasSeeded: true } : {}),
-          // New users start with the trimmed tab set (see destinations.tsx).
-          // Persisted here so the default fallback never shifts under anyone who
-          // onboarded before this existed. SHELL-F-09: only when there is no
-          // tab bar yet. This was unconditional, so Redo Setup threw away the
-          // arrangement its own copy promises to keep.
-          ...(prof?.tabs?.length ? {} : { tabs: NEW_USER_TABS }),
-        });
+        // Audit 2026-09-11 item 4 (fixed 2026-09-13): the seeding used to run
+        // AFTER the profile was marked onboarded, so a failure partway through
+        // it left an account marked onboarded with nothing seeded. The areas,
+        // the people, the routine, the first task and the strands land first;
+        // onboarded is the last word written, and only once they are in.
         if (complete) {
           const existing = await categories.list();
           if (existing.length === 0) {
@@ -345,6 +318,38 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
             }
           }
         }
+        await profile.save({
+          name: name.trim(),
+          template,
+          // SHELL-F-09 (2026-09-05): an unanswered brief time used to write
+          // `undefined`, which since SCHED-F-01 reaches the store as a real
+          // null and clears the time the person had. A skipped question
+          // leaves the field alone instead.
+          ...(briefTime ? { briefTime } : {}),
+          // Item 22: Skip lands on Draft Only, and the level applies instantly.
+          //
+          // 2026-09-12: only when he actually picked a chip, and merged into
+          // what is already there. The step offers two chips, so someone who
+          // had set AI to Off and then ran Redo Setup came back as Draft Only
+          // with background calls allowed; and writing the object whole threw
+          // away every per-feature pin. A skip with nothing stored still reads
+          // as Draft Only, which is DEFAULT_AI_LEVEL (ai/aiGate.ts).
+          ...(aiChoice ? { ai: { ...prof?.ai, level: aiChoice === "everything" ? "everything" as const : "draft" as const } } : {}),
+          gmail,
+          calendar,
+          onboarded: true,
+          // SHELL-F-15 (2026-09-05): the areas step has been through. Whether
+          // it left six areas or none, the account has answered the question,
+          // so first launch must not answer it again. Only on a completed
+          // walk: intro Skip never showed the step at all.
+          ...(complete ? { areasSeeded: true } : {}),
+          // New users start with the trimmed tab set (see destinations.tsx).
+          // Persisted here so the default fallback never shifts under anyone who
+          // onboarded before this existed. SHELL-F-09: only when there is no
+          // tab bar yet. This was unconditional, so Redo Setup threw away the
+          // arrangement its own copy promises to keep.
+          ...(prof?.tabs?.length ? {} : { tabs: NEW_USER_TABS }),
+        });
       });
       if (ok) onFinish();
     } finally {

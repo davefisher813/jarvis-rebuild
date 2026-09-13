@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { computeSeal, worthSealing, prevMonthKey, SealService, type MonthSealData, ENTITY_MONTH_SEAL } from "./seal";
+import { computeSeal, worthSealing, prevMonthKey, SealService, windowDaysFor, type MonthSealData, ENTITY_MONTH_SEAL } from "./seal";
+import { windowStartISO } from "../brain/window";
 import type { WindowRow } from "../brain/window";
 import type { Goal } from "../life/types";
 import type { Workout } from "../gym/types";
@@ -212,5 +213,24 @@ describe("the month's line names the area, never its id (2026-09-06)", () => {
 
   it("a month whose only fact was an unnameable area says nothing at all", () => {
     expect(sealLine(sealed({ hours: { "0f8fad5b-d9cb-469f-a165-70867728950e": 900 } }))).toBe("");
+  });
+});
+
+// Audit 2026-09-11 item 2 (fixed 2026-09-13): the read reaches the first of
+// the month being sealed whatever day the seal runs.
+describe("windowDaysFor", () => {
+  it("covers the whole previous month from the first, sealed early or late in the month", () => {
+    for (const day of ["2026-09-01T00:30:00", "2026-09-13T12:00:00", "2026-09-30T23:00:00"]) {
+      const now = new Date(day).getTime();
+      const days = windowDaysFor("2026-08", now);
+      expect(windowStartISO(now, days) <= "2026-08-01", day).toBe(true);
+      expect(days).toBeLessThan(65);
+    }
+    // The old fixed 35 lost the first days of a long month sealed late.
+    expect(windowStartISO(new Date("2026-09-30T23:00:00").getTime(), 35) > "2026-08-01").toBe(true);
+  });
+
+  it("falls back to the old window on a key it cannot read", () => {
+    expect(windowDaysFor("nope", Date.now())).toBe(35);
   });
 });

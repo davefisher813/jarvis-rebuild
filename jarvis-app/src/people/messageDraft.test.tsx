@@ -83,3 +83,49 @@ describe("law: nothing is logged after", () => {
     expect(src).not.toMatch(/@core|from "\.\.\/data\/|useTasks|useNotes|usePeople|useSchedule|TasksService|NotesService|PeopleService|ScheduleService|attemptWrite/);
   });
 });
+
+// Audit 2026-09-11 item 1 (fixed 2026-09-13): the voice that arrives late.
+describe("the voice that arrives after the first draft", () => {
+  function voicedAI(calls: { sys: string[] }) {
+    return {
+      available: true,
+      complete: vi.fn(async (_m: unknown, sys: string, _o: unknown) => { calls.sys.push(sys); return "Draft " + calls.sys.length; }),
+    } as unknown as AIService;
+  }
+
+  it("redrafts once with the voice, and never over words he edited by hand", async () => {
+    const calls = { sys: [] as string[] };
+    const ai = voicedAI(calls);
+    const { rerender } = render(<MessageDraftSheet person={person()} ai={ai} onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByDisplayValue("Draft 1")).toBeInTheDocument());
+    expect(calls.sys[0]).not.toContain("Write it as this person would write it");
+    rerender(<MessageDraftSheet person={person()} ai={ai} voice="Short sentences, warm sign-off" onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByDisplayValue("Draft 2")).toBeInTheDocument());
+    expect(calls.sys[1]).toContain("Short sentences, warm sign-off");
+    // The same voice again is not a new voice.
+    rerender(<MessageDraftSheet person={person()} ai={ai} voice="Short sentences, warm sign-off" onClose={() => {}} />);
+    expect(calls.sys).toHaveLength(2);
+    // Edited by hand: a newer voice leaves his words alone.
+    fireEvent.change(screen.getByDisplayValue("Draft 2"), { target: { value: "My own words" } });
+    rerender(<MessageDraftSheet person={person()} ai={ai} voice="Blunt" onClose={() => {}} />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(calls.sys).toHaveLength(2);
+    expect(screen.getByDisplayValue("My own words")).toBeInTheDocument();
+  });
+
+  it("a slow first draft never overwrites the voiced one", async () => {
+    let releaseFirst: (v: string) => void = () => {};
+    const first = new Promise<string>((res) => { releaseFirst = res; });
+    let n = 0;
+    const ai = {
+      available: true,
+      complete: vi.fn(async () => (++n === 1 ? first : "Voiced draft")),
+    } as unknown as AIService;
+    const { rerender } = render(<MessageDraftSheet person={person()} ai={ai} onClose={() => {}} />);
+    rerender(<MessageDraftSheet person={person()} ai={ai} voice="Warm" onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByDisplayValue("Voiced draft")).toBeInTheDocument());
+    releaseFirst("Slow unvoiced draft");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByDisplayValue("Voiced draft")).toBeInTheDocument();
+  });
+});

@@ -607,6 +607,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // proof there is nothing more). Until that proof arrives, every empty state
   // here speaks for what is loaded, never for the inbox.
   const pageRef = useRef(MAIL_PAGE);
+  // Audit 2026-09-11 item 8 (fixed 2026-09-13): the request that is allowed
+  // to set results is the newest one; an older, slower answer is dropped.
+  const searchSeq = useRef(0);
   const [atEnd, setAtEnd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // EMAIL (Dave 2026-09-06, from his phone: "Email has an error"). Two
@@ -1600,20 +1603,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setSearchWho(person ?? null);
     setSearching(true);
     setError(null);
+    const seq = ++searchSeq.current;
     try {
       const perAccount = await Promise.all(list.map(async ({ email, api }) => {
         const metas = await api.searchThreads(query, 20).catch(() => []);
         return metas.map(mapThread).filter((t): t is ThreadRow => t !== null).map((t) => ({ ...t, account: email }));
       }));
+      if (seq !== searchSeq.current) return;
       const hits = perAccount.flat().sort((a, b) => b.dateMs - a.dateMs);
       setResults(hits);
       // Remembered only when it found something: a list of dead ends is not
       // a list worth showing on focus.
       if (hits.length > 0) setRecents(rememberSearch(typed));
     } catch (e) {
-      setError(humanError(e, "Search failed"));
+      if (seq === searchSeq.current) setError(humanError(e, "Search failed"));
     } finally {
-      setSearching(false);
+      if (seq === searchSeq.current) setSearching(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g, search, searchPeople, acctFilter]);

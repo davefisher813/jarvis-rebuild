@@ -270,7 +270,13 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   useEffect(() => {
     let on = true;
     (async () => {
-      const prof = await profile.get();
+      // Audit 2026-09-11 item 6 (fixed 2026-09-13): the whole boot in one
+      // guard. Any read here throwing used to skip setReady, which is a
+      // blank screen until relaunch. The shell now opens on whatever loaded,
+      // says so, and the tab bar falls back to the stored or default keys.
+      let prof: Awaited<ReturnType<typeof profile.get>> | null = null;
+      try {
+      prof = await profile.get();
       // SHELL-F-15 (2026-09-05): seeding used to run on every boot with "no
       // categories" as its signal for a first run, so an account whose owner
       // deliberately removed every area in intake got all six back on the
@@ -311,7 +317,13 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       void settings?.pull<string>(SETTING_DONE_CLEARING);
       // 2026-09-13: and where a task made from an email goes (tasks/emailTasks.ts).
       void settings?.pull<string>(SETTING_EMAIL_TASKS);
-            const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
+      } catch (e) {
+        if (!on) return;
+        console.error("boot", e);
+        showToast({ message: "Couldn't load everything · Try again in a moment" });
+      }
+      if (!on) return;
+      const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
       setTabKeys(keys);
       if (firstBoot.current) {
         setActive(keys[0] ?? "today");

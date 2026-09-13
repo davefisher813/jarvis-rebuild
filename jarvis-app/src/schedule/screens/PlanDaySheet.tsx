@@ -134,7 +134,9 @@ export default function PlanDaySheet({
   onEditRoutine?: (blockId?: string) => void;
   // P7: make a task without leaving the sheet.
   onAddTask?: (text: string) => Promise<PlanCandidate | null>;
-  onCommit: (blocks: PlanBlock[], picks: string[]) => void;
+  /** The third argument (2026-09-13) is what the AI plan leaned on, so the
+   *  host can remember it for the day's Why sheet; a host may ignore it. */
+  onCommit: (blocks: PlanBlock[], picks: string[], leanedOn?: string[]) => void;
   // The user's chosen day cap from the monthly report, when set.
   chosenCap?: number;
   onClose: () => void;
@@ -539,6 +541,7 @@ export default function PlanDaySheet({
       // One task picked once, however many sittings it was broken into: the
       // pick order is about tasks, and plan.picked counts a task once.
       Array.from(new Set(picks.map(realId))),
+      leanedOn,
     );
   };
 

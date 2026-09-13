@@ -46,6 +46,7 @@ import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventRemi
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap, todayPlan } from "./evening";
 import { pendingPicks } from "../events/planOutcome";
+import { rememberLeanedOn, leanedOnFor } from "./leanedOn";
 import { readSamples } from "../shared/timeSense";
 import { settleDuePlans } from "../events/pipeline";
 import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
@@ -1272,7 +1273,7 @@ export default function TodayFlow({
     });
   };
 
-  const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string; sitting?: number }[], picks: string[]) => {
+  const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string; sitting?: number }[], picks: string[], leanedOn?: string[]) => {
     // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
     // prior plan event on this day before writing, against a fresh read.
     let ids: string[] = [];
@@ -1296,6 +1297,9 @@ export default function TodayFlow({
     // it swept the blocks he had just written and put the old ones back.
     // Read fresh: another surface may have moved it while the sheet was open.
     if (ok) {
+      // C-25 (wired 2026-09-13): the strand the plan leaned on, kept for the
+      // day so the Why sheet on one of its picks can say so.
+      rememberLeanedOn(planDate, leanedOn?.[0] ?? null);
       const resolved = acceptInto(readDraft(planDate), planDate, blocks, ids);
       if (resolved) {
         writeDraft(resolved);
@@ -3434,6 +3438,7 @@ export default function TodayFlow({
       <WhySheet
         taskId={moveTask.id}
         reasons={[...moveReasons, ...(movePlacement ? [movePlacement] : [])]}
+        leaningOn={leanedOnFor(today, moveTask.id, pendingPicks(today))}
         onClose={() => setWhyOpen(false)}
       />
     )}

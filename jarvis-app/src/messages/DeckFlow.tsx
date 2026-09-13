@@ -453,11 +453,19 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
 
   const archive = async () => {
     if (!row || busy || killing || timeUp) return;
-    const cleared = await archiveRemote(row.id, row.account);
-    if (!cleared) showToast({ message: "Couldn't archive it · Still in your inbox" });
-    else receipts.current.archived += 1;
-    emit({ type: "action", props: { name: "email.deck.handled", kind: "archive" } });
-    advance(cleared);
+    // Audit 2026-09-11 item 9 (fixed 2026-09-13): busy for the whole
+    // archive, so a double tap cannot fire it twice and count the one
+    // thread twice on Cleared Today and the sweep receipt.
+    setBusy(true);
+    try {
+      const cleared = await archiveRemote(row.id, row.account);
+      if (!cleared) showToast({ message: "Couldn't archive it · Still in your inbox" });
+      else receipts.current.archived += 1;
+      emit({ type: "action", props: { name: "email.deck.handled", kind: "archive" } });
+      advance(cleared);
+    } finally {
+      setBusy(false);
+    }
   };
 
   // E-19: the resume offer, before any card. The hand behind it is the

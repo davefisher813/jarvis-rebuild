@@ -1371,3 +1371,30 @@ describe("Not for Me is a thread correction, not a sender rule (E-16)", () => {
     expect(localStorage.getItem("jarvis.mail.threadOverride.v1")).toBe("{}");
   });
 });
+
+// Audit 2026-09-11 item 8 (fixed 2026-09-13): an older, slower answer never
+// overwrites the newer search.
+describe("search results belong to the newest request", () => {
+  it("a slow first search landing after a fast second one is dropped", async () => {
+    let releaseSlow: (v: GmailThreadMeta[]) => void = () => {};
+    const slow = new Promise<GmailThreadMeta[]>((res) => { releaseSlow = res; });
+    const api = makeApi({
+      searchThreads: async (query: string) => query === "slowq"
+        ? slow
+        : [{ id: "tf", messages: [msg("mf", "Fastman <f@x.com>", "Quick", "Here", [], 60)] }],
+    });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Ridgeley");
+    const box = screen.getByPlaceholderText("Search All Mail");
+    fireEvent.change(box, { target: { value: "slowq" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    fireEvent.change(box, { target: { value: "fastq" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(await screen.findByText("Fastman")).toBeInTheDocument();
+    releaseSlow([{ id: "ts", messages: [msg("ms", "Slowman <s@x.com>", "Late", "Here", [], 50)] }]);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(screen.getByText("Fastman")).toBeInTheDocument();
+    expect(screen.queryByText("Slowman")).toBeNull();
+  });
+});

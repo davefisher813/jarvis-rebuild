@@ -291,6 +291,29 @@ describe("DeckFlow parked session", () => {
     </NotesProvider>,
   );
 
+  // Audit 2026-09-11 item 9 (fixed 2026-09-13): Archive is busy while it
+  // runs, so a double tap clears one thread once.
+  it("a double tap on Archive counts the thread once", async () => {
+    localStorage.removeItem(SESSION_KEY);
+    const onDone = vi.fn();
+    mount(three(), { onDone });
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    const archive = screen.getByRole("button", { name: "Archive" });
+    fireEvent.click(archive);
+    fireEvent.click(archive);
+    await screen.findByText("Bravo");
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Later"));
+    await screen.findByText("Cara");
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Later"));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    const [handled, , receipts] = onDone.mock.calls[0]!;
+    expect(handled).toBe(3);
+    expect(receipts).toMatchObject({ archived: 1, later: 2 });
+  });
+
   it("persists the hand on every advance, and the back button parks instead of finishing", async () => {
     localStorage.removeItem(SESSION_KEY);
     const onDone = vi.fn(); const onPark = vi.fn();

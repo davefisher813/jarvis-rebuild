@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Person } from "./types";
 import type { AIService } from "../ai/AIService";
 import { draftSystemPrompt, smsLink, DRAFT_TONES, TONE_LABEL, type DraftTone } from "./messageDraft";
@@ -34,27 +34,51 @@ export default function MessageDraftSheet({
   const [tone, setTone] = useState<DraftTone>("direct");
   const [text, setText] = useState("");
   const [drafting, setDrafting] = useState(false);
+  // Audit 2026-09-11 item 1 (fixed 2026-09-13): the voice ("How You Write")
+  // arrives async from the caller, after the draft at open has already gone
+  // out without it. These three remember what the last draft was written
+  // with and what it said, so a voice that lands late redrafts once, never
+  // over words he has already edited by hand; and a draft that comes back
+  // after a newer one was asked for is dropped, so a slow first answer can
+  // never overwrite the voiced one.
+  const draftedVoice = useRef<string | undefined>(undefined);
+  const lastAI = useRef<string | null>(null);
+  const seq = useRef(0);
 
   const draft = useCallback(async (t: DraftTone) => {
     if (!ai.available) return; // honest empty composer; placeholder says so
+    const mine = ++seq.current;
+    const voice = userVoice?.trim() || undefined;
+    draftedVoice.current = voice;
     setDrafting(true);
     try {
       const out = await ai.complete(
         [{ role: "user", content: about ?? `Draft a message to ${person.data.name}.` }],
-        draftSystemPrompt(person.data, t, about, { ...(userVoice?.trim() ? { voice: userVoice } : {}) }),
+        draftSystemPrompt(person.data, t, about, { ...(voice ? { voice } : {}) }),
         { kind: "message", pin: "messageDrafts", tier: "write" },
       );
+      if (mine !== seq.current) return;
+      lastAI.current = out.trim();
       setText(out.trim());
     } catch {
       // The composer still works by hand; a failed draft is an empty box,
       // not an error state.
     } finally {
-      setDrafting(false);
+      if (mine === seq.current) setDrafting(false);
     }
   }, [ai, person, about, userVoice]);
 
   // Draft exists at open.
   useEffect(() => { void draft(tone); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The late voice: redraft once, only while the box still holds the AI's
+  // own words (or nothing yet).
+  useEffect(() => {
+    const voice = userVoice?.trim() || undefined;
+    if (!voice || voice === draftedVoice.current) return;
+    if (lastAI.current !== null && text !== lastAI.current) return;
+    void draft(tone);
+  }, [userVoice]);
 
   const pickTone = (t: DraftTone) => {
     if (t === tone) return;

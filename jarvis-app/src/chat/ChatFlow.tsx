@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { refileWith, type Undo } from "./refile";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, useOptionalDecisions, usePeople, useOptionalFiles, useFileStore, useOptionalGym } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
@@ -629,8 +630,13 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   // Money and Notes are writes this screen can make itself. Schedule and Gym
   // are review flows that already exist, so the file is handed to them and
   // nothing is written until the person has approved what was read.
-  const fileToMoney = async (file: File, why: string) => {
-    if (!filesSvc || !fileStore) { await say("jarvis", "Files need a signed-in account", { kind: "records" }); return; }
+  // Audit 2026-09-11 item 7 (fixed 2026-09-13, chat/refile.ts): every
+  // delivery hands back the way to take itself back, so a refile can move
+  // the file rather than copy it.
+  const [lastUndo, setLastUndo] = useState<Undo | null>(null);
+
+  const fileToMoney = async (file: File, why: string): Promise<Undo | null> => {
+    if (!filesSvc || !fileStore) { await say("jarvis", "Files need a signed-in account", { kind: "records" }); return null; }
     const rowId = await filesSvc.create({
       name: file.name, path: "", mime: file.type, bytes: file.size, scope: "money", addedAt: todayISO(),
     });
@@ -645,20 +651,24 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       kind: "action",
       refs: [{ kind: "file", id: rowId, label: file.name }],
     });
+    const remove: Undo = async () => {
+      const row = await filesSvc.get(rowId);
+      await attemptWrite(() => filesSvc.remove(rowId));
+      if (row?.data.path) void fileStore.remove([row.data.path]);
+    };
     showToast({
       message: "Filed to Money",
       actionLabel: "Undo",
       onAction: async () => {
-        const row = await filesSvc.get(rowId);
-        await attemptWrite(() => filesSvc.remove(rowId));
-        if (row?.data.path) void fileStore.remove([row.data.path]);
+        await remove();
         showToast({ message: "Receipt removed" });
       },
     });
+    return remove;
   };
 
-  const fileToNote = async (file: File, why: string) => {
-    if (!fileStore) { await say("jarvis", "Files need a signed-in account", { kind: "records" }); return; }
+  const fileToNote = async (file: File, why: string): Promise<Undo | null> => {
+    if (!fileStore) { await say("jarvis", "Files need a signed-in account", { kind: "records" }); return null; }
     // Born unfiled, same rule every other note creation follows.
     const noteId = await notes.createNote(fileStem(file.name), "");
     if (!noteId) throw new Error("Couldn't make a note for that file.");
@@ -676,26 +686,30 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       kind: "action",
       refs: [{ kind: "note", id: noteId, label: fileStem(file.name) }],
     });
+    const remove: Undo = async () => {
+      await attemptWrite(() => notes.deleteNote(noteId));
+      void fileStore.removeAll(noteId);
+    };
     showToast({
       message: "Saved to Notes",
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(() => notes.deleteNote(noteId));
-        void fileStore.removeAll(noteId);
+        await remove();
         showToast({ message: "Note removed" });
       },
     });
+    return remove;
   };
 
-  const deliver = async (file: File, to: FileDestination, why: string) => {
+  const deliver = async (file: File, to: FileDestination, why: string): Promise<Undo | null> => {
     setLastTo(to);
     if (to === "schedule" || to === "gym") {
       setPending({ to, file });
       await say("jarvis", `Reading it as a ${to === "schedule" ? "schedule" : "workout"} · ${why}`, { kind: "records" });
-      return;
+      return null;
     }
-    if (to === "money") { await fileToMoney(file, why); return; }
-    await fileToNote(file, why);
+    if (to === "money") return fileToMoney(file, why);
+    return fileToNote(file, why);
   };
 
   // The whole journey for one picked file. The draft text rides along as a
@@ -710,7 +724,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       await say("user", said ? `${said} · ${file.name}` : file.name);
       const decided = routeFile({ name: file.name, mime: file.type, text: said });
       const to = decided?.to ?? await askWhere(file, said);
-      await deliver(file, to, decided?.why ?? "Read from the file itself");
+      setLastUndo(await deliver(file, to, decided?.why ?? "Read from the file itself"));
     } catch (e) {
       // Never a silent failure: the bytes did not land and the thread says so.
       await say("jarvis", e instanceof Error && e.message ? e.message : "Couldn't save that file", { kind: "records" });
@@ -730,7 +744,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     if (!lastFile || attaching) return;
     setAttaching(true);
     try {
-      await deliver(lastFile, to, "You moved it here");
+      // The new place first, then the old filing comes back; a delivery
+      // that fails leaves the file where it was.
+      setLastUndo(await refileWith(() => deliver(lastFile, to, "You moved it here"), lastUndo));
     } catch (e) {
       await say("jarvis", e instanceof Error && e.message ? e.message : "Couldn't save that file", { kind: "records" });
     } finally {

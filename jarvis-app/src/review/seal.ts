@@ -272,6 +272,18 @@ const MARK_KEY = "jarvis.seal.done.v1";
 // the worst case is one extra Store lookup per user, which is idempotent.
 const markKeyFor = (ownerId: string) => `${MARK_KEY}:${ownerId}`;
 
+/** How many days back the window must reach to cover the whole of the
+ *  month `prevKey` (YYYY-MM) from `now`. Audit 2026-09-11 item 2 (fixed
+ *  2026-09-13): a fixed 35 days sealed on the 30th started the read on the
+ *  26th of the month being sealed and lost its first three weeks. One day of
+ *  margin, so the day the month started is inside the window whatever the
+ *  clock says. */
+export function windowDaysFor(prevKey: string, now: number): number {
+  const start = new Date(prevKey + "-01T00:00:00").getTime();
+  if (!Number.isFinite(start) || start > now) return 35;
+  return Math.ceil((now - start) / 86400000) + 1;
+}
+
 export async function sealPreviousMonthIfDue(
   svc: SealService,
   client: WindowClient | null,
@@ -293,7 +305,7 @@ export async function sealPreviousMonthIfDue(
   } catch { /* no storage: the Store check below still guards */ }
   if (await svc.findMonth(prev)) { mark(); return null; }
   const [win, workouts, goals] = await Promise.all([
-    readWindowWithSource(client, now, 35),
+    readWindowWithSource(client, now, windowDaysFor(prev, now)),
     gym.listWorkouts(),
     goalsSvc.list(),
   ]);

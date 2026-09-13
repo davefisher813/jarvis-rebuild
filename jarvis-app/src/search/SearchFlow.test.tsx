@@ -6,6 +6,7 @@ import "@testing-library/jest-dom";
 import { NotesProvider, useTasks } from "../data/NotesProvider";
 import { useEffect, useState } from "react";
 import SearchFlow from "./SearchFlow";
+import { NotesService } from "../notes/NotesService";
 
 function Seeded() {
   const tasks = useTasks();
@@ -26,5 +27,21 @@ describe("SearchFlow", () => {
     render(<NotesProvider userId="u1"><SearchFlow onClose={onClose} /></NotesProvider>);
     fireEvent.click(screen.getByText("Cancel"));
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+// Audit 2026-09-11 item 3 (fixed 2026-09-13): one failing list read used to
+// blank search entirely.
+describe("SearchFlow with one read failing", () => {
+  it("still finds the task when the notes read throws", async () => {
+    const spy = vi.spyOn(NotesService.prototype, "listNotes").mockRejectedValueOnce(new Error("offline"));
+    try {
+      render(<NotesProvider userId="u-fail"><Seeded /></NotesProvider>);
+      fireEvent.change(await screen.findByPlaceholderText("Search Everything"), { target: { value: "sam" } });
+      await waitFor(() => expect(screen.getByText("Email Sam")).toBeInTheDocument());
+      expect(spy).toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
