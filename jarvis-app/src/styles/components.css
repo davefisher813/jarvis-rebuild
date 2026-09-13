@@ -5174,6 +5174,30 @@ span.row-star { cursor: default; }
 .note-tags { margin-top: var(--s-1); }
 .note-row > .row-star { margin-right: var(--s-1); }
 
+/* INSIGHTS, PUSH I (C-64, C-65; Astra section 3, .stack and .itile). The
+   stat tile (tint ground, big tabular number, caps label, intent colour),
+   the stacked hours bar (category-coloured segments, 10px, rounded), and
+   the week's keyed lines. */
+.tiles { display: flex; gap: var(--s-1h); margin: 0 0 var(--s-2h); }
+.itile { flex: 1; border-radius: 12px; padding: var(--s-2h) var(--s-3); min-width: 0; }
+.itile b { display: block; font-size: calc(24px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.itile span { display: block; margin-top: 4px; font-size: calc(11px * var(--type-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.itile-good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
+.itile-purp { background: color-mix(in srgb, var(--cat-purple) 14%, transparent); color: var(--cat-purple); }
+.itile-sky { background: color-mix(in srgb, var(--cat-sky) 14%, transparent); color: var(--cat-sky); }
+.stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin: var(--s-1h) 0 var(--s-2); background: var(--press-3); }
+.stack > i { display: block; height: 100%; }
+.stack > i.stack-open { background: var(--divider); }
+.week-card .tiles { margin-top: 0; }
+.week-eyebrow { margin-bottom: 2px; }
+.week-legend { margin-bottom: var(--s-2h); }
+.eq { display: flex; align-items: baseline; gap: var(--s-2h); padding: var(--s-1h) 0; }
+.eq-k { flex: 0 0 64px; font-size: calc(11px * var(--type-scale)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.eq-good { color: var(--good); } .eq-warn { color: var(--warn); } .eq-sky { color: var(--cat-sky); } .eq-purp { color: var(--cat-purple); } .eq-red { color: var(--red); }
+.eq .facts { flex: 1; min-width: 0; }
+.week-acts { margin-top: var(--s-2h); align-items: center; }
+.rep-vs { margin-left: var(--s-1h); }
+
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
    mail EvidenceChip: a surface hands that component this class rather than
    forking it, and the sheet it opens is the Why sheet (C-25). */

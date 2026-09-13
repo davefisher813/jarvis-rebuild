@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useGoals, useProjects, useOptionalSeal } from "../data/NotesProvider";
+import { useGoals, useProjects, useOptionalSeal, useOptionalSchedule, useOptionalCategories, useOptionalGym, useOptionalRoutine, useOptionalRules } from "../data/NotesProvider";
+import { buildWeek, type WeekReport } from "./week";
+import { hoursLabel } from "./hours";
+import { readWindow, type WindowClient } from "../brain/window";
+import { supabase } from "../auth/supabaseClient";
+import { attemptWrite } from "../shared/guard";
+import { showToast } from "../shared/toast";
+import { filledIcon } from "../shared/filledIcons";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
 import { completionSamples } from "../events/completions";
@@ -23,6 +30,8 @@ import { pressable } from "../shared/pressable";
 // being graded at the workbench.
 
 const CHEV = <div className="chev" />;
+// "6h", "4h 30m": the legend's hours, the report's own label.
+const hoursOf = (minutes: number) => hoursLabel(minutes);
 
 export default function InsightsFlow({ onBack, onOpenTask }: {
   onBack: () => void;
@@ -37,6 +46,44 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
   const [projects, setProjects] = useState<Project[]>([]);
   const [seals, setSeals] = useState<MonthSeal[]>([]);
   const [liveDone, setLiveDone] = useState<number | null>(null);
+  // C-64 (Astra, 2026-09-12): THIS WEEK. The same window read the Brain
+  // makes, folded by review/week.ts through computeSeal over seven days.
+  // Every service is optional: a harness without one simply gets a
+  // thinner card, never a broken page.
+  const schedSvc = useOptionalSchedule();
+  const catsSvc = useOptionalCategories();
+  const gymSvc = useOptionalGym();
+  const routineSvc = useOptionalRoutine();
+  const rulesSvc = useOptionalRules();
+  const [week, setWeek] = useState<WeekReport | null>(null);
+  const [cats, setCats] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [offered, setOffered] = useState(false);
+  const loadWeek = useCallback(async (gl: Goal[], pj: Project[]) => {
+    try {
+      const now = Date.now();
+      const [rows, events, workouts, categories, routine, rule] = await Promise.all([
+        readWindow(supabase as unknown as WindowClient | null, now, 15),
+        schedSvc ? schedSvc.listEvents().catch(() => []) : Promise.resolve([]),
+        gymSvc ? gymSvc.listWorkouts().catch(() => []) : Promise.resolve([]),
+        catsSvc ? catsSvc.list().catch(() => []) : Promise.resolve([]),
+        routineSvc ? routineSvc.get().catch(() => null) : Promise.resolve(null),
+        rulesSvc ? rulesSvc.resolve("plan.focus", "week").catch(() => null) : Promise.resolve(null),
+      ]);
+      const cs = categories.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }));
+      setCats(cs);
+      const days7 = new Set(buildWeek({ today, rows: [], events: [], workouts: [], goals: [], projects: [], categories: [] }).days);
+      const work = routine ? Math.max(0, routine.workEndMin - routine.workStartMin) : undefined;
+      // The rule is pre-announced by create(); the doctrine still wants the
+      // consulting file to say so, and this is a no-op on an announced rule.
+      if (rule && rulesSvc) await rulesSvc.announceIfFirstUse(rule);
+      setOffered(!!rule);
+      setWeek(buildWeek({
+        today, rows: rows.filter((r) => days7.has(r.day)), prevRows: rows.filter((r) => !days7.has(r.day)),
+        events, workouts, goals: gl, projects: pj, categories: cs,
+        ...(work ? { workMinutesPerDay: work } : {}), alreadyOffered: !!rule,
+      }));
+    } catch { setWeek(null); }
+  }, [schedSvc, gymSvc, catsSvc, routineSvc, rulesSvc, today]);
   const [screen, setScreen] = useState<{ kind: "live" } | { kind: "month"; month: string } | { kind: "story" } | null>(null);
 
   const reload = useCallback(async () => {
@@ -48,13 +95,32 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
     setGoals(gl);
     setProjects(pj);
     setSeals(sl);
+    void loadWeek(gl, pj);
     // The This Month card's one number: seen completions this month. Still a
     // local read (Still Open says so), but now off the same unified log the
     // category page counts from (2026-08-29), not the smaller sample array.
     const monthStart = new Date(today.slice(0, 7) + "-01T00:00:00").getTime();
     setLiveDone(completionSamples().filter((s) => s.t >= monthStart).length);
-  }, [goalsSvc, projectsSvc, sealSvc, today]);
+  }, [goalsSvc, projectsSvc, sealSvc, today, loadWeek]);
   useEffect(() => { void reload(); }, [reload]);
+
+  // C-64: the One Change. Move Two Blocks writes the plan.focus rule the way
+  // the month report's cap writes plan.cap: one deliberate tap, one row in
+  // What JARVIS Learned, deletable there. No Thanks leaves it for next week.
+  const moveTwoBlocks = async () => {
+    if (!rulesSvc || !week?.next) return;
+    const area = week.next.name;
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => { id = (await rulesSvc.create("tuning", "plan.focus", "week", "2", `Chosen from the weekly report: two focus blocks aimed at ${area}`)).id; });
+    if (!ok) return;
+    setOffered(true);
+    const ruleId = id;
+    showToast({ message: `Two blocks aimed at ${area} next week`, actionLabel: "Undo", onAction: () => void (async () => {
+      if (ruleId) await attemptWrite(() => rulesSvc.delete(ruleId));
+      setOffered(false);
+    })() });
+  };
+  const noThanks = () => setOffered(true);
 
   const pushCls = usePushDepth(screen ? 1 : 0);
 
@@ -122,6 +188,51 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
       <div className="screen ruled">
         <PageHeader title="Insights" back="Brain" onBack={onBack} />
 
+        {/* THIS WEEK (C-64): three tiles, where the hours went, five lines,
+            and the One Change. Rendered only when the week has something to
+            say; a quiet week has no card, not an empty one. */}
+        {week && (week.lines.length > 0 || week.stack || week.tiles.done > 0 || week.tiles.moved > 0) && (
+          <>
+            <div className="sh2 sh2-quiet"><span className="t">This Week</span></div>
+            <div className="pad-x"><div className="card pad week-card">
+              <div className="tiles">
+                <div className="itile itile-good"><b>{week.tiles.done}</b><span>done</span></div>
+                <div className="itile itile-purp"><b>{week.tiles.moved}</b><span>goals moved</span></div>
+                <div className="itile itile-sky"><b>{week.tiles.flexible}</b><span>flexible</span></div>
+              </div>
+              {week.stack && (
+                <>
+                  <div className="eyebrow week-eyebrow">Where the Hours Went</div>
+                  <div className="stack">
+                    {week.stack.map((s) => <i key={s.id} className={s.id === "open" ? "stack-open" : "cat-bg-" + s.color} style={{ width: `${Math.max(2, s.pct)}%` }} />)}
+                  </div>
+                  <div className="facts week-legend">
+                    {week.stack.map((s) => s.id === "open"
+                      ? <span className="fact" key={s.id}>Open {hoursOf(s.minutes)}</span>
+                      : <span className="fact cat" key={s.id}><span className={"cd cat-bg-" + s.color} />{s.name} {hoursOf(s.minutes)}</span>)}
+                  </div>
+                </>
+              )}
+              {week.lines.map((l) => (
+                <div className="eq" key={l.key}>
+                  <span className={"eq-k eq-" + l.tone}>{l.key}</span>
+                  <span className="facts">
+                    {l.facts.map((f) => f.tone === "cat"
+                      ? <span className="fact cat" key={f.text}><span className={"cd cat-bg-" + (f.color ?? "graphite")} />{f.text}</span>
+                      : <span className={"fact" + (f.tone ? " " + f.tone : "")} key={f.text}>{f.text}</span>)}
+                  </span>
+                </div>
+              ))}
+              {week.offer && !offered && rulesSvc && (
+                <div className="dec-outcome-acts week-acts">
+                  <button type="button" className="btn btn-primary" onClick={() => void moveTwoBlocks()}>Move Two Blocks</button>
+                  <button type="button" className="quiet-action" onClick={noThanks}>No Thanks</button>
+                </div>
+              )}
+            </div></div>
+          </>
+        )}
+
         {/* THIS MONTH: the living report, one tap away, honestly labeled. */}
         <div className="sh2 sh2-quiet"><span className="t">This Month</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
@@ -150,10 +261,16 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
           {[...seals].reverse().map((s) => {
             const moved = movedIn(s.data.month, goals, projects).length + (s.data.saved > 0 ? 1 : 0);
             return (
+              // C-64: the month row wears the purple glyph and one facts line,
+              // moved purple and done plain (one coloured fact per line).
               <div {...pressable(() => setScreen({ kind: "month", month: s.data.month }))} className="row" key={s.id}>
+                <div className="lib-ico lib-disc strand-disc">{filledIcon("month")}</div>
                 <div className="row-grow">
                   <div className="conn-name">{monthName(s.data.month)} {s.data.month.slice(0, 4)}</div>
-                  <div className="r-k"><span className="r-goal r-cat"><Nums text={capAfterNumber(`${moved} moved · ${s.data.done} done`)} /></span></div>
+                  <div className="facts">
+                    <span className="fact purp">{capAfterNumber(`${moved} moved`)}</span>
+                    <span className="fact">{capAfterNumber(`${s.data.done} done`)}</span>
+                  </div>
                 </div>
                 {CHEV}
               </div>

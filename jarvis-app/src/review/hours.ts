@@ -87,8 +87,13 @@ export function eventMinutes(e: EventItem): number {
  * month than they deserve.
  */
 export function minutesByCategory(month: string, events: EventItem[]): Record<string, number> {
+  return minutesByDays(daysOfMonth(month), events);
+}
+
+// C-64 (Astra, 2026-09-12): the same fold over any list of days, so a week
+// and a month count an hour the same way.
+export function minutesByDays(days: string[], events: EventItem[]): Record<string, number> {
   const out: Record<string, number> = {};
-  const days = daysOfMonth(month);
   if (days.length === 0) return out;
   for (const e of events) {
     const mins = eventMinutes(e);

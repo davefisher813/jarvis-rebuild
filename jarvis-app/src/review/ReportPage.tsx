@@ -160,7 +160,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
             </div>
             <div className="rep-leg">
               {report.time.rows.map((r) => (
-                <span key={r.id || "rest"}><i className={"cat-bg-" + r.color} />{r.name} {r.label}</span>
+                <span key={r.id || "rest"}><i className={"cat-bg-" + r.color} />{r.name} {r.label}{r.vs && <span className="fact warn rep-vs">{r.vs}</span>}</span>
               ))}
             </div>
             <div className="eyebrow rep-gap">{report.time.total} on the calendar</div>

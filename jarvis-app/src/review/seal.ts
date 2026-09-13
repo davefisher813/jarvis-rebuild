@@ -1,7 +1,7 @@
 import type { Store, ItemData } from "@core";
 import type { EventInput } from "../events";
 import type { EventItem } from "../schedule/types";
-import { minutesByCategory, unscheduledGoalAreas, hoursRows } from "./hours";
+import { minutesByCategory, minutesByDays, unscheduledGoalAreas, hoursRows } from "./hours";
 import type { WindowRow, WindowClient } from "../brain/window";
 import { readWindow, readWindowWithSource } from "../brain/window";
 import { completionBand, taskDone, slipLeader } from "../brain/derive";
@@ -93,11 +93,17 @@ export interface SealInputs {
   // simply has no hours section, which is exactly how every seal written
   // before 2026-09-04 behaves. It is never a reason to fail a seal.
   events?: EventItem[];
+  // C-64 (Astra, 2026-09-12): a window of local days instead of the whole
+  // month. The This Week card runs this same fold over seven days; the
+  // seal's month key is still whatever the caller names.
+  days?: string[];
 }
 
 /** Pure: fold one month's evidence into its seal record. */
 export function computeSeal(month: string, inp: SealInputs): MonthSealData {
-  const inMonth = inp.rows.filter((r) => r.day.startsWith(month));
+  const daySet = inp.days ? new Set(inp.days) : null;
+  const inRange = (d: string) => (daySet ? daySet.has(d.slice(0, 10)) : d.startsWith(month));
+  const inMonth = inp.rows.filter((r) => inRange(r.day));
   const done = taskDone(inMonth);
   const byCategory: Record<string, number> = {};
   const doneByDay: Record<string, number> = {};
@@ -163,7 +169,7 @@ export function computeSeal(month: string, inp: SealInputs): MonthSealData {
     suggestions[k] = sgg;
   }
   const deckRows = inMonth.filter((r) => r.type === "email.deck_sent");
-  const entries = inp.goals.flatMap((g) => (g.data.saved ?? []).filter((s) => s.d.startsWith(month)));
+  const entries = inp.goals.flatMap((g) => (g.data.saved ?? []).filter((s) => inRange(s.d)));
   const band = completionBand(done);
   return {
     month,
@@ -173,7 +179,7 @@ export function computeSeal(month: string, inp: SealInputs): MonthSealData {
     daysIn: new Set(inMonth.filter((r) => r.type === "app.opened").map((r) => r.day)).size,
     byCategory,
     bandStart: band?.start ?? null,
-    sessions: inp.workouts.filter((w) => w.data.date.startsWith(month)).length,
+    sessions: inp.workouts.filter((w) => inRange(w.data.date)).length,
     deposits: entries.length,
     saved: entries.reduce((a, s) => a + s.amount, 0),
     goalsLive: liveGoals(inp.goals).length,
@@ -199,7 +205,7 @@ export function computeSeal(month: string, inp: SealInputs): MonthSealData {
     // hours section, and every reader defaults the field.
     ...(inp.events
       ? (() => {
-          const hours = minutesByCategory(month, inp.events!);
+          const hours = inp.days ? minutesByDays(inp.days, inp.events!) : minutesByCategory(month, inp.events!);
           // Held against what they said mattered: the areas their LIVE goals
           // reach into, which a goal names through its tags (bigger/reach.ts
           // is the one definition of that reach and liveGoals the one

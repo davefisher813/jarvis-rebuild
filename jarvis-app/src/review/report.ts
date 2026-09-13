@@ -28,7 +28,11 @@ export interface ReportSegment { id: string; name: string; color: string; n: num
 // reaches into that got no scheduled time at all. Facts, in both directions,
 // with no target between them: the report says where the hours went and what
 // had none, and never which of those is the right answer.
-export interface TimeRow { id: string; name: string; color: string; label: string; pct: number }
+export interface TimeRow { id: string; name: string; color: string; label: string; pct: number;
+  // C-65 (Astra, 2026-09-12): "26% vs usual 35%", beside the hours, only
+  // inside a report and only when the share moved against last month.
+  vs?: string;
+}
 export interface TimeSection {
   rows: TimeRow[];
   /** Total scheduled time, already formatted. */
@@ -243,15 +247,20 @@ export function buildReport(inp: ReportInputs): MonthReport {
   // "Everything else" rather than dropped, so the percentages the reader adds
   // up in their head actually reach a hundred.
   const timeRows = hoursRows(seal.hours ?? {});
+  // C-65: last month's shares, for the one percent a report may say.
+  const prevRows = prev?.hours ? hoursRows(prev.hours) : [];
   const time: TimeSection | null = timeRows.length === 0 ? null : {
     rows: timeRows.map((r) => {
       const cat = r.category ? catById.get(r.category) : undefined;
+      const was = prevRows.find((p) => p.category === r.category);
+      const vs = was && Math.abs(r.pct - was.pct) >= 5 ? `${r.pct}% vs usual ${was.pct}%` : undefined;
       return {
         id: r.category,
         name: cat?.name ?? "Everything else",
         color: cat?.color ?? "graphite",
         label: hoursLabel(r.minutes),
         pct: r.pct,
+        ...(vs ? { vs } : {}),
       };
     }),
     total: hoursLabel(timeRows.reduce((a, r) => a + r.minutes, 0)),

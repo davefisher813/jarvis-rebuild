@@ -175,6 +175,29 @@ describe("ASTRA law 10: the event vocabulary is closed and named", () => {
   });
 });
 
+// Law 6 (Astra, Push I): percent is allowed inside Insights reports only.
+// Counts everywhere else. Dave's ruling 2026-09-12 on the two standing
+// exceptions: the goal page's dollar ring (C-35, the bar below draws the
+// same number) and the gym's percent of a lift max stay.
+describe("ASTRA law 6: no percent renders outside review/", () => {
+  it("no component outside review/, the goal ring and the gym prints a percent", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const r = rel(f);
+      if (r.startsWith("review/") || r.startsWith("gym/") || r === "bigger/GoalDetailPage.tsx") continue;
+      const src = read(f).replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/[^\n]*/gm, "");
+      src.split("\n").forEach((line, i) => {
+        // A rendered percent: an expression or a digit followed by % and then
+        // the end of a text run. Layout percents (width, transform) are not
+        // rendered text and are left alone.
+        if (/width|height|style=|calc\(|inset|translate|scale\(|rotate\(|dasharray|offset|opacity|--pct/.test(line)) return;
+        if (/(\}|\d)%(?=[\s<"'`,.)])/.test(line) || /\$\{[^}]*\}%/.test(line)) bad.push(r + ":" + (i + 1));
+      });
+    }
+    expect(bad, "a percent rendered outside a report").toEqual([]);
+  });
+});
+
 // Law 7 (Astra, Push G): decisions never count, and now the contact card's
 // Decided with Them head is under that rule too: a head with a .n beside it
 // would be the count the rule exists to forbid.
