@@ -54,6 +54,17 @@ workflows:
         script: npm run build
       - name: Sync Capacitor iOS
         script: npx cap sync ios
+      # EVERY BUILD GETS ITS OWN BUILD NUMBER (2026-09-13). The project had
+      # CURRENT_PROJECT_VERSION = 1 hardcoded, and App Store Connect refuses a
+      # second upload with a build number it has already seen, so after the
+      # first TestFlight build every later one would build, sign, and then be
+      # rejected at publishing. The UTC minute is always higher than the last
+      # one, needs no Apple ID lookup, and leaves the marketing version alone.
+      - name: Set a unique build number
+        script: |
+          BUILD_NO=$(date -u +%y%m%d%H%M)
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $BUILD_NO;/g" ios/App/App.xcodeproj/project.pbxproj
+          echo "Build number $BUILD_NO"
       - name: Set up code signing
         script: |
           xcode-project use-profiles
