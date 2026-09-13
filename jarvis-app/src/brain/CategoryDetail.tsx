@@ -22,6 +22,7 @@ import { effectiveKind } from "../categories/kinds";
 import { weekReceipt, afterHoursLine, type WeekEvent } from "../categories/receipts";
 import { categoryRecord, type RecordEntry } from "../categories/record";
 import { DayDivide } from "../shared/anatomy";
+import { Plus } from "../shared/icons";
 import { eventLog } from "../events";
 import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
@@ -909,11 +910,9 @@ export default function CategoryDetail({
   const healthLoggers: HealthLoggerRow[] = kind !== "health" ? [] : [
     { key: "lightsOut", label: "Bedtime", sub: "When the night ended", value: whenLogged(lightsOut[lightsOut.length - 1]?.data.at) },
   ];
-  const medSub = (() => {
-    const at = tookIt[tookIt.length - 1]?.data.at;
-    const w = whenLogged(at);
-    return w ? `Last dose ${w.toLowerCase()} · Refills and the window` : "Doses, refills, and the window";
-  })();
+  // The Medication door says when the last dose was, and nothing else
+  // (Dave 2026-09-13: no grey sentence under a door).
+  const medSub = whenLogged(tookIt[tookIt.length - 1]?.data.at);
 
   // D11-C/D13-A/C: the insight surfaces, health-kind pages only. Every piece
   // degrades to absent on its own (INSIGHT_MIN_PAIRED inside correlate(),
@@ -1124,6 +1123,12 @@ export default function CategoryDetail({
               in the area's colour, the state and what it moves on the
               second line, the next action under it, the week's count as a
               chip. A project with no open task says Stalled out loud. */}
+          {/* ON A HEALTH PAGE AN EMPTY SECTION IS NOT DRAWN (Dave 2026-09-13:
+              "add goals add projects add this add that that should be at the
+              very very bottom shouldn't take up a lot of space"). Every other
+              area keeps the 09-09 ruling: all four stand, each with its Add.
+              Health's creates are one compact row at the foot (healthAdds). */}
+          {(kind !== "health" || projects.length > 0) && (<>
           <div className="sh2 sh2-quiet"><span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}</div>
           <div className="pad-x"><div className="card list-card-ruled">
             {projects.map((p) => {
@@ -1160,8 +1165,9 @@ export default function CategoryDetail({
                 </div>
               );
             })}
-            <button className="row-create" onClick={() => setSheet({ kind: "project" })}>Add Project</button>
+            {kind !== "health" && <button className="row-create" onClick={() => setSheet({ kind: "project" })}>Add Project</button>}
           </div></div>
+          </>)}
 
       {/* A GOAL STARTS WHERE IT LIVES (Dave 2026-09-09, from the Bridge area:
           "I should be able to add goals from the screen in the pic. I can with
@@ -1197,6 +1203,7 @@ export default function CategoryDetail({
           what is filed under this area -- and stops being a second, worse
           door to the same sheets. Every other category still gets its Add
           Goal row; only health's redundant doors are gone. */}
+      {(kind !== "health" || goalsHere.length > 0) && (<>
       <div className="sh2 sh2-quiet"><span className="t">{kind === "health" ? "Training Goals" : "Goals Here"}</span>{goalsHere.length > 0 && <span className="n">{goalsHere.length}</span>}</div>
       {/* B3-5 (2026-09-04): the project rows above open; these had no
           onOpen at all, so GoalRowRuled (gated on that prop) never
@@ -1209,10 +1216,8 @@ export default function CategoryDetail({
         {kind !== "health" && (
           <button className="row-create" onClick={() => setSheet({ kind: "goal" })}>Add Goal</button>
         )}
-        {kind === "health" && goalsHere.length === 0 && (
-          <div className="row-create row-create-quiet row-create-static">Set one from a lift or a metric where you log it</div>
-        )}
       </div></div>
+      </>)}
 
       {/* WHAT IS ON THE CALENDAR FOR THIS PART OF LIFE (Dave 2026-09-09:
           "there's also no events section on these pages").
@@ -1239,6 +1244,7 @@ export default function CategoryDetail({
           not, so the create row was never an only child and the slab stayed.
           The wrapper renders only when it has rows now, so all four sections
           are the same shape empty and the same shape full. */}
+      {(kind !== "health" || upcoming.length > 0) && (<>
       <div className="sh2 sh2-quiet"><span className="t">Coming Up</span>{upcoming.length > 0 && <span className="n">{upcoming.length}</span>}</div>
       <div className="pad-x"><div className={"card list-card-ruled" + (upcoming.length > 0 ? " sched-card" : "")}>{upcoming.length > 0 && <div className="sched-list">
         {upcoming.map((e) => {
@@ -1267,9 +1273,11 @@ export default function CategoryDetail({
           );
         })}
       </div>}
-      <button className="row-create" onClick={() => setSheet({ kind: "event" })}>Add Event</button>
+      {kind !== "health" && <button className="row-create" onClick={() => setSheet({ kind: "event" })}>Add Event</button>}
       </div></div>
+      </>)}
 
+      {(kind !== "health" || open.length > 0) && (<>
       <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{open.length > 0 && <span className="n">{open.length}</span>}</div>
       {/* THE SAME ROW AS EVERYWHERE (Dave 2026-09-02, on the Health page:
           "should render as a task there like it does everywhere else. It
@@ -1292,9 +1300,22 @@ export default function CategoryDetail({
             />
           );
         })}
-        <button className="row-create" onClick={() => setSheet({ kind: "task" })}>Add Task</button>
+        {kind !== "health" && <button className="row-create" onClick={() => setSheet({ kind: "task" })}>Add Task</button>}
       </div></div>
+      </>)}
     </>
+  );
+  // THE CREATES, AT THE FOOT (Dave 2026-09-13). One compact row of three
+  // capsules, the last thing on the health page, so starting a task, an event
+  // or a project is always one tap and never costs a section of height. The
+  // + says Add, so the word is the noun alone and the three fit one line on a
+  // phone; the full "Add Task" is the button's accessible name.
+  const healthAdds = (
+    <div className="pad-x h-adds">
+      <button type="button" className="h-add" aria-label="Add Task" onClick={() => setSheet({ kind: "task" })}><Plus className="ic" />Task</button>
+      <button type="button" className="h-add" aria-label="Add Event" onClick={() => setSheet({ kind: "event" })}><Plus className="ic" />Event</button>
+      <button type="button" className="h-add" aria-label="Add Project" onClick={() => setSheet({ kind: "project" })}><Plus className="ic" />Project</button>
+    </div>
   );
 
   return (
@@ -1345,6 +1366,7 @@ export default function CategoryDetail({
           // other area page renders, handed in rather than re-declared, so
           // the health page cannot show two of any of them (Dave 2026-09-10).
           sections={areaSections}
+          adds={healthAdds}
           insights={hasInsights ? (
             <>
               {/* INSIGHTS, NOT A WALL OF GREY (Dave 2026-09-10: "I hate the
@@ -1461,21 +1483,17 @@ export default function CategoryDetail({
                 <>
                   <div className="sh2 sh2-quiet"><span className="t">This Week</span><span className="n">{rec.recent.length}</span>
                     {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
-                  <div className="pad-x">
-                    {shownGroups.map((g) => (
-                      <div key={g.day}>
-                        <DayDivide label={g.day} />
-                        <div className="card list-card-ruled">
-                          {g.rows.map((r) => (
-                            <div className="task-row p2" key={r.key}>
-                              <div className="task-check-tap"><div className="task-check done" /></div>
-                              <div className="task-title"><span className="task-name">{r.text}</span></div>
-                            </div>
-                          ))}
-                        </div>
+                  {/* One card, the day at the right edge (2026-09-13): a
+                      card per day made two ticks cost half a screen. */}
+                  <div className="pad-x"><div className="card list-card-ruled">
+                    {shownGroups.flatMap((g) => g.rows.map((r) => (
+                      <div className="task-row p2" key={r.key}>
+                        <div className="task-check-tap"><div className="task-check done" /></div>
+                        <div className="task-title"><span className="task-name">{r.text}</span></div>
+                        <span className="h-when">{g.day}</span>
                       </div>
-                    ))}
-                  </div>
+                    )))}
+                  </div></div>
                 </>
               )}
               {notes.length > 0 && (

@@ -832,6 +832,13 @@ describe("LAW: one filled red per screen", () => {
       // has something to assert against. Same claim as .btn-primary above,
       // same shape, on the same kind of control.
       ".ruled.health-ruled .btn-primary",
+      // The Health page's Start (Dave 2026-09-13: the page "needs to be
+      // simplified in a good way"). The training card's one move was red text
+      // on a grey capsule, the same weight as the session buttons beside it,
+      // so nothing on the page said "this is the thing". It is the page's one
+      // filled primary now, the same claim .btn-primary makes, on the same
+      // kind of control; the outlined buttons under it stay unfilled.
+      ".ruled .h-hero .pill-act",
       ".bench-act.prim", ".chip.chip-on",
       // Small round controls whose whole body is the control.
       ".ob-check-row", ".convo-send", ".voice-mic", ".voice-orb",
