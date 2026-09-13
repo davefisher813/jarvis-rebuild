@@ -353,7 +353,9 @@
    rule further down, reached through shared/Nums, and it is what stops
    "1h 30m" reading as two more grey words. Tabular so a column of rows does
    not jitter, the same as the right slot's own duration. */
-.ruled .r-goal.r-est { color: var(--tx-3); font-variant-numeric: tabular-nums; }
+/* Time is sky (Astra G7), so how long it takes reads as time at a glance
+   instead of a fourth word of grey (Dave 2026-09-13: "color coding"). */
+.ruled .r-goal.r-est { color: var(--cat-sky); font-variant-numeric: tabular-nums; }
 /* A RECURRENCE is a rule, not an instance of one. The quietest fact on the
    line, and by its place in the line the first to go when the room runs out.
    --tx-quiet, NOT --tx-4: BROWSER-F-09 (2026-09-05) split those two apart
@@ -414,6 +416,16 @@
 .ruled .proj-row-ruled .r-k { flex-wrap: nowrap; }
 .ruled .proj-row-ruled .r-k .r-is-goal { min-width: 0; flex-shrink: 1; }
 .ruled .proj-row-ruled .r-k .r-frac { flex-shrink: 0; white-space: nowrap; overflow: visible; }
+/* THE NEXT MOVE, ON LINE TWO (Dave 2026-09-13: "three lines of white and
+   gray text... there needs to be some color coding"). A sky small-caps label,
+   then the action in full ink, the one thing on the line allowed to ellipse;
+   the status chip beside it keeps its width. */
+.ruled .proj-row-ruled .r-next-in { display: inline-flex; align-items: baseline; gap: 6px; flex: 1 1 auto; min-width: 0;
+  font-size: calc(13px * var(--type-scale)); }
+.ruled .r-next-k { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--cat-sky); }
+.ruled .r-next-v { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--tx-1); font-weight: var(--w-medium); }
 .ruled .goal-row-ruled .bp-bar { margin-top: 6px; }
 /* THE KIND CHIP ON A GOAL ROW (Dave 2026-09-10: health goals "should be a
    little bit different"). Small, uppercase, hue off the activity ramp, LEADING

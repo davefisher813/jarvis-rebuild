@@ -1524,7 +1524,10 @@ export default function TodayFlow({
   // has no dealt task, so it has no headliner either.
   const moveTask = !evening ? upNextAll[0] ?? null : null;
   const moveCategory = moveTask
-    ? { name: catName(moveTask.data.category) || "No category", slot: catColorOf(moveTask.data.category) }
+    && catName(moveTask.data.category)
+    // A task with no area says nothing about it (2026-09-13): "No category"
+    // on the first card of the day is a grey dot announcing an absence.
+    ? { name: catName(moveTask.data.category), slot: catColorOf(moveTask.data.category) }
     : null;
   const moveEstimate = moveTask
     ? `${moveTask.data.estimateMin ?? estimates[moveTask.data.category ?? ""] ?? 45} min`

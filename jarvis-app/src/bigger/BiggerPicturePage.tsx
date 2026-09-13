@@ -308,22 +308,26 @@ export default function BiggerPicturePage({
               is the one thing allowed to ellipse, which is correct on the
               merits too: a truncated goal is still recognisable, a truncated
               fraction is not a number. */}
+{/* TWO LINES, COLOUR-CODED (Dave 2026-09-13, from the list that never
+              landed: "We can't have three lines of white and gray text. It's
+              ridiculous... there needs to be some color coding or pills,
+              chips. Just, you have to reorganize it"). The row was the title,
+              then a goal chip, the fraction and the status, then a grey Next
+              line under all of it. The pie in the ring slot already draws the
+              fraction, so the fraction goes; the next move comes up onto line
+              two with a sky label and the action in full ink; the status chip
+              keeps the right edge. A hold says its date in that slot instead,
+              and the goal chip takes it only when there is no next move. */}
           <div className="r-k">
-            {filed && !filed.data.dropped && (
-              <span className={"r-goal r-is-goal r-goal-lit " + goalHue}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span>
-            )}
-            <span className={"r-goal r-frac" + (hold || stalled ? " r-stalled" : "")}><Nums text={line} /></span>
+            {hold
+              ? <span className="r-goal r-frac r-stalled"><Nums text={hold} /></span>
+              : next
+                ? <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{next}</span></span>
+                : filed && !filed.data.dropped
+                  ? <span className={"r-goal r-is-goal r-goal-lit " + goalHue}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span>
+                  : <span className={"r-goal r-frac" + (stalled ? " r-stalled" : "")}><Nums text={line} /></span>}
             {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
           </div>
-          {/* THE NEXT MOVE HAS TO LOOK LIKE THE POINT (Dave 2026-09-09: the
-              Next line "should either be color coded or a white/grey contrast
-              like the lines above it. It doesn't stand out at all"). The label
-              keeps --tx-quiet, which is the token live metadata is required to
-              wear (BROWSER-F-09), and the action itself takes --tx-2, one
-              step BRIGHTER than the progress line above it. So the brightest
-              ink on the row after the title is the thing he would actually
-              do next. */}
-          {next && <div className="r-next">Next: <b>{next}</b></div>}
         </div>
         {canClose && onCloseProject
           ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onCloseProject(project.id); }}>Close</button>
