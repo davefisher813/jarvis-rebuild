@@ -90,7 +90,7 @@ export default function BrainPage({
   // C-38: a strand tapped in the top bands opens its sheet on What JARVIS
   // Knows; a WATCHING detector opens that page under its Watching filter.
   onOpenFact?: (id: string) => void;
-  onOpenWatching?: () => void;
+  onOpenWatching?: (key: string) => void;
   categories?: BrainCategory[];
 }) {
   // C-38: how many live bands sit above the nav list. With none, the page is
@@ -135,7 +135,7 @@ export default function BrainPage({
       <PageHeader title="Brain" />
       <BrainTop
         onOpenFact={(id) => (onOpenFact ? onOpenFact(id) : onOpen("knows", "What JARVIS Knows"))}
-        onOpenWatching={() => (onOpenWatching ? onOpenWatching() : onOpen("knows", "What JARVIS Knows"))}
+        onOpenWatching={(key) => (onOpenWatching ? onOpenWatching(key) : onOpen("knows", "What JARVIS Knows"))}
         onBands={setBands}
         areas={categories.map((c) => c.name)}
       />

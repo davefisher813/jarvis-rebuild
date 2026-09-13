@@ -111,7 +111,7 @@ describe("BrainTop", () => {
     expect([...cardRows[1]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Fading", "145 days unconfirmed"]);
     expect(screen.queryByText("Admin happens Friday afternoons")).toBeNull();
     fireEvent.click(cardRows[0]!);
-    expect(onOpenWatching).toHaveBeenCalled();
+    expect(onOpenWatching).toHaveBeenCalledWith("slip_category");
     fireEvent.click(screen.getByText("Still True"));
     await waitFor(() => expect(svc.confirm).toHaveBeenCalledWith(expect.objectContaining({ id: "s3" }), "2026-08-24"));
   });

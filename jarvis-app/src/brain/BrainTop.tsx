@@ -54,7 +54,12 @@ const SHAPING_CAP = 3;
 
 export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = [] }: {
   onOpenFact: (id: string) => void;
-  onOpenWatching: () => void;
+  // C-38 fix (2026-09-13, Dave: "whatever you click on, that's not what
+  // you're clicking on"): every watching row called this with no way to say
+  // WHICH readiness detector was tapped, so any of them landed on the exact
+  // same generic screen state. The key lets the destination land on and
+  // highlight the one he actually tapped.
+  onOpenWatching: (key: string) => void;
   /** How many bands rendered, so the page can put its Explore head over the nav list. */
   onBands?: (n: number) => void;
   /** C-63: the user's live area names, for the values detector. */
@@ -217,7 +222,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
                 <button type="button" className="pill-act" onClick={() => void answerPrincipleWith(n.d, "right")}>That's Right</button>
               </div>
             ) : n.kind === "watching" ? (
-              <div {...pressable(onOpenWatching)} className="row strand-row" key={"w-" + n.r.key}>
+              <div {...pressable(() => onOpenWatching(n.r.key))} className="row strand-row" key={"w-" + n.r.key}>
                 <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
                 <div className="row-grow">
                   <div className="conn-name">{n.r.label}</div>

@@ -87,13 +87,17 @@ export function receiptLine(derivation: DerivationKey | undefined, e: StrandEvid
 // the target; the actual Strand is DERIVED from strands on every render
 // (never captured once at mount), so it resolves correctly whichever finishes
 // loading first, the deep link or the list itself.
-export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, onOpenConsumed, initialFilter }: { onBack: () => void; openId?: string;
+export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, onOpenConsumed, initialFilter, focusReadinessKey }: { onBack: () => void; openId?: string;
   // BRAIN-F-04 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
   // Without it a fact opened from Quick Add reopened its sheet on every later
   // visit to What JARVIS Knows.
   openNonce?: number; onOpenConsumed?: () => void;
   // C-38: the Brain hub's Needs You opens this page under Watching.
-  initialFilter?: "watching" }) {
+  initialFilter?: "watching";
+  // C-38 fix (2026-09-13): which readiness row the Needs You tap named, so
+  // the Readiness list can scroll to and mark that specific row instead of
+  // landing on the same generic screen every watching row used to share.
+  focusReadinessKey?: string }) {
   const svc = useStrands();
   const ai = useAI();
   const today = todayISO();
@@ -305,7 +309,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
         ))}
       </div>
 
-      <ReadinessPanel read={read} today={today} />
+      <ReadinessPanel read={read} today={today} focusKey={focusReadinessKey} />
 
       {filter === "watching" && (
         <>

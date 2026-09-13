@@ -1235,6 +1235,15 @@
    that changes colour, which is section 5's inline number emphasis pointed
    at the one number on the row that answers the question. */
 .ruled .rdy-row { align-items: flex-start; padding-top: 10px; padding-bottom: 10px; }
+/* C-38 fix (2026-09-13): the one row a Needs You tap named lands highlighted
+   and fades, so the destination visibly answers the tap instead of reading
+   as the same list every watching row used to open on regardless of which
+   one you touched. */
+.ruled .rdy-row-focus { border-radius: var(--r-md); animation: rdyRowFocus 2.4s ease-out forwards; }
+@keyframes rdyRowFocus {
+  0% { background: color-mix(in srgb, var(--accent-glyph) 20%, transparent); }
+  100% { background: transparent; }
+}
 /* The height follows the SENTENCE, which is the one thing on this row that
    must never be clipped: a reading a phone cut in half is the ambiguity the
    panel was built to end. So the task row's 44/56/64 ladder (contract 4.1)

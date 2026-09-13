@@ -55,6 +55,10 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   // page closes.
   const [topFact, setTopFact] = useState<{ id: string; nonce: number } | null>(null);
   const [knowsFilter, setKnowsFilter] = useState<"watching" | undefined>(undefined);
+  // C-38 fix (2026-09-13): which readiness detector the tapped row named, so
+  // the Watching filter it opens under can land on and highlight that one
+  // row instead of the same generic screen every watching row used to share.
+  const [knowsFocusKey, setKnowsFocusKey] = useState<string | undefined>(undefined);
 
   // BRAIN-F-03: the deep link, every time it fires, not just at mount. The
   // nonce is in the deps because the shell can ask for the SAME door twice
@@ -129,7 +133,8 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
           openNonce={topFact ? topFact.nonce : factNonce}
           onOpenConsumed={() => { setTopFact(null); onFactConsumed?.(); }}
           initialFilter={knowsFilter}
-          onBack={() => { setKnowsFilter(undefined); setOpen(null); }}
+          focusReadinessKey={knowsFocusKey}
+          onBack={() => { setKnowsFilter(undefined); setKnowsFocusKey(undefined); setOpen(null); }}
         />
       );
     }
@@ -185,7 +190,7 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
       <BrainPage
         onOpen={(key, name) => setOpen({ key, name })}
         onOpenFact={(id) => { setTopFact((t) => ({ id, nonce: (t?.nonce ?? 0) + 1 })); setOpen({ key: "knows", name: "What JARVIS Knows" }); }}
-        onOpenWatching={() => { setKnowsFilter("watching"); setOpen({ key: "knows", name: "What JARVIS Knows" }); }}
+        onOpenWatching={(key) => { setKnowsFilter("watching"); setKnowsFocusKey(key); setOpen({ key: "knows", name: "What JARVIS Knows" }); }}
         categories={categories}
       />
     </div>

@@ -81,6 +81,19 @@ function toEditorNote(data: NoteData): EditorNote {
   };
 }
 
+// THE EMPTY-STARTER TYPES (2026-09-13, from a doubled "Write Something"
+// under a Heading card): these five render through InlineEdit with nothing
+// but a placeholder when blank, so two of the same kind back to back are
+// visually identical rows with no way to tell them apart -- exactly what a
+// double-tap on the same toolbar chip (or a chip tapped right after the
+// note's own ready-to-type line primed itself) produced. isBlankStarter
+// lets addBlock recognize that state and refocus the existing line instead
+// of stacking a twin under it.
+const EMPTY_STARTER_TYPES = new Set<BlockType>(["heading", "text", "meta", "quote", "callout"]);
+function isBlankStarter(b: { type: BlockType; text?: string }): boolean {
+  return EMPTY_STARTER_TYPES.has(b.type) && (b.text ?? "").trim() === "";
+}
+
 // a starter block for each add-block type
 function starterBlock(type: BlockType): Omit<Block, "id"> {
   switch (type) {
@@ -602,6 +615,22 @@ export default function NotesFlow({
     }
     setAddBlockOpen(false);
     await enqueue(async () => {
+      // NO TWIN FOR AN EMPTY LINE (2026-09-13): the note's last block is
+      // already this exact still-blank starter -- a double-tap on the chip,
+      // or a tap right after the ready-to-type line primed one for a brand
+      // new note -- so the tap refocuses it rather than appending a second,
+      // indistinguishable placeholder row nobody could tell apart on sight.
+      // Read fresh off the service, inside the queue, rather than trusting
+      // React's `current`: a blur-save queued moments earlier by the same
+      // gesture (HMN-F-01) has landed by the time this runs, and `current`
+      // has not necessarily caught up to it yet.
+      const note = await svc.note(currentId);
+      const blocks = note?.blocks ?? [];
+      const tail = blocks[blocks.length - 1];
+      if (tail && tail.type === type && isBlankStarter(tail)) {
+        setFocusBlockId(tail.id);
+        return;
+      }
       await snap();
       let newId: string | null = null;
       await attemptWrite(async () => { newId = await svc.addBlock(currentId, starterBlock(type)); });

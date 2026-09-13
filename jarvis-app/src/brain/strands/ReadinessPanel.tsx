@@ -114,17 +114,27 @@ function DetectorRow({ r }: { r: Readiness }) {
 
 // The words face (C-39): one word per detector, no numbers, and the receipt
 // that says where the numbers went.
-function WordRow({ r }: { r: Readiness }) {
+// C-38 fix (2026-09-13): `focused` marks the one row a Needs You tap named,
+// so landing here reads as an answer to that specific tap instead of the
+// same generic list every watching row used to open on.
+function WordRow({ r, focused = false }: { r: Readiness; focused?: boolean }) {
   const w = readinessWord(r.state);
   return (
-    <div className="row rdy-row">
+    <div id={"rdy-" + r.key} className={"row rdy-row" + (focused ? " rdy-row-focus" : "")}>
       <div className="row-grow"><div className="conn-name">{r.label}</div></div>
       <span className={"fact st " + toneForReadinessWord(w)}>{w}</span>
     </div>
   );
 }
 
-export default function ReadinessPanel({ read, today, variant = "words" }: { read: ReadinessRead; today: string; variant?: "words" | "lab" }) {
+export default function ReadinessPanel({ read, today, variant = "words", focusKey }: { read: ReadinessRead; today: string; variant?: "words" | "lab"; focusKey?: string }) {
+  // C-38 fix: land ON the row a Needs You tap named, the same "land on the
+  // sentence, not the thread" pattern MessagesFlow uses for a deep-linked
+  // message, rather than just opening the same list every watching row did.
+  useEffect(() => {
+    if (!focusKey) return;
+    document.getElementById("rdy-" + focusKey)?.scrollIntoView({ block: "center" });
+  }, [focusKey]);
   if (read.failed) {
     return (
       <>
@@ -142,7 +152,7 @@ export default function ReadinessPanel({ read, today, variant = "words" }: { rea
       <>
         <div className="sh2 sh2-quiet"><span className="t">Readiness</span><span className="n">{read.rows.length}</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
-          {read.rows.map((r) => <WordRow r={r} key={r.key} />)}
+          {read.rows.map((r) => <WordRow r={r} focused={r.key === focusKey} key={r.key} />)}
           {/* Not a button: the Lab is three taps away under Settings and
               this page has no door into More. The line says where, which
               is the receipt's whole job. */}
