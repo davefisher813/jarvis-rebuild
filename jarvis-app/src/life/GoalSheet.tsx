@@ -8,12 +8,14 @@ import HeadMenu from "../shared/HeadMenu";
 import { Tag, Calendar } from "../shared/icons";
 import { TargetGlyph, BullseyeGlyph, RepeatGlyph, DollarGlyph } from "../shared/glyphs";
 
-type MeasureKind = "none" | "count" | "cadence" | "projects";
+type MeasureKind = "none" | "count" | "cadence" | "projects" | "milestones";
 const KINDS: { key: MeasureKind; label: string }[] = [
   { key: "none", label: "None" },
   { key: "count", label: "Count" },
   { key: "cadence", label: "Rhythm" },
   { key: "projects", label: "Projects" },
+  // C-36 (Astra, 2026-09-12): named steps, ticked on the goal page.
+  { key: "milestones", label: "Milestones" },
 ];
 
 // A goal is just a name plus the projects pointing at it. Session 6 removed
@@ -60,7 +62,7 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
   // once set: nothing here asks him to report a status, only to say what
   // "done" means and when he wants it.
   const initialKind: MeasureKind =
-    initial?.measure?.kind === "count" || initial?.measure?.kind === "cadence" || initial?.measure?.kind === "projects"
+    initial?.measure?.kind === "count" || initial?.measure?.kind === "cadence" || initial?.measure?.kind === "projects" || initial?.measure?.kind === "milestones"
       ? initial.measure.kind : "none";
   const [kind, setKind] = useState<MeasureKind>(initialKind);
   const [count, setCount] = useState(initial?.measure?.kind === "count" ? String(initial.measure.target) : "");
@@ -84,6 +86,9 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
     };
     if (kind === "cadence") return { kind: "cadence", times: Number(times), per };
     if (kind === "projects") return { kind: "projects" };
+    // C-36: the list is kept across an edit; the items themselves are
+    // added and ticked on the goal page, not here.
+    if (kind === "milestones") return { kind: "milestones", items: initial?.measure?.kind === "milestones" ? initial.measure.items : [] };
     return externalMeasure; // "None" here means "untouched", not "cleared", when a gym goal owns it
   };
   const toggleTag = (id: string) => setTags((t) => (id === "" ? [] : t.includes(id) ? t.filter((x) => x !== id) : [...t, id]));
@@ -151,9 +156,11 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
       <Note>
         {externalMeasure
           ? "Set from the gym · Picking one of these replaces it"
-          : dated
-            ? "Counted from real completions, never typed in · A date turns it into a rate"
-            : "What finished looks like · Counted from real completions, never typed in"}
+          : kind === "milestones"
+            ? "Named steps, added and ticked on the goal page · A date turns them into a rate"
+            : dated
+              ? "Counted from real completions, never typed in · A date turns it into a rate"
+              : "What finished looks like · Counted from real completions, never typed in"}
       </Note>
       <Group label="Money">
         <FieldRow tone="green" glyph={<DollarGlyph />} label="Dollar Target" value={target} onChange={setTarget} placeholder="Optional" inputMode="numeric"

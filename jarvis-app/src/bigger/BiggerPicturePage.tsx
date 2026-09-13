@@ -10,6 +10,7 @@ import { catColor, goalTone } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
 import { FolderOpenGlyph, TargetGlyph, GoalMark, ProjectPie } from "../shared/glyphs";
 import GoalRowRuled, { Bar, Nums } from "./GoalRowRuled";
+import { nextMilestone } from "./measure";
 import { capAfterNumber } from "../shared/casing";
 import { fmtDay } from "../decisions/DecisionsFlow";
 
@@ -44,7 +45,7 @@ const TARGET = <TargetGlyph />;
 const FOLDER = <FolderOpenGlyph />;
 
 export default function BiggerPicturePage({
-  goals, reachOfGoal, measureOfGoal, extraOf, statusOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, sizeLineOf, paceLineOf, onCloseProject,
+  goals, reachOfGoal, measureOfGoal, extraOf, statusOf, checkinOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, sizeLineOf, paceLineOf, onCloseProject,
   lens = "goals", title = "Your Life", segments,
 }: {
   // THE LENS (ruled 2026-09-01, "The Lens plus Lineage rows"). One tree,
@@ -75,6 +76,8 @@ export default function BiggerPicturePage({
   // measure's own health (On Track, Behind, Idle, Done). Null when the goal
   // has no measure and no work, because then the app has nothing to claim.
   statusOf?: (id: string) => { text: string; tone: "good" | "warn" } | null;
+  // C-37: the last check-in word on a goal nothing can measure yet.
+  checkinOf?: (id: string) => string | null;
   projectRows: ProjectRow[];
   // THE FRAME: the user's categories, ordered as the Brain tab orders them.
   // Same ids everything on this page already carries; no second taxonomy.
@@ -349,9 +352,15 @@ export default function BiggerPicturePage({
     const body = g.data.state === "achieved"
       ? (g.data.achievedOn ? "Finished " + fmtDay(g.data.achievedOn) : "")
       : ms ? ms.line : reachLine(r, finished);
+    // C-35: the projects under it that are moving, from the same rows the
+    // Projects lens buckets. C-36: the next milestone. C-37: the check-in.
+    const moving = projectRows.filter((row) => row.project.data.goalId === g.id && bucketOf(row) === "moving").length;
+    const next = nextMilestone(g.data.measure);
     return (
       <GoalRowRuled key={g.id} title={g.data.title} tone={goalTone(g.data.tags)}
         body={body} status={statusOf?.(g.id) ?? null}
+        moving={finished ? 0 : moving} next={finished ? null : next?.text ?? null}
+        checkin={finished ? null : checkinOf?.(g.id) ?? null}
         bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)} />
     );
   };

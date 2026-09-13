@@ -5145,6 +5145,14 @@ span.row-star { cursor: default; }
 .notice-foot-acts { padding-top: var(--s-2); }
 .dec-row .lib-ico { flex-shrink: 0; }
 
+/* LIFE, PUSH F (C-35, C-36, C-37; Astra, 2026-09-12). The dollar ring on
+   a goal hero, the check-in card, the milestone rows. */
+.goal-ring { margin-bottom: var(--s-2); }
+.goal-checkin .conn-meta { margin: 2px 0 var(--s-2); }
+.goal-checkin .receipt-line { padding-left: 0; padding-top: var(--s-2h); }
+.ms-row.completed .task-name { text-decoration: line-through; color: var(--tx-4); }
+.goal-row-ruled .r-k .fact { font-size: inherit; }
+
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
    mail EvidenceChip: a surface hands that component this class rather than
    forking it, and the sheet it opens is the Why sheet (C-25). */

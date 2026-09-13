@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions, useOptionalGym, useOptionalMetrics } from "../data/NotesProvider";
+import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions, useOptionalGym, useOptionalMetrics, useOptionalStrands } from "../data/NotesProvider";
+import { checkinText, readCheckin, CHECKIN_LABEL, type CheckinWord } from "./checkin";
+import { ENTITY_GOAL } from "../life/types";
+import { bucketOf, type ProjectRow } from "./progress";
 import type { Project, ProjectData } from "../projects/types";
 import type { Goal, GoalData } from "../life/types";
 import { goalEvidenceDays, comebackLine, heavyWord } from "../review/life";
@@ -112,7 +115,35 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   // what it did before this measure kind existed.
   const metricsSvc = useOptionalMetrics();
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
+  // C-37 (Astra, 2026-09-12): the check-ins, read back off the strands
+  // linked to each goal. Optional store, optional card.
+  const strandsSvc = useOptionalStrands();
+  const [checkins, setCheckins] = useState<Map<string, { word: CheckinWord; on: string }>>(new Map());
+  const loadCheckins = useCallback(async () => {
+    if (!strandsSvc) return;
+    try {
+      const all = await strandsSvc.list();
+      const m = new Map<string, { word: CheckinWord; on: string }>();
+      for (const s of all) {
+        if (s.data.link?.entityType !== ENTITY_GOAL) continue;
+        const c = readCheckin(s.data.text);
+        if (!c) continue;
+        const cur = m.get(s.data.link.entityId);
+        if (!cur || cur.on < c.on) m.set(s.data.link.entityId, c);
+      }
+      setCheckins(m);
+    } catch { /* the card simply shows no last check-in */ }
+  }, [strandsSvc]);
+  useEffect(() => { void loadCheckins(); }, [loadCheckins]);
+  const checkinOf = useCallback((id: string): string | null => {
+    const c = checkins.get(id);
+    return c ? CHECKIN_LABEL[c.word] : null;
+  }, [checkins]);
+  // C-35: the projects under a goal whose bucket is moving.
+  const movingOf = useCallback((id: string): number =>
+    projectRowsRef.current.filter((r) => r.project.data.goalId === id && bucketOf(r) === "moving").length, []);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
+  const projectRowsRef = useRef<ProjectRow[]>([]);
   const [payoff, setPayoff] = useState<{ kind: "project" | "goal"; title: string; line: string } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(openId ?? null);
   const [goalDetailId, setGoalDetailId] = useState<string | null>(openGoalId ?? null);
@@ -176,6 +207,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     () => rankProjects(projects, tasks, samples, Date.now()),
     [projects, tasks, samples],
   );
+  projectRowsRef.current = projectRows;
   // ARCHITECTURE C: one derivation per goal, memoised across the page and the
   // detail view so the list row and the hero can never disagree.
   const reachCache = useMemo(() => {
@@ -563,6 +595,38 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     showToast({ message: decisionId ? "Dropped · The reason is in your decisions" : "Dropped" });
   };
   const goalProjects = goalDetail ? projects.filter((p) => p.data.goalId === goalDetail.id) : [];
+
+  // C-37: the check-in. An asked-rank strand linked to the goal, and the
+  // event. The goal record is not touched: never GoalData.state, never the
+  // derived health.
+  const doCheckin = async (g: Goal, word: CheckinWord) => {
+    if (!strandsSvc) return;
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => { id = await strandsSvc.seed(checkinText(g.data.title, word, today), "values", today, { entityType: ENTITY_GOAL, entityId: g.id }); });
+    if (!ok) return;
+    if (!id) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    emit({ type: "goal.checkin", entityType: ENTITY_GOAL, entityId: g.id, props: { kind: word } });
+    await loadCheckins();
+    showToast({ message: "Check-in saved · " + CHECKIN_LABEL[word] });
+  };
+
+  // C-36: the milestone writes. The measure is replaced whole; a tick stamps
+  // today, an untick clears the stamp.
+  const setMilestone = async (g: Goal, id: string, done: boolean) => {
+    const m = g.data.measure;
+    if (!m || m.kind !== "milestones") return;
+    const items = m.items.map((i) => (i.id === id ? { ...i, ...(done ? { done: today } : { done: undefined }) } : i));
+    const ok = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, measure: { kind: "milestones", items } })));
+    if (ok) await reload();
+  };
+  const addMilestone = async (g: Goal, text: string) => {
+    const m = g.data.measure;
+    const t = text.trim();
+    if (!m || m.kind !== "milestones" || !t) return;
+    const items = [...m.items, { id: "ms-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text: t }];
+    const ok = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, measure: { kind: "milestones", items } })));
+    if (ok) await reload();
+  };
   // The watched work, flattened for the page. Same records, seen through the
   // goal's areas: ticking one here finishes the task everywhere.
   const goalTagged = useMemo(() => {
@@ -827,6 +891,11 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           health={healthOf(goalDetail, goalMeasure, goalDetail.data.measure, measureCtxFor(goalDetail), openWorkOf(reachOfGoal(goalDetail.id)))}
           onDrop={(why) => void dropGoal(goalDetail, why)}
           onOpenDecision={onOpenDecision}
+          moving={movingOf(goalDetail.id)}
+          checkin={checkins.get(goalDetail.id) ?? null}
+          onCheckin={strandsSvc ? (word) => void doCheckin(goalDetail, word) : undefined}
+          onMilestoneDone={(id, done) => void setMilestone(goalDetail, id, done)}
+          onAddMilestone={(text) => void addMilestone(goalDetail, text)}
           projects={goalProjects}
           canTag={categories.length > 0}
           tagged={goalTagged}
@@ -930,6 +999,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         measureOfGoal={(id: string) => { const g = goals.find((x) => x.id === id); return g ? measureState(g.data.measure, measureCtxFor(g)) : null; }}
         extraOf={extraOf}
         statusOf={statusOf}
+        checkinOf={checkinOf}
         projectRows={projectRows}
         // THE FRAME IS THE CATEGORIES (2026-08-29): same ids, Brain's order.
         sections={[...categories].sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0)).map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}

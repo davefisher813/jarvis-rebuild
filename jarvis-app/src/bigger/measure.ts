@@ -46,6 +46,10 @@ export type Cadence = "week" | "month";
 export interface CountMeasure { kind: "count"; target: number; since?: string }
 export interface CadenceMeasure { kind: "cadence"; times: number; per: Cadence }
 export interface ProjectsMeasure { kind: "projects" }
+// C-36 (Astra, 2026-09-12): a list of named steps, ticked on the goal page.
+// Progress is done of total; a milestone's done is the day it was ticked.
+export interface MilestoneItem { id: string; text: string; done?: string }
+export interface MilestonesMeasure { kind: "milestones"; items: MilestoneItem[] }
 // D12-A/C (Training Catalog V2, approved 2026-08-31): a goal set from the
 // gym rides this SAME union rather than inventing a parallel goal system.
 // LiftMeasure/TrainingMeasure and their state functions live in
@@ -59,7 +63,13 @@ export interface ProjectsMeasure { kind: "projects" }
 // unit and the running history; this module composes goals across the whole
 // app and does not know how a reading is logged), so MetricMeasure and its
 // state function live in gym/metricGoals.ts and are re-exported here.
-export type Measure = CountMeasure | CadenceMeasure | ProjectsMeasure | LiftMeasure | TrainingMeasure | MetricMeasure;
+export type Measure = CountMeasure | CadenceMeasure | ProjectsMeasure | MilestonesMeasure | LiftMeasure | TrainingMeasure | MetricMeasure;
+
+/** The first milestone not yet ticked, or null. */
+export function nextMilestone(m: Measure | undefined): MilestoneItem | null {
+  if (!m || m.kind !== "milestones") return null;
+  return m.items.find((i) => !i.done) ?? null;
+}
 export type { LiftMeasure, TrainingMeasure } from "../gym/goalMeasures";
 export type { MetricMeasure } from "../gym/metricGoals";
 
@@ -141,6 +151,19 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
   if (m.kind === "lift") return ctx.workouts ? liftMeasureState(m, ctx.workouts) : null;
   if (m.kind === "training") return ctx.workouts ? trainingMeasureState(m, ctx.workouts, ctx.now) : null;
   if (m.kind === "metric") return ctx.metricLogs ? metricMeasureState(m, ctx.metricLogs) : null;
+
+  // C-36: milestones are their own evidence. Nothing here reads Time Sense;
+  // a tick on the goal page is the completion.
+  if (m.kind === "milestones") {
+    const target = m.items.length;
+    if (target === 0) return { done: 0, target: 0, pct: 0, met: false, line: "No milestones yet" };
+    const done = m.items.filter((i) => !!i.done).length;
+    return {
+      done, target, met: done >= target,
+      pct: Math.round((done / target) * 100),
+      line: capAfterNumber(`${done} of ${target} milestones`),
+    };
+  }
 
   if (m.kind === "cadence") {
     const done = completionsIn(ctx, windowStart(m.per, ctx.now));
@@ -293,7 +316,9 @@ export function healthOf(
   // there is no pace to be behind of, and saying so would be a guess.
   if (goal.data.by && state && m && m.kind !== "cadence" && state.target > 0) {
     const days = daysBetween(ctx.today, goal.data.by);
-    if (m.kind === "lift" || m.kind === "training" || m.kind === "metric") {
+    // C-36: a milestones goal has no task completions to pace against
+    // either; the date passing is the one claim available.
+    if (m.kind === "lift" || m.kind === "training" || m.kind === "metric" || m.kind === "milestones") {
       // seenRate below reads Time Sense TASK completions -- the wrong
       // evidence for a gym goal or a metric goal alike (a weight goal's own
       // tags may legitimately match unrelated Health-category tasks, which

@@ -1,5 +1,6 @@
 import type { Progress } from "./progress";
 import { TargetGlyph } from "../shared/glyphs";
+import { capAfterNumber } from "../shared/casing";
 
 // THE GOAL ROW (Goals and Projects, Dave 2026-09-02: "One card, status
 // capsule on the right"). One anatomy wherever a goal is listed, on the
@@ -21,7 +22,7 @@ export function Bar({ p }: { p: Progress }) {
   return <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, p.pct) + "%" }} /></div>;
 }
 
-export default function GoalRowRuled({ title, tone, body, status, bar, kind, onOpen }: {
+export default function GoalRowRuled({ title, tone, body, status, bar, kind, moving = 0, next = null, checkin = null, onOpen }: {
   title: string;
   /** A cat-fg-* class: the goal's home colour. */
   tone: string;
@@ -35,6 +36,14 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, onO
    *  instead of looking like every other goal in the app. Absent on a goal
    *  with no measure of its own, and the chip is absent with it. */
   kind?: { text: string; hue: string } | null;
+  // C-35 (Astra, 2026-09-12): projects under this goal whose bucket is
+  // moving, as a sky fact. Zero says nothing.
+  moving?: number;
+  // C-36: the next milestone, as a sky fact.
+  next?: string | null;
+  // C-37: the last self-reported check-in, only where there is no status
+  // capsule to disagree with it.
+  checkin?: string | null;
   onOpen?: () => void;
 }) {
   return (
@@ -45,6 +54,9 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, onO
         <div className="r-k">
           {kind && <span className={"gkind " + kind.hue}>{kind.text}</span>}
           <span className="r-goal"><Nums text={body} /></span>
+          {moving > 0 && <span className="r-goal fact sky">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"} moving it`)}</span>}
+          {next && <span className="r-goal fact sky">Next: {next}</span>}
+          {!status && checkin && <span className="r-goal fact good">Check-in: {checkin}</span>}
           {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
         </div>
         {bar && <Bar p={bar} />}

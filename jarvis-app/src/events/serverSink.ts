@@ -77,6 +77,8 @@ const PERSISTED: ReadonlySet<string> = new Set([
   // C-50 (Astra, 2026-09-12): a star on a row. Entity type and id only.
   "strand.starred",
   "strand.unstarred",
+  // C-37 (Astra, 2026-09-12): the word and the goal, nothing else.
+  "goal.checkin",
 ]);
 
 // Storage seam (same pattern as LocalEventLog) so tests run without a browser.

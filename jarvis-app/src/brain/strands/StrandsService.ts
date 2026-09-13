@@ -173,7 +173,7 @@ export class StrandsService {
   //
   // Same caps as everything else: a seeded genome that fills the per-category
   // ceiling would lock real derivations out of that category later.
-  async seed(text: string, category: StrandCategory, today: string): Promise<string | null> {
+  async seed(text: string, category: StrandCategory, today: string, link?: { entityType: string; entityId: string }): Promise<string | null> {
     const t = text.trim();
     if (!t) return null;
     const all = await this.list();
@@ -182,6 +182,9 @@ export class StrandsService {
     const data: StrandData = {
       text: t, category, source: "asked", strength: "influence", status: "active",
       createdAt: today, lastConfirmed: today,
+      // C-37 (Astra, 2026-09-12): a goal check-in is an asked-rank strand
+      // linked to its goal, so the goal page can say the last one back.
+      ...(link ? { link } : {}),
     };
     const id = await this.store.create(this.ownerId, ENTITY_STRAND, data as unknown as ItemData);
     this.emit?.({ type: "strand.created", entityType: ENTITY_STRAND, entityId: id, props: { category } });

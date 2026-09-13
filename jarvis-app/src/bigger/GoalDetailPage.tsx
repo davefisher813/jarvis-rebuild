@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
 import type { GoalReach } from "./reach";
 import { reachLine, byDue } from "./reach";
 import type { MeasureState, Health } from "./measure";
-import { HEALTH_LABEL, HEALTH_CLASS } from "./measure";
+import { HEALTH_LABEL, HEALTH_CLASS, nextMilestone } from "./measure";
+import { CHECKIN_LABEL, type CheckinWord } from "./checkin";
 import { savingsLine, savingsPct, savedNewestFirst, savedTotal } from "./savings";
 import { catColor } from "../shared/categories";
 import { haptics } from "../shared/haptics";
@@ -59,6 +60,11 @@ export default function GoalDetailPage({
   onDismissSuggestion,
   onAddSavings,
   onAchieve,
+  moving = 0,
+  checkin = null,
+  onCheckin,
+  onMilestoneDone,
+  onAddMilestone,
 }: {
   goal: Goal;
   // ARCHITECTURE C: one object carries both routes into this goal's work, so
@@ -94,6 +100,16 @@ export default function GoalDetailPage({
   // Finishing a goal was buried in the edit sheet behind a segmented control.
   // The biggest moment in the app does not live inside a form.
   onAchieve?: () => void;
+  // C-35 (Astra, 2026-09-12): projects under this goal whose bucket is moving.
+  moving?: number;
+  // C-37: the last self-reported check-in, and the tap that records one.
+  // The card renders only when the derived health is unmeasured and there is
+  // no work to measure; nothing here ever touches GoalData.state.
+  checkin?: { word: CheckinWord; on: string } | null;
+  onCheckin?: (word: CheckinWord) => void;
+  // C-36: ticking and adding milestones, written by the flow.
+  onMilestoneDone?: (id: string, done: boolean) => void;
+  onAddMilestone?: (text: string) => void;
 }) {
   const target = goal.data.moneyTarget;
   const progress = reach.progress;
@@ -141,6 +157,16 @@ export default function GoalDetailPage({
   const [dropWhy, setDropWhy] = useState("");
   const [savingsOpen, setSavingsOpen] = useState(false);
   const [savingsAmt, setSavingsAmt] = useState("");
+  // C-36
+  const milestones = goal.data.measure?.kind === "milestones" ? goal.data.measure.items : null;
+  const next = nextMilestone(goal.data.measure);
+  const [addingMs, setAddingMs] = useState(false);
+  const [msDraft, setMsDraft] = useState("");
+  const commitMs = () => { const v = msDraft.trim(); if (v && onAddMilestone) onAddMilestone(v); setMsDraft(""); setAddingMs(false); };
+  // C-37: only where nothing can be measured and nothing is being worked.
+  const askCheckin = !!onCheckin && health === "unmeasured" && !target && !goal.data.measure && !progress && reach.openTagged === 0
+    && goal.data.state !== "achieved" && !goal.data.dropped;
+  const ringPct = target ? Math.min(100, Math.round(savingsPct(target, goal.data.saved))) : 0;
   const savingsValid = Number.isFinite(Number(savingsAmt)) && Number(savingsAmt) > 0;
   return (
     <div className="screen ruled proj-ruled goal-ruled">
@@ -151,7 +177,13 @@ export default function GoalDetailPage({
       </div>
 
       <div className="pad-x"><div className="card list-card-ruled proj-detail-hero">
-        <div className="proj-icon cat-bg-graphite">{TARGET}</div>
+        {/* C-35: on a dollar goal the ring shows the dollar measure, and the
+            percent inside it is the one percent this page is allowed, because
+            the bar below already draws the same number (G8 applies to text
+            lines, not to the one ring). */}
+        {target
+          ? <div className="dring goal-ring" role="img" aria-label={savingsLine(target, goal.data.saved)} style={{ "--pct": `${ringPct}%` } as CSSProperties}><div><b>{ringPct}%</b><span>saved</span></div></div>
+          : <div className="proj-icon cat-bg-graphite">{TARGET}</div>}
         {/* proj-detail-title, not nav-large: goal titles run long and the
             34px screen-title size wraps them badly */}
         <div className="proj-detail-title">{goal.data.title}</div>
@@ -160,6 +192,8 @@ export default function GoalDetailPage({
             updated it. This reads the same evidence the rest of the page
             reads, at render time, and is never written back. */}
         {health && <div className={"eyebrow " + HEALTH_CLASS[health]}>{HEALTH_LABEL[health]}</div>}
+        {/* C-35: the projects moving it, as a sky fact. Counts only. */}
+        {moving > 0 && <div className="facts"><span className="fact sky">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"} moving it`)}</span></div>}
         {/* The ONLY place counts appear on this page. Honest null: a goal
             with no tasks under it yet says so instead of claiming 0%. A
             dollar target replaces the counts line with the DERIVED savings
@@ -187,6 +221,78 @@ export default function GoalDetailPage({
           </>
         )}
       </div></div>
+
+      {/* C-37: THE CHECK-IN (Astra, 2026-09-12). Asked only because nothing
+          here can be measured yet. Three words, one tap; the answer is an
+          asked-rank strand linked to the goal and a goal.checkin event. It
+          never writes GoalData.state and never changes derived health, so
+          the moment a real measure arrives this card is gone and the
+          measure speaks. */}
+      {askCheckin && onCheckin && (
+        <div className="pad-x"><div className="card pad goal-checkin">
+          <div className="conn-name">How Is This Going?</div>
+          <div className="conn-meta">Only asked because nothing here can be measured yet · Never overrides a real measure</div>
+          <div className="dec-outcome-acts">
+            {(["ahead", "on_track", "behind"] as CheckinWord[]).map((w) => (
+              <button type="button" key={w} className={"pill-act" + (checkin?.word === w ? " on" : "")} aria-pressed={checkin?.word === w} onClick={() => onCheckin(w)}>{CHECKIN_LABEL[w]}</button>
+            ))}
+          </div>
+          {checkin && <div className="receipt-line"><span className="rl-t">Last check-in · {CHECKIN_LABEL[checkin.word]} · {monthDay(checkin.on)}</span></div>}
+        </div></div>
+      )}
+
+      {/* C-36: MILESTONES. The next one first, with its Done; then the list
+          with the task-check anatomy; then Add Milestone. */}
+      {milestones && (
+        <>
+          {next && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Next Milestone</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
+                <div className="row">
+                  <div className="row-grow">
+                    <div className="conn-name">{next.text}</div>
+                    <div className="facts"><span className="fact sky">Up Next</span></div>
+                  </div>
+                  {onMilestoneDone && <button type="button" className="pill-act" onClick={() => onMilestoneDone(next.id, true)}>Done</button>}
+                </div>
+              </div></div>
+            </>
+          )}
+          <div className="sh2 sh2-quiet"><span className="t">Milestones</span>{milestones.length > 0 && <span className="n">{milestones.length}</span>}</div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {milestones.map((m) => (
+              <div className={"task-row p2 ms-row" + (m.done ? " completed" : "")} key={m.id}>
+                <div
+                  className="task-check-tap"
+                  role="checkbox"
+                  aria-checked={!!m.done}
+                  aria-label={m.done ? "Mark not done" : "Mark done"}
+                  onClick={() => { haptics.selection(); onMilestoneDone?.(m.id, !m.done); }}
+                >
+                  <div className={"task-check" + (m.done ? " done" : "")} />
+                </div>
+                <div className="task-title">
+                  <span className="task-name">{m.text}</span>
+                  {m.done && <div className="r-k"><span className="r-goal r-cat">Done {monthDay(m.done)}</span></div>}
+                </div>
+              </div>
+            ))}
+            {milestones.length === 0 && !addingMs && (
+              <div className="row"><div className="row-grow"><div className="conn-meta">No milestones yet</div></div></div>
+            )}
+            {addingMs && onAddMilestone && (
+              <div className="row">
+                <input className="input" placeholder="The next step · Enter adds" value={msDraft} autoFocus
+                  onChange={(e) => setMsDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitMs(); } if (e.key === "Escape") { setAddingMs(false); setMsDraft(""); } }}
+                  onBlur={commitMs} />
+              </div>
+            )}
+            {onAddMilestone && !addingMs && <button className="row row-act" onClick={() => setAddingMs(true)}>Add Milestone</button>}
+          </div></div>
+        </>
+      )}
 
       {target && onAddSavings && (
         <>
