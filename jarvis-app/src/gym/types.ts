@@ -300,6 +300,9 @@ export interface WorkoutData {
   /** H-52: time the session sat parked, so elapsed and the receipt's minutes
    *  count only the time actually in the gym. Absent means none. */
   pausedMs?: number;
+  /** H-51 (Health Push F): stamped when the session is queued, so a replayed
+   *  save lands as the same row. See shared/clientId.ts. */
+  clientId?: string;
   /** LOG IT LATER (catalog §3.8): a session entered for a day other than
    *  today. `date` above already carries the real day; this just marks that
    *  the live-session recovery sweep (which treats a stale `date` as an

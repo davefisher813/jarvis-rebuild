@@ -1,4 +1,5 @@
 import type { AddedExerciseFields, Exercise, WorkoutData, WorkoutExercise, SetEntry, MeasureKind, ProgramDay } from "./types";
+import { newClientId } from "../shared/clientId";
 import { entryFrom } from "./strip";
 
 // OFFLINE-FIRST, and not optionally (2026-08-03 recon): the core Store only
@@ -245,7 +246,8 @@ export function addExerciseMidSession(
 /** Finished session -> pending queue. Nothing is ever dropped for being offline. */
 export function queueFinished(w: WorkoutData, store: Storage2 = browserStorage()): void {
   const all = readPending(store);
-  all.push(w);
+  // H-51 (Health Push F): the same idempotency key the health queue stamps.
+  all.push(w.clientId ? w : { ...w, clientId: newClientId() });
   store.write(PENDING_KEY, JSON.stringify(all.slice(-PENDING_CAP)));
 }
 

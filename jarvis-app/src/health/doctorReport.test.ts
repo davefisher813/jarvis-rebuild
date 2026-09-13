@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildDoctorReport, doctorReportText } from "./doctorReport";
+import { buildDoctorReport, doctorReportText, reportWindow } from "./doctorReport";
 import type { AteBeforeEntry, CallItEntry, LightsOutEntry, TookItEntry } from "./types";
 
 const DAY = 86400000;
@@ -61,5 +61,48 @@ describe("doctorReportText", () => {
     for (const word of ["adherence", "average", "trend", "improving", "worse", "should"]) {
       expect(text.toLowerCase(), word + " is a reading, and this file does not read").not.toContain(word);
     }
+  });
+});
+
+// Health Push F, H-47: the window and the kinds are the person's to choose.
+describe("buildDoctorReport with options", () => {
+  const now = Date.parse("2026-09-13T12:00:00");
+  const tookIt: TookItEntry[] = [
+    { id: "t1", data: { category: "medication", at: now - DAY, medId: "m1" } },
+    { id: "t2", data: { category: "medication", at: now - 2 * DAY, medId: "m1", amount: "1 tab" } },
+    { id: "t3", data: { category: "medication", at: now - 3 * DAY } },
+    { id: "t4", data: { category: "medication", at: now - 80 * DAY, medId: "m1" } },
+  ];
+  const medDefs = [{ id: "m1", data: { category: "medication" as const, name: "Vitamin D", amount: "2000 IU", order: 0, at: 1 } }];
+  const meals = [{ id: "e1", data: { category: "fuel" as const, at: now - DAY, text: "Eggs and toast" } }];
+  const lightsOut: LightsOutEntry[] = [{ id: "l1", data: { category: "sleep", at: now - DAY } }];
+
+  it("a dose names its med and amount; a meal is a row; the window is inclusive on both ends", () => {
+    const r = buildDoctorReport({ tookIt, ateBefore: [], lightsOut, callIt: [], meals, medDefs }, { from: now - 3 * DAY, to: now });
+    expect(r.rows).toHaveLength(5);
+    expect(r.rows.slice(0, 2).map((x) => x.label)).toEqual(["Dose Logged", "Vitamin D · 1 tab"]);
+    expect(r.rows.map((x) => [x.kind, x.label])).toContainEqual(["dose", "Vitamin D · 1 tab"]);
+    expect(r.rows.map((x) => [x.kind, x.label])).toContainEqual(["dose", "Vitamin D · 2000 IU"]);
+    expect(r.rows.map((x) => [x.kind, x.label])).toContainEqual(["dose", "Dose Logged"]);
+    expect(r.rows.map((x) => [x.kind, x.label])).toContainEqual(["meal", "Meal · Eggs and toast"]);
+    expect(r.rows.some((x) => x.at === now - 80 * DAY)).toBe(false);
+    expect(r.fromDate).toBe("2026-09-10");
+    expect(r.toDate).toBe("2026-09-13");
+  });
+
+  it("kinds narrow the rows, and the three-month range reaches thirteen weeks back", () => {
+    const only = buildDoctorReport({ tookIt, ateBefore: [], lightsOut, callIt: [], meals, medDefs }, { ...reportWindow("3m", { from: "", to: "" }, now), kinds: ["lights_out", "meal"] });
+    expect(only.rows).toHaveLength(2);
+    expect(new Set(only.rows.map((x) => x.kind))).toEqual(new Set(["lights_out", "meal"]));
+    const wide = buildDoctorReport({ tookIt, ateBefore: [], lightsOut: [], callIt: [], medDefs }, reportWindow("3m", { from: "", to: "" }, now));
+    expect(wide.rows.some((x) => x.at === now - 80 * DAY)).toBe(true);
+  });
+
+  it("reportWindow honours two good dates and falls back to six weeks on bad ones", () => {
+    const c = reportWindow("custom", { from: "2026-09-01", to: "2026-09-03" }, now);
+    expect(new Date(c.from).getDate()).toBe(1);
+    expect(new Date(c.to).getDate()).toBe(3);
+    const bad = reportWindow("custom", { from: "2026-09-05", to: "2026-09-01" }, now);
+    expect(bad).toEqual({ from: now - 42 * DAY, to: now });
   });
 });

@@ -5,13 +5,13 @@ import type { EventInput } from "../events";
 import { HealthService } from "./HealthService";
 import type {
   ConsentGrant, HealthCategoryId, LightsOutEntry, AteBeforeEntry, TookItEntry, CallItEntry, PointAtItEntry,
-  MedRefillEntry, BagCheckEntry, LockerDocEntry, LockerDocKind, MedDefEntry,
+  MedRefillEntry, BagCheckEntry, LockerDocEntry, LockerDocKind, MedDefEntry, MealEntry,
 } from "./types";
 import { doseRows, doseToast } from "./meds";
 import { stillThere, stillThereSummary, stillThereMessage, ateBeforeMarks } from "./timelines";
 import { refillRunway, refillOffer } from "./refillRunway";
 import { medWindowDays, type SessionStartCandidate } from "./medWindow";
-import { buildDoctorReport, doctorReportText } from "./doctorReport";
+import { buildDoctorReport, doctorReportText, reportWindow, ALL_REPORT_KINDS, type ReportKind } from "./doctorReport";
 import { nightBeforeOffer, type FixedCommitment } from "./nightBefore";
 import { eatingWindowOffers, type DayBlock } from "./eatingWindows";
 import { defaultBagItems, latestBagCheck, toggleItem, checkAll } from "./bag";
@@ -39,7 +39,7 @@ import CallItScreen from "./screens/CallItScreen";
 import PointAtItScreen from "./screens/PointAtItScreen";
 import RefillRunwayScreen from "./screens/RefillRunwayScreen";
 import MedWindowScreen from "./screens/MedWindowScreen";
-import DoctorReportScreen from "./screens/DoctorReportScreen";
+import DoctorReportScreen, { type ReportRange } from "./screens/DoctorReportScreen";
 import NightBeforeScreen from "./screens/NightBeforeScreen";
 import EatingWindowsScreen from "./screens/EatingWindowsScreen";
 import TheBagScreen from "./screens/TheBagScreen";
@@ -179,6 +179,11 @@ export default function HealthFlow({
   const [grants, setGrants] = useState<ConsentGrant[]>([]);
   const [lightsOut, setLightsOut] = useState<(LightsOutEntry & { pending?: boolean })[]>([]);
   const [medDefs, setMedDefs] = useState<MedDefEntry[]>([]);
+  const [meals, setMeals] = useState<MealEntry[]>([]);
+  // Health Push F (H-47): the report's window and kinds, chosen on the screen.
+  const [reportRange, setReportRange] = useState<ReportRange>("6w");
+  const [reportCustom, setReportCustom] = useState<{ from: string; to: string }>(() => ({ from: localDay(Date.now() - 42 * 86400000), to: localDay() }));
+  const [reportKinds, setReportKinds] = useState<ReportKind[]>(ALL_REPORT_KINDS);
   const [ateBefore, setAteBefore] = useState<AteBeforeEntry[]>([]);
   const [tookIt, setTookIt] = useState<(TookItEntry & { pending?: boolean })[]>([]);
   const [callIt, setCallIt] = useState<CallItEntry[]>([]);
@@ -190,13 +195,13 @@ export default function HealthFlow({
   const [ageRuleGate, setAgeRuleGate] = useState(false);
 
   const reload = useCallback(async () => {
-    const [g, lo, ab, ti, ci, pa, mr, bc, ld, ta, gate, md] = await Promise.all([
+    const [g, lo, ab, ti, ci, pa, mr, bc, ld, ta, gate, md, me] = await Promise.all([
       svc.getConsent(), svc.listLightsOut(), svc.listAteBefore(), svc.listTookIt(), svc.listCallIt(), svc.listPointAtIt(),
       svc.listMedRefill(), svc.listBagCheck(), svc.listLockerDoc(), svc.getTrustedAdult(), svc.wasAgeRuleShown(currentSeason()),
-      svc.listMedDefs(),
+      svc.listMedDefs(), svc.listMeal(),
     ]);
     setGrants(g); setLightsOut(lo); setAteBefore(ab); setTookIt(ti); setCallIt(ci); setPointAtIt(pa);
-    setMedRefill(mr); setBagCheck(bc); setLockerDocs(ld); setMedDefs(md);
+    setMedRefill(mr); setBagCheck(bc); setLockerDocs(ld); setMedDefs(md); setMeals(me);
     setTrustedAdultState(ta ? { name: ta.data.name, phone: ta.data.phone } : { name: "", phone: "" });
     setAgeRuleGate(gate);
   }, [svc]);
@@ -413,10 +418,18 @@ export default function HealthFlow({
         />
       );
     case "doctorReport": {
-      const report = buildDoctorReport({ tookIt, ateBefore, lightsOut, callIt });
+      // H-47: the window and kinds he chose; meals offered once one exists.
+      const report = buildDoctorReport({ tookIt, ateBefore, lightsOut, callIt, meals, medDefs }, { ...reportWindow(reportRange, reportCustom), kinds: reportKinds });
       return (
         <DoctorReportScreen
           report={report}
+          range={reportRange}
+          onRange={setReportRange}
+          custom={reportCustom}
+          onCustom={setReportCustom}
+          kinds={reportKinds}
+          onToggleKind={(k) => setReportKinds((ks) => (ks.includes(k) ? ks.filter((x) => x !== k) : [...ks, k]))}
+          hasMeals={meals.length > 0}
           // HMN-F-22 (2026-09-05): Export This Log used to toast the
           // report's own first line and export nothing at all. It hands the
           // text to the OS now, through the same share sheet the backup

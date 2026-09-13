@@ -403,3 +403,15 @@ describe("D3: a ramp never advances the athlete's place in the plan", () => {
     expect(plannedEntryAt(ex, 3)).toBeUndefined();
   });
 });
+
+// Health Push F, H-51: a finished session is stamped once.
+describe("queueFinished stamps a clientId", () => {
+  it("a uuid on the way in, kept when one is already there", () => {
+    const s = mem();
+    queueFinished(wd("2026-09-01"), s);
+    queueFinished({ ...wd("2026-09-02"), clientId: "keep-me" }, s);
+    const [a, b] = readPending(s);
+    expect(a!.clientId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    expect(b!.clientId).toBe("keep-me");
+  });
+});

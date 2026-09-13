@@ -79,3 +79,22 @@ describe("Permanent guardian: offline edits survive reconnect with no loss (D8)"
     expect(store.queueLen(), "queue drained, nothing lost").toBe(0);
   });
 });
+
+// Health Push F, H-51 (2026-09-13): a create replayed with the same clientId
+// is the same row. The unique index in migration 0039 holds this on Postgres;
+// the in-memory adapter holds it here, so a test on either side sees one row.
+describe("Idempotent create by clientId (H-51)", () => {
+  it("returns the landed row's id on a second create with the same clientId for the same owner", async () => {
+    const adapter = new InMemoryAdapter();
+    const a = await adapter.create("o1", "health_took_it", { at: 1, clientId: "c-1" });
+    const b = await adapter.create("o1", "health_took_it", { at: 1, clientId: "c-1" });
+    expect(b).toBe(a);
+    expect(await adapter.listForUser("o1", "health_took_it")).toHaveLength(1);
+    // Another owner, or no clientId at all, is never folded.
+    await adapter.create("o2", "health_took_it", { at: 1, clientId: "c-1" });
+    await adapter.create("o1", "health_took_it", { at: 1 });
+    await adapter.create("o1", "health_took_it", { at: 1 });
+    expect(await adapter.listForUser("o1", "health_took_it")).toHaveLength(3);
+    expect(await adapter.listForUser("o2", "health_took_it")).toHaveLength(1);
+  });
+});

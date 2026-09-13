@@ -11,7 +11,8 @@ describe("a tap is never lost for want of signal", () => {
     const s = mem();
     queueHealthLog({ entityType: "health_lights_out", data: { category: "sleep", at: 1 } }, s);
     expect(readPending(s)).toHaveLength(1);
-    expect(readPending(s)[0]!.data).toEqual({ category: "sleep", at: 1 });
+    // H-51: stamped on the way in, and nothing else added.
+    expect(readPending(s)[0]!.data).toEqual({ category: "sleep", at: 1, clientId: expect.any(String) });
   });
 
   it("corrupt storage reads as an empty queue rather than throwing mid-tap", () => {
@@ -91,5 +92,17 @@ describe("HMN-F-07: two flushes inside one round trip save every entry exactly o
     expect(await failing).toBe(0);
     expect(await landing).toBe(1);
     expect(readPending(s)).toHaveLength(0);
+  });
+});
+
+// Health Push F, H-51: every queued log is stamped once.
+describe("the clientId stamp", () => {
+  it("stamps a uuid on the way in and keeps one that is already there", () => {
+    const s = mem();
+    queueHealthLog({ entityType: "health_lights_out", data: { category: "sleep", at: 1 } }, s);
+    queueHealthLog({ entityType: "health_lights_out", data: { category: "sleep", at: 2, clientId: "keep-me" } }, s);
+    const [a, b] = readPending(s);
+    expect(a!.data.clientId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    expect(b!.data.clientId).toBe("keep-me");
   });
 });

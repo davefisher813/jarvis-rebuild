@@ -59,7 +59,25 @@ export class SupabaseAdapter implements DataAdapter {
       .insert({ ...(id ? { id } : {}), entity_type: entityType, data })
       .select("id")
       .single();
-    if (error) throw error;
+    if (error) {
+      // H-51 (Health Push F, 2026-09-13): migration 0039 makes a second
+      // arrival of the same clientId a duplicate key. The row that landed
+      // first is the answer, so a replayed queue entry resolves to it rather
+      // than wedging the queue or writing a twin. RLS scopes the read to the
+      // owner, the same way the insert was scoped.
+      const clientId = typeof data.clientId === "string" ? data.clientId : null;
+      if (clientId && (error as { code?: unknown }).code === "23505") {
+        const { data: hit, error: readError } = await this.db
+          .from("item")
+          .select("id")
+          .eq("entity_type", entityType)
+          .eq("data->>clientId", clientId)
+          .limit(1)
+          .maybeSingle();
+        if (!readError && hit) return (hit as { id: string }).id;
+      }
+      throw error;
+    }
     return (row as { id: string }).id;
   }
 

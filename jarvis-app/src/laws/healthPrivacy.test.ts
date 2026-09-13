@@ -247,8 +247,11 @@ describe("HEALTH LAW: everything logs offline", () => {
 
 // The body of one exported interface in health/types.ts, comments stripped.
 function interfaceBody(src: string, name: string): string {
-  const start = src.indexOf("export interface " + name + " {");
-  expect(start, name + " must exist in health/types.ts").toBeGreaterThan(-1);
+  // Push F (H-51): the queued shapes read "extends QueuedLog", which carries
+  // only the clientId; the body scanned here is still the shape's own.
+  const m = new RegExp("export interface " + name + "( extends \\w+)? \\{").exec(src);
+  expect(m, name + " must exist in health/types.ts").toBeTruthy();
+  const start = m!.index;
   return strip(src.slice(start, src.indexOf("\n}", start)));
 }
 

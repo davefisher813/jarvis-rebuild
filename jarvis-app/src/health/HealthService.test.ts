@@ -64,7 +64,8 @@ describe("HealthService: Lights Out", () => {
     await tick();
     const list = await s.listLightsOut(store);
     expect(list).toHaveLength(1);
-    expect(list[0]!.data).toEqual({ category: "sleep", at: 1000 });
+    // H-51: the queue's own stamp rides in the data; nothing else does.
+    expect(list[0]!.data).toEqual({ category: "sleep", at: 1000, clientId: expect.any(String) });
   });
 
   it("is visible immediately from the pending queue, before any flush completes", async () => {
@@ -85,7 +86,7 @@ describe("HealthService: Ate Before", () => {
     s.logAteBefore({ eventId: "ev1", eventTitle: "Practice", date: "2026-08-20", ate: true }, 500, store);
     await tick();
     const list = await s.listAteBefore(store);
-    expect(list[0]!.data).toEqual({ category: "fuel", eventId: "ev1", eventTitle: "Practice", date: "2026-08-20", ate: true, at: 500 });
+    expect(list[0]!.data).toEqual({ category: "fuel", eventId: "ev1", eventTitle: "Practice", date: "2026-08-20", ate: true, at: 500, clientId: expect.any(String) });
   });
 });
 
@@ -96,7 +97,7 @@ describe("HealthService: Took It", () => {
     s.logTookIt(777, store);
     await tick();
     const list = await s.listTookIt(store);
-    expect(list[0]!.data).toEqual({ category: "medication", at: 777 });
+    expect(list[0]!.data).toEqual({ category: "medication", at: 777, clientId: expect.any(String) });
   });
 });
 
@@ -127,7 +128,7 @@ describe("HealthService: Point at It", () => {
     s.logPointAtIt({ x: 0.4, y: 0.6, side: "back" }, 1, store);
     await tick();
     const list = await s.listPointAtIt(store);
-    expect(list[0]!.data).toEqual({ category: "body", x: 0.4, y: 0.6, side: "back", at: 1 });
+    expect(list[0]!.data).toEqual({ category: "body", x: 0.4, y: 0.6, side: "back", at: 1, clientId: expect.any(String) });
   });
 });
 
@@ -168,8 +169,8 @@ describe("HealthService: medications by name", () => {
     await tick();
     const list = await s.listTookIt(store);
     expect(list.map((e) => e.data)).toEqual([
-      { category: "medication", at: 1000, medId: "m1", amount: "10 mg" },
-      { category: "medication", at: 2000 },
+      { category: "medication", at: 1000, medId: "m1", amount: "10 mg", clientId: expect.any(String) },
+      { category: "medication", at: 2000, clientId: expect.any(String) },
     ]);
   });
 });
@@ -212,7 +213,7 @@ describe("HealthService: meals and Edit Time", () => {
     const store = mem();
     s.logMeal("  Eggs and toast ", 1000, store);
     await tick();
-    expect((await s.listMeal(store)).map((e) => e.data)).toEqual([{ category: "fuel", at: 1000, text: "Eggs and toast" }]);
+    expect((await s.listMeal(store)).map((e) => e.data)).toEqual([{ category: "fuel", at: 1000, text: "Eggs and toast", clientId: expect.any(String) }]);
   });
 
   it("Edit Time rewrites the clock on a landed bedtime", async () => {

@@ -10,13 +10,24 @@
 // unbuilt item), so this reports the bedtime marks it actually has rather
 // than inventing a duration nothing here measured.
 
-import type { AteBeforeEntry, CallItEntry, LightsOutEntry, TookItEntry } from "./types";
+import type { AteBeforeEntry, CallItEntry, LightsOutEntry, TookItEntry, MealEntry, MedDefEntry } from "./types";
+
+export type ReportKind = "dose" | "food" | "lights_out" | "session" | "meal";
+export const ALL_REPORT_KINDS: ReportKind[] = ["dose", "food", "lights_out", "session", "meal"];
 
 export interface DoctorReportRow {
   date: string; // local ISO day
   at: number;
-  kind: "dose" | "food" | "lights_out" | "session";
+  kind: ReportKind;
   label: string;
+}
+
+/** Health Push F (H-47): the window and the kinds the person chose. Epoch
+ *  ms, inclusive on both ends; kinds absent means every kind. */
+export interface ReportOptions {
+  from: number;
+  to: number;
+  kinds?: ReportKind[];
 }
 
 export interface DoctorReport {
@@ -34,30 +45,54 @@ function localDay(atMs: number): string {
 const WEEK_MS = 7 * 86400000;
 
 export function buildDoctorReport(
-  input: { tookIt: TookItEntry[]; ateBefore: AteBeforeEntry[]; lightsOut: LightsOutEntry[]; callIt: CallItEntry[] },
-  weeks = 6,
+  input: { tookIt: TookItEntry[]; ateBefore: AteBeforeEntry[]; lightsOut: LightsOutEntry[]; callIt: CallItEntry[]; meals?: MealEntry[]; medDefs?: MedDefEntry[] },
+  // The pre-H-47 shape (a count of weeks back from now) still works; the
+  // choosers hand in a ReportOptions instead.
+  weeksOrOpts: number | ReportOptions = 6,
   now: number = Date.now(),
 ): DoctorReport {
-  const from = now - weeks * WEEK_MS;
+  const opts: ReportOptions = typeof weeksOrOpts === "number" ? { from: now - weeksOrOpts * WEEK_MS, to: now } : weeksOrOpts;
+  const { from, to } = opts;
+  const want = new Set<ReportKind>(opts.kinds ?? ALL_REPORT_KINDS);
+  const inWindow = (at: number) => at >= from && at <= to;
+  const medById = new Map((input.medDefs ?? []).map((d) => [d.id, d] as const));
   const rows: DoctorReportRow[] = [];
-  for (const t of input.tookIt) {
-    if (t.data.at < from || t.data.at > now) continue;
-    rows.push({ date: localDay(t.data.at), at: t.data.at, kind: "dose", label: "Dose Logged" });
+  if (want.has("dose")) for (const t of input.tookIt) {
+    if (!inWindow(t.data.at)) continue;
+    // H-47: the med's name and amount when the tap named one.
+    const def = t.data.medId ? medById.get(t.data.medId) : undefined;
+    const amount = t.data.amount ?? def?.data.amount;
+    const label = def ? def.data.name + (amount ? " · " + amount : "") : "Dose Logged";
+    rows.push({ date: localDay(t.data.at), at: t.data.at, kind: "dose", label });
   }
-  for (const a of input.ateBefore) {
-    if (a.data.at < from || a.data.at > now) continue;
+  if (want.has("food")) for (const a of input.ateBefore) {
+    if (!inWindow(a.data.at)) continue;
     rows.push({ date: a.data.date, at: a.data.at, kind: "food", label: a.data.ate ? "Ate Before" : "Did Not Eat Before" });
   }
-  for (const l of input.lightsOut) {
-    if (l.data.at < from || l.data.at > now) continue;
+  if (want.has("lights_out")) for (const l of input.lightsOut) {
+    if (!inWindow(l.data.at)) continue;
     rows.push({ date: localDay(l.data.at), at: l.data.at, kind: "lights_out", label: "Lights Out" });
   }
-  for (const c of input.callIt) {
-    if (c.data.at < from || c.data.at > now) continue;
+  if (want.has("session")) for (const c of input.callIt) {
+    if (!inWindow(c.data.at)) continue;
     rows.push({ date: localDay(c.data.at), at: c.data.at, kind: "session", label: "Session, Effort " + c.data.rpe + " Of 10" });
   }
+  if (want.has("meal")) for (const m of input.meals ?? []) {
+    if (!inWindow(m.data.at)) continue;
+    rows.push({ date: localDay(m.data.at), at: m.data.at, kind: "meal", label: "Meal · " + m.data.text });
+  }
   rows.sort((a, b) => a.at - b.at);
-  return { fromDate: localDay(from), toDate: localDay(now), generatedAt: now, rows };
+  return { fromDate: localDay(from), toDate: localDay(to), generatedAt: now, rows };
+}
+
+/** The two dates a range chooser means, local, inclusive. */
+export function reportWindow(range: "6w" | "3m" | "custom", custom: { from: string; to: string }, now: number = Date.now()): { from: number; to: number } {
+  if (range === "custom") {
+    const from = new Date(custom.from + "T00:00:00").getTime();
+    const to = new Date(custom.to + "T23:59:59.999").getTime();
+    if (Number.isFinite(from) && Number.isFinite(to) && from <= to) return { from, to };
+  }
+  return { from: now - (range === "3m" ? 13 * WEEK_MS : 6 * WEEK_MS), to: now };
 }
 
 /** Plain text export -- one line per row, dated, nothing interpreted. What

@@ -35,6 +35,16 @@ export class InMemoryAdapter implements DataAdapter {
   }
 
   async create(ownerId: string, entityType: string, data: ItemData, id?: string): Promise<string> {
+    // H-51 (Health Push F, 2026-09-13): a queued write replayed after a lost
+    // answer carries the clientId it was stamped with. The row that already
+    // landed under it, for this owner, IS the answer. Same contract the
+    // Supabase adapter keeps through migration 0039's unique index.
+    const clientId = typeof data.clientId === "string" ? data.clientId : null;
+    if (clientId) {
+      for (const r of this.db.values()) {
+        if (r.ownerId === ownerId && r.data.clientId === clientId) return r.id;
+      }
+    }
     const useId = id ?? "r" + ++this.seq; // real adapter uses gen_random_uuid()
     this.db.set(useId, {
       id: useId,

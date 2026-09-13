@@ -82,6 +82,14 @@ export interface ConsentGrantsData {
 // ConsentGrantsData, because there is exactly one grants row per owner and
 // nothing ever needs to hold its id.
 
+/** H-51 (Health Push F): every shape that goes through the offline queue
+ *  carries the id the queue stamped, so a replay after a lost answer is
+ *  one row and not two. Optional on the type because a row read back from
+ *  before this shipped has none. */
+export interface QueuedLog {
+  clientId?: string;
+}
+
 // ---- The five one-tap loggers ----
 //
 // Every one of these carries its own `category` field so the exact same
@@ -92,7 +100,7 @@ export interface ConsentGrantsData {
 /** Lights Out (Part 1). One tap, one timestamp, marks the night's end.
  *  Nothing is scored: there is no duration field here on purpose, because a
  *  duration invites a target, and a target is how this becomes a ring. */
-export interface LightsOutData {
+export interface LightsOutData extends QueuedLog {
   category: "sleep";
   at: number; // epoch ms of the tap
 }
@@ -104,7 +112,7 @@ export interface LightsOutEntry {
 /** Ate Before (Part 3). Attached to a calendar practice/game. One tap,
  *  yes or no. No food, no amount, no quality judgment: `ate` is the only
  *  content field, deliberately a boolean and nothing richer. */
-export interface AteBeforeData {
+export interface AteBeforeData extends QueuedLog {
   category: "fuel";
   eventId?: string; // the calendar event this answers, when there is one
   eventTitle?: string;
@@ -121,7 +129,7 @@ export interface AteBeforeEntry {
  *  by the schedule. There is no `scheduledAt` or `expected` field: with no
  *  expectation stored, "you missed N doses" has nothing to be computed from,
  *  which is the schema doing the safety rail's work instead of a promise. */
-export interface TookItData {
+export interface TookItData extends QueuedLog {
   category: "medication";
   at: number;
   /** Health Push D (H-38): which configured med, when the tap named one,
@@ -154,7 +162,7 @@ export interface MedDefEntry {
 /** A meal (Health Push D, H-42): what was eaten, as typed, and when. There
  *  is no amount, no calorie, no macro and no grade, by the same rail Ate
  *  Before obeys; the text is the whole record. */
-export interface MealData {
+export interface MealData extends QueuedLog {
   category: "fuel";
   at: number;
   text: string;
@@ -168,7 +176,7 @@ export interface MealEntry {
  *  This is session-RPE: `rpe` feeds Week Shape and nothing else, per the
  *  catalog ("must never aggregate into a readiness verdict"). No derived
  *  field, no rolling average, lives anywhere near this shape. */
-export interface CallItData {
+export interface CallItData extends QueuedLog {
   category: "load";
   eventId?: string; // the practice/game this session was, when there is one
   durationMin?: number; // auto-filled from the calendar event when present
@@ -183,7 +191,7 @@ export interface CallItEntry {
 /** Point at It (Part 6). A body-map tap: location only. No severity scale,
  *  no diagnosis, no condition name, ever, anywhere in this shape. x/y are
  *  normalized 0-1 coordinates within the body map's drawing area. */
-export interface PointAtItData {
+export interface PointAtItData extends QueuedLog {
   category: "body";
   x: number;
   y: number;
@@ -207,7 +215,7 @@ export interface PointAtItEntry {
 // ever one place doses are counted from. `category` is "logistics": this is
 // the fill event, not the medication's identity, dose, or name -- none of
 // which this shape (or anything in src/health) ever carries.
-export interface MedRefillData {
+export interface MedRefillData extends QueuedLog {
   category: "logistics";
   filledAt: number; // epoch ms this fill started
   dosesInFill: number; // how many doses the fill holds, a whole number > 0
@@ -228,7 +236,7 @@ export interface BagItemState {
   key: string;
   checked: boolean;
 }
-export interface BagCheckData {
+export interface BagCheckData extends QueuedLog {
   category: "logistics";
   eventId: string;
   eventTitle?: string;
@@ -248,7 +256,7 @@ export interface BagCheckEntry {
 // itself (src/laws/healthPrivacy.test.ts bans diagnosis vocabulary in this
 // module outright); the screen labels it in plain, non-diagnostic words.
 export type LockerDocKind = "physical" | "insurance" | "baseline" | "exception" | "waiver";
-export interface LockerDocData {
+export interface LockerDocData extends QueuedLog {
   category: "logistics";
   kind: LockerDocKind;
   label: string;

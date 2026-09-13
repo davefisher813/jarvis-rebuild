@@ -11,6 +11,7 @@
 // eventually" is identical for all of them; only entityType and data differ.
 
 import type { Json } from "@core";
+import { newClientId } from "../shared/clientId";
 
 const PENDING_KEY = "jarvis.health.pending.v1";
 const PENDING_CAP = 200;
@@ -49,7 +50,10 @@ export function writePending(all: PendingHealthLog[], store: Storage2 = browserS
  *  even with zero bars. */
 export function queueHealthLog(entry: Omit<PendingHealthLog, "queuedAt">, store: Storage2 = browserStorage()): void {
   const all = readPending(store);
-  all.push({ ...entry, queuedAt: Date.now() });
+  // H-51 (Health Push F): stamped once, here, so a replay after a lost
+  // answer carries the same id and lands as the same row.
+  const data = typeof entry.data.clientId === "string" ? entry.data : { ...entry.data, clientId: newClientId() };
+  all.push({ ...entry, data, queuedAt: Date.now() });
   writePending(all.slice(-PENDING_CAP), store);
 }
 
