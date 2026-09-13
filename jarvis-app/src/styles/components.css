@@ -194,7 +194,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 
 /* Today header: date kicker + Today title + avatar (realistic mockup). */
 .today-head { display: flex; align-items: center; justify-content: space-between; padding: var(--s-3) var(--s-4) var(--s-2); }
-.today-title { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: -0.4px; }
+.today-title { font-size: var(--t-h1); font-weight: var(--w-semi); letter-spacing: -0.4px; }
 /* Section header gains a colored icon tile + left group (realistic mockup). */
 .sec-head { align-items: center; }
 .sec-head .sec-left { display: flex; align-items: center; gap: var(--s-2h); }
