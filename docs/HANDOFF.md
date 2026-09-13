@@ -1,6 +1,6 @@
 # Session handoff, 13 Sep 2026
 
-**Remote main is the Health pass through Push G, on top of the 12 Sep Astra and Email passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green, CI green on every push. Builds reach the phone only through a pushed `v*` tag (Codemagic to TestFlight); v1.0.1 through v1.0.9 were pushed this session.**
+**Remote main is the Health pass through Push G plus the 11 Sep audit cleanup, on top of the 12 Sep Astra and Email passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green, CI green on every push. Builds reach the phone only through a pushed `v*` tag (Codemagic to TestFlight); v1.0.1 through v1.0.10 were pushed this session.**
 
 ## What shipped this session
 
@@ -14,7 +14,8 @@ The Health build (`Claude outputs/JARVIS_HEALTH_BUILD_MASTER_2026_09_12.md`, har
 | D | `5043b04` | v1.0.7 | medication by name with the ten-minute ask and Undo, Undo by the moment, refill facts, Edit Time, effort ends and Skip, the region list, Meal, laws 6 and 7, migration 0038 |
 | E | `74c7504` | v1.0.8 | aliases, Pair With, Load, History's Sessions list, the Epley caption, the chart tap |
 | F | `479416e` | v1.0.9 | the export choosers, clientId on every queued write, law 9, migration 0039 |
-| G | this commit | | the catalog's §AB and this document |
+| G | `0e9c821` | | the catalog's §AB and this document |
+| audit | `bb9068b` | v1.0.10 | the eight open items of the 11 Sep audit (Part 1 of the 13 Sep passoff) and the plan's strand wired into the Why sheet |
 
 Also on main this session, in order: `a2e3b68` (the note editor's placeholder and list lines), `e81d0e0` (the Health page simplified: inviting tiles, no pill facts, the adds at the foot), `6fe1f53` (Codemagic stamps every build's number; v1.0.1 was the first build to reach TestFlight), `976afed` (Today's top card and the Life rows), `c22e5cc` (email tasks wait under From Email behind an opt-in switch, the What JARVIS Knows tap, project and goal rows, the cool-down in blue), `e567e17` (goals own only what is filed to them; a project row is the goal row; Next in orange; Paused, Done, Stalled, On Track), `bdf225a` (hold a project row to move it to a goal, a Paused filter, no repeated count). The other Code chat's `289dc03`, `15a2eec` and `f4bf88f` were rebased over cleanly.
 
@@ -55,7 +56,7 @@ A mood or feeling check-in; meal nutrition; discomfort intensity and notes; sche
 ## Open items
 
 - The two migrations above, to apply.
-- Part 1 of the 13 Sep outstanding-audits passoff (`Claude outputs/PASSOFF_2026_09_13_OUTSTANDING_AUDITS.md`): eight real cleanup items (MessageDraftSheet redraft on userVoice, the seal's 35-day window, SearchFlow per-read catch, OnboardingFlow finish ordering, AppShell boot try/catch, ChatFlow refile double-file, MessagesFlow runSearch stale guard, DeckFlow archive setBusy) plus wiring the unused `leaningOn` prop into WhySheet from TodayFlow; item 5 there is not a defect. Part 3 (the ChatGPT handoff's larger items) waits on rulings.
+- Part 3 of the 13 Sep outstanding-audits passoff (`Claude outputs/PASSOFF_2026_09_13_OUTSTANDING_AUDITS.md`, the ChatGPT-authored Health and Workouts brief) waits on Dave's rulings: whether it supersedes the shipped Health pushes where they overlap (rest timer, settings, medication depth, sync), and whether its medication schedule and inventory model is wanted at all given the 13 Sep ruling that meds are log-and-track only. Part 1 shipped in `bb9068b`; item 5 there was not a defect.
 - The demo has no sets in its workouts, so History's Sessions rows read 0 sets there; the phone has real ones.
 - Coming back from a workout opened from History returns to the Lifts segment rather than Sessions.
 
