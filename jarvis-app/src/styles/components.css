@@ -3156,8 +3156,13 @@ button {
 /* List lines hang their marker: the words own the left edge, wrapped lines
    align under words, and the marker column stays even (visual pass
    2026-08-22). Non-interactive typography, both layouts. */
-.doc .li-line { padding-left: 24px; text-indent: -24px; }
-.doc .li-marker { display: inline-block; width: 24px; text-indent: 0; }
+.doc .li-line { display: flex; align-items: flex-start; }
+.doc .li-marker { flex-shrink: 0; width: 24px; }
+/* The words are the flex remainder (2026-09-12): the hanging-indent version
+   left an empty item as a zero-width inline span, so its cue stacked one
+   letter per line (Dave's Key Dates screenshot). Flex hangs the marker the
+   same way and gives the words the whole line, empty or not. */
+.doc .li-line > [contenteditable] { flex: 1; min-width: 0; }
 .doc .block-h { font-size: calc(21px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.01em; margin-top: var(--s-4); }
 .doc [contenteditable] { caret-color: var(--accent); outline: none; }
 /* AND YOU CAN SEE WHICH LINE YOU ARE ON (Dave 2026-09-09, the same report as
@@ -3234,7 +3239,7 @@ button {
    nothing but editorial mode renders the class; the dot color and the
    removed dotted leader live under .doc-editorial below. */
 .hwrap { display: flex; align-items: center; gap: 8px; margin-top: var(--s-6); margin-bottom: 2px; }
-.doc .hwrap .block-h { margin-top: 0; max-width: 76%; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.14em; text-transform: uppercase; }
+.doc .hwrap .block-h { margin-top: 0; flex: 1 1 auto; min-width: 0; max-width: 76%; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.14em; text-transform: uppercase; }
 
 /* The Tracker's living table (deep template pass): cells edit in place,
    Add Row grows it, the header + adds a column, numeric columns sum.
@@ -3571,6 +3576,11 @@ button {
 }
 .note-conn-add .ic { width: 13px; height: 13px; }
 .note-conn-add:active { background: var(--press-3); }
+/* With nothing linked yet the same control says what it is (Dave
+   2026-09-12: a bare dashed circle under the title read as a stray). Once
+   a chip exists the circle is enough, it sits after the chips. */
+.note-conn-add.note-conn-first { width: auto; border-radius: var(--r-pill); padding: 0 10px 0 8px; gap: 5px;
+  font-family: var(--f); font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-medium); }
 
 /* A checklist item already promoted to a real task (Dave 2026-08-28): a
    quiet badge instead of an item that looks plain but is secretly synced.

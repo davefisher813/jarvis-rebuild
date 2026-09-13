@@ -78,11 +78,15 @@ function sectionize(blocks: EditorBlock[]): Section[] {
 // The count a Command Deck card header shows instead of an invented
 // 01/02/03 sequence number: how many actual items are inside -- checklist
 // and list entries count individually, a paragraph or table counts as one.
+// Only what has words counts (2026-09-12): a fresh template's empty
+// paragraph and empty list item said "1" on a card with nothing in it.
 function sectionItemCount(items: EditorBlock[]): number {
   return items.reduce((n, b) => {
-    if (b.type === "checklist" || b.type === "bulleted_list" || b.type === "numbered_list") return n + b.items.length;
-    if (b.type === "file" || b.type === "photo") return n;
-    return n + 1;
+    if (b.type === "checklist") return n + b.items.filter((i) => i.text.trim() !== "").length;
+    if (b.type === "bulleted_list" || b.type === "numbered_list") return n + b.items.filter((i) => i.trim() !== "").length;
+    if (b.type === "file" || b.type === "photo" || b.type === "divider") return n;
+    if (b.type === "table") return n + 1;
+    return n + (b.text.trim() === "" ? 0 : 1);
   }, 0);
 }
 
@@ -683,9 +687,11 @@ export default function NoteEditor({
     });
   };
 
+  // Headings are structure, not writing (2026-09-12): a template with
+  // nothing typed into it said "5 Words" in the foot.
   const words = countWords(
     note.blocks.flatMap((b) =>
-      b.type === "text" || b.type === "heading" || b.type === "meta" || b.type === "quote" || b.type === "callout" ? [b.text]
+      b.type === "text" || b.type === "meta" || b.type === "quote" || b.type === "callout" ? [b.text]
       : b.type === "checklist" ? b.items.map((i) => i.text)
       : b.type === "bulleted_list" || b.type === "numbered_list" ? b.items
       : []),
@@ -904,8 +910,9 @@ export default function NoteEditor({
               );
             })}
             {onAddLink && (
-              <button className="note-conn-add" aria-label="Link Something" onClick={onAddLink}>
+              <button className={"note-conn-add" + ((connections ?? []).length === 0 ? " note-conn-first" : "")} aria-label="Link Something" onClick={onAddLink}>
                 <Plus className="ic" />
+                {(connections ?? []).length === 0 && <span>Link Something</span>}
               </button>
             )}
           </div>

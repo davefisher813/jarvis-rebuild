@@ -220,6 +220,9 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 /* checklist block line: canonical .cb + label, 44pt line */
 .check-line { display:flex; align-items:center; gap:var(--s-2h); min-height:var(--tap-min); }
 .check-line span { font-size:var(--t-body); }
+/* The words own the rest of the line (2026-09-12): an empty item was a
+   zero-width span, so its cue stacked and its tap target was nothing. */
+.check-line > [contenteditable] { flex:1; min-width:0; }
 .check-line.done span { text-decoration:line-through; color:var(--tx-4); }
 .check-line .cb .ic { width:13px; height:13px; }
 /* light table block (rows, columns, simple sums) */
@@ -275,7 +278,16 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
    Scoped to :empty, so a line with words in it is untouched. */
 [contenteditable][data-placeholder]:empty { position: relative; }
 [contenteditable][data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-4); pointer-events: none;
-  position: absolute; left: 0; top: 0; right: 0; }
+  position: absolute; left: 0; top: 0; right: 0;
+  /* THE CUE NEVER STACKS (Dave 2026-09-12, the Project Brief screenshots:
+     "Lis / t / I / t / e / m" down the page, "H E A D I N G" down the page).
+     Out of flow, the cue takes its width from the block, and an EMPTY block
+     that is an inline span or an unflexed flex item has none, so the words
+     broke one letter per line and painted over the blocks below. The hosts
+     are widened below (.li-line, .check-line, .hwrap .block-h); this is the
+     net under them: a cue is one line, and if a host ever collapses again
+     it clips rather than climbs down the page. */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 [contenteditable][data-placeholder]:empty::after { content: ""; display: inline-block; width: 0; }
 /* stacked title + description (template rows) */
 .row-stack { display:flex; flex-direction:column; flex:1; min-width:0; gap:2px; }
