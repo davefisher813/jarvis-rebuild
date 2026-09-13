@@ -20,7 +20,7 @@ setCategoryRegistry([
 
 
 const tk = (id: string, due: string | null, cat = "orgB"): TaskItem => ({ id, data: { text: id, category: cat, done: false, due } });
-const counts: Record<TaskFilter, number> = { all: 6, daily: 0, today: 2, overdue: 1, upcoming: 3, done: 1 };
+const counts: Record<TaskFilter, number> = { all: 6, daily: 0, today: 2, overdue: 1, upcoming: 3, email: 0, done: 1 };
 
 describe("TasksPage", () => {
   it("the head is one line of menus: the view with its count, then the area, then the grouping", () => {
@@ -37,7 +37,7 @@ describe("TasksPage", () => {
     // The counts the chips carried live inside the view menu.
     fireEvent.click(dds[0]!);
     const items = screen.getAllByRole("menuitemradio");
-    expect(items.map((i) => i.textContent)).toEqual(["All6", "Daily0", "Today2", "Overdue1", "Upcoming3", "Done1"]);
+    expect(items.map((i) => i.textContent)).toEqual(["All6", "Daily0", "Today2", "Overdue1", "Upcoming3", "From Email0", "Done1"]);
     expect(screen.getByRole("menuitemradio", { name: /Today/ })).toHaveAttribute("aria-checked", "true");
   });
 
@@ -200,7 +200,7 @@ describe("TasksPage", () => {
   });
 
   it("shows an empty state when the filter has no items", () => {
-    const { container } = render(<TasksPage filter="done" counts={{ all: 0, daily: 0, today: 0, overdue: 0, upcoming: 0, done: 0 }} items={[]} today="2026-05-20" />);
+    const { container } = render(<TasksPage filter="done" counts={{ all: 0, daily: 0, today: 0, overdue: 0, upcoming: 0, email: 0, done: 0 }} items={[]} today="2026-05-20" />);
     expect(container.querySelector(".empty-state")).toBeTruthy();
   });
 

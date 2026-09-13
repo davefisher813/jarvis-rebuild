@@ -395,7 +395,10 @@ type Picker =
 /** THE BLOCKS, read view (D3-C). Renders nothing but its own door when a day
  *  has none: an empty block is not a zero to display, it is a day that has
  *  not been given one. */
-function BlockList({ title, blocks, minutes, onEdit }: {
+function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
+  /** Warm-up is the amber prep wash; cool-down is blue, fading out (Dave
+   *  2026-09-13: "that should not be a warm color... a blue that fades out"). */
+  tone?: "warm" | "cool";
   title: string;
   blocks?: DayBlock[];
   minutes?: number;
@@ -408,10 +411,10 @@ function BlockList({ title, blocks, minutes, onEdit }: {
     // and each item states its amount at the row's far right -- the exact
     // preview anatomy. Empty stays legal: no items means the card is just
     // its door.
-    <div className="pad-x"><div className={"card list-card-ruled" + (has ? " banner-warn" : "")}>
+    <div className="pad-x"><div className={"card list-card-ruled" + (has ? (tone === "cool" ? " banner-cool" : " banner-warn") : "")}>
       <div className="row">
         <div className="row-grow">
-          <div className={"eyebrow" + (has ? " eyebrow-warn" : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${minutes} Min` : ""}</div>
+          <div className={"eyebrow" + (has ? (tone === "cool" ? " eyebrow-cool" : " eyebrow-warn") : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${minutes} Min` : ""}</div>
         </div>
         <button className="pill-act" onClick={onEdit}>{has ? "Edit" : "Add"}</button>
       </div>
@@ -2010,6 +2013,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
             </div></div>
             <BlockList
               title="Cool-Down"
+              tone="cool"
               blocks={openDay.coolDown}
               minutes={openDay.coolDownMin}
               onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "coolDown" })}

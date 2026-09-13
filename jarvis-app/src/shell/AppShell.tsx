@@ -64,7 +64,7 @@ import { showToast } from "../shared/toast";
 import { useOneShot } from "./intents";
 import { attemptWrite } from "../shared/guard";
 import { useAppearance, type Appearance } from "../appearance/AppearanceProvider";
-import { SETTING_APPEARANCE, SETTING_DONE_CLEARING } from "../data/SettingsService";
+import { SETTING_APPEARANCE, SETTING_DONE_CLEARING, SETTING_EMAIL_TASKS } from "../data/SettingsService";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -308,6 +308,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       // apply here. A phone that has not synced reads Ask First, which is the
       // half that cannot close anything behind him.
       void settings?.pull<string>(SETTING_DONE_CLEARING);
+      // 2026-09-13: and where a task made from an email goes (tasks/emailTasks.ts).
+      void settings?.pull<string>(SETTING_EMAIL_TASKS);
             const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
       setTabKeys(keys);
       if (firstBoot.current) {

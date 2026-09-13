@@ -2,19 +2,22 @@ import { groupFor, urgencyFor, todayISO } from "./grouping";
 import { isIn } from "./categories";
 import type { TaskData } from "../notes/types";
 import type { TaskItem } from "./TasksService";
+import { emailTasksGoToList, isFromEmail } from "./emailTasks";
 
 // The filter chips on the Tasks page. All leads (every open task in one list,
 // Dave 2026-07-30); Overdue is split out of Today here (the page shows one
 // filter at a time); the service still groups overdue into "today" for the
 // grouped() view. Pure + tested.
-export type TaskFilter = "all" | "daily" | "today" | "overdue" | "upcoming" | "done";
-export const FILTERS: TaskFilter[] = ["all", "daily", "today", "overdue", "upcoming", "done"];
+export type TaskFilter = "all" | "daily" | "today" | "overdue" | "upcoming" | "email" | "done";
+export const FILTERS: TaskFilter[] = ["all", "daily", "today", "overdue", "upcoming", "email", "done"];
 export const FILTER_LABEL: Record<TaskFilter, string> = {
   all: "All",
   daily: "Daily",
   today: "Today",
   overdue: "Overdue",
   upcoming: "Upcoming",
+  // Dave 2026-09-13: "In the dropdown it should have a from email tab."
+  email: "From Email",
   done: "Done",
 };
 
@@ -26,8 +29,8 @@ export function filterOf(t: TaskData, today: string): TaskFilter {
 
 export type Partitioned = Record<TaskFilter, TaskItem[]>;
 
-export function partition(items: TaskItem[], today: string = todayISO()): Partitioned {
-  const p: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
+export function partition(items: TaskItem[], today: string = todayISO(), emailToList: boolean = emailTasksGoToList()): Partitioned {
+  const p: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], email: [], done: [] };
   for (const it of items) {
     // REMINDERS ARE NOT TASKS (2026-08-19). They ride the task entity for
     // storage, but a reminder in a task list is exactly the clutter that made
@@ -35,6 +38,14 @@ export function partition(items: TaskItem[], today: string = todayISO()): Partit
     // as overdue, forever. They live on their own strip and are filtered out
     // here, at the one chokepoint every task list goes through.
     if (it.data.reminder) continue;
+    // A TASK THE MAIL MADE WAITS UNDER FROM EMAIL (Dave 2026-09-13). Open ones
+    // are listed there always, and join the ordinary lists only when he has
+    // said they should (tasks/emailTasks.ts). A finished one is finished and
+    // goes to Done like any other.
+    if (!it.data.done && isFromEmail(it.data)) {
+      p.email.push(it);
+      if (!emailToList) continue;
+    }
     p[filterOf(it.data, today)].push(it);
     if (it.data.recurrence === "daily" && !it.data.done) p.daily.push(it);
   }
@@ -53,6 +64,7 @@ export function partition(items: TaskItem[], today: string = todayISO()): Partit
   p.today.sort((a, b) => key(a).localeCompare(key(b)));
   p.overdue.sort((a, b) => key(a).localeCompare(key(b)));
   p.upcoming.sort((a, b) => key(a).localeCompare(key(b)));
+  p.email.sort((a, b) => key(a).localeCompare(key(b)));
   // All = every open task, soonest first (overdue leads), no-date last. Done
   // stays in its own chip so All is never a graveyard.
   p.all = [...p.overdue, ...p.today, ...p.upcoming];

@@ -87,6 +87,14 @@ export function receiptLine(derivation: DerivationKey | undefined, e: StrandEvid
 // the target; the actual Strand is DERIVED from strands on every render
 // (never captured once at mount), so it resolves correctly whichever finishes
 // loading first, the deep link or the list itself.
+// Which bucket a told fact about a readiness row belongs in, so Tell JARVIS
+// opens the sheet already filed where the detector would have filed it.
+function categoryForReadiness(key: string): StrandCategory {
+  if (key === "training_window" || key === "email_window") return "routine";
+  if (key === "people_rhythm" || key === "gone_quiet") return "people";
+  return "work_style";
+}
+
 export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, onOpenConsumed, initialFilter, focusReadinessKey }: { onBack: () => void; openId?: string;
   // BRAIN-F-04 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
   // Without it a fact opened from Quick Add reopened its sheet on every later
@@ -287,6 +295,10 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
     });
   };
 
+  const tellAbout = (key: string) => {
+    setAdding(true); setText(""); setCat(categoryForReadiness(key)); setRule(false); setKind(null); setChannel(null);
+  };
+
   return (
     <div className="screen ruled">
       <PageHeader title="What JARVIS Knows" back="Brain" onBack={onBack} />
@@ -296,7 +308,12 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           no furniture to the page. When there is something, this is where it
           belongs: an observation waiting to become a strand, sitting above
           the strands it would join. */}
-      <TodaySuggestions ai={ai} always />
+      {/* NOT WHEN HE CAME FOR ONE ROW (Dave 2026-09-13, from his phone: he
+          tapped When You Train and the first thing on the page was a Noticed
+          offer about a different fact, which read as the tap opening the
+          wrong thing). The offer steps aside when the page was opened on a
+          readiness row; it is back on the next plain visit. */}
+      {!focusReadinessKey && <TodaySuggestions ai={ai} always />}
 
       {/* WHY IS THIS LIST NOT GROWING (Dave 2026-09-06: "i dont see any trace
           of jarvis learning anything"). Above the facts, below the offers,
@@ -309,7 +326,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
         ))}
       </div>
 
-      <ReadinessPanel read={read} today={today} focusKey={focusReadinessKey} />
+      <ReadinessPanel read={read} today={today} focusKey={focusReadinessKey} onTell={tellAbout} />
 
       {filter === "watching" && (
         <>
@@ -318,7 +335,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           {watching.length > 0 && (
             <div className="pad-x"><div className="card list-card-ruled">
               {watching.map((r) => (
-                <div className="row strand-row" key={r.key}>
+                <div className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")} key={r.key}>
                   <div className="row-grow">
                     <div className="conn-name">{r.label}</div>
                     <div className="facts">
@@ -326,6 +343,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
                       <span className="fact">{watchingCount(r)}</span>
                     </div>
                   </div>
+                  <button type="button" className="pill-act" onClick={() => tellAbout(r.key)}>Tell JARVIS</button>
                 </div>
               ))}
             </div></div>

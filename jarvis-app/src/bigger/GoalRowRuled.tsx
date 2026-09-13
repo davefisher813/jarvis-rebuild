@@ -51,14 +51,27 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
       <div className="task-check-tap"><span className={"gm-slot " + tone}><TargetGlyph /></span></div>
       <div className="task-title">
         <span className="task-name">{title}</span>
-        <div className="r-k">
-          {kind && <span className={"gkind " + kind.hue}>{kind.text}</span>}
-          <span className="r-goal"><Nums text={body} /></span>
-          {moving > 0 && <span className="r-goal fact sky">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"} moving it`)}</span>}
-          {next && <span className="r-goal fact sky">Next: {next}</span>}
-          {!status && checkin && <span className="r-goal fact good">Check-in: {checkin}</span>}
-          {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
-        </div>
+        {/* WHAT MOVES IT, THEN HOW FAR (Dave 2026-09-13: "where it lists how
+            many projects are moving it... that's where we should put how many
+            tasks are done... right above the bar... you could just say three
+            projects"). Line two is what feeds the goal: the kind, how many
+            projects, the next milestone, a check-in. The line over the bar is
+            the count the bar draws, with the status at its right edge, so the
+            number and the bar read as one thing. */}
+        {(kind || moving > 0 || next || (!status && checkin)) && (
+          <div className="r-k goal-sub">
+            {kind && <span className={"gkind " + kind.hue}>{kind.text}</span>}
+            {moving > 0 && <span className="r-goal goal-proj">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span>}
+            {next && <span className="r-goal fact sky">Next: {next}</span>}
+            {!status && checkin && <span className="r-goal fact good">Check-in: {checkin}</span>}
+          </div>
+        )}
+        {(body || status) && (
+          <div className="goal-meter">
+            <span className="r-goal"><Nums text={body} /></span>
+            {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
+          </div>
+        )}
         {bar && <Bar p={bar} />}
       </div>
       {onOpen && CHEV}

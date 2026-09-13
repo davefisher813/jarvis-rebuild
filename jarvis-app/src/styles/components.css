@@ -2279,6 +2279,9 @@ button {
    blue for performance data (the chart card), yellow for a goal in flight
    (ripens to .banner-good the moment it's hit). */
 .banner-blue { border-left: 3px solid var(--blue); background: var(--blue-tint); }
+/* COOL-DOWN IS COOL (Dave 2026-09-13: "that should not be a warm color...
+   a blue that fades out"). Blue at the top of the card, gone by its foot. */
+.banner-cool { border-left: 3px solid var(--blue); background: linear-gradient(180deg, var(--blue-tint), transparent); }
 .banner-yellow { border-left: 3px solid var(--cat-yellow); background: var(--yellow-tint); }
 .banner-good { border-left: 3px solid var(--good-fill); background: var(--good-tint); }
 .banner-line { display: flex; align-items: center; gap: var(--s-2h); }
@@ -4637,6 +4640,7 @@ body.selecting .voice-dock { display: none; }
 /* Wash kickers: the block cards' eyebrows carry their section's color
    (preview .kick.a / .kick.b). */
 .eyebrow-warn { color: var(--warn); }
+.eyebrow-cool { color: var(--blue); }
 .eyebrow-blue { color: var(--blue); }
 
 /* A card INSIDE a sheet sits one elevation step above the sheet, flat --

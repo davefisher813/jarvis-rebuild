@@ -117,17 +117,23 @@ function DetectorRow({ r }: { r: Readiness }) {
 // C-38 fix (2026-09-13): `focused` marks the one row a Needs You tap named,
 // so landing here reads as an answer to that specific tap instead of the
 // same generic list every watching row used to open on.
-function WordRow({ r, focused = false }: { r: Readiness; focused?: boolean }) {
+function WordRow({ r, focused = false, onTell }: { r: Readiness; focused?: boolean; onTell?: () => void }) {
   const w = readinessWord(r.state);
   return (
     <div id={"rdy-" + r.key} className={"row rdy-row" + (focused ? " rdy-row-focus" : "")}>
       <div className="row-grow"><div className="conn-name">{r.label}</div></div>
       <span className={"fact st " + toneForReadinessWord(w)}>{w}</span>
+      {/* THE ROW HE TAPPED CAN BE TOLD (Dave 2026-09-13: "I clicked on when
+          you train to mark it as a fact, and it pulled up a completely
+          different fact"). A readiness row is JARVIS still counting; the one
+          he came here for carries Tell JARVIS, so saying it outright is one
+          tap from the row he meant. */}
+      {focused && onTell && <button type="button" className="pill-act" onClick={onTell}>Tell JARVIS</button>}
     </div>
   );
 }
 
-export default function ReadinessPanel({ read, today, variant = "words", focusKey }: { read: ReadinessRead; today: string; variant?: "words" | "lab"; focusKey?: string }) {
+export default function ReadinessPanel({ read, today, variant = "words", focusKey, onTell }: { read: ReadinessRead; today: string; variant?: "words" | "lab"; focusKey?: string; onTell?: (key: string) => void }) {
   // C-38 fix: land ON the row a Needs You tap named, the same "land on the
   // sentence, not the thread" pattern MessagesFlow uses for a deep-linked
   // message, rather than just opening the same list every watching row did.
@@ -152,7 +158,7 @@ export default function ReadinessPanel({ read, today, variant = "words", focusKe
       <>
         <div className="sh2 sh2-quiet"><span className="t">Readiness</span><span className="n">{read.rows.length}</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
-          {read.rows.map((r) => <WordRow r={r} focused={r.key === focusKey} key={r.key} />)}
+          {read.rows.map((r) => <WordRow r={r} focused={r.key === focusKey} onTell={onTell ? () => onTell(r.key) : undefined} key={r.key} />)}
           {/* Not a button: the Lab is three taps away under Settings and
               this page has no door into More. The line says where, which
               is the receipt's whole job. */}

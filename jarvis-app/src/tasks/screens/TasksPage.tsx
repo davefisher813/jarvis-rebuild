@@ -85,6 +85,7 @@ const EMPTY_TITLE: Record<TaskFilter, string> = {
   today: "Nothing due today",
   overdue: "Nothing overdue",
   upcoming: "Nothing coming up",
+  email: "Nothing from email",
   done: "Nothing completed yet",
 };
 

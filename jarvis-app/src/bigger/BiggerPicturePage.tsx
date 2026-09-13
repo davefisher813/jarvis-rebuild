@@ -280,7 +280,21 @@ export default function BiggerPicturePage({
       <div className="task-row p2 proj-row-ruled" role="button" tabIndex={0} key={project.id} onClick={() => onOpenProject(project.id)}>
         <div className="task-check-tap"><span className={"pp-slot cat-fg-" + catColor(project.data.category ?? "")}><ProjectPie pct={progress ? progress.pct : null} /></span></div>
         <div className="task-title">
-          <span className="task-name">{project.data.title}</span>
+          {/* CLOSE AND ON TRACK, ONE EDGE (Dave 2026-09-13: "the done and on
+              track buttons, they're not aligned and they just look very weird
+              next to each other... I would like to keep both"). Close sat in
+              the row's trailing slot, centred on two lines, while On Track sat
+              on line two ending wherever that slot let it; rows with a chevron
+              put On Track at a different x again. Close rides the title's
+              line now, On Track the facts line, both right-aligned to the same
+              text edge, and every row keeps its chevron, so the pair stacks
+              and the column of status chips is straight down the card. */}
+          <div className="proj-line1">
+            <span className="task-name">{project.data.title}</span>
+            {canClose && onCloseProject && (
+              <button className="pill-act proj-close" onClick={(e) => { e.stopPropagation(); onCloseProject(project.id); }}>Close</button>
+            )}
+          </div>
           {/* ONE SECOND LINE, TWO LENSES (Dave 2026-09-11: "goals looks way
               better than projects. Style the containers in projects to look
               more like goals... The goals in projects should also be color
@@ -329,9 +343,7 @@ export default function BiggerPicturePage({
             {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
           </div>
         </div>
-        {canClose && onCloseProject
-          ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onCloseProject(project.id); }}>Close</button>
-          : CHEV}
+        {CHEV}
       </div>
     );
   };

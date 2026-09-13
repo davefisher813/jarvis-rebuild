@@ -379,6 +379,18 @@
 .ruled .pp { width: 24px; height: 24px; display: block; }
 .ruled .gm-slot .ic { width: 22px; height: 22px; }
 .ruled .proj-row-ruled .task-title, .ruled .goal-row-ruled .task-title { min-width: 0; }
+/* A project's title line: the name, and Close at its right edge when the
+   project can close (Dave 2026-09-13). The name keeps the task-name clamp. */
+.ruled .proj-row-ruled .proj-line1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ruled .proj-row-ruled .proj-line1 > .task-name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .proj-row-ruled .proj-close { flex-shrink: 0; align-self: center; margin: -4px 0; padding: 4px 12px; font-size: calc(12.5px * var(--type-scale)); }
+/* A goal row (Dave 2026-09-13): what moves it on line two, the count the bar
+   draws on the line over the bar with the status at its right edge. */
+.ruled .goal-row-ruled .goal-sub { margin-top: 3px; }
+.ruled .goal-row-ruled .goal-proj { color: var(--cat-sky); font-weight: var(--w-semi); }
+.ruled .goal-row-ruled .goal-meter { display: flex; align-items: center; gap: 8px; margin-top: 6px; min-width: 0; }
+.ruled .goal-row-ruled .goal-meter > .r-goal { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tx-2); }
+.ruled .task-row .goal-meter > .r-goal b { color: var(--tx-1); font-weight: var(--w-semi); }
 .ruled .r-next { font-size: calc(12.5px * var(--type-scale)); color: var(--tx-quiet); margin-top: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* THE NEXT MOVE LEADS, SO IT HAS TO READ LIKE IT (Dave 2026-09-09: the Next
@@ -1336,6 +1348,10 @@
 .ruled.health-ruled .banner-good { box-shadow: inset 0 0 0 1px var(--hl-lime-tint); background-image: linear-gradient(var(--hl-lime-tint), var(--hl-lime-tint)); }
 .ruled.health-ruled .banner-blue { box-shadow: inset 0 0 0 1px var(--hl-cyan-tint); background-image: linear-gradient(var(--hl-cyan-tint), var(--hl-cyan-tint)); }
 .ruled.health-ruled .banner-warn { box-shadow: inset 0 0 0 1px var(--hl-amber-tint); background-image: linear-gradient(var(--hl-amber-tint), var(--hl-amber-tint)); }
+/* The cool-down card: medication-free blue off the ramp, fading from the top
+   of the card to nothing at its foot (Dave 2026-09-13). */
+.ruled.health-ruled .banner-cool { box-shadow: inset 0 0 0 1px var(--hl-blue-tint); background-image: linear-gradient(180deg, var(--hl-blue-tint), transparent 90%); }
+.ruled.health-ruled .eyebrow.eyebrow-cool { color: var(--hl-blue); }
 
 /* The big one-tap loggers inside the health module (Lights Out, Took It)
    are the same "commit it" move as Start, so they read the same way. */

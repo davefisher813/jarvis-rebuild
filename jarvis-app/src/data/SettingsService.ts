@@ -202,3 +202,9 @@ export const SETTING_APPEARANCE = "appearance";
 // key, "ask" or "auto", read by bigger/doneClearing.ts. Ask First is the
 // default, because that is the ruling until he changes it here.
 export const SETTING_DONE_CLEARING = "doneClearing";
+
+// WHERE A TASK MADE FROM AN EMAIL GOES (Dave 2026-09-13: "I don't want them
+// going to the main task list... If the user wants it to go straight to the
+// task list it should be an option but not default"). "email" or "list", read
+// by tasks/emailTasks.ts; "email" is the default.
+export const SETTING_EMAIL_TASKS = "emailTasks";

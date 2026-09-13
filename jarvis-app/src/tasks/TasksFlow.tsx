@@ -44,7 +44,7 @@ import { haptics } from "../shared/haptics";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_TASK } from "../notes/types";
 
-const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
+const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], email: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
 export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onGoEmail, onWhatNow, title, segments }: {
@@ -317,6 +317,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     today: visible("today").length,
     overdue: visible("overdue").length,
     upcoming: visible("upcoming").length,
+    email: visible("email").length,
     done: visible("done").length,
   };
 

@@ -6,7 +6,8 @@ import { showToast } from "../shared/toast";
 import { clearLocalData } from "./clearLocalData";
 import { Head, Card, Row, DangerRow, Foot, Switch } from "./kit";
 import { readDoneClearing, type DoneClearing } from "../bigger/doneClearing";
-import { SETTING_DONE_CLEARING } from "../data/SettingsService";
+import { SETTING_DONE_CLEARING, SETTING_EMAIL_TASKS } from "../data/SettingsService";
+import { readEmailTaskHome, type EmailTaskHome } from "../tasks/emailTasks";
 
 export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBack: () => void; onExport?: () => void; onLearningLab?: () => void }) {
   const chat = useChat();
@@ -20,6 +21,13 @@ export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBa
   const setClearing = (next: DoneClearing) => {
     setDoneClearing(next);
     void settings?.set(SETTING_DONE_CLEARING, next);
+  };
+  // WHERE A TASK MADE FROM AN EMAIL GOES (Dave 2026-09-13: "it should be an
+  // option but not default"). Off keeps them under From Email.
+  const [emailHome, setEmailHomeState] = useState<EmailTaskHome>(() => readEmailTaskHome());
+  const setEmailHome = (next: EmailTaskHome) => {
+    setEmailHomeState(next);
+    void settings?.set(SETTING_EMAIL_TASKS, next);
   };
   const [confirm, setConfirm] = useState(false);
   const [chatArmed, setChatArmed] = useState(false);
@@ -44,6 +52,13 @@ export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBa
           meta="Off, a finished project or goal waits for you to close it"
           on={doneClearing === "auto"}
           onToggle={() => setClearing(doneClearing === "auto" ? "ask" : "auto")} />
+      </Card>
+      <Head label="Tasks From Email" />
+      <Card>
+        <Switch label="Add to Your Task List"
+          meta="Off, they wait under From Email in Tasks"
+          on={emailHome === "list"}
+          onToggle={() => setEmailHome(emailHome === "list" ? "email" : "list")} />
       </Card>
       {/* C-39 (Astra, 2026-09-12): the numbers behind each detector moved
           here from What JARVIS Knows, which now says one word per row. */}
