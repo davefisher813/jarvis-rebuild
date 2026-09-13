@@ -1,3 +1,4 @@
+import { writeLive, clearLive } from "../gym/liveSession";
 // SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from "vitest";
@@ -437,7 +438,7 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     await waitFor(() => expect(screen.getByText("Good night.")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Done"));
     // The tile's VALUE slot is the last log now, not a sentence on line two.
-    await waitFor(() => expect(screen.getByText("Bedtime").closest(".h-tile")).toHaveTextContent("Today"));
+    await waitFor(() => expect(screen.getAllByText("Bedtime").map((e) => e.closest(".h-tile")).find(Boolean)).toHaveTextContent("Today"));
   });
 
   // (The RPE rater and the body map moved into the gym on 2026-09-10 -- they
@@ -518,7 +519,7 @@ function SeededMetric() {
 describe("CategoryDetail metric goal (Dave's ask 2026-09-12: \"wherever you can enter data\")", () => {
   it("offers Set a Goal from the metric's own log sheet, and the saved goal shows up in Training Goals", async () => {
     render(<NotesProvider userId="mg1"><SeededMetric /></NotesProvider>);
-    fireEvent.click(await screen.findByText("Sleep"));
+    fireEvent.click((await screen.findAllByText("Sleep"))[0]!);
     fireEvent.click(await screen.findByText("Set a Goal"));
     expect(screen.getByText("New Goal")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText("e.g. Sleep Target"), { target: { value: "Sleep 8h" } });
@@ -535,7 +536,7 @@ describe("CategoryDetail metric goal (Dave's ask 2026-09-12: \"wherever you can 
 
   it("shows the running state, not a bare Set a Goal, once a goal already exists", async () => {
     render(<NotesProvider userId="mg2"><SeededMetric /></NotesProvider>);
-    fireEvent.click(await screen.findByText("Sleep"));
+    fireEvent.click((await screen.findAllByText("Sleep"))[0]!);
     fireEvent.click(await screen.findByText("Set a Goal"));
     fireEvent.change(screen.getByPlaceholderText("e.g. Sleep Target"), { target: { value: "Sleep 8h" } });
     const saves = screen.getAllByRole("button", { name: "Save" });
@@ -545,7 +546,7 @@ describe("CategoryDetail metric goal (Dave's ask 2026-09-12: \"wherever you can 
     // for itself instead of offering to set a new one over it.
     const cancels = screen.getAllByText("Cancel");
     fireEvent.click(cancels[cancels.length - 1]!);
-    fireEvent.click(await screen.findByText("Sleep"));
+    fireEvent.click((await screen.findAllByText("Sleep"))[0]!);
     expect(await screen.findByText(/\u00b7 Edit Goal$/)).toBeInTheDocument();
     expect(screen.queryByText("Set a Goal")).toBeNull();
   });
@@ -557,7 +558,7 @@ describe("CategoryDetail metric log delete (BRAIN-F-15)", () => {
     const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
     try {
       render(<NotesProvider userId="ml1"><SeededMetric /></NotesProvider>);
-      fireEvent.click(await screen.findByText("Sleep"));
+      fireEvent.click((await screen.findAllByText("Sleep"))[0]!);
       const del = await screen.findByText("Delete");
 
       const real = metricsRef!.removeLog.bind(metricsRef);
@@ -805,5 +806,38 @@ describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", (
     // so and the chip row stays away rather than offering an empty choice.
     expect(screen.getByText("Set Up a Program")).toBeInTheDocument();
     expect(document.querySelector(".h-pick")).toBeNull();
+  });
+});
+
+// HEALTH PUSH C (H-12, H-48; 2026-09-12): the hero says Resume while a
+// session is in flight, and today's entries collect under Log.
+describe("CategoryDetail health page: Push C", () => {
+  afterEach(() => { clearLive(); localStorage.clear(); });
+
+  it("the hero says Resume while a session is live, with the next lift and what is logged", async () => {
+    writeLive({
+      programId: "p", dayId: "d", dayName: "Push Day", date: localToday(), startedAt: Date.now() - 600_000, lastActivityAt: Date.now(), idx: 0,
+      exercises: [{ exerciseId: "e1", name: "Bench Press", kind: "weight_reps", unit: "lb", sets: [{ id: "s1", w: 135, r: 8 }] }],
+    });
+    render(<NotesProvider userId="hc1"><SeededHealth /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Resume Push Day")).toBeInTheDocument());
+    expect(screen.getByText("Next: Bench Press")).toBeInTheDocument();
+    expect(screen.getByText("1 Logged")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+  });
+
+  it("a logged bedtime shows up under Log, and the page has its Settings door", async () => {
+    render(<NotesProvider userId="hc2"><SeededHealth /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Bedtime")).toBeInTheDocument());
+    expect(screen.queryByText("Log")).toBeNull();
+    expect(screen.getByText("Settings")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Bedtime"));
+    await waitFor(() => expect(screen.getByText("One Tap, One Time")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Lights Out", { selector: "button" }));
+    await waitFor(() => expect(screen.getByText("Good night.")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Done"));
+    await waitFor(() => expect(screen.getByText("Log")).toBeInTheDocument());
+    // The tile and the log row both say Bedtime; the row opens the same screen.
+    expect(screen.getAllByText("Bedtime").length).toBe(2);
   });
 });

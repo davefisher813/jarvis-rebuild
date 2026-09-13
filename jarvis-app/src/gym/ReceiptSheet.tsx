@@ -15,7 +15,7 @@ import { doneCount } from "./history";
 // names the done-kind work instead of folding it into a number. Each name
 // also gets a plain count fact ("done N times") pulled from history plus this
 // session -- a count, never a streak, never red, never a target.
-export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKeepTraining, onAchieveGoal, onRateSession, onLogSoreSpot }: {
+export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKeepTraining, onAchieveGoal, onRateSession, onLogSoreSpot, celebrations = true }: {
   dayName: string;
   receipt: Receipt;
   workouts: Workout[];
@@ -24,6 +24,8 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
   onDone: (note?: string) => void;
   /** H-30: the quiet way back into the session, before anything is saved. */
   onKeepTraining?: () => void;
+  /** H-35 (Health Push C): with Celebrations off, no PR tile and no New Best. */
+  celebrations?: boolean;
   /** Dave 2026-09-09: the close-out is his to make, so the goal-hit row ends
    *  in a button rather than the goal having already closed itself. */
   onAchieveGoal?: (id: string) => void;
@@ -43,7 +45,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
   ];
   if (receipt.volumeUnit) tiles.push({ num: receipt.volume.toLocaleString(), label: `${receipt.volumeUnit} moved` });
   if (receipt.otherSets > 0) tiles.push({ num: String(receipt.otherSets), label: receipt.otherSets === 1 ? "Set" : "Sets" });
-  if (receipt.prs.length) tiles.push({ num: String(receipt.prs.length), label: receipt.prs.length === 1 ? "PR" : "PRs" });
+  if (receipt.prs.length && celebrations) tiles.push({ num: String(receipt.prs.length), label: receipt.prs.length === 1 ? "PR" : "PRs" });
 
   return createPortal(
     <div className="sheet-scrim" onClick={() => onDone(note)}>
@@ -130,7 +132,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
               </div>
             </>
           )}
-          {receipt.prs.length > 0 && (
+          {receipt.prs.length > 0 && celebrations && (
             <>
               <div className="grp"><div className="eyebrow">New Best</div></div>
               <div className="card">

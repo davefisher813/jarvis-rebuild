@@ -73,6 +73,8 @@ export default function SessionScreen({
   // by GymFlow. Off means the rest timer arms nothing, so the switch is a
   // real switch and not a label on a thing that buzzes anyway.
   restNotify = true,
+  // H-35 (Health Push C): the PR mark renders only while Celebrations is on.
+  celebrations = true,
   // UP-ATH-02 (2026-09-06): "Game Saturday 6 PM" when the program is in
   // season and the athlete has said which category means a game. A fact on
   // the header, stated once. Never a prescription: nothing in this app is
@@ -117,6 +119,7 @@ export default function SessionScreen({
    *  Back, which has parked since GYM-F-14. */
   onPause?: () => void;
   restNotify?: boolean;
+  celebrations?: boolean;
   gameLine?: string;
 }) {
   // S5-Q30 (2026-09-04): "the screen sleeps between sets." This screen stays
@@ -562,7 +565,7 @@ export default function SessionScreen({
             ghost={ghost}
             onLogGhost={(i) => { onLog(duplicateEntry(ghost[i]!)); startRest(); }}
             onChange={changeSets}
-            prAt={(i) => isSessionPR(history, exercise, exercise.kind, logged, i)}
+            prAt={celebrations ? (i) => isSessionPR(history, exercise, exercise.kind, logged, i) : undefined}
             moveTracking
             lastFor={lastHit ? (i) => { const s = lastAt(i); return s ? `Last: ${formatSet(lastHit.fx, s)}` : null; } : undefined}
             onMatchLast={lastHit ? (i) => { const src = lastAt(i); if (src) { onLog(entryFrom(src)); startRest(); } } : undefined}

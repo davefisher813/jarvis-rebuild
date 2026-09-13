@@ -80,7 +80,12 @@ import MetricGoalSheet from "../gym/MetricGoalSheet";
 import type { MetricMeasure } from "../gym/metricGoals";
 import { metricMeasureState } from "../gym/metricGoals";
 import type { MetricDef, MetricLog } from "../gym/metrics";
-import { newMetricDefData, activeMetrics, pulsePlan } from "../gym/metrics";
+import { newMetricDefData, activeMetrics, pulsePlan, logOn } from "../gym/metrics";
+import { readLive, isStillActive, readPending as readGymPending } from "../gym/liveSession";
+import { readPending as readHealthPending } from "../health/offlineQueue";
+import { chronologicalLog, type LogOpen } from "../health/log";
+import { readHealthSettings } from "../health/settings";
+import HealthSettingsPage from "../settings/HealthSettingsPage";
 import { chartableExercises, liftSessions } from "../gym/chartData";
 import { correlate, plateauFlag, hardSetRows, muscleMapFromProgram, backOffSignal, shouldOfferLighterWeek } from "../gym/insights";
 import { MUSCLE_LABEL } from "../gym/muscles";
@@ -241,6 +246,8 @@ export default function CategoryDetail({
   const healthSvc = useHealth();
   const profileSvc = useProfile();
   const [healthScreen, setHealthScreen] = useState<HealthLoggerKey | null>(null);
+  // H-40 (Health Push C): the Health Settings page, opened from the doors card.
+  const [healthSettingsOpen, setHealthSettingsOpen] = useState(false);
   // HMN-F-06 (2026-09-05), option A: the rest of the health module, behind
   // the More row. `healthMore` is the menu, `healthDeep` is the screen it
   // opened. Student only: this is the student-athlete track, and a Personal
@@ -379,6 +386,28 @@ export default function CategoryDetail({
     setMetricDefs(d);
     setMetricLogs(l);
   };
+  // H-43 (Health Push C, 2026-09-12): the Water shortcut is a metric preset
+  // seeded the first time the shortcut is turned on (a count of glasses), or
+  // un-hidden when he had hidden it. Its tile is a +1 with Undo.
+  const ensureWater = async () => {
+    const existing = metricDefs.find((d) => d.data.presetKey === "water");
+    if (existing) { if (existing.data.hidden) await metricWrite(() => metricsSvc.updateDef(existing.id, { hidden: false })); return; }
+    await metricWrite(() => metricsSvc.createDef(newMetricDefData("Water", "number", "glasses", "water", today, metricDefs.length)));
+  };
+  const waterPlus = async (def: MetricDef, n: number) => {
+    const unit = def.data.unit ?? "glasses";
+    await metricWrite(() => metricsSvc.logMetric(def.id, today, { value: n + 1 }), () => {
+      showToast({
+        message: capAfterNumber(`${n + 1} ${unit} today`),
+        actionLabel: "Undo",
+        onAction: () => void metricWrite(async () => {
+          if (n > 0) { await metricsSvc.logMetric(def.id, today, { value: n }); return; }
+          const mine = (await metricsSvc.listLogs()).find((l) => l.data.metricId === def.id && l.data.date === today);
+          if (mine) await metricsSvc.removeLog(mine.id);
+        }),
+      });
+    });
+  };
 
   // Last contact (2026-08-10): one cached Gmail lookup per person with an
   // email. Silent degrade: no Google session or no email means the subline
@@ -488,6 +517,9 @@ export default function CategoryDetail({
     const msg = healthComebackMessage(marksBefore, today);
     if (msg) showToast({ message: msg });
   };
+  if (healthSettingsOpen) {
+    return <HealthSettingsPage onBack={() => setHealthSettingsOpen(false)} onEnableWater={() => void ensureWater()} />;
+  }
   if (healthScreen === "lightsOut") {
     return (
       <LightsOutScreen
@@ -907,9 +939,41 @@ export default function CategoryDetail({
   // session is a thing you open, so they moved into the gym: the receipt, and
   // any logged session reopened from Recent or History. His own metrics
   // (sleep, bodyweight, protein) are his to place and stay where he put them.
-  const healthLoggers: HealthLoggerRow[] = kind !== "health" ? [] : [
-    { key: "lightsOut", label: "Bedtime", sub: "When the night ended", value: whenLogged(lightsOut[lightsOut.length - 1]?.data.at) },
+  // THE SHORTCUTS HE PICKED (H-14, Health Push C, 2026-09-12): the tiles
+  // under Daily Log come from Health Settings. Bedtime alone by default;
+  // Session Effort and Discomfort only when he asked for them on the home
+  // page (Dave 2026-09-10 moved them onto the session; the choice is his).
+  const hs = kind === "health" ? readHealthSettings() : null;
+  const lastCall = callIt[callIt.length - 1];
+  const healthLoggers: HealthLoggerRow[] = kind !== "health" || !hs ? [] : [
+    ...(hs.shortcuts.includes("bedtime") ? [{ key: "lightsOut" as const, label: "Bedtime", sub: "When the night ended", value: whenLogged(lightsOut[lightsOut.length - 1]?.data.at) }] : []),
+    ...(hs.shortcuts.includes("effort") ? [{ key: "callIt" as const, label: "Session Effort", sub: "How hard it was, 0 to 10", value: lastCall ? `${lastCall.data.rpe}/10` : null }] : []),
+    ...(hs.shortcuts.includes("discomfort") ? [{ key: "pointAtIt" as const, label: "Discomfort", sub: "Where it hurts", value: whenLogged(pointAtIt[pointAtIt.length - 1]?.data.at) }] : []),
   ];
+  const waterDef = hs?.shortcuts.includes("water") ? metricDefs.find((d) => d.data.presetKey === "water" && !d.data.hidden) ?? null : null;
+  const waterToday = waterDef ? (logOn(metricLogs, waterDef.id, today)?.data.value ?? 0) : 0;
+  const water = waterDef ? { name: waterDef.data.name, today: waterToday, unit: waterDef.data.unit ?? "glasses", onPlus: () => void waterPlus(waterDef, waterToday) } : null;
+  // H-12: the session in flight, live or parked, read straight off storage
+  // the way GymFlow reads it. Read per render: one localStorage read.
+  const liveSession = kind === "health" ? readLive() : null;
+  const liveHero = liveSession && isStillActive(liveSession, today) ? (() => {
+    const ex = liveSession.exercises[liveSession.idx];
+    const day = programs[0]?.data.weeks.flatMap((w) => w.days).find((d) => d.id === liveSession.dayId);
+    const planned = ex ? (day?.exercises.find((e) => e.id === ex.exerciseId)?.sets.length ?? ex.plan?.length ?? 0) : 0;
+    const working = ex ? ex.sets.filter((s) => !s.warmup && !s.skipped).length : 0;
+    const logged = liveSession.exercises.reduce((n, e) => n + e.sets.filter((s) => !s.skipped).length, 0);
+    return { dayName: liveSession.dayName, nextExercise: ex?.name ?? null, setNo: Math.min(working + 1, Math.max(planned, working + 1)), setTotal: planned, logged };
+  })() : null;
+  // H-48: today's log, from the same records the tiles read.
+  const healthLog = kind === "health" ? chronologicalLog({ day: today, lightsOut, tookIt, callIt, pointAtIt, workouts, metricDefs, metricLogs }) : [];
+  // H-53: what is still waiting to sync, health logs and workouts alike.
+  const pendingCount = kind === "health" ? readHealthPending().length + readGymPending().length : 0;
+  const openLog = (o: LogOpen) => {
+    if (o.kind === "workout") setGymOpen(true);
+    else if (o.kind === "metric") { const def = metricDefs.find((d) => d.id === o.defId); if (def) setMetricSheet({ kind: "log", def }); }
+    else if (o.kind === "tookIt") setMedPage(true);
+    else setHealthScreen(o.kind);
+  };
   // The Medication door says when the last dose was, and nothing else
   // (Dave 2026-09-13: no grey sentence under a door).
   const medSub = whenLogged(tookIt[tookIt.length - 1]?.data.at);
@@ -938,7 +1002,10 @@ export default function CategoryDetail({
         .filter((p): p is NonNullable<typeof p> => p != null)
     : [];
   const muscleMap = kind === "health" ? muscleMapFromProgram(programs[0] ?? null) : new Map();
-  const rangeRows = kind === "health" ? hardSetRows(workouts, muscleMap, nowMs) : [];
+  // The band he set in Health Settings replaces the studied one (Dave
+  // 2026-09-13: nothing hard wired that should not be), and says so.
+  const hsBand = kind === "health" ? readHealthSettings().volumeBand : null;
+  const rangeRows = kind === "health" ? hardSetRows(workouts, muscleMap, nowMs, hsBand ? { ...hsBand, note: `Your band ${hsBand.low}-${hsBand.high} · Set in Health Settings`, source: "Your band, from Health Settings" } : undefined) : [];
   const backOff = kind === "health" ? backOffSignal(workouts, nowMs) : null;
   const offerLighter = kind === "health" && shouldOfferLighterWeek(backOff);
   const hasInsights = plateaus.length > 0 || correlations.length > 0 || rangeRows.length > 0 || offerLighter;
@@ -1362,6 +1429,13 @@ export default function CategoryDetail({
           onOpenHealthMore={healthMoreRows.some((r) => r.group !== "Medication") ? () => setHealthMore(true) : undefined}
           onOpenMedication={() => setMedPage(true)}
           medSub={medSub}
+          live={liveHero}
+          onResume={() => setGymOpen(true)}
+          water={water}
+          log={healthLog}
+          onOpenLog={openLog}
+          pendingCount={pendingCount}
+          onOpenSettings={() => setHealthSettingsOpen(true)}
           // Projects, Goals Here, Coming Up, Up Next: the SAME block every
           // other area page renders, handed in rather than re-declared, so
           // the health page cannot show two of any of them (Dave 2026-09-10).
@@ -1389,7 +1463,7 @@ export default function CategoryDetail({
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-lime" />
                       <span className="ins-t">Weekly Volume</span>
-                      <span className="ins-chip hue-hl-lime">{capAfterNumber(`${rangeRows[0]!.range.low}-${rangeRows[0]!.range.high} studied`)}</span>
+                      <span className="ins-chip hue-hl-lime">{capAfterNumber(`${rangeRows[0]!.range.low}-${rangeRows[0]!.range.high} ${hsBand ? "yours" : "studied"}`)}</span>
                     </div>
                     {rangeRows.map((r) => {
                       const band = r.sets < r.range.low ? "under" : r.sets > r.range.high ? "over" : "in";
@@ -1408,6 +1482,8 @@ export default function CategoryDetail({
                         </div>
                       );
                     })}
+                    {/* H-33 (Health Push C): what the count is made of. */}
+                    <div className="ins-cite">Last 7 days · Working sets only · Warm-ups excluded</div>
                     <div className="ins-cite">{rangeRows[0]!.range.source}</div>
                   </div>
                 )}

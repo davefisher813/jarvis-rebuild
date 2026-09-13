@@ -19,7 +19,11 @@ import { Head, Card, Switch } from "./kit";
 // convert. Default lb, which is what every rack stored before this was.
 const PLATE_OPTIONS = [45, 35, 25, 20, 15, 10, 5, 2.5, 1.25];
 
-export default function TrainingPage({ onBack }: { onBack: () => void }) {
+/** THE RACK, as one piece (Health Push C, H-40, 2026-09-12): Settings,
+ *  Training and Health Settings both carry it, off the one gym store, so a
+ *  bar set on either page is the bar the ramp and the plate line use. Last
+ *  Time on Every Set rides along where the page asks for it. */
+export function RackSettings({ withShowLast = false }: { withShowLast?: boolean }) {
   const [settings, setSettings] = useState<GymSettings>(() => readGymSettings());
   const set = (patch: Partial<GymSettings>) => {
     const next = { ...settings, ...patch };
@@ -37,12 +41,12 @@ export default function TrainingPage({ onBack }: { onBack: () => void }) {
     set({ plates });
   };
   return (
-    <div className="screen ruled">
-      <LargeTitleNav title="Training" back="Settings" onBack={onBack} />
-      <Head label="In the Gym" />
+    <>
       <Card>
-        <Switch label="Last Time on Every Set" meta="Last session beside each set, with tap-to-match" on={settings.showLast}
-          onToggle={() => set({ showLast: !settings.showLast })} />
+        {withShowLast && (
+          <Switch label="Last Time on Every Set" meta="Last session beside each set, with tap-to-match" on={settings.showLast}
+            onToggle={() => set({ showLast: !settings.showLast })} />
+        )}
         <div className="row set-row">
           <div className="conn-name">Rack Unit</div>
           <div className="chip-row">
@@ -71,6 +75,16 @@ export default function TrainingPage({ onBack }: { onBack: () => void }) {
             aria-pressed={settings.plates.includes(p)} onClick={() => togglePlate(p)}>{p}</div>
         ))}
       </div></div>
+    </>
+  );
+}
+
+export default function TrainingPage({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="screen ruled">
+      <LargeTitleNav title="Training" back="Settings" onBack={onBack} />
+      <Head label="In the Gym" />
+      <RackSettings withShowLast />
       <div className="screen-foot" />
     </div>
   );

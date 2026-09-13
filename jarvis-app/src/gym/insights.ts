@@ -242,7 +242,7 @@ export function muscleMapFromProgram(program: Program | null): Map<string, Muscl
  * VERDICT (HEALTH_PREVIEW_SPEC bug list): a muscle with nothing logged this
  * week renders no row at all, never a "0 of 10-20" that reads as a miss.
  */
-export function hardSetRows(workouts: Workout[], muscleByExercise: Map<string, MuscleGroup>, now: number = Date.now()): HardSetRow[] {
+export function hardSetRows(workouts: Workout[], muscleByExercise: Map<string, MuscleGroup>, now: number = Date.now(), range: PublishedRange = HARD_SET_RANGE): HardSetRow[] {
   const totals = new Map<MuscleGroup, number>();
   for (const w of workouts) {
     // Calendar-day-safe (see chartData.ts's daysAgo comment): a raw
@@ -261,7 +261,9 @@ export function hardSetRows(workouts: Workout[], muscleByExercise: Map<string, M
   }
   return MUSCLE_GROUPS
     .filter((m) => (totals.get(m) ?? 0) > 0)
-    .map((m) => ({ muscle: m, sets: totals.get(m)!, range: HARD_SET_RANGE }));
+    // The studied range by default; the band he set in Health Settings when
+    // he set one (Dave 2026-09-13: nothing hard wired that should not be).
+    .map((m) => ({ muscle: m, sets: totals.get(m)!, range }));
 }
 
 // --- D13-C: THE OFFER, NEVER A PRESCRIPTION --------------------------------

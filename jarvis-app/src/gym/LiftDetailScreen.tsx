@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { readHealthSettings } from "../health/settings";
 import type { Workout, MeasureKind } from "./types";
 import type { Goal } from "../life/types";
 import { formatSet, inUnit, LB_PER_KG } from "./measures";
@@ -139,7 +140,11 @@ export default function LiftDetailScreen({
     if (!muscleGroup) return null;
     const map = new Map(muscleMap ?? []);
     map.set(name, muscleGroup);
-    return hardSetRows(workouts, map, now).find((r) => r.muscle === muscleGroup) ?? null;
+    // The band he set in Health Settings replaces the studied one here too
+    // (Dave 2026-09-13), so the lift page and the Health page agree.
+    const hb = readHealthSettings().volumeBand;
+    const band = hb ? { ...hb, note: `Your band ${hb.low}-${hb.high} · Set in Health Settings`, source: "Your band, from Health Settings" } : undefined;
+    return hardSetRows(workouts, map, now, band).find((r) => r.muscle === muscleGroup) ?? null;
   }, [muscleGroup, muscleMap, name, workouts, now]);
   /** This lift's own share of that total, so the row can say both numbers
    *  rather than leaving the athlete to wonder which one it means. */
@@ -206,7 +211,7 @@ export default function LiftDetailScreen({
               <div className="se-chips">
                 <span className="se-chip se-chip-when">{agoPhrase(sessions[0]!.date, todayIso)} to {agoPhraseLower(sessions[sessions.length - 1]!.date, todayIso)}</span>
                 <span className="se-chip se-chip-last">{sessions.length}<em>Sessions</em></span>
-                {prs.size > 0 && <span className="se-chip se-chip-best">{prs.size}<em>{prs.size === 1 ? "PR" : "PRs"}</em></span>}
+                {prs.size > 0 && readHealthSettings().celebrations && <span className="se-chip se-chip-best">{prs.size}<em>{prs.size === 1 ? "PR" : "PRs"}</em></span>}
               </div>
             </div></div>
           )}

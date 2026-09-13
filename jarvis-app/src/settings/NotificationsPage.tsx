@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useProfile } from "../data/NotesProvider";
 import LargeTitleNav from "../shared/LargeTitleNav";
+import { updateHealthSettings } from "../health/settings";
 import { Capacitor } from "@capacitor/core";
 import { requestNotificationPermission, notificationPermissionState, type NotifyPermission } from "../shared/notifications";
 import { Head, Card, Switch, Foot } from "./kit";
@@ -62,7 +63,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
             only alert on this page the athlete asked for by starting the
             thing that schedules it, which is why it is last and why it is
             on by default. */}
-        <Switch label="Rest timer" on={prefs.rest} locked={denied} onToggle={() => set({ rest: !prefs.rest })} />
+        <Switch label="Rest timer" on={prefs.rest} locked={denied} onToggle={() => { updateHealthSettings({ restNotify: !prefs.rest }); void set({ rest: !prefs.rest }); }} />
       </Card>
       {/* A4 (audit 2026-08-21, catalog Q8: never promise what the platform
           cannot do). A page called Notifications with four switches on it

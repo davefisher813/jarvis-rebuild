@@ -1647,6 +1647,14 @@
   border: 0; border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); font-family: var(--f);
   font-size: calc(13.5px * var(--type-scale)); font-weight: var(--w-semi); cursor: pointer; }
 .ruled.health-ruled .h-add .ic { width: 14px; height: 14px; color: var(--tint); stroke-width: 2.6; }
+/* THE LOG (H-48, Health Push C, 2026-09-12): today's entries, the glyph in
+   the entry's hue on its tint, the time in the same hue, one fact beside it. */
+.ruled.health-ruled .h-log-row { gap: 10px; }
+.ruled.health-ruled .h-log-ico { width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; background: var(--h-tint); color: var(--h-hue); }
+.ruled.health-ruled .h-log-ico .ic { width: 15px; height: 15px; }
+/* One quiet receipt under the log (H-53): what is still waiting to sync. */
+.ruled.health-ruled .h-sync { margin-top: var(--s-2); font-size: calc(13px * var(--type-scale)); color: var(--tx-2); }
 
 /* THE VERDICT IS A CHIP, THE EVIDENCE IS A LINE (Dave 2026-09-11: "Keep
    sliding and pushed 8 times should not be identical styling wise. Might make

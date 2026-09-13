@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { beepDone, openAudio } from "./beep";
+import { readHealthSettings } from "../health/settings";
 import { haptics } from "../shared/haptics";
 import { scheduleRestOver, cancelRestOver } from "../shared/notifications";
 
@@ -84,7 +85,9 @@ export default function RestTimer({ endsAt, fillerName, onLogFiller, onDismiss, 
   useEffect(() => {
     if (remaining > 0 || firedRef.current || !hadTimeRef.current) return;
     firedRef.current = true;
-    beepDone(audioRef.current);
+    // H-40 (Health Push C): the sound is a switch in Health Settings; the
+    // haptic stays, because a pocketed phone still needs a cue.
+    if (readHealthSettings().restSound) beepDone(audioRef.current);
     haptics.success();
   }, [remaining]);
 

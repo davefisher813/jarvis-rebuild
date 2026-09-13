@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics, useOptionalProfile } from "../data/NotesProvider";
+import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
 import { monthDay, dayPhrase } from "../money/bills";
 import { agoPhraseLower, workoutMinutes } from "./summary";
 import { setSessionOpen } from "./sessionChrome";
+import { readHealthSettings } from "../health/settings";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
@@ -524,19 +525,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   const categoriesSvc = useOptionalCategories();
   const goalsSvc = useOptionalGoals();
   const metricsSvc = useOptionalMetrics();
-  // UP-ATH-03 (2026-09-06): the Notifications page's rest switch. Read once
-  // here, where the profile already is, rather than inside the timer, so
-  // RestTimer stays what it is: a countdown with props in and no services.
-  // Defaults on, same as the page's own defaults, and the switch's absence
-  // (an older stored profile) reads as on rather than as off.
-  const profileSvc = useOptionalProfile();
-  const [restNotify, setRestNotify] = useState(true);
-  useEffect(() => {
-    if (!profileSvc) return;
-    let on = true;
-    void profileSvc.get().then((p) => { if (on) setRestNotify(p?.notify?.rest !== false); }).catch(() => {});
-    return () => { on = false; };
-  }, [profileSvc]);
+  // H-40 (Health Push C, 2026-09-12): the rest notification and Celebrations
+  // live in Health Settings (health/settings.ts), read off the store when the
+  // gym mounts. UP-ATH-03's rule stands: RestTimer stays a countdown with
+  // props in and no services. The Notifications page's rest switch writes the
+  // same key, so the two switches never disagree.
+  const restNotify = readHealthSettings().restNotify;
+  const celebrations = readHealthSettings().celebrations;
   const [programs, setPrograms] = useState<Program[]>([]);
   const [allPrograms, setAllPrograms] = useState<Program[]>([]); // active + archived
   const [workouts, setWorkouts] = useState<Workout[]>([]);
@@ -1227,6 +1222,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
     ? <ReceiptSheet
         dayName={receipt.dayName}
         receipt={receipt.receipt}
+        celebrations={celebrations}
         // The session is not saved until Done, so the receipt's own counts
         // include it here (GYM-F-27 wanted the count right, not one behind).
         workouts={finishing.current ? [...workouts, { id: "pending", data: finishing.current.data } as Workout] : workouts}
@@ -1564,6 +1560,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         onBack={parkSession}
         onPause={parkSession}
         restNotify={restNotify}
+        celebrations={celebrations}
         gameLine={gameLine}
       />
       {receiptEl}

@@ -16,6 +16,12 @@ import { dayPhrase } from "../money/bills";
 import { pressable } from "../shared/pressable";
 import type { HueKind } from "../health/hue";
 import { hueFor, hueForMetric } from "../health/hue";
+import type { LogRow, LogOpen } from "../health/log";
+
+/** H-12 (Health Push C): the session waiting to be resumed, as the hero. */
+export interface LiveHero { dayName: string; nextExercise: string | null; setNo: number; setTotal: number; logged: number }
+/** H-43: the Water tile, a +1 on the tile itself. */
+export interface WaterTile { name: string; today: number; unit: string; onPlus: () => void }
 
 // THE HEALTH PAGE, SIMPLIFIED (Dave 2026-09-13: "this page would be
 // intimidating overwhelming for me and it is my app so it needs to be
@@ -95,6 +101,7 @@ export default function HealthBody({
   program, workouts, training, today, isEvening, gymEvent, metricDefs, metricLogs,
   onStart, onOpenGym, onOpenMetric, onManageMetrics, insights, sections, more, adds,
   healthLoggers, onOpenHealthLogger, onOpenHealthMore, onOpenMedication, medSub,
+  live = null, onResume, water = null, log = [], onOpenLog, pendingCount = 0, onOpenSettings,
 }: {
   program: Program | null;
   workouts: Workout[];
@@ -130,6 +137,18 @@ export default function HealthBody({
   medSub?: string | null;
   /** HMN-F-06 (2026-09-05): the door to the rest of the health module. */
   onOpenHealthMore?: () => void;
+  /** H-12: a live or parked session makes the hero a Resume. */
+  live?: LiveHero | null;
+  onResume?: () => void;
+  /** H-43: the Water shortcut's tile, when it is on. */
+  water?: WaterTile | null;
+  /** H-48: today's entries, oldest first. Nothing renders at zero. */
+  log?: LogRow[];
+  onOpenLog?: (o: LogOpen) => void;
+  /** H-53: what is still waiting to sync. Hidden at zero. */
+  pendingCount?: number;
+  /** H-40: the door to Health Settings. */
+  onOpenSettings?: () => void;
 }) {
   const dow = todayDow();
   const next = nextDayFor(program, workouts, dow);
@@ -139,7 +158,9 @@ export default function HealthBody({
     : next?.when === "today" ? "Today" : next?.when === "tomorrow" ? "Tomorrow" : next?.when ? next.when : null;
   const lifts = next ? capAfterNumber(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "lift" : "lifts"}`) : "";
   const dots = training?.weekDots ?? new Array<boolean>(7).fill(false);
-  const shownMetrics = activeMetrics(metricDefs);
+  // The Water preset is its own tile (H-43) when the shortcut is on, so it
+  // is not drawn twice.
+  const shownMetrics = activeMetrics(metricDefs).filter((d) => !(water && d.data.presetKey === "water"));
   // Every day of the program except the one already offered above it.
   const otherDays = (program?.data.weeks ?? []).flatMap((w) => w.days).filter((d) => d.id !== next?.day.id);
   const last = training?.last ?? null;
@@ -169,6 +190,28 @@ export default function HealthBody({
   };
   const loggerTile = (l: HealthLoggerRow) =>
     tile(l.key, l.label, hueFor(LOGGER_KIND[l.key]), <ClockGlyph />, l.value ? <span>{l.value}</span> : null, null, () => onOpenHealthLogger(l.key));
+  // WATER IS A +1 ON THE TILE (H-43, Health Push C, 2026-09-12). The tile
+  // itself is the tap; the count is today's; Undo rides the caller's toast.
+  const waterTile = (w: WaterTile) => (
+    <div {...pressable(w.onPlus)} className={"h-tile" + (w.today > 0 ? "" : " h-tile-empty")} data-hue="cyan" key="water">
+      <div className="ht-top">
+        <span className="ht-ico" aria-hidden="true"><PulseGlyph /></span>
+        <span className="ht-w">{w.name}</span>
+        <span className="ht-plus" aria-hidden="true"><Plus className="ic" /></span>
+      </div>
+      <div className="ht-n">{w.today > 0 ? <span>{w.today}<small>{w.unit}</small></span> : <span className="ht-none">Log it</span>}</div>
+      {w.today > 0 && <div className="ht-m">Today</div>}
+    </div>
+  );
+  // THE LOG (H-48): the glyph says what kind of thing the row is, the time
+  // wears the same hue, and one fact sits beside it.
+  const logGlyph = (kind: HueKind): ReactNode =>
+    kind === "sets" ? <BarbellGlyph /> : kind === "sleep" ? <ClockGlyph /> : kind === "medication" ? <Check className="ic" /> : <PulseGlyph />;
+  const clockOf = (at: number) => {
+    const d = new Date(at);
+    const t = fmtTime(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
+    return `${t.time} ${t.ap}`;
+  };
 
   return (
     <>
@@ -179,7 +222,23 @@ export default function HealthBody({
       <div className="sh2 sh2-quiet"><span className="t">Training</span>
         <button className="see-all pill-action" onClick={onOpenGym}>Program</button></div>
       <div className="pad-x h-hero-wrap"><div className="card list-card-ruled h-hero-card">
-        {next ? (
+        {live ? (
+          // H-12 (Health Push C, 2026-09-12): a session in flight leads the
+          // page. The next lift in cyan, where he is in it, what is logged in
+          // lime, and the one red move is Resume.
+          <div {...pressable(onResume ?? onOpenGym)} className="h-hero">
+            <span className="h-hero-ico"><BarbellGlyph /></span>
+            <div className="h-hero-b">
+              <div className="h-hero-t">{`Resume ${live.dayName}`}</div>
+              <div className="facts h-hero-facts">
+                {live.nextExercise && <span className="fact cyan">{`Next: ${live.nextExercise}`}</span>}
+                {live.setTotal > 0 && <span className="fact">{capAfterNumber(`Set ${live.setNo} of ${live.setTotal}`)}</span>}
+                <span className="fact lime">{capAfterNumber(`${live.logged} logged`)}</span>
+              </div>
+            </div>
+            <button className="pill-act" onClick={(e) => { e.stopPropagation(); (onResume ?? onOpenGym)(); }}>Resume</button>
+          </div>
+        ) : next ? (
           <div {...pressable(onOpenGym)} className="h-hero">
             <span className="h-hero-ico"><BarbellGlyph /></span>
             <div className="h-hero-b">
@@ -240,6 +299,7 @@ export default function HealthBody({
         <button className="see-all pill-action" onClick={onManageMetrics}>Add</button></div>
       <div className="pad-x"><div className="h-tiles">
         {healthLoggers.map((l) => loggerTile(l))}
+        {water && waterTile(water)}
         {shownMetrics.map((d) => metricTile(d))}
         {shownMetrics.length === 0 && (
           <div {...pressable(onManageMetrics)} className="h-tile h-tile-add">
@@ -254,12 +314,20 @@ export default function HealthBody({
       {/* MEDICATION IS ITS OWN PAGE (Dave 2026-09-10), so it is a door, not a
           tile. The door says when the last dose was, in medication blue, and
           nothing else. */}
-      {(onOpenMedication || onOpenHealthMore) && (
+      {(onOpenMedication || onOpenHealthMore || onOpenSettings) && (
         <div className="pad-x h-doors"><div className="card list-card-ruled">
           {onOpenMedication && (
             <div {...pressable(onOpenMedication)} className="task-row p2">
               <div className="task-title"><span className="task-name">Medication</span></div>
               {medSub && <span className="h-door-v">{medSub}</span>}
+              {CHEV}
+            </div>
+          )}
+          {/* H-40: Health Settings, behind a door rather than a head, the
+              way Dave asked this page kept simple (2026-09-13). */}
+          {onOpenSettings && (
+            <div {...pressable(onOpenSettings)} className="task-row p2">
+              <div className="task-title"><span className="task-name">Settings</span></div>
               {CHEV}
             </div>
           )}
@@ -270,6 +338,38 @@ export default function HealthBody({
             </div>
           )}
         </div></div>
+      )}
+
+      {/* THE LOG (H-48, Health Push C): today's entries in order, each a
+          door back to the screen that made it. Absent until something is
+          written today, so a quiet day adds no furniture. */}
+      {log.length > 0 && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Log</span><span className="n">{log.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {log.map((r) => {
+              const hue = r.hue ?? hueFor(r.kind);
+              return (
+                <div {...pressable(() => onOpenLog?.(r.open))} className="row h-log-row" key={r.id}>
+                  <span className="h-log-ico" data-hue={hue} aria-hidden="true">{logGlyph(r.kind)}</span>
+                  <div className="row-grow">
+                    <div className="conn-name">{r.title}</div>
+                    <div className="facts">
+                      <span className={"fact " + hue}>{clockOf(r.at)}</span>
+                      {r.detail && <span className="fact">{r.detail}</span>}
+                    </div>
+                  </div>
+                  {CHEV}
+                </div>
+              );
+            })}
+          </div></div>
+        </>
+      )}
+      {/* H-53: one quiet receipt, what is still waiting to sync. Hidden at
+          zero, so it only ever says something true. */}
+      {pendingCount > 0 && (
+        <div className="pad-x h-sync">{capAfterNumber(`${pendingCount} waiting to sync`)}</div>
       )}
 
       {/* The sections that hold something, then the findings, then the tail,
