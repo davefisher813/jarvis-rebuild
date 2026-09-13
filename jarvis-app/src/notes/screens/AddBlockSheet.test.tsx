@@ -13,10 +13,11 @@ import AddBlockSheet from "./AddBlockSheet";
 const rows = () => [...document.querySelectorAll(".sheet-scrim .row")];
 
 describe("BROWSER-F-13: every Add Block row is reachable without a finger", () => {
-  it("all nine rows announce as buttons and sit in the tab order", () => {
+  it("all twelve rows announce as buttons and sit in the tab order", () => {
     render(<AddBlockSheet />);
     const r = rows();
-    expect(r).toHaveLength(9);
+    // Nine, plus C-17 (2026-09-12): Quote, Divider, Callout after them.
+    expect(r).toHaveLength(12);
     for (const el of r) {
       expect(el.getAttribute("role"), (el.textContent ?? "") + " announces as a button").toBe("button");
       expect(el.getAttribute("tabindex"), (el.textContent ?? "") + " is reachable by Tab").toBe("0");

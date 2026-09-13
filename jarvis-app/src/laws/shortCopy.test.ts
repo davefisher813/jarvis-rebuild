@@ -38,6 +38,9 @@ const EXEMPT_FILES = new Set([
   "ai/capture.ts",
   "ai/suggestions.ts",
   "ai/context.ts",
+  // C-20 (Astra, 2026-09-12): the JARVIS Found system prompt, model
+  // instructions in the same class as every prompt above.
+  "notes/jarvisFound.ts",
   "messages/triage.ts",
   "messages/deck.ts",
   "messages/waiting.ts",

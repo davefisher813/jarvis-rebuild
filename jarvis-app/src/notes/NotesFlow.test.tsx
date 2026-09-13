@@ -10,6 +10,13 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
+
+// C-18 (Astra, 2026-09-12): Connections moved into the note menu, behind
+// the same ... button, beside Pin, Tags and Archive.
+const openConnections = () => {
+  fireEvent.click(screen.getByLabelText("Note options"));
+  fireEvent.click(screen.getByText("Connections"));
+};
 import { Store, InMemoryAdapter, type Item, type ItemData } from "@core";
 import { NotesProvider, useNotes, useCategories, useTasks, useSchedule } from "../data/NotesProvider";
 import NotesFlow from "./NotesFlow";
@@ -103,7 +110,7 @@ describe("NotesFlow: block mutations run one at a time (HMN-F-01)", () => {
 describe("NotesFlow: the editor comes back fresh from Create Tasks (HMN-F-14)", () => {
   it("shows the linked-task badges and connection chips on arrival", async () => {
     const { svc, id } = await openNoteWith([{ type: "checklist", items: ["Milk", "Eggs"] }]);
-    fireEvent.click(screen.getByLabelText("Connections"));
+    openConnections();
     fireEvent.click(await screen.findByText("Create Tasks from Checklist"));
     fireEvent.click(await screen.findByText("Create 2 Tasks"));
     await waitFor(() => {
@@ -119,7 +126,7 @@ describe("NotesFlow: the editor comes back fresh from Create Tasks (HMN-F-14)", 
   // the locked frame's default and said From "This Week" for every note.
   it("the header names the note it was opened from", async () => {
     await openNoteWith([{ type: "checklist", items: ["Milk", "Eggs"] }]);
-    fireEvent.click(screen.getByLabelText("Connections"));
+    openConnections();
     fireEvent.click(await screen.findByText("Create Tasks from Checklist"));
     expect(await screen.findByText("From “Race”")).toBeInTheDocument();
     expect(screen.queryByText(/This Week/)).not.toBeInTheDocument();
@@ -154,7 +161,7 @@ describe("NotesFlow: Connections names the unfiled state and can return to it (H
     view.rerender(<NotesProvider userId={user}><GrabAll /><NotesFlow openId={id} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Text")).toBeInTheDocument());
 
-    fireEvent.click(screen.getByLabelText("Connections"));
+    openConnections();
     expect(await screen.findByText("Not Filed")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Area"));
@@ -202,7 +209,7 @@ describe("NotesFlow: a link to something deleted says so (HMN-F-18)", () => {
     expect(onNavigate).toHaveBeenCalledWith("task", expect.any(String));
 
     // And on the Connections screen, as its own trailing word.
-    fireEvent.click(screen.getByLabelText("Connections"));
+    openConnections();
     expect(await screen.findByText("Gone")).toBeInTheDocument();
     onNavigate.mockClear();
     fireEvent.click(screen.getByText("Book the Flights"));

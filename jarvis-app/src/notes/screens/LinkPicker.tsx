@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { CalendarDays, ListChecks, FolderKanban, User, Target, Search } from "../../shared/icons";
+import { CalendarDays, ListChecks, FolderKanban, User, Target, Search, FileText } from "../../shared/icons";
 import { Head, Card } from "../../settings/kit";
 import type { QuickCreateKind } from "./QuickCreateSheet";
 import { pressable } from "../../shared/pressable";
@@ -39,11 +39,14 @@ export default function LinkPicker({
   projects = [],
   people = [],
   goals = [],
+  notes = [],
   onPick,
   onCreateNew,
   onBack,
   eventsFloor,
 }: {
+  // C-19 (Astra, 2026-09-12): the other notes, so a note can link a note.
+  notes?: { id: string; title: string }[];
   events?: { id: string; title: string }[];
   tasks?: { id: string; text: string }[];
   projects?: { id: string; title: string }[];
@@ -70,6 +73,7 @@ export default function LinkPicker({
   const pr = projects.filter((p) => hit(p.title));
   const pe = people.filter((p) => hit(p.name));
   const gl = goals.filter((g) => hit(g.title));
+  const nt = q.trim() ? notes.filter((n) => n.title.toLowerCase().includes(q.trim().toLowerCase())) : notes;
   const noMatch = !empty && ev.length + ts.length + pr.length + pe.length + gl.length === 0;
 
   return (
@@ -195,6 +199,20 @@ export default function LinkPicker({
               </div>
             ))}
             {onCreateNew && <NewRow kind="goal" onCreateNew={onCreateNew} />}
+          </Card>
+        </>
+      )}
+      {nt.length > 0 && (
+        <>
+          <Head label="Notes" />
+          <Card>
+            {nt.map((n) => (
+              <div className="row" {...pressable(() => onPick("note", n.title, n.id))} key={n.id}>
+                <div className="proj-icon cat-bg-yellow"><FileText className="ic" /></div>
+                <div className="conn-name">{n.title}</div>
+                <div className="chev"></div>
+              </div>
+            ))}
           </Card>
         </>
       )}

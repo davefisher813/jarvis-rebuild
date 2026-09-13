@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sourceOpener } from "../shared/openSource";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_NOTE } from "./types";
-import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople, useOptionalProfile, useFileStore } from "../data/NotesProvider";
+import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople, useOptionalProfile, useFileStore, useOptionalDecisions } from "../data/NotesProvider";
+import { useAI } from "../ai/useAI";
+import { findInNote, passLength, PASS_DELTA } from "./jarvisFound";
+import type { TurnIntoType } from "./screens/NoteEditor";
 import { catName } from "../shared/categories";
 import type { Category } from "../categories/types";
 import type { Block, Connection, NoteData, TemplateKey } from "./types";
@@ -18,7 +21,7 @@ import { showToast } from "../shared/toast";
 import { parseRich } from "./richtext";
 import { usePickFile, PICK_ANY, PICK_IMAGE } from "../shared/usePickFile";
 import { fileStem, sizeLabel } from "../files/types";
-import { FormSheet, Group, Row } from "../shared/FormSheet";
+import { FormSheet, Group, Row, FieldRow, Strip } from "../shared/FormSheet";
 import { Check } from "../shared/icons";
 
 import { attemptWrite } from "../shared/guard";
@@ -47,6 +50,10 @@ function toEditorNote(data: NoteData): EditorNote {
         case "heading": return { id: b.id, type: "heading", text: b.text ?? "" };
         case "text": return { id: b.id, type: "text", text: b.text ?? "" };
         case "meta": return { id: b.id, type: "meta", text: b.text ?? "" };
+        // C-17
+        case "quote": return { id: b.id, type: "quote", text: b.text ?? "" };
+        case "callout": return { id: b.id, type: "callout", text: b.text ?? "" };
+        case "divider": return { id: b.id, type: "divider" };
         case "checklist":
           return {
             id: b.id,
@@ -82,6 +89,10 @@ function starterBlock(type: BlockType): Omit<Block, "id"> {
     case "heading": return { type, text: "" };
     case "text": return { type, text: "" };
     case "meta": return { type, text: "" };
+    // C-17
+    case "quote": return { type, text: "" };
+    case "callout": return { type, text: "" };
+    case "divider": return { type };
     case "checklist": return { type, items: [{ text: "", done: false }] };
     case "bulleted_list": return { type, items: [""] };
     case "numbered_list": return { type, items: [""] };
@@ -264,6 +275,19 @@ export default function NotesFlow({
   });
   const [addBlockOpen, setAddBlockOpen] = useState(false);
   const [conns, setConns] = useState<Connection[]>([]);
+  // C-18 / C-19 / C-20 (Astra, 2026-09-12): the open note's flags, the
+  // notes around it, and what JARVIS found in it.
+  const [noteFlags, setNoteFlags] = useState<{ pinned: boolean; archived: boolean; tags: string[] }>({ pinned: false, archived: false, tags: [] });
+  const [linkedFrom, setLinkedFrom] = useState<{ id: string; title: string }[]>([]);
+  const [related, setRelated] = useState<{ id: string; title: string; shared: number }[]>([]);
+  const [found, setFound] = useState<import("./types").FoundCandidate[]>([]);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [tagDraft, setTagDraft] = useState("");
+  const ai = useAI();
+  const decisionsSvc = useOptionalDecisions();
+  // The text length the last JARVIS Found pass ran at, per open note.
+  const passLenRef = useRef<number>(-1);
+  const passingRef = useRef(false);
   // HMN-F-18: which of them point at something that is no longer there.
   const [goneConns, setGoneConns] = useState<Set<string>>(new Set());
   // The connection strip's "+" (Dave 2026-08-28) reaches LinkPicker directly
@@ -278,6 +302,7 @@ export default function NotesFlow({
   const [linkProjects, setLinkProjects] = useState<{ id: string; title: string }[]>([]);
   const [linkGoals, setLinkGoals] = useState<{ id: string; title: string }[]>([]);
   const [linkPeople, setLinkPeople] = useState<{ id: string; name: string }[]>([]);
+  const [linkNotes, setLinkNotes] = useState<{ id: string; title: string }[]>([]);
   const seeded = useRef(false);
   // Optional, not required: several tests and the standalone Notes harness
   // mount this flow without a ProfileProvider, and a one-time cleanup is not
@@ -300,7 +325,12 @@ export default function NotesFlow({
         // value that reads as a real date (past 2001) is one; anything else
         // is "unknown" and the row shows no date rather than a wrong one.
         const edited = it.serverTime > 1e12 ? it.serverTime : 0;
-        return { id: it.id, title: d.title || "Untitled", edited, category: d.category || "", first: firstLine(d.blocks), body: noteBlockText(d) };
+        return {
+          id: it.id, title: d.title || "Untitled", edited, category: d.category || "", first: firstLine(d.blocks), body: noteBlockText(d),
+          // C-18 / C-20
+          ...(d.pinned ? { pinned: true } : {}), ...(d.archived ? { archived: true } : {}), ...(d.tags?.length ? { tags: d.tags } : {}),
+          ...((d.found ?? []).some((c) => !c.added) ? { found: (d.found ?? []).filter((c) => !c.added).length } : {}),
+        };
       }),
     );
   }, [svc]);
@@ -346,6 +376,18 @@ export default function NotesFlow({
       setCurrent(d ? toEditorNote(d) : null);
       const cs = d?.connections ?? [];
       setConns(cs);
+      if (d) {
+        setNoteFlags({ pinned: !!d.pinned, archived: !!d.archived, tags: d.tags ?? [] });
+        setFound(d.found ?? []);
+        if (passLenRef.current < 0) passLenRef.current = passLength(d);
+        // C-19: the notes around this one. Best effort; an empty list is the
+        // honest fallback for a read that failed.
+        void Promise.all([svc.notesLinkedTo(id), svc.relatedNotes(id)]).then(([from, rel]) => {
+          if (currentIdRef.current !== id) return;
+          setLinkedFrom(from.map((n) => ({ id: n.id, title: n.title })));
+          setRelated(rel);
+        }).catch(() => { /* the heads simply do not render */ });
+      }
       // Where You Were (addendum item 6): the open note is the spot.
       if (d) recordSpot({ kind: "note", id, label: d.title || "Untitled" });
       const checked = await Promise.all(
@@ -428,6 +470,8 @@ export default function NotesFlow({
     setLinkProjects(pr.map((p) => ({ id: p.id, title: (p.data as { title?: string }).title || "Untitled" })));
     setLinkGoals(gl.map((g) => ({ id: g.id, title: (g.data as { title?: string }).title || "Untitled" })));
     setLinkPeople(pe.map((p) => ({ id: p.id, name: (p.data as { name?: string }).name || "Someone" })));
+    // C-19: the other live notes, for a note-to-note link.
+    setLinkNotes(list.filter((n) => n.id !== currentIdRef.current && !n.archived).map((n) => ({ id: n.id, title: n.title })));
     // HMN-F-26 (2026-09-05): every event ever went into the picker, oldest
     // and newest mixed, so after a few months of real use the Events section
     // was hundreds of rows with no way to narrow them. A note is linked to
@@ -457,6 +501,8 @@ export default function NotesFlow({
     history.current = [];
     redoStack.current = [];
     setHistTick((t) => t + 1);
+    passLenRef.current = -1;
+    setLinkedFrom([]); setRelated([]); setFound([]);
     openCurrentId(id);
     await loadCurrent(id);
     setScreen("editor");
@@ -736,7 +782,111 @@ export default function NotesFlow({
     await snap();
     await attemptWrite(() => svc.editBlock(currentId, blockId, { text }));
     await loadCurrent(currentId);
+    void maybeFind(currentId);
   });
+
+  // C-20: JARVIS FOUND. After a blur-save, when the note's text has moved
+  // by more than PASS_DELTA characters since the last pass, one structured
+  // call, in the background, never awaited by the editor. Gated on AI.
+  const maybeFind = async (noteId: string) => {
+    if (!ai.available || passingRef.current) return;
+    const d = await svc.note(noteId);
+    if (!d) return;
+    const len = passLength(d);
+    if (passLenRef.current >= 0 && Math.abs(len - passLenRef.current) <= PASS_DELTA) return;
+    passingRef.current = true;
+    try {
+      const [pe, pr] = await Promise.all([peopleSvc.list().catch(() => []), projSvc.list().catch(() => [])]);
+      const cands = await findInNote(ai, d, pe.map((p) => ({ id: p.id, name: p.data.name })), pr.map((p) => ({ id: p.id, title: p.data.title })));
+      passLenRef.current = len;
+      // Keep what he already added; drop the rest for the fresh read.
+      const kept = (d.found ?? []).filter((c) => c.added);
+      const fresh = cands.filter((c) => !kept.some((k) => k.kind === c.kind && (k.targetId ? k.targetId === c.targetId : k.text.toLowerCase() === c.text.toLowerCase())));
+      await svc.setFound(noteId, [...kept, ...fresh]);
+      if (currentIdRef.current === noteId) setFound([...kept, ...fresh]);
+      await loadList();
+    } catch { /* silence beats a guess */ } finally {
+      passingRef.current = false;
+    }
+  };
+
+  // C-20: the two taps. Add writes the task or the decision with the note
+  // as its source; Link writes the connection. Receipt with Undo; the
+  // candidate is marked used and leaves the head.
+  const foundAdd = async (index: number) => {
+    if (!currentId) return;
+    const c = found[index];
+    if (!c) return;
+    const noteId = currentId;
+    if (c.kind === "task") {
+      let id: string | null = null;
+      const ok = await attemptWrite(async () => { id = await tasksSvc.createTask(c.text, { source: { type: "note", ref: noteId, ts: Date.now() }, fromNote: noteId }); });
+      if (!ok || !id) return;
+      const taskId: string = id;
+      await attemptWrite(() => svc.markFoundAdded(noteId, index));
+      await loadCurrent(noteId);
+      showToast({ message: "Task added", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => tasksSvc.deleteTask(taskId)); await attemptWrite(() => svc.markFoundAdded(noteId, index, false)); await loadCurrent(noteId); })() });
+    } else if (c.kind === "decision" && decisionsSvc) {
+      let id: string | null = null;
+      const ok = await attemptWrite(async () => { id = await decisionsSvc.create({ decision: c.text, source: { kind: "note", entityId: noteId, at: new Date().toISOString() } }); });
+      if (!ok || !id) return;
+      const decId: string = id;
+      await attemptWrite(() => svc.markFoundAdded(noteId, index));
+      await loadCurrent(noteId);
+      showToast({ message: "Decision saved", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => decisionsSvc.remove(decId)); await attemptWrite(() => svc.markFoundAdded(noteId, index, false)); await loadCurrent(noteId); })() });
+    }
+  };
+  const foundLink = async (index: number) => {
+    if (!currentId) return;
+    const c = found[index];
+    if (!c || !c.targetId || (c.kind !== "person" && c.kind !== "project")) return;
+    const noteId = currentId;
+    const ok = await attemptWrite(() => svc.addConnection(noteId, c.kind, c.text, c.targetId!));
+    if (!ok) return;
+    await attemptWrite(() => svc.markFoundAdded(noteId, index));
+    await loadCurrent(noteId);
+    showToast({ message: "Linked", actionLabel: "Undo", onAction: () => void (async () => {
+      const d = await svc.note(noteId);
+      const conn = (d?.connections ?? []).find((x) => x.kind === c.kind && x.targetId === c.targetId);
+      if (conn) await attemptWrite(() => svc.removeConnection(noteId, conn.id));
+      await attemptWrite(() => svc.markFoundAdded(noteId, index, false));
+      await loadCurrent(noteId);
+    })() });
+  };
+
+  // C-18: pin, archive, tags. Flags, with receipts. Archive leaves the note.
+  const togglePin = async () => {
+    if (!currentId) return;
+    const next = !noteFlags.pinned;
+    const ok = await attemptWrite(() => svc.setPinned(currentId, next));
+    if (!ok) return;
+    setNoteFlags((f) => ({ ...f, pinned: next }));
+    await loadList();
+    showToast({ message: next ? "Pinned" : "Unpinned" });
+  };
+  const toggleArchive = async () => {
+    if (!currentId) return;
+    const id = currentId;
+    const next = !noteFlags.archived;
+    const ok = await attemptWrite(() => svc.setArchived(id, next));
+    if (!ok) return;
+    setNoteFlags((f) => ({ ...f, archived: next }));
+    await loadList();
+    if (next) {
+      openCurrentId(null);
+      setScreen("list");
+      showToast({ message: "Archived", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => svc.setArchived(id, false)); await loadList(); })() });
+    } else {
+      showToast({ message: "Back in your notes" });
+    }
+  };
+  const saveTags = async (tags: string[]) => {
+    if (!currentId) return;
+    const ok = await attemptWrite(() => svc.setTags(currentId, tags));
+    if (!ok) return;
+    setNoteFlags((f) => ({ ...f, tags: [...new Set(tags.map((t) => t.trim().replace(/^#/, "")).filter(Boolean))] }));
+    await loadList();
+  };
   const toggleCheck = (blockId: string, index: number) => enqueue(async () => {
     if (!currentId) return;
     await attemptWrite(() => svc.toggleChecklistItem(currentId, blockId, index));
@@ -786,16 +936,18 @@ export default function NotesFlow({
 
   // Turn Into (deep writing pass): a text or heading block converts to any
   // simple type in place; its words become the first item where items rule.
-  const turnInto = (blockId: string, type: "text" | "heading" | "bulleted_list" | "checklist") => enqueue(async () => {
+  const turnInto = (blockId: string, type: TurnIntoType) => enqueue(async () => {
     if (!currentId) return;
     // The words come from the fresh note so a blur-save queued just ahead of
     // the menu tap is what gets converted, not the text from before it.
     const b = (await svc.note(currentId))?.blocks.find((x) => x.id === blockId);
-    if (!b || (b.type !== "text" && b.type !== "heading")) return;
+    if (!b || (b.type !== "text" && b.type !== "heading" && b.type !== "quote" && b.type !== "callout")) return;
     const words = b.text ?? "";
     await snap();
     await attemptWrite(async () => {
-      if (type === "text" || type === "heading") await svc.editBlock(currentId, blockId, { type, text: words, items: undefined });
+      // C-17: a quote or a callout keeps its words; a divider drops them.
+      if (type === "text" || type === "heading" || type === "quote" || type === "callout") await svc.editBlock(currentId, blockId, { type, text: words, items: undefined });
+      else if (type === "divider") await svc.editBlock(currentId, blockId, { type, text: undefined, items: undefined });
       else if (type === "checklist") await svc.editBlock(currentId, blockId, { type, text: undefined, items: [{ text: words, done: false }] });
       else await svc.editBlock(currentId, blockId, { type, text: undefined, items: [words] });
     });
@@ -967,6 +1119,7 @@ export default function NotesFlow({
         projects={linkProjects}
         goals={linkGoals}
         people={linkPeople}
+        notes={linkNotes}
         onPick={async (kind, label, targetId) => {
           if (currentId) {
             await enqueue(async () => {
@@ -1058,6 +1211,18 @@ export default function NotesFlow({
           }}
           onAddBlock={() => setAddBlockOpen(true)}
           onAddTyped={(t) => void addBlock(t)}
+          pinned={noteFlags.pinned}
+          archived={noteFlags.archived}
+          tags={noteFlags.tags}
+          onPin={() => void togglePin()}
+          onArchive={() => void toggleArchive()}
+          onTags={() => { setTagDraft(""); setTagsOpen(true); }}
+          linkedFrom={linkedFrom}
+          related={related}
+          onOpenNote={(id) => void openNote(id)}
+          found={found}
+          onFoundAdd={(i) => void foundAdd(i)}
+          onFoundLink={(i) => void foundLink(i)}
           onEditTitle={editTitle}
           onEditBlockText={editBlockText}
           onToggleCheck={toggleCheck}
@@ -1082,13 +1247,31 @@ export default function NotesFlow({
             await attemptWrite(() => svc.removeConnection(currentId, connId));
             await loadCurrent(currentId);
           })}
-          onOpenConnection={(kind, targetId) => onNavigate?.(kind, targetId)}
+          onOpenConnection={(kind, targetId) => (kind === "note" ? void openNote(targetId) : onNavigate?.(kind, targetId))}
           onOpenTask={onNavigate ? (taskId) => onNavigate("task", taskId) : undefined}
           openSourceFor={openSourceFor}
         />
       )}
       {addBlockOpen && (
         <AddBlockSheet onSelect={addBlock} onCancel={() => setAddBlockOpen(false)} />
+      )}
+      {/* C-18: the tags sheet. Chips for the ones it has (tap removes), a
+          line to add one. Saves on Done. */}
+      {tagsOpen && (
+        <FormSheet title="Tags" saveLabel="Done" onCancel={() => setTagsOpen(false)} onSave={() => { const next = tagDraft.trim() ? [...noteFlags.tags, tagDraft.trim()] : noteFlags.tags; void saveTags(next); setTagsOpen(false); }}>
+          <Group label="Tags">
+            {noteFlags.tags.length > 0 && (
+              <Strip>
+                {noteFlags.tags.map((t) => (
+                  <div key={t} className="chip active" role="button" tabIndex={0} onClick={() => void saveTags(noteFlags.tags.filter((x) => x !== t))}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void saveTags(noteFlags.tags.filter((x) => x !== t)); } }}>#{t}</div>
+                ))}
+              </Strip>
+            )}
+            <FieldRow ariaLabel="New tag" placeholder="A word · Enter adds" value={tagDraft} onChange={setTagDraft}
+              onEnter={() => { const t = tagDraft.trim(); if (t) { void saveTags([...noteFlags.tags, t]); setTagDraft(""); } }} />
+          </Group>
+        </FormSheet>
       )}
       {picker.input}
     </div>

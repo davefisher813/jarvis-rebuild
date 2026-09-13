@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, FileText, Image, Check, Plus, X, ArrowUp, ArrowDown, Trash2, Undo2, Redo2, Type, List as ListIcon, CheckSquare, Heading1, Bold, Italic, Strikethrough, Highlighter, Pilcrow, ListChecks } from "../../shared/icons";
+import { MoreHorizontal, FileText, Image, Check, Plus, X, ArrowUp, ArrowDown, Trash2, Undo2, Redo2, Type, List as ListIcon, CheckSquare, Heading1, Bold, Italic, Strikethrough, Highlighter, Pilcrow, ListChecks, Lightbulb, Archive, Tag, Link2 } from "../../shared/icons";
+import type { FoundCandidate } from "../types";
 import { wrapRange, countWords } from "../richtext";
 import { catColor } from "../../shared/categories";
 import { Burst } from "../../shared/Burst";
@@ -24,10 +25,16 @@ const EDITORIAL_KEY = "jarvis.notes.editorial.v1";
 // gated screen; editing just makes the existing elements interactive.
 
 type ChecklistItem = { text: string; done?: boolean; taskId?: string };
+// C-17: what a wordy block can turn into.
+export type TurnIntoType = "text" | "heading" | "bulleted_list" | "checklist" | "quote" | "callout" | "divider";
 type EditorBlock =
   | { id: string; type: "heading"; text: string }
   | { id: string; type: "text"; text: string }
   | { id: string; type: "meta"; text: string }
+  // C-17 (Astra, 2026-09-12)
+  | { id: string; type: "quote"; text: string }
+  | { id: string; type: "callout"; text: string }
+  | { id: string; type: "divider" }
   | { id: string; type: "checklist"; items: ChecklistItem[] }
   | { id: string; type: "bulleted_list"; items: string[] }
   | { id: string; type: "numbered_list"; items: string[] }
@@ -372,11 +379,14 @@ function BlockRow({
   isLast: boolean;
   onMove?: (blockId: string, dir: -1 | 1) => void;
   onDelete?: (blockId: string) => void;
-  onTurnInto?: (blockId: string, type: "text" | "heading" | "bulleted_list" | "checklist") => void;
+  onTurnInto?: (blockId: string, type: TurnIntoType) => void;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const hasMenu = !!onMove || !!onDelete;
+  // C-17: a quote or a callout turns back into text or a heading, and text
+  // or a heading turns into any of the three.
+  const wordy = blockType === "text" || blockType === "heading" || blockType === "quote" || blockType === "callout";
   return (
     <div className="block-row">
       <div className="block-body">{children}</div>
@@ -389,7 +399,7 @@ function BlockRow({
         <>
           <div className="block-menu-scrim" onClick={() => setOpen(false)} />
           <div className="block-menu">
-            {onTurnInto && (blockType === "text" || blockType === "heading") && (
+            {onTurnInto && wordy && (
               <>
                 {blockType !== "text" && (
                   <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "text"); setOpen(false); }}>
@@ -406,6 +416,19 @@ function BlockRow({
                 </button>
                 <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "checklist"); setOpen(false); }}>
                   <CheckSquare className="ic" /> Turn Into Checklist
+                </button>
+                {blockType !== "quote" && (
+                  <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "quote"); setOpen(false); }}>
+                    <Type className="ic" /> Turn Into Quote
+                  </button>
+                )}
+                {blockType !== "callout" && (
+                  <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "callout"); setOpen(false); }}>
+                    <Lightbulb className="ic" /> Turn Into Callout
+                  </button>
+                )}
+                <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "divider"); setOpen(false); }}>
+                  <MoreHorizontal className="ic" /> Turn Into Divider
                 </button>
               </>
             )}
@@ -557,6 +580,18 @@ export default function NoteEditor({
   onOpenTask,
   openSourceFor,
   fileStore = null,
+  pinned = false,
+  archived = false,
+  tags = [],
+  onPin,
+  onArchive,
+  onTags,
+  linkedFrom = [],
+  related = [],
+  onOpenNote,
+  found = [],
+  onFoundAdd,
+  onFoundLink,
 }: {
   note: EditorNote;
   // UP-CORE-05: the way to open this note's source, or undefined when the
@@ -574,7 +609,7 @@ export default function NoteEditor({
   onListItems?: (blockId: string, items: string[], focusKey: string | null) => void;
   onListExit?: (blockId: string, remaining: string[]) => void;
   onAddBlock?: () => void;
-  onAddTyped?: (type: "text" | "heading" | "bulleted_list" | "checklist") => void;
+  onAddTyped?: (type: "text" | "heading" | "bulleted_list" | "numbered_list" | "checklist") => void;
   onEditTitle?: (text: string) => void;
   onEditBlockText?: (blockId: string, text: string) => void;
   onToggleCheck?: (blockId: string, index: number) => void;
@@ -585,8 +620,25 @@ export default function NoteEditor({
   onPromoteCheckItem?: (blockId: string, index: number) => void;
   onMoveBlock?: (blockId: string, dir: -1 | 1) => void;
   onDeleteBlock?: (blockId: string) => void;
-  onTurnInto?: (blockId: string, type: "text" | "heading" | "bulleted_list" | "checklist") => void;
+  onTurnInto?: (blockId: string, type: TurnIntoType) => void;
   onTableEdit?: (blockId: string, row: number, col: number, text: string) => void;
+  // C-18 (Astra, 2026-09-12): the note menu's three moves, and what it shows.
+  pinned?: boolean;
+  archived?: boolean;
+  tags?: string[];
+  onPin?: () => void;
+  onArchive?: () => void;
+  onTags?: () => void;
+  // C-19: notes that link here, and notes that share a person, project or
+  // goal with this one. Tapping one opens it.
+  linkedFrom?: { id: string; title: string }[];
+  related?: { id: string; title: string; shared: number }[];
+  onOpenNote?: (id: string) => void;
+  // C-20: what JARVIS found, and the two taps. Candidates already used are
+  // not passed in.
+  found?: FoundCandidate[];
+  onFoundAdd?: (index: number) => void;
+  onFoundLink?: (index: number) => void;
   onTableAddRow?: (blockId: string) => void;
   onTableAddColumn?: (blockId: string) => void;
   onUndo?: () => void;
@@ -608,6 +660,10 @@ export default function NoteEditor({
 }) {
   // UP-CORE-06: the next hard commitment, refreshed every minute.
   const guard = useHyperfocusGuard();
+  // C-18: the note menu.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [relatedOpen, setRelatedOpen] = useState(false);
+  const foundLive = (found ?? []).map((c, i) => ({ c, i })).filter(({ c }) => !c.added);
   const inline = note.blocks.filter((b) => b.type !== "file" && b.type !== "photo");
   // EDITORIAL MODE (Dave 2026-08-20). A layer over the same blocks, never a
   // second editor: ruled baselines, a red margin rule, numbered lines and a
@@ -629,7 +685,7 @@ export default function NoteEditor({
 
   const words = countWords(
     note.blocks.flatMap((b) =>
-      b.type === "text" || b.type === "heading" || b.type === "meta" ? [b.text]
+      b.type === "text" || b.type === "heading" || b.type === "meta" || b.type === "quote" || b.type === "callout" ? [b.text]
       : b.type === "checklist" ? b.items.map((i) => i.text)
       : b.type === "bulleted_list" || b.type === "numbered_list" ? b.items
       : []),
@@ -701,7 +757,23 @@ export default function NoteEditor({
     return null;
   };
   const plainRow = (b: EditorBlock) => {
-    const content = blockContent(b);
+    // C-17: the three new blocks. A divider carries no words and takes no
+    // caret; its menu is the block's own (move, delete).
+    const content = b.type === "quote"
+      ? <InlineEdit tag="div" className="t-quote" value={b.text} placeholder="A Line Worth Keeping" bid={b.id}
+          focused={focusBlockId === b.id}
+          onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
+          onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
+          onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />
+      : b.type === "callout"
+        ? <div className="t-callout"><Lightbulb className="ic" /><InlineEdit tag="div" className="t-callout-text" value={b.text} placeholder="Worth Noticing" bid={b.id}
+            focused={focusBlockId === b.id}
+            onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
+            onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
+            onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} /></div>
+        : b.type === "divider"
+          ? <hr className="doc-hr" />
+          : blockContent(b);
     if (content === null) return null;
     const gi = idxOf.get(b.id)!;
     return (
@@ -736,9 +808,30 @@ export default function NoteEditor({
           >
             <Pilcrow className="ic" />
           </button>
-          <button className="nav-action" onClick={onConnections} aria-label="Connections">
+          {/* C-18: the note menu. Connections stays its first row; Pin,
+              Tags and Archive join it. */}
+          <button className="nav-action" onClick={() => setMenuOpen((o) => !o)} aria-label="Note options" aria-expanded={menuOpen}>
             <MoreHorizontal className="ic" />
           </button>
+          {menuOpen && (
+            <>
+              <div className="block-menu-scrim" onClick={() => setMenuOpen(false)} />
+              <div className="block-menu note-menu">
+                {onConnections && (
+                  <button className="block-menu-item" onClick={() => { setMenuOpen(false); onConnections(); }}><Link2 className="ic" /> Connections</button>
+                )}
+                {onPin && (
+                  <button className="block-menu-item" onClick={() => { setMenuOpen(false); onPin(); }}><Check className="ic" /> {pinned ? "Unpin Note" : "Pin Note"}</button>
+                )}
+                {onTags && (
+                  <button className="block-menu-item" onClick={() => { setMenuOpen(false); onTags(); }}><Tag className="ic" /> Tags</button>
+                )}
+                {onArchive && (
+                  <button className="block-menu-item" onClick={() => { setMenuOpen(false); onArchive(); }}><Archive className="ic" /> {archived ? "Unarchive" : "Archive"}</button>
+                )}
+              </div>
+            </>
+          )}
           {onDeleteNote && (
             <button className="nav-action danger" onClick={onDeleteNote} aria-label="Delete note">
               <Trash2 className="ic" />
@@ -760,6 +853,10 @@ export default function NoteEditor({
           {note.eyebrow && <span className={"eyebrow cat-fg-" + catColor(note.category)}>{note.eyebrow}</span>}
         </div>
         <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Untitled" onSave={onEditTitle} />
+        {/* C-18: the tags, as plain facts under the title. */}
+        {(tags ?? []).length > 0 && (
+          <div className="facts note-tags">{(tags ?? []).map((t) => <span className="fact" key={t}>#{t}</span>)}</div>
+        )}
         {/* UP-CORE-05 (2026-09-05): a note the app made says where it came
             from, in the same one grey line auto-created tasks have carried
             since item 8, and opens the source when the flow has a route. */}
@@ -890,6 +987,70 @@ export default function NoteEditor({
         </div>
       )}
 
+      {/* C-20: JARVIS FOUND. One structured pass on blur, rendered as rows
+          with a capsule each: Add for a task or a decision, Link for a
+          person or a project. Nothing is written without the tap. */}
+      {foundLive.length > 0 && (onFoundAdd || onFoundLink) && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">JARVIS Found</span><span className="n">{foundLive.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {foundLive.map(({ c, i }) => (
+              <div className="row" key={c.kind + ":" + i}>
+                <div className={"proj-icon " + connIcon(c.kind === "decision" ? "decision" : c.kind).cls}>{connIcon(c.kind === "decision" ? "decision" : c.kind).node}</div>
+                <div className="row-grow">
+                  <div className="conn-name">{c.text}</div>
+                  <div className="facts">
+                    <span className={"fact " + (c.kind === "decision" ? "purp" : "sky")}>{c.kind === "task" ? "Task" : c.kind === "decision" ? "Decision" : c.kind === "person" ? "Person" : "Project"}</span>
+                    {c.due && <span className="fact">{c.due}</span>}
+                  </div>
+                </div>
+                {(c.kind === "task" || c.kind === "decision")
+                  ? (onFoundAdd && <button type="button" className="pill-act" onClick={() => onFoundAdd(i)}>Add</button>)
+                  : (onFoundLink && <button type="button" className="pill-act" onClick={() => onFoundLink(i)}>Link</button>)}
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+
+      {/* C-19: the notes that link here, and the ones that share a home. */}
+      {(linkedFrom ?? []).length > 0 && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Linked From</span><span className="n">{linkedFrom!.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {linkedFrom!.map((n) => (
+              <div className="row" key={n.id} {...(onOpenNote ? { role: "button", tabIndex: 0, onClick: () => onOpenNote(n.id), onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenNote(n.id); } } } : {})}>
+                <div className="proj-icon cat-bg-yellow"><FileText className="ic" /></div>
+                <div className="row-grow"><div className="conn-name">{n.title}</div></div>
+                {onOpenNote && <div className="chev" />}
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+      {(related ?? []).length > 0 && (
+        <>
+          <div className="sh2 sh2-quiet">
+            <span className="t">Related</span>
+            <button type="button" className="see-all pill-action" aria-expanded={relatedOpen} onClick={() => setRelatedOpen((o) => !o)}>{relatedOpen ? "Hide" : capAfterNumber(`${related!.length} ${related!.length === 1 ? "note" : "notes"}`)}</button>
+          </div>
+          {relatedOpen && (
+            <div className="pad-x"><div className="card list-card-ruled">
+              {related!.map((n) => (
+                <div className="row" key={n.id} {...(onOpenNote ? { role: "button", tabIndex: 0, onClick: () => onOpenNote(n.id), onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenNote(n.id); } } } : {})}>
+                  <div className="proj-icon cat-bg-yellow"><FileText className="ic" /></div>
+                  <div className="row-grow">
+                    <div className="conn-name">{n.title}</div>
+                    <div className="facts"><span className="fact">{capAfterNumber(`${n.shared} shared`)}</span></div>
+                  </div>
+                  {onOpenNote && <div className="chev" />}
+                </div>
+              ))}
+            </div></div>
+          )}
+        </>
+      )}
+
       {words > 0 && (editorial ? (
         <div className="doc-colophon">
           <span className="ed-name">{note.title || "Untitled"}</span>
@@ -913,6 +1074,8 @@ export default function NoteEditor({
         <button className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddTyped?.("text")}>Text</button>
         <button className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddTyped?.("heading")}>Heading</button>
         <button className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddTyped?.("bulleted_list")}>List</button>
+        {/* C-12 (Astra, 2026-09-12): Numbered joins the bar. */}
+        <button className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddTyped?.("numbered_list")}>Numbered</button>
         <button className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddTyped?.("checklist")}>Checklist</button>
         <button className="chip chip-accent" onMouseDown={(e) => e.preventDefault()} onClick={onAddBlock}>More</button>
       </div>

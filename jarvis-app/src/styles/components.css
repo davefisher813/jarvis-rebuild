@@ -5160,6 +5160,20 @@ span.row-star { cursor: default; }
 .strand-row .dec-outcome-acts { margin-top: var(--s-1); }
 .strand-row .quiet-action { padding-left: 0; }
 
+/* NOTES, PUSH H (C-12, C-17, C-18, C-19, C-20; Astra, 2026-09-12). The
+   quote (a 3px rule in --tx-4, italic --tx-2), the hairline, the callout
+   (warn tint, rounded, a leading glyph), the filter chips on the list, the
+   note menu, and the found rows. */
+.doc .t-quote { border-left: 3px solid var(--tx-4); padding: 2px 0 2px var(--s-3); font-style: italic; color: var(--tx-2); font-size: calc(17px * var(--type-scale)); line-height: 1.6; min-height: 27px; }
+.doc .doc-hr { border: 0; border-top: 1px solid var(--divider); margin: var(--s-3) 0; }
+.doc .t-callout { display: flex; gap: var(--s-2); align-items: flex-start; padding: var(--s-2h) var(--s-3); border-radius: var(--r-md, 12px); background: color-mix(in srgb, var(--warn-fill) 14%, transparent); }
+.doc .t-callout > .ic { width: 18px; height: 18px; flex-shrink: 0; margin-top: 4px; color: var(--warn); }
+.doc .t-callout-text { flex: 1; min-width: 0; font-size: calc(17px * var(--type-scale)); line-height: 1.6; color: var(--tx-1); min-height: 27px; }
+.notes-filters { padding-top: 0; }
+.note-menu { right: var(--s-4); }
+.note-tags { margin-top: var(--s-1); }
+.note-row > .row-star { margin-right: var(--s-1); }
+
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
    mail EvidenceChip: a surface hands that component this class rather than
    forking it, and the sheet it opens is the Why sheet (C-25). */

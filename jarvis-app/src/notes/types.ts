@@ -14,7 +14,11 @@ export type BlockType =
   | "checklist"
   | "table"
   | "photo"
-  | "file";
+  | "file"
+  // C-17 (Astra, 2026-09-12): a quote, a hairline, a callout.
+  | "quote"
+  | "divider"
+  | "callout";
 
 export interface ChecklistItem {
   text: string;
@@ -68,6 +72,24 @@ export interface NoteData {
   // the identical line has been under auto-created tasks since item 8.
   // Absent on hand-made notes, which is most of them.
   source?: import("../shared/provenance").Source;
+  // C-18 (Astra, 2026-09-12): pinned notes lead the list under their own
+  // head; archived notes leave every list except the Archived filter and
+  // search; tags are the user's own words, each one a filter chip.
+  pinned?: boolean;
+  archived?: boolean;
+  tags?: string[];
+  // C-20: what JARVIS found in the note on its last pass, and which of it
+  // he has already added or linked. Candidates only; nothing here is a
+  // record until the tap that makes it one.
+  found?: FoundCandidate[];
+}
+
+export interface FoundCandidate {
+  kind: "task" | "decision" | "person" | "project";
+  text: string;
+  due?: string;
+  targetId?: string;
+  added?: boolean;
 }
 
 export type Recurrence = "daily" | "weekly" | "monthly" | "weekdays";

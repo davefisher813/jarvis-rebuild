@@ -9,6 +9,7 @@ import { ParentLineGlyph } from "../../shared/glyphs";
 import { todayISO } from "../../tasks/grouping";
 import { monthDay } from "../../money/bills";
 import { pressable } from "../../shared/pressable";
+import EntityStar from "../../shared/EntityStar";
 
 // NOTES, PORTED (Notes and Money catalog, 2026-09-02). The library rows of
 // locked frame #46 (2026-08-18) are gone from this page; the note is a row
@@ -28,7 +29,19 @@ export interface NoteListItem {
   // deep in a checklist is still one keystroke away here, same as it
   // already is from the search sheet.
   body: string;
+  // C-18 (Astra, 2026-09-12)
+  pinned?: boolean;
+  archived?: boolean;
+  tags?: string[];
+  // C-20: candidates JARVIS found and he has not used yet.
+  found?: number;
 }
+
+// C-18: the filter chips. Choosers, so filled chips.
+type Filter = { kind: "all" } | { kind: "pinned" } | { kind: "unfiled" } | { kind: "area"; id: string } | { kind: "tag"; tag: string } | { kind: "archived" };
+const sameFilter = (a: Filter, b: Filter) => JSON.stringify(a) === JSON.stringify(b);
+
+// THE SWIPE ON A NOTE (Dave 2026-09-02:
 
 // THE SWIPE ON A NOTE (Dave 2026-09-02: "Notes should be able to swipe and
 // take action (delete and whatever else you think is appropriate)"). The
@@ -119,11 +132,26 @@ export default function NotesList({
   const [q, setQ] = useState("");
   const query = q.trim().toLowerCase();
   const now = new Date();
+  const [filter, setFilter] = useState<Filter>({ kind: "all" });
   // Newest first, always (Apple Notes' own order). A note the store cannot
   // date keeps the order the store gave it, behind every dated one.
   const ordered = [...notes].sort((a, b) => b.edited - a.edited);
+  // C-18: archived notes leave every list except the Archived filter and
+  // search; the other chips narrow the live notes.
+  const live = ordered.filter((n) => !n.archived);
+  const areaIds = [...new Set(live.map((n) => n.category).filter(Boolean))];
+  const tagNames = [...new Set(live.flatMap((n) => n.tags ?? []))].sort();
+  const unfiledCount = live.filter((n) => !n.category).length;
+  const archivedCount = ordered.length - live.length;
+  const filtered = filter.kind === "archived" ? ordered.filter((n) => !!n.archived)
+    : filter.kind === "pinned" ? live.filter((n) => !!n.pinned)
+    : filter.kind === "unfiled" ? live.filter((n) => !n.category)
+    : filter.kind === "area" ? live.filter((n) => n.category === filter.id)
+    : filter.kind === "tag" ? live.filter((n) => (n.tags ?? []).includes(filter.tag))
+    : live;
   // S6-Q37: title OR body, same two-part rule search.ts's noteHas uses.
-  const shown = query ? ordered.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : ordered;
+  // Search reaches the archive too.
+  const shown = query ? ordered.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : filtered;
   // The SEARCHED list, not the whole one. Select All while a search is
   // narrowing the page must mean the notes on screen: deleting the ones
   // hidden behind a query would be the worst possible version of this.
@@ -141,6 +169,8 @@ export default function NotesList({
   };
   if (NOTES_GROUP === "when") {
     for (const n of shown) {
+      // C-18: pinned notes lead, under their own head.
+      if (n.pinned && !n.archived && filter.kind !== "archived") { put("pinned", "Pinned", null, n); continue; }
       const d = n.edited ? dayDiff(n.edited, now) : 99;
       if (d <= 0) put("today", "Today", null, n);
       else if (d === 1) put("yesterday", "Yesterday", null, n);
@@ -176,6 +206,8 @@ export default function NotesList({
         {/* The selection box takes the leading column: on a row with a glyph
             it is the glyph's column, on the line row it is the check column
             every task row keeps for exactly this. */}
+        {/* C-50: the Remember star leads the row. */}
+        {!sel.active && <EntityStar entityType="note" entityId={n.id} title={n.title} />}
         {sel.active ? (
           <div className="task-check-tap">
             <button
@@ -194,6 +226,8 @@ export default function NotesList({
           {NOTES_ROW === "line" && (
             <div className="r-k">
               <ParentLineGlyph p={{ kind: "category", name: area || "Not Filed", tone, pct: null }} />
+              {(n.tags ?? []).map((t) => <span className="r-goal r-cat" key={t}>{"· #" + t}</span>)}
+              {(n.found ?? 0) > 0 && <span className="r-goal r-cat fact purp">{"· JARVIS found " + n.found}</span>}
               {when && <span className="r-goal r-cat r-when">{"· " + when}</span>}
             </div>
           )}
@@ -234,6 +268,26 @@ export default function NotesList({
           </div>
         </div>
       </PageHeader>
+
+      {/* C-18: the filter chips. All, Pinned, Not Filed with its count, each
+          live area with its dot, each tag, Archived. Filled chips, because
+          these choose. */}
+      {notes.length > 0 && (
+        <div className="chip-row chip-wrap-row notes-filters">
+          {([
+            { f: { kind: "all" } as Filter, label: "All" },
+            { f: { kind: "pinned" } as Filter, label: "Pinned" },
+            { f: { kind: "unfiled" } as Filter, label: unfiledCount > 0 ? `Not Filed · ${unfiledCount}` : "Not Filed" },
+            ...areaIds.map((id) => ({ f: { kind: "area", id } as Filter, label: catName(id) || "Area", dot: catColor(id) })),
+            ...tagNames.map((tag) => ({ f: { kind: "tag", tag } as Filter, label: "#" + tag })),
+            ...(archivedCount > 0 ? [{ f: { kind: "archived" } as Filter, label: "Archived" }] : []),
+          ] as { f: Filter; label: string; dot?: string }[]).map(({ f, label, dot }) => (
+            <button key={label} type="button" className={"chip" + (sameFilter(filter, f) ? " active" : "")} aria-pressed={sameFilter(filter, f)} onClick={() => setFilter(f)}>
+              {dot && <span className={"cat-dot cat-bg-" + dot} />}{label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* RED IS A VERB (Dave 2026-08-30, chapter three, history on LAW 11):
           this head spent one deploy in accent as "Notes' one red head"; his

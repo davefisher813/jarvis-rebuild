@@ -19,6 +19,9 @@ export function connIcon(kind: string) {
   if (kind === "project") return { cls: "cat-bg-blue", node: <FolderKanban className="ic" /> };
   if (kind === "person") return { cls: "cat-bg-pink", node: <User className="ic" /> };
   if (kind === "goal") return { cls: "cat-bg-green", node: <Target className="ic" /> };
+  // C-19 (Astra, 2026-09-12): a note linked to a note.
+  if (kind === "note") return { cls: "cat-bg-yellow", node: <LinkIcon className="ic" /> };
+  if (kind === "decision") return { cls: "cat-bg-purple", node: <LinkIcon className="ic" /> };
   return { cls: "cat-bg-graphite", node: <LinkIcon className="ic" /> };
 }
 

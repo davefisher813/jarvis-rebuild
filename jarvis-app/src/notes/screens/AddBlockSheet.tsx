@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { AlignLeft, Heading, List, ListOrdered, ListTodo, Table, Image, Paperclip, Info } from "../../shared/icons";
+import { AlignLeft, Heading, List, ListOrdered, ListTodo, Table, Image, Paperclip, Info, Lightbulb } from "../../shared/icons";
 import type { BlockType } from "../types";
 import { pressable } from "../../shared/pressable";
 
@@ -20,6 +20,10 @@ const BLOCK_TYPES: {
   { type: "table", label: "Table", cat: "teal", Icon: Table },
   { type: "photo", label: "Photo", cat: "pink", Icon: Image },
   { type: "file", label: "File", cat: "blue", Icon: Paperclip },
+  // C-17 (Astra, 2026-09-12): after the nine, so the nine keep their places.
+  { type: "quote", label: "Quote", cat: "purple", Icon: AlignLeft },
+  { type: "divider", label: "Divider", cat: "graphite", Icon: Info },
+  { type: "callout", label: "Callout", cat: "yellow", Icon: Lightbulb },
 ];
 
 export default function AddBlockSheet({

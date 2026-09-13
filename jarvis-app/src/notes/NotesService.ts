@@ -12,6 +12,7 @@ import {
   type NoteData,
   type TaskData,
   type TemplateKey,
+  type FoundCandidate,
 } from "./types";
 
 function genId(prefix: string): string {
@@ -490,6 +491,49 @@ export class NotesService {
   // Reverse lookup: every note whose connections point at the given entity id.
   // Returns light summaries so callers (project/task/person screens) can show a
   // "Linked Notes" section without loading full note bodies.
+  // C-18 (Astra, 2026-09-12): pin, archive, tag. Flags on the note, nothing
+  // moves; the list reads them.
+  async setPinned(id: string, pinned: boolean): Promise<void> {
+    await this.store.update(this.ownerId, id, { pinned } as unknown as ItemData);
+  }
+  async setArchived(id: string, archived: boolean): Promise<void> {
+    await this.store.update(this.ownerId, id, { archived } as unknown as ItemData);
+  }
+  async setTags(id: string, tags: string[]): Promise<void> {
+    const clean = [...new Set(tags.map((t) => t.trim().replace(/^#/, "")).filter(Boolean))];
+    await this.store.update(this.ownerId, id, { tags: clean } as unknown as ItemData);
+  }
+  // C-20: the last pass's candidates, and a tap that used one.
+  async setFound(id: string, found: FoundCandidate[]): Promise<void> {
+    await this.store.update(this.ownerId, id, { found } as unknown as ItemData);
+  }
+  async markFoundAdded(id: string, index: number, added = true): Promise<void> {
+    const note = await this.getNote(id);
+    if (!note) return;
+    const found = (note.found ?? []).map((c, i) => (i === index ? { ...c, added } : c));
+    await this.store.update(this.ownerId, id, { found } as unknown as ItemData);
+  }
+
+  // C-19: the notes that share a person, project or goal connection with
+  // this one, most shared first. Archived notes and the note itself never
+  // appear. No embeddings, no AI: a shared link is the whole signal.
+  async relatedNotes(id: string): Promise<{ id: string; title: string; category: string; shared: number }[]> {
+    const me = await this.getNote(id);
+    if (!me) return [];
+    const mine = new Set((me.connections ?? []).filter((c) => (c.kind === "person" || c.kind === "project" || c.kind === "goal") && c.targetId).map((c) => c.kind + ":" + c.targetId));
+    if (mine.size === 0) return [];
+    const items = await this.store.listForUser(this.ownerId, ENTITY_NOTE);
+    const out: { id: string; title: string; category: string; shared: number }[] = [];
+    for (const it of items) {
+      if (it.id === id) continue;
+      const d = it.data as unknown as NoteData;
+      if (d.archived) continue;
+      const shared = (d.connections ?? []).filter((c) => c.targetId && mine.has(c.kind + ":" + c.targetId)).length;
+      if (shared > 0) out.push({ id: it.id, title: d.title || "Untitled", category: d.category || "", shared });
+    }
+    return out.sort((a, b) => b.shared - a.shared || a.title.localeCompare(b.title));
+  }
+
   async notesLinkedTo(targetId: string): Promise<{ id: string; title: string; category: string }[]> {
     if (!targetId) return [];
     const items = await this.store.listForUser(this.ownerId, ENTITY_NOTE);

@@ -10,15 +10,16 @@ import NoteEditor from "./NoteEditor";
 const note = { category: "family", eyebrow: "Family", title: "Rob Calder", blocks: [] };
 
 describe("Writing toolbar", () => {
-  it("offers the four typed blocks plus More, each wired to its type", () => {
+  it("offers the five typed blocks plus More, each wired to its type", () => {
     const typed: string[] = [];
     let moreOpened = false;
     render(<NoteEditor note={note} onAddTyped={(t) => typed.push(t)} onAddBlock={() => { moreOpened = true; }} />);
     fireEvent.click(screen.getByText("Text"));
     fireEvent.click(screen.getByText("Heading"));
     fireEvent.click(screen.getByText("List"));
+    fireEvent.click(screen.getByText("Numbered"));
     fireEvent.click(screen.getByText("Checklist"));
-    expect(typed).toEqual(["text", "heading", "bulleted_list", "checklist"]);
+    expect(typed).toEqual(["text", "heading", "bulleted_list", "numbered_list", "checklist"]);
     fireEvent.click(screen.getByText("More"));
     expect(moreOpened).toBe(true);
   });
