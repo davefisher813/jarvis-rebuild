@@ -1,5 +1,5 @@
 import type { Store, ItemData } from "@core";
-import { ENTITY_DECISION, type DecisionRecord, type DecisionRecordData, type DecisionLinkType } from "./types";
+import { ENTITY_DECISION, linksOf, type DecisionRecord, type DecisionRecordData, type DecisionLinkType, type OutcomeWord } from "./types";
 
 // UP-MIND-05 (2026-09-05): widened past the CRUD trio so the service can
 // emit the SEMANTIC act too. A generic entity.created says a row appeared;
@@ -43,7 +43,17 @@ export class DecisionService {
   // what the project banner renders. Deterministic, no AI, no retrieval.
   async getByLink(type: DecisionLinkType, id: string): Promise<DecisionRecord | null> {
     const rows = await this.list();
-    return rows.find((r) => r.data.linkedType === type && r.data.linkedId === id) ?? null;
+    // C-53: a decision may now be attached to several homes.
+    return rows.find((r) => linksOf(r.data).some((l) => l.type === type && l.id === id)) ?? null;
+  }
+
+  // C-55 (Astra, 2026-09-12): how it turned out, in one of three words. The
+  // event says only that an outcome was recorded; the word stays on the
+  // record. Expiry and the revisit lifecycle are untouched.
+  async markOutcome(id: string, word: OutcomeWord): Promise<boolean> {
+    const ok = await this.update(id, { outcome: { word, at: new Date().toISOString() } });
+    if (ok) this.onEvent({ type: "decision.recorded", entityType: ENTITY_DECISION, entityId: id, props: { kind: "outcome" } });
+    return ok;
   }
 
   // Revisits due today or earlier, still pending, oldest date first. Today
@@ -59,9 +69,15 @@ export class DecisionService {
     const decision = data.decision.trim();
     if (!decision) return null;
     const now = new Date().toISOString();
+    // C-53: the old triple and the new list are kept in step both ways, so a
+    // caller that still writes one of them leaves a record every reader can
+    // read.
+    const first = data.links?.[0];
     const full: DecisionRecordData = {
       ...data,
       decision,
+      ...(first && !data.linkedId ? { linkedType: first.type, linkedId: first.id, linkedLabel: first.label } : {}),
+      ...(!data.links && data.linkedType && data.linkedId ? { links: [{ type: data.linkedType, id: data.linkedId, label: data.linkedLabel ?? "" }] } : {}),
       revisitState: data.revisitOn ? "pending" : "none",
       createdAt: now,
       updatedAt: now,

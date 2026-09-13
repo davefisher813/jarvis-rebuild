@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import EntityStar from "../../shared/EntityStar";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
@@ -281,6 +282,8 @@ export function TaskRow({
         style={{ transform: dx ? `translateX(${dx}px)` : undefined }}
         {...handlers}
       >
+        {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
+        {!selecting && <EntityStar entityType="task" entityId={item.id} title={t.text} />}
         {/* SELECT MODE TAKES THE CHECK COLUMN (2026-08-24). The row already
             has a circle in front of it that means "tick this off", and a
             second circle beside it meaning "pick this one" would be two

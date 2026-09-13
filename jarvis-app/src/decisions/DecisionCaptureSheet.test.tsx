@@ -23,8 +23,8 @@ describe("DecisionCaptureSheet supersede (BRAIN-F-17)", () => {
         onCancel={() => {}}
       />,
     );
-    // The menu can still name where this decision lives.
-    expect(screen.getByLabelText("Attached to")).toHaveTextContent("Fall Clinics");
+    // The chips can still name where this decision lives (C-53: chips now).
+    expect(screen.getByRole("checkbox", { name: "Fall Clinics" })).toHaveAttribute("aria-checked", "true");
     fireEvent.change(screen.getByLabelText("What you decided"), { target: { value: "Saturdays only" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
@@ -43,8 +43,8 @@ describe("DecisionCaptureSheet supersede (BRAIN-F-17)", () => {
         onCancel={() => {}}
       />,
     );
-    fireEvent.click(screen.getByLabelText("Attached to"));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "Spring Launch" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Fall Clinics" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Spring Launch" }));
     fireEvent.change(screen.getByLabelText("What you decided"), { target: { value: "Move it" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ linkedId: "p1", linkedLabel: "Spring Launch" }));
@@ -53,7 +53,8 @@ describe("DecisionCaptureSheet supersede (BRAIN-F-17)", () => {
   it("a new decision offers only the common homes, with nothing carried", () => {
     const onSave = vi.fn();
     render(<DecisionCaptureSheet attachOptions={OPEN_ONE} onSave={onSave} onCancel={() => {}} />);
-    expect(screen.getByLabelText("Attached to")).toHaveTextContent("None");
+    expect(screen.getByRole("checkbox", { name: "Spring Launch" })).toHaveAttribute("aria-checked", "false");
+    expect(screen.queryByRole("checkbox", { name: "Fall Clinics" })).toBeNull();
     fireEvent.change(screen.getByLabelText("What you decided"), { target: { value: "Ship it" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ decision: "Ship it", linkedId: undefined }));

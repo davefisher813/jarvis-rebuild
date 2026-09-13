@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState, useRef } from "react";
 import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, usePeople, useProjects } from "../data/NotesProvider";
-import { STRAND_CATEGORY_LABEL, type StrandCategory } from "../brain/strands/types";
+import { STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import type { AIService } from "../ai/AIService";
@@ -86,6 +86,9 @@ function readFacts(s: SavedEntity, names: { person?: string; project?: string })
   if (s.bill) out.push(formatMoney(s.bill.amount));
   if (s.kind === "fact") {
     if (s.factCategory) out.push(STRAND_CATEGORY_LABEL[s.factCategory]);
+    // C-49: the kind the prefix chose, and Rule when Never/Always made one.
+    if (s.factType) out.push(STRAND_TYPE_LABEL[s.factType]);
+    if (s.rule) out.push("Rule");
   } else {
     const when = fmtWhen(s);
     if (when) out.push(when);
@@ -404,7 +407,9 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
             <div className="capture-saved-list">
               {saved.map((s) => (
                 <div key={s.id} className="capture-saved">
-                  <div className="row">
+                  {/* C-49: a fact's receipt opens the strand to correct it. */}
+                  <div className="row" role={s.kind === "fact" && onOpen ? "button" : undefined} tabIndex={s.kind === "fact" && onOpen ? 0 : undefined}
+                    onClick={s.kind === "fact" && onOpen ? () => { onOpen("fact", s.id); onClose(); } : undefined}>
                     <div className="row-stack">
                       <div className="conn-name">{s.title}</div>
                       {/* A fact says where in the Brain it landed instead of

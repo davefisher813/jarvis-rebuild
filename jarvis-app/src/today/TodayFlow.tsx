@@ -122,7 +122,7 @@ const addDaysISO = (iso: string, n: number): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCaptureSheet";
-import type { DecisionRecord } from "../decisions/types";
+import { OUTCOME_LABEL, type DecisionRecord, type OutcomeWord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { scheduleTask, breakDownTask as splitIntoSteps, undoBreakdown, splitLine, type BreakdownResult } from "../tasks/taskMoves";
 import { identityToText, voiceToText, contextToText } from "../ai/context";
@@ -2358,6 +2358,18 @@ export default function TodayFlow({
   // Revisit Day handlers (Screen 07). Still Good stamps a confirmed date and
   // clears the card, with undo. Change It opens the capture sheet prefilled
   // as a replacement, which lands on the supersede chain.
+  // C-55 (Astra, 2026-09-12): the revisit notice can also say how it turned
+  // out. Worked and Mixed answer the revisit (the call held, in its way) and
+  // clear the card; Didn't keeps the card and offers Change It, which is the
+  // supersede path. Expiry rule unchanged.
+  const markRevisitOutcome = async (rec: DecisionRecord, word: OutcomeWord) => {
+    const ok = await attemptWrite(() => decisionsSvc.markOutcome(rec.id, word));
+    if (!ok) return;
+    if (word === "didnt") { showToast({ message: "Outcome · Didn't", actionLabel: "Change It", onAction: () => setRevisitSheet(true) }); return; }
+    await attemptWrite(() => decisionsSvc.confirmRevisit(rec.id));
+    setRevisit(null);
+    showToast({ message: "Outcome · " + OUTCOME_LABEL[word] });
+  };
   const stillGood = async (rec: DecisionRecord) => {
     const ok = await attemptWrite(() => decisionsSvc.confirmRevisit(rec.id));
     setRevisit(null);
@@ -2431,6 +2443,13 @@ export default function TodayFlow({
         sub="You wanted to revisit this today"
         action={{ label: "Keep", onClick: () => void stillGood(revisit) }}
         alt={{ label: "Change It", onClick: () => setRevisitSheet(true) }}
+        foot={(
+          <div className="dec-outcome-acts notice-foot-acts">
+            {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
+              <button type="button" key={w} className="pill-act" onClick={() => void markRevisitOutcome(revisit, w)}>{OUTCOME_LABEL[w]}</button>
+            ))}
+          </div>
+        )}
       />
     ) : null,
     sweepReceipt && sweepReceipt.failed ? (

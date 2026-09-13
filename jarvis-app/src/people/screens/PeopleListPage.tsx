@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import EntityStar from "../../shared/EntityStar";
 import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
 import { searchPeople } from "../views";
@@ -120,6 +121,8 @@ export default function PeopleListPage({
         <div className="pad-x"><div className="card list-card-ruled">
           {shown.map((p) => (
             <div {...pressable(() => onOpen(p.id))} className="task-row p2 person-row-ruled" key={p.id}>
+              {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
+              <EntityStar entityType="person" entityId={p.id} title={p.data.name} />
               <div className="task-check-tap"><div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div></div>
               <div className="task-title">
                 <span className="task-name">{p.data.name}</span>

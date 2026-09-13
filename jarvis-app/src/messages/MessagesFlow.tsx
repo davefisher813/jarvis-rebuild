@@ -8,6 +8,7 @@ import { loadOverrides, saveOverride, clearOverride, applyOverrides, type Thread
 import type { TaskItem } from "../tasks/TasksService";
 import NoticeCard from "../today/NoticeCard";
 import "../styles/mail-rows.css";
+import EntityStar from "../shared/EntityStar";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
 
@@ -3846,6 +3847,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         list in the app; mail-rows.css only says what sits inside. */}
     <div className="row mrow" {...pressable(() => (selecting ? togglePick(r.id) : void openThread(r.id)))}
       aria-pressed={selecting ? picked!.has(r.id) : undefined}>
+      {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
+      {!selecting && <EntityStar entityType="mail_thread" entityId={r.id} title={r.subject} />}
       <span className="mlead">
         {selecting ? (
           <span className={"cb" + (picked!.has(r.id) ? " on" : "")} aria-label={picked!.has(r.id) ? "Picked" : "Not picked"}>{picked!.has(r.id) ? "\u2713" : ""}</span>

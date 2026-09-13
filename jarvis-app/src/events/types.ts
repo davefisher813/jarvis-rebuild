@@ -120,6 +120,11 @@ export type EventType =
   // chose; kind = the routine BlockKind the new start landed in, or event
   // when it landed in one; category = the task's. No title, no text.
   | "schedule.override"
+  // C-50 / section 5 (Astra, 2026-09-12): the Remember star on a row.
+  // entity_type and entity_id are the ROW'S entity (a thread, a task, an
+  // event, a person, a decision); the strand's text never rides along.
+  | "strand.starred"
+  | "strand.unstarred"
   // escape hatch: props.name carries the specific action, no schema bump needed
   | "action";
 

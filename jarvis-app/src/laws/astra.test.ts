@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { posix } from "node:path";
+import { detectDecision } from "../chat/answers";
 
 // THE ASTRA LAWS (Dave's picks, 2026-09-12; Build Master section 7, items 3
 // to 5). Three rules the approved harness draws by, written as tests the
@@ -68,18 +69,27 @@ describe("ASTRA law 3: the Remember star leads the row and is never its control"
   it("every .row-star sits before the row's title, never in the trailing slot", () => {
     const bad: string[] = [];
     for (const f of COMPONENTS) {
-      // The glyph's own definition is not a row.
-      if (rel(f) === "shared/RowStar.tsx") continue;
+      // The glyph's own definitions are not rows.
+      if (rel(f) === "shared/RowStar.tsx" || rel(f) === "shared/EntityStar.tsx") continue;
       const src = read(f);
-      // Push D: the glyph ships as shared/RowStar.tsx, so the component tag
+      // Push D: the glyph ships as shared/RowStar.tsx (the marker) and, from
+      // Push E, shared/EntityStar.tsx (the tap), so either component tag
       // counts as the star exactly as the literal class does.
-      const STAR = /row-star|<RowStar\b/g;
+      const STAR = /row-star|<RowStar\b|<EntityStar\b/g;
       let hit = STAR.exec(src);
       let i = hit ? hit.index : -1;
       while (i !== -1) {
         // The row this star belongs to is the nearest row opener before it.
         const before = src.slice(0, i);
-        const rowAt = Math.max(before.lastIndexOf('className="row'), before.lastIndexOf('className={"row'), before.lastIndexOf('className={`row'));
+        // A row opens as .row, or as one of the named row anatomies that
+        // carry their own class (a task row, a schedule row, a mail row, a
+        // library row).
+        const rowAt = Math.max(
+          before.lastIndexOf('className="row'), before.lastIndexOf('className={"row'), before.lastIndexOf('className={`row'),
+          before.lastIndexOf('className={"task-row'), before.lastIndexOf('className="task-row'),
+          before.lastIndexOf('className={"sched-row'), before.lastIndexOf('className="lib-row'), before.lastIndexOf('className={"lib-row'),
+          before.lastIndexOf('className="chat-prov'),
+        );
         const between = rowAt === -1 ? before.slice(-400) : before.slice(rowAt);
         if (rowAt === -1) bad.push(`${rel(f)}: a row-star outside any row`);
         else if (/row-grow|conn-name|pill-act|className="cap\b|row-r\b/.test(between)) bad.push(`${rel(f)}: a row-star after the title or in the trailing slot`);
@@ -162,6 +172,29 @@ describe("ASTRA law 10: the event vocabulary is closed and named", () => {
     expect(sink).toMatch(/"schedule\.override"/);
     // No event type may carry a text column, and the row shape has none.
     expect(sink).not.toMatch(/^\s*text\??:/m);
+  });
+});
+
+// Law 9 (Astra, Push E): the auto-capture guard. The chat decision detector
+// fires on a user turn and never on an assistant turn, and nothing on the
+// chat capture path writes a strand with strength rule: a decision is a
+// record, and a rule is only ever stated by the person on purpose.
+describe("ASTRA law 9: chat auto-capture is user-only and never makes a rule", () => {
+  it("the detector never fires on an assistant turn", () => {
+    expect(detectDecision({ role: "assistant", text: "Let's use Stripe instead of Clover" }, null)).toBeNull();
+    expect(detectDecision({ role: "assistant", text: "decision: drop Clover" }, { role: "user", text: "Stripe or Clover?" })).toBeNull();
+    expect(detectDecision({ role: "user", text: "Let's use Stripe instead of Clover" }, null)?.decision).toBe("Use Stripe instead of Clover");
+  });
+
+  it("the chat capture path never writes a rule strand", () => {
+    const flow = read(join(SRC, "chat/ChatFlow.tsx"));
+    const at = flow.indexOf("detectDecision(");
+    expect(at).toBeGreaterThan(0);
+    const block = flow.slice(at, flow.indexOf("// 1. Commands", at));
+    expect(block).not.toMatch(/strands\.add|strength|"rule"/);
+    const answers = read(join(SRC, "chat/answers.ts"));
+    expect(answers).not.toMatch(/strength\s*:/);
+    expect(answers).not.toMatch(/strands\.add/);
   });
 });
 

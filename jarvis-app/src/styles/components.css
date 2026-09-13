@@ -5134,6 +5134,17 @@ span.row-star { cursor: default; }
 .strand-used { padding-top: var(--s-3); }
 .strand-used .input-label { margin-bottom: var(--s-1); }
 
+/* DECISIONS AND CAPTURE, PUSH E (C-50 elsewhere, C-52 to C-55; Astra,
+   2026-09-12). The Remember star as a tap on entity rows, the outcome
+   capsules on a record and on the revisit notice. */
+.row > .row-star, .task-row > .row-star, .sched-row > .row-star { margin-right: var(--s-1); }
+.sched-row > .row-star { margin-left: var(--s-2); }
+.chat-prov .row-star { vertical-align: middle; margin-right: var(--s-1); }
+.dec-outcome-acts { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.dec-outcome-acts .pill-act.on { background: var(--sel-bg); color: var(--sel-fg); }
+.notice-foot-acts { padding-top: var(--s-2); }
+.dec-row .lib-ico { flex-shrink: 0; }
+
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
    mail EvidenceChip: a surface hands that component this class rather than
    forking it, and the sheet it opens is the Why sheet (C-25). */

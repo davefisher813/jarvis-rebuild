@@ -22,7 +22,8 @@ import { contextToText } from "../ai/context";
 import { chatSystemPrompt } from "./chatPrompt";
 import { nowHHMM } from "../today/todayData";
 import { addDays } from "../schedule/calendar";
-import { answerQuestion, looksLikeQuestion, rewriteFollowUp, type AnswerSnapshot, type Prior } from "./answers";
+import { answerQuestion, looksLikeQuestion, rewriteFollowUp, detectDecision, type AnswerSnapshot, type Prior } from "./answers";
+import EntityStar from "../shared/EntityStar";
 // S6-Q42 (2026-09-05): the same needs-you snapshot the Email tab and Today
 // already read -- a synchronous cache read, no network, no AI call.
 import { loadMailSnapshot } from "../messages/home";
@@ -428,6 +429,35 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         // are what is stored and shown; only the resolution changes.
         const asked = rewriteFollowUp(text, prior) ?? text;
 
+        // C-52 (Astra, 2026-09-12): a decision said out loud. Before the
+        // parsers, because none of them reads "use X instead of Y" as one
+        // and the capture lane would file it without its why or the option
+        // it closed. Deterministic, user turn only (law 9), a receipt with
+        // Undo, nothing sent, nothing made a rule.
+        if (decisionsSvc) {
+          const prevJ = [...history].reverse().find((m) => m.data.role === "jarvis");
+          const mine = [...history].reverse().find((m) => m.data.role === "user");
+          const cap = detectDecision({ role: "user", text }, prevJ ? { role: "assistant", text: prevJ.data.text } : null);
+          if (cap) {
+            let id: string | null = null;
+            const okD = await attemptWrite(async () => {
+              id = await decisionsSvc.create({
+                decision: cap.decision,
+                ...(cap.ruledOut ? { ruledOut: cap.ruledOut } : {}),
+                ...(cap.why ? { why: cap.why } : {}),
+                source: { kind: "chat", ...(mine ? { entityId: mine.id } : {}), at: new Date().toISOString() },
+              });
+            });
+            if (okD && id) {
+              const savedId: string = id;
+              logAnswered("capture");
+              await say("jarvis", `Saved decision · ${cap.decision}`, { kind: "action", refs: [{ kind: "decision", id: savedId, label: cap.decision }] });
+              showToast({ message: "Saved decision", actionLabel: "Undo", onAction: () => void attemptWrite(() => decisionsSvc.remove(savedId)) });
+              return;
+            }
+          }
+        }
+
         // 1. Commands, before any AI call (cost guard).
         const cmd = parseCommand(asked);
         // UP-MIND-22: a draft resolves against PEOPLE, not against open
@@ -760,7 +790,14 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         {msgs.map((m) => (
           <div key={m.id} className={"chat-bubble " + (m.data.role === "user" ? "chat-user" : "chat-jarvis")}>
             <div className="chat-text">{m.data.text}</div>
-            {m.data.role === "jarvis" && provLine(m) && <div className="chat-prov">{provLine(m)}</div>}
+            {/* C-50: an AI answer can be remembered; the star leads its
+                provenance line and writes the answer's first line. */}
+            {m.data.role === "jarvis" && provLine(m) && (
+              <div className="chat-prov">
+                {m.data.provenance?.kind === "ai" && <EntityStar entityType="chat_message" entityId={m.id} title={m.data.text.split("\n")[0] ?? ""} />}
+                {provLine(m)}
+              </div>
+            )}
             {onOpen && refsOf(m).length > 0 && (
               <div className="chip-row chat-refs">
                 {refsOf(m).map((r) => (

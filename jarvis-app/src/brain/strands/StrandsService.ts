@@ -121,7 +121,7 @@ export class StrandsService {
   // The user typed one sentence themselves: source told, the highest rank,
   // because it was deliberate. strength stays influence unless they made it
   // a rule on purpose.
-  async add(text: string, category: StrandCategory, today: string, strength: "influence" | "rule" = "influence", type?: StrandType): Promise<string | null> {
+  async add(text: string, category: StrandCategory, today: string, strength: "influence" | "rule" = "influence", type?: StrandType, link?: { entityType: string; entityId: string }): Promise<string | null> {
     const t = text.trim();
     if (!t) return null;
     const all = await this.list();
@@ -133,11 +133,32 @@ export class StrandsService {
       // C-42: only when he chose one; an ordinary fact is written exactly as
       // it always was.
       ...(type ? { type } : {}),
+      // C-50 / C-54: the row or record this strand was written from.
+      ...(link ? { link } : {}),
     };
     const id = await this.store.create(this.ownerId, ENTITY_STRAND, data as unknown as ItemData);
     this.emit?.({ type: "strand.created", entityType: ENTITY_STRAND, entityId: id, props: { category } });
     return id;
   }
+
+  // C-50 (Astra, 2026-09-12): the Remember star. A told-rank fact whose text
+  // is the row's title, linked to the row's entity. The event carries the
+  // ROW'S entity (a thread, a task, an event, a person), never the words.
+  // Refuses (null) at the caps like every other write here.
+  async addLinked(title: string, entityType: string, entityId: string, today: string): Promise<string | null> {
+    const id = await this.add(title, "values", today, "influence", "fact", { entityType, entityId });
+    if (id) this.emit?.({ type: "strand.starred", entityType, entityId });
+    return id;
+  }
+
+  // The second tap. Deleted WITHOUT strand.deleted: that event feeds the nod
+  // test as "this derivation was wrong", and a starred fact has no derivation
+  // to be wrong about.
+  async unstar(strandId: string, entityType: string, entityId: string): Promise<void> {
+    await this.store.delete(this.ownerId, strandId);
+    this.emit?.({ type: "strand.unstarred", entityType, entityId });
+  }
+
 
   // ONBOARDING SEEDS (handoff item 4, decision x4, Dave's option A on
   // 2026-09-04). Separate from add() on purpose, and the difference is one

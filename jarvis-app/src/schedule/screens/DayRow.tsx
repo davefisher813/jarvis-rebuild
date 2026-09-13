@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import EntityStar from "../../shared/EntityStar";
 import type { EventItem } from "../types";
 import { useSwipe } from "../../shared/useSwipe";
 import { useChipInView } from "../../shared/useChipInView";
@@ -195,6 +196,8 @@ export default function DayRow({
             things are tied to"): the dot on the third line was there but read
             as absent. This is the same fact at a glance, no reading. */}
         <span className={"sched-bar cat-bg-" + catColor(e.data.category)} />
+        {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
+        {!selecting && <EntityStar entityType="event" entityId={e.id} title={e.data.title} />}
         {selecting && (
           <button
             type="button"

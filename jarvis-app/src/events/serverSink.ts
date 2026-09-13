@@ -74,6 +74,9 @@ const PERSISTED: ReadonlySet<string> = new Set([
   // Section 5 (Astra, 2026-09-12): a moved proposal. n, kind and category
   // are the whole row; nothing about what the block was for rides along.
   "schedule.override",
+  // C-50 (Astra, 2026-09-12): a star on a row. Entity type and id only.
+  "strand.starred",
+  "strand.unstarred",
 ]);
 
 // Storage seam (same pattern as LocalEventLog) so tests run without a browser.

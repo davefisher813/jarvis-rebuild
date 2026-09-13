@@ -15,6 +15,7 @@ import type { Category } from "../categories/types";
 import { madeBy } from "../shared/provenance";
 import { parsePaste, titleCase, type ParsedEntity } from "./deterministic";
 import { selfFact } from "./selfFact";
+import { readPrefix } from "./prefixes";
 import { personReceipt } from "./personLine";
 import type { DecisionService } from "../decisions/DecisionService";
 import type { PeopleService } from "../people/PeopleService";
@@ -39,6 +40,10 @@ export interface SavedEntity {
   category?: string;
   // Fact only: the strand category it was filed under.
   factCategory?: StrandCategory;
+  // C-49: the kind the Remember prefix chose, and whether Never/Always made
+  // it a rule. Both show on the receipt as facts.
+  factType?: import("../brain/strands/types").StrandType;
+  rule?: boolean;
   // UP-CORE-01 (2026-09-05): what else the capture read, so the receipt can
   // show it ("Reminder · 9:00 PM · Daily") and the person can flip it there.
   recurrence?: import("../notes/types").Recurrence;
@@ -206,6 +211,43 @@ export async function smartPasteSave(text: string, deps: PasteDeps, saved: Saved
 }
 
 async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[]): Promise<SavedEntity[]> {
+  // C-49 (Astra, 2026-09-12): a stated destination beats a guessed one.
+  // "Remember ...", "Never ..." / "Always ...", "Decision: ..." and
+  // "... instead of ..." say where the line goes; each lane is closed when
+  // its store is absent, and the line then falls through to the ordinary
+  // reads, exactly as every other lane here.
+  const pre = readPrefix(text);
+  if (pre && pre.kind === "remember" && deps.strands) {
+    const id = await deps.strands.add(pre.text, pre.category, deps.today, "influence", pre.type);
+    if (id) {
+      const s: SavedEntity = { id, kind: "fact", title: pre.text, factCategory: pre.category, factType: pre.type, raw: text.trim() };
+      saved.push(s);
+      recordCapture({ id, kind: "fact", title: s.title, ts: Date.now() });
+      return saved;
+    }
+    deps.onFactRefused?.(pre.text);
+    return saved;
+  }
+  if (pre && pre.kind === "rule" && deps.strands) {
+    const id = await deps.strands.add(pre.text, pre.category, deps.today, "rule");
+    if (id) {
+      const s: SavedEntity = { id, kind: "fact", title: pre.text, factCategory: pre.category, rule: true, raw: text.trim() };
+      saved.push(s);
+      recordCapture({ id, kind: "fact", title: s.title, ts: Date.now() });
+      return saved;
+    }
+    deps.onFactRefused?.(pre.text);
+    return saved;
+  }
+  if (pre && pre.kind === "decision" && deps.decisions) {
+    const id = await deps.decisions.create({ decision: pre.decision, ...(pre.ruledOut ? { ruledOut: pre.ruledOut } : {}), source: { kind: "manual", at: new Date().toISOString() } });
+    if (id) {
+      const s: SavedEntity = { id, kind: "decision", title: pre.decision, raw: text.trim() };
+      saved.push(s);
+      recordCapture({ id, kind: "decision", title: s.title, ts: Date.now() });
+      return saved;
+    }
+  }
   const { entities } = parsePaste(text, deps.today, { people: deps.people, projects: deps.projects });
   for (const e of entities) {
     // QUICK ADD (handoff 5.0). A standing fact about the user goes straight

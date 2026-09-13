@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useDecisions, useProjects, useGoals, useCategories } from "../data/NotesProvider";
+import { useDecisions, useProjects, useGoals, useCategories, useOptionalStrands } from "../data/NotesProvider";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import InlineEdit from "../shared/InlineEdit";
-import HeadMenu from "../shared/HeadMenu";
 import DecisionCaptureSheet, { type AttachOption, type DecisionDraft } from "./DecisionCaptureSheet";
-import type { DecisionRecord } from "./types";
+import { ENTITY_DECISION, linksOf, OUTCOME_LABEL, SOURCE_LABEL, type DecisionRecord, type OutcomeWord } from "./types";
+import { todayISO } from "../schedule/calendar";
+import EntityStar from "../shared/EntityStar";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import { usePushDepth } from "../shared/pushNav";
@@ -58,12 +59,17 @@ function glyphClass(rec: DecisionRecord, projectCat: (id: string) => string | un
   return "cat-fg-blue"; // task
 }
 
-export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsumed }: { onBack: () => void; openId?: string;
+export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsumed, onOpenSource }: { onBack: () => void; openId?: string;
   // BRAIN-F-04 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
   // Read once per mount and cleared only by a tab tap, this id reopened the
   // same record every later visit to Decisions.
-  openNonce?: number; onOpenConsumed?: () => void }) {
+  openNonce?: number; onOpenConsumed?: () => void;
+  // C-53: the Source row opens where the decision came from, when the host
+  // can take it there (a chat message, a note, a thread).
+  onOpenSource?: (kind: string, id: string) => void }) {
   const svc = useDecisions();
+  // C-54: Make It a Rule writes a strand; no strand store, no row-act.
+  const strands = useOptionalStrands();
   const projects = useProjects();
   const goals = useGoals();
   const categories = useCategories();
@@ -151,6 +157,32 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
     if (ok) await reload();
   };
 
+  // C-55: how it turned out. Three words, one tap, the record keeps the
+  // word and the day. "Didn't" offers Change It, which is the supersede
+  // path, because a call that did not work usually wants a new call.
+  const markOutcome = async (rec: DecisionRecord, word: OutcomeWord) => {
+    const ok = await attemptWrite(() => svc.markOutcome(rec.id, word));
+    if (!ok) return;
+    await reload();
+    if (word === "didnt") showToast({ message: "Outcome · Didn't", actionLabel: "Change It", onAction: () => setSheet({ kind: "supersede", oldId: rec.id }) });
+    else showToast({ message: "Outcome · " + OUTCOME_LABEL[word] });
+  };
+
+  // C-54: one memory, two relationships. The strand carries the decision as
+  // its link, the decision carries the strand id. Rules are only ever
+  // user-stated, and this is the person stating one from a call he made.
+  const makeRule = async (rec: DecisionRecord) => {
+    if (!strands) return;
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => {
+      id = await strands.add(rec.data.decision, "values", todayISO(), "rule", "principle", { entityType: ENTITY_DECISION, entityId: rec.id });
+    });
+    if (!ok) return;
+    if (!id) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    await patch(rec.id, { ruleStrandId: id });
+    showToast({ message: "Rule saved to Values · Linked to this decision" });
+  };
+
   const deleteRecord = async (rec: DecisionRecord) => {
     const kept = rec.data;
     const ok = await attemptWrite(() => svc.remove(rec.id));
@@ -181,7 +213,18 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
     const d = record.data;
     const older = d.supersedesId ? byId.get(d.supersedesId) : undefined;
     const newer = d.supersededById ? byId.get(d.supersededById) : undefined;
-    const attachLabel = d.linkedLabel ?? attachOptions.find((o) => o.id === d.linkedId)?.label;
+    const links = linksOf(d);
+    const toggleLink = (opt: AttachOption) => {
+      const next = links.some((l) => l.id === opt.id)
+        ? links.filter((l) => l.id !== opt.id)
+        : [...links, { type: opt.type, id: opt.id, label: opt.label }];
+      const first = next[0];
+      void patch(record.id, {
+        links: next.length ? next : undefined,
+        linkedType: first?.type, linkedId: first?.id, linkedLabel: first?.label,
+      });
+    };
+    const srcAt = d.source ? new Date(d.source.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
     return (
       <div className={pushCls} key={"r-" + record.id}>
         <div className="screen ruled">
@@ -211,6 +254,38 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               onSave={(v) => { if (v !== (d.why ?? "")) void patch(record.id, { why: v || undefined }); }}
             />
           </div></div>
+
+          {/* C-53: where it came from. A row that opens the origin when the
+              host can take him there; otherwise it says, and that is all. */}
+          {d.source && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Source</span></div>
+              <div className="pad-x"><div className="card">
+                {onOpenSource && d.source.entityId ? (
+                  <div {...pressable(() => onOpenSource(d.source!.kind, d.source!.entityId!))} className="row">
+                    <div className="row-grow"><div className="conn-name">{SOURCE_LABEL[d.source.kind]} · {srcAt}</div></div>
+                    <Chev />
+                  </div>
+                ) : (
+                  <div className="row"><div className="row-grow"><div className="conn-name">{SOURCE_LABEL[d.source.kind]} · {srcAt}</div></div></div>
+                )}
+              </div></div>
+            </>
+          )}
+
+          {(editing || d.expected) && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Expected</span></div>
+              <div className="pad-x"><div className="card pad">
+                <InlineEdit
+                  className="dec-why"
+                  value={d.expected ?? ""}
+                  placeholder="What This Should Do"
+                  onSave={(v) => { if (v !== (d.expected ?? "")) void patch(record.id, { expected: v || undefined }); }}
+                />
+              </div></div>
+            </>
+          )}
 
           {(editing || (d.ruledOut?.length ?? 0) > 0) && (
             <>
@@ -255,26 +330,47 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
             </>
           )}
 
-          {(editing || d.linkedId) && (
+          {(editing || links.length > 0) && (
             <>
               <div className="sh2 sh2-quiet"><span className="t">Attached To</span></div>
+              <div className="pad-x"><div className="card pad">
+                {/* C-53: every home, as facts; while editing, every option as
+                    a chooser chip, the ones it holds filled. */}
+                {!editing && (
+                  <div className="facts">{links.map((l) => <span className="fact" key={l.id}>{l.label}</span>)}</div>
+                )}
+                {editing && (
+                  <div className="chip-row chip-wrap-row">
+                    {[...attachOptions, ...links.filter((l) => !attachOptions.some((o) => o.id === l.id)).map((l) => ({ type: l.type, id: l.id, label: l.label }))].map((o) => (
+                      <div key={o.id} className={"chip" + (links.some((l) => l.id === o.id) ? " active" : "")} role="checkbox" aria-checked={links.some((l) => l.id === o.id)} tabIndex={0}
+                        onClick={() => toggleLink(o)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleLink(o); } }}>
+                        {o.label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div></div>
+            </>
+          )}
+
+          {/* C-55: how it turned out. The card is the harness's: the word
+              and three capsules. Not offered on a superseded record, whose
+              outcome is the call that replaced it. */}
+          {!newer && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Outcome</span></div>
               <div className="pad-x"><div className="card">
                 <div className="row">
-                  <div className="row-grow" />
-                  <HeadMenu
-                    variant="value"
-                    ariaLabel="Attached to"
-                    value={d.linkedId ?? ""}
-                    off={!d.linkedId}
-                    label={attachLabel ?? "None"}
-                    options={[{ value: "", label: "None" }, ...attachOptions.map((o) => ({ value: o.id, label: o.label }))]}
-                    onPick={(v) => {
-                      const opt = attachOptions.find((o) => o.id === v);
-                      void patch(record.id, opt
-                        ? { linkedType: opt.type, linkedId: opt.id, linkedLabel: opt.label }
-                        : { linkedType: undefined, linkedId: undefined, linkedLabel: undefined });
-                    }}
-                  />
+                  <div className="row-grow">
+                    <div className="conn-name">{d.outcome ? OUTCOME_LABEL[d.outcome.word] : "Mark Outcome"}</div>
+                    {d.outcome && <div className="conn-meta">Marked {fmtDay(d.outcome.at)}</div>}
+                  </div>
+                </div>
+                <div className="row dec-outcome-acts">
+                  {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
+                    <button type="button" key={w} className={"pill-act" + (d.outcome?.word === w ? " on" : "")} aria-pressed={d.outcome?.word === w} onClick={() => void markOutcome(record, w)}>{OUTCOME_LABEL[w]}</button>
+                  ))}
                 </div>
               </div></div>
             </>
@@ -316,6 +412,13 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
 
           {!newer && (
             <div className="pad-x"><div className="card">
+              {/* C-54: a call becomes a standing rule, by his hand only. */}
+              {strands && !d.ruleStrandId && (
+                <button className="row row-act" onClick={() => void makeRule(record)}>Make It a Rule</button>
+              )}
+              {d.ruleStrandId && (
+                <div className="row"><div className="row-stack"><div className="conn-meta"><span className="fact st red">Rule</span> · Saved to Values</div></div></div>
+              )}
               <button className="row row-act" onClick={() => setSheet({ kind: "supersede", oldId: record.id })}>Change It</button>
               {!armedDelete
                 ? <button className="row row-signout" onClick={() => setArmedDelete(true)}>Delete Decision</button>
@@ -328,7 +431,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
         {sheet.kind === "supersede" && (
           <DecisionCaptureSheet
             mode="supersede"
-            initial={{ ruledOut: d.ruledOut, linkedType: d.linkedType, linkedId: d.linkedId, linkedLabel: d.linkedLabel }}
+            initial={{ ruledOut: d.ruledOut, linkedType: d.linkedType, linkedId: d.linkedId, linkedLabel: d.linkedLabel, links: d.links }}
             attachOptions={attachOptions}
             onSave={(draft) => void saveSupersede(record.id, draft)}
             onCancel={() => setSheet({ kind: "closed" })}
@@ -392,19 +495,24 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
       {/* Universal sectioning law: rows always sit under an sh2 head. No
           count here: a count of decisions is a guilt metric (spec law). */}
       {live.length > 0 && <div className="sh2 sh2-quiet"><span className="t">All Decisions</span></div>}
+      {/* THE DECISION ROW (Astra, 2026-09-12; C-50, C-53). The star leads,
+          the glyph wears the first home's colour, the call, the reason, and
+          one facts line: where it came from, its homes, its outcome, and
+          the revisit day or the day it was recorded. */}
       {live.length > 0 && (
-        <div className="pad-x"><div className="card list-card-ruled nav-card">
+        <div className="pad-x"><div className="card list-card-ruled">
           {live.map((r) => (
-            <div {...pressable(() => onOpen(r.id))} className="lib-row" key={r.id}>
+            <div {...pressable(() => onOpen(r.id))} className="row dec-row" key={r.id}>
+              <EntityStar entityType={ENTITY_DECISION} entityId={r.id} title={r.data.decision} />
               <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
-              <div className="lib-stack">
-                <div className="msg-line">
-                  <span className="lib-name conn-name dec-name">{r.data.decision}</span>
-                  <span className="dec-when">{fmtShort(r.data.createdAt)}</span>
-                </div>
-                <div className="lib-sub">
-                  {r.data.why ? "Because " + r.data.why : NO_REASON}
-                  {r.data.linkedLabel && <> · <span className={"fact-link " + glyphClass(r, projCat)}>{r.data.linkedLabel}</span></>}
+              <div className="row-grow">
+                <div className="conn-name dec-name">{r.data.decision}</div>
+                <div className="conn-meta truncate">{r.data.why ? "Because " + r.data.why : NO_REASON}</div>
+                <div className="facts">
+                  {r.data.source && <span className={"fact" + (r.data.source.kind === "manual" ? "" : " sky")}>{SOURCE_LABEL[r.data.source.kind]}</span>}
+                  {linksOf(r.data).map((l) => <span className={"fact fact-link " + glyphClass(r, projCat)} key={l.id}>{l.label}</span>)}
+                  {r.data.outcome && <span className="fact">{OUTCOME_LABEL[r.data.outcome.word]}</span>}
+                  <span className="fact dec-when">{r.data.revisitOn && (r.data.revisitState === "pending" || r.data.revisitState === "shown") ? "Revisit " + fmtShort(r.data.revisitOn) : fmtShort(r.data.createdAt)}</span>
                 </div>
               </div>
               <Chev />

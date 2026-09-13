@@ -406,3 +406,72 @@ export function looksLikeQuestion(raw: string): boolean {
   const t = raw.trim().toLowerCase();
   return t.endsWith("?") || /^(what|when|where|who|how|why|is|are|do|does|did|can|should)\b/.test(t);
 }
+
+// --- DECISIONS (C-52, Astra, 2026-09-12) ---
+
+// THE DECISION DETECTOR. Deterministic, and it fires ONLY on a user turn
+// (astra law 9). Four stated shapes, plus a pick answering an "X or Y?" the
+// assistant asked in the turn before:
+//
+//   use X instead of Y      decision "Use X instead of Y", ruled out Y
+//   going with X            decision "Going with X"
+//   decided: X              decision X
+//   decision: X             decision X
+//   X, after "X or Y?"      decision X, ruled out Y
+//
+// The why, when the assistant's previous turn gave a one-line reason for
+// the option he picked, is that line: the assistant text after the leading
+// option, first sentence, capped. Nothing is invented; a turn with no such
+// line records no reason. A question is never a decision, and nothing here
+// ever makes a rule: a decision is a record.
+export interface ChatTurn { role: "user" | "assistant"; text: string }
+export interface DecisionCapture { decision: string; ruledOut?: string[]; why?: string }
+
+const DECISION_MAX = 200;
+const clean = (s: string) => s.trim().replace(/[.!]+$/, "").trim();
+
+function reasonFor(prev: ChatTurn | null, option: string): string | undefined {
+  if (!prev || prev.role !== "assistant") return undefined;
+  const first = prev.text.split("\n")[0]!.trim();
+  const opt = option.trim().toLowerCase();
+  if (!first.toLowerCase().startsWith(opt)) return undefined;
+  const rest = first.slice(option.trim().length).replace(/^[\s.,:;]+/, "");
+  const sentence = rest.split(/(?<=[.!?])\s/)[0]?.trim() ?? "";
+  if (!sentence) return undefined;
+  return sentence.replace(/[.!?]+$/, "").slice(0, 140);
+}
+
+export function detectDecision(turn: ChatTurn, prev: ChatTurn | null): DecisionCapture | null {
+  if (turn.role !== "user") return null;
+  const t = turn.text.trim();
+  if (!t || t.length > DECISION_MAX || /\?\s*$/.test(t)) return null;
+
+  const instead = t.match(/^(?:(?:let'?s|we'?ll|we should|i'?ll|we'?re going to|i'?m going to)\s+)?use\s+(.+?)\s+instead\s+of\s+(.+?)[.!]?$/i);
+  if (instead) {
+    const x = clean(instead[1]!); const y = clean(instead[2]!);
+    return { decision: `Use ${x} instead of ${y}`, ruledOut: [y], ...(reasonFor(prev, x) ? { why: reasonFor(prev, x) } : {}) };
+  }
+  const going = t.match(/^(?:(?:we'?re|i'?m|we are|i am|let'?s go|let us go|ok(?:ay)?,?)\s+)?going\s+with\s+(.+?)[.!]?$/i);
+  if (going) {
+    const x = clean(going[1]!);
+    return { decision: `Going with ${x}`, ...(reasonFor(prev, x) ? { why: reasonFor(prev, x) } : {}) };
+  }
+  const labelled = t.match(/^(?:decided|decision)\s*:\s*(.+)$/i);
+  if (labelled) {
+    const x = clean(labelled[1]!);
+    return x ? { decision: x, ...(reasonFor(prev, x) ? { why: reasonFor(prev, x) } : {}) } : null;
+  }
+  // A pick answering the question the assistant just asked.
+  if (prev && prev.role === "assistant") {
+    const q = prev.text.split("\n").map((l) => l.trim()).find((l) => /\sor\s.+\?$/.test(l));
+    const m = q?.match(/^(?:.*?\b(?:should|do|pick|prefer|want|use|go with)\b\s+)?(.+?)\s+or\s+(.+?)\?$/i);
+    if (m) {
+      const a = clean(m[1]!).replace(/^(?:we|i|you)\s+(?:go with|use|pick|prefer|want)\s+/i, "");
+      const b = clean(m[2]!);
+      const said = clean(t).toLowerCase();
+      const pick = said === a.toLowerCase() ? a : said === b.toLowerCase() ? b : null;
+      if (pick) return { decision: pick, ruledOut: [pick === a ? b : a] };
+    }
+  }
+  return null;
+}

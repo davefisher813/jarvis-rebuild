@@ -1,7 +1,6 @@
 import { useState } from "react";
-import type { DecisionLinkType } from "./types";
-import { FormSheet, Group, Row, FieldRow, Strip, ErrorLine } from "../shared/FormSheet";
-import HeadMenu from "../shared/HeadMenu";
+import type { DecisionLinkType, DecisionLink } from "./types";
+import { FormSheet, Group, FieldRow, Strip, ErrorLine } from "../shared/FormSheet";
 import { todayISO, addDays } from "../schedule/calendar";
 import { pressable } from "../shared/pressable";
 
@@ -22,6 +21,10 @@ export interface DecisionDraft {
   linkedId?: string;
   linkedLabel?: string;
   revisitOn?: string;
+  // C-53 (Astra, 2026-09-12): what he expects of it, and every home it is
+  // attached to. The triple above still carries links[0] for old readers.
+  expected?: string;
+  links?: DecisionLink[];
 }
 
 // BRAIN-F-02 (2026-09-05): the revisit dates used to be computed here with
@@ -48,7 +51,11 @@ export default function DecisionCaptureSheet({
   const [why, setWhy] = useState(initial?.why ?? "");
   const [ruledOut, setRuledOut] = useState<string[]>(initial?.ruledOut ?? []);
   const [ruleDraft, setRuleDraft] = useState("");
-  const [attach, setAttach] = useState<string>(initial?.linkedId ?? "");
+  // C-53: multi-select. Seeded from links, or from the old triple.
+  const [attached, setAttached] = useState<string[]>(
+    initial?.links?.map((l) => l.id) ?? (initial?.linkedId ? [initial.linkedId] : []),
+  );
+  const [expected, setExpected] = useState(initial?.expected ?? "");
   const [revisit, setRevisit] = useState(initial?.revisitOn ?? "");
   const [err, setErr] = useState(false);
   const today = todayISO();
@@ -68,27 +75,28 @@ export default function DecisionCaptureSheet({
   // old home's decision banner went with it. The record's own link is carried
   // as an option of its own, from the label the record already stores, so
   // Change It keeps the attachment it inherited and the menu can still say it.
-  const carried: AttachOption[] = initial?.linkedId && initial.linkedType && initial.linkedLabel
-    && !attachOptions.some((o) => o.id === initial.linkedId)
-    ? [{ type: initial.linkedType, id: initial.linkedId, label: initial.linkedLabel }]
-    : [];
+  const seeded: AttachOption[] = initial?.links?.map((l) => ({ type: l.type, id: l.id, label: l.label }))
+    ?? (initial?.linkedId && initial.linkedType && initial.linkedLabel ? [{ type: initial.linkedType, id: initial.linkedId, label: initial.linkedLabel }] : []);
+  const carried: AttachOption[] = seeded.filter((c) => !attachOptions.some((o) => o.id === c.id));
   const options: AttachOption[] = [...attachOptions, ...carried];
+  const toggleAttach = (id: string) => setAttached((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   const save = () => {
     if (!decision.trim()) { setErr(true); return; }
-    const opt = options.find((o) => o.id === attach);
+    const picked = options.filter((o) => attached.includes(o.id));
+    const first = picked[0];
     onSave({
       decision: decision.trim(),
       why: why.trim() || undefined,
       ruledOut: ruledOut.length ? ruledOut : undefined,
-      linkedType: opt?.type,
-      linkedId: opt?.id,
-      linkedLabel: opt?.label,
+      linkedType: first?.type,
+      linkedId: first?.id,
+      linkedLabel: first?.label,
+      links: picked.length ? picked.map((o) => ({ type: o.type, id: o.id, label: o.label })) : undefined,
+      expected: expected.trim() || undefined,
       revisitOn: revisit || undefined,
     });
   };
-
-  const attachLabel = options.find((o) => o.id === attach)?.label ?? "None";
 
   return (
     <FormSheet title={mode === "supersede" ? "New Call" : "New Decision"} onCancel={onCancel} onSave={save}>
@@ -105,6 +113,10 @@ export default function DecisionCaptureSheet({
 
       <Group label="Why">
         <FieldRow ariaLabel="Why" placeholder="The reason you will forget · One line is enough" value={why} onChange={setWhy} />
+      </Group>
+
+      <Group label="Expected">
+        <FieldRow ariaLabel="Expected" placeholder="What This Should Do · One line" value={expected} onChange={setExpected} />
       </Group>
 
       <Group label="Ruled Out">
@@ -132,17 +144,16 @@ export default function DecisionCaptureSheet({
 
       {options.length > 0 && (
         <Group label="Attached To">
-          <Row label="Link">
-            <HeadMenu
-              variant="value"
-              ariaLabel="Attached to"
-              value={attach}
-              off={attach === ""}
-              label={attachLabel}
-              options={[{ value: "", label: "None" }, ...options.map((o) => ({ value: o.id, label: o.label }))]}
-              onPick={setAttach}
-            />
-          </Row>
+          {/* C-53: as many homes as it has. Choosers, so filled chips. */}
+          <Strip>
+            {options.map((o) => (
+              <div key={o.id} className={"chip" + (attached.includes(o.id) ? " active" : "")} role="checkbox" aria-checked={attached.includes(o.id)} tabIndex={0}
+                onClick={() => toggleAttach(o.id)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleAttach(o.id); } }}>
+                {o.label}
+              </div>
+            ))}
+          </Strip>
         </Group>
       )}
     </FormSheet>
