@@ -1,64 +1,70 @@
-# Session handoff, 12 Sep 2026
+# Session handoff, 13 Sep 2026
 
-**Remote main is the Astra pass through Push J. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green, CI green on every push.**
+**Remote main is the Health pass through Push G, on top of the 12 Sep Astra and Email passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green, CI green on every push. Builds reach the phone only through a pushed `v*` tag (Codemagic to TestFlight); v1.0.1 through v1.0.9 were pushed this session.**
 
 ## What shipped this session
 
-The Astra build (`Claude outputs/JARVIS_ASTRA_BUILD_MASTER_2026_09_12.md`, harness `JARVIS_ASTRA_PREVIEW_2026_09_12.html`), ten pushes, each one commit, one gate, one CI run:
+The Health build (`Claude outputs/JARVIS_HEALTH_BUILD_MASTER_2026_09_12.md`, harness `JARVIS_HEALTH_PREVIEW_2026_09_12.html`), Pushes B through G, each one commit, one gate, one CI run, one tag; Push A landed 12 Sep. Between them, the fixes Dave asked for from phone screenshots.
 
-| push | commit | what |
-|---|---|---|
-| A | `83aa717` | light tokens, `.facts`, `.row-star`, `.why`, `.dring`, laws 1 to 5 |
-| B | `d302f8a`, `55d2b15` | Today: state vocabulary, Needs You, the headliner, the context packs |
-| C | `67e8d44` | Schedule and Plan My Day: state words, nested proposals, the planner says why, event columns, laws 8 and 10 |
-| D | `18428a4` | Brain: the two-band top, strand state words, one-word readiness, the Learning Lab, strand type |
-| E | `000429f` | Decisions and Capture: chat auto-capture, source and outcome, Make It a Rule, the three prefixes, the star on every row, law 9 |
-| F | `4ff71c3` | Life: projects moving it, milestones, the check-in, `goal.checkin` |
-| G | `8785c73` | Contacts, Routine, Writing, Values: fuller labels, promises and projects on the card, Learned Rhythms, the writing channel, draft-edit learning, the values detector, doc autosave |
-| H | `64b33d3` | Notes: the three blocks, pin, tags and archive, note-to-note links, JARVIS Found |
-| I | `b5d7312` | Insights: This Week, one percent inside reports, law 6 |
-| J | this commit | the catalog's §AA and this document |
+| push | commit | tag | what |
+|---|---|---|---|
+| A | `3970204` | | the skin, the ramp by meaning, the light ramp as shipped, laws 1 to 4 |
+| B | `ad5d418` | v1.0.5 | the live session owns the bottom edge, set states, pause and resume, the two-step finish, law 5 |
+| C | `c3d761e` | v1.0.6 | Resume on the page, the shortcut tiles, Water as a +1, the Log list, Health Settings, the weekly sets band as a setting, Celebrations |
+| D | `5043b04` | v1.0.7 | medication by name with the ten-minute ask and Undo, Undo by the moment, refill facts, Edit Time, effort ends and Skip, the region list, Meal, laws 6 and 7, migration 0038 |
+| E | `74c7504` | v1.0.8 | aliases, Pair With, Load, History's Sessions list, the Epley caption, the chart tap |
+| F | `479416e` | v1.0.9 | the export choosers, clientId on every queued write, law 9, migration 0039 |
+| G | this commit | | the catalog's §AB and this document |
 
-Between C and D the other Code chat landed the Email pass (Pushes A through I of `JARVIS_EMAIL_BUILD_MASTER_2026_09_12.md`, catalog §AC); Push D was rebased over it cleanly.
+Also on main this session, in order: `a2e3b68` (the note editor's placeholder and list lines), `e81d0e0` (the Health page simplified: inviting tiles, no pill facts, the adds at the foot), `6fe1f53` (Codemagic stamps every build's number; v1.0.1 was the first build to reach TestFlight), `976afed` (Today's top card and the Life rows), `c22e5cc` (email tasks wait under From Email behind an opt-in switch, the What JARVIS Knows tap, project and goal rows, the cool-down in blue), `e567e17` (goals own only what is filed to them; a project row is the goal row; Next in orange; Paused, Done, Stalled, On Track), `bdf225a` (hold a project row to move it to a goal, a Paused filter, no repeated count). The other Code chat's `289dc03`, `15a2eec` and `f4bf88f` were rebased over cleanly.
+
+## Migrations to apply, in order
+
+Two additive migrations in `jarvis-core/supabase/migrations/` have not been applied to Supabase from this machine (the Supabase MCP here reaches other projects, not JARVIS; Dave applies them the way 0031 to 0037 were applied):
+
+- `0038_health_med_def_and_meal.sql`: registers `health_med_def` and `health_meal` in `entity_type`. Until it lands, a medication cannot be added and a meal waits in the offline queue.
+- `0039_item_client_id_unique.sql`: the partial unique index on `(owner_id, data->>'clientId')`. Until it lands the app still stamps and replays correctly; only the database-side guarantee is missing.
 
 ## The gate, and where it runs
 
-`docs/WORKFLOW_AND_GATE.md` is the contract. On this Windows machine the gate is: `npx tsc --noEmit`, `npx eslint src` (39 known `unused eslint-disable` warnings; a 40th or any error is new), `npx vitest run` with `TZ=UTC` and `NODE_OPTIONS=--no-experimental-webstorage` on this Node 25 box, `npm run build`, `npm run build:legal && git diff --exit-code public/`, the jarvis-core tsc and vitest, and the case-sensitivity scan (`git ls-files | sed -E 's/\.(tsx?|jsx?|mjs|cjs)$//' | sort -u | sort -f | uniq -di`, which must print nothing). CI on Node 22 is the authoritative gate; poll `actions/runs?head_sha=` after every push.
+`docs/WORKFLOW_AND_GATE.md` is the contract. On this Windows machine: `npx tsc --noEmit`, `npx eslint src` (39 known `unused eslint-disable` warnings; a 40th or any error is new), `npx vitest run` with `TZ=UTC` and `NODE_OPTIONS=--no-experimental-webstorage` on this Node 25 box, `npm run build`, `npm run build:legal && git diff --exit-code public/`, the jarvis-core tsc and vitest (95 tests now), the case-sensitivity scan, and an em-dash scan over added lines. CI on Node 22 is the authoritative gate; poll `actions/runs?head_sha=` after every push (a tag push starts a second run for the same sha).
 
-**Always `git fetch origin` and rebase before pushing.** Another Code chat may be shipping to main; the Email pass landed fourteen commits while Push D was being built. Rebase, rerun the gate on the merged tree, then push. Never force-push.
+**One vitest at a time, and nothing heavy beside it.** A full run started next to eslint, a build and the browser preview timed out one file at six minutes and flaked another; the same two files passed in isolation and the clean rerun was green. Run the suite alone.
 
-**One thing that cost an hour:** three vitest runs started on top of each other (a background run, a retry and a hung worker) and each took seven minutes to time out. Run one suite at a time, with a `timeout`, and kill orphaned `node` processes before starting the next.
+**Always `git fetch origin` and rebase before pushing.** Never force-push.
 
 ## Every new law was planted first
 
-Laws 3 to 10 of the build master live in `src/laws/astra.test.ts`; law 6 (percent) and law 7 (decisions never count) join laws 8 (COMPLETED derived), 9 (chat capture is user-only, never a rule) and 10 (closed event vocabulary). Each was planted (a violation written into a real component), watched fail, reverted, and the commit message says so. Two existing laws were amended rather than added: law 3 reads the `RowStar` and `EntityStar` tags as the star and knows the named row anatomies; law 11 exempts `brain/BrainTop.tsx` by C-38's own words.
+Health laws 1 to 5 (`src/laws/healthSkin.test.ts`) came with Push A and B; laws 6 and 7 (`healthPrivacy.test.ts`: a medication is never a schedule, a meal is text) with Push D; law 9 (`healthIntegrity.test.ts`: one row per queued write) with Push F. Each was planted, watched fail, reverted, and the commit says so. Law 8 (the Celebrations switch) is a component test rather than a law file, by the master's own wording.
 
-## Departures from the doc, all stated in their commits
+## Departures from the master, all stated in their commits
 
-- The planner's "N project moving it" and the check-in head "How Is This Going?" follow the app's casing laws where the harness writes them lower-case.
-- Make It a Rule links the strand to the decision through `StrandData.link` rather than a "decision" derivation key with the id in evidence: evidence is numbers and days by law.
-- A WATCHING row on the Brain hub opens What JARVIS Knows rather than running an accept; a detector short of its gate has nothing to accept, and the one past it is already offered there.
-- The values detector derives only the ruled-out half of C-63; the rule-strand half has no data yet because Make It a Rule writes a new strand each time.
-- The draft-edit learning runs on the email deck path; the sms and chat draft surfaces have no send of their own.
-- Month rows on Insights colour moved purple and done plain (one coloured fact per line, law 4) where the harness colours both.
-- Month and week facts read "3 Moved", "2 Tasks pushed" under the leading-number casing law where the harness keeps them lower-case.
+- The Health home page follows Dave's 2026-09-13 simplification, not the harness: no This Week head, the Log head only on a day with entries, Settings as a door in the Medication card, the adds at the foot.
+- The weekly sets band is a setting with the studied range one tap back, per "I don't want anything hard wired that shouldn't be"; the studied range and its citation stay the default.
+- Medication is log and track only: a name and an amount, no schedule, nothing that could read as missed, per Dave's 2026-09-13 ruling.
+- `MealData` keeps `category: "fuel"` beside `at` and `text`, because the Share Line filters every logged shape by category; law 7 allows it.
+- The Log Another ask and its two answers are Title Case per the label rule where the master writes them lower-case.
+- The comeback line rides the Undo receipt: toast.ts keeps one toast, so the celebration would have been replaced before it was read.
+- The History guard reads `historyOpen && !viewWorkout` so a session row opens its workout on top and Back lands on History; the branch-order law now reads that guard.
+- No `docs/HEALTH.md` or `claude/HEALTH_CATALOG.md` exists in the tree (the health source comments cite the latter); the catalog entry went to `jarvis-app/STYLING_CATALOG_V3.md` §AB and nothing else was invented.
 
-## Left out on purpose (section 11 stands)
+## Left out on purpose (section 10 stands)
 
-Prototype palette, layouts and fonts from the Astra zip; the adaptive command bar; the text-link button tier; cyan for schedule; goals off purple; nested folders, version history, semantic search, link preview, note link blocks, Ask JARVIS in notes; the Recent Learning band, the learned-count headline and the Brain Coverage grid; silent learned memories and silent relationship labels; the app-written Values doc; a decision `standing` flag; `ai_draft_edited` with text; event-triggered decision re-evaluation; project status pill changes; the editor rewrite.
+A mood or feeling check-in; meal nutrition; discomfort intensity and notes; scheduled doses; the doc's pastel ramp and its type sizes; PDF export; full chart axes; milestone cards; sleep duration or a wake-up tap; an equipment field; a reduced-motion toggle; the prototype's Pages menu, demo state, fake save messages and sample data.
 
 ## Open items
 
-- Thirteen strand categories with reworked caps before launch (six today; `StrandData.type` already carries the kind).
-- Link preview and note link blocks, revisited later.
-- "Frequent" on a contact's hero waits for a count the card does not have.
-- The demo build has no AI and no milestone or dollar goal, so JARVIS Found, the milestone rows and the dollar ring are covered by tests only; look at them on the phone.
+- The two migrations above, to apply.
+- Part 1 of the 13 Sep outstanding-audits passoff (`Claude outputs/PASSOFF_2026_09_13_OUTSTANDING_AUDITS.md`): eight real cleanup items (MessageDraftSheet redraft on userVoice, the seal's 35-day window, SearchFlow per-read catch, OnboardingFlow finish ordering, AppShell boot try/catch, ChatFlow refile double-file, MessagesFlow runSearch stale guard, DeckFlow archive setBusy) plus wiring the unused `leaningOn` prop into WhySheet from TodayFlow; item 5 there is not a defect. Part 3 (the ChatGPT handoff's larger items) waits on rulings.
+- The demo has no sets in its workouts, so History's Sessions rows read 0 sets there; the phone has real ones.
+- Coming back from a workout opened from History returns to the Lifts segment rather than Sessions.
 
 ## Standing constraints
 
 - No em dashes anywhere, comments and strings included.
 - Title Case for anything that names or acts; ALL CAPS only from CSS.
 - One filled primary per screen; every other action is a capsule.
-- Anything visual is mocked first; the harness is the mock. Do not restyle beyond it.
+- Anything visual is mocked first; the harness is the mock. Do not restyle beyond it. Dave builds previews in Cowork; do not build them here unless he asks.
 - Do not touch bundle splitting until Dave says building is done. The main chunk is over the 500KB Vite warning, known and deferred.
 - Do not fix the 39 pre-existing `unused eslint-disable` warnings.
+- Do-not-touch items 1 (events are not first-class) and 3 (iOS modals) stand.

@@ -574,6 +574,42 @@ The harness (`Claude outputs/JARVIS_ASTRA_PREVIEW_2026_09_12.html`) is the appro
 
 **OPEN ITEMS (2026-09-12).** Thirteen strand categories with reworked caps before launch (six today, `StrandData.type` carries the kind). Link preview and note link blocks, revisited later; notes carry quote, divider and callout now.
 
+## §AB. Health, the Apple Fitness pass (V4.24, Dave's picks 2026-09-12, built in Pushes A through G, 12 and 13 Sep 2026)
+
+The harness (`Claude outputs/JARVIS_HEALTH_PREVIEW_2026_09_12.html`, master `JARVIS_HEALTH_BUILD_MASTER_2026_09_12.md`) is the approved mock for every Health and Gym screen. Dave's 2026-09-13 ruling on the Health home page (simplify: inviting log tiles, no pill-wrapped facts, the adds at the foot, no This Week head) overrides the harness there. Every rule below is held by `src/laws/healthSkin.test.ts`, `src/laws/healthPrivacy.test.ts` or `src/laws/healthIntegrity.test.ts`, each planted, watched fail, and reverted before it shipped.
+
+**R1 · THE PRIMARY MOVE IN HEALTH IS JARVIS RED (2026-09-12).** `.health-ruled .btn-primary`, the hero's Start pill and the Log bar take the accent fill; lime is data only, and no primary anywhere resolves to a ramp hue (law 1).
+
+**R2 · SUPPORTING TEXT IS `--tx-2` (2026-09-12).** Dates, units and readings are coloured facts; `--tx-4` survives only on Log it; no opacity on any health row or card that carries text, press states excepted (law 4).
+
+**R3 · THE LIGHT RAMP IS THE DARK RAMP (2026-09-12).** The six `--hl-*` hues and their tints are byte-identical across themes; light no longer darkens them (law 3).
+
+**R4 · HUE BY MEANING (2026-09-12).** `health/hue.ts` is the one table: lime for logged work, sets, PRs and done; cyan for the rest timer, the current set, readings, reference values and water; amber for time, duration, load, plates and a meal; violet for sleep and bedtime; blue (`hblue`) for medication; pink for discomfort. A tile takes the hue of what it measures, never its grid slot; a metric's hue is the person's own choice with cyan as the default.
+
+**R5 · GLASS CARDS, NO GLOW (2026-09-12).** 18px radius as everywhere; the hero loses its lime rim and bloom, tiles their glow, `.se-pr` and `.se-dot` theirs.
+
+**R6 · THE TILE ANATOMY (2026-09-12, simplified 2026-09-13).** `.h-tile`: the glyph in the tile's hue on its tint, the name at 13px, a filled + at the end, the value at 34px or Log it in the hue, and when it was logged. Never a sentence under a tile.
+
+**R7 · THE HEALTH EXCEPTION TO K.3 (2026-09-12).** A health facts line may carry more than one coloured datum, because the ramp's job is to make data read at a glance; labels and connective words stay `--tx-2` and never wear a hue (law 2). Everywhere else one coloured fact per line still holds.
+
+**R8 · THE SESSION OWNS THE BOTTOM EDGE (2026-09-12).** While a session is live the capture bar and the tab bar are hidden and one sticky `.logbar` with one red Log sits where the note editor's bar sits (law 5).
+
+**R9 · THE SET ROW SAYS ITS STATE (2026-09-12).** `gym/stateWord.ts` is the closed set: Now · Set N in cyan with a 1.5px cyan inset rule on the open chip; Done with a lime check; Up next · Set N in `--tx-2` at full opacity; Warm-up at full opacity; Skipped. Never inverted steel, never red.
+
+**R10 · UNDO ON EVERYTHING, NOTHING SCHEDULED (2026-09-12, 2026-09-13).** Every log toasts a receipt with Undo, and a logged entry is taken back by the moment it was logged, queued or landed alike. Nothing in Health is scheduled, scored, or compared to a target; the one guard on medication asks before logging the same med twice inside ten minutes and never says a dose is due.
+
+**THE MEDICATION MODEL (2026-09-13, Dave: "I just want people to be able to log and track things").** A medication is a name and an amount the person typed, with no schedule, no times per day and no next dose (law 6); a dose records the med and the amount as typed; the Medication page is one row per med with the amount in blue, Last {time}, and one red Took It; the timeline names the med and carries Undo on today's rows.
+
+**THE REGION LIST (2026-09-13).** Discomfort offers Map or List; the list is twelve generic regions (`health/regions.ts`), each written with its own coordinate on the same map so a named region and a tapped one cluster together; a place, never a name for what is wrong with it.
+
+**A MEAL IS TEXT (2026-09-13).** `health_meal` is category, the moment, the words, and the queue's clientId; no amount, calorie, macro or grade can be added without law 7 failing.
+
+**THE WEEKLY SETS BAND IS A SETTING (2026-09-13, Dave: "I don't want anything hard wired that shouldn't be").** The studied range keeps its citation as the default; a band set in Health Settings replaces it, is labelled yours, and the lift page and the Health page compare against the same one.
+
+**THE EXPORT CHOOSERS (2026-09-13).** Take This to the Doctor is a window (6 Weeks, 3 Months, or two dates) and a set of kinds (Doses, Bedtime, Ate Before, Effort, Meals once one exists); plain text through the share sheet or Copy, never sent by itself, and still the family's own log, never a medical record.
+
+**ONE ROW PER QUEUED WRITE (2026-09-13).** Every health log and finished workout is stamped with a clientId when queued; a replay after a lost answer lands as the same row (law 9, migration 0039).
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).
