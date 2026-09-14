@@ -21,6 +21,7 @@ import ConditioningFace from "./ConditioningFace";
 import CondReceipt from "./CondReceipt";
 import { condResultEntry } from "./conditioning";
 import LibraryPickSheet from "./LibraryPickSheet";
+import PlateSheet from "./PlateSheet";
 import ExerciseSheet from "./ExerciseSheet";
 import MusicChip from "../music/MusicChip";
 import { showToast } from "../shared/toast";
@@ -69,6 +70,7 @@ export default function SessionScreen({
   onUpdateProgram,
   onAcceptSuggestion,
   onFit,
+  onAdjustTime,
   onFinish,
   onBack,
   onPause,
@@ -120,6 +122,9 @@ export default function SessionScreen({
    *  accepted from the catch-up banner, a block checked off, a budget
    *  loosened. GymFlow merges the patch into the live session. */
   onFit: (patch: Partial<LiveSession>) => void;
+  /** 2026-09-14 (the reference's Adjust time): a budget chosen mid-session.
+   *  Absent, the row is absent. */
+  onAdjustTime?: () => void;
   onFinish: () => void;
   onBack: () => void;
   /** H-27 (Health Push B, 2026-09-12): Pause parks the session. Defaults to
@@ -173,6 +178,7 @@ export default function SessionScreen({
   const [keptPlan, setKeptPlan] = useState<string[]>([]);
   const [swapOpen, setSwapOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [platesOpen, setPlatesOpen] = useState(false);
   // GYM-F-01 (2026-09-05): the rest is a deadline on the live session, not a
   // tick counter in screen state -- see RestTimer.tsx and LiveSession.restEndsAt.
   const restEndsAt = live.restEndsAt ?? null;
@@ -248,6 +254,21 @@ export default function SessionScreen({
     showToast({ message, actionLabel: "Undo", onAction: undo });
   };
   const liftsDone = live.exercises.filter((e) => e.sets.length > 0).length;
+  // THE METER (2026-09-14, the reference's "4 of 17 planned working sets
+  // logged"): working sets logged against the plan the session started with,
+  // trims counted, warm-ups and drops excluded, across the whole day.
+  const plannedFor = (e: LiveSession["exercises"][number]): number => {
+    const pe = !e.custom && programDay ? programDay.exercises.find((x) => x.id === e.exerciseId) : undefined;
+    return pe ? Math.max(0, pe.sets.length - (live.trims?.[pe.id] ?? 0)) : (e.plan?.length ?? 0);
+  };
+  const plannedTotal = live.exercises.filter((e) => !e.skipped).reduce((n, e) => n + plannedFor(e), 0);
+  const loggedTotal = live.exercises.reduce((n, e) => n + e.sets.filter((s) => !s.warmup && !s.skipped && !s.drop).length, 0);
+  const meterPct = plannedTotal > 0 ? Math.min(100, Math.round((loggedTotal / plannedTotal) * 100)) : 0;
+  // UP NEXT (2026-09-14): the next exercise in the day's order that still has
+  // work in it, as one row under the strip. A group's own Next row wins.
+  const upNextIdx = live.exercises.findIndex((e, i) => i > idx && !e.skipped && e.sets.filter((s) => !s.warmup && !s.drop && !s.skipped).length < Math.max(1, plannedFor(e)));
+  const upNext = upNextIdx >= 0 ? live.exercises[upNextIdx] : undefined;
+  const nextPlannedWeight = (() => { const n = plannedEntryAt(planEx, workLogged); return n?.w ?? [...logged].reverse().find((x) => !x.warmup)?.w ?? 0; })();
 
   // D3-C in session: the day's own blocks, checked off as they happen.
   const warmBlocks = programDay?.warmUp ?? [];
@@ -453,7 +474,11 @@ export default function SessionScreen({
           <ElapsedClock live={live} />
           {(live.pausedMs ?? 0) > 0 && <span className="fact">Paused time excluded</span>}
           <span className="fact">{capAfterNumber(`${liftsDone} of ${live.exercises.length} lifts`)}</span>
+          {plannedTotal > 0 && <span className="fact lime">{capAfterNumber(`${loggedTotal} of ${plannedTotal} sets`)}</span>}
         </div>
+        {plannedTotal > 0 && (
+          <div className="se-meter" role="img" aria-label={`${loggedTotal} of ${plannedTotal} planned working sets logged`}><span style={{ width: meterPct + "%" }} /></div>
+        )}
         {/* D5-C: the projected finish rides the header the whole session --
             amber only when actually over, never red (time pressure is a
             warning, not a verb). Two facts, so two chips, aligned: a sentence
@@ -607,7 +632,8 @@ export default function SessionScreen({
 
       {/* One head grammar across the gym pages (reformat 2026-08-31): the
           quiet sh2, same as the program page's Days and Recent. */}
-      <div className="sh2 sh2-quiet"><span className="t">{noun}</span></div>
+      <div className="sh2 sh2-quiet"><span className="t">{noun}</span>
+        {!cond && !current.skipped && planEx.sets.length > 0 && <span className="n">{`${workLogged} of ${planEx.sets.length}`}</span>}</div>
       <div className="pad-x">
         {current.skipped ? (
           <div className="card list-card-ruled"><div className="row"><div className="row-grow"><div className="conn-name">Skipped</div></div></div></div>
@@ -626,6 +652,8 @@ export default function SessionScreen({
             entries={logged}
             ghost={ghost}
             onLogGhost={(i) => { onLog(duplicateEntry(ghost[i]!)); startRest(); }}
+            editableGhosts
+            onLogGhostAs={(i, patch) => { const e = { ...duplicateEntry(ghost[i]!), ...patch }; onLog(e); startRest(); receiptForLog(e); }}
             onChange={changeSets}
             prAt={celebrations ? (i) => isSessionPR(history, exercise, exercise.kind, logged, i) : undefined}
             moveTracking
@@ -640,6 +668,15 @@ export default function SessionScreen({
                 session's entry changes. */}
             {lastWorkForDrop && !cond && (
               <button className="row-create" role="button" tabIndex={0} onClick={logDrop}>Log a Drop</button>
+            )}
+            {upNext && !(partner && partnerLiveIdx >= 0) && (
+              <button className="row-create" role="button" tabIndex={0} onClick={() => onMove(upNextIdx)}>{`Up Next · ${upNext.name}`}</button>
+            )}
+            {exercise.kind === "weight_reps" && !cond && (
+              <button className="row-create" role="button" tabIndex={0} onClick={() => setPlatesOpen(true)}>Plate Calculator</button>
+            )}
+            {onAdjustTime && (
+              <button className="row-create" role="button" tabIndex={0} onClick={onAdjustTime}>Adjust Time</button>
             )}
             <button className="row-create" role="button" tabIndex={0} onClick={() => setSwapOpen(true)}>Swap</button>
             {onUpdateProgram && (
@@ -730,6 +767,9 @@ export default function SessionScreen({
           onFreeText={(text) => { onSwap({ exerciseKey: newExerciseKey(), name: text, kind: exercise.kind, unit: exercise.unit, timeUnit: exercise.timeUnit }); setSwapOpen(false); }}
           onCancel={() => setSwapOpen(false)}
         />
+      )}
+      {platesOpen && (
+        <PlateSheet total={nextPlannedWeight} unit={exercise.unit} rack={rack} onClose={() => setPlatesOpen(false)} />
       )}
       {addOpen && (
         <ExerciseSheet

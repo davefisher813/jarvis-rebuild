@@ -18,7 +18,7 @@ import { liftMeasureState, trainingMeasureState, type LiftMeasure, type Training
 import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession } from "./liveSession";
+import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
 import { bumpStrip } from "./strip";
 import { buildLibrary, newExerciseKey, withAliases, withFavorites } from "./library";
 import { emit } from "../events";
@@ -43,6 +43,7 @@ import UploadFlow from "./UploadFlow";
 import HistoryScreen from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
 import { libraryRows, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, patchSummary, type LibraryRow, type AliasMap } from "./libraryEdit";
+import { mmss } from "./conditioning";
 import ActionSheet, { PickSheet, type SheetAction, type PickItem } from "./ActionSheet";
 import SetStrip from "./SetStrip";
 import ReorderList from "../shared/ReorderList";
@@ -295,7 +296,13 @@ function RowMenuButton({ onMenu, what }: { onMenu: () => void; what: string }) {
   );
 }
 
-function DayRow({ day, onOpen, onPin, onMenu }: { day: ProgramDay; onOpen: () => void; onPin?: () => void; onMenu: () => void }) {
+function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day: ProgramDay; onOpen: () => void; onPin?: () => void; onMenu: () => void;
+  /** 2026-09-14 (the reference's "Completed Monday"): the weekday of this
+   *  day's last session when it was inside the last week. */
+  doneWord?: string | null;
+  /** A session on this day is open now. */
+  current?: boolean;
+}) {
   const hold = useLongPress({ onLongPress: onMenu });
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
@@ -309,6 +316,8 @@ function DayRow({ day, onOpen, onPin, onMenu }: { day: ProgramDay; onOpen: () =>
           <span className={"se-chip " + (day.exercises.length === 0 ? "se-chip-todo" : "se-chip-last")}>
             {day.exercises.length === 0 ? "Empty" : <>{day.exercises.length}<em>{day.exercises.length === 1 ? "Lift" : "Lifts"}</em></>}
           </span>
+          {current && <span className="se-chip se-chip-time">Current Session</span>}
+          {!current && doneWord && <span className="se-chip se-chip-done"><em>Done</em>{doneWord}</span>}
         </div>
       </div>
       {/* PINS, D4, preview dress: the weekday claim is the row's trailing
@@ -350,7 +359,7 @@ function ExerciseRow({ exercise, pairLabel, last, onOpen, onMenu }: {
             numbers). A verbose per-set listing already fills the line on its
             own -- "Last: X" only tacks on when the plan collapsed to one
             short clause, which is exactly when the row has room for it. */}
-        <div className="conn-meta">{targetLine(exercise)}{last && isCompactPlan(exercise) ? ` · Last: ${last}` : ""}</div>
+        <div className="conn-meta">{targetLine(exercise)}{exercise.restSec ? ` · ${mmss(exercise.restSec)} rest` : ""}{last && isCompactPlan(exercise) ? ` · Last: ${last}` : ""}</div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
         {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}
@@ -624,6 +633,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // A saved workout for this day and date from elsewhere is said out loud
   // before the receipt; he keeps both or drops this copy.
   const [dupFinish, setDupFinish] = useState<{ twin: Workout } | null>(null);
+  // 2026-09-14 (the reference's Adjust time): a budget picked mid-session.
+  const [adjustOpen, setAdjustOpen] = useState(false);
   // H-30: the finish waits on the receipt (see finish below).
   const finishing = useRef<{ data: WorkoutData; door: { id: string; date: string } | null } | null>(null);
   const [viewWorkout, setViewWorkout] = useState<Workout | null>(null);
@@ -1654,6 +1665,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           void saveDays(week.id, week.days.map((d) => (d.id === day.id ? next : d))).then((ok) => { if (ok) showToast({ message: `${liveEx.name} is in the program now` }); });
         } : undefined}
         onFit={(patch) => patchLive((l) => ({ ...l, ...patch }))}
+        onAdjustTime={() => setAdjustOpen(true)}
         onFinish={() => void finish()}
         onBack={parkSession}
         onPause={parkSession}
@@ -1663,11 +1675,34 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       />
       {receiptEl}
       {dupEl}
+      {adjustOpen && (
+        // The minutes left from now become the session's budget, so the
+        // catch-up banner prices the levers against it (D5-C); No Cap lifts
+        // the budget. The plan itself is never edited.
+        <ActionSheet
+          title="How Much Time Is Left"
+          actions={[
+            ...[10, 20, 30].map((n) => ({ label: capAfterNumber(`${n} min`), onClick: () => patchLive((l) => ({ ...l, budgetMin: Math.max(1, Math.round(elapsedMs(l) / 60_000) + n) })) })),
+            { label: "No Cap", onClick: () => patchLive((l) => { const { budgetMin: _gone, ...rest } = l; return rest as LiveSession; }) },
+          ]}
+          onClose={() => setAdjustOpen(false)}
+        />
+      )}
       </>
     );
   }
 
   const recent = [...workouts].reverse().slice(0, 5);
+  // 2026-09-14: the weekday of a day's last session, when it was this week
+  // or last (older than that a weekday name says nothing).
+  const doneWordFor = (dayId: string): string | null => {
+    const last = lastWorkoutForDay(dayId);
+    if (!last) return null;
+    const days = (new Date(todayISO() + "T00:00:00").getTime() - new Date(last.data.date + "T00:00:00").getTime()) / 86_400_000;
+    if (days < 0 || days > 7) return null;
+    const dow = (new Date(last.data.date + "T00:00:00").getDay() + 6) % 7;
+    return WEEKDAY_ABBR[dow] ?? null;
+  };
 
   // "Next: X" only when there is one week (the common, migrated case): which
   // day comes next across a multi-week block is a real product decision the
@@ -2152,6 +2187,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               />
               <button className="row-create" onClick={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id })}>Add Exercise</button>
             </div></div>
+            {/* 2026-09-14 (the reference's day plan): an edit here reaches the
+                next session; a logged session keeps the numbers it logged. */}
+            <div className="pad-x"><div className="input-hint">Edits apply to future workouts · Logged sessions keep their own numbers</div></div>
+            {(live ?? parkedLive) && (
+              <div className="pad-x">
+                <button className="btn btn-secondary btn-block" onClick={() => enterSession(readLive() ?? live ?? parkedLive)}>Return to Current Session</button>
+              </div>
+            )}
             <BlockList
               title="Cool-Down"
               tone="cool"
@@ -2419,6 +2462,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                         return (
                           <DayRow
                             day={d}
+                            doneWord={doneWordFor(d.id)}
+                            current={(live ?? parkedLive)?.dayId === d.id}
                             onOpen={() => { setReorderTarget(null); setOpenDayId(d.id); }}
                             onPin={() => setPicker({ kind: "pinDays", weekId: singleWeek.id, day: d })}
                             onMenu={() => setRowMenu({ kind: "day", weekId: singleWeek.id, day: d })}
