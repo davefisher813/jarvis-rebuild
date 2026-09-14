@@ -3,7 +3,7 @@ import type { EventInput } from "../events";
 import {
   ENTITY_HEALTH_CONSENT, ENTITY_LIGHTS_OUT, ENTITY_ATE_BEFORE, ENTITY_TOOK_IT, ENTITY_CALL_IT, ENTITY_POINT_AT_IT,
   ENTITY_MED_REFILL, ENTITY_BAG_CHECK, ENTITY_LOCKER_DOC, ENTITY_TRUSTED_ADULT, ENTITY_AGE_RULE_SHOWN,
-  ENTITY_MED_DEF, ENTITY_MEAL,
+  ENTITY_MED_DEF, ENTITY_MEAL, ENTITY_CHECKIN,
   type MedDefData, type MedDefEntry, type MealData, type MealEntry,
   type ConsentGrant, type ConsentGrantsData, type HealthCategoryId,
   type LightsOutData, type LightsOutEntry,
@@ -16,6 +16,7 @@ import {
   type LockerDocKind, type LockerDocData, type LockerDocEntry,
   type TrustedAdultData, type TrustedAdultEntry,
   type AgeRuleShownData, type AgeRuleShownEntry,
+  type CheckInData, type CheckInEntry, type CheckInEnergy, type CheckInMood,
 } from "./types";
 import { defaultGrants, updateGrant } from "./shareLine";
 import { queueHealthLog, flushPending, readPending, removeQueued, type Storage2, type PendingHealthLog } from "./offlineQueue";
@@ -32,6 +33,7 @@ export function typedKind(entityType: string): string {
     case ENTITY_TOOK_IT: return "medication_logged";
     case ENTITY_MEAL: return "meal_logged";
     case ENTITY_LIGHTS_OUT: return "bedtime_logged";
+    case ENTITY_CHECKIN: return "checkin_logged";
     default: return entityType;
   }
 }
@@ -235,6 +237,27 @@ export class HealthService {
 
   removeMeal(at: number, storage?: Storage2): Promise<boolean> {
     return this.removeLogged(ENTITY_MEAL, at, storage);
+  }
+
+  // ---- Check In (2026-09-14) ----
+
+  logCheckIn(d: { energy?: CheckInEnergy; mood?: CheckInMood; note?: string }, at: number = Date.now(), storage?: Storage2): CheckInData {
+    const data: CheckInData = {
+      category: "body", at,
+      ...(d.energy ? { energy: d.energy } : {}),
+      ...(d.mood ? { mood: d.mood } : {}),
+      ...(d.note?.trim() ? { note: d.note.trim() } : {}),
+    };
+    this.logAndQueue(ENTITY_CHECKIN, data as unknown as Record<string, Json>, storage);
+    return data;
+  }
+
+  async listCheckIn(storage?: Storage2): Promise<(CheckInEntry & { pending?: boolean })[]> {
+    return this.listMerged<CheckInData>(ENTITY_CHECKIN, storage, (a, b) => a.at - b.at);
+  }
+
+  removeCheckIn(at: number, storage?: Storage2): Promise<boolean> {
+    return this.removeLogged(ENTITY_CHECKIN, at, storage);
   }
 
   // UNDO A TAP (Health Push D). A logged entry is identified by the moment

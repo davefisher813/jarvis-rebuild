@@ -74,3 +74,23 @@ describe("chronologicalLog: Push D rows", () => {
     expect(rows[3]!.open).toEqual({ kind: "meal" });
   });
 });
+
+// 2026-09-14: a check-in is a row in the reading hue, its words as the fact.
+describe("chronologicalLog: check-ins", () => {
+  it("lists a check-in with its words, and the note alone when that is all", () => {
+    const rows = chronologicalLog({
+      day: DAY,
+      lightsOut: [], tookIt: [], callIt: [], pointAtIt: [], workouts: [], metricDefs: [], metricLogs: [],
+      checkins: [
+        { id: "c1", data: { category: "body", at: t(9), energy: "high", mood: "good" } },
+        { id: "c2", data: { category: "body", at: t(21), note: "Long day" } },
+        { id: "c0", data: { category: "body", at: t(9) - 86_400_000, energy: "low" } },
+      ],
+    });
+    expect(rows.map((r) => [r.title, r.kind, r.detail])).toEqual([
+      ["Check In", "reading", "Energy High · Mood Good"],
+      ["Check In", "reading", "Long day"],
+    ]);
+    expect(rows[0]!.open).toEqual({ kind: "checkin" });
+  });
+});

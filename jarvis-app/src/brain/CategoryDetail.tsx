@@ -53,8 +53,11 @@ import PointAtItScreen from "../health/screens/PointAtItScreen";
 // Meal shortcut.
 import MedicationScreen from "../health/screens/MedicationScreen";
 import MealScreen from "../health/screens/MealScreen";
+// 2026-09-14: the reference's check-in.
+import CheckInScreen from "../health/screens/CheckInScreen";
+import { checkInLine } from "../health/checkin";
 import { doseRows, doseToast } from "../health/meds";
-import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry, MedDefEntry, MealEntry } from "../health/types";
+import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry, MedDefEntry, MealEntry, CheckInEntry } from "../health/types";
 import { stillThere, stillThereSummary, stillThereMessage } from "../health/timelines";
 import { healthComebackMessage } from "../health/healthComeback";
 // HMN-F-06 (2026-09-05), fork option A: the other fourteen screens of the
@@ -237,6 +240,8 @@ export default function CategoryDetail({
   }, [autoOpenGym, gymNonce]);
   // The Health hero's Start names the day; the gym walks into it (2026-09-02).
   const [gymStartDay, setGymStartDay] = useState<string | null>(null);
+  // 2026-09-14: Have Less Time? on the hero hands the gym a budget with the day.
+  const [gymStartBudget, setGymStartBudget] = useState<number | null>(null);
   // D10-B/D11-C/D13-C: the metric strip and the insight cards, health-kind
   // pages only. Reloaded alongside the gym read (gymOpen dep) so a metric
   // logged from the strip and a set logged in the gym both show up fresh.
@@ -278,6 +283,7 @@ export default function CategoryDetail({
   const [tookIt, setTookIt] = useState<(TookItEntry & { pending?: boolean })[]>([]);
   const [medDefs, setMedDefs] = useState<MedDefEntry[]>([]);
   const [meals, setMeals] = useState<(MealEntry & { pending?: boolean })[]>([]);
+  const [checkins, setCheckins] = useState<(CheckInEntry & { pending?: boolean })[]>([]);
   // Health Push D: a write from the medication page or a toast's Undo bumps
   // this, so the health read below runs again without a screen changing.
   const [healthTick, setHealthTick] = useState(0);
@@ -381,6 +387,7 @@ export default function CategoryDetail({
     healthSvc.listPointAtIt().then((l) => { if (on) setPointAtIt(l); }).catch(() => {});
     healthSvc.listMedDefs().then((l) => { if (on) setMedDefs(l); }).catch(() => {});
     healthSvc.listMeal().then((l) => { if (on) setMeals(l); }).catch(() => {});
+    healthSvc.listCheckIn().then((l) => { if (on) setCheckins(l); }).catch(() => {});
     return () => { on = false; };
   }, [healthSvc, healthScreen, healthTick]);
 
@@ -410,6 +417,11 @@ export default function CategoryDetail({
     const existing = metricDefs.find((d) => d.data.presetKey === "water");
     if (existing) { if (existing.data.hidden) await metricWrite(() => metricsSvc.updateDef(existing.id, { hidden: false })); return; }
     await metricWrite(() => metricsSvc.createDef(newMetricDefData("Water", "number", "glasses", "water", today, metricDefs.length)));
+  };
+  const ensureWaterDef = async (): Promise<MetricDef | null> => {
+    await ensureWater();
+    const defs = await metricsSvc.listDefs();
+    return defs.find((d) => d.data.presetKey === "water" && !d.data.hidden) ?? null;
   };
   const waterPlus = async (def: MetricDef, n: number) => {
     const unit = def.data.unit ?? "glasses";
@@ -591,6 +603,20 @@ export default function CategoryDetail({
       />
     );
   }
+  if (healthScreen === "checkin") {
+    return (
+      <CheckInScreen
+        today={checkins.filter((c) => localDayParts(c.data.at).day === today)}
+        onLog={(d) => {
+          const w = healthSvc.logCheckIn(d);
+          showToast({ message: "Check in saved", actionLabel: "Undo", onAction: () => { void healthSvc.removeCheckIn(w.at).then(bumpHealth); } });
+          bumpHealth();
+        }}
+        onUndo={(c) => { void healthSvc.removeCheckIn(c.data.at).then(bumpHealth); }}
+        onBack={() => setHealthScreen(null)}
+      />
+    );
+  }
   if (healthScreen === "callIt") {
     return (
       <CallItScreen
@@ -626,6 +652,7 @@ export default function CategoryDetail({
       <GymFlow
         areaId={categoryId}
         startDayId={gymStartDay ?? undefined}
+        startBudgetMin={gymStartBudget ?? undefined}
         startDoorEventId={gymDoor?.id}
         // The two workout-shaped loggers, offered where the workout is: on the
         // receipt the moment it is finished, and on any logged session opened
@@ -634,7 +661,7 @@ export default function CategoryDetail({
         // history and put it there").
         onRateSession={() => setHealthScreen("callIt")}
         onLogSoreSpot={() => setHealthScreen("pointAtIt")}
-        onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }}
+        onBack={() => { setGymOpen(false); setGymStartDay(null); setGymStartBudget(null); void reload(); }}
       />
     );
   }
@@ -965,15 +992,25 @@ export default function CategoryDetail({
   // page (Dave 2026-09-10 moved them onto the session; the choice is his).
   const hs = kind === "health" ? readHealthSettings() : null;
   const lastCall = callIt[callIt.length - 1];
+  const lastCheckIn = checkins[checkins.length - 1];
   const healthLoggers: HealthLoggerRow[] = kind !== "health" || !hs ? [] : [
+    // The tile keeps the name Bedtime: his Sleep metric is its own tile, and
+    // two tiles called Sleep would be the fork the hue law exists to stop.
     ...(hs.shortcuts.includes("bedtime") ? [{ key: "lightsOut" as const, label: "Bedtime", sub: "When the night ended", value: whenLogged(lightsOut[lightsOut.length - 1]?.data.at) }] : []),
     ...(hs.shortcuts.includes("meal") ? [{ key: "meal" as const, label: "Meal", sub: "What you ate", value: whenLogged(meals[meals.length - 1]?.data.at) }] : []),
+    ...(hs.shortcuts.includes("checkin") ? [{ key: "checkin" as const, label: "Check In", sub: "Energy and mood", value: lastCheckIn && localDayParts(lastCheckIn.data.at).day === today ? (checkInLine(lastCheckIn.data) ? "Today" : "Today") : whenLogged(lastCheckIn?.data.at) }] : []),
     ...(hs.shortcuts.includes("effort") ? [{ key: "callIt" as const, label: "Session Effort", sub: "How hard it was, 0 to 10", value: lastCall ? `${lastCall.data.rpe}/10` : null }] : []),
     ...(hs.shortcuts.includes("discomfort") ? [{ key: "pointAtIt" as const, label: "Discomfort", sub: "Where it hurts", value: whenLogged(pointAtIt[pointAtIt.length - 1]?.data.at) }] : []),
   ];
   const waterDef = hs?.shortcuts.includes("water") ? metricDefs.find((d) => d.data.presetKey === "water" && !d.data.hidden) ?? null : null;
   const waterToday = waterDef ? (logOn(metricLogs, waterDef.id, today)?.data.value ?? 0) : 0;
-  const water = waterDef ? { name: waterDef.data.name, today: waterToday, unit: waterDef.data.unit ?? "glasses", onPlus: () => void waterPlus(waterDef, waterToday) } : null;
+  // With the shortcut on and no metric yet (the reference's default set),
+  // the first + seeds the metric and logs the first glass in one tap.
+  const water = waterDef
+    ? { name: waterDef.data.name, today: waterToday, unit: waterDef.data.unit ?? "glasses", onPlus: () => void waterPlus(waterDef, waterToday) }
+    : hs?.shortcuts.includes("water")
+      ? { name: "Water", today: 0, unit: "glasses", onPlus: () => { void ensureWaterDef().then((d) => (d ? waterPlus(d, 0) : undefined)); } }
+      : null;
   // H-12: the session in flight, live or parked, read straight off storage
   // the way GymFlow reads it. Read per render: one localStorage read.
   const liveSession = kind === "health" ? readLive() : null;
@@ -986,7 +1023,7 @@ export default function CategoryDetail({
     return { dayName: liveSession.dayName, nextExercise: ex?.name ?? null, setNo: Math.min(working + 1, Math.max(planned, working + 1)), setTotal: planned, logged };
   })() : null;
   // H-48: today's log, from the same records the tiles read.
-  const healthLog = kind === "health" ? chronologicalLog({ day: today, lightsOut, tookIt, callIt, pointAtIt, workouts, metricDefs, metricLogs, medDefs, meals }) : [];
+  const healthLog = kind === "health" ? chronologicalLog({ day: today, lightsOut, tookIt, callIt, pointAtIt, workouts, metricDefs, metricLogs, medDefs, meals, checkins }) : [];
   // H-53: what is still waiting to sync, health logs and workouts alike.
   const pendingCount = kind === "health" ? readHealthPending().length + readGymPending().length : 0;
   const openLog = (o: LogOpen) => {
@@ -1452,7 +1489,7 @@ export default function CategoryDetail({
           gymEvent={gymDoor ? { start: gymDoor.start } : null}
           metricDefs={metricDefs}
           metricLogs={metricLogs}
-          onStart={(dayId) => { setGymStartDay(dayId); setGymOpen(true); }}
+          onStart={(dayId, budgetMin) => { setGymStartDay(dayId); setGymStartBudget(budgetMin ?? null); setGymOpen(true); }}
           onOpenGym={() => setGymOpen(true)}
           onOpenMetric={(def) => setMetricSheet({ kind: "log", def })}
           onManageMetrics={() => setMetricSheet({ kind: "add" })}
@@ -1460,6 +1497,9 @@ export default function CategoryDetail({
           onOpenHealthLogger={(key) => setHealthScreen(key)}
           onOpenMedication={() => setMedPage(true)}
           medSub={medSub}
+          medTile={!!hs?.shortcuts.includes("medication")}
+          onRateSession={() => setHealthScreen("callIt")}
+          onOpenExport={() => setHealthDeep("doctorReport")}
           live={liveHero}
           onResume={() => setGymOpen(true)}
           water={water}

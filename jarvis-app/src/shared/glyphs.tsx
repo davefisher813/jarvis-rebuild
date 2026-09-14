@@ -15,6 +15,10 @@
 import {
   ArrowsClockwise as ArrowsClockwiseFill,
   Barbell as BarbellFill,
+  Moon as MoonFill,
+  Drop as DropFill,
+  Smiley as SmileyFill,
+  ForkKnife as ForkKnifeFill,
   BellSimple as BellSimpleFill,
   CalendarBlank as CalendarBlankFill,
   CaretDoubleRight as CaretDoubleRightFill,
@@ -354,6 +358,44 @@ export function PhoneGlyph({ className = "ic" }: { className?: string }) {
     <>
       <svg className={className + " ic-out"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.9 2.1z" /></svg>
       <PhoneFill className={className + " ic-fill"} weight="fill" />
+    </>
+  );
+}
+
+// THE HEALTH TILES' GLYPHS (2026-09-14, the reference's moon, utensils,
+// droplets and smile): what kind of thing a Quick Log tile logs.
+export function MoonGlyph({ className = "ic" }: { className?: string }) {
+  return (
+    <>
+      <svg className={className + " ic-out"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>
+      <MoonFill className={className + " ic-fill"} weight="fill" />
+    </>
+  );
+}
+
+export function DropGlyph({ className = "ic" }: { className?: string }) {
+  return (
+    <>
+      <svg className={className + " ic-out"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" /></svg>
+      <DropFill className={className + " ic-fill"} weight="fill" />
+    </>
+  );
+}
+
+export function SmileGlyph({ className = "ic" }: { className?: string }) {
+  return (
+    <>
+      <svg className={className + " ic-out"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>
+      <SmileyFill className={className + " ic-fill"} weight="fill" />
+    </>
+  );
+}
+
+export function MealGlyph({ className = "ic" }: { className?: string }) {
+  return (
+    <>
+      <svg className={className + " ic-out"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" /><path d="M7 2v20" /><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" /></svg>
+      <ForkKnifeFill className={className + " ic-fill"} weight="fill" />
     </>
   );
 }

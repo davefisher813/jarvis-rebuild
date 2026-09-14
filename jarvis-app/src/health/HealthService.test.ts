@@ -257,3 +257,19 @@ describe("typedKind", () => {
     expect(ev.props).toEqual({ kind: "medication_logged" });
   });
 });
+
+// 2026-09-14: the check-in logs offline like everything else and can be undone.
+describe("HealthService: Check In", () => {
+  it("logs the words and the note, lists them, and removes one by its moment", async () => {
+    const s = svc();
+    const st = mem();
+    const d = s.logCheckIn({ energy: "okay", mood: "good", note: "  fine  " }, 1000, st);
+    expect(d).toEqual({ category: "body", at: 1000, energy: "okay", mood: "good", note: "fine" });
+    await tick();
+    const rows = await s.listCheckIn(st);
+    expect(rows.map((r) => r.data.at)).toEqual([1000]);
+    expect(await s.removeCheckIn(1000, st)).toBe(true);
+    expect(await s.listCheckIn(st)).toEqual([]);
+    expect(typedKind("health_checkin")).toBe("checkin_logged");
+  });
+});

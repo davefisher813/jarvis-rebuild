@@ -15,15 +15,22 @@ import type { Storage2 } from "../gym/liveSession";
 // or a timer can ask while it renders. The rack (bar, plates, unit, last-time
 // on every set) stays in gym/settings.ts; the Health Settings page shows both.
 
-export type ShortcutKey = "bedtime" | "water" | "meal" | "effort" | "discomfort";
+export type ShortcutKey = "bedtime" | "water" | "meal" | "checkin" | "medication" | "effort" | "discomfort";
 
+// THE REFERENCE'S SHORTCUTS (2026-09-14): Sleep, Meal, Water and Check In on
+// by default, Medication as the optional one with its last dose visible.
+// Bedtime keeps its name: the Sleep metric (hours) is a tile of its own.
 export const SHORTCUTS: { key: ShortcutKey; label: string }[] = [
   { key: "bedtime", label: "Bedtime" },
-  { key: "water", label: "Water" },
   { key: "meal", label: "Meal" },
+  { key: "water", label: "Water" },
+  { key: "checkin", label: "Check In" },
+  { key: "medication", label: "Medication" },
   { key: "effort", label: "Session Effort" },
   { key: "discomfort", label: "Discomfort" },
 ];
+/** The version of the default shortcut set a stored record was seeded with. */
+const SHORTCUT_SEED = 2;
 
 export interface VolumeBand { low: number; high: number }
 
@@ -35,6 +42,8 @@ export const PROGRESSION_MODES: ProgressionMode[] = ["assisted", "manual", "prog
 
 export interface HealthSettings {
   shortcuts: ShortcutKey[];
+  /** Which default set the shortcuts were seeded from; absent before 2026-09-14. */
+  seeded?: number;
   restSound: boolean;
   restNotify: boolean;
   celebrations: boolean;
@@ -44,7 +53,8 @@ export interface HealthSettings {
 }
 
 export const DEFAULT_HEALTH_SETTINGS: HealthSettings = {
-  shortcuts: ["bedtime"],
+  shortcuts: ["bedtime", "meal", "water", "checkin"],
+  seeded: SHORTCUT_SEED,
   restSound: true,
   restNotify: true,
   celebrations: true,
@@ -69,19 +79,26 @@ export function readHealthSettings(store: Storage2 = browserStorage()): HealthSe
     const raw = store.read(KEY);
     if (!raw) return { ...DEFAULT_HEALTH_SETTINGS };
     const p = JSON.parse(raw) as Partial<HealthSettings>;
-    const shortcuts = Array.isArray(p.shortcuts) ? p.shortcuts.filter((k): k is ShortcutKey => KEYS.includes(k as ShortcutKey)) : DEFAULT_HEALTH_SETTINGS.shortcuts;
+    let shortcuts = Array.isArray(p.shortcuts) ? p.shortcuts.filter((k): k is ShortcutKey => KEYS.includes(k as ShortcutKey)) : DEFAULT_HEALTH_SETTINGS.shortcuts;
+    // A record from before the reference's four defaults gets them once,
+    // keeping whatever it already had on; after that the choice is his.
+    const seeded = p.seeded === SHORTCUT_SEED;
+    if (!seeded) shortcuts = [...new Set([...DEFAULT_HEALTH_SETTINGS.shortcuts, ...shortcuts])];
     const band = p.volumeBand && typeof p.volumeBand === "object" && Number.isFinite(p.volumeBand.low) && Number.isFinite(p.volumeBand.high)
       && p.volumeBand.low > 0 && p.volumeBand.high > p.volumeBand.low
       ? { low: p.volumeBand.low, high: p.volumeBand.high }
       : null;
-    return {
+    const out: HealthSettings = {
       shortcuts,
+      seeded: SHORTCUT_SEED,
       restSound: p.restSound !== false,
       restNotify: p.restNotify !== false,
       celebrations: p.celebrations !== false,
       volumeBand: band,
       progression: PROGRESSION_MODES.includes(p.progression as ProgressionMode) ? (p.progression as ProgressionMode) : "assisted",
     };
+    if (!seeded) store.write(KEY, JSON.stringify(out));
+    return out;
   } catch {
     return { ...DEFAULT_HEALTH_SETTINGS };
   }

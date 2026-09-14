@@ -10,7 +10,7 @@ import CategoryDetail from "./CategoryDetail";
 
 // The one log section (Dave 2026-09-10: "Daily logs should be combined with
 // metrics in the most efficient way possible").
-const LOG_HEAD = "Daily Log";
+const LOG_HEAD = "Quick Log";
 
 // The category page (2026-08-03): a receipts-and-actions page, not an archive.
 
@@ -405,7 +405,10 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     for (const gone of ["How Hard It Was", "Where It Hurts"]) {
       expect(screen.queryByText(gone), gone + " is not on the home page").not.toBeInTheDocument();
     }
-    // Medication is a door to its own page, not a tile in the grid.
+    // Medication is a door to its own page (on the Logs tab, 2026-09-14),
+    // not a tile in the grid unless he turns the shortcut on.
+    expect(screen.queryByText("Medication")).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Logs" }));
     expect(screen.getByText("Medication").closest(".h-tile")).toBeNull();
     expect(screen.getByText("Medication").closest(".task-row")).toBeTruthy();
     // The gesture names are gone from the page itself.
@@ -421,6 +424,7 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
   it("Medication opens a page of its own, with the dose and the rest of it", async () => {
     render(<NotesProvider userId="hl5"><SeededHealth /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("tab", { name: "Logs" }));
     fireEvent.click(screen.getByText("Medication"));
     await waitFor(() => expect(screen.getByText("Log a Dose")).toBeInTheDocument());
     expect(screen.getByText("Refill Runway")).toBeInTheDocument();
@@ -681,6 +685,8 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
   it("Student gets the screens that have a real source, behind the Settings door", async () => {
     render(<NotesProvider userId="hm1"><SeededHealthMore template="student" /></NotesProvider>);
     // Part 3 wave 4: the Student template's screens open from the Settings door.
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Logs" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("tab", { name: "Logs" }));
     await waitFor(() => expect(screen.getByText("Settings")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Settings"));
 
@@ -704,6 +710,8 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
   it("Week Shape counts the real calendar, not a stand-in", async () => {
     render(<NotesProvider userId="hm2"><SeededHealthMore template="student" /></NotesProvider>);
     // Part 3 wave 4: the Student template's screens open from the Settings door.
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Logs" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("tab", { name: "Logs" }));
     await waitFor(() => expect(screen.getByText("Settings")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Settings"));
     fireEvent.click(await screen.findByText("Week Shape"));
@@ -720,6 +728,8 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
   it("Add Wind Down protects the hour on the routine, and says so only after the write", async () => {
     render(<NotesProvider userId="hm4"><SeededHealthMore template="student" /></NotesProvider>);
     // Part 3 wave 4: the Student template's screens open from the Settings door.
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Logs" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("tab", { name: "Logs" }));
     await waitFor(() => expect(screen.getByText("Settings")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Settings"));
     fireEvent.click(await screen.findByText("The Night Before"));
@@ -750,6 +760,7 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
     render(<NotesProvider userId="hm3"><SeededHealthMore template="personal" /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
     expect(screen.getByText("Bedtime")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Logs" }));
     fireEvent.click(screen.getByText("Medication"));
     expect(await screen.findByText("Refill Runway")).toBeInTheDocument();
     expect(screen.getByText("The Med Window")).toBeInTheDocument();
@@ -836,18 +847,23 @@ describe("CategoryDetail health page: Push C", () => {
     expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
   });
 
-  it("a logged bedtime shows up under Log, and the page has its Settings door", async () => {
+  it("a logged bedtime shows up on the Logs tab's timeline, beside the Settings door", async () => {
     render(<NotesProvider userId="hc2"><SeededHealth /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Bedtime")).toBeInTheDocument());
-    expect(screen.queryByText("Log")).toBeNull();
+    // 2026-09-14: the timeline and the doors live on the Logs tab.
+    fireEvent.click(screen.getByRole("tab", { name: "Logs" }));
+    expect(screen.getByText("Nothing Logged Yet")).toBeInTheDocument();
     expect(screen.getByText("Settings")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     fireEvent.click(screen.getByText("Bedtime"));
     await waitFor(() => expect(screen.getByText("One Tap, One Time")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Lights Out", { selector: "button" }));
     await waitFor(() => expect(screen.getByText("Good night.")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Done"));
-    await waitFor(() => expect(screen.getByText("Log")).toBeInTheDocument());
-    // The tile and the log row both say Bedtime; the row opens the same screen.
-    expect(screen.getAllByText("Bedtime").length).toBe(2);
+    await waitFor(() => expect(screen.getByText("Bedtime").closest(".h-tile")).toHaveTextContent("Today"));
+    fireEvent.click(screen.getByRole("tab", { name: "Logs" }));
+    // The log row says Bedtime, and it opens the same screen the tile does.
+    await waitFor(() => expect(screen.getByText("Bedtime")).toBeInTheDocument());
+    expect(screen.queryByText("Nothing Logged Yet")).toBeNull();
   });
 });

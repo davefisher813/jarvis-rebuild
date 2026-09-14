@@ -1,4 +1,5 @@
-import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry, MedDefEntry, MealEntry } from "./types";
+import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry, MedDefEntry, MealEntry, CheckInEntry } from "./types";
+import { checkInLine } from "./checkin";
 import type { Workout } from "../gym/types";
 import type { MetricDef, MetricLog } from "../gym/metrics";
 import { hueForMetric, type HueKind } from "./hue";
@@ -12,7 +13,7 @@ import { capAfterNumber } from "../shared/casing";
 // records the tiles read, so a tile and the log can never disagree.
 
 export type LogOpen =
-  | { kind: "lightsOut" | "tookIt" | "callIt" | "pointAtIt" | "meal" }
+  | { kind: "lightsOut" | "tookIt" | "callIt" | "pointAtIt" | "meal" | "checkin" }
   | { kind: "workout"; id: string }
   | { kind: "metric"; defId: string };
 
@@ -41,6 +42,8 @@ export interface LogInputs {
   /** Health Push D: the meds by name, so a dose row can say which. */
   medDefs?: MedDefEntry[];
   meals?: MealEntry[];
+  /** 2026-09-14: the check-ins, two words and a note. */
+  checkins?: CheckInEntry[];
 }
 
 /** The local day's [start, end) in epoch ms. */
@@ -65,6 +68,7 @@ export function chronologicalLog(inp: LogInputs): LogRow[] {
     rows.push({ id: "ti-" + e.id, kind: "medication", title: def?.data.name ?? "Dose", at: e.data.at, detail: e.data.amount ?? def?.data.amount ?? null, open: { kind: "tookIt" } });
   }
   for (const e of inp.meals ?? []) if (inDay(e.data.at)) rows.push({ id: "me-" + e.id, kind: "meal", title: "Meal", at: e.data.at, detail: e.data.text, open: { kind: "meal" } });
+  for (const e of inp.checkins ?? []) if (inDay(e.data.at)) rows.push({ id: "ck-" + e.id, kind: "reading", title: "Check In", at: e.data.at, detail: checkInLine(e.data), open: { kind: "checkin" } });
   for (const e of inp.callIt) if (inDay(e.data.at)) rows.push({ id: "ci-" + e.id, kind: "reading", title: "Session Effort", at: e.data.at, detail: `${e.data.rpe}/10`, open: { kind: "callIt" } });
   for (const e of inp.pointAtIt) if (inDay(e.data.at)) rows.push({ id: "pa-" + e.id, kind: "discomfort", title: "Discomfort", at: e.data.at, detail: null, open: { kind: "pointAtIt" } });
   for (const w of inp.workouts) {

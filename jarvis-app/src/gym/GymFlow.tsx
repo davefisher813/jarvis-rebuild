@@ -490,7 +490,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
 // The gym track: programs in the user's own words, weeks as the time axis,
 // the set strip as the same object in the plan and in the live session, the
 // in-gym loop, live PRs, and an honest receipt.
-export default function GymFlow({ onBack, door, startDayId, startDoorEventId, areaId, onRateSession, onLogSoreSpot }: {
+export default function GymFlow({ onBack, door, startDayId, startDoorEventId, startBudgetMin, areaId, onRateSession, onLogSoreSpot }: {
   onBack: () => void;
   /** WORKOUT LOGGING BELONGS WITH THE WORKOUT (Dave 2026-09-10: "how hard it
    *  was, where it hurts, anything related to an actual workout should go
@@ -521,6 +521,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
    *  on a session already logged. CategoryDetail.tsx already reads today's
    *  gym block for the hero's own display; this is the same event's id. */
   startDoorEventId?: string;
+  /** 2026-09-14: the Health page's Have Less Time? pick. The fit sheet
+   *  opens already priced to it; the athlete still says Start. */
+  startBudgetMin?: number;
 }) {
   const svc = useGym();
   const ai = useAI();
@@ -1097,8 +1100,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       return;
     }
     const day = program.data.weeks.flatMap((w) => w.days).find((d) => d.id === startDayId);
-    if (day) requestStart(day, { doorEventId: startDoorEventId });
-  }, [startDayId, startDoorEventId, startHandled, loaded, program]);
+    if (day) requestStart(day, { doorEventId: startDoorEventId, budgetMin: startBudgetMin });
+  }, [startDayId, startDoorEventId, startBudgetMin, startHandled, loaded, program]);
 
   // THE DOOR OPENS (D4-C): mounted from the calendar's gym block. The
   // pinned day walks straight into the fit sheet; no pin, it asks once.

@@ -1701,3 +1701,30 @@
 .ruled .slide-tag { flex-shrink: 0; font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
   letter-spacing: 0.07em; text-transform: uppercase; padding: 2px 7px; border-radius: var(--r-pill);
   color: var(--hl-violet); background: var(--hl-violet-tint); white-space: nowrap; }
+
+/* ---------- THE HEALTH OVERVIEW, TO THE REFERENCE (Dave 2026-09-14) ------
+   Three tabs, the next-workout card with its eyebrow and program beside it,
+   Start as the one filled primary with Have Less Time? under it, seven dated
+   circles for the week, stat tiles that read and do not log, and the Logs
+   tab's timeline. Every size and colour is one the page already used. */
+.ruled.health-ruled .h-tabs { padding-top: var(--s-2); }
+.ruled.health-ruled .h-hero-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px 0; }
+.ruled.health-ruled .h-eyebrow { font-size: calc(11px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-2); }
+.ruled.health-ruled .h-hero-cta { display: flex; flex-direction: column; gap: 4px; padding: 0 16px 12px; }
+.ruled.health-ruled .h-less { padding: 4px 0 2px; }
+.ruled.health-ruled .h-less-q { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi); margin-bottom: 8px; }
+.ruled.health-ruled .h-less-picks { flex-wrap: wrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.ruled.health-ruled .h-week-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 16px 6px; }
+.ruled.health-ruled .h-week-n { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
+/* The dated circle: the day of the month, or a check on a trained day. */
+.ruled.health-ruled .h-week.h-week-dates .h-day i { width: 28px; height: 28px; border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; font-style: normal; font-size: calc(12px * var(--type-scale));
+  font-weight: var(--w-semi); letter-spacing: 0; color: var(--tx-2); background: var(--press-3); }
+.ruled.health-ruled .h-week.h-week-dates .h-day.on i { background: var(--hl-lime); color: var(--on-fill-dark); }
+.ruled.health-ruled .h-week.h-week-dates .h-day i .ic { width: 14px; height: 14px; stroke-width: 3; }
+/* A stat tile reads; it is not a door. */
+.ruled.health-ruled .h-tile-stat { cursor: default; }
+.ruled.health-ruled .h-timeline-date { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); padding: 0 0 8px; }
+.ruled.health-ruled .h-next { color: var(--tx-1); font-weight: var(--w-semi); }
+.ruled.health-ruled .h-tab-foot { display: flex; flex-direction: column; gap: 4px; margin-top: var(--s-4); }

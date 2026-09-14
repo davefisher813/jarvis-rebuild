@@ -10,7 +10,7 @@ function mem(): Storage2 {
 }
 
 describe("health settings", () => {
-  it("defaults to Bedtime alone, sound and notification on, celebrations on, the studied band", () => {
+  it("defaults to the reference's four shortcuts, sound and notification on, celebrations on, the studied band", () => {
     expect(readHealthSettings(mem())).toEqual(DEFAULT_HEALTH_SETTINGS);
   });
   it("round-trips, and a patch keeps what it did not name", () => {
@@ -24,8 +24,16 @@ describe("health settings", () => {
     const s = mem();
     s.write("jarvis.health.settings.v1", JSON.stringify({ shortcuts: ["bedtime", "calories"], volumeBand: { low: 20, high: 10 } }));
     const r = readHealthSettings(s);
-    expect(r.shortcuts).toEqual(["bedtime"]);
+    // 2026-09-14: a record from before the four defaults is seeded with them once.
+    expect(r.shortcuts).toEqual(["bedtime", "meal", "water", "checkin"]);
     expect(r.volumeBand).toBeNull();
+  });
+  it("seeds the four defaults into an older record once, then keeps his choice", () => {
+    const s = mem();
+    s.write("jarvis.health.settings.v1", JSON.stringify({ shortcuts: ["effort"] }));
+    expect(readHealthSettings(s).shortcuts).toEqual(["bedtime", "meal", "water", "checkin", "effort"]);
+    updateHealthSettings({ shortcuts: ["effort"] }, s);
+    expect(readHealthSettings(s).shortcuts).toEqual(["effort"]);
   });
   it("keeps a band he set", () => {
     const s = mem();

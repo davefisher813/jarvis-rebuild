@@ -36,6 +36,8 @@ export const ENTITY_POINT_AT_IT = "health_point_at_it";
 // privacy law (healthPrivacy.test.ts, laws 6 and 7) holds both shapes to it.
 export const ENTITY_MED_DEF = "health_med_def";
 export const ENTITY_MEAL = "health_meal";
+/** Check In (2026-09-14, the reference's Energy and Mood check-in). */
+export const ENTITY_CHECKIN = "health_checkin";
 
 // Track 3 addenda (catalog Parts 1-8, 2026-08-27): Refill Runway, The Bag,
 // The Locker, Say It to Someone, The Age Rule's once-per-season gate. Same
@@ -170,6 +172,23 @@ export interface MealData extends QueuedLog {
 export interface MealEntry {
   id: string;
   data: MealData;
+}
+
+/** Check In (2026-09-14). Two words a person picks and a note, at a moment.
+ *  Words, never numbers: nothing here can be averaged, ranked or fed to a
+ *  correlation surface, which is D11's rule on mood kept by shape. */
+export type CheckInEnergy = "low" | "okay" | "high";
+export type CheckInMood = "low" | "neutral" | "good";
+export interface CheckInData extends QueuedLog {
+  category: "body";
+  at: number;
+  energy?: CheckInEnergy;
+  mood?: CheckInMood;
+  note?: string;
+}
+export interface CheckInEntry {
+  id: string;
+  data: CheckInData;
 }
 
 /** Call It (Part 2). End-of-session exertion, one tap on a 0-10 scale.

@@ -14,12 +14,14 @@ describe("HealthSettingsPage", () => {
   it("toggling a shortcut writes through, and turning Water on seeds its metric", () => {
     const onEnableWater = vi.fn();
     render(<HealthSettingsPage onBack={() => {}} onEnableWater={onEnableWater} />);
+    // 2026-09-14: the reference's four are on by default, Water among them.
     expect(screen.getByRole("button", { name: "Bedtime" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Water" })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "Water" }));
-    expect(readHealthSettings().shortcuts).toEqual(["bedtime", "water"]);
-    expect(onEnableWater).toHaveBeenCalledTimes(1);
+    expect(readHealthSettings().shortcuts).toEqual(["bedtime", "meal", "checkin"]);
+    expect(onEnableWater).toHaveBeenCalledTimes(0);
     fireEvent.click(screen.getByRole("button", { name: "Water" }));
-    expect(readHealthSettings().shortcuts).toEqual(["bedtime"]);
+    expect(readHealthSettings().shortcuts).toEqual(["bedtime", "meal", "checkin", "water"]);
     expect(onEnableWater).toHaveBeenCalledTimes(1);
   });
 
