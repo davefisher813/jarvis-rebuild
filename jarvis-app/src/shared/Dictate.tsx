@@ -41,7 +41,7 @@ export default function Dictate({
   target,
   label = "Speak",
 }: {
-  target: RefObject<HTMLTextAreaElement | HTMLInputElement | null>;
+  target: RefObject<HTMLElement | null>;
   label?: string;
 }) {
   const said = useRef(false);

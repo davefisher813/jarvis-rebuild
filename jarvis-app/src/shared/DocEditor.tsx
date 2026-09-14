@@ -71,6 +71,10 @@ export interface DocEditorHandle {
   replaceCurrent: (replacement: string) => boolean;
   replaceAll: (replacement: string) => number;
   unfoldAll: () => void;
+  /** The document as HTML, for a surface that sends it (email). */
+  getHtml: () => string;
+  /** The editable element itself, for a control that needs to focus it. */
+  getDom: () => HTMLElement | null;
 }
 
 // A callout is a paragraph that wants noticing: the old callout block, as a
@@ -228,6 +232,8 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
     replaceCurrent: (r) => (editor ? replaceCurrent(editor, r) : false),
     replaceAll: (r) => (editor ? replaceAll(editor, r) : 0),
     unfoldAll: () => { if (editor) unfoldAll(editor); },
+    getHtml: () => editor?.getHTML() ?? "",
+    getDom: () => editor?.view.dom ?? null,
   }), [editor]);
 
   // A new document replaces the content outright. The same document coming

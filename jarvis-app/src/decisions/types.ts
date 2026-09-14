@@ -27,6 +27,10 @@ export interface DecisionRecordData {
   decision: string;
   // The reason you will forget. Optional; empty renders "No reason recorded".
   why?: string;
+  // THE NOTES (the writing system, wave 3c): the longer thinking under a
+  // decision, as Markdown from the shared editor. Optional structure: a
+  // decision with one line stays one line.
+  notes?: string;
   // The options you closed. The block that stops you relitigating.
   ruledOut?: string[];
   // Attached To. The triple stays for every record written before C-53 and

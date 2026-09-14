@@ -168,3 +168,11 @@ body.writing .screen-editor { padding-bottom: 140px; }
 
 /* QUICK APPEND (wave 3): the third swipe slot on a note row, in the tint. */
 .task-snooze.note-append { right: 176px; background: var(--tint); color: #fff; }
+
+/* THE EDITOR ON THE OTHER SURFACES (wave 3c): the compose body wears the
+   mail field's box; a sheet's notes field and the workout note sit in their
+   groups; a Brain document is the document level on the page. */
+.msg-compose-body { width: 100%; background: var(--surface-2); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); }
+.msg-compose-body .doc-pm { min-height: 160px; font-size: var(--t-body); }
+.task-notes .doc-editor, .card.pad .doc-editor { padding: var(--s-1) 0; }
+.sheet-form .doc-editor-quick .doc-pm { background: var(--surface-2); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); min-height: 60px; }

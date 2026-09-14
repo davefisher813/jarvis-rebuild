@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import "../../shared/tiptapTest";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { Store, InMemoryAdapter } from "@core";
 import { BrainDocService } from "./BrainDocService";
@@ -27,13 +28,17 @@ describe("BrainDocPage", () => {
       </NotesProvider>,
     );
     expect(screen.getAllByText("How You Write").length).toBeGreaterThan(0);
-    const ta = await screen.findByPlaceholderText(/Tone · style/i);
+    // The writing system (wave 3c): the shared editor on the document
+    // level; its cue is the topic's placeholder, its name the topic's title.
+    const pm = await screen.findByLabelText("How You Write");
+    expect(pm.querySelector("p")).toHaveAttribute("data-placeholder", expect.stringMatching(/Tone · style/i));
     // C-16 (Astra, 2026-09-12): no Save button; the canvas saves on blur.
     const spy = vi.spyOn(BrainDocService.prototype, "save");
     try {
-      fireEvent.change(ta, { target: { value: "Short and direct." } });
+      await act(async () => { pm.querySelector("p")!.textContent = "Short and direct."; });
+      await waitFor(() => expect(pm.textContent).toContain("Short and direct."));
       expect(screen.queryByText("Save")).toBeNull();
-      fireEvent.blur(ta);
+      fireEvent.blur(pm);
       await waitFor(() => expect(spy).toHaveBeenCalledWith("writing", "Short and direct.", undefined));
     } finally { spy.mockRestore(); }
   });
@@ -57,12 +62,14 @@ describe("BrainDocPage load failure (BRAIN-F-12)", () => {
       );
       await waitFor(() => expect(screen.getByText("Try Again")).toBeInTheDocument());
       expect(seen).toContain("Couldn't load · Check your connection");
-      expect(await screen.findByPlaceholderText(/Tone · style/i)).toBeDisabled();
+      // No writing surface until the words are read: nothing to type into
+      // that would be lost.
+      expect(screen.queryByLabelText("How You Write")).toBeNull();
 
       // The next read works, and the page is a page again.
       fireEvent.click(screen.getByText("Try Again"));
       await waitFor(() => expect(screen.queryByText("Try Again")).not.toBeInTheDocument());
-      expect(screen.getByPlaceholderText(/Tone · style/i)).not.toBeDisabled();
+      expect(await screen.findByLabelText("How You Write")).toHaveAttribute("contenteditable", "true");
     } finally {
       spy.mockRestore();
       stop();

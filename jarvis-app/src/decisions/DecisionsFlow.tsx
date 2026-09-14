@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode, useRef } from "react";
 import { useDecisions, useProjects, useGoals, useCategories, useOptionalStrands } from "../data/NotesProvider";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import InlineEdit from "../shared/InlineEdit";
+import MarkdownField from "../shared/MarkdownField";
 import DecisionCaptureSheet, { type AttachOption, type DecisionDraft } from "./DecisionCaptureSheet";
 import { ENTITY_DECISION, linksOf, OUTCOME_LABEL, SOURCE_LABEL, type DecisionRecord, type OutcomeWord } from "./types";
 import { todayISO } from "../schedule/calendar";
@@ -253,6 +254,14 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               placeholder={NO_REASON}
               onSave={(v) => { if (v !== (d.why ?? "")) void patch(record.id, { why: v || undefined }); }}
             />
+          </div></div>
+
+          {/* THE NOTES (the writing system, wave 3c): the longer thinking,
+              on the shared editor's compact level, saved when it loses
+              focus. Optional: a decision that is one line stays one line. */}
+          <div className="sh2 sh2-quiet"><span className="t">Notes</span></div>
+          <div className="pad-x"><div className="card pad">
+            <DecisionNotes id={record.id} value={d.notes ?? ""} onSave={(v) => { if (v !== (d.notes ?? "")) void patch(record.id, { notes: v || undefined }); }} />
           </div></div>
 
           {/* C-53: where it came from. A row that opens the origin when the
@@ -522,5 +531,23 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
       )}
       <div className="screen-foot" />
     </div>
+  );
+}
+
+// The decision's notes field: the string is held here while it is typed and
+// written once, when the editor loses focus.
+function DecisionNotes({ id, value, onSave }: { id: string; value: string; onSave: (v: string) => void }) {
+  const draft = useRef(value);
+  useEffect(() => { draft.current = value; }, [value, id]);
+  return (
+    <MarkdownField
+      value={value}
+      docKey={"decision:" + id}
+      level="compact"
+      placeholder="The Longer Thinking, If There Is Any"
+      ariaLabel="Decision notes"
+      onChange={(v) => { draft.current = v; }}
+      onBlur={() => onSave(draft.current)}
+    />
   );
 }

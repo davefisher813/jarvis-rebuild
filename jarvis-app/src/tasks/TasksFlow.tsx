@@ -484,7 +484,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     // plan rides into the sheet (2026-08-25): without it the sheet's fields
     // start empty, save() sees an untouched plan, and setPlan(id, null) below
     // silently erased the task's if-then on EVERY edit.
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin, personId: t.personId }, source: rowSource(t.source, t.moved) });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId }, source: rowSource(t.source, t.moved) });
   };
 
   // When arriving via a note connection, open that task. SHELL-F-12: on the
@@ -510,7 +510,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, estimateMin: draft.estimateMin, personId: draft.personId }));
+      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, personId: draft.personId }));
     } else if (sheet?.mode === "edit") {
       saved = await attemptWrite(async () => {
         await svc.editText(sheet.id, draft.text);
@@ -521,6 +521,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         await svc.setRecurrence(sheet.id, rec || null);
         await svc.setPlan(sheet.id, draft.plan ?? null);
         await svc.setSteps(sheet.id, draft.steps ?? []);
+        await svc.setNotes(sheet.id, draft.notes ?? null);
         await svc.setEstimate(sheet.id, draft.estimateMin ?? null);
         await svc.setPerson(sheet.id, draft.personId ?? null);
         // Close Task: one tap on the sheet's own offer both saves and marks

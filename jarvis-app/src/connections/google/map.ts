@@ -555,6 +555,10 @@ function base64EncodeUtf8(s: string): string {
 // the pixel's plain+html pair) as one part, the attachment as another.
 export function encodeEmail(msg: {
   to: string; cc?: string; subject: string; body: string; inReplyTo?: string; pixelUrl?: string; attachment?: EmailAttachment;
+  /** The body as HTML from the shared editor (the writing system, wave 3c):
+   *  when present the message goes as multipart/alternative, the plain
+   *  words first and this second, so every client reads it. */
+  html?: string;
 }): string {
   // Subjects are decoded on the way IN now, so a reply to "Nächste Schritte"
   // carries real UTF-8 that cannot legally sit raw in a header. encodeWord
@@ -564,17 +568,18 @@ export function encodeEmail(msg: {
   headers.push("Subject: " + encodeWord(msg.subject));
   if (msg.inReplyTo) headers.push("In-Reply-To: " + msg.inReplyTo, "References: " + msg.inReplyTo);
 
-  if (!msg.pixelUrl && !msg.attachment) {
+  if (!msg.pixelUrl && !msg.attachment && !msg.html) {
     headers.push("Content-Type: text/plain; charset=UTF-8");
     return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + msg.body);
   }
 
   const altBoundary = "=_jarvis_" + Math.abs(msg.body.length * 31 + msg.to.length).toString(36) + "_b";
   let altParts = "";
-  if (msg.pixelUrl) {
-    const html =
-      "<div>" + escapeHtml(msg.body).replace(/\r?\n/g, "<br>") + "</div>" +
-      '<img src="' + msg.pixelUrl + '" width="1" height="1" alt="">';
+  if (msg.pixelUrl || msg.html) {
+    const words = msg.html
+      ? '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5">' + msg.html + "</div>"
+      : "<div>" + escapeHtml(msg.body).replace(/\r?\n/g, "<br>") + "</div>";
+    const html = words + (msg.pixelUrl ? '<img src="' + msg.pixelUrl + '" width="1" height="1" alt="">' : "");
     altParts = [
       "--" + altBoundary,
       "Content-Type: text/plain; charset=UTF-8",
@@ -594,7 +599,7 @@ export function encodeEmail(msg: {
   }
 
   const mixedBoundary = "=_jarvis_" + Math.abs(msg.body.length * 17 + msg.attachment.filename.length).toString(36) + "_m";
-  const wordsPart = msg.pixelUrl
+  const wordsPart = msg.pixelUrl || msg.html
     ? 'Content-Type: multipart/alternative; boundary="' + altBoundary + '"\r\n\r\n' + altParts
     : "Content-Type: text/plain; charset=UTF-8\r\n\r\n" + msg.body;
   const mixedParts = [

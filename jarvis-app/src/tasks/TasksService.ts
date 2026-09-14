@@ -60,7 +60,7 @@ export class TasksService {
   // set the precedent; Store.create takes the id straight through.
   async createTask(
     text: string,
-    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; eventId?: string; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string; done?: boolean; lastDone?: string; proposedDate?: string } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; eventId?: string; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string; done?: boolean; lastDone?: string; proposedDate?: string; notes?: string } = {},
     id?: string,
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
@@ -76,6 +76,7 @@ export class TasksService {
     // deadline and a guess about the same day at once.
     if (opts.proposedDate && !data.due) data.proposedDate = opts.proposedDate.trim().slice(0, 24);
     if (opts.fromNote) data.fromNote = opts.fromNote;
+    if (opts.notes && opts.notes.trim()) data.notes = opts.notes.trim();
     // Pick 26: the thread this task came from, so its siblings can teach the
     // next one where it belongs.
     if (opts.fromThread) data.fromThread = opts.fromThread;
@@ -460,6 +461,16 @@ export class TasksService {
     if (!t) return false;
     const clean = cleanSteps(steps);
     await this.store.update(this.ownerId, id, { steps: clean.length ? clean : null } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  // THE TASK'S NOTES (wave 3c): the longer text, whole, or null to clear.
+  async setNotes(id: string, notes: string | null): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    const clean = notes?.trim() ?? "";
+    await this.store.update(this.ownerId, id, { notes: clean ? clean : null } as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }

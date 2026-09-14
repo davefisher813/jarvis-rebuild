@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { categoriesOf, setCategories } from "../categories";
 import { useRef, useState, type ReactNode } from "react";
+import MarkdownField from "../../shared/MarkdownField";
 import type { ColorSlot } from "../../categories/types";
 import type { TaskStep } from "../../notes/types";
 import Provenance from "../../shared/ProvenanceLine";
@@ -26,6 +27,8 @@ export interface TaskDraft {
   eventId?: string;
   // A1 (2026-08-20): the if-then plan, when he set one.
   plan?: IfThen;
+  // The longer text under the task (wave 3c), as Markdown.
+  notes?: string;
   // STEPS (2026-09-04): the checklist inside this task, whole-array like the
   // rest of this draft -- see TasksService.setSteps.
   steps?: TaskStep[];
@@ -240,6 +243,9 @@ export default function TaskSheet({
   // mirrors setCategories's "one writer for the whole set"). Index-based
   // addressing, same convention NotesService's checklist items use.
   const [steps, setSteps] = useState<TaskStep[]>(() => (initial?.steps ?? []).map((s) => ({ ...s })));
+  // THE NOTES (wave 3c): the shared editor's compact level; it grows with
+  // the words, so there is room without a second control.
+  const [notes, setNotes] = useState(initial?.notes ?? "");
   const stepRefs = useRef<(HTMLInputElement | null)[]>([]);
   const addStep = () => {
     const at = steps.length;
@@ -332,6 +338,7 @@ export default function TaskSheet({
       // than none: it feels like a plan and carries no effect.
       plan: planTouched && isUsable(draftPlan) ? draftPlan : undefined,
       steps: steps.length ? steps : undefined,
+      notes: notes.trim() || undefined,
       estimateMin: estimateMin ?? undefined,
       personId: personId || undefined,
       closeNow: closeNow || undefined,
@@ -385,6 +392,10 @@ export default function TaskSheet({
               The rollup is display-only and never auto-completes the task
               -- that decision stays his, offered by Close Task below once
               every line is checked. */}
+          <div className="grp xs-grp"><div className="eyebrow">Notes</div></div>
+          <div className="pad-x"><div className="card xs-group task-notes">
+            <MarkdownField value={notes} docKey={"task:" + (mode === "edit" ? (initial?.text ?? "") : "new")} level="compact" placeholder="Anything Worth Keeping with It" ariaLabel="Task notes" onChange={setNotes} />
+          </div></div>
           <div className="grp xs-grp">
             <div className="eyebrow">Checklist</div>
             {steps.length > 0 && <div className="conn-meta">{stepsDone} of {steps.length}</div>}

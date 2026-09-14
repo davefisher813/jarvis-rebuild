@@ -1,8 +1,9 @@
 // SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
+import "../shared/tiptapTest";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useEffect, useState } from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -616,7 +617,8 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText("Ridgeley"));
     fireEvent.click(await screen.findByText("Reply"));
-    fireEvent.change(screen.getByPlaceholderText("Message"), { target: { value: "Sending the waiver tonight" } });
+    await act(async () => { screen.getByLabelText("Message").querySelector("p")!.textContent = "Sending the waiver tonight"; });
+    await waitFor(() => expect(screen.getByLabelText("Message").textContent).toContain("Sending the waiver tonight"));
     fireEvent.click(screen.getByText("Cancel"));
     expect(await screen.findByText("Saved to Drafts")).toBeInTheDocument();
     expect(created).toHaveLength(1);
@@ -654,8 +656,9 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText(/Drafts/));
     fireEvent.click(await screen.findByText("Hello draft"));
-    const body = await screen.findByPlaceholderText("Message");
-    fireEvent.change(body, { target: { value: "draft body, finished" } });
+    const body = await screen.findByLabelText("Message");
+    await act(async () => { body.querySelector("p")!.textContent = "draft body, finished"; });
+    await waitFor(() => expect(body.textContent).toContain("draft body, finished"));
     fireEvent.click(screen.getByText("Cancel"));
     await waitFor(() => expect(updated.map((u) => u.id)).toEqual(["d1"]));
     const decoded = atob(updated[0]!.raw.replace(/-/g, "+").replace(/_/g, "/"));
@@ -962,7 +965,7 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText(/^Drafts/));
     fireEvent.click(await screen.findByText("Invoice"));
     await waitFor(() => expect(gets).toEqual(["b:d9"]));
-    expect(await screen.findByDisplayValue("Half a sentence")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Message").textContent).toContain("Half a sentence"));
   });
 
   // EMAIL-F-04 (2026-09-05): "An expired token or a dead network reads as
@@ -1292,14 +1295,16 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText("Ridgeley"));
     fireEvent.click(await screen.findByText("Reply"));
-    fireEvent.change(await screen.findByPlaceholderText("Message"), { target: { value: "Here's the waiver." } });
+    const body = await screen.findByLabelText("Message");
+    await act(async () => { body.querySelector("p")!.textContent = "Here's the waiver."; });
+    await waitFor(() => expect(body.textContent).toContain("Here's the waiver."));
 
     fireEvent.click(await screen.findByText("Attach It"));
     await waitFor(() => expect(screen.getByText("Ridgeline Waiver 2026.txt")).toBeInTheDocument());
     // Taken, not just named: the offer card is gone and nothing was typed
     // into the message body to stand in for a real attachment.
     expect(screen.queryByText("Attach It")).not.toBeInTheDocument();
-    expect((screen.getByPlaceholderText("Message") as HTMLTextAreaElement).value).toBe("Here's the waiver.");
+    expect(screen.getByLabelText("Message").textContent).toBe("Here's the waiver.");
 
     fireEvent.click(screen.getByText("Send"));
     await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());

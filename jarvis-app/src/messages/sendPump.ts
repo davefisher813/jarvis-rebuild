@@ -89,6 +89,7 @@ export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promi
     const raw = encodeEmail({
       to: item.to, cc: item.cc, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
       attachment: item.attachment,
+      ...(item.html ? { html: item.html } : {}),
       ...(deps.trackOpens ? { pixelUrl: pixelUrlFor(item.trackId ?? newTrackId()) } : {}),
     });
     const sent = await api.sendMessage(raw, item.threadId);

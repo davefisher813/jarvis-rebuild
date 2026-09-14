@@ -333,3 +333,19 @@ describe("mapGoogleEvent: the meeting itself", () => {
     expect(m.attendees).toBeUndefined();
   });
 });
+
+// THE WRITING SYSTEM (wave 3c): a body from the shared editor goes out as
+// multipart/alternative, the plain words first and the HTML second.
+describe("encodeEmail with an HTML body", () => {
+  it("an HTML body rides beside the words, and without one the message stays plain", () => {
+    const decode = (raw: string) => atob(raw.replace(/-/g, "+").replace(/_/g, "/"));
+    const plain = decode(encodeEmail({ to: "a@x.com", subject: "Hi", body: "Hello there" }));
+    expect(plain).toContain("Content-Type: text/plain; charset=UTF-8");
+    expect(plain).not.toContain("multipart/alternative");
+    const rich = decode(encodeEmail({ to: "a@x.com", subject: "Hi", body: "Hello there", html: "<p>Hello <strong>there</strong></p>" }));
+    expect(rich).toContain("multipart/alternative");
+    expect(rich).toContain("Hello there");
+    expect(rich).toContain("<strong>there</strong>");
+    expect(rich.indexOf("text/plain")).toBeLessThan(rich.indexOf("text/html"));
+  });
+});

@@ -231,6 +231,9 @@ export interface TaskData {
   // Rides the task entity the same way; display-only rollup, never
   // auto-completes the task (TasksService.setSteps, TaskSheet's Steps group).
   steps?: TaskStep[];
+  // THE TASK'S NOTES (the writing system, wave 3c): the longer text under a
+  // task, as Markdown from the shared editor's compact level.
+  notes?: string;
   // HOW LONG THIS ONE TAKES (UP-CORE-02, 2026-09-05). Minutes, his number,
   // for this task alone. Every place that sizes work (Gap Fill, Plan My Day,
   // the Day Loop draft, What Now, Just This One) asked the category median

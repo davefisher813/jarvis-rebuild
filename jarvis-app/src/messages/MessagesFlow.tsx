@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense, useMemo } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
@@ -71,6 +71,8 @@ import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
 import { heldBy, heldLine, type HardLine } from "../brain/hardLines";
 import Dictate from "../shared/Dictate";
+import DocEditor, { type DocEditorHandle, type Doc } from "../shared/DocEditor";
+import { textToParagraphs, docToPlainText } from "../notes/markdown";
 import { Head, Card } from "../settings/kit";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 
@@ -165,7 +167,7 @@ import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalPr
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { capAfterNumber } from "../shared/casing";
 
-type Draft = { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment; modelBody?: string };
+type Draft = { to: string; cc?: string; subject: string; body: string; html?: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment; modelBody?: string };
 // EMAIL-F-13 (2026-09-05): a draft belongs to the account that listed it.
 // Without the tag, opening a second-account draft went through the first
 // account's api and 404'd, and a legacy draft sent from the wrong address.
@@ -628,7 +630,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // is only true when every connected mail account failed.
   const [mailFailures, setMailFailures] = useState<{ email: string; why: string }[]>([]);
   const [mailDown, setMailDown] = useState(false);
-  const composeRef = useRef<HTMLTextAreaElement | null>(null);
+  // THE COMPOSE BODY ON THE SHARED EDITOR (the writing system, wave 3c).
+  // The draft keeps the words (every reader of draft.body is unchanged) and
+  // the HTML beside them for the wire. The editor's document is built from
+  // the words once per composeKey, which moves whenever code opens a compose
+  // or restores a draft, never while the person types.
+  const composeRef = useRef<HTMLElement | null>(null);
+  const composeEditor = useRef<DocEditorHandle>(null);
+  const [composeKey, setComposeKey] = useState(0);
+  // Speak targets the editor surface itself: focus lands where the words go.
+  const dictateTarget = useMemo<React.RefObject<HTMLElement | null>>(() => ({ get current() { return composeEditor.current?.getDom() ?? null; } }), []);
+  const beginCompose = (d: Draft) => { setDraft(d); setComposeKey((k) => k + 1); };
   const [thread, setThread] = useState<ThreadFull | null>(null);
   // UP-MIND-12: the message an evidence chip sent us to, for one open.
   const [focusMsg, setFocusMsg] = useState<string | null>(null);
@@ -643,6 +655,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [summary, setSummary] = useState<string | null>(null);
   const [replies, setReplies] = useState<string[]>(DEFAULT_ANSWERS);
   const [draft, setDraft] = useState<Draft>({ to: "", subject: "", body: "" });
+  const composeDoc = useMemo<Doc>(() => ({ type: "doc", content: textToParagraphs(draft.body) }), [composeKey]);
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   // EMAIL-F-14: the write Cancel makes on the way out, so the button cannot
   // be tapped twice into two drafts.
@@ -1083,7 +1096,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // put the colleague inside a chain they were never part of, and Gmail
       // would show the silent person the whole history.
       const routed = !!toOverride && toOverride !== row.toEmail;
-      setDraft({
+      beginCompose({
         to: toOverride ?? row.toEmail,
         subject: routed
           ? last.subject.replace(/^(re|fwd):\s*/i, "")
@@ -1166,7 +1179,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         if (!m) return;
         setEditingDraftId(null);
         setThread(null);
-        setDraft({ ...forwardDraft(m), account: row.account });
+        beginCompose({ ...forwardDraft(m), account: row.account });
         setView("compose");
         return;
       }
@@ -1340,7 +1353,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (!d) return;
     setEditingDraftId(null);
     setThread(null);
-    setDraft({ to: d.to, subject: d.subject, body: d.body });
+    beginCompose({ to: d.to, subject: d.subject, body: d.body });
     setView("compose");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composeNonce]);
@@ -1856,6 +1869,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       cc: draft.cc?.trim() || undefined,
       subject: draft.subject,
       body: draft.body,
+      ...(draft.html ? { html: draft.html } : {}),
       inReplyTo: draft.inReplyTo,
       threadId: draft.threadId,
       fromDeck: draft.fromDeck,
@@ -1913,7 +1927,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const item = outbox.find((o) => o.id === id);
     if (!item) return;
     removeFromOutbox(id);
-    setDraft({
+    beginCompose({
       to: item.to, cc: item.cc, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
       threadId: item.threadId, fromDeck: item.fromDeck, account: item.account, handoffTo: item.handoffTo,
       attachment: item.attachment, modelBody: item.modelBody,
@@ -2525,7 +2539,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const r = buildReply(lastMsg(t), "");
     setEditingDraftId(null);
     // E-26: a reply he was mid-way through on this thread comes back.
-    setDraft(restoreInto<Draft>({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) }, loadLocalDraft("new")));
+    beginCompose(restoreInto<Draft>({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) }, loadLocalDraft("new")));
     setView("compose");
   };
   // S2-4: everyone else on the thread stays on the thread, as Cc, instead of
@@ -2535,14 +2549,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const self = account || g.accounts[0]?.email || "";
     const r = buildReplyAll(lastMsg(t), self, "");
     setEditingDraftId(null);
-    setDraft({ to: r.to, cc: r.cc, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account });
+    beginCompose({ to: r.to, cc: r.cc, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account });
     setView("compose");
   };
   const startForward = (t: ThreadFull) => {
     const m = lastMsg(t);
     setEditingDraftId(null);
     // EMAIL-F-20: the same shape the waiting row's Forward It uses.
-    setDraft({ ...forwardDraft(m), account: accountOfThread(t.id) });
+    beginCompose({ ...forwardDraft(m), account: accountOfThread(t.id) });
     setView("compose");
   };
   // Hand off. Opens the people list; picking a person drafts the note and puts
@@ -2574,7 +2588,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         } catch { /* the plain note is a fine note */ }
       }
       setEditingDraftId(null);
-      setDraft({
+      beginCompose({
         to: target.email,
         subject: forwardSubject(t.subject),
         body: note + "\n\n---------- Forwarded ----------\n" + cleanBody(m.body),
@@ -2592,7 +2606,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setEditingDraftId(null);
     // E-26: a fresh compose the tab lost comes back; a saved reply does not
     // (it has a thread, this does not).
-    setDraft(restoreInto<Draft>({ to: "", subject: "", body: "" }, loadLocalDraft("new")));
+    beginCompose(restoreInto<Draft>({ to: "", subject: "", body: "" }, loadLocalDraft("new")));
     setView("compose");
   };
   // E-25: open the autosaved reply from the For You offer.
@@ -2600,13 +2614,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const d = localDrafts[key];
     if (!d) return;
     setEditingDraftId(key === "new" ? null : key);
-    setDraft({ to: d.to, cc: d.cc, subject: d.subject, body: d.body, inReplyTo: d.inReplyTo, threadId: d.threadId, account: d.account });
+    beginCompose({ to: d.to, cc: d.cc, subject: d.subject, body: d.body, inReplyTo: d.inReplyTo, threadId: d.threadId, account: d.account });
     setView("compose");
   };
   const quickReply = (t: ThreadFull, text: string) => {
     const r = buildReply(lastMsg(t), text);
     setEditingDraftId(null);
-    setDraft({ to: r.to, subject: r.subject, body: text, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) });
+    beginCompose({ to: r.to, subject: r.subject, body: text, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) });
     setView("compose");
   };
   // EMAIL-F-13 (2026-09-05): read the draft through the account that holds
@@ -2631,7 +2645,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // E-26: an edit of this Gmail draft the tab lost wins over what Gmail
       // still holds; it is the newer of the two by construction.
       const local = loadLocalDraft(draftId);
-      setDraft(local ? { ...fresh, to: local.to, cc: local.cc ?? fresh.cc, subject: local.subject, body: local.body } : fresh);
+      beginCompose(local ? { ...fresh, to: local.to, cc: local.cc ?? fresh.cc, subject: local.subject, body: local.body } : fresh);
       setView("compose");
     } catch (e) {
       setError(humanError(e, "Could not open draft"));
@@ -2698,7 +2712,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // fails on send and fails again on every Retry.
             // C-56: the model's draft rides along so the send can say what
             // he changed, in one word, and nothing else.
-            setDraft({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true, account: accountOfThread(t.id), modelBody: body });
+            beginCompose({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true, account: accountOfThread(t.id), modelBody: body });
             setView("compose");
           }}
           onHandled={(threadId, archived) => {
@@ -3292,11 +3306,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <input className="msg-input" placeholder="Cc" value={draft.cc} onChange={(e) => setDraft({ ...draft, cc: e.target.value })} />
           )}
           <input className="msg-input" placeholder="Subject" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
-          <textarea ref={composeRef} className="msg-textarea" placeholder="Message" value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
+          <div className="msg-compose-body" ref={composeRef as React.RefObject<HTMLDivElement>}>
+            <DocEditor
+              ref={composeEditor}
+              doc={composeDoc}
+              docKey={"compose:" + composeKey}
+              level="compact"
+              placeholder="Message"
+              ariaLabel="Message"
+              onChange={(d) => setDraft((cur) => ({ ...cur, body: docToPlainText(d, { includeTitle: false }).trimEnd(), html: composeEditor.current?.getHtml() ?? undefined }))}
+            />
+          </div>
           {/* UP-MIND-26 (2026-09-05): speak it instead of thumbing it. The
               words land in this box and go out on the same tap they always
               did. */}
-          <div className="row mail-chips"><Dictate target={composeRef} /></div>
+          <div className="row mail-chips"><Dictate target={dictateTarget} /></div>
 
           {/* N15 (2026-08-20): they asked for the waiver, he has a waiver.
               Every mail client waits until Send and then asks if he forgot;

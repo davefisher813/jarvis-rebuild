@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import "../../shared/tiptapTest";
 import TaskSheet, { type SheetCategory } from "./TaskSheet";
 
 const CATS: SheetCategory[] = [
@@ -528,5 +529,23 @@ describe("TaskSheet: the smart Where group", () => {
     fireEvent.click(screen.getByRole("menuitemradio", { name: /Kitchen Remodel/ }));
     expect(screen.getByLabelText("Area").textContent).toContain("Work");
     expect(screen.getByLabelText("Area").textContent).not.toContain("Money");
+  });
+});
+
+// THE TASK'S NOTES (the writing system, wave 3c): the compact editor under
+// the task, carried into the draft as Markdown and back on edit.
+describe("the task's notes", () => {
+  it("come back in the draft as Markdown, and an edit opens on what was saved", async () => {
+    const onSave = vi.fn();
+    render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Task"), { target: { value: "Call the plumber" } });
+    const notes = screen.getByLabelText("Task notes");
+    await act(async () => { notes.querySelector("p")!.textContent = "Ask about the Tuesday slot"; });
+    await waitFor(() => expect(notes.textContent).toContain("Ask about the Tuesday slot"));
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]![0].notes).toBe("Ask about the Tuesday slot");
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "Call the plumber", category: "", due: "", repeat: "", notes: "- one\n- two" }} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getAllByLabelText("Task notes").at(-1)!.querySelectorAll("li").length).toBe(2);
   });
 });

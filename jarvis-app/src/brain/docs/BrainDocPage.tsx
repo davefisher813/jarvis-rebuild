@@ -14,6 +14,7 @@ import { JARVIS_VOICE } from "../../ai/voice";
 import { encodeImageForVision } from "../../shared/imageEncode";
 import { showToast } from "../../shared/toast";
 import PageHeader from "../../shared/PageHeader";
+import MarkdownField from "../../shared/MarkdownField";
 import { pressable, onPressKey } from "../../shared/pressable";
 import { cleanHardLines, HARD_LINE_LABEL, HARD_LINE_PROMISE, MAX_HARD_LINES, type HardLine, type HardLineKind } from "../hardLines";
 
@@ -33,6 +34,10 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   const ai = useAI();
   const meta = docMeta(topic);
   const [text, setText] = useState("");
+  // THE SHARED EDITOR (the writing system, wave 3c): the document is built
+  // from the stored words once per load and once more when a photo appends
+  // lines, never on a keystroke.
+  const [docKey, setDocKey] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [reading, setReading] = useState(false);
@@ -91,7 +96,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
     docs.get(topic)
       .then(async (t) => {
         const hl = isValues ? await docs.hardLines(topic).catch(() => []) : [];
-        if (on) { setText(t); setLines(hl); setLoaded(true); }
+        if (on) { setText(t); setLines(hl); setLoaded(true); setDocKey((k) => k + 1); }
       })
       .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't load · Check your connection" }); });
     return () => { on = false; };
@@ -103,8 +108,8 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   // started on blur and one started by a chip tap never race each other.
   // Failed saves surface instead of dying silently (audit 2026-07-30).
   const queueRef = useRef<Promise<void> | null>(null);
-  const latestRef = useRef<{ text: string; lines: HardLine[] }>({ text: "", lines: [] });
-  latestRef.current = { text, lines };
+  const latestRef = useRef<{ text: string; lines: HardLine[]; dirty: boolean }>({ text: "", lines: [], dirty: false });
+  latestRef.current = { text, lines, dirty };
   const save = async () => {
     const run = async () => {
       const cur = latestRef.current;
@@ -145,6 +150,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       const clean = out.trim();
       if (!clean) throw new Error("empty");
       setText((t) => (t.trim() ? t.replace(/\s+$/, "") + "\n" + clean : clean));
+      setDocKey((k) => k + 1);
       setDirty(true);
     } catch {
       showToast({ message: "Couldn't read that photo · Try clearer" });
@@ -168,14 +174,17 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
             <button className="row row-act" onClick={() => setAttempt((n) => n + 1)}>Try Again</button>
           </div>
         )}
-        <textarea
-          className="doc-textarea"
-          placeholder={meta?.placeholder}
-          value={text}
-          onChange={(e) => { setText(e.target.value); setDirty(true); }}
-          onBlur={() => { if (dirty) void save(); }}
-          disabled={!loaded}
-        />
+        {loaded && (
+          <MarkdownField
+            value={text}
+            docKey={topic + ":" + docKey}
+            level="document"
+            placeholder={meta?.placeholder}
+            ariaLabel={meta?.title ?? "Note"}
+            onChange={(v) => { setText(v); setDirty(true); }}
+            onBlur={() => { if (latestRef.current.dirty) void save(); }}
+          />
+        )}
         {/* C-57: the writing facts by channel, each row the strand row's
             anatomy. C-56: a draft-edit rule waiting for a word sits under
             Email with That's Right. */}

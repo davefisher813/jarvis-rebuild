@@ -19,6 +19,10 @@ if (typeof window !== "undefined") {
   }
   const D = document as Document & { elementFromPoint?: (x: number, y: number) => Element | null };
   if (typeof D.elementFromPoint !== "function") D.elementFromPoint = () => null;
+  const W = window as Window & { scrollTo?: (...a: unknown[]) => void };
+  // jsdom has a scrollTo that only reports it is not implemented; a quiet one
+  // replaces it, since ProseMirror scrolls the caret into view on focus.
+  W.scrollTo = () => {};
   const E = window.Element?.prototype as (Element & { scrollIntoView?: () => void }) | undefined;
   if (E && typeof E.scrollIntoView !== "function") E.scrollIntoView = () => {};
 }

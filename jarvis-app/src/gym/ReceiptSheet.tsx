@@ -1,4 +1,5 @@
 import { useState } from "react";
+import MarkdownField from "../shared/MarkdownField";
 import { createPortal } from "react-dom";
 import type { Receipt } from "./prs";
 import type { Workout } from "./types";
@@ -151,7 +152,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
           {/* H-30: a line of his own on the record. Optional; reference,
               never coaching, the same as an exercise note. */}
           <div className="grp"><div className="eyebrow">Note</div></div>
-          <textarea className="receipt-note" rows={2} placeholder="Optional" aria-label="Session note" value={note} onChange={(e) => setNote(e.target.value)} />
+          <MarkdownField value={note} docKey="receipt" level="quick" format="text" placeholder="Optional" ariaLabel="Session note" onChange={setNote} />
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-launch btn-block" onClick={() => onDone(note)}>Done</button>

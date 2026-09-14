@@ -37,6 +37,8 @@ export interface OutboxItem {
   cc?: string;
   subject: string;
   body: string;
+  // The body as HTML from the shared editor (wave 3c), sent beside the words.
+  html?: string;
   inReplyTo?: string;
   threadId?: string;
   fromDeck?: boolean;

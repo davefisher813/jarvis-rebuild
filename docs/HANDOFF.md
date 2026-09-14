@@ -1,6 +1,6 @@
 # Session handoff, 14 Sep 2026
 
-**Remote main is the writing system's wave 3b (version history, recently deleted) on top of 3a and the first two on top of Cowork's Exercises and Today patch, the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
+**Remote main is the writing system's wave 3c (the same editor across the app) on top of 3a, 3b and the first two on top of Cowork's Exercises and Today patch, the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
 
 ## What shipped this session
 
@@ -78,7 +78,23 @@ The first half of section 12's third step, one push.
 - **Recently deleted** (`NoteData.deletedAt`, `trashNote` / `untrashNote` / `purgeTrash`): a deleted note keeps its record under its own id and leaves every list, search and link picker for the Recently Deleted chip, where a tap or its Restore capsule brings it back whole and the swipe's only slot is Delete Forever. Thirty days on it is removed for good with its files, once per open of Notes. The Undo toast on a delete is a restore now, so the old sweep-after-six-seconds of a note's files is gone with the hard delete it guarded; `deleteNote` stays the hard delete for Delete Forever, the purge and the spec.
 - **Tested in automation, not on a device:** the ten-minute rule, the cap of twenty, restore keeping the current document, the Recently Deleted chip and its two doors, the purge window.
 
-Wave 3c (the shared editor on Brain documents, Decisions, email, task notes and workout notes), wave 4 (the AI actions) and the ink ruling follow, each its own push.
+## The writing system, wave 3c (the same editor across the app)
+
+Section 10 of the brief, one push. `shared/MarkdownField.tsx` wraps the shared editor for a surface that stores a string: the string comes in, a document is built once per record (never re-parsed while typing, so marks and lists are never flattened by a refresh), and the string goes back out as Markdown, or as plain words where the surface only ever reads words. It says when it loses focus, which is when the parents that save on blur save.
+
+| Surface | Level | Stored as |
+|---|---|---|
+| Brain documents (`brain/docs/BrainDocPage.tsx`) | document | Markdown in the document's `text`; saved on blur as before; a photo's lines still append |
+| Decisions (`decisions/DecisionsFlow.tsx`) | compact | a new `notes` field on the record, Markdown, saved on blur; a one-line decision stays one line |
+| Email compose (`messages/MessagesFlow.tsx`) | compact | the words stay in `draft.body` for every reader; the HTML rides beside them (`Draft.html`, `OutboxItem.html`) and `encodeEmail` sends multipart/alternative, words first, when it is there; every code path that opens a compose goes through `beginCompose`, which reloads the editor's document; Speak focuses the editor surface |
+| Task notes (`tasks/screens/TaskSheet.tsx`) | compact | a new `notes` field on the task (`TaskDraft.notes`, `TasksService.setNotes`), carried by every draft consumer (Tasks, the area page, Bigger Picture) |
+| Workout note (`gym/ReceiptSheet.tsx`) | quick | plain words, as before |
+| Titles and short fields | unchanged | standard inputs and `InlineEdit` |
+
+- **Departure, stated:** task descriptions did not exist in the data model; `notes` is the field added for them. The Decisions capture sheet keeps its one-line fields; the notes live on the record's page. The email's HTML is the editor's own markup in an Arial wrapper, not a templated mail.
+- **Tested in automation, not on a device:** the field's round trip and blur, the task notes into the draft and back, the encoder's multipart shape, the Brain document's save on blur and its failed-read path, the mail compose paths that type a body.
+
+Wave 4 (the AI actions) and the ink ruling follow, each its own push.
 
 ## How Cowork work lands
 
