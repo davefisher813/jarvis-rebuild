@@ -1593,7 +1593,7 @@ export default function CategoryDetail({
     { label: "Session Effort", onPick: () => setHealthScreen("callIt") },
     { label: "Discomfort", onPick: () => setHealthScreen("pointAtIt") },
     { label: medSub ? `Medication · Last ${medSub}` : "Medication", onPick: () => setMedPage(true) },
-    ...(water ? [{ label: capAfterNumber(`Water · Add 1 ${water.unit}`), onPick: water.onPlus }] : []),
+    ...(water ? [{ label: water.unit === "glasses" ? "Water · Add a Glass" : capAfterNumber(`Water · Add 1 ${water.unit}`), onPick: water.onPlus }] : []),
     ...activeMetrics(metricDefs).filter((d) => !(water && d.data.presetKey === "water")).map((d) => ({ label: d.data.name, onPick: () => setMetricSheet({ kind: "log", def: d }) })),
     { label: "Add a Metric", onPick: () => setMetricSheet({ kind: "add" }) },
   ];
