@@ -7,23 +7,35 @@ must never run them.
 
 The Track 3 project is `zxszpuyhwvalfpfqgutq` ("Jarvis Track 3", org "Jarvis",
 free plan, us-east-2), created and migrated through the Supabase MCP on
-2026-09-14. Files 0001 to 0006 are applied there in order and recorded in the
+2026-09-14. Files 0001 to 0007 are applied there in order and recorded in the
 project's own migration history under the names `track3_000N_*`. Vault is
 installed by default on it (0002 stores only `vault_secret_id`).
 
-Still to do before it takes live rows:
+Still to do before it takes live rows: Clerk as the project's third-party
+auth provider, so `auth.uid()` is the Clerk user id and
+`auth.jwt()->>'org_id'` the org. That is a dashboard step (Authentication >
+Sign In / Providers > Third-Party Auth > Clerk, with the Clerk domain) and
+there is no Clerk account or domain in this repo yet; the live app signs in
+through Supabase Auth. Every policy here reads those two claims, so until
+Clerk is wired every read through the anon key returns nothing, which is the
+safe direction.
 
-1. Clerk as the project's third-party auth provider (a dashboard step), so
-   `auth.uid()` is the Clerk user id and `auth.jwt()->>'org_id'` the org.
-   Every policy here reads those two claims; until Clerk is wired, every
-   read through the anon key returns nothing, which is the safe direction.
-2. The MCP rate limiter needs a spec before `org_mcp_connections` takes
-   rows (0002).
-3. One real test of 0005's permissive-policy combination (an org owner and a
-   shared party each reading the same project).
+Done on 2026-09-14, on the project itself:
 
-0006 is what the security advisor found after 0001 to 0005 ran: the two org
-tables had no row security, four helpers had a mutable search_path, and
-btree_gist sat in public. The advisor reports nothing after it.
+- 0006 is what the security advisor found after 0001 to 0005 ran: the two org
+  tables had no row security, four helpers had a mutable search_path, and
+  btree_gist sat in public. The advisor reports nothing after it.
+- 0007 is the MCP rate limiter the master asked for: a token bucket per org
+  (`org_mcp_rate`, capacity and refill per minute on the row, 60 and 60 by
+  default) and `mcp_take_token(org, cost)`, which refills by elapsed time
+  and takes under a row lock. Only the service role may execute it; the app
+  role cannot spend or read another org's budget. A false return means wait.
+- The 0005 policy test ran for real with the claims Clerk will send (an org
+  owner, a shared party in their own org, a stranger), as a migration that
+  raised at the end so it rolled back: the owner read both projects and
+  tasks, the party read only the shared project and its task, a view share
+  could not update, the stranger read nothing.
+- The 0007 test ran the same way: a bucket of three allowed three takes,
+  refused the fourth, and allowed one more after two seconds of refill.
 
 See `docs/TRACK3.md` for what the app builds against this today and what waits.

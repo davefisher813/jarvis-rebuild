@@ -47,7 +47,7 @@ The second 14 Sep patch (Exercises and Today) was cut on `602ff89`, before the a
 
 None outstanding. Migrations 0038 to 0040 are applied on the live project (verified 2026-09-14 by reading `entity_type` through the Supabase MCP).
 
-The live project is ref `roonancpktqigdndrumo` ("Javris Project", org "Jarvis", free plan, us-east-2). The MCP's project listing does not show that org, but every call that takes the ref directly works. The Track 3 project is `zxszpuyhwvalfpfqgutq` ("Jarvis Track 3", same org, free, us-east-2), created through the MCP on 2026-09-14 once Dave asked for it directly; files 0001 to 0006 under `jarvis-core/supabase/track3/` are applied there in order (0006 is the advisor's findings: row security on the two org tables, pinned search paths, btree_gist out of public) and the advisor is clean. Vault is on by default. Clerk as the third-party auth provider is the one dashboard step left; `docs/TRACK3.md` has the rest.
+The live project is ref `roonancpktqigdndrumo` ("Javris Project", org "Jarvis", free plan, us-east-2). The MCP's project listing does not show that org, but every call that takes the ref directly works. The Track 3 project is `zxszpuyhwvalfpfqgutq` ("Jarvis Track 3", same org, free, us-east-2), created through the MCP on 2026-09-14 once Dave asked for it directly; files 0001 to 0007 under `jarvis-core/supabase/track3/` are applied there in order (0006 is the advisor's findings: row security on the two org tables, pinned search paths, btree_gist out of public; 0007 is the MCP rate limiter as a per-org token bucket) and the advisor is clean. The 0005 policy combination and the rate limiter were each proven by a migration that raised at its end and rolled back. Vault is on by default. Clerk as the third-party auth provider is the one step left and needs a Clerk account and domain, which the repo does not have; `docs/TRACK3.md` has the rest.
 
 ## Departures from the reference, all stated in their commits
 
@@ -72,7 +72,7 @@ The live project is ref `roonancpktqigdndrumo` ("Javris Project", org "Jarvis", 
 ## Open items
 
 - Migration 0040, to apply.
-- Track 3's blockers above; the round-robin booking shape and the MCP rate limiter are undesigned.
+- Track 3's blockers above; the round-robin booking shape is undesigned.
 - The reference's finish page has an effort select inline; JARVIS opens the 1 to 10 screen from the receipt. Fine unless Dave wants it inline.
 - The demo has no sets in its workouts, so History's Sessions rows read 0 sets there; the phone has real ones.
 - Coming back from a workout opened from History returns to the Lifts segment rather than Sessions.
