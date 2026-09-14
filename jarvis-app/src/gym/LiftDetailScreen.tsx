@@ -4,7 +4,8 @@ import type { Workout, MeasureKind } from "./types";
 import type { Goal } from "../life/types";
 import { formatSet, inUnit, LB_PER_KG } from "./measures";
 import { movedFact } from "./history";
-import { liftSessions, chartValue, chartLabel, prIndexes, weeklySetCounts, weeklyVolume, daysAgo } from "./chartData";
+import { liftSessions, chartValue, chartLabel, prIndexes, weeklySetCounts, weeklyVolume, daysAgo, e1rm } from "./chartData";
+import { bestBefore } from "./prs";
 import { plateauFlag, hardSetRows } from "./insights";
 import { liftMeasureState, type LiftMeasure } from "./goalMeasures";
 import { activeMetrics, numericValue, type MetricDef, type MetricLog } from "./metrics";
@@ -160,6 +161,16 @@ export default function LiftDetailScreen({
   const goalState = goal?.data.measure?.kind === "lift" ? liftMeasureState(goal.data.measure as LiftMeasure, workouts) : null;
 
   const receipts = [...sessions].reverse().slice(0, 24);
+  // BEST RECORDED SET (2026-09-14, the reference's Exercise progress page):
+  // the one set that beat every other, its date, and how many sessions
+  // stand behind it. The same bestBefore the PR mark reads, so the two can
+  // never disagree. weight_reps also gets the Epley estimate, behind a row,
+  // labelled as an estimate and never a suggested weight.
+  const best = useMemo(() => bestBefore(workouts, lift, kind), [workouts, lift, kind]);
+  const bestShown = best ? inUnit(kind, best.set, best.unit, unit) : null;
+  const bestE1rm = kind === "weight_reps" && bestShown && bestShown.w != null && bestShown.r != null && bestShown.r > 0 ? e1rm(bestShown.w, bestShown.r) : null;
+  const [e1rmOpen, setE1rmOpen] = useState(false);
+  const celebrate = readHealthSettings().celebrations;
   const label = chartLabel(kind);
   const latest = chartVals.length ? chartVals[chartVals.length - 1]! : null;
   const todayIso = todayISO();
@@ -184,6 +195,36 @@ export default function LiftDetailScreen({
               e1RM that read as a contradiction of the PR below it. A line
               needs two points; until then the card states the facts and
               says when the chart starts. */}
+          {best && bestShown && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Best Recorded Set</span></div>
+              <div className="pad-x"><div className="card pad">
+                <div className="row">
+                  <div className="row-grow">
+                    <div className="p3-q">{formatSet({ kind, unit, timeUnit }, bestShown)}</div>
+                    <div className="facts">
+                      <span className="fact cyan">{shortDate(best.date)}</span>
+                      <span className="fact">{capAfterNumber(`${sessions.length} ${sessions.length === 1 ? "session" : "sessions"} recorded`)}</span>
+                    </div>
+                  </div>
+                  {celebrate && <span className="se-pr">PR</span>}
+                </div>
+                {bestE1rm != null && (
+                  <>
+                    <div className="ins-acts">
+                      <button type="button" className="pill-act pill-quiet" aria-expanded={e1rmOpen} onClick={() => setE1rmOpen((o) => !o)}>{e1rmOpen ? "Hide the Estimate" : "Estimated One-Rep Max"}</button>
+                    </div>
+                    {e1rmOpen && (
+                      <div className="facts">
+                        <span className="fact amber">{`${bestE1rm}${unit ? " " + unit : ""}`}</span>
+                        <span className="fact">Epley estimate, not a tested lift or a suggested weight</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div></div>
+            </>
+          )}
           <div className="sh2 sh2-quiet"><span className="t">Trend</span></div>
           {sessions.length < 2 ? (
             <div className="pad-x"><div className="card list-card-ruled">
@@ -327,6 +368,19 @@ export default function LiftDetailScreen({
               </div></div>
             </>
           )}
+
+          {/* MILESTONES (2026-09-14): the first session and the best set, dated. */}
+          <div className="sh2 sh2-quiet"><span className="t">Milestones</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            <div className="row">
+              <div className="row-grow"><div className="conn-name">First Session</div><div className="facts"><span className="fact cyan">{shortDate(sessions[0]!.date)}</span></div></div>
+            </div>
+            {best && bestShown && (
+              <div className="row">
+                <div className="row-grow"><div className="conn-name">{`Best ${formatSet({ kind, unit, timeUnit }, bestShown)}`}</div><div className="facts"><span className="fact cyan">{shortDate(best.date)}</span></div></div>
+              </div>
+            )}
+          </div></div>
 
           <div className="sh2 sh2-quiet"><span className="t">Sessions</span></div>
           <div className="pad-x"><div className="card list-card-ruled">

@@ -113,3 +113,21 @@ describe("LiftDetailScreen: the chart says what it is, and answers a tap", () =>
     expect(fact.textContent).toMatch(/^Aug 26/);
   });
 });
+
+// 2026-09-14 (the reference's Exercise progress page): the best recorded set
+// leads, with its date and the session count, and the Epley estimate waits
+// behind a row, labelled as an estimate.
+describe("LiftDetailScreen: best recorded set and milestones", () => {
+  it("leads with the best set, counts the sessions, and shows the estimate on tap", () => {
+    const workouts = [
+      { id: "w1", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-09-01", startedAt: 1, endedAt: 2, exercises: [{ exerciseId: "e", name: "Incline Bench", kind: "weight_reps", unit: "lb", sets: [{ id: "a", w: 125, r: 5 }] }] } },
+      { id: "w2", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-09-07", startedAt: 1, endedAt: 2, exercises: [{ exerciseId: "e", name: "Incline Bench", kind: "weight_reps", unit: "lb", sets: [{ id: "b", w: 135, r: 5 }] }] } },
+    ] as never;
+    render(<LiftDetailScreen name="Incline Bench" kind="weight_reps" unit="lb" workouts={workouts} defs={[]} logs={[]} onSetGoal={() => {}} onBack={() => {}} />);
+    expect(screen.getByText("Best Recorded Set")).toBeInTheDocument();
+    expect(screen.getByText("2 Sessions recorded")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Estimated One-Rep Max"));
+    expect(screen.getAllByText("158 lb").length).toBeGreaterThan(0);
+    expect(screen.getByText("First Session")).toBeInTheDocument();
+  });
+});
