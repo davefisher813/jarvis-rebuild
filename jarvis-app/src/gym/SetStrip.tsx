@@ -246,9 +246,11 @@ function SetChipRow({
               mattered mid-lift -- what you did last time -- was the faintest
               of the three. The kicker takes the ramp, and last time becomes a
               chip: a fact with an edge, not a footnote. */}
-          <div className={"se-kick" + (state ? " " + state : "")}>{(state === "done" || state === "warm") && <Check className="ic se-kick-ic" />}{kicker}</div>
+          {/* TWO LINES (Dave 2026-09-14): the kicker carries Last at its
+              right end, so a set is its name-and-reference, then its numbers. */}
+          <div className={"se-kick" + (state ? " " + state : "")}>{(state === "done" || state === "warm") && <Check className="ic se-kick-ic" />}{kicker}
+            {last && <span className="se-chip se-chip-last"><em>Last</em>{last.replace(/^Last:\s*/, "")}</span>}</div>
           <div className="conn-name">{label}</div>
-          {last && <div className="r-k"><span className="se-chip se-chip-last"><em>Last</em>{last.replace(/^Last:\s*/, "")}</span></div>}
         </div>
         {pr && <span className="se-pr">PR</span>}
         {/* The chip is a door (preview anatomy): say so. */}

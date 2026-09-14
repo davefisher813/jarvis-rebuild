@@ -1390,17 +1390,22 @@
 
 /* The chip. One shape for every fact on a training screen: a quiet uppercase
    label, then the value in the hue, on a wash of the same hue. */
-.ruled.health-ruled .se-chip { display: inline-flex; align-items: baseline; gap: 5px; flex-shrink: 0;
+/* THE SHEET IS A PORTAL (2026-09-14, Dave's screenshots: "Last295 lb × 1"
+   and "454525 / Per side" on Edit Exercise). ExerciseSheet renders into
+   document.body, outside .health-ruled, so none of these rules reached it:
+   the Last chip lost its gap and the plates ran together. Every rule a set
+   row needs now also names the sheet card. Same tokens, same sizes. */
+.ruled.health-ruled .se-chip, .sheet-scrim > .card .se-chip { display: inline-flex; align-items: baseline; gap: 5px; flex-shrink: 0;
   font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi); font-variant-numeric: tabular-nums;
   padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap;
   color: var(--hl-cyan); background: var(--hl-cyan-tint); }
-.ruled.health-ruled .se-chip em { font-style: normal; font-size: calc(9.5px * var(--type-scale));
+.ruled.health-ruled .se-chip em, .sheet-scrim > .card .se-chip em { font-style: normal; font-size: calc(9.5px * var(--type-scale));
   font-weight: var(--w-bold); letter-spacing: 0.07em; text-transform: uppercase; color: var(--tx-2); }
 .ruled.health-ruled .se-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 /* On the hero the chips sit under a 19px title, so they take a tighter top. */
 .ruled.health-ruled .h-hero-chips { margin-top: 6px; }
 .ruled.health-ruled .se-chip-best { color: var(--hl-lime); background: var(--hl-lime-tint); }
-.ruled.health-ruled .se-chip-last, .ruled.health-ruled .se-chip-time { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+.ruled.health-ruled .se-chip-last, .sheet-scrim > .card .se-chip-last, .ruled.health-ruled .se-chip-time { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
 .ruled.health-ruled .se-chip-budget, .ruled.health-ruled .se-chip-pair { color: var(--hl-violet); background: var(--hl-violet-tint); }
 .ruled.health-ruled .se-chip-over { color: var(--hl-amber); background: var(--hl-amber-tint); }
 .ruled.health-ruled .se-chip-when, .ruled.health-ruled .se-chip-game { color: var(--tx-3); background: var(--press-3); }
@@ -1429,8 +1434,13 @@
   color: var(--on-fill-dark); background: var(--hl-cyan); }
 
 /* The set kicker. SET 1 was the same grey as everything under it. */
-.ruled.health-ruled .se-kick { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
-  letter-spacing: 0.09em; text-transform: uppercase; color: var(--hl-cyan); margin-bottom: 2px; }
+.ruled.health-ruled .se-kick, .sheet-scrim > .card .se-kick { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--hl-cyan); margin-bottom: 2px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* TWO LINES, NOT THREE (Dave's row rule, and his 2026-09-14 screenshot: Set 1
+   over the numbers over Last was three stacked lines). Last time rides the
+   kicker line, at its right end, in its own case. */
+.ruled.health-ruled .se-kick .se-chip, .sheet-scrim > .card .se-kick .se-chip { margin-left: auto; text-transform: none; letter-spacing: normal; }
 .ruled.health-ruled .se-kick.se-kick-next { color: var(--hl-amber); }
 
 /* ---------- THE FACTS LINE, IN HEALTH (Health R7, Dave's picks 2026-09-12)
@@ -1527,11 +1537,11 @@
   color: var(--on-fill-dark); background: var(--hl-lime); }
 
 /* The plates, as plates. */
-.ruled.health-ruled .se-plates { display: flex; flex-wrap: wrap; gap: 6px; }
-.ruled.health-ruled .se-plate { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled.health-ruled .se-plates, .sheet-scrim > .card .se-plates { display: flex; flex-wrap: wrap; gap: 6px; }
+.ruled.health-ruled .se-plate, .sheet-scrim > .card .se-plate { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-bold);
   font-variant-numeric: tabular-nums; color: var(--hl-amber); background: var(--hl-amber-tint);
   padding: 3px 10px; border-radius: var(--r-pill); }
-.ruled.health-ruled .se-plate-k { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled.health-ruled .se-plate-k, .sheet-scrim > .card .se-plate-k { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-4); margin-top: 5px; }
 
 /* An exercise note is the athlete's own words, so it is italic and shaded

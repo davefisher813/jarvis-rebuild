@@ -56,11 +56,12 @@ describe("ExerciseSheet: Rest After the Round", () => {
     expect(screen.queryByText("Rest After the Round")).toBeNull();
     rerender(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={onSave} onCancel={() => {}} onPairWith={() => {}} partner="Row" />);
     expect(screen.getByText("Rest After the Round")).toBeInTheDocument();
-    expect(screen.getByText("Off · Rest after every set")).toBeInTheDocument();
+    expect(screen.getByText("Rest after every set")).toBeInTheDocument();
     save();
     expect(onSave.mock.calls[0]![0]).not.toHaveProperty("roundRestSec");
-    fireEvent.click(screen.getByRole("button", { name: "More Rest After the Round" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rest After the Round" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "1:00" }));
     save();
-    expect(onSave.mock.calls[1]![0].roundRestSec).toBe(15);
+    expect(onSave.mock.calls[1]![0].roundRestSec).toBe(60);
   });
 });

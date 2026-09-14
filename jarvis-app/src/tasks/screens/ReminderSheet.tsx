@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DAY_PRESETS } from "../reminders";
 import type { ReminderInfo } from "../../notes/types";
-import { automaticityOf, automaticityLine } from "../automaticity";
+import { repetitionsLine } from "../automaticity";
 import { FormSheet, Group, Row, FieldRow, MenuRow, Strip, Note, DeleteRow, ErrorLine } from "../../shared/FormSheet";
 import { Clock, CalendarPlus, Calendar, Tag } from "../../shared/icons";
 import { BellGlyph, RepeatGlyph, WarningGlyph } from "../../shared/glyphs";
@@ -76,8 +76,12 @@ export default function ReminderSheet({
   // "Just Once" is the absence of a rhythm, so it is what the picker reads
   // when a date is set and no day pattern is: nothing new is stored for it.
   const [once, setOnce] = useState(!!initial?.due && !initial?.reminder.days);
-  const auto = automaticityOf(initial?.reminder.doneCount ?? 0);
-  const autoLine = automaticityLine(auto);
+  // THE COUNT, AND ONLY THE COUNT (Dave 2026-09-14, from his screenshot of
+  // this sheet). "Done 21 times · Most people are automatic around 59" over
+  // a bar to 59 compared him to a study median and read as a grade he was
+  // behind on, which is the one thing D1 said the count must never be. The
+  // repetitions line says what he did and stops.
+  const autoLine = repetitionsLine(initial?.reminder.doneCount);
   const [days, setDays] = useState<number[] | undefined>(initial?.reminder.days);
   const [onMiss, setOnMiss] = useState<"nag" | "let_go">(initial?.reminder.onMiss ?? "nag");
   const [err, setErr] = useState(false);
@@ -163,7 +167,6 @@ export default function ReminderSheet({
         <Group label="So Far">
           <Strip plain>
             <div className="auto-line">
-              <div className="auto-bar"><span style={{ width: Math.round(auto.progress * 100) + "%" }} /></div>
               <div className="auto-text">{autoLine}</div>
             </div>
           </Strip>
@@ -185,7 +188,7 @@ export default function ReminderSheet({
             {onAddToCalendar && <Row tone="red" glyph={<CalendarPlus className="ic" />} label="Add to iPhone Calendar" onClick={onAddToCalendar} chev />}
             {onDelete && <DeleteRow label="Delete Reminder" onClick={onDelete} />}
           </Group>
-          {onAddToCalendar && <Note>Your Calendar can carry this too, and it keeps it if JARVIS ever goes.</Note>}
+          {onAddToCalendar && <Note>Your calendar keeps a copy on every device.</Note>}
         </>
       )}
     </FormSheet>

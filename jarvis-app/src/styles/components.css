@@ -1410,6 +1410,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    The .btn variants are excluded by name: each already declares its own ink
    against its own fill, and .btn-danger's white on red would invert. */
 .form-sheet .sheet-bar-save,
+.sheet-scrim > .card .sheet-bar-save,
 .form-sheet .row-act,
 .form-sheet .note-fix,
 .sheet-scrim > .card .row-act,

@@ -71,7 +71,7 @@ describe("ExerciseSheet, the grouped table", () => {
     // under Muscle on a weight_reps exercise.
     expect(tiles).toEqual(["nav-tile-orange", "nav-tile-blue", "nav-tile-green", "nav-tile-pink", "nav-tile-orange", "nav-tile-teal", "nav-tile-yellow", "nav-tile-purple", "nav-tile-graphite"]);
     // Every value that opens a menu is the dropdown worn as a row value.
-    expect([...baseElement.querySelectorAll(".dd.dd-value")].map((d) => d.getAttribute("aria-label"))).toEqual(["Unit", "Measure", "Clock", "Muscle", "Equipment"]);
+    expect([...baseElement.querySelectorAll(".dd.dd-value")].map((d) => d.getAttribute("aria-label"))).toEqual(["Unit", "Measure", "Clock", "Muscle", "Equipment", "Rest Timer"]);
     fireEvent.click(baseElement.querySelector(".sheet-bar-cancel")!);
     expect(onCancel).toHaveBeenCalled();
   });

@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 import { useState, type ReactNode } from "react";
 import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout, EQUIPMENT_LABEL, EQUIPMENT_KINDS, equipmentOf, type Equipment } from "./types";
 import { condCap, condSummary, mmss } from "./conditioning";
-import { fieldsFor, targetLine, formatSet, isUniformStrip } from "./measures";
+import { fieldsFor, formatSet, isUniformStrip } from "./measures";
 import { uniformStrip, resizeStrip, applyToAll } from "./strip";
 import { rampFor } from "./ramp";
 import { lastSessionFor } from "./prs";
@@ -21,6 +21,16 @@ const countLabel = (kind: MeasureKind): string => {
   if (kind === "time_faster" || kind === "distance_time") return "Attempts";
   return "Sets";
 };
+
+// REST IS A MENU (2026-09-14, the reference editor's "Rest between sets"
+// and Stepper's own rule: chips or a menu for a value with a preset set).
+// A stepper from 0 in fifteens was the wrong control for 2:00. A rest the
+// presets do not name (an older 0:45) stays offered as itself.
+const REST_PRESETS = [0, 60, 90, 120, 180, 300];
+function restOptions(current: number): { value: string; label: string }[] {
+  const all = REST_PRESETS.includes(current) ? REST_PRESETS : [...REST_PRESETS, current].sort((a, b) => a - b);
+  return all.map((s) => ({ value: String(s), label: s === 0 ? "Off" : mmss(s) }));
+}
 
 function freshTarget(kind: MeasureKind): { w?: number; r?: number; v?: number; t?: number } {
   const fresh: { w?: number; r?: number; v?: number; t?: number } = {};
@@ -131,10 +141,10 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
     ? searchLibrary(library, name, 5, readGymSettings().hiddenKeys ?? []).filter((s) => s.name.toLowerCase() !== name.trim().toLowerCase())
     : [];
 
-  // ONE EDITOR (D1): the bulk steppers write straight into the strip, so a
-  // new exercise opens with them out -- creation stays one glance -- while
-  // an edit opens on the chips themselves.
-  const [bulkOpen, setBulkOpen] = useState(mode === "new");
+  // ONE EDITOR (D1): the count and target rows write straight into the
+  // strip. The strip itself is out only when it has something to show that
+  // the rows cannot: an edit of a plan that already varies by set.
+  const [stripOpen, setStripOpen] = useState(mode === "edit" && !isUniformStrip(kind, sets));
   // REORDER IS A MODE (Health Preview): the strip's grips come out from the
   // group's own Reorder pill and go away on Done.
   const [reorderSets, setReorderSets] = useState(false);
@@ -255,67 +265,66 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
           </div></div>
           {touched && !name.trim() && <div className="input-error xs-error">Add a name.</div>}
 
-          {/* SETS. The summary row speaks the whole plan; Edit All Sets writes
-              count and targets across every chip at once, straight into the
-              strip below -- one object, one editor (D1). */}
+          {/* SETS (2026-09-14, to the reference editor): the count, the
+              target and the unit are the rows, always out, and the per-set
+              strip sits behind one Customize Individual Sets row. The old
+              summary-plus-Edit-All-Sets toggle hid the three fields most
+              edits are for behind a pill. The strip is still the one editor
+              (D1): these rows write into it through resizeStrip and
+              applyToAll, and the row says Uniform or Varies by Set. */}
           {!condBlock && (
             <>
               <div className="grp xs-grp">
                 <div className="eyebrow">{countLabel(kind)}</div>
-                {sets.length > 1 && (
+                {stripOpen && sets.length > 1 && (
                   <button className="pill-act pill-neutral" onClick={() => setReorderSets((r) => !r)}>{reorderSets ? "Done" : "Reorder"}</button>
                 )}
               </div>
               <div className="pad-x"><div className="card xs-group">
                 <div className="row xs-row">
+                  <div className="row-grow"><div className="conn-name">{countLabel(kind)}</div></div>
+                  <Stepper value={sets.length} step={1} min={1} label={countLabel(kind)} onChange={(n) => setSets((s) => resizeStrip(s, n))} />
+                </div>
+                {kind !== "done" && fields.map((f) => (
+                  <div className="row xs-row" key={f.key}>
+                    <div className="row-grow">
+                      <div className="conn-name">{f.label}</div>
+                      {(f.key === "w" || f.key === "v") && unit && <div className="conn-meta">{unit}</div>}
+                      {f.key === "t" && <div className="conn-meta">{timeUnit}</div>}
+                    </div>
+                    <Stepper value={sets.find((s) => !s.skipped)?.[f.key] ?? 0} step={f.step} label={f.label}
+                      onChange={(n) => setSets((s) => applyToAll(kind, s, f.key, n))} />
+                  </div>
+                ))}
+                {units.length > 1 && (
+                  <div className="row xs-row">
+                    <div className="conn-name">Unit</div>
+                    <HeadMenu variant="value" ariaLabel="Unit" value={unit ?? units[0]!}
+                      options={units.map((u) => ({ value: u, label: u }))} onPick={setUnit} />
+                  </div>
+                )}
+                {kind === "distance_time" && (
+                  <div className="row xs-row">
+                    <div className="conn-name">Time Unit</div>
+                    <HeadMenu variant="value" ariaLabel="Time unit" value={timeUnit}
+                      options={TIME_UNITS.map((u) => ({ value: u, label: u }))} onPick={setTimeUnit} />
+                  </div>
+                )}
+                <div className="row xs-row">
                   <div className="row-grow">
-                    <div className="conn-name">{targetLine(draft)}</div>
+                    <div className="conn-name">Customize Individual Sets</div>
                     <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by set"}</div>
                   </div>
-                  {/* The sanctioned in-row pill, neutral, 44px hit box via its own ::after. */}
-                  <button className="pill-act pill-neutral" aria-expanded={bulkOpen} onClick={() => setBulkOpen((o) => !o)}>
-                    {bulkOpen ? "Done" : "Edit All Sets"}
+                  <button className="pill-act pill-neutral" aria-expanded={stripOpen} onClick={() => { setStripOpen((o) => !o); setReorderSets(false); }}>
+                    {stripOpen ? "Hide" : "Show"}
                   </button>
                 </div>
-                {bulkOpen && (
-                  <>
-                    <div className="row xs-row">
-                      <div className="row-grow"><div className="conn-name">{countLabel(kind)}</div></div>
-                      <Stepper value={sets.length} step={1} min={1} label={countLabel(kind)} onChange={(n) => setSets((s) => resizeStrip(s, n))} />
-                    </div>
-                    {kind !== "done" && fields.map((f) => (
-                      <div className="row xs-row" key={f.key}>
-                        <div className="row-grow">
-                          <div className="conn-name">{f.label}</div>
-                          {/* Helper hints are quiet meta, not SHOUTING CAPS (gym
-                              reformat 2026-08-31). */}
-                          {(f.key === "w" || f.key === "v") && unit && <div className="conn-meta">{unit} · Every set at once</div>}
-                          {f.key === "t" && <div className="conn-meta">{timeUnit}</div>}
-                        </div>
-                        <Stepper value={sets.find((s) => !s.skipped)?.[f.key] ?? 0} step={f.step} label={f.label}
-                          onChange={(n) => setSets((s) => applyToAll(kind, s, f.key, n))} />
-                      </div>
-                    ))}
-                    {units.length > 1 && (
-                      <div className="row xs-row">
-                        <div className="conn-name">Unit</div>
-                        <HeadMenu variant="value" ariaLabel="Unit" value={unit ?? units[0]!}
-                          options={units.map((u) => ({ value: u, label: u }))} onPick={setUnit} />
-                      </div>
-                    )}
-                    {kind === "distance_time" && (
-                      <div className="row xs-row">
-                        <div className="conn-name">Time Unit</div>
-                        <HeadMenu variant="value" ariaLabel="Time unit" value={timeUnit}
-                          options={TIME_UNITS.map((u) => ({ value: u, label: u }))} onPick={setTimeUnit} />
-                      </div>
-                    )}
-                  </>
+                {stripOpen && (
+                  <div className="row xs-strip">
+                    <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} entries={sets} onChange={setSets} handles={reorderSets}
+                      lastFor={lastHit ? (i) => (lastHit.sets[i] ? `Last: ${formatSet(lastHit.fx, lastHit.sets[i]!)}` : null) : undefined} />
+                  </div>
                 )}
-                <div className="row xs-strip">
-                  <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} entries={sets} onChange={setSets} handles={reorderSets}
-                    lastFor={lastHit ? (i) => (lastHit.sets[i] ? `Last: ${formatSet(lastHit.fx, lastHit.sets[i]!)}` : null) : undefined} />
-                </div>
               </div></div>
               {touched && sets.length === 0 && <div className="input-error xs-error">Add at least one set.</div>}
             </>
@@ -378,7 +387,6 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <Tile tone="pink"><PersonStanding className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Muscle</div>
-                <div className="conn-meta">Weekly hard sets on Health</div>
               </div>
               <HeadMenu variant="value" ariaLabel="Muscle" value={muscleGroup ?? "none"} off={!muscleGroup}
                 options={[{ value: "none", label: "None" }, ...MUSCLE_GROUPS.map((m) => ({ value: m, label: MUSCLE_LABEL[m] }))]}
@@ -392,7 +400,6 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 <Tile tone="orange"><Dumbbell className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Equipment</div>
-                  <div className="conn-meta">{equipment ? EQUIPMENT_LABEL[equipment] : "The number on each chip is the whole load"}</div>
                 </div>
                 <HeadMenu variant="value" ariaLabel="Equipment" value={equipment}
                   options={[{ value: "", label: "Whole Load" }, ...EQUIPMENT_KINDS.map((k) => ({ value: k, label: EQUIPMENT_LABEL[k] }))]}
@@ -411,9 +418,9 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 <Tile tone="teal"><Hourglass className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Rest Timer</div>
-                  <div className="conn-meta">{restSec > 0 ? mmss(restSec) : "Off"}</div>
                 </div>
-                <Stepper value={restSec} step={15} min={0} label="Rest Timer" onChange={setRestSec} />
+                <HeadMenu variant="value" ariaLabel="Rest Timer" value={String(restSec)} off={restSec === 0}
+                  options={restOptions(restSec)} onPick={(v) => setRestSec(Number(v))} />
               </div>
             )}
             {/* THE RAMP (D3-A). Warm-up sets are DERIVED from the first working
@@ -425,13 +432,12 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 <Tile tone="yellow"><Flame className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Warm-Up Ramp</div>
-                  <div className="conn-meta">
-                    {ramp
-                      ? (rampPreview.length
-                          ? rampPreview.map((r) => formatSet(draft, r)).join(" · ")
-                          : "Nothing to ramp at this weight")
-                      : "From your first working weight"}
-                  </div>
+                  {/* The preview is data, so it shows; Off needs no sentence. */}
+                  {ramp && (
+                    <div className="conn-meta">
+                      {rampPreview.length ? rampPreview.map((r) => formatSet(draft, r)).join(" · ") : "Nothing to ramp at this weight"}
+                    </div>
+                  )}
                 </div>
                 <div className={"switch" + (ramp ? "" : " off")} role="switch" aria-checked={ramp} aria-label="Warm-up ramp" tabIndex={0}
                   onClick={() => setRamp((r) => !r)} />
@@ -457,9 +463,10 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 <Tile tone="teal"><Hourglass className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Rest After the Round</div>
-                  <div className="conn-meta">{roundRestSec > 0 ? mmss(roundRestSec) + " once every member has gone" : "Off · Rest after every set"}</div>
+                  <div className="conn-meta">{roundRestSec > 0 ? "Once every member has gone" : "Rest after every set"}</div>
                 </div>
-                <Stepper value={roundRestSec} step={15} min={0} label="Rest After the Round" onChange={setRoundRestSec} />
+                <HeadMenu variant="value" ariaLabel="Rest After the Round" value={String(roundRestSec)} off={roundRestSec === 0}
+                  options={restOptions(roundRestSec)} onPick={(v) => setRoundRestSec(Number(v))} />
               </div>
             )}
             {/* FILLER (catalog §4.2): offered during the rest of whatever it is

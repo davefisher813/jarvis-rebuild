@@ -23,15 +23,15 @@ describe("D1: the exercise sheet has one editor", () => {
   it("the strip is edited in place through the bulk helpers", () => {
     expect(sheet).toContain("resizeStrip(s, n)");
     expect(sheet).toContain("applyToAll(kind, s, f.key, n)");
-    expect(sheet).toContain("Edit All Sets");
+    expect(sheet).toContain("Customize Individual Sets");
   });
 
-  it("a new exercise opens with the bulk editor out; an edit opens on the chips", () => {
-    expect(sheet).toMatch(/useState\(mode === "new"\)/);
+  it("the count and target rows are always out; the strip opens only for a plan that varies (2026-09-14)", () => {
+    expect(sheet).toMatch(/useState\(mode === "edit" && !isUniformStrip\(kind, sets\)\)/);
+    expect(sheet).not.toContain("bulkOpen");
   });
 
-  it("the summary row speaks the whole plan and its uniformity", () => {
-    expect(sheet).toContain("targetLine(draft)");
+  it("the Customize row says whether the plan is uniform", () => {
     expect(sheet).toMatch(/isUniformStrip\(kind, sets\) \? "Uniform" : "Varies by set"/);
   });
 });
@@ -72,7 +72,9 @@ describe("D2: last time is wired everywhere sets render", () => {
     // actually looking for mid-set (what they did last time) in the faintest
     // ink on the row. It is a chip now, in the reading hue, with "Last" as
     // the quiet half (Dave 2026-09-10).
-    expect(s).toMatch(/\{last && <div className="r-k"><span className="se-chip se-chip-last">/);
+    // 2026-09-14: Last rides the kicker line, at its right end, so a set is two lines.
+    expect(s).toMatch(/{last && <span className="se-chip se-chip-last">/);
+    expect(s).not.toContain('className="r-k"');
     expect(s).toContain("set-last-act");
   });
 });
