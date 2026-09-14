@@ -1,6 +1,6 @@
 # Session handoff, 13 Sep 2026
 
-**Remote main is the Health pass through Push G plus the 11 Sep audit cleanup, on top of the 12 Sep Astra and Email passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green, CI green on every push. Builds reach the phone only through a pushed `v*` tag (Codemagic to TestFlight); v1.0.1 through v1.0.10 were pushed this session.**
+**Remote main is the Health pass through Push G, the 11 Sep audit cleanup, and the Part 3 brief in five waves, on top of the 12 Sep Astra and Email passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green, CI green on every push. Builds reach the phone only through a pushed `v*` tag (Codemagic to TestFlight); v1.0.1 through v1.0.15 were pushed this session.**
 
 ## What shipped this session
 
@@ -16,6 +16,11 @@ The Health build (`Claude outputs/JARVIS_HEALTH_BUILD_MASTER_2026_09_12.md`, har
 | F | `479416e` | v1.0.9 | the export choosers, clientId on every queued write, law 9, migration 0039 |
 | G | `0e9c821` | | the catalog's §AB and this document |
 | audit | `bb9068b` | v1.0.10 | the eight open items of the 11 Sep audit (Part 1 of the 13 Sep passoff) and the plan's strand wired into the Why sheet |
+| P3 w1 | `5276622` | v1.0.11 | favorites lead the pickers, a merge is reviewed and can be undone, History remembers its segment |
+| P3 w2 | `9d93a9e` | v1.0.12 | rest after the round, no phantom turns, drop segments |
+| P3 w3 | `69dad64` | v1.0.13 | every insight opens on its evidence, every minimum says why, Explain over the rows only |
+| P3 w4 | `e98544c` | v1.0.14 | typed event kinds, a day finished twice is asked about, Health's More folds into Settings |
+| P3 w5 | `2108946` | v1.0.15 | equipment as one chooser, the plan snapshotted at start, a swap keeps its records, Also Update the Program, the schedule row hears the finish, the Assisted engine with its basis |
 
 Also on main this session, in order: `a2e3b68` (the note editor's placeholder and list lines), `e81d0e0` (the Health page simplified: inviting tiles, no pill facts, the adds at the foot), `6fe1f53` (Codemagic stamps every build's number; v1.0.1 was the first build to reach TestFlight), `976afed` (Today's top card and the Life rows), `c22e5cc` (email tasks wait under From Email behind an opt-in switch, the What JARVIS Knows tap, project and goal rows, the cool-down in blue), `e567e17` (goals own only what is filed to them; a project row is the goal row; Next in orange; Paused, Done, Stalled, On Track), `bdf225a` (hold a project row to move it to a goal, a Paused filter, no repeated count). The other Code chat's `289dc03`, `15a2eec` and `f4bf88f` were rebased over cleanly.
 
@@ -56,7 +61,8 @@ A mood or feeling check-in; meal nutrition; discomfort intensity and notes; sche
 ## Open items
 
 - The two migrations above, to apply.
-- Part 3 of the 13 Sep outstanding-audits passoff (`Claude outputs/PASSOFF_2026_09_13_OUTSTANDING_AUDITS.md`, the ChatGPT-authored Health and Workouts brief) waits on Dave's rulings: whether it supersedes the shipped Health pushes where they overlap (rest timer, settings, medication depth, sync), and whether its medication schedule and inventory model is wanted at all given the 13 Sep ruling that meds are log-and-track only. Part 1 shipped in `bb9068b`; item 5 there was not a defect.
+- Part 3 shipped in five waves against Dave's 25 answers (`Claude outputs/DECISIONS_2026_09_13_PART3.md` and the seven overlap picks, all his recommendations accepted). Left out by his answers: the brief's medication schedule, inventory, Skip and Remind Later (4a: log and track only); unilateral as two numbers per set (O7a: one number per side); a time picker for a session left open (O5a: the last write is the end); detection of concurrent edits on every record (13a: the finish only).
+- The brief's acceptance scenarios (its handoff.md, fetched with his leave) are the test plan behind the wave tests; 12 (a stale check-in shows its date) and 16 (the visit report stays local until shared) were already true.
 - The demo has no sets in its workouts, so History's Sessions rows read 0 sets there; the phone has real ones.
 - Coming back from a workout opened from History returns to the Lifts segment rather than Sessions.
 
