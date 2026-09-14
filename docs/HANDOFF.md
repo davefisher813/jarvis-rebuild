@@ -1,6 +1,6 @@
 # Session handoff, 14 Sep 2026
 
-**Remote main is the writing system's wave 3c (the same editor across the app) on top of 3a, 3b and the first two on top of Cowork's Exercises and Today patch, the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
+**Remote main is the writing system's wave 4 (JARVIS on a selection) on top of waves 1 to 3c on top of Cowork's Exercises and Today patch, the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
 
 ## What shipped this session
 
@@ -94,7 +94,18 @@ Section 10 of the brief, one push. `shared/MarkdownField.tsx` wraps the shared e
 - **Departure, stated:** task descriptions did not exist in the data model; `notes` is the field added for them. The Decisions capture sheet keeps its one-line fields; the notes live on the record's page. The email's HTML is the editor's own markup in an Arial wrapper, not a templated mail.
 - **Tested in automation, not on a device:** the field's round trip and blur, the task notes into the draft and back, the encoder's multipart shape, the Brain document's save on blur and its failed-read path, the mail compose paths that type a body.
 
-Wave 4 (the AI actions) and the ink ruling follow, each its own push.
+## The writing system, wave 4 (JARVIS on a selection)
+
+Section 9 of the brief, one push, offered only when AI is on.
+
+- **The door:** while words are selected in a note, the writing bar shows JARVIS in the reading hue; it opens a sheet of seven asks: Fix Typos Only, Make Clearer, Shorten, Organize Into Sections, Turn Into Checklist, Prepare for Claude, Create Linked Task.
+- **The reply is a preview** (`notes/screens/AISheet.tsx`): the person's words and JARVIS's suggestion in two panes, then Apply, Copy Result, Keep Original. Apply replaces the selection in one undo step (a one-paragraph reply over a phrase keeps its heading or list item; more than that goes in as blocks). Nothing is written before Apply. A failed call says so and offers Retry.
+- **Newer work wins:** if the selected words changed while JARVIS worked, Apply is not offered over them; the sheet says so and offers Insert After the Caret and Copy Result instead.
+- **The prompts** (`notes/aiActions.ts`) ask for the words back in the same shape, the person's meaning, names and numbers kept, nothing added; Prepare for Claude asks for Objective, Current Problems, Requested Changes, Constraints and Acceptance Criteria, then a Missing Details list of what Claude would need that the text does not say, asked rather than guessed. The prompts are model text and exempt from the short-copy law the way `ai/voice.ts` is.
+- **Create Linked Task:** the passage's first line is the task, the whole passage its notes, the note its source, and the note gets the connection back; Undo removes both.
+- **Tested in automation, not on a device:** the prompts' shape, a fenced reply unwrapped and an empty one refused, the bar's JARVIS appearing only with a selection, the preview and Apply, Keep Original leaving the words, the linked task from the passage.
+
+The ink ruling follows as its own push.
 
 ## How Cowork work lands
 

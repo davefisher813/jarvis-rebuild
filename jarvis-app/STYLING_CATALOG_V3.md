@@ -670,6 +670,8 @@ The brief cites `JARVIS_UI_CONTRACT.md` as the locked styling source. No file of
 
 **THE EDITOR ON THE OTHER SURFACES (2026-09-14, wave 3c).** The compose body wears the mail field's box (`.msg-compose-body`); a task's or a decision's notes sit in their group with the compact level; the workout note is the quick level on the sheet's surface; a Brain document is the document level on the page. The same bar, the same rules, the same tokens everywhere.
 
+**JARVIS ON A SELECTION (2026-09-14, wave 4).** The word JARVIS on the writing bar in the reading hue (`.doc-kai`), only while words are selected. The preview sheet is two labelled panes (`.ai-original`, `.ai-result`) on the sheet's surface; Apply is the one filled action, Copy Result and Keep Original quiet capsules; the three filled actions (Apply, Insert After the Caret, Retry) are one slot on three exclusive branches and the one-filled-red law records it.
+
 **THE INK RULING (2026-09-14, conflict 1), recorded here and applied in its own push.** Four ink levels collapse to two app-wide: `--tx-2` and `--tx-3` become one secondary value (dark #D2D2D6), `--tx-4` becomes structure only (dark #7C7C82) and may never colour text. The migration is by redefining the tokens, then sweeping any text still on `--tx-4` to secondary, with a law that fails a `--tx-4` text colour. The light values in the brief are HIG twins, a starting point and not measured tokens, and are flagged as such. The editor's own CSS already uses `--tx-4` only for a border and a checkbox ring, and `--tx-2` for every secondary word, so the token change reaches it untouched.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)

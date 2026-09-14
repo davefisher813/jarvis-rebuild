@@ -11,6 +11,10 @@ import { docToMarkdown, docToPlainText } from "../markdown";
 import type { ExportImage } from "../exportDoc";
 import ExportSheet from "./ExportSheet";
 import RowActionSheet from "../../shared/RowActionSheet";
+import AISheet from "./AISheet";
+import { AI_ACTIONS, runAction, type AIActionKey } from "../aiActions";
+import { parseMarkdown } from "../markdown";
+import type { AIService } from "../../ai/AIService";
 import { copyText } from "../../shared/shareText";
 import { showToast } from "../../shared/toast";
 import Provenance from "../../shared/ProvenanceLine";
@@ -252,6 +256,8 @@ export default function NoteEditor({
   openSourceFor,
   versions = [],
   onRestoreVersion,
+  ai,
+  onCreateLinkedTask,
 }: {
   note: EditorNote;
   fileStore?: FileStore | null;
@@ -285,6 +291,10 @@ export default function NoteEditor({
   openSourceFor?: (source: Source) => (() => void) | undefined;
   versions?: NoteVersion[];
   onRestoreVersion?: (at: number) => void;
+  /** JARVIS on a selection (wave 4): present when AI is on. */
+  ai?: AIService | null;
+  /** A task from the selected passage, linked back to this note. */
+  onCreateLinkedTask?: (passage: string) => void;
 }) {
   const guard = useHyperfocusGuard();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -297,8 +307,22 @@ export default function NoteEditor({
   const [outline, setOutline] = useState<{ pos: number; level: number; text: string }[] | null>(null);
   const [inSection, setInSection] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  // JARVIS ON A SELECTION (wave 4): which words, which ask, and the reply.
+  const [aiPick, setAiPick] = useState<{ from: number; to: number; text: string } | null>(null);
+  const [aiRun, setAiRun] = useState<{ action: AIActionKey; from: number; to: number; text: string; result: string | null; error: string | null } | null>(null);
+  const runAI = async (action: AIActionKey, sel: { from: number; to: number; text: string }) => {
+    if (!ai) return;
+    setAiRun({ action, ...sel, result: null, error: null });
+    try {
+      const result = await runAction(ai, action, sel.text);
+      setAiRun((cur) => (cur && cur.action === action && cur.from === sel.from ? { ...cur, result } : cur));
+    } catch (e) {
+      setAiRun((cur) => (cur && cur.action === action && cur.from === sel.from ? { ...cur, error: e instanceof Error && e.message ? e.message : "JARVIS could not answer" } : cur));
+    }
+  };
   const [preparing, setPreparing] = useState(false);
   const editorRef = useRef<DocEditorHandle>(null);
+  const aiStale = !!aiRun && editorRef.current?.textAt(aiRun.from, aiRun.to) !== aiRun.text;
   const foundLive = (found ?? []).map((c, i) => ({ c, i })).filter(({ c }) => !c.added);
   const words = docWordCount(note.doc);
   const hasChecklist = (note.doc.content ?? []).some((n) => n.type === "taskList");
@@ -438,6 +462,7 @@ export default function NoteEditor({
           ariaLabel="Note"
           onInsertPhoto={onInsertPhoto}
           onInsertFile={onInsertFile}
+          onAI={ai?.available ? () => { const sel = editorRef.current?.getSelection(); if (sel) setAiPick(sel); } : undefined}
         />
         {saveLine}
         {(tags ?? []).length > 0 && (
@@ -562,6 +587,30 @@ export default function NoteEditor({
       {fallback !== null && <CopyFallback text={fallback} onClose={() => setFallback(null)} />}
       {outline && <OutlineSheet items={outline} onPick={(pos) => editorRef.current?.goTo(pos)} onClose={() => setOutline(null)} />}
       {versionsOpen && onRestoreVersion && <VersionsSheet versions={versions} onRestore={onRestoreVersion} onClose={() => setVersionsOpen(false)} />}
+      {aiPick && (
+        <RowActionSheet
+          title="JARVIS on the Selection"
+          actions={[
+            ...AI_ACTIONS.map((a) => ({ label: a.label, onPick: () => void runAI(a.key, aiPick) })),
+            ...(onCreateLinkedTask ? [{ label: "Create Linked Task", onPick: () => onCreateLinkedTask(aiPick.text) }] : []),
+          ]}
+          onCancel={() => setAiPick(null)}
+        />
+      )}
+      {aiRun && (
+        <AISheet
+          action={aiRun.action}
+          original={aiRun.text}
+          result={aiRun.result}
+          error={aiRun.error}
+          stale={aiStale}
+          onApply={() => { if (aiRun.result !== null) editorRef.current?.replaceRange(aiRun.from, aiRun.to, parseMarkdown(aiRun.result)); setAiRun(null); showToast({ message: "Applied · Undo is on the bar" }); }}
+          onInsert={() => { if (aiRun.result !== null) editorRef.current?.insertAtCaret(parseMarkdown(aiRun.result)); setAiRun(null); }}
+          onCopy={() => { if (aiRun.result !== null) void copyText(aiRun.result).then(() => showToast({ message: "Result copied" })).catch(() => setFallback(aiRun.result)); }}
+          onRetry={() => void runAI(aiRun.action, { from: aiRun.from, to: aiRun.to, text: aiRun.text })}
+          onClose={() => setAiRun(null)}
+        />
+      )}
       {exportOpen && (
         <ExportSheet doc={exportOpen.doc} title={title} selection={exportOpen.selection} images={exportOpen.images} attachmentNames={exportOpen.names} onClose={() => setExportOpen(null)} />
       )}

@@ -37,6 +37,9 @@ const EXEMPT_FILES = new Set([
   "tasks/breakdown.ts",
   "ai/capture.ts",
   "ai/suggestions.ts",
+  // The writing system, wave 4: the prompts JARVIS reads on a selection are
+  // model text, the same as voice.ts, never rendered.
+  "notes/aiActions.ts",
   "ai/context.ts",
   // C-20 (Astra, 2026-09-12): the JARVIS Found system prompt, model
   // instructions in the same class as every prompt above.

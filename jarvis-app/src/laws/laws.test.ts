@@ -883,6 +883,7 @@ describe("LAW: one filled red per screen", () => {
       "upnext/UpNextFlow.tsx": "three mutually exclusive branches of one switch",
       "gym/GymFlow.tsx": "Create a Program and Start are gated on !program vs program",
       "brain/HealthBody.tsx": "Resume Workout renders only while a session is live, Start Workout only while none is; one ternary (2026-09-14, the approved Health design: no competing start beside Resume)",
+      "notes/screens/AISheet.tsx": "Apply, Insert After the Caret and Retry are one slot on three exclusive branches: a reply that fits, a reply over words that changed, a failed call (2026-09-14, the writing system, wave 4)",
       "connections/ConnectionsPage.tsx": "one per connection state",
       "schedule/screens/SchedulePage.tsx": "the empty-day branch and the populated list never both render",
       "today/YourDay.tsx": "the plan-cta row ghosts all but one, and the day-empty branch excludes the rest",

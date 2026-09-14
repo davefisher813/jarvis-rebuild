@@ -73,6 +73,14 @@ export interface DocEditorHandle {
   unfoldAll: () => void;
   /** The document as HTML, for a surface that sends it (email). */
   getHtml: () => string;
+  /** The selected words and where they are, or null with no selection. */
+  getSelection: () => { from: number; to: number; text: string } | null;
+  /** The words at a range now, to see whether they changed since. */
+  textAt: (from: number, to: number) => string;
+  /** Replace a range with content, one undo step. */
+  replaceRange: (from: number, to: number, content: JSONContent[]) => void;
+  /** Put content after the caret, one undo step. */
+  insertAtCaret: (content: JSONContent[]) => void;
   /** The editable element itself, for a control that needs to focus it. */
   getDom: () => HTMLElement | null;
 }
@@ -129,9 +137,15 @@ export interface DocEditorProps {
   className?: string;
   /** Extra rows for the bar's Insert menu, from the surface. */
   insertExtra?: ReactNode;
+  /** Offered on the bar while words are selected (the AI actions). */
+  onAI?: () => void;
 }
 
 type Menu = "format" | "list" | "insert" | null;
+
+function inlineIfOne(content: JSONContent[]): JSONContent[] {
+  return content.length === 1 && content[0]!.type === "paragraph" ? (content[0]!.content ?? []) : content;
+}
 
 // Undo the paste, then put the chosen content where it was. An empty line
 // at that spot is taken by the content rather than left blank above it.
@@ -145,7 +159,7 @@ function replacePaste(editor: Editor, from: number, content: JSONContent[]) {
 }
 
 const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor(
-  { doc, docKey, onChange, level = "document", placeholder = "Start Writing", autofocus = false, onFocusChange, onInsertPhoto, onInsertFile, ariaLabel = "Document", className, insertExtra },
+  { doc, docKey, onChange, level = "document", placeholder = "Start Writing", autofocus = false, onFocusChange, onInsertPhoto, onInsertFile, ariaLabel = "Document", className, insertExtra, onAI },
   ref,
 ) {
   const [focused, setFocused] = useState(false);
@@ -233,6 +247,16 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
     replaceAll: (r) => (editor ? replaceAll(editor, r) : 0),
     unfoldAll: () => { if (editor) unfoldAll(editor); },
     getHtml: () => editor?.getHTML() ?? "",
+    getSelection: () => {
+      if (!editor || editor.state.selection.empty) return null;
+      const { from, to } = editor.state.selection;
+      return { from, to, text: editor.state.doc.textBetween(from, to, "\n", " ") };
+    },
+    textAt: (from, to) => (editor ? editor.state.doc.textBetween(Math.max(0, from), Math.min(to, editor.state.doc.content.size), "\n", " ") : ""),
+    // One paragraph goes in as its words, so a reply over a phrase inside a
+    // heading or a list item keeps that block; anything more goes in as blocks.
+    replaceRange: (from, to, content) => { editor?.chain().focus().insertContentAt({ from, to }, inlineIfOne(content)).run(); },
+    insertAtCaret: (content) => { editor?.chain().focus().insertContentAt(editor.state.selection.to, inlineIfOne(content)).run(); },
     getDom: () => editor?.view.dom ?? null,
   }), [editor]);
 
@@ -331,6 +355,9 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
           <button type="button" className={"doc-kbtn doc-kword" + (menu === "insert" ? " on" : "")} aria-expanded={menu === "insert"} onClick={() => setMenu((m) => (m === "insert" ? null : "insert"))}>Insert</button>
         )}
         <span className="doc-kgrow" />
+        {onAI && !editor.state.selection.empty && (
+          <button type="button" className="doc-kbtn doc-kword doc-kai" onClick={() => { setMenu(null); onAI(); }}>JARVIS</button>
+        )}
         <button type="button" className="doc-kbtn doc-kword doc-kdone" onClick={() => editor.commands.blur()}>Done</button>
       </div>
     </div>

@@ -12,6 +12,7 @@ import NotesList, { type NoteListItem } from "./screens/NotesList";
 import { noteBlockText } from "../search/search";
 import NoteEditor, { type EditorNote, type SaveState } from "./screens/NoteEditor";
 import QuickAppendSheet from "./screens/QuickAppendSheet";
+import { taskFromPassage } from "./aiActions";
 import { blocksToDoc, displayTitle, firstLineOf, type Doc } from "./docModel";
 import Templates from "./screens/Templates";
 import { usePushDepth } from "../shared/pushNav";
@@ -186,6 +187,35 @@ export default function NotesFlow({
   // C-18 / C-19 / C-20 (Astra, 2026-09-12): the open note's flags, the
   // notes around it, and what JARVIS found in it.
   const [noteFlags, setNoteFlags] = useState<{ pinned: boolean; archived: boolean; tags: string[] }>({ pinned: false, archived: false, tags: [] });
+  // A TASK FROM A PASSAGE (wave 4): the first line is the task, the passage
+  // its notes, the note its source; the note gets the connection back. Undo
+  // takes both away.
+  const createLinkedTask = async (passage: string) => {
+    if (!currentId) return;
+    const noteId = currentId;
+    const { title, notes } = taskFromPassage(passage);
+    const made: { id: string | null } = { id: null };
+    const ok = await attemptWrite(async () => {
+      made.id = await tasksSvc.createTask(title, { fromNote: noteId, notes, source: { type: "note", ref: noteId, ts: Date.now() } });
+      if (made.id) await svc.addConnection(noteId, "task", title, made.id);
+    });
+    await loadCurrent(noteId);
+    const taskId = made.id;
+    if (!ok || !taskId) return;
+    showToast({
+      message: "Task made from the passage",
+      actionLabel: "Undo",
+      onAction: () => void enqueue(async () => {
+        await attemptWrite(async () => {
+          await tasksSvc.deleteTask(taskId);
+          const d = await svc.note(noteId);
+          const conn = (d?.connections ?? []).find((c) => c.targetId === taskId);
+          if (conn) await svc.removeConnection(noteId, conn.id);
+        });
+        await loadCurrent(noteId);
+      }),
+    });
+  };
   // VERSION HISTORY (wave 3b): the open note's kept versions.
   const [versions, setVersions] = useState<NoteVersion[]>([]);
   const restoreVersion = (at: number) => enqueue(async () => {
@@ -968,6 +998,8 @@ export default function NotesFlow({
           onDocChange={docChange}
           versions={versions}
           onRestoreVersion={(at) => void restoreVersion(at)}
+          ai={ai.available ? ai : null}
+          onCreateLinkedTask={(p) => void createLinkedTask(p)}
           connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId, gone: goneConns.has(c.id) }))}
           onAddLink={() => void openLinkPicker("editor")}
           onRemoveConnection={(connId) => void enqueue(async () => {

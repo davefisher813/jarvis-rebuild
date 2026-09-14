@@ -154,6 +154,62 @@ describe("Find in Note and the Outline", () => {
   });
 });
 
+describe("JARVIS on a selection", () => {
+  const ai = (reply: string) => ({ available: true, complete: vi.fn().mockResolvedValue(reply) }) as unknown as import("../../ai/AIService").AIService;
+
+  // Focus the surface and select the heading's word the way a finger does:
+  // through the DOM selection the view watches.
+  async function selectAgenda(container: HTMLElement) {
+    const pm = container.querySelector(".doc-pm")! as HTMLElement;
+    pm.focus();
+    fireEvent.focus(pm);
+    // The fold chevron sits first inside the heading; the words are the text node.
+    const textNode = Array.from(pm.querySelector("h1")!.childNodes).find((n) => n.nodeType === 3)!;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 6);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+    return pm;
+  }
+
+  it("offers the bar's JARVIS only with a selection, previews the reply, and Apply replaces the words", async () => {
+    const service = ai("Plan");
+    const { container } = render(<NoteEditor {...base} ai={service} />);
+    const pm = container.querySelector(".doc-pm")! as HTMLElement;
+    pm.focus();
+    fireEvent.focus(pm);
+    await screen.findByRole("toolbar");
+    expect(screen.queryByText("JARVIS", { selector: "button" })).toBeNull();
+    await selectAgenda(container);
+    fireEvent.click(await screen.findByText("JARVIS", { selector: "button" }));
+    fireEvent.click(await screen.findByText("Make Clearer"));
+    expect(await screen.findByText("Plan", { selector: "pre.ai-result" })).toBeInTheDocument();
+    expect(service.complete).toHaveBeenCalledTimes(1);
+    expect(String((service.complete as ReturnType<typeof vi.fn>).mock.calls[0]![0][0].content)).toContain("Agenda");
+    fireEvent.click(screen.getByText("Apply"));
+    await waitFor(() => expect(pm.querySelector("h1")!.textContent).toBe("Plan"));
+    expect(screen.queryByText("Plan", { selector: "pre.ai-result" })).toBeNull();
+  });
+
+  it("Keep Original changes nothing, and Create Linked Task hands the passage back", async () => {
+    const onCreateLinkedTask = vi.fn();
+    const { container } = render(<NoteEditor {...base} ai={ai("Anything")} onCreateLinkedTask={onCreateLinkedTask} />);
+    const pm = await selectAgenda(container);
+    fireEvent.click(await screen.findByText("JARVIS", { selector: "button" }));
+    fireEvent.click(await screen.findByText("Shorten"));
+    expect(await screen.findByText("Anything", { selector: "pre.ai-result" })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Keep Original"));
+    expect(pm.querySelector("h1")!.textContent).toBe("Agenda");
+    await selectAgenda(container);
+    fireEvent.click(await screen.findByText("JARVIS", { selector: "button" }));
+    fireEvent.click(await screen.findByText("Create Linked Task"));
+    expect(onCreateLinkedTask).toHaveBeenCalledWith("Agenda");
+  });
+});
+
 describe("Version History", () => {
   it("is offered only when versions exist, lists them newest first, and restores one", async () => {
     const onRestoreVersion = vi.fn();
