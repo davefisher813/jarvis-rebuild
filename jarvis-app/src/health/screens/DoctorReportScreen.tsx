@@ -16,9 +16,10 @@ export const KIND_LABEL: Record<ReportKind, string> = {
   food: "Ate Before",
   session: "Effort",
   meal: "Meals",
+  checkin: "Check Ins",
 };
 
-export default function DoctorReportScreen({ report, range, onRange, custom, onCustom, kinds, onToggleKind, hasMeals = false, onExport, onCopy, onBack }: {
+export default function DoctorReportScreen({ report, range, onRange, custom, onCustom, kinds, onToggleKind, hasMeals = false, hasCheckins = false, onExport, onCopy, onBack }: {
   report: DoctorReport;
   range: ReportRange;
   onRange: (r: ReportRange) => void;
@@ -29,6 +30,8 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
   onToggleKind: (k: ReportKind) => void;
   /** Meals is offered only once there is a meal to include. */
   hasMeals?: boolean;
+  /** Check Ins is offered only once there is one to include. */
+  hasCheckins?: boolean;
   onExport: () => void;
   // UP-ATH-11 (2026-09-06): the web's way out. A browser with no share sheet
   // cannot hand a file to Messages or Mail, and a report you can see and
@@ -36,7 +39,7 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
   onCopy?: () => void;
   onBack: () => void;
 }) {
-  const offered: ReportKind[] = ["dose", "lights_out", "food", "session", ...(hasMeals ? ["meal" as const] : [])];
+  const offered: ReportKind[] = ["dose", "lights_out", "food", "session", ...(hasMeals ? ["meal" as const] : []), ...(hasCheckins ? ["checkin" as const] : [])];
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">

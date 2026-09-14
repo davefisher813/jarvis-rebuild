@@ -38,7 +38,23 @@ describe("MealScreen", () => {
 
   it("carries no nutrition field of any kind", () => {
     const { container } = render(<MealScreen today={[]} onLog={() => {}} onBack={() => {}} />);
-    expect(container.querySelectorAll("input")).toHaveLength(1);
+    // 2026-09-14: the text and the When clock, and nothing else.
+    expect([...container.querySelectorAll("input")].map((i) => i.type)).toEqual(["text", "time"]);
     expect(container.textContent).not.toMatch(/cal|gram|protein|carb/i);
+  });
+});
+
+// 2026-09-14: a recent meal fills the field, and a changed time rides along.
+describe("MealScreen: recent meals and When", () => {
+  it("a recent chip fills the field, and the time is passed only when changed", () => {
+    const onLog = vi.fn();
+    render(<MealScreen today={[]} recent={["Chicken and rice", "Oats"]} onLog={onLog} onBack={() => {}} />);
+    fireEvent.click(screen.getByText("Oats"));
+    expect((screen.getByLabelText("What you ate") as HTMLInputElement).value).toBe("Oats");
+    fireEvent.change(screen.getByLabelText("When"), { target: { value: "12:30" } });
+    fireEvent.click(screen.getByText("Log It"));
+    expect(onLog).toHaveBeenCalledTimes(1);
+    expect(onLog.mock.calls[0]![0]).toBe("Oats");
+    expect(new Date(onLog.mock.calls[0]![1] as number).getHours()).toBe(12);
   });
 });

@@ -17,9 +17,10 @@ import {
   type TrustedAdultData, type TrustedAdultEntry,
   type AgeRuleShownData, type AgeRuleShownEntry,
   type CheckInData, type CheckInEntry, type CheckInEnergy, type CheckInMood,
+  type PointAtItDetail,
 } from "./types";
 import { defaultGrants, updateGrant } from "./shareLine";
-import { queueHealthLog, flushPending, readPending, removeQueued, type Storage2, type PendingHealthLog } from "./offlineQueue";
+import { queueHealthLog, flushPending, readPending, removeQueued, patchQueued, type Storage2, type PendingHealthLog } from "./offlineQueue";
 
 // Module-level, like offlineQueue's: more than one HealthService can front
 // the same store (HealthFlow builds its own when none is handed in).
@@ -299,6 +300,26 @@ export class HealthService {
     const data: PointAtItData = { category: "body", ...rest, at, ...(region ? { region } : {}) };
     this.logAndQueue(ENTITY_POINT_AT_IT, data as unknown as Record<string, Json>, storage);
     return data;
+  }
+
+  /** 2026-09-14: the details typed after the tap (how it feels, how much, a
+   *  note), onto the tap they belong to. A tap still in the queue is patched
+   *  there; one that landed is updated on the Store. Keys are dropped, never
+   *  written undefined. */
+  async updatePointAtIt(at: number, detail: PointAtItDetail, storage?: Storage2): Promise<boolean> {
+    const patch: Record<string, Json> = {
+      ...(detail.feel ? { feel: detail.feel } : {}),
+      ...(detail.level ? { level: detail.level } : {}),
+      ...(detail.note?.trim() ? { note: detail.note.trim() } : {}),
+    };
+    if (Object.keys(patch).length === 0) return false;
+    if (patchQueued((e) => e.entityType === ENTITY_POINT_AT_IT && e.data.at === at, patch, storage) > 0) return true;
+    const items = await this.store.listForUser(this.ownerId, ENTITY_POINT_AT_IT);
+    const hit = items.find((it) => (it.data as unknown as PointAtItData).at === at);
+    if (!hit) return false;
+    await this.store.update(this.ownerId, hit.id, { ...(hit.data as unknown as Record<string, Json>), ...patch } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_POINT_AT_IT, entityId: hit.id });
+    return true;
   }
 
   async listPointAtIt(storage?: Storage2): Promise<PointAtItEntry[]> {

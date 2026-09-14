@@ -116,3 +116,17 @@ function removeOne(entry: PendingHealthLog, store: Storage2): void {
   now.splice(idx, 1);
   writePending(now, store);
 }
+
+/** 2026-09-14: patch the data of a queued entry that has not landed yet
+ *  (the discomfort details typed after the tap). Returns how many matched. */
+export function patchQueued(pred: (e: PendingHealthLog) => boolean, patch: Record<string, unknown>, store: Storage2 = browserStorage()): number {
+  const all = readPending(store);
+  let n = 0;
+  const next = all.map((e) => {
+    if (!pred(e)) return e;
+    n++;
+    return { ...e, data: { ...e.data, ...patch } as PendingHealthLog["data"] };
+  });
+  if (n > 0) writePending(next, store);
+  return n;
+}

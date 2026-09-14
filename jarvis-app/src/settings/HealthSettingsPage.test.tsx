@@ -71,3 +71,20 @@ describe("HealthSettingsPage doors", () => {
     expect(screen.queryByText("The Share Line")).toBeNull();
   });
 });
+
+// 2026-09-14: the workout reminder, on at a default time, off, and retimed.
+describe("HealthSettingsPage: the workout reminder", () => {
+  it("is absent without the seam, turns on at 17:30, retimes, and turns off", () => {
+    const { rerender } = render(<HealthSettingsPage onBack={() => {}} />);
+    expect(screen.queryByText("Workout Reminder")).toBeNull();
+    const onWorkoutReminder = vi.fn();
+    rerender(<HealthSettingsPage onBack={() => {}} workoutReminder={null} onWorkoutReminder={onWorkoutReminder} />);
+    fireEvent.click(screen.getByRole("switch", { name: "Workout Reminder" }));
+    expect(onWorkoutReminder).toHaveBeenCalledWith("17:30");
+    rerender(<HealthSettingsPage onBack={() => {}} workoutReminder={{ time: "17:30" }} onWorkoutReminder={onWorkoutReminder} />);
+    fireEvent.change(screen.getByLabelText("Reminder time"), { target: { value: "06:15" } });
+    expect(onWorkoutReminder).toHaveBeenLastCalledWith("06:15");
+    fireEvent.click(screen.getByRole("switch", { name: "Workout Reminder" }));
+    expect(onWorkoutReminder).toHaveBeenLastCalledWith(null);
+  });
+});

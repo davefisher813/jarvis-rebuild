@@ -20,6 +20,11 @@ export default function RefillRunwayScreen({
 }) {
   const [count, setCount] = useState("30");
   const [received, setReceived] = useState(localDay());
+  // 2026-09-14 (the reference's "Correct the recorded balance"): what is
+  // actually in the bottle now becomes a fill that starts now, so the count
+  // down resumes from the truth without touching any logged dose.
+  const [balance, setBalance] = useState("");
+  const balanceValid = /^\d+$/.test(balance.trim());
   const offer = refillOffer(state);
   const valid = Number(count) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(received);
 
@@ -79,6 +84,19 @@ export default function RefillRunwayScreen({
         </button>
       </div></div>
 
+      {state.hasFill && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Correct the Balance</span></div>
+          <div className="pad-x"><div className="card pad">
+            <div className="field">
+              <div className="input-label">Doses You Have Now</div>
+              <input className="input" type="number" inputMode="numeric" min={0} value={balance} onChange={(e) => setBalance(e.target.value)} aria-label="Doses you have now" placeholder="Count the Bottle" />
+            </div>
+            <div className="bp-sub">Starts a new count from today. Nothing logged is changed.</div>
+            <button className="btn btn-secondary btn-block" disabled={!balanceValid} onClick={() => { onLogFill(Number(balance), Date.now()); setBalance(""); }}>Save Correction</button>
+          </div></div>
+        </>
+      )}
       <div className="screen-foot" />
     </div>
   );

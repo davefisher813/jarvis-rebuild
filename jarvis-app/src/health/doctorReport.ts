@@ -10,10 +10,11 @@
 // unbuilt item), so this reports the bedtime marks it actually has rather
 // than inventing a duration nothing here measured.
 
-import type { AteBeforeEntry, CallItEntry, LightsOutEntry, TookItEntry, MealEntry, MedDefEntry } from "./types";
+import type { AteBeforeEntry, CallItEntry, LightsOutEntry, TookItEntry, MealEntry, MedDefEntry, CheckInEntry } from "./types";
+import { checkInLine } from "./checkin";
 
-export type ReportKind = "dose" | "food" | "lights_out" | "session" | "meal";
-export const ALL_REPORT_KINDS: ReportKind[] = ["dose", "food", "lights_out", "session", "meal"];
+export type ReportKind = "dose" | "food" | "lights_out" | "session" | "meal" | "checkin";
+export const ALL_REPORT_KINDS: ReportKind[] = ["dose", "food", "lights_out", "session", "meal", "checkin"];
 
 export interface DoctorReportRow {
   date: string; // local ISO day
@@ -45,7 +46,7 @@ function localDay(atMs: number): string {
 const WEEK_MS = 7 * 86400000;
 
 export function buildDoctorReport(
-  input: { tookIt: TookItEntry[]; ateBefore: AteBeforeEntry[]; lightsOut: LightsOutEntry[]; callIt: CallItEntry[]; meals?: MealEntry[]; medDefs?: MedDefEntry[] },
+  input: { tookIt: TookItEntry[]; ateBefore: AteBeforeEntry[]; lightsOut: LightsOutEntry[]; callIt: CallItEntry[]; meals?: MealEntry[]; medDefs?: MedDefEntry[]; checkins?: CheckInEntry[] },
   // The pre-H-47 shape (a count of weeks back from now) still works; the
   // choosers hand in a ReportOptions instead.
   weeksOrOpts: number | ReportOptions = 6,
@@ -80,6 +81,12 @@ export function buildDoctorReport(
   if (want.has("meal")) for (const m of input.meals ?? []) {
     if (!inWindow(m.data.at)) continue;
     rows.push({ date: localDay(m.data.at), at: m.data.at, kind: "meal", label: "Meal · " + m.data.text });
+  }
+  // 2026-09-14: the check-ins, as the words he picked and nothing more.
+  if (want.has("checkin")) for (const c of input.checkins ?? []) {
+    if (!inWindow(c.data.at)) continue;
+    const line = checkInLine(c.data);
+    rows.push({ date: localDay(c.data.at), at: c.data.at, kind: "checkin", label: "Check In" + (line ? " · " + line : "") });
   }
   rows.sort((a, b) => a.at - b.at);
   return { fromDate: localDay(from), toDate: localDay(to), generatedAt: now, rows };

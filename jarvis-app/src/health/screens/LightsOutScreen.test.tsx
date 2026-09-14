@@ -31,3 +31,17 @@ describe("LightsOutScreen: Edit Time", () => {
     expect(container.textContent).not.toMatch(/hours|duration|slept/i);
   });
 });
+
+// 2026-09-14: last night's hours, a separate entry from the bedtime mark.
+describe("LightsOutScreen: sleep from last night", () => {
+  it("saves hours and minutes for the night ending, and lists recent sleep", () => {
+    const onLogSleep = vi.fn();
+    render(<LightsOutScreen last={null} onLog={() => {}} onLogSleep={onLogSleep} recentSleep={[{ date: "2026-09-12", hours: 8 }]} onBack={() => {}} />);
+    expect(screen.getByText("Sleep")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "45" }));
+    fireEvent.change(screen.getByLabelText("Night ending"), { target: { value: "2026-09-13" } });
+    fireEvent.click(screen.getByText("Save Sleep"));
+    expect(onLogSleep).toHaveBeenCalledWith(7.75, "2026-09-13");
+    expect(screen.getByText("8 hrs")).toBeInTheDocument();
+  });
+});

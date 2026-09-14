@@ -47,3 +47,20 @@ describe("the list beside the map", () => {
     expect(screen.getByText("Left Knee, 3 Sessions")).toBeInTheDocument();
   });
 });
+
+// 2026-09-14: the details after the tap, and Done with none picked.
+describe("PointAtItScreen: how it feels", () => {
+  it("offers the details only with the seam, saves the words picked, and Done needs nothing", () => {
+    const onDetail = vi.fn();
+    render(<PointAtItScreen patterns={[]} onLog={() => {}} onDetail={onDetail} onBack={() => {}} />);
+    fireEvent.click(screen.getByText("List"));
+    fireEvent.click(screen.getByText("Lower Back"));
+    expect(screen.getByText("Done")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Stiffness"));
+    fireEvent.click(screen.getByText("Mild"));
+    fireEvent.change(screen.getByLabelText("Note"), { target: { value: "After deadlifts" } });
+    fireEvent.click(screen.getByText("Save Details"));
+    expect(onDetail).toHaveBeenCalledWith({ feel: "stiffness", level: "mild", note: "After deadlifts" });
+    expect(screen.getByText("Done")).toBeInTheDocument();
+  });
+});

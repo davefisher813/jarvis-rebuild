@@ -276,6 +276,8 @@ export default function CategoryDetail({
   const [healthDeep, setHealthDeep] = useState<HealthScreenKey | null>(null);
   // Part 3 wave 4: a screen opened from Health Settings comes back to it.
   const deepFromSettings = useRef(false);
+  // 2026-09-14: the moment of the last discomfort tap, for its details.
+  const lastDiscomfortAt = useRef<number | null>(null);
   // Full event rows (the `events` state above is the thin shape the week
   // receipt needs); the health candidates below are built from these.
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
@@ -418,6 +420,23 @@ export default function CategoryDetail({
     if (existing) { if (existing.data.hidden) await metricWrite(() => metricsSvc.updateDef(existing.id, { hidden: false })); return; }
     await metricWrite(() => metricsSvc.createDef(newMetricDefData("Water", "number", "glasses", "water", today, metricDefs.length)));
   };
+  // 2026-09-14: last night's hours from the Sleep screen go to his Sleep
+  // metric (the library's own preset), seeded or un-hidden on first use.
+  const logSleepHours = async (hours: number, night: string) => {
+    let def = metricDefs.find((d) => d.data.presetKey === "sleep") ?? null;
+    if (def?.data.hidden) await metricWrite(() => metricsSvc.updateDef(def!.id, { hidden: false }));
+    if (!def) {
+      await metricWrite(() => metricsSvc.createDef(newMetricDefData("Sleep", "number", "hrs", "sleep", today, metricDefs.length)));
+      def = (await metricsSvc.listDefs()).find((d) => d.data.presetKey === "sleep") ?? null;
+    }
+    if (!def) return;
+    const id = def.id;
+    await metricWrite(() => metricsSvc.logMetric(id, night, { value: hours }), () => showToast({ message: capAfterNumber(`${hours} hrs logged`) }));
+  };
+  const sleepDefForRecent = metricDefs.find((d) => d.data.presetKey === "sleep" && !d.data.hidden) ?? null;
+  const recentSleep = sleepDefForRecent
+    ? metricLogs.filter((l) => l.data.metricId === sleepDefForRecent.id && l.data.value != null).sort((a, b) => b.data.date.localeCompare(a.data.date)).slice(0, 5).map((l) => ({ date: l.data.date, hours: l.data.value! }))
+    : [];
   const ensureWaterDef = async (): Promise<MetricDef | null> => {
     await ensureWater();
     const defs = await metricsSvc.listDefs();
@@ -569,6 +588,8 @@ export default function CategoryDetail({
           bumpHealth();
         }}
         onEditTime={(id, at) => { void healthSvc.updateLightsOut(id, at).then(bumpHealth).catch(() => showToast({ message: WRITE_FAILED_MESSAGE })); }}
+        onLogSleep={(hours, night) => void logSleepHours(hours, night)}
+        recentSleep={recentSleep}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -578,9 +599,9 @@ export default function CategoryDetail({
       <TookItScreen
         doses={doseRows(tookIt, medDefs)}
         meds={medDefs}
-        onLog={(med) => {
+        onLog={(med, at) => {
           const cheer = celebrateHealthLog(tookIt.map((e) => ({ at: e.data.at })));
-          const d = healthSvc.logTookIt(undefined, undefined, med ? { medId: med.id, amount: med.data.amount } : undefined);
+          const d = healthSvc.logTookIt(at, undefined, med ? { medId: med.id, amount: med.data.amount } : undefined);
           healthReceipt(cheer, doseToast(med?.data.amount), () => { void healthSvc.removeTookIt(d.at).then(bumpHealth); });
           bumpHealth();
         }}
@@ -593,8 +614,9 @@ export default function CategoryDetail({
     return (
       <MealScreen
         today={meals.filter((m) => localDayParts(m.data.at).day === today)}
-        onLog={(text) => {
-          const d = healthSvc.logMeal(text);
+        recent={[...new Set([...meals].sort((a, b) => b.data.at - a.data.at).map((m) => m.data.text))]}
+        onLog={(text, at) => {
+          const d = healthSvc.logMeal(text, at);
           showToast({ message: "Meal logged", actionLabel: "Undo", onAction: () => { void healthSvc.removeMeal(d.at).then(bumpHealth); } });
           bumpHealth();
         }}
@@ -637,7 +659,8 @@ export default function CategoryDetail({
         // link, so the one action on the screen placed a call with no summary
         // in it. The dates are on the screen, and they travel with the tap.
         summaries={summaries}
-        onLog={(x, y, side, region) => { healthSvc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) }); }}
+        onLog={(x, y, side, region) => { lastDiscomfortAt.current = healthSvc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) }).at; }}
+        onDetail={(detail) => { const at = lastDiscomfortAt.current; if (at != null) void healthSvc.updatePointAtIt(at, detail).then(bumpHealth).catch(() => showToast({ message: WRITE_FAILED_MESSAGE })); }}
         onHandToSomeone={() => {
           setHandOff(stillThereMessage(patterns, summaries));
           setHealthScreen(null);
@@ -851,6 +874,17 @@ export default function CategoryDetail({
     { group: "Keeping", key: "handoff", label: "The Handoff", sub: "What the next adult needs to know" },
   ] as HealthMoreRow[]).filter((r) => template === "student" || r.everyone === true);
 
+  // 2026-09-14 (the reference's Reminders): one workout reminder, a reminder
+  // task named Workout and filed to this area, every day at the time chosen.
+  const workoutReminderTask = allTasks.find((t) => t.data.category === categoryId && !!t.data.reminder && t.data.text === "Workout" && !t.data.done) ?? null;
+  const setWorkoutReminder = async (time: string | null) => {
+    const ok = await attemptWrite(async () => {
+      if (!time) { if (workoutReminderTask) await tasksSvc.deleteTask(workoutReminderTask.id); return; }
+      if (workoutReminderTask) { await tasksSvc.deleteTask(workoutReminderTask.id); }
+      await tasksSvc.createReminder("Workout", { time, ...(workoutReminderTask?.data.reminder?.doneCount ? { doneCount: workoutReminderTask.data.reminder.doneCount } : {}) }, categoryId);
+    });
+    if (ok) await reload();
+  };
   if (healthSettingsOpen) {
     // Part 3 wave 4 (Dave 15a): the Student template's other screens open
     // from here now; the page's More door is gone.
@@ -858,6 +892,8 @@ export default function CategoryDetail({
       <HealthSettingsPage
         onBack={() => setHealthSettingsOpen(false)}
         onEnableWater={() => void ensureWater()}
+        workoutReminder={workoutReminderTask ? { time: workoutReminderTask.data.reminder!.time } : null}
+        onWorkoutReminder={(time) => void setWorkoutReminder(time)}
         doors={healthMoreRows.filter((r) => r.group !== "Medication").map((r) => ({ key: r.key, group: r.group, label: r.label, sub: r.sub }))}
         onOpenDoor={(key) => { setHealthSettingsOpen(false); deepFromSettings.current = true; setHealthDeep(key as HealthScreenKey); }}
       />

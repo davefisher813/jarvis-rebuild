@@ -1,7 +1,9 @@
 import { useState } from "react";
 import type { LightsOutEntry } from "../types";
 import { clockOf } from "../meds";
-import { weekdayShortDateFromMs } from "../../shared/dateFormat";
+import { weekdayShortDateFromMs, shortDate } from "../../shared/dateFormat";
+import Stepper from "../../shared/Stepper";
+import { pressable } from "../../shared/pressable";
 
 // LIGHTS OUT (Part 1; Health Push D, H-41). One tap, one timestamp, marks
 // the night's end. Nothing is scored: no duration shown, no streak, no ring.
@@ -9,15 +11,25 @@ import { weekdayShortDateFromMs } from "../../shared/dateFormat";
 // button. The last time can be corrected (Edit Time writes the clock, on the
 // same night) because a tap made at 11:40 for a bedtime of 11:15 is the
 // commonest wrong row; there is still no duration field.
-export default function LightsOutScreen({ last, onLog, onEditTime, onBack }: {
+export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, recentSleep = [], onBack }: {
   last: (LightsOutEntry & { pending?: boolean }) | null;
   onLog: () => void;
   /** Absent, or while the last row is still pending, there is no Edit Time. */
   onEditTime?: (id: string, at: number) => void;
+  /** 2026-09-14 (the reference's Sleep page): last night's hours, a separate
+   *  entry from the bedtime mark, written to his Sleep metric for the night
+   *  that ended on `night` (a local ISO day). Absent, the form is absent. */
+  onLogSleep?: (hours: number, night: string) => void;
+  recentSleep?: { date: string; hours: number }[];
   onBack: () => void;
 }) {
   const [justTapped, setJustTapped] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [hours, setHours] = useState(7);
+  const [minutes, setMinutes] = useState(30);
+  const [night, setNight] = useState(localDay());
+  const [sleepSaved, setSleepSaved] = useState(false);
+  const sleepValid = hours + minutes / 60 > 0 && /^\d{4}-\d{2}-\d{2}$/.test(night);
 
   const tap = () => {
     onLog();
@@ -40,12 +52,12 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onBack }: {
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">Bedtime</div>
+        <div className="nav-title">Sleep</div>
       </div>
 
       <div className="pad-x"><div className="card pad">
         <div className="p3-q">One Tap, One Time</div>
-        <div className="bp-sub">Marks the night's end. Nothing is scored, and nothing is compared to last night.</div>
+        <div className="bp-sub">Heading to bed? Marks the night's end. Nothing is scored, and nothing is compared to last night.</div>
       </div></div>
 
       <div className="pad-x">
@@ -80,9 +92,62 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onBack }: {
           </div></div>
         </>
       )}
+      {/* LAST NIGHT'S HOURS (2026-09-14). A duration is a separate entry
+          from the bedtime mark, and it goes to his own Sleep metric, which
+          is where the tile and the export already read it from. */}
+      {onLogSleep && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Last Night's Sleep</span></div>
+          <div className="pad-x"><div className="card pad">
+            <div className="row">
+              <div className="row-grow"><div className="conn-name">Hours</div></div>
+              <Stepper value={hours} step={1} min={0} max={24} label="Hours" onChange={setHours} />
+            </div>
+            <div className="field">
+              <div className="input-label">Minutes</div>
+              <div className="chip-row chip-wrap-row" role="group" aria-label="Minutes">
+                {[0, 15, 30, 45].map((m) => (
+                  <div key={m} {...pressable(() => setMinutes(m))} className={"chip" + (minutes === m ? " active" : "")} aria-pressed={minutes === m}>{String(m)}</div>
+                ))}
+              </div>
+            </div>
+            <div className="field">
+              <div className="input-label">Night Ending</div>
+              <input className="input" type="date" value={night} onChange={(e) => { setNight(e.target.value); setSleepSaved(false); }} aria-label="Night ending" />
+            </div>
+            {sleepSaved
+              ? <div className="facts"><span className="fact violet">{`${trimHours(hours + minutes / 60)} hrs`}</span><span className="fact">Saved</span></div>
+              : <button className="btn btn-secondary btn-block" disabled={!sleepValid} onClick={() => { onLogSleep(Number((hours + minutes / 60).toFixed(2)), night); setSleepSaved(true); }}>Save Sleep</button>}
+          </div></div>
+          {recentSleep.length > 0 && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Recent Sleep</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
+                {recentSleep.map((r) => (
+                  <div className="row" key={r.date}>
+                    <div className="row-grow">
+                      <div className="conn-name">{shortDate(r.date)}</div>
+                      <div className="facts"><span className="fact violet">{`${trimHours(r.hours)} hrs`}</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div></div>
+            </>
+          )}
+        </>
+      )}
       <div className="screen-foot" />
     </div>
   );
+}
+
+function trimHours(n: number): string {
+  return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(2)));
+}
+
+function localDay(atMs: number = Date.now()): string {
+  const d = new Date(atMs);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 }
 
 function hhmm(at: number): string {

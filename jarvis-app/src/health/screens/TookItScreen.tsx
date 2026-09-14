@@ -14,12 +14,25 @@ export default function TookItScreen({ doses, meds = [], now = Date.now(), onLog
   doses: DoseRow[];
   meds?: MedDefEntry[];
   now?: number;
-  onLog: (med?: MedDefEntry) => void;
+  /** 2026-09-14 (the reference's Time Taken): `at` rides along only when
+   *  the time was changed from now. */
+  onLog: (med?: MedDefEntry, at?: number) => void;
   onUndo?: (row: DoseRow) => void;
   onBack: () => void;
 }) {
   const [justTapped, setJustTapped] = useState(false);
-  const tap = () => { onLog(); setJustTapped(true); };
+  const [when, setWhen] = useState("");
+  const at = () => { const m = /^(\d{2}):(\d{2})$/.exec(when); if (!m) return undefined; const d = new Date(now); d.setHours(Number(m[1]), Number(m[2]), 0, 0); return d.getTime(); };
+  const log = (med?: MedDefEntry) => { const a = at(); if (a) onLog(med, a); else onLog(med); };
+  const tap = () => { log(); setJustTapped(true); };
+  const whenRow = (
+    <div className="pad-x"><div className="card list-card-ruled">
+      <div className="row">
+        <div className="row-grow"><div className="conn-name">Time Taken</div><div className="conn-meta">{when ? "Logs at this time today" : "Now"}</div></div>
+        <input className="input set-field" type="time" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="Time taken" />
+      </div>
+    </div></div>
+  );
 
   return (
     <div className="screen ruled health-ruled">
@@ -31,7 +44,8 @@ export default function TookItScreen({ doses, meds = [], now = Date.now(), onLog
       {meds.length > 0 ? (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Today</span></div>
-          <div className="pad-x"><MedRows meds={meds} doses={doses} now={now} onTook={(m) => onLog(m)} /></div>
+          <div className="pad-x"><MedRows meds={meds} doses={doses} now={now} onTook={(m) => log(m)} /></div>
+          {whenRow}
         </>
       ) : (
         <>
@@ -39,6 +53,7 @@ export default function TookItScreen({ doses, meds = [], now = Date.now(), onLog
             <div className="p3-q">One Tap</div>
             <div className="bp-sub">Marks the moment. Only a timeline of what happened, never a tally of anything left undone.</div>
           </div></div>
+          {!justTapped && whenRow}
           <div className="pad-x">
             {justTapped ? (
               <div className="card pad">

@@ -3,6 +3,22 @@ import type { StillTherePattern, StillThereSummaryRow } from "../timelines";
 import { pressable } from "../../shared/pressable";
 import { shortDate } from "../../shared/dateFormat";
 import { BODY_REGIONS } from "../regions";
+import type { PointAtItDetail, PointAtItFeel, PointAtItLevel } from "../types";
+
+// HOW IT FEELS (2026-09-14, the reference's discomfort form). After the tap,
+// three optional words and a note. The spot alone is still a whole log, so
+// Done with nothing picked is a real answer.
+const FEELS: { value: PointAtItFeel; label: string }[] = [
+  { value: "soreness", label: "Soreness" },
+  { value: "pain", label: "Pain" },
+  { value: "stiffness", label: "Stiffness" },
+  { value: "unsure", label: "Not Sure" },
+];
+const LEVELS: { value: PointAtItLevel; label: string }[] = [
+  { value: "mild", label: "Mild" },
+  { value: "moderate", label: "Moderate" },
+  { value: "severe", label: "Severe" },
+];
 
 // POINT AT IT (Part 6). A body map. Tap where it hurts. Three seconds, one
 // hand, no words. No severity scale, no diagnosis, no condition name: the
@@ -11,7 +27,7 @@ import { BODY_REGIONS } from "../regions";
 // The tap reads a normal click event's own clientX/clientY relative to the
 // map's bounding box, never raw touch coordinates, so this is not a second
 // swipe/drag implementation and does not trip the one-swipe-controller law.
-export default function PointAtItScreen({ patterns, summaries = [], onLog, onBack, onHandToSomeone }: {
+export default function PointAtItScreen({ patterns, summaries = [], onLog, onDetail, onBack, onHandToSomeone }: {
   patterns: StillTherePattern[];
   // HMN-F-23 (2026-09-05): the dated taps behind each pattern, in the same
   // order. The catalog calls this "a shareable dated summary of the taps",
@@ -22,6 +38,9 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onBac
   /** Health Push D (H-46): the fourth argument is the region's label when
    *  the log came from the list; the coordinate is the region's own. */
   onLog: (x: number, y: number, side: "front" | "back", region?: string) => void;
+  /** 2026-09-14: the details typed after the tap, onto the tap just logged.
+   *  Absent, the details card is not offered. */
+  onDetail?: (detail: PointAtItDetail) => void;
   onBack: () => void;
   // BRAIN-F-26 (2026-09-05): absent when there is nobody to reach, so the row
   // is not offered rather than dialling a number that will not connect.
@@ -30,6 +49,21 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onBac
   const [side, setSide] = useState<"front" | "back">("front");
   const [mode, setMode] = useState<"map" | "list">("map");
   const [logged, setLogged] = useState<{ x: number; y: number; region?: string } | null>(null);
+  const [feel, setFeel] = useState<PointAtItFeel | undefined>(undefined);
+  const [level, setLevel] = useState<PointAtItLevel | undefined>(undefined);
+  const [note, setNote] = useState("");
+  const [detailSaved, setDetailSaved] = useState(false);
+  const hasDetail = !!feel || !!level || note.trim().length > 0;
+  const chips = <T extends string>(name: string, words: { value: T; label: string }[], value: T | undefined, pick: (v: T | undefined) => void) => (
+    <div className="field">
+      <div className="input-label">{name}</div>
+      <div className="chip-row chip-wrap-row" role="group" aria-label={name}>
+        {words.map((w) => (
+          <div key={w.value} {...pressable(() => pick(value === w.value ? undefined : w.value))} className={"chip" + (value === w.value ? " active" : "")} aria-pressed={value === w.value}>{w.label}</div>
+        ))}
+      </div>
+    </div>
+  );
   const mapRef = useRef<HTMLDivElement | null>(null);
 
   const tap = (e: MouseEvent<HTMLDivElement>) => {
@@ -117,7 +151,20 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onBac
       {logged && (
         <div className="pad-x"><div className="card pad">
           <div className="conn-name">{logged.region ? "Logged · " + logged.region : "Logged"}</div>
-          <button className="btn btn-secondary btn-block" onClick={onBack}>Done</button>
+          {onDetail && !detailSaved && (
+            <>
+              <div className="bp-sub">How it feels, if you want to say. The spot alone is enough.</div>
+              {chips("How It Feels", FEELS, feel, setFeel)}
+              {chips("How Much", LEVELS, level, setLevel)}
+              <div className="field">
+                <div className="input-label">Note</div>
+                <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" aria-label="Note" />
+              </div>
+            </>
+          )}
+          {onDetail && !detailSaved && hasDetail
+            ? <button className="btn btn-secondary btn-block" onClick={() => { onDetail({ ...(feel ? { feel } : {}), ...(level ? { level } : {}), ...(note.trim() ? { note: note.trim() } : {}) }); setDetailSaved(true); }}>Save Details</button>
+            : <button className="btn btn-secondary btn-block" onClick={onBack}>Done</button>}
         </div></div>
       )}
 

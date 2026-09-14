@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Store } from "@core";
 import type { AIService } from "../ai/AIService";
 import type { EventInput } from "../events";
 import { HealthService } from "./HealthService";
 import type {
   ConsentGrant, HealthCategoryId, LightsOutEntry, AteBeforeEntry, TookItEntry, CallItEntry, PointAtItEntry,
-  MedRefillEntry, BagCheckEntry, LockerDocEntry, LockerDocKind, MedDefEntry, MealEntry,
+  MedRefillEntry, BagCheckEntry, LockerDocEntry, LockerDocKind, MedDefEntry, MealEntry, CheckInEntry,
 } from "./types";
 import { doseRows, doseToast } from "./meds";
 import { stillThere, stillThereSummary, stillThereMessage, ateBeforeMarks } from "./timelines";
@@ -175,11 +175,14 @@ export default function HealthFlow({
   // UP-ATH-05: the dated summary in flight between Point at It and Say It to
   // Someone. Null on every other path through this flow.
   const [handOff, setHandOff] = useState<string | null>(initialHandOff ?? null);
+  // 2026-09-14: the moment of the last discomfort tap, for its details.
+  const lastTap = useRef<number | null>(null);
 
   const [grants, setGrants] = useState<ConsentGrant[]>([]);
   const [lightsOut, setLightsOut] = useState<(LightsOutEntry & { pending?: boolean })[]>([]);
   const [medDefs, setMedDefs] = useState<MedDefEntry[]>([]);
   const [meals, setMeals] = useState<MealEntry[]>([]);
+  const [checkins, setCheckins] = useState<CheckInEntry[]>([]);
   // Health Push F (H-47): the report's window and kinds, chosen on the screen.
   const [reportRange, setReportRange] = useState<ReportRange>("6w");
   const [reportCustom, setReportCustom] = useState<{ from: string; to: string }>(() => ({ from: localDay(Date.now() - 42 * 86400000), to: localDay() }));
@@ -195,13 +198,13 @@ export default function HealthFlow({
   const [ageRuleGate, setAgeRuleGate] = useState(false);
 
   const reload = useCallback(async () => {
-    const [g, lo, ab, ti, ci, pa, mr, bc, ld, ta, gate, md, me] = await Promise.all([
+    const [g, lo, ab, ti, ci, pa, mr, bc, ld, ta, gate, md, me, ck] = await Promise.all([
       svc.getConsent(), svc.listLightsOut(), svc.listAteBefore(), svc.listTookIt(), svc.listCallIt(), svc.listPointAtIt(),
       svc.listMedRefill(), svc.listBagCheck(), svc.listLockerDoc(), svc.getTrustedAdult(), svc.wasAgeRuleShown(currentSeason()),
-      svc.listMedDefs(), svc.listMeal(),
+      svc.listMedDefs(), svc.listMeal(), svc.listCheckIn(),
     ]);
     setGrants(g); setLightsOut(lo); setAteBefore(ab); setTookIt(ti); setCallIt(ci); setPointAtIt(pa);
-    setMedRefill(mr); setBagCheck(bc); setLockerDocs(ld); setMedDefs(md); setMeals(me);
+    setMedRefill(mr); setBagCheck(bc); setLockerDocs(ld); setMedDefs(md); setMeals(me); setCheckins(ck);
     setTrustedAdultState(ta ? { name: ta.data.name, phone: ta.data.phone } : { name: "", phone: "" });
     setAgeRuleGate(gate);
   }, [svc]);
@@ -372,7 +375,8 @@ export default function HealthFlow({
           // HMN-F-23 (2026-09-05): the dated taps behind each pattern, which
           // is what the catalog says gets handed over.
           summaries={summaries}
-          onLog={(x, y, side, region) => { svc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) }); void reload(); }}
+          onLog={(x, y, side, region) => { lastTap.current = svc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) }).at; void reload(); }}
+          onDetail={(detail) => { if (lastTap.current != null) void svc.updatePointAtIt(lastTap.current, detail).then(() => reload()); }}
           // UP-ATH-05 (2026-09-06): the summary travels with the tap. Before
           // this the button walked to Say It to Someone empty-handed, so the
           // athlete had to remember and retype the dates the screen had just
@@ -419,7 +423,7 @@ export default function HealthFlow({
       );
     case "doctorReport": {
       // H-47: the window and kinds he chose; meals offered once one exists.
-      const report = buildDoctorReport({ tookIt, ateBefore, lightsOut, callIt, meals, medDefs }, { ...reportWindow(reportRange, reportCustom), kinds: reportKinds });
+      const report = buildDoctorReport({ tookIt, ateBefore, lightsOut, callIt, meals, medDefs, checkins }, { ...reportWindow(reportRange, reportCustom), kinds: reportKinds });
       return (
         <DoctorReportScreen
           report={report}
@@ -430,6 +434,7 @@ export default function HealthFlow({
           kinds={reportKinds}
           onToggleKind={(k) => setReportKinds((ks) => (ks.includes(k) ? ks.filter((x) => x !== k) : [...ks, k]))}
           hasMeals={meals.length > 0}
+          hasCheckins={checkins.length > 0}
           // HMN-F-22 (2026-09-05): Export This Log used to toast the
           // report's own first line and export nothing at all. It hands the
           // text to the OS now, through the same share sheet the backup

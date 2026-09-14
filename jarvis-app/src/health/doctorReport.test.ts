@@ -106,3 +106,15 @@ describe("buildDoctorReport with options", () => {
     expect(bad).toEqual({ from: now - 42 * DAY, to: now });
   });
 });
+
+// 2026-09-14: check-ins in the export, as the words picked.
+describe("buildDoctorReport: check-ins", () => {
+  it("lists a check-in inside the window under its own kind", () => {
+    const now = new Date("2026-09-14T12:00:00").getTime();
+    const r = buildDoctorReport(
+      { tookIt: [], ateBefore: [], lightsOut: [], callIt: [], checkins: [{ id: "c1", data: { category: "body", at: now - 3600_000, energy: "high", mood: "good" } }] },
+      { from: now - 86400_000, to: now, kinds: ["checkin"] }, now,
+    );
+    expect(r.rows.map((x) => [x.kind, x.label])).toEqual([["checkin", "Check In · Energy High · Mood Good"]]);
+  });
+});

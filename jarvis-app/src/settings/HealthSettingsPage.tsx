@@ -14,16 +14,23 @@ import { RackSettings } from "./TrainingPage";
 // be"), and the rack, the same controls Settings, Training already carries.
 export interface HealthDoorRow { key: string; group: string; label: string; sub: string }
 
-export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], onOpenDoor }: {
+export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], onOpenDoor, workoutReminder, onWorkoutReminder }: {
   onBack: () => void;
   /** Turning the Water shortcut on seeds its metric (H-43). */
   onEnableWater?: () => void;
+  /** 2026-09-14 (the reference's Reminders): one workout reminder at a time
+   *  he chooses, a reminder task filed to this area. Null when there is
+   *  none; the switch and the time row are absent without the seam. */
+  workoutReminder?: { time: string } | null;
+  onWorkoutReminder?: (time: string | null) => void;
   /** Part 3 wave 4 (Dave 15a): the Student template's other health screens,
    *  grouped, now live here instead of behind a More door on the page. */
   doors?: HealthDoorRow[];
   onOpenDoor?: (key: string) => void;
 }) {
   const [s, setS] = useState<HealthSettings>(() => readHealthSettings());
+  // The time input wants HH:MM; the row beside it says nothing raw.
+  const reminderClock = workoutReminder ? workoutReminder.time : "17:30";
   const set = (patch: Partial<HealthSettings>) => setS(updateHealthSettings(patch));
   const [showLast, setShowLast] = useState(() => readGymSettings().showLast);
   const toggleShowLast = () => {
@@ -62,6 +69,22 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
           );
         })}
       </div></div>
+      {onWorkoutReminder && (
+        <>
+          <Head label="Reminders" />
+          <Card>
+            <Switch label="Workout Reminder" meta={workoutReminder ? "Every day, on your reminders" : "One reminder, at a time you choose"} on={!!workoutReminder}
+              onToggle={() => onWorkoutReminder(workoutReminder ? null : "17:30")} />
+            {workoutReminder && (
+              <div className="row set-row">
+                <div className="conn-name">Reminder Time</div>
+                <input className="set-field" type="time" aria-label="Reminder time" value={reminderClock}
+                  onChange={(e) => { if (/^\d{2}:\d{2}$/.test(e.target.value)) onWorkoutReminder(e.target.value); }} />
+              </div>
+            )}
+          </Card>
+        </>
+      )}
       <Head label="Session" />
       <Card>
         <Switch label="Rest Timer Sound" meta="Three notes when the rest is over" on={s.restSound} onToggle={() => set({ restSound: !s.restSound })} />

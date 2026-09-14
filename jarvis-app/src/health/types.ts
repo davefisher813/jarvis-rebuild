@@ -220,7 +220,17 @@ export interface PointAtItData extends QueuedLog {
    *  the tap came from the list rather than the map (health/regions.ts). A
    *  place, never a name for what is wrong with it. */
   region?: string;
+  /** 2026-09-14 (the reference's discomfort form; Dave: "Do all of this").
+   *  How it feels and how much, as words he picked, and a note. Optional on
+   *  every tap: the spot alone is still a whole log. Still no name for a
+   *  condition, and nothing here is scored or trended. */
+  feel?: PointAtItFeel;
+  level?: PointAtItLevel;
+  note?: string;
 }
+export type PointAtItFeel = "soreness" | "pain" | "stiffness" | "unsure";
+export type PointAtItLevel = "mild" | "moderate" | "severe";
+export interface PointAtItDetail { feel?: PointAtItFeel; level?: PointAtItLevel; note?: string }
 export interface PointAtItEntry {
   id: string;
   data: PointAtItData;
