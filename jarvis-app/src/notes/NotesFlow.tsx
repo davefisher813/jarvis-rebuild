@@ -7,7 +7,7 @@ import { useAI } from "../ai/useAI";
 import { findInNote, passLength, PASS_DELTA } from "./jarvisFound";
 import { catName } from "../shared/categories";
 import type { Category } from "../categories/types";
-import type { Block, Connection, NoteData, TemplateKey } from "./types";
+import type { Block, Connection, NoteData, NoteVersion, TemplateKey } from "./types";
 import NotesList, { type NoteListItem } from "./screens/NotesList";
 import { noteBlockText } from "../search/search";
 import NoteEditor, { type EditorNote, type SaveState } from "./screens/NoteEditor";
@@ -186,6 +186,16 @@ export default function NotesFlow({
   // C-18 / C-19 / C-20 (Astra, 2026-09-12): the open note's flags, the
   // notes around it, and what JARVIS found in it.
   const [noteFlags, setNoteFlags] = useState<{ pinned: boolean; archived: boolean; tags: string[] }>({ pinned: false, archived: false, tags: [] });
+  // VERSION HISTORY (wave 3b): the open note's kept versions.
+  const [versions, setVersions] = useState<NoteVersion[]>([]);
+  const restoreVersion = (at: number) => enqueue(async () => {
+    if (!currentId) return;
+    await flushDoc();
+    const ok = await attemptWrite(() => svc.restoreVersion(currentId, at));
+    if (!ok) return;
+    await loadCurrent(currentId);
+    showToast({ message: "Version restored" });
+  });
   const [linkedFrom, setLinkedFrom] = useState<{ id: string; title: string }[]>([]);
   const [related, setRelated] = useState<{ id: string; title: string; shared: number }[]>([]);
   const [found, setFound] = useState<import("./types").FoundCandidate[]>([]);
@@ -223,7 +233,7 @@ export default function NotesFlow({
   const unfiled = useRef(false);
 
   const loadList = useCallback(async () => {
-    const items = await svc.listNotes();
+    const items = await svc.listNotes({ includeDeleted: true });
     setList(
       items.map((it) => {
         const d = it.data as unknown as NoteData;
@@ -236,7 +246,7 @@ export default function NotesFlow({
         return {
           id: it.id, title: displayTitle(d), edited, category: d.category || "", first: d.title.trim() ? firstLine(d) : "", body: noteBlockText(d),
           // C-18 / C-20
-          ...(d.pinned ? { pinned: true } : {}), ...(d.archived ? { archived: true } : {}), ...(d.tags?.length ? { tags: d.tags } : {}),
+          ...(d.pinned ? { pinned: true } : {}), ...(d.archived ? { archived: true } : {}), ...(d.tags?.length ? { tags: d.tags } : {}), ...(d.deletedAt ? { deleted: true } : {}),
           ...((d.found ?? []).some((c) => !c.added) ? { found: (d.found ?? []).filter((c) => !c.added).length } : {}),
         };
       }),
@@ -282,6 +292,7 @@ export default function NotesFlow({
       // dropped, and Delete Note removed the note that was NOT on screen.
       if (currentIdRef.current !== id) return;
       setCurrent(d ? toEditorNote(d) : null);
+      setVersions(d?.versions ?? []);
       const cs = d?.connections ?? [];
       setConns(cs);
       if (d) {
@@ -379,7 +390,7 @@ export default function NotesFlow({
     setLinkGoals(gl.map((g) => ({ id: g.id, title: (g.data as { title?: string }).title || "Untitled" })));
     setLinkPeople(pe.map((p) => ({ id: p.id, name: (p.data as { name?: string }).name || "Someone" })));
     // C-19: the other live notes, for a note-to-note link.
-    setLinkNotes(list.filter((n) => n.id !== currentIdRef.current && !n.archived).map((n) => ({ id: n.id, title: n.title })));
+    setLinkNotes(list.filter((n) => n.id !== currentIdRef.current && !n.archived && !n.deleted).map((n) => ({ id: n.id, title: n.title })));
     // HMN-F-26 (2026-09-05): every event ever went into the picker, oldest
     // and newest mixed, so after a few months of real use the Events section
     // was hundreds of rows with no way to narrow them. A note is linked to
@@ -460,6 +471,14 @@ export default function NotesFlow({
   // makes a note titled after the file and opens it.
   const fileStore = useFileStore();
   const [uploading, setUploading] = useState(false);
+  // RECENTLY DELETED (wave 3b): what has sat there thirty days goes for
+  // good, files and all, once per open. A failed purge tries again next time.
+  useEffect(() => {
+    void svc.purgeTrash().then(async (ids) => {
+      for (const id of ids) void fileStore?.removeAll(id);
+      if (ids.length) await loadList();
+    }).catch(() => {});
+  }, [svc, fileStore, loadList]);
   const pendingPick = useRef<{ noteId: string | null; type: "photo" | "file" }>({ noteId: null, type: "photo" });
   const attachFile = async (noteId: string, file: File, type: "photo" | "file"): Promise<boolean> => {
     if (!fileStore) return false;
@@ -531,13 +550,6 @@ export default function NotesFlow({
     if (ok) await loadList();
   };
 
-  // What a deleted note leaves in storage goes a beat after the note, so
-  // Undo can bring the note back with its pictures; Undo cancels the sweep.
-  const sweepAfter = (ids: string[]): { cancel: () => void } => {
-    let undone = false;
-    const t = setTimeout(() => { if (!undone) for (const id of ids) void fileStore?.removeAll(id); }, 6000);
-    return { cancel: () => { undone = true; clearTimeout(t); } };
-  };
 
   // HMN-F-27 (2026-09-05): deleting a photo or file BLOCK took the block and
   // left its bytes in storage forever, so a note edited over a year quietly
@@ -736,35 +748,39 @@ export default function NotesFlow({
   const NOTE_DEPTH: Record<Screen, number> = { list: 0, editor: 1, templates: 1, connections: 2, linkPicker: 3, createTasks: 3 };
   const pushCls = usePushDepth(NOTE_DEPTH[screen]);
 
-  // BULK DELETE (Dave 2026-08-24). restoreNote is what makes the Undo whole
-  // here: a note carries blocks, connections and a category, and recreating
-  // one from its title would be a worse lie than not offering Undo at all.
-  // Snapshots are read BEFORE anything is deleted, or by the time the toast
-  // is tapped there is nothing left to read.
+  // DELETE (Dave 2026-08-24; wave 3b). A deleted note goes to Recently
+  // Deleted whole, under its own id (HMN-F-15), so Undo, Restore and every
+  // link into it keep working; its files stay until it is purged or deleted
+  // for good.
   const onDeleteManyNotes = async (ids: string[]) => {
     if (ids.length === 0) return;
-    // HMN-F-15: each snapshot keeps its id, so Undo puts the note back under
-    // it and everything that pointed at the note still opens it.
-    const kept: { id: string; data: NoteData }[] = [];
-    for (const id of ids) {
-      const n = await svc.note(id);
-      if (n) kept.push({ id, data: n });
-    }
     let gone = 0;
-    await attemptWrite(async () => { for (const id of ids) { await svc.deleteNote(id); gone++; } });
+    await attemptWrite(async () => { for (const id of ids) { if (await svc.trashNote(id)) gone++; } });
     await loadList();
     if (gone === 0) return;
     const n = gone;
-    const sweep = sweepAfter(ids.slice(0, n));
+    for (const id of ids) clearDraft(id);
     showToast({
       message: n === 1 ? "Note deleted" : n + " notes deleted",
       actionLabel: "Undo",
       onAction: async () => {
-        sweep.cancel();
-        await attemptWrite(async () => { for (const note of kept.slice(0, n)) await svc.restoreNote(note.data, note.id); });
+        await attemptWrite(async () => { for (const id of ids) await svc.untrashNote(id); });
         await loadList();
       },
     });
+  };
+  const restoreNote = async (id: string) => {
+    const ok = await attemptWrite(() => svc.untrashNote(id));
+    if (!ok) return;
+    await loadList();
+    showToast({ message: "Back in your notes" });
+  };
+  const deleteForever = async (id: string) => {
+    const ok = await attemptWrite(() => svc.deleteNote(id));
+    if (!ok) return;
+    void fileStore?.removeAll(id);
+    await loadList();
+    showToast({ message: "Deleted for good" });
   };
 
   if (screen === "list") {
@@ -780,6 +796,8 @@ export default function NotesFlow({
         onDelete={(id) => void onDeleteManyNotes([id])}
         onFile={(id) => setFiling(id)}
         onAppend={(id) => setAppending(id)}
+        onRestore={(id) => void restoreNote(id)}
+        onDeleteForever={(id) => void deleteForever(id)}
       />
       {appending && (
         <QuickAppendSheet title={list.find((n) => n.id === appending)?.title ?? "Note"} onDone={(nodes) => void runAppend(appending, nodes)} onCancel={() => setAppending(null)} />
@@ -913,16 +931,10 @@ export default function NotesFlow({
             // save still in flight, so the snapshot Undo restores carries the
             // last thing typed.
             await flushDoc();
-            let snapshot: NoteData | null = null;
             let ok = false;
-            await enqueue(async () => {
-              snapshot = await svc.note(currentId);
-              ok = await attemptWrite(() => svc.deleteNote(currentId));
-            });
+            await enqueue(async () => { ok = await attemptWrite(() => svc.trashNote(currentId)); });
             if (!ok) return;
-            const kept: NoteData | null = snapshot;
             const deletedId = currentId;
-            const sweep = sweepAfter([currentId]);
             clearDraft(deletedId);
             openCurrentId(null);
             await loadList();
@@ -931,10 +943,7 @@ export default function NotesFlow({
               message: "Note deleted",
               actionLabel: "Undo",
               onAction: async () => {
-                sweep.cancel();
-                // HMN-F-15: back under the same id, so the tasks made from
-                // its checklist and the Where You Were spot still open it.
-                if (kept) await attemptWrite(() => svc.restoreNote(kept, deletedId));
+                await attemptWrite(() => svc.untrashNote(deletedId));
                 await loadList();
               },
             });
@@ -957,6 +966,8 @@ export default function NotesFlow({
           onFoundLink={(i) => void foundLink(i)}
           onEditTitle={editTitle}
           onDocChange={docChange}
+          versions={versions}
+          onRestoreVersion={(at) => void restoreVersion(at)}
           connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId, gone: goneConns.has(c.id) }))}
           onAddLink={() => void openLinkPicker("editor")}
           onRemoveConnection={(connId) => void enqueue(async () => {

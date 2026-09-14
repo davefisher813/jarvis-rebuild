@@ -1,6 +1,6 @@
 # Session handoff, 14 Sep 2026
 
-**Remote main is the writing system's wave 3a (folding, outline, find and replace, sections, quick append) on top of its first two on top of Cowork's Exercises and Today patch, the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
+**Remote main is the writing system's wave 3b (version history, recently deleted) on top of 3a and the first two on top of Cowork's Exercises and Today patch, the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
 
 ## What shipped this session
 
@@ -72,7 +72,13 @@ The first half of section 12's third step, one push.
 - **Clear formatting** was already on the Format menu (wave 1). Slash commands are not built: the Insert button is the discoverable door the brief asks for, and a "/" menu would be a second one to keep in step.
 - **Tested in automation, not on a device:** fold and unfold with the words intact and the export unchanged, a fold surviving typing above it, the outline, section moves with one undo, grouping, find counts and stepping, replace one and all with one undo, the quick append reaching the store.
 
-Wave 3b (version history, recently deleted notes, the shared editor on Brain documents, Decisions, email, task notes and workout notes), wave 4 (the AI actions) and the ink ruling follow, each its own push.
+## The writing system, wave 3b (version history, recently deleted)
+
+- **Version history** (`NoteData.versions`, `NotesService.setDoc`): the document being replaced is kept as a version when there is none yet or the last one is older than ten minutes, newest last, twenty at most. More > Version History (offered once a version exists) lists them newest first with their word counts; a tap shows the words and offers Restore This Version, which keeps the current document as a version first, so nothing is lost to a restore.
+- **Recently deleted** (`NoteData.deletedAt`, `trashNote` / `untrashNote` / `purgeTrash`): a deleted note keeps its record under its own id and leaves every list, search and link picker for the Recently Deleted chip, where a tap or its Restore capsule brings it back whole and the swipe's only slot is Delete Forever. Thirty days on it is removed for good with its files, once per open of Notes. The Undo toast on a delete is a restore now, so the old sweep-after-six-seconds of a note's files is gone with the hard delete it guarded; `deleteNote` stays the hard delete for Delete Forever, the purge and the spec.
+- **Tested in automation, not on a device:** the ten-minute rule, the cap of twenty, restore keeping the current document, the Recently Deleted chip and its two doors, the purge window.
+
+Wave 3c (the shared editor on Brain documents, Decisions, email, task notes and workout notes), wave 4 (the AI actions) and the ink ruling follow, each its own push.
 
 ## How Cowork work lands
 

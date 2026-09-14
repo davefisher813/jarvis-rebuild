@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode, useEffect } from "react";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import { Check, FileText, Paperclip, PenLine, Search, Tag, Trash2, Plus } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
@@ -35,10 +35,12 @@ export interface NoteListItem {
   tags?: string[];
   // C-20: candidates JARVIS found and he has not used yet.
   found?: number;
+  // Wave 3b: in Recently Deleted.
+  deleted?: boolean;
 }
 
 // C-18: the filter chips. Choosers, so filled chips.
-type Filter = { kind: "all" } | { kind: "pinned" } | { kind: "unfiled" } | { kind: "area"; id: string } | { kind: "tag"; tag: string } | { kind: "archived" };
+type Filter = { kind: "all" } | { kind: "pinned" } | { kind: "unfiled" } | { kind: "area"; id: string } | { kind: "tag"; tag: string } | { kind: "archived" } | { kind: "deleted" };
 const sameFilter = (a: Filter, b: Filter) => JSON.stringify(a) === JSON.stringify(b);
 
 // THE SWIPE ON A NOTE (Dave 2026-09-02:
@@ -50,8 +52,8 @@ const sameFilter = (a: Filter, b: Filter) => JSON.stringify(a) === JSON.stringif
 // Undo, the flow's own). Off in select mode, where a half-swiped row under
 // a selection is two gestures fighting.
 type RowDrag = { dragging: boolean; style?: React.CSSProperties; handlers?: SwipeState["handlers"] };
-function NoteSwipeRow({ enabled, onFile, onAppend, onDelete, children }: {
-  enabled: boolean; onFile?: () => void; onAppend?: () => void; onDelete?: () => void; children: (drag: RowDrag) => ReactNode;
+function NoteSwipeRow({ enabled, onFile, onAppend, onDelete, forever = false, children }: {
+  enabled: boolean; onFile?: () => void; onAppend?: () => void; onDelete?: () => void; forever?: boolean; children: (drag: RowDrag) => ReactNode;
 }) {
   const swipe = useSwipe({ revealW: 88 * (1 + (onFile ? 1 : 0) + (onAppend ? 1 : 0)), enabled });
   return (
@@ -70,9 +72,9 @@ function NoteSwipeRow({ enabled, onFile, onAppend, onDelete, children }: {
           <span className="swipe-label">File</span>
         </button>
       )}
-      <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label="Delete note">
+      <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label={forever ? "Delete forever" : "Delete note"}>
         <Trash2 className="ic" />
-        <span className="swipe-label">Delete</span>
+        <span className="swipe-label">{forever ? "Forever" : "Delete"}</span>
       </button>
       {children({ dragging: swipe.dragging, style: swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined, handlers: swipe.handlers })}
     </div>
@@ -124,6 +126,8 @@ export default function NotesList({
   onDeleteMany,
   onFile,
   onAppend,
+  onRestore,
+  onDeleteForever,
   onDelete,
 }: {
   notes: NoteListItem[];
@@ -137,6 +141,8 @@ export default function NotesList({
   // The swipe's two moves (2026-09-02): file under an area, delete one.
   onFile?: (id: string) => void;
   onAppend?: (id: string) => void;
+  onRestore?: (id: string) => void;
+  onDeleteForever?: (id: string) => void;
   onDelete?: (id: string) => void;
 }) {
   const [q, setQ] = useState("");
@@ -148,12 +154,20 @@ export default function NotesList({
   const ordered = [...notes].sort((a, b) => b.edited - a.edited);
   // C-18: archived notes leave every list except the Archived filter and
   // search; the other chips narrow the live notes.
-  const live = ordered.filter((n) => !n.archived);
+  // Recently Deleted is its own room: nothing there shows anywhere else,
+  // and search does not reach it.
+  const kept = ordered.filter((n) => !n.deleted);
+  const deletedCount = ordered.length - kept.length;
+  const live = kept.filter((n) => !n.archived);
   const areaIds = [...new Set(live.map((n) => n.category).filter(Boolean))];
   const tagNames = [...new Set(live.flatMap((n) => n.tags ?? []))].sort();
   const unfiledCount = live.filter((n) => !n.category).length;
-  const archivedCount = ordered.length - live.length;
-  const filtered = filter.kind === "archived" ? ordered.filter((n) => !!n.archived)
+  const archivedCount = kept.length - live.length;
+  useEffect(() => {
+    if ((filter.kind === "deleted" && deletedCount === 0) || (filter.kind === "archived" && archivedCount === 0)) setFilter({ kind: "all" });
+  }, [filter.kind, deletedCount, archivedCount]);
+  const filtered = filter.kind === "deleted" ? ordered.filter((n) => !!n.deleted)
+    : filter.kind === "archived" ? kept.filter((n) => !!n.archived)
     : filter.kind === "pinned" ? live.filter((n) => !!n.pinned)
     : filter.kind === "unfiled" ? live.filter((n) => !n.category)
     : filter.kind === "area" ? live.filter((n) => n.category === filter.id)
@@ -161,7 +175,7 @@ export default function NotesList({
     : live;
   // S6-Q37: title OR body, same two-part rule search.ts's noteHas uses.
   // Search reaches the archive too.
-  const shown = query ? ordered.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : filtered;
+  const shown = query ? kept.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : filtered;
   // The SEARCHED list, not the whole one. Select All while a search is
   // narrowing the page must mean the notes on screen: deleting the ones
   // hidden behind a query would be the worst possible version of this.
@@ -210,7 +224,7 @@ export default function NotesList({
     const body = (drag: RowDrag) => (
       <div
         className={"task-row p2 note-row" + (drag.dragging ? " swiping" : "")}
-        {...pressable(() => (sel.active ? sel.toggle(n.id) : onOpen?.(n.id)))}
+        {...pressable(() => (sel.active ? sel.toggle(n.id) : n.deleted ? onRestore?.(n.id) : onOpen?.(n.id)))}
         style={drag.style}
         {...(drag.handlers ?? {})}>
         {/* The selection box takes the leading column: on a row with a glyph
@@ -243,9 +257,19 @@ export default function NotesList({
           )}
           {NOTES_ROW === "first" && n.first && <div className="note-first">{n.first}</div>}
         </div>
-        {!sel.active && <div className="chev"></div>}
+        {!sel.active && n.deleted && onRestore && <span className="pill-act">Restore</span>}
+        {!sel.active && !n.deleted && <div className="chev"></div>}
       </div>
     );
+    // A deleted row's swipe is Delete Forever alone; the other doors are
+    // for a note that is still here.
+    if (n.deleted) {
+      return onDeleteForever ? (
+        <NoteSwipeRow key={n.id} enabled={!sel.active} onDelete={() => onDeleteForever(n.id)} forever>
+          {body}
+        </NoteSwipeRow>
+      ) : <Fragment key={n.id}>{body({ dragging: false })}</Fragment>;
+    }
     return onDelete ? (
       <NoteSwipeRow key={n.id} enabled={!sel.active} onFile={onFile ? () => onFile(n.id) : undefined} onAppend={onAppend ? () => onAppend(n.id) : undefined} onDelete={() => onDelete(n.id)}>
         {body}
@@ -291,6 +315,7 @@ export default function NotesList({
             ...areaIds.map((id) => ({ f: { kind: "area", id } as Filter, label: catName(id) || "Area", dot: catColor(id) })),
             ...tagNames.map((tag) => ({ f: { kind: "tag", tag } as Filter, label: "#" + tag })),
             ...(archivedCount > 0 ? [{ f: { kind: "archived" } as Filter, label: "Archived" }] : []),
+            ...(deletedCount > 0 ? [{ f: { kind: "deleted" } as Filter, label: `Recently Deleted · ${deletedCount}` }] : []),
           ] as { f: Filter; label: string; dot?: string }[]).map(({ f, label, dot }) => (
             <button key={label} type="button" className={"chip" + (sameFilter(filter, f) ? " active" : "")} aria-pressed={sameFilter(filter, f)} onClick={() => setFilter(f)}>
               {dot && <span className={"cat-dot cat-bg-" + dot} />}{label}

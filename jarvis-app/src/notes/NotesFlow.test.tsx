@@ -331,6 +331,37 @@ describe("NotesFlow: pending text survives leaving the tab (HMN-F-02)", () => {
   });
 });
 
+// RECENTLY DELETED (the writing system, wave 3b): a deleted note leaves the
+// list for its own room, comes back on Restore, and goes for good on Delete
+// Forever.
+describe("NotesFlow: Recently Deleted", () => {
+  it("moves a deleted note to its own chip, restores it, and deletes it for good", async () => {
+    svcRef = null;
+    const user = "u-trash-w3";
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    const svc = svcRef!;
+    let id = "";
+    await act(async () => { id = (await svc.createNote("Roster", ""))!; await svc.createNote("Kept", ""); });
+    view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
+    await screen.findByText("Roster", {}, { timeout: 4000 });
+    fireEvent.click(screen.getAllByLabelText("Delete note")[0]!);
+    await waitFor(() => expect(screen.queryByText("Roster")).toBeNull(), { timeout: 4000 });
+    expect((await svc.note(id))!.deletedAt).toBeTruthy();
+    fireEvent.click(await screen.findByText(/Recently Deleted · 1/));
+    const row = await screen.findByText("Roster");
+    expect(screen.getByText("Restore")).toBeInTheDocument();
+    fireEvent.click(row);
+    await waitFor(async () => expect((await svc.note(id))!.deletedAt).toBeFalsy(), { timeout: 4000 });
+    await waitFor(() => expect(screen.queryByText(/Recently Deleted/)).toBeNull(), { timeout: 4000 });
+    // Delete again, then for good.
+    fireEvent.click(screen.getAllByLabelText("Delete note")[0]!);
+    fireEvent.click(await screen.findByText(/Recently Deleted · 1/, {}, { timeout: 4000 }));
+    fireEvent.click(await screen.findByLabelText("Delete forever"));
+    await waitFor(async () => expect(await svc.note(id)).toBeNull(), { timeout: 4000 });
+  });
+});
+
 // QUICK APPEND (the writing system, wave 3): the swipe's Add puts lines on
 // the end of a note without opening it.
 describe("NotesFlow: quick append from the list", () => {

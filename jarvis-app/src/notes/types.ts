@@ -72,6 +72,16 @@ export interface NoteData {
   // every existing reader of blocks and every older build keeps working.
   // A note without one is built from its blocks on open.
   doc?: import("@tiptap/core").JSONContent;
+  // VERSION HISTORY (the writing system, wave 3b): the document as it was,
+  // kept when a save lands more than ten minutes after the last version,
+  // newest last, twenty at most. Restoring one keeps the current document
+  // as a version first, so nothing is ever lost to a restore.
+  versions?: NoteVersion[];
+  // RECENTLY DELETED (wave 3b): a deleted note keeps its record with the
+  // moment it was deleted; it leaves every list but Recently Deleted, comes
+  // back whole on Restore, and is removed for good after thirty days or on
+  // Delete Forever.
+  deletedAt?: number | null;
   connections: Connection[];
   // UP-CORE-05 (2026-09-05): provenance on notes too. A note born from a
   // paste, a capture or a file said nothing about where it came from, while
@@ -89,6 +99,8 @@ export interface NoteData {
   // record until the tap that makes it one.
   found?: FoundCandidate[];
 }
+
+export interface NoteVersion { at: number; doc: import("@tiptap/core").JSONContent }
 
 export interface FoundCandidate {
   kind: "task" | "decision" | "person" | "project";

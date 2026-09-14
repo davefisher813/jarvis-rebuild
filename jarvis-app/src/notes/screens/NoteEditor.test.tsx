@@ -154,6 +154,29 @@ describe("Find in Note and the Outline", () => {
   });
 });
 
+describe("Version History", () => {
+  it("is offered only when versions exist, lists them newest first, and restores one", async () => {
+    const onRestoreVersion = vi.fn();
+    const versions = [
+      { at: Date.parse("2026-09-13T09:00:00"), doc: blocksToDoc([{ id: "a", type: "text", text: "the first draft here" }]) },
+      { at: Date.parse("2026-09-14T15:30:00"), doc: blocksToDoc([{ id: "b", type: "text", text: "a later draft" }]) },
+    ];
+    const { rerender } = render(<NoteEditor {...base} onRestoreVersion={onRestoreVersion} />);
+    fireEvent.click(screen.getByLabelText("Note options"));
+    expect(screen.queryByText("Version History")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Note options"));
+    rerender(<NoteEditor {...base} versions={versions} onRestoreVersion={onRestoreVersion} />);
+    fireEvent.click(screen.getByLabelText("Note options"));
+    fireEvent.click(screen.getByText("Version History"));
+    const rows = await screen.findAllByText(/words$/i, { selector: ".doc-outline .fact" });
+    expect(rows.map((r) => r.textContent)).toEqual(["3 Words", "4 Words"]);
+    fireEvent.click(rows[0]!);
+    expect(await screen.findByText("a later draft", { selector: "pre" })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Restore This Version"));
+    expect(onRestoreVersion).toHaveBeenCalledWith(versions[1]!.at);
+  });
+});
+
 describe("the save line", () => {
   it("says what is true and offers Retry only on a failure", () => {
     const onRetrySave = vi.fn();

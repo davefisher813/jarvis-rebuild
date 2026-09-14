@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share, Search, AlignLeft, ArrowUp, ArrowDown } from "../../shared/icons";
-import type { FoundCandidate } from "../types";
+import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share, Search, AlignLeft, ArrowUp, ArrowDown, Clock } from "../../shared/icons";
+import type { FoundCandidate, NoteVersion } from "../types";
 import { catColor } from "../../shared/categories";
 import InlineEdit from "../../shared/InlineEdit";
 import DocEditor, { type DocEditorHandle } from "../../shared/DocEditor";
@@ -112,6 +112,57 @@ function CopyFallback({ text, onClose }: { text: string; onClose: () => void }) 
 
 type CopyKind = "full" | "body" | "plain" | "markdown";
 
+// When a version was kept, as words a person reads: the time on its day.
+function versionWhen(at: number, now = Date.now()): string {
+  const d = new Date(at);
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const today = new Date(now);
+  const sameDay = d.toDateString() === today.toDateString();
+  const yesterday = new Date(now - 86400000).toDateString() === d.toDateString();
+  return sameDay ? "Today " + time : yesterday ? "Yesterday " + time : d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + time;
+}
+
+// VERSION HISTORY (wave 3b): the kept versions as rows, newest first; a tap
+// shows the words and offers Restore. Restoring keeps the current document
+// as a version first (NotesService.restoreVersion), so nothing is lost.
+function VersionsSheet({ versions, onRestore, onClose }: { versions: NoteVersion[]; onRestore: (at: number) => void; onClose: () => void }) {
+  const [open, setOpen] = useState<NoteVersion | null>(null);
+  const rows = [...versions].reverse();
+  return createPortal(
+    <div className="sheet-scrim" onClick={onClose}>
+      <div className="card doc-outline" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="grp"><div className="eyebrow">{open ? versionWhen(open.at) : "Version History"}</div></div>
+        {open ? (
+          <div className="pad-x sheet-form">
+            <pre className="exp-preview">{docToPlainText(open.doc, { includeTitle: false })}</pre>
+            <div className="exp-acts">
+              <button type="button" className="btn btn-primary" onClick={() => { onClose(); onRestore(open.at); }}>Restore This Version</button>
+              <button type="button" className="btn btn-secondary" onClick={() => setOpen(null)}>Back</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="list-card-ruled">
+              {rows.map((v) => (
+                <div className="row" key={v.at} role="button" tabIndex={0} onClick={() => setOpen(v)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(v); } }}>
+                  <div className="row-grow">
+                    <div className="conn-name">{versionWhen(v.at)}</div>
+                    <div className="facts"><span className="fact">{capAfterNumber(`${docWordCount(v.doc)} ${docWordCount(v.doc) === 1 ? "word" : "words"}`)}</span></div>
+                  </div>
+                  <div className="chev" />
+                </div>
+              ))}
+            </div>
+            <div className="pad-x sheet-actions"><button type="button" className="btn btn-secondary btn-block" onClick={onClose}>Done</button></div>
+          </>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 // THE OUTLINE (wave 3): every heading as a row, indented by level; a tap
 // puts the caret there.
 function OutlineSheet({ items, onPick, onClose }: { items: { pos: number; level: number; text: string }[]; onPick: (pos: number) => void; onClose: () => void }) {
@@ -199,6 +250,8 @@ export default function NoteEditor({
   onRemoveConnection,
   onOpenConnection,
   openSourceFor,
+  versions = [],
+  onRestoreVersion,
 }: {
   note: EditorNote;
   fileStore?: FileStore | null;
@@ -230,6 +283,8 @@ export default function NoteEditor({
   onRemoveConnection?: (connId: string) => void;
   onOpenConnection?: (kind: string, targetId: string) => void;
   openSourceFor?: (source: Source) => (() => void) | undefined;
+  versions?: NoteVersion[];
+  onRestoreVersion?: (at: number) => void;
 }) {
   const guard = useHyperfocusGuard();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -241,6 +296,7 @@ export default function NoteEditor({
   const [findOpen, setFindOpen] = useState(false);
   const [outline, setOutline] = useState<{ pos: number; level: number; text: string }[] | null>(null);
   const [inSection, setInSection] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const editorRef = useRef<DocEditorHandle>(null);
   const foundLive = (found ?? []).map((c, i) => ({ c, i })).filter(({ c }) => !c.added);
@@ -344,6 +400,9 @@ export default function NoteEditor({
                 )}
                 {hasSelection && (
                   <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); void prepareExport(true); }}><Share className="ic" /> Export Selection</button>
+                )}
+                {onRestoreVersion && versions.length > 0 && (
+                  <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setVersionsOpen(true); }}><Clock className="ic" /> Version History</button>
                 )}
                 {onCreateTasks && hasChecklist && (
                   <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); onCreateTasks(); }}><ListChecks className="ic" /> Make Tasks from Checklist</button>
@@ -502,6 +561,7 @@ export default function NoteEditor({
       )}
       {fallback !== null && <CopyFallback text={fallback} onClose={() => setFallback(null)} />}
       {outline && <OutlineSheet items={outline} onPick={(pos) => editorRef.current?.goTo(pos)} onClose={() => setOutline(null)} />}
+      {versionsOpen && onRestoreVersion && <VersionsSheet versions={versions} onRestore={onRestoreVersion} onClose={() => setVersionsOpen(false)} />}
       {exportOpen && (
         <ExportSheet doc={exportOpen.doc} title={title} selection={exportOpen.selection} images={exportOpen.images} attachmentNames={exportOpen.names} onClose={() => setExportOpen(null)} />
       )}

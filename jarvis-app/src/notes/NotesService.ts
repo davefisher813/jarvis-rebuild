@@ -13,8 +13,25 @@ import {
   type TaskData,
   type TemplateKey,
   type FoundCandidate,
+  type NoteVersion,
 } from "./types";
 import { docToBlocks, setTaskDone, linkedTasksIn, displayTitle, applyChecklistLinks, type Doc } from "./docModel";
+
+const VERSION_CAP = 20;
+const VERSION_GAP_MS = 10 * 60 * 1000;
+const TRASH_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+// The versions to write with a save: the document being replaced joins them
+// when it exists, differs from the last version, and the last version is
+// older than the gap (or there is none). Undefined when nothing changes.
+function versionsAfterSave(note: NoteData, now: number): NoteVersion[] | undefined {
+  if (!note.doc) return undefined;
+  const prev = note.versions ?? [];
+  const last = prev[prev.length - 1];
+  if (last && now - last.at < VERSION_GAP_MS) return undefined;
+  if (last && JSON.stringify(last.doc) === JSON.stringify(note.doc)) return undefined;
+  return [...prev, { at: now, doc: note.doc }].slice(-VERSION_CAP);
+}
 
 function genId(prefix: string): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -178,9 +195,52 @@ export class NotesService {
     const note = await this.getNote(id);
     if (!note) return false;
     const blocks = docToBlocks(doc, note.blocks);
-    await this.store.update(this.ownerId, id, { doc, blocks } as unknown as ItemData);
+    const versions = versionsAfterSave(note, Date.now());
+    await this.store.update(this.ownerId, id, { doc, blocks, ...(versions ? { versions } : {}) } as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
     return true;
+  }
+
+  /** Put a kept version back as the document. The current document is kept
+   *  as a version first, whatever the clock says. */
+  async restoreVersion(id: string, at: number): Promise<boolean> {
+    const note = await this.getNote(id);
+    const v = note?.versions?.find((x) => x.at === at);
+    if (!note || !v) return false;
+    const kept = note.doc ? [...(note.versions ?? []), { at: Date.now(), doc: note.doc }].slice(-VERSION_CAP) : note.versions;
+    await this.store.update(this.ownerId, id, { doc: v.doc, blocks: docToBlocks(v.doc, note.blocks), ...(kept ? { versions: kept } : {}) } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
+    return true;
+  }
+
+  // RECENTLY DELETED (wave 3b). A note deleted from the app is marked, not
+  // removed: it leaves every list but Recently Deleted and comes back whole
+  // on Restore. deleteNote below stays the hard delete (Delete Forever and
+  // the purge).
+  async trashNote(id: string): Promise<boolean> {
+    const note = await this.getNote(id);
+    if (!note) return false;
+    await this.store.update(this.ownerId, id, { deletedAt: Date.now() } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
+    return true;
+  }
+  async untrashNote(id: string): Promise<boolean> {
+    const note = await this.getNote(id);
+    if (!note) return false;
+    await this.store.update(this.ownerId, id, { deletedAt: null } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
+    return true;
+  }
+  /** Remove for good every note deleted longer ago than the window.
+   *  Returns the ids removed, so the caller can sweep their files. */
+  async purgeTrash(olderThanMs = TRASH_WINDOW_MS, now = Date.now()): Promise<string[]> {
+    const items = await this.store.listForUser(this.ownerId, ENTITY_NOTE);
+    const gone: string[] = [];
+    for (const it of items) {
+      const d = it.data as unknown as NoteData;
+      if (d.deletedAt && now - d.deletedAt >= olderThanMs) { await this.deleteNote(it.id); gone.push(it.id); }
+    }
+    return gone;
   }
 
   // QUICK APPEND (wave 3): new blocks on the end of a note's document,
@@ -516,8 +576,10 @@ export class NotesService {
     return newId;
   }
 
-  async listNotes() {
-    return this.store.listForUser(this.ownerId, ENTITY_NOTE);
+  /** Every note that is not in Recently Deleted; the whole list when asked. */
+  async listNotes(opts: { includeDeleted?: boolean } = {}) {
+    const items = await this.store.listForUser(this.ownerId, ENTITY_NOTE);
+    return opts.includeDeleted ? items : items.filter((it) => !(it.data as unknown as NoteData).deletedAt);
   }
 
   /**
@@ -571,7 +633,7 @@ export class NotesService {
     for (const it of items) {
       if (it.id === id) continue;
       const d = it.data as unknown as NoteData;
-      if (d.archived) continue;
+      if (d.archived || d.deletedAt) continue;
       const shared = (d.connections ?? []).filter((c) => c.targetId && mine.has(c.kind + ":" + c.targetId)).length;
       if (shared > 0) out.push({ id: it.id, title: displayTitle(d), category: d.category || "", shared });
     }
@@ -586,6 +648,7 @@ export class NotesService {
       // connections membership is a JSONB predicate the DB query does not
       // express; that filtering stays in memory by design.
       const d = it.data as unknown as NoteData;
+      if (d.deletedAt) continue;
       if (Array.isArray(d.connections) && d.connections.some((c) => c.targetId === targetId)) {
         out.push({ id: it.id, title: displayTitle(d), category: d.category || "" });
       }
@@ -608,7 +671,7 @@ export class NotesService {
   // words for the same idea before either could see the other's shape.
   async list(): Promise<{ title: string; connections?: { type: string; id: string }[] }[]> {
     const items = await this.store.listForUser(this.ownerId, ENTITY_NOTE);
-    return items.map((it) => {
+    return items.filter((it) => !(it.data as unknown as NoteData).deletedAt).map((it) => {
       const d = it.data as unknown as NoteData;
       return {
         title: displayTitle(d),
