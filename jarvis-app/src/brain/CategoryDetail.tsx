@@ -98,8 +98,10 @@ import { explainEvidence } from "./explainInsight";
 import { readHealthSettings } from "../health/settings";
 import HealthSettingsPage from "../settings/HealthSettingsPage";
 import { chartableExercises, liftSessions } from "../gym/chartData";
-import { correlate, plateauFlag, hardSetRows, muscleMapFromProgram, backOffSignal, shouldOfferLighterWeek, correlationProgress, hardSetEvidence } from "../gym/insights";
-import { MUSCLE_LABEL } from "../gym/muscles";
+import { correlate, plateauFlag, hardSetRows, muscleMapFrom, backOffSignal, shouldOfferLighterWeek, correlationProgress, hardSetEvidence, volumeBreakdown, coverageGap } from "../gym/insights";
+import { readGymSettings } from "../gym/settings";
+import { shortDate } from "../shared/dateFormat";
+import { MUSCLE_LABEL, type MuscleGroup } from "../gym/muscles";
 import { pressable } from "../shared/pressable";
 import { madeBy, type Source } from "../shared/provenance";
 import { OFFER_RECEIPT, type HealthOffer } from "../health/offers";
@@ -232,6 +234,12 @@ export default function CategoryDetail({
   const [programs, setPrograms] = useState<Program[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [gymOpen, setGymOpen] = useState(!!autoOpenGym);
+  // 2026-09-14: the coverage insight hands you Your Lifts directly, rather
+  // than telling you which three screens to go through to find it.
+  const [gymLibrary, setGymLibrary] = useState(false);
+  // Which Weekly Volume row is showing its lifts. One at a time: the point is
+  // to answer "where did this number come from", not to unfold the whole card.
+  const [volumeOpen, setVolumeOpen] = useState<MuscleGroup | null>(null);
   useEffect(() => {
     if (!autoOpenGym) return;
     setGymOpen(true);
@@ -674,6 +682,7 @@ export default function CategoryDetail({
     return (
       <GymFlow
         areaId={categoryId}
+        startLibrary={gymLibrary}
         startDayId={gymStartDay ?? undefined}
         startBudgetMin={gymStartBudget ?? undefined}
         startDoorEventId={gymDoor?.id}
@@ -684,7 +693,7 @@ export default function CategoryDetail({
         // history and put it there").
         onRateSession={() => setHealthScreen("callIt")}
         onLogSoreSpot={() => setHealthScreen("pointAtIt")}
-        onBack={() => { setGymOpen(false); setGymStartDay(null); setGymStartBudget(null); void reload(); }}
+        onBack={() => { setGymOpen(false); setGymLibrary(false); setGymStartDay(null); setGymStartBudget(null); void reload(); }}
       />
     );
   }
@@ -1095,14 +1104,23 @@ export default function CategoryDetail({
         })
         .filter((p): p is NonNullable<typeof p> => p != null)
     : [];
-  const muscleMap = kind === "health" ? muscleMapFromProgram(programs[0] ?? null) : new Map();
+  // EVERY program and the per-lift tags (2026-09-14). Reading programs[0]
+  // alone meant a lift tagged in any other program counted for nothing, and
+  // the tags set on Your Lifts did not exist yet.
+  const muscleMap = kind === "health" ? muscleMapFrom(programs, readGymSettings().muscleByKey ?? {}) : new Map();
   // The band he set in Health Settings replaces the studied one (Dave
   // 2026-09-13: nothing hard wired that should not be), and says so.
   const hsBand = kind === "health" ? readHealthSettings().volumeBand : null;
   const rangeRows = kind === "health" ? hardSetRows(workouts, muscleMap, nowMs, hsBand ? { ...hsBand, note: `Your band ${hsBand.low}-${hsBand.high} · Set in Health Settings`, source: "Your band, from Health Settings" } : undefined) : [];
   const backOff = kind === "health" ? backOffSignal(workouts, nowMs) : null;
   const offerLighter = kind === "health" && shouldOfferLighterWeek(backOff);
-  const hasInsights = plateaus.length > 0 || correlations.length > 0 || rangeRows.length > 0 || offerLighter;
+  // WHY THE SECTION IS THIN, as its own card. Weekly Volume can only see
+  // lifts that have been tagged by hand, and until now it simply went quiet
+  // about everything that has not been -- which is what "providing virtually
+  // nothing" looks like from the outside. Disappears for good once there is
+  // nothing untagged left.
+  const coverage = kind === "health" ? coverageGap(workouts, muscleMap, nowMs) : null;
+  const hasInsights = plateaus.length > 0 || correlations.length > 0 || rangeRows.length > 0 || offerLighter || !!coverage;
   // Part 3 wave 3 (Dave 12a): short of the minimum the page says so instead
   // of guessing. The pair closest to the line is the one line shown.
   const nearest = kind === "health" && hasInsights
@@ -1117,7 +1135,7 @@ export default function CategoryDetail({
   const explain = ai.available ? (ev: Parameters<typeof explainEvidence>[1]) => explainEvidence(ai, ev) : undefined;
   // The head's count chip: how many findings there actually are, so the
   // section says its own size like every other head on the page does.
-  const insightCount = plateaus.length + correlations.length + (rangeRows.length > 0 ? 1 : 0) + (offerLighter ? 1 : 0);
+  const insightCount = plateaus.length + correlations.length + (rangeRows.length > 0 ? 1 : 0) + (offerLighter ? 1 : 0) + (coverage ? 1 : 0);
 
   // Goals reaching this category through tags (Architecture C). The page
   // shows their pulse; Bigger Picture owns the goal itself. Health earns a
@@ -1572,20 +1590,42 @@ export default function CategoryDetail({
                       <span className="ins-t">Weekly Volume</span>
                       <span className="ins-chip hue-hl-lime">{capAfterNumber(`${rangeRows[0]!.range.low}-${rangeRows[0]!.range.high} ${hsBand ? "yours" : "studied"}`)}</span>
                     </div>
+                    {/* THE ROW OPENS -- Dave, 2026-09-14: "I can't even click
+                        on them" -- a bare "Quads 6" cannot be checked or
+                        argued with; tapping it lists the lifts behind the 6,
+                        their dates and whether each counted whole or half. */}
                     {rangeRows.map((r) => {
                       const band = r.sets < r.range.low ? "under" : r.sets > r.range.high ? "over" : "in";
                       // The track runs 0 to one-and-a-half times the top of the
                       // band, so "well over" still lands ON the track instead of
                       // running off the end of it.
                       const span = r.range.high * 1.5;
+                      const open = volumeOpen === r.muscle;
                       return (
-                        <div className="vol-row" key={r.muscle}>
-                          <div className="vol-name">{MUSCLE_LABEL[r.muscle]}</div>
-                          <div className="vol-track">
-                            <span className="vol-band" style={{ left: `${(r.range.low / span) * 100}%`, width: `${((r.range.high - r.range.low) / span) * 100}%` }} />
-                            <span className={"vol-dot vol-" + band} style={{ left: `${Math.min(100, (r.sets / span) * 100)}%` }} />
+                        <div key={r.muscle}>
+                          <div className="vol-row" role="button" tabIndex={0} aria-expanded={open}
+                            onClick={() => setVolumeOpen(open ? null : r.muscle)}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setVolumeOpen(open ? null : r.muscle); } }}>
+                            <div className="vol-name">{MUSCLE_LABEL[r.muscle]}</div>
+                            <div className="vol-track">
+                              <span className="vol-band" style={{ left: `${(r.range.low / span) * 100}%`, width: `${((r.range.high - r.range.low) / span) * 100}%` }} />
+                              <span className={"vol-dot vol-" + band} style={{ left: `${Math.min(100, (r.sets / span) * 100)}%` }} />
+                            </div>
+                            <div className={"vol-n vol-" + band}>{r.sets}</div>
                           </div>
-                          <div className={"vol-n vol-" + band}>{r.sets}</div>
+                          {open && (
+                            <div className="ins-rows">
+                              {volumeBreakdown(workouts, muscleMap, r.muscle, nowMs).map((lift, i) => (
+                                <div className="ins-row" key={lift.name + lift.date + i}>
+                                  <span className="ins-k">{lift.name}</span>
+                                  <span className="ins-sub">
+                                    {shortDate(lift.date)} · {lift.sets} {lift.sets === 1 ? "set" : "sets"}
+                                    {lift.primary ? "" : " · half, not its first muscle"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1593,6 +1633,36 @@ export default function CategoryDetail({
                     <div className="ins-cite">Last 7 days · Working sets only · Warm-ups excluded</div>
                     <div className="ins-cite">{rangeRows[0]!.range.source}</div>
                     <InsightEvidence evidence={hardSetEvidence(rangeRows, nowMs, hsBand ? rangeRows[0]!.range : undefined)} onExplain={explain} />
+                  </div>
+                )}
+                {/* WHY THE REST IS QUIET. Not a finding about training -- a
+                    finding about the app's own blind spot, and the only card
+                    here that is useful on day one and gone by design once the
+                    work behind it is done. */}
+                {coverage && (
+                  <div className="card ins-card rep-gap" key="coverage">
+                    <div className="ins-head">
+                      <span className="ins-dot hue-hl-amber" />
+                      <span className="ins-t">Sets Weekly Volume Can't See</span>
+                      <span className="ins-chip hue-hl-amber">{capAfterNumber(`${coverage.hiddenSets} hidden`)}</span>
+                    </div>
+                    <div className="ins-line">
+                      {coverage.untagged.length === 1
+                        ? `${coverage.untagged[0]!.name} has no muscle set, so its sets are left out of the band above.`
+                        : `${coverage.untagged.length} lifts you trained this week have no muscle set, so their sets are left out of the band above.`}
+                    </div>
+                    <div className="ins-rows">
+                      {coverage.untagged.slice(0, 6).map((u) => (
+                        <div className="ins-row" key={u.exerciseKey ?? u.name}>
+                          <span className="ins-k">{u.name}</span>
+                          <span className="ins-sub">{u.sets} {u.sets === 1 ? "set" : "sets"}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="ins-cite">Set a muscle on Your Lifts and these join the count</div>
+                    <div className="ins-acts">
+                      <button type="button" className="pill-act pill-quiet" onClick={() => { setGymLibrary(true); setGymOpen(true); }}>Open Your Lifts</button>
+                    </div>
                   </div>
                 )}
                 {plateaus.map((p) => (
@@ -1671,7 +1741,13 @@ export default function CategoryDetail({
               )}
               {rec.recent.length > 0 && (
                 <>
-                  <div className="sh2 sh2-quiet"><span className="t">This Week</span><span className="n">{rec.recent.length}</span>
+                  {/* DONE THIS WEEK, not "This Week" (Dave 2026-09-14, on the
+                      health page's hierarchy). The training section at the top
+                      of this page is also called This Week, so the page had
+                      two identical headings over two unrelated subjects --
+                      sessions up there, finished tasks down here. The heading
+                      now says which one it is. */}
+                  <div className="sh2 sh2-quiet"><span className="t">Done This Week</span><span className="n">{rec.recent.length}</span>
                     {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
                   {/* One card, the day at the right edge (2026-09-13): a
                       card per day made two ticks cost half a screen. */}

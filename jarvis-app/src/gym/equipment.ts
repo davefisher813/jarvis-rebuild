@@ -1,0 +1,327 @@
+// EQUIPMENT, AND WHAT THE NUMBER ON THE CHIP MEANS
+// (Dave, 2026-09-14: "If someone is using a barbell it's different than
+// dumbells. The weight should adjust accordingly... someone loading 100 lbs
+// on a free weight machine is different than barbells. It can't all be the
+// same. Also, equipment might not be the best term.")
+//
+// ONE ROW WAS DOING TWO JOBS. The old Equipment menu mixed what a thing IS
+// (barbell, dumbbell, plate-loaded) with how its number is COUNTED ("One
+// Side at a Time"), and with one option that is not equipment at all
+// ("Timed or Distance"). Those are two different questions, so they are two
+// rows now: EQUIPMENT says what you are lifting, COUNTED AS says what the
+// number on the chip means. Counted As only appears when the equipment
+// leaves it genuinely open -- a weight stack has exactly one reading, so it
+// asks nothing and takes no tap.
+//
+// So "equipment" turns out to be the right word after all, once the things
+// that were never equipment are taken out of it.
+//
+// THE STANDING RULE IS UNCHANGED: a convention is a LABEL, never a
+// conversion. Nothing in this file ever rewrites the number the athlete
+// typed, on the chip or anywhere else. What it does change is everything
+// downstream that was quietly treating every weight as the same kind of
+// number:
+//
+//   - the Weight stepper's INCREMENT, because a stack moves in 10s, a
+//     barbell in 5s, and a dip belt in 2.5s, and one hardcoded step of 5
+//     was wrong for two of those three;
+//   - the Weight row's LABEL, so a chip reads "Per Hand", "Per Side",
+//     "Added" or "Assistance" instead of a bare ambiguous "Weight";
+//   - the DIRECTION of progress, because on an assisted pull-up LESS weight
+//     is stronger, and every PR, chart and plateau check in the app had
+//     that exactly backwards;
+//   - TONNAGE, because two 50 lb dumbbells for 10 is 1,000 lb of work and
+//     not 500, and a plate machine loaded 100 a side is 2,000 and not
+//     1,000;
+//   - and what is COMPARABLE at all, because a lift's numbers stop meaning
+//     the same thing the day its equipment changes.
+
+/** WHAT YOU ARE LIFTING. Real equipment only. */
+export type Equipment =
+  | "barbell"
+  | "dumbbell"
+  | "machine"
+  | "stack"
+  | "cable"
+  | "bodyweight"
+  | "assisted"
+  | "band"
+  | "other";
+
+/** WHAT THE NUMBER MEANS. The second axis, split out of the old single menu. */
+export type Counted = "total" | "each_side" | "each_hand" | "added" | "assist";
+
+export const EQUIPMENT_KINDS: Equipment[] = [
+  "barbell", "dumbbell", "machine", "stack", "cable",
+  "bodyweight", "assisted", "band", "other",
+];
+
+export const EQUIPMENT_LABEL: Record<Equipment, string> = {
+  barbell: "Barbell",
+  dumbbell: "Dumbbells",
+  machine: "Plate-Loaded Machine",
+  stack: "Weight Stack",
+  cable: "Cable",
+  bodyweight: "Bodyweight",
+  assisted: "Assisted",
+  band: "Band",
+  other: "Other",
+};
+
+export const COUNTED_LABEL: Record<Counted, string> = {
+  total: "The Whole Load",
+  each_side: "Each Side",
+  each_hand: "Each Hand",
+  added: "Added to Bodyweight",
+  assist: "Assistance Taken Off",
+};
+
+/** The Weight ROW's own name once the convention is known. This is the
+ *  single biggest readability win: a chip that says 100 stops being a
+ *  riddle. */
+export const WEIGHT_LABEL: Record<Counted, string> = {
+  total: "Weight",
+  each_side: "Weight Per Side",
+  each_hand: "Weight Per Hand",
+  added: "Added Weight",
+  assist: "Assistance",
+};
+
+interface EquipmentSpec {
+  /** What this equipment may be counted as; the first is the default. An
+   *  equipment with one entry never shows the Counted As row at all. */
+  counts: Counted[];
+  /** The Weight stepper's increment, per unit. A rack's real granularity,
+   *  not one number for everything. */
+  step: { lb: number; kg: number };
+  /** True when plates actually go on it, so the plate calculator offers
+   *  itself here and stays quiet everywhere else. */
+  plates: boolean;
+  /** Subtract the bar before doing plate math. Only a barbell has a bar. */
+  hasBar: boolean;
+  /** A quiet line under the Equipment row, in plain words. */
+  note: string;
+}
+
+// THE INCREMENTS ARE THE GYM'S, NOT A GUESS.
+//   barbell   5 lb  = the smallest pair of plates most racks own (2.5 a side)
+//   dumbbell  5 lb  = the standard rack spacing under 50 lb
+//   machine   5 lb  = 2.5 a side, same plate pair as the barbell
+//   stack    10 lb  = a selectorized stack's own plate; half-steps need a pin
+//   cable     5 lb  = most cable stacks are 5s, or 10s with a 5 lb adder
+//   bodyweight 2.5  = what a dip belt can actually hold in small change
+//   assisted  5 lb  = assist stacks move in 5s or 10s; 5 is the safe floor
+//   band      0     = a band has no number to step (see weightless below)
+// kg columns are the metric rack's own equivalents, never a converted lb.
+const SPEC: Record<Equipment, EquipmentSpec> = {
+  barbell: {
+    counts: ["total", "each_side"],
+    step: { lb: 5, kg: 2.5 },
+    plates: true,
+    hasBar: true,
+    note: "The bar plus the plates on it",
+  },
+  dumbbell: {
+    counts: ["each_hand", "total"],
+    step: { lb: 5, kg: 2 },
+    plates: false,
+    hasBar: false,
+    note: "One dumbbell's number, not the pair's",
+  },
+  machine: {
+    counts: ["total", "each_side"],
+    step: { lb: 5, kg: 2.5 },
+    plates: true,
+    hasBar: false,
+    note: "The plates you load, no bar to subtract",
+  },
+  stack: {
+    counts: ["total"],
+    step: { lb: 10, kg: 5 },
+    plates: false,
+    hasBar: false,
+    note: "The number beside the pin",
+  },
+  cable: {
+    counts: ["total", "each_side"],
+    step: { lb: 5, kg: 2.5 },
+    plates: false,
+    hasBar: false,
+    note: "The stack's number, whatever the pulley does to it",
+  },
+  bodyweight: {
+    counts: ["added"],
+    step: { lb: 2.5, kg: 1 },
+    plates: false,
+    hasBar: false,
+    note: "Zero is a real answer here",
+  },
+  assisted: {
+    counts: ["assist"],
+    step: { lb: 5, kg: 2.5 },
+    plates: false,
+    hasBar: false,
+    note: "Less assistance is stronger",
+  },
+  band: {
+    counts: ["total"],
+    step: { lb: 5, kg: 2.5 },
+    plates: false,
+    hasBar: false,
+    note: "No weight to record, just reps",
+  },
+  other: {
+    counts: ["total", "each_side", "each_hand"],
+    step: { lb: 5, kg: 2.5 },
+    plates: false,
+    hasBar: false,
+    note: "",
+  },
+};
+
+export const EQUIPMENT_NOTE = (e: Equipment): string => SPEC[e].note;
+
+/** The convention as stored on an exercise or a logged entry. Both halves
+ *  optional: absent equipment means the athlete never said, and everything
+ *  falls back to the old universal behaviour. */
+export interface LoadStyle {
+  equipment?: Equipment;
+  counted?: Counted;
+}
+
+/** THE MIGRATION, in one place. Everything logged before 2026-09-14 carried
+ *  either `load: "each"` (Health Push E) or the first Equipment union, whose
+ *  last two members were never equipment. Nothing is rewritten on disk: this
+ *  reads the old value and says what it meant.
+ *
+ *    "dumbbell"   was labelled "Dumbbell, Each Hand" -> dumbbell + each_hand
+ *    "unilateral" was "One Side at a Time", a COUNT and not a thing you
+ *                 lift  -> equipment unknown + each_side
+ *    "timed"      was "Timed or Distance", not a load at all -> other
+ *    load:"each"  predates the menu entirely -> dumbbell + each_hand
+ */
+export function loadStyleOf(ex: {
+  equipment?: string;
+  counted?: Counted;
+  load?: "each" | "total";
+}): LoadStyle {
+  const raw = ex.equipment;
+  // "One Side at a Time" said how to COUNT and never said what the hardware
+  // was, so it lands on Other rather than inventing a machine -- and Other
+  // is the one equipment that offers all three readings, which keeps the row
+  // visible and the old meaning editable instead of stranded.
+  if (raw === "unilateral") return { equipment: "other", counted: ex.counted ?? "each_side" };
+  if (raw === "timed") return { equipment: "other", counted: ex.counted ?? "total" };
+  if (raw === "dumbbell") return { equipment: "dumbbell", counted: ex.counted ?? "each_hand" };
+  if (raw && (EQUIPMENT_KINDS as string[]).includes(raw)) {
+    const e = raw as Equipment;
+    return { equipment: e, counted: ex.counted ?? defaultCount(e) };
+  }
+  if (ex.load === "each") return { equipment: "dumbbell", counted: ex.counted ?? "each_hand" };
+  return ex.counted ? { counted: ex.counted } : {};
+}
+
+/** The reading an equipment takes when nobody has said otherwise. */
+export function defaultCount(e: Equipment): Counted {
+  return SPEC[e].counts[0]!;
+}
+
+/** What this equipment may be counted as. One entry means don't ask. */
+export function countsFor(e: Equipment | undefined): Counted[] {
+  return e ? SPEC[e].counts : ["total", "each_side", "each_hand"];
+}
+
+/** Whether the Counted As row is worth a row at all. Nothing to ask when the
+ *  equipment has not been named -- a follow-up question about a thing you
+ *  have not picked is the kind of row this whole change exists to remove. */
+export function asksCount(e: Equipment | undefined): boolean {
+  return e != null && countsFor(e).length > 1;
+}
+
+/** THE STEPPER'S INCREMENT. The concrete answer to "the weight should adjust
+ *  accordingly": a stack steps 10, a dip belt steps 2.5, and neither is 5. */
+export function weightStep(style: LoadStyle, unit?: string): number {
+  const metric = unit === "kg";
+  const spec = style.equipment ? SPEC[style.equipment] : null;
+  if (!spec) return metric ? 2.5 : 5;
+  return metric ? spec.step.kg : spec.step.lb;
+}
+
+/** The Weight row's label under this convention. */
+export function weightLabel(style: LoadStyle): string {
+  return WEIGHT_LABEL[style.counted ?? "total"];
+}
+
+/** A band has reps and no number; the Weight field simply does not apply. */
+export function weightless(style: LoadStyle): boolean {
+  return style.equipment === "band";
+}
+
+/** Does the plate calculator belong on this exercise, and does it subtract a
+ *  bar first? */
+export function plateMath(style: LoadStyle): { offer: boolean; hasBar: boolean } {
+  const spec = style.equipment ? SPEC[style.equipment] : null;
+  return { offer: !!spec?.plates, hasBar: !!spec?.hasBar };
+}
+
+/** HOW MANY OF THE NUMBER ARE ACTUALLY MOVING, for tonnage only.
+ *
+ *  Two 50s is 100 lb in the air. A plate machine loaded 100 a side is 200.
+ *  Tonnage has always multiplied the raw chip by reps, so every per-side and
+ *  per-hand lift in the app has been undercounted by exactly half since the
+ *  conventions were introduced.
+ *
+ *  Assistance returns 0 on purpose, and this is the honest answer rather
+ *  than the flattering one: the work on an assisted pull-up is bodyweight
+ *  MINUS the assist, and the app does not reliably know a bodyweight on the
+ *  day of the set. Counting the assist itself as tonnage would say a lifter
+ *  moved more the more help they took. Zero, plus a line in the receipt
+ *  saying so, beats a number that is wrong in the wrong direction.
+ *
+ *  Added weight returns 1: the belt's plates are counted, the body is not,
+ *  for the same reason -- and the receipt says that too. */
+export function volumeFactor(style: LoadStyle): number {
+  switch (style.counted) {
+    case "each_side":
+    case "each_hand":
+      return 2;
+    case "assist":
+      return 0;
+    case "added":
+    case "total":
+    default:
+      return 1;
+  }
+}
+
+/** TRUE WHEN LESS IS BETTER. The correctness fix: an assisted pull-up going
+ *  from 100 lb of help to 60 is the single clearest strength gain in the
+ *  gym, and until now every PR check, every chart and the plateau detector
+ *  read it as a 40 lb regression. */
+export function lowerIsStronger(style: LoadStyle): boolean {
+  return style.counted === "assist";
+}
+
+/** CAN THESE TWO SETS BE COMPARED AT ALL?
+ *
+ *  A lift switched from a weight stack to a plate-loaded machine keeps its
+ *  name, its key and its history, and none of its old numbers mean what the
+ *  new ones mean. Comparing them produces a PR pill for a change of machine.
+ *  Two sets are comparable when they were counted the same way; the
+ *  equipment may differ (a barbell bench and a plate machine bench are both
+ *  a whole load) but the READING may not. An unstated convention compares
+ *  with anything, so nothing logged before this file existed goes quiet. */
+export function comparable(a: LoadStyle, b: LoadStyle): boolean {
+  if (a.counted == null || b.counted == null) return true;
+  return a.counted === b.counted;
+}
+
+/** The one-line summary for a row that shows the convention without opening
+ *  a menu: "Dumbbells · Each Hand", "Weight Stack", "Assisted". */
+export function styleSummary(style: LoadStyle): string {
+  if (!style.equipment) return style.counted ? COUNTED_LABEL[style.counted] : "Not Set";
+  const label = EQUIPMENT_LABEL[style.equipment];
+  const counted = style.counted;
+  if (!counted || !asksCount(style.equipment) || counted === defaultCount(style.equipment)) return label;
+  return `${label} · ${COUNTED_LABEL[counted]}`;
+}

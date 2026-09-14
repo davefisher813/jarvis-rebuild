@@ -465,6 +465,15 @@
    "the list of exercises there's a goal option" -- Goal sits beside Edit,
    not in place of it). */
 .ruled .lib-row-acts { display: flex; gap: 6px; }
+
+/* SAME LIFT, TWO NAMES (2026-09-14). One proposal per block, each with its
+   own divider, so three of them read as three separate decisions rather than
+   one wall. The two buttons sit on one line: the destructive-ish one (a merge
+   rewrites history) is the secondary, and dismissing is the quiet tertiary. */
+.ruled .lib-dupe { padding: 10px 0; border-bottom: 1px solid var(--divider); }
+.ruled .lib-dupe:last-child { border-bottom: none; padding-bottom: 0; }
+.ruled .lib-dupe .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+.ruled .lib-dupe .btn-row .btn { flex: 1; margin: 0; padding: 9px 10px; font-size: calc(13px * var(--type-scale)); min-width: 0; }
 .ruled .gstat { margin-left: auto; flex-shrink: 0; font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.06em;
   text-transform: uppercase; padding: 3px 7px; border-radius: var(--r-pill); white-space: nowrap; }
 .ruled .gstat-good { color: var(--good); background: var(--good-tint); }
@@ -1622,6 +1631,44 @@
 .ruled.health-ruled .h-tile-add .ht-ico { background: var(--press-3); color: var(--tx-1); }
 .ruled.health-ruled .h-tile-add .ht-none { color: var(--tint); }
 
+/* ---------- QUICK LOG, COMPACT (Dave 2026-09-14) -------------------------
+   "the quick log feature is taking up way too much space on the health home
+   page." Nine tiles at a 104px floor, two across, is about 600px of screen
+   before anything on this page has told him a single thing -- and eight of
+   the nine were saying the word "Log it" in 30px type.
+
+   Same tiles, same taps, same hues, laid down instead of stood up: the glyph,
+   the name and the value on ONE line, with the + at the end. The value keeps
+   its hue and its emphasis, because a number you have already logged is worth
+   reading; it just stops being a headline. Roughly 46px a tile, so the whole
+   block is about a third of what it was and the page gets on with it.
+
+   Everything here is an override of the tall tile above, not a second
+   anatomy: the same .h-tile markup renders either way. */
+.ruled.health-ruled .h-tiles-c { gap: 8px; }
+.ruled.health-ruled .h-tiles-c .h-tile { min-height: 0; padding: 9px 10px 9px 11px; border-radius: 13px;
+  display: flex; align-items: center; gap: 9px; }
+.ruled.health-ruled .h-tiles-c .ht-top { flex: 1; min-width: 0; gap: 8px; }
+.ruled.health-ruled .h-tiles-c .ht-ico { width: 24px; height: 24px; border-radius: 7px; }
+.ruled.health-ruled .h-tiles-c .ht-ico .ic { width: 14px; height: 14px; }
+.ruled.health-ruled .h-tiles-c .h-tile .ht-w,
+.ruled.health-ruled .h-tiles-c .h-tile[data-hue] .ht-w { font-size: calc(14px * var(--type-scale));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled.health-ruled .h-tiles-c .ht-plus { width: 22px; height: 22px; }
+.ruled.health-ruled .h-tiles-c .ht-plus .ic { width: 13px; height: 13px; }
+/* The value sits at the end of the row, not under the name. */
+.ruled.health-ruled .h-tiles-c .h-tile .ht-n { margin-top: 0; flex-shrink: 0; order: 2;
+  font-size: calc(17px * var(--type-scale)); }
+.ruled.health-ruled .h-tiles-c .h-tile .ht-n small { font-size: calc(11px * var(--type-scale)); }
+/* An empty tile says nothing at all rather than shouting "Log it": the + IS
+   the invitation, and it is already right there. */
+.ruled.health-ruled .h-tiles-c .h-tile-empty .ht-n { display: none; }
+/* The when-line has nowhere to go on one line, and "Today" beside a number
+   you just logged was never news. */
+.ruled.health-ruled .h-tiles-c .h-tile .ht-m { display: none; }
+.ruled.health-ruled .h-tiles-c .h-tile-add { grid-column: 1 / -1; justify-content: center; }
+.ruled.health-ruled .h-tiles-c .h-tile-add .ht-n { display: none; }
+
 /* THE TRAINING CARD IS CALM. The name, one facts line, a filled red Start
    (the one filled primary on this page); the other sessions are outlined
    buttons with an edge and full ink, so they read as buttons and not as text
@@ -1724,7 +1771,9 @@
 .ruled.health-ruled .h-week.h-week-dates .h-day.on i { background: var(--hl-lime); color: var(--on-fill-dark); }
 .ruled.health-ruled .h-week.h-week-dates .h-day i .ic { width: 14px; height: 14px; stroke-width: 3; }
 /* A stat tile reads; it is not a door. */
-.ruled.health-ruled .h-tile-stat { cursor: default; }
+/* 2026-09-14: a stat tile that can be tapped is a button and says so; only
+   the ones with nowhere to go keep the default cursor. */
+.ruled.health-ruled .h-tile-stat.h-tile-inert { cursor: default; }
 .ruled.health-ruled .h-timeline-date { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); padding: 0 0 8px; }
 .ruled.health-ruled .h-next { color: var(--tx-1); font-weight: var(--w-semi); }
 .ruled.health-ruled .h-tab-foot { display: flex; flex-direction: column; gap: 4px; margin-top: var(--s-4); }

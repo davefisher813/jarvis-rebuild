@@ -1,5 +1,6 @@
 import type { Workout, SetLog, SetEntry, MeasureKind, WorkoutExercise } from "./types";
 import { beats, hasVolume, setVolume, formatSet, scoreOf, inUnit, LB_PER_KG } from "./measures";
+import { loadStyleOf, type LoadStyle } from "./equipment";
 import { liftRef, sameLift, type LiftLike } from "./identity";
 
 // PRs and the finish receipt. Every number here is DERIVED from logged work.
@@ -9,7 +10,15 @@ import { liftRef, sameLift, type LiftLike } from "./identity";
 /** GYM-F-06 (2026-09-05): the best carries the unit it was logged in, so a
  *  caller rendering it in the lift's CURRENT unit converts rather than
  *  printing last session's number under this session's label. */
-export interface BestEntry { set: SetLog; date: string; unit?: string }
+export interface BestEntry {
+  set: SetLog;
+  date: string;
+  unit?: string;
+  /** How that set was counted (2026-09-14). Carried with the record, not
+   *  read off the exercise as it stands today, because the whole point is
+   *  that the convention may since have changed. */
+  style?: LoadStyle;
+}
 
 /**
  * The best prior entry for one lift.
@@ -34,10 +43,17 @@ export function bestBefore(
       if (!sameLift(ref, ex)) continue; // kind change = fresh history
       for (const s of ex.sets) {
         if (s.skipped) continue;
-        if (!scoreOf(kind, s, ex.unit)) continue;
+        const style = loadStyleOf(ex);
+        if (!scoreOf(kind, s, ex.unit, style)) continue;
         if (kind === "distance_time" && opts.sameDistanceAs != null && (s.v ?? 0) !== opts.sameDistanceAs) continue;
         // GYM-F-06: both sides in pounds before they are compared at all.
-        if (!best || beats(kind, s, best.set, { of: ex.unit, than: best.unit })) best = { set: s, date: w.data.date, unit: ex.unit };
+        // 2026-09-14: and counted the same way before they are compared at
+        // all -- a lift moved from a stack to a plate machine must not hand
+        // out a record for the change of machine, and an assisted lift's
+        // best is its LIGHTEST set, not its heaviest.
+        if (!best || beats(kind, s, best.set, { of: ex.unit, than: best.unit }, { of: style, than: best.style })) {
+          best = { set: s, date: w.data.date, unit: ex.unit, style };
+        }
       }
     }
   }
@@ -50,10 +66,11 @@ export function isPR(history: Workout[], lift: LiftLike, kind: MeasureKind, cand
   // GYM-F-06: the candidate's own unit rides on the lift the caller handed in,
   // so 105 kg x 5 is judged against a 225 lb best as the 231 lb it is.
   const unit = typeof lift === "string" ? undefined : lift.unit;
-  if (!scoreOf(kind, candidate, unit)) return false;
+  const style = typeof lift === "string" ? {} : loadStyleOf(lift);
+  if (!scoreOf(kind, candidate, unit, style)) return false;
   const best = bestBefore(history, lift, kind, kind === "distance_time" ? { sameDistanceAs: candidate.v ?? 0 } : {});
   if (!best) return true; // first time on this exercise is its own moment
-  return beats(kind, candidate, best.set, { of: unit, than: best.unit });
+  return beats(kind, candidate, best.set, { of: unit, than: best.unit }, { of: style, than: best.style });
 }
 
 export interface PRHit { name: string; text: string; from: string | null }
@@ -116,7 +133,9 @@ export function receiptFor(
       // once, into the unit of the session's first weighted lift. A day with
       // Bench in lb and Squat in kg used to add the two raw numbers together
       // and print the sum under one label.
-      for (const s of logged) volume += setVolume(ex.kind, s, ex.unit);
+      // 2026-09-14: counted the way the lift is counted, so a pair of
+      // dumbbells is the pair and a per-side machine is both sides.
+      for (const s of logged) volume += setVolume(ex.kind, s, ex.unit, loadStyleOf(ex));
       volumeUnit = volumeUnit ?? ex.unit ?? "lb";
     } else if (ex.kind === "done") {
       doneNames.push(ex.name);
@@ -126,7 +145,8 @@ export function receiptFor(
     // One PR line per exercise: the best entry of the session, if it beat
     // everything before it.
     let bestOfSession: SetLog | null = null;
-    for (const s of logged) if (!bestOfSession || beats(ex.kind, s, bestOfSession)) bestOfSession = s;
+    const exStyle = loadStyleOf(ex);
+    for (const s of logged) if (!bestOfSession || beats(ex.kind, s, bestOfSession, {}, { of: exStyle, than: exStyle })) bestOfSession = s;
     if (bestOfSession && isPR(history, ex, ex.kind, bestOfSession)) {
       const prior = bestBefore(history, ex, ex.kind, ex.kind === "distance_time" ? { sameDistanceAs: bestOfSession.v ?? 0 } : {});
       prs.push({

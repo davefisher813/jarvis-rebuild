@@ -19,11 +19,13 @@ import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
-import { bumpStrip } from "./strip";
-import { buildLibrary, newExerciseKey, withAliases, withFavorites } from "./library";
+import { bumpStrip, uniformStrip } from "./strip";
+import { buildLibrary, newExerciseKey, withAliases, withFavorites, type LibraryEntry } from "./library";
+import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
 import { dayWithSessionEntry } from "./edit";
 import { equipmentOf } from "./types";
+import { loadStyleOf } from "./equipment";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
@@ -31,7 +33,8 @@ import {
 } from "./edit";
 import { pinLabel, todayDow, pinnedTo, nextPinnedDay, WEEKDAY_ABBR, WEEKDAY_FULL } from "./pins";
 import { nextDayFor, SCRATCH_DAY_ID, SCRATCH_DAY_NAME } from "./nextDay";
-import { muscleMapFromProgram } from "./insights";
+import { muscleMapFrom } from "./insights";
+import type { MuscleGroup } from "./muscles";
 import { sameLiftAnyKind } from "./identity";
 import { estimateDay, type FitPlan } from "./fit";
 import { readGymSettings, writeGymSettings, rackFrom } from "./settings";
@@ -390,6 +393,9 @@ type Sheet =
   | { kind: "week"; weekId?: string }
   | { kind: "day"; weekId: string; dayId?: string }
   | { kind: "exercise"; weekId: string; dayId: string; exId?: string }
+  // FILL A DAY FROM YOUR LIFTS (2026-09-14): the library as a multi-select,
+  // so building a day is one pass instead of one full sheet per exercise.
+  | { kind: "fillDay"; weekId: string; dayId: string }
   | { kind: "bump"; weekId: string }
   | { kind: "block"; weekId: string; dayId: string; which: "warmUp" | "coolDown" };
 
@@ -499,7 +505,11 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
 // The gym track: programs in the user's own words, weeks as the time axis,
 // the set strip as the same object in the plan and in the live session, the
 // in-gym loop, live PRs, and an honest receipt.
-export default function GymFlow({ onBack, door, startDayId, startDoorEventId, startBudgetMin, areaId, onRateSession, onLogSoreSpot }: {
+export default function GymFlow({ onBack, door, startDayId, startDoorEventId, startBudgetMin, areaId, startLibrary, onRateSession, onLogSoreSpot }: {
+  /** 2026-09-14: open straight onto Your Lifts. The Health page's coverage
+   *  card names untagged lifts and has to be able to hand you the screen
+   *  that fixes them, rather than describing where it is. */
+  startLibrary?: boolean;
   onBack: () => void;
   /** WORKOUT LOGGING BELONGS WITH THE WORKOUT (Dave 2026-09-10: "how hard it
    *  was, where it hurts, anything related to an actual workout should go
@@ -644,7 +654,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [historyOpen, setHistoryOpen] = useState(false);
   // UP-ATH-21 (2026-09-06): Your Lifts. `hiddenKeys` is read into state so a
   // hide shows immediately; the store is still the source of truth.
-  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(!!startLibrary);
   const [hiddenKeys, setHiddenKeys] = useState<string[]>(() => readGymSettings().hiddenKeys ?? []);
   // Health Push E (H-23): the old names, by key, read once and written on
   // every rename and merge (libraryEdit.ts owns the two moves).
@@ -653,6 +663,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // Part 3 wave 1 (2026-09-13): the starred lifts, read once, written on
   // every toggle; they lead every picker (library.ts searchLibrary).
   const [favoriteKeys, setFavoriteKeys] = useState<string[]>(() => readGymSettings().favoriteKeys ?? []);
+  // 2026-09-14: the per-lift muscle tags, and the near-duplicate pairs waved
+  // off. Both live in gym settings beside the hidden and favorite key lists,
+  // for the same reason those do: they are facts about the LIBRARY, which is
+  // derived at read time and has no document of its own to hang them on.
+  const [muscleByKey, setMuscleByKey] = useState<Record<string, MuscleGroup[]>>(
+    () => (readGymSettings().muscleByKey ?? {}) as Record<string, MuscleGroup[]>,
+  );
+  const [dismissedDupes, setDismissedDupes] = useState<string[]>(() => readGymSettings().dismissedDupes ?? []);
   // The History segment lives here so a workout opened under Sessions comes
   // back to Sessions (Dave's 18a, 2026-09-13).
   const [historyMode, setHistoryMode] = useState<"lifts" | "sessions">("lifts");
@@ -1059,7 +1077,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       // Part 3 wave 5 (O3a): the plan is copied in at start, so a program
       // edit made mid-session reaches the next session, never this one; and
       // the equipment convention rides with every set logged from here.
-      : day.exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [], plan: e.sets, ...(equipmentOf(e) ? { equipment: equipmentOf(e) } : {}) }));
+      : day.exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [], plan: e.sets, ...(loadStyleOf(e).equipment ? { equipment: loadStyleOf(e).equipment } : {}), ...(loadStyleOf(e).counted ? { counted: loadStyleOf(e).counted } : {}) }));
     const startedAt = Date.now();
     const s: LiveSession = {
       programId: program.id, dayId: day.id, dayName: day.name, date,
@@ -1312,14 +1330,22 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     // own exercise by name -- absent when untagged, or when the lift has
     // since been renamed or removed from the plan; the range row simply
     // does not claim it then.
-    const muscleGroup = program?.data.weeks
+    // 2026-09-14: the per-lift tags come first. They are keyed to the lift's
+    // stable identity, so unlike the program-day tag they survive a rename,
+    // an archived program and a lift that only ever existed mid-session.
+    const gs = readGymSettings();
+    const taggedHere = (liftDetailFor.exerciseKey ? gs.muscleByKey?.[liftDetailFor.exerciseKey] : undefined)
+      ?? gs.muscleByKey?.[liftDetailFor.name];
+    const muscleGroup = (taggedHere?.[0] as MuscleGroup | undefined) ?? program?.data.weeks
       .flatMap((w) => w.days)
       .flatMap((d) => d.exercises)
       .find((e) => e.name === liftDetailFor.name)?.muscleGroup;
     // GYM-F-15 (2026-09-05): the whole program map, not just this lift, so
     // the weekly hard-set row can sum the muscle the way the Health page
     // does instead of reporting one lift under the muscle's name.
-    const muscleMap = muscleMapFromProgram(program ?? null);
+    // EVERY program, plus the per-lift tags (2026-09-14). Reading one
+    // program meant a lift tagged anywhere else counted for nothing.
+    const muscleMap = muscleMapFrom(allPrograms, gs.muscleByKey ?? {});
     // GYM-F-04 (2026-09-05): a goal set before a rename still belongs to this
     // lift, so it is found by identity, not by whichever name it was stored
     // under.
@@ -1464,6 +1490,22 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           setHiddenKeys(next);
           writeGymSettings({ ...readGymSettings(), hiddenKeys: next });
           showToast({ message: r.hidden ? `${r.name} is offered again` : `${r.name} hidden from suggestions` });
+        }}
+        // MUSCLES PER LIFT (2026-09-14). Keyed to the library key, so the
+        // tag survives a rename and a merge and is read by every program,
+        // which the old per-program-day muscleGroup could do none of.
+        muscles={muscleByKey}
+        onSetMuscles={(r, list) => {
+          const next = { ...muscleByKey };
+          if (list.length === 0) delete next[r.key]; else next[r.key] = list;
+          setMuscleByKey(next);
+          writeGymSettings({ ...readGymSettings(), muscleByKey: next });
+        }}
+        dismissedDupes={dismissedDupes}
+        onDismissDuplicate={(id) => {
+          const next = dismissedDupes.includes(id) ? dismissedDupes : [...dismissedDupes, id];
+          setDismissedDupes(next);
+          writeGymSettings({ ...readGymSettings(), dismissedDupes: next });
         }}
         onBack={() => setLibraryOpen(false)}
       />
@@ -1857,6 +1899,44 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         />
       );
     }
+    if (sheet.kind === "fillDay") {
+      const week = program.data.weeks.find((w) => w.id === sheet.weekId);
+      const day = week?.days.find((d) => d.id === sheet.dayId);
+      return (
+        <LibraryPickSheet
+          title={day ? `Add to ${day.name}` : "Add to the Day"}
+          library={library}
+          onPick={() => {}}
+          onPickMany={async (entries: LibraryEntry[]) => {
+            if (!week || !day) return;
+            // Each pick lands as a real planned exercise carrying everything
+            // the library knows about it -- its measure, its unit, its last
+            // strip and, above all, its exerciseKey, so a lift added this way
+            // shares the history it already had rather than starting a fork.
+            const added: Exercise[] = entries.map((e) => ({
+              id: nid("e"),
+              name: e.name,
+              kind: e.kind,
+              ...(e.unit ? { unit: e.unit } : {}),
+              ...(e.timeUnit ? { timeUnit: e.timeUnit } : {}),
+              exerciseKey: e.exerciseKey ?? newExerciseKey(),
+              sets: e.lastSets.length > 0
+                ? e.lastSets.map((s, i) => ({ ...s, id: `${nid("s")}${i}` }))
+                : uniformStrip(3, { r: 8 }),
+            }));
+            const days = week.days.map((d) => (d.id === day.id ? { ...d, exercises: [...d.exercises, ...added] } : d));
+            setSheet({ kind: "closed" });
+            // The toast is gated on the write landing: saveDays reports
+            // whether it did, and a failed save that says "Added 6 lifts"
+            // is the worst version of this feature.
+            if (await saveDays(week.id, days)) {
+              showToast({ message: added.length === 1 ? `Added ${added[0]!.name}` : `Added ${added.length} lifts` });
+            }
+          }}
+          onCancel={() => setSheet({ kind: "closed" })}
+        />
+      );
+    }
     if (sheet.kind === "exercise") {
       const week = program.data.weeks.find((w) => w.id === sheet.weekId);
       const day = week?.days.find((d) => d.id === sheet.dayId);
@@ -2185,7 +2265,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                   );
                 }}
               />
+              {/* TWO DOORS (2026-09-14). "Add Exercise" is still the full
+                  sheet for something new; "Add From Your Lifts" is the fast
+                  one, and it is the one that matters once the library has
+                  anything in it -- six lifts in six taps instead of six
+                  sheets. It hides itself on an empty library, where it would
+                  open onto nothing. */}
               <button className="row-create" onClick={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id })}>Add Exercise</button>
+              {library.length > 0 && (
+                <button className="row-create" onClick={() => setSheet({ kind: "fillDay", weekId: activeWeek.id, dayId: openDay.id })}>Add from Your Lifts</button>
+              )}
             </div></div>
             {/* 2026-09-14 (the reference's day plan): an edit here reaches the
                 next session; a logged session keeps the numbers it logged. */}

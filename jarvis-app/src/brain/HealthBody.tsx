@@ -198,7 +198,6 @@ export default function HealthBody({
   const dates = weekDates(today);
   // The Water preset is its own tile (H-43) when the shortcut is on, so it
   // is not drawn twice.
-  const shownMetrics = activeMetrics(metricDefs).filter((d) => !(water && d.data.presetKey === "water"));
   const days = (program?.data.weeks ?? []).flatMap((w) => w.days);
   // Every day of the program except the one already offered above it.
   const otherDays = days.filter((d) => d.id !== next?.day.id);
@@ -213,6 +212,12 @@ export default function HealthBody({
     ? metricLogs.filter((l) => l.data.metricId === sleepDef.id && l.data.value != null && l.data.date <= today).sort((a, b) => a.data.date.localeCompare(b.data.date)).pop() ?? null
     : null;
   const sleepValue = sleepLatest && sleepDef ? tileValue(sleepDef, sleepLatest) : null;
+  // ONE TILE PER THING (2026-09-14). Water has its own +1 tile (H-43), and
+  // Sleep is read as a stat tile in This Week above -- both used to render a
+  // SECOND time down here, so the page offered two different doors to the
+  // same log a few inches apart. Sleep's stat tile is the tap now.
+  const shownMetrics = activeMetrics(metricDefs).filter((d) =>
+    !(water && d.data.presetKey === "water") && !(sleepValue && sleepDef && d.id === sleepDef.id));
   const sessionsThisWeek = training?.sessionsThisWeek ?? 0;
   const glance = !!(last || sessionsThisWeek > 0 || sleepValue);
   const capFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -255,11 +260,16 @@ export default function HealthBody({
     </div>
   );
   // A STAT TILE reads, it does not log: no +, the value and its caption.
-  const statTile = (key: string, name: string, hue: string, glyph: ReactNode, value: ReactNode, caption: string | null) => (
-    <div className="h-tile h-tile-stat" data-hue={hue} key={key}>
+  // 2026-09-14: except where the reading IS a log the athlete keeps -- the
+  // sleep tile now opens the sleep log, which is what its duplicate down in
+  // Quick Log used to be for. A tile that shows your last sleep and cannot
+  // take the next one is a strange thing to tap and find inert.
+  const statTile = (key: string, name: string, hue: string, glyph: ReactNode, value: ReactNode, caption: string | null, onOpen?: () => void) => (
+    <div className={"h-tile h-tile-stat" + (onOpen ? "" : " h-tile-inert")} data-hue={hue} key={key} {...(onOpen ? pressable(onOpen) : {})}>
       <div className="ht-top">
         <span className="ht-ico" aria-hidden="true">{glyph}</span>
         <span className="ht-w">{name}</span>
+        {onOpen && <span className="ht-plus" aria-hidden="true"><Plus className="ic" /></span>}
       </div>
       <div className="ht-n">{value}</div>
       {caption && <div className="ht-m">{caption}</div>}
@@ -363,45 +373,37 @@ export default function HealthBody({
     </div></div>
   );
 
+  // THE HIERARCHY, REVISITED (Dave 2026-09-14: "reevaluate the hierarchy of
+  // the health home page").
+  //
+  // It used to read: what's next, then a 600px wall of log buttons, then the
+  // readings, then the week. So the second thing the page did -- before it
+  // had told him one fact about himself -- was ask him to do nine chores.
+  //
+  // It reads top-down by what it is FOR now: the action (what's next), then
+  // what happened (this week, and the glance tiles folded into it rather than
+  // standing as their own near-identical section), then the logging, then the
+  // findings, then the tail. Quick Log is still one tap from the top of the
+  // page; it just stopped being the page.
   const overview = (
     <>
       {hero}
 
-      {/* QUICK LOG: the shortcuts he chose (Customize is Health Settings),
-          Water as a +1, Medication as an optional tile, his own metrics. */}
-      <div className="sh2 sh2-quiet"><span className="t">Quick Log</span>
-        {onOpenSettings && <button className="see-all pill-action" onClick={onOpenSettings}>Customize</button>}</div>
-      <div className="pad-x"><div className="h-tiles">
-        {healthLoggers.map((l) => loggerTile(l))}
-        {water && waterTile(water)}
-        {medTile && onOpenMedication && tile("medication", "Medication", hueFor("medication"), <Check className="ic" />, medSub ? <span>{medSub}</span> : null, null, onOpenMedication)}
-        {shownMetrics.map((d) => metricTile(d))}
-        <div {...pressable(onManageMetrics)} className="h-tile h-tile-add">
-          <div className="ht-top">
-            <span className="ht-ico" aria-hidden="true"><Plus className="ic" /></span>
-            <span className="ht-w">Track More</span>
-          </div>
-          <div className="ht-n"><span className="ht-none">Add a Metric</span></div>
-        </div>
-      </div></div>
-
-      {/* TRAINING AT A GLANCE: four readings, absent until there is one. */}
-      {glance && (
-        <>
-          <div className="sh2 sh2-quiet"><span className="t">Training at a Glance</span></div>
-          <div className="pad-x"><div className="h-tiles">
-            {last && statTile("last", "Last Workout", "amber", <Timer className="ic" />, <span>{last.minutes}<small>min</small></span>, `${last.dayName} · ${capFirst(agoPhrase(last.date, today))}`)}
-            {last && statTile("lifts", "Exercises Logged", "lime", <BarbellGlyph />, <span>{last.exercises}</span>, last.dayName)}
-            {statTile("week", "Workouts This Week", "lime", <Check className="ic" />, <span>{sessionsThisWeek}</span>, weekRange(today))}
-            {sleepValue && sleepLatest && statTile("sleep", "Latest Sleep Log", "violet", <MoonGlyph />,
-              sleepValue.map((p, j) => <span key={j}>{p.big}{p.small && <small>{p.small}</small>}</span>),
-              sleepLatest.data.date === today ? "Today" : capFirst(dayPhrase(sleepLatest.data.date, today)))}
-          </div></div>
-        </>
-      )}
-
-      {/* THIS WEEK: the count, the range, seven dated circles. */}
+      {/* THIS WEEK: the count, the range, seven dated circles. The four
+          glance tiles moved INSIDE this section -- "Training at a Glance" and
+          "This Week" were two headings over the same subject, one of them a
+          duplicate of the other's own headline number. */}
       <div className="sh2 sh2-quiet"><span className="t">This Week</span></div>
+      {glance && (
+        <div className="pad-x"><div className="h-tiles h-tiles-c">
+          {last && statTile("last", "Last Workout", "amber", <Timer className="ic" />, <span>{last.minutes}<small>min</small></span>, `${last.dayName} · ${capFirst(agoPhrase(last.date, today))}`)}
+          {last && statTile("lifts", "Exercises Logged", "lime", <BarbellGlyph />, <span>{last.exercises}</span>, last.dayName)}
+          {sleepValue && sleepLatest && sleepDef && statTile("sleep", "Latest Sleep Log", "violet", <MoonGlyph />,
+            sleepValue.map((p, j) => <span key={j}>{p.big}{p.small && <small>{p.small}</small>}</span>),
+            sleepLatest.data.date === today ? "Today" : capFirst(dayPhrase(sleepLatest.data.date, today)),
+            () => onOpenMetric(sleepDef))}
+        </div></div>
+      )}
       <div className="pad-x"><div className="card list-card-ruled">
         <div className="h-week-head">
           <span className="h-week-n">{capAfterNumber(`${sessionsThisWeek} ${sessionsThisWeek === 1 ? "workout" : "workouts"} logged`)}</span>
@@ -429,6 +431,28 @@ export default function HealthBody({
             {CHEV}
           </div>
         )}
+      </div></div>
+
+      {/* QUICK LOG: the shortcuts he chose (Customize is Health Settings),
+          Water as a +1, Medication as an optional tile, his own metrics.
+          Compact now (h-tiles-c): the same tiles laid down instead of stood
+          up, one line each, roughly a third of the height. And the Workouts
+          This Week tile is gone from above it -- it said in a 30px numeral
+          exactly what the dated circles two inches below already draw. */}
+      <div className="sh2 sh2-quiet"><span className="t">Quick Log</span>
+        {onOpenSettings && <button className="see-all pill-action" onClick={onOpenSettings}>Customize</button>}</div>
+      <div className="pad-x"><div className="h-tiles h-tiles-c">
+        {healthLoggers.map((l) => loggerTile(l))}
+        {water && waterTile(water)}
+        {medTile && onOpenMedication && tile("medication", "Medication", hueFor("medication"), <Check className="ic" />, medSub ? <span>{medSub}</span> : null, null, onOpenMedication)}
+        {shownMetrics.map((d) => metricTile(d))}
+        <div {...pressable(onManageMetrics)} className="h-tile h-tile-add">
+          <div className="ht-top">
+            <span className="ht-ico" aria-hidden="true"><Plus className="ic" /></span>
+            <span className="ht-w">Track More</span>
+          </div>
+          <div className="ht-n"><span className="ht-none">Add a Metric</span></div>
+        </div>
       </div></div>
 
       {/* The sections that hold something, then the findings, then the tail,

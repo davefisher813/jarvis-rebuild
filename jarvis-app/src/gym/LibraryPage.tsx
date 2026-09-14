@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { LibraryRow } from "./libraryEdit";
 import { pressable } from "../shared/pressable";
 import { agoPhraseLower } from "./summary";
 import { PickSheet, type PickItem } from "./ActionSheet";
+import SheetBar from "../shared/SheetBar";
+import { findDuplicates, pairId, type DuplicatePair } from "./duplicates";
+import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 
 // YOUR LIFTS (UP-ATH-21, 2026-09-06). The exercise library has known every
 // lift the athlete has ever used since it shipped, and the only thing that
@@ -12,7 +16,7 @@ import { PickSheet, type PickItem } from "./ActionSheet";
 //
 // Presentational, like every screen in this folder: rows in, callbacks out.
 // The writes live in gym/libraryEdit.ts and are run by GymFlow.
-export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge, onMergePreview, onToggleHidden, onToggleFavorite, onSetGoal, onBack }: {
+export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge, onMergePreview, onToggleHidden, onToggleFavorite, onSetGoal, muscles, onSetMuscles, dismissedDupes, onDismissDuplicate, onBack }: {
   rows: LibraryRow[];
   todayIso: string;
   onOpen: (row: LibraryRow) => void;
@@ -31,6 +35,15 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
    *  wiring at all (there is none today) still renders this page exactly as
    *  it did before -- the pill is absent with the prop. */
   onSetGoal?: (row: LibraryRow) => void;
+  /** MUSCLES PER LIFT (2026-09-14). The tags as they stand, by library key,
+   *  and the write that changes them. Primary first. Optional, so a caller
+   *  with no muscle wiring renders the page exactly as before. */
+  muscles?: Record<string, MuscleGroup[]>;
+  onSetMuscles?: (row: LibraryRow, muscles: MuscleGroup[]) => void;
+  /** Near-duplicate suggestions: pairs already waved off, and the write that
+   *  waves one off. Absent, no duplicate card is offered at all. */
+  dismissedDupes?: string[];
+  onDismissDuplicate?: (id: string) => void;
   onBack: () => void;
 }) {
   const [editing, setEditing] = useState<LibraryRow | null>(null);
@@ -42,6 +55,24 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
   const shown = rows.filter((r) => showHidden || !r.hidden);
   const hiddenCount = rows.filter((r) => r.hidden).length;
   const openEdit = (r: LibraryRow) => { setEditing(r); setDraft(r.name); };
+
+  // MUSCLES, LIVE WHILE THE SHEET IS OPEN. The tags are a list with the
+  // primary first, so tapping the one already marked primary clears it and
+  // tapping any other adds it to the end.
+  const tagsOf = (r: LibraryRow): MuscleGroup[] => muscles?.[r.key] ?? [];
+  const toggleMuscle = (r: LibraryRow, m: MuscleGroup) => {
+    if (!onSetMuscles) return;
+    const cur = tagsOf(r);
+    onSetMuscles(r, cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m]);
+  };
+
+  // NEAR-DUPLICATES (2026-09-14). Computed from the rows already on screen,
+  // so there is nothing to fetch and nothing to keep in sync; the card is
+  // simply absent when the library is clean, which is most of the time.
+  const dupes: DuplicatePair[] = useMemo(
+    () => (onDismissDuplicate ? findDuplicates(rows, dismissedDupes ?? []) : []),
+    [rows, dismissedDupes, onDismissDuplicate],
+  );
 
   const mergeItems: PickItem[] = merging
     ? rows
@@ -63,6 +94,34 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
         </div>
       ) : (
         <>
+          {/* SAME LIFT, TWO NAMES (Dave 2026-09-14). Above the list, because
+              a fork is the one thing on this page worth fixing before you
+              read anything else -- every number below it is split in two
+              until you do. It proposes and never acts: Merge opens the same
+              reviewed flow the Edit sheet does, and Not the Same puts the
+              pair away for good. */}
+          {dupes.length > 0 && (
+            <div className="pad-x"><div className="card pad">
+              <div className="eyebrow">Same Lift, Two Names?</div>
+              {dupes.slice(0, 3).map((d) => (
+                <div className="lib-dupe" key={pairId(d.keep.key, d.fold.key)}>
+                  <div className="conn-name">{d.fold.name} and {d.keep.name}</div>
+                  <div className="bp-sub">
+                    {d.why}
+                    {d.fold.sessions > 0 ? ` · ${d.fold.sessions} ${d.fold.sessions === 1 ? "session" : "sessions"} would move across` : " · nothing logged under it yet"}
+                  </div>
+                  <div className="btn-row">
+                    <button className="btn btn-secondary" onClick={() => {
+                      const survivor = d.keep;
+                      if (onMergePreview) setMergeReview({ loser: d.fold, survivor, ...onMergePreview(d.fold, survivor.key) });
+                      else onMerge(d.fold, survivor.key);
+                    }}>Merge Into {d.keep.name}</button>
+                    <button className="btn btn-tertiary" onClick={() => onDismissDuplicate?.(pairId(d.keep.key, d.fold.key))}>Not the Same</button>
+                  </div>
+                </div>
+              ))}
+            </div></div>
+          )}
           <div className="pad-x"><div className="card list-card-ruled">
             {shown.map((r) => (
               <div className="row" key={r.key} {...pressable(() => onOpen(r))}>
@@ -77,9 +136,14 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
                   </div>
                   {/* H-23: the names it used to go by, in the reading hue; and
                       the star, as a word, since the star glyph is the Brain's. */}
-                  {((r.aliases && r.aliases.length > 0) || r.favorite) && (
+                  {((r.aliases && r.aliases.length > 0) || r.favorite || tagsOf(r).length > 0) && (
                     <div className="facts">
                       {r.favorite && <span className="pill pill-good">Favorite</span>}
+                      {/* The muscles, on the row, so the page answers "what
+                          have I actually tagged?" at a glance -- which is the
+                          question the weekly volume card silently depends on
+                          and never used to show anywhere. */}
+                      {tagsOf(r).map((m) => <span className="fact" key={m}>{MUSCLE_LABEL[m]}</span>)}
                       {r.aliases && r.aliases.length > 0 && <span className="fact cyan">{"Also " + r.aliases.join(", ")}</span>}
                     </div>
                   )}
@@ -107,31 +171,106 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
         </>
       )}
 
-      {editing && (
-        <div className="pad-x"><div className="card pad">
-          <div className="field">
-            <div className="input-label">Name</div>
-            <input className="input" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Lift Name" />
-            <div className="bp-sub">Renaming keeps every session this lift already has.</div>
+      {/* EDIT IS A SHEET NOW (Dave, 2026-09-14: "the exercise page edit
+          button doesn't work").
+
+          It always worked. It set `editing` and rendered this card INLINE, in
+          document order, after the whole list, after the "that's every lift"
+          floor and after Show Hidden -- and `.screen` is the scroller, so
+          with a real library of dozens of lifts the card opened somewhere
+          around 3,000px below the fold. Tapping Edit scrolled nothing and
+          moved nothing: from the athlete's chair, a dead button.
+
+          Every other editor in this folder -- ActionSheet, PickSheet,
+          LibraryPickSheet, ExerciseSheet -- portals into a scrim over the
+          page. This one was the only exception, and there was no reason for
+          it to be. Now it is a sheet like the rest, which fixes the merge
+          review below by the same stroke: that card was inline and off-screen
+          too, so picking a survivor also appeared to do nothing. */}
+      {editing && createPortal(
+        <div className="sheet-scrim" onClick={() => setEditing(null)}>
+          <div className="card xs" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            {/* Save is the bar's, like every other sheet in the app: the
+                muscle chips write as they are tapped, so the only thing Save
+                has left to commit is the name. */}
+            <SheetBar
+              title={editing.name}
+              onCancel={() => setEditing(null)}
+              saveLabel="Done"
+              onSave={() => {
+                const r = editing;
+                setEditing(null);
+                if (draft.trim() && draft.trim() !== r.name) onRename(r, draft);
+              }}
+            />
+            <div className="sheet-form">
+              <div className="grp xs-grp"><div className="eyebrow">Name</div></div>
+              <div className="pad-x"><div className="card xs-group">
+                <div className="row xs-row">
+                  <input className="xs-input" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Lift Name" />
+                </div>
+              </div></div>
+              <div className="pad-x"><div className="bp-sub">Renaming keeps every session this lift already has.</div></div>
+
+              {/* MUSCLES, WHERE THE LIFT IS. They used to be settable only
+                  inside one program day's exercise sheet, one muscle at a
+                  time, keyed to nothing -- so the tag vanished on a rename
+                  and never existed for a lift logged mid-session. Here they
+                  hang off the library key, they are a list, and the first one
+                  tapped is the primary. */}
+              {onSetMuscles && (
+                <>
+                  <div className="grp xs-grp"><div className="eyebrow">Muscles</div></div>
+                  <div className="pad-x"><div className="card xs-group">
+                    <div className="row xs-row">
+                      <div className="row-grow">
+                        <div className="conn-name">Muscles Worked</div>
+                        <div className="conn-meta">
+                          {tagsOf(editing).length === 0
+                            ? "Untagged lifts are left out of Weekly Volume"
+                            : `${MUSCLE_LABEL[tagsOf(editing)[0]!]} first, then the rest at half a set each`}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="row xs-row">
+                      <div className="chip-row">
+                        {MUSCLE_GROUPS.map((m) => {
+                          const at = tagsOf(editing).indexOf(m);
+                          return (
+                            <button
+                              key={m}
+                              className={"chip" + (at === 0 ? " active" : at > 0 ? " chip-on" : "")}
+                              aria-pressed={at >= 0}
+                              onClick={() => toggleMuscle(editing, m)}
+                            >
+                              {MUSCLE_LABEL[m]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div></div>
+                </>
+              )}
+
+              <div className="grp xs-grp"><div className="eyebrow">This Lift</div></div>
+              <div className="pad-x">
+                {onToggleFavorite && (
+                  <button className="btn btn-secondary btn-block" onClick={() => { const r = editing; setEditing(null); onToggleFavorite(r); }}>
+                    {editing.favorite ? "Remove From Favorites" : "Add to Favorites"}
+                  </button>
+                )}
+                <button className="btn btn-secondary btn-block" onClick={() => { setMerging(editing); setEditing(null); }}>Merge Into Another Lift</button>
+                <button className="btn btn-secondary btn-block" onClick={() => { const r = editing; setEditing(null); onToggleHidden(r); }}>
+                  {editing.hidden ? "Offer It Again" : "Hide From Suggestions"}
+                </button>
+              </div>
+              <div className="xs-foot" />
+            </div>
           </div>
-          <button
-            className="btn btn-primary btn-block"
-            disabled={!draft.trim() || draft.trim() === editing.name}
-            onClick={() => { const r = editing; setEditing(null); onRename(r, draft); }}
-          >
-            Save the Name
-          </button>
-          {onToggleFavorite && (
-            <button className="btn btn-secondary btn-block" onClick={() => { const r = editing; setEditing(null); onToggleFavorite(r); }}>
-              {editing.favorite ? "Remove From Favorites" : "Add to Favorites"}
-            </button>
-          )}
-          <button className="btn btn-secondary btn-block" onClick={() => { setMerging(editing); setEditing(null); }}>Merge Into Another Lift</button>
-          <button className="btn btn-secondary btn-block" onClick={() => { const r = editing; setEditing(null); onToggleHidden(r); }}>
-            {editing.hidden ? "Offer It Again" : "Hide From Suggestions"}
-          </button>
-          <button className="btn btn-secondary btn-block" onClick={() => setEditing(null)}>Cancel</button>
-        </div></div>
+        </div>,
+        document.body,
       )}
 
       {merging && (
@@ -152,8 +291,14 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
         />
       )}
 
-      {mergeReview && (
-        <div className="pad-x"><div className="card pad">
+      {/* The review card, portaled for the same reason the editor is: inline
+          at the bottom of a long page, it opened below the fold and the
+          merge looked like it had silently failed. */}
+      {mergeReview && createPortal(
+        <div className="sheet-scrim" onClick={() => setMergeReview(null)}>
+          <div className="card" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <div className="pad-x pad">
           <div className="conn-name">Merge {mergeReview.loser.name} Into {mergeReview.survivor.name}</div>
           <div className="facts">
             <span className="fact">{mergeReview.sessions} {mergeReview.sessions === 1 ? "session" : "sessions"}</span>
@@ -162,7 +307,10 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
           <div className="bp-sub">Every one of them will read as {mergeReview.survivor.name}, and {mergeReview.loser.name} stays searchable as its old name. Undo on the receipt puts it all back.</div>
           <button className="btn btn-primary btn-block" onClick={() => { const m = mergeReview; setMergeReview(null); onMerge(m.loser, m.survivor.key); }}>Merge</button>
           <button className="btn btn-secondary btn-block" onClick={() => setMergeReview(null)}>Cancel</button>
-        </div></div>
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
       <div className="screen-foot" />
     </div>

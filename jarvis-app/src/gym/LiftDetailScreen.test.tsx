@@ -23,8 +23,8 @@ const workout = (date: string, exercises: { name: string; sets: number }[]): Wor
   },
 });
 
-const chestMap = new Map<string, MuscleGroup>([
-  ["Incline Press", "chest"], ["Bench Press", "chest"], ["Dips", "chest"], ["Rows", "back"],
+const chestMap = new Map<string, MuscleGroup[]>([
+  ["Incline Press", ["chest"]], ["Bench Press", ["chest"]], ["Dips", ["chest"]], ["Rows", ["back"]],
 ]);
 
 const base = {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { EQUIPMENT_LABEL, equipmentOf } from "./types";
+import { loadStyleOf, plateMath, styleSummary, weightLabel } from "./equipment";
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
@@ -196,8 +196,11 @@ export default function SessionScreen({
   const suggestion = workLogged === 0 && !keptPlan.includes(exercise.id)
     ? suggestFor(history, exercise, {
       mode: readHealthSettings().progression,
-      ...(equipmentOf(exercise) === "barbell" ? { smallestJump: Math.min(...rackFrom(readGymSettings()).plates) * 2 } : {}),
-      ...(equipmentOf(exercise) ? { equipmentLabel: EQUIPMENT_LABEL[equipmentOf(exercise)!] } : {}),
+      // 2026-09-14: the smallest real jump is a PAIR of the smallest plates
+      // on anything you load plates onto -- a barbell and a plate-loaded
+      // machine both -- and is meaningless on a pinned stack.
+      ...(plateMath(loadStyleOf(exercise)).offer ? { smallestJump: Math.min(...rackFrom(readGymSettings()).plates) * 2 } : {}),
+      ...(loadStyleOf(exercise).equipment ? { equipmentLabel: styleSummary(loadStyleOf(exercise)) } : {}),
     })
     : null;
   const [basisOpen, setBasisOpen] = useState(false);
@@ -493,7 +496,11 @@ export default function SessionScreen({
         )}
         <div className="p3-q">{exercise.name}</div>
         {/* Part 3 wave 5: the equipment convention, on the session too. */}
-        {equipmentOf(exercise) && <div className="se-chips"><span className="se-chip se-chip-pair"><em>Load</em>{EQUIPMENT_LABEL[equipmentOf(exercise)!]}</span></div>}
+        {/* 2026-09-14: the chip names the reading, not just the hardware, so
+            mid-set there is no doubt whether the number on the button is one
+            dumbbell or the pair. "Load" was the old word for it; the row it
+            mirrors is called Equipment now. */}
+        {loadStyleOf(exercise).equipment && <div className="se-chips"><span className="se-chip se-chip-pair"><em>{weightLabel(loadStyleOf(exercise))}</em>{styleSummary(loadStyleOf(exercise))}</span></div>}
         {/* UP-CORE-06 (2026-09-05): the guard, under the title. A workout is
             one of the two places two hours disappear, and the person is by
             definition not looking at their calendar. A fact, in the same

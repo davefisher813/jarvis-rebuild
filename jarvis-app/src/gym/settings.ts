@@ -37,6 +37,24 @@ export interface GymSettings {
   /** Part 3 wave 1 (2026-09-13): the lifts he starred on Your Lifts. They
    *  lead every picker; nothing else about them changes. */
   favoriteKeys?: string[];
+  /** MUSCLES BY LIFT (Dave, 2026-09-14: "I said I wanted users to be able to
+   *  mark what muscle groups the exercises hit").
+   *
+   *  Muscle used to live only on `Exercise.muscleGroup` -- one muscle, set
+   *  inside one program day, invisible to every other program and lost the
+   *  moment a lift was logged mid-session or the program was archived. The
+   *  weekly volume row then joined it back to history BY NAME, so a rename
+   *  silently emptied it. Here it hangs off the LIBRARY KEY instead, which
+   *  is the identity that survives a rename and a merge, and it is a LIST,
+   *  because a row hits more than one muscle and always did.
+   *
+   *  First entry is the primary. Still set by hand and absent by default:
+   *  the app does not read a muscle out of a free-text name (muscles.ts). */
+  muscleByKey?: Record<string, string[]>;
+  /** Near-duplicate pairs the athlete has waved off (gym/duplicates.ts), by
+   *  pairId. Kept so the page stops proposing a merge that has already been
+   *  considered and declined. */
+  dismissedDupes?: string[];
 }
 
 export const DEFAULT_GYM_SETTINGS: GymSettings = {

@@ -46,6 +46,11 @@ export default function InsightEvidence({ evidence, onExplain }: {
           <div className="ins-row"><span className="ins-k">Method</span><span className="ins-sub">{evidence.method}</span></div>
           <div className="ins-row"><span className="ins-k">Shows</span><span className="ins-sub">{evidence.supports}</span></div>
           <div className="ins-row"><span className="ins-k">Does Not Show</span><span className="ins-sub">{evidence.doesNot}</span></div>
+          {/* A rule we chose, kept visibly apart from the method and from
+              the cited source above the pill. */}
+          {evidence.convention && (
+            <div className="ins-row"><span className="ins-k">Our Convention</span><span className="ins-sub">{evidence.convention}</span></div>
+          )}
           {evidence.minimum && (
             <div className="ins-row"><span className="ins-k">Minimum</span><span className="ins-sub">{evidence.minimum.name} {evidence.minimum.value} · {evidence.minimum.reason}</span></div>
           )}

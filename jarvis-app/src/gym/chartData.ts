@@ -1,4 +1,5 @@
 import type { Workout, SetLog, MeasureKind } from "./types";
+import { loadStyleOf } from "./equipment";
 import { beats, scoreOf, hasVolume, setVolume, toLb, LB_PER_KG } from "./measures";
 import { liftRef, sameLift, sameLiftAnyKind, type LiftLike } from "./identity";
 
@@ -55,13 +56,15 @@ export function liftSessions(workouts: Workout[], lift: LiftLike, kind: MeasureK
     if (!ex || ex.skipped) continue;
     let top: SetLog | null = null;
     for (const s of ex.sets) {
-      if (s.skipped || !scoreOf(kind, s, ex.unit)) continue;
-      if (!top || beats(kind, s, top)) top = s; // one session, one unit
+      const exStyle = loadStyleOf(ex);
+      if (s.skipped || !scoreOf(kind, s, ex.unit, exStyle)) continue;
+      // one session, one unit, one convention
+      if (!top || beats(kind, s, top, {}, { of: exStyle, than: exStyle })) top = s;
     }
     if (!top) continue;
     // GYM-F-06: the plotted numbers are pounds, whatever the session logged in,
     // so switching a lift to kg no longer plunges its e1RM chart.
-    const score = scoreOf(kind, top, ex.unit)!.value;
+    const score = scoreOf(kind, top, ex.unit, loadStyleOf(ex))!.value;
     out.push({
       workoutId: w.id, date: w.data.date, top, score, unit: ex.unit,
       e1rm: kind === "weight_reps" ? e1rm(toLb(top.w ?? 0, ex.unit), top.r ?? 0) : null,
@@ -132,7 +135,7 @@ export function weeklySetCounts(workouts: Workout[], lift: LiftLike, weeks = 8, 
     const days = daysAgo(w.data.date, now);
     const bucket = Math.floor(days / 7);
     if (bucket < 0 || bucket >= weeks) continue;
-    const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s, ex.unit)).length;
+    const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s, ex.unit, loadStyleOf(ex))).length;
     out[weeks - 1 - bucket]! += working;
   }
   return out;
@@ -153,7 +156,9 @@ export function weeklyVolume(workouts: Workout[], lift: LiftLike, kind: MeasureK
     let v = 0;
     // GYM-F-06: summed in pounds, then shown in the unit the caller asked in,
     // so a bar chart cannot silently add lb and kg together.
-    for (const s of ex.sets) { if (!s.skipped) v += setVolume(kind, s, ex.unit); }
+    // 2026-09-14: a pair of dumbbells is the pair, a per-side machine is
+    // both sides. Tonnage was half-counting every one of those lifts.
+    for (const s of ex.sets) { if (!s.skipped) v += setVolume(kind, s, ex.unit, loadStyleOf(ex)); }
     out[weeks - 1 - bucket]! += ref.unit === "kg" ? v / LB_PER_KG : v;
   }
   return out.map((v) => Math.round(v));
@@ -169,7 +174,7 @@ export function chartableExercises(workouts: Workout[]): { name: string; exercis
   const seen: { name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string; date: string }[] = [];
   for (const w of workouts) {
     for (const ex of w.data.exercises) {
-      if (ex.skipped || !ex.sets.some((s) => !s.skipped && scoreOf(ex.kind, s, ex.unit))) continue;
+      if (ex.skipped || !ex.sets.some((s) => !s.skipped && scoreOf(ex.kind, s, ex.unit, loadStyleOf(ex)))) continue;
       const prior = seen.find((x) => sameLift(x, ex));
       if (!prior) {
         seen.push({ name: ex.name, ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}), kind: ex.kind, unit: ex.unit, timeUnit: ex.timeUnit, date: w.data.date });

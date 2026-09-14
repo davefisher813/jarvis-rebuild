@@ -141,7 +141,7 @@ describe("hardSetRows", () => {
   });
 
   it("outside the rolling 7-day window, sets don't count", () => {
-    const map = new Map([["Bench", "chest" as const]]);
+    const map = new Map([["Bench", ["chest" as const]]]);
     const now = new Date("2026-08-31T12:00:00").getTime();
     const h = [workout("2026-08-10", [{ exerciseId: "e1", name: "Bench", kind: "weight_reps", unit: "lb", sets: [set({ w: 100, r: 5 })] }])];
     expect(hardSetRows(h, map, now)).toEqual([]);

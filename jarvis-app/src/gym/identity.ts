@@ -1,4 +1,5 @@
 import type { MeasureKind } from "./types";
+import type { Counted } from "./equipment";
 
 // LIFT IDENTITY (GYM-F-04, 2026-09-05, fork option A).
 //
@@ -25,7 +26,19 @@ export interface LiftRef { name: string; kind: MeasureKind; exerciseKey?: string
 /** What a caller may hand a derivation in place of a bare name: a program or
  *  live exercise, a history row, a stored goal, or just the name. Callers with
  *  nothing but a name get today's behaviour, unchanged. */
-export type LiftLike = string | { name: string; exerciseKey?: string; unit?: string };
+// 2026-09-14: the convention rides along optionally. A caller that already
+// has the exercise in hand (every session and history path does) hands over
+// how its numbers are counted, so a PR check can tell an assisted lift's
+// lightest set from its heaviest and can refuse to compare across a change
+// of machine. A caller with only a name still works exactly as before.
+export type LiftLike = string | {
+  name: string;
+  exerciseKey?: string;
+  unit?: string;
+  equipment?: string;
+  counted?: Counted;
+  load?: "each" | "total";
+};
 
 export function liftRef(lift: LiftLike, kind: MeasureKind): LiftRef {
   // GYM-F-06 (2026-09-05): the ref carries the unit the caller is working in,

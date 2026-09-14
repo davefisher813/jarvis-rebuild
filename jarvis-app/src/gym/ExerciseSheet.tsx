@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
-import { useState, type ReactNode } from "react";
-import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout, EQUIPMENT_LABEL, EQUIPMENT_KINDS, equipmentOf, type Equipment } from "./types";
+import { Fragment, useState, type ReactNode } from "react";
+import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
+import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL, asksCount, countsFor, defaultCount, loadStyleOf, weightless, type Counted, type Equipment, type LoadStyle } from "./equipment";
 import { condCap, condSummary, mmss } from "./conditioning";
 import { fieldsFor, formatSet, isUniformStrip } from "./measures";
 import { uniformStrip, resizeStrip, applyToAll } from "./strip";
@@ -109,9 +110,24 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   const [filler, setFiller] = useState(!!initial?.filler);
   const [ramp, setRamp] = useState(!!initial?.ramp);
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | undefined>(initial?.muscleGroup);
-  // Part 3 wave 5: how the number on a chip is to be read; a label and never
-  // a conversion. Empty means the whole load.
-  const [equipment, setEquipment] = useState<Equipment | "">(initial ? (equipmentOf(initial) ?? "") : "");
+  // EQUIPMENT AND READING (2026-09-14), two rows where there was one. The
+  // initial value runs through loadStyleOf, so an exercise saved under the
+  // old single menu -- including the two options that were never equipment --
+  // opens with the right answer already in both rows.
+  const [equipment, setEquipment] = useState<Equipment | "">(initial ? (loadStyleOf(initial).equipment ?? "") : "");
+  const [counted, setCounted] = useState<Counted | undefined>(initial ? loadStyleOf(initial).counted : undefined);
+  const loadStyle: LoadStyle = {
+    ...(equipment ? { equipment } : {}),
+    ...(counted ? { counted } : {}),
+  };
+  // Picking the equipment moves the reading to that equipment's own default,
+  // so choosing Dumbbells says "Each Hand" without a second tap and choosing
+  // Assisted flips the whole lift's direction of progress on its own. The
+  // athlete can still override it on the row below, where one exists.
+  const pickEquipment = (e: Equipment | "") => {
+    setEquipment(e);
+    setCounted(e ? defaultCount(e) : undefined);
+  };
   // Part 3 wave 2: the rest after a full round of the group this belongs to.
   const [roundRestSec, setRoundRestSec] = useState(initial?.roundRestSec ?? 0);
   // THE CONDITIONING BLOCK (ruled 2026-09-01, built 2026-09-02). Off means
@@ -172,7 +188,13 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   };
 
   const units = unitsFor(kind);
-  const fields = fieldsFor(kind);
+  // The Weight field now takes its NAME and its INCREMENT from the equipment
+  // (2026-09-14), so the row reads "Weight Per Hand" on dumbbells and
+  // "Assistance" on an assist machine, and steps 10 on a stack and 2.5 on a
+  // dip belt instead of 5 on everything.
+  const fields = fieldsFor(kind, { ...loadStyle, unit });
+  const noWeight = kind === "weight_reps" && weightless(loadStyle);
+  const shownFields = noWeight ? fields.filter((f) => f.key !== "w") : fields;
   // A clock has no strip to plan: its plan is the format.
   const valid = name.trim().length > 0 && (sets.length > 0 || condBlock != null);
 
@@ -209,6 +231,10 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
       ...(ramp ? { ramp: true } : {}),
       ...(muscleGroup ? { muscleGroup } : {}),
       ...(kind === "weight_reps" && equipment ? { equipment } : {}),
+      // The reading rides with the equipment, and is saved even when it is
+      // that equipment's default: a set logged today has to keep meaning
+      // what it meant if the defaults are ever revised.
+      ...(kind === "weight_reps" && counted ? { counted } : {}),
       ...(partner && roundRestSec > 0 ? { roundRestSec } : {}),
       ...(condBlock ? { cond: condBlock } : {}),
     });
@@ -285,18 +311,67 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                   <div className="row-grow"><div className="conn-name">{countLabel(kind)}</div></div>
                   <Stepper value={sets.length} step={1} min={1} label={countLabel(kind)} onChange={(n) => setSets((s) => resizeStrip(s, n))} />
                 </div>
-                {kind !== "done" && fields.map((f) => (
-                  <div className="row xs-row" key={f.key}>
-                    <div className="row-grow">
-                      <div className="conn-name">{f.label}</div>
-                      {(f.key === "w" || f.key === "v") && unit && <div className="conn-meta">{unit}</div>}
-                      {f.key === "t" && <div className="conn-meta">{timeUnit}</div>}
+                {kind !== "done" && shownFields.map((f) => (
+                  <Fragment key={f.key}>
+                    {/* EQUIPMENT COMES BEFORE WEIGHT (2026-09-14). It used to
+                        sit two groups further down, under Tracks, which put
+                        the thing that DEFINES what the weight means below the
+                        weight itself: you typed 100 and only later said
+                        whether that was a barbell's total, one dumbbell, or
+                        one side of a machine. Reading down the group now goes
+                        Sets, Reps, Equipment, Weight Per Hand, lb -- each row
+                        making sense of the next. */}
+                    {f.key === "w" && (
+                      <>
+                        <div className="row xs-row">
+                          <div className="row-grow">
+                            <div className="conn-name">Equipment</div>
+                            {equipment && EQUIPMENT_NOTE(equipment) && <div className="conn-meta">{EQUIPMENT_NOTE(equipment)}</div>}
+                          </div>
+                          <HeadMenu variant="value" ariaLabel="Equipment" value={equipment} off={!equipment}
+                            options={[{ value: "", label: "Not Set" }, ...EQUIPMENT_KINDS.map((k) => ({ value: k, label: EQUIPMENT_LABEL[k] }))]}
+                            onPick={(v) => pickEquipment(EQUIPMENT_KINDS.includes(v as Equipment) ? (v as Equipment) : "")} />
+                        </div>
+                        {/* ONLY WHEN IT IS ACTUALLY A QUESTION. A weight stack
+                            has exactly one reading, so it costs no row and no
+                            tap; dumbbells and plate machines have two. */}
+                        {asksCount(equipment || undefined) && (
+                          <div className="row xs-row">
+                            <div className="conn-name">Counted As</div>
+                            <HeadMenu variant="value" ariaLabel="Counted as" value={counted ?? "total"}
+                              options={countsFor(equipment || undefined).map((c) => ({ value: c, label: COUNTED_LABEL[c] }))}
+                              onPick={(v) => setCounted(v as Counted)} />
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <div className="row xs-row">
+                      <div className="row-grow">
+                        <div className="conn-name">{f.label}</div>
+                        {(f.key === "w" || f.key === "v") && unit && <div className="conn-meta">{unit}</div>}
+                        {f.key === "t" && <div className="conn-meta">{timeUnit}</div>}
+                      </div>
+                      <Stepper value={sets.find((s) => !s.skipped)?.[f.key] ?? 0} step={f.step} label={f.label}
+                        onChange={(n) => setSets((s) => applyToAll(kind, s, f.key, n))} />
                     </div>
-                    <Stepper value={sets.find((s) => !s.skipped)?.[f.key] ?? 0} step={f.step} label={f.label}
-                      onChange={(n) => setSets((s) => applyToAll(kind, s, f.key, n))} />
-                  </div>
+                  </Fragment>
                 ))}
-                {units.length > 1 && (
+                {/* A BAND HAS NO NUMBER. Its Weight row is gone rather than
+                    sitting there at 0 asking to be filled in with a fiction;
+                    the equipment chooser still has to be reachable, so it
+                    stands on its own here. */}
+                {noWeight && (
+                  <div className="row xs-row">
+                    <div className="row-grow">
+                      <div className="conn-name">Equipment</div>
+                      <div className="conn-meta">{EQUIPMENT_NOTE("band")}</div>
+                    </div>
+                    <HeadMenu variant="value" ariaLabel="Equipment" value={equipment}
+                      options={[{ value: "", label: "Not Set" }, ...EQUIPMENT_KINDS.map((k) => ({ value: k, label: EQUIPMENT_LABEL[k] }))]}
+                      onPick={(v) => pickEquipment(EQUIPMENT_KINDS.includes(v as Equipment) ? (v as Equipment) : "")} />
+                  </div>
+                )}
+                {units.length > 1 && !noWeight && (
                   <div className="row xs-row">
                     <div className="conn-name">Unit</div>
                     <HeadMenu variant="value" ariaLabel="Unit" value={unit ?? units[0]!}
@@ -392,20 +467,10 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 options={[{ value: "none", label: "None" }, ...MUSCLE_GROUPS.map((m) => ({ value: m, label: MUSCLE_LABEL[m] }))]}
                 onPick={(v) => setMuscleGroup(v === "none" ? undefined : (v as MuscleGroup))} />
             </div>
-            {/* EQUIPMENT (Part 3 wave 5; was Load, H-26): how the number on a
-                chip is to be read. The chips stay his own numbers either way;
-                this only says which convention they are in. */}
-            {kind === "weight_reps" && !condBlock && (
-              <div className="row xs-row">
-                <Tile tone="orange"><Dumbbell className="ic" /></Tile>
-                <div className="row-grow">
-                  <div className="conn-name">Equipment</div>
-                </div>
-                <HeadMenu variant="value" ariaLabel="Equipment" value={equipment}
-                  options={[{ value: "", label: "Whole Load" }, ...EQUIPMENT_KINDS.map((k) => ({ value: k, label: EQUIPMENT_LABEL[k] }))]}
-                  onPick={(v) => setEquipment(EQUIPMENT_KINDS.includes(v as Equipment) ? (v as Equipment) : "")} />
-              </div>
-            )}
+            {/* EQUIPMENT MOVED OUT OF TRACKS (2026-09-14) and up beside the
+                Weight row it defines. Tracks is for what a set RECORDS;
+                equipment is what the recorded number MEANS, which belongs
+                next to the number. */}
           </div></div>
 
           {/* IN THE SESSION: what the live screen does with this exercise. */}

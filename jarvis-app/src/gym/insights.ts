@@ -61,6 +61,10 @@ export interface Evidence {
   supports: string;
   doesNot: string;
   minimum?: Minimum;
+  /** 2026-09-14: a counting rule this app chose, where the cited work does
+   *  not settle it. Named separately from `method` so a convention is never
+   *  read as a finding. */
+  convention?: string;
 }
 
 /** How close a metric and a lift are to the paired-session minimum, for the
@@ -292,24 +296,167 @@ export function hardSetEvidence(rows: HardSetRow[], now: number = Date.now(), ba
     method: "Working sets in the last 7 days per muscle, warm-ups and drops left out, against the band",
     supports: "Where each muscle's weekly sets sit against " + (band ? "your own band" : "the studied range"),
     doesNot: "Whether that is right for you this week",
+    // 2026-09-14. The half is OURS, not the meta-analysis's, and saying so
+    // belongs in the receipt rather than in a footnote nobody opens. The
+    // cited work counts sets per muscle and does not settle how a row's
+    // biceps should be counted; splitting the difference is a convention.
+    convention: "First muscle a whole set, the others half · This app's counting rule, not the cited work's",
   };
 }
 
-/** Program exercise name -> muscle, built once per render from the CURRENT
- *  program (muscleGroup is a program fact, catalog D13-C -- see
- *  gym/types.ts's Exercise.muscleGroup comment). A workout's own exercises
- *  never carry the tag, so every join here goes by name. */
-export function muscleMapFromProgram(program: Program | null): Map<string, MuscleGroup> {
-  const map = new Map<string, MuscleGroup>();
-  if (!program) return map;
-  for (const week of program.data.weeks) {
-    for (const day of week.days) {
-      for (const ex of day.exercises) {
-        if (ex.muscleGroup) map.set(ex.name, ex.muscleGroup);
+// --- WHAT IS BEHIND THE NUMBER ---------------------------------------------
+
+export interface VolumeLift { name: string; exerciseKey?: string; sets: number; date: string; primary: boolean }
+
+/**
+ * THE LIFTS BEHIND ONE MUSCLE'S WEEKLY COUNT (Dave, 2026-09-14: "insights are
+ * providing virtually nothing and I can't even click on them").
+ *
+ * A bare "Quads 6" is a number with nowhere to go: it cannot be checked,
+ * argued with, or acted on, and if it looks wrong there is no way to find out
+ * why. This is the receipt in the literal sense -- which lift, on which day,
+ * for how many sets, and whether it counted whole or half. Newest first,
+ * because the question behind the tap is almost always "what have I done
+ * lately".
+ */
+export function volumeBreakdown(
+  workouts: Workout[],
+  muscleByExercise: MuscleMap,
+  muscle: MuscleGroup,
+  now: number = Date.now(),
+): VolumeLift[] {
+  const out: VolumeLift[] = [];
+  for (const w of workouts) {
+    const agoDays = daysAgo(w.data.date, now);
+    if (agoDays < 0 || agoDays >= 7) continue;
+    for (const ex of w.data.exercises) {
+      if (ex.skipped) continue;
+      const muscles = (ex.exerciseKey ? muscleByExercise.get(ex.exerciseKey) : undefined)
+        ?? muscleByExercise.get(ex.name);
+      const at = muscles?.indexOf(muscle) ?? -1;
+      if (at < 0) continue;
+      const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s)).length;
+      if (working === 0) continue;
+      out.push({
+        name: ex.name,
+        ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}),
+        sets: at === 0 ? working : working / 2,
+        date: w.data.date,
+        primary: at === 0,
+      });
+    }
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date) || b.sets - a.sets);
+}
+
+export interface CoverageGap {
+  /** Lifts trained in the last 7 days that carry no muscle at all. */
+  untagged: { name: string; exerciseKey?: string; sets: number }[];
+  /** Working sets those lifts account for, and which Weekly Volume therefore
+   *  cannot see. */
+  hiddenSets: number;
+  /** Lifts trained this week that DO carry a muscle, for the ratio. */
+  tagged: number;
+}
+
+/**
+ * WHY THE CARD IS THIN.
+ *
+ * Weekly Volume has one hard requirement -- a lift has to be tagged with a
+ * muscle by hand -- and when almost nothing is tagged it renders one row and
+ * says nothing about the silence. From the outside that reads as "insights
+ * are providing virtually nothing"; from the inside it is a feature waiting
+ * on a two-tap setup nobody was ever asked for.
+ *
+ * So the app says so. This is not a finding about training, it is a finding
+ * about the app's own blind spot, and it is the one insight that is useful on
+ * day one and useless by design once the work is done: with nothing untagged
+ * it returns null and the card never appears again.
+ */
+export function coverageGap(
+  workouts: Workout[],
+  muscleByExercise: MuscleMap,
+  now: number = Date.now(),
+): CoverageGap | null {
+  const untagged = new Map<string, { name: string; exerciseKey?: string; sets: number }>();
+  let tagged = 0;
+  for (const w of workouts) {
+    const agoDays = daysAgo(w.data.date, now);
+    if (agoDays < 0 || agoDays >= 7) continue;
+    for (const ex of w.data.exercises) {
+      if (ex.skipped) continue;
+      const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s)).length;
+      if (working === 0) continue;
+      const muscles = (ex.exerciseKey ? muscleByExercise.get(ex.exerciseKey) : undefined)
+        ?? muscleByExercise.get(ex.name);
+      if (muscles && muscles.length > 0) { tagged++; continue; }
+      const id = ex.exerciseKey ?? ex.name;
+      const prev = untagged.get(id);
+      untagged.set(id, {
+        name: ex.name,
+        ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}),
+        sets: (prev?.sets ?? 0) + working,
+      });
+    }
+  }
+  if (untagged.size === 0) return null;
+  const list = [...untagged.values()].sort((a, b) => b.sets - a.sets);
+  return { untagged: list, hiddenSets: list.reduce((n, x) => n + x.sets, 0), tagged };
+}
+
+/** A lift's muscles: the primary first, then whatever else it works.
+ *  Keyed by library key where there is one, and by name only as a fallback,
+ *  which is the join the weekly row used to have to make for everything. */
+export type MuscleMap = Map<string, MuscleGroup[]>;
+
+/**
+ * WHICH MUSCLES A LIFT WORKS, from every place the athlete can say so.
+ *
+ * Until 2026-09-14 this read one field on one program's exercises, which
+ * meant a lift tagged in an archived program, added mid-session, or simply
+ * renamed contributed nothing, and the Weekly Volume card sat at one row
+ * saying almost nothing (Dave: "insights are providing virtually nothing").
+ * Three fixes, all here:
+ *
+ *   - EVERY program is read, not `programs[0]`;
+ *   - the per-lift tags set on Your Lifts (settings.muscleByKey) are read
+ *     too, and they win, because they are keyed to the lift's stable
+ *     identity and so survive a rename that silently emptied the old map;
+ *   - a lift can work SEVERAL muscles, which is how bodies work.
+ *
+ * Both the library key and the name are indexed, so a logged workout joins
+ * by key when it has one and by name when it does not.
+ */
+export function muscleMapFrom(
+  programs: Program[],
+  muscleByKey: Record<string, string[]> = {},
+): MuscleMap {
+  const map: MuscleMap = new Map();
+  const put = (k: string | undefined, v: MuscleGroup[]) => { if (k && v.length) map.set(k, v); };
+  for (const program of programs) {
+    for (const week of program.data.weeks) {
+      for (const day of week.days) {
+        for (const ex of day.exercises) {
+          if (!ex.muscleGroup) continue;
+          put(ex.name, [ex.muscleGroup]);
+          put(ex.exerciseKey, [ex.muscleGroup]);
+        }
       }
     }
   }
+  // The per-lift tags are the athlete's most deliberate statement of this,
+  // so they overwrite anything a program day happens to say.
+  for (const [key, list] of Object.entries(muscleByKey)) {
+    const clean = list.filter((m): m is MuscleGroup => (MUSCLE_GROUPS as readonly string[]).includes(m));
+    put(key, clean);
+  }
   return map;
+}
+
+/** The old single-program, single-muscle builder, kept so existing callers
+ *  and tests keep working. Prefer muscleMapFrom above. */
+export function muscleMapFromProgram(program: Program | null): MuscleMap {
+  return muscleMapFrom(program ? [program] : []);
 }
 
 /**
@@ -318,7 +465,7 @@ export function muscleMapFromProgram(program: Program | null): Map<string, Muscl
  * VERDICT (HEALTH_PREVIEW_SPEC bug list): a muscle with nothing logged this
  * week renders no row at all, never a "0 of 10-20" that reads as a miss.
  */
-export function hardSetRows(workouts: Workout[], muscleByExercise: Map<string, MuscleGroup>, now: number = Date.now(), range: PublishedRange = HARD_SET_RANGE): HardSetRow[] {
+export function hardSetRows(workouts: Workout[], muscleByExercise: MuscleMap, now: number = Date.now(), range: PublishedRange = HARD_SET_RANGE): HardSetRow[] {
   const totals = new Map<MuscleGroup, number>();
   for (const w of workouts) {
     // Calendar-day-safe (see chartData.ts's daysAgo comment): a raw
@@ -328,18 +475,29 @@ export function hardSetRows(workouts: Workout[], muscleByExercise: Map<string, M
     if (agoDays < 0 || agoDays >= 7) continue;
     for (const ex of w.data.exercises) {
       if (ex.skipped) continue;
-      const muscle = muscleByExercise.get(ex.name);
-      if (!muscle) continue;
+      // By key first, by name second (2026-09-14): a lift that has been
+      // renamed keeps its tags, which the name-only join could not do.
+      const muscles = (ex.exerciseKey ? muscleByExercise.get(ex.exerciseKey) : undefined)
+        ?? muscleByExercise.get(ex.name);
+      if (!muscles || muscles.length === 0) continue;
       const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s)).length;
       if (working === 0) continue;
-      totals.set(muscle, (totals.get(muscle) ?? 0) + working);
+      // DIRECT SETS COUNT WHOLE, INDIRECT COUNT HALF. A row is a back
+      // exercise that also works biceps, and calling those biceps sets whole
+      // would have anyone who rows twice a week reading 20+ biceps sets they
+      // never did. The half is a COUNTING CONVENTION and is labelled as one
+      // in the card's Evidence -- it is not part of the cited meta-analysis,
+      // which counts sets per muscle without settling this question.
+      muscles.forEach((m, i) => {
+        totals.set(m, (totals.get(m) ?? 0) + (i === 0 ? working : working / 2));
+      });
     }
   }
   return MUSCLE_GROUPS
     .filter((m) => (totals.get(m) ?? 0) > 0)
     // The studied range by default; the band he set in Health Settings when
     // he set one (Dave 2026-09-13: nothing hard wired that should not be).
-    .map((m) => ({ muscle: m, sets: totals.get(m)!, range }));
+    .map((m) => ({ muscle: m, sets: Math.round(totals.get(m)! * 2) / 2, range }));
 }
 
 // --- D13-C: THE OFFER, NEVER A PRESCRIPTION --------------------------------

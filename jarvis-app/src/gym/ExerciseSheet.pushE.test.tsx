@@ -9,21 +9,49 @@ import type { Exercise } from "./types";
 const save = () => fireEvent.click(screen.getByRole("button", { name: "Save" }));
 const existing: Exercise = { id: "e1", name: "DB Press", kind: "weight_reps", unit: "lb", sets: [{ id: "s1", w: 50, r: 10 }], exerciseKey: "k1" };
 
-describe("ExerciseSheet: Equipment (Part 3 wave 5, was Load)", () => {
-  it("defaults to the whole load and writes nothing; a convention writes equipment, and an old Each reads as a dumbbell", () => {
+describe("ExerciseSheet: Equipment (Part 3 wave 5, was Load; split 2026-09-14)", () => {
+  it("writes nothing until said; picking equipment carries its own reading", () => {
     const onSave = vi.fn();
-    const { rerender } = render(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={onSave} onCancel={() => {}} />);
+    render(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={onSave} onCancel={() => {}} />);
     save();
     expect(onSave.mock.calls[0]![0]).not.toHaveProperty("equipment");
+    expect(onSave.mock.calls[0]![0]).not.toHaveProperty("counted");
     expect(onSave.mock.calls[0]![0]).not.toHaveProperty("load");
     fireEvent.click(screen.getByRole("button", { name: "Equipment" }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "One Side at a Time" }));
-    expect(screen.getAllByText("One Side at a Time").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Dumbbells" }));
     save();
-    expect(onSave.mock.calls[1]![0].equipment).toBe("unilateral");
-    rerender(<div />);
-    render(<ExerciseSheet mode="edit" initial={{ ...existing, load: "each" }} library={[]} history={[]} onSave={onSave} onCancel={() => {}} />);
-    expect(screen.getAllByText("Dumbbell, Each Hand").length).toBeGreaterThan(0);
+    expect(onSave.mock.calls[1]![0].equipment).toBe("dumbbell");
+    // Its default reading came with it -- no second tap to say Each Hand.
+    expect(onSave.mock.calls[1]![0].counted).toBe("each_hand");
+  });
+
+  it("renames the Weight row and asks Counted As only when it is a real question", () => {
+    render(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Equipment" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Dumbbells" }));
+    expect(screen.getByText("Weight Per Hand")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Counted as" })).toBeInTheDocument();
+    // A stack has exactly one reading, so it costs no row and no tap.
+    fireEvent.click(screen.getByRole("button", { name: "Equipment" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Weight Stack" }));
+    expect(screen.queryByRole("button", { name: "Counted as" })).toBeNull();
+    expect(screen.getByText("Weight")).toBeInTheDocument();
+    // Assistance is not a load, and the row says so.
+    fireEvent.click(screen.getByRole("button", { name: "Equipment" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Assisted" }));
+    expect(screen.getByText("Assistance")).toBeInTheDocument();
+  });
+
+  it("reads the retired values so nothing saved before this changes meaning", () => {
+    const first = render(<ExerciseSheet mode="edit" initial={{ ...existing, load: "each" }} library={[]} history={[]} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getAllByText("Dumbbells").length).toBeGreaterThan(0);
+    expect(screen.getByText("Weight Per Hand")).toBeInTheDocument();
+    first.unmount();
+    // "One Side at a Time" was a COUNT, never equipment: it keeps its
+    // meaning as a per-side reading with the hardware left unsaid. A fresh
+    // mount, not a rerender -- the sheet reads `initial` once, on purpose.
+    render(<ExerciseSheet mode="edit" initial={{ ...existing, equipment: "unilateral" } as unknown as Exercise} library={[]} history={[]} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getByText("Weight Per Side")).toBeInTheDocument();
   });
 
   it("is not offered on a kind with no weight", () => {

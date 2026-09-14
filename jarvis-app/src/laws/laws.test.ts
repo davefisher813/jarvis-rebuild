@@ -3870,12 +3870,19 @@ describe("LAW 18: when is a fact, why is never claimed", () => {
     // never-guess doctrine as gameCategoryId. insights.ts's own program join
     // must read that field and nothing else -- no keyword match standing in
     // for it.
+    // 2026-09-14: the builder generalized to muscleMapFrom (every program,
+    // plus the per-lift tags set by hand on Your Lifts) and
+    // muscleMapFromProgram is now a one-line shim onto it. The doctrine is
+    // unchanged and so is this law -- it just has to read the function that
+    // does the work. BOTH sources are hand-set; neither may be inferred.
     const src = gym("insights.ts");
-    const fn = src.slice(src.indexOf("export function muscleMapFromProgram"));
+    const fn = src.slice(src.indexOf("export function muscleMapFrom"));
     const body = fn.slice(0, fn.indexOf("\n}"));
-    expect(body, "muscleMapFromProgram infers a muscle from the exercise name instead of reading the hand-set field")
+    expect(body, "muscleMapFrom infers a muscle from the exercise name instead of reading the hand-set field")
       .not.toMatch(/\.name\.(match|includes|toLowerCase\(\)\.includes)/);
-    expect(body, "muscleMapFromProgram lost the hand-set field read").toMatch(/ex\.muscleGroup/);
+    expect(body, "muscleMapFrom lost the hand-set field read").toMatch(/ex\.muscleGroup/);
+    // The per-lift store is read too, and only ever as stored values.
+    expect(body, "muscleMapFrom lost the per-lift tag read").toMatch(/muscleByKey/);
   });
 
   it("every correlation card ends its own line honestly", () => {

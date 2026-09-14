@@ -67,11 +67,14 @@ describe("ExerciseSheet, the grouped table", () => {
     expect(baseElement.querySelectorAll(".chip")).toHaveLength(0);
     // The tiles: one hue per row, the glyph names the row.
     const tiles = [...baseElement.querySelectorAll(".row-ico")].map((t) => t.className.replace("row-ico ", ""));
-    // Health Push E (H-26): the Load row, orange like the name's tile, sits
-    // under Muscle on a weight_reps exercise.
-    expect(tiles).toEqual(["nav-tile-orange", "nav-tile-blue", "nav-tile-green", "nav-tile-pink", "nav-tile-orange", "nav-tile-teal", "nav-tile-yellow", "nav-tile-purple", "nav-tile-graphite"]);
+    // 2026-09-14: Equipment left Tracks for the Sets group, beside the
+    // Weight row it defines, so Tracks is Measure, Clock, Muscle again and
+    // the second orange tile is gone with it.
+    expect(tiles).toEqual(["nav-tile-orange", "nav-tile-blue", "nav-tile-green", "nav-tile-pink", "nav-tile-teal", "nav-tile-yellow", "nav-tile-purple", "nav-tile-graphite"]);
     // Every value that opens a menu is the dropdown worn as a row value.
-    expect([...baseElement.querySelectorAll(".dd.dd-value")].map((d) => d.getAttribute("aria-label"))).toEqual(["Unit", "Measure", "Clock", "Muscle", "Equipment", "Rest Timer"]);
+    // Equipment and Counted As now read in the order you meet them: above
+    // Weight, above Unit, and well above Measure.
+    expect([...baseElement.querySelectorAll(".dd.dd-value")].map((d) => d.getAttribute("aria-label"))).toEqual(["Equipment", "Unit", "Measure", "Clock", "Muscle", "Rest Timer"]);
     fireEvent.click(baseElement.querySelector(".sheet-bar-cancel")!);
     expect(onCancel).toHaveBeenCalled();
   });

@@ -6,7 +6,7 @@ import { formatSet, inUnit, LB_PER_KG } from "./measures";
 import { movedFact } from "./history";
 import { liftSessions, chartValue, chartLabel, prIndexes, weeklySetCounts, weeklyVolume, daysAgo, e1rm } from "./chartData";
 import { bestBefore } from "./prs";
-import { plateauFlag, hardSetRows } from "./insights";
+import { plateauFlag, hardSetRows, type MuscleMap } from "./insights";
 import { liftMeasureState, type LiftMeasure } from "./goalMeasures";
 import { activeMetrics, numericValue, type MetricDef, type MetricLog } from "./metrics";
 import { MUSCLE_LABEL, type MuscleGroup } from "./muscles";
@@ -104,7 +104,7 @@ export default function LiftDetailScreen({
    *  (insights.muscleMapFromProgram). Without it this screen could only count
    *  the one lift it is showing while labelling the number as the muscle's
    *  weekly total. */
-  muscleMap?: Map<string, MuscleGroup>;
+  muscleMap?: MuscleMap;
   defs: MetricDef[];
   logs: MetricLog[];
   goal?: Goal;
@@ -144,7 +144,7 @@ export default function LiftDetailScreen({
   const muscleRow = useMemo(() => {
     if (!muscleGroup) return null;
     const map = new Map(muscleMap ?? []);
-    map.set(name, muscleGroup);
+    map.set(name, [muscleGroup]);
     // The band he set in Health Settings replaces the studied one here too
     // (Dave 2026-09-13), so the lift page and the Health page agree.
     const hb = readHealthSettings().volumeBand;
@@ -155,7 +155,7 @@ export default function LiftDetailScreen({
    *  rather than leaving the athlete to wonder which one it means. */
   const liftShare = useMemo(() => {
     if (!muscleGroup) return 0;
-    return hardSetRows(workouts, new Map([[name, muscleGroup]]), now)[0]?.sets ?? 0;
+    return hardSetRows(workouts, new Map([[name, [muscleGroup]]]), now)[0]?.sets ?? 0;
   }, [muscleGroup, name, workouts, now]);
 
   const goalState = goal?.data.measure?.kind === "lift" ? liftMeasureState(goal.data.measure as LiftMeasure, workouts) : null;

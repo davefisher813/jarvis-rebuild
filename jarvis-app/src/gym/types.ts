@@ -126,26 +126,22 @@ export interface SetEntry extends SetLog {
   at?: number;
 }
 
-export type Equipment = "barbell" | "dumbbell" | "machine" | "stack" | "unilateral" | "bodyweight" | "assisted" | "timed";
+// EQUIPMENT lives in its own file now (gym/equipment.ts, 2026-09-14), because
+// what began as one menu turned out to be two questions -- what you lift, and
+// what the number means -- with a stepper increment, a row label, a direction
+// of progress, a tonnage factor and a comparability rule hanging off the
+// answer. Re-exported here so every existing import keeps working.
+export type { Equipment, Counted, LoadStyle } from "./equipment";
+export { EQUIPMENT_LABEL, EQUIPMENT_KINDS, COUNTED_LABEL, loadStyleOf } from "./equipment";
+import { loadStyleOf, type Counted, type Equipment } from "./equipment";
 
-export const EQUIPMENT_LABEL: Record<Equipment, string> = {
-  barbell: "Barbell",
-  dumbbell: "Dumbbell, Each Hand",
-  machine: "Plate Loaded",
-  stack: "Weight Stack",
-  unilateral: "One Side at a Time",
-  bodyweight: "Bodyweight",
-  assisted: "Assisted",
-  timed: "Timed or Distance",
-};
-
-export const EQUIPMENT_KINDS: Equipment[] = ["barbell", "dumbbell", "machine", "stack", "unilateral", "bodyweight", "assisted", "timed"];
-
-/** The equipment an exercise (or a logged one) says, reading the older
- *  `load: "each"` as a dumbbell so nothing marked before wave 5 loses its
- *  meaning. Undefined means the whole load. */
-export function equipmentOf(ex: { equipment?: Equipment; load?: "each" | "total" }): Equipment | undefined {
-  return ex.equipment ?? (ex.load === "each" ? "dumbbell" : undefined);
+/** The equipment an exercise (or a logged one) says. Kept as the old name so
+ *  callers that only want the thing, not the whole convention, still read the
+ *  same way; it now runs through loadStyleOf, so the retired "unilateral" and
+ *  "timed" values and the pre-menu `load: "each"` all still land correctly.
+ *  Undefined means the athlete never said. */
+export function equipmentOf(ex: { equipment?: string; load?: "each" | "total" }): Equipment | undefined {
+  return loadStyleOf(ex).equipment;
 }
 
 export interface Exercise {
@@ -183,8 +179,18 @@ export interface Exercise {
    *  so on. Recorded on every set logged from then on (WorkoutExercise
    *  carries it), so history keeps each lift's own convention. A label,
    *  never a conversion, and unilateral logs one number per side the way a
-   *  dumbbell does, never two fields. Absent means the whole load. */
+   *  dumbbell does, never two fields. Absent means the whole load.
+   *
+   *  2026-09-14: narrowed to real equipment. The two members that were never
+   *  equipment moved to `counted` below; gym/equipment.ts reads the old
+   *  values, so nothing already written changes meaning. */
   equipment?: Equipment;
+  /** WHAT THE NUMBER MEANS (2026-09-14), split out of `equipment` above: the
+   *  whole load, each side, each hand, added to bodyweight, or assistance
+   *  taken off. Absent means the equipment's own default reading. Drives the
+   *  Weight row's label, the stepper's increment, tonnage, and -- for
+   *  assistance -- which direction counts as stronger. */
+  counted?: Counted;
   /** The id of another exercise in the SAME day this one alternates with --
    *  A1/A2 notation (catalog §4.2). Pairing is symmetric: both sides carry
    *  the other's id. */
@@ -316,6 +322,11 @@ export interface WorkoutExercise {
    *  with the record so a later change on the program never rewrites what
    *  an old set meant. */
   equipment?: Equipment;
+  /** The reading those numbers were logged under (2026-09-14). Stored
+   *  beside the equipment for the same reason: switching a lift from a
+   *  stack to a plate machine must not retroactively redefine what last
+   *  month's chips meant, and comparability is checked against this. */
+  counted?: Counted;
   /** Mid-session Swap or Add (catalog §3.9-3.10): this entry does not read
    *  its identity from the program day at this index -- name/kind/unit above
    *  are the real thing to show, and `plan` (not the day's own strip) is

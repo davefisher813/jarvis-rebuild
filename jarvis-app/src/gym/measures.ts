@@ -1,4 +1,5 @@
 import type { Exercise, MeasureKind, SetEntry, SetLog } from "./types";
+import { comparable, loadStyleOf, lowerIsStronger, volumeFactor, weightLabel, weightStep, type LoadStyle } from "./equipment";
 
 // Per-kind behavior in ONE place: what a set reads like, what the big in-gym
 // button says, which direction wins a PR, and whether volume means anything.
@@ -68,13 +69,29 @@ export function formatSet(ex: Pick<Exercise, "kind" | "unit" | "timeUnit">, s: S
 }
 
 /** Which stepper fields the set editor and the in-gym "Something Different"
- *  block show. */
-export function fieldsFor(kind: MeasureKind): { key: "w" | "r" | "v" | "t"; label: string; step: number }[] {
+ *  block show.
+ *
+ *  `ctx` (2026-09-14) is the exercise's equipment and reading, plus its unit.
+ *  Weight was the one field whose step and label were hardcoded for every
+ *  lift in the app -- 5, always, called "Weight", always -- which is wrong
+ *  for a weight stack that only moves in 10s, wrong for a dip belt that
+ *  moves in 2.5s, and actively misleading on an assisted machine where the
+ *  number is help and not load. Omitting ctx keeps the old universal
+ *  behaviour, so every caller that has no exercise in hand still works. */
+export function fieldsFor(
+  kind: MeasureKind,
+  ctx?: LoadStyle & { unit?: string },
+): { key: "w" | "r" | "v" | "t"; label: string; step: number }[] {
   switch (kind) {
-    case "weight_reps":
+    case "weight_reps": {
       // Reps before weight: the sheet reads Sets, Reps, Weight, the way a
       // plan is said out loud (Dave, 2026-08-15).
-      return [{ key: "r", label: "Reps", step: 1 }, { key: "w", label: "Weight", step: 5 }];
+      const style: LoadStyle = ctx ? { equipment: ctx.equipment, counted: ctx.counted } : {};
+      return [
+        { key: "r", label: "Reps", step: 1 },
+        { key: "w", label: ctx ? weightLabel(style) : "Weight", step: ctx ? weightStep(style, ctx.unit) : 5 },
+      ];
+    }
     case "reps":
       return [{ key: "r", label: "Reps", step: 1 }];
     case "rounds":
@@ -173,10 +190,23 @@ export function hasVolume(kind: MeasureKind): boolean {
 }
 
 /** One set's tonnage, IN POUNDS whatever unit it was logged in, so a mixed
- *  session's total is a real number rather than lb and kg added together. */
-export function setVolume(kind: MeasureKind, s: SetLog, unit?: string): number {
+ *  session's total is a real number rather than lb and kg added together.
+ *
+ *  `style` (2026-09-14) is how the chip's number was counted. Tonnage is the
+ *  one place a convention HAS to become arithmetic: two 50 lb dumbbells for
+ *  10 is 1,000 lb in the air, not 500, and a plate machine loaded 100 a side
+ *  is 2,000, not 1,000. Every per-hand and per-side lift in the app has been
+ *  undercounted by exactly half since the conventions shipped. Display never
+ *  changes -- the chip still says the athlete's own number -- but the sum
+ *  does, because the sum is a claim about work done.
+ *
+ *  Assistance contributes 0, which is deliberate and is explained in
+ *  gym/equipment.ts: counting the help as work would say a lifter moved more
+ *  the more of it they took. */
+export function setVolume(kind: MeasureKind, s: SetLog, unit?: string, style?: LoadStyle): number {
   if (s.warmup) return 0; // the approach is not the tonnage
-  return hasVolume(kind) ? toLb(s.w ?? 0, unit) * (s.r ?? 0) : 0;
+  if (!hasVolume(kind)) return 0;
+  return toLb(s.w ?? 0, unit) * (s.r ?? 0) * (style ? volumeFactor(style) : 1);
 }
 
 // GYM-F-06 (2026-09-05, fork option A). lb and kg were compared and summed as
@@ -210,7 +240,7 @@ export function inUnit(kind: MeasureKind, s: SetLog, from: string | undefined, t
  * pounds whichever unit that was, so two sessions in different units are
  * comparable at all (GYM-F-06).
  */
-export function scoreOf(kind: MeasureKind, s: SetLog, unit?: string): { value: number; lowerWins: boolean } | null {
+export function scoreOf(kind: MeasureKind, s: SetLog, unit?: string, style?: LoadStyle): { value: number; lowerWins: boolean } | null {
   // THE RAMP IS NOT THE WORK (D3-A). Every record path in the app -- isPR,
   // bestBefore, the receipt, the history row -- asks this one question
   // first, so a warm-up leaves the running here and cannot become anyone's
@@ -221,7 +251,14 @@ export function scoreOf(kind: MeasureKind, s: SetLog, unit?: string): { value: n
   if (s.drop) return null;
   switch (kind) {
     case "weight_reps":
-      return { value: toLb(s.w ?? 0, unit), lowerWins: false };
+      // LESS CAN BE STRONGER (2026-09-14). On an assisted pull-up or dip the
+      // number is how much help the machine took off, so going from 100 lb
+      // of assistance to 60 is the clearest strength gain in the gym -- and
+      // until this line existed every PR check, every e1RM chart and the
+      // plateau detector read it as a 40 lb regression, and the athlete's
+      // best-ever assisted set was whichever one they needed the most help
+      // on. Every other reading keeps heavier-wins.
+      return { value: toLb(s.w ?? 0, unit), lowerWins: style ? lowerIsStronger(style) : false };
     case "reps":
     case "rounds":
       return { value: s.r ?? 0, lowerWins: false };
@@ -249,9 +286,31 @@ export function scoreOf(kind: MeasureKind, s: SetLog, unit?: string): { value: n
 /** `units` names the unit each side was logged in, for the one kind where
  *  that changes the answer (GYM-F-06). Omitted means both sides are already
  *  in the same unit, which is every caller comparing within one session. */
-export function beats(kind: MeasureKind, candidate: SetLog, best: SetLog, units: { of?: string; than?: string } = {}): boolean {
-  const a = scoreOf(kind, candidate, units.of);
-  const b = scoreOf(kind, best, units.than);
+export function beats(
+  kind: MeasureKind,
+  candidate: SetLog,
+  best: SetLog,
+  units: { of?: string; than?: string } = {},
+  styles: { of?: LoadStyle; than?: LoadStyle } = {},
+): boolean {
+  // NOT EVERY PAIR OF SETS IS A COMPARISON (2026-09-14). A lift moved from a
+  // weight stack to a plate-loaded machine keeps its name, its key and its
+  // whole history, and not one of its old numbers means what the new ones
+  // mean -- so the first session on the new machine handed out a PR pill for
+  // changing machines. Two sets compare when they were COUNTED the same way;
+  // the equipment itself may differ, since a barbell bench and a plate-loaded
+  // bench are both a whole load. A set with no stated convention still
+  // compares with anything, so nothing logged before this goes quiet.
+  if (styles.of && styles.than && !comparable(styles.of, styles.than)) return false;
+  const a = scoreOf(kind, candidate, units.of, styles.of);
+  const b = scoreOf(kind, best, units.than, styles.than);
   if (!a || !b) return false;
+  // Two readings, two directions: only compare when they agree on which way
+  // is up, which after the comparable() gate above they always do.
   return a.lowerWins ? a.value < b.value : a.value > b.value;
 }
+
+/** The convention an exercise or a logged entry carries, for the call sites
+ *  above. Re-exported through measures so a caller that already imports the
+ *  measure layer does not need a second import to ask one question. */
+export { loadStyleOf };
