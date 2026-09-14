@@ -14,9 +14,14 @@ Dave, 2026-09-14: "Do all of this [the Track 3 master and preview]. Also update 
 | 4 | `8258ff9` | the focused workout: editable set rows with a tick, the sets meter, Up Next, Adjust Time, the plate calculator; rest on the plan rows, Done and Current on the day rows |
 | 5 | `e7fc161` | the lift page: Best Recorded Set, the Epley estimate behind a row, Milestones |
 | 6 | `f84c5c4` | Track 3: the schema as five unapplied files under `jarvis-core/supabase/track3/`, Settings > Booking (Your Times), `docs/TRACK3.md` |
-| 7 | the docs commit after `f84c5c4` | this document, the catalog's §AD, the migration paste |
+| 7 | `b856c34` | this document, the catalog's §AD, the migration paste |
+| 8 | `e900709` | Cowork's Dave's Five (PASSOFF_2026_09_14_HEALTH_FIVE.md, applied from its format-patch): Equipment and Counted As as two rows, assisted lifts score lower-is-better, per-hand and per-side tonnage counted whole, Your Lifts Edit and the merge review as portals, muscles by library key as a list, duplicate lifts suggested and never merged, Add from Your Lifts, Weekly Volume rows open and a coverage card, the Health home reordered (This Week before a compact Quick Log) |
 
 The reference itself is `Claude outputs/Jarvis_Health_Complete.html`; its markup is an escaped iframe (`data-srcdoc`), extracted with the scratchpad's `extract.js` and split per view. `STYLING_CATALOG_V3.md` §AD records every ruling of the pass.
+
+## How Cowork work lands
+
+Cowork cannot push to this repo (403). It hands over a `git format-patch` file in `Claude outputs/`; apply it with `git checkout -b claude/<name> <base>` and `git am <file>`, run the full gate, fast-forward main, push, poll CI. The 14 Sep patch applied clean on `b856c34`, gated green (5,551 tests) and CI green as `e900709`.
 
 ## Migrations to apply
 
