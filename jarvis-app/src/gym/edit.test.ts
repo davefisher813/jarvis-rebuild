@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
-  moveExerciseToDay, copyExerciseToDays, extractDay, appendDayToWeek, moveDayBetweenPrograms, applyExerciseEdit,
-} from "./edit";
+  moveExerciseToDay, copyExerciseToDays, extractDay, appendDayToWeek, moveDayBetweenPrograms, applyExerciseEdit, dayWithSessionEntry } from "./edit";
 import type { Exercise, ProgramData, ProgramDay, ProgramWeek } from "./types";
 
 const ex = (id: string, name: string, over: Partial<Exercise> = {}): Exercise =>
@@ -274,5 +273,30 @@ describe("applyExerciseEdit (GYM-F-03)", () => {
     expect(out.ramp).toBeUndefined();
     expect(out.restSec).toBeUndefined();
     expect(out.pairWith).toBe("e2");
+  });
+});
+
+// Part 3 wave 5 (Dave's 10a): Also Update the Program.
+describe("dayWithSessionEntry", () => {
+  const day: ProgramDay = { id: "d", name: "Push", exercises: [
+    { id: "e1", name: "Bench", kind: "weight_reps", unit: "lb", restSec: 90, sets: [{ id: "s1", w: 225, r: 5 }] },
+    { id: "e2", name: "Row", kind: "weight_reps", unit: "lb", sets: [{ id: "s2", w: 135, r: 8 }] },
+  ] };
+  let n = 0;
+  const nid = () => "n" + (++n);
+
+  it("a swapped entry takes the new identity and keeps the slot's strip and settings", () => {
+    const out = dayWithSessionEntry(day, { exerciseId: "e1", name: "DB Press", kind: "weight_reps", unit: "lb", exerciseKey: "k9" }, nid);
+    expect(out.exercises).toHaveLength(2);
+    expect(out.exercises[0]).toMatchObject({ id: "e1", name: "DB Press", exerciseKey: "k9", restSec: 90 });
+    expect(out.exercises[0]!.sets).toEqual([{ id: "s1", w: 225, r: 5 }]);
+  });
+
+  it("an added entry becomes a new exercise at the end, with its plan and settings and fresh set ids", () => {
+    const out = dayWithSessionEntry(day, { exerciseId: "mid1", name: "Curl", kind: "weight_reps", unit: "lb", plan: [{ id: "x", w: 30, r: 12 }], program: { restSec: 60 } }, nid);
+    expect(out.exercises).toHaveLength(3);
+    expect(out.exercises[2]).toMatchObject({ id: "n1", name: "Curl", restSec: 60 });
+    expect(out.exercises[2]!.sets[0]).toMatchObject({ w: 30, r: 12 });
+    expect(out.exercises[2]!.sets[0]!.id).not.toBe("x");
   });
 });

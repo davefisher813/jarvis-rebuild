@@ -191,24 +191,33 @@ export function skipExercise(s: LiveSession, idx: number): LiveSession {
  * logged against the original belongs to the original, not the substitute,
  * so it does not carry over. The program day is never touched.
  */
+let midSeq = 0;
+
 export function swapExercise(
   s: LiveSession,
   idx: number,
   sub: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string },
 ): LiveSession {
-  const exercises = s.exercises.map((ex, i) => (i === idx
-    ? {
-      exerciseId: ex.exerciseId, name: sub.name, kind: sub.kind,
-      ...(sub.unit ? { unit: sub.unit } : {}),
-      ...(sub.timeUnit ? { timeUnit: sub.timeUnit } : {}),
-      ...(sub.exerciseKey ? { exerciseKey: sub.exerciseKey } : {}),
-      sets: [] as SetEntry[], custom: true as const, plan: [] as SetEntry[],
-    }
-    : ex));
-  return { ...s, exercises };
+  const cur = s.exercises[idx];
+  if (!cur) return s;
+  // Part 3 wave 5 (O4a; handoff acceptance 7): a swap after sets were logged
+  // keeps the original's records where they are and starts the replacement
+  // as its own entry right after, with its own identity. Before any set,
+  // the slot is simply retaken, as it always was.
+  const logged = cur.sets.some((x) => !x.skipped);
+  const fresh = {
+    exerciseId: logged ? "swap" + Date.now().toString(36) + (midSeq++) : cur.exerciseId,
+    name: sub.name, kind: sub.kind,
+    ...(sub.unit ? { unit: sub.unit } : {}),
+    ...(sub.timeUnit ? { timeUnit: sub.timeUnit } : {}),
+    ...(sub.exerciseKey ? { exerciseKey: sub.exerciseKey } : {}),
+    sets: [] as SetEntry[], custom: true as const, plan: [] as SetEntry[],
+  };
+  if (!logged) return { ...s, exercises: s.exercises.map((ex, i) => (i === idx ? fresh : ex)) };
+  const exercises = [...s.exercises.slice(0, idx + 1), fresh, ...s.exercises.slice(idx + 1)];
+  return { ...s, exercises, idx: idx + 1 };
 }
 
-let midSeq = 0;
 
 /**
  * ADD MID-SESSION (catalog §3.10). Append an exercise that was never in the

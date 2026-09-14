@@ -1,6 +1,6 @@
 import { useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { Head, Card, Switch, Row } from "./kit";
+import { Head, Card, Switch, Row, Menu } from "./kit";
 import { readHealthSettings, updateHealthSettings, SHORTCUTS, type HealthSettings, type ShortcutKey } from "../health/settings";
 import { readGymSettings, writeGymSettings } from "../gym/settings";
 import { HARD_SET_RANGE } from "../gym/muscles";
@@ -68,6 +68,11 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
         <Switch label="Rest Notification" meta="A buzz on the lock screen when the rest is over" on={s.restNotify} onToggle={() => set({ restNotify: !s.restNotify })} />
         <Switch label="Last Time on Every Set" meta="Last session beside each set, with tap-to-match" on={showLast} onToggle={toggleShowLast} />
         <Switch label="Celebrations" meta="The PR mark, and New Best on the receipt" on={s.celebrations} onToggle={() => set({ celebrations: !s.celebrations })} />
+        {/* Part 3 wave 5: the progression engine's mode, easy to change. */}
+        <Menu label="Progression" meta={s.progression === "assisted" ? "A next target from your completed sets, with its basis on tap" : s.progression === "manual" ? "No suggestions" : "The plan as written"}
+          value={s.progression} ariaLabel="Progression"
+          options={[{ value: "assisted", label: "Assisted" }, { value: "manual", label: "Manual" }, { value: "program", label: "Program" }]}
+          onPick={(v) => set({ progression: v === "manual" ? "manual" : v === "program" ? "program" : "assisted" })} />
       </Card>
       <Head label="Weekly Sets" />
       <Card>

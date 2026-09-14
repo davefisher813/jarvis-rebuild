@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout } from "./types";
+import { EQUIPMENT_LABEL, equipmentOf } from "./types";
+import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
 import { capAfterNumber } from "../shared/casing";
@@ -8,6 +9,7 @@ import { logButtonLabel, plannedEntryAt, entryNoun, formatSet } from "./measures
 import { newSetId, blankEntry, duplicateEntry, entryFrom } from "./strip";
 import { isSessionPR, lastHeader, lastSessionFor } from "./prs";
 import { readGymSettings, rackFrom } from "./settings";
+import { readHealthSettings } from "../health/settings";
 import { rampFor } from "./ramp";
 import { suggestFor, type Suggestion } from "./progression";
 import { groupLabels, fillerFor, nextInGroup, groupOf, roundRestFor } from "./groups";
@@ -64,6 +66,7 @@ export default function SessionScreen({
   onMove,
   onSwap,
   onAddMidSession,
+  onUpdateProgram,
   onAcceptSuggestion,
   onFit,
   onFinish,
@@ -101,6 +104,10 @@ export default function SessionScreen({
   onMove: (idx: number) => void;
   onSwap: (sub: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string }) => void;
   onAddMidSession: (draft: Omit<Exercise, "id">) => void;
+  /** Part 3 wave 5 (Dave's 10a): a swapped or added exercise changes this
+   *  session only; this is the one explicit way to carry it into the
+   *  program. Absent on a planned exercise. */
+  onUpdateProgram?: () => void;
   /** D6-A: the athlete accepted a suggestion, so the PROGRAM's own plan for
    *  this exercise moves. The only writer; a suggestion left alone changes
    *  nothing. */
@@ -178,7 +185,16 @@ export default function SessionScreen({
   // THE PROGRESSION ENGINE (D6-A): a ghost with its reason, offered once,
   // before the first working set. Accepting logs it AND moves the plan;
   // Keep dismisses it and changes nothing at all.
-  const suggestion = workLogged === 0 && !keptPlan.includes(exercise.id) ? suggestFor(history, exercise) : null;
+  // Part 3 wave 5: the mode from Health Settings, the rack's smallest plate
+  // as a barbell's increment, and the equipment named on the basis.
+  const suggestion = workLogged === 0 && !keptPlan.includes(exercise.id)
+    ? suggestFor(history, exercise, {
+      mode: readHealthSettings().progression,
+      ...(equipmentOf(exercise) === "barbell" ? { smallestJump: Math.min(...rackFrom(readGymSettings()).plates) * 2 } : {}),
+      ...(equipmentOf(exercise) ? { equipmentLabel: EQUIPMENT_LABEL[equipmentOf(exercise)!] } : {}),
+    })
+    : null;
+  const [basisOpen, setBasisOpen] = useState(false);
 
   // D5-C: "the session header shows projected finish against your budget the
   // whole time." Re-projected on a slow tick; only sessions that chose a
@@ -451,8 +467,8 @@ export default function SessionScreen({
           </div>
         )}
         <div className="p3-q">{exercise.name}</div>
-        {/* H-26: a dumbbell number says which hand it is, on the session too. */}
-        {exercise.load === "each" && <div className="se-chips"><span className="se-chip se-chip-pair"><em>Load</em>Each Dumbbell</span></div>}
+        {/* Part 3 wave 5: the equipment convention, on the session too. */}
+        {equipmentOf(exercise) && <div className="se-chips"><span className="se-chip se-chip-pair"><em>Load</em>{EQUIPMENT_LABEL[equipmentOf(exercise)!]}</span></div>}
         {/* UP-CORE-06 (2026-09-05): the guard, under the title. A workout is
             one of the two places two hours disappear, and the person is by
             definition not looking at their calendar. A fact, in the same
@@ -529,6 +545,22 @@ export default function SessionScreen({
             }}>Log {formatSet(exercise, suggestion.next)}</button>
             <button className="pill-act pill-quiet" onClick={() => setKeptPlan((k) => (k.includes(exercise.id) ? k : [...k, exercise.id]))}>Keep {formatSet(exercise, suggestion.from)}</button>
           </div>
+          {/* Part 3 wave 5: every suggestion shows its basis on tap. */}
+          {suggestion.basis && (
+            <div className="ins-acts">
+              <button type="button" className="pill-act pill-quiet" aria-expanded={basisOpen} onClick={() => setBasisOpen((o) => !o)}>{basisOpen ? "Hide Basis" : "Basis"}</button>
+            </div>
+          )}
+          {basisOpen && suggestion.basis && (
+            <div className="ins-rows ins-ev">
+              <div className="ins-row"><span className="ins-k">Lift</span><span className="ins-sub">{suggestion.basis.variant}</span></div>
+              <div className="ins-row"><span className="ins-k">Read</span><span className="ins-sub">{suggestion.basis.source}</span></div>
+              <div className="ins-row"><span className="ins-k">Sets</span><span className="ins-sub">{suggestion.basis.role}</span></div>
+              <div className="ins-row"><span className="ins-k">Range</span><span className="ins-sub">{suggestion.basis.range}</span></div>
+              <div className="ins-row"><span className="ins-k">Increment</span><span className="ins-sub">{suggestion.basis.increment}</span></div>
+              <div className="ins-row"><span className="ins-k">Marks</span><span className="ins-sub">{suggestion.basis.marks}</span></div>
+            </div>
+          )}
         </div></div>
       )}
 
@@ -610,6 +642,9 @@ export default function SessionScreen({
               <button className="row-create" role="button" tabIndex={0} onClick={logDrop}>Log a Drop</button>
             )}
             <button className="row-create" role="button" tabIndex={0} onClick={() => setSwapOpen(true)}>Swap</button>
+            {onUpdateProgram && (
+              <button className="row-create" role="button" tabIndex={0} onClick={onUpdateProgram}>Also Update the Program</button>
+            )}
             <button className="row-create" role="button" tabIndex={0} onClick={onSkip}>Skip This Exercise</button>
           </>
         )}

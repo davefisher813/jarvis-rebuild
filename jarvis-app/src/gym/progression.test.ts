@@ -36,9 +36,15 @@ describe("suggestFor", () => {
     expect(s.kind).toBe("back");
   });
 
-  it("says nothing at all when nothing was marked: no marks, no opinion", () => {
+  // Part 3 wave 5 (Dave's 9b): with nothing marked, the completed reps
+  // against the plan's range decide (double progression); with no range on
+  // the plan either, there is still no opinion.
+  it("with nothing marked, every set at the planned reps offers the increment; with no range on the plan, nothing", () => {
     const h = [wk("2026-08-24", [wex("Bench", [{ w: 225, r: 5 }, { w: 225, r: 5 }])])];
-    expect(suggestFor(h, plan())).toBeNull();
+    const s = suggestFor(h, plan())!;
+    expect(s.kind).toBe("bump");
+    expect(s.basis!.marks).toBe("None marked");
+    expect(suggestFor(h, plan({ sets: [{ id: "p1", w: 225 }] }))).toBeNull();
   });
 
   it("says nothing on a lift with no history", () => {
@@ -58,12 +64,15 @@ describe("suggestFor", () => {
     expect(s.next.w).toBe(32.5);
   });
 
-  it("warm-ups are not evidence: a clean ramp with an unmarked work set says nothing", () => {
+  it("warm-ups are not evidence: a clean ramp mark is ignored, and the unmarked work set is read on its reps alone", () => {
     const h = [wk("2026-08-24", [wex("Bench", [
       { w: 45, r: 10, moved: "clean", warmup: true },
       { w: 225, r: 5 },
     ])])];
-    expect(suggestFor(h, plan())).toBeNull();
+    const s = suggestFor(h, plan())!;
+    expect(s.basis!.marks).toBe("None marked");
+    expect(s.basis!.source).toMatch(/1 working set$/);
+    expect(suggestFor(h, plan({ sets: [{ id: "p1", w: 225 }] }))).toBeNull();
   });
 
   it("reads the most recent session only, not an old good day", () => {
@@ -97,5 +106,52 @@ describe("applySuggestion", () => {
     const out = applySuggestion(p, { kind: "bump", next: { w: 230, r: 5 }, why: "x", from: { w: 225, r: 5 } });
     expect(out.sets[1]!.skipped).toBe(true);
     expect(out.sets[1]!.w).toBeUndefined();
+  });
+});
+
+// Part 3 wave 5 (Dave's 9b and O2a): the Assisted engine.
+describe("the Assisted engine", () => {
+  const range = plan({ sets: [{ id: "p1", w: 225, r: 6 }, { id: "p2", w: 225, r: 8 }] });
+
+  it("Manual and Program offer nothing", () => {
+    const h = [wk("2026-09-10", [wex("Bench", [{ w: 225, r: 8, moved: "clean" }])])];
+    expect(suggestFor(h, range, { mode: "manual" })).toBeNull();
+    expect(suggestFor(h, range, { mode: "program" })).toBeNull();
+    expect(suggestFor(h, range, { mode: "assisted" })).not.toBeNull();
+  });
+
+  it("with nothing marked, every completed set at the top of the range adds the smallest increment, with its basis", () => {
+    const h = [wk("2026-09-10", [wex("Bench", [{ w: 225, r: 8 }, { w: 225, r: 8 }])])];
+    const s = suggestFor(h, range, { smallestJump: 2.5, equipmentLabel: "Barbell" })!;
+    expect(s.kind).toBe("bump");
+    expect(s.next.w).toBe(227.5);
+    expect(s.why).toMatch(/every set cleared 8/);
+    expect(s.basis).toMatchObject({ variant: "Bench · Barbell", range: "6 to 8 reps", increment: "2.5 lb", marks: "None marked" });
+    expect(s.basis!.source).toMatch(/2 working sets/);
+    expect(s.basis!.role).toMatch(/Warm-ups and drops left out/);
+  });
+
+  it("inside the range, the weight holds and the target is the top of the range; under it, a step back", () => {
+    const inside = [wk("2026-09-10", [wex("Bench", [{ w: 225, r: 7 }, { w: 225, r: 6 }])])];
+    const hold = suggestFor(inside, range)!;
+    expect(hold.kind).toBe("hold");
+    expect(hold.next).toMatchObject({ w: 225, r: 8 });
+    const under = [wk("2026-09-10", [wex("Bench", [{ w: 225, r: 5 }, { w: 225, r: 4 }])])];
+    expect(suggestFor(under, range)!.kind).toBe("back");
+  });
+
+  it("the marks win over the reps: a grind holds even at the top of the range", () => {
+    const h = [wk("2026-09-10", [wex("Bench", [{ w: 225, r: 8, moved: "grind" }, { w: 225, r: 8 }])])];
+    const s = suggestFor(h, range)!;
+    expect(s.kind).toBe("hold");
+    expect(s.basis!.marks).toBe("1 grind");
+  });
+
+  it("a plan with no rep range and no marks says nothing, and warm-ups and drops never count", () => {
+    const noRange = plan({ sets: [{ id: "p1", w: 225 }] });
+    const h = [wk("2026-09-10", [wex("Bench", [{ w: 135, r: 10, warmup: true }, { w: 225, r: 8 }, { w: 185, r: 12, drop: true }])])];
+    expect(suggestFor(h, noRange)).toBeNull();
+    const s = suggestFor(h, range)!;
+    expect(s.basis!.source).toMatch(/1 working set$/);
   });
 });

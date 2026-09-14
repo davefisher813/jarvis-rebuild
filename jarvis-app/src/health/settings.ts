@@ -27,6 +27,12 @@ export const SHORTCUTS: { key: ShortcutKey; label: string }[] = [
 
 export interface VolumeBand { low: number; high: number }
 
+/** Part 3 wave 5 (Dave's 9b and O2a). Assisted: the app suggests the next
+ *  target from completed working sets and the marks; Manual: it suggests
+ *  nothing; Program: the plan as written is the target and nothing is added. */
+export type ProgressionMode = "assisted" | "manual" | "program";
+export const PROGRESSION_MODES: ProgressionMode[] = ["assisted", "manual", "program"];
+
 export interface HealthSettings {
   shortcuts: ShortcutKey[];
   restSound: boolean;
@@ -34,6 +40,7 @@ export interface HealthSettings {
   celebrations: boolean;
   /** Null means the studied default in gym/muscles.ts. */
   volumeBand: VolumeBand | null;
+  progression: ProgressionMode;
 }
 
 export const DEFAULT_HEALTH_SETTINGS: HealthSettings = {
@@ -42,6 +49,7 @@ export const DEFAULT_HEALTH_SETTINGS: HealthSettings = {
   restNotify: true,
   celebrations: true,
   volumeBand: null,
+  progression: "assisted",
 };
 
 const KEY = "jarvis.health.settings.v1";
@@ -72,6 +80,7 @@ export function readHealthSettings(store: Storage2 = browserStorage()): HealthSe
       restNotify: p.restNotify !== false,
       celebrations: p.celebrations !== false,
       volumeBand: band,
+      progression: PROGRESSION_MODES.includes(p.progression as ProgressionMode) ? (p.progression as ProgressionMode) : "assisted",
     };
   } catch {
     return { ...DEFAULT_HEALTH_SETTINGS };

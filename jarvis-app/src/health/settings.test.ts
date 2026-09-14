@@ -38,3 +38,15 @@ describe("health settings", () => {
     expect(readHealthSettings(s)).toEqual(DEFAULT_HEALTH_SETTINGS);
   });
 });
+
+// Part 3 wave 5: the progression mode, Assisted by default, a bad value ignored.
+describe("progression", () => {
+  it("defaults to assisted and keeps a stored mode; an unknown word reads as assisted", () => {
+    const s = mem();
+    expect(readHealthSettings(s).progression).toBe("assisted");
+    writeHealthSettings({ ...DEFAULT_HEALTH_SETTINGS, progression: "manual" }, s);
+    expect(readHealthSettings(s).progression).toBe("manual");
+    s.write("jarvis.health.settings.v1", JSON.stringify({ progression: "magic" }));
+    expect(readHealthSettings(s).progression).toBe("assisted");
+  });
+});

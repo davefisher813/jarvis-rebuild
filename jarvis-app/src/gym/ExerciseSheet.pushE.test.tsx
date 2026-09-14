@@ -9,22 +9,26 @@ import type { Exercise } from "./types";
 const save = () => fireEvent.click(screen.getByRole("button", { name: "Save" }));
 const existing: Exercise = { id: "e1", name: "DB Press", kind: "weight_reps", unit: "lb", sets: [{ id: "s1", w: 50, r: 10 }], exerciseKey: "k1" };
 
-describe("ExerciseSheet: Load (H-26)", () => {
-  it("defaults to the whole load and writes nothing; Each Dumbbell writes load: each", () => {
+describe("ExerciseSheet: Equipment (Part 3 wave 5, was Load)", () => {
+  it("defaults to the whole load and writes nothing; a convention writes equipment, and an old Each reads as a dumbbell", () => {
     const onSave = vi.fn();
-    render(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={onSave} onCancel={() => {}} />);
+    const { rerender } = render(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={onSave} onCancel={() => {}} />);
     save();
+    expect(onSave.mock.calls[0]![0]).not.toHaveProperty("equipment");
     expect(onSave.mock.calls[0]![0]).not.toHaveProperty("load");
-    fireEvent.click(screen.getByRole("button", { name: "Load" }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "Each Dumbbell" }));
-    expect(screen.getByText("The number on each chip is one dumbbell")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Equipment" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "One Side at a Time" }));
+    expect(screen.getAllByText("One Side at a Time").length).toBeGreaterThan(0);
     save();
-    expect(onSave.mock.calls[1]![0].load).toBe("each");
+    expect(onSave.mock.calls[1]![0].equipment).toBe("unilateral");
+    rerender(<div />);
+    render(<ExerciseSheet mode="edit" initial={{ ...existing, load: "each" }} library={[]} history={[]} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getAllByText("Dumbbell, Each Hand").length).toBeGreaterThan(0);
   });
 
   it("is not offered on a kind with no weight", () => {
     render(<ExerciseSheet mode="edit" initial={{ ...existing, kind: "reps", unit: undefined, sets: [{ id: "s1", r: 10 }] }} library={[]} history={[]} onSave={() => {}} onCancel={() => {}} />);
-    expect(screen.queryByRole("button", { name: "Load" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Equipment" })).toBeNull();
   });
 });
 

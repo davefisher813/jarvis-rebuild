@@ -239,3 +239,28 @@ export function applyExerciseEdit(existing: Exercise, draft: Omit<Exercise, "id"
 // GYM-F-28 (2026-09-05): ensureExerciseKey had no caller. Keys are minted at
 // creation in ExerciseSheet, and the identity readers (sameLiftAnyKind) fall
 // back to the name for the pre-library exercises that carry none.
+
+// ALSO UPDATE THE PROGRAM (Part 3 wave 5, 2026-09-13; Dave's 10a). A swap
+// or an add inside a session changes that session only; this is the one
+// explicit way to carry it into the program day. A swapped entry keeps the
+// slot's own strip and settings and takes the new identity; an added one
+// becomes a new exercise at the end of the day, with the plan and the
+// settings the session gave it.
+export function dayWithSessionEntry(
+  day: ProgramDay,
+  entry: { exerciseId: string; name: string; kind: Exercise["kind"]; unit?: string; timeUnit?: string; exerciseKey?: string; plan?: SetEntry[]; program?: Partial<Pick<Exercise, "cond" | "restSec" | "ramp" | "muscleGroup" | "note">> },
+  newId: () => string,
+): ProgramDay {
+  const identity = {
+    name: entry.name, kind: entry.kind,
+    ...(entry.unit ? { unit: entry.unit } : {}),
+    ...(entry.timeUnit ? { timeUnit: entry.timeUnit } : {}),
+    ...(entry.exerciseKey ? { exerciseKey: entry.exerciseKey } : {}),
+  };
+  const idx = day.exercises.findIndex((e) => e.id === entry.exerciseId);
+  if (idx >= 0) {
+    return { ...day, exercises: day.exercises.map((e, i) => (i === idx ? { ...e, ...identity } : e)) };
+  }
+  const added: Exercise = { id: newId(), ...identity, sets: (entry.plan ?? []).map((s) => ({ ...s, id: newSetId() })), ...(entry.program ?? {}) };
+  return { ...day, exercises: [...day.exercises, added] };
+}

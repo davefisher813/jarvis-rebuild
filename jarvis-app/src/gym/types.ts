@@ -126,6 +126,28 @@ export interface SetEntry extends SetLog {
   at?: number;
 }
 
+export type Equipment = "barbell" | "dumbbell" | "machine" | "stack" | "unilateral" | "bodyweight" | "assisted" | "timed";
+
+export const EQUIPMENT_LABEL: Record<Equipment, string> = {
+  barbell: "Barbell",
+  dumbbell: "Dumbbell, Each Hand",
+  machine: "Plate Loaded",
+  stack: "Weight Stack",
+  unilateral: "One Side at a Time",
+  bodyweight: "Bodyweight",
+  assisted: "Assisted",
+  timed: "Timed or Distance",
+};
+
+export const EQUIPMENT_KINDS: Equipment[] = ["barbell", "dumbbell", "machine", "stack", "unilateral", "bodyweight", "assisted", "timed"];
+
+/** The equipment an exercise (or a logged one) says, reading the older
+ *  `load: "each"` as a dumbbell so nothing marked before wave 5 loses its
+ *  meaning. Undefined means the whole load. */
+export function equipmentOf(ex: { equipment?: Equipment; load?: "each" | "total" }): Equipment | undefined {
+  return ex.equipment ?? (ex.load === "each" ? "dumbbell" : undefined);
+}
+
 export interface Exercise {
   id: string;
   name: string; // the user's words, always
@@ -151,8 +173,18 @@ export interface Exercise {
   /** Health Push E (H-26): how a weight_reps load is written. "each" means
    *  the number on every chip is one dumbbell's; absent or "total" means the
    *  whole load. A label for the person's own numbers, never a conversion:
-   *  nothing doubles or halves a weight on the strength of this flag. */
+   *  nothing doubles or halves a weight on the strength of this flag.
+   *  Part 3 wave 5 (2026-09-13): superseded by `equipment` below; still
+   *  read, so a lift marked Each before this keeps its meaning. */
   load?: "each" | "total";
+  /** EQUIPMENT (Part 3 wave 5, Dave's 6 and O7a: all the conventions, one
+   *  chooser, as simple as it can be). How the number on a chip is to be
+   *  read: a barbell's total, one dumbbell's, one side's, a stack pin, and
+   *  so on. Recorded on every set logged from then on (WorkoutExercise
+   *  carries it), so history keeps each lift's own convention. A label,
+   *  never a conversion, and unilateral logs one number per side the way a
+   *  dumbbell does, never two fields. Absent means the whole load. */
+  equipment?: Equipment;
   /** The id of another exercise in the SAME day this one alternates with --
    *  A1/A2 notation (catalog §4.2). Pairing is symmetric: both sides carry
    *  the other's id. */
@@ -280,6 +312,10 @@ export interface WorkoutExercise {
   sets: SetEntry[]; // the logged strip: unfilled chips never appear here, only what happened
   skipped?: boolean;
   exerciseKey?: string;
+  /** Part 3 wave 5: the convention the numbers were logged under, kept
+   *  with the record so a later change on the program never rewrites what
+   *  an old set meant. */
+  equipment?: Equipment;
   /** Mid-session Swap or Add (catalog §3.9-3.10): this entry does not read
    *  its identity from the program day at this index -- name/kind/unit above
    *  are the real thing to show, and `plan` (not the day's own strip) is

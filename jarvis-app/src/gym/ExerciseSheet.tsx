@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { useState, type ReactNode } from "react";
-import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
+import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout, EQUIPMENT_LABEL, EQUIPMENT_KINDS, equipmentOf, type Equipment } from "./types";
 import { condCap, condSummary, mmss } from "./conditioning";
 import { fieldsFor, targetLine, formatSet, isUniformStrip } from "./measures";
 import { uniformStrip, resizeStrip, applyToAll } from "./strip";
@@ -99,8 +99,9 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   const [filler, setFiller] = useState(!!initial?.filler);
   const [ramp, setRamp] = useState(!!initial?.ramp);
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | undefined>(initial?.muscleGroup);
-  // H-26: how the weight is written, a label and never a conversion.
-  const [load, setLoad] = useState<"each" | "total">(initial?.load ?? "total");
+  // Part 3 wave 5: how the number on a chip is to be read; a label and never
+  // a conversion. Empty means the whole load.
+  const [equipment, setEquipment] = useState<Equipment | "">(initial ? (equipmentOf(initial) ?? "") : "");
   // Part 3 wave 2: the rest after a full round of the group this belongs to.
   const [roundRestSec, setRoundRestSec] = useState(initial?.roundRestSec ?? 0);
   // THE CONDITIONING BLOCK (ruled 2026-09-01, built 2026-09-02). Off means
@@ -197,7 +198,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
       ...(filler ? { filler: true } : {}),
       ...(ramp ? { ramp: true } : {}),
       ...(muscleGroup ? { muscleGroup } : {}),
-      ...(kind === "weight_reps" && load === "each" ? { load: "each" as const } : {}),
+      ...(kind === "weight_reps" && equipment ? { equipment } : {}),
       ...(partner && roundRestSec > 0 ? { roundRestSec } : {}),
       ...(condBlock ? { cond: condBlock } : {}),
     });
@@ -383,19 +384,19 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 options={[{ value: "none", label: "None" }, ...MUSCLE_GROUPS.map((m) => ({ value: m, label: MUSCLE_LABEL[m] }))]}
                 onPick={(v) => setMuscleGroup(v === "none" ? undefined : (v as MuscleGroup))} />
             </div>
-            {/* LOAD (Health Push E, H-26): whether a dumbbell number is one
-                hand's or the pair's. The chips stay his own numbers either
-                way; this only says how to read them. */}
+            {/* EQUIPMENT (Part 3 wave 5; was Load, H-26): how the number on a
+                chip is to be read. The chips stay his own numbers either way;
+                this only says which convention they are in. */}
             {kind === "weight_reps" && !condBlock && (
               <div className="row xs-row">
                 <Tile tone="orange"><Dumbbell className="ic" /></Tile>
                 <div className="row-grow">
-                  <div className="conn-name">Load</div>
-                  <div className="conn-meta">{load === "each" ? "The number on each chip is one dumbbell" : "The number on each chip is the whole load"}</div>
+                  <div className="conn-name">Equipment</div>
+                  <div className="conn-meta">{equipment ? EQUIPMENT_LABEL[equipment] : "The number on each chip is the whole load"}</div>
                 </div>
-                <HeadMenu variant="value" ariaLabel="Load" value={load}
-                  options={[{ value: "total", label: "Total" }, { value: "each", label: "Each Dumbbell" }]}
-                  onPick={(v) => setLoad(v === "each" ? "each" : "total")} />
+                <HeadMenu variant="value" ariaLabel="Equipment" value={equipment}
+                  options={[{ value: "", label: "Whole Load" }, ...EQUIPMENT_KINDS.map((k) => ({ value: k, label: EQUIPMENT_LABEL[k] }))]}
+                  onPick={(v) => setEquipment(EQUIPMENT_KINDS.includes(v as Equipment) ? (v as Equipment) : "")} />
               </div>
             )}
           </div></div>

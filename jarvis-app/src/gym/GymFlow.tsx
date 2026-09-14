@@ -22,6 +22,8 @@ import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, sw
 import { bumpStrip } from "./strip";
 import { buildLibrary, newExerciseKey, withAliases, withFavorites } from "./library";
 import { emit } from "../events";
+import { dayWithSessionEntry } from "./edit";
+import { equipmentOf } from "./types";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
@@ -1040,7 +1042,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
     const last = opts.sameAsLastTime ? lastWorkoutForDay(day.id) : null;
     const exercises = last
       ? sessionExercisesSameAsLastTime(day, last.data)
-      : day.exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [] }));
+      // Part 3 wave 5 (O3a): the plan is copied in at start, so a program
+      // edit made mid-session reaches the next session, never this one; and
+      // the equipment convention rides with every set logged from here.
+      : day.exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [], plan: e.sets, ...(equipmentOf(e) ? { equipment: equipmentOf(e) } : {}) }));
     const startedAt = Date.now();
     const s: LiveSession = {
       programId: program.id, dayId: day.id, dayName: day.name, date,
@@ -1232,6 +1237,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
     // and a failed stamp never blocks anything.
     if (f.door && schedule) {
       try { await schedule.stampTrained(f.door.id, f.door.date, workoutMinutes(data)); } catch { /* offline: the workout is safe, the stamp can wait */ }
+    } else if (schedule) {
+      // Part 3 wave 5 (O6a): a session started from the gym still stamps the
+      // day's gym event, if there is exactly one, so the schedule row and the
+      // session are one record; nothing is written twice.
+      try {
+        const { occursOn } = await import("../schedule/calendar");
+        const doors = (await schedule.listEvents()).filter((e) => e.data.gym && occursOn(e.data, data.date));
+        if (doors.length === 1) await schedule.stampTrained(doors[0]!.id, data.date, workoutMinutes(data));
+      } catch { /* offline: the workout is safe, the stamp can wait */ }
     }
     await reload();
   };
@@ -1602,7 +1616,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       // mid-session showed one lift while the sets were written into another:
       // the saved workout said Rows with curl numbers, and the PR went to
       // Rows. programExerciseFor is the same id match the custom path uses.
-      : behind ?? planned ?? (liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined);
+      : (() => {
+          // O3a: the strip the session started with, not the program's as it
+          // stands now; everything else (rest, ramp, group, note, clock)
+          // still reads live off the program exercise.
+          const base = behind ?? planned;
+          if (base) return liveEx?.plan ? { ...base, sets: liveEx.plan } : base;
+          return liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined;
+        })();
     if (!exercise) return <div className="screen ruled health-ruled" />;
     return (
       <>
@@ -1622,6 +1643,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); showToast({ message: `Swapped in ${sub.name}` }); }}
         onAddMidSession={(draft) => { patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note })); showToast({ message: `Added ${draft.name}` }); }}
         onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
+        // Part 3 wave 5 (Dave's 10a): only a swapped or added entry offers it.
+        onUpdateProgram={liveEx?.custom && !live.sameAsLastTime && day ? () => {
+          const week = program?.data.weeks.find((w) => w.days.some((d) => d.id === day.id));
+          if (!week) return;
+          const next = dayWithSessionEntry(day, liveEx, () => nid("e"));
+          void saveDays(week.id, week.days.map((d) => (d.id === day.id ? next : d))).then((ok) => { if (ok) showToast({ message: `${liveEx.name} is in the program now` }); });
+        } : undefined}
         onFit={(patch) => patchLive((l) => ({ ...l, ...patch }))}
         onFinish={() => void finish()}
         onBack={parkSession}

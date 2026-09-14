@@ -142,12 +142,18 @@ describe("hasWork", () => {
 });
 
 describe("swapExercise: mid-session substitution (catalog §3.9)", () => {
-  it("replaces the exercise at idx and clears whatever was already logged there", () => {
+  // Part 3 wave 5 (O4a): a swap after a logged set keeps the original's
+  // records and puts the replacement right after it; the slot is only
+  // retaken when nothing was logged yet.
+  it("replaces the exercise at idx before a set, and keeps a logged original with the replacement after it", () => {
     let l = live();
     l = logSet(l, 0, mkSet({ w: 135, r: 8 }));
     l = swapExercise(l, 0, { name: "Landmine Press", kind: "weight_reps", unit: "lb", exerciseKey: "ek9" });
-    expect(l.exercises[0]).toMatchObject({ name: "Landmine Press", exerciseKey: "ek9", sets: [], custom: true });
-    expect(l.exercises[1]!.name).toBe("Curl"); // the other exercise is untouched
+    expect(l.exercises[0]).toMatchObject({ name: "Row" });
+    expect(l.exercises[0]!.sets).toHaveLength(1);
+    expect(l.exercises[1]).toMatchObject({ name: "Landmine Press", exerciseKey: "ek9", sets: [], custom: true });
+    expect(l.exercises[2]!.name).toBe("Curl"); // the other exercise is untouched
+    expect(l.idx).toBe(1);
   });
 
   it("carries no plan target -- a swap has nothing planned for it", () => {
@@ -425,5 +431,23 @@ describe("twinWorkout", () => {
     expect(twinWorkout([w("b", "d1", "2026-09-13", 1000)], live)).toBeNull();
     expect(twinWorkout([w("c", "d2", "2026-09-13", 500)], live)).toBeNull();
     expect(twinWorkout([w("d", "d1", "2026-09-12", 500)], live)).toBeNull();
+  });
+});
+
+// Part 3 wave 5 (O4a): a swap after sets were logged keeps the original.
+describe("swapExercise keeps logged records", () => {
+  it("before any set the slot is retaken; after a logged set the replacement follows the original", () => {
+    const base = live();
+    const fresh = swapExercise(base, 0, { name: "DB Press", kind: "weight_reps", unit: "lb" });
+    expect(fresh.exercises).toHaveLength(base.exercises.length);
+    expect(fresh.exercises[0]!.name).toBe("DB Press");
+    expect(fresh.exercises[0]!.exerciseId).toBe(base.exercises[0]!.exerciseId);
+    const logged = logSet(base, 0, mkSet({ w: 225, r: 5 }));
+    const kept = swapExercise(logged, 0, { name: "DB Press", kind: "weight_reps", unit: "lb" });
+    expect(kept.exercises).toHaveLength(base.exercises.length + 1);
+    expect(kept.exercises[0]!.sets).toHaveLength(1);
+    expect(kept.exercises[1]!.name).toBe("DB Press");
+    expect(kept.exercises[1]!.exerciseId).not.toBe(kept.exercises[0]!.exerciseId);
+    expect(kept.idx).toBe(1);
   });
 });
