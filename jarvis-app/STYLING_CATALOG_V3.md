@@ -632,6 +632,24 @@ The reference (`Claude outputs/Jarvis_Health_Complete.html`, the codex iframe) g
 
 **BOOKING, YOUR TIMES (Track 3, 2026-09-14).** Settings > Booking is the preview's one screen: available, the days, the slot length, who can book, the visibility, kept on the device until the Track 3 project exists (`docs/TRACK3.md`).
 
+## §AE. The approved Health design (Dave 2026-09-14: "Your week, in view." and "See what's changing.")
+
+The image is the visual direction; the dress stays the app's (black, charcoal cards, white ink, the ramp by meaning). Every number on these surfaces comes through `insights/analytics.ts`, and `docs/ANALYTICS.md` is its prose.
+
+**THREE HEALTH VIEWS, ONE NAV (2026-09-14).** Health, Insights and All Data as one `.segmented` at the top of each (`insights/HealthNav.tsx`); the concept's bottom bar is local navigation here, the app's tab bar keeps its job.
+
+**THE WEEK CARD (2026-09-14).** `.h-week-card`: the eyebrow and the range, the count at 44px in lime beside seven bars on real dates (`.h-bar`, lime when trained, the label full ink on today), three readings in their hues (`.h-stat`: lime for sets, amber for time, violet for sleep with the nights counted). Every one is a button to its records; a bar opens that day.
+
+**RESUME, AND NO START BESIDE IT (2026-09-14).** While a session is open the next-workout card says Session Open and offers Resume Workout alone; the one-filled-red law's EXCLUSIVE map records the ternary.
+
+**A FINDING IS A ROW (2026-09-14).** `.h-find`: the glyph on its tint, the title, the reading in its hue, the context in full ink, the action word in cyan, a chevron. Three at most, in the order change, observation, issue. Nothing is claimed as a cause.
+
+**INSIGHTS' CARDS (2026-09-14).** `.ins-big` for the headline number in its hue; `.ins-chart` with dated points that open their session and a `<details>` list twin; `.ins-bar` rows with lime for a muscle and amber for Unassigned, the coverage stated; `.ins-nights` as violet blocks for logged nights and short ticks for the gaps. A card that spans more than the period says so on its face.
+
+**ALL DATA ROWS (2026-09-14).** The record's hue as a dot (`.ad-dot`), the title, the time and the value in the hue, the detail and a source that is not by hand, in full ink; Delete as a quiet capsule only where the row has no editor of its own.
+
+**THE DURATION CARD (2026-09-14).** Active in lime, or amber with a Review count when flagged; elapsed, parked and the sets' span as facts; End at the Last Set and Set the End Time as create rows; every correction listed as a fact.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

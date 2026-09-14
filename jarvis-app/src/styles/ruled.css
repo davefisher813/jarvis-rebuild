@@ -1789,3 +1789,72 @@
 .ruled.health-ruled .se-tick .ic { width: 18px; height: 18px; stroke-width: 2.6; }
 .ruled.health-ruled .se-meter { height: 4px; border-radius: 999px; background: var(--press-3); overflow: hidden; margin: 8px 0 2px; }
 .ruled.health-ruled .se-meter span { display: block; height: 100%; border-radius: 999px; background: var(--hl-lime); }
+
+/* ---------- THE HEALTH LANDING PAGE, TO THE APPROVED DESIGN (2026-09-14) ---
+   The week as one card: the range, the count at 44px in lime, seven bars on
+   real dates, three readings in their hues. The next-workout card's two
+   quiet actions under its one filled Start. The findings as rows with their
+   glyph on its tint. Tokens and the ramp only. */
+.ruled.health-ruled .h-week-card { padding: 14px 16px 12px; }
+.ruled.health-ruled .h-week-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ruled.health-ruled .h-week-main { display: flex; align-items: flex-end; gap: 16px; margin-top: 10px; }
+.ruled.health-ruled .h-week-count { display: flex; align-items: baseline; gap: 8px; background: none; border: 0; padding: 0;
+  font-family: var(--f); color: var(--tx-1); cursor: pointer; text-align: left; }
+.ruled.health-ruled .h-week-count b { font-size: calc(44px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1;
+  letter-spacing: -0.03em; color: var(--hl-lime); font-variant-numeric: tabular-nums; }
+.ruled.health-ruled .h-week-count span { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
+.ruled.health-ruled .h-bars { flex: 1; display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; min-width: 0; }
+.ruled.health-ruled .h-bar { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px;
+  background: none; border: 0; padding: 0; font-family: var(--f); font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: 0.04em; color: var(--tx-2); cursor: pointer; }
+.ruled.health-ruled .h-bar i { display: block; width: 10px; height: 8px; border-radius: 5px; background: var(--press-3); }
+.ruled.health-ruled .h-bar.on i { background: var(--hl-lime); }
+.ruled.health-ruled .h-bar.today { color: var(--tx-1); }
+.ruled.health-ruled .h-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 14px; }
+.ruled.health-ruled .h-stat { background: none; border: 0; border-left: 1px solid var(--divider); padding: 2px 10px; text-align: left;
+  font-family: var(--f); color: var(--tx-1); cursor: pointer; min-width: 0; }
+.ruled.health-ruled .h-stat:first-child { border-left: 0; padding-left: 0; }
+.ruled.health-ruled .h-stat b { display: block; font-size: calc(19px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled.health-ruled .h-stat b small { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-semi); }
+.ruled.health-ruled .h-stat.lime b { color: var(--hl-lime); }
+.ruled.health-ruled .h-stat.amber b { color: var(--hl-amber); }
+.ruled.health-ruled .h-stat.violet b { color: var(--hl-violet); }
+.ruled.health-ruled .h-stat span { display: block; font-size: calc(12.5px * var(--type-scale)); color: var(--tx-2); margin-top: 2px; }
+.ruled.health-ruled .h-next-acts { display: flex; gap: 8px; padding: 0 16px 12px; }
+.ruled.health-ruled .h-next-acts .pill-act { flex: 1; justify-content: center; max-width: none; }
+.ruled.health-ruled .h-find { gap: 10px; }
+.ruled.health-ruled .h-find .facts + .facts { margin-top: 2px; }
+.ruled.health-ruled .h-foot-acts { display: flex; gap: 8px; margin-top: var(--s-3); }
+.ruled.health-ruled .h-foot-acts .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.ruled.health-ruled .h-foot-acts .btn .ic { width: 16px; height: 16px; }
+
+/* ---------- INSIGHTS AND ALL DATA (the approved Health design, 2026-09-14)
+   The period chips with the range beside them, the headline number in its
+   hue, a chart with dated points, the muscle bars, the nights strip, the
+   record rows. Tokens and the ramp only. */
+.ruled.health-ruled .ins-range { margin-left: auto; align-self: center; }
+.ruled.health-ruled .ins-dates { display: flex; gap: 8px; margin-top: 8px; }
+.ruled.health-ruled .ins-dates .input { flex: 1; min-width: 0; }
+.ruled.health-ruled .ins-big { font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.03em; line-height: 1.05;
+  margin: 6px 0 4px; font-variant-numeric: tabular-nums; }
+.ruled.health-ruled .ins-big.lime { color: var(--hl-lime); }
+.ruled.health-ruled .ins-big.violet { color: var(--hl-violet); }
+.ruled.health-ruled .ins-chart { display: block; width: 100%; height: auto; margin: 10px 0 2px; color: var(--tx-1); }
+.ruled.health-ruled .ins-axis { font-size: calc(10px * var(--type-scale)); fill: var(--tx-2); font-family: var(--f); }
+.ruled.health-ruled .ins-table summary { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); cursor: pointer; padding: 6px 0; }
+.ruled.health-ruled .ins-table table { width: 100%; border-collapse: collapse; font-size: calc(13px * var(--type-scale)); font-variant-numeric: tabular-nums; }
+.ruled.health-ruled .ins-table th { text-align: left; font-weight: var(--w-semi); color: var(--tx-2); padding: 4px 0; }
+.ruled.health-ruled .ins-table td { padding: 4px 0; border-top: 0.5px solid var(--divider); }
+.ruled.health-ruled .ins-bar { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+.ruled.health-ruled .ins-bar-k { width: 92px; flex-shrink: 0; font-size: calc(14px * var(--type-scale)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled.health-ruled .ins-bar-track { flex: 1; height: 8px; border-radius: 999px; background: var(--press-3); overflow: hidden; }
+.ruled.health-ruled .ins-bar-track i { display: block; height: 100%; border-radius: 999px; }
+.ruled.health-ruled .ins-bar-track i.lime { background: var(--hl-lime); }
+.ruled.health-ruled .ins-bar-track i.amber { background: var(--hl-amber); }
+.ruled.health-ruled .ins-nights { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ruled.health-ruled .ins-night { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 34px;
+  font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.04em; color: var(--tx-2); }
+.ruled.health-ruled .ins-night i { display: block; width: 18px; height: 6px; border-radius: 3px; background: var(--press-3); }
+.ruled.health-ruled .ins-night.on i { height: 18px; background: var(--hl-violet); }
+.ruled.health-ruled .ad-dot i { display: block; width: 10px; height: 10px; border-radius: 50%; background: var(--h-hue); }

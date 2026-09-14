@@ -47,6 +47,7 @@ import HistoryScreen from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
 import { libraryRows, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, patchSummary, type LibraryRow, type AliasMap } from "./libraryEdit";
 import { mmss } from "./conditioning";
+import DurationCard from "./DurationCard";
 import ActionSheet, { PickSheet, type SheetAction, type PickItem } from "./ActionSheet";
 import SetStrip from "./SetStrip";
 import ReorderList from "../shared/ReorderList";
@@ -505,11 +506,16 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
 // The gym track: programs in the user's own words, weeks as the time axis,
 // the set strip as the same object in the plan and in the live session, the
 // in-gym loop, live PRs, and an honest receipt.
-export default function GymFlow({ onBack, door, startDayId, startDoorEventId, startBudgetMin, areaId, startLibrary, onRateSession, onLogSoreSpot }: {
+export default function GymFlow({ onBack, door, startDayId, startDoorEventId, startBudgetMin, areaId, startLibrary, startLift, startHistory, startWorkoutId, onRateSession, onLogSoreSpot }: {
   /** 2026-09-14: open straight onto Your Lifts. The Health page's coverage
    *  card names untagged lifts and has to be able to hand you the screen
    *  that fixes them, rather than describing where it is. */
   startLibrary?: boolean;
+  /** The approved Health design (2026-09-14): a finding opens the records
+   *  behind it. A lift's page, History on a segment, or one saved session. */
+  startLift?: { name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string };
+  startHistory?: "lifts" | "sessions";
+  startWorkoutId?: string;
   onBack: () => void;
   /** WORKOUT LOGGING BELONGS WITH THE WORKOUT (Dave 2026-09-10: "how hard it
    *  was, where it hurts, anything related to an actual workout should go
@@ -651,7 +657,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutExercise[] | null>(null);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(!!startHistory);
   // UP-ATH-21 (2026-09-06): Your Lifts. `hiddenKeys` is read into state so a
   // hide shows immediately; the store is still the source of truth.
   const [libraryOpen, setLibraryOpen] = useState(!!startLibrary);
@@ -673,7 +679,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [dismissedDupes, setDismissedDupes] = useState<string[]>(() => readGymSettings().dismissedDupes ?? []);
   // The History segment lives here so a workout opened under Sessions comes
   // back to Sessions (Dave's 18a, 2026-09-13).
-  const [historyMode, setHistoryMode] = useState<"lifts" | "sessions">("lifts");
+  const [historyMode, setHistoryMode] = useState<"lifts" | "sessions">(startHistory ?? "lifts");
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<RowMenu | null>(null);
   const [picker, setPicker] = useState<Picker | null>(null);
@@ -691,7 +697,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [goals, setGoals] = useState<Goal[]>([]);
   const [metricDefs, setMetricDefs] = useState<MetricDef[]>([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
-  const [liftDetailFor, setLiftDetailFor] = useState<{ name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string } | null>(null);
+  const [liftDetailFor, setLiftDetailFor] = useState<{ name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string } | null>(startLift ?? null);
   const [liftGoalSheetOpen, setLiftGoalSheetOpen] = useState(false);
   // The week sheet's "Normal / Back-Off" choice, held at the top level so it
   // is one plain useState called unconditionally on every render -- NOT
@@ -1132,6 +1138,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     if (day) requestStart(day, { doorEventId: startDoorEventId, budgetMin: startBudgetMin });
   }, [startDayId, startDoorEventId, startBudgetMin, startHandled, loaded, program]);
 
+  // 2026-09-14: a saved session named on the way in opens in its editor
+  // once the list has loaded (the Duration finding's way to the card).
+  const [workoutHandled, setWorkoutHandled] = useState(false);
+  useEffect(() => {
+    if (!startWorkoutId || workoutHandled || !loaded) return;
+    setWorkoutHandled(true);
+    const w = workouts.find((x) => x.id === startWorkoutId);
+    if (w) { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }
+  }, [startWorkoutId, workoutHandled, loaded, workouts]);
+
   // THE DOOR OPENS (D4-C): mounted from the calendar's gym block. The
   // pinned day walks straight into the fit sheet; no pin, it asks once.
   useEffect(() => {
@@ -1531,6 +1547,18 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           <span className="se-chip se-chip-budget">{mins}<em>Min</em></span>
           {w.data.backdated && <span className="se-chip se-chip-skip">Logged Later</span>}
         </div></div>
+        {/* THE DURATION, SHOWN AND CORRECTABLE (2026-09-14, item 9). The
+            card says how the minutes were made; a correction is a revision
+            that keeps the value it replaced, and every total downstream
+            reads the corrected stamp on the next render. */}
+        <DurationCard workout={w.data} onCorrect={async (endedAt, rev) => {
+          const patch = { endedAt, revisions: [...(w.data.revisions ?? []), rev] };
+          const ok = await attemptWrite(() => svc.updateWorkout(w.id, patch));
+          await reload();
+          if (!ok) return;
+          setViewWorkout({ ...w, data: { ...w.data, ...patch } });
+          showToast({ message: "Session end corrected" });
+        }} />
         {/* HOW IT WENT, ON THE SESSION ITSELF (Dave 2026-09-10). These two were
             on the health home page, next to bedtime and bodyweight, which put
             a fact about ONE workout in the place a person writes down facts

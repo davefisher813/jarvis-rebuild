@@ -347,6 +347,11 @@ export interface WorkoutExercise {
 /** What an added exercise has to carry with it: everything the session screen
  *  reads off a program exercise that is not identity or the strip. */
 export type AddedExerciseFields = Pick<Exercise, "cond" | "restSec" | "ramp" | "muscleGroup" | "note">;
+/** A correction to a saved session's recorded times (the approved Health
+ *  design, 2026-09-14, item 9). The value it replaced is kept, so the
+ *  original survives every correction. */
+export interface WorkoutRevision { at: number; field: "endedAt" | "startedAt"; from: number; to: number }
+
 export interface WorkoutData {
   programId: string;
   dayId: string;
@@ -376,6 +381,9 @@ export interface WorkoutData {
    *  only on records JARVIS created for someone. Inside the entity's JSONB
    *  data, so no migration (the same precedent shared/provenance.ts names). */
   source?: Source;
+  /** 2026-09-14: every correction made to startedAt or endedAt, oldest
+   *  first. Absent means the stamps are as the session recorded them. */
+  revisions?: WorkoutRevision[];
 }
 export interface Workout { id: string; data: WorkoutData }
 

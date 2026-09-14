@@ -289,6 +289,10 @@ export class HealthService {
     return data;
   }
 
+  removeCallIt(at: number, storage?: Storage2): Promise<boolean> {
+    return this.removeLogged(ENTITY_CALL_IT, at, storage);
+  }
+
   async listCallIt(storage?: Storage2): Promise<CallItEntry[]> {
     return this.listMerged<CallItData>(ENTITY_CALL_IT, storage, (a, b) => a.at - b.at);
   }
@@ -320,6 +324,10 @@ export class HealthService {
     await this.store.update(this.ownerId, hit.id, { ...(hit.data as unknown as Record<string, Json>), ...patch } as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_POINT_AT_IT, entityId: hit.id });
     return true;
+  }
+
+  removePointAtIt(at: number, storage?: Storage2): Promise<boolean> {
+    return this.removeLogged(ENTITY_POINT_AT_IT, at, storage);
   }
 
   async listPointAtIt(storage?: Storage2): Promise<PointAtItEntry[]> {

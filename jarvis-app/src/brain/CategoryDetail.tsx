@@ -1,5 +1,5 @@
 import { isIn } from "../tasks/categories";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine, usePeople, useProfile } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import type { Person } from "../people/types";
@@ -71,7 +71,10 @@ import type { SessionStartCandidate } from "../health/medWindow";
 import type { EventItem } from "../schedule/types";
 import type { TemplateKey } from "../categories/defaults";
 import { localDayParts } from "../events/serverSink";
-import type { HealthLoggerKey, HealthLoggerRow } from "./HealthBody";
+import type { HealthLoggerKey, HealthLoggerRow, LogAction, RecordsOpen } from "./HealthBody";
+import { periodFor, periodOverview, muscleBreakdown } from "../insights/analytics";
+import { findings, type Finding, type LiftId } from "../insights/findings";
+import type { HealthView } from "../insights/HealthNav";
 import type { Program } from "../gym/types";
 import { capAfterNumber } from "../shared/casing";
 import { ProjectPie } from "../shared/glyphs";
@@ -99,7 +102,13 @@ import { readHealthSettings } from "../health/settings";
 import HealthSettingsPage from "../settings/HealthSettingsPage";
 import { chartableExercises, liftSessions } from "../gym/chartData";
 import { correlate, plateauFlag, hardSetRows, muscleMapFrom, backOffSignal, shouldOfferLighterWeek, correlationProgress, hardSetEvidence, volumeBreakdown, coverageGap } from "../gym/insights";
-import { readGymSettings } from "../gym/settings";
+import { readGymSettings, writeGymSettings } from "../gym/settings";
+import InsightsPage from "../insights/InsightsPage";
+import AllDataPage from "../insights/AllDataPage";
+import ExportSheet from "../insights/ExportSheet";
+import AssignMusclesSheet from "../insights/AssignMusclesSheet";
+import { allRecords, type DataCategory, type DataRecord, type RecordFilter } from "../insights/records";
+import type { Period, RangeKey } from "../insights/analytics";
 import { shortDate } from "../shared/dateFormat";
 import { MUSCLE_LABEL, type MuscleGroup } from "../gym/muscles";
 import { pressable } from "../shared/pressable";
@@ -237,6 +246,20 @@ export default function CategoryDetail({
   // 2026-09-14: the coverage insight hands you Your Lifts directly, rather
   // than telling you which three screens to go through to find it.
   const [gymLibrary, setGymLibrary] = useState(false);
+  // The approved Health design (2026-09-14): which of the three Health
+  // views is up, and the three ways a finding walks into the gym.
+  const [healthView, setHealthView] = useState<HealthView>("health");
+  const [gymLift, setGymLift] = useState<LiftId | null>(null);
+  const [gymHistory, setGymHistory] = useState<"lifts" | "sessions" | null>(null);
+  const [gymWorkoutId, setGymWorkoutId] = useState<string | null>(null);
+  // ALL DATA (2026-09-14, item 8): the filters and the scroll position live
+  // here, so coming back from a record lands where he left.
+  const [allDataFilter, setAllDataFilter] = useState<RecordFilter & { range: RangeKey | "all" }>(() => ({ category: "all", range: "28d", period: periodFor("28d", todayISO()), date: null, query: "" }));
+  const allDataScroll = useRef(0);
+  const [exportOpen, setExportOpen] = useState<{ period: Period; category: DataCategory | "all" } | null>(null);
+  const [assignOpen, setAssignOpen] = useState<{ name: string; exerciseKey?: string; sets: number }[] | null>(null);
+  // A muscle assignment saved from the sheet re-reads the map on the next render.
+  const [muscleTick, setMuscleTick] = useState(0);
   // Which Weekly Volume row is showing its lifts. One at a time: the point is
   // to answer "where did this number come from", not to unfold the whole card.
   const [volumeOpen, setVolumeOpen] = useState<MuscleGroup | null>(null);
@@ -255,7 +278,7 @@ export default function CategoryDetail({
   // logged from the strip and a set logged in the gym both show up fresh.
   const [metricDefs, setMetricDefs] = useState<MetricDef[]>([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
-  const [metricSheet, setMetricSheet] = useState<{ kind: "log"; def: MetricDef } | { kind: "add" } | null>(null);
+  const [metricSheet, setMetricSheet] = useState<{ kind: "log"; def: MetricDef; date?: string } | { kind: "add" } | null>(null);
   // A GOAL OPTION WHERE THE DATA IS (Dave 2026-09-12): a second, independent
   // sheet rather than a third `metricSheet` kind, mirroring how GymFlow keeps
   // `liftGoalSheetOpen` beside `liftDetailFor` -- the goal sheet opens FROM
@@ -683,6 +706,9 @@ export default function CategoryDetail({
       <GymFlow
         areaId={categoryId}
         startLibrary={gymLibrary}
+        startLift={gymLift ?? undefined}
+        startHistory={gymHistory ?? undefined}
+        startWorkoutId={gymWorkoutId ?? undefined}
         startDayId={gymStartDay ?? undefined}
         startBudgetMin={gymStartBudget ?? undefined}
         startDoorEventId={gymDoor?.id}
@@ -693,7 +719,7 @@ export default function CategoryDetail({
         // history and put it there").
         onRateSession={() => setHealthScreen("callIt")}
         onLogSoreSpot={() => setHealthScreen("pointAtIt")}
-        onBack={() => { setGymOpen(false); setGymLibrary(false); setGymStartDay(null); setGymStartBudget(null); void reload(); }}
+        onBack={() => { setGymOpen(false); setGymLibrary(false); setGymLift(null); setGymHistory(null); setGymWorkoutId(null); setGymStartDay(null); setGymStartBudget(null); void reload(); }}
       />
     );
   }
@@ -1107,7 +1133,10 @@ export default function CategoryDetail({
   // EVERY program and the per-lift tags (2026-09-14). Reading programs[0]
   // alone meant a lift tagged in any other program counted for nothing, and
   // the tags set on Your Lifts did not exist yet.
-  const muscleMap = kind === "health" ? muscleMapFrom(programs, readGymSettings().muscleByKey ?? {}) : new Map();
+  // muscleTick is bumped by a save from the Assign Muscles sheet so the map
+  // below re-reads the store on that render.
+  const muscleByKeyNow = muscleTick >= 0 ? (readGymSettings().muscleByKey ?? {}) : {};
+  const muscleMap = kind === "health" ? muscleMapFrom(programs, muscleByKeyNow) : new Map();
   // The band he set in Health Settings replaces the studied one (Dave
   // 2026-09-13: nothing hard wired that should not be), and says so.
   const hsBand = kind === "health" ? readHealthSettings().volumeBand : null;
@@ -1501,6 +1530,73 @@ export default function CategoryDetail({
   // or a project is always one tap and never costs a section of height. The
   // + says Add, so the word is the noun alone and the three fit one line on a
   // phone; the full "Add Task" is the button's accessible name.
+  // THE WEEK, THE FINDINGS, THE OPENS (2026-09-14). One period, the same
+  // functions Insights reads (insights/analytics.ts).
+  const weekPeriod = periodFor("7d", today);
+  const sleepDefH = metricDefs.find((d) => d.data.presetKey === "sleep" && !d.data.hidden) ?? null;
+  const weekOverview = periodOverview(workouts, sleepDefH, metricLogs, weekPeriod);
+  const healthFindings = kind === "health" ? findings({ workouts, sleepDef: sleepDefH, logs: metricLogs, period: weekPeriod, muscleMap, now: nowMs }) : [];
+  const records: DataRecord[] = kind === "health" ? allRecords({ workouts, metricDefs, metricLogs, lightsOut, tookIt, medDefs, callIt, pointAtIt, meals, checkins }) : [];
+  const showData = (category: DataCategory | "all", range: RangeKey | "all", date: string | null = null, period?: Period) => {
+    setAllDataFilter({ category, range, period: date ? null : range === "all" ? null : period ?? periodFor(range, today), date, query: "" });
+    allDataScroll.current = 0;
+    setHealthView("data");
+  };
+  const openRecords = (o: RecordsOpen) => {
+    if (o.kind === "day") { showData("all", "all", o.date); return; }
+    showData(o.kind, "7d");
+  };
+  const openRecord = (r: DataRecord) => {
+    const o = r.open;
+    if (o.kind === "workout") { setGymWorkoutId(o.id); setGymOpen(true); return; }
+    if (o.kind === "metric") { setMetricSheet({ kind: "log", def: o.def, date: o.log.data.date }); return; }
+    if (o.kind === "tookIt") { setMedPage(true); return; }
+    setHealthScreen(o.kind);
+  };
+  // DELETE WITH UNDO (item 8): the entry leaves by the moment it was logged,
+  // the toast's Undo logs it back with every field it had.
+  const deleteRecord = (r: DataRecord) => {
+    const o = r.open;
+    const done = (undo: () => void) => { bumpHealth(); showToast({ message: `${r.title} deleted`, actionLabel: "Undo", onAction: () => { undo(); bumpHealth(); } }); };
+    if (o.kind === "lightsOut") { void healthSvc.removeLightsOut(o.at).then(() => done(() => { healthSvc.logLightsOut(o.at); })); return; }
+    if (o.kind === "meal") { const e = meals.find((m) => m.data.at === o.at); void healthSvc.removeMeal(o.at).then(() => done(() => { if (e) healthSvc.logMeal(e.data.text, e.data.at); })); return; }
+    if (o.kind === "checkin") { const e = checkins.find((c) => c.data.at === o.at); void healthSvc.removeCheckIn(o.at).then(() => done(() => { if (e) healthSvc.logCheckIn(e.data, e.data.at); })); return; }
+    if (o.kind === "tookIt") { const e = tookIt.find((t) => t.data.at === o.at); void healthSvc.removeTookIt(o.at).then(() => done(() => { if (e) healthSvc.logTookIt(e.data.at, undefined, { medId: e.data.medId, amount: e.data.amount }); })); return; }
+    if (o.kind === "callIt") { const e = callIt.find((c) => c.data.at === o.at); void healthSvc.removeCallIt(o.at).then(() => done(() => { if (e) healthSvc.logCallIt({ rpe: e.data.rpe, ...(e.data.durationMin != null ? { durationMin: e.data.durationMin } : {}), ...(e.data.eventId ? { eventId: e.data.eventId } : {}) }, e.data.at); })); return; }
+    if (o.kind === "pointAtIt") { const e = pointAtIt.find((p) => p.data.at === o.at); void healthSvc.removePointAtIt(o.at).then(() => done(() => { if (e) { const d = healthSvc.logPointAtIt({ x: e.data.x, y: e.data.y, side: e.data.side, ...(e.data.region ? { region: e.data.region } : {}) }, e.data.at); void healthSvc.updatePointAtIt(d.at, { feel: e.data.feel, level: e.data.level, note: e.data.note }); } })); return; }
+  };
+  // ASSIGN MUSCLES (item 6): saved as one write to the per-lift map, with
+  // the map it replaced on the Undo.
+  const saveMuscles = (next: Record<string, string[]>) => {
+    const gs = readGymSettings();
+    const before = gs.muscleByKey ?? {};
+    writeGymSettings({ ...gs, muscleByKey: next });
+    setAssignOpen(null);
+    setMuscleTick((t) => t + 1);
+    const n = Object.keys(next).filter((k) => !(k in before)).length;
+    showToast({ message: capAfterNumber(`${n} ${n === 1 ? "exercise" : "exercises"} assigned`), actionLabel: "Undo", onAction: () => { writeGymSettings({ ...readGymSettings(), muscleByKey: before }); setMuscleTick((t) => t + 1); } });
+  };
+  const openFinding = (f: Finding) => {
+    const o = f.open;
+    if (o.kind === "lift") { setGymLift(o.lift); setGymOpen(true); return; }
+    if (o.kind === "sleep") { showData("sleep", "7d"); return; }
+    if (o.kind === "sets") { showData("sets", "7d"); return; }
+    if (o.kind === "assign") { setAssignOpen(muscleBreakdown(workouts, muscleMap, weekPeriod).untagged); return; }
+    if (o.kind === "duration") { setGymWorkoutId(o.workoutId); setGymOpen(true); return; }
+    setHealthView("insights");
+  };
+  // LOG SOMETHING: every logger, then his metrics, then the library.
+  const logActions: LogAction[] = [
+    { label: "Bedtime", onPick: () => setHealthScreen("lightsOut") },
+    { label: "Meal", onPick: () => setHealthScreen("meal") },
+    { label: "Check In", onPick: () => setHealthScreen("checkin") },
+    { label: "Session Effort", onPick: () => setHealthScreen("callIt") },
+    { label: "Discomfort", onPick: () => setHealthScreen("pointAtIt") },
+    { label: medSub ? `Medication · Last ${medSub}` : "Medication", onPick: () => setMedPage(true) },
+    ...(water ? [{ label: capAfterNumber(`Water · Add 1 ${water.unit}`), onPick: water.onPlus }] : []),
+    ...activeMetrics(metricDefs).filter((d) => !(water && d.data.presetKey === "water")).map((d) => ({ label: d.data.name, onPick: () => setMetricSheet({ kind: "log", def: d }) })),
+    { label: "Add a Metric", onPick: () => setMetricSheet({ kind: "add" }) },
+  ];
   const healthAdds = (
     <div className="pad-x h-adds">
       <button type="button" className="h-add" aria-label="Add Task" onClick={() => setSheet({ kind: "task" })}><Plus className="ic" />Task</button>
@@ -1509,64 +1605,9 @@ export default function CategoryDetail({
     </div>
   );
 
-  return (
-    // THE HEALTH PAGE WEARS THE RULINGS (2026-09-02, Check, Health, Stop):
-    // glass cards, quiet caps heads, ruled rows, and its own composition
-    // (HealthBody). The gym's own screens wear the rulings too now (the
-    // training skin retired 2026-09-03). Other categories keep the app's
-    // default card.
-    <div className={"screen ruled" + (kind === "health" ? " health-ruled" : " area-ruled")}>
-      <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title"><span className={"cat-dot cat-bg-" + cat.data.color} /> {cat.data.name}</div>
-        <button className="nav-action-text" onClick={() => setSheet({ kind: "edit" })}>Edit</button>
-      </div>
-
-      {paused && (
-        <div className="pad-x"><div className="card">
-          <div className="row">
-            <div className="row-grow"><div className="conn-name">Paused for Now</div></div>
-            {/* BRAIN-F-12 (2026-09-05): Wake Up did nothing and said nothing
-                when the write failed; the banner just stayed. */}
-            <button className="btn-sm" onClick={async () => { const ok = await attemptWrite(() => catsSvc.update(categoryId, { season: undefined })); if (!ok) return; onChanged?.(); await reload(); }}>Wake Up</button>
-          </div>
-        </div></div>
-      )}
-
-      {kind === "health" ? (
-        <HealthBody
-          program={programs[0] ?? null}
-          workouts={workouts}
-          training={training}
-          today={today}
-          isEvening={new Date().getHours() >= 17}
-          gymEvent={gymDoor ? { start: gymDoor.start } : null}
-          metricDefs={metricDefs}
-          metricLogs={metricLogs}
-          onStart={(dayId, budgetMin) => { setGymStartDay(dayId); setGymStartBudget(budgetMin ?? null); setGymOpen(true); }}
-          onOpenGym={() => setGymOpen(true)}
-          onOpenMetric={(def) => setMetricSheet({ kind: "log", def })}
-          onManageMetrics={() => setMetricSheet({ kind: "add" })}
-          healthLoggers={healthLoggers}
-          onOpenHealthLogger={(key) => setHealthScreen(key)}
-          onOpenMedication={() => setMedPage(true)}
-          medSub={medSub}
-          medTile={!!hs?.shortcuts.includes("medication")}
-          onRateSession={() => setHealthScreen("callIt")}
-          onOpenExport={() => setHealthDeep("doctorReport")}
-          live={liveHero}
-          onResume={() => setGymOpen(true)}
-          water={water}
-          log={healthLog}
-          onOpenLog={openLog}
-          pendingCount={pendingCount}
-          onOpenSettings={() => setHealthSettingsOpen(true)}
-          // Projects, Goals Here, Coming Up, Up Next: the SAME block every
-          // other area page renders, handed in rather than re-declared, so
-          // the health page cannot show two of any of them (Dave 2026-09-10).
-          sections={areaSections}
-          adds={healthAdds}
-          insights={hasInsights ? (
+  // THE INSIGHT CARDS (2026-09-14): they render on the Insights page now,
+  // the landing page keeps its three findings. Same cards, same evidence.
+  const insightCards: ReactNode = hasInsights ? (
             <>
               {/* INSIGHTS, NOT A WALL OF GREY (Dave 2026-09-10: "I hate the
                   look of the insights... it just looks like pure text. It's
@@ -1721,8 +1762,9 @@ export default function CategoryDetail({
                 )}
               </div>
             </>
-          ) : null}
-          more={
+          ) : null;
+  // The quiet tail (Repetitions, Done This Week), under the landing page.
+  const healthMore: ReactNode = 
             <>
               {repeats.length > 0 && (
                 <>
@@ -1775,8 +1817,93 @@ export default function CategoryDetail({
                   </div></div>
                 </>
               )}
-            </>
-          }
+            </>;
+  return (
+    // THE HEALTH PAGE WEARS THE RULINGS (2026-09-02, Check, Health, Stop):
+    // glass cards, quiet caps heads, ruled rows, and its own composition
+    // (HealthBody). The gym's own screens wear the rulings too now (the
+    // training skin retired 2026-09-03). Other categories keep the app's
+    // default card.
+    <div className={"screen ruled" + (kind === "health" ? " health-ruled" : " area-ruled")}>
+      <div className="nav-bar">
+        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <div className="nav-title"><span className={"cat-dot cat-bg-" + cat.data.color} /> {cat.data.name}</div>
+        <button className="nav-action-text" onClick={() => setSheet({ kind: "edit" })}>Edit</button>
+      </div>
+
+      {paused && (
+        <div className="pad-x"><div className="card">
+          <div className="row">
+            <div className="row-grow"><div className="conn-name">Paused for Now</div></div>
+            {/* BRAIN-F-12 (2026-09-05): Wake Up did nothing and said nothing
+                when the write failed; the banner just stayed. */}
+            <button className="btn-sm" onClick={async () => { const ok = await attemptWrite(() => catsSvc.update(categoryId, { season: undefined })); if (!ok) return; onChanged?.(); await reload(); }}>Wake Up</button>
+          </div>
+        </div></div>
+      )}
+
+      {kind === "health" && healthView === "insights" ? (
+        <InsightsPage
+          view={healthView}
+          onView={setHealthView}
+          today={today}
+          workouts={workouts}
+          metricDefs={metricDefs}
+          metricLogs={metricLogs}
+          logs={{ callIt, pointAtIt, meals, tookIt, checkins }}
+          muscleMap={muscleMap}
+          cards={insightCards}
+          onOpenLift={(lift) => { setGymLift(lift); setGymOpen(true); }}
+          onOpenWorkout={(id) => { setGymWorkoutId(id); setGymOpen(true); }}
+          onOpenAllData={(category, period) => showData(category, period.key, null, period)}
+          onAssignMuscles={(untagged) => setAssignOpen(untagged)}
+          onExport={(period) => setExportOpen({ period, category: "all" })}
+        />
+      ) : kind === "health" && healthView === "data" ? (
+        <AllDataPage
+          view={healthView}
+          onView={setHealthView}
+          records={records}
+          filter={allDataFilter}
+          onFilter={setAllDataFilter}
+          today={today}
+          scrollRef={allDataScroll}
+          onOpen={openRecord}
+          onDelete={deleteRecord}
+          onExport={() => setExportOpen({ period: allDataFilter.period ?? periodFor("90d", today), category: allDataFilter.category })}
+          pendingCount={pendingCount}
+        />
+      ) : kind === "health" ? (
+        <HealthBody
+          program={programs[0] ?? null}
+          workouts={workouts}
+          overview={weekOverview}
+          today={today}
+          isEvening={new Date().getHours() >= 17}
+          gymEvent={gymDoor ? { start: gymDoor.start } : null}
+          findings={healthFindings}
+          live={liveHero}
+          onResume={() => setGymOpen(true)}
+          onStart={(dayId) => { setGymStartDay(dayId); setGymStartBudget(null); setGymOpen(true); }}
+          // Adjust Time opens the fit sheet already priced to a shorter
+          // budget: every lever and its saving is previewed there, and
+          // nothing starts until its own Start is tapped.
+          onAdjustTime={(dayId) => { setGymStartDay(dayId); setGymStartBudget(30); setGymOpen(true); }}
+          onOpenGym={() => setGymOpen(true)}
+          onOpenRecords={openRecords}
+          onOpenFinding={openFinding}
+          onOpenInsights={() => setHealthView("insights")}
+          onOpenAllData={() => setHealthView("data")}
+          logActions={logActions}
+          onOpenSettings={() => setHealthSettingsOpen(true)}
+          // Projects, Goals Here, Coming Up, Up Next: the SAME block every
+          // other area page renders, handed in rather than re-declared, so
+          // the health page cannot show two of any of them (Dave 2026-09-10).
+          sections={areaSections}
+          more={healthMore}
+          adds={healthAdds}
+          view={healthView}
+          onView={setHealthView}
         />
       ) : null}
       {/* (The health page gets areaSections through HealthBody's `sections`
@@ -2010,8 +2137,15 @@ export default function CategoryDetail({
           onCancel={() => setSheet({ kind: "closed" })} />
       )}
 
+      {exportOpen && (
+        <ExportSheet records={records} workouts={workouts} sleepDef={sleepDefH} logs={metricLogs} today={today} period={exportOpen.period} category={exportOpen.category} onClose={() => setExportOpen(null)} />
+      )}
+      {assignOpen && (
+        <AssignMusclesSheet untagged={assignOpen} current={readGymSettings().muscleByKey ?? {}} onSave={saveMuscles} onClose={() => setAssignOpen(null)} />
+      )}
       {metricSheet?.kind === "log" && (() => {
-        const existingLog = metricLogs.find((l) => l.data.metricId === metricSheet.def.id && l.data.date === today);
+        const logDay = metricSheet.date ?? today;
+        const existingLog = metricLogs.find((l) => l.data.metricId === metricSheet.def.id && l.data.date === logDay);
         // A goal makes sense on a number moving toward or away from
         // somewhere (weight, minutes slept) and not on a yes/no or a 1-5
         // scale, which has no "target" that means anything more than the
@@ -2024,11 +2158,11 @@ export default function CategoryDetail({
         return (
           <MetricLogSheet
             def={metricSheet.def}
-            date={today}
+            date={logDay}
             initial={existingLog}
             goalLine={goalLine}
             onSetGoal={goalable ? () => setMetricGoalFor(metricSheet.def) : undefined}
-            onSave={(value) => void metricWrite(() => metricsSvc.logMetric(metricSheet.def.id, today, value), () => setMetricSheet(null))}
+            onSave={(value) => void metricWrite(() => metricsSvc.logMetric(metricSheet.def.id, logDay, value), () => setMetricSheet(null))}
             // B3-8 (2026-09-04): removeLog existed, tested, with no caller.
             // Undo re-logs the same value, matching every other delete's Undo.
             // BRAIN-F-15 (2026-09-05): the receipt lives INSIDE metricWrite's
