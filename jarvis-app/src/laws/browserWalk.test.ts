@@ -563,6 +563,26 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
     }
   });
 
+  // THE TWO INKS MEASURE (2026-09-14): the secondary is text and clears AA
+  // on the page and every surface it lands on; the structure grey is never
+  // text and clears the 3:1 bar for non-text, so a ring or a chevron is
+  // seen on any ground. Both themes, every ground.
+  it("the secondary clears 4.5:1 and the structure grey 3:1 on every ground, in both themes", () => {
+    const grounds: Array<[string, string[]]> = [
+      ["dark", ["--bg", "--surface-1", "--surface-2", "--surface-3"]],
+      ["light", ["--bg", "--surface-1", "--surface-2", "--surface-3"]],
+    ];
+    for (const [theme, names] of grounds) {
+      for (const g of names) {
+        const ground = tokenIn(theme, g);
+        const text = contrast(tokenIn(theme, "--tx-2"), ground);
+        const structure = contrast(tokenIn(theme, "--tx-4"), ground);
+        expect(text, `${theme} --tx-2 on ${g} is ${text.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+        expect(structure, `${theme} --tx-4 on ${g} is ${structure.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
   // Superseded 2026-09-14 (the two-tier ruling): a past state recedes to the
   // secondary ink, never to the structure grey.
   it("the deliberately dimmed states recede to secondary, never to --tx-4", () => {

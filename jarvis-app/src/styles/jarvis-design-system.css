@@ -175,8 +175,13 @@
      status), and --tx-4 as STRUCTURE only (dotted leaders, empty rings,
      chevrons, hairlines) which may never colour text. The token names stay
      so no ported surface needs markup changes; the sweep below this ramp's
-     law (laws.test.ts) keeps text off --tx-4. */
-  --tx-1: #FFFFFF; --tx-2: #D2D2D6; --tx-3: #D2D2D6; --tx-4: #7C7C82;
+     law (laws.test.ts) keeps text off --tx-4.
+     MEASURED (2026-09-14, browserWalk.test.ts): the secondary clears 4.5:1
+     on the page and every surface (7.5:1 on surface-3, 13.9:1 on the page);
+     the structure grey clears the 3:1 non-text bar on all four (3.05:1 on
+     surface-3), which is why it is #84848A and not the ruling's #7C7C82,
+     which measured 2.74:1 there. */
+  --tx-1: #FFFFFF; --tx-2: #D2D2D6; --tx-3: #D2D2D6; --tx-4: #84848A;
   /* BROWSER-F-09 (2026-09-05), option B. --tx-4 was carrying two meanings at
      once: "this is finished or out of range" and "this is quiet metadata". The
      first is a deliberate dimming and 30 percent is right for it. The second is
@@ -303,11 +308,13 @@
      flat hex); 0.66 was tried first and still read 4.02 on card. The
      pressed-chip case stays the prefers-contrast boost's job (0.75), and
      the ramp keeps its order: 0.82 tx-2 > 0.72 tx-3 > 0.30 tx-4. */
-  /* The light half of the two-tier ramp (2026-09-14). These are the iOS
-     HIG twins the harness used so the comparison could exist: a starting
-     point, not measured tokens, to be authored and measured the way
-     Daylight was when the light half is done. */
-  --tx-1: #000000; --tx-2: #3A3A40; --tx-3: #3A3A40; --tx-4: #8E8E93;
+  /* The light half of the two-tier ramp (2026-09-14), authored and
+     measured (browserWalk.test.ts): the secondary clears 4.5:1 on the page
+     and every surface (10.1:1 on surface-3, 11.3:1 on white); the structure
+     grey clears the 3:1 non-text bar on all three (3.07:1 on surface-3),
+     which is why it is #8A8A90 and not the harness's HIG twin #8E8E93,
+     which measured 2.92:1 there. */
+  --tx-1: #000000; --tx-2: #3A3A40; --tx-3: #3A3A40; --tx-4: #8A8A90;
   /* BROWSER-F-09 (2026-09-05). Light's 30 percent is 30 percent of a mid-grey,
      not of black, so quiet metadata measured 1.7:1 and read as blank space:
      611 hits on white and 381 on the page. 0.72 is the alpha the --tx-3 note
