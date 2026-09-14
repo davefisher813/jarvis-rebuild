@@ -140,3 +140,31 @@ body.writing .screen-editor { padding-bottom: 140px; }
 /* THE COPY FALLBACK (wave 2): when the clipboard refuses, the words in a
    field already selected, so the native copy is one press away. */
 .copy-fallback { width: 100%; min-height: 40vh; background: var(--surface-2); border: 0; border-radius: var(--r-md); padding: var(--s-3); font-family: var(--f); font-size: calc(15px * var(--type-scale)); line-height: 1.5; color: var(--tx-1); resize: none; }
+
+/* FOLDING (wave 3): a chevron before every heading, a section closed by
+   its heading hidden by a class the plugin puts on its blocks. Interface
+   state only; an export sees every word. */
+.doc-pm h1, .doc-pm h2, .doc-pm h3 { position: relative; }
+.doc-pm .doc-fold { position: absolute; left: -26px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border: 0; background: transparent; padding: 0; cursor: pointer; }
+.doc-pm .doc-fold::before { content: ""; display: block; width: 8px; height: 8px; margin: 0 auto; border-right: 1.5px solid var(--tx-4); border-bottom: 1.5px solid var(--tx-4); transform: rotate(45deg) translate(-2px, -2px); transition: transform var(--dur-fast) var(--ease-out); }
+.doc-pm .doc-fold.closed::before { transform: rotate(-45deg) translate(-1px, 1px); }
+.doc-pm .doc-folded { display: none; }
+.doc-pm .doc-heading-closed::after { content: " …"; color: var(--tx-2); font-weight: var(--w-regular); }
+.doc-write .doc-editor { padding-left: 0; }
+
+/* FIND IN NOTE (wave 3): every match on a tint, the current one stronger. */
+.doc-pm .doc-match { background: var(--hl-amber-tint); border-radius: 2px; }
+.doc-pm .doc-match.current { background: var(--hl-amber); color: #000; }
+.doc-find { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: var(--s-2) 0; display: grid; gap: var(--s-2); border-bottom: 0.5px solid var(--divider); margin-bottom: var(--s-2); }
+.doc-find-row { display: flex; align-items: center; gap: var(--s-2); }
+.doc-find-row .input { flex: 1; min-width: 0; }
+.doc-find-n { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.doc-find-row .pill-act { flex-shrink: 0; }
+
+/* THE OUTLINE (wave 3): headings as rows, indented by level. */
+.doc-outline .row { min-height: 44px; }
+.doc-outline .lv-2 .conn-name { padding-left: 16px; }
+.doc-outline .lv-3 .conn-name { padding-left: 32px; }
+
+/* QUICK APPEND (wave 3): the third swipe slot on a note row, in the tint. */
+.task-snooze.note-append { right: 176px; background: var(--tint); color: #fff; }

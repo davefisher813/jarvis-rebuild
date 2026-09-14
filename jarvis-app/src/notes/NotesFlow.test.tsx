@@ -331,6 +331,33 @@ describe("NotesFlow: pending text survives leaving the tab (HMN-F-02)", () => {
   });
 });
 
+// QUICK APPEND (the writing system, wave 3): the swipe's Add puts lines on
+// the end of a note without opening it.
+describe("NotesFlow: quick append from the list", () => {
+  it("appends the typed lines to that note's document and says so", async () => {
+    svcRef = null;
+    const user = "u-append-w3";
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    const svc = svcRef!;
+    let id = "";
+    await act(async () => {
+      id = (await svc.createNote("Roster", ""))!;
+      await svc.addBlock(id, { type: "text", text: "First line" });
+    });
+    view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
+    fireEvent.click(await screen.findByLabelText("Add to this note", {}, { timeout: 4000 }));
+    const field = await screen.findByLabelText("Lines to add");
+    await act(async () => { field.querySelector("p")!.textContent = "Bring the forms"; });
+    await waitFor(() => expect(field.textContent).toContain("Bring the forms"));
+    fireEvent.click(screen.getByText("Add to Note"));
+    await waitFor(async () => {
+      const n = (await svc.note(id))!;
+      expect(n.blocks.map((b) => b.text)).toEqual(["First line", "Bring the forms"]);
+    }, { timeout: 4000 });
+  });
+});
+
 // HMN-F-19 (2026-09-05): the note deep link fired on a CHANGE of openId and
 // nothing ever cleared it, so opening note X from search, backing out to the
 // list and searching X again did nothing: the prop was still X.

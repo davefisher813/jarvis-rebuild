@@ -34,7 +34,8 @@ describe("the header", () => {
     expect(screen.getByText("Notes", { selector: "button" })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Note options"));
     const items = screen.getAllByRole("menuitem").map((b) => b.textContent?.trim());
-    expect(items).toEqual(["Connections", "Pin Note", "Tags", "Copy As", "Make Tasks from Checklist", "Archive", "Delete Note"]);
+    // The caret opens inside the first section, so the section actions are offered too.
+    expect(items).toEqual(["Connections", "Pin Note", "Tags", "Copy As", "Find in Note", "Outline", "Move Section Up", "Move Section Down", "Copy Section", "Make Tasks from Checklist", "Archive", "Delete Note"]);
     fireEvent.click(screen.getByText("Delete Note"));
     expect(onDeleteNote).toHaveBeenCalledTimes(1);
   });
@@ -124,6 +125,32 @@ describe("Copy", () => {
     fireEvent.click(screen.getByLabelText("Export Note"));
     expect(await screen.findByText("Export Note", { selector: ".eyebrow" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /PDF/ })).toBeInTheDocument();
+  });
+});
+
+describe("Find in Note and the Outline", () => {
+  it("counts the matches, steps, and replaces all in one go", async () => {
+    render(<NoteEditor {...base} />);
+    fireEvent.click(screen.getByLabelText("Note options"));
+    fireEvent.click(screen.getByText("Find in Note"));
+    const find = await screen.findByLabelText("Find");
+    fireEvent.change(find, { target: { value: "lease" } });
+    await waitFor(() => expect(screen.getByText("1 of 1")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Replace with"), { target: { value: "contract" } });
+    fireEvent.click(screen.getByText("Replace All"));
+    await waitFor(() => expect(screen.getByText("None")).toBeInTheDocument());
+    expect(document.querySelector(".doc-pm")!.textContent).toContain("Renew contract");
+    fireEvent.click(screen.getByLabelText("Close find"));
+    expect(screen.queryByLabelText("Find")).toBeNull();
+  });
+
+  it("the Outline lists the headings and a tap goes to one", async () => {
+    render(<NoteEditor {...base} />);
+    fireEvent.click(screen.getByLabelText("Note options"));
+    fireEvent.click(screen.getByText("Outline"));
+    const row = await screen.findByText("Agenda", { selector: ".doc-outline .conn-name" });
+    fireEvent.click(row);
+    await waitFor(() => expect(screen.queryByText("Agenda", { selector: ".doc-outline .conn-name" })).toBeNull());
   });
 });
 

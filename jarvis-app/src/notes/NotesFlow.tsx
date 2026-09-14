@@ -11,6 +11,7 @@ import type { Block, Connection, NoteData, TemplateKey } from "./types";
 import NotesList, { type NoteListItem } from "./screens/NotesList";
 import { noteBlockText } from "../search/search";
 import NoteEditor, { type EditorNote, type SaveState } from "./screens/NoteEditor";
+import QuickAppendSheet from "./screens/QuickAppendSheet";
 import { blocksToDoc, displayTitle, firstLineOf, type Doc } from "./docModel";
 import Templates from "./screens/Templates";
 import { usePushDepth } from "../shared/pushNav";
@@ -510,6 +511,18 @@ export default function NotesFlow({
 
   const attach = (type: "photo" | "file") => { if (currentId && fileStore) pickInto(currentId, type); };
 
+  // QUICK APPEND (wave 3): the swipe's Add opens a small sheet; Done puts
+  // the lines on the end of that note's document.
+  const [appending, setAppending] = useState<string | null>(null);
+  const runAppend = async (id: string, nodes: import("@tiptap/core").JSONContent[]) => {
+    setAppending(null);
+    if (nodes.length === 0) return;
+    const ok = await attemptWrite(() => svc.appendToDoc(id, nodes));
+    if (!ok) return;
+    await loadList();
+    const name = list.find((n) => n.id === id)?.title ?? "the note";
+    showToast({ message: "Added to " + name });
+  };
   // The swipe's File: an area, or "" to unfile. Closes on the pick.
   const [filing, setFiling] = useState<string | null>(null);
   const fileUnder = async (id: string, category: string) => {
@@ -766,7 +779,11 @@ export default function NotesFlow({
         onDeleteMany={onDeleteManyNotes}
         onDelete={(id) => void onDeleteManyNotes([id])}
         onFile={(id) => setFiling(id)}
+        onAppend={(id) => setAppending(id)}
       />
+      {appending && (
+        <QuickAppendSheet title={list.find((n) => n.id === appending)?.title ?? "Note"} onDone={(nodes) => void runAppend(appending, nodes)} onCancel={() => setAppending(null)} />
+      )}
       {picker.input}
       {/* FILE UNDER (the swipe's File, 2026-09-02): the areas as rows with
           their dots, Not Filed to clear. One tap files and closes. */}

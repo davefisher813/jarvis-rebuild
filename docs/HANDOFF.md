@@ -1,6 +1,6 @@
 # Session handoff, 14 Sep 2026
 
-**Remote main is the writing system's second wave (copy, clean paste, export) on top of its first on top of Cowork's Exercises and Today patch, the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
+**Remote main is the writing system's wave 3a (folding, outline, find and replace, sections, quick append) on top of its first two on top of Cowork's Exercises and Today patch, the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
 
 ## What shipped this session
 
@@ -60,7 +60,19 @@ Section 12's second step, one push.
 - **Stated limits:** the PDF's built-in fonts carry accented Latin text but no other scripts and no emoji (the sheet says so and points at Word); the Word file's photo sizes are read from the image and default to 400 by 300 when they cannot be; the Tracker table's sum row is not computed in exports.
 - **Tested in automation, not on a device:** the four files' bytes and contents, the sheet's defaults, memory, cancel and failure paths, the paste hint's three actions, the copy paths and the clipboard fallback. The iOS share sheet's handling of a file, and where a shared file lands, were not verified.
 
-Waves 3 and 4 (folding, outline, find, version history and the other surfaces; the AI actions) and the ink ruling follow, each its own push.
+## The writing system, wave 3a (folding, outline, find and replace, sections, quick append)
+
+The first half of section 12's third step, one push.
+
+- **Folding** (`shared/docExtensions.ts`): a chevron before every heading closes the section under it, up to the next heading of the same or a higher level. Folded is interface state in the plugin, mapped through every edit; the document never carries it, so an export or a copy sees every word and another device opens the note unfolded.
+- **Outline** (More > Outline): every heading as a row, indented by level; a tap puts the caret there.
+- **Find in Note** (More > Find in Note): a bar under the title with the query, the count as "2 of 7", previous and next, and a replacement with Replace and Replace All. Every match is on a tint in the document, the current one stronger. Replace All is one transaction and one Undo.
+- **Sections** (More, when the caret sits in a headed section): Move Section Up, Move Section Down (one transaction each), Copy Section. **Group Under Heading** on the writing bar's Format menu puts a new heading above the selected blocks, ready to type.
+- **Quick append** (`notes/screens/QuickAppendSheet.tsx`): the note row's swipe has a third slot, Add, in the tint; it opens the quick level of the shared editor in a sheet and Add to Note puts the lines on the end of that note's document through the same save as typing. The reveal is in ruled.css's rest-hidden roster.
+- **Clear formatting** was already on the Format menu (wave 1). Slash commands are not built: the Insert button is the discoverable door the brief asks for, and a "/" menu would be a second one to keep in step.
+- **Tested in automation, not on a device:** fold and unfold with the words intact and the export unchanged, a fold surviving typing above it, the outline, section moves with one undo, grouping, find counts and stepping, replace one and all with one undo, the quick append reaching the store.
+
+Wave 3b (version history, recently deleted notes, the shared editor on Brain documents, Decisions, email, task notes and workout notes), wave 4 (the AI actions) and the ink ruling follow, each its own push.
 
 ## How Cowork work lands
 

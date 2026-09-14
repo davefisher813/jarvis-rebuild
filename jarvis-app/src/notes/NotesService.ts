@@ -183,6 +183,19 @@ export class NotesService {
     return true;
   }
 
+  // QUICK APPEND (wave 3): new blocks on the end of a note's document,
+  // through the same save as typing. A trailing empty line is taken first.
+  async appendToDoc(id: string, nodes: import("@tiptap/core").JSONContent[]): Promise<boolean> {
+    const note = await this.getNote(id);
+    if (!note) return false;
+    const { blocksToDoc } = await import("./docModel");
+    const doc = note.doc ?? blocksToDoc(note.blocks);
+    const content = [...(doc.content ?? [])];
+    const last = content[content.length - 1];
+    if (last && last.type === "paragraph" && !last.content) content.pop();
+    return this.setDoc(id, { ...doc, content: [...content, ...nodes] });
+  }
+
   async moveBlock(id: string, from: number, to: number): Promise<boolean> {
     const note = await this.getNote(id);
     if (!note) return false;

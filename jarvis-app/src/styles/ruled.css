@@ -89,6 +89,8 @@
 .ruled .card .task-swipe > .mail-arch, .ruled .card .task-swipe > .mail-letgo,
 /* E-28 (2026-09-12): the Needs You row's Later, third slot of the reveal. */
 .ruled .card .task-swipe > .mail-later,
+/* The writing system, wave 3: the note row's Add, third slot of its reveal. */
+.ruled .card .task-swipe > .note-append,
 .ruled .card .notice-swipe > .notice-dismiss, .ruled .card .notice-swipe > .notice-alt, .ruled .card .notice-swipe > .notice-delete,
 .ruled .card .sched-strip > .sched-actions { visibility: hidden; }
 .ruled .card .task-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,

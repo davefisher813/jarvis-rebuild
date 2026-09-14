@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share } from "../../shared/icons";
+import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share, Search, AlignLeft, ArrowUp, ArrowDown } from "../../shared/icons";
 import type { FoundCandidate } from "../types";
 import { catColor } from "../../shared/categories";
 import InlineEdit from "../../shared/InlineEdit";
@@ -112,6 +112,62 @@ function CopyFallback({ text, onClose }: { text: string; onClose: () => void }) 
 
 type CopyKind = "full" | "body" | "plain" | "markdown";
 
+// THE OUTLINE (wave 3): every heading as a row, indented by level; a tap
+// puts the caret there.
+function OutlineSheet({ items, onPick, onClose }: { items: { pos: number; level: number; text: string }[]; onPick: (pos: number) => void; onClose: () => void }) {
+  return createPortal(
+    <div className="sheet-scrim" onClick={onClose}>
+      <div className="card doc-outline" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="grp"><div className="eyebrow">Outline</div></div>
+        <div className="list-card-ruled">
+          {items.length === 0 && <div className="row"><div className="row-grow"><div className="conn-name">No Headings Yet</div></div></div>}
+          {items.map((h) => (
+            <div className={"row lv-" + h.level} key={h.pos} role="button" tabIndex={0} onClick={() => { onClose(); onPick(h.pos); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClose(); onPick(h.pos); } }}>
+              <div className="row-grow"><div className="conn-name">{h.text || "Untitled Heading"}</div></div>
+              <div className="chev" />
+            </div>
+          ))}
+        </div>
+        <div className="pad-x sheet-actions"><button type="button" className="btn btn-secondary btn-block" onClick={onClose}>Done</button></div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// FIND IN NOTE (wave 3): a query, the count, next and previous, and a
+// replacement with Replace and Replace All. Every match is on a tint in the
+// document; Replace All is one Undo.
+function FindBar({ editor, onClose }: { editor: DocEditorHandle | null; onClose: () => void }) {
+  const [query, setQuery] = useState("");
+  const [repl, setRepl] = useState("");
+  const [, setTick] = useState(0);
+  const bump = () => setTick((t) => t + 1);
+  const s = editor?.search() ?? { query: "", matches: [], index: 0 };
+  const count = s.matches.length;
+  useEffect(() => { editor?.setSearch(query); bump(); }, [query, editor]);
+  useEffect(() => () => { editor?.setSearch(""); }, [editor]);
+  return (
+    <div className="doc-find" role="search" aria-label="Find in note">
+      <div className="doc-find-row">
+        <input className="input" aria-label="Find" placeholder="Find" value={query} autoFocus onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); editor?.stepSearch(e.shiftKey ? -1 : 1); bump(); } }} />
+        <span className="doc-find-n" aria-live="polite">{query ? (count === 0 ? "None" : (s.index + 1) + " of " + count) : ""}</span>
+        <button type="button" className="pill-act pill-quiet" aria-label="Previous match" disabled={count === 0} onClick={() => { editor?.stepSearch(-1); bump(); }}><ArrowUp className="ic" /></button>
+        <button type="button" className="pill-act pill-quiet" aria-label="Next match" disabled={count === 0} onClick={() => { editor?.stepSearch(1); bump(); }}><ArrowDown className="ic" /></button>
+        <button type="button" className="pill-act pill-quiet" aria-label="Close find" onClick={onClose}><X className="ic" /></button>
+      </div>
+      <div className="doc-find-row">
+        <input className="input" aria-label="Replace with" placeholder="Replace With" value={repl} onChange={(e) => setRepl(e.target.value)} />
+        <button type="button" className="pill-act pill-quiet" disabled={count === 0} onClick={() => { editor?.replaceCurrent(repl); bump(); }}>Replace</button>
+        <button type="button" className="pill-act pill-quiet" disabled={count === 0} onClick={() => { const n = editor?.replaceAll(repl) ?? 0; bump(); if (n) showToast({ message: capAfterNumber(n === 1 ? "1 replaced" : n + " replaced") }); }}>Replace All</button>
+      </div>
+    </div>
+  );
+}
+
 export default function NoteEditor({
   note,
   fileStore,
@@ -182,6 +238,9 @@ export default function NoteEditor({
   const [copyAsOpen, setCopyAsOpen] = useState(false);
   const [fallback, setFallback] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState<{ doc: Doc; selection: boolean; images: ExportImage[]; names: string[] } | null>(null);
+  const [findOpen, setFindOpen] = useState(false);
+  const [outline, setOutline] = useState<{ pos: number; level: number; text: string }[] | null>(null);
+  const [inSection, setInSection] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const editorRef = useRef<DocEditorHandle>(null);
   const foundLive = (found ?? []).map((c, i) => ({ c, i })).filter(({ c }) => !c.added);
@@ -228,7 +287,14 @@ export default function NoteEditor({
 
   const openMenu = () => {
     setHasSelection(!!editorRef.current?.getSelectionDoc());
+    setInSection(!!editorRef.current?.inSection());
     setMenuOpen((o) => !o);
+  };
+  const copySection = async () => {
+    const doc = editorRef.current?.sectionDoc();
+    if (!doc) return;
+    const text = docToPlainText(doc, { includeTitle: false });
+    try { await copyText(text); showToast({ message: "Section copied" }); } catch { setFallback(text); }
   };
 
   const saveLine =
@@ -267,6 +333,15 @@ export default function NoteEditor({
                   <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); onTags(); }}><Tag className="ic" /> Tags</button>
                 )}
                 <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setCopyAsOpen(true); }}><Copy className="ic" /> Copy As</button>
+                <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setFindOpen(true); }}><Search className="ic" /> Find in Note</button>
+                <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setOutline(editorRef.current?.outline() ?? []); }}><AlignLeft className="ic" /> Outline</button>
+                {inSection && (
+                  <>
+                    <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); editorRef.current?.moveSection(-1); }}><ArrowUp className="ic" /> Move Section Up</button>
+                    <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); editorRef.current?.moveSection(1); }}><ArrowDown className="ic" /> Move Section Down</button>
+                    <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); void copySection(); }}><Copy className="ic" /> Copy Section</button>
+                  </>
+                )}
                 {hasSelection && (
                   <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); void prepareExport(true); }}><Share className="ic" /> Export Selection</button>
                 )}
@@ -293,6 +368,7 @@ export default function NoteEditor({
           </div>
         )}
         <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Title" onSave={onEditTitle} />
+        {findOpen && <FindBar editor={editorRef.current} onClose={() => setFindOpen(false)} />}
         <DocEditor
           ref={editorRef}
           doc={note.doc}
@@ -425,6 +501,7 @@ export default function NoteEditor({
         />
       )}
       {fallback !== null && <CopyFallback text={fallback} onClose={() => setFallback(null)} />}
+      {outline && <OutlineSheet items={outline} onPick={(pos) => editorRef.current?.goTo(pos)} onClose={() => setOutline(null)} />}
       {exportOpen && (
         <ExportSheet doc={exportOpen.doc} title={title} selection={exportOpen.selection} images={exportOpen.images} attachmentNames={exportOpen.names} onClose={() => setExportOpen(null)} />
       )}

@@ -1,6 +1,6 @@
 import { Fragment, useState, type ReactNode } from "react";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
-import { Check, FileText, Paperclip, PenLine, Search, Tag, Trash2 } from "../../shared/icons";
+import { Check, FileText, Paperclip, PenLine, Search, Tag, Trash2, Plus } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
@@ -50,12 +50,20 @@ const sameFilter = (a: Filter, b: Filter) => JSON.stringify(a) === JSON.stringif
 // Undo, the flow's own). Off in select mode, where a half-swiped row under
 // a selection is two gestures fighting.
 type RowDrag = { dragging: boolean; style?: React.CSSProperties; handlers?: SwipeState["handlers"] };
-function NoteSwipeRow({ enabled, onFile, onDelete, children }: {
-  enabled: boolean; onFile?: () => void; onDelete?: () => void; children: (drag: RowDrag) => ReactNode;
+function NoteSwipeRow({ enabled, onFile, onAppend, onDelete, children }: {
+  enabled: boolean; onFile?: () => void; onAppend?: () => void; onDelete?: () => void; children: (drag: RowDrag) => ReactNode;
 }) {
-  const swipe = useSwipe({ revealW: onFile ? 176 : 88, enabled });
+  const swipe = useSwipe({ revealW: 88 * (1 + (onFile ? 1 : 0) + (onAppend ? 1 : 0)), enabled });
   return (
     <div className="task-swipe">
+      {/* QUICK APPEND (the writing system, wave 3): a line onto a note
+          without opening it, from the same swipe File and Delete live on. */}
+      {onAppend && (
+        <button className="task-snooze note-append" onClick={() => swipe.closeThen(onAppend)} aria-label="Add to this note">
+          <Plus className="ic" />
+          <span className="swipe-label">Add</span>
+        </button>
+      )}
       {onFile && (
         <button className="task-snooze" onClick={() => swipe.closeThen(onFile)} aria-label="File under an area">
           <Tag className="ic" />
@@ -115,6 +123,7 @@ export default function NotesList({
   uploading = false,
   onDeleteMany,
   onFile,
+  onAppend,
   onDelete,
 }: {
   notes: NoteListItem[];
@@ -127,6 +136,7 @@ export default function NotesList({
   onDeleteMany?: (ids: string[]) => void;
   // The swipe's two moves (2026-09-02): file under an area, delete one.
   onFile?: (id: string) => void;
+  onAppend?: (id: string) => void;
   onDelete?: (id: string) => void;
 }) {
   const [q, setQ] = useState("");
@@ -237,7 +247,7 @@ export default function NotesList({
       </div>
     );
     return onDelete ? (
-      <NoteSwipeRow key={n.id} enabled={!sel.active} onFile={onFile ? () => onFile(n.id) : undefined} onDelete={() => onDelete(n.id)}>
+      <NoteSwipeRow key={n.id} enabled={!sel.active} onFile={onFile ? () => onFile(n.id) : undefined} onAppend={onAppend ? () => onAppend(n.id) : undefined} onDelete={() => onDelete(n.id)}>
         {body}
       </NoteSwipeRow>
     ) : <Fragment key={n.id}>{body({ dragging: false })}</Fragment>;

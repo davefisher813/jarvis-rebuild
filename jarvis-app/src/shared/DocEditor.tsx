@@ -39,6 +39,7 @@ import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { looksLikeMarkdown, parseMarkdown, textToParagraphs } from "../notes/markdown";
+import { Folding, Search, outlineOf, moveSection, sectionDoc, sectionAt, groupUnderHeading, searchState, setSearch, stepSearch, replaceCurrent, replaceAll, unfoldAll, type SearchState } from "./docExtensions";
 import { Undo2, Redo2, Bold, Italic, Strikethrough, Highlighter, Heading1, Type, List as ListIcon, ListChecks, ListOrdered, Quote, Code, Minus, Table as TableIcon, Lightbulb, Image, Paperclip, Link2, IndentIncrease, IndentDecrease, Eraser } from "./icons";
 
 export type Doc = JSONContent;
@@ -53,6 +54,23 @@ export interface DocEditorHandle {
   /** The selected part of the document as a document of its own, or null
    *  when nothing is selected. */
   getSelectionDoc: () => Doc | null;
+  /** Every heading with its position, for an outline. */
+  outline: () => { pos: number; level: number; text: string }[];
+  /** Put the caret at a document position and scroll it into view. */
+  goTo: (pos: number) => void;
+  /** Whether the caret sits inside a headed section. */
+  inSection: () => boolean;
+  moveSection: (dir: -1 | 1) => boolean;
+  /** The caret's section as a document of its own, for Copy Section. */
+  sectionDoc: () => Doc | null;
+  groupUnderHeading: () => boolean;
+  /** Find in note: the query, the matches, and the current one. */
+  search: () => SearchState;
+  setSearch: (query: string) => void;
+  stepSearch: (dir: -1 | 1) => void;
+  replaceCurrent: (replacement: string) => boolean;
+  replaceAll: (replacement: string) => number;
+  unfoldAll: () => void;
 }
 
 // A callout is a paragraph that wants noticing: the old callout block, as a
@@ -163,6 +181,7 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
       TableHeader,
       TableCell,
       Placeholder.configure({ placeholder }),
+      ...(level === "document" ? [Folding, Search] : []),
     ],
     content: doc,
     autofocus: autofocus ? "end" : false,
@@ -197,6 +216,18 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
       const content = editor.state.selection.content().content.toJSON() as JSONContent[] | null;
       return content && content.length ? { type: "doc", content } : null;
     },
+    outline: () => (editor ? outlineOf(editor.state.doc) : []),
+    goTo: (pos) => { if (editor) editor.chain().focus().setTextSelection(Math.min(pos + 1, editor.state.doc.content.size)).scrollIntoView().run(); },
+    inSection: () => !!(editor && sectionAt(editor.state)),
+    moveSection: (dir) => (editor ? moveSection(editor, dir) : false),
+    sectionDoc: () => (editor ? (sectionDoc(editor) as Doc | null) : null),
+    groupUnderHeading: () => (editor ? groupUnderHeading(editor) : false),
+    search: () => (editor ? searchState(editor) : { query: "", matches: [], index: 0 }),
+    setSearch: (q) => { if (editor) setSearch(editor, q); },
+    stepSearch: (dir) => { if (editor) stepSearch(editor, dir); },
+    replaceCurrent: (r) => (editor ? replaceCurrent(editor, r) : false),
+    replaceAll: (r) => (editor ? replaceAll(editor, r) : 0),
+    unfoldAll: () => { if (editor) unfoldAll(editor); },
   }), [editor]);
 
   // A new document replaces the content outright. The same document coming
@@ -261,6 +292,7 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
             else ed.chain().focus().extendMarkRange("link").setLink({ href: href.trim() }).run();
           })}><Link2 className="ic" /> Link</button>
           <button type="button" className="chip" onClick={run((ed) => ed.chain().focus().unsetAllMarks().clearNodes().run())}><Eraser className="ic" /> Clear Formatting</button>
+          {level === "document" && <button type="button" className="chip" onClick={run((ed) => { groupUnderHeading(ed); })}><Heading1 className="ic" /> Group Under Heading</button>}
         </div>
       )}
       {menu === "list" && (
