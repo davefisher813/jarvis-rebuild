@@ -41,6 +41,9 @@ const EXEMPT_FILES = new Set([
   // C-20 (Astra, 2026-09-12): the JARVIS Found system prompt, model
   // instructions in the same class as every prompt above.
   "notes/jarvisFound.ts",
+  // Part 3 wave 3 (2026-09-13): the Insights explain prompt, model
+  // instructions again; its one UI string is on InsightEvidence.tsx.
+  "brain/explainInsight.ts",
   "messages/triage.ts",
   "messages/deck.ts",
   "messages/waiting.ts",

@@ -33,10 +33,50 @@ export const INSIGHT_MIN_PAIRED = 10;
  *  that are nine highs and one low says nothing about the low side. */
 export const INSIGHT_MIN_GROUP = 3;
 
+// THE EVIDENCE BEHIND A FINDING (Part 3 wave 3, 2026-09-13; Dave's answers
+// 11a and 12a). Every finding this file produces now carries its own
+// receipt: what kind of finding it is, the dates it read, how many records,
+// how the number was made, what it shows and does not show, and the minimum
+// it had to clear. Nothing new is computed; the derivation that already made
+// the number writes down what it did. And every minimum in this file is a
+// named constant with its reason beside it, so none of them is a threshold
+// anyone has to take on faith, and nothing short of one is ever a guess.
+export type FindingLabel = "Observation" | "Exploratory Pattern" | "Program Comparison";
+
+export interface Minimum { name: string; value: number; reason: string }
+
+export const MINIMUMS = {
+  pairedSessions: { name: "Paired sessions", value: INSIGHT_MIN_PAIRED, reason: "fewer than ten same-day pairs is noise dressed as a pattern" } as Minimum,
+  groupSide: { name: "Sessions on each side", value: INSIGHT_MIN_GROUP, reason: "a split with one or two days on a side says nothing about that side" } as Minimum,
+  plateauSessions: { name: "Sessions without a new best", value: 6, reason: "a short flat stretch is an ordinary week, not a plateau" } as Minimum,
+  backOffShare: { name: "Share of marked sets that ground or missed", value: 0.4, reason: "under that, a hard set is a hard set and not a trend" } as Minimum,
+};
+
+export interface Evidence {
+  label: FindingLabel;
+  from: string; // local ISO day
+  to: string;
+  records: number;
+  method: string;
+  supports: string;
+  doesNot: string;
+  minimum?: Minimum;
+}
+
+/** How close a metric and a lift are to the paired-session minimum, for the
+ *  honest "not enough days yet" line. Null once the minimum is met (the card
+ *  itself speaks then) or when there is nothing paired at all. */
+export function correlationProgress(sessions: LiftSession[], kind: MeasureKind, def: MetricDef, logs: MetricLog[]): { paired: number; needed: number } | null {
+  const paired = pairedDeltas(sessions, kind, logs, def).length;
+  if (paired === 0 || paired >= INSIGHT_MIN_PAIRED) return null;
+  return { paired, needed: INSIGHT_MIN_PAIRED };
+}
+
 export interface CorrelationInsight {
   metricName: string;
   exerciseName: string;
   pairedSessions: number;
+  evidence: Evidence;
   /** Mean session-over-session change on the higher side minus the lower
    *  side -- signed, in the chart's own units (e1RM, or the kind's score). */
   deltaDiff: number;
@@ -103,7 +143,17 @@ export function correlate(sessions: LiftSession[], kind: MeasureKind, exerciseNa
   const line = capAfterNumber(
     `${sign}${round1(deltaDiff)} per session on ${higherLabel} days vs ${lowerLabel} · ${pairs.length} paired · Correlation, not cause`,
   );
-  return { metricName: def.data.name, exerciseName, pairedSessions: pairs.length, deltaDiff, higherLabel, lowerLabel, line };
+  const evidence: Evidence = {
+    label: "Exploratory Pattern",
+    from: sessions[1]?.date ?? sessions[0]!.date,
+    to: sessions[sessions.length - 1]!.date,
+    records: pairs.length,
+    method: `Change in ${exerciseName} from one session to the next, paired with ${def.data.name} logged the same day, split at your own median`,
+    supports: `A difference in how ${exerciseName} moved on ${higherLabel} days against ${lowerLabel} days`,
+    doesNot: "Cause, or what to change",
+    minimum: MINIMUMS.pairedSessions,
+  };
+  return { metricName: def.data.name, exerciseName, pairedSessions: pairs.length, deltaDiff, higherLabel, lowerLabel, line, evidence };
 }
 
 function round1(n: number): number {
@@ -113,8 +163,8 @@ function round1(n: number): number {
 // --- D13-A/C: PLATEAU FLAGS -------------------------------------------------
 
 /** Flat means no new best across this many sessions or more (tunable, per
- *  the build notes). */
-export const PLATEAU_MIN_SESSIONS = 6;
+ *  the build notes). The reason sits in MINIMUMS.plateauSessions. */
+export const PLATEAU_MIN_SESSIONS = MINIMUMS.plateauSessions.value;
 
 export interface WhatChangedRow { label: string; flat: number; moving: number; unit?: string }
 
@@ -124,6 +174,7 @@ export interface PlateauFlag {
   peakValue: number;
   currentValue: number;
   whatChanged: WhatChangedRow[];
+  evidence: Evidence;
 }
 
 /** Working sets logged for this exercise on this date (warmups and skipped
@@ -212,12 +263,37 @@ export function plateauFlag(
     peakValue: peakVal,
     currentValue: chartValue(sessions[sessions.length - 1]!),
     whatChanged,
+    evidence: {
+      label: "Observation",
+      from: sessions[movingStart]!.date,
+      to: sessions[sessions.length - 1]!.date,
+      records: sessions.length - movingStart,
+      method: `The best session, then every session since with no new best, set against the equal stretch before the best`,
+      supports: "That the number has not moved, and what else differed between the two stretches",
+      doesNot: "Why, or what to change",
+      minimum: MINIMUMS.plateauSessions,
+    },
   };
 }
 
 // --- D13-C: PUBLISHED HARD-SET RANGE ---------------------------------------
 
 export interface HardSetRow { muscle: MuscleGroup; sets: number; range: PublishedRange }
+
+/** The Weekly Volume card's receipt: one for the card, since every row is
+ *  the same seven-day count against the same band. */
+export function hardSetEvidence(rows: HardSetRow[], now: number = Date.now(), band?: PublishedRange): Evidence {
+  const day = (ms: number) => { const d = new Date(ms); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  return {
+    label: "Program Comparison",
+    from: day(now - 6 * 86400000),
+    to: day(now),
+    records: rows.reduce((n, r) => n + r.sets, 0),
+    method: "Working sets in the last 7 days per muscle, warm-ups and drops left out, against the band",
+    supports: "Where each muscle's weekly sets sit against " + (band ? "your own band" : "the studied range"),
+    doesNot: "Whether that is right for you this week",
+  };
+}
 
 /** Program exercise name -> muscle, built once per render from the CURRENT
  *  program (muscleGroup is a program fact, catalog D13-C -- see
@@ -268,11 +344,16 @@ export function hardSetRows(workouts: Workout[], muscleByExercise: Map<string, M
 
 // --- D13-C: THE OFFER, NEVER A PRESCRIPTION --------------------------------
 
-export interface BackOffSignal { grindsAndMisses: number; total: number }
+export interface BackOffSignal { grindsAndMisses: number; total: number; evidence: Evidence }
 
 /** How-it-moved marks (catalog §4.5) in the trailing window, counted only
  *  from sets the athlete actually marked -- an unmarked set says nothing, so
  *  it is excluded rather than assumed clean. */
+function dayOf(ms: number): string {
+  const d = new Date(ms);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
 export function backOffSignal(workouts: Workout[], now: number = Date.now(), days = 14): BackOffSignal | null {
   let bad = 0, total = 0;
   for (const w of workouts) {
@@ -289,12 +370,22 @@ export function backOffSignal(workouts: Workout[], now: number = Date.now(), day
     }
   }
   if (total < 6) return null; // too few marked sets to say anything at all
-  return { grindsAndMisses: bad, total };
+  return {
+    evidence: {
+      label: "Observation",
+      from: dayOf(now - days * 86400000),
+      to: dayOf(now),
+      records: total,
+      method: `Marked working sets in the last ${days} days, counting the ones marked a grind or a miss`,
+      supports: "How many recent hard sets were marked hard",
+      doesNot: "Fatigue, illness or anything else about how you are; only what you marked",
+      minimum: MINIMUMS.backOffShare,
+    }, grindsAndMisses: bad, total };
 }
 
 /** The share of marked sets that were a grind or a miss before the app will
  *  even OFFER a lighter week -- never a prescription, never automatic. */
-export const BACK_OFF_OFFER_RATIO = 0.4;
+export const BACK_OFF_OFFER_RATIO = MINIMUMS.backOffShare.value;
 
 export function shouldOfferLighterWeek(sig: BackOffSignal | null): boolean {
   return !!sig && sig.grindsAndMisses / sig.total >= BACK_OFF_OFFER_RATIO;

@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   correlate, INSIGHT_MIN_PAIRED, plateauFlag, PLATEAU_MIN_SESSIONS,
-  hardSetRows, muscleMapFromProgram, backOffSignal, shouldOfferLighterWeek, BACK_OFF_OFFER_RATIO,
-} from "./insights";
+  hardSetRows, muscleMapFromProgram, backOffSignal, shouldOfferLighterWeek, BACK_OFF_OFFER_RATIO, correlationProgress, hardSetEvidence, MINIMUMS, INSIGHT_MIN_GROUP } from "./insights";
 import { liftSessions } from "./chartData";
 import type { Workout, SetEntry, WorkoutExercise, Program } from "./types";
 import type { MetricDef, MetricLog } from "./metrics";
@@ -179,5 +178,75 @@ describe("backOffSignal / shouldOfferLighterWeek", () => {
       return w;
     });
     expect(shouldOfferLighterWeek(backOffSignal(h, now))).toBe(false);
+  });
+});
+
+// Part 3 wave 3 (2026-09-13): every finding carries its evidence, and every
+// minimum its reason.
+describe("evidence and minimums", () => {
+  it("every minimum is a named constant with a reason, and the constants read from it", () => {
+    for (const [k, v] of Object.entries(MINIMUMS)) {
+      expect(v.name, k).toBeTruthy();
+      expect(v.reason.length, k).toBeGreaterThan(20);
+    }
+    expect(MINIMUMS.pairedSessions.value).toBe(INSIGHT_MIN_PAIRED);
+    expect(MINIMUMS.groupSide.value).toBe(INSIGHT_MIN_GROUP);
+    expect(MINIMUMS.plateauSessions.value).toBe(PLATEAU_MIN_SESSIONS);
+    expect(MINIMUMS.backOffShare.value).toBe(BACK_OFF_OFFER_RATIO);
+  });
+
+  it("a correlation is an Exploratory Pattern that names its pairs, its method and what it does not show", () => {
+    // Same shape as the passing fixture above: distinct metric values, so the
+    // median splits the sample (two values only would put the median on one).
+    const deltas = [10, 2, 10, 2, 10, 2, 10, 2, 10, 2, 10];
+    const sleeps = [9, 4, 8.5, 4.5, 8, 5, 7.5, 5.5, 7, 6, 6.5];
+    let r = 100;
+    const h: Workout[] = [pushups(0, r)];
+    const logs: MetricLog[] = [];
+    deltas.forEach((d, idx) => { r += d; h.push(pushups(idx + 1, r)); logs.push(metricLog("m1", day(idx + 1), sleeps[idx]!)); });
+    const def = metricDef("m1");
+    const c = correlate(liftSessions(h, "Pushups", "reps"), "reps", "Pushups", def, logs)!;
+    expect(c).not.toBeNull();
+    expect(c.evidence.label).toBe("Exploratory Pattern");
+    expect(c.evidence.records).toBe(c.pairedSessions);
+    expect(c.evidence.from).toBe(day(1));
+    expect(c.evidence.to).toBe(day(11));
+    expect(c.evidence.method).toMatch(/median/);
+    expect(c.evidence.doesNot).toMatch(/Cause/);
+    expect(c.evidence.minimum).toBe(MINIMUMS.pairedSessions);
+  });
+
+  it("short of the minimum, correlationProgress says how close; at it or with nothing paired, nothing", () => {
+    const def = metricDef("m1");
+    const h4 = Array.from({ length: 5 }, (_, i) => pushups(i, 100 + i));
+    const logs4 = h4.map((w) => metricLog("m1", w.data.date, 7));
+    expect(correlationProgress(liftSessions(h4, "Pushups", "reps"), "reps", def, logs4)).toEqual({ paired: 4, needed: INSIGHT_MIN_PAIRED });
+    expect(correlationProgress(liftSessions(h4, "Pushups", "reps"), "reps", def, [])).toBeNull();
+    const h12 = Array.from({ length: 12 }, (_, i) => pushups(i, 100 + i));
+    const logs12 = h12.map((w) => metricLog("m1", w.data.date, 7));
+    expect(correlationProgress(liftSessions(h12, "Pushups", "reps"), "reps", def, logs12)).toBeNull();
+  });
+
+  it("a plateau is an Observation over the two stretches it compared", () => {
+    const h = [pushups(0, 100), pushups(1, 110), pushups(2, 120), ...Array.from({ length: PLATEAU_MIN_SESSIONS }, (_, i) => pushups(3 + i, 115))];
+    const p = plateauFlag(liftSessions(h, "Pushups", "reps"), "reps", { name: "Pushups" }, h)!;
+    expect(p).not.toBeNull();
+    expect(p.evidence.label).toBe("Observation");
+    expect(p.evidence.to).toBe(day(2 + PLATEAU_MIN_SESSIONS));
+    expect(p.evidence.records).toBeGreaterThanOrEqual(PLATEAU_MIN_SESSIONS + 1);
+    expect(p.evidence.minimum).toBe(MINIMUMS.plateauSessions);
+  });
+
+  it("the weekly volume card is a Program Comparison over seven days that counts its sets", () => {
+    const rows = [{ muscle: "chest" as const, sets: 9, range: { low: 10, high: 20, note: "", source: "" } }, { muscle: "back" as const, sets: 12, range: { low: 10, high: 20, note: "", source: "" } }];
+    const now = new Date("2026-09-13T12:00:00").getTime();
+    const ev = hardSetEvidence(rows, now);
+    expect(ev.label).toBe("Program Comparison");
+    expect(ev.records).toBe(21);
+    expect(ev.from).toBe("2026-09-07");
+    expect(ev.to).toBe("2026-09-13");
+    expect(ev.method).toMatch(/drops left out/);
+    expect(ev.supports).toMatch(/studied range/);
+    expect(hardSetEvidence(rows, now, rows[0]!.range).supports).toMatch(/your own band/);
   });
 });

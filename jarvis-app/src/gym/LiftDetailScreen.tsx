@@ -13,6 +13,7 @@ import { capAfterNumber } from "../shared/casing";
 import { agoPhrase, agoPhraseLower } from "./summary";
 import { todayISO } from "../tasks/grouping";
 import { shortDate } from "../shared/dateFormat";
+import InsightEvidence from "../brain/InsightEvidence";
 
 const CHEV = <div className="chev" />;
 
@@ -307,6 +308,7 @@ export default function LiftDetailScreen({
                   </div>
                 ))}
                 <div className="row"><div className="row-grow"><div className="conn-meta">Correlation, not cause</div></div></div>
+                <div className="row"><div className="row-grow"><InsightEvidence evidence={plateau.evidence} /></div></div>
               </div></div>
             </>
           )}

@@ -90,10 +90,12 @@ import { newMetricDefData, activeMetrics, pulsePlan, logOn } from "../gym/metric
 import { readLive, isStillActive, readPending as readGymPending } from "../gym/liveSession";
 import { readPending as readHealthPending } from "../health/offlineQueue";
 import { chronologicalLog, type LogOpen } from "../health/log";
+import InsightEvidence from "./InsightEvidence";
+import { explainEvidence } from "./explainInsight";
 import { readHealthSettings } from "../health/settings";
 import HealthSettingsPage from "../settings/HealthSettingsPage";
 import { chartableExercises, liftSessions } from "../gym/chartData";
-import { correlate, plateauFlag, hardSetRows, muscleMapFromProgram, backOffSignal, shouldOfferLighterWeek } from "../gym/insights";
+import { correlate, plateauFlag, hardSetRows, muscleMapFromProgram, backOffSignal, shouldOfferLighterWeek, correlationProgress, hardSetEvidence } from "../gym/insights";
 import { MUSCLE_LABEL } from "../gym/muscles";
 import { pressable } from "../shared/pressable";
 import { madeBy, type Source } from "../shared/provenance";
@@ -1047,6 +1049,18 @@ export default function CategoryDetail({
   const backOff = kind === "health" ? backOffSignal(workouts, nowMs) : null;
   const offerLighter = kind === "health" && shouldOfferLighterWeek(backOff);
   const hasInsights = plateaus.length > 0 || correlations.length > 0 || rangeRows.length > 0 || offerLighter;
+  // Part 3 wave 3 (Dave 12a): short of the minimum the page says so instead
+  // of guessing. The pair closest to the line is the one line shown.
+  const nearest = kind === "health" && hasInsights
+    ? chartableExercises(workouts).flatMap((ex) => {
+        const sessions = liftSessions(workouts, ex, ex.kind);
+        return activeDefs.map((def) => ({ ex: ex.name, def: def.data.name, p: correlationProgress(sessions, ex.kind, def, metricLogs) }));
+      }).filter((x): x is { ex: string; def: string; p: { paired: number; needed: number } } => x.p != null)
+        .sort((a, b) => b.p.paired - a.p.paired)[0] ?? null
+    : null;
+  // The AI foundation (Dave 11a): only when there is an AI, and it is handed
+  // nothing but the evidence rows.
+  const explain = ai.available ? (ev: Parameters<typeof explainEvidence>[1]) => explainEvidence(ai, ev) : undefined;
   // The head's count chip: how many findings there actually are, so the
   // section says its own size like every other head on the page does.
   const insightCount = plateaus.length + correlations.length + (rangeRows.length > 0 ? 1 : 0) + (offerLighter ? 1 : 0);
@@ -1523,6 +1537,7 @@ export default function CategoryDetail({
                     {/* H-33 (Health Push C): what the count is made of. */}
                     <div className="ins-cite">Last 7 days · Working sets only · Warm-ups excluded</div>
                     <div className="ins-cite">{rangeRows[0]!.range.source}</div>
+                    <InsightEvidence evidence={hardSetEvidence(rangeRows, nowMs, hsBand ? rangeRows[0]!.range : undefined)} onExplain={explain} />
                   </div>
                 )}
                 {plateaus.map((p) => (
@@ -1549,6 +1564,7 @@ export default function CategoryDetail({
                       </div>
                     )}
                     <div className="ins-cite">Correlation, not cause</div>
+                    <InsightEvidence evidence={p.evidence} onExplain={explain} />
                   </div>
                 ))}
                 {correlations.map((c) => (
@@ -1560,8 +1576,12 @@ export default function CategoryDetail({
                     </div>
                     <div className="ins-line">{c.line}</div>
                     <div className="ins-cite">Correlation, not cause</div>
+                    <InsightEvidence evidence={c.evidence} onExplain={explain} />
                   </div>
                 ))}
+                {nearest && (
+                  <div className="pad-x"><div className="ins-cite">Not enough days yet · {nearest.def} and {nearest.ex} · {nearest.p.paired} of {nearest.p.needed} paired sessions</div></div>
+                )}
                 {offerLighter && (
                   <div className="card ins-card rep-gap" key="lighter">
                     <div className="ins-head">
@@ -1571,6 +1591,7 @@ export default function CategoryDetail({
                     </div>
                     <div className="ins-line">Several grinds and misses lately.</div>
                     <div className="ins-cite">Never a prescription, just an offer</div>
+                    {backOff && <InsightEvidence evidence={backOff.evidence} onExplain={explain} />}
                   </div>
                 )}
               </div>

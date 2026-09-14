@@ -758,6 +758,10 @@
 .ruled .ins-v { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums; color: var(--tx-1); }
 .ruled .ins-v.ins-v-warn { color: var(--hl-amber); }
+/* Part 3 wave 3 (2026-09-13): the Evidence pill under a card and the rows it
+   opens, in the card's own row anatomy. */
+.ruled .ins-acts { display: flex; gap: 8px; margin-top: 8px; }
+.ruled .ins-ev { margin-top: 8px; }
 .ruled .ins-sub { font-size: calc(11.5px * var(--type-scale)); color: var(--tx-4); }
 /* What changed: label left, the move right, in one aligned column. */
 .ruled .ins-rows { margin-top: 10px; }
