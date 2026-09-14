@@ -1,68 +1,54 @@
-# Session handoff, 13 Sep 2026
+# Session handoff, 14 Sep 2026
 
-**Remote main is the Health pass through Push G, the 11 Sep audit cleanup, and the Part 3 brief in five waves, on top of the 12 Sep Astra and Email passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green, CI green on every push. Builds reach the phone only through a pushed `v*` tag (Codemagic to TestFlight); v1.0.1 through v1.0.15 were pushed this session.**
+**Remote main is the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
 
 ## What shipped this session
 
-The Health build (`Claude outputs/JARVIS_HEALTH_BUILD_MASTER_2026_09_12.md`, harness `JARVIS_HEALTH_PREVIEW_2026_09_12.html`), Pushes B through G, each one commit, one gate, one CI run, one tag; Push A landed 12 Sep. Between them, the fixes Dave asked for from phone screenshots.
+Dave, 2026-09-14: "Do all of this [the Track 3 master and preview]. Also update all of the formatting and functionality of the health page based on the html chatgpt created. The only thing you are to not adjust is the actual styling (font, font size, color coding, ect)." And on three modal screenshots: "please actually address these modals ... Bundle this all together and knock it out in waves. You don't need my permission to push."
 
-| push | commit | tag | what |
-|---|---|---|---|
-| A | `3970204` | | the skin, the ramp by meaning, the light ramp as shipped, laws 1 to 4 |
-| B | `ad5d418` | v1.0.5 | the live session owns the bottom edge, set states, pause and resume, the two-step finish, law 5 |
-| C | `c3d761e` | v1.0.6 | Resume on the page, the shortcut tiles, Water as a +1, the Log list, Health Settings, the weekly sets band as a setting, Celebrations |
-| D | `5043b04` | v1.0.7 | medication by name with the ten-minute ask and Undo, Undo by the moment, refill facts, Edit Time, effort ends and Skip, the region list, Meal, laws 6 and 7, migration 0038 |
-| E | `74c7504` | v1.0.8 | aliases, Pair With, Load, History's Sessions list, the Epley caption, the chart tap |
-| F | `479416e` | v1.0.9 | the export choosers, clientId on every queued write, law 9, migration 0039 |
-| G | `0e9c821` | | the catalog's §AB and this document |
-| audit | `bb9068b` | v1.0.10 | the eight open items of the 11 Sep audit (Part 1 of the 13 Sep passoff) and the plan's strand wired into the Why sheet |
-| P3 w1 | `5276622` | v1.0.11 | favorites lead the pickers, a merge is reviewed and can be undone, History remembers its segment |
-| P3 w2 | `9d93a9e` | v1.0.12 | rest after the round, no phantom turns, drop segments |
-| P3 w3 | `69dad64` | v1.0.13 | every insight opens on its evidence, every minimum says why, Explain over the rows only |
-| P3 w4 | `e98544c` | v1.0.14 | typed event kinds, a day finished twice is asked about, Health's More folds into Settings |
-| P3 w5 | `2108946` | v1.0.15 | equipment as one chooser, the plan snapshotted at start, a swap keeps its records, Also Update the Program, the schedule row hears the finish, the Assisted engine with its basis |
+| wave | commit | what |
+|---|---|---|
+| 1 | `a4946f8` | the three modals: the Edit Exercise sheet's chips reach the portal (Last295, 454525 fixed), a set is two lines, rest is a menu, the strip behind Customize Individual Sets, no sentences under Muscle and Equipment, the reminder count without the study median |
+| 2 | `77646be` | the Health overview to the reference: three tabs, Start with Have Less Time?, the four default shortcuts and Check In (migration 0040), Training at a Glance, the dated week, the Logs tab with its doors |
+| 3 | `f9472b3` | the daily pages: sleep hours beside the bedtime mark, recent meals and When, Time Taken on a dose, discomfort details after the tap, a balance correction, Check Ins in the export, a Workout Reminder in Customize |
+| 4 | `8258ff9` | the focused workout: editable set rows with a tick, the sets meter, Up Next, Adjust Time, the plate calculator; rest on the plan rows, Done and Current on the day rows |
+| 5 | `e7fc161` | the lift page: Best Recorded Set, the Epley estimate behind a row, Milestones |
+| 6 | `f84c5c4` | Track 3: the schema as five unapplied files under `jarvis-core/supabase/track3/`, Settings > Booking (Your Times), `docs/TRACK3.md` |
+| 7 | the docs commit after `f84c5c4` | this document, the catalog's §AD, the migration paste |
 
-Also on main this session, in order: `a2e3b68` (the note editor's placeholder and list lines), `e81d0e0` (the Health page simplified: inviting tiles, no pill facts, the adds at the foot), `6fe1f53` (Codemagic stamps every build's number; v1.0.1 was the first build to reach TestFlight), `976afed` (Today's top card and the Life rows), `c22e5cc` (email tasks wait under From Email behind an opt-in switch, the What JARVIS Knows tap, project and goal rows, the cool-down in blue), `e567e17` (goals own only what is filed to them; a project row is the goal row; Next in orange; Paused, Done, Stalled, On Track), `bdf225a` (hold a project row to move it to a goal, a Paused filter, no repeated count). The other Code chat's `289dc03`, `15a2eec` and `f4bf88f` were rebased over cleanly.
+The reference itself is `Claude outputs/Jarvis_Health_Complete.html`; its markup is an escaped iframe (`data-srcdoc`), extracted with the scratchpad's `extract.js` and split per view. `STYLING_CATALOG_V3.md` §AD records every ruling of the pass.
 
-## Migrations to apply, in order
+## Migrations to apply
 
-Two additive migrations in `jarvis-core/supabase/migrations/` have not been applied to Supabase from this machine (the Supabase MCP here reaches other projects, not JARVIS; Dave applies them the way 0031 to 0037 were applied):
+- `0040_health_checkin.sql`: registers `health_checkin` in `entity_type`. Until it lands, a check-in waits in the offline queue and replays. The statement is one insert; hand it to Dave as a bare code block.
 
-- `0038_health_med_def_and_meal.sql`: registers `health_med_def` and `health_meal` in `entity_type`. Until it lands, a medication cannot be added and a meal waits in the offline queue.
-- `0039_item_client_id_unique.sql`: the partial unique index on `(owner_id, data->>'clientId')`. Until it lands the app still stamps and replays correctly; only the database-side guarantee is missing.
+Migrations 0038 and 0039 were applied by Dave on 2026-09-14.
+
+## Departures from the reference, all stated in their commits
+
+- The bedtime tile keeps the name Bedtime rather than the reference's Sleep: his Sleep metric (hours) is a tile of its own, and two tiles named Sleep would be the fork the hue law exists to stop.
+- Meal nutrition is not built: the privacy law bans calorie and macro fields in `src/health`, and Dave's 09-13 ruling keeps a meal as text.
+- The reference's metrics page is not built: the tiles already log every metric and Other Metrics opens the library.
+- Reduce Motion and Focus View switches are not built (nothing behind them).
+- The discomfort form's intensity words depart from the original Point at It note ("no severity scale") on Dave's instruction to build the reference; nothing is trended or scored from them.
+- Swap stays allowed after a logged set (the reference blocks it); Part 3 wave 5 made a swap keep its records, which is the better rule.
+- The finish page's effort select is the receipt's Rate a Session door, which opens the 1 to 10 screen.
+- Track 3: only Your Times is built in-app. The public slot grid, the confirmed screen, Connections and Shared Project need a Track 3 Supabase project, Clerk (two real user ids), Vault and a server function; `docs/TRACK3.md` names each blocker. A screen with no data behind it was left out rather than drawn empty.
+- The earlier asks about the two modals could not be found in this machine's transcripts (they were made elsewhere), so wave 1 worked from the screenshots, the row-density rule and the reference editor. If a modal is still wrong, the specific change is what is needed.
 
 ## The gate, and where it runs
 
-`docs/WORKFLOW_AND_GATE.md` is the contract. On this Windows machine: `npx tsc --noEmit`, `npx eslint src` (39 known `unused eslint-disable` warnings; a 40th or any error is new), `npx vitest run` with `TZ=UTC` and `NODE_OPTIONS=--no-experimental-webstorage` on this Node 25 box, `npm run build`, `npm run build:legal && git diff --exit-code public/`, the jarvis-core tsc and vitest (95 tests now), the case-sensitivity scan, and an em-dash scan over added lines. CI on Node 22 is the authoritative gate; poll `actions/runs?head_sha=` after every push (a tag push starts a second run for the same sha).
+`docs/WORKFLOW_AND_GATE.md` is the contract. On this Windows machine: `npx tsc --noEmit`, `npx eslint src` (39 known `unused eslint-disable` warnings), `npx vitest run` with `TZ=UTC` and `NODE_OPTIONS=--no-experimental-webstorage` (about nine minutes, one vitest at a time), `npm run build`, `npm run build:legal && git diff --exit-code public/`, the jarvis-core tsc and vitest (95), the case-sensitivity scan, and an em-dash scan over added lines. CI on Node 22 is the authoritative gate; poll `actions/runs?head_sha=<full sha>` (a short sha returns nothing). A failed job's log needs the stored git credential (`git credential fill`); `gh` is not installed.
 
-**One vitest at a time, and nothing heavy beside it.** A full run started next to eslint, a build and the browser preview timed out one file at six minutes and flaked another; the same two files passed in isolation and the clean rerun was green. Run the suite alone.
+**Commit a new file with its importer.** The laws step runs first on CI and its reachability law fails a file nothing imports; f9472b3 went red that way.
 
 **Always `git fetch origin` and rebase before pushing.** Never force-push.
 
-## Every new law was planted first
-
-Health laws 1 to 5 (`src/laws/healthSkin.test.ts`) came with Push A and B; laws 6 and 7 (`healthPrivacy.test.ts`: a medication is never a schedule, a meal is text) with Push D; law 9 (`healthIntegrity.test.ts`: one row per queued write) with Push F. Each was planted, watched fail, reverted, and the commit says so. Law 8 (the Celebrations switch) is a component test rather than a law file, by the master's own wording.
-
-## Departures from the master, all stated in their commits
-
-- The Health home page follows Dave's 2026-09-13 simplification, not the harness: no This Week head, the Log head only on a day with entries, Settings as a door in the Medication card, the adds at the foot.
-- The weekly sets band is a setting with the studied range one tap back, per "I don't want anything hard wired that shouldn't be"; the studied range and its citation stay the default.
-- Medication is log and track only: a name and an amount, no schedule, nothing that could read as missed, per Dave's 2026-09-13 ruling.
-- `MealData` keeps `category: "fuel"` beside `at` and `text`, because the Share Line filters every logged shape by category; law 7 allows it.
-- The Log Another ask and its two answers are Title Case per the label rule where the master writes them lower-case.
-- The comeback line rides the Undo receipt: toast.ts keeps one toast, so the celebration would have been replaced before it was read.
-- The History guard reads `historyOpen && !viewWorkout` so a session row opens its workout on top and Back lands on History; the branch-order law now reads that guard.
-- No `docs/HEALTH.md` or `claude/HEALTH_CATALOG.md` exists in the tree (the health source comments cite the latter); the catalog entry went to `jarvis-app/STYLING_CATALOG_V3.md` §AB and nothing else was invented.
-
-## Left out on purpose (section 10 stands)
-
-A mood or feeling check-in; meal nutrition; discomfort intensity and notes; scheduled doses; the doc's pastel ramp and its type sizes; PDF export; full chart axes; milestone cards; sleep duration or a wake-up tap; an equipment field; a reduced-motion toggle; the prototype's Pages menu, demo state, fake save messages and sample data.
-
 ## Open items
 
-- The two migrations above, to apply.
-- Part 3 shipped in five waves against Dave's 25 answers (`Claude outputs/DECISIONS_2026_09_13_PART3.md` and the seven overlap picks, all his recommendations accepted). Left out by his answers: the brief's medication schedule, inventory, Skip and Remind Later (4a: log and track only); unilateral as two numbers per set (O7a: one number per side); a time picker for a session left open (O5a: the last write is the end); detection of concurrent edits on every record (13a: the finish only).
-- The brief's acceptance scenarios (its handoff.md, fetched with his leave) are the test plan behind the wave tests; 12 (a stale check-in shows its date) and 16 (the visit report stays local until shared) were already true.
+- Migration 0040, to apply.
+- Track 3's blockers above; the round-robin booking shape and the MCP rate limiter are undesigned.
+- The reference's finish page has an effort select inline; JARVIS opens the 1 to 10 screen from the receipt. Fine unless Dave wants it inline.
 - The demo has no sets in its workouts, so History's Sessions rows read 0 sets there; the phone has real ones.
 - Coming back from a workout opened from History returns to the Lifts segment rather than Sessions.
 
@@ -71,7 +57,9 @@ A mood or feeling check-in; meal nutrition; discomfort intensity and notes; sche
 - No em dashes anywhere, comments and strings included.
 - Title Case for anything that names or acts; ALL CAPS only from CSS.
 - One filled primary per screen; every other action is a capsule.
-- Anything visual is mocked first; the harness is the mock. Do not restyle beyond it. Dave builds previews in Cowork; do not build them here unless he asks.
-- Do not touch bundle splitting until Dave says building is done. The main chunk is over the 500KB Vite warning, known and deferred.
+- The reference governs Health layout and behaviour; the styling is JARVIS's own and is not to be restyled. Dave builds previews in Cowork; do not build them here unless he asks.
+- Meds are log and track only; research bands are settings, nothing hard wired.
+- Do not touch bundle splitting until Dave says building is done.
 - Do not fix the 39 pre-existing `unused eslint-disable` warnings.
 - Do-not-touch items 1 (events are not first-class) and 3 (iOS modals) stand.
+- Do not push `v*` tags unless asked; the phone runs the web app.

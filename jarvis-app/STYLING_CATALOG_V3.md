@@ -612,6 +612,26 @@ The harness (`Claude outputs/JARVIS_HEALTH_PREVIEW_2026_09_12.html`, master `JAR
 
 **PART 3, THE HEALTH AND WORKOUTS BRIEF (Dave's 25 answers of 2026-09-13, built in five waves the same day).** Favorites lead every picker as a pill, never a hued word; a merge is reviewed (what it reaches) before it runs and its receipt carries Undo. A group can rest after the round instead of after every set, and never offers a phantom turn; a set can drop, and a drop counts in tonnage and nowhere else, reading as Drop in the load hue. Every insight card opens on its evidence (kind, range, records, method, shows, does not show, the minimum and why) behind one quiet Evidence pill; every minimum is a named constant with its reason; short of one the section says "not enough days yet"; Explain hands the model the rows and nothing else. The Brain counts typed kinds (medication_logged, meal_logged, bedtime_logged, workout_started, set_logged); a day finished twice from two devices is asked about, never overwritten; Health's More folded into the Settings door. Equipment is one chooser with all eight conventions, a label and never a conversion, kept with every logged set; a session keeps the plan it started with; a swap after a set keeps the original's records; Also Update the Program is the one explicit write from a session edit; finishing marks the day's gym event; the Assisted engine is double progression from completed working sets with the marks winning, Manual and Program beside it, and every suggestion shows its basis on tap.
 
+## §AD. Health to the ChatGPT reference (Dave 2026-09-14: layouts, buttons, functions, logic and details from the reference; the styling untouched)
+
+The reference (`Claude outputs/Jarvis_Health_Complete.html`, the codex iframe) governs what the Health pages DO and how they are laid out; every hue, size, tile and chip is the one §AB already draws. Built in six waves on main, 14 Sep 2026.
+
+**THE OVERVIEW HAS THREE TABS (2026-09-14).** Overview, Training, Logs as one `.segmented`. Overview leads with YOUR NEXT WORKOUT (`.h-hero-head`, the program named beside it), the day, its facts, one filled Start Workout and Have Less Time? (20 min, 30 min, Full Workout); a shorter pick opens the fit sheet already priced to that budget. Then Quick Log, Training at a Glance (stat tiles, `.h-tile-stat`, no +), This Week as seven dated circles (`.h-week-dates`) and the review row. Training lists the program with Up Next and Last Workout; Logs is the timeline, the sync receipt and the doors (Medication, Other Metrics, Rate a Session, Review and Export, Settings).
+
+**THE REFERENCE'S FOUR SHORTCUTS (2026-09-14).** Bedtime, Meal, Water and Check In are on by default; Medication is the optional tile with its last dose. An older settings record is seeded with the four once (`seeded: 2`), then the choice is his. Water with no metric yet seeds it on the first tap.
+
+**CHECK IN IS WORDS (2026-09-14).** `health_checkin` (migration 0040) is energy (Low, Okay, High), mood (Low, Neutral, Good) and a note, at a moment. Never a number, so it feeds no correlation surface; D11 on mood stands by shape.
+
+**THE SHEET IS A PORTAL (2026-09-14).** Every rule a set row needs (`.se-chip`, `.se-kick`, `.se-plates`) also names `.sheet-scrim > .card`, because Edit Exercise renders outside `.health-ruled`. A set is two lines: Last rides the kicker line at its right end. Rest is a menu of presets. Sets, reps, weight and unit are always-out rows; the strip sits behind Customize Individual Sets. Save wears the sheet ink on every portal sheet.
+
+**THE FOCUSED WORKOUT (2026-09-14).** A planned set is an editable row (`.se-grid`: weight, reps, a lime tick) that logs what the fields say; the header carries the sets meter (`.se-meter`); Up Next, Adjust Time (10, 20, 30 minutes left, No Cap) and Plate Calculator (`gym/PlateSheet.tsx`) are rows under the strip.
+
+**THE DAILY PAGES (2026-09-14).** Sleep is the bedtime mark plus last night's hours to the Sleep metric; Meal offers recent meals as chips and a When clock; Took It a Time Taken; Discomfort three optional words and a note after the tap; Refill Runway a balance correction; the export offers Check Ins; Customize carries one Workout Reminder.
+
+**THE LIFT PAGE LEADS WITH THE BEST SET (2026-09-14).** Best Recorded Set with its date and the session count, the Epley estimate behind a row and labelled as an estimate, Milestones before Sessions.
+
+**BOOKING, YOUR TIMES (Track 3, 2026-09-14).** Settings > Booking is the preview's one screen: available, the days, the slot length, who can book, the visibility, kept on the device until the Track 3 project exists (`docs/TRACK3.md`).
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).
