@@ -47,7 +47,7 @@ The second 14 Sep patch (Exercises and Today) was cut on `602ff89`, before the a
 
 None outstanding. Migrations 0038 to 0040 are applied on the live project (verified 2026-09-14 by reading `entity_type` through the Supabase MCP).
 
-The live project is ref `roonancpktqigdndrumo` ("Javris Project", org "Jarvis", free plan, us-east-2). The MCP's project listing does not show that org, but every call that takes the ref directly works. The Track 3 files under `jarvis-core/supabase/track3/` still wait on a second project (free in that org); creating it from a Claude session was refused by the permission classifier, so Dave creates it in the dashboard and hands over the ref, after which the five files apply in order and Clerk plus Vault are dashboard steps.
+The live project is ref `roonancpktqigdndrumo` ("Javris Project", org "Jarvis", free plan, us-east-2). The MCP's project listing does not show that org, but every call that takes the ref directly works. The Track 3 project is `zxszpuyhwvalfpfqgutq` ("Jarvis Track 3", same org, free, us-east-2), created through the MCP on 2026-09-14 once Dave asked for it directly; files 0001 to 0006 under `jarvis-core/supabase/track3/` are applied there in order (0006 is the advisor's findings: row security on the two org tables, pinned search paths, btree_gist out of public) and the advisor is clean. Vault is on by default. Clerk as the third-party auth provider is the one dashboard step left; `docs/TRACK3.md` has the rest.
 
 ## Departures from the reference, all stated in their commits
 
@@ -58,7 +58,7 @@ The live project is ref `roonancpktqigdndrumo` ("Javris Project", org "Jarvis", 
 - The discomfort form's intensity words depart from the original Point at It note ("no severity scale") on Dave's instruction to build the reference; nothing is trended or scored from them.
 - Swap stays allowed after a logged set (the reference blocks it); Part 3 wave 5 made a swap keep its records, which is the better rule.
 - The finish page's effort select is the receipt's Rate a Session door, which opens the 1 to 10 screen.
-- Track 3: only Your Times is built in-app. The public slot grid, the confirmed screen, Connections and Shared Project need a Track 3 Supabase project, Clerk (two real user ids), Vault and a server function; `docs/TRACK3.md` names each blocker. A screen with no data behind it was left out rather than drawn empty.
+- Track 3: only Your Times is built in-app. The public slot grid, the confirmed screen, Connections and Shared Project need Clerk (two real user ids) and a server function; the project and its schema exist now; `docs/TRACK3.md` names each blocker. A screen with no data behind it was left out rather than drawn empty.
 - The earlier asks about the two modals could not be found in this machine's transcripts (they were made elsewhere), so wave 1 worked from the screenshots, the row-density rule and the reference editor. If a modal is still wrong, the specific change is what is needed.
 
 ## The gate, and where it runs
