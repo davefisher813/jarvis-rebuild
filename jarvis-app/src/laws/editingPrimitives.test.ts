@@ -30,6 +30,18 @@ const rel = (f: string) => relative(SRC, f).replace(/\\/g, "/");
 const read = (f: string) => readFileSync(f, "utf8");
 
 describe("law: one inline-edit primitive", () => {
+  // THE WRITING SYSTEM (2026-09-14) adds the second editing primitive: the
+  // shared document editor (shared/DocEditor.tsx) for anything longer than a
+  // line, built on Tiptap. InlineEdit stays the one-line field. Tiptap is
+  // mounted in that one file and nowhere else; a surface that wants a
+  // document configures DocEditor, it never imports the editor library.
+  it("the document editor library is imported only inside shared/DocEditor.tsx", () => {
+    const offenders = FILES.filter(
+      (f) => rel(f) !== "shared/DocEditor.tsx" && /from "@tiptap\//.test(read(f)) && !/^import type /m.test(read(f).split("\n").filter((l) => l.includes("@tiptap")).join("\n")),
+    ).map(rel);
+    expect(offenders).toEqual([]);
+  });
+
   it("contentEditable is used only inside shared/InlineEdit.tsx", () => {
     const offenders = FILES.filter(
       (f) => rel(f) !== "shared/InlineEdit.tsx" && read(f).includes("suppressContentEditableWarning"),

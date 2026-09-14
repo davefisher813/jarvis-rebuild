@@ -13,6 +13,7 @@ import { voiceToText } from "../ai/context";
 import { noDashes } from "../ai/suggestions";
 import type { Category } from "../categories/types";
 import type { NoteData, Recurrence } from "../notes/types";
+import { displayTitle } from "../notes/docModel";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import { showToast } from "../shared/toast";
@@ -368,7 +369,7 @@ export default function CategoryDetail({
     setGoals(gl);
     const mineNotes = tk && nt ? nt.filter((n) => (n.data as unknown as NoteData).category === categoryId) : [];
     setNoteCount(mineNotes.length);
-    setNotes(mineNotes.slice(0, NOTES_CAP).map((n) => ({ id: n.id, title: ((n.data as unknown as NoteData).title || "Untitled") })));
+    setNotes(mineNotes.slice(0, NOTES_CAP).map((n) => ({ id: n.id, title: displayTitle(n.data as unknown as NoteData) })));
     setEvents(ev.map((e) => ({ date: e.data.date, start: e.data.start, category: e.data.category })));
     const nowIso = todayISO();
     // Coming Up walks the next days through occursOn (brain/comingUp.ts), so

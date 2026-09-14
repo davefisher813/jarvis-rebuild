@@ -15,9 +15,8 @@ import { createPortal } from "react-dom";
 // ReorderList.tsx). Two menus offering the same actions would be two things
 // to keep in step, so there is one.
 //
-// Built from the app's own .action-sheet atoms (see
-// notes/screens/AddBlockSheet.tsx), so it looks like every other sheet in the
-// app and nothing new was styled for it.
+// Built from the app's own .action-sheet atoms, so it looks like every
+// other sheet in the app and nothing new was styled for it.
 export interface RowAction {
   label: string;
   onPick: () => void;

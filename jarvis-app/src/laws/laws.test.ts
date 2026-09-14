@@ -590,7 +590,7 @@ describe("LAW: Apple HIG casing", () => {
   // called --good, and once as a card whose background never applied. Both
   // passed every other gate, because tests do not look at pixels.
   it("no stylesheet references a custom property that was never defined", () => {
-    const css = ["jarvis-design-system.css", "uniformity.css", "components.css", "mail-rows.css"]
+    const css = ["jarvis-design-system.css", "uniformity.css", "components.css", "mail-rows.css", "editor.css"]
       .map((f) => read(SRC + "/styles/" + f)).join("\n");
     const defined = new Set([...css.matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1]!));
     // Fallback forms, var(--x, something), are safe by construction.
@@ -610,7 +610,7 @@ describe("LAW: Apple HIG casing", () => {
   // rest, which is worse than not growing at all: it is a screen that comes
   // apart at 1.3x.
   it("no font-size in a stylesheet is a bare pixel value", () => {
-    const files = ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css", "mail-rows.css"];
+    const files = ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css", "mail-rows.css", "editor.css"];
     const bad: string[] = [];
     for (const f of files) {
       const css = read(SRC + "/styles/" + f);
@@ -666,7 +666,7 @@ describe("LAW: Apple HIG casing", () => {
   // walks, only for text that is on screen at the moment it looks. This
   // catches it at the declaration, which is where it is actually made.
   it("the brand red is never used for a job it cannot do", () => {
-    const files = ["jarvis-design-system.css", "uniformity.css", "components.css", "mail-rows.css"];
+    const files = ["jarvis-design-system.css", "uniformity.css", "components.css", "mail-rows.css", "editor.css"];
     const bad: string[] = [];
     for (const f of files) {
       const css = read(SRC + "/styles/" + f);
@@ -1799,6 +1799,9 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // its four siblings above, for the same reason: there is no bridge in the
     // web build to feed it.
     "healthImport.ts": "iOS only: needs the HealthKit bridge",
+    // The writing system (2026-09-14): the jsdom layout shims a test imports
+    // before it mounts the shared document editor. Test-only by design.
+    "tiptapTest.ts": "test only: the layout shims for mounting DocEditor in jsdom",
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
     // every upload through it, from the clip on Notes and Money.)
     // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the

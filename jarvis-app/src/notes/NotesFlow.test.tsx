@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
-// HMN-F-01 (2026-09-05): note block edits used to race each other. Every
-// mutation is read the note, change the whole blocks array, write it back,
-// and the editor's blur-save fires on the same tap that starts the next
-// mutation, so two stale read-modify-writes clobbered each other and the
-// paragraph just typed reverted. These run the real flow over a store whose
-// every read and write takes a network beat, the way the phone's does, so
-// the interleaving the audit reproduced is the one exercised here.
+// The Notes flow over a store whose every read and write takes a network
+// beat, the way the phone's does. Since the writing system (2026-09-14) the
+// note is one document saved as it changes; the flows around it (Create
+// Tasks, Connections, the link picker, attachments, deep links) are pinned
+// here the way they were before it.
+import "../shared/tiptapTest";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
@@ -59,48 +58,39 @@ async function openNoteWith(blocks: { type: "text" | "checklist"; text?: string;
     }
   });
   view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow openId={id} /></NotesProvider>);
-  await waitFor(() => expect(screen.getByText("Text")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByLabelText("Note")).toBeInTheDocument());
   return { svc, id, ids, view, user };
 }
 
-describe("NotesFlow: block mutations run one at a time (HMN-F-01)", () => {
-  it("a blur-save and a toolbar Text tap on the same gesture both land", async () => {
-    const { svc, id, ids } = await openNoteWith([{ type: "text", text: "" }]);
-    const el = await waitFor(() => {
-      const n = document.querySelector(`[data-bid="${ids[0]}"]`) as HTMLElement | null;
-      expect(n).toBeTruthy();
-      return n!;
-    });
-    // What the phone does when you type in the block and tap the chip: the
-    // blur-save and the add fire back to back, neither waiting for the other.
-    el.textContent = "the paragraph I just typed";
-    fireEvent.blur(el);
-    fireEvent.click(screen.getByText("Text"));
+// Typing changes the document in the editor; the flow writes it to the
+// store shortly after the last keystroke and says so under the page.
+function typeInto(pm: HTMLElement, text: string) {
+  const p = pm.querySelector("p")!;
+  p.textContent = text;
+}
 
+describe("NotesFlow: the document saves as it changes (the writing system)", () => {
+  it("words typed reach the store after the pause, and the line under the page says so", async () => {
+    const { svc, id } = await openNoteWith([{ type: "text", text: "" }]);
+    const pm = screen.getByLabelText("Note");
+    await act(async () => { typeInto(pm, "the paragraph I just typed"); });
     await waitFor(async () => {
       const n = (await svc.note(id))!;
-      expect(n.blocks).toHaveLength(2);
+      expect(n.doc).toBeTruthy();
       expect(n.blocks.map((b) => b.text)).toContain("the paragraph I just typed");
     }, { timeout: 4000 });
+    // No backend in a test build: written, not synced.
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Saved on device"), { timeout: 4000 });
   });
 
-  it("typing an item and tapping another item's checkbox keeps both", async () => {
-    const { svc, id, ids } = await openNoteWith([{ type: "checklist", items: ["", "buy milk"] }]);
-    const lines = await waitFor(() => {
-      const ls = document.querySelectorAll(".check-line");
-      expect(ls.length).toBe(2);
-      return ls;
-    });
-    const first = lines[0]!.querySelector("[contenteditable]") as HTMLElement;
-    const secondBox = lines[1]!.querySelector(".cb") as HTMLElement;
-    first.textContent = "call the dentist";
-    fireEvent.blur(first);
-    fireEvent.click(secondBox);
-
-    await waitFor(async () => {
-      const b = (await svc.note(id))!.blocks.find((x) => x.id === ids[0])!;
-      expect(b.items).toEqual([{ text: "call the dentist", done: false }, { text: "buy milk", done: true }]);
-    }, { timeout: 4000 });
+  it("a note with no title is named by its first line in the list", async () => {
+    const { svc, id } = await openNoteWith([{ type: "text", text: "" }]);
+    await act(async () => { await svc.editTitle(id, " "); });
+    const pm = screen.getByLabelText("Note");
+    await act(async () => { typeInto(pm, "Groceries for the week"); });
+    await waitFor(async () => expect((await svc.note(id))!.doc).toBeTruthy(), { timeout: 4000 });
+    fireEvent.click(screen.getByText("Notes", { selector: "button" }));
+    expect(await screen.findByText("Groceries for the week", {}, { timeout: 4000 })).toBeInTheDocument();
   });
 });
 
@@ -114,8 +104,8 @@ describe("NotesFlow: the editor comes back fresh from Create Tasks (HMN-F-14)", 
     fireEvent.click(await screen.findByText("Create Tasks from Checklist"));
     fireEvent.click(await screen.findByText("Create 2 Tasks"));
     await waitFor(() => {
-      expect(screen.getByText("Text")).toBeInTheDocument();
-      expect(document.querySelectorAll(".check-linked").length).toBe(2);
+      expect(screen.getByLabelText("Note")).toBeInTheDocument();
+      expect(document.querySelectorAll("li[data-task-id]").length).toBe(2);
       expect(document.querySelectorAll(".note-conn").length).toBe(2);
     }, { timeout: 4000 });
     expect((await svc.listTasks()).length).toBe(2);
@@ -159,7 +149,7 @@ describe("NotesFlow: Connections names the unfiled state and can return to it (H
       await svc.addBlock(id, { type: "text", text: "" });
     });
     view.rerender(<NotesProvider userId={user}><GrabAll /><NotesFlow openId={id} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Text")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("Note")).toBeInTheDocument());
 
     openConnections();
     expect(await screen.findByText("Not Filed")).toBeInTheDocument();
@@ -257,7 +247,7 @@ describe("NotesFlow: the link picker's Events are the window around now (HMN-F-2
       await svc.addBlock(id, { type: "text", text: "" });
     });
     view.rerender(<NotesProvider userId={user}><GrabAll /><NotesFlow openId={id} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Text")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("Note")).toBeInTheDocument());
 
     fireEvent.click(screen.getByLabelText("Link Something"));
     expect(await screen.findByText("Kickoff Tomorrow", {}, { timeout: 4000 })).toBeInTheDocument();
@@ -310,7 +300,14 @@ describe("NotesFlow: removing a photo block takes its bytes with it (HMN-F-27)",
     await openNoteWithPhoto("u-sweep-f27-undo");
     fireEvent.click(screen.getByLabelText("Remove Beach"));
     await waitFor(() => expect(screen.queryByLabelText("Remove Beach")).not.toBeInTheDocument(), { timeout: 4000 });
-    fireEvent.click(screen.getByLabelText("Undo"));
+    // No toast host in this render: the toast is taken through its
+    // subscription and its Undo tapped there.
+    let last: { actionLabel?: string; onAction?: () => void } | null = null;
+    const stop = subscribeToast((t) => { if (t) last = t as typeof last; });
+    await waitFor(() => expect(last?.actionLabel).toBe("Undo"), { timeout: 4000 });
+    await act(async () => { last!.onAction!(); });
+    stop();
+    resetToasts();
     await waitFor(() => expect(screen.getByLabelText("Remove Beach")).toBeInTheDocument(), { timeout: 4000 });
     await vi.advanceTimersByTimeAsync(6100);
     expect(remove).not.toHaveBeenCalled();
@@ -322,17 +319,11 @@ describe("NotesFlow: removing a photo block takes its bytes with it (HMN-F-27)",
 // blur, so a notification tap or a Where You Were card mid-sentence lost the
 // sentence. The pending text now reaches the store anyway.
 describe("NotesFlow: pending text survives leaving the tab (HMN-F-02)", () => {
-  it("text typed in a block reaches the store when the flow unmounts without a blur", async () => {
-    const { svc, id, ids, view, user } = await openNoteWith([{ type: "text", text: "" }]);
-    const el = await waitFor(() => {
-      const n = document.querySelector(`[data-bid="${ids[0]}"]`) as HTMLElement | null;
-      expect(n).toBeTruthy();
-      return n!;
-    });
-    el.focus();
-    el.textContent = "two minutes of writing";
-    fireEvent.input(el);
-    // The tab changes: the flow is gone, and no blur ever fired.
+  it("words typed reach the store when the flow unmounts before the pause ends", async () => {
+    const { svc, id, view, user } = await openNoteWith([{ type: "text", text: "" }]);
+    const pm = screen.getByLabelText("Note");
+    await act(async () => { typeInto(pm, "two minutes of writing"); });
+    // The tab changes at once: the flow is gone before the 600ms pause.
     view.rerender(<NotesProvider userId={user}><Grab /></NotesProvider>);
     await waitFor(async () => {
       expect((await svc.note(id))!.blocks[0]!.text).toBe("two minutes of writing");

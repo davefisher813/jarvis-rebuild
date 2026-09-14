@@ -650,6 +650,22 @@ The image is the visual direction; the dress stays the app's (black, charcoal ca
 
 **THE DURATION CARD (2026-09-14).** Active in lime, or amber with a Review count when flagged; elapsed, parked and the sets' span as facts; End at the Last Set and Set the End Time as create rows; every correction listed as a fact.
 
+## §AF. The writing system (Dave 2026-09-14: the shared writing and editing brief, Appendix A rulings)
+
+The brief cites `JARVIS_UI_CONTRACT.md` as the locked styling source. No file of that name exists in this repo; this catalog is the styling source that does, so the four rulings the brief's Appendix A records are amended here, in the same push as the editor.
+
+**ONE DOCUMENT SURFACE (2026-09-14, conflict 4).** The Add Block sheet and the block-per-field editor are superseded. A note is one continuous document (`shared/DocEditor.tsx`, Tiptap on ProseMirror), and the block library's capabilities live on the Insert menu of the writing bar. The rest of the Notes ruling stands: title, category kicker, date on the right, grouped by recency, the group-by dropdown.
+
+**THE EDITOR ROLES (2026-09-14, conflict 3).** Two named roles join the type scale, shared by any document surface and never a Notes-local exception: editor body, 18 over 1.5, weight 400, primary ink (`.doc-pm`); editor title, 30 over 1.15, bold, minus 0.02em (`.doc-write .doc-title`). Headings inside a document step 24, 21, 18. List items sit 6px apart. A checklist line is 44px tall with a 44px checkbox target.
+
+**THE READING GUTTER (2026-09-14, conflict 2).** The document level of the editor wears a 20pt side gutter (`.doc-write`), an editor-surface exception to the 16pt screen edge, for line length and reading comfort on long pages. Every other surface keeps 16pt; the compact and quick levels inherit their host's edge.
+
+**THE WRITING BAR (2026-09-14).** While the document has the keyboard, one bar sits on top of it (`.doc-kbar`, pinned through the visual viewport tokens `--vv-top` and `--vv-h`): Undo, Redo, Format, List, Insert and Done, capsules throughout. A menu row opens above it (`.doc-kmenu`) with chips. Every control swallows mousedown. The tab bar and the composer step aside (`body.writing`). Done blurs; nothing on the bar saves, because saving is not a control.
+
+**THE SAVE LINE (2026-09-14).** One quiet line under the document (`.doc-save`): Saving, Saved on device, Synced, or Couldn't save with a Retry capsule in red text. Never a spinner, never a word said before the write returned.
+
+**THE INK RULING (2026-09-14, conflict 1), recorded here and applied in its own push.** Four ink levels collapse to two app-wide: `--tx-2` and `--tx-3` become one secondary value (dark #D2D2D6), `--tx-4` becomes structure only (dark #7C7C82) and may never colour text. The migration is by redefining the tokens, then sweeping any text still on `--tx-4` to secondary, with a law that fails a `--tx-4` text colour. The light values in the brief are HIG twins, a starting point and not measured tokens, and are flagged as such. The editor's own CSS already uses `--tx-4` only for a border and a checkbox ring, and `--tx-2` for every secondary word, so the token change reaches it untouched.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

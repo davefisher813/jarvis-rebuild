@@ -5,21 +5,20 @@ import { ENTITY_NOTE } from "./types";
 import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople, useOptionalProfile, useFileStore, useOptionalDecisions } from "../data/NotesProvider";
 import { useAI } from "../ai/useAI";
 import { findInNote, passLength, PASS_DELTA } from "./jarvisFound";
-import type { TurnIntoType } from "./screens/NoteEditor";
 import { catName } from "../shared/categories";
 import type { Category } from "../categories/types";
 import type { Block, Connection, NoteData, TemplateKey } from "./types";
 import NotesList, { type NoteListItem } from "./screens/NotesList";
 import { noteBlockText } from "../search/search";
-import NoteEditor, { type EditorNote } from "./screens/NoteEditor";
+import NoteEditor, { type EditorNote, type SaveState } from "./screens/NoteEditor";
+import { blocksToDoc, displayTitle, firstLineOf, type Doc } from "./docModel";
 import Templates from "./screens/Templates";
 import { usePushDepth } from "../shared/pushNav";
-import AddBlockSheet from "./screens/AddBlockSheet";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
-import { parseRich } from "./richtext";
 import { usePickFile, PICK_ANY, PICK_IMAGE } from "../shared/usePickFile";
+import { backendConfigured } from "../data/store";
 import { fileStem, sizeLabel } from "../files/types";
 import { FormSheet, Group, Row, FieldRow, Strip } from "../shared/FormSheet";
 import { Check } from "../shared/icons";
@@ -27,14 +26,15 @@ import { Check } from "../shared/icons";
 import { attemptWrite } from "../shared/guard";
 import { recordSpot } from "../restore/whereYouWere";
 import CreateTasks from "./screens/CreateTasks";
-import type { BlockType } from "./types";
 import QuickCreateSheet, { nextHalfHour, type QuickCreateKind } from "./screens/QuickCreateSheet";
 import { todayISO, addDays } from "../schedule/calendar";
 
 type Screen = "list" | "editor" | "templates" | "connections" | "createTasks" | "linkPicker";
 
 const TEMPLATE_TITLE: Record<TemplateKey, string> = {
-  blank: "New Note",
+  // A blank note has no title until one is typed; its first line names it
+  // (the writing system, 2026-09-14).
+  blank: "",
   meeting: "Meeting Notes",
   todo: "Checklist",
   tracker: "Tracker",
@@ -42,91 +42,41 @@ const TEMPLATE_TITLE: Record<TemplateKey, string> = {
   journal: "Journal",
 };
 
-// maps a stored note into the editor's display shape
+// maps a stored note into the editor's display shape: the document (built
+// from the blocks for a note that predates one), the attachments beside it.
 function toEditorNote(data: NoteData): EditorNote {
-  const blocks = data.blocks
-    .map((b): EditorNote["blocks"][number] | null => {
-      switch (b.type) {
-        case "heading": return { id: b.id, type: "heading", text: b.text ?? "" };
-        case "text": return { id: b.id, type: "text", text: b.text ?? "" };
-        case "meta": return { id: b.id, type: "meta", text: b.text ?? "" };
-        // C-17
-        case "quote": return { id: b.id, type: "quote", text: b.text ?? "" };
-        case "callout": return { id: b.id, type: "callout", text: b.text ?? "" };
-        case "divider": return { id: b.id, type: "divider" };
-        case "checklist":
-          return {
-            id: b.id,
-            type: "checklist",
-            items: (b.items ?? []).map((it) =>
-              typeof it === "string" ? { text: it, done: false } : { text: it.text, done: it.done, taskId: it.taskId }),
-          };
-        case "bulleted_list":
-          return { id: b.id, type: "bulleted_list", items: (b.items ?? []).map((it) => typeof it === "string" ? it : it.text) };
-        case "numbered_list":
-          return { id: b.id, type: "numbered_list", items: (b.items ?? []).map((it) => typeof it === "string" ? it : it.text) };
-        case "table": return { id: b.id, type: "table", header: b.columns ?? [], rows: b.rows ?? [] };
-        case "file": return { id: b.id, type: "file", name: b.name ?? "File", size: b.size ?? "", path: b.path, mime: b.mime };
-        case "photo": return { id: b.id, type: "photo", name: b.name ?? "Photo", size: b.size ?? "", path: b.path, mime: b.mime };
-        default: return null;
-      }
-    })
-    .filter((b): b is EditorNote["blocks"][number] => b !== null);
+  const attachments = data.blocks
+    .filter((b) => b.type === "photo" || b.type === "file")
+    .map((b) => ({ id: b.id, type: b.type as "photo" | "file", name: b.name ?? (b.type === "photo" ? "Photo" : "File"), size: b.size ?? "", path: b.path, mime: b.mime }));
   return {
     category: data.category,
     eyebrow: catName(data.category).toUpperCase(),
     title: data.title,
-    blocks,
+    doc: data.doc ?? blocksToDoc(data.blocks),
+    attachments,
     ...(data.source ? { source: data.source } : {}),
   };
 }
 
-// THE EMPTY-STARTER TYPES (2026-09-13, from a doubled "Write Something"
-// under a Heading card): these five render through InlineEdit with nothing
-// but a placeholder when blank, so two of the same kind back to back are
-// visually identical rows with no way to tell them apart -- exactly what a
-// double-tap on the same toolbar chip (or a chip tapped right after the
-// note's own ready-to-type line primed itself) produced. isBlankStarter
-// lets addBlock recognize that state and refocus the existing line instead
-// of stacking a twin under it.
-const EMPTY_STARTER_TYPES = new Set<BlockType>(["heading", "text", "meta", "quote", "callout"]);
-function isBlankStarter(b: { type: BlockType; text?: string }): boolean {
-  return EMPTY_STARTER_TYPES.has(b.type) && (b.text ?? "").trim() === "";
+// DRAFTS ON DEVICE (the writing system, section 7): every change is written
+// to localStorage before the store hears of it, and cleared once the store
+// has it, so a refresh or an evicted WebView mid-sentence loses nothing.
+const DRAFT_KEY = "jarvis.notes.draft.v1";
+function readDraft(id: string): Doc | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY + ":" + id);
+    return raw ? (JSON.parse(raw) as Doc) : null;
+  } catch { return null; }
+}
+function writeDraft(id: string, doc: Doc): boolean {
+  try { localStorage.setItem(DRAFT_KEY + ":" + id, JSON.stringify(doc)); return true; } catch { return false; }
+}
+function clearDraft(id: string) {
+  try { localStorage.removeItem(DRAFT_KEY + ":" + id); } catch { /* nothing to clear */ }
 }
 
-// a starter block for each add-block type
-function starterBlock(type: BlockType): Omit<Block, "id"> {
-  switch (type) {
-    // Empty starters: the placeholder does the explaining and the first
-    // keystroke is the writer's, not a delete of ours (deep writing pass).
-    case "heading": return { type, text: "" };
-    case "text": return { type, text: "" };
-    case "meta": return { type, text: "" };
-    // C-17
-    case "quote": return { type, text: "" };
-    case "callout": return { type, text: "" };
-    case "divider": return { type };
-    case "checklist": return { type, items: [{ text: "", done: false }] };
-    case "bulleted_list": return { type, items: [""] };
-    case "numbered_list": return { type, items: [""] };
-    case "table": return { type, columns: ["", ""], rows: [["", ""]] };
-    case "photo": return { type, name: "Photo", size: "" };
-    case "file": return { type, name: "Attachment", size: "" };
-  }
-}
-
-// The first line of a note's body, as words: the first block that carries
-// text, rich markers stripped, a list's first item. "" when the note is
-// only a title.
-function firstLine(blocks: Block[] | undefined): string {
-  for (const b of blocks ?? []) {
-    if (b.type === "photo" || b.type === "file" || b.type === "table") continue;
-    if (b.text && b.text.trim()) return parseRich(b.text).map((seg) => seg.text).join("").trim();
-    const it = b.items?.[0];
-    const t = typeof it === "string" ? it : it?.text;
-    if (t && t.trim()) return t.trim();
-  }
-  return "";
+function firstLine(d: NoteData): string {
+  return firstLineOf(d.doc ?? blocksToDoc(d.blocks));
 }
 
 export default function NotesFlow({
@@ -171,23 +121,10 @@ export default function NotesFlow({
   // ref is set with the state and never separately.
   const currentIdRef = useRef<string | null>(null);
   const openCurrentId = useCallback((id: string | null) => { currentIdRef.current = id; setCurrentId(id); }, []);
-  // Canvas typing flow: which block should hold the caret after a mutation.
-  const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
-  // Undo/redo (2026-08-19, deep writing pass): every block mutation snapshots
-  // the blocks array first. Undo restores wholesale; a new edit clears redo.
-  const history = useRef<Block[][]>([]);
-  const redoStack = useRef<Block[][]>([]);
-  const [histTick, setHistTick] = useState(0);
-  // ONE QUEUE FOR EVERY MUTATION (HMN-F-01, 2026-09-05). Every block edit is
-  // read the note, change the whole `blocks` array, write it back, and the
-  // editor's blur-save fires on the same tap that starts the next mutation
-  // (a toolbar chip, Add Item, another item's checkbox). Two of those in
-  // flight read the same stale note and the second write erased the first,
-  // so a paragraph just typed reverted or the new block never appeared, and
-  // loadCurrent then repainted the loss because the store is the truth. The
-  // table edits had this queue to themselves since the deep template pass
-  // (found live, the same way); now every mutation on the open note goes
-  // through it, so each read-modify-write runs alone against a fresh read.
+  // ONE QUEUE FOR EVERY MUTATION (HMN-F-01, 2026-09-05). Every write to the
+  // open note is read-modify-write, and two of those in flight read the same
+  // stale note and the second erases the first. Every mutation on the open
+  // note goes through this queue, so each runs alone against a fresh read.
   // A failed step never wedges the queue: the chain continues either way.
   const writeQueue = useRef<Promise<unknown>>(Promise.resolve());
   const enqueue = (fn: () => Promise<void>): Promise<void> => {
@@ -195,98 +132,55 @@ export default function NotesFlow({
     writeQueue.current = next.catch(() => {});
     return next;
   };
-  const snap = async () => {
+
+  // THE DOCUMENT SAVE (the writing system, 2026-09-14). Typing never waits on
+  // a write: the editor emits the document, it goes to the draft on device at
+  // once, and the store write follows 600ms after the last keystroke, through
+  // the queue. The line under the document says what is true: Saving while
+  // the write is out, Synced when the store has it and no queue is waiting,
+  // Saved on device when it is written but still to sync (or there is no
+  // backend in this build), Couldn't save with Retry when the write failed
+  // (the draft is still on device, so nothing typed is lost). Undo and redo
+  // belong to the editor's own history now, one entry per logical action.
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const pendingDoc = useRef<{ id: string; doc: Doc } | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushDoc = useCallback(() => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    const p = pendingDoc.current;
+    if (!p) return Promise.resolve();
+    pendingDoc.current = null;
+    setSaveState("saving");
+    return enqueue(async () => {
+      const ok = await attemptWrite(() => svc.setDoc(p.id, p.doc));
+      if (!ok) { pendingDoc.current = pendingDoc.current ?? p; setSaveState("failed"); return; }
+      clearDraft(p.id);
+      setSaveState(backendConfigured && svc.queueLen() === 0 ? "synced" : "saved");
+      if (currentIdRef.current === p.id) await loadCurrent(p.id);
+      void maybeFind(p.id);
+      await loadList();
+    });
+  }, [svc]);
+  const docChange = (doc: Doc) => {
     if (!currentId) return;
-    const d = await svc.note(currentId);
-    if (!d) return;
-    history.current.push(JSON.parse(JSON.stringify(d.blocks)) as Block[]);
-    if (history.current.length > 50) history.current.shift();
-    redoStack.current = [];
-    setHistTick((t) => t + 1);
+    pendingDoc.current = { id: currentId, doc };
+    writeDraft(currentId, doc);
+    setSaveState("saving");
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => void flushDoc(), 600);
   };
-  const undo = () => enqueue(async () => {
-    if (!currentId) return;
-    const prev = history.current.pop();
-    if (!prev) return;
-    // HMN-F-27 (2026-09-05): a photo block comes back with its picture, so
-    // any bytes still waiting to be swept stay where they are.
-    cancelBlockSweeps();
-    const d = await svc.note(currentId);
-    if (d) redoStack.current.push(JSON.parse(JSON.stringify(d.blocks)) as Block[]);
-    await attemptWrite(() => svc.setBlocks(currentId, prev));
-    await loadCurrent(currentId);
-    setHistTick((t) => t + 1);
-  });
-  const redo = () => enqueue(async () => {
-    if (!currentId) return;
-    const next = redoStack.current.pop();
-    if (!next) return;
-    const d = await svc.note(currentId);
-    if (d) history.current.push(JSON.parse(JSON.stringify(d.blocks)) as Block[]);
-    await attemptWrite(() => svc.setBlocks(currentId, next));
-    await loadCurrent(currentId);
-    setHistTick((t) => t + 1);
-  });
-  const enterAt = (blockId: string, text: string) => enqueue(async () => {
-    if (!currentId) return;
-    await snap();
-    let newId: string | null = null;
-    await attemptWrite(async () => {
-      await svc.editBlock(currentId, blockId, { text });
-      newId = await svc.insertBlockAfter(currentId, blockId, { type: "text", text: "" });
-    });
-    await loadCurrent(currentId);
-    setFocusBlockId(newId);
-  });
-  const backspaceAt = (blockId: string) => enqueue(async () => {
-    if (!currentId) return;
-    await snap();
-    // The neighbour to land the caret on is found in the FRESH note, not the
-    // rendered one: an edit queued ahead of this may have moved or removed it.
-    const blocks = (await svc.note(currentId))?.blocks ?? [];
-    const idx = blocks.findIndex((b) => b.id === blockId);
-    const prev = [...blocks.slice(0, idx)].reverse().find((b) => b.type === "text" || b.type === "heading" || b.type === "meta");
-    await attemptWrite(() => svc.deleteBlock(currentId, blockId));
-    await loadCurrent(currentId);
-    setFocusBlockId(prev?.id ?? null);
-  });
-  const transformAt = (blockId: string, prefix: "#" | "[]" | "-" | "1.", rest: string) => enqueue(async () => {
-    if (!currentId) return;
-    await snap();
-    await attemptWrite(async () => {
-      if (prefix === "#") await svc.editBlock(currentId, blockId, { type: "heading", text: rest });
-      else if (prefix === "[]") await svc.editBlock(currentId, blockId, { type: "checklist", text: undefined, items: [{ text: rest, done: false }] });
-      else if (prefix === "-") await svc.editBlock(currentId, blockId, { type: "bulleted_list", text: undefined, items: [rest] });
-      else await svc.editBlock(currentId, blockId, { type: "numbered_list", text: undefined, items: [rest] });
-    });
-    await loadCurrent(currentId);
-    setFocusBlockId(prefix === "#" ? blockId : prefix === "-" || prefix === "1." ? blockId + ":0" : null);
-  });
-  const listItems = (blockId: string, items: string[], focusKey: string | null) => enqueue(async () => {
-    if (!currentId) return;
-    await snap();
-    await attemptWrite(() => svc.editBlock(currentId, blockId, { items }));
-    await loadCurrent(currentId);
-    setFocusBlockId(focusKey);
-  });
-  const listExit = (blockId: string, remaining: string[]) => enqueue(async () => {
-    if (!currentId) return;
-    await snap();
-    if (remaining.length === 0) {
-      await attemptWrite(() => svc.editBlock(currentId, blockId, { type: "text", text: "", items: undefined }));
-      await loadCurrent(currentId);
-      setFocusBlockId(blockId);
-    } else {
-      let newId: string | null = null;
-      await attemptWrite(async () => {
-        await svc.editBlock(currentId, blockId, { items: remaining });
-        newId = await svc.insertBlockAfter(currentId, blockId, { type: "text", text: "" });
-      });
-      await loadCurrent(currentId);
-      setFocusBlockId(newId);
-    }
-  });
-  const [addBlockOpen, setAddBlockOpen] = useState(false);
+  // The write goes out before the page can be lost: on unmount, when the app
+  // is hidden, and when the note is left.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") void flushDoc(); };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flushDoc);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flushDoc);
+      void flushDoc();
+    };
+  }, [flushDoc]);
   const [conns, setConns] = useState<Connection[]>([]);
   // C-18 / C-19 / C-20 (Astra, 2026-09-12): the open note's flags, the
   // notes around it, and what JARVIS found in it.
@@ -339,7 +233,7 @@ export default function NotesFlow({
         // is "unknown" and the row shows no date rather than a wrong one.
         const edited = it.serverTime > 1e12 ? it.serverTime : 0;
         return {
-          id: it.id, title: d.title || "Untitled", edited, category: d.category || "", first: firstLine(d.blocks), body: noteBlockText(d),
+          id: it.id, title: displayTitle(d), edited, category: d.category || "", first: d.title.trim() ? firstLine(d) : "", body: noteBlockText(d),
           // C-18 / C-20
           ...(d.pinned ? { pinned: true } : {}), ...(d.archived ? { archived: true } : {}), ...(d.tags?.length ? { tags: d.tags } : {}),
           ...((d.found ?? []).some((c) => !c.added) ? { found: (d.found ?? []).filter((c) => !c.added).length } : {}),
@@ -402,7 +296,7 @@ export default function NotesFlow({
         }).catch(() => { /* the heads simply do not render */ });
       }
       // Where You Were (addendum item 6): the open note is the spot.
-      if (d) recordSpot({ kind: "note", id, label: d.title || "Untitled" });
+      if (d) recordSpot({ kind: "note", id, label: displayTitle(d) });
       const checked = await Promise.all(
         cs.map(async (c) => (c.targetId && (await targetGone(c.kind, c.targetId)) ? c.id : null)),
       );
@@ -511,10 +405,19 @@ export default function NotesFlow({
   }, [schedSvc, tasksSvc, projSvc, goalSvc, peopleSvc]);
 
   const openNote = async (id: string) => {
-    history.current = [];
-    redoStack.current = [];
-    setHistTick((t) => t + 1);
+    await flushDoc();
+    setSaveState("idle");
     passLenRef.current = -1;
+    // A draft left on device (the app was killed mid-sentence) is newer than
+    // the store: it is written first, then the note is read.
+    const draft = readDraft(id);
+    if (draft) {
+      const stored = await svc.note(id);
+      if (stored && JSON.stringify(stored.doc ?? blocksToDoc(stored.blocks)) !== JSON.stringify(draft)) {
+        const ok = await attemptWrite(() => svc.setDoc(id, draft));
+        if (ok) clearDraft(id);
+      } else clearDraft(id);
+    }
     setLinkedFrom([]); setRelated([]); setFound([]);
     openCurrentId(id);
     await loadCurrent(id);
@@ -567,7 +470,6 @@ export default function NotesFlow({
       // blur-save should not wait on it); only the block write is queued.
       let ok = false;
       await enqueue(async () => {
-        await snap();
         ok = await attemptWrite(() => svc.addBlock(noteId, {
           type: kind, name: stored.name, size: sizeLabel(stored.bytes), path: stored.path, mime: stored.mime,
         }));
@@ -606,78 +508,7 @@ export default function NotesFlow({
     picker.open(type === "photo" ? PICK_IMAGE : PICK_ANY);
   };
 
-  const addBlock = async (type: BlockType) => {
-    if (!currentId) return;
-    if ((type === "photo" || type === "file") && fileStore) {
-      setAddBlockOpen(false);
-      pickInto(currentId, type);
-      return;
-    }
-    setAddBlockOpen(false);
-    await enqueue(async () => {
-      // NO TWIN FOR AN EMPTY LINE (2026-09-13): the note's last block is
-      // already this exact still-blank starter -- a double-tap on the chip,
-      // or a tap right after the ready-to-type line primed one for a brand
-      // new note -- so the tap refocuses it rather than appending a second,
-      // indistinguishable placeholder row nobody could tell apart on sight.
-      // Read fresh off the service, inside the queue, rather than trusting
-      // React's `current`: a blur-save queued moments earlier by the same
-      // gesture (HMN-F-01) has landed by the time this runs, and `current`
-      // has not necessarily caught up to it yet.
-      const note = await svc.note(currentId);
-      const blocks = note?.blocks ?? [];
-      const tail = blocks[blocks.length - 1];
-      if (tail && tail.type === type && isBlankStarter(tail)) {
-        setFocusBlockId(tail.id);
-        return;
-      }
-      await snap();
-      let newId: string | null = null;
-      await attemptWrite(async () => { newId = await svc.addBlock(currentId, starterBlock(type)); });
-      await loadCurrent(currentId);
-      // Writing toolbar (V4): the caret lands in the block you just added.
-      if (newId) setFocusBlockId(newId);
-    });
-  };
-
-  // AN EMPTY NOTE OPENS READY TO TYPE (Dave 2026-09-09, from his phone: "in
-  // notes there is nothing showing that you are ready to type on a line.
-  // There's no blinking line or anything. That's the most standard typing
-  // feature ever.")
-  //
-  // He is describing the blank note exactly as it opened: a title, a dashed
-  // +, and the words "Nothing here yet". There was no line, so there was no
-  // caret to blink in it -- before you could type a single character you had
-  // to know that the chips along the bottom (Text, Heading, List) were how a
-  // page gets its first line. Every notes app anyone has used opens with the
-  // caret already in the body, and the reason is that a blank page asking to
-  // be configured is not a blank page.
-  //
-  // So a note with nothing in it gets one empty text block, and the caret
-  // goes in it. It writes a real block rather than faking a line, because a
-  // fake one has to become real on the first keystroke and that seam is where
-  // the first character of a thought gets dropped.
-  //
-  // Three deliberate details:
-  //   - once per note id, so deleting the last block leaves the page empty.
-  //     Deleting the line you are on is an instruction, not a state to undo.
-  //   - outside the undo history (no snap()), so the first Undo in a new note
-  //     is the writer's first edit and never the line itself vanishing.
-  //   - it waits for `current`, so it sees the note's real blocks and cannot
-  //     fire against a stale empty render.
-  const primedNote = useRef<string | null>(null);
-  useEffect(() => {
-    if (screen !== "editor" || !currentId || !current) return;
-    if (current.blocks.length > 0 || primedNote.current === currentId) return;
-    primedNote.current = currentId;
-    const id = currentId;
-    void enqueue(async () => {
-      let newId: string | null = null;
-      await attemptWrite(async () => { newId = await svc.addBlock(id, starterBlock("text")); });
-      await loadCurrent(id);
-      if (newId) setFocusBlockId(newId);
-    });
-  }, [screen, currentId, current, enqueue, attemptWrite, svc, loadCurrent]);
+  const attach = (type: "photo" | "file") => { if (currentId && fileStore) pickInto(currentId, type); };
 
   // The swipe's File: an area, or "" to unfile. Closes on the pick.
   const [filing, setFiling] = useState<string | null>(null);
@@ -701,23 +532,10 @@ export default function NotesFlow({
   // since the day it shipped; the block delete never got one. Same beat, same
   // reason: the editor's Undo brings the block back WITH its picture, so the
   // bytes cannot go the instant the block does.
-  const blockSweeps = useRef<Array<() => void>>([]);
-  const sweepPathAfter = (path: string) => {
+  const sweepPathAfter = (path: string): { cancel: () => void } => {
     let undone = false;
-    const cancel = () => { undone = true; clearTimeout(t); };
-    const t = setTimeout(() => {
-      blockSweeps.current = blockSweeps.current.filter((c) => c !== cancel);
-      if (!undone) void fileStore?.remove([path]);
-    }, 6000);
-    blockSweeps.current.push(cancel);
-  };
-  // Any Undo cancels every sweep still waiting: the history restores the
-  // whole blocks array, so which block came back is not this layer's to
-  // guess, and keeping bytes for a picture nobody wants costs a great deal
-  // less than losing the picture.
-  const cancelBlockSweeps = () => {
-    for (const c of blockSweeps.current) c();
-    blockSweeps.current = [];
+    const t = setTimeout(() => { if (!undone) void fileStore?.remove([path]); }, 6000);
+    return { cancel: () => { undone = true; clearTimeout(t); } };
   };
 
   const openLinkPicker = async (from: Screen) => {
@@ -767,51 +585,10 @@ export default function NotesFlow({
     setScreen("editor");
   };
 
-  // UP-CORE-16 (2026-09-05): ONE LINE, ONE TASK. Meeting notes produce
-  // action items one at a time and the bulk screen three taps away makes
-  // tasks out of the whole list, which is why the one line that is actually
-  // an action stayed in the note. Through the same serialised queue every
-  // other block write uses (HMN-F-01), so the promotion cannot race the
-  // blur-save of the line being typed in.
-  const promoteCheckItem = (blockId: string, index: number) => enqueue(async () => {
-    if (!currentId) return;
-    const noteId = currentId;
-    await snap();
-    // BROWSER-F-01's lesson (2026-09-05), which this file is one line away
-    // from repeating: attemptWrite resolves a BOOLEAN, never the write's own
-    // value, so the new id is caught inside the closure.
-    const made: { id: string | null } = { id: null };
-    const ok = await attemptWrite(async () => { made.id = await svc.taskFromChecklistItem(noteId, blockId, index); });
-    await loadCurrent(noteId);
-    // No task, no toast: taskFromChecklistItem answers null when there was
-    // nothing to promote (a blank line, or one already linked), and a failed
-    // write has already said so in its own toast.
-    const taskId = made.id;
-    if (!ok || !taskId) return;
-    showToast({
-      message: "Made it a task",
-      actionLabel: "Undo",
-      onAction: () => void enqueue(async () => {
-        await attemptWrite(async () => {
-          await tasksSvc.deleteTask(taskId);
-          await svc.unlinkChecklistItem(noteId, blockId, index);
-        });
-        await loadCurrent(noteId);
-      }),
-    });
-  });
-
   const editTitle = (text: string) => enqueue(async () => {
     if (!currentId) return;
     if (text) await attemptWrite(() => svc.editTitle(currentId, text)); // ignore empty, revert on reload
     await loadCurrent(currentId);
-  });
-  const editBlockText = (blockId: string, text: string) => enqueue(async () => {
-    if (!currentId) return;
-    await snap();
-    await attemptWrite(() => svc.editBlock(currentId, blockId, { text }));
-    await loadCurrent(currentId);
-    void maybeFind(currentId);
   });
 
   // C-20: JARVIS FOUND. After a blur-save, when the note's text has moved
@@ -916,118 +693,29 @@ export default function NotesFlow({
     setNoteFlags((f) => ({ ...f, tags: [...new Set(tags.map((t) => t.trim().replace(/^#/, "")).filter(Boolean))] }));
     await loadList();
   };
-  const toggleCheck = (blockId: string, index: number) => enqueue(async () => {
+  // An attachment leaves the note with Undo in the toast (the app's one
+  // convention for a destructive action); its bytes follow a beat later
+  // (HMN-F-27), and Undo cancels that beat because Undo brings the picture
+  // back.
+  const deleteAttachment = (blockId: string) => enqueue(async () => {
     if (!currentId) return;
-    await attemptWrite(() => svc.toggleChecklistItem(currentId, blockId, index));
-    await loadCurrent(currentId);
-  });
-  const editCheckItem = (blockId: string, index: number, text: string) => enqueue(async () => {
-    if (!currentId) return;
-    await snap();
-    await attemptWrite(() => svc.setChecklistItemText(currentId, blockId, index, text));
-    await loadCurrent(currentId);
-  });
-  const addCheckItem = (blockId: string) => enqueue(async () => {
-    if (!currentId) return;
-    await snap();
-    await attemptWrite(() => svc.addChecklistItem(currentId, blockId));
-    await loadCurrent(currentId);
-  });
-  const deleteCheckItem = (blockId: string, index: number) => enqueue(async () => {
-    if (!currentId) return;
-    await snap();
-    await attemptWrite(() => svc.deleteChecklistItem(currentId, blockId, index));
-    await loadCurrent(currentId);
-  });
-  const moveBlockDir = (blockId: string, dir: -1 | 1) => enqueue(async () => {
-    if (!currentId) return;
-    // Positions come from the FRESH note: an edit queued ahead of this may
-    // have shifted them since the menu was drawn.
-    const blocks = (await svc.note(currentId))?.blocks ?? [];
-    const i = blocks.findIndex((b) => b.id === blockId);
-    if (i < 0) return;
-    const j = i + dir;
-    if (j < 0 || j >= blocks.length) return;
-    await snap();
-    await attemptWrite(() => svc.moveBlock(currentId, i, j));
-    await loadCurrent(currentId);
-  });
-  const deleteBlock = (blockId: string) => enqueue(async () => {
-    if (!currentId) return;
-    await snap();
-    // HMN-F-27: the path comes from the FRESH note, and only a delete that
-    // actually happened schedules the sweep of what it pointed at.
-    const path = (await svc.note(currentId))?.blocks.find((b) => b.id === blockId)?.path;
-    const ok = await attemptWrite(() => svc.deleteBlock(currentId, blockId));
-    await loadCurrent(currentId);
-    if (ok && path) sweepPathAfter(path);
-  });
-
-  // Turn Into (deep writing pass): a text or heading block converts to any
-  // simple type in place; its words become the first item where items rule.
-  const turnInto = (blockId: string, type: TurnIntoType) => enqueue(async () => {
-    if (!currentId) return;
-    // The words come from the fresh note so a blur-save queued just ahead of
-    // the menu tap is what gets converted, not the text from before it.
-    const b = (await svc.note(currentId))?.blocks.find((x) => x.id === blockId);
-    if (!b || (b.type !== "text" && b.type !== "heading" && b.type !== "quote" && b.type !== "callout")) return;
-    const words = b.text ?? "";
-    await snap();
-    await attemptWrite(async () => {
-      // C-17: a quote or a callout keeps its words; a divider drops them.
-      if (type === "text" || type === "heading" || type === "quote" || type === "callout") await svc.editBlock(currentId, blockId, { type, text: words, items: undefined });
-      else if (type === "divider") await svc.editBlock(currentId, blockId, { type, text: undefined, items: undefined });
-      else if (type === "checklist") await svc.editBlock(currentId, blockId, { type, text: undefined, items: [{ text: words, done: false }] });
-      else await svc.editBlock(currentId, blockId, { type, text: undefined, items: [words] });
+    const noteId = currentId;
+    const block = (await svc.note(noteId))?.blocks.find((b) => b.id === blockId);
+    if (!block) return;
+    const ok = await attemptWrite(() => svc.deleteBlock(noteId, blockId));
+    await loadCurrent(noteId);
+    if (!ok) return;
+    const sweep = block.path ? sweepPathAfter(block.path) : null;
+    showToast({
+      message: block.type === "photo" ? "Photo removed" : "File removed",
+      actionLabel: "Undo",
+      onAction: () => void enqueue(async () => {
+        sweep?.cancel();
+        const { id: _id, ...rest } = block;
+        await attemptWrite(() => svc.addBlock(noteId, rest));
+        await loadCurrent(noteId);
+      }),
     });
-    await loadCurrent(currentId);
-  });
-
-  // The Tracker's table edits (deep template pass): cells patch in place,
-  // Add Row grows downward, Add Column grows sideways. Row -1 is the header.
-  // These were the first ops to run through the queue and read the FRESH
-  // note inside it, because a cell's blur-save and an Add Row tap fire
-  // back-to-back and two stale read-modify-writes clobbered each other
-  // (found live). HMN-F-01 gave every other mutation the same treatment.
-  const freshTable = async (blockId: string) => {
-    if (!currentId) return null;
-    const d = await svc.note(currentId);
-    const b = d?.blocks.find((x) => x.id === blockId);
-    if (!b || b.type !== "table") return null;
-    return { columns: (b.columns ?? []).slice(), rows: (b.rows ?? []).map((r) => r.slice()) };
-  };
-  const tableEdit = (blockId: string, row: number, col: number, text: string) => enqueue(async () => {
-    if (!currentId) return;
-    const t = await freshTable(blockId);
-    if (!t) return;
-    await snap();
-    await attemptWrite(async () => {
-      if (row === -1) {
-        t.columns[col] = text;
-        await svc.editBlock(currentId, blockId, { columns: t.columns });
-      } else {
-        while (t.rows.length <= row) t.rows.push(Array<string>(t.columns.length).fill(""));
-        t.rows[row]![col] = text;
-        await svc.editBlock(currentId, blockId, { rows: t.rows });
-      }
-    });
-    await loadCurrent(currentId);
-  });
-  const tableAddRow = (blockId: string) => enqueue(async () => {
-    if (!currentId) return;
-    const t = await freshTable(blockId);
-    if (!t) return;
-    await snap();
-    await attemptWrite(() => svc.editBlock(currentId, blockId, { rows: [...t.rows, Array<string>(t.columns.length).fill("")] }));
-    await loadCurrent(currentId);
-  });
-  const tableAddColumn = (blockId: string) => enqueue(async () => {
-    if (!currentId) return;
-    const t = await freshTable(blockId);
-    if (!t) return;
-    await snap();
-    await attemptWrite(() => svc.editBlock(currentId, blockId, { columns: [...t.columns, ""], rows: t.rows.map((r) => [...r, ""]) }));
-    await loadCurrent(currentId);
   });
 
   // Stack depth per screen: list is root, editor and templates sit above it,
@@ -1168,11 +856,12 @@ export default function NotesFlow({
     );
   }
   if (screen === "createTasks") {
-    const checklist = current?.blocks.find((b) => b.type === "checklist");
-    const items =
-      checklist && checklist.type === "checklist"
-        ? checklist.items.filter((i) => !i.done).map((i) => ({ text: i.text, due: "", urgency: "muted" as const }))
-        : [];
+    const items = (current?.doc.content ?? [])
+      .filter((n) => n.type === "taskList")
+      .flatMap((n) => n.content ?? [])
+      .filter((li) => !li.attrs?.checked)
+      .map((li) => ({ text: (li.content ?? []).map((c) => (c.content ?? []).map((t) => t.text ?? "").join("")).join(" ").trim(), due: "", urgency: "muted" as const }))
+      .filter((i) => i.text);
     const cat = current?.category ?? defaultCatId;
     return (
       <div className={pushCls} key="createTasks">
@@ -1181,7 +870,7 @@ export default function NotesFlow({
         categoryLabel={catName(cat)}
         // HMN-F-16 (2026-09-05): the flow wired only `items`, so the header
         // said From "This Week" for every note in the app.
-        source={current?.title || "Untitled"}
+        source={current ? (current.title.trim() || firstLineOf(current.doc) || "Untitled") : "Untitled"}
         items={items}
         onCreate={runCreateTasks}
         onBack={() => setScreen("connections")}
@@ -1195,24 +884,18 @@ export default function NotesFlow({
       {current && (
         <NoteEditor
           fileStore={fileStore}
-          focusBlockId={focusBlockId}
-          onEnterAt={enterAt}
-          onBackspaceAt={backspaceAt}
-          onTransformAt={transformAt}
-          onListItems={listItems}
-          onListExit={listExit}
           note={current}
-          onBack={() => { setScreen("list"); loadList(); }}
+          saveState={saveState}
+          onRetrySave={() => void flushDoc()}
+          onBack={() => { void flushDoc().then(() => loadList()); setScreen("list"); }}
           onConnections={() => setScreen("connections")}
           onDeleteNote={async () => {
             if (!currentId) return;
             // The app's one convention for destructive actions: do it, offer
-            // Undo in the toast (tasks set the pattern). This was the last
-            // window.confirm dialog on a destructive path; a native popup
-            // asking "are you sure?" is exactly the interrogation the rest of
-            // the app refuses to do (audit 2026-08-07).
-            // Queued behind any block save still in flight, so the snapshot
-            // Undo restores carries the last thing typed.
+            // Undo in the toast (tasks set the pattern). Queued behind any
+            // save still in flight, so the snapshot Undo restores carries the
+            // last thing typed.
+            await flushDoc();
             let snapshot: NoteData | null = null;
             let ok = false;
             await enqueue(async () => {
@@ -1223,6 +906,7 @@ export default function NotesFlow({
             const kept: NoteData | null = snapshot;
             const deletedId = currentId;
             const sweep = sweepAfter([currentId]);
+            clearDraft(deletedId);
             openCurrentId(null);
             await loadList();
             setScreen("list");
@@ -1238,8 +922,10 @@ export default function NotesFlow({
               },
             });
           }}
-          onAddBlock={() => setAddBlockOpen(true)}
-          onAddTyped={(t) => void addBlock(t)}
+          onDeleteAttachment={(id) => void deleteAttachment(id)}
+          onInsertPhoto={fileStore ? () => attach("photo") : undefined}
+          onInsertFile={fileStore ? () => attach("file") : undefined}
+          onCreateTasks={() => setScreen("createTasks")}
           pinned={noteFlags.pinned}
           archived={noteFlags.archived}
           tags={noteFlags.tags}
@@ -1253,22 +939,7 @@ export default function NotesFlow({
           onFoundAdd={(i) => void foundAdd(i)}
           onFoundLink={(i) => void foundLink(i)}
           onEditTitle={editTitle}
-          onEditBlockText={editBlockText}
-          onToggleCheck={toggleCheck}
-          onEditCheckItem={editCheckItem}
-          onAddCheckItem={addCheckItem}
-          onDeleteCheckItem={deleteCheckItem}
-          onPromoteCheckItem={promoteCheckItem}
-          onMoveBlock={moveBlockDir}
-          onDeleteBlock={deleteBlock}
-          onTurnInto={(id, t) => void turnInto(id, t)}
-          onTableEdit={(id, r, c, t) => void tableEdit(id, r, c, t)}
-          onTableAddRow={(id) => void tableAddRow(id)}
-          onTableAddColumn={(id) => void tableAddColumn(id)}
-          onUndo={() => void undo()}
-          onRedo={() => void redo()}
-          canUndo={histTick >= 0 && history.current.length > 0}
-          canRedo={histTick >= 0 && redoStack.current.length > 0}
+          onDocChange={docChange}
           connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId, gone: goneConns.has(c.id) }))}
           onAddLink={() => void openLinkPicker("editor")}
           onRemoveConnection={(connId) => void enqueue(async () => {
@@ -1277,12 +948,8 @@ export default function NotesFlow({
             await loadCurrent(currentId);
           })}
           onOpenConnection={(kind, targetId) => (kind === "note" ? void openNote(targetId) : onNavigate?.(kind, targetId))}
-          onOpenTask={onNavigate ? (taskId) => onNavigate("task", taskId) : undefined}
           openSourceFor={openSourceFor}
         />
-      )}
-      {addBlockOpen && (
-        <AddBlockSheet onSelect={addBlock} onCancel={() => setAddBlockOpen(false)} />
       )}
       {/* C-18: the tags sheet. Chips for the ones it has (tap removes), a
           line to add one. Saves on Done. */}

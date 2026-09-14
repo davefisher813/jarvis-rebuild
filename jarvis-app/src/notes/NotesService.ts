@@ -14,6 +14,7 @@ import {
   type TemplateKey,
   type FoundCandidate,
 } from "./types";
+import { docToBlocks, setTaskDone, linkedTasksIn, displayTitle, applyChecklistLinks, type Doc } from "./docModel";
 
 function genId(prefix: string): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -149,6 +150,14 @@ export class NotesService {
     if (idx < 0) return false;
     const blocks = note.blocks.slice();
     blocks[idx] = { ...blocks[idx]!, ...patch, id: blockId };
+    // A note with a document (the writing system): a checklist edit made on
+    // the blocks (a task made from a line, a line ticked) is copied onto the
+    // document in the same write, or the next save would project it away.
+    if (note.doc && blocks[idx]!.type === "checklist") {
+      const doc = applyChecklistLinks(note.doc, blocks);
+      await this.store.update(this.ownerId, id, (doc === note.doc ? { blocks } : { blocks, doc }) as unknown as ItemData);
+      return true;
+    }
     await this.store.update(this.ownerId, id, { blocks } as unknown as ItemData);
     return true;
   }
@@ -159,6 +168,17 @@ export class NotesService {
     const note = await this.getNote(id);
     if (!note) return false;
     await this.store.update(this.ownerId, id, { blocks } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
+    return true;
+  }
+
+  // THE DOCUMENT SAVE (the writing system, 2026-09-14). One write carries the
+  // document and its projection, so a reader of either sees the same note.
+  async setDoc(id: string, doc: Doc): Promise<boolean> {
+    const note = await this.getNote(id);
+    if (!note) return false;
+    const blocks = docToBlocks(doc, note.blocks);
+    await this.store.update(this.ownerId, id, { doc, blocks } as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
     return true;
   }
@@ -377,6 +397,17 @@ export class NotesService {
     if (!note) return;
     const tasks = await this.listTasks();
     const doneById = new Map(tasks.map((t) => [t.id, !!(t.data as unknown as TaskData).done]));
+    // The document first (the writing system): a checked line there is the
+    // truth, and its projection follows in the same write.
+    if (note.doc) {
+      let doc = note.doc;
+      for (const l of linkedTasksIn(doc)) {
+        const taskDone = doneById.get(l.taskId);
+        if (taskDone !== undefined && taskDone !== l.checked) doc = setTaskDone(doc, l.taskId, taskDone);
+      }
+      if (doc !== note.doc) await this.store.update(this.ownerId, id, { doc, blocks: docToBlocks(doc, note.blocks) } as unknown as ItemData);
+      return;
+    }
     for (const block of note.blocks) {
       if (block.type !== "checklist" || !block.items) continue;
       const items = this.normalizeItems(block.items);
@@ -529,7 +560,7 @@ export class NotesService {
       const d = it.data as unknown as NoteData;
       if (d.archived) continue;
       const shared = (d.connections ?? []).filter((c) => c.targetId && mine.has(c.kind + ":" + c.targetId)).length;
-      if (shared > 0) out.push({ id: it.id, title: d.title || "Untitled", category: d.category || "", shared });
+      if (shared > 0) out.push({ id: it.id, title: displayTitle(d), category: d.category || "", shared });
     }
     return out.sort((a, b) => b.shared - a.shared || a.title.localeCompare(b.title));
   }
@@ -543,7 +574,7 @@ export class NotesService {
       // express; that filtering stays in memory by design.
       const d = it.data as unknown as NoteData;
       if (Array.isArray(d.connections) && d.connections.some((c) => c.targetId === targetId)) {
-        out.push({ id: it.id, title: d.title || "Untitled", category: d.category || "" });
+        out.push({ id: it.id, title: displayTitle(d), category: d.category || "" });
       }
     }
     return out;
@@ -567,7 +598,7 @@ export class NotesService {
     return items.map((it) => {
       const d = it.data as unknown as NoteData;
       return {
-        title: d.title || "Untitled",
+        title: displayTitle(d),
         connections: (d.connections ?? [])
           .filter((c) => !!c.targetId)
           .map((c) => ({ type: c.kind, id: c.targetId! })),

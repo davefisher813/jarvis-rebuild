@@ -1,0 +1,105 @@
+/* ===========================================================================
+   THE SHARED DOCUMENT EDITOR (the writing system, 2026-09-14)
+
+   One continuous surface (shared/DocEditor.tsx) at three levels: the full
+   document (Notes, Brain documents), compact (a description with room to
+   grow) and quick (a multiline field). The reading gutter is 20pt on the
+   document level, an editor-surface exception to the 16pt screen edge
+   (catalog section AF, Dave's ruling 2026-09-14). Body text is the editor
+   body role, 18 over 1.5, primary ink; the title is the editor title role,
+   30 over 1.15. Tokens only; both themes come through them.
+   =========================================================================== */
+.doc-write { padding: var(--s-3) 20px var(--s-8); }
+.doc-write > * + * { margin-top: var(--s-2h); }
+.doc-write .doc-title { font-size: calc(30px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.15; color: var(--tx-1); }
+.doc-write .doc-eyebrow { display: flex; align-items: center; gap: var(--s-2); }
+.doc-write .doc-eyebrow .eyebrow { font-size: var(--t-eyebrow); letter-spacing: var(--track-eyebrow); text-transform: uppercase; font-weight: var(--w-semi); }
+
+.doc-editor { position: relative; }
+.doc-pm { outline: none; caret-color: var(--accent); font-family: var(--f); color: var(--tx-1);
+  font-size: calc(18px * var(--type-scale)); line-height: 1.5; -webkit-user-select: text; user-select: text; min-height: 40vh; }
+.doc-editor-compact .doc-pm { min-height: 88px; font-size: calc(16px * var(--type-scale)); }
+.doc-editor-quick .doc-pm { min-height: 44px; font-size: calc(16px * var(--type-scale)); }
+.doc-pm > * + * { margin-top: var(--s-2h); }
+.doc-pm p { margin: 0; }
+.doc-pm h1 { font-size: calc(24px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.015em; line-height: 1.2; margin-top: var(--s-5); }
+.doc-pm h2 { font-size: calc(21px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.01em; line-height: 1.25; margin-top: var(--s-4); }
+.doc-pm h3 { font-size: calc(18px * var(--type-scale)); font-weight: var(--w-semi); line-height: 1.3; margin-top: var(--s-3); }
+.doc-pm h1:first-child, .doc-pm h2:first-child, .doc-pm h3:first-child { margin-top: 0; }
+.doc-pm ul, .doc-pm ol { padding-left: 24px; margin: 0; }
+.doc-pm li { margin: 0; }
+.doc-pm li + li { margin-top: 6px; }
+.doc-pm li > ul, .doc-pm li > ol { margin-top: 6px; }
+.doc-pm ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.doc-pm ul[data-type="taskList"] > li { display: flex; align-items: flex-start; gap: var(--s-2h); min-height: 44px; }
+.doc-pm ul[data-type="taskList"] > li > label { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; cursor: pointer; }
+.doc-pm ul[data-type="taskList"] > li > label input { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; margin: 0; border-radius: var(--r-circle); border: 1.5px solid var(--tx-4); background: transparent; display: grid; place-items: center; }
+.doc-pm ul[data-type="taskList"] > li > label input:checked { background: var(--accent); border-color: var(--accent); }
+.doc-pm ul[data-type="taskList"] > li > label input:checked::after { content: ""; width: 6px; height: 11px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg) translateY(-1px); }
+.doc-pm ul[data-type="taskList"] > li > div { flex: 1; min-width: 0; padding-top: 10px; }
+.doc-pm ul[data-type="taskList"] > li[data-checked="true"] > div { text-decoration: line-through; color: var(--tx-2); }
+.doc-pm ul[data-type="taskList"] > li[data-task-id] > div::after { content: " · Task"; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi); color: var(--hl-cyan); letter-spacing: 0.02em; }
+.doc-pm blockquote { margin: 0; padding: 2px 0 2px 14px; border-left: 3px solid var(--tx-4); color: var(--tx-1); }
+.doc-pm .doc-callout { display: flex; gap: var(--s-2h); padding: var(--s-3) var(--s-3h); border-radius: var(--r-md); background: var(--surface-2); }
+.doc-pm .doc-callout::before { content: ""; flex-shrink: 0; width: 4px; border-radius: 2px; background: var(--accent); }
+.doc-pm .doc-callout > * { flex: 1; min-width: 0; }
+.doc-pm .doc-callout > * + * { margin-top: var(--s-2); }
+.doc-pm pre { margin: 0; padding: var(--s-3); border-radius: var(--r-md); background: var(--surface-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: calc(14px * var(--type-scale)); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.doc-pm code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; background: var(--surface-2); border-radius: var(--r-sm); padding: 1px 5px; }
+.doc-pm pre code { background: none; padding: 0; font-size: inherit; }
+.doc-pm hr { border: 0; border-top: 0.5px solid var(--divider); margin: var(--s-3) 0; }
+.doc-pm a { color: var(--tint); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.doc-pm mark { background: var(--hl-amber-tint); color: inherit; border-radius: 2px; padding: 0 1px; }
+.doc-pm s { color: var(--tx-2); }
+.doc-pm table { border-collapse: collapse; width: 100%; table-layout: fixed; border: 0.5px solid var(--divider); border-radius: var(--r-md); overflow: hidden; font-size: calc(15px * var(--type-scale)); }
+.doc-pm th, .doc-pm td { border: 0.5px solid var(--divider); padding: var(--s-2) var(--s-2h); vertical-align: top; text-align: left; min-width: 60px; }
+.doc-pm th { font-weight: var(--w-semi); background: var(--press-1); }
+.doc-pm .selectedCell::after { content: ""; position: absolute; inset: 0; background: var(--hl-cyan-tint); pointer-events: none; }
+.doc-pm td, .doc-pm th { position: relative; }
+.doc-pm .ProseMirror-selectednode { outline: 2px solid var(--tint); outline-offset: 2px; border-radius: var(--r-sm); }
+/* The cue on an empty document only (never on every empty line): out of
+   flow so it can never own the caret, the same lesson uniformity.css
+   records for the old blocks. */
+.doc-pm p.is-editor-empty:first-child { position: relative; }
+.doc-pm p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--tx-2); pointer-events: none; position: absolute; left: 0; top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.doc-pm .ProseMirror-gapcursor::after { border-top: 1px solid var(--tx-1); }
+
+/* The save line: one fact, never a spinner, never before the write returns. */
+.doc-save { display: flex; align-items: center; gap: var(--s-2); font-size: calc(12.5px * var(--type-scale)); color: var(--tx-2); min-height: 20px; margin-top: var(--s-2); }
+.doc-save.failed { color: var(--sys-red); }
+.doc-save .pill-action { margin-left: var(--s-1); }
+
+/* THE WRITING BAR: fixed to the top of the keyboard through the visual
+   viewport (shared/viewport.ts writes --vv-top and --vv-h). With no keyboard
+   the viewport is the whole screen and the bar sits at its foot. The menu
+   row opens above the bar. Capsules throughout (the live capsule law). */
+.doc-kbar { position: fixed; left: 0; right: 0; z-index: 70;
+  top: calc(var(--vv-top, 0px) + var(--vv-h, 100dvh)); transform: translateY(-100%);
+  background: var(--surface-2); border-top: 0.5px solid var(--divider); padding-bottom: 0; }
+.doc-kbar-row { display: flex; align-items: center; gap: var(--s-1); padding: 6px var(--s-2); min-height: 52px; }
+.doc-kbtn { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 var(--s-3);
+  border: 0; border-radius: var(--r-pill); background: transparent; color: var(--tx-1); font-family: var(--f); font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
+.doc-kbtn .ic { width: 20px; height: 20px; }
+.doc-kbtn:disabled { color: var(--tx-2); }
+.doc-kbtn.on { background: var(--press-3); }
+.doc-kword { padding: 0 var(--s-3h); }
+.doc-kdone { color: var(--tint); }
+.doc-kgrow { flex: 1; }
+.doc-kmenu { display: flex; gap: var(--s-2); padding: var(--s-2) var(--s-3); overflow-x: auto; scrollbar-width: none; border-bottom: 0.5px solid var(--divider); }
+.doc-kmenu::-webkit-scrollbar { display: none; }
+.doc-kmenu .chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
+.doc-kmenu .chip .ic { width: 16px; height: 16px; }
+
+/* While a document has the keyboard, the tab bar and the composer step
+   aside so the bar is the only thing between the words and the keys. The
+   room under the words keeps the active line clear of the bar. */
+body.writing .tab-bar, body.writing .voice-dock { display: none; }
+body.writing .screen-editor { padding-bottom: 140px; }
+.screen-editor { scroll-padding-bottom: 160px; }
+.screen-editor .doc-write { padding-bottom: 120px; }
+
+/* The word count and the attachments keep their old rows. */
+.doc-attach-head { margin-top: var(--s-3); }
+
+/* Light theme: the same tokens carry it; only the checkmark ink is fixed. */
+[data-theme="light"] .doc-pm ul[data-type="taskList"] > li > label input:checked::after { border-color: #fff; }

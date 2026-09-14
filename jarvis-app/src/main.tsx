@@ -14,6 +14,7 @@ import { trackVisualViewport } from "./shared/viewport";
 import "./styles/jarvis-design-system.css";
 import "./styles/uniformity.css";
 import "./styles/components.css";
+import "./styles/editor.css";
 import "./styles/ruled.css";
 
 initMonitoring();

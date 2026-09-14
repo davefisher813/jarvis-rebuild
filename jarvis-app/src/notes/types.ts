@@ -66,6 +66,12 @@ export interface NoteData {
   title: string;
   category: string;
   blocks: Block[];
+  // THE DOCUMENT (the writing system, 2026-09-14): the note as one
+  // continuous ProseMirror tree, the truth when present. `blocks` is its
+  // projection, written alongside it on every save (see docModel.ts), so
+  // every existing reader of blocks and every older build keeps working.
+  // A note without one is built from its blocks on open.
+  doc?: import("@tiptap/core").JSONContent;
   connections: Connection[];
   // UP-CORE-05 (2026-09-05): provenance on notes too. A note born from a
   // paste, a capture or a file said nothing about where it came from, while
