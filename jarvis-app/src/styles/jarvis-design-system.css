@@ -167,7 +167,16 @@
      the system 60% (EBEBF5 like UIKit's secondaryLabel), tertiary at 30%.
      The old 0.76 white meta sat too close to titles and killed hierarchy;
      recede comes from this ramp plus 15px meta size, not from casing. */
-  --tx-1: #FFFFFF; --tx-2: rgba(235,235,245,0.82); --tx-3: rgba(235,235,245,0.60); --tx-4: rgba(235,235,245,0.30);
+  /* THE TWO-TIER INK RAMP (Dave 2026-09-14, the writing brief's Appendix A,
+     conflict 1, ruled from the preview harness across Today, Life and
+     Notes). Four levels collapse to two: primary for every word that is
+     content, one secondary for everything that was --tx-2 or --tx-3
+     (section heads, counts, kickers, dates, meta lines, field labels, save
+     status), and --tx-4 as STRUCTURE only (dotted leaders, empty rings,
+     chevrons, hairlines) which may never colour text. The token names stay
+     so no ported surface needs markup changes; the sweep below this ramp's
+     law (laws.test.ts) keeps text off --tx-4. */
+  --tx-1: #FFFFFF; --tx-2: #D2D2D6; --tx-3: #D2D2D6; --tx-4: #7C7C82;
   /* BROWSER-F-09 (2026-09-05), option B. --tx-4 was carrying two meanings at
      once: "this is finished or out of range" and "this is quiet metadata". The
      first is a deliberate dimming and 30 percent is right for it. The second is
@@ -294,7 +303,11 @@
      flat hex); 0.66 was tried first and still read 4.02 on card. The
      pressed-chip case stays the prefers-contrast boost's job (0.75), and
      the ramp keeps its order: 0.82 tx-2 > 0.72 tx-3 > 0.30 tx-4. */
-  --tx-1: #000000; --tx-2: rgba(60,60,67,0.82); --tx-3: rgba(60,60,67,0.72); --tx-4: rgba(60,60,67,0.30);
+  /* The light half of the two-tier ramp (2026-09-14). These are the iOS
+     HIG twins the harness used so the comparison could exist: a starting
+     point, not measured tokens, to be authored and measured the way
+     Daylight was when the light half is done. */
+  --tx-1: #000000; --tx-2: #3A3A40; --tx-3: #3A3A40; --tx-4: #8E8E93;
   /* BROWSER-F-09 (2026-09-05). Light's 30 percent is 30 percent of a mid-grey,
      not of black, so quiet metadata measured 1.7:1 and read as blank space:
      611 hits on white and 381 on the page. 0.72 is the alpha the --tx-3 note
@@ -528,7 +541,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 .btn-secondary { background: var(--press-3); color: var(--tx-1); }
 .btn-tertiary { background: transparent; color: var(--tint); }
 .btn-danger { background: var(--sys-red); color: #fff; }
-.btn-disabled { background: var(--press-1); color: var(--tx-4); pointer-events: none; }
+.btn-disabled { background: var(--press-1); color: var(--tx-2); pointer-events: none; }
 .btn:active { opacity: 0.7; }
 .btn-sm { height: 34px; font-size: var(--t-meta); padding: 0 var(--s-3h); }
 .btn-lg { height: 56px; }
@@ -536,10 +549,10 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 
 /* INPUTS */
 .input { width: 100%; min-height: 44px; padding: var(--s-2) var(--s-3); background: var(--surface-2); border: 1px solid var(--card-bd); border-radius: var(--r-md); font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); outline: none; }
-.input::placeholder { color: var(--tx-4); }
+.input::placeholder { color: var(--tx-2); }
 .input:focus, .input.focused { border-color: var(--tint); border-width: 2px; padding: 0 calc(var(--s-3) - 1px); }
 .input.error { border-color: var(--red); border-width: 2px; padding: 0 calc(var(--s-3) - 1px); }
-.input.disabled { background: var(--press-1); color: var(--tx-4); pointer-events: none; }
+.input.disabled { background: var(--press-1); color: var(--tx-2); pointer-events: none; }
 .input-label { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1); margin-bottom: var(--s-1h); display: flex; gap: var(--s-1); }
 .input-req { color: var(--red); }
 .input-help { font-size: var(--t-eyebrow); color: var(--tx-3); margin-top: var(--s-1); }
@@ -575,7 +588,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .stepper { display: inline-flex; background: var(--press-3); border-radius: var(--r-md); overflow: hidden; }
 /* The stepper keeps its track solid and greys only the glyph: a translucent
    button inside a filled pill reads as a rendering fault. */
-.stepper button:disabled { opacity: 1; color: var(--tx-4); }
+.stepper button:disabled { opacity: 1; color: var(--tx-2); }
 .stepper button { width: 44px; height: 34px; background: transparent; border: 0; color: var(--tint); font-size: calc(20px * var(--type-scale)); font-family: var(--f); }
 .stepper .sep { width: 1px; background: var(--divider); }
 .stepper .val { padding: 0 var(--s-3); display: flex; align-items: center; font-size: var(--t-h3); min-width: 32px; justify-content: center; }
@@ -683,7 +696,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
   border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
 .task-title { flex: 1; font-size: var(--t-h3); }
 .task-meta { font-size: var(--t-meta); color: var(--tx-3); }
-.task-row.completed .task-title { text-decoration: line-through; color: var(--tx-4); }
+.task-row.completed .task-title { text-decoration: line-through; color: var(--tx-2); }
 /* SYSTEMIC CATEGORY COLOR INDICATORS (use a category brand color, never grey) */
 .cat-dot { width: 10px; height: 10px; border-radius: var(--r-circle); flex-shrink: 0; }
 .cat-bar { width: 4px; align-self: stretch; border-radius: 2px; flex-shrink: 0; }
@@ -746,7 +759,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .brain-row { padding: var(--s-4); }
 .brain-kicker { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-eyebrow); color: var(--cat-blue); margin-bottom: var(--s-2); }
 .brain-quote { font-size: var(--t-body); line-height: var(--lh-relaxed); margin-bottom: var(--s-2); }
-.brain-saved { font-size: var(--t-eyebrow); color: var(--tx-4); }
+.brain-saved { font-size: var(--t-eyebrow); color: var(--tx-2); }
 
 /* STATES */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--s-3); min-height: 65vh; padding: var(--s-6) var(--s-5); }
@@ -855,23 +868,23 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    more contrast asks the OS once and every screen answers. */
 @media (prefers-contrast: more) {
   :root, :root[data-theme="light"] {
-    --tx-2: rgba(60, 60, 67, 0.92);
-    --tx-3: rgba(60, 60, 67, 0.75);
-    --tx-4: rgba(60, 60, 67, 0.75);
+    --tx-2: #26262B;
+    --tx-3: #26262B;
+    --tx-4: #6E6E73;
     --sys-gray: #6D6D72;
   }
   :root[data-theme="dark"] {
-    --tx-2: rgba(235, 235, 245, 0.92);
-    --tx-3: rgba(235, 235, 245, 0.60);
-    --tx-4: rgba(235, 235, 245, 0.60);
+    --tx-2: #E6E6EA;
+    --tx-3: #E6E6EA;
+    --tx-4: #9A9AA0;
     --sys-gray: #A2A2A8;
   }
 }
 @media (prefers-contrast: more) and (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --tx-2: rgba(235, 235, 245, 0.92);
-    --tx-3: rgba(235, 235, 245, 0.60);
-    --tx-4: rgba(235, 235, 245, 0.60);
+    --tx-2: #E6E6EA;
+    --tx-3: #E6E6EA;
+    --tx-4: #9A9AA0;
     --sys-gray: #A2A2A8;
   }
 }

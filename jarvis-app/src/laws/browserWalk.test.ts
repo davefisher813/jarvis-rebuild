@@ -535,11 +535,16 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
     }
   });
 
-  // And --tx-4 keeps the job it was tuned for. Raising it (option A) is the
-  // road not taken: the done state is supposed to recede.
-  it("--tx-4 stays the dim past-state grey it was", () => {
+  // THE TWO-TIER INK RAMP (Dave 2026-09-14, the writing brief's Appendix A,
+  // conflict 1) supersedes the 30 percent quaternary this law used to hold:
+  // --tx-2 and --tx-3 are one secondary value, and --tx-4 is a solid
+  // structure grey that never colours text (the law for that is in
+  // laws.test.ts). The done state recedes to secondary now, which is the
+  // ruling's own choice: "do not use faded paragraphs or grey helper text".
+  it("the ramp is two tiers: one secondary, and a solid structure grey", () => {
     for (const theme of ["dark", "light"]) {
-      expect(tokenIn(theme, "--tx-4"), `${theme} --tx-4`).toMatch(/0\.30\)$/);
+      expect(tokenIn(theme, "--tx-2"), `${theme} --tx-2 and --tx-3 are one value`).toBe(tokenIn(theme, "--tx-3"));
+      expect(tokenIn(theme, "--tx-4"), `${theme} --tx-4 is a solid structure grey`).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });
 
@@ -558,13 +563,15 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
     }
   });
 
-  it("the deliberately dimmed states keep --tx-4", () => {
+  // Superseded 2026-09-14 (the two-tier ruling): a past state recedes to the
+  // secondary ink, never to the structure grey.
+  it("the deliberately dimmed states recede to secondary, never to --tx-4", () => {
     const all = (css() + read("styles/ruled.css")).replace(/\/\*[\s\S]*?\*\//g, "");
     const rules = [...all.matchAll(/([^{}]+)\{([^}]*)\}/g)];
     for (const sel of [".cal-cell.out", ".rem-row.done .rem-name", ".ruled .task-row .money-amt.paid"]) {
       const body = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === sel)?.[2];
       expect(body, `${sel} is still in the sheet`).toBeTruthy();
-      expect(body, `${sel} is a past state and is meant to recede`).toMatch(/color:\s*var\(--tx-4\)/);
+      expect(body, `${sel} is a past state and recedes to secondary`).toMatch(/color:\s*var\(--tx-2\)/);
     }
   });
 });

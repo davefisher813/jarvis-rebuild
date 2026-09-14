@@ -101,7 +101,7 @@
   border-left:2.5px solid var(--tint); border-bottom:2.5px solid var(--tint);
   transform:rotate(45deg); margin-right:var(--s-1); }
 /* New-note placeholder text */
-.is-placeholder { color: var(--tx-4); }
+.is-placeholder { color: var(--tx-2); }
 /* Trailing remove control in a row (detach an attachment); 44pt tap target */
 .row-x { display:flex; align-items:center; justify-content:center; color:var(--tint);
   min-width:var(--tap-min); min-height:var(--tap-min); flex-shrink:0; background:0; border:0; }
@@ -109,7 +109,7 @@
 /* Media: photo grid of square thumbnails */
 .photo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--s-1); }
 .photo-tile { position:relative; aspect-ratio:1/1; background:var(--surface-3);
-  display:flex; align-items:center; justify-content:center; color:var(--tx-4); overflow:hidden; }
+  display:flex; align-items:center; justify-content:center; color:var(--tx-2); overflow:hidden; }
 .photo-tile .ic { width:28px; height:28px; }
 .photo-tile.sel { outline:2px solid var(--tint); outline-offset:-2px; }
 .photo-check { position:absolute; bottom:var(--s-1h); right:var(--s-1h); width:20px; height:20px;
@@ -122,7 +122,7 @@
 
 /* v2.1b additions (still canonical-derived, tokens only) */
 /* optional glyph inside the canonical empty-icon (v2 leaves it blank; this is additive) */
-.empty-icon { display:flex; align-items:center; justify-content:center; color:var(--tx-4); }
+.empty-icon { display:flex; align-items:center; justify-content:center; color:var(--tx-2); }
 .empty-icon .ic { width:24px; height:24px; }
 /* leading row glyph color: action rows tint, neutral rows muted */
 .lead-tint { color: var(--tint); flex-shrink:0; }
@@ -223,7 +223,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 /* The words own the rest of the line (2026-09-12): an empty item was a
    zero-width span, so its cue stacked and its tap target was nothing. */
 .check-line > [contenteditable] { flex:1; min-width:0; }
-.check-line.done span { text-decoration:line-through; color:var(--tx-4); }
+.check-line.done span { text-decoration:line-through; color:var(--tx-2); }
 .check-line .cb .ic { width:13px; height:13px; }
 /* light table block (rows, columns, simple sums) */
 .ntable { width:100%; border-collapse:collapse; border:0.5px solid var(--divider); border-radius:var(--r-md); overflow:hidden; }
@@ -235,14 +235,14 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .add-block { display:flex; align-items:center; gap:var(--s-2); color:var(--tint); font-size:var(--t-h3); font-weight:var(--w-semi); padding:var(--s-3) 0; min-height:var(--tap-min); background:0; border:0; font-family:var(--f); width:100%; }
 .add-block .ic { width:18px; height:18px; }
 /* "Add item" row inside a checklist: quieter than Add block, aligned to items */
-.check-add { display:flex; align-items:center; gap:var(--s-2h); color:var(--tx-4); font-size:var(--t-body); padding:var(--s-1h) 0; min-height:var(--tap-min); background:0; border:0; font-family:var(--f); width:100%; }
+.check-add { display:flex; align-items:center; gap:var(--s-2h); color:var(--tx-2); font-size:var(--t-body); padding:var(--s-1h) 0; min-height:var(--tap-min); background:0; border:0; font-family:var(--f); width:100%; }
 .check-add .ic { width:16px; height:16px; }
 /* empty-note cue so a blank note is inviting, not a void */
-.note-empty { color:var(--tx-4); font-size:var(--t-body); padding:var(--s-3) 0; }
+.note-empty { color:var(--tx-2); font-size:var(--t-body); padding:var(--s-3) 0; }
 /* block row: content plus a quiet options button revealed on the right */
 .block-row { position:relative; display:flex; align-items:flex-start; gap:var(--s-2); }
 .block-body { flex:1; min-width:0; }
-.block-menu-btn { flex-shrink:0; background:0; border:0; color:var(--tx-4); padding:var(--s-1h); min-width:var(--tap-min); min-height:var(--tap-min); display:flex; align-items:center; justify-content:center; }
+.block-menu-btn { flex-shrink:0; background:0; border:0; color:var(--tx-2); padding:var(--s-1h); min-width:var(--tap-min); min-height:var(--tap-min); display:flex; align-items:center; justify-content:center; }
 .block-menu-btn .ic { width:18px; height:18px; }
 .block-menu-scrim { position:fixed; inset:0; z-index:40; }
 .block-menu { position:absolute; right:0; top:var(--s-7); z-index:50; background:var(--surface-3); border-radius:var(--r-md); padding:var(--s-1); min-width:160px; box-shadow:var(--shadow-card); }
@@ -277,7 +277,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
    never reaches textContent, and it costs no layout.
    Scoped to :empty, so a line with words in it is untouched. */
 [contenteditable][data-placeholder]:empty { position: relative; }
-[contenteditable][data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-4); pointer-events: none;
+[contenteditable][data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-2); pointer-events: none;
   position: absolute; left: 0; top: 0; right: 0;
   /* THE CUE NEVER STACKS (Dave 2026-09-12, the Project Brief screenshots:
      "Lis / t / I / t / e / m" down the page, "H E A D I N G" down the page).
@@ -330,7 +330,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .xport .ic { width:30px; height:30px; }
 .xport .play { color: var(--accent-tx); }
 .xport .play .ic { width:50px; height:50px; }
-.volume { display:flex; align-items:center; gap:var(--s-2); padding:var(--s-1) var(--s-5) var(--s-2); color:var(--tx-4); }
+.volume { display:flex; align-items:center; gap:var(--s-2); padding:var(--s-1) var(--s-5) var(--s-2); color:var(--tx-2); }
 .volume .ic { width:16px; height:16px; flex-shrink:0; }
 .volume .vol-bar { flex:1; }
 .np-tools { display:flex; align-items:center; justify-content:space-around; padding:var(--s-2) var(--s-7) var(--s-2); color:var(--tint); }

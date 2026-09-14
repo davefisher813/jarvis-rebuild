@@ -1,6 +1,6 @@
 # Session handoff, 14 Sep 2026
 
-**Remote main is the writing system's wave 4 (JARVIS on a selection) on top of waves 1 to 3c on top of Cowork's Exercises and Today patch, the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
+**Remote main is the writing system complete (waves 1 to 4 and the ink ruling) on top of Cowork's Exercises and Today patch and the approved Health design on top of Cowork's Exercises and Today patch, the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
 
 ## What shipped this session
 
@@ -105,7 +105,11 @@ Section 9 of the brief, one push, offered only when AI is on.
 - **Create Linked Task:** the passage's first line is the task, the whole passage its notes, the note its source, and the note gets the connection back; Undo removes both.
 - **Tested in automation, not on a device:** the prompts' shape, a fenced reply unwrapped and an empty one refused, the bar's JARVIS appearing only with a selection, the preview and Apply, Keep Original leaving the words, the linked task from the passage.
 
-The ink ruling follows as its own push.
+## The ink ruling, applied
+
+Appendix A, conflict 1 of the brief, one push. `--tx-2` and `--tx-3` are one secondary value and `--tx-4` is structure only, in both themes; 74 rules that painted words in `--tx-4` moved to `--tx-2`; the two glyph separators drawn as `::before` content keep the structure grey; a new law fails any text colour on `--tx-4` and holds the tokens to two tiers (planted, watched fail on 74 rules and both token blocks, then swept); the two browser-walk laws that pinned the 30 percent quaternary were superseded. The two signals the ruling asked about survive: a read email is dimmer than unread by weight, a nested step count sits on secondary under a primary parent. The light values are HIG twins and flagged as a starting point. Not measured on a device.
+
+That closes the writing system brief: waves 1 to 4 and the ink ruling are on main. Left out on purpose, each stated where it was decided: the preview harness (Dave 2026-09-13: Cowork does those), slash commands (the Insert button is the one door), PDF fonts beyond Latin (the sheet says so), the Tracker table's sum row, and the contract file the brief cites, which does not exist in this repo (the catalog's section AF holds the four rulings).
 
 ## How Cowork work lands
 

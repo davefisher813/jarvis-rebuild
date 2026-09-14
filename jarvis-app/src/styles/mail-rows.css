@@ -52,7 +52,7 @@
 .mline2.strong { color: var(--tx-1); font-weight: var(--w-semi); }
 /* The account, as small caps after the subject: text, never a pill. */
 .macct { font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.04em;
-  text-transform: uppercase; color: var(--tx-4); margin-left: var(--s-1h); }
+  text-transform: uppercase; color: var(--tx-2); margin-left: var(--s-1h); }
 
 /* EM1 / E-38: the one quiet line under the title while Email Windows are
    on -- when it opens again, or when it closes -- in place of the row-act

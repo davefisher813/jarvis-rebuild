@@ -501,7 +501,7 @@
    carries r-cat. BiggerPicturePage's bare r-goal (no r-cat) was the one
    place it accidentally still worked. */
 .ruled .r-goal.r-stalled { color: var(--warn); }
-.ruled .r-goal.r-orphan { color: var(--tx-4); font-style: italic; }
+.ruled .r-goal.r-orphan { color: var(--tx-2); font-style: italic; }
 /* the dealt row's reason line keeps its place as the optional third line */
 .ruled .task-row .task-title > .eyebrow { margin-top: 3px; }
 /* The urgency chip: 10/800, 0.06em, 3x7, capsule, 16% tint. Distance words. */
@@ -560,7 +560,7 @@
   height: 0.5px; background: var(--divider); pointer-events: none; }
 /* Done rows strike the name, not the whole block: the kicker stays legible. */
 .ruled .task-row.completed .task-title { text-decoration: none; }
-.ruled .task-row.completed .task-name { text-decoration: line-through; color: var(--tx-4); }
+.ruled .task-row.completed .task-name { text-decoration: line-through; color: var(--tx-2); }
 .ruled .task-row.completed .r-goal, .ruled .task-row.completed .r-bar { opacity: 0.5; }
 /* Renaming in place: the editable name keeps the row's own type. */
 .ruled .task-row .task-title .task-name[contenteditable] { display: block; white-space: nowrap; overflow: hidden; }
@@ -580,7 +580,7 @@
 .ruled .grp-head { display: flex; align-items: center; gap: 8px; padding: 18px var(--s-4) 6px;
   font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tx-3); }
 .ruled .grp-head .cat-dot { width: 8px; height: 8px; }
-.ruled .grp-head .n { font-weight: var(--w-medium); letter-spacing: 0.06em; color: var(--tx-4); }
+.ruled .grp-head .n { font-weight: var(--w-medium); letter-spacing: 0.06em; color: var(--tx-2); }
 
 /* ---------- LIFE: the segment control under the head -----------------------
    Tasks / Projects / Goals, the app's own .segmented, one row under the page
@@ -773,7 +773,7 @@
    opens, in the card's own row anatomy. */
 .ruled .ins-acts { display: flex; gap: 8px; margin-top: 8px; }
 .ruled .ins-ev { margin-top: 8px; }
-.ruled .ins-sub { font-size: calc(11.5px * var(--type-scale)); color: var(--tx-4); }
+.ruled .ins-sub { font-size: calc(11.5px * var(--type-scale)); color: var(--tx-2); }
 /* What changed: label left, the move right, in one aligned column. */
 .ruled .ins-rows { margin-top: 10px; }
 .ruled .ins-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
@@ -805,7 +805,7 @@
 .ruled .vol-n.vol-under, .ruled .vol-n.vol-over { color: var(--warn); }
 .ruled .h-week { display: flex; justify-content: space-between; padding: 2px 18px 14px; }
 .ruled .h-day { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
-  letter-spacing: 0.06em; color: var(--tx-4); }
+  letter-spacing: 0.06em; color: var(--tx-2); }
 .ruled .h-day i { width: 10px; height: 10px; border-radius: 50%; background: var(--press-3); display: block; }
 /* A trained day is lime and TODAY is a cyan ring; neither glows (Health R5,
    2026-09-12). The 8px bloom went with the hero's. */
@@ -833,7 +833,7 @@
 /* An absence is the one thing on the tile that is not a reading, so it keeps
    the quiet grey and shrinks back to label size (R2 names it the one --tx-4
    survivor in Health). */
-.ruled .ht-none { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-4); }
+.ruled .ht-none { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); }
 .ruled .ht-m { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); margin-top: 3px; }
 .ruled .ht-spark { position: absolute; right: 10px; bottom: 10px; width: 64px; height: 22px; color: var(--hl-blue); }
 
@@ -872,7 +872,7 @@
 .ruled .h-tile[data-hue] .ht-spark { color: var(--h-hue); }
 /* An empty tile does not shout: Log it stays on the grey ramp, so a lit tile
    means something was actually logged. */
-.ruled .h-tile[data-hue] .ht-none { color: var(--tx-4); }
+.ruled .h-tile[data-hue] .ht-none { color: var(--tx-2); }
 /* The class form stays for the insight dot and chip, which take the same pair
    and are not tiles. */
 .ruled .hue-hl-lime   { --h-hue: var(--hl-lime);   --h-tint: var(--hl-lime-tint); }
@@ -884,7 +884,7 @@
 /* The add-a-metric tile is a door, not a reading, so it wears the dashed
    outline every empty create surface in the app wears and no hue at all. */
 .ruled .h-tile-add { box-shadow: inset 0 0 0 1px var(--rim-card); }
-.ruled .h-tile-add .ht-m { color: var(--tx-4); }
+.ruled .h-tile-add .ht-m { color: var(--tx-2); }
 /* The two doors under the grid (Medication, More) get the breath the grid
    above them would otherwise eat. */
 .ruled .h-doors { margin-top: 10px; }
@@ -971,7 +971,7 @@
 .ruled .sched-earlier { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 44px;
   padding: 0 var(--s-4); background: none; border: 0; font-family: var(--f); font-size: calc(13px * var(--type-scale));
   color: var(--tx-3); text-align: left; }
-.ruled .sched-earlier .n { color: var(--tx-4); }
+.ruled .sched-earlier .n { color: var(--tx-2); }
 .ruled .sched-earlier .chev { margin-left: auto; }
 .ruled .sched-earlier:active { background: var(--press-1); }
 /* The rule: the one place on this page the system red says "here", and it
@@ -1016,7 +1016,7 @@
 .ruled .task-row .money-amt { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-regular); color: var(--tx-2); flex-shrink: 0;
   font-variant-numeric: tabular-nums; }
 .ruled .task-row .money-amt.money-neg { color: var(--tx-3); }
-.ruled .task-row .money-amt.paid { color: var(--tx-4); }
+.ruled .task-row .money-amt.paid { color: var(--tx-2); }
 .ruled .task-row .bill-pay { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-medium); padding-left: var(--s-2h); }
 .ruled .task-row .budget-add { flex-shrink: 0; }
 .ruled .task-row .budget-add .input { height: 34px; font-size: calc(14px * var(--type-scale)); }
@@ -1035,7 +1035,7 @@
    Earlier), quiet like Today's. The page glyph is gone from the line row;
    the dot is the colour. */
 .ruled .note-row { cursor: pointer; }
-.ruled .note-row .r-k .r-when { flex-shrink: 0; color: var(--tx-4); }
+.ruled .note-row .r-k .r-when { flex-shrink: 0; color: var(--tx-2); }
 .ruled .note-row .sel-box { margin: 0; }
 /* The "first" row shape: the note's own first line, in grey, one line. */
 .ruled .note-first { font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); margin-top: 3px; white-space: nowrap; overflow: hidden;
@@ -1096,7 +1096,7 @@
 .ruled .set-card > .set-row .conn-meta { margin-top: 2px; }
 .ruled .set-field { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none;
   font-family: var(--f); font-size: calc(16px * var(--type-scale)); color: var(--tx-2); text-align: right; }
-.ruled .set-field::placeholder { color: var(--tx-4); }
+.ruled .set-field::placeholder { color: var(--tx-2); }
 .ruled .set-gap { margin-top: var(--s-5); }
 .ruled .set-foot { padding-top: var(--s-2); font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); line-height: 1.45; }
 .ruled .set-card > .set-act .conn-name { color: var(--tint); font-weight: var(--w-semi); }
@@ -1306,7 +1306,7 @@
 .ruled .rdy-n.rdy-warn b { color: var(--warn); }
 /* Muted: the nod test switched this detector off, so its count is the
    quietest thing on the screen rather than a state worth chasing. */
-.ruled .rdy-n.rdy-off, .ruled .rdy-n.rdy-off b { color: var(--tx-4); }
+.ruled .rdy-n.rdy-off, .ruled .rdy-n.rdy-off b { color: var(--tx-2); }
 
 /* ---------- THE RAMP, ACROSS EVERY HEALTH AND GYM SURFACE (Dave 2026-09-10)
    "In regards to the colors, you only edited the homepage. I said the entire
@@ -1553,7 +1553,7 @@
   font-variant-numeric: tabular-nums; color: var(--hl-amber); background: var(--hl-amber-tint);
   padding: 3px 10px; border-radius: var(--r-pill); }
 .ruled.health-ruled .se-plate-k, .sheet-scrim > .card .se-plate-k { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
-  letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-4); margin-top: 5px; }
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-2); margin-top: 5px; }
 
 /* An exercise note is the athlete's own words, so it is italic and shaded
    rather than another grey fact line. */
@@ -1600,7 +1600,7 @@
 /* A tile with nothing in it yet is the ONE place the dim grey still belongs:
    it is an absence, not a reading, and lighting it would say something was
    logged when nothing was. */
-.ruled.health-ruled .ht-none { color: var(--tx-4); }
+.ruled.health-ruled .ht-none { color: var(--tx-2); }
 
 /* ---------- THE HEALTH PAGE, SIMPLIFIED (Dave 2026-09-13) -----------------
    "This page would be intimidating overwhelming for me... it needs to be

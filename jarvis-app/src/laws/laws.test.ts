@@ -6078,3 +6078,40 @@ describe("an offer card never clips the claim or its receipt (2026-09-07)", () =
     expect(CARD).toMatch(/stack = false/);
   });
 });
+
+// THE TWO-TIER INK RAMP (Dave 2026-09-14, the writing brief's Appendix A,
+// conflict 1, ruled from the preview harness across Today, Life and Notes).
+// Four ink levels collapse to two: --tx-2 and --tx-3 are one secondary value
+// and --tx-4 is structure only (dotted leaders, empty rings, chevrons,
+// hairlines). The one thing the token change cannot do on its own is stop a
+// rule from painting words in the structure grey, so this holds it: no
+// rule in any stylesheet sets color to --tx-4, apart from the two glyph
+// separators drawn as ::before content, which are structure.
+describe("LAW: the structure ink never colours text (2026-09-14)", () => {
+  it("no stylesheet rule sets color to --tx-4, apart from the two glyph separators", () => {
+    const GLYPHS = new Set([".r-cue::before", ".fact + .fact::before"]);
+    const bad: string[] = [];
+    for (const f of ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css", "mail-rows.css", "editor.css"]) {
+      const css = read(SRC + "/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+        const sel = m[1]!.replace(/\s+/g, " ").trim();
+        if (!/(^|[^-\w])color:\s*var\(--tx-4\)/.test(m[2]!)) continue;
+        if (GLYPHS.has(sel)) continue;
+        bad.push(f + ": " + sel);
+      }
+    }
+    expect(bad, "words on the structure grey; use --tx-2").toEqual([]);
+  });
+
+  it("the tokens themselves are two tiers in both themes", () => {
+    const css = read(SRC + "/styles/jarvis-design-system.css");
+    const pick = (block: string, name: string) => new RegExp(name + ":\\s*([^;]+);").exec(block)?.[1]?.trim();
+    const blockOf = (theme: string) => new RegExp("\\[data-theme=\"" + theme + "\"\\]\\s*\\{([\\s\\S]*?)\\n\\}").exec(css.replace(/\/\*[\s\S]*?\*\//g, ""))?.[1] ?? "";
+    const dark = blockOf("dark");
+    const light = blockOf("light");
+    for (const [name, block] of [["dark", dark], ["light", light]] as const) {
+      expect(pick(block, "--tx-2"), name + " secondary is one value").toBe(pick(block, "--tx-3"));
+      expect(pick(block, "--tx-4"), name + " structure is a solid grey").toMatch(/^#[0-9A-Fa-f]{6}$/);
+    }
+  });
+});
