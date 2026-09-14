@@ -18,9 +18,10 @@ import { liftMeasureState, trainingMeasureState, type LiftMeasure, type Training
 import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, type LiveSession } from "./liveSession";
+import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession } from "./liveSession";
 import { bumpStrip } from "./strip";
 import { buildLibrary, newExerciseKey, withAliases, withFavorites } from "./library";
+import { emit } from "../events";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
@@ -613,6 +614,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   const [doorPick, setDoorPick] = useState(false);
   const [doorHandled, setDoorHandled] = useState(false);
   const [receipt, setReceipt] = useState<{ receipt: Receipt; dayName: string } | null>(null);
+  // Part 3 wave 4 (Dave 13a): the live session never leaves this phone, so
+  // the one collision two devices can have is finishing the same day twice.
+  // A saved workout for this day and date from elsewhere is said out loud
+  // before the receipt; he keeps both or drops this copy.
+  const [dupFinish, setDupFinish] = useState<{ twin: Workout } | null>(null);
   // H-30: the finish waits on the receipt (see finish below).
   const finishing = useRef<{ data: WorkoutData; door: { id: string; date: string } | null } | null>(null);
   const [viewWorkout, setViewWorkout] = useState<Workout | null>(null);
@@ -1045,6 +1051,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       ...(opts.doorEventId ? { doorEventId: opts.doorEventId } : {}),
     };
     writeLive(s);
+    emit({ type: "health.logged", props: { kind: "workout_started" } });
     // UP-PLAT-26 (2026-09-06): the "gym" WorkSpot kind was declared in
     // restore/whereYouWere.ts:8-13 and nothing in src/gym ever wrote one, so
     // two of the banner's four kinds never fired. The live-session card on
@@ -1160,8 +1167,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   // time, so an app killed mid-receipt resumes the session rather than losing
   // it. The goal hits are computed here against the pending workout; the
   // close-out is still his tap on the receipt (Dave 2026-09-09).
-  const finish = async () => {
+  const finish = async (opts: { force?: boolean } = {}) => {
     if (!live) return;
+    if (!opts.force) {
+      const twin = twinWorkout(workouts, live) as Workout | null;
+      if (twin) { setDupFinish({ twin }); return; }
+    }
     if (!hasWork(live.exercises)) {
       clearLive();
       enterSession(null);
@@ -1228,6 +1239,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
     finishing.current = null;
     setReceipt(null);
   };
+  const dupEl = dupFinish && live
+    ? <ActionSheet
+        title={`${live.dayName} Was Already Saved Today`}
+        actions={[
+          { label: "Save This One Too", onClick: () => { setDupFinish(null); void finish({ force: true }); } },
+          { label: "Discard This One", onClick: () => { setDupFinish(null); clearLive(); enterSession(null); setOpenDayId(null); showToast({ message: "Discarded · The saved session stays" }); } },
+        ]}
+        onClose={() => setDupFinish(null)}
+      />
+    : null;
   const receiptEl = receipt
     ? <ReceiptSheet
         dayName={receipt.dayName}
@@ -1592,7 +1613,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         programDay={day ?? null}
         history={workouts}
         library={library}
-        onLog={(s: SetEntry) => patchLive((l) => logSet(l, l.idx, s))}
+        // Part 3 wave 4 (Dave 14a): one typed count per logged set, nothing
+        // about the set itself.
+        onLog={(s: SetEntry) => { patchLive((l) => logSet(l, l.idx, s)); emit({ type: "health.logged", props: { kind: "set_logged" } }); }}
         onSetLogged={(sets: SetEntry[], at?: number) => patchLive((l) => setLoggedSets(l, at ?? l.idx, sets))}
         onSkip={() => patchLive((l) => ({ ...skipExercise(l, l.idx), idx: Math.min(l.idx + 1, l.exercises.length - 1) }))}
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
@@ -1608,6 +1631,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
         gameLine={gameLine}
       />
       {receiptEl}
+      {dupEl}
       </>
     );
   }

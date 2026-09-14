@@ -101,7 +101,7 @@ function metricGlyph(def: MetricDef): ReactNode {
 export default function HealthBody({
   program, workouts, training, today, isEvening, gymEvent, metricDefs, metricLogs,
   onStart, onOpenGym, onOpenMetric, onManageMetrics, insights, sections, more, adds,
-  healthLoggers, onOpenHealthLogger, onOpenHealthMore, onOpenMedication, medSub,
+  healthLoggers, onOpenHealthLogger, onOpenMedication, medSub,
   live = null, onResume, water = null, log = [], onOpenLog, pendingCount = 0, onOpenSettings,
 }: {
   program: Program | null;
@@ -137,7 +137,6 @@ export default function HealthBody({
   /** When the last dose was logged ("Today"), or null before the first. */
   medSub?: string | null;
   /** HMN-F-06 (2026-09-05): the door to the rest of the health module. */
-  onOpenHealthMore?: () => void;
   /** H-12: a live or parked session makes the hero a Resume. */
   live?: LiveHero | null;
   onResume?: () => void;
@@ -315,7 +314,7 @@ export default function HealthBody({
       {/* MEDICATION IS ITS OWN PAGE (Dave 2026-09-10), so it is a door, not a
           tile. The door says when the last dose was, in medication blue, and
           nothing else. */}
-      {(onOpenMedication || onOpenHealthMore || onOpenSettings) && (
+      {(onOpenMedication || onOpenSettings) && (
         <div className="pad-x h-doors"><div className="card list-card-ruled">
           {onOpenMedication && (
             <div {...pressable(onOpenMedication)} className="task-row p2">
@@ -329,12 +328,6 @@ export default function HealthBody({
           {onOpenSettings && (
             <div {...pressable(onOpenSettings)} className="task-row p2">
               <div className="task-title"><span className="task-name">Settings</span></div>
-              {CHEV}
-            </div>
-          )}
-          {onOpenHealthMore && (
-            <div {...pressable(onOpenHealthMore)} className="task-row p2">
-              <div className="task-title"><span className="task-name">More</span></div>
               {CHEV}
             </div>
           )}

@@ -12,10 +12,16 @@ import { RackSettings } from "./TrainingPage";
 // celebrations), the weekly sets band the Weekly Volume card compares
 // against (Dave 2026-09-13: "I don't want anything hard wired that shouldn't
 // be"), and the rack, the same controls Settings, Training already carries.
-export default function HealthSettingsPage({ onBack, onEnableWater }: {
+export interface HealthDoorRow { key: string; group: string; label: string; sub: string }
+
+export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], onOpenDoor }: {
   onBack: () => void;
   /** Turning the Water shortcut on seeds its metric (H-43). */
   onEnableWater?: () => void;
+  /** Part 3 wave 4 (Dave 15a): the Student template's other health screens,
+   *  grouped, now live here instead of behind a More door on the page. */
+  doors?: HealthDoorRow[];
+  onOpenDoor?: (key: string) => void;
 }) {
   const [s, setS] = useState<HealthSettings>(() => readHealthSettings());
   const set = (patch: Partial<HealthSettings>) => setS(updateHealthSettings(patch));
@@ -82,6 +88,16 @@ export default function HealthSettingsPage({ onBack, onEnableWater }: {
       <div className="pad-x"><div className="input-hint">{s.volumeBand ? "Your band, the one Weekly Volume compares against" : `The studied range, ${HARD_SET_RANGE.source}`}</div></div>
       <Head label="Rack" />
       <RackSettings />
+      {onOpenDoor && [...new Set(doors.map((d) => d.group))].map((g) => (
+        <div key={g}>
+          <Head label={g} />
+          <Card>
+            {doors.filter((d) => d.group === g).map((d) => (
+              <Row key={d.key} label={d.label} meta={d.sub} onClick={() => onOpenDoor(d.key)} />
+            ))}
+          </Card>
+        </div>
+      ))}
       <div className="screen-foot" />
     </div>
   );

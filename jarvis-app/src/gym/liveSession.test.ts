@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, readPending, flushPending, hasWork, isStillActive, STALE_GRACE_MS, type LiveSession, type Storage2 } from "./liveSession";
+import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, readPending, flushPending, hasWork, isStillActive, STALE_GRACE_MS, twinWorkout, type LiveSession, type Storage2 } from "./liveSession";
 import type { ProgramDay, SetEntry, WorkoutData, WorkoutExercise } from "./types";
 
 // The offline contract: a set logged in a basement is never lost, and a
@@ -413,5 +413,17 @@ describe("queueFinished stamps a clientId", () => {
     const [a, b] = readPending(s);
     expect(a!.clientId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
     expect(b!.clientId).toBe("keep-me");
+  });
+});
+
+// Part 3 wave 4 (Dave 13a): the same day finished twice from two devices.
+describe("twinWorkout", () => {
+  const live = { dayId: "d1", date: "2026-09-13", startedAt: 1000 };
+  it("finds a saved workout for the same day and date with a different start, and nothing else", () => {
+    const w = (id: string, dayId: string, date: string, startedAt: number) => ({ id, data: { dayId, date, startedAt } });
+    expect(twinWorkout([w("a", "d1", "2026-09-13", 500)], live)?.data.startedAt).toBe(500);
+    expect(twinWorkout([w("b", "d1", "2026-09-13", 1000)], live)).toBeNull();
+    expect(twinWorkout([w("c", "d2", "2026-09-13", 500)], live)).toBeNull();
+    expect(twinWorkout([w("d", "d1", "2026-09-12", 500)], live)).toBeNull();
   });
 });

@@ -51,3 +51,21 @@ describe("HealthSettingsPage", () => {
     expect(screen.getByLabelText("Bar Weight")).toBeInTheDocument();
   });
 });
+
+// Part 3 wave 4 (Dave 15a): the Student template's screens open from here.
+describe("HealthSettingsPage doors", () => {
+  it("lists the doors by group and opens one by key; none without the seam", () => {
+    const onOpenDoor = vi.fn();
+    const doors = [
+      { key: "share", group: "Sharing", label: "The Share Line", sub: "What crosses to a parent" },
+      { key: "weekShape", group: "The Week", label: "Week Shape", sub: "Sessions and hours" },
+    ];
+    const { rerender } = render(<HealthSettingsPage onBack={() => {}} doors={doors} onOpenDoor={onOpenDoor} />);
+    expect(screen.getByText("Sharing")).toBeInTheDocument();
+    expect(screen.getByText("The Week")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Week Shape"));
+    expect(onOpenDoor).toHaveBeenCalledWith("weekShape");
+    rerender(<HealthSettingsPage onBack={() => {}} doors={doors} />);
+    expect(screen.queryByText("The Share Line")).toBeNull();
+  });
+});

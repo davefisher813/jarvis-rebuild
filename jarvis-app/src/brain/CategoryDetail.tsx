@@ -1,5 +1,5 @@
 import { isIn } from "../tasks/categories";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine, usePeople, useProfile } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import type { Person } from "../people/types";
@@ -261,7 +261,6 @@ export default function CategoryDetail({
   // opened. Student only: this is the student-athlete track, and a Personal
   // or Business page has no use for The Third Practice or The Bag.
   const [template, setTemplate] = useState<TemplateKey | null>(null);
-  const [healthMore, setHealthMore] = useState(false);
   // MEDICATION IS ITS OWN PAGE (Dave 2026-09-10: "medication related stuff
   // should all be its own page"). It was scattered: the dose logger sat in the
   // daily-log rows, while Refill Runway, The Med Window and Take This to the
@@ -270,6 +269,8 @@ export default function CategoryDetail({
   // on the way in. One door now, and everything about it behind that door.
   const [medPage, setMedPage] = useState(false);
   const [healthDeep, setHealthDeep] = useState<HealthScreenKey | null>(null);
+  // Part 3 wave 4: a screen opened from Health Settings comes back to it.
+  const deepFromSettings = useRef(false);
   // Full event rows (the `events` state above is the thin shape the week
   // receipt needs); the health candidates below are built from these.
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
@@ -544,9 +545,6 @@ export default function CategoryDetail({
     healthReceipt(cheer, doseToast(med?.data.amount), () => { void healthSvc.removeTookIt(d.at).then(bumpHealth); });
     bumpHealth();
   };
-  if (healthSettingsOpen) {
-    return <HealthSettingsPage onBack={() => setHealthSettingsOpen(false)} onEnableWater={() => void ensureWater()} />;
-  }
   if (healthScreen === "lightsOut") {
     return (
       <LightsOutScreen
@@ -826,13 +824,26 @@ export default function CategoryDetail({
     { group: "Keeping", key: "handoff", label: "The Handoff", sub: "What the next adult needs to know" },
   ] as HealthMoreRow[]).filter((r) => template === "student" || r.everyone === true);
 
+  if (healthSettingsOpen) {
+    // Part 3 wave 4 (Dave 15a): the Student template's other screens open
+    // from here now; the page's More door is gone.
+    return (
+      <HealthSettingsPage
+        onBack={() => setHealthSettingsOpen(false)}
+        onEnableWater={() => void ensureWater()}
+        doors={healthMoreRows.filter((r) => r.group !== "Medication").map((r) => ({ key: r.key, group: r.group, label: r.label, sub: r.sub }))}
+        onOpenDoor={(key) => { setHealthSettingsOpen(false); deepFromSettings.current = true; setHealthDeep(key as HealthScreenKey); }}
+      />
+    );
+  }
+
   if (healthDeep) {
     return (
       <HealthFlow
         service={healthSvc}
         initialScreen={healthDeep}
         initialHandOff={handOff ?? undefined}
-        onExit={() => { setHealthDeep(null); setHandOff(null); void reload(); }}
+        onExit={() => { setHealthDeep(null); setHandOff(null); if (deepFromSettings.current) { deepFromSettings.current = false; setHealthSettingsOpen(true); } void reload(); }}
         sportSessions={sportSessions}
         weekDates={healthWeek}
         nightBeforeCommitments={nightBeforeCommitments}
@@ -876,36 +887,6 @@ export default function CategoryDetail({
         onOpenTrack={(key) => setHealthDeep(key as HealthScreenKey)}
         onBack={() => setMedPage(false)}
       />
-    );
-  }
-  if (healthMore) {
-    // Medication has its own page now, so it is not one of More's groups.
-    const groups = [...new Set(healthMoreRows.filter((r) => r.group !== "Medication").map((r) => r.group))];
-    return (
-      <div className="screen ruled health-ruled">
-        <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={() => setHealthMore(false)}></button>
-          <div className="nav-title">{cat.data.name}</div>
-        </div>
-        <div className="nav-large">More</div>
-        {groups.map((g) => (
-          <div key={g}>
-            <div className="sh2 sh2-quiet"><span className="t">{g}</span></div>
-            <div className="pad-x"><div className="card list-card-ruled">
-              {healthMoreRows.filter((r) => r.group === g).map((r) => (
-                <div {...pressable(() => setHealthDeep(r.key))} className="task-row p2" key={r.key}>
-                  <div className="task-title">
-                    <span className="task-name">{r.label}</span>
-                    <div className="r-k"><span className="r-goal r-cat">{r.sub}</span></div>
-                  </div>
-                  {CHEV}
-                </div>
-              ))}
-            </div></div>
-          </div>
-        ))}
-        <div className="screen-foot" />
-      </div>
     );
   }
   // Done, the Record, and the weekday insight now read the SAME log the
@@ -1477,8 +1458,6 @@ export default function CategoryDetail({
           onManageMetrics={() => setMetricSheet({ kind: "add" })}
           healthLoggers={healthLoggers}
           onOpenHealthLogger={(key) => setHealthScreen(key)}
-          // HMN-F-06: Student only, and absent rather than disabled.
-          onOpenHealthMore={healthMoreRows.some((r) => r.group !== "Medication") ? () => setHealthMore(true) : undefined}
           onOpenMedication={() => setMedPage(true)}
           medSub={medSub}
           live={liveHero}

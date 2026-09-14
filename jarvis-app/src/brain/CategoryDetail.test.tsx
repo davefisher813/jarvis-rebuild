@@ -678,10 +678,11 @@ function SeededHealthMore({ template }: { template: TemplateKey }) {
 describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
   afterEach(() => { seenToasts.length = 0; resetToasts(); });
 
-  it("Student gets the More row, and it opens the screens that have a real source", async () => {
+  it("Student gets the screens that have a real source, behind the Settings door", async () => {
     render(<NotesProvider userId="hm1"><SeededHealthMore template="student" /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("More")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("More"));
+    // Part 3 wave 4: the Student template's screens open from the Settings door.
+    await waitFor(() => expect(screen.getByText("Settings")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Settings"));
 
     await waitFor(() => expect(screen.getByText("The Share Line")).toBeInTheDocument());
     expect(screen.getByText("What They See")).toBeInTheDocument();
@@ -702,8 +703,9 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
 
   it("Week Shape counts the real calendar, not a stand-in", async () => {
     render(<NotesProvider userId="hm2"><SeededHealthMore template="student" /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("More")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("More"));
+    // Part 3 wave 4: the Student template's screens open from the Settings door.
+    await waitFor(() => expect(screen.getByText("Settings")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Settings"));
     fireEvent.click(await screen.findByText("Week Shape"));
     // The 16:00 to 18:00 practice on the org area, read through the calendar.
     await waitFor(() => expect(screen.getByText("1 · 2 Hours")).toBeInTheDocument());
@@ -717,16 +719,20 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
   // taken back.
   it("Add Wind Down protects the hour on the routine, and says so only after the write", async () => {
     render(<NotesProvider userId="hm4"><SeededHealthMore template="student" /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("More")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("More"));
+    // Part 3 wave 4: the Student template's screens open from the Settings door.
+    await waitFor(() => expect(screen.getByText("Settings")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Settings"));
     fireEvent.click(await screen.findByText("The Night Before"));
     fireEvent.click(await screen.findByText("Add Wind Down"));
     await waitFor(() => expect(seenToasts.some((m) => m === "Wind Down added to your routine")).toBe(true));
     expect(lastToast!.actionLabel).toBe("Undo");
     // And it is NOT a row on the list any more: that was the flattening.
+    // Part 3 wave 4: Back from the screen lands on Settings, where the door
+    // lives; the pagebar's back word there is the area's name.
     fireEvent.click(screen.getByLabelText("Back"));
-    await waitFor(() => expect(screen.getByText("The Night Before")).toBeInTheDocument());
-    fireEvent.click(screen.getByLabelText("Back"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Health" })).toBeInTheDocument());
+    expect(screen.getByText("The Night Before")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Health" }));
     await waitFor(() => expect(screen.getByText(LOG_HEAD)).toBeInTheDocument());
     expect(screen.queryByText(/^Wind Down at /)).not.toBeInTheDocument();
   });

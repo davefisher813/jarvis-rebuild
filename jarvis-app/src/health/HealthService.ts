@@ -24,6 +24,18 @@ import { queueHealthLog, flushPending, readPending, removeQueued, type Storage2,
 // the same store (HealthFlow builds its own when none is handed in).
 let grantTail: Promise<unknown> = Promise.resolve();
 
+/** The event kind for a logged entity (Part 3 wave 4, 2026-09-13): the
+ *  brief's typed words for a dose, a meal and a bedtime; the entity key for
+ *  the rest. Closed vocabulary either way (serverSink gates the shape). */
+export function typedKind(entityType: string): string {
+  switch (entityType) {
+    case ENTITY_TOOK_IT: return "medication_logged";
+    case ENTITY_MEAL: return "meal_logged";
+    case ENTITY_LIGHTS_OUT: return "bedtime_logged";
+    default: return entityType;
+  }
+}
+
 // The Store-backed half of the health module. Consent grants and the five
 // loggers, following the same shape as GymService and CategoriesService:
 // a thin class over Store, keyed by ownerId, emitting through onEvent.
@@ -90,7 +102,10 @@ export class HealthService {
     // logged never leaves the device, only that something was.
     if (id) {
       this.onEvent({ type: "action", props: { name: "health." + entry.entityType }, entityType: entry.entityType, entityId: id });
-      this.onEvent({ type: "health.logged", entityType: entry.entityType, entityId: id, props: { kind: entry.entityType } });
+      // Part 3 wave 4 (Dave 14a): the three loggers the brief names carry a
+      // typed kind; every other shape keeps its entity key. Still a count:
+      // nothing about the dose, the meal or the night rides along.
+      this.onEvent({ type: "health.logged", entityType: entry.entityType, entityId: id, props: { kind: typedKind(entry.entityType) } });
     }
     return id;
   }

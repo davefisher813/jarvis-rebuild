@@ -171,7 +171,10 @@ describe("GYM-F-27: the receipt counts the session it is the receipt for", () =>
     expect(flow).toMatch(/workouts=\{finishing\.current \? \[\.\.\.workouts, \{ id: "pending", data: finishing\.current\.data \} as Workout\] : workouts\}/);
     // and nothing is written until Done
     expect(flow).toMatch(/const commitFinish = async \(note\?: string\) => \{[\s\S]*?queueFinished\(data\);/);
-    expect(flow).toMatch(/const finish = async \(\) => \{(?:(?!queueFinished)[\s\S])*setReceipt\(\{ receipt: \{ \.\.\.r, goalHits \}/);
+    // Part 3 wave 4: finish takes an options argument (the already-saved-
+    // elsewhere check); the rule that nothing is queued before the receipt
+    // opens is what this holds.
+    expect(flow).toMatch(/const finish = async \([^)]*\) => \{(?:(?!queueFinished)[\s\S])*setReceipt\(\{ receipt: \{ \.\.\.r, goalHits \}/);
   });
 
   it("the sheet still reads the count out of the reloaded list", () => {

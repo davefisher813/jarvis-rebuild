@@ -364,3 +364,13 @@ export function sessionExercisesSameAsLastTime(day: ProgramDay, last: WorkoutDat
     return { ...base, sets: [], custom: true, plan };
   });
 }
+
+/** ALREADY SAVED FROM ANOTHER DEVICE (Part 3 wave 4, 2026-09-13; Dave's
+ *  13a). The live session never leaves the phone it runs on, so the one
+ *  collision two devices can have is finishing the same program day on the
+ *  same date twice. The saved workout that would be this session's twin, or
+ *  null: same day id, same date, a different start (its own start would be
+ *  the session resuming, not a twin). */
+export function twinWorkout(workouts: { data: Pick<WorkoutData, "dayId" | "date" | "startedAt"> }[], live: Pick<LiveSession, "dayId" | "date" | "startedAt">): { data: Pick<WorkoutData, "dayId" | "date" | "startedAt"> } | null {
+  return workouts.find((w) => w.data.dayId === live.dayId && w.data.date === live.date && w.data.startedAt !== live.startedAt) ?? null;
+}

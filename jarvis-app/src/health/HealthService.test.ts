@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
-import { HealthService } from "./HealthService";
+import { HealthService, typedKind } from "./HealthService";
 import type { Storage2 } from "./offlineQueue";
 
 function mem(): Storage2 {
@@ -235,5 +235,25 @@ describe("HealthService: meals and Edit Time", () => {
     const list = await s.listPointAtIt(store);
     expect(list[0]!.data.region).toBe("Lower Back");
     expect(list[1]!.data).not.toHaveProperty("region");
+  });
+});
+
+// Part 3 wave 4 (Dave 14a): typed kinds on the event, counts only.
+describe("typedKind", () => {
+  it("names a dose, a meal and a bedtime the brief's way, and keeps the entity key for the rest", () => {
+    expect(typedKind("health_took_it")).toBe("medication_logged");
+    expect(typedKind("health_meal")).toBe("meal_logged");
+    expect(typedKind("health_lights_out")).toBe("bedtime_logged");
+    expect(typedKind("health_call_it")).toBe("health_call_it");
+  });
+
+  it("the event a landed dose emits carries the typed kind and nothing about the dose", async () => {
+    const seen: { type: string; props?: Record<string, unknown> }[] = [];
+    const s = new HealthService(new Store(new InMemoryAdapter()), "athlete1", (e) => { seen.push(e as never); });
+    const store = mem();
+    s.logTookIt(1000, store, { medId: "m1", amount: "10 mg" });
+    await tick();
+    const ev = seen.find((e) => e.type === "health.logged")!;
+    expect(ev.props).toEqual({ kind: "medication_logged" });
   });
 });
