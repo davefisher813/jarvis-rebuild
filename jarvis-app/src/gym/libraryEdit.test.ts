@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { libraryRows, libraryKeyOf, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge } from "./libraryEdit";
+import { libraryRows, libraryKeyOf, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, patchSummary } from "./libraryEdit";
 import { buildLibrary } from "./library";
 import type { Program, Workout, WorkoutExercise } from "./types";
 
@@ -158,5 +158,32 @@ describe("aliases through rename and merge", () => {
   it("libraryRows carries an entry's aliases", () => {
     const rows = libraryRows([{ key: "k1", exerciseKey: "k1", name: "Bench", kind: "weight_reps", lastUsed: 1, lastSets: [], aliases: ["Flat Bench"] }], []);
     expect(rows[0]!.aliases).toEqual(["Flat Bench"]);
+  });
+});
+
+// Part 3 wave 1: a merge is reviewed first and can be put back.
+describe("invertPatch and patchSummary", () => {
+  const workouts: Workout[] = [
+    { id: "w1", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-09-01", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "a", name: "Flat Bench", kind: "weight_reps", sets: [{ id: "s1", w: 100, r: 5 }] }] } },
+    { id: "w2", data: { programId: "p", dayId: "d", dayName: "Pull", date: "2026-09-02", startedAt: 0, endedAt: 1, exercises: [{ exerciseId: "b", name: "Row", kind: "weight_reps", sets: [] }] } },
+  ];
+  const programs = [program("p1", [{ name: "Flat Bench" }, { name: "Row" }])];
+  const lib = buildLibrary(programs, workouts);
+  const loser = lib.find((e) => e.name === "Flat Bench")!;
+  const survivor = { key: "ek-bench", kind: "weight_reps" as const, name: "Bench Press", exerciseKey: "ek-bench" };
+
+  it("the inverse holds the pre-image of every touched record, and applying it restores the names", () => {
+    const patch = mergeLifts(workouts, programs, loser, survivor, () => "ek-bench");
+    expect(patch.workouts.map((w) => w.id)).toEqual(["w1"]);
+    expect(patch.workouts[0]!.exercises[0]!.name).toBe("Bench Press");
+    const inverse = invertPatch(patch, workouts, programs);
+    expect(inverse.workouts[0]!.exercises[0]!.name).toBe("Flat Bench");
+    expect(inverse.workouts[0]!.exercises[0]!.sets).toEqual([{ id: "s1", w: 100, r: 5 }]);
+    expect(inverse.programs[0]!.weeks).toBe(programs[0]!.data.weeks);
+  });
+
+  it("the summary counts the sessions and program days a merge reaches", () => {
+    const patch = mergeLifts(workouts, programs, loser, survivor, () => "ek-bench");
+    expect(patchSummary(patch, programs, new Set([loser.key, survivor.key]))).toEqual({ sessions: 1, programDays: 1 });
   });
 });

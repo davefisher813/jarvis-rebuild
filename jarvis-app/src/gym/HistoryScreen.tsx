@@ -36,7 +36,7 @@ function Sparkline({ workouts, name, exerciseKey, kind }: { workouts: Workout[];
 // at the top. Lifts is this screen as it was; Sessions is every workout,
 // newest first, grouped by the week it fell in, each row a door to that
 // workout's own editor.
-export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWorkout }: {
+export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWorkout, mode: modeProp, onMode }: {
   workouts: Workout[]; onBack: () => void;
   // GYM-F-04 (2026-09-05): the key rides along so the lift detail derives the
   // lift's WHOLE history, across a rename, not just what its current name
@@ -45,8 +45,14 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
   /** H-32: a session row opens that workout. Absent, the Sessions segment
    *  still lists them; the rows just do not open. */
   onOpenWorkout?: (workout: Workout) => void;
+  /** 2026-09-13 (Dave's 18a): the host may hold the segment, so coming back
+   *  from a workout opened under Sessions lands on Sessions. */
+  mode?: "lifts" | "sessions";
+  onMode?: (mode: "lifts" | "sessions") => void;
 }) {
-  const [mode, setMode] = useState<"lifts" | "sessions">("lifts");
+  const [modeState, setModeState] = useState<"lifts" | "sessions">(modeProp ?? "lifts");
+  const mode = modeProp ?? modeState;
+  const setMode = (m: "lifts" | "sessions") => { setModeState(m); onMode?.(m); };
   const rows = exerciseHistory(workouts);
   const groups = useMemo(() => sessionGroups(workouts, todayISO()), [workouts]);
 

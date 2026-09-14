@@ -13,6 +13,8 @@ export interface LibraryEntry {
    *  never makes the old name unsearchable. Attached by withAliases from the
    *  gym settings; nothing in a workout or program carries them. */
   aliases?: string[];
+  /** Part 3 wave 1 (2026-09-13): starred on Your Lifts; leads every picker. */
+  favorite?: boolean;
   /** exerciseKey when the exercise that produced this entry has one; a
    *  derived name+kind fallback otherwise, so legacy exercises (pre-library)
    *  still show up and are still pickable. */
@@ -108,7 +110,17 @@ export function searchLibrary(library: LibraryEntry[], query: string, limit = 8,
   const q = query.trim().toLowerCase();
   // H-23: an old name still finds the lift.
   const hits = q ? visible.filter((e) => e.name.toLowerCase().includes(q) || (e.aliases ?? []).some((a) => a.toLowerCase().includes(q))) : visible;
-  return hits.slice(0, limit);
+  // Favorites first, then the library's own most-recent order (a stable sort
+  // keeps it), so a starred lift is the first thing under the finger.
+  const ranked = [...hits].sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0));
+  return ranked.slice(0, limit);
+}
+
+/** Part 3 wave 1: mark the starred entries by key. */
+export function withFavorites(library: LibraryEntry[], keys: string[]): LibraryEntry[] {
+  if (keys.length === 0) return library;
+  const set = new Set(keys);
+  return library.map((e) => (set.has(e.key) ? { ...e, favorite: true } : e));
 }
 
 /** H-23: hang the stored aliases on the entries they belong to, by key. */

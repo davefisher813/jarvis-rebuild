@@ -34,6 +34,9 @@ export interface GymSettings {
   /** Health Push E (H-23): the names each lift used to go by, by library
    *  key, so a rename keeps the old name searchable. See libraryEdit.ts. */
   aliases?: Record<string, string[]>;
+  /** Part 3 wave 1 (2026-09-13): the lifts he starred on Your Lifts. They
+   *  lead every picker; nothing else about them changes. */
+  favoriteKeys?: string[];
 }
 
 export const DEFAULT_GYM_SETTINGS: GymSettings = {

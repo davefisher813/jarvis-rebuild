@@ -49,6 +49,8 @@ export default function LibraryPickSheet({
                 <div className="conn-name truncate">{entry.name}</div>
                 <div className="conn-meta">{MEASURE_LABEL[entry.kind]}</div>
               </div>
+              {/* Part 3 wave 1: a starred lift says so, and leads the list. */}
+              {entry.favorite && <span className="pill pill-good">Favorite</span>}
             </div>
           ))}
           {results.length === 0 && (

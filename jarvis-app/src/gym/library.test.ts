@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLibrary, searchLibrary, searchLibraryByKind, newExerciseKey, withAliases } from "./library";
+import { buildLibrary, searchLibrary, searchLibraryByKind, newExerciseKey, withAliases, withFavorites } from "./library";
 import type { Program, Workout } from "./types";
 
 function program(over: Partial<Program["data"]> = {}): Program {
@@ -141,5 +141,20 @@ describe("aliases", () => {
     expect(searchLibrary(lib, "bar dl").map((e) => e.name)).toEqual(["Trap Bar Deadlift"]);
     expect(searchLibrary(lib, "bench").map((e) => e.name)).toEqual(["Bench"]);
     expect(searchLibrary(lib, "nothing")).toEqual([]);
+  });
+});
+
+// Part 3 wave 1: favorites lead every picker.
+describe("favorites", () => {
+  const lib = withFavorites([
+    { key: "k1", exerciseKey: "k1", name: "Bench", kind: "weight_reps", lastUsed: 3, lastSets: [] },
+    { key: "k2", exerciseKey: "k2", name: "Row", kind: "weight_reps", lastUsed: 2, lastSets: [] },
+    { key: "k3", exerciseKey: "k3", name: "Curl", kind: "weight_reps", lastUsed: 1, lastSets: [] },
+  ], ["k3"]);
+  it("marks the starred entry and puts it first, the rest in their own order", () => {
+    expect(lib[2]!.favorite).toBe(true);
+    expect(lib[0]!).not.toHaveProperty("favorite");
+    expect(searchLibrary(lib, "").map((e) => e.name)).toEqual(["Curl", "Bench", "Row"]);
+    expect(searchLibrary(lib, "r").map((e) => e.name)).toEqual(["Curl", "Row"]);
   });
 });

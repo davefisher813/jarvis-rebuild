@@ -45,6 +45,8 @@ export interface LibraryRow {
   hidden: boolean;
   /** H-23: the names this lift used to go by. */
   aliases?: string[];
+  /** Part 3 wave 1: starred on Your Lifts. */
+  favorite?: boolean;
 }
 
 /** Every lift the athlete has, with its count and its last day. Sorted the
@@ -76,6 +78,7 @@ export function libraryRows(library: LibraryEntry[], workouts: Workout[], hidden
       lastDate: lastDate.get(e.key) ?? null,
       hidden: hidden.has(e.key),
       ...(e.aliases?.length ? { aliases: e.aliases } : {}),
+      ...(e.favorite ? { favorite: true } : {}),
     }))
     .sort((a, b) => {
       if (a.lastDate && b.lastDate) return b.lastDate.localeCompare(a.lastDate) || a.name.localeCompare(b.name);
@@ -225,4 +228,31 @@ export function aliasesAfterMerge(map: AliasMap, m: { loserKey: string; loserNam
   const list = uniqNames(carried, m.survivorName);
   if (list.length) next[m.survivorNewKey] = list; else delete next[m.survivorNewKey];
   return next;
+}
+
+// A MERGE CAN BE UNDONE (Part 3 wave 1, 2026-09-13; acceptance scenario 11:
+// "duplicate merging requires review and can be reversed without record
+// loss"). The inverse of a patch is the pre-image of every workout and
+// program it touches, read from the lists as they stand BEFORE the patch is
+// applied; applying it puts every exercise back exactly, ids and all.
+export function invertPatch(patch: LibraryPatch, workouts: Workout[], programs: Program[]): LibraryPatch {
+  const byW = new Map(workouts.map((w) => [w.id, w] as const));
+  const byP = new Map(programs.map((p) => [p.id, p] as const));
+  return {
+    workouts: patch.workouts.flatMap((w) => { const cur = byW.get(w.id); return cur ? [{ id: w.id, exercises: cur.data.exercises }] : []; }),
+    programs: patch.programs.flatMap((p) => { const cur = byP.get(p.id); return cur ? [{ id: p.id, weeks: cur.data.weeks }] : []; }),
+  };
+}
+
+/** What a patch reaches: how many sessions and how many program days it
+ *  rewrites, for the review before a merge. */
+export function patchSummary(patch: LibraryPatch, programs: Program[], keys: Set<string>): { sessions: number; programDays: number } {
+  let programDays = 0;
+  const byP = new Map(programs.map((p) => [p.id, p] as const));
+  for (const p of patch.programs) {
+    const cur = byP.get(p.id);
+    if (!cur) continue;
+    for (const wk of cur.data.weeks) for (const d of wk.days) if (d.exercises.some((e) => keys.has(libraryKeyOf(e)))) programDays++;
+  }
+  return { sessions: patch.workouts.length, programDays };
 }
