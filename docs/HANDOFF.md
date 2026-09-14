@@ -1,6 +1,6 @@
 # Session handoff, 14 Sep 2026
 
-**Remote main is the approved Health design on top of the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
+**Remote main is Cowork's Exercises and Today patch on top of the approved Health design and the 14 Sep reference pass (the Health pages rebuilt to the ChatGPT reference in six waves plus the three modals from Dave's screenshots), on top of the 13 Sep Health, audit and Part 3 passes. Local equals remote. Tree clean apart from the untracked `Claude outputs/` folder. All gates green; CI green on every push except f9472b3, whose laws red (a file committed before its importer) the next push closed. Dave sees main through the Vercel web app on his phone (jarvis-rebuild.vercel.app, added to the home screen): a push to main is live on his next open. No `v*` tags were pushed this session; tags only trigger unused Codemagic builds. Waves 5 and 6 left in one push (a rebase refused on an unstaged doc), so CI ran once, on f84c5c4.**
 
 ## What shipped this session
 
@@ -15,6 +15,8 @@ Dave, 2026-09-14: "Do all of this [the Track 3 master and preview]. Also update 
 | 5 | `e7fc161` | the lift page: Best Recorded Set, the Epley estimate behind a row, Milestones |
 | 6 | `f84c5c4` | Track 3: the schema as five unapplied files under `jarvis-core/supabase/track3/`, Settings > Booking (Your Times), `docs/TRACK3.md` |
 | 7 | `b856c34` | this document, the catalog's §AD, the migration paste |
+| 9 | `c141035` | Cowork's Exercise Library handoff (applied from `Claude outputs/jarvis-exercise-library-and-today-2026-09-14.patch`): one classification per exercise across nine axes (`gym/classify.ts`, nothing inferred from a name, a law keeps it so), the merge as a state machine that finishes or says why (`gym/merge.ts`), duplicates in their own review, the library page renamed Exercises with search, filters, sorts and a batch, the lift page's grey subtext replaced, and the three doors (Exercises · Program · History) under the week on Health |
+| 10 | `03aefc7` | Cowork: Start Workout reaches Today. The live-session read runs on mount, on the door closing and on the app returning to the foreground; the card no longer waits on a Health category; `gym/liveCard.ts` renders the whole plan with what is logged, never what is owed |
 | 8 | `e900709` | Cowork's Dave's Five (PASSOFF_2026_09_14_HEALTH_FIVE.md, applied from its format-patch): Equipment and Counted As as two rows, assisted lifts score lower-is-better, per-hand and per-side tonnage counted whole, Your Lifts Edit and the merge review as portals, muscles by library key as a list, duplicate lifts suggested and never merged, Add from Your Lifts, Weekly Volume rows open and a coverage card, the Health home reordered (This Week before a compact Quick Log) |
 
 The reference itself is `Claude outputs/Jarvis_Health_Complete.html`; its markup is an escaped iframe (`data-srcdoc`), extracted with the scratchpad's `extract.js` and split per view. `STYLING_CATALOG_V3.md` §AD records every ruling of the pass.
@@ -39,11 +41,13 @@ Left out on purpose: PDF export; an inline effort select on the finish page (the
 
 Cowork cannot push to this repo (403). It hands over a `git format-patch` file in `Claude outputs/`; apply it with `git checkout -b claude/<name> <base>` and `git am <file>`, run the full gate, fast-forward main, push, poll CI. The 14 Sep patch applied clean on `b856c34`, gated green (5,551 tests) and CI green as `e900709`.
 
+The second 14 Sep patch (Exercises and Today) was cut on `602ff89`, before the approved Health design, and conflicted in four files. Resolved on the design's side: `HealthBody` keeps the week card, Next Workout and Your Progress, and Cowork's three-door row is grafted between the week and Next Workout (its test repinned to the design's props); `CategoryDetail` keeps the typed `gymHistory` segment, so the History door opens History on Sessions; `GymFlow` keeps `startLift`, `startHistory` as a segment and `startWorkoutId`; both CSS blocks stand. Cowork widened the muscle map's value to two named lists with a scope window, so `insights/analytics.muscleBreakdown` now reads it through the exported `rolesFor` (primaries whole, secondaries half, never twice), the same reader the Weekly Volume card uses. Gate green at 5,710 tests.
+
 ## Migrations to apply
 
-- `0040_health_checkin.sql`: registers `health_checkin` in `entity_type`. Until it lands, a check-in waits in the offline queue and replays. The statement is one insert; hand it to Dave as a bare code block.
+None outstanding. Migrations 0038 to 0040 are applied on the live project (verified 2026-09-14 by reading `entity_type` through the Supabase MCP).
 
-Migrations 0038 and 0039 were applied by Dave on 2026-09-14.
+The live project is ref `roonancpktqigdndrumo` ("Javris Project", org "Jarvis", free plan, us-east-2). The MCP's project listing does not show that org, but every call that takes the ref directly works. The Track 3 files under `jarvis-core/supabase/track3/` still wait on a second project (free in that org); creating it from a Claude session was refused by the permission classifier, so Dave creates it in the dashboard and hands over the ref, after which the five files apply in order and Clerk plus Vault are dashboard steps.
 
 ## Departures from the reference, all stated in their commits
 
