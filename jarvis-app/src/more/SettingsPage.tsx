@@ -20,6 +20,7 @@ const ITEMS: Item[] = [
   { label: "Appearance", route: "appearance", group: 1 },
   { label: "Areas", route: "categories", group: 1 },
   { label: "Training", route: "training", group: 1 },
+  { label: "Booking", route: "booking", group: 1 },
   { label: "Edit Tabs", route: "edittabs", group: 1 },
   { label: "Connections", route: "connections", group: 1 },
   { label: "AI Control", route: "aicontrol", group: 1 },
