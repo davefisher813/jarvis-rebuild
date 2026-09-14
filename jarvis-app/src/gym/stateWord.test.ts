@@ -31,3 +31,12 @@ describe("setKicker", () => {
     expect(setKicker("skipped", 2)).toBe("Skipped");
   });
 });
+
+// Part 3 wave 2: the drop is its own word.
+describe("drop", () => {
+  it("a drop segment reads as Drop, logged or planned, and never as a set number", () => {
+    expect(setState({ drop: true }, 1, 1)).toBe("drop");
+    expect(setKicker("drop", 2, true)).toBe("Drop · Done");
+    expect(setKicker("drop", 2)).toBe("Drop");
+  });
+});

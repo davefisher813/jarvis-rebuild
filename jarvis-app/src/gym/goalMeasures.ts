@@ -92,7 +92,7 @@ export function meetsLiftTarget(
   // see that. Omitted means both sides are already in the same unit.
   units: { target?: string; set?: string } = {},
 ): boolean {
-  if (s.warmup || s.skipped) return false; // THE RAMP IS NOT THE WORK, same as scoreOf itself
+  if (s.warmup || s.skipped || s.drop) return false; // THE RAMP IS NOT THE WORK, same as scoreOf itself; nor is a drop
   // GYM-F-20 (2026-09-05): a target of 0 is not a target. For height,
   // distance and time_longer the comparison below is `value >= 0`, which any
   // set on earth meets, so a goal saved with the stepper untouched read
@@ -138,7 +138,7 @@ function bestToward(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t
       const ex = w.data.exercises.find((e) => sameLift(ref, e));
       if (!ex || ex.skipped) continue;
       for (const s of ex.sets) {
-        if (s.warmup || s.skipped || !has(s.w) || !has(s.r)) continue;
+        if (s.warmup || s.skipped || s.drop || !has(s.w) || !has(s.r)) continue;
         if (target.r != null && s.r! < target.r) continue;
         const lb = toLb(s.w!, ex.unit);
         if (lb > best) best = lb;
@@ -153,7 +153,7 @@ function bestToward(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t
     const ex = w.data.exercises.find((e) => sameLift(ref, e));
     if (!ex || ex.skipped) continue;
     for (const s of ex.sets) {
-      if (s.warmup || s.skipped) continue;
+      if (s.warmup || s.skipped || s.drop) continue;
       const sc = scoreOf(kind, s, ex.unit);
       if (!sc) continue;
       if (!bestScore || (sc.lowerWins ? sc.value < bestScore.value : sc.value > bestScore.value)) bestScore = sc;

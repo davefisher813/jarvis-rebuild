@@ -267,7 +267,7 @@ export function projectFinishMs(live: LiveFitState, day: ProgramDay | null, hist
   let anyLogged = false;
   for (const e of live.exercises) {
     if (e.skipped) continue;
-    const workLogged = e.sets.filter((s) => !s.warmup && !s.skipped).length;
+    const workLogged = e.sets.filter((s) => !s.warmup && !s.skipped && !s.drop).length;
     if (e.sets.length > 0) anyLogged = true;
     const { planned, ex, ramp, cond } = planFor(live, e, day);
     // GYM-F-07 (2026-09-05): a clock that has not been run yet still costs its
@@ -289,7 +289,7 @@ export function projectFinishMs(live: LiveFitState, day: ProgramDay | null, hist
       const remOf = (x: Exercise) => {
         const le = live.exercises.find((e) => e.exerciseId === x.id && !e.custom);
         if (!le || le.skipped) return 0;
-        const logged = le.sets.filter((s) => !s.warmup && !s.skipped).length;
+        const logged = le.sets.filter((s) => !s.warmup && !s.skipped && !s.drop).length;
         return Math.max(0, Math.max(0, x.sets.length - (live.trims?.[x.id] ?? 0)) - logged);
       };
       const rounds = Math.min(...g.map(remOf));
@@ -343,7 +343,7 @@ export function nextLever(live: LiveFitState, day: ProgramDay | null, _history: 
     if (ex.sets.length < 3 || planned <= 2) continue;
     const le = live.exercises.find((e) => e.exerciseId === ex.id && !e.custom);
     if (le?.skipped) continue;
-    const logged = le ? le.sets.filter((s) => !s.warmup && !s.skipped).length : 0;
+    const logged = le ? le.sets.filter((s) => !s.warmup && !s.skipped && !s.drop).length : 0;
     if (logged >= planned) continue; // its last set already happened; nothing to save
     return { key: "trim", exerciseId: ex.id, name: ex.name };
   }

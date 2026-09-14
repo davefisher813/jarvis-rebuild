@@ -141,7 +141,7 @@ function setsOn(workouts: Workout[], lift: LiftLike, date: string): number | nul
     if (w.data.date !== date) continue;
     const ex = w.data.exercises.find((e) => sameLiftAnyKind(lift, e));
     if (!ex || ex.skipped) continue;
-    total = (total ?? 0) + ex.sets.filter((s) => !s.skipped && !s.warmup && scoreOf(ex.kind, s)).length;
+    total = (total ?? 0) + ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s)).length;
   }
   return total;
 }
@@ -254,7 +254,7 @@ export function hardSetRows(workouts: Workout[], muscleByExercise: Map<string, M
       if (ex.skipped) continue;
       const muscle = muscleByExercise.get(ex.name);
       if (!muscle) continue;
-      const working = ex.sets.filter((s) => !s.skipped && !s.warmup && scoreOf(ex.kind, s)).length;
+      const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s)).length;
       if (working === 0) continue;
       totals.set(muscle, (totals.get(muscle) ?? 0) + working);
     }
@@ -282,7 +282,7 @@ export function backOffSignal(workouts: Workout[], now: number = Date.now(), day
     for (const ex of w.data.exercises) {
       if (ex.skipped) continue;
       for (const s of ex.sets) {
-        if (s.skipped || s.warmup || !s.moved) continue;
+        if (s.skipped || s.warmup || s.drop || !s.moved) continue;
         total++;
         if (s.moved === "grind" || s.moved === "missed") bad++;
       }

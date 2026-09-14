@@ -216,6 +216,9 @@ export function scoreOf(kind: MeasureKind, s: SetLog, unit?: string): { value: n
   // first, so a warm-up leaves the running here and cannot become anyone's
   // personal best by being the heaviest thing in a strip.
   if (s.warmup) return null;
+  // Part 3 wave 2: a drop segment counts in tonnage (setVolume) and nowhere
+  // else, so it leaves the running here too.
+  if (s.drop) return null;
   switch (kind) {
     case "weight_reps":
       return { value: toLb(s.w ?? 0, unit), lowerWins: false };

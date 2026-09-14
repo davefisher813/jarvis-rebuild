@@ -234,3 +234,13 @@ describe("warm-up sets stay out of the numbers", () => {
     expect(scoreOf("weight_reps", { w: 225, r: 5 })).not.toBeNull();
   });
 });
+
+// Part 3 wave 2: the counting method for a drop, stated once and held here.
+describe("a drop segment counts in tonnage and nowhere else", () => {
+  it("setVolume counts it; scoreOf leaves it out of every record path", () => {
+    const drop: SetLog = { w: 185, r: 8, drop: true };
+    expect(setVolume("weight_reps", drop, "lb")).toBe(185 * 8);
+    expect(scoreOf("weight_reps", drop, "lb")).toBeNull();
+    expect(scoreOf("weight_reps", { w: 185, r: 8 }, "lb")).not.toBeNull();
+  });
+});

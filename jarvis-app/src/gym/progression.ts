@@ -52,7 +52,7 @@ function lastSession(history: Workout[], ex: Pick<Exercise, "name" | "kind"> & {
     const w = history[i]!;
     const hit = w.data.exercises.find((e) => sameLift(ref, e));
     // Warm-ups are not evidence: they are supposed to move well.
-    const work = hit?.sets.filter((s) => !s.skipped && !s.warmup) ?? [];
+    const work = hit?.sets.filter((s) => !s.skipped && !s.warmup && !s.drop) ?? [];
     if (hit && work.length) return { date: w.data.date, sets: work, unit: hit.unit };
   }
   return null;
@@ -116,7 +116,7 @@ export function applySuggestion(ex: Exercise, s: Suggestion): Exercise {
   return {
     ...ex,
     sets: ex.sets.map((entry) => {
-      if (entry.warmup || entry.skipped) return entry;
+      if (entry.warmup || entry.skipped || entry.drop) return entry;
       const next = { ...entry };
       if (s.next.w !== undefined) next.w = s.next.w;
       if (s.next.r !== undefined) next.r = s.next.r;

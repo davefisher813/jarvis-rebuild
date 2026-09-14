@@ -81,6 +81,14 @@ export interface SetLog {
   splits?: number[];
   done?: boolean; // filled with no numbers -- the "done, no numbers" mark
   skipped?: boolean;
+  /** A DROP SEGMENT (Part 3 wave 2, 2026-09-13; handoff acceptance 9: "drop
+   *  segments remain attached to their parent"). Logged straight after a
+   *  working set, at whatever weight the athlete then lifted. The counting
+   *  method, stated once: a drop counts in tonnage moved and nowhere else.
+   *  It is never a working set, never a PR, never progression evidence, and
+   *  never a turn in a group. Its parent is the nearest working set before
+   *  it in the strip. */
+  drop?: boolean;
   /** THE RAMP, D3 (Training Catalog V2, approved 2026-08-31). A warm-up set:
    *  real work the athlete did, but never a PR, never volume, and never part
    *  of what makes a strip "uniform" -- a ramp is by definition not uniform
@@ -134,6 +142,12 @@ export interface Exercise {
   exerciseKey?: string;
   /** Optional per-exercise rest target in seconds (catalog §4.3). */
   restSec?: number;
+  /** REST AFTER THE ROUND (Part 3 wave 2, 2026-09-13). For a grouped
+   *  exercise: the rest that starts once every member has taken its turn,
+   *  instead of after every set. Read off any member (the largest wins). With
+   *  none set on the group, the session rests after every set the way it
+   *  always has. */
+  roundRestSec?: number;
   /** Health Push E (H-26): how a weight_reps load is written. "each" means
    *  the number on every chip is one dumbbell's; absent or "total" means the
    *  whole load. A label for the person's own numbers, never a conversion:

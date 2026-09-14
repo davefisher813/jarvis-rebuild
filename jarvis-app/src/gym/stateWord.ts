@@ -12,14 +12,17 @@ import type { SetEntry } from "./types";
 //
 // Pure, and derived from the row's place in the strip: nothing is stored.
 
-export type SetState = "done" | "now" | "next" | "warm" | "skipped";
+export type SetState = "done" | "now" | "next" | "warm" | "skipped" | "drop";
 
 /** The state of the row at strip position `idx`, where `currentIdx` is the
  *  position of the working set the athlete is on (the first planned working
  *  set not yet logged), or -1 when every working set is logged. */
-export function setState(entry: Pick<SetEntry, "warmup" | "skipped">, idx: number, currentIdx: number): SetState {
+export function setState(entry: Pick<SetEntry, "warmup" | "skipped" | "drop">, idx: number, currentIdx: number): SetState {
   if (entry.skipped) return "skipped";
   if (entry.warmup) return "warm";
+  // Part 3 wave 2: a drop segment is its own word, in the load hue, so it is
+  // never read as the working set it hangs off.
+  if (entry.drop) return "drop";
   if (currentIdx >= 0 && idx === currentIdx) return "now";
   if (currentIdx >= 0 && idx > currentIdx) return "next";
   return "done";
@@ -35,5 +38,6 @@ export function setKicker(state: SetState, n: number, logged = false): string {
     case "next": return `Up Next · Set ${n}`;
     case "warm": return logged ? "Warm-Up · Done" : "Warm-Up";
     case "skipped": return "Skipped";
+    case "drop": return logged ? "Drop · Done" : "Drop";
   }
 }

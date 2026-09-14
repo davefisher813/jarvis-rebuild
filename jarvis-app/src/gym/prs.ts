@@ -195,7 +195,7 @@ export function lastSessionFor(history: Workout[], lift: LiftLike, kind: Measure
     const w = history[i]!;
     const ex = w.data.exercises.find((e) => sameLift(ref, e));
     // Working sets only: a warm-up is not what happened last time (D3-A).
-    const logged = ex?.sets.filter((s) => !s.skipped && !s.warmup) ?? [];
+    const logged = ex?.sets.filter((s) => !s.skipped && !s.warmup && !s.drop) ?? [];
     if (ex && logged.length) {
       // GYM-F-06 (2026-09-05): spoken in the unit the lift is in NOW, so the
       // "Last:" line under each ghost, and tap-to-match, cannot hand back a kg

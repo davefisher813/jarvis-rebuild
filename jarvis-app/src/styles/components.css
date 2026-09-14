@@ -4459,6 +4459,7 @@ body.selecting .voice-dock { display: none; }
 .row-pair .pill-act { align-self: auto; max-width: none; }
 .pill-act.pill-quiet { color: var(--tx-2); }
 .set-chip-warm .conn-name { font-weight: var(--w-medium); }
+.set-chip-drop .conn-name { font-weight: var(--w-medium); }
 /* TAP-TO-MATCH, D2 (Training Catalog V2, 2026-08-31). On a ghost chip the
    faint "Last: 250 × 2" line is itself the door to logging those numbers.
    The reference text stays quiet meta; the one-word verb wears the accent,

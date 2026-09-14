@@ -75,7 +75,7 @@ export default function SetStrip({
   const isLog = ghost !== undefined || !!moveTracking;
   const firstWorkGhost = (ghost ?? []).findIndex((g) => !g.warmup);
   const nowPos = firstWorkGhost < 0 ? -1 : entries.length + firstWorkGhost;
-  const workNoAt = (pos: number) => [...entries, ...(ghost ?? [])].slice(0, pos + 1).filter((s) => !s.warmup).length;
+  const workNoAt = (pos: number) => [...entries, ...(ghost ?? [])].slice(0, pos + 1).filter((s) => !s.warmup && !s.drop).length;
 
   const patch = (id: string, p: Partial<SetEntry>) =>
     onChange(entries.map((e) => (e.id === id ? { ...e, ...p } : e)));
@@ -209,13 +209,13 @@ function SetChipRow({
   const label = entry.skipped ? "Skipped" : kind === "done" ? (entry.done ? "Done" : "Not Marked Yet") : formatSet(fx, entry);
   // A ramp set is real work but not the work: it says so, and it counts
   // toward nothing (D3-A).
-  const kicker = state ? setKicker(state, workNo, true) : entry.warmup ? "Warm-Up" : `Set ${workNo}`;
+  const kicker = state ? setKicker(state, workNo, true) : entry.warmup ? "Warm-Up" : entry.drop ? "Drop" : `Set ${workNo}`;
 
   return (
     <div className={"task-swipe set-chip-swipe" + (swipe.dx ? " swipe-open" : "")}>
       <button className="task-del" aria-label={`Delete set ${index + 1}`} onClick={() => swipe.closeThen(onDelete)}><Trash2 className="ic" /></button>
       <div
-        className={"set-chip" + (entry.skipped ? " set-chip-skipped" : "") + (entry.warmup ? " set-chip-warm" : "") + (swipe.dragging ? " swiping" : "")}
+        className={"set-chip" + (entry.skipped ? " set-chip-skipped" : "") + (entry.warmup ? " set-chip-warm" : "") + (entry.drop ? " set-chip-drop" : "") + (swipe.dragging ? " swiping" : "")}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
         {...swipe.handlers}
         role="button"
@@ -322,7 +322,7 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
       {/* HOW IT MOVED (catalog §4.5): observable events, never an
           interoception/feelings scale. Optional -- tapping the already-active
           chip clears it rather than forcing a choice. */}
-      {moveTracking && !entry.skipped && !entry.warmup && (
+      {moveTracking && !entry.skipped && !entry.warmup && !entry.drop && (
         <div className="field">
           <div className="input-label">How Did It Move?</div>
           <div className="chip-row chip-wrap-row">

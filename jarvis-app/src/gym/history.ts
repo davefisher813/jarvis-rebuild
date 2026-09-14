@@ -183,7 +183,7 @@ export function sessionGroups(workouts: Workout[], today: string): SessionGroup[
   const groups: SessionGroup[] = [];
   for (const w of sorted) {
     const label = weekLabel(w.data.date, today);
-    const sets = w.data.exercises.reduce((n, ex) => ex.skipped ? n : n + ex.sets.filter((s) => !s.skipped && !s.warmup).length, 0);
+    const sets = w.data.exercises.reduce((n, ex) => ex.skipped ? n : n + ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop).length, 0);
     const minutes = Math.max(1, Math.round((w.data.endedAt - w.data.startedAt - (w.data.pausedMs ?? 0)) / 60000));
     const row: SessionRow = { workout: w, date: w.data.date, minutes, sets };
     const last = groups[groups.length - 1];

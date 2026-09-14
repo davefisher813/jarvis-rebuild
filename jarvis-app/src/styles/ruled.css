@@ -1483,6 +1483,9 @@
 .ruled.health-ruled .se-kick.next { color: var(--tx-2); }
 .ruled.health-ruled .se-kick.warm { color: var(--tx-2); }
 .ruled.health-ruled .se-kick.skipped { color: var(--tx-3); }
+/* Part 3 wave 2 (2026-09-13): a drop segment's kicker wears the load hue, so
+   it reads as weight that moved and never as the working set above it. */
+.ruled.health-ruled .se-kick.drop { color: var(--hl-amber); }
 .ruled.health-ruled .se-kick-ic { width: 10px; height: 10px; vertical-align: -1px; margin-right: 3px; }
 .ruled.health-ruled .set-chip-ghost.setrow-now { border-color: transparent; }
 /* The session screen leaves room for the Log bar (H-11). */

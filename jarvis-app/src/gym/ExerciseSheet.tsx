@@ -101,6 +101,8 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | undefined>(initial?.muscleGroup);
   // H-26: how the weight is written, a label and never a conversion.
   const [load, setLoad] = useState<"each" | "total">(initial?.load ?? "total");
+  // Part 3 wave 2: the rest after a full round of the group this belongs to.
+  const [roundRestSec, setRoundRestSec] = useState(initial?.roundRestSec ?? 0);
   // THE CONDITIONING BLOCK (ruled 2026-09-01, built 2026-09-02). Off means
   // this is a strip; a format makes it a clock. The kind follows the format
   // (an AMRAP scores rounds, a For Time scores time, EMOM and Tabata count
@@ -196,6 +198,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
       ...(ramp ? { ramp: true } : {}),
       ...(muscleGroup ? { muscleGroup } : {}),
       ...(kind === "weight_reps" && load === "each" ? { load: "each" as const } : {}),
+      ...(partner && roundRestSec > 0 ? { roundRestSec } : {}),
       ...(condBlock ? { cond: condBlock } : {}),
     });
   };
@@ -444,6 +447,18 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                   <div className="conn-meta">{partner ?? "Not paired"}</div>
                 </div>
                 <button className="pill-act pill-neutral" onClick={onPairWith}>{partner ? "Change" : "Choose"}</button>
+              </div>
+            )}
+            {/* REST AFTER THE ROUND (Part 3 wave 2): only once the exercise
+                is in a group. Off means the session rests after every set. */}
+            {onPairWith && partner && (
+              <div className="row xs-row">
+                <Tile tone="teal"><Hourglass className="ic" /></Tile>
+                <div className="row-grow">
+                  <div className="conn-name">Rest After the Round</div>
+                  <div className="conn-meta">{roundRestSec > 0 ? mmss(roundRestSec) + " once every member has gone" : "Off · Rest after every set"}</div>
+                </div>
+                <Stepper value={roundRestSec} step={15} min={0} label="Rest After the Round" onChange={setRoundRestSec} />
               </div>
             )}
             {/* FILLER (catalog §4.2): offered during the rest of whatever it is

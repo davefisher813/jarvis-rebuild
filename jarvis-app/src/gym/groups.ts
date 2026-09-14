@@ -156,3 +156,12 @@ export function ungroupExercise(exercises: Exercise[], id: string): Exercise[] {
     return bare;
   });
 }
+
+/** REST AFTER THE ROUND (Part 3 wave 2). The group's own rest, read off its
+ *  members: the largest stated value, or 0 when no member states one, which
+ *  means the session keeps resting after every set. */
+export function roundRestFor(exercise: Exercise, exercises: Exercise[]): number {
+  const members = groupOf(exercise, exercises);
+  if (members.length < 2) return 0;
+  return members.reduce((m, e) => Math.max(m, e.roundRestSec ?? 0), 0);
+}

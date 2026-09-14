@@ -43,3 +43,20 @@ describe("ExerciseSheet: Pair With (H-24)", () => {
     expect(screen.queryByText("Pair With")).toBeNull();
   });
 });
+
+// Part 3 wave 2: the round's rest lives on the sheet, only once grouped.
+describe("ExerciseSheet: Rest After the Round", () => {
+  it("is offered only with a partner, and writes roundRestSec when set", () => {
+    const onSave = vi.fn();
+    const { rerender } = render(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={onSave} onCancel={() => {}} onPairWith={() => {}} partner={null} />);
+    expect(screen.queryByText("Rest After the Round")).toBeNull();
+    rerender(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={onSave} onCancel={() => {}} onPairWith={() => {}} partner="Row" />);
+    expect(screen.getByText("Rest After the Round")).toBeInTheDocument();
+    expect(screen.getByText("Off · Rest after every set")).toBeInTheDocument();
+    save();
+    expect(onSave.mock.calls[0]![0]).not.toHaveProperty("roundRestSec");
+    fireEvent.click(screen.getByRole("button", { name: "More Rest After the Round" }));
+    save();
+    expect(onSave.mock.calls[1]![0].roundRestSec).toBe(15);
+  });
+});

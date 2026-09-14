@@ -132,7 +132,7 @@ export function weeklySetCounts(workouts: Workout[], lift: LiftLike, weeks = 8, 
     const days = daysAgo(w.data.date, now);
     const bucket = Math.floor(days / 7);
     if (bucket < 0 || bucket >= weeks) continue;
-    const working = ex.sets.filter((s) => !s.skipped && !s.warmup && scoreOf(ex.kind, s, ex.unit)).length;
+    const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s, ex.unit)).length;
     out[weeks - 1 - bucket]! += working;
   }
   return out;

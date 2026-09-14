@@ -10,7 +10,7 @@ import { isSessionPR, lastHeader, lastSessionFor } from "./prs";
 import { readGymSettings, rackFrom } from "./settings";
 import { rampFor } from "./ramp";
 import { suggestFor, type Suggestion } from "./progression";
-import { groupLabels, fillerFor, nextInGroup, groupOf } from "./groups";
+import { groupLabels, fillerFor, nextInGroup, groupOf, roundRestFor } from "./groups";
 import type { LibraryEntry } from "./library";
 import { newExerciseKey } from "./library";
 import SetStrip from "./SetStrip";
@@ -155,7 +155,9 @@ export default function SessionScreen({
   // work and only until it has been logged.
   const ramp = exercise.ramp ? rampFor(exercise, rackFrom(readGymSettings())) : [];
   const rampLogged = logged.filter((s) => s.warmup).length;
-  const workLogged = logged.filter((s) => !s.warmup).length;
+  // Part 3 wave 2: a drop segment is not a working set, so it never advances
+  // the athlete's place in the plan.
+  const workLogged = logged.filter((s) => !s.warmup && !s.drop).length;
   const rampLeft = ramp.slice(rampLogged);
   const ghost = [...rampLeft, ...planEx.sets.slice(workLogged)];
   // 2026-09-11: kept per exercise. This screen stays mounted as the athlete
@@ -257,8 +259,8 @@ export default function SessionScreen({
    *  approach the moment a ramp is on. */
   const workPosAt = (i: number): number | null => {
     if (i < logged.length) {
-      if (logged[i]!.warmup) return null;
-      return logged.slice(0, i).filter((s) => !s.warmup).length;
+      if (logged[i]!.warmup || logged[i]!.drop) return null;
+      return logged.slice(0, i).filter((s) => !s.warmup && !s.drop).length;
     }
     const g = i - logged.length;
     if (g < rampLeft.length) return null;
@@ -289,10 +291,23 @@ export default function SessionScreen({
     if (stated <= 0) return 0;
     return live.restCut ? Math.max(REST_FLOOR_SEC, stated - 30) : stated;
   })();
+  // REST AFTER THE ROUND (Part 3 wave 2, 2026-09-13). With a round rest set
+  // on the group, a set that leaves another member behind starts no rest:
+  // the session moves to that member, and the rest comes once the round is
+  // complete. Counted from the live log plus the set that just landed, since
+  // this runs in the same tick as the log. A group with no round rest keeps
+  // resting after every set, exactly as before.
   const startRest = () => {
-    if (exercise.kind !== "done" && restSecEff > 0) {
-      onFit({ restEndsAt: Date.now() + restSecEff * 1000 });
+    if (exercise.kind === "done") return;
+    const roundRest = roundRestFor(exercise, dayExercises);
+    if (roundRest > 0) {
+      const after = { ...loggedByExerciseId, [exercise.id]: (loggedByExerciseId[exercise.id] ?? 0) + 1 };
+      if (nextInGroup(exercise, dayExercises, after)) return;
+      const eff = live.restCut ? Math.max(REST_FLOOR_SEC, roundRest - 30) : roundRest;
+      onFit({ restEndsAt: Date.now() + eff * 1000 });
+      return;
     }
+    if (restSecEff > 0) onFit({ restEndsAt: Date.now() + restSecEff * 1000 });
   };
   const endRest = () => onFit({ restEndsAt: undefined });
   // UP-ATH-03 (2026-09-06): what the lock screen says when the rest lands,
@@ -300,7 +315,7 @@ export default function SessionScreen({
   // exercise by name, and the working set number, or the word warm-up when
   // the last thing logged was one of those.
   const lastLogged = logged[logged.length - 1];
-  const restLine = exercise.name + (lastLogged?.warmup ? " warm-up" : " set " + workLogged);
+  const restLine = exercise.name + (lastLogged?.warmup ? " warm-up" : lastLogged?.drop ? " drop" : " set " + workLogged);
 
   // GYM-F-24 (2026-09-05): in the live session the strip writes straight
   // through to storage, so one tap on the swipe-revealed delete took the
@@ -331,7 +346,7 @@ export default function SessionScreen({
   // as a turn.
   const loggedByExerciseId: Record<string, number> = {};
   for (const e of live.exercises) {
-    loggedByExerciseId[e.exerciseId] = e.sets.filter((x) => !x.warmup && !x.skipped).length;
+    loggedByExerciseId[e.exerciseId] = e.sets.filter((x) => !x.warmup && !x.skipped && !x.drop).length;
   }
   const pairNextId = nextInGroup(exercise, dayExercises, loggedByExerciseId);
   const pairNext = pairNextId ? dayExercises.find((e) => e.id === pairNextId) : undefined;
@@ -358,11 +373,24 @@ export default function SessionScreen({
     // sit in the same strip and must never advance the athlete's place in it.
     const next = plannedEntryAt(planEx, workLogged);
     if (next) { const e = duplicateEntry(next); onLog(e); startRest(); receiptForLog(e); return; }
-    const lastWork = [...logged].reverse().find((x) => !x.warmup);
+    const lastWork = [...logged].reverse().find((x) => !x.warmup && !x.drop);
     const e = lastWork ? duplicateEntry(lastWork) : blankEntry();
     onLog(e);
     startRest();
     receiptForLog(e);
+  };
+  // LOG A DROP (Part 3 wave 2). A segment right after the last working set,
+  // opened at that set's own numbers so the only thing to change is the
+  // weight he actually dropped to (the chip is a tap away, and the brief's
+  // 75 percent is not a training rule). No rest starts: a drop is the same
+  // set continuing. Counted in tonnage, nowhere else.
+  const lastWorkForDrop = exercise.kind === "weight_reps" ? [...logged].reverse().find((x) => !x.warmup && !x.drop && !x.skipped) : undefined;
+  const logDrop = () => {
+    if (!lastWorkForDrop) return;
+    const e: SetEntry = { ...duplicateEntry(lastWorkForDrop), drop: true };
+    onLog(e);
+    const before = logged;
+    showToast({ message: "Logged a drop · Tap it to set the weight", actionLabel: "Undo", onAction: () => onSetLogged(before, idx) });
   };
 
   return (
@@ -578,6 +606,9 @@ export default function SessionScreen({
             {/* SWAP (catalog §3.9): the rack is taken, the shoulder is
                 cranky. The program day is never touched -- only this
                 session's entry changes. */}
+            {lastWorkForDrop && !cond && (
+              <button className="row-create" role="button" tabIndex={0} onClick={logDrop}>Log a Drop</button>
+            )}
             <button className="row-create" role="button" tabIndex={0} onClick={() => setSwapOpen(true)}>Swap</button>
             <button className="row-create" role="button" tabIndex={0} onClick={onSkip}>Skip This Exercise</button>
           </>

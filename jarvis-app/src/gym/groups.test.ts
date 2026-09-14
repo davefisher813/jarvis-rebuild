@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupLabels, fillerFor, nextInGroup, groupExercises, ungroupExercise } from "./groups";
+import { groupLabels, fillerFor, nextInGroup, groupExercises, ungroupExercise, roundRestFor } from "./groups";
 import type { Exercise } from "./types";
 
 const ex = (id: string, name: string, over: Partial<Exercise> = {}): Exercise =>
@@ -171,5 +171,29 @@ describe("nextInGroup rotates a circuit", () => {
     const lonely: Exercise[] = [{ id: "a", name: "a", kind: "weight_reps", sets: [{ id: "a1" }], groupId: "g9" }];
     expect(nextInGroup(lonely[0]!, lonely, { a: 1 })).toBeNull();
     expect(groupLabels(lonely).size).toBe(0);
+  });
+});
+
+// Part 3 wave 2 (2026-09-13): the round's rest, and unequal set counts.
+describe("roundRestFor and unequal counts", () => {
+  const A: Exercise = { id: "a", name: "A", kind: "weight_reps", groupId: "g", roundRestSec: 120, sets: [{ id: "a1" }, { id: "a2" }, { id: "a3" }] };
+  const B: Exercise = { id: "b", name: "B", kind: "weight_reps", groupId: "g", sets: [{ id: "b1" }, { id: "b2" }] };
+  const C: Exercise = { id: "c", name: "C", kind: "weight_reps", sets: [{ id: "c1" }] };
+
+  it("reads the round rest off any member, the largest winning, and none outside a group", () => {
+    expect(roundRestFor(B, [A, B, C])).toBe(120);
+    expect(roundRestFor(A, [A, { ...B, roundRestSec: 150 }, C])).toBe(150);
+    expect(roundRestFor(C, [A, B, C])).toBe(0);
+    expect(roundRestFor({ ...A, groupId: undefined }, [{ ...A, groupId: undefined }, B, C])).toBe(0);
+  });
+
+  it("a member with nothing left is never offered a phantom turn", () => {
+    // Round 1 and 2 alternate; B is done after its second, so A's third
+    // stays on A and the group is over.
+    expect(nextInGroup(A, [A, B], { a: 1, b: 0 })).toBe("b");
+    expect(nextInGroup(B, [A, B], { a: 1, b: 1 })).toBeNull();
+    expect(nextInGroup(A, [A, B], { a: 2, b: 1 })).toBe("b");
+    expect(nextInGroup(B, [A, B], { a: 2, b: 2 })).toBeNull();
+    expect(nextInGroup(A, [A, B], { a: 3, b: 2 })).toBeNull();
   });
 });

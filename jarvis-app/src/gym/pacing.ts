@@ -68,7 +68,7 @@ export function workGaps(history: Workout[], lift: LiftLike, kind: MeasureKind):
     let prevAt: number | null = null;
     for (const s of ex.sets) {
       if (s.skipped || !s.at) continue;
-      if (prevAt != null && !s.warmup) {
+      if (prevAt != null && !s.warmup && !s.drop) {
         const gap = s.at - prevAt;
         if (gap >= MIN_GAP_MS && gap <= MAX_GAP_MS) { gaps.push(gap); took++; }
       }
