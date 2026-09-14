@@ -93,6 +93,44 @@ describe("the surface", () => {
   });
 });
 
+describe("clean paste", () => {
+  function pasteInto(pm: Element, text: string, html = "") {
+    fireEvent.paste(pm, { clipboardData: { getData: (t: string) => (t === "text/html" ? html : t === "text/plain" ? text : ""), types: html ? ["text/html", "text/plain"] : ["text/plain"], files: [] } });
+  }
+
+  it("keeps structure, drops styling, and offers Text Only and Undo for a few seconds", async () => {
+    const { ref, container } = mount({ doc: { type: "doc", content: [{ type: "paragraph" }] } });
+    await act(async () => { ref.current!.editor!.commands.focus("end"); });
+    await screen.findByRole("toolbar");
+    await act(async () => { pasteInto(container.querySelector(".doc-pm")!, "Heading\nbody", "<h2 style=\"font-family:Comic Sans;color:red\">Heading</h2><p><span style=\"font-size:40px\">body</span></p><script>alert(1)</script>"); });
+    const doc = ref.current!.editor!.getJSON();
+    expect(doc.content![0]!.type).toBe("heading");
+    expect(JSON.stringify(doc)).not.toContain("Comic");
+    expect(JSON.stringify(doc)).not.toContain("alert");
+    const hint = await screen.findByRole("group", { name: "Paste options" });
+    expect(hint).toHaveTextContent("Text Only");
+    expect(hint).toHaveTextContent("Undo");
+    expect(screen.queryByText("Format Markdown")).toBeNull();
+    fireEvent.click(screen.getByText("Text Only"));
+    const plain = ref.current!.editor!.getJSON();
+    expect(plain.content!.map((n) => n.type)).toEqual(["paragraph", "paragraph"]);
+    expect((plain.content![0]!.content![0] as { text?: string }).text).toBe("Heading");
+    expect(screen.queryByRole("group", { name: "Paste options" })).toBeNull();
+  });
+
+  it("offers Format Markdown only when the paste reads as Markdown, and formats it on request", async () => {
+    const { ref, container } = mount({ doc: { type: "doc", content: [{ type: "paragraph" }] } });
+    await act(async () => { ref.current!.editor!.commands.focus("end"); });
+    await screen.findByRole("toolbar");
+    await act(async () => { pasteInto(container.querySelector(".doc-pm")!, "## Plan\n- one\n- two"); });
+    fireEvent.click(await screen.findByText("Format Markdown"));
+    const doc = ref.current!.editor!.getJSON();
+    // The trailing-node rule keeps one empty paragraph at the end of a document.
+    expect(doc.content!.slice(0, 2).map((n) => n.type)).toEqual(["heading", "bulletList"]);
+    expect(doc.content!.slice(2).every((n) => n.type === "paragraph" && !n.content)).toBe(true);
+  });
+});
+
 describe("the writing bar", () => {
   it("appears while the surface is focused, in the brief's order, and Done dismisses it", async () => {
     const { ref } = mount();

@@ -5,10 +5,11 @@
 // @vitest-environment jsdom
 import "../../shared/tiptapTest";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NoteEditor, { type EditorNote } from "./NoteEditor";
 import { blocksToDoc } from "../docModel";
+import { subscribeToast, resetToasts } from "../../shared/toast";
 
 const NOTE: EditorNote = {
   category: "family",
@@ -33,7 +34,7 @@ describe("the header", () => {
     expect(screen.getByText("Notes", { selector: "button" })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Note options"));
     const items = screen.getAllByRole("menuitem").map((b) => b.textContent?.trim());
-    expect(items).toEqual(["Connections", "Pin Note", "Tags", "Make Tasks from Checklist", "Archive", "Delete Note"]);
+    expect(items).toEqual(["Connections", "Pin Note", "Tags", "Copy As", "Make Tasks from Checklist", "Archive", "Delete Note"]);
     fireEvent.click(screen.getByText("Delete Note"));
     expect(onDeleteNote).toHaveBeenCalledTimes(1);
   });
@@ -66,6 +67,63 @@ describe("the document", () => {
   it("counts the words under the page, headings excluded", () => {
     render(<NoteEditor {...base} />);
     expect(screen.getByText(/^8 words$/i)).toBeInTheDocument();
+  });
+});
+
+describe("Copy", () => {
+  it("copies the whole note, title first, and says so only once the clipboard took it", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    render(<NoteEditor {...base} />);
+    fireEvent.click(screen.getByLabelText("Copy Note"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    const text = writeText.mock.calls[0]![0] as string;
+    expect(text.startsWith("Convo with Berto\n\nAGENDA\n")).toBe(true);
+    expect(text).toContain("[x] Talk pricing");
+    await waitFor(() => expect(seen).toContain("Note copied"));
+    stop(); resetToasts();
+  });
+
+  it("Copy As offers the body, plain text and Markdown", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    render(<NoteEditor {...base} />);
+    fireEvent.click(screen.getByLabelText("Note options"));
+    fireEvent.click(screen.getByText("Copy As"));
+    fireEvent.click(await screen.findByText("Copy as Markdown"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect((writeText.mock.calls[0]![0] as string).startsWith("# Convo with Berto\n\n## Agenda")).toBe(true);
+    fireEvent.click(screen.getByLabelText("Note options"));
+    fireEvent.click(screen.getByText("Copy As"));
+    fireEvent.click(await screen.findByText("Copy Body Only"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+    expect((writeText.mock.calls[1]![0] as string).startsWith("AGENDA")).toBe(true);
+    await waitFor(() => expect(document.body.textContent).toBeDefined());
+    resetToasts();
+  });
+
+  it("when the clipboard refuses, the words open already selected instead of a false confirmation", async () => {
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) }, configurable: true });
+    resetToasts();
+    const seen: string[] = [];
+    let armed = false;
+    const stop = subscribeToast((t) => { if (t && armed) seen.push(t.message); });
+    armed = true;
+    render(<NoteEditor {...base} />);
+    fireEvent.click(screen.getByLabelText("Copy Note"));
+    const field = await screen.findByLabelText("The note, ready to copy");
+    expect((field as HTMLTextAreaElement).value).toContain("Went with option B.");
+    expect(seen).toEqual([]);
+    stop(); resetToasts();
+  });
+
+  it("Export opens the sheet on the note", async () => {
+    render(<NoteEditor {...base} />);
+    fireEvent.click(screen.getByLabelText("Export Note"));
+    expect(await screen.findByText("Export Note", { selector: ".eyebrow" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /PDF/ })).toBeInTheDocument();
   });
 });
 

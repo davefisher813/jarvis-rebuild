@@ -38,6 +38,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
+import { looksLikeMarkdown, parseMarkdown, textToParagraphs } from "../notes/markdown";
 import { Undo2, Redo2, Bold, Italic, Strikethrough, Highlighter, Heading1, Type, List as ListIcon, ListChecks, ListOrdered, Quote, Code, Minus, Table as TableIcon, Lightbulb, Image, Paperclip, Link2, IndentIncrease, IndentDecrease, Eraser } from "./icons";
 
 export type Doc = JSONContent;
@@ -47,6 +48,11 @@ export interface DocEditorHandle {
   focus: () => void;
   blur: () => void;
   editor: Editor | null;
+  /** The whole document as it is right now, unsaved edits included. */
+  getDoc: () => Doc | null;
+  /** The selected part of the document as a document of its own, or null
+   *  when nothing is selected. */
+  getSelectionDoc: () => Doc | null;
 }
 
 // A callout is a paragraph that wants noticing: the old callout block, as a
@@ -105,6 +111,17 @@ export interface DocEditorProps {
 
 type Menu = "format" | "list" | "insert" | null;
 
+// Undo the paste, then put the chosen content where it was. An empty line
+// at that spot is taken by the content rather than left blank above it.
+function replacePaste(editor: Editor, from: number, content: JSONContent[]) {
+  editor.commands.undo();
+  const at = Math.min(from, editor.state.doc.content.size);
+  const $p = editor.state.doc.resolve(at);
+  const empty = $p.parent.isTextblock && $p.parent.content.size === 0 && $p.depth >= 1;
+  const target = empty ? { from: $p.before(), to: $p.after() } : at;
+  editor.chain().focus().insertContentAt(target, content).run();
+}
+
 const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor(
   { doc, docKey, onChange, level = "document", placeholder = "Start Writing", autofocus = false, onFocusChange, onInsertPhoto, onInsertFile, ariaLabel = "Document", className, insertExtra },
   ref,
@@ -112,6 +129,18 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
   const [focused, setFocused] = useState(false);
   const focusedRef = useRef(false);
   const [menu, setMenu] = useState<Menu>(null);
+  // CLEAN PASTE (wave 2). The schema already keeps only what the document
+  // knows (paragraphs, lists, headings, links, emphasis, code) and drops
+  // fonts, sizes, colours and controls on its own. What is left to offer is
+  // the choice: Text Only, Format Markdown when the paste reads as Markdown,
+  // and Undo, on one row over the bar for a few seconds. The clipboard is
+  // read only inside the paste event, never on its own.
+  const [paste, setPaste] = useState<{ from: number; text: string; html: string } | null>(null);
+  useEffect(() => {
+    if (!paste) return;
+    const t = setTimeout(() => setPaste(null), 8000);
+    return () => clearTimeout(t);
+  }, [paste]);
   // What the editor last emitted, so a refresh carrying our own words back
   // is never re-applied over the caret.
   const lastEmitted = useRef<string>(JSON.stringify(doc));
@@ -139,6 +168,13 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
     autofocus: autofocus ? "end" : false,
     editorProps: {
       attributes: { class: "doc-pm", role: "textbox", "aria-multiline": "true", "aria-label": ariaLabel, spellcheck: "true", autocapitalize: "sentences", autocorrect: "on" },
+      handlePaste: (view, event) => {
+        const cd = event.clipboardData;
+        const text = cd?.getData("text/plain") ?? "";
+        const html = cd?.getData("text/html") ?? "";
+        if (text.includes("\n") || html.trim()) setPaste({ from: view.state.selection.from, text, html });
+        return false;
+      },
     },
     onUpdate: ({ editor: ed }) => {
       const json = ed.getJSON();
@@ -155,6 +191,12 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
     focus: () => editor?.commands.focus("end"),
     blur: () => editor?.commands.blur(),
     editor: editor ?? null,
+    getDoc: () => editor?.getJSON() ?? null,
+    getSelectionDoc: () => {
+      if (!editor || editor.state.selection.empty) return null;
+      const content = editor.state.selection.content().content.toJSON() as JSONContent[] | null;
+      return content && content.length ? { type: "doc", content } : null;
+    },
   }), [editor]);
 
   // A new document replaces the content outright. The same document coming
@@ -190,6 +232,16 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
 
   const bar = editor && focused ? (
     <div className="doc-kbar" role="toolbar" aria-label="Writing tools" onMouseDown={swallow}>
+      {paste && (
+        <div className="doc-paste" role="group" aria-label="Paste options">
+          <span className="doc-paste-k">Pasted</span>
+          <button type="button" className="chip" onClick={() => { const p = paste; setPaste(null); replacePaste(editor, p.from, textToParagraphs(p.text)); }}>Text Only</button>
+          {looksLikeMarkdown(paste.text) && (
+            <button type="button" className="chip" onClick={() => { const p = paste; setPaste(null); replacePaste(editor, p.from, parseMarkdown(p.text)); }}>Format Markdown</button>
+          )}
+          <button type="button" className="chip" onClick={() => { setPaste(null); editor.chain().focus().undo().run(); }}>Undo</button>
+        </div>
+      )}
       {menu === "format" && (
         <div className="doc-kmenu" role="group" aria-label="Format">
           <button type="button" className={"chip" + (on("bold") ? " active" : "")} aria-pressed={on("bold")} onClick={run((ed) => ed.chain().focus().toggleBold().run())}><Bold className="ic" /> Bold</button>

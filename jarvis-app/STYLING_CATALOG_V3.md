@@ -664,6 +664,8 @@ The brief cites `JARVIS_UI_CONTRACT.md` as the locked styling source. No file of
 
 **THE SAVE LINE (2026-09-14).** One quiet line under the document (`.doc-save`): Saving, Saved on device, Synced, or Couldn't save with a Retry capsule in red text. Never a spinner, never a word said before the write returned.
 
+**THE EXPORT SHEET (2026-09-14, wave 2).** The app's sheet chrome (grab handle, 22pt corners, content-driven height, the 40 percent scrim). A filename field with the resulting name under it; the four formats as rows (`.exp-format`: the glyph, the name in semibold, the one-line purpose in secondary ink, a ring that fills in the tint when chosen); one filled Export File as the screen's one red; Cancel quiet; Preview and More Options behind disclosures with a chevron that turns. The paste hint over the writing bar (`.doc-paste`) is a row of chips with one secondary word, Pasted, in front.
+
 **THE INK RULING (2026-09-14, conflict 1), recorded here and applied in its own push.** Four ink levels collapse to two app-wide: `--tx-2` and `--tx-3` become one secondary value (dark #D2D2D6), `--tx-4` becomes structure only (dark #7C7C82) and may never colour text. The migration is by redefining the tokens, then sweeping any text still on `--tx-4` to secondary, with a law that fails a `--tx-4` text colour. The light values in the brief are HIG twins, a starting point and not measured tokens, and are flagged as such. The editor's own CSS already uses `--tx-4` only for a border and a checkbox ring, and `--tx-2` for every secondary word, so the token change reaches it untouched.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)

@@ -1,11 +1,18 @@
-import { useRef, useState } from "react";
-import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks } from "../../shared/icons";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share } from "../../shared/icons";
 import type { FoundCandidate } from "../types";
 import { catColor } from "../../shared/categories";
 import InlineEdit from "../../shared/InlineEdit";
 import DocEditor, { type DocEditorHandle } from "../../shared/DocEditor";
 import type { Doc } from "../docModel";
 import { docWordCount } from "../docModel";
+import { docToMarkdown, docToPlainText } from "../markdown";
+import type { ExportImage } from "../exportDoc";
+import ExportSheet from "./ExportSheet";
+import RowActionSheet from "../../shared/RowActionSheet";
+import { copyText } from "../../shared/shareText";
+import { showToast } from "../../shared/toast";
 import Provenance from "../../shared/ProvenanceLine";
 import { HyperfocusLine, useHyperfocusGuard } from "../../today/useHyperfocusGuard";
 import type { Source } from "../../shared/provenance";
@@ -17,18 +24,24 @@ import type { FileStore } from "../../files/FileStore";
 // THE NOTE SCREEN (the writing system, 2026-09-14).
 //
 // One continuous document (shared/DocEditor.tsx) under a title, and nothing
-// between them. The old page was a stack of separately editable blocks with
-// a menu beside every paragraph, a "Write Something" cue on each empty one,
-// the connection strip and the tags ABOVE the writing and a delete button in
-// the header; every one of those is gone from the top of the page. The
-// header is Back and More; Delete, Connections, Pin, Tags, Archive and the
+// between them. The header is Back, Copy, Export and More; Delete,
+// Connections, Pin, Tags, Archive, Copy As, Export Selection and the
 // checklist-to-tasks door live inside More. The connections, what JARVIS
-// found, the notes that link here and the word count sit under the document,
-// where they inform rather than interrupt.
+// found, the notes that link here and the word count sit under the document.
 //
 // Saving is not a control. The flow writes the document as it changes and
 // says so in one line under it: Saved on device, Synced, or Couldn't save
 // with a Retry. Nothing reads "saved" before the write returned.
+//
+// COPY (wave 2): the header Copy takes the whole note, title first, as
+// readable text; Copy As offers the body only, plain text, or Markdown. The
+// confirmation comes only after the clipboard accepted it; when the browser
+// refuses the clipboard, the words open in a field already selected so the
+// native copy is one press away. Native copy of a selection is untouched.
+//
+// EXPORT (wave 2): the header Export opens the sheet on the latest editor
+// content, unsaved edits included, with the photos' bytes read first so the
+// sheet can embed them; Export Selection does the same for the selection.
 
 export type SaveState = "idle" | "saving" | "saved" | "synced" | "failed";
 
@@ -74,6 +87,30 @@ function Attachment({ a, store, onRemove }: { a: EditorAttachment; store?: FileS
     </div>
   );
 }
+
+// The words in a field already selected: the fallback when the clipboard
+// is refused, so the person's own Copy is one press away.
+function CopyFallback({ text, onClose }: { text: string; onClose: () => void }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+  return createPortal(
+    <div className="sheet-scrim" onClick={onClose}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="grp"><div className="eyebrow">Copy the Words</div></div>
+        <div className="pad-x sheet-form">
+          <div className="exp-note">This browser did not let JARVIS copy for you</div>
+          <div className="exp-note">The words are selected: press Copy on your keyboard or in the menu</div>
+          <textarea className="copy-fallback" ref={ref} readOnly value={text} aria-label="The note, ready to copy" />
+          <div className="exp-acts"><button type="button" className="btn btn-secondary" onClick={onClose}>Done</button></div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+type CopyKind = "full" | "body" | "plain" | "markdown";
 
 export default function NoteEditor({
   note,
@@ -140,11 +177,59 @@ export default function NoteEditor({
 }) {
   const guard = useHyperfocusGuard();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hasSelection, setHasSelection] = useState(false);
   const [relatedOpen, setRelatedOpen] = useState(false);
+  const [copyAsOpen, setCopyAsOpen] = useState(false);
+  const [fallback, setFallback] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState<{ doc: Doc; selection: boolean; images: ExportImage[]; names: string[] } | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const editorRef = useRef<DocEditorHandle>(null);
   const foundLive = (found ?? []).map((c, i) => ({ c, i })).filter(({ c }) => !c.added);
   const words = docWordCount(note.doc);
   const hasChecklist = (note.doc.content ?? []).some((n) => n.type === "taskList");
+  const liveDoc = (): Doc => editorRef.current?.getDoc() ?? note.doc;
+  const title = note.title.trim();
+
+  const copy = async (kind: CopyKind) => {
+    const doc = liveDoc();
+    const text = kind === "markdown" ? docToMarkdown(doc, { title }) : docToPlainText(doc, { title, includeTitle: kind !== "body" });
+    try {
+      await copyText(text);
+      showToast({ message: kind === "body" ? "Body copied" : kind === "markdown" ? "Copied as Markdown" : "Note copied" });
+    } catch {
+      setFallback(text);
+    }
+  };
+
+  // The photos' bytes, so PDF and Word can carry them; a photo that cannot
+  // be read is listed by name instead of silently dropped.
+  const prepareExport = async (selection: boolean) => {
+    const doc = selection ? editorRef.current?.getSelectionDoc() : liveDoc();
+    if (!doc) return;
+    setPreparing(true);
+    const images: ExportImage[] = [];
+    const names: string[] = [];
+    for (const a of selection ? [] : note.attachments) {
+      if (a.type !== "photo" || !a.path || !fileStore) { names.push(a.name); continue; }
+      try {
+        const url = await fileStore.url(a.path);
+        if (!url) { names.push(a.name); continue; }
+        const res = await fetch(url);
+        const bytes = await res.arrayBuffer();
+        const dims = await imageSize(url);
+        images.push({ name: a.name, bytes, mime: a.mime ?? res.headers.get("content-type") ?? "image/jpeg", ...(dims ?? {}) });
+      } catch {
+        names.push(a.name);
+      }
+    }
+    setPreparing(false);
+    setExportOpen({ doc, selection, images, names });
+  };
+
+  const openMenu = () => {
+    setHasSelection(!!editorRef.current?.getSelectionDoc());
+    setMenuOpen((o) => !o);
+  };
 
   const saveLine =
     saveState === "failed" ? <span className="doc-save failed" role="status">Couldn't save{onRetrySave && <button type="button" className="pill-action" onClick={onRetrySave}>Retry</button>}</span>
@@ -159,7 +244,13 @@ export default function NoteEditor({
         <button className="nav-back" onClick={onBack}>Notes</button>
         <span className="nav-title"></span>
         <div className="nav-actions">
-          <button className="nav-action" onClick={() => setMenuOpen((o) => !o)} aria-label="Note options" aria-expanded={menuOpen}>
+          <button className="nav-action" onMouseDown={(e) => e.preventDefault()} onClick={() => void copy("full")} aria-label="Copy Note">
+            <Copy className="ic" />
+          </button>
+          <button className="nav-action" onMouseDown={(e) => e.preventDefault()} onClick={() => void prepareExport(false)} aria-label="Export Note" disabled={preparing}>
+            <Share className="ic" />
+          </button>
+          <button className="nav-action" onMouseDown={(e) => e.preventDefault()} onClick={openMenu} aria-label="Note options" aria-expanded={menuOpen}>
             <MoreHorizontal className="ic" />
           </button>
           {menuOpen && (
@@ -174,6 +265,10 @@ export default function NoteEditor({
                 )}
                 {onTags && (
                   <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); onTags(); }}><Tag className="ic" /> Tags</button>
+                )}
+                <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setCopyAsOpen(true); }}><Copy className="ic" /> Copy As</button>
+                {hasSelection && (
+                  <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); void prepareExport(true); }}><Share className="ic" /> Export Selection</button>
                 )}
                 {onCreateTasks && hasChecklist && (
                   <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); onCreateTasks(); }}><ListChecks className="ic" /> Make Tasks from Checklist</button>
@@ -317,6 +412,34 @@ export default function NoteEditor({
       )}
 
       {words > 0 && <div className="doc-count">{capAfterNumber(words === 1 ? "1 word" : words + " words")}</div>}
+
+      {copyAsOpen && (
+        <RowActionSheet
+          title="Copy As"
+          actions={[
+            { label: "Copy Body Only", onPick: () => void copy("body") },
+            { label: "Copy as Plain Text", onPick: () => void copy("plain") },
+            { label: "Copy as Markdown", onPick: () => void copy("markdown") },
+          ]}
+          onCancel={() => setCopyAsOpen(false)}
+        />
+      )}
+      {fallback !== null && <CopyFallback text={fallback} onClose={() => setFallback(null)} />}
+      {exportOpen && (
+        <ExportSheet doc={exportOpen.doc} title={title} selection={exportOpen.selection} images={exportOpen.images} attachmentNames={exportOpen.names} onClose={() => setExportOpen(null)} />
+      )}
     </div>
   );
+}
+
+// The natural size of an image at a URL, for the Word file's transformation;
+// null where there is no Image (jsdom) or the load fails.
+function imageSize(url: string): Promise<{ width: number; height: number } | null> {
+  if (typeof window === "undefined" || typeof window.Image === "undefined") return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () => resolve(img.naturalWidth && img.naturalHeight ? { width: img.naturalWidth, height: img.naturalHeight } : null);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 }

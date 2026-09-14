@@ -56,7 +56,7 @@ export function blocksToDoc(blocks: Block[]): Doc {
   const content: JSONContent[] = [];
   for (const b of blocks) {
     switch (b.type) {
-      case "heading": content.push(withContent({ type: "heading", attrs: { level: 2 } }, inline(b.text ?? ""))); break;
+      case "heading": content.push(withContent({ type: "heading", attrs: { level: 1 } }, inline(b.text ?? ""))); break;
       case "text":
       case "meta": content.push(para(b.text ?? "")); break;
       case "quote": content.push({ type: "blockquote", content: [para(b.text ?? "")] }); break;

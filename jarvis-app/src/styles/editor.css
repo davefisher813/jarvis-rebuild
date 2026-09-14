@@ -85,7 +85,7 @@
 .doc-kword { padding: 0 var(--s-3h); }
 .doc-kdone { color: var(--tint); }
 .doc-kgrow { flex: 1; }
-.doc-kmenu { display: flex; gap: var(--s-2); padding: var(--s-2) var(--s-3); overflow-x: auto; scrollbar-width: none; border-bottom: 0.5px solid var(--divider); }
+.doc-kmenu { display: flex; gap: var(--s-2); padding: var(--s-2) var(--s-3); overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none; border-bottom: 0.5px solid var(--divider); }
 .doc-kmenu::-webkit-scrollbar { display: none; }
 .doc-kmenu .chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
 .doc-kmenu .chip .ic { width: 16px; height: 16px; }
@@ -103,3 +103,40 @@ body.writing .screen-editor { padding-bottom: 140px; }
 
 /* Light theme: the same tokens carry it; only the checkmark ink is fixed. */
 [data-theme="light"] .doc-pm ul[data-type="taskList"] > li > label input:checked::after { border-color: #fff; }
+
+/* THE PASTE HINT (wave 2): one row over the writing bar for a few seconds
+   after a paste with structure in it. Text Only, Format Markdown when the
+   paste reads as Markdown, Undo. Never a dialog, never a second prompt. */
+.doc-paste { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-3); border-bottom: 0.5px solid var(--divider); overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.doc-paste::-webkit-scrollbar { display: none; }
+.doc-paste .doc-paste-k { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); flex-shrink: 0; }
+.doc-paste .chip { flex-shrink: 0; min-height: 36px; }
+
+/* THE EXPORT SHEET (wave 2): a filename field, four formats as rows with
+   their one-line descriptions, the one filled action, advanced options
+   behind a disclosure. The sheet chrome is the same as every other sheet. */
+.exp-name { width: 100%; }
+.exp-formats { display: grid; gap: var(--s-2); }
+.exp-format { display: flex; align-items: center; gap: var(--s-3); width: 100%; min-height: 52px; padding: var(--s-2) var(--s-3); border-radius: var(--r-md);
+  background: var(--surface-2); border: 1.5px solid transparent; color: var(--tx-1); font-family: var(--f); text-align: left; }
+.exp-format.on { border-color: var(--tint); }
+.exp-format .ic { width: 20px; height: 20px; flex-shrink: 0; }
+.exp-format .exp-k { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
+.exp-format .exp-d { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); margin-top: 1px; }
+.exp-format .exp-t { flex: 1; min-width: 0; }
+.exp-format .exp-ring { width: 20px; height: 20px; border-radius: var(--r-circle); border: 1.5px solid var(--tx-4); flex-shrink: 0; display: grid; place-items: center; }
+.exp-format.on .exp-ring { border-color: var(--tint); background: var(--tint); }
+.exp-format.on .exp-ring::after { content: ""; width: 6px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translateY(-1px); }
+.exp-note { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); line-height: 1.4; margin-top: var(--s-2); }
+.exp-more { margin-top: var(--s-2); }
+.exp-more summary { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); cursor: pointer; padding: var(--s-2) 0; list-style: none; min-height: 44px; display: flex; align-items: center; }
+.exp-more summary::-webkit-details-marker { display: none; }
+.exp-more summary::before { content: ""; display: inline-block; width: 7px; height: 7px; border-right: 1.5px solid var(--tx-4); border-bottom: 1.5px solid var(--tx-4); transform: rotate(-45deg); margin: 0 10px 2px 2px; transition: transform var(--dur-fast) var(--ease-out); }
+.exp-more[open] summary::before { transform: rotate(45deg); }
+.exp-preview { max-height: 30vh; overflow: auto; overscroll-behavior: contain; padding: var(--s-3); border-radius: var(--r-md); background: var(--surface-2); font-size: calc(13px * var(--type-scale)); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--tx-1); margin: 0; }
+.exp-acts { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
+.exp-acts .btn { width: 100%; }
+
+/* THE COPY FALLBACK (wave 2): when the clipboard refuses, the words in a
+   field already selected, so the native copy is one press away. */
+.copy-fallback { width: 100%; min-height: 40vh; background: var(--surface-2); border: 0; border-radius: var(--r-md); padding: var(--s-3); font-family: var(--f); font-size: calc(15px * var(--type-scale)); line-height: 1.5; color: var(--tx-1); resize: none; }
