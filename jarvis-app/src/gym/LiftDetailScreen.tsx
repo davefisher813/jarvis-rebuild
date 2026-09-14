@@ -6,10 +6,11 @@ import { formatSet, inUnit, LB_PER_KG } from "./measures";
 import { movedFact } from "./history";
 import { liftSessions, chartValue, chartLabel, prIndexes, weeklySetCounts, weeklyVolume, daysAgo, e1rm } from "./chartData";
 import { bestBefore } from "./prs";
-import { plateauFlag, hardSetRows, type MuscleMap } from "./insights";
+import { plateauFlag, hardSetRows, volumeBreakdown, type MuscleMap } from "./insights";
 import { liftMeasureState, type LiftMeasure } from "./goalMeasures";
 import { activeMetrics, numericValue, type MetricDef, type MetricLog } from "./metrics";
 import { MUSCLE_LABEL, type MuscleGroup } from "./muscles";
+import { identityLine, valueLine, type Chip, type Classification } from "./classify";
 import { capAfterNumber } from "../shared/casing";
 import { agoPhrase, agoPhraseLower } from "./summary";
 import { todayISO } from "../tasks/grouping";
@@ -87,7 +88,8 @@ function weeklyMetricAvg(def: MetricDef, logs: MetricLog[], weeks: number, now: 
 }
 
 export default function LiftDetailScreen({
-  name, exerciseKey, kind, unit, timeUnit, workouts, muscleGroup, muscleMap, defs, logs, goal, onSetGoal, onBack,
+  name, exerciseKey, kind, unit, timeUnit, workouts, muscleGroup, muscleMap, defs, logs, goal, onSetGoal,
+  classification, onEditClass, onOpenLogs, note, onBack,
 }: {
   name: string;
   /** GYM-F-04 (2026-09-05): the library key, so every derivation on this
@@ -109,6 +111,19 @@ export default function LiftDetailScreen({
   logs: MetricLog[];
   goal?: Goal;
   onSetGoal: () => void;
+  /** WHAT THIS EXERCISE IS (2026-09-14, handoff §8: "Make classifications
+   *  editable here and directly from the library using the same shared
+   *  editor"). Optional so a caller with no classification wiring renders the
+   *  page exactly as it did before. */
+  classification?: Classification;
+  onEditClass?: (open: Chip["field"]) => void;
+  /** §7: "Not enough days yet renders as no line, never a guess" becomes
+   *  "Not enough records" with a way to go and look at them. */
+  onOpenLogs?: () => void;
+  /** The note the athlete left on this exercise in the program. Read from the
+   *  program by the caller: a logged WorkoutExercise carries no note field,
+   *  and inventing one here would have meant a migration for a read. */
+  note?: string;
   onBack: () => void;
 }) {
   const now = Date.now();
@@ -158,6 +173,19 @@ export default function LiftDetailScreen({
     return hardSetRows(workouts, new Map([[name, [muscleGroup]]]), now)[0]?.sets ?? 0;
   }, [muscleGroup, name, workouts, now]);
 
+  // §7: "A long performance sentence clipped mid-line" becomes three fields.
+  // The change is the FIRST session's value against the LATEST, in the unit
+  // this screen is showing, and the comparison period is the two dates that
+  // produced it -- said out loud, because a change with no window behind it
+  // is a number nobody can check.
+  const change = useMemo(() => {
+    if (chartVals.length < 2) return null;
+    const first = chartVals[0]!;
+    const latestV = chartVals[chartVals.length - 1]!;
+    const delta = latestV - first;
+    return { delta, from: first, to: latestV };
+  }, [chartVals]);
+
   const goalState = goal?.data.measure?.kind === "lift" ? liftMeasureState(goal.data.measure as LiftMeasure, workouts) : null;
 
   const receipts = [...sessions].reverse().slice(0, 24);
@@ -170,6 +198,24 @@ export default function LiftDetailScreen({
   const bestShown = best ? inUnit(kind, best.set, best.unit, unit) : null;
   const bestE1rm = kind === "weight_reps" && bestShown && bestShown.w != null && bestShown.r != null && bestShown.r > 0 ? e1rm(bestShown.w, bestShown.r) : null;
   const [e1rmOpen, setE1rmOpen] = useState(false);
+  const [contribOpen, setContribOpen] = useState(false);
+  const [rangeOpen, setRangeOpen] = useState(false);
+  /** WHICH SETS MADE THAT NUMBER (§8: "View contributing sets"). The same
+   *  breakdown the Health page's weekly volume row opens, so the two can
+   *  never tell different stories about the same seven days. */
+  const contributions = useMemo(() => {
+    if (!muscleGroup) return [];
+    const map = new Map(muscleMap ?? []);
+    if (!map.has(name) && !(exerciseKey && map.has(exerciseKey))) map.set(name, [muscleGroup]);
+    return volumeBreakdown(workouts, map, muscleGroup, now);
+  }, [muscleGroup, muscleMap, name, exerciseKey, workouts, now]);
+  /** The seven-day window the volume numbers cover, stated rather than
+   *  implied by the words "this week". */
+  const weekFrom = useMemo(() => {
+    const d = new Date(now - 6 * 86400000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, [now]);
+
   const celebrate = readHealthSettings().celebrations;
   const label = chartLabel(kind);
   const latest = chartVals.length ? chartVals[chartVals.length - 1]! : null;
@@ -195,16 +241,34 @@ export default function LiftDetailScreen({
               e1RM that read as a contradiction of the PR below it. A line
               needs two points; until then the card states the facts and
               says when the chart starts. */}
+          <div className="sh2 sh2-quiet"><span className="t">Performance and History</span></div>
           {best && bestShown && (
             <>
-              <div className="sh2 sh2-quiet"><span className="t">Best Recorded Set</span></div>
               <div className="pad-x"><div className="card pad">
+                {/* THREE FIELDS, NOT A SENTENCE (§7). Best set, what it has
+                    changed by, and the window that comparison covers -- each
+                    one labelled, each one wrapping rather than clipping. */}
                 <div className="row">
                   <div className="row-grow">
-                    <div className="p3-q">{formatSet({ kind, unit, timeUnit }, bestShown)}</div>
+                    <div className="ex-cells">
+                      <div className="ex-cell">
+                        <div className="ex-cell-n">{formatSet({ kind, unit, timeUnit }, bestShown)}</div>
+                        <div className="ex-cell-k">Best Set</div>
+                      </div>
+                      {change && (
+                        <div className="ex-cell">
+                          <div className="ex-cell-n">{`${change.delta > 0 ? "+" : ""}${Math.round(change.delta * 10) / 10}${unit ? " " + unit : ""}`}</div>
+                          <div className="ex-cell-k">Change</div>
+                        </div>
+                      )}
+                      <div className="ex-cell">
+                        <div className="ex-cell-n">{sessions.length}</div>
+                        <div className="ex-cell-k">{sessions.length === 1 ? "Session" : "Sessions"}</div>
+                      </div>
+                    </div>
                     <div className="facts">
-                      <span className="fact cyan">{shortDate(best.date)}</span>
-                      <span className="fact">{capAfterNumber(`${sessions.length} ${sessions.length === 1 ? "session" : "sessions"} recorded`)}</span>
+                      <span className="fact cyan">{`Best on ${shortDate(best.date)}`}</span>
+                      <span className="fact">{`${shortDate(sessions[0]!.date)} to ${shortDate(sessions[sessions.length - 1]!.date)}`}</span>
                     </div>
                   </div>
                   {celebrate && <span className="se-pr">PR</span>}
@@ -298,12 +362,23 @@ export default function LiftDetailScreen({
                   ))}
                 </div>
                 {lane && <Bars vals={laneVals.map((v) => v ?? 0)} tint="blue" />}
-                {lane && <div className="conn-meta">{lane.data.name}, same {WEEKS} weeks · Not enough days yet renders as no line, never a guess</div>}
+                {/* §7: the old caption explained the app's own honesty rule in
+                    grey, mid-card. The rule has not changed; it just says the
+                    fact instead of the policy, and offers the logs. */}
+                {lane && (
+                  <div className="row">
+                    <div className="row-grow">
+                      <div className="conn-meta">{`${lane.data.name}, same ${WEEKS} weeks`}</div>
+                      {laneVals.every((v) => v == null) && <div className="facts"><span className="fact">Not enough records</span></div>}
+                    </div>
+                    {onOpenLogs && <button type="button" className="pill-act pill-quiet" onClick={onOpenLogs}>View Logs</button>}
+                  </div>
+                )}
               </div></div>
             </>
           )}
 
-          <div className="sh2 sh2-quiet"><span className="t">Goal</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Goals</span></div>
           {goal && goalState ? (
             /* GYM-F-28 (2026-09-05): the goal card was a flat panel, so a goal
                set here could only be changed from Bigger Picture. It opens the
@@ -320,8 +395,11 @@ export default function LiftDetailScreen({
             </div></div>
           ) : (
             <div className="pad-x"><div className="card list-card-ruled">
+              {/* §7: the old sub explained the three goal types in grey on a
+                  row that could not set any of them. The action is the row,
+                  and the type is picked inside the sheet it opens. */}
               <div className="row" role="button" tabIndex={0} onClick={onSetGoal}>
-                <div className="row-grow"><div className="conn-name">Set a Goal on This Lift</div><div className="conn-meta">A weight, a rep count, or a time to clear</div></div>
+                <div className="row-grow"><div className="conn-name">Set Goal</div></div>
                 {CHEV}
               </div>
             </div></div>
@@ -354,20 +432,137 @@ export default function LiftDetailScreen({
             </>
           )}
 
-          {muscleRow && (
+          {/* CLASSIFICATION (§8). The same shared editor the library opens,
+              reached from the same chips, so the two surfaces cannot drift
+              into two different answers. */}
+          {classification && onEditClass && (
             <>
-              <div className="sh2 sh2-quiet"><span className="t">Weekly Hard Sets · {MUSCLE_LABEL[muscleRow.muscle]}</span></div>
+              <div className="sh2 sh2-quiet"><span className="t">Classification</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
-                <div className="row">
-                  <div className="row-grow"><div className="conn-name">{muscleRow.sets} sets this week</div><div className="conn-meta">{muscleRow.range.note}</div></div>
-                </div>
-                {liftShare > 0 && liftShare < muscleRow.sets && (
-                  <div className="row"><div className="row-grow"><div className="conn-meta">{name}: {liftShare} of them</div></div></div>
-                )}
-                <div className="row"><div className="row-grow"><div className="conn-meta">{muscleRow.range.source}</div></div></div>
+                {([
+                  { field: "muscles" as const, label: "Muscles" },
+                  { field: "equipment" as const, label: "Equipment" },
+                  { field: "measure" as const, label: "Measurement" },
+                  { field: "movement" as const, label: "Movement" },
+                  { field: "type" as const, label: "Type" },
+                  { field: "execution" as const, label: "Execution" },
+                  { field: "tag" as const, label: "Tags" },
+                ]).map((f) => {
+                  const v = valueLine(classification, f.field);
+                  return (
+                    <div className="row" key={f.field} role="button" tabIndex={0}
+                      onClick={() => onEditClass(f.field)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEditClass(f.field); } }}>
+                      <div className="row-grow">
+                        <div className="conn-name">{f.label}</div>
+                        {v
+                          ? <div className="facts"><span className="fact">{v}</span></div>
+                          : <div className="facts"><span className={"fact" + (f.field === "muscles" ? " amber" : "")}>{f.field === "muscles" ? "Assign muscles" : "Not set"}</span></div>}
+                      </div>
+                      {CHEV}
+                    </div>
+                  );
+                })}
               </div></div>
             </>
           )}
+
+          {/* MUSCLE VOLUME (§8: "show separate values such as Back: 17
+              working sets. This exercise: 8 sets. Explicit date range. View
+              contributing sets").
+
+              WORKING sets, never the harder word (§8's own last line).
+              Nothing in this app records whether a set was taken anywhere near
+              failure, so the harder word would assert a fact the records do
+              not carry. Warm-ups and drops are excluded, which the app does
+              know, and the published range keeps its own wording where it is
+              cited, as research rather than as a total. */}
+          {muscleRow && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Muscle Volume</span></div>
+              <div className="pad-x"><div className="card pad">
+                <div className="ex-cells">
+                  <div className="ex-cell">
+                    <div className="ex-cell-n">{muscleRow.sets}</div>
+                    <div className="ex-cell-k">{`${MUSCLE_LABEL[muscleRow.muscle]} Working Sets`}</div>
+                  </div>
+                  <div className="ex-cell">
+                    <div className="ex-cell-n">{liftShare}</div>
+                    <div className="ex-cell-k">This Exercise</div>
+                  </div>
+                </div>
+                <div className="facts">
+                  <span className="fact cyan">{`${shortDate(weekFrom)} to ${shortDate(todayIso)}`}</span>
+                  <span className="fact">Warm-ups and drop sets left out</span>
+                </div>
+                {contributions.length > 0 && (
+                  <>
+                    <div className="ins-acts">
+                      <button type="button" className="pill-act pill-quiet" aria-expanded={contribOpen}
+                        onClick={() => setContribOpen((o) => !o)}>
+                        {contribOpen ? "Hide Contributing Sets" : "View Contributing Sets"}
+                      </button>
+                    </div>
+                    {contribOpen && contributions.map((v, i) => (
+                      <div className="row" key={v.name + v.date + i}>
+                        <div className="row-grow">
+                          <div className="conn-name">{v.name}</div>
+                          <div className="facts">
+                            <span className="fact cyan">{shortDate(v.date)}</span>
+                            <span className="fact">{v.primary ? "Primary" : "Secondary, counted half"}</span>
+                          </div>
+                        </div>
+                        <div className="conn-meta">{`${v.sets} ${v.sets === 1 ? "set" : "sets"}`}</div>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {/* RESEARCH, KEPT SEPARATE FROM THE RECORDED TOTAL (§8). */}
+                <div className="ins-acts">
+                  <button type="button" className="pill-act pill-quiet" aria-expanded={rangeOpen}
+                    onClick={() => setRangeOpen((o) => !o)}>
+                    {rangeOpen ? "Hide Evidence and Calculation" : "Evidence and Calculation"}
+                  </button>
+                </div>
+                {rangeOpen && (
+                  <div className="facts">
+                    <span className="fact">{muscleRow.range.note}</span>
+                    <span className="fact">{muscleRow.range.source}</span>
+                    <span className="fact">A primary muscle counts a whole set, a secondary counts half. This app's counting rule, not the cited work's.</span>
+                  </div>
+                )}
+              </div></div>
+            </>
+          )}
+
+          {/* NOTES AND EQUIPMENT (§8's fifth section). The machine's own
+              identity, and the most recent note the athlete left on this
+              exercise in a session. */}
+          {(classification && (identityLine(classification) || valueLine(classification, "execution"))) || note ? (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Notes and Equipment</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
+                {classification && identityLine(classification) && (
+                  <div className="row"><div className="row-grow">
+                    <div className="conn-name">Equipment Identity</div>
+                    <div className="facts"><span className="fact">{identityLine(classification)}</span></div>
+                  </div></div>
+                )}
+                {classification && valueLine(classification, "execution") && (
+                  <div className="row"><div className="row-grow">
+                    <div className="conn-name">Execution</div>
+                    <div className="facts"><span className="fact">{valueLine(classification, "execution")}</span></div>
+                  </div></div>
+                )}
+                {note && (
+                  <div className="row"><div className="row-grow">
+                    <div className="conn-name">Note</div>
+                    <div className="conn-meta">{note}</div>
+                  </div></div>
+                )}
+              </div></div>
+            </>
+          ) : null}
 
           {/* MILESTONES (2026-09-14): the first session and the best set, dated. */}
           <div className="sh2 sh2-quiet"><span className="t">Milestones</span></div>

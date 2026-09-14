@@ -24,7 +24,7 @@ import { buildLibrary, newExerciseKey, withAliases, withFavorites, type LibraryE
 import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
 import { dayWithSessionEntry } from "./edit";
-import { equipmentOf } from "./types";
+import { defaultUnit, equipmentOf } from "./types";
 import { loadStyleOf } from "./equipment";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
@@ -45,7 +45,12 @@ import ReceiptSheet from "./ReceiptSheet";
 import UploadFlow from "./UploadFlow";
 import HistoryScreen from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
-import { libraryRows, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, patchSummary, type LibraryRow, type AliasMap } from "./libraryEdit";
+import { libraryRows, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, type LibraryRow, type AliasMap } from "./libraryEdit";
+import { classOf, isBlank, mergeClass, muscleListOf, needsMuscles, readClassStore, type Chip, type ClassConflict, type ClassStore } from "./classify";
+import ClassifySheet from "./ClassifySheet";
+import { expectedSignature, patchSignature, planMerge, repointGoal, undoSafe, type MergePlan, type MergeState } from "./merge";
+import { MergeReviewSheet } from "./DuplicateReview";
+import { pairId } from "./duplicates";
 import { mmss } from "./conditioning";
 import DurationCard from "./DurationCard";
 import ActionSheet, { PickSheet, type SheetAction, type PickItem } from "./ActionSheet";
@@ -677,6 +682,40 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     () => (readGymSettings().muscleByKey ?? {}) as Record<string, MuscleGroup[]>,
   );
   const [dismissedDupes, setDismissedDupes] = useState<string[]>(() => readGymSettings().dismissedDupes ?? []);
+  // WHAT EACH EXERCISE IS (2026-09-14, second pass). The whole classification
+  // by library key, read once through classify.readClassStore -- which also
+  // carries the older flat muscleByKey forward, so nothing set this morning
+  // is lost by opening the page this afternoon.
+  const [classStore, setClassStore] = useState<ClassStore>(
+    () => { const s = readGymSettings(); return readClassStore(s.classByKey, s.muscleByKey); },
+  );
+  /** ONE WRITE FOR A CLASSIFICATION, and it writes BOTH stores: the new
+   *  shape, and the old flat muscle list it replaces. A build that predates
+   *  classByKey still reads muscleByKey, and a reader losing its data because
+   *  a newer writer stopped feeding it is the silent kind of loss acceptance
+   *  criterion 15 is about. */
+  const saveClassStore = (next: ClassStore) => {
+    setClassStore(next);
+    const muscles: Record<string, string[]> = {};
+    for (const [k, c] of Object.entries(next)) {
+      const list = muscleListOf(c);
+      if (list.length) muscles[k] = list;
+    }
+    setMuscleByKey(muscles as Record<string, MuscleGroup[]>);
+    writeGymSettings({ ...readGymSettings(), classByKey: next, muscleByKey: muscles });
+  };
+  // THE MERGE, AS A STATE MACHINE (gym/merge.ts). Held here rather than in
+  // the page because the write lives here: the sheet may not enter `merged`
+  // on its own, and `pending` has to be true for exactly as long as the
+  // writes are in flight.
+  const [mergeState, setMergeState] = useState<MergeState | null>(null);
+  /** The shared classification editor, opened from the exercise page. */
+  const [classOpen, setClassOpen] = useState<{ row: LibraryRow; open: Chip["field"] } | null>(null);
+  /** THE RECORDS AS THEY STAND RIGHT NOW, for anything that has to read them
+   *  from inside a callback that outlives its render -- the merge's Undo,
+   *  which fires from a toast minutes later and must not judge safety from a
+   *  snapshot taken before its own write. */
+  const recordsRef = useRef<{ workouts: Workout[]; programs: Program[] }>({ workouts: [], programs: [] });
   // The History segment lives here so a workout opened under Sessions comes
   // back to Sessions (Dave's 18a, 2026-09-13).
   const [historyMode, setHistoryMode] = useState<"lifts" | "sessions">(startHistory ?? "lifts");
@@ -730,6 +769,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // THE EXERCISE LIBRARY (catalog §3.5): every exercise ever used, across
   // every program (archived ones included -- real history) and every
   // workout, recomputed only when the underlying data actually changes.
+  recordsRef.current = { workouts, programs: allPrograms };
   const library = useMemo(() => withFavorites(withAliases(buildLibrary(allPrograms, workouts), aliasMap), favoriteKeys), [allPrograms, workouts, aliasMap, favoriteKeys]);
 
   // UP-ATH-02 (2026-09-06), THE SEASON LINK's other half. The program row has
@@ -1361,7 +1401,18 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     // does instead of reporting one lift under the muscle's name.
     // EVERY program, plus the per-lift tags (2026-09-14). Reading one
     // program meant a lift tagged anywhere else counted for nothing.
-    const muscleMap = muscleMapFrom(allPrograms, gs.muscleByKey ?? {});
+    const muscleMap = muscleMapFrom(allPrograms, gs.muscleByKey ?? {}, gs.classByKey ?? {});
+    // The classification for the exercise on screen, and the row it belongs
+    // to, so the same shared editor can be opened from here and write to the
+    // same place the library writes to.
+    const detailRow = libraryRows(library, workouts, hiddenKeys).find((r) =>
+      (liftDetailFor.exerciseKey ? r.exerciseKey === liftDetailFor.exerciseKey : false) || r.name === liftDetailFor.name) ?? null;
+    const detailClass = detailRow ? classOf(classStore, detailRow, loadStyleOf(detailRow)) : undefined;
+    const detailNote = allPrograms
+      .flatMap((p) => p.data.weeks)
+      .flatMap((w) => w.days)
+      .flatMap((d) => d.exercises)
+      .find((e) => (liftDetailFor.exerciseKey ? e.exerciseKey === liftDetailFor.exerciseKey : e.name === liftDetailFor.name))?.note;
     // GYM-F-04 (2026-09-05): a goal set before a rename still belongs to this
     // lift, so it is found by identity, not by whichever name it was stored
     // under.
@@ -1381,8 +1432,32 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           logs={metricLogs}
           goal={goal}
           onSetGoal={() => setLiftGoalSheetOpen(true)}
+          {...(detailClass ? { classification: detailClass } : {})}
+          {...(detailRow ? { onEditClass: (open) => setClassOpen({ row: detailRow, open }) } : {})}
+          {...(detailNote ? { note: detailNote } : {})}
+          onOpenLogs={() => { setLiftDetailFor(null); setHistoryOpen(true); setHistoryMode("sessions"); }}
           onBack={() => setLiftDetailFor(null)}
         />
+        {/* The one classification editor, reachable from the exercise page as
+            well as the library (§8), writing to the same store. */}
+        {classOpen && (
+          <ClassifySheet
+            name={classOpen.row.name}
+            initial={classOf(classStore, classOpen.row, loadStyleOf(classOpen.row))}
+            open={classOpen.open}
+            todayIso={todayISO()}
+            askScope={!needsMuscles(classOf(classStore, classOpen.row, loadStyleOf(classOpen.row)))}
+            onSave={(next, scope) => {
+              const r = classOpen.row;
+              setClassOpen(null);
+              const store = { ...classStore };
+              if (isBlank(next)) delete store[r.key]; else store[r.key] = next;
+              saveClassStore(store);
+              showToast({ message: scope === "all" ? "Muscles updated" : scope === "future" ? "Muscles updated from today on" : "Muscles updated for existing records" });
+            }}
+            onCancel={() => setClassOpen(null)}
+          />
+        )}
         {/* GYM-F-28 (2026-09-05): the sheet has taken `initial` and `onDelete`
             since it was written and nothing ever passed them, so a lift goal
             set here could only be edited or removed from Bigger Picture. Both
@@ -1440,10 +1515,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         mode={historyMode} onMode={setHistoryMode} />
     );
   }
-  // UP-ATH-21: the library as a page. Both writes go through the same door,
-  // one update per touched workout and program, each guarded: a bulk rewrite
-  // that fails partway says so rather than leaving the library half renamed.
+  // EXERCISES, THE PAGE (was Your Lifts). Every write here goes through one
+  // door, one update per touched workout and program, each guarded: a bulk
+  // rewrite that fails partway says so rather than leaving the library half
+  // renamed in silence.
   if (libraryOpen) {
+    const rowsNow = () => libraryRows(library, workouts, hiddenKeys);
     const applyPatch = async (patch: ReturnType<typeof renameLift>, said: string, after?: () => void, undo?: () => void) => {
       if (isEmptyPatch(patch)) return;
       const ok = await attemptWrite(async () => {
@@ -1453,78 +1530,246 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       await reload();
       if (ok) { showToast({ message: said, ...(undo ? { actionLabel: "Undo", onAction: undo } : {}) }); after?.(); }
     };
+
+    /** Build the plan for one ordered pair. Called again on Swap and on
+     *  Retry, so the plan is always computed from the CURRENT records rather
+     *  than from whatever the sheet was opened with -- which is what makes a
+     *  retry after a partial write finish the job instead of redoing it. */
+    const buildPlan = (keep: LibraryRow, fold: LibraryRow): MergePlan | null => {
+      if (keep.key === fold.key || keep.kind !== fold.kind) return null;
+      const survivorKey = keep.exerciseKey ?? newExerciseKey();
+      const patch = mergeLifts(workouts, allPrograms, fold, { ...keep, exerciseKey: survivorKey }, () => survivorKey);
+      return planMerge({
+        keep: { row: keep, classification: classOf(classStore, keep, loadStyleOf(keep)) },
+        fold: { row: fold, classification: classOf(classStore, fold, loadStyleOf(fold)) },
+        patch,
+        inverse: invertPatch(patch, workouts, allPrograms),
+        survivorKey,
+        workouts,
+        programs: allPrograms,
+        goals,
+      });
+    };
+
+    /**
+     * THE MERGE ITSELF (handoff §5, steps 6 to 8).
+     *
+     * Pending goes on before the first write and comes off only when every
+     * write has returned. Each write is counted, so a failure reports what
+     * landed and Retry can finish the rest -- the patch is idempotent, so
+     * re-running the whole thing is safe and converges.
+     *
+     * Nothing says "merged" until persistence returns. On failure the review
+     * item STAYS, with the count and a Retry, because a failed merge that
+     * looks like it worked is the defect this whole rewrite is about.
+     */
+    const runMerge = async (state: MergeState) => {
+      const plan = state.plan;
+      setMergeState({ ...state, stage: "pending" });
+      let applied = 0;
+      let failed = false;
+      try {
+        for (const w of plan.patch.workouts) { await svc.updateWorkout(w.id, { exercises: w.exercises }); applied++; }
+        for (const p of plan.patch.programs) { await svc.updateProgram(p.id, { weeks: p.weeks }); applied++; }
+        // The goal follows its exercise. Same write door, same counting: a
+        // goal left pointing at a folded-away name is a goal that silently
+        // stops seeing its own lift.
+        if (goalsSvc) {
+          for (const g of plan.goals) await goalsSvc.update(g.id, repointGoal(g, plan.keep.row, plan.survivorKey));
+        }
+      } catch {
+        failed = true;
+      }
+      await reload();
+      if (goalsSvc) setGoals(await goalsSvc.list());
+      if (failed) {
+        setMergeState({ ...state, stage: "failed", applied });
+        return;
+      }
+      // Only now: the aliases, the classification, the history record, the
+      // receipt. The folded name becomes a searchable alias (criterion 10),
+      // and the merged classification takes the conflicts as resolved.
+      const aliasesBefore = aliasMap;
+      saveAliases(aliasesAfterMerge(aliasMap, {
+        loserKey: plan.fold.row.key,
+        loserName: plan.fold.row.name,
+        survivorKey: plan.keep.row.key,
+        survivorNewKey: plan.survivorKey,
+        survivorName: plan.keep.row.name,
+      }));
+      const storeBefore = classStore;
+      const merged = mergeClass(plan.keep.classification, plan.fold.classification, state.take as ClassConflict["field"][]);
+      const nextStore: ClassStore = { ...classStore };
+      delete nextStore[plan.fold.row.key];
+      delete nextStore[plan.keep.row.key];
+      if (!isBlank(merged)) nextStore[plan.survivorKey] = merged;
+      saveClassStore(nextStore);
+      const dupeId = pairId(plan.keep.row.key, plan.fold.row.key);
+      const dismissedBefore = dismissedDupes;
+      const nextDismissed = dismissedDupes.includes(dupeId) ? dismissedDupes : [...dismissedDupes, dupeId];
+      setDismissedDupes(nextDismissed);
+      writeGymSettings({ ...readGymSettings(), dismissedDupes: nextDismissed });
+      const gs = readGymSettings();
+      writeGymSettings({
+        ...gs,
+        merges: [...(gs.merges ?? []), {
+          at: Date.now(),
+          loserName: plan.fold.row.name,
+          survivorName: plan.keep.row.name,
+          survivorKey: plan.survivorKey,
+          sessions: plan.sessions,
+          programDays: plan.programDays,
+        }].slice(-50),
+      });
+      setMergeState(null);
+      // UNDO, ONLY WHILE IT IS SAFE. The pre-image is the records as they
+      // were before this write; if anything touches them afterwards, undoing
+      // would throw that newer work away. The check runs at TAP time, on the
+      // records as they are then.
+      showToast({
+        message: "Exercises merged",
+        actionLabel: "View Exercise",
+        onAction: () => setLiftDetailFor({
+          name: plan.keep.row.name,
+          kind: plan.keep.row.kind,
+          exerciseKey: plan.survivorKey,
+          ...(plan.keep.row.unit ? { unit: plan.keep.row.unit } : {}),
+        }),
+      });
+      // The reversal is offered as its own second receipt so the first one
+      // can carry View Exercise, which is what the handoff asks step 8 to
+      // show. Both are facts about the same landed write.
+      showToast({
+        message: `${plan.fold.row.name} is now ${plan.keep.row.name}`,
+        actionLabel: "Undo",
+        onAction: () => void (async () => {
+          // TWO DIFFERENT READINGS, or this check is not a check: the records
+          // as they are at the moment of the tap, against what the patch said
+          // they would be. If anything has edited them since -- another merge,
+          // an edited session -- the pre-image is stale and putting it back
+          // would throw that newer work away without saying so.
+          const now = recordsRef.current;
+          const safe = undoSafe(plan, patchSignature(plan.patch, now.workouts, now.programs), expectedSignature(plan.patch));
+          if (!safe) { showToast({ message: "Too much has changed since to undo this safely" }); return; }
+          await applyPatch(plan.inverse, "Merge undone", () => {
+            saveAliases(aliasesBefore);
+            saveClassStore(storeBefore);
+            setDismissedDupes(dismissedBefore);
+            writeGymSettings({ ...readGymSettings(), dismissedDupes: dismissedBefore });
+          });
+          if (goalsSvc) {
+            for (const g of plan.goals) await goalsSvc.update(g.id, g.data);
+            setGoals(await goalsSvc.list());
+          }
+        })(),
+      });
+    };
+
     return (
-      <LibraryPage
-        rows={libraryRows(library, workouts, hiddenKeys)}
-        todayIso={todayISO()}
-        onOpen={(r) => setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) })}
-        // THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list
-        // of exercises there's a goal option"). Walks straight into the lift
-        // it is about and opens the same LiftGoalSheet Lift Detail's own Set
-        // Goal row opens, rather than a second, poorer sheet built here that
-        // would have had to ask which lift first.
-        onSetGoal={(r) => {
-          setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) });
-          setLiftGoalSheetOpen(true);
-        }}
-        // H-23: the key is stamped here rather than inside the patch, so the
-        // old name can be filed under the key the lift carries afterwards.
-        onRename={(r, name) => {
-          const stamped = r.exerciseKey ?? newExerciseKey();
-          void applyPatch(renameLift(workouts, allPrograms, { ...r, exerciseKey: stamped }, name, () => stamped), `Renamed to ${name.trim()}`,
-            () => saveAliases(aliasesAfterRename(aliasMap, r.key, stamped, r.name, name.trim())));
-        }}
-        // Part 3 wave 1 (2026-09-13): the merge is reviewed on the page first
-        // (onMergePreview says what it reaches) and can be undone from its
-        // receipt: the inverse patch is the pre-image of every touched
-        // workout and program, and the alias map goes back with it.
-        onMergePreview={(loser, survivorKey) => {
-          const survivor = libraryRows(library, workouts, hiddenKeys).find((x) => x.key === survivorKey);
-          if (!survivor) return { sessions: 0, programDays: 0 };
-          const patch = mergeLifts(workouts, allPrograms, loser, survivor, () => survivor.exerciseKey ?? "preview");
-          return patchSummary(patch, allPrograms, new Set([loser.key, survivor.key]));
-        }}
-        onMerge={(loser, survivorKey) => {
-          const survivor = libraryRows(library, workouts, hiddenKeys).find((x) => x.key === survivorKey);
-          if (!survivor) return;
-          const key = survivor.exerciseKey ?? newExerciseKey();
-          const patch = mergeLifts(workouts, allPrograms, loser, { ...survivor, exerciseKey: key }, () => key);
-          const inverse = invertPatch(patch, workouts, allPrograms);
-          const aliasesBefore = aliasMap;
-          void applyPatch(patch, `Merged into ${survivor.name}`,
-            () => saveAliases(aliasesAfterMerge(aliasMap, { loserKey: loser.key, loserName: loser.name, survivorKey: survivor.key, survivorNewKey: key, survivorName: survivor.name })),
-            () => { void applyPatch(inverse, "Merge undone", () => saveAliases(aliasesBefore)); });
-        }}
-        onToggleFavorite={(r) => {
-          const next = favoriteKeys.includes(r.key) ? favoriteKeys.filter((k) => k !== r.key) : [...favoriteKeys, r.key];
-          setFavoriteKeys(next);
-          writeGymSettings({ ...readGymSettings(), favoriteKeys: next });
-          showToast({ message: r.favorite ? `${r.name} is no longer a favorite` : `${r.name} leads the pickers now` });
-        }}
-        onToggleHidden={(r) => {
-          const next = hiddenKeys.includes(r.key) ? hiddenKeys.filter((k) => k !== r.key) : [...hiddenKeys, r.key];
-          setHiddenKeys(next);
-          writeGymSettings({ ...readGymSettings(), hiddenKeys: next });
-          showToast({ message: r.hidden ? `${r.name} is offered again` : `${r.name} hidden from suggestions` });
-        }}
-        // MUSCLES PER LIFT (2026-09-14). Keyed to the library key, so the
-        // tag survives a rename and a merge and is read by every program,
-        // which the old per-program-day muscleGroup could do none of.
-        muscles={muscleByKey}
-        onSetMuscles={(r, list) => {
-          const next = { ...muscleByKey };
-          if (list.length === 0) delete next[r.key]; else next[r.key] = list;
-          setMuscleByKey(next);
-          writeGymSettings({ ...readGymSettings(), muscleByKey: next });
-        }}
-        dismissedDupes={dismissedDupes}
-        onDismissDuplicate={(id) => {
-          const next = dismissedDupes.includes(id) ? dismissedDupes : [...dismissedDupes, id];
-          setDismissedDupes(next);
-          writeGymSettings({ ...readGymSettings(), dismissedDupes: next });
-        }}
-        onBack={() => setLibraryOpen(false)}
-      />
+      <>
+        <LibraryPage
+          rows={rowsNow()}
+          store={classStore}
+          todayIso={todayISO()}
+          onOpen={(r) => setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) })}
+          // THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list
+          // of exercises there's a goal option"). Walks into the exercise it is
+          // about and opens the same LiftGoalSheet its own page opens, rather
+          // than a second, poorer sheet built here that would have had to ask
+          // which exercise first.
+          onSetGoal={(r) => {
+            setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) });
+            setLiftGoalSheetOpen(true);
+          }}
+          // H-23: the key is stamped here rather than inside the patch, so the
+          // old name can be filed under the key the lift carries afterwards.
+          onRename={(r, name) => {
+            const stamped = r.exerciseKey ?? newExerciseKey();
+            void applyPatch(renameLift(workouts, allPrograms, { ...r, exerciseKey: stamped }, name, () => stamped), `Renamed to ${name.trim()}`,
+              () => {
+                saveAliases(aliasesAfterRename(aliasMap, r.key, stamped, r.name, name.trim()));
+                // The classification follows the key it was filed under, or
+                // the rename would quietly un-classify the exercise.
+                if (stamped !== r.key && classStore[r.key]) {
+                  const next = { ...classStore };
+                  next[stamped] = next[r.key]!;
+                  delete next[r.key];
+                  saveClassStore(next);
+                }
+              });
+          }}
+          // ONE CLASSIFICATION WRITE (§4). It lands in the store, it refreshes
+          // the chips and the Insights that read it on the next render, and it
+          // says so. The scope the athlete picked rides along on the object.
+          onSetClass={(r, next, scope) => {
+            const store = { ...classStore };
+            if (isBlank(next)) delete store[r.key]; else store[r.key] = next;
+            saveClassStore(store);
+            showToast({
+              message: scope === "all" ? "Muscles updated"
+                : scope === "future" ? "Muscles updated from today on"
+                  : "Muscles updated for existing records",
+            });
+          }}
+          onBatch={(next, changed) => {
+            saveClassStore(next);
+            showToast({ message: changed === 1 ? "1 exercise updated" : `${changed} exercises updated` });
+          }}
+          // The page never merges. It asks for a review, and the review runs
+          // the write above.
+          onMerge={(keep, fold) => {
+            const plan = buildPlan(keep, fold);
+            if (!plan) { showToast({ message: "Those two log differently, so their numbers cannot share one history" }); return; }
+            setMergeState({ plan, stage: "reviewing", take: [], applied: 0 });
+          }}
+          onToggleFavorite={(r) => {
+            const next = favoriteKeys.includes(r.key) ? favoriteKeys.filter((k) => k !== r.key) : [...favoriteKeys, r.key];
+            setFavoriteKeys(next);
+            writeGymSettings({ ...readGymSettings(), favoriteKeys: next });
+            showToast({ message: r.favorite ? `${r.name} is no longer a favorite` : `${r.name} leads the pickers now` });
+          }}
+          onToggleHidden={(r) => {
+            const next = hiddenKeys.includes(r.key) ? hiddenKeys.filter((k) => k !== r.key) : [...hiddenKeys, r.key];
+            setHiddenKeys(next);
+            writeGymSettings({ ...readGymSettings(), hiddenKeys: next });
+            showToast({ message: r.hidden ? `${r.name} is offered again` : `${r.name} hidden from suggestions` });
+          }}
+          dismissedDupes={dismissedDupes}
+          onDismissDuplicate={(id) => {
+            const next = dismissedDupes.includes(id) ? dismissedDupes : [...dismissedDupes, id];
+            setDismissedDupes(next);
+            writeGymSettings({ ...readGymSettings(), dismissedDupes: next });
+            showToast({ message: "Kept separate" });
+          }}
+          onBack={() => setLibraryOpen(false)}
+        />
+        {mergeState && (
+          <MergeReviewSheet
+            state={mergeState}
+            onSwap={() => {
+              const flipped = buildPlan(mergeState.plan.fold.row, mergeState.plan.keep.row);
+              if (flipped) setMergeState({ plan: flipped, stage: "reviewing", take: [], applied: 0 });
+            }}
+            onTake={(field) => setMergeState((s) => (s ? {
+              ...s,
+              take: s.take.includes(field) ? s.take.filter((f) => f !== field) : [...s.take, field],
+            } : s))}
+            onMerge={() => {
+              // A retry re-plans from the records as they are now, so a
+              // partial first attempt is finished rather than repeated.
+              if (mergeState.stage === "failed") {
+                const fresh = buildPlan(mergeState.plan.keep.row, mergeState.plan.fold.row);
+                void runMerge(fresh
+                  ? { ...mergeState, plan: fresh, stage: "reviewing" }
+                  : mergeState);
+                return;
+              }
+              void runMerge(mergeState);
+            }}
+            onCancel={() => setMergeState(null)}
+          />
+        )}
+      </>
     );
   }
   if (viewWorkout && workoutDraft) {
@@ -1941,17 +2186,31 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             // the library knows about it -- its measure, its unit, its last
             // strip and, above all, its exerciseKey, so a lift added this way
             // shares the history it already had rather than starting a fork.
-            const added: Exercise[] = entries.map((e) => ({
-              id: nid("e"),
-              name: e.name,
-              kind: e.kind,
-              ...(e.unit ? { unit: e.unit } : {}),
-              ...(e.timeUnit ? { timeUnit: e.timeUnit } : {}),
-              exerciseKey: e.exerciseKey ?? newExerciseKey(),
-              sets: e.lastSets.length > 0
-                ? e.lastSets.map((s, i) => ({ ...s, id: `${nid("s")}${i}` }))
-                : uniformStrip(3, { r: 8 }),
-            }));
+            // 2026-09-14: the CLASSIFICATION comes with it too -- the declared
+            // measurement, the equipment and the reading -- which is what makes
+            // editing those in the library a real answer rather than a label.
+            // It applies to this NEW sighting only; nothing already logged is
+            // touched (classify.ts's first rule).
+            const added: Exercise[] = entries.map((e) => {
+              const c = classStore[e.key] ?? classStore[e.exerciseKey ?? ""] ?? null;
+              const kind = c?.measure ?? e.kind;
+              return {
+                id: nid("e"),
+                name: e.name,
+                kind,
+                // A declared measure the entry was not logged under brings its
+                // own default unit: the old unit could be yards on a kind that
+                // measures seconds, and a mismatched unit is a nonsense PR.
+                ...(kind === e.kind ? (e.unit ? { unit: e.unit } : {}) : (defaultUnit(kind) ? { unit: defaultUnit(kind)! } : {})),
+                ...(kind === e.kind && e.timeUnit ? { timeUnit: e.timeUnit } : {}),
+                ...(c?.equipment ? { equipment: c.equipment } : e.equipment ? { equipment: e.equipment as Exercise["equipment"] } : {}),
+                ...(c?.counted ? { counted: c.counted } : e.counted ? { counted: e.counted } : {}),
+                exerciseKey: e.exerciseKey ?? newExerciseKey(),
+                sets: kind === e.kind && e.lastSets.length > 0
+                  ? e.lastSets.map((s, i) => ({ ...s, id: `${nid("s")}${i}` }))
+                  : uniformStrip(3, { r: 8 }),
+              };
+            });
             const days = week.days.map((d) => (d.id === day.id ? { ...d, exercises: [...d.exercises, ...added] } : d));
             setSheet({ kind: "closed" });
             // The toast is gated on the write landing: saveDays reports

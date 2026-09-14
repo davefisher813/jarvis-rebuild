@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { coverageGap, hardSetRows, muscleMapFrom, volumeBreakdown } from "./insights";
+import { asRoles, coverageGap, hardSetRows, muscleMapFrom, volumeBreakdown } from "./insights";
 import type { Program, SetEntry, Workout, WorkoutExercise } from "./types";
+import type { MuscleGroup } from "./muscles";
 
 // Dave, 2026-09-14: "insights are providing virtually nothing and I can't
 // even click on them."
@@ -106,5 +107,103 @@ describe("coverageGap: why the card is thin", () => {
   it("ignores warm-ups and skipped sets, the way the count above it does", () => {
     const h = [workout(today, [ex("Bench", [set({ warmup: true }), set({ skipped: true })], "k1")])];
     expect(coverageGap(h, new Map(), NOW)).toBeNull();
+  });
+});
+
+// --- PRIMARY IS A LIST, AND NO SET IS EVER COUNTED TWICE -------------------
+//
+// (2026-09-14 second pass, handoff §4: "Keep primary and secondary muscle
+// contributions distinct. Do not count a set multiple times in total
+// working-set counts.")
+//
+// The old shape was one ordered array where position carried the meaning:
+// first entry primary, the rest half. That cannot say "a deadlift has two
+// prime movers", and it cannot carry the window a correction applies to.
+describe("muscle roles", () => {
+  const w = (date: string, name: string, n: number): Workout => ({
+    id: "w" + date + name,
+    data: {
+      programId: "p", dayId: "d", dayName: "Day", date, startedAt: 0, endedAt: 1,
+      exercises: [{ exerciseId: "e", name, kind: "weight_reps", unit: "lb", sets: Array.from({ length: n }, (_, i) => ({ id: name + date + i, w: 135, r: 8 })) }],
+    },
+  } as unknown as Workout);
+  const NOW = new Date("2026-09-14T09:00:00").getTime();
+
+  it("counts every primary muscle a whole set, not just the first", () => {
+    const map = new Map([["Deadlift", { primary: ["back", "hamstrings"] as MuscleGroup[], secondary: ["glutes"] as MuscleGroup[] }]]);
+    const rows = hardSetRows([w("2026-09-12", "Deadlift", 4)], map, NOW);
+    expect(rows.find((r) => r.muscle === "back")!.sets).toBe(4);
+    expect(rows.find((r) => r.muscle === "hamstrings")!.sets).toBe(4);
+    expect(rows.find((r) => r.muscle === "glutes")!.sets).toBe(2);
+  });
+
+  it("still reads the old flat array exactly as it always meant", () => {
+    const rows = hardSetRows([w("2026-09-12", "Row", 4)], new Map([["Row", ["back", "biceps"] as MuscleGroup[]]]), NOW);
+    expect(rows.find((r) => r.muscle === "back")!.sets).toBe(4);
+    expect(rows.find((r) => r.muscle === "biceps")!.sets).toBe(2);
+  });
+
+  it("never counts a session's set twice, however many muscles it is under", () => {
+    // Four sets logged. Back reads 4, biceps reads 2, and the session still
+    // holds four sets: these are per-muscle columns, not a set count.
+    const rows = hardSetRows([w("2026-09-12", "Row", 4)], new Map([["Row", { primary: ["back"] as MuscleGroup[], secondary: ["biceps", "core"] as MuscleGroup[] }]]), NOW);
+    const summed = rows.reduce((n, r) => n + r.sets, 0);
+    expect(summed).toBe(4 + 2 + 2);
+    // and nothing in the rows claims that 8 sets were done.
+    expect(rows.every((r) => r.sets <= 4)).toBe(true);
+  });
+
+  it("a muscle in both roles is counted once, as a primary", () => {
+    const rows = hardSetRows([w("2026-09-12", "Row", 4)], new Map([["Row", { primary: ["back"] as MuscleGroup[], secondary: ["back"] as MuscleGroup[] }]]), NOW);
+    expect(rows.filter((r) => r.muscle === "back")).toHaveLength(1);
+    expect(rows[0]!.sets).toBe(4);
+  });
+
+  it("honours a from-here-on correction: earlier sessions do not carry it", () => {
+    const workouts = [w("2026-09-09", "Press", 3), w("2026-09-13", "Press", 3)];
+    const map = new Map([["Press", { primary: ["shoulders"] as MuscleGroup[], secondary: [] as MuscleGroup[], from: "2026-09-12" }]]);
+    expect(hardSetRows(workouts, map, NOW).find((r) => r.muscle === "shoulders")!.sets).toBe(3);
+    // Without the window, both sessions count.
+    const all = new Map([["Press", { primary: ["shoulders"] as MuscleGroup[], secondary: [] as MuscleGroup[] }]]);
+    expect(hardSetRows(workouts, all, NOW).find((r) => r.muscle === "shoulders")!.sets).toBe(6);
+  });
+
+  it("honours an existing-records-only correction", () => {
+    const workouts = [w("2026-09-09", "Press", 3), w("2026-09-13", "Press", 3)];
+    const map = new Map([["Press", { primary: ["shoulders"] as MuscleGroup[], secondary: [] as MuscleGroup[], until: "2026-09-10" }]]);
+    expect(hardSetRows(workouts, map, NOW).find((r) => r.muscle === "shoulders")!.sets).toBe(3);
+  });
+
+  it("an out-of-window exercise reads as untagged to the coverage card", () => {
+    const workouts = [w("2026-09-09", "Press", 3)];
+    const map = new Map([["Press", { primary: ["shoulders"] as MuscleGroup[], secondary: [] as MuscleGroup[], from: "2026-09-12" }]]);
+    const gap = coverageGap(workouts, map, NOW);
+    expect(gap!.untagged.map((u) => u.name)).toEqual(["Press"]);
+  });
+
+  it("the breakdown says which role each contribution came from", () => {
+    const map = new Map([["Row", { primary: ["back"] as MuscleGroup[], secondary: ["biceps"] as MuscleGroup[] }]]);
+    const back = volumeBreakdown([w("2026-09-12", "Row", 4)], map, "back", NOW);
+    expect(back[0]).toMatchObject({ sets: 4, primary: true });
+    const biceps = volumeBreakdown([w("2026-09-12", "Row", 4)], map, "biceps", NOW);
+    expect(biceps[0]).toMatchObject({ sets: 2, primary: false });
+  });
+});
+
+// The classification store is the third hand-set source muscleMapFrom reads.
+describe("muscleMapFrom reads the classification store", () => {
+  it("takes primary and secondary as two lists, with the scope window", () => {
+    const map = muscleMapFrom([], {}, { bench: { primary: ["chest"], secondary: ["triceps"], from: "2026-01-01" } });
+    expect(asRoles(map.get("bench"))).toEqual({ primary: ["chest"], secondary: ["triceps"], from: "2026-01-01" });
+  });
+
+  it("lets the classification win over the older flat list", () => {
+    const map = muscleMapFrom([], { bench: ["back"] }, { bench: { primary: ["chest"], secondary: [] } });
+    expect(asRoles(map.get("bench")).primary).toEqual(["chest"]);
+  });
+
+  it("stores nothing for a classification that names no muscle", () => {
+    const map = muscleMapFrom([], {}, { bench: { primary: [], secondary: [] } });
+    expect(map.has("bench")).toBe(false);
   });
 });

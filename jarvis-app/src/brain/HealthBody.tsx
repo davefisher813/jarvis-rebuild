@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { Program, Workout } from "../gym/types";
 import { nextDayFor, SCRATCH_DAY_ID, SCRATCH_DAY_NAME } from "../gym/nextDay";
+import { buildLibrary } from "../gym/library";
 import { todayDow } from "../gym/pins";
 import { estimateDay } from "../gym/fit";
 import { readGymSettings, rackFrom } from "../gym/settings";
@@ -55,7 +56,7 @@ export type RecordsOpen =
 export default function HealthBody({
   program, workouts, overview, today, isEvening, gymEvent, findings,
   live = null, onResume, onStart, onAdjustTime, onOpenGym, onOpenRecords, onOpenFinding, onOpenInsights, onOpenAllData,
-  logActions, onOpenSettings, sections, more, adds, view, onView,
+  logActions, onOpenSettings, sections, more, adds, view, onView, onOpenExercises, onOpenHistory,
 }: {
   program: Program | null;
   workouts: Workout[];
@@ -72,6 +73,13 @@ export default function HealthBody({
   /** Adjust Time: the fit sheet, which previews the changes before the start. */
   onAdjustTime: (dayId: string) => void;
   onOpenGym: () => void;
+  /** THE THREE DOORS (Cowork 2026-09-14, Dave: "Add a visible shortcut row
+   *  near the top of Health, immediately below the weekly overview:
+   *  Exercises · Program · History. Exercises must open the complete library
+   *  in one tap. Do not bury it inside a program or More menu."). Optional:
+   *  a caller without gym wiring renders no doors to nothing. */
+  onOpenExercises?: () => void;
+  onOpenHistory?: () => void;
   onOpenRecords: (o: RecordsOpen) => void;
   onOpenFinding: (f: Finding) => void;
   onOpenInsights: () => void;
@@ -95,6 +103,9 @@ export default function HealthBody({
     ? `${isEvening ? "Tonight" : "Today"} ${fmtTime(gymEvent.start).time} ${fmtTime(gymEvent.start).ap}`
     : next?.when === "today" ? "Today" : next?.when === "tomorrow" ? "Tomorrow" : next?.when ? next.when : null;
   const days = (program?.data.weeks ?? []).flatMap((w) => w.days);
+  // The count beside the Exercises door, from the same builder the library
+  // itself is built from, so the badge and the page can never disagree.
+  const exerciseCount = useMemo(() => buildLibrary(program ? [program] : [], workouts).length, [program, workouts]);
   const maxMin = Math.max(1, ...overview.days.map((d) => d.activeMin));
   const range = `${monthDay(overview.period.from)} to ${monthDay(overview.period.to)}`;
   const findGlyph = (f: Finding): ReactNode =>
@@ -139,6 +150,30 @@ export default function HealthBody({
           </button>
         </div>
       </div></div>
+
+      {/* THE THREE DOORS, immediately under the week. Not a section of its
+          own and not a menu: one row, three words, each one tap from the
+          top of the page. */}
+      {(onOpenExercises || onOpenHistory) && (
+        <div className="pad-x"><div className="card h-doors">
+          {onOpenExercises && (
+            <button type="button" className="h-door" onClick={onOpenExercises}>
+              <span className="h-door-k">Exercises</span>
+              <span className="h-door-n">{exerciseCount}</span>
+            </button>
+          )}
+          <button type="button" className="h-door" onClick={onOpenGym}>
+            <span className="h-door-k">Program</span>
+            <span className="h-door-n">{days.length}</span>
+          </button>
+          {onOpenHistory && (
+            <button type="button" className="h-door" onClick={onOpenHistory}>
+              <span className="h-door-k">History</span>
+              <span className="h-door-n">{workouts.length}</span>
+            </button>
+          )}
+        </div></div>
+      )}
 
       {/* NEXT WORKOUT. Resume while a session is open, and no Start beside it. */}
       <div className="pad-x h-hero-wrap"><div className="card list-card-ruled h-hero-card">

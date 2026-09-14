@@ -24,6 +24,14 @@ export interface LibraryEntry {
   kind: MeasureKind;
   unit?: string;
   timeUnit?: string;
+  /** THE CONVENTION ON ITS MOST RECENT SIGHTING (2026-09-14). Carried so the
+   *  library can show what an exercise is on a machine before anyone has
+   *  classified it: the athlete has been answering the exercise sheet's
+   *  Equipment row for a while, and making them answer it a second time in a
+   *  new place would be the app forgetting on purpose. A stored
+   *  classification always wins over this (classify.classOf). */
+  equipment?: string;
+  counted?: import("./equipment").Counted;
   /** Most recent moment this identity was seen: a workout's startedAt, or 0
    *  for an entry that only exists inside a program (never yet logged). Used
    *  to rank suggestions by recency. */
@@ -42,7 +50,7 @@ export function fallbackKey(name: string, kind: MeasureKind): string {
 
 function record(
   map: Map<string, LibraryEntry>,
-  e: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string },
+  e: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string; equipment?: string; counted?: import("./equipment").Counted },
   seenAt: number,
   sets: SetEntry[],
 ): void {
@@ -58,6 +66,8 @@ function record(
       kind: e.kind,
       unit: e.unit,
       timeUnit: e.timeUnit,
+      ...(e.equipment ? { equipment: e.equipment } : existing?.equipment ? { equipment: existing.equipment } : {}),
+      ...(e.counted ? { counted: e.counted } : existing?.counted ? { counted: existing.counted } : {}),
       lastUsed: seenAt,
       // entryFrom picks only the numbers: a logged sighting's moved marks
       // and D7 stamps belong to the sets that happened, never to the plan

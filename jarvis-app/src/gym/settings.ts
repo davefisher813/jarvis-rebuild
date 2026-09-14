@@ -51,10 +51,38 @@ export interface GymSettings {
    *  First entry is the primary. Still set by hand and absent by default:
    *  the app does not read a muscle out of a free-text name (muscles.ts). */
   muscleByKey?: Record<string, string[]>;
+  /** WHAT EACH EXERCISE IS (2026-09-14, second pass). The whole
+   *  classification -- primary and secondary muscles as two named lists,
+   *  equipment, movement pattern, exercise type, execution, the machine's own
+   *  identity, tags, archive state -- by library key. See gym/classify.ts,
+   *  which owns the shape, validates every read and carries `muscleByKey`
+   *  forward into it.
+   *
+   *  `muscleByKey` above is still written alongside this one, and deliberately:
+   *  it is the older store, a build that predates this field still reads it,
+   *  and a reader that loses its data because a newer build stopped writing it
+   *  is the kind of silent loss acceptance criterion 15 exists to prevent. */
+  classByKey?: Record<string, unknown>;
   /** Near-duplicate pairs the athlete has waved off (gym/duplicates.ts), by
    *  pairId. Kept so the page stops proposing a merge that has already been
    *  considered and declined. */
   dismissedDupes?: string[];
+  /** MERGE HISTORY (handoff §5: "Provide recoverable merge history"). Newest
+   *  last. A record of what was folded into what and when, so a merge is
+   *  answerable weeks later even when it can no longer be safely reversed. */
+  merges?: MergeRecord[];
+}
+
+/** One merge, as it happened. `undoable` goes false the moment anything else
+ *  rewrites what the merge touched, because an undo that restores a stale
+ *  pre-image would silently discard the edits made since. */
+export interface MergeRecord {
+  at: number;
+  loserName: string;
+  survivorName: string;
+  survivorKey: string;
+  sessions: number;
+  programDays: number;
 }
 
 export const DEFAULT_GYM_SETTINGS: GymSettings = {

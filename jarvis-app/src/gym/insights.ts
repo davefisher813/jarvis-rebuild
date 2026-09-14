@@ -4,6 +4,7 @@ import { sameLiftAnyKind, type LiftLike } from "./identity";
 import { liftSessions, chartValue, daysAgo, type LiftSession } from "./chartData";
 import { numericValue, type MetricDef, type MetricLog } from "./metrics";
 import { MUSCLE_GROUPS, HARD_SET_RANGE, type MuscleGroup, type PublishedRange } from "./muscles";
+import { readClass } from "./classify";
 import { daysBetween } from "../upnext/upnext";
 import { capAfterNumber } from "../shared/casing";
 
@@ -331,18 +332,17 @@ export function volumeBreakdown(
     if (agoDays < 0 || agoDays >= 7) continue;
     for (const ex of w.data.exercises) {
       if (ex.skipped) continue;
-      const muscles = (ex.exerciseKey ? muscleByExercise.get(ex.exerciseKey) : undefined)
-        ?? muscleByExercise.get(ex.name);
-      const at = muscles?.indexOf(muscle) ?? -1;
-      if (at < 0) continue;
+      const roles = rolesFor(muscleByExercise, ex, w.data.date);
+      const isPrimary = roles.primary.includes(muscle);
+      if (!isPrimary && !roles.secondary.includes(muscle)) continue;
       const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s)).length;
       if (working === 0) continue;
       out.push({
         name: ex.name,
         ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}),
-        sets: at === 0 ? working : working / 2,
+        sets: isPrimary ? working : working / 2,
         date: w.data.date,
-        primary: at === 0,
+        primary: isPrimary,
       });
     }
   }
@@ -387,9 +387,8 @@ export function coverageGap(
       if (ex.skipped) continue;
       const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s)).length;
       if (working === 0) continue;
-      const muscles = (ex.exerciseKey ? muscleByExercise.get(ex.exerciseKey) : undefined)
-        ?? muscleByExercise.get(ex.name);
-      if (muscles && muscles.length > 0) { tagged++; continue; }
+      const roles = rolesFor(muscleByExercise, ex, w.data.date);
+      if (roles.primary.length + roles.secondary.length > 0) { tagged++; continue; }
       const id = ex.exerciseKey ?? ex.name;
       const prev = untagged.get(id);
       untagged.set(id, {
@@ -404,10 +403,57 @@ export function coverageGap(
   return { untagged: list, hiddenSets: list.reduce((n, x) => n + x.sets, 0), tagged };
 }
 
+/** A lift's muscles, as two named roles plus the window the assignment
+ *  speaks for. 2026-09-14 second pass: PRIMARY IS A LIST. "Multiple primary
+ *  muscles. Multiple secondary muscles. Clearly distinguish primary from
+ *  secondary" -- a deadlift has more than one prime mover, and the old
+ *  position-carries-the-meaning array could not say so. */
+export interface MuscleRoles {
+  primary: MuscleGroup[];
+  secondary: MuscleGroup[];
+  /** classify.ts's scope window. A set logged outside it does not carry
+   *  these muscles, which is what makes a "from here on" correction real
+   *  rather than a label on a radio button. */
+  from?: string;
+  until?: string;
+}
+
 /** A lift's muscles: the primary first, then whatever else it works.
  *  Keyed by library key where there is one, and by name only as a fallback,
- *  which is the join the weekly row used to have to make for everything. */
-export type MuscleMap = Map<string, MuscleGroup[]>;
+ *  which is the join the weekly row used to have to make for everything.
+ *
+ *  The bare array is the OLD shape and still legal everywhere: first entry
+ *  primary, the rest secondary, which is exactly what it always meant. Every
+ *  read goes through asRoles, so one call site had to change rather than
+ *  twenty, and nothing that built a map before this reads differently now. */
+export type MuscleEntry = MuscleGroup[] | MuscleRoles;
+export type MuscleMap = Map<string, MuscleEntry>;
+
+const NO_ROLES: MuscleRoles = { primary: [], secondary: [] };
+
+/** One reading of either shape. */
+export function asRoles(e: MuscleEntry | undefined): MuscleRoles {
+  if (!e) return NO_ROLES;
+  if (Array.isArray(e)) return { primary: e.slice(0, 1), secondary: e.slice(1) };
+  return e;
+}
+
+/** Does this assignment speak for a record logged on `date`? Same rule as
+ *  classify.coversDate, kept here so insights.ts stays readable on its own. */
+function inScope(r: MuscleRoles, date: string): boolean {
+  if (r.from && date < r.from) return false;
+  if (r.until && date > r.until) return false;
+  return true;
+}
+
+/** The roles for one logged exercise: by library key first, by name second
+ *  (a lift that predates the library has no key), and nothing at all when
+ *  the assignment does not cover the day this was logged. */
+export function rolesFor(map: MuscleMap, ex: { name: string; exerciseKey?: string }, date: string): MuscleRoles {
+  const found = (ex.exerciseKey ? map.get(ex.exerciseKey) : undefined) ?? map.get(ex.name);
+  const roles = asRoles(found);
+  return inScope(roles, date) ? roles : NO_ROLES;
+}
 
 /**
  * WHICH MUSCLES A LIFT WORKS, from every place the athlete can say so.
@@ -430,9 +476,14 @@ export type MuscleMap = Map<string, MuscleGroup[]>;
 export function muscleMapFrom(
   programs: Program[],
   muscleByKey: Record<string, string[]> = {},
+  classByKey: Record<string, unknown> = {},
 ): MuscleMap {
   const map: MuscleMap = new Map();
-  const put = (k: string | undefined, v: MuscleGroup[]) => { if (k && v.length) map.set(k, v); };
+  const put = (k: string | undefined, v: MuscleEntry) => {
+    if (!k) return;
+    const r = asRoles(v);
+    if (r.primary.length + r.secondary.length) map.set(k, v);
+  };
   for (const program of programs) {
     for (const week of program.data.weeks) {
       for (const day of week.days) {
@@ -449,6 +500,21 @@ export function muscleMapFrom(
   for (const [key, list] of Object.entries(muscleByKey)) {
     const clean = list.filter((m): m is MuscleGroup => (MUSCLE_GROUPS as readonly string[]).includes(m));
     put(key, clean);
+  }
+  // And the full classification wins over both: it is the same statement
+  // said in the newer shape, with primary as a LIST and with the scope
+  // window the athlete picked when they corrected it. Read through
+  // classify.readClass, so a hand-edited or older blob cannot put a value in
+  // here that no menu can show. Still hand-set, still never inferred from
+  // the name -- see LAW 18.
+  for (const [key, raw] of Object.entries(classByKey)) {
+    const c = readClass(raw);
+    put(key, {
+      primary: c.primary,
+      secondary: c.secondary,
+      ...(c.from ? { from: c.from } : {}),
+      ...(c.until ? { until: c.until } : {}),
+    });
   }
   return map;
 }
@@ -477,9 +543,8 @@ export function hardSetRows(workouts: Workout[], muscleByExercise: MuscleMap, no
       if (ex.skipped) continue;
       // By key first, by name second (2026-09-14): a lift that has been
       // renamed keeps its tags, which the name-only join could not do.
-      const muscles = (ex.exerciseKey ? muscleByExercise.get(ex.exerciseKey) : undefined)
-        ?? muscleByExercise.get(ex.name);
-      if (!muscles || muscles.length === 0) continue;
+      const roles = rolesFor(muscleByExercise, ex, w.data.date);
+      if (roles.primary.length + roles.secondary.length === 0) continue;
       const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s)).length;
       if (working === 0) continue;
       // DIRECT SETS COUNT WHOLE, INDIRECT COUNT HALF. A row is a back
@@ -488,9 +553,18 @@ export function hardSetRows(workouts: Workout[], muscleByExercise: MuscleMap, no
       // never did. The half is a COUNTING CONVENTION and is labelled as one
       // in the card's Evidence -- it is not part of the cited meta-analysis,
       // which counts sets per muscle without settling this question.
-      muscles.forEach((m, i) => {
-        totals.set(m, (totals.get(m) ?? 0) + (i === 0 ? working : working / 2));
-      });
+      //
+      // AND NO SET IS EVER COUNTED TWICE (handoff §4: "Do not count a set
+      // multiple times in total working-set counts"). These are PER-MUSCLE
+      // totals: one set of rows puts a whole set under Back and half a set
+      // under Biceps, and the session still contains exactly one set. The
+      // sum down this column is not a set count and is never rendered as
+      // one -- the exercise's own working-set number is.
+      for (const m of roles.primary) totals.set(m, (totals.get(m) ?? 0) + working);
+      for (const m of roles.secondary) {
+        if (roles.primary.includes(m)) continue;
+        totals.set(m, (totals.get(m) ?? 0) + working / 2);
+      }
     }
   }
   return MUSCLE_GROUPS

@@ -3,204 +3,338 @@ import { createPortal } from "react-dom";
 import type { LibraryRow } from "./libraryEdit";
 import { pressable } from "../shared/pressable";
 import { agoPhraseLower } from "./summary";
-import { PickSheet, type PickItem } from "./ActionSheet";
+import { shortDate } from "../shared/dateFormat";
 import SheetBar from "../shared/SheetBar";
+import ActionSheet, { PickSheet, type PickItem, type SheetAction } from "./ActionSheet";
+import ClassifySheet from "./ClassifySheet";
+import BatchSheet from "./BatchSheet";
+import { DuplicateBar, DuplicatesSheet } from "./DuplicateReview";
 import { findDuplicates, pairId, type DuplicatePair } from "./duplicates";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
+import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, loadStyleOf, type Equipment } from "./equipment";
+import {
+  classOf, needsMuscles, rowChips, valueLine, type Chip, type ClassStore, type Classification,
+  type MovementPattern, type MuscleScope, MOVEMENTS, MOVEMENT_LABEL,
+} from "./classify";
+import { filterCount, floorLine, NO_FILTER, SORT_LABEL, viewRows, type LibraryFilter, type SortKey } from "./libraryView";
 
-// YOUR LIFTS (UP-ATH-21, 2026-09-06). The exercise library has known every
-// lift the athlete has ever used since it shipped, and the only thing that
-// ever rendered it was an autocomplete inside a picker. This is the list, as
-// a page: what you have, how many sessions each one carries, when you last
-// did it, and the two repairs a free-text library needs.
+// EXERCISES (was "Your Lifts", renamed 2026-09-14 on Dave's word: "Rename
+// 'Your Lifts' to 'Exercises' so the library covers all exercise types").
 //
-// Presentational, like every screen in this folder: rows in, callbacks out.
-// The writes live in gym/libraryEdit.ts and are run by GymFlow.
-export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge, onMergePreview, onToggleHidden, onToggleFavorite, onSetGoal, muscles, onSetMuscles, dismissedDupes, onDismissDuplicate, onBack }: {
+// The old page was a list of names with two pills on every row and nothing to
+// do with any of it. This is the library as the handoff asks for it: the
+// central place to organize exercises, edit classifications, resolve
+// duplicates and reach history.
+//
+// THE ROW'S ANATOMY (§2), and every part of it is a decision:
+//
+//   name          white, wrapping, and the door to the exercise's own page
+//   chips         muscle and equipment, each one a door INTO ITS OWN FIELD
+//   Assign        amber, and only when there is no primary muscle at all
+//   overflow      one menu, holding everything that is not an everyday tap
+//
+// What left: the Goal and Edit pills that rode every single row. Two pills
+// times a hundred and fifty rows is three hundred controls competing with the
+// one thing the row is for, and they pushed the name into a column narrow
+// enough to clip it. Both live in the overflow now, which is the menu the
+// handoff asked for by name.
+
+const CHEV = <div className="chev" />;
+
+export default function LibraryPage({
+  rows, store, todayIso, onOpen, onRename, onSetClass, onBatch, onMerge, onToggleHidden,
+  onToggleFavorite, onSetGoal, dismissedDupes, onDismissDuplicate, onBack,
+}: {
   rows: LibraryRow[];
+  /** Every exercise's classification, by library key. */
+  store: ClassStore;
   todayIso: string;
   onOpen: (row: LibraryRow) => void;
   onRename: (row: LibraryRow, name: string) => void;
-  /** loser folds into survivor. Only ever offered between lifts that log the
-   *  same way: numbers from two different measures cannot share a series. */
-  onMerge: (loser: LibraryRow, survivorKey: string) => void;
+  /** One write for the whole classification, with the scope the athlete
+   *  picked when they corrected an existing assignment. */
+  onSetClass: (row: LibraryRow, next: Classification, scope: MuscleScope) => void;
+  /** Select mode's write: the whole store, already planned and previewed. */
+  onBatch?: (next: ClassStore, changed: number) => void;
+  /** Opens the reviewed merge flow on this pair. The page never merges. */
+  onMerge: (keep: LibraryRow, fold: LibraryRow) => void;
   onToggleHidden: (row: LibraryRow) => void;
-  /** Part 3 wave 1 (2026-09-13): what a merge would reach, for the review
-   *  card before it runs. Absent, the merge runs straight from the picker. */
-  onMergePreview?: (loser: LibraryRow, survivorKey: string) => { sessions: number; programDays: number };
-  /** Part 3 wave 1: star or unstar a lift; starred lifts lead every picker. */
   onToggleFavorite?: (row: LibraryRow) => void;
-  /** THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list of
-   *  exercises there's a goal option"). Optional so a caller with no goal
-   *  wiring at all (there is none today) still renders this page exactly as
-   *  it did before -- the pill is absent with the prop. */
   onSetGoal?: (row: LibraryRow) => void;
-  /** MUSCLES PER LIFT (2026-09-14). The tags as they stand, by library key,
-   *  and the write that changes them. Primary first. Optional, so a caller
-   *  with no muscle wiring renders the page exactly as before. */
-  muscles?: Record<string, MuscleGroup[]>;
-  onSetMuscles?: (row: LibraryRow, muscles: MuscleGroup[]) => void;
-  /** Near-duplicate suggestions: pairs already waved off, and the write that
-   *  waves one off. Absent, no duplicate card is offered at all. */
   dismissedDupes?: string[];
   onDismissDuplicate?: (id: string) => void;
   onBack: () => void;
 }) {
-  const [editing, setEditing] = useState<LibraryRow | null>(null);
+  // SEARCH, FILTER AND SORT LIVE ABOVE THE EDITORS (§3: "Preserve search,
+  // filters, and scroll position after edits"). They are this component's own
+  // state and no editor unmounts it, so saving a classification returns the
+  // athlete to the same filtered list at the same place -- which is what
+  // makes classifying forty exercises in one sitting possible at all.
+  const [filter, setFilter] = useState<LibraryFilter>(NO_FILTER);
+  const [sort, setSort] = useState<SortKey>("recent");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [renaming, setRenaming] = useState<LibraryRow | null>(null);
   const [draft, setDraft] = useState("");
+  const [classing, setClassing] = useState<{ row: LibraryRow; open: Chip["field"] } | null>(null);
+  const [menu, setMenu] = useState<LibraryRow | null>(null);
   const [merging, setMerging] = useState<LibraryRow | null>(null);
-  const [mergeReview, setMergeReview] = useState<{ loser: LibraryRow; survivor: LibraryRow; sessions: number; programDays: number } | null>(null);
-  const [showHidden, setShowHidden] = useState(false);
+  const [dupesOpen, setDupesOpen] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [batchOpen, setBatchOpen] = useState(false);
+  // THE LIST DOES NOT YANK A ROW OUT FROM UNDER YOU (§4: "If the exercise no
+  // longer belongs in the active Missing muscles filter, confirm the save
+  // before removing it from that filtered list").
+  //
+  // Classifying forty exercises from the Missing Muscles filter means every
+  // save deletes the row you just touched, the list jumps, and your thumb is
+  // now over a different exercise. So a row you just saved STAYS, marked
+  // Saved, until you change the filter. Nothing is hidden by this -- the row
+  // is real and the filter is honest again the moment it is re-applied.
+  const [justSaved, setJustSaved] = useState<string[]>([]);
 
-  const shown = rows.filter((r) => showHidden || !r.hidden);
-  const hiddenCount = rows.filter((r) => r.hidden).length;
-  const openEdit = (r: LibraryRow) => { setEditing(r); setDraft(r.name); };
+  // A classification nobody has written yet still shows what the athlete told
+  // the exercise sheet: the equipment on its most recent sighting, read
+  // through the same migration everything else reads it through.
+  const classFor = (r: LibraryRow): Classification => classOf(store, r, loadStyleOf(r));
 
-  // MUSCLES, LIVE WHILE THE SHEET IS OPEN. The tags are a list with the
-  // primary first, so tapping the one already marked primary clears it and
-  // tapping any other adds it to the end.
-  const tagsOf = (r: LibraryRow): MuscleGroup[] => muscles?.[r.key] ?? [];
-  const toggleMuscle = (r: LibraryRow, m: MuscleGroup) => {
-    if (!onSetMuscles) return;
-    const cur = tagsOf(r);
-    onSetMuscles(r, cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m]);
-  };
-
-  // NEAR-DUPLICATES (2026-09-14). Computed from the rows already on screen,
-  // so there is nothing to fetch and nothing to keep in sync; the card is
-  // simply absent when the library is clean, which is most of the time.
   const dupes: DuplicatePair[] = useMemo(
     () => (onDismissDuplicate ? findDuplicates(rows, dismissedDupes ?? []) : []),
     [rows, dismissedDupes, onDismissDuplicate],
   );
+  const dupeKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const d of dupes) { s.add(d.keep.key); s.add(d.fold.key); }
+    return s;
+  }, [dupes]);
 
+  const view = useMemo(() => viewRows(rows, store, filter, sort, dupeKeys), [rows, store, filter, sort, dupeKeys]);
+  // A just-saved row is re-admitted in the list's own order rather than pinned
+  // to the top, so nothing else moves either.
+  const shown = useMemo(() => {
+    if (!justSaved.length) return view.rows;
+    const inView = new Set(view.rows.map((r) => r.key));
+    const held = rows.filter((r) => justSaved.includes(r.key) && !inView.has(r.key));
+    if (!held.length) return view.rows;
+    return viewRows([...view.rows, ...held], store, { q: "" }, sort, dupeKeys).rows;
+  }, [view.rows, justSaved, rows, store, sort, dupeKeys]);
+  const missingCount = useMemo(() => rows.filter((r) => needsMuscles(classOf(store, r))).length, [rows, store]);
+
+  const pickedRows = useMemo(() => shown.filter((r) => picked.includes(r.key)), [shown, picked]);
   const mergeItems: PickItem[] = merging
     ? rows
       .filter((r) => r.key !== merging.key && r.kind === merging.kind)
       .map((r) => ({ id: r.key, label: r.name, sub: r.sessions > 0 ? r.sessions + (r.sessions === 1 ? " session" : " sessions") : "Never done" }))
     : [];
 
+  const setF = (patch: Partial<LibraryFilter>) => { setJustSaved([]); setFilter((f) => ({ ...f, ...patch })); };
+
+  const menuActions = (r: LibraryRow): SheetAction[] => [
+    { label: "Edit Details", onClick: () => setClassing({ row: r, open: "muscles" }) },
+    { label: "Rename", onClick: () => { setRenaming(r); setDraft(r.name); } },
+    ...(onSetGoal ? [{ label: "Set Goal", onClick: () => onSetGoal(r) }] : []),
+    { label: "Merge Into Another Exercise", onClick: () => setMerging(r) },
+    ...(onToggleFavorite ? [{ label: r.favorite ? "Remove From Favorites" : "Add to Favorites", onClick: () => onToggleFavorite(r) }] : []),
+    { label: r.hidden ? "Offer It Again" : "Hide From Suggestions", onClick: () => onToggleHidden(r) },
+  ];
+
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">Your Lifts</div>
+        <div className="nav-title">Exercises</div>
+        {/* §7: "30 Exercises, each with its history" was a sentence doing a
+            badge's job. This is the badge. */}
+        <span className="nav-action"><span className="n">{rows.length}</span></span>
       </div>
 
       {rows.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-title">No Lifts Yet</div>
+          <div className="empty-title">No Exercises Yet</div>
           <div className="empty-sub">Every exercise you add to a program or log in a session lands here</div>
         </div>
       ) : (
         <>
-          {/* SAME LIFT, TWO NAMES (Dave 2026-09-14). Above the list, because
-              a fork is the one thing on this page worth fixing before you
-              read anything else -- every number below it is split in two
-              until you do. It proposes and never acts: Merge opens the same
-              reviewed flow the Edit sheet does, and Not the Same puts the
-              pair away for good. */}
-          {dupes.length > 0 && (
-            <div className="pad-x"><div className="card pad">
-              <div className="eyebrow">Same Lift, Two Names?</div>
-              {dupes.slice(0, 3).map((d) => (
-                <div className="lib-dupe" key={pairId(d.keep.key, d.fold.key)}>
-                  <div className="conn-name">{d.fold.name} and {d.keep.name}</div>
-                  <div className="bp-sub">
-                    {d.why}
-                    {d.fold.sessions > 0 ? ` · ${d.fold.sessions} ${d.fold.sessions === 1 ? "session" : "sessions"} would move across` : " · nothing logged under it yet"}
-                  </div>
-                  <div className="btn-row">
-                    <button className="btn btn-secondary" onClick={() => {
-                      const survivor = d.keep;
-                      if (onMergePreview) setMergeReview({ loser: d.fold, survivor, ...onMergePreview(d.fold, survivor.key) });
-                      else onMerge(d.fold, survivor.key);
-                    }}>Merge Into {d.keep.name}</button>
-                    <button className="btn btn-tertiary" onClick={() => onDismissDuplicate?.(pairId(d.keep.key, d.fold.key))}>Not the Same</button>
-                  </div>
-                </div>
-              ))}
-            </div></div>
-          )}
-          <div className="pad-x"><div className="card list-card-ruled">
-            {shown.map((r) => (
-              <div className="row" key={r.key} {...pressable(() => onOpen(r))}>
-                <div className="row-grow">
-                  <div className="conn-name">{r.name}</div>
-                  <div className="bp-sub">
-                    {r.sessions > 0
-                      ? r.sessions + (r.sessions === 1 ? " session" : " sessions")
-                      : "Never done"}
-                    {r.lastDate ? " · Last " + agoPhraseLower(r.lastDate, todayIso) : ""}
-                    {r.hidden ? " · Hidden" : ""}
-                  </div>
-                  {/* H-23: the names it used to go by, in the reading hue; and
-                      the star, as a word, since the star glyph is the Brain's. */}
-                  {((r.aliases && r.aliases.length > 0) || r.favorite || tagsOf(r).length > 0) && (
-                    <div className="facts">
-                      {r.favorite && <span className="pill pill-good">Favorite</span>}
-                      {/* The muscles, on the row, so the page answers "what
-                          have I actually tagged?" at a glance -- which is the
-                          question the weekly volume card silently depends on
-                          and never used to show anywhere. */}
-                      {tagsOf(r).map((m) => <span className="fact" key={m}>{MUSCLE_LABEL[m]}</span>)}
-                      {r.aliases && r.aliases.length > 0 && <span className="fact cyan">{"Also " + r.aliases.join(", ")}</span>}
-                    </div>
+          <div className="pad-x ex-search">
+            <input
+              className="xs-input"
+              type="search"
+              value={filter.q}
+              placeholder="Search Names and Aliases"
+              aria-label="Search Exercises"
+              onChange={(e) => setF({ q: e.target.value })}
+            />
+          </div>
+
+          <div className="pad-x ex-bar">
+            <button type="button" className={"pill-act" + (filtersOpen ? " on" : "")} aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((v) => !v)}>
+              {filtersOpen ? "Hide Filters" : "Filters"}
+            </button>
+            <button type="button" className="pill-act" onClick={() => { setJustSaved([]); setSort(sort === "recent" ? "name" : sort === "name" ? "most" : "recent"); }}>
+              {SORT_LABEL[sort]}
+            </button>
+            {onBatch && (
+              <button type="button" className={"pill-act" + (selecting ? " on" : "")}
+                onClick={() => { setSelecting((v) => !v); setPicked([]); }}>
+                {selecting ? "Done Selecting" : "Select"}
+              </button>
+            )}
+          </div>
+
+          {filtersOpen && (
+            <div className="pad-x"><div className="card xs-group">
+              <div className="row xs-row">
+                <div className="chip-row">
+                  <button type="button" className={"chip" + (filter.favorites ? " active" : "")} aria-pressed={!!filter.favorites}
+                    onClick={() => setF({ favorites: !filter.favorites })}>Favorites</button>
+                  <button type="button" className={"chip" + (filter.missing ? " active" : "")} aria-pressed={!!filter.missing}
+                    onClick={() => setF({ missing: !filter.missing })}>{`Missing Muscles${missingCount ? " " + missingCount : ""}`}</button>
+                  {dupes.length > 0 && (
+                    <button type="button" className={"chip" + (filter.dupes ? " active" : "")} aria-pressed={!!filter.dupes}
+                      onClick={() => setF({ dupes: !filter.dupes })}>Possible Duplicates</button>
                   )}
-                </div>
-                <div className="lib-row-acts">
-                  {onSetGoal && <button className="pill-act" onClick={(e) => { e.stopPropagation(); onSetGoal(r); }}>Goal</button>}
-                  <button className="pill-act" onClick={(e) => { e.stopPropagation(); openEdit(r); }}>Edit</button>
+                  <button type="button" className={"chip" + (filter.showHidden ? " active" : "")} aria-pressed={!!filter.showHidden}
+                    onClick={() => setF({ showHidden: !filter.showHidden })}>Hidden</button>
+                  <button type="button" className={"chip" + (filter.showArchived ? " active" : "")} aria-pressed={!!filter.showArchived}
+                    onClick={() => setF({ showArchived: !filter.showArchived })}>Archived</button>
                 </div>
               </div>
-            ))}
-          </div></div>
-          {/* EVERY LIST HAS A FLOOR. */}
-          <div className="pad-x"><div className="bp-sub">
-            {shown.length === rows.length
-              ? "That's every lift you have."
-              : "That's every lift you have, except the hidden ones."}
-          </div></div>
-          {hiddenCount > 0 && (
-            <div className="pad-x">
-              <button className="btn btn-secondary btn-block" onClick={() => setShowHidden((v) => !v)}>
-                {showHidden ? "Hide the Hidden" : "Show Hidden"}
-              </button>
-            </div>
+              <div className="row xs-row"><div className="row-grow"><div className="conn-meta">Muscle</div></div></div>
+              <div className="row xs-row">
+                <div className="chip-row">
+                  {MUSCLE_GROUPS.map((m: MuscleGroup) => (
+                    <button key={m} type="button" className={"chip" + (filter.muscle === m ? " active" : "")}
+                      aria-pressed={filter.muscle === m}
+                      onClick={() => setF({ muscle: filter.muscle === m ? undefined : m })}>{MUSCLE_LABEL[m]}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="row xs-row"><div className="row-grow"><div className="conn-meta">Equipment</div></div></div>
+              <div className="row xs-row">
+                <div className="chip-row">
+                  {EQUIPMENT_KINDS.map((e: Equipment) => (
+                    <button key={e} type="button" className={"chip" + (filter.equipment === e ? " active" : "")}
+                      aria-pressed={filter.equipment === e}
+                      onClick={() => setF({ equipment: filter.equipment === e ? undefined : e })}>{EQUIPMENT_LABEL[e]}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="row xs-row"><div className="row-grow"><div className="conn-meta">Movement</div></div></div>
+              <div className="row xs-row">
+                <div className="chip-row">
+                  {MOVEMENTS.map((m: MovementPattern) => (
+                    <button key={m} type="button" className={"chip" + (filter.movement === m ? " active" : "")}
+                      aria-pressed={filter.movement === m}
+                      onClick={() => setF({ movement: filter.movement === m ? undefined : m })}>{MOVEMENT_LABEL[m]}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="pad-x">
+                <button type="button" className="btn btn-tertiary btn-block" onClick={() => setFilter({ q: filter.q })}>Clear Filters</button>
+              </div>
+            </div></div>
           )}
+
+          {/* ONE COMPACT ROW, NOT THREE CARDS (§6). */}
+          {!selecting && <DuplicateBar count={dupes.length} onOpen={() => setDupesOpen(true)} />}
+
+          {selecting && (
+            <div className="pad-x"><div className="card pad">
+              <div className="row">
+                <div className="row-grow">
+                  <div className="conn-name">{`${picked.length} Selected`}</div>
+                  <div className="conn-meta">Tap exercises to select, then classify them together</div>
+                </div>
+              </div>
+              <div className="btn-row">
+                <button type="button" className="btn btn-secondary" disabled={picked.length === 0} onClick={() => setBatchOpen(true)}>Classify</button>
+                <button type="button" className="btn btn-tertiary" onClick={() => setPicked(shown.map((r) => r.key))}>Select All Shown</button>
+              </div>
+            </div></div>
+          )}
+
+          <div className="pad-x"><div className="card list-card-ruled">
+            {shown.map((r) => {
+              const c = classFor(r);
+              const chips = rowChips(c);
+              const on = picked.includes(r.key);
+              return (
+                <div className={"row ex-row" + (on ? " on" : "")} key={r.key}
+                  {...(selecting
+                    ? pressable(() => setPicked(on ? picked.filter((k) => k !== r.key) : [...picked, r.key]))
+                    : {})}>
+                  <div className="row-grow">
+                    {/* The name is the door to the exercise's history and
+                        details, and it wraps rather than clipping. */}
+                    <div className="ex-name" {...(selecting ? {} : pressable(() => onOpen(r)))}>{r.name}</div>
+                    {/* §7: "2 sessions · Last yesterday" was one grey line
+                        doing two jobs. Two compact fields. */}
+                    <div className="facts">
+                      <span className="fact">{r.sessions > 0 ? `${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}` : "Never done"}</span>
+                      {r.lastDate && <span className="fact cyan">{capitalize(agoPhraseLower(r.lastDate, todayIso))}</span>}
+                      {r.favorite && <span className="fact">Favorite</span>}
+                      {r.hidden && <span className="fact">Hidden</span>}
+                      {c.archived && <span className="fact">Archived</span>}
+                      {justSaved.includes(r.key) && <span className="fact">Saved</span>}
+                    </div>
+                    <div className="ex-chips">
+                      {chips.map((ch, i) => (
+                        <button
+                          key={ch.label + i}
+                          type="button"
+                          className={"ex-chip" + (ch.tone === "primary" ? " on" : ch.tone === "secondary" ? " sec" : "")}
+                          aria-label={`${ch.label}, edit`}
+                          disabled={selecting}
+                          onClick={(e) => { e.stopPropagation(); setClassing({ row: r, open: ch.field }); }}
+                        >
+                          {ch.label}
+                        </button>
+                      ))}
+                      {/* THE ONE NAG, AND ONLY WHEN IT IS TRUE. */}
+                      {needsMuscles(c) && (
+                        <button type="button" className="ex-chip amber" disabled={selecting}
+                          onClick={(e) => { e.stopPropagation(); setClassing({ row: r, open: "muscles" }); }}>
+                          Assign Muscles
+                        </button>
+                      )}
+                      {r.aliases && r.aliases.length > 0 && <span className="ex-chip quiet">{`Also ${r.aliases.join(", ")}`}</span>}
+                    </div>
+                  </div>
+                  {selecting
+                    ? <span className={"ex-check" + (on ? " on" : "")} aria-hidden="true" />
+                    : (
+                      <button type="button" className="ex-more" aria-label={`More for ${r.name}`}
+                        onClick={(e) => { e.stopPropagation(); setMenu(r); }}>
+                        <span aria-hidden="true">···</span>
+                      </button>
+                    )}
+                </div>
+              );
+            })}
+            {shown.length === 0 && (
+              <div className="row"><div className="row-grow"><div className="conn-meta">Nothing matches what you are filtering by</div></div></div>
+            )}
+          </div></div>
+
+          <div className="pad-x"><div className="bp-sub">{floorLine(view, rows.length, filter)}</div></div>
         </>
       )}
 
-      {/* EDIT IS A SHEET NOW (Dave, 2026-09-14: "the exercise page edit
-          button doesn't work").
-
-          It always worked. It set `editing` and rendered this card INLINE, in
-          document order, after the whole list, after the "that's every lift"
-          floor and after Show Hidden -- and `.screen` is the scroller, so
-          with a real library of dozens of lifts the card opened somewhere
-          around 3,000px below the fold. Tapping Edit scrolled nothing and
-          moved nothing: from the athlete's chair, a dead button.
-
-          Every other editor in this folder -- ActionSheet, PickSheet,
-          LibraryPickSheet, ExerciseSheet -- portals into a scrim over the
-          page. This one was the only exception, and there was no reason for
-          it to be. Now it is a sheet like the rest, which fixes the merge
-          review below by the same stroke: that card was inline and off-screen
-          too, so picking a survivor also appeared to do nothing. */}
-      {editing && createPortal(
-        <div className="sheet-scrim" onClick={() => setEditing(null)}>
+      {/* RENAME, its own small sheet: it is the one edit that rewrites every
+          record this exercise has, so it does not share a form with the
+          classification, which rewrites none of them. */}
+      {renaming && createPortal(
+        <div className="sheet-scrim" onClick={() => setRenaming(null)}>
           <div className="card xs" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
-            {/* Save is the bar's, like every other sheet in the app: the
-                muscle chips write as they are tapped, so the only thing Save
-                has left to commit is the name. */}
             <SheetBar
-              title={editing.name}
-              onCancel={() => setEditing(null)}
+              title={renaming.name}
+              onCancel={() => setRenaming(null)}
               saveLabel="Done"
               onSave={() => {
-                const r = editing;
-                setEditing(null);
+                const r = renaming;
+                setRenaming(null);
                 if (draft.trim() && draft.trim() !== r.name) onRename(r, draft);
               }}
             />
@@ -208,64 +342,12 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
               <div className="grp xs-grp"><div className="eyebrow">Name</div></div>
               <div className="pad-x"><div className="card xs-group">
                 <div className="row xs-row">
-                  <input className="xs-input" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Lift Name" />
+                  <input className="xs-input" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Exercise Name" />
                 </div>
               </div></div>
-              <div className="pad-x"><div className="bp-sub">Renaming keeps every session this lift already has.</div></div>
-
-              {/* MUSCLES, WHERE THE LIFT IS. They used to be settable only
-                  inside one program day's exercise sheet, one muscle at a
-                  time, keyed to nothing -- so the tag vanished on a rename
-                  and never existed for a lift logged mid-session. Here they
-                  hang off the library key, they are a list, and the first one
-                  tapped is the primary. */}
-              {onSetMuscles && (
-                <>
-                  <div className="grp xs-grp"><div className="eyebrow">Muscles</div></div>
-                  <div className="pad-x"><div className="card xs-group">
-                    <div className="row xs-row">
-                      <div className="row-grow">
-                        <div className="conn-name">Muscles Worked</div>
-                        <div className="conn-meta">
-                          {tagsOf(editing).length === 0
-                            ? "Untagged lifts are left out of Weekly Volume"
-                            : `${MUSCLE_LABEL[tagsOf(editing)[0]!]} first, then the rest at half a set each`}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="row xs-row">
-                      <div className="chip-row">
-                        {MUSCLE_GROUPS.map((m) => {
-                          const at = tagsOf(editing).indexOf(m);
-                          return (
-                            <button
-                              key={m}
-                              className={"chip" + (at === 0 ? " active" : at > 0 ? " chip-on" : "")}
-                              aria-pressed={at >= 0}
-                              onClick={() => toggleMuscle(editing, m)}
-                            >
-                              {MUSCLE_LABEL[m]}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div></div>
-                </>
-              )}
-
-              <div className="grp xs-grp"><div className="eyebrow">This Lift</div></div>
-              <div className="pad-x">
-                {onToggleFavorite && (
-                  <button className="btn btn-secondary btn-block" onClick={() => { const r = editing; setEditing(null); onToggleFavorite(r); }}>
-                    {editing.favorite ? "Remove From Favorites" : "Add to Favorites"}
-                  </button>
-                )}
-                <button className="btn btn-secondary btn-block" onClick={() => { setMerging(editing); setEditing(null); }}>Merge Into Another Lift</button>
-                <button className="btn btn-secondary btn-block" onClick={() => { const r = editing; setEditing(null); onToggleHidden(r); }}>
-                  {editing.hidden ? "Offer It Again" : "Hide From Suggestions"}
-                </button>
-              </div>
+              <div className="pad-x"><div className="bp-sub">
+                Renaming keeps every session this exercise already has, and the old name stays searchable.
+              </div></div>
               <div className="xs-foot" />
             </div>
           </div>
@@ -273,46 +355,69 @@ export default function LibraryPage({ rows, todayIso, onOpen, onRename, onMerge,
         document.body,
       )}
 
+      {classing && (
+        <ClassifySheet
+          name={classing.row.name}
+          initial={classFor(classing.row)}
+          open={classing.open}
+          todayIso={todayIso}
+          askScope={!needsMuscles(classFor(classing.row))}
+          onSave={(next, scope) => {
+            const r = classing.row;
+            setClassing(null);
+            // Held only while a filter could drop it. With no filter on, a
+            // saved row is simply still there and needs no special case.
+            if (filterCount(filter) > 0) setJustSaved((k) => (k.includes(r.key) ? k : [...k, r.key]));
+            onSetClass(r, next, scope);
+          }}
+          onCancel={() => setClassing(null)}
+        />
+      )}
+
+      {menu && (
+        <ActionSheet title={menu.name} actions={menuActions(menu)} onClose={() => setMenu(null)} />
+      )}
+
       {merging && (
         <PickSheet
           title={"Merge " + merging.name + " Into"}
           items={mergeItems}
-          emptyText="No other lift logs the same way, so there is nothing to merge into."
+          emptyText="No other exercise logs the same way, so there is nothing to merge into."
           onPick={(ids) => {
             const r = merging; setMerging(null);
-            if (!ids[0]) return;
-            // Part 3 wave 1: a merge is reviewed before it runs. The card says
-            // what it reaches; Merge is the one tap that writes.
-            const survivor = rows.find((x) => x.key === ids[0]);
-            if (onMergePreview && survivor) setMergeReview({ loser: r, survivor, ...onMergePreview(r, ids[0]) });
-            else onMerge(r, ids[0]);
+            const survivor = ids[0] ? rows.find((x) => x.key === ids[0]) : undefined;
+            if (survivor) onMerge(survivor, r);
           }}
           onCancel={() => setMerging(null)}
         />
       )}
 
-      {/* The review card, portaled for the same reason the editor is: inline
-          at the bottom of a long page, it opened below the fold and the
-          merge looked like it had silently failed. */}
-      {mergeReview && createPortal(
-        <div className="sheet-scrim" onClick={() => setMergeReview(null)}>
-          <div className="card" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-handle" />
-            <div className="pad-x pad">
-          <div className="conn-name">Merge {mergeReview.loser.name} Into {mergeReview.survivor.name}</div>
-          <div className="facts">
-            <span className="fact">{mergeReview.sessions} {mergeReview.sessions === 1 ? "session" : "sessions"}</span>
-            <span className="fact">{mergeReview.programDays} program {mergeReview.programDays === 1 ? "day" : "days"}</span>
-          </div>
-          <div className="bp-sub">Every one of them will read as {mergeReview.survivor.name}, and {mergeReview.loser.name} stays searchable as its old name. Undo on the receipt puts it all back.</div>
-          <button className="btn btn-primary btn-block" onClick={() => { const m = mergeReview; setMergeReview(null); onMerge(m.loser, m.survivor.key); }}>Merge</button>
-          <button className="btn btn-secondary btn-block" onClick={() => setMergeReview(null)}>Cancel</button>
-            </div>
-          </div>
-        </div>,
-        document.body,
+      {dupesOpen && (
+        <DuplicatesSheet
+          pairs={dupes}
+          sideOf={(r) => classFor(r)}
+          onReview={(d) => { setDupesOpen(false); onMerge(d.keep, d.fold); }}
+          onKeepSeparate={(id) => onDismissDuplicate?.(id)}
+          onClose={() => setDupesOpen(false)}
+        />
       )}
+
+      {batchOpen && onBatch && (
+        <BatchSheet
+          rows={pickedRows}
+          store={store}
+          onSave={(next, changed) => { setBatchOpen(false); setPicked([]); setSelecting(false); onBatch(next, changed); }}
+          onCancel={() => setBatchOpen(false)}
+        />
+      )}
+
       <div className="screen-foot" />
     </div>
   );
+}
+
+/** "yesterday" is a sentence fragment mid-line and a line's first word on its
+ *  own, and this row prints it on its own. */
+function capitalize(s: string): string {
+  return s ? s[0]!.toUpperCase() + s.slice(1) : s;
 }

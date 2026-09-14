@@ -36,12 +36,26 @@ export interface LibraryRow {
   name: string;
   kind: MeasureKind;
   unit?: string;
+  /** The convention on its most recent sighting, so an unclassified exercise
+   *  still shows the equipment the exercise sheet was told about. */
+  equipment?: string;
+  counted?: import("./equipment").Counted;
   /** Distinct finished workouts this lift was logged in. A count of what
    *  happened, never a run and never a target to fall short of. */
   sessions: number;
+  /** Logged sets across every session, warm-ups included. The duplicate
+   *  review needs a real record count to tell two same-named exercises apart
+   *  (handoff §6: "Actual usage and record counts"), and "2 sessions" alone
+   *  cannot separate a lift done twice for one set from one done twice for
+   *  twelve. */
+  sets: number;
   /** The last day it was logged, or null for a lift that only exists in a
    *  program and has never been done. */
   lastDate: string | null;
+  /** The FIRST day it was logged. Two exercises that share a name are told
+   *  apart by when each one started, which is the cheapest true difference
+   *  there is (handoff §6: "Creation date"). */
+  firstDate: string | null;
   hidden: boolean;
   /** H-23: the names this lift used to go by. */
   aliases?: string[];
@@ -56,15 +70,20 @@ export interface LibraryRow {
 export function libraryRows(library: LibraryEntry[], workouts: Workout[], hiddenKeys: string[] = []): LibraryRow[] {
   const hidden = new Set(hiddenKeys);
   const sessions = new Map<string, number>();
+  const setCount = new Map<string, number>();
   const lastDate = new Map<string, string>();
+  const firstDate = new Map<string, string>();
   for (const w of workouts) {
     const seen = new Set<string>();
     for (const e of w.data.exercises) {
       if (e.skipped || !e.sets.some((s) => !s.skipped)) continue;
       const key = libraryKeyOf(e);
       if (!seen.has(key)) { seen.add(key); sessions.set(key, (sessions.get(key) ?? 0) + 1); }
+      setCount.set(key, (setCount.get(key) ?? 0) + e.sets.filter((s) => !s.skipped).length);
       const prior = lastDate.get(key);
       if (!prior || w.data.date > prior) lastDate.set(key, w.data.date);
+      const first = firstDate.get(key);
+      if (!first || w.data.date < first) firstDate.set(key, w.data.date);
     }
   }
   return library
@@ -74,8 +93,12 @@ export function libraryRows(library: LibraryEntry[], workouts: Workout[], hidden
       name: e.name,
       kind: e.kind,
       ...(e.unit ? { unit: e.unit } : {}),
+      ...(e.equipment ? { equipment: e.equipment } : {}),
+      ...(e.counted ? { counted: e.counted } : {}),
       sessions: sessions.get(e.key) ?? 0,
+      sets: setCount.get(e.key) ?? 0,
       lastDate: lastDate.get(e.key) ?? null,
+      firstDate: firstDate.get(e.key) ?? null,
       hidden: hidden.has(e.key),
       ...(e.aliases?.length ? { aliases: e.aliases } : {}),
       ...(e.favorite ? { favorite: true } : {}),

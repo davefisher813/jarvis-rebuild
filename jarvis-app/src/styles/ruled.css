@@ -1858,3 +1858,78 @@
 .ruled.health-ruled .ins-night i { display: block; width: 18px; height: 6px; border-radius: 3px; background: var(--press-3); }
 .ruled.health-ruled .ins-night.on i { height: 18px; background: var(--hl-violet); }
 .ruled.health-ruled .ad-dot i { display: block; width: 10px; height: 10px; border-radius: 50%; background: var(--h-hue); }
+/* ===========================================================================
+   EXERCISES: THE LIBRARY AS A WORKBENCH (2026-09-14, the Exercise Library
+   handoff).
+
+   The old row was a name, a grey run-on sentence and two pills. Dave's §7 is
+   about exactly that sentence: "Grey subtext is an exception. Use it only
+   when necessary and demonstrably clearer than another treatment." So the
+   facts became .facts chips (already in this sheet), the classification
+   became tappable chips of its own, and the two pills became one overflow.
+
+   THE NAME WRAPS. It is the only thing on the row that must never clip
+   (acceptance criterion 12), which is why it is its own block element above
+   the chips rather than a flex child fighting a trailing control for width.
+   =========================================================================== */
+.ruled .ex-search { margin-bottom: var(--s-2); }
+.ruled .ex-search .xs-input { width: 100%; background: var(--surface-2); border-radius: var(--r-md);
+  padding: var(--s-2h) var(--s-3); font-size: calc(15px * var(--type-scale)); }
+.ruled .ex-bar { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-bottom: var(--s-2); }
+/* A control that is currently DOING something reads on, in the page's own
+   reading hue. Not red: red is a verb here, never a state (LAW L1). */
+.ruled .ex-bar .pill-act.on { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+
+.ruled .ex-row { align-items: flex-start; }
+.ruled .ex-row.on { background: var(--hl-cyan-tint); }
+.ruled .ex-name { color: var(--tx-1); font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi);
+  line-height: 1.25; overflow-wrap: anywhere; cursor: pointer; }
+.ruled .ex-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+/* A chip is a door into its own field, so it has to look tappable without
+   spending a second accent: quiet ground, reading-hue text when it carries
+   an answer, amber only for the one thing that is missing. */
+.ruled .ex-chip { font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.01em;
+  padding: 3px 8px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--tx-2);
+  border: none; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.ruled .ex-chip.on { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+.ruled .ex-chip.sec { color: var(--tx-3); }
+.ruled .ex-chip.amber { color: var(--hl-amber); background: var(--hl-amber-tint); }
+.ruled .ex-chip.quiet { color: var(--tx-3); background: none; padding-left: 0; }
+.ruled .ex-chip:disabled { opacity: 0.55; }
+/* The overflow. One control, a real 44px target, and no pencil. */
+.ruled .ex-more { flex-shrink: 0; min-width: 44px; min-height: 44px; display: flex; align-items: center;
+  justify-content: center; background: none; border: none; color: var(--tx-3);
+  font-size: calc(17px * var(--type-scale)); letter-spacing: 0.08em; }
+.ruled .ex-check { flex-shrink: 0; width: 22px; height: 22px; border-radius: var(--r-circle);
+  border: 1.5px solid var(--tx-4); align-self: center; }
+.ruled .ex-check.on { background: var(--hl-cyan); border-color: var(--hl-cyan); }
+
+/* THE DUPLICATE REVIEW, in its own room (§6). Names never truncate here:
+   the name IS the evidence that two exercises are or are not one. */
+.ruled .dup-row { align-items: flex-start; }
+.ruled .dup-side + .dup-side { margin-top: var(--s-3); }
+.ruled .dup-name { color: var(--tx-1); font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi);
+  line-height: 1.25; overflow-wrap: anywhere; }
+.ruled .dup-row .btn-row { display: flex; gap: var(--s-2); margin-top: var(--s-2h); }
+.ruled .dup-row .btn-row .btn { flex: 1; margin: 0; padding: 9px 10px; font-size: calc(13px * var(--type-scale)); min-width: 0; }
+
+/* THE THREE DOORS under the week on Health (§1). One row, three taps, each
+   with the count that says what is behind it. */
+.ruled .h-doors { display: flex; padding: 0; overflow: hidden; }
+.ruled .h-door { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: var(--s-3) var(--s-2); background: none; border: none; min-height: 44px; }
+.ruled .h-door + .h-door { border-left: 0.5px solid var(--divider); }
+.ruled .h-door-k { color: var(--tx-1); font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi); }
+.ruled .h-door-n { color: var(--tx-3); font-size: calc(12px * var(--type-scale)); font-variant-numeric: tabular-nums; }
+
+/* The classification editor's free-text rows: a label that does not shrink
+   beside an input that takes the rest. */
+.ruled .xs-label { color: var(--tx-2); font-size: calc(14px * var(--type-scale)); flex-shrink: 0; min-width: 84px; }
+
+/* THE EXERCISE PAGE's own sections (§8). A metric cell states one number and
+   what it is, so three of them read as three facts and not as a sentence. */
+.ruled .ex-cells { display: flex; flex-wrap: wrap; gap: var(--s-3); }
+.ruled .ex-cell { min-width: 84px; }
+.ruled .ex-cell-n { color: var(--tx-1); font-size: calc(20px * var(--type-scale)); font-weight: var(--w-bold);
+  font-variant-numeric: tabular-nums; line-height: 1.1; overflow-wrap: anywhere; }
+.ruled .ex-cell-k { color: var(--tx-3); font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi); }

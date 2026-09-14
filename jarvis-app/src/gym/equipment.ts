@@ -36,12 +36,27 @@
 //   - and what is COMPARABLE at all, because a lift's numbers stop meaning
 //     the same thing the day its equipment changes.
 
-/** WHAT YOU ARE LIFTING. Real equipment only. */
+/** WHAT YOU ARE LIFTING. Real equipment only.
+ *
+ *  2026-09-14, second pass: `smith` and `kettlebell` join the list. A Smith
+ *  machine was landing on Barbell, which is the one substitution that flatters
+ *  a lifter (the carriage carries part of the load and takes the balance out
+ *  entirely), and a kettlebell was landing on Dumbbells, whose rack steps in
+ *  5s where a bell steps in 4kg / 8 lb jumps. Both were wrong in the stepper
+ *  AND in the comparison, which is exactly the class of error this file
+ *  exists to end.
+ *
+ *  `assisted` stays, though the handoff's own list of ten does not name it:
+ *  records already carry it, dropping it would strand them, and it is the
+ *  only equipment whose PR direction inverts. It is the machine, and
+ *  "Assistance" is what its number means. */
 export type Equipment =
   | "barbell"
   | "dumbbell"
+  | "kettlebell"
   | "machine"
   | "stack"
+  | "smith"
   | "cable"
   | "bodyweight"
   | "assisted"
@@ -52,15 +67,22 @@ export type Equipment =
 export type Counted = "total" | "each_side" | "each_hand" | "added" | "assist";
 
 export const EQUIPMENT_KINDS: Equipment[] = [
-  "barbell", "dumbbell", "machine", "stack", "cable",
+  "barbell", "dumbbell", "kettlebell", "cable", "stack", "machine", "smith",
   "bodyweight", "assisted", "band", "other",
 ];
 
+// The two machine words are now said in full. "Weight Stack" and
+// "Plate-Loaded Machine" described the same object from two different angles
+// and left a lifter to work out which one their gym's leg press was; the
+// trade name for the pin-and-stack kind is selectorized, and saying both in
+// the same grammar is what makes the pair legible as a pair.
 export const EQUIPMENT_LABEL: Record<Equipment, string> = {
   barbell: "Barbell",
   dumbbell: "Dumbbells",
+  kettlebell: "Kettlebell",
   machine: "Plate-Loaded Machine",
-  stack: "Weight Stack",
+  stack: "Selectorized Machine",
+  smith: "Smith Machine",
   cable: "Cable",
   bodyweight: "Bodyweight",
   assisted: "Assisted",
@@ -127,6 +149,27 @@ const SPEC: Record<Equipment, EquipmentSpec> = {
     plates: false,
     hasBar: false,
     note: "One dumbbell's number, not the pair's",
+  },
+  // A competition bell is cast in 4 kg steps, and the pound rack that copies
+  // it lands on 9, 13, 18, 26, 35 -- so neither 5 nor 2 is its real
+  // granularity. 8 lb / 4 kg is the jump the rack actually offers.
+  kettlebell: {
+    counts: ["each_hand", "total"],
+    step: { lb: 8, kg: 4 },
+    plates: false,
+    hasBar: false,
+    note: "One bell's number, not the pair's",
+  },
+  // The carriage holds the bar up and takes the balance out, so a Smith
+  // number is not a barbell number and the two never belong on one line.
+  // Its own bar is lighter than a 45 and varies by maker, so plate math is
+  // offered without a bar to subtract rather than subtracting a wrong one.
+  smith: {
+    counts: ["total", "each_side"],
+    step: { lb: 5, kg: 2.5 },
+    plates: true,
+    hasBar: false,
+    note: "The plates on the carriage, bar weight varies by machine",
   },
   machine: {
     counts: ["total", "each_side"],

@@ -149,7 +149,12 @@ describe("the rest of what the equipment decides", () => {
   it("summarises without repeating the default back at you", () => {
     expect(styleSummary({ equipment: "dumbbell", counted: "each_hand" })).toBe("Dumbbells");
     expect(styleSummary({ equipment: "dumbbell", counted: "total" })).toBe("Dumbbells · The Whole Load");
-    expect(styleSummary({ equipment: "stack", counted: "total" })).toBe("Weight Stack");
+    // 2026-09-14: the two machine words are said in full now. The pin-and-stack
+    // kind is a selectorized machine; "Weight Stack" described the same object
+    // from a different angle and left the pair illegible as a pair.
+    expect(styleSummary({ equipment: "stack", counted: "total" })).toBe("Selectorized Machine");
+    expect(styleSummary({ equipment: "smith", counted: "total" })).toBe("Smith Machine");
+    expect(styleSummary({ equipment: "kettlebell", counted: "each_hand" })).toBe("Kettlebell");
     expect(styleSummary({})).toBe("Not Set");
   });
 });

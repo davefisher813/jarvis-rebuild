@@ -33,7 +33,7 @@ describe("ExerciseSheet: Equipment (Part 3 wave 5, was Load; split 2026-09-14)",
     expect(screen.getByRole("button", { name: "Counted as" })).toBeInTheDocument();
     // A stack has exactly one reading, so it costs no row and no tap.
     fireEvent.click(screen.getByRole("button", { name: "Equipment" }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "Weight Stack" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Selectorized Machine" }));
     expect(screen.queryByRole("button", { name: "Counted as" })).toBeNull();
     expect(screen.getByText("Weight")).toBeInTheDocument();
     // Assistance is not a load, and the row says so.

@@ -172,7 +172,7 @@ export function weekdayShort(iso: string): string {
 // ---- Muscle volume and a lift's table (Insights) ----
 
 import type { MuscleGroup } from "../gym/muscles";
-import type { MuscleMap } from "../gym/insights";
+import { rolesFor, type MuscleMap } from "../gym/insights";
 import { liftRef, sameLift } from "../gym/identity";
 import { formatSet } from "../gym/measures";
 
@@ -201,8 +201,11 @@ export function muscleBreakdown(workouts: Workout[], map: MuscleMap, p: Period):
       const working = workingSetsIn(ex);
       if (working === 0) continue;
       total += working;
-      const muscles = (ex.exerciseKey ? map.get(ex.exerciseKey) : undefined) ?? map.get(ex.name);
-      if (!muscles || muscles.length === 0) {
+      // The classification's two lists (Cowork 2026-09-14), read through the
+      // same scope window the Weekly Volume card uses: primaries whole,
+      // secondaries half, and a secondary that is also a primary not twice.
+      const roles = rolesFor(map, ex, w.data.date);
+      if (roles.primary.length + roles.secondary.length === 0) {
         unassigned += working;
         const id = ex.exerciseKey ?? ex.name;
         const prev = untagged.get(id);
@@ -210,7 +213,11 @@ export function muscleBreakdown(workouts: Workout[], map: MuscleMap, p: Period):
         continue;
       }
       assigned += working;
-      muscles.forEach((m, i) => totals.set(m, (totals.get(m) ?? 0) + (i === 0 ? working : working / 2)));
+      for (const m of roles.primary) totals.set(m, (totals.get(m) ?? 0) + working);
+      for (const m of roles.secondary) {
+        if (roles.primary.includes(m)) continue;
+        totals.set(m, (totals.get(m) ?? 0) + working / 2);
+      }
     }
   }
   const rows = [...totals.entries()].map(([muscle, sets]) => ({ muscle, sets })).sort((a, b) => b.sets - a.sets);

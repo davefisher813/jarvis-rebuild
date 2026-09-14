@@ -3884,6 +3884,54 @@ describe("LAW 18: when is a fact, why is never claimed", () => {
     expect(body, "muscleMapFrom lost the hand-set field read").toMatch(/ex\.muscleGroup/);
     // The per-lift store is read too, and only ever as stored values.
     expect(body, "muscleMapFrom lost the per-lift tag read").toMatch(/muscleByKey/);
+    // 2026-09-14 second pass: the full classification store is the third
+    // hand-set source. It is read through classify.readClass, which validates
+    // every field against its own list, so a value no menu can show cannot
+    // enter the map -- and no field of it is ever derived from the name.
+    expect(body, "muscleMapFrom lost the classification store read").toMatch(/classByKey/);
+    expect(body, "the classification must be read through readClass, not trusted raw").toMatch(/readClass\(/);
+  });
+
+  // THE SAME DOCTRINE, NOW ACROSS NINE AXES (the 2026-09-14 Exercise Library
+  // handoff: "Do not infer equipment from ambiguous names such as 'free weight
+  // machine'"). Muscle was the first axis that could have been guessed and the
+  // law caught it there. Movement pattern, equipment and exercise type are the
+  // next three, and a keyword table over exercise names is exactly how every
+  // other app in this category fills them in.
+  it("no classification axis is ever inferred from an exercise's name", () => {
+    const src = gym("classify.ts");
+    // classify.ts owns all nine axes and never reads a name to fill one in.
+    // It takes `name` only as a key to look a stored answer up under.
+    expect(src, "classify.ts reads an exercise name to decide something")
+      .not.toMatch(/\.name\.(match|includes|toLowerCase\(\)\.includes|startsWith|endsWith)/);
+    expect(src, "classify.ts pattern-matches a name").not.toMatch(/\bnew RegExp\b|\/[a-z]{3,}\/[gi]*\.test/);
+    // The exercise's own kind is the ONE thing read off a sighting as a
+    // fallback, and it is a recorded fact rather than a guess.
+    expect(src, "classOf lost its recorded-kind fallback").toMatch(/row\.kind/);
+  });
+
+  // A SET IS NOT CALLED HARD UNLESS THE DATA SAYS IT WAS (handoff §8: "Do not
+  // label sets 'hard sets' unless the available data supports that
+  // classification"). Nothing in this app records proximity to failure -- no
+  // RPE, no reps-in-reserve -- so a rendered "hard sets" is an assertion about
+  // effort the records cannot support. The published range IS about hard sets
+  // and says so where it is cited; the app's own totals are WORKING sets.
+  it("no screen labels the app's own counted sets as hard sets", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const src = read(f);
+      // Comments explain the rule; only rendered strings can break it, and a
+      // comment line is not one. JSX comments live inside braces on their own
+      // lines, so a line-level skip is enough here.
+      for (const line of src.split("\n")) {
+        const t = line.trim();
+        if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*") || t.startsWith("{/*")) continue;
+        for (const m of line.matchAll(/["'`][^"'`]{0,60}[Hh]ard [Ss]ets?[^"'`]{0,60}["'`]/g)) {
+          bad.push(rel(f) + ": " + m[0]!.slice(0, 70));
+        }
+      }
+    }
+    expect(bad, "call them working sets; the studied range keeps its own wording where it is cited").toEqual([]);
   });
 
   it("every correlation card ends its own line honestly", () => {

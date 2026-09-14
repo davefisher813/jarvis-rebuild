@@ -40,22 +40,40 @@ describe("LiftDetailScreen weekly hard sets", () => {
     { name: "Incline Press", sets: 4 }, { name: "Bench Press", sets: 6 }, { name: "Dips", sets: 4 }, { name: "Rows", sets: 5 },
   ])];
 
+  // 2026-09-14: the two numbers became two separate CELLS rather than a
+  // sentence and a follow-up line, and the heading stopped saying "hard sets"
+  // -- nothing in this app records whether a set was taken near failure, so
+  // calling them hard asserts something the data does not carry.
   it("sums every lift that trains the muscle, the way the Health page does", () => {
     render(<LiftDetailScreen {...base} workouts={workouts} muscleGroup="chest" muscleMap={chestMap} />);
-    expect(screen.getByText("14 sets this week")).toBeInTheDocument();
-    expect(screen.queryByText("4 sets this week")).toBeNull();
+    expect(screen.getByText("Chest Working Sets")).toBeInTheDocument();
+    expect(screen.getByText("14")).toBeInTheDocument();
+    expect(screen.queryByText(/Hard Sets/)).toBeNull();
   });
 
   it("names this lift's own share, so neither number is a mystery", () => {
     render(<LiftDetailScreen {...base} workouts={workouts} muscleGroup="chest" muscleMap={chestMap} />);
-    expect(screen.getByText("Incline Press: 4 of them")).toBeInTheDocument();
+    expect(screen.getByText("This Exercise")).toBeInTheDocument();
+    expect(screen.getByText("4")).toBeInTheDocument();
   });
 
-  it("a lift that is the whole muscle's week says it once, not twice", () => {
-    const only = [workout("2026-09-02", [{ name: "Incline Press", sets: 4 }])];
-    render(<LiftDetailScreen {...base} workouts={only} muscleGroup="chest" muscleMap={chestMap} />);
-    expect(screen.getByText("4 sets this week")).toBeInTheDocument();
-    expect(screen.queryByText("Incline Press: 4 of them")).toBeNull();
+  it("states the window the numbers cover rather than saying this week", () => {
+    render(<LiftDetailScreen {...base} workouts={workouts} muscleGroup="chest" muscleMap={chestMap} />);
+    expect(screen.getAllByText(/ to /).length).toBeGreaterThan(0);
+    expect(screen.getByText("Warm-ups and drop sets left out")).toBeInTheDocument();
+  });
+
+  it("keeps the research behind its own disclosure, apart from the recorded total", () => {
+    render(<LiftDetailScreen {...base} workouts={workouts} muscleGroup="chest" muscleMap={chestMap} />);
+    expect(screen.queryByText(/Schoenfeld/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Evidence and Calculation" }));
+    expect(screen.getByText(/Schoenfeld/)).toBeInTheDocument();
+  });
+
+  it("lists the sets behind the number on tap", () => {
+    render(<LiftDetailScreen {...base} workouts={workouts} muscleGroup="chest" muscleMap={chestMap} />);
+    fireEvent.click(screen.getByRole("button", { name: "View Contributing Sets" }));
+    expect(screen.getAllByText("Primary").length).toBeGreaterThan(0);
   });
 
   it("a lift with no muscle set claims nothing at all", () => {
@@ -124,8 +142,12 @@ describe("LiftDetailScreen: best recorded set and milestones", () => {
       { id: "w2", data: { programId: "p", dayId: "d", dayName: "Push", date: "2026-09-07", startedAt: 1, endedAt: 2, exercises: [{ exerciseId: "e", name: "Incline Bench", kind: "weight_reps", unit: "lb", sets: [{ id: "b", w: 135, r: 5 }] }] } },
     ] as never;
     render(<LiftDetailScreen name="Incline Bench" kind="weight_reps" unit="lb" workouts={workouts} defs={[]} logs={[]} onSetGoal={() => {}} onBack={() => {}} />);
-    expect(screen.getByText("Best Recorded Set")).toBeInTheDocument();
-    expect(screen.getByText("2 Sessions recorded")).toBeInTheDocument();
+    // 2026-09-14: the sentence became three labelled cells (§7), under one
+    // Performance and History head.
+    expect(screen.getByText("Performance and History")).toBeInTheDocument();
+    expect(screen.getByText("Best Set")).toBeInTheDocument();
+    expect(screen.getByText("Change")).toBeInTheDocument();
+    expect(screen.getAllByText("Sessions").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByText("Estimated One-Rep Max"));
     expect(screen.getAllByText("158 lb").length).toBeGreaterThan(0);
     expect(screen.getByText("First Session")).toBeInTheDocument();

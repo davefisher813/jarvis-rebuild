@@ -1136,7 +1136,7 @@ export default function CategoryDetail({
   // muscleTick is bumped by a save from the Assign Muscles sheet so the map
   // below re-reads the store on that render.
   const muscleByKeyNow = muscleTick >= 0 ? (readGymSettings().muscleByKey ?? {}) : {};
-  const muscleMap = kind === "health" ? muscleMapFrom(programs, muscleByKeyNow) : new Map();
+  const muscleMap = kind === "health" ? muscleMapFrom(programs, muscleByKeyNow, readGymSettings().classByKey ?? {}) : new Map();
   // The band he set in Health Settings replaces the studied one (Dave
   // 2026-09-13: nothing hard wired that should not be), and says so.
   const hsBand = kind === "health" ? readHealthSettings().volumeBand : null;
@@ -1661,7 +1661,7 @@ export default function CategoryDetail({
                                   <span className="ins-k">{lift.name}</span>
                                   <span className="ins-sub">
                                     {shortDate(lift.date)} · {lift.sets} {lift.sets === 1 ? "set" : "sets"}
-                                    {lift.primary ? "" : " · half, not its first muscle"}
+                                    {lift.primary ? " · primary" : " · secondary, counted half"}
                                   </span>
                                 </div>
                               ))}
@@ -1700,9 +1700,9 @@ export default function CategoryDetail({
                         </div>
                       ))}
                     </div>
-                    <div className="ins-cite">Set a muscle on Your Lifts and these join the count</div>
+                    <div className="ins-cite">Assign muscles on Exercises and these join the count</div>
                     <div className="ins-acts">
-                      <button type="button" className="pill-act pill-quiet" onClick={() => { setGymLibrary(true); setGymOpen(true); }}>Open Your Lifts</button>
+                      <button type="button" className="pill-act pill-quiet" onClick={() => { setGymLibrary(true); setGymOpen(true); }}>Open Exercises</button>
                     </div>
                   </div>
                 )}
@@ -1894,6 +1894,11 @@ export default function CategoryDetail({
           onOpenFinding={openFinding}
           onOpenInsights={() => setHealthView("insights")}
           onOpenAllData={() => setHealthView("data")}
+          // THE THREE DOORS (Cowork 2026-09-14, Dave: "Exercises must open the
+          // complete library in one tap"). Exercises is the library page,
+          // History opens on its sessions segment.
+          onOpenExercises={() => { setGymLibrary(true); setGymOpen(true); }}
+          onOpenHistory={() => { setGymHistory("sessions"); setGymOpen(true); }}
           logActions={logActions}
           onOpenSettings={() => setHealthSettingsOpen(true)}
           // Projects, Goals Here, Coming Up, Up Next: the SAME block every

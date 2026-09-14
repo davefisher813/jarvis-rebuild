@@ -7,7 +7,9 @@ const row = (name: string, over: Partial<LibraryRow> = {}): LibraryRow => ({
   name,
   kind: "weight_reps",
   sessions: 0,
+  sets: 0,
   lastDate: null,
+  firstDate: null,
   hidden: false,
   ...over,
 });

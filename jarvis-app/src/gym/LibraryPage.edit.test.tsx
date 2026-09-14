@@ -4,128 +4,159 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import LibraryPage from "./LibraryPage";
 import type { LibraryRow } from "./libraryEdit";
+import { EMPTY_CLASS, type ClassStore } from "./classify";
 
 // Dave, 2026-09-14: "the exercise page edit button doesn't work."
 //
 // It always fired. It rendered its card INLINE, after the list, after the
-// floor line and after Show Hidden -- so on a real library it opened
-// thousands of pixels below the fold and nothing appeared to happen. jsdom
-// has no viewport, which is exactly why the old tests passed through it.
-// These pin the shape that cannot have the bug: the editor is portaled to
+// floor line and after Show Hidden -- so on a real library it opened thousands
+// of pixels below the fold and nothing appeared to happen. jsdom has no
+// viewport, which is exactly why the old tests passed through it. These pin
+// the shape that cannot have the bug: every editor is portaled to
 // document.body, over the page, the way every other sheet in this folder is.
+//
+// And the second pass's own rule: the editor is ONE editor (§4), reached from a
+// chip on the row and from Edit Details in the overflow, and it writes the
+// whole classification in one call with the scope the athlete chose.
 
 const row = (over: Partial<LibraryRow> = {}): LibraryRow => ({
-  key: "bench", name: "Bench Press", kind: "weight_reps", sessions: 4, lastDate: "2026-09-08", hidden: false, ...over,
+  key: "bench", name: "Bench Press", kind: "weight_reps", sessions: 4, sets: 12,
+  lastDate: "2026-09-08", firstDate: "2026-06-01", hidden: false, ...over,
 });
 
 const many = Array.from({ length: 40 }, (_, i) => row({ key: `k${i}`, name: `Lift ${i}` }));
 
-const base = { todayIso: "2026-09-12", onOpen: () => {}, onRename: () => {}, onMerge: () => {}, onToggleHidden: () => {} };
+const base = {
+  store: {} as ClassStore,
+  todayIso: "2026-09-12",
+  onOpen: () => {}, onRename: () => {}, onSetClass: () => {}, onMerge: () => {}, onToggleHidden: () => {},
+  onBack: () => {},
+};
 
-describe("LibraryPage: Edit opens over the page, not below it", () => {
-  it("portals the editor out of the scrolling list", () => {
-    const { container } = render(<LibraryPage {...base} rows={many} onBack={() => {}} />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]!);
-    const scrim = document.body.querySelector(".sheet-scrim");
-    expect(scrim).not.toBeNull();
+describe("LibraryPage: every editor opens over the page, not below it", () => {
+  it("portals the classification editor out of the scrolling list", () => {
+    const { container } = render(<LibraryPage {...base} rows={many} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Assign Muscles" })[0]!);
+    expect(document.body.querySelector(".sheet-scrim")).not.toBeNull();
     // The thing that was broken: it must NOT be a child of the page, because
     // a child of the page is a child of the scroller.
     expect(container.querySelector(".sheet-scrim")).toBeNull();
-    expect(screen.getByLabelText("Lift Name")).toHaveValue("Lift 0");
   });
+
+  it("portals the rename sheet too", () => {
+    const { container } = render(<LibraryPage {...base} rows={many} />);
+    fireEvent.click(screen.getAllByRole("button", { name: /^More for/ })[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    expect(document.body.querySelector(".sheet-scrim")).not.toBeNull();
+    expect(container.querySelector(".sheet-scrim")).toBeNull();
+    expect(screen.getByLabelText("Exercise Name")).toHaveValue("Lift 0");
+  });
+});
+
+describe("LibraryPage: rename", () => {
+  const openRename = () => {
+    fireEvent.click(screen.getByRole("button", { name: "More for Bench Press" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+  };
 
   it("renames from the sheet bar and closes", () => {
     const onRename = vi.fn();
-    render(<LibraryPage {...base} rows={[row()]} onRename={onRename} onBack={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    fireEvent.change(screen.getByLabelText("Lift Name"), { target: { value: "Barbell Bench Press" } });
+    render(<LibraryPage {...base} rows={[row()]} onRename={onRename} />);
+    openRename();
+    fireEvent.change(screen.getByLabelText("Exercise Name"), { target: { value: "Barbell Bench Press" } });
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
-    expect(onRename).toHaveBeenCalledWith(row(), "Barbell Bench Press");
+    expect(onRename).toHaveBeenCalledWith(expect.objectContaining({ key: "bench" }), "Barbell Bench Press");
     expect(document.body.querySelector(".sheet-scrim")).toBeNull();
   });
 
   it("closes without renaming when the name was not touched", () => {
     const onRename = vi.fn();
-    render(<LibraryPage {...base} rows={[row()]} onRename={onRename} onBack={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    render(<LibraryPage {...base} rows={[row()]} onRename={onRename} />);
+    openRename();
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(onRename).not.toHaveBeenCalled();
   });
 });
 
-describe("LibraryPage: muscles per lift", () => {
-  it("is absent without the wiring, and tags the lift with it", () => {
-    const onSetMuscles = vi.fn();
-    const { rerender } = render(<LibraryPage {...base} rows={[row()]} onBack={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    expect(screen.queryByText("What it works")).toBeNull();
+describe("LibraryPage: the classification editor", () => {
+  it("cycles a muscle through primary, secondary and off in one control", () => {
+    const onSetClass = vi.fn();
+    render(<LibraryPage {...base} rows={[row()]} onSetClass={onSetClass} />);
+    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Chest/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSetClass).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "bench" }),
+      expect.objectContaining({ primary: ["chest"], secondary: [] }),
+      "all",
+    );
+  });
+
+  it("makes a second tap secondary rather than replacing the primary", () => {
+    const onSetClass = vi.fn();
+    render(<LibraryPage {...base} rows={[row()]} onSetClass={onSetClass} />);
+    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Chest/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Triceps/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Triceps/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const [, next] = onSetClass.mock.calls[0]!;
+    expect(next).toMatchObject({ primary: ["chest"], secondary: ["triceps"] });
+  });
+
+  it("asks about scope only when it is correcting an assignment that exists", () => {
+    const { rerender } = render(<LibraryPage {...base} rows={[row()]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    // A first answer has one sensible scope, so it is not a question.
+    expect(screen.queryByText("Applies To")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    rerender(<LibraryPage {...base} rows={[row()]} muscles={{}} onSetMuscles={onSetMuscles} onBack={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    expect(screen.getByText("Untagged lifts are left out of Weekly Volume")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Chest" }));
-    expect(onSetMuscles).toHaveBeenCalledWith(row(), ["chest"]);
+    rerender(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["back"] } }} rows={[row()]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Back, edit" }));
+    expect(screen.getByText("Applies To")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Existing and Future" })).toBeInTheDocument();
   });
 
-  it("adds a second muscle rather than replacing the first, and untags on a second tap", () => {
-    const onSetMuscles = vi.fn();
-    const { rerender } = render(
-      <LibraryPage {...base} rows={[row()]} muscles={{ bench: ["chest"] }} onSetMuscles={onSetMuscles} onBack={() => {}} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    fireEvent.click(screen.getByRole("button", { name: "Triceps" }));
-    expect(onSetMuscles).toHaveBeenCalledWith(row(), ["chest", "triceps"]);
-    fireEvent.click(screen.getByRole("button", { name: "Chest" }));
-    expect(onSetMuscles).toHaveBeenLastCalledWith(row(), []);
-    rerender(<LibraryPage {...base} rows={[row()]} muscles={{ bench: ["chest"] }} onSetMuscles={onSetMuscles} onBack={() => {}} />);
-    // And the row itself says what it is tagged with, which nothing did before.
-    expect(screen.getAllByText("Chest").length).toBeGreaterThan(0);
-  });
-});
-
-describe("LibraryPage: same lift, two names", () => {
-  const forked = [
-    row({ key: "a", name: "Bench", sessions: 1 }),
-    row({ key: "b", name: "Bench Press", sessions: 9 }),
-  ];
-
-  it("is absent without the wiring", () => {
-    render(<LibraryPage {...base} rows={forked} onBack={() => {}} />);
-    expect(screen.queryByText("Same Lift, Two Names?")).toBeNull();
+  it("stamps the window when the correction is for future records only", () => {
+    const onSetClass = vi.fn();
+    render(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["back"] } }} rows={[row()]} onSetClass={onSetClass} />);
+    fireEvent.click(screen.getByRole("button", { name: "Back, edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Future Records" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const [, next, scope] = onSetClass.mock.calls[0]!;
+    expect(scope).toBe("future");
+    expect(next).toMatchObject({ from: "2026-09-12" });
+    expect(next.until).toBeUndefined();
   });
 
-  it("offers the merge into the side with the history, and never merges on its own", () => {
-    const onMerge = vi.fn();
-    const onMergePreview = vi.fn(() => ({ sessions: 1, programDays: 0 }));
-    render(
-      <LibraryPage {...base} rows={forked} onMerge={onMerge} onMergePreview={onMergePreview}
-        dismissedDupes={[]} onDismissDuplicate={() => {}} onBack={() => {}} />,
-    );
-    expect(screen.getByText("Same Lift, Two Names?")).toBeInTheDocument();
-    expect(screen.getByText("Bench and Bench Press")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Merge Into Bench Press" }));
-    // The review card first -- a merge rewrites history and never runs on one tap.
-    expect(onMerge).not.toHaveBeenCalled();
-    expect(screen.getByText("Merge Bench Into Bench Press")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Merge" }));
-    expect(onMerge).toHaveBeenCalledWith(forked[0], "b");
+  it("holds movement, type, execution and the machine's identity behind More Details", () => {
+    render(<LibraryPage {...base} rows={[row()]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    expect(screen.queryByText("Movement Pattern")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "More Details" }));
+    expect(screen.getByText("Movement Pattern")).toBeInTheDocument();
+    expect(screen.getByText("Exercise Type")).toBeInTheDocument();
+    expect(screen.getByText("Equipment Identity")).toBeInTheDocument();
+    expect(screen.getByLabelText("Machine ID")).toBeInTheDocument();
   });
 
-  it("puts a pair away for good when it is waved off", () => {
-    const onDismissDuplicate = vi.fn();
-    render(
-      <LibraryPage {...base} rows={forked} dismissedDupes={[]} onDismissDuplicate={onDismissDuplicate} onBack={() => {}} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Not the Same" }));
-    expect(onDismissDuplicate).toHaveBeenCalledWith("a|b");
+  it("writes equipment, movement, type and identity together", () => {
+    const onSetClass = vi.fn();
+    render(<LibraryPage {...base} rows={[row()]} onSetClass={onSetClass} />);
+    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: "Equipment Smith Machine" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Movement Horizontal Push" }));
+    fireEvent.click(screen.getByRole("button", { name: "Type Strength" }));
+    fireEvent.change(screen.getByLabelText("Machine"), { target: { value: "Rack 3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const [, next] = onSetClass.mock.calls[0]!;
+    expect(next).toMatchObject({ equipment: "smith", movement: "push_h", type: "strength", machineName: "Rack 3" });
   });
 
-  it("says nothing about a clean library", () => {
-    render(
-      <LibraryPage {...base} rows={[row({ key: "a", name: "Back Squat" }), row({ key: "b", name: "Deadlift" })]}
-        dismissedDupes={[]} onDismissDuplicate={() => {}} onBack={() => {}} />,
-    );
-    expect(screen.queryByText("Same Lift, Two Names?")).toBeNull();
+  it("says a declared measurement never rewrites what is already recorded", () => {
+    render(<LibraryPage {...base} rows={[row()]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    expect(screen.getByText("Sessions already logged keep the numbers and units they were recorded with")).toBeInTheDocument();
   });
 });
