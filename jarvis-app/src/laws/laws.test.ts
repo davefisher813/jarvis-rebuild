@@ -4431,6 +4431,57 @@ describe("LAW: a live gym session is visible and reachable from Today", () => {
     expect(flow, "BrainFlow must thread autoOpenGym down to CategoryDetail")
       .toMatch(/autoOpenGym=\{autoOpenGym\}/);
   });
+
+  // 2026-09-14 (Dave: "when I hit start workout ... it automatically feeds to
+  // the today page and renders what we drew up. It still isn't doing that").
+  //
+  // Three separate defects wore one complaint:
+  //
+  //   1. The read ran once, on mount. Today unmounts on a tab switch so that
+  //      covered most paths -- but NOT the Training Door, which returns
+  //      <GymFlow> from inside TodayFlow. Start a workout from Today's own
+  //      door, come back, and Today had never asked again.
+  //   2. The card was gated on a category resolving to "health". A real
+  //      session in progress was invisible for a reason that has nothing to
+  //      do with the session.
+  //   3. It rendered the day and one exercise name. The PLAN was on the live
+  //      session the whole time and nothing read it.
+  it("the live read is re-run when the gym door closes, not only on mount", () => {
+    const today = read(SRC + "/today/TodayFlow.tsx");
+    expect(today, "the live read must be a callable, not an inline mount-only effect")
+      .toMatch(/const readLiveGym = useCallback\(/);
+    // The door branch is the path that cannot remount, so it must ask again.
+    const door = today.match(/if \(gymDoor\.opened\) \{[\s\S]*?\n  \}/);
+    expect(door, "TodayFlow must still have its Training Door branch").toBeTruthy();
+    expect(door![0], "closing the gym door must re-read the live session")
+      .toMatch(/readLiveGym\(\)/);
+  });
+
+  it("a live session is never hidden because no category resolves to health", () => {
+    const today = read(SRC + "/today/TodayFlow.tsx");
+    const cond = today.match(/const liveGymShown = [^;]+;/);
+    expect(cond, "liveGymShown must exist").toBeTruthy();
+    expect(cond![0], "the category gates the Resume target, never whether the card renders")
+      .not.toMatch(/gymCatId/);
+  });
+
+  it("the card renders the plan, not just a bookmark", () => {
+    const today = read(SRC + "/today/TodayFlow.tsx");
+    expect(today, "Today must read the session through the live card").toMatch(/liveCard\(liveGym\)/);
+    expect(today, "and lead with the exercise it is on, with its numbers").toMatch(/currentLine\(card\)/);
+    // The plan itself, exercise by exercise.
+    expect(today, "the card must list the drawn-up exercises").toMatch(/card\.lines\.map/);
+    const card = read(SRC + "/gym/liveCard.ts");
+    expect(card, "the plan line comes from the shared formatter, not a second one")
+      .toMatch(/targetLine\(/);
+    // Comments explain the rule (the file names the banned shape to rule it
+    // out); only rendered strings can break it.
+    const strings = card.split("\n")
+      .filter((l) => { const t = l.trim(); return !t.startsWith("//") && !t.startsWith("*") && !t.startsWith("/*"); })
+      .join("\n");
+    expect(strings, "progress counts what was logged, never what is owed")
+      .not.toMatch(/remaining|left to do|to go/i);
+  });
 });
 
 // TODAY-F-12 (2026-09-05): Batch 2 removed toISOString().slice(0,10) from

@@ -101,6 +101,7 @@ import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
 import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
+import { liveCard, currentLine } from "../gym/liveCard";
 import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
 
 // "All its work is done" is an observation, not a verdict: a project he is
@@ -314,10 +315,34 @@ export default function TodayFlow({
   // gap and there-when-active gate -- this card is unconditional: on while a
   // session is live, gone the moment it finishes or goes stale.
   const [liveGym, setLiveGym] = useState<LiveSession | null>(null);
-  useEffect(() => {
+  // 2026-09-14 (Dave: "when I hit start workout ... it automatically feeds to
+  // the today page ... It still isn't doing that").
+  //
+  // THE READ RAN ONCE, ON MOUNT. That is enough when Today unmounts on a tab
+  // switch, which it does -- and NOT enough for the one path that matters
+  // most, because walking through the Training Door returns <GymFlow> from
+  // inside this component (see the `gymDoor.opened` branch below). Today
+  // never unmounts there, so starting a workout from Today's own door and
+  // coming back left this at null and the card never appeared. The session
+  // was written correctly the whole time; nobody asked for it again.
+  //
+  // So it is a function, called on mount, whenever the gym door closes, and
+  // whenever the app comes back to the foreground -- the three moments the
+  // answer can have changed without this component being rebuilt.
+  const readLiveGym = useCallback(() => {
     const s = readLive();
     setLiveGym(s && isStillActive(s, todayISO()) ? s : null);
   }, []);
+  useEffect(() => { readLiveGym(); }, [readLiveGym]);
+  useEffect(() => {
+    const onWake = () => { if (document.visibilityState === "visible") readLiveGym(); };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", readLiveGym);
+    return () => {
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", readLiveGym);
+    };
+  }, [readLiveGym]);
   // PLUMB-F-17 (2026-09-05): yesterday's picks were only scored at cold
   // start, so an app that lived across midnight left the Lately record and
   // the cap offer stale until the next full relaunch. Today is the screen
@@ -2005,7 +2030,10 @@ export default function TodayFlow({
   // whole, exactly as Schedule does it, and coming back re-reads the day so
   // the block shows its fresh stamp.
   if (gymDoor.opened) {
-    return <GymFlow door={gymDoor.opened} onBack={() => { gymDoor.close(); void reload(); }} />;
+    // readLiveGym on the way out: the session that was just started (or
+    // finished) is the one thing this branch can change about Today, and
+    // Today is not remounting to find out.
+    return <GymFlow door={gymDoor.opened} onBack={() => { gymDoor.close(); readLiveGym(); void reload(); }} />;
   }
   if (reportOpen) {
     return <ReportFlow onBack={() => { setReportOpen(false); void reload(); }} onOpenTask={(id) => { setReportOpen(false); void onOpenTask(id); }} />;
@@ -2429,7 +2457,14 @@ export default function TodayFlow({
   // of that condition: a live-gym card tuned off is not on screen, and the
   // Where You Were row is then the only offer to get back to the session,
   // so it must stand rather than be suppressed as a duplicate of nothing.
-  const liveGymShown = !!(liveGym && gymCatId && !gymDismissed && tuned("live-gym"));
+  // 2026-09-14: the category gate came OFF the render condition. A live
+  // session is a fact about the athlete, not about whether a category in
+  // their Brain happens to resolve to "health" -- and gating the card on one
+  // meant a real workout in progress was invisible for a reason that has
+  // nothing to do with the workout. The category is still what Resume needs
+  // to land IN the session, so it gates the ACTION, not the card: without
+  // one, the card still says a session is running and opens the Brain.
+  const liveGymShown = !!(liveGym && !gymDismissed && tuned("live-gym"));
   const spotAlreadyShown = spotIsDuplicate(spot, { dealtTaskId, slideTaskId, liveGymShown });
   const alertCards = [
     // The welcome-back recap is a RECEIPT: it reports, it does not ask.
@@ -2599,19 +2634,44 @@ export default function TodayFlow({
     // gap to clear, no hiding itself once he is "active" elsewhere. It is
     // just true or not true, read straight off the live session, and gone
     // on its own the moment the session ends or goes stale.
-    liveGymShown ? (
-      <NoticeCard
-        key="live-gym"
-        {...tuneProps("live-gym", "Back to " + liveGym.dayName)}
-        weight={tuningWeight(tunings, "live-gym", RESUME)}
-        icon={<BarbellGlyph />}
-        tone="cat-fg-orange"
-        title={`Back to ${liveGym.dayName}`}
-        sub={liveGym.exercises[liveGym.idx]?.name}
-        action={{ label: "Resume", onClick: () => onRestoreSpot?.("gym", gymCatId) }}
-        onDismiss={() => setGymDismissed(true)}
-      />
-    ) : null,
+    liveGymShown ? (() => {
+      // WHAT HE DREW UP, ON TODAY (2026-09-14). The card used to say the day
+      // and the name of the exercise on screen -- a bookmark. The plan has
+      // been sitting on the live session the whole time (copied in at start),
+      // so the card reads it: the day, how long it has been going, how much
+      // is logged, the exercise it is on WITH its numbers, and the rest of
+      // the plan under it.
+      const card = liveCard(liveGym);
+      return (
+        <NoticeCard
+          key="live-gym"
+          {...tuneProps("live-gym", "Back to " + card.dayName)}
+          weight={tuningWeight(tunings, "live-gym", RESUME)}
+          icon={<BarbellGlyph />}
+          tone="cat-fg-orange"
+          title={card.fresh ? `${card.dayName} is ready` : `Back to ${card.dayName}`}
+          sub={currentLine(card)}
+          foot={
+            <div className="lg-plan">
+              <div className="facts">
+                <span className="fact">{card.progress}</span>
+                {card.elapsed && <span className="fact">{card.elapsed}</span>}
+              </div>
+              {card.lines.map((l, i) => (
+                <div className={"lg-row" + (l.current ? " on" : "")} key={l.name + i}>
+                  <span className="lg-n">{l.name}</span>
+                  {/* Zero is a verdict: an exercise with nothing logged shows
+                      its plan, not a "0 sets" that reads as a failure. */}
+                  <span className="lg-v">{l.logged > 0 ? `${l.logged} logged` : l.plan ?? ""}</span>
+                </div>
+              ))}
+            </div>
+          }
+          action={{ label: card.fresh ? "Start" : "Resume", onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
+          onDismiss={() => setGymDismissed(true)}
+        />
+      );
+    })() : null,
     // PICK 2: A FINISHED THING SURFACES WHERE HE IS (Dave 2026-08-22). Wave 1
     // taught the Bigger Picture to offer Close It on a project whose work is
     // done. That only helps on a page he has no reason to open, and the whole

@@ -1933,3 +1933,19 @@
 .ruled .ex-cell-n { color: var(--tx-1); font-size: calc(20px * var(--type-scale)); font-weight: var(--w-bold);
   font-variant-numeric: tabular-nums; line-height: 1.1; overflow-wrap: anywhere; }
 .ruled .ex-cell-k { color: var(--tx-3); font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi); }
+
+/* THE LIVE SESSION'S PLAN, ON TODAY (2026-09-14, Dave: "when I hit start
+   workout ... renders what we drew up"). The card used to be a bookmark with
+   one line. This is the plan under it: name on the left, the numbers drawn up
+   for it on the right, and the exercise the session is sitting on marked.
+   Numbers align, so six rows read as a list rather than as prose. */
+.lg-plan { margin-top: var(--s-2); }
+.lg-row { display: flex; align-items: baseline; gap: var(--s-2); padding: 3px 0; }
+.lg-row + .lg-row { border-top: 0.5px solid var(--divider); }
+.lg-row .lg-n { flex: 1; min-width: 0; color: var(--tx-2); font-size: calc(13px * var(--type-scale));
+  overflow-wrap: anywhere; }
+.lg-row .lg-v { flex-shrink: 0; color: var(--tx-3); font-size: calc(12px * var(--type-scale));
+  font-variant-numeric: tabular-nums; }
+/* Where he is. Not red: red is a verb on this page, never a position. */
+.lg-row.on .lg-n { color: var(--tx-1); font-weight: var(--w-semi); }
+.lg-row.on .lg-v { color: var(--tx-2); }
