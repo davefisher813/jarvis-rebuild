@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import type { Receipt } from "./prs";
 import type { Workout } from "./types";
 import { doneCount } from "./history";
+import { own } from "../shared/rowDoor";
 
 // The finish moment. Volume is the star when it exists: a real number that
 // feels enormous, and a beginner racks it up on day one, so the reward works
@@ -101,7 +102,10 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
               <div className="card banner-good">
                 {receipt.goalHits.map((g) => {
                   const done = closed.includes(g.id);
+                  const close = () => { setClosed((c) => [...c, g.id]); onAchieveGoal?.(g.id); };
+                  const canClose = !!onAchieveGoal && !done;
                   return (
+                    // row-tap: no goal page is reachable from inside the finish, and closing a goal stays on Mark Done, which the note below rules is the receipt for taking it
                     <div className="row" key={g.id}>
                       <div className="row-grow">
                         <div className="conn-name truncate">{g.title}</div>
@@ -111,8 +115,8 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
                           to be written achieved before this sheet even opened.
                           Now the row says he hit the number and offers the
                           close; the pill is the receipt for taking it. */}
-                      {onAchieveGoal && !done
-                        ? <button className="pill-act" onClick={() => { setClosed((c) => [...c, g.id]); onAchieveGoal(g.id); }}>Mark Done</button>
+                      {canClose
+                        ? <button className="pill-act" onClick={own(close)}>Mark Done</button>
                         : <span className="pill pill-good">{done ? "Done" : "Goal"}</span>}
                     </div>
                   );

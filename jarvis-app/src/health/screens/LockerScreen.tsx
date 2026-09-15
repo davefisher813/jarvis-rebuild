@@ -19,6 +19,10 @@ export default function LockerScreen({
   const [expiresAt, setExpiresAt] = useState("");
   const present = currentDocs(docs);
   const expiring = expiringDocs(docs, today);
+  // Row tap (Dave 2026-09-15, "I want all rows clickable"): a document on
+  // file opens the same form Add does, filled with its date. Saving files a
+  // newer entry, which is the one the Locker reads; Remove stays a button.
+  const openDoc = (kind: LockerDocKind, current?: string) => { setAddingKind(kind); setExpiresAt(current ?? ""); };
   const missing = LOCKER_DOC_KINDS.filter((k) => !present.some((d) => d.data.kind === k));
 
   return (
@@ -38,7 +42,7 @@ export default function LockerScreen({
           <div className="sh2 sh2-quiet"><span className="t">Worth a Look</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {expiring.map((e) => (
-              <div className="row" key={e.doc.id}>
+              <div className="row" key={e.doc.id} {...pressable(() => openDoc(e.doc.data.kind, e.doc.data.expiresAt))}>
                 <div className="row-grow"><div className="conn-name">{LOCKER_DOC_LABEL[e.doc.data.kind]}</div></div>
                 <div className="row-value">{e.daysUntil < 0 ? "Lapsed" : e.daysUntil + " Days Left"}</div>
               </div>
@@ -53,7 +57,7 @@ export default function LockerScreen({
           <div className="row"><div className="row-grow"><div className="conn-name">Nothing on File Yet</div></div></div>
         ) : (
           present.map((d) => (
-            <div className="row" key={d.id}>
+            <div className="row" key={d.id} {...pressable(() => openDoc(d.data.kind, d.data.expiresAt))}>
               <div className="row-grow">
                 <div className="conn-name">{LOCKER_DOC_LABEL[d.data.kind]}</div>
                 {d.data.expiresAt && <div className="bp-sub">Expires {d.data.expiresAt}</div>}
@@ -62,7 +66,7 @@ export default function LockerScreen({
                   queue carries a placeholder id, so Remove on it deleted
                   nothing while looking like it had. It comes back the moment
                   the write lands and the row has a real id. */}
-              {!d.pending && <button className="btn btn-tertiary btn-sm" onClick={() => onRemove(d.id)}>Remove</button>}
+              {!d.pending && <button className="btn btn-tertiary btn-sm" onClick={(ev) => { ev.stopPropagation(); onRemove(d.id); }}>Remove</button>}
             </div>
           ))
         )}

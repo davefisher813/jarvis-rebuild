@@ -57,4 +57,16 @@ describe("MealScreen: recent meals and When", () => {
     expect(onLog.mock.calls[0]![0]).toBe("Oats");
     expect(new Date(onLog.mock.calls[0]![1] as number).getHours()).toBe(12);
   });
+  // Row tap (Dave 2026-09-15, "I want all rows clickable"): a logged meal
+  // fills the field; Undo on the same row undoes and fills nothing.
+  it("a tap on a logged meal fills the field, and Undo does not", () => {
+    const onUndo = vi.fn();
+    render(<MealScreen today={[{ id: "a", data: { category: "fuel", at: NOW - 3_600_000, text: "Oats" } }]} onLog={() => {}} onUndo={onUndo} onBack={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Undo Oats" }));
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("What you ate")).toHaveValue("");
+    fireEvent.click(screen.getByText("Oats"));
+    expect(screen.getByLabelText("What you ate")).toHaveValue("Oats");
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
 });

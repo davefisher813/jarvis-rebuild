@@ -38,6 +38,11 @@ export function pressable(onClick: () => void, opts?: { disabled?: boolean }): P
     onClick: () => { if (!opts?.disabled) onClick(); },
     onKeyDown: (e: KeyboardEvent) => {
       if (opts?.disabled) return;
+      // A key pressed on a control INSIDE the row (Enter on its pill) is that
+      // control's. Without this, preventDefault here cancelled the pill's own
+      // click and the row fired instead (found by the row-tap sweep,
+      // 2026-09-15).
+      if (e.target !== e.currentTarget) return;
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();
       // A row nested inside another pressable row activates ONE of them, the

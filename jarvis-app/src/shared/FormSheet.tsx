@@ -72,6 +72,29 @@ export function FormSheet({ title, onCancel, onSave, saveDisabled = false, saveL
   );
 }
 
+/** THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows clickable").
+    A form row's click handler that hands a tap on the label, the tile or the
+    gap to the row's own field: a typed field takes focus (a date or time
+    field also opens its picker where the browser allows), a value menu or a
+    switch is pressed. A tap that landed ON a control is that control's own
+    and is left alone, and so is a click that only reached the row through a
+    portal (a menu's scrim), which is not a tap on the row at all. */
+export function tapField(e: MouseEvent<HTMLElement>) {
+  const row = e.currentTarget;
+  const t = e.target as HTMLElement;
+  if (!row.contains(t)) return;
+  const hit = t.closest("input, textarea, select, button, a, [role], .dd");
+  if (hit && hit !== row && row.contains(hit)) return;
+  const ctl = row.querySelector<HTMLElement>("input, textarea, select, .dd, .switch");
+  if (!ctl) return;
+  if (ctl instanceof HTMLInputElement || ctl instanceof HTMLTextAreaElement || ctl instanceof HTMLSelectElement) {
+    ctl.focus();
+    if (ctl instanceof HTMLInputElement && /^(date|time|datetime-local|month)$/.test(ctl.type) && typeof ctl.showPicker === "function") {
+      try { ctl.showPicker(); } catch { /* not allowed outside a user gesture here; focus is enough */ }
+    }
+  } else ctl.click();
+}
+
 /** A caps label and the card under it. */
 export function Group({ label, children, className = "" }: { label?: string; children: ReactNode; className?: string }) {
   return (
@@ -102,7 +125,9 @@ export function Row({ tone, glyph, label, meta, children, onClick, forwardTo, ch
   // would fire the handler twice and a menu would open and shut in one tap.
   const forward = (e: MouseEvent) => {
     const ctl = box.current?.querySelector<HTMLElement>(forwardTo!);
-    if (!ctl || ctl.contains(e.target as Node)) return;
+    // A click that reached the row through a portal (the open menu's scrim)
+    // is not a tap on the row; forwarding it reopened the menu it closed.
+    if (!ctl || ctl.contains(e.target as Node) || !box.current?.contains(e.target as Node)) return;
     ctl.click();
   };
   // SHARED-F-22 (2026-09-05). A Row with its own onClick declared role="button"
@@ -135,7 +160,7 @@ export function FieldRow({ tone, glyph, label, value, onChange, placeholder, typ
   onEnter?: () => void;
 }) {
   return (
-    <div className="row xs-row">
+    <div className="row xs-row" onClick={tapField}>
       {tone && glyph && <Tile tone={tone}>{glyph}</Tile>}
       {label && <div className="conn-name">{label}</div>}
       <input
@@ -157,7 +182,7 @@ export function TextRow({ value, onChange, placeholder, ariaLabel, rows = 3 }: {
   value: string; onChange: (v: string) => void; placeholder?: string; ariaLabel: string; rows?: number;
 }) {
   return (
-    <div className="row xs-row xs-textrow">
+    <div className="row xs-row xs-textrow" onClick={tapField}>
       <textarea className="xs-input xs-textarea" rows={rows} placeholder={placeholder} aria-label={ariaLabel} value={value}
         onChange={(e) => onChange(e.target.value)} />
     </div>

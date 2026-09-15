@@ -1,4 +1,5 @@
 import type { ThirdPracticeOffer } from "../thirdPractice";
+import { pressable } from "../../shared/pressable";
 import { weekdayShortDate } from "../../shared/dateFormat";
 
 // THE THIRD PRACTICE (Part 2, rank #1). One day, more than one sport
@@ -29,12 +30,13 @@ export default function ThirdPracticeScreen({ offers, onProtectGap, onBack }: {
       ) : (
         <div className="pad-x"><div className="card list-card-ruled">
           {offers.map((o, i) => (
-            <div className="row" key={i}>
+            // Row tap (Dave 2026-09-15): the offer row takes its offer, Protect a Gap.
+            <div className="row" key={i} {...pressable(() => onProtectGap(o))}>
               <div className="row-grow">
                 <div className="conn-name">{weekdayShortDate(o.fact.date)}</div>
                 <div className="bp-sub">{o.fact.orgs.join(" · ")}</div>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => onProtectGap(o)}>Protect a Gap</button>
+              <button className="btn btn-secondary btn-sm" onClick={(ev) => { ev.stopPropagation(); onProtectGap(o); }}>Protect a Gap</button>
             </div>
           ))}
         </div></div>

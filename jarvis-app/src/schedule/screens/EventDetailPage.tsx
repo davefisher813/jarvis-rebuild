@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent as RKeyboardEvent } from "react";
 import type { EventItem } from "../types";
 import { fmtTime } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
-import { pressable } from "../../shared/pressable";
+import { pressable, onPressKey } from "../../shared/pressable";
 import { CalendarDays, ListChecks, StickyNote, User, Tag } from "../../shared/icons";
 import Provenance from "../../shared/ProvenanceLine";
 import { rowSource } from "../../shared/provenance";
@@ -58,6 +58,7 @@ export default function EventDetailPage({
   const date = occurrence ?? e.date;
   const tone = "cat-fg-" + catColor(e.category ?? "");
   const [adding, setAdding] = useState(false);
+  const stepTap = (id: string) => (onOpenStep ? onOpenStep(id) : onToggleStep?.(id));
   const open = steps.filter((s) => !s.done).length;
   const when = (() => {
     const d = new Date(date + "T00:00:00");
@@ -100,17 +101,23 @@ export default function EventDetailPage({
       </div>
       <div className="pad-x"><div className="card list-card-ruled">
         {steps.map((s) => (
-          <div className="row" key={s.id}>
+          // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+          // clickable"). The row opens the task where there is a route to it,
+          // and otherwise ticks it, the one reversible verb a checklist row has.
+          <div className="row" key={s.id} role="button" tabIndex={0}
+            aria-label={(onOpenStep ? "Open " : s.done ? "Mark not done: " : "Mark done: ") + s.text}
+            onClick={() => stepTap(s.id)}
+            onKeyDown={(e: RKeyboardEvent) => { if (e.target === e.currentTarget) onPressKey(() => stepTap(s.id))(e); }}>
             <div
               className="task-check-tap"
               role="checkbox"
               aria-checked={s.done}
               aria-label={s.done ? "Mark not done" : "Mark done"}
-              onClick={() => onToggleStep?.(s.id)}
+              onClick={(e) => { e.stopPropagation(); onToggleStep?.(s.id); }}
             >
               <div className={"task-check" + (s.done ? " done" : "")} />
             </div>
-            <div className="row-grow" {...(onOpenStep ? pressable(() => onOpenStep(s.id)) : {})}>
+            <div className="row-grow">
               <div className={"conn-name" + (s.done ? " pick-done" : "")}>{s.text}</div>
             </div>
           </div>

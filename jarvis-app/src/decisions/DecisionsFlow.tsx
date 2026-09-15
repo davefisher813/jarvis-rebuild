@@ -91,6 +91,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
   const [editing, setEditing] = useState(false);
   const [armedDelete, setArmedDelete] = useState(false);
   const [revisitOpen, setRevisitOpen] = useState(false);
+  const revisitRef = useRef<HTMLInputElement>(null);
 
   const reload = useCallback(async () => {
     const [rows, everything] = await Promise.all([svc.list(), svc.listAll()]);
@@ -319,9 +320,11 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
             <>
               <div className="sh2 sh2-quiet"><span className="t">Revisit</span></div>
               <div className="pad-x"><div className="card">
-                <div className="row">
+                {/* Row tap (Dave 2026-09-15, "I want all rows clickable"): the
+                    whole line opens the date, as its chip does. */}
+                <div className="row" {...pressable(() => setRevisitOpen(!revisitOpen))}>
                   <div className="row-grow"><div className="conn-name">Shows on Today</div></div>
-                  <div {...pressable(() => setRevisitOpen(!revisitOpen))} className="chip">
+                  <div {...pressable(() => setRevisitOpen(!revisitOpen))} onClick={(ev) => { ev.stopPropagation(); setRevisitOpen(!revisitOpen); }} className="chip">
                     {d.revisitOn ? fmtDay(d.revisitOn) : "No Date"}
                   </div>
                 </div>
@@ -329,10 +332,11 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                   <div className="row"><div className="row-stack"><div className="conn-meta"><span className="fact-good">Still good</span> · Confirmed {fmtDay(d.confirmedAt)}</div></div></div>
                 )}
                 {revisitOpen && (
-                  <div className="row">
-                    <input type="date" className="input" value={d.revisitOn ?? ""}
+                  // Row tap (Dave 2026-09-15): the form row focuses its date field.
+                  <div className="row" onClick={(ev) => { if (ev.target === ev.currentTarget) revisitRef.current?.focus(); }}>
+                    <input ref={revisitRef} type="date" className="input" value={d.revisitOn ?? ""}
                       onChange={(e) => { void patch(record.id, { revisitOn: e.target.value || undefined }); setRevisitOpen(false); }} />
-                    {d.revisitOn && <div {...pressable(() => { void patch(record.id, { revisitOn: undefined }); setRevisitOpen(false); })} className="chip">Clear</div>}
+                    {d.revisitOn && <div {...pressable(() => { void patch(record.id, { revisitOn: undefined }); setRevisitOpen(false); })} onClick={(ev) => { ev.stopPropagation(); void patch(record.id, { revisitOn: undefined }); setRevisitOpen(false); }} className="chip">Clear</div>}
                   </div>
                 )}
               </div></div>
@@ -376,6 +380,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                     {d.outcome && <div className="conn-meta">Marked {fmtDay(d.outcome.at)}</div>}
                   </div>
                 </div>
+                {/* row-tap: the three outcome capsules fill this line; it is a verb strip, not an item */}
                 <div className="row dec-outcome-acts">
                   {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
                     <button type="button" key={w} className={"pill-act" + (d.outcome?.word === w ? " on" : "")} aria-pressed={d.outcome?.word === w} onClick={() => void markOutcome(record, w)}>{OUTCOME_LABEL[w]}</button>

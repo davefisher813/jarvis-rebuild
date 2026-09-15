@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { emit } from "../events";
+import { rowDoor, own } from "../shared/rowDoor";
 
 // OTHER GOOD CHOICES (C-24, Astra pass 2026-09-12).
 //
@@ -40,12 +41,15 @@ export default function OtherChoicesSheet({
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Other Good Choices</div></div>
         {choices.map((c) => (
-          <div className="row" key={c.id}>
-            <div className="row-stack" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={() => onOpen?.(c.id)}>
+          // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+          // clickable"). Only the words used to open the task; the row does
+          // now, and falls back to Start when there is nothing to open.
+          <div className="row" key={c.id} {...rowDoor(() => (onOpen ? onOpen(c.id) : start(c.id)))}>
+            <div className="row-stack">
               <div className="conn-name truncate">{c.text}</div>
               {c.facts && <div className="facts"><span className="fact">{c.facts}</span></div>}
             </div>
-            <button className="pill-act" onClick={() => start(c.id)}>Start</button>
+            <button className="pill-act" onClick={own(() => start(c.id))}>Start</button>
           </div>
         ))}
         <div className="sheet-form">

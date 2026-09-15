@@ -109,4 +109,13 @@ describe("the windows editor", () => {
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![1]).toBe(true);
   });
+  // Dave 2026-09-15: "I want all rows clickable".
+  it("tapping the Same on Every Device row flips it, and its pill flips it once", () => {
+    const onSave = vi.fn();
+    render(<WindowsSheet initial={DEFAULT_WINDOWS} onSave={onSave} onClose={() => {}} />);
+    fireEvent.click(screen.getByText("Same on Every Device"));
+    expect(screen.getByText("On · Rides the mail mirror")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Turn Off"));
+    expect(screen.getByText("Off · These windows stay on this device")).toBeInTheDocument();
+  });
 });

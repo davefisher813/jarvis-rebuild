@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { onPressKey } from "../../shared/pressable";
 import { createPortal } from "react-dom";
 import type { AIService } from "../../ai/AIService";
 import { buildVisionMessage } from "../../ai/AIService";
@@ -259,8 +260,13 @@ export default function ScheduleUploadFlow({
           )}
           <div className="pad-x"><div className="card list-card-ruled">
             {rows.map((r, i) => (
-              <div className="row" key={r.key}>
-                <div className="row-grow" role="button" tabIndex={0} onClick={() => setFixIdx(i)}>
+              // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+              // clickable"): the row opens the fix sheet; Repeats and Skip keep
+              // their own taps.
+              <div className="row" key={r.key} role="button" tabIndex={0} aria-label={"Fix " + r.title}
+                onClick={() => setFixIdx(i)}
+                onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => setFixIdx(i))(e); }}>
+                <div className="row-grow">
                   <div className={"conn-name truncate" + (r.skip ? " upload-row-skipped" : "")}>{r.title}</div>
                   <div className="conn-meta">
                     {weekdayShortDate(r.date)} · {r.noTime ? "No time found" : fmtRange(r.start, r.end)}
@@ -274,10 +280,10 @@ export default function ScheduleUploadFlow({
                   type="button"
                   className={"note-fix" + (r.recurrence === "weekly" ? " on" : "")}
                   aria-pressed={r.recurrence === "weekly"}
-                  onClick={() => toggleRepeat(i)}
+                  onClick={(e) => { e.stopPropagation(); toggleRepeat(i); }}
                 >{r.recurrence === "weekly" ? "Repeats" : "Once"}</button>
                 {CHEV}
-                <button type="button" className="note-fix" onClick={() => toggleSkip(i)}>{r.skip ? "Skipped" : "Skip"}</button>
+                <button type="button" className="note-fix" onClick={(e) => { e.stopPropagation(); toggleSkip(i); }}>{r.skip ? "Skipped" : "Skip"}</button>
               </div>
             ))}
           </div></div>

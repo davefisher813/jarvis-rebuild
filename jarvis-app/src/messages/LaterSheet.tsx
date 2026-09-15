@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { addDays } from "../schedule/calendar";
+import { rowDoor } from "../shared/rowDoor";
 
 // LATER, TO A DAY (E-28, Email Build Master 2026-09-12, Push H).
 //
@@ -14,6 +15,13 @@ import { addDays } from "../schedule/calendar";
 
 export const TONIGHT_HHMM = "18:00";
 
+/** Focus the date field and, where the platform has one, open its picker. */
+export function openPicker(el: HTMLInputElement | null) {
+  if (!el) return;
+  el.focus();
+  try { el.showPicker?.(); } catch { /* not allowed here: focus is enough */ }
+}
+
 export interface LaterPick { due: string; when: "tonight" | "tomorrow" | "day" }
 
 export default function LaterSheet({ who, today, onPick, onClose }: {
@@ -24,6 +32,7 @@ export default function LaterSheet({ who, today, onPick, onClose }: {
 }) {
   const [picking, setPicking] = useState(false);
   const [day, setDay] = useState(addDays(today, 2));
+  const dayRef = useRef<HTMLInputElement>(null);
   return createPortal(
     <div className="sheet-scrim" onClick={onClose}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
@@ -33,22 +42,23 @@ export default function LaterSheet({ who, today, onPick, onClose }: {
           <div className="p3-q">{"Come back to " + who}</div>
           <div className="plan-sub">A task, on the day you pick. The mail stays where it is.</div>
           <div className="list-flat">
-            <div className="row" role="button" tabIndex={0} onClick={() => onPick({ due: today, when: "tonight" })}>
+            <div className="row" {...rowDoor(() => onPick({ due: today, when: "tonight" }))}>
               <div className="row-grow"><div className="conn-name">Tonight</div><div className="conn-meta">Back on Today at 6 PM</div></div>
               <div className="chev" />
             </div>
-            <div className="row" role="button" tabIndex={0} onClick={() => onPick({ due: addDays(today, 1), when: "tomorrow" })}>
+            <div className="row" {...rowDoor(() => onPick({ due: addDays(today, 1), when: "tomorrow" }))}>
               <div className="row-grow"><div className="conn-name">Tomorrow</div></div>
               <div className="chev" />
             </div>
             {picking ? (
-              <div className="row later-day">
+              // Row tap opens the date field (Dave 2026-09-15: "I want all rows clickable").
+              <div className="row later-day" {...rowDoor(() => openPicker(dayRef.current))}>
                 <div className="row-grow"><div className="conn-name">Pick a Day</div></div>
-                <input type="date" className="xs-input" aria-label="Day" min={today} value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
-                <button type="button" className="pill-act" onClick={() => onPick({ due: day, when: "day" })}>Save</button>
+                <input ref={dayRef} type="date" className="xs-input" aria-label="Day" min={today} value={day} onClick={(e) => e.stopPropagation()} onChange={(e) => e.target.value && setDay(e.target.value)} />
+                <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onPick({ due: day, when: "day" }); }}>Save</button>
               </div>
             ) : (
-              <div className="row" role="button" tabIndex={0} onClick={() => setPicking(true)}>
+              <div className="row" {...rowDoor(() => setPicking(true))}>
                 <div className="row-grow"><div className="conn-name">Pick a Day</div></div>
                 <div className="chev" />
               </div>

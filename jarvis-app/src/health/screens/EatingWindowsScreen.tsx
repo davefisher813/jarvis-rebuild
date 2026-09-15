@@ -1,4 +1,5 @@
 import type { EatingWindowOffer } from "../eatingWindows";
+import { pressable } from "../../shared/pressable";
 
 // EATING WINDOWS (Part 3). Scans tomorrow for gaps too tight for a meal and
 // offers a schedule action. No nutrition content anywhere on this screen.
@@ -27,12 +28,13 @@ export default function EatingWindowsScreen({ offers, onTakeOffer, onBack }: {
       ) : (
         <div className="pad-x"><div className="card list-card-ruled">
           {offers.map((o, i) => (
-            <div className="row" key={i}>
+            // Row tap (Dave 2026-09-15): the offer row takes its offer, Pack It.
+            <div className="row" key={i} {...pressable(() => onTakeOffer(o))}>
               <div className="row-grow">
                 <div className="conn-name">{o.line}</div>
                 <div className="bp-sub">{o.gap.minutes} Minutes</div>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => onTakeOffer(o)}>Pack It</button>
+              <button className="btn btn-secondary btn-sm" onClick={(ev) => { ev.stopPropagation(); onTakeOffer(o); }}>Pack It</button>
             </div>
           ))}
         </div></div>

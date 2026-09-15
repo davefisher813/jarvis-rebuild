@@ -62,6 +62,9 @@ import { recordSpot } from "../restore/whereYouWere";
 import { ENTITY_EVENT } from "./types";
 import { ENTITY_TASK } from "../notes/types";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEventMove } from "./eventMoves";
+import TaskSheet, { type TaskDraft } from "../tasks/screens/TaskSheet";
+import { sheetEvents } from "./sheetEvents";
+import type { Recurrence } from "../notes/types";
 
 // SCHED-F-03 (2026-09-05): an edit is of ONE OCCURRENCE, so the sheet state
 // carries which day was tapped. Without it "This Event" split the day that
@@ -885,6 +888,47 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   };
 
   const onToggleTask = async (id: string) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reloadTasks(); };
+
+  // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows clickable.
+  // How is the first thing that renders on the app not clickable?"). An
+  // Anytime row opens its task in the SAME TaskSheet Today and the Tasks tab
+  // open, loading and saving the same fields (B1-4), so nothing set elsewhere
+  // vanishes when the task is edited from here. Drop stays the schedule verb.
+  const [taskSheet, setTaskSheet] = useState<{ id: string; initial: TaskDraft } | null>(null);
+  const onOpenTask = async (id: string) => {
+    const t = await tasksSvc.task(id);
+    if (t) setTaskSheet({ id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin } });
+  };
+  const onSaveTask = async (draft: TaskDraft) => {
+    if (taskSheet) {
+      const id = taskSheet.id;
+      const rec = (draft.repeat || "") as "" | Recurrence;
+      await attemptWrite(async () => {
+        await tasksSvc.editText(id, draft.text);
+        await tasksSvc.setCategories(id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
+        await tasksSvc.setDue(id, draft.due || null);
+        await tasksSvc.setProject(id, draft.projectId ?? null);
+        await tasksSvc.setEvent(id, draft.eventId ?? null);
+        await tasksSvc.setRecurrence(id, rec || null);
+        await tasksSvc.setPlan(id, draft.plan ?? null);
+        await tasksSvc.setSteps(id, draft.steps ?? []);
+        await tasksSvc.setEstimate(id, draft.estimateMin ?? null);
+        if (draft.closeNow) await tasksSvc.toggleDone(id);
+      });
+    }
+    setTaskSheet(null);
+    await reloadTasks();
+  };
+  const onDeleteTask = async () => {
+    if (!taskSheet) return;
+    const id = taskSheet.id;
+    const t = await tasksSvc.task(id);
+    setTaskSheet(null);
+    const ok = await attemptWrite(() => tasksSvc.deleteTask(id));
+    await reloadTasks();
+    // Back under its own id (LIFE-F-15), so note links hold.
+    if (ok && t) showToast({ message: "Task deleted", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasksSvc.recreateFrom(t, id)); await reloadTasks(); } });
+  };
   // EVENTS ARE FIRST-CLASS (2026-09-09): a task added from an event's own page
   // is FILED to it (eventId), born in the event's area, and due on the day it
   // has to be ready for. Those three are what make it the event's task rather
@@ -1423,10 +1467,24 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
         parentOf={(t) => parentForTask(parentIdx, t)}
         onToggleTask={onToggleTask}
         onScheduleTask={onScheduleTask}
+        onOpenTask={(id) => void onOpenTask(id)}
         attachMap={attachMap}
         firstMoveMap={firstMoveMap}
         blendMap={blendMap}
       />
+      {taskSheet && (
+        <TaskSheet
+          events={sheetEvents(allEvents, today)}
+          mode="edit"
+          initial={taskSheet.initial}
+          selfId={taskSheet.id}
+          categories={categories}
+          onSave={onSaveTask}
+          onDelete={() => void onDeleteTask()}
+          onSchedule={() => { const id = taskSheet.id; setTaskSheet(null); void onScheduleTask(id); }}
+          onCancel={() => setTaskSheet(null)}
+        />
+      )}
       {fixing && (
         <OverlapSheet
           overlap={fixing}

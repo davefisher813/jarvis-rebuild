@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useProfile, useCategories } from "../data/NotesProvider";
 import type { TemplateKey } from "../categories/defaults";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { Head, Card, Menu } from "./kit";
+import { Head, Card, Menu, focusField } from "./kit";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 
@@ -66,7 +66,7 @@ export default function ProfilePage({ onBack }: { onBack: () => void }) {
       <LargeTitleNav title="Profile" back="Account" onBack={onBack} />
       <Head label="You" />
       <Card>
-        <div className="row set-row">
+        <div className="row set-row" onClick={focusField}>
           <div className="conn-name">Name</div>
           <input className="set-field" aria-label="Name" placeholder="Your Name" value={name}
             onChange={(e) => { setName(e.target.value); setSaved(false); }} />

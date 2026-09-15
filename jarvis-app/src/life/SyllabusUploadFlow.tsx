@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { pressable } from "../shared/pressable";
 import { createPortal } from "react-dom";
 import type { AIService } from "../ai/AIService";
 import { buildVisionMessage } from "../ai/AIService";
@@ -199,13 +200,15 @@ export default function SyllabusUploadFlow({
         )}
         <div className="pad-x"><div className="card list-card-ruled">
           {rows.map((r, i) => (
-            <div className="row" key={r.key}>
+            // Row tap (Dave 2026-09-15, "I want all rows clickable"): nothing has
+            // saved yet, so the row keeps or skips its item, as Skip does.
+            <div className="row" key={r.key} {...pressable(() => toggleSkip(i))}>
               <div className="row-grow">
                 <div className={"conn-name truncate" + (r.skip ? " upload-row-skipped" : "")}>{r.title}</div>
                 <div className="conn-meta">{rowLine(r, weekdayShortDate)}</div>
               </div>
-              <button type="button" className="note-fix" onClick={() => toggleKind(i)}>{r.kind === "event" ? "Event" : "Task"}</button>
-              <button type="button" className="note-fix" onClick={() => toggleSkip(i)}>{r.skip ? "Skipped" : "Skip"}</button>
+              <button type="button" className="note-fix" onClick={(ev) => { ev.stopPropagation(); toggleKind(i); }}>{r.kind === "event" ? "Event" : "Task"}</button>
+              <button type="button" className="note-fix" onClick={(ev) => { ev.stopPropagation(); toggleSkip(i); }}>{r.skip ? "Skipped" : "Skip"}</button>
             </div>
           ))}
         </div></div>

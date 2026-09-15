@@ -214,12 +214,13 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                     );
                   })}
                   {asks.map((p) => (
+                    // row-tap: That's Right is a Brain identity write, and the locked agency law keeps those on an explicit tap of the pill
                     <div className="row strand-row" key={"ask:" + p.rule.id}>
                       <div className="row-grow">
                         <div className="conn-name">{p.text}</div>
                         <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{p.edits} edits</span></div>
                       </div>
-                      <button type="button" className="pill-act" onClick={() => void confirmProposal(p)}>That's Right</button>
+                      <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void confirmProposal(p); }}>That's Right</button>
                     </div>
                   ))}
                 </div>
@@ -238,6 +239,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
               <div className="pad-x"><div className="conn-meta">Nothing is off limits to the automation yet.</div></div>
             )}
             {lines.map((l, i) => (
+              // row-tap: hard-line rows are two words shown whole with nothing to open, and the only verb is Remove, which a row tap must never do
               <div className="row" key={l.kind + l.match}>
                 <div className="row-grow">
                   <div className="conn-name">{HARD_LINE_LABEL[l.kind]} · {l.match}</div>

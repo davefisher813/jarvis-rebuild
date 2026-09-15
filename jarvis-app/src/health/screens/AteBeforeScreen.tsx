@@ -1,4 +1,5 @@
 import { ateBeforeCountLine, type AteBeforeMark } from "../timelines";
+import { pressable } from "../../shared/pressable";
 
 export interface AteBeforeCandidate {
   eventId: string;
@@ -42,11 +43,13 @@ export default function AteBeforeScreen({
       ) : (
         <div className="pad-x"><div className="card list-card-ruled">
           {open.map((c) => (
-            <div className="row" key={c.eventId}>
+            // Row tap (Dave 2026-09-15, "I want all rows clickable"): the row
+            // answers with its primary choice, Yes. No stays on its own button.
+            <div className="row" key={c.eventId} {...pressable(() => onMark(c, true))}>
               <div className="row-grow"><div className="conn-name truncate">{c.eventTitle}</div></div>
               <div className="ate-before-answer">
-                <button className="btn btn-secondary" onClick={() => onMark(c, false)}>No</button>
-                <button className="btn btn-primary" onClick={() => onMark(c, true)}>Yes</button>
+                <button className="btn btn-secondary" onClick={(ev) => { ev.stopPropagation(); onMark(c, false); }}>No</button>
+                <button className="btn btn-primary" onClick={(ev) => { ev.stopPropagation(); onMark(c, true); }}>Yes</button>
               </div>
             </div>
           ))}

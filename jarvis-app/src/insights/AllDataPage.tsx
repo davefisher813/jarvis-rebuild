@@ -91,9 +91,11 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
           <div className="sh2 sh2-quiet"><span className="t">{g.date === today ? "Today" : weekdayShortDate(g.date)}</span><span className="n">{g.rows.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {g.rows.map((r) => (
-              <div className="row h-log-row" key={r.id}>
+              // Row tap (Dave 2026-09-15, "I want all rows clickable"): the whole
+              // row opens the record, not only its words; Delete keeps its pill.
+              <div {...pressable(() => onOpen(r))} className="row h-log-row" key={r.id}>
                 <span className="h-log-ico ad-dot" data-hue={r.hue} aria-hidden="true"><i /></span>
-                <div {...pressable(() => onOpen(r))} className="row-grow">
+                <div className="row-grow">
                   <div className="conn-name">{r.title}</div>
                   <div className="facts">
                     <span className={"fact " + r.hue}>{clock(r.at)}</span>
@@ -103,8 +105,8 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
                   </div>
                 </div>
                 {deletable(r)
-                  ? <button type="button" className="pill-act pill-quiet" aria-label={`Delete ${r.title}`} onClick={() => onDelete(r)}>Delete</button>
-                  : <span {...pressable(() => onOpen(r))} aria-label={`Open ${r.title}`}>{CHEV}</span>}
+                  ? <button type="button" className="pill-act pill-quiet" aria-label={`Delete ${r.title}`} onClick={(ev) => { ev.stopPropagation(); onDelete(r); }}>Delete</button>
+                  : CHEV}
               </div>
             ))}
           </div></div>

@@ -20,6 +20,7 @@ export default function DoseTimeline({ doses, now = Date.now(), limit = 14, onUn
         {recent.map((d) => {
           const today = sameLocalDay(d.at, now);
           return (
+            // row-tap: logged doses are receipts shown whole with nothing to open, and the only verb is Undo, which a row tap must never do
             <div className="row" key={d.id}>
               <div className="row-grow">
                 <div className="conn-name">{d.name}</div>

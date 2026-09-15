@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as RKeyboardEvent } from "react";
+import { onPressKey } from "../shared/pressable";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
 import type { GoalReach } from "./reach";
@@ -169,6 +170,13 @@ export default function GoalDetailPage({
   const next = nextMilestone(goal.data.measure);
   const [addingMs, setAddingMs] = useState(false);
   const [msDraft, setMsDraft] = useState("");
+  const msInput = useRef<HTMLInputElement>(null);
+  // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+  // clickable"). A milestone has no page of its own, so its row does its one
+  // reversible verb, the tick; the key path only answers the row itself, so
+  // Enter on an inner control is that control's.
+  const tick = (id: string, done: boolean) => { haptics.selection(); onMilestoneDone?.(id, done); };
+  const rowKey = (fn: () => void) => (e: RKeyboardEvent) => { if (e.target === e.currentTarget) onPressKey(fn)(e); };
   const commitMs = () => { const v = msDraft.trim(); if (v && onAddMilestone) onAddMilestone(v); setMsDraft(""); setAddingMs(false); };
   // C-37: only where nothing can be measured and nothing is being worked.
   const askCheckin = !!onCheckin && health === "unmeasured" && !target && !goal.data.measure && !progress && reach.openTagged === 0
@@ -256,12 +264,13 @@ export default function GoalDetailPage({
             <>
               <div className="sh2 sh2-quiet"><span className="t">Next Milestone</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
-                <div className="row">
+                <div className="row" role="button" tabIndex={0} aria-label={"Mark " + next.text + " done"}
+                  onClick={() => tick(next.id, true)} onKeyDown={rowKey(() => tick(next.id, true))}>
                   <div className="row-grow">
                     <div className="conn-name">{next.text}</div>
                     <div className="facts"><span className="fact sky">Up Next</span></div>
                   </div>
-                  {onMilestoneDone && <button type="button" className="pill-act" onClick={() => onMilestoneDone(next.id, true)}>Done</button>}
+                  {onMilestoneDone && <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onMilestoneDone(next.id, true); }}>Done</button>}
                 </div>
               </div></div>
             </>
@@ -269,13 +278,15 @@ export default function GoalDetailPage({
           <div className="sh2 sh2-quiet"><span className="t">Milestones</span>{milestones.length > 0 && <span className="n">{milestones.length}</span>}</div>
           <div className="pad-x"><div className="card list-card-ruled">
             {milestones.map((m) => (
-              <div className={"task-row p2 ms-row" + (m.done ? " completed" : "")} key={m.id}>
+              <div className={"task-row p2 ms-row" + (m.done ? " completed" : "")} key={m.id}
+                role="button" tabIndex={0} aria-label={(m.done ? "Mark not done: " : "Mark done: ") + m.text}
+                onClick={() => tick(m.id, !m.done)} onKeyDown={rowKey(() => tick(m.id, !m.done))}>
                 <div
                   className="task-check-tap"
                   role="checkbox"
                   aria-checked={!!m.done}
                   aria-label={m.done ? "Mark not done" : "Mark done"}
-                  onClick={() => { haptics.selection(); onMilestoneDone?.(m.id, !m.done); }}
+                  onClick={(e) => { e.stopPropagation(); tick(m.id, !m.done); }}
                 >
                   <div className={"task-check" + (m.done ? " done" : "")} />
                 </div>
@@ -289,8 +300,8 @@ export default function GoalDetailPage({
               <div className="row"><div className="row-grow"><div className="conn-meta">No milestones yet</div></div></div>
             )}
             {addingMs && onAddMilestone && (
-              <div className="row">
-                <input className="input" placeholder="The next step · Enter adds" value={msDraft} autoFocus
+              <div className="row" onClick={() => msInput.current?.focus()}>
+                <input ref={msInput} className="input" placeholder="The next step · Enter adds" value={msDraft} autoFocus
                   onChange={(e) => setMsDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitMs(); } if (e.key === "Escape") { setAddingMs(false); setMsDraft(""); } }}
                   onBlur={commitMs} />
@@ -379,9 +390,10 @@ export default function GoalDetailPage({
             <button className="see-all pill-action" aria-label="Dismiss suggestion" onClick={() => onDismissSuggestion(suggestion.id)}>Dismiss</button>
           </div>
           <div className="pad-x"><div className="card list-card-ruled">
-            <div className="suggestion-row">
+            <div className="suggestion-row" role="button" tabIndex={0} aria-label={"Open " + suggestion.data.title}
+              onClick={() => onOpenProject(suggestion.id)} onKeyDown={rowKey(() => onOpenProject(suggestion.id))}>
               <div className="sug-title">&ldquo;{suggestion.data.title}&rdquo;</div>
-              <button className="btn-sm" onClick={() => onLinkSuggestion(suggestion.id)}>Link</button>
+              <button className="btn-sm" onClick={(e) => { e.stopPropagation(); onLinkSuggestion(suggestion.id); }}>Link</button>
             </div>
           </div></div>
         </>

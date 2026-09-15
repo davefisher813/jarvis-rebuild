@@ -65,13 +65,15 @@ export default function MealScreen({ today, recent = [], onLog, onUndo, onBack }
           <div className="sh2 sh2-quiet"><span className="t">Today</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {rows.map((m) => (
-              <div className="row" key={m.id}>
+              // Row tap (Dave 2026-09-15): a logged meal fills the field above, the
+              // same as a recent meal chip. Undo stays on its own pill.
+              <div className="row" key={m.id} {...pressable(() => { setText(m.data.text); setLogged(false); })}>
                 <div className="row-grow">
                   <div className="conn-name">{m.data.text}</div>
                   <div className="facts"><span className="fact amber">{clockOf(m.data.at)}</span></div>
                 </div>
                 {onUndo && !m.pending && (
-                  <button type="button" className="pill-act pill-quiet" onClick={() => onUndo(m)} aria-label={"Undo " + m.data.text}>Undo</button>
+                  <button type="button" className="pill-act pill-quiet" onClick={(ev) => { ev.stopPropagation(); onUndo(m); }} aria-label={"Undo " + m.data.text}>Undo</button>
                 )}
               </div>
             ))}

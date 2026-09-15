@@ -24,6 +24,7 @@ import { connIcon, type Conn } from "./Connections";
 import { capAfterNumber } from "../../shared/casing";
 import { useFileUrl } from "../../files/useFileUrl";
 import type { FileStore } from "../../files/FileStore";
+import { pressable } from "../../shared/pressable";
 
 // THE NOTE SCREEN (the writing system, 2026-09-14).
 //
@@ -200,22 +201,29 @@ function FindBar({ editor, onClose }: { editor: DocEditorHandle | null; onClose:
   const [repl, setRepl] = useState("");
   const [, setTick] = useState(0);
   const bump = () => setTick((t) => t + 1);
+  const findRef = useRef<HTMLInputElement>(null);
+  const replRef = useRef<HTMLInputElement>(null);
+  // Row tap (Dave 2026-09-15, "I want all rows clickable"): a tap on the
+  // line's bare ground focuses its field; its own controls keep their taps.
+  const focusOn = (ref: { current: HTMLInputElement | null }) => (e: { target: EventTarget }) => {
+    if (!(e.target instanceof Element) || !e.target.closest("button, input")) ref.current?.focus();
+  };
   const s = editor?.search() ?? { query: "", matches: [], index: 0 };
   const count = s.matches.length;
   useEffect(() => { editor?.setSearch(query); bump(); }, [query, editor]);
   useEffect(() => () => { editor?.setSearch(""); }, [editor]);
   return (
     <div className="doc-find" role="search" aria-label="Find in note">
-      <div className="doc-find-row">
-        <input className="input" aria-label="Find" placeholder="Find" value={query} autoFocus onChange={(e) => setQuery(e.target.value)}
+      <div className="doc-find-row" onClick={focusOn(findRef)}>
+        <input ref={findRef} className="input" aria-label="Find" placeholder="Find" value={query} autoFocus onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); editor?.stepSearch(e.shiftKey ? -1 : 1); bump(); } }} />
         <span className="doc-find-n" aria-live="polite">{query ? (count === 0 ? "None" : (s.index + 1) + " of " + count) : ""}</span>
         <button type="button" className="pill-act pill-quiet" aria-label="Previous match" disabled={count === 0} onClick={() => { editor?.stepSearch(-1); bump(); }}><ArrowUp className="ic" /></button>
         <button type="button" className="pill-act pill-quiet" aria-label="Next match" disabled={count === 0} onClick={() => { editor?.stepSearch(1); bump(); }}><ArrowDown className="ic" /></button>
         <button type="button" className="pill-act pill-quiet" aria-label="Close find" onClick={onClose}><X className="ic" /></button>
       </div>
-      <div className="doc-find-row">
-        <input className="input" aria-label="Replace with" placeholder="Replace With" value={repl} onChange={(e) => setRepl(e.target.value)} />
+      <div className="doc-find-row" onClick={focusOn(replRef)}>
+        <input ref={replRef} className="input" aria-label="Replace with" placeholder="Replace With" value={repl} onChange={(e) => setRepl(e.target.value)} />
         <button type="button" className="pill-act pill-quiet" disabled={count === 0} onClick={() => { editor?.replaceCurrent(repl); bump(); }}>Replace</button>
         <button type="button" className="pill-act pill-quiet" disabled={count === 0} onClick={() => { const n = editor?.replaceAll(repl) ?? 0; bump(); if (n) showToast({ message: capAfterNumber(n === 1 ? "1 replaced" : n + " replaced") }); }}>Replace All</button>
       </div>
@@ -324,6 +332,10 @@ export default function NoteEditor({
   const editorRef = useRef<DocEditorHandle>(null);
   const aiStale = !!aiRun && editorRef.current?.textAt(aiRun.from, aiRun.to) !== aiRun.text;
   const foundLive = (found ?? []).map((c, i) => ({ c, i })).filter(({ c }) => !c.added);
+  const foundVerb = (kind: FoundCandidate["kind"], i: number): (() => void) | null => {
+    if (kind === "task" || kind === "decision") return onFoundAdd ? () => onFoundAdd(i) : null;
+    return onFoundLink ? () => onFoundLink(i) : null;
+  };
   const words = docWordCount(note.doc);
   const hasChecklist = (note.doc.content ?? []).some((n) => n.type === "taskList");
   const liveDoc = (): Doc => editorRef.current?.getDoc() ?? note.doc;
@@ -516,7 +528,9 @@ export default function NoteEditor({
           <div className="sh2 sh2-quiet"><span className="t">JARVIS Found</span><span className="n">{foundLive.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {foundLive.map(({ c, i }) => (
-              <div className="row" key={c.kind + ":" + i}>
+              // Row tap (Dave 2026-09-15): nothing exists to open until it is
+              // added or linked, so the row does its pill's verb.
+              <div className="row" key={c.kind + ":" + i} {...(foundVerb(c.kind, i) ? pressable(foundVerb(c.kind, i)!) : {})}>
                 <div className={"proj-icon " + connIcon(c.kind === "decision" ? "decision" : c.kind).cls}>{connIcon(c.kind === "decision" ? "decision" : c.kind).node}</div>
                 <div className="row-grow">
                   <div className="conn-name">{c.text}</div>
@@ -526,8 +540,8 @@ export default function NoteEditor({
                   </div>
                 </div>
                 {(c.kind === "task" || c.kind === "decision")
-                  ? (onFoundAdd && <button type="button" className="pill-act" onClick={() => onFoundAdd(i)}>Add</button>)
-                  : (onFoundLink && <button type="button" className="pill-act" onClick={() => onFoundLink(i)}>Link</button>)}
+                  ? (onFoundAdd && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onFoundAdd(i); }}>Add</button>)
+                  : (onFoundLink && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onFoundLink(i); }}>Link</button>)}
               </div>
             ))}
           </div></div>

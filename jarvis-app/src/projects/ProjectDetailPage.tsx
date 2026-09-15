@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, type KeyboardEvent as RKeyboardEvent } from "react";
+import { onPressKey } from "../shared/pressable";
 import { PROJECT_META, type Project, type ProjectData } from "./types";
 import { catColor, catName } from "../shared/categories";
 import { useOptionalDecisions, useOptionalProjects, useOptionalGoals, useOptionalCategories } from "../data/NotesProvider";
@@ -106,6 +107,16 @@ export default function ProjectDetailPage({
   const [doneOpen, setDoneOpen] = useState(false);
   const openSteps = steps.filter((t) => !t.done);
   const doneSteps = steps.filter((t) => t.done);
+  // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+  // clickable"). A task row opens the task; only the ring completes it. Keys
+  // answer the row itself, so Space on the ring stays the ring's.
+  const stepDoor = (id: string, text: string) => onOpenStep ? {
+    role: "button" as const,
+    tabIndex: 0,
+    "aria-label": "Open " + text,
+    onClick: () => onOpenStep(id),
+    onKeyDown: (e: RKeyboardEvent) => { if (e.target === e.currentTarget) onPressKey(() => onOpenStep(id))(e); },
+  } : {};
   // UP-CORE-18: N left, D days, is the pace real. Null without a due date or
   // without tasks, which is most projects.
   const pace = today ? projectPace(steps.length ? { done: doneSteps.length, total: steps.length, pct: 0 } : null, data.due, today) : null;
@@ -232,18 +243,17 @@ export default function ProjectDetailPage({
             {openSteps.map((t) => {
               const dist = today && t.due ? distanceFor({ text: t.text, done: false, due: t.due, category: t.category ?? data.category ?? "" }, today) : null;
               return (
-                <div className="task-row p2 proj-step" key={t.id}>
+                <div className="task-row p2 proj-step" key={t.id} {...stepDoor(t.id, t.text)}>
                   <div
                     className="task-check-tap"
                     role="checkbox"
                     aria-checked={false}
                     aria-label="Mark done"
-                    onClick={() => { haptics.selection(); onToggleStep?.(t.id); }}
+                    onClick={(e) => { e.stopPropagation(); haptics.selection(); onToggleStep?.(t.id); }}
                   >
                     <div className={"task-check " + (hasCat ? "cat-bd-" + catColor(data.category!) : "cat-bd-graphite")} />
                   </div>
-                  <div className="task-title" role={onOpenStep ? "button" : undefined} tabIndex={onOpenStep ? 0 : undefined}
-                    onClick={onOpenStep ? () => onOpenStep(t.id) : undefined}>
+                  <div className="task-title">
                     <span className="task-name">{t.text}</span>
                     {t.due && (
                       <div className="r-k">
@@ -275,9 +285,9 @@ export default function ProjectDetailPage({
               {doneOpen && (
                 <div className="card list-card-ruled">
                   {doneSteps.map((t) => (
-                    <div className="task-row p2 proj-step completed" key={t.id}>
+                    <div className="task-row p2 proj-step completed" key={t.id} {...stepDoor(t.id, t.text)}>
                       <div className="task-check-tap" role="checkbox" aria-checked aria-label="Mark not done"
-                        onClick={() => { haptics.selection(); onToggleStep?.(t.id); }}>
+                        onClick={(e) => { e.stopPropagation(); haptics.selection(); onToggleStep?.(t.id); }}>
                         <div className="task-check done" />
                       </div>
                       <div className="task-title"><span className="task-name">{t.text}</span></div>

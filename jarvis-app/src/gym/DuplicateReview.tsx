@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import SheetBar from "../shared/SheetBar";
 import { pressable } from "../shared/pressable";
+import { own, rowDoor } from "../shared/rowDoor";
 import { shortDate } from "../shared/dateFormat";
 import { pairId, type DuplicatePair } from "./duplicates";
 import { classConflicts, identityLine, valueLine, type Classification } from "./classify";
@@ -124,7 +125,10 @@ export function MergeReviewSheet({ state, onSwap, onTake, onMerge, onCancel }: {
                 {conflicts.map((k) => {
                   const taken = state.take.includes(k.field);
                   return (
-                    <div className="row" key={k.field}>
+                    // The row answers the conflict the same way its pill does
+                    // (Dave 2026-09-15: "I want all rows clickable"); nothing is
+                    // written until Merge.
+                    <div className="row" key={k.field} {...(pending ? {} : rowDoor(() => onTake(k.field)))}>
                       <div className="row-grow">
                         <div className="conn-name">{k.label}</div>
                         <div className="facts">
@@ -132,7 +136,7 @@ export function MergeReviewSheet({ state, onSwap, onTake, onMerge, onCancel }: {
                           <span className={"fact" + (taken ? " lime" : "")}>{k.fold}</span>
                         </div>
                       </div>
-                      <button type="button" className="pill-act" disabled={pending} onClick={() => onTake(k.field)}>
+                      <button type="button" className="pill-act" disabled={pending} onClick={own(() => onTake(k.field))}>
                         {taken ? `Use ${plan.keep.row.name}` : `Use ${plan.fold.row.name}`}
                       </button>
                     </div>
@@ -194,7 +198,10 @@ export function DuplicatesSheet({ pairs, sideOf, onReview, onKeepSeparate, onClo
                 // thing, said before the suggestion rather than after it.
                 const differs = ea && eb && ea !== eb;
                 return (
-                  <div className="row dup-row" key={id}>
+                  // The row opens the merge review, which writes nothing until
+                  // its own Merge (Dave 2026-09-15: "I want all rows clickable").
+                  // Keep Separate stays button-only.
+                  <div className="row dup-row" key={id} {...rowDoor(() => onReview(d))}>
                     <div className="row-grow">
                       <div className="dup-name">{d.fold.name}</div>
                       <div className="dup-name">{d.keep.name}</div>
@@ -208,8 +215,8 @@ export function DuplicatesSheet({ pairs, sideOf, onReview, onKeepSeparate, onClo
                         {d.keep.firstDate && <span className="fact cyan">{`${d.keep.name} from ${shortDate(d.keep.firstDate)}`}</span>}
                       </div>
                       <div className="btn-row">
-                        <button type="button" className="btn btn-secondary" onClick={() => onReview(d)}>Review Merge</button>
-                        <button type="button" className="btn btn-tertiary" onClick={() => onKeepSeparate(id)}>Keep Separate</button>
+                        <button type="button" className="btn btn-secondary" onClick={own(() => onReview(d))}>Review Merge</button>
+                        <button type="button" className="btn btn-tertiary" onClick={own(() => onKeepSeparate(id))}>Keep Separate</button>
                       </div>
                     </div>
                   </div>

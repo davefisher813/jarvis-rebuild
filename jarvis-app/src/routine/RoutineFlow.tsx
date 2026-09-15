@@ -320,12 +320,15 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
           <Head label="Learned Rhythms" count={rhythms.length} />
           <Card>
             {rhythms.map((s) => (
-              <div className="row" key={s.id}>
+              // Row tap (Dave 2026-09-15, "I want all rows clickable"): this page
+              // has no strand sheet, so the row does its pill's verb, which
+              // carries its own Undo.
+              <div className="row" key={s.id} {...pressable(() => void updateRoutine(s))}>
                 <div className="row-grow">
                   <div className="conn-name">{s.data.text}</div>
                   <div className="facts"><span className="fact">Watched</span><span className="fact">{rhythmFact(s)}</span></div>
                 </div>
-                <button type="button" className="pill-act" onClick={() => void updateRoutine(s)}>Update Routine</button>
+                <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void updateRoutine(s); }}>Update Routine</button>
               </div>
             ))}
           </Card>
@@ -430,7 +433,8 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
             </Group>
 
             <Group label="Flexible">
-              <div className="row xs-row">
+              {/* Row tap (Dave 2026-09-15): the row flips its switch. */}
+              <div className="row xs-row" onClick={() => setForm({ ...form, soft: !form.soft })}>
                 <div className="conn-name">Kept Clear When Possible</div>
                 <div
                   className={"switch" + (form.soft ? "" : " off")}
@@ -438,7 +442,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
                   aria-checked={form.soft}
                   aria-label="Flexible block"
                   tabIndex={0}
-                  onClick={() => setForm({ ...form, soft: !form.soft })}
+                  onClick={(e) => { e.stopPropagation(); setForm({ ...form, soft: !form.soft }); }}
                   onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setForm({ ...form, soft: !form.soft }); } }}
                 />
               </div>

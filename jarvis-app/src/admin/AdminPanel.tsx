@@ -3,6 +3,7 @@ import { ShieldAlert } from "../shared/icons";
 import { formatUSD } from "../ai/tokenLog";
 import type { AdminService, AdminUser, AdminUsage, AdminBilling, AdminFeedbackItem } from "./AdminService";
 import { pct, type AdminMetrics } from "./adminMetrics";
+import { pressable } from "../shared/pressable";
 
 // The master-account panel. Gated by isAdmin for UX; the real boundary is the
 // server (privileged endpoint + RLS). When the source is unavailable (no server
@@ -24,6 +25,10 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
   // of blanking the panel.
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Row tap (Dave 2026-09-15, "I want all rows clickable"): a user row has no
+  // page of its own and its one verb locks someone out, so the row expands to
+  // the account's details instead.
+  const [openUser, setOpenUser] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAdmin || !source.available) return;
@@ -194,12 +199,13 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
       ) : (
         <div className="pad-x"><div className="card">
           {users.map((u) => (
-            <div className="row" key={u.id}>
+            <div className="row" key={u.id} aria-expanded={openUser === u.id} {...pressable(() => setOpenUser(openUser === u.id ? null : u.id))}>
               <div className="row-grow">
                 <div className="conn-name">{u.email}{u.role === "admin" && <span className="adm-role">admin</span>}</div>
                 <div className="conn-meta">{u.plan} &middot; {u.status}</div>
+                {openUser === u.id && <div className="conn-meta">Joined {u.createdAt.slice(0, 10)} &middot; {u.id}</div>}
               </div>
-              <button className="chip" onClick={() => toggle(u)}>{u.status === "active" ? "Disable" : "Enable"}</button>
+              <button className="chip" onClick={(ev) => { ev.stopPropagation(); void toggle(u); }}>{u.status === "active" ? "Disable" : "Enable"}</button>
             </div>
           ))}
         </div></div>

@@ -557,6 +557,16 @@ export default function CategoryDetail({
     }
   };
 
+  // The gym block's Start and the paused banner's Wake Up, shared by each
+  // pill and the row that holds it.
+  const startGymFromBlock = () => { setGymStartDay(null); setGymOpen(true); };
+  const wakeUp = async () => {
+    const ok = await attemptWrite(() => catsSvc.update(categoryId, { season: undefined }));
+    if (!ok) return;
+    onChanged?.();
+    await reload();
+  };
+
   if (!cat) return <div className="screen" />;
   // reload() on the way back out, not just gymOpen's own workouts/programs
   // effect: a lift/training goal set from inside the gym (D12-A/C) writes
@@ -1473,7 +1483,9 @@ export default function CategoryDetail({
           const when = p.charAt(0).toUpperCase() + p.slice(1);
           const t = e.start ? fmtTime(e.start) : null;
           return (
-            <div className="sched-row" key={e.id}>
+            // Row tap (Dave 2026-09-15, "I want all rows clickable"): the gym
+            // block's row starts the session, as its Start pill does.
+            <div className="sched-row" key={e.id} {...(gymDoor?.id === e.id ? pressable(startGymFromBlock) : {})}>
               <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All day</span>}</div>
               <div className="sched-body">
                 <div className="sched-title">{e.title}</div>
@@ -1488,7 +1500,7 @@ export default function CategoryDetail({
                   finishing stamps the block, which is the whole reason
                   gymDoor exists (B5). */}
               {gymDoor?.id === e.id && (
-                <button className="pill-act" onClick={() => { setGymStartDay(null); setGymOpen(true); }}>Start</button>
+                <button className="pill-act" onClick={(ev) => { ev.stopPropagation(); startGymFromBlock(); }}>Start</button>
               )}
             </div>
           );
@@ -1834,11 +1846,12 @@ export default function CategoryDetail({
 
       {paused && (
         <div className="pad-x"><div className="card">
-          <div className="row">
+          {/* Row tap (Dave 2026-09-15): the banner's only verb is Wake Up. */}
+          <div className="row" {...pressable(() => void wakeUp())}>
             <div className="row-grow"><div className="conn-name">Paused for Now</div></div>
             {/* BRAIN-F-12 (2026-09-05): Wake Up did nothing and said nothing
                 when the write failed; the banner just stayed. */}
-            <button className="btn-sm" onClick={async () => { const ok = await attemptWrite(() => catsSvc.update(categoryId, { season: undefined })); if (!ok) return; onChanged?.(); await reload(); }}>Wake Up</button>
+            <button className="btn-sm" onClick={(ev) => { ev.stopPropagation(); void wakeUp(); }}>Wake Up</button>
           </div>
         </div></div>
       )}

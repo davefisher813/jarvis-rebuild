@@ -335,7 +335,9 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           {watching.length > 0 && (
             <div className="pad-x"><div className="card list-card-ruled">
               {watching.map((r) => (
-                <div className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")} key={r.key}>
+                // Row tap (Dave 2026-09-15): a watched detector is not a fact
+                // yet, so the row does its pill's verb, Tell JARVIS.
+                <div {...pressable(() => tellAbout(r.key))} className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")} key={r.key}>
                   <div className="row-grow">
                     <div className="conn-name">{r.label}</div>
                     <div className="facts">
@@ -343,7 +345,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
                       <span className="fact">{watchingCount(r)}</span>
                     </div>
                   </div>
-                  <button type="button" className="pill-act" onClick={() => tellAbout(r.key)}>Tell JARVIS</button>
+                  <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); tellAbout(r.key); }}>Tell JARVIS</button>
                 </div>
               ))}
             </div></div>

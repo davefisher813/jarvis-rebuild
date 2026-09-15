@@ -120,6 +120,9 @@ export function WeatherOfferRow({ form = "card", weight }: { form?: "card" | "ro
       title="Add Weather to Your Day"
       sub="One line each morning, only when it matters"
       action={{ label: "Allow", onClick: grant }}
+      // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): nothing to
+      // open, so the body asks for location, the same safe verb as the pill.
+      onOpen={grant}
       onDismiss={dismiss}
     />
   );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { MedDefEntry } from "../types";
 import type { DoseRow } from "../meds";
 import MedRows from "./MedRows";
@@ -22,14 +22,16 @@ export default function TookItScreen({ doses, meds = [], now = Date.now(), onLog
 }) {
   const [justTapped, setJustTapped] = useState(false);
   const [when, setWhen] = useState("");
+  const whenRef = useRef<HTMLInputElement>(null);
   const at = () => { const m = /^(\d{2}):(\d{2})$/.exec(when); if (!m) return undefined; const d = new Date(now); d.setHours(Number(m[1]), Number(m[2]), 0, 0); return d.getTime(); };
   const log = (med?: MedDefEntry) => { const a = at(); if (a) onLog(med, a); else onLog(med); };
   const tap = () => { log(); setJustTapped(true); };
   const whenRow = (
     <div className="pad-x"><div className="card list-card-ruled">
-      <div className="row">
+      {/* Row tap (Dave 2026-09-15, "I want all rows clickable"): the form row focuses its time field. */}
+      <div className="row" onClick={(e) => { if (e.target !== whenRef.current) whenRef.current?.focus(); }}>
         <div className="row-grow"><div className="conn-name">Time Taken</div><div className="conn-meta">{when ? "Logs at this time today" : "Now"}</div></div>
-        <input className="input set-field" type="time" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="Time taken" />
+        <input ref={whenRef} className="input set-field" type="time" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="Time taken" />
       </div>
     </div></div>
   );

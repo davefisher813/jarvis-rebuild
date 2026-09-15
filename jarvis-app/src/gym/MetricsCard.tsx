@@ -6,6 +6,7 @@ import {
   type MetricDef, type MetricLog, type MetricType, type MetricPreset,
 } from "./metrics";
 import Stepper from "../shared/Stepper";
+import { own } from "../shared/rowDoor";
 import { PulseGlyph } from "../shared/glyphs";
 
 const CHEV = <div className="chev" />;
@@ -63,10 +64,11 @@ export function MetricLogSheet({ def, date, initial, goalLine, onSetGoal, onSave
           <div className="conn-meta">{date}</div>
           {def.data.type === "yesno" ? (
             <div className="field">
-              <div className="row">
+              {/* The whole row flips the answer (Dave 2026-09-15: "I want all rows clickable"). */}
+              <div className="row" onClick={() => setYes((y) => !y)}>
                 <div className="row-grow"><div className="conn-name">{yes ? "Yes" : "No"}</div></div>
                 <div className={"switch" + (yes ? "" : " off")} role="switch" aria-checked={yes} tabIndex={0}
-                  onClick={() => setYes((y) => !y)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setYes((y) => !y); }} />
+                  onClick={own(() => setYes((y) => !y))} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setYes((y) => !y); }} />
               </div>
             </div>
           ) : def.data.type === "scale5" ? (
@@ -166,10 +168,11 @@ export function AddMetricSheet({ defs, onEnablePreset, onToggleHidden, onCreateC
                 const d = defFor(p.key);
                 const on = !!d && !d.data.hidden;
                 return (
-                  <div className="row" key={p.key}>
+                  // The row flips its switch; off only hides, never deletes (Dave 2026-09-15: "I want all rows clickable").
+                  <div className="row" key={p.key} onClick={() => (d ? onToggleHidden(d) : onEnablePreset(p))}>
                     <div className="row-grow"><div className="conn-name">{p.name}</div><div className="conn-meta">{METRIC_TYPE_LABEL[p.type]}</div></div>
                     <div className={"switch" + (on ? "" : " off")} role="switch" aria-checked={on} tabIndex={0}
-                      onClick={() => (d ? onToggleHidden(d) : onEnablePreset(p))}
+                      onClick={own(() => (d ? onToggleHidden(d) : onEnablePreset(p)))}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") (d ? onToggleHidden(d) : onEnablePreset(p)); }} />
                   </div>
                 );
@@ -181,10 +184,11 @@ export function AddMetricSheet({ defs, onEnablePreset, onToggleHidden, onCreateC
               <div className="input-label">Your Own</div>
               <div className="card">
                 {custom.map((d) => (
-                  <div className="row" key={d.id}>
+                  // Same row, same switch, same hide-never-delete.
+                  <div className="row" key={d.id} onClick={() => onToggleHidden(d)}>
                     <div className="row-grow"><div className="conn-name">{d.data.name}</div><div className="conn-meta">{METRIC_TYPE_LABEL[d.data.type]}</div></div>
                     <div className={"switch" + (d.data.hidden ? " off" : "")} role="switch" aria-checked={!d.data.hidden} tabIndex={0}
-                      onClick={() => onToggleHidden(d)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onToggleHidden(d); }} />
+                      onClick={own(() => onToggleHidden(d))} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onToggleHidden(d); }} />
                   </div>
                 ))}
               </div>

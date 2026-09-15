@@ -60,6 +60,7 @@ export default function CheckInScreen({ today, onLog, onUndo, onBack }: {
           <div className="sh2 sh2-quiet"><span className="t">Today</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {rows.map((c) => (
+              // row-tap: logged check ins are receipts shown whole with nothing to open, and the only verb is Undo, which a row tap must never do
               <div className="row" key={c.id}>
                 <div className="row-grow">
                   <div className="conn-name">{checkInLine(c.data) ?? "Check In"}</div>

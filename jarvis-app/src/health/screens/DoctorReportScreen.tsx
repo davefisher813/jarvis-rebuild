@@ -1,3 +1,4 @@
+import { useRef, type MouseEvent, type RefObject } from "react";
 import type { DoctorReport, ReportKind } from "../doctorReport";
 import { shortDate } from "../../shared/dateFormat";
 
@@ -39,6 +40,11 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
   onCopy?: () => void;
   onBack: () => void;
 }) {
+  const fromRef = useRef<HTMLInputElement>(null);
+  const toRef = useRef<HTMLInputElement>(null);
+  // Row tap (Dave 2026-09-15, "I want all rows clickable"): a date row
+  // focuses its field; a tap on the field itself is left to the field.
+  const focusRow = (ref: RefObject<HTMLInputElement | null>) => (e: MouseEvent) => { if (e.target !== ref.current) ref.current?.focus(); };
   const offered: ReportKind[] = ["dose", "lights_out", "food", "session", ...(hasMeals ? ["meal" as const] : []), ...(hasCheckins ? ["checkin" as const] : [])];
   return (
     <div className="screen ruled health-ruled">
@@ -62,13 +68,13 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
       </div>
       {range === "custom" && (
         <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row set-row">
+          <div className="row set-row" onClick={focusRow(fromRef)}>
             <div className="conn-name">From</div>
-            <input className="set-field" type="date" aria-label="From" value={custom.from} onChange={(e) => onCustom({ ...custom, from: e.target.value })} />
+            <input ref={fromRef} className="set-field" type="date" aria-label="From" value={custom.from} onChange={(e) => onCustom({ ...custom, from: e.target.value })} />
           </div>
-          <div className="row set-row">
+          <div className="row set-row" onClick={focusRow(toRef)}>
             <div className="conn-name">To</div>
-            <input className="set-field" type="date" aria-label="To" value={custom.to} onChange={(e) => onCustom({ ...custom, to: e.target.value })} />
+            <input ref={toRef} className="set-field" type="date" aria-label="To" value={custom.to} onChange={(e) => onCustom({ ...custom, to: e.target.value })} />
           </div>
         </div></div>
       )}

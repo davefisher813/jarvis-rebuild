@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LibraryRow } from "./libraryEdit";
-import { pressable } from "../shared/pressable";
+import { rowDoor } from "../shared/rowDoor";
 import { agoPhraseLower } from "./summary";
 import { shortDate } from "../shared/dateFormat";
 import SheetBar from "../shared/SheetBar";
@@ -75,6 +75,7 @@ export default function LibraryPage({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [renaming, setRenaming] = useState<LibraryRow | null>(null);
   const [draft, setDraft] = useState("");
+  const renameRef = useRef<HTMLInputElement>(null);
   const [classing, setClassing] = useState<{ row: LibraryRow; open: Chip["field"] } | null>(null);
   const [menu, setMenu] = useState<LibraryRow | null>(null);
   const [merging, setMerging] = useState<LibraryRow | null>(null);
@@ -184,6 +185,7 @@ export default function LibraryPage({
 
           {filtersOpen && (
             <div className="pad-x"><div className="card xs-group">
+              {/* row-tap: chip strip, every inch of it is one of the filter chips */}
               <div className="row xs-row">
                 <div className="chip-row">
                   <button type="button" className={"chip" + (filter.favorites ? " active" : "")} aria-pressed={!!filter.favorites}
@@ -201,6 +203,7 @@ export default function LibraryPage({
                 </div>
               </div>
               <div className="row xs-row"><div className="row-grow"><div className="conn-meta">Muscle</div></div></div>
+              {/* row-tap: chip strip, every inch of it is one of the muscle chips */}
               <div className="row xs-row">
                 <div className="chip-row">
                   {MUSCLE_GROUPS.map((m: MuscleGroup) => (
@@ -211,6 +214,7 @@ export default function LibraryPage({
                 </div>
               </div>
               <div className="row xs-row"><div className="row-grow"><div className="conn-meta">Equipment</div></div></div>
+              {/* row-tap: chip strip, every inch of it is one of the equipment chips */}
               <div className="row xs-row">
                 <div className="chip-row">
                   {EQUIPMENT_KINDS.map((e: Equipment) => (
@@ -221,6 +225,7 @@ export default function LibraryPage({
                 </div>
               </div>
               <div className="row xs-row"><div className="row-grow"><div className="conn-meta">Movement</div></div></div>
+              {/* row-tap: chip strip, every inch of it is one of the movement chips */}
               <div className="row xs-row">
                 <div className="chip-row">
                   {MOVEMENTS.map((m: MovementPattern) => (
@@ -260,14 +265,17 @@ export default function LibraryPage({
               const chips = rowChips(c);
               const on = picked.includes(r.key);
               return (
+                // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+                // clickable"). Only the name used to open the exercise; the
+                // facts, the gaps and the padding were dead. Selecting, the row
+                // picks instead. The chips and the overflow keep their own verbs.
                 <div className={"row ex-row" + (on ? " on" : "")} key={r.key}
-                  {...(selecting
-                    ? pressable(() => setPicked(on ? picked.filter((k) => k !== r.key) : [...picked, r.key]))
-                    : {})}>
+                  {...rowDoor(selecting
+                    ? () => setPicked(on ? picked.filter((k) => k !== r.key) : [...picked, r.key])
+                    : () => onOpen(r))}>
                   <div className="row-grow">
-                    {/* The name is the door to the exercise's history and
-                        details, and it wraps rather than clipping. */}
-                    <div className="ex-name" {...(selecting ? {} : pressable(() => onOpen(r)))}>{r.name}</div>
+                    {/* The name wraps rather than clipping. */}
+                    <div className="ex-name">{r.name}</div>
                     {/* §7: "2 sessions · Last yesterday" was one grey line
                         doing two jobs. Two compact fields. */}
                     <div className="facts">
@@ -341,8 +349,8 @@ export default function LibraryPage({
             <div className="sheet-form">
               <div className="grp xs-grp"><div className="eyebrow">Name</div></div>
               <div className="pad-x"><div className="card xs-group">
-                <div className="row xs-row">
-                  <input className="xs-input" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Exercise Name" />
+                <div className="row xs-row" onClick={() => renameRef.current?.focus()}>
+                  <input ref={renameRef} className="xs-input" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Exercise Name" />
                 </div>
               </div></div>
               <div className="pad-x"><div className="bp-sub">

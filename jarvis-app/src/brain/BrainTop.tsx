@@ -200,26 +200,28 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
           <div className="sh2"><span className="t">Needs You</span><span className="n">{needs.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {needs.map((n) => n.kind === "writing" ? (
+              // row-tap: That's Right is a Brain identity write, and the locked agency law keeps those on an explicit tap of the pill
               <div className="row strand-row" key={"w-" + n.p.rule.id}>
                 <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
                 <div className="row-grow">
                   <div className="conn-name">{n.p.text}</div>
                   <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{n.p.edits} edits</span></div>
                 </div>
-                <button type="button" className="pill-act" onClick={() => void confirmWriting(n.p)}>That's Right</button>
+                <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void confirmWriting(n.p); }}>That's Right</button>
               </div>
             ) : n.kind === "principle" ? (
+              // row-tap: That's Right is a Brain identity write, and the locked agency law keeps those on an explicit tap of the pill
               <div className="row strand-row" key="principle">
                 <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
                 <div className="row-grow">
                   <div className="conn-name">{n.d.title}</div>
                   <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{n.d.sub}</span></div>
                   <div className="dec-outcome-acts">
-                    <button type="button" className="quiet-action" onClick={() => void answerPrincipleWith(n.d, "sometimes")}>Only Sometimes</button>
-                    <button type="button" className="quiet-action" onClick={() => void answerPrincipleWith(n.d, "never")}>Not True</button>
+                    <button type="button" className="quiet-action" onClick={(ev) => { ev.stopPropagation(); void answerPrincipleWith(n.d, "sometimes"); }}>Only Sometimes</button>
+                    <button type="button" className="quiet-action" onClick={(ev) => { ev.stopPropagation(); void answerPrincipleWith(n.d, "never"); }}>Not True</button>
                   </div>
                 </div>
-                <button type="button" className="pill-act" onClick={() => void answerPrincipleWith(n.d, "right")}>That's Right</button>
+                <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void answerPrincipleWith(n.d, "right"); }}>That's Right</button>
               </div>
             ) : n.kind === "watching" ? (
               <div {...pressable(() => onOpenWatching(n.r.key))} className="row strand-row" key={"w-" + n.r.key}>

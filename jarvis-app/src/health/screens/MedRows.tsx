@@ -1,3 +1,4 @@
+import { rowDoor } from "../../shared/rowDoor";
 import { useState } from "react";
 import type { MedDefEntry } from "../types";
 import { repeatWithin, lastDose, whenShort, type DoseRow } from "../meds";
@@ -50,7 +51,9 @@ function MedRow({ med, last, now, onTook, onHold }: {
 }) {
   const hold = useLongPress({ onLongPress: () => onHold?.(), enabled: !!onHold });
   return (
-    <div className="row" {...hold}>
+    // The row opens the med's Edit and Remove, the same door the hold opens
+    // (Dave 2026-09-15: "I want all rows clickable"). Took It keeps its own tap.
+    <div className="row" {...hold} {...(onHold ? rowDoor(onHold) : {})}>
       <div className="row-grow">
         <div className="conn-name">{med.data.name}</div>
         <div className="facts">
@@ -58,7 +61,7 @@ function MedRow({ med, last, now, onTook, onHold }: {
           {last !== null && <span className="fact">Last {whenShort(last, now)}</span>}
         </div>
       </div>
-      <button type="button" className="pill-act" onClick={onTook} aria-label={"Took It, " + med.data.name}>Took It</button>
+      <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onTook(); }} aria-label={"Took It, " + med.data.name}>Took It</button>
     </div>
   );
 }

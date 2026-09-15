@@ -10,6 +10,7 @@ import { readinessWord, toneForReadinessWord } from "./state";
 import { Nums } from "../../bigger/GoalRowRuled";
 import type { DerivePerson } from "../derive";
 import type { Strand } from "./types";
+import { pressable } from "../../shared/pressable";
 
 // WHY IS THIS LIST NOT GROWING (Dave, 2026-09-06: "i dont see any trace of
 // jarvis learning anything. theres 1 fact in what jarvis knows about me").
@@ -120,7 +121,9 @@ function DetectorRow({ r }: { r: Readiness }) {
 function WordRow({ r, focused = false, onTell }: { r: Readiness; focused?: boolean; onTell?: () => void }) {
   const w = readinessWord(r.state);
   return (
-    <div id={"rdy-" + r.key} className={"row rdy-row" + (focused ? " rdy-row-focus" : "")}>
+    // Row tap (Dave 2026-09-15, "I want all rows clickable"): a counting
+    // detector has no fact to open yet, so any row says it outright.
+    <div id={"rdy-" + r.key} className={"row rdy-row" + (focused ? " rdy-row-focus" : "")} {...(onTell ? pressable(onTell) : {})}>
       <div className="row-grow"><div className="conn-name">{r.label}</div></div>
       <span className={"fact st " + toneForReadinessWord(w)}>{w}</span>
       {/* THE ROW HE TAPPED CAN BE TOLD (Dave 2026-09-13: "I clicked on when
@@ -128,7 +131,7 @@ function WordRow({ r, focused = false, onTell }: { r: Readiness; focused?: boole
           different fact"). A readiness row is JARVIS still counting; the one
           he came here for carries Tell JARVIS, so saying it outright is one
           tap from the row he meant. */}
-      {focused && onTell && <button type="button" className="pill-act" onClick={onTell}>Tell JARVIS</button>}
+      {focused && onTell && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onTell(); }}>Tell JARVIS</button>}
     </div>
   );
 }

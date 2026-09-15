@@ -61,18 +61,29 @@ export default function MoveHeadliner({
           starting at the card's shared text edge. The ring column is always
           reserved so the words line up with the rows below even on a page
           that mounts this without a toggle. */}
-      <div className="hl">
+      {/* THE WHOLE CARD IS THE DOOR (Dave 2026-09-15, photographed: "How is
+          the first thing that renders on the app not clickable?"). Only the
+          title answered a tap, so the facts line, the gaps and the space
+          beside Start were dead. The card opens the task now; the ring, Start
+          and Why each stop the tap so they keep their own verbs. */}
+      <div
+        className="hl"
+        role={onOpen ? "button" : undefined}
+        tabIndex={onOpen ? 0 : undefined}
+        aria-label={onOpen ? "Open " + title : undefined}
+        onClick={onOpen}
+        onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined}
+      >
         <div className="hl-lead">
           {onToggle && (
-            <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={onToggle}>
+            <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
               <div className="task-check" />
             </div>
           )}
         </div>
         <div className="hl-body">
-          {/* The title is the door, the same contract every task row on this
-              page keeps: the words open the task, the pill is the verb. */}
-          <div className="hl-title" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={onOpen}>{title}</div>
+          {/* The pill is the verb; everything else on the card opens the task. */}
+          <div className="hl-title">{title}</div>
           <div className="facts">
             {/* At most one coloured fact per line is the law (K.3, extended in
                 laws/astra.test.ts). Urgency is the one that gets the colour
@@ -88,10 +99,10 @@ export default function MoveHeadliner({
             {facts.reason && <span className={"fact" + (facts.urgency ? "" : " sky")}>{facts.reason}</span>}
           </div>
           <div className="hl-acts">
-            {onStart && <button type="button" className="btn btn-primary btn-sm" onClick={onStart}>Start</button>}
+            {onStart && <button type="button" className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); onStart(); }}>Start</button>}
             {/* The Why chip is the same anatomy as the mail evidence chip: a
                 claim you can open to see the working behind it. */}
-            {onWhy && <button type="button" className="why" onClick={onWhy}>Why</button>}
+            {onWhy && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onWhy(); }}>Why</button>}
           </div>
         </div>
       </div>

@@ -39,6 +39,7 @@ import { touchActivity, recordSpot } from "../restore/whereYouWere";
 import { capAfterNumber } from "../shared/casing";
 import { loadOverwhelmed, setOverwhelmed as setOverwhelmedFlag, subscribeOverwhelmed, theOneThing } from "./overwhelmed";
 import NoticeCard from "../today/NoticeCard";
+import { onPressKey } from "../shared/pressable";
 import { TargetGlyph } from "../shared/glyphs";
 import { haptics } from "../shared/haptics";
 import { useFreshLists } from "../data/useFreshLists";
@@ -725,6 +726,9 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
       title={fsStep.step}
       sub={"First step for: " + fsCandidate.data.text}
       action={{ label: "Add", onClick: () => void fsAccept() }}
+      // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+      // clickable"): the drafted step is for this task, so the row opens it.
+      onOpen={() => void openEdit(fsCandidate.id)}
       onDismiss={fsDismiss}
     />
   ) : null;
@@ -849,7 +853,11 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         momentum={momentum && {
           afterId: momentum.afterId,
           el: (
-            <div className="row momentum-slot">
+            // The row opens the task it offers (Dave 2026-09-15: "I want all
+            // rows clickable"); Start and Not Now keep their own taps.
+            <div className="row momentum-slot" role="button" tabIndex={0} aria-label={"Open " + momentum.task.data.text}
+              onClick={() => void openEdit(momentum.task.id)}
+              onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => void openEdit(momentum.task.id))(e); }}>
               <RowIcon kind="task" />
               <div className="row-stack">
                 <div className="eyebrow">Keep Going</div>
@@ -863,8 +871,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
                     full metadata form. onStartTask, in the same closure, is
                     the real Start every other Start pill on this screen
                     calls: fifteen minutes, right now, as a real block. */}
-                <button className="pill-act" onClick={() => { const id = momentum.task.id; setMomentum(null); void onStartTask(id); }}>Start</button>
-                <button className="btn-sm" onClick={() => { dismissChain(today); setMomentum(null); }}>Not Now</button>
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); const id = momentum.task.id; setMomentum(null); void onStartTask(id); }}>Start</button>
+                <button className="btn-sm" onClick={(e) => { e.stopPropagation(); dismissChain(today); setMomentum(null); }}>Not Now</button>
               </div>
             </div>
           ),

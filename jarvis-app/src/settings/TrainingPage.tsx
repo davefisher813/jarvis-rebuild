@@ -1,7 +1,7 @@
 import { useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { readGymSettings, writeGymSettings, type GymSettings } from "../gym/settings";
-import { Head, Card, Switch } from "./kit";
+import { Head, Card, Switch, focusField } from "./kit";
 
 // S5-Q32 (2026-09-04): "bar weight and plates have no control." Every plate
 // calculation and warm-up ramp already reads GymSettings.barWeight/.plates
@@ -47,16 +47,18 @@ export function RackSettings({ withShowLast = false }: { withShowLast?: boolean 
           <Switch label="Last Time on Every Set" meta="Last session beside each set, with tap-to-match" on={settings.showLast}
             onToggle={() => set({ showLast: !settings.showLast })} />
         )}
-        <div className="row set-row">
+        {/* Row tap (Dave 2026-09-15, "I want all rows clickable"): the row
+            flips between the two units; each chip still picks its own. */}
+        <div className="row set-row" onClick={() => set({ rackUnit: rackUnit === "lb" ? "kg" : "lb" })}>
           <div className="conn-name">Rack Unit</div>
           <div className="chip-row">
             {(["lb", "kg"] as const).map((u) => (
               <div key={u} className={"chip" + (rackUnit === u ? " active" : "")} role="button" tabIndex={0}
-                aria-pressed={rackUnit === u} onClick={() => set({ rackUnit: u })}>{u}</div>
+                aria-pressed={rackUnit === u} onClick={(e) => { e.stopPropagation(); set({ rackUnit: u }); }}>{u}</div>
             ))}
           </div>
         </div>
-        <div className="row set-row">
+        <div className="row set-row" onClick={focusField}>
           <div className="conn-name">Bar Weight</div>
           <input className="set-field" type="number" inputMode="decimal" aria-label="Bar Weight" value={barInput}
             onChange={(e) => {

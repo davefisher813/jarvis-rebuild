@@ -4,6 +4,7 @@ import EvidenceChip from "./EvidenceChip";
 import type { Evidence } from "./evidence";
 import type { Bucket } from "./triage";
 import { haptics } from "../shared/haptics";
+import { rowDoor } from "../shared/rowDoor";
 
 // WHERE THIS STANDS (UP-MIND-19, Email E9, 5.6 and 5.13; Brain build order 5).
 //
@@ -51,6 +52,7 @@ export default function ThreadStateCard({
   onOverride?: (bucket: "needs_you" | "worth_knowing" | null) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const toggleOpen = () => { haptics.selection(); setOpen((v) => !v); };
   const has = !!brief && (!!brief.state || !!brief.agreed?.length || !!brief.unresolved?.length || !!brief.deadline || !!brief.next);
   if (!has && !brief?.decision && !onOverride) return null;
   return (
@@ -66,10 +68,11 @@ export default function ThreadStateCard({
         </div>
       )}
       {brief?.state && (
-        <div className="row">
+        // Row tap is More/Less (Dave 2026-09-15: "I want all rows clickable").
+        <div className="row" {...(has ? rowDoor(toggleOpen) : {})}>
           <div className="row-grow"><div className="conn-name">{THREAD_STATE_LABEL[brief.state]}</div></div>
           {has && (
-            <button className="quiet-action" onClick={() => { haptics.selection(); setOpen(!open); }}>
+            <button className="quiet-action" onClick={(e) => { e.stopPropagation(); toggleOpen(); }}>
               {open ? "Less" : "More"}
             </button>
           )}
@@ -102,12 +105,14 @@ export default function ThreadStateCard({
           thread's own words, shown before anything is written, and the tap
           opens the capture sheet rather than filing it. */}
       {brief?.decision && onRemember && (
-        <div className="row">
+        // Row tap opens the same capture sheet Keep It does; nothing is filed
+        // without the sheet's own Save (Dave 2026-09-15: "I want all rows clickable").
+        <div className="row" {...rowDoor(() => { haptics.selection(); onRemember(brief.decision!); })}>
           <div className="row-grow">
             <div className="conn-name">Worth Remembering?</div>
             <div className="conn-meta">{brief.decision}</div>
           </div>
-          <button className="pill-act" onClick={() => { haptics.selection(); onRemember(brief.decision!); }}>Keep It</button>
+          <button className="pill-act" onClick={(e) => { e.stopPropagation(); haptics.selection(); onRemember(brief.decision!); }}>Keep It</button>
         </div>
       )}
     </div>

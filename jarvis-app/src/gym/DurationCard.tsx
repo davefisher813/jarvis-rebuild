@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { own } from "../shared/rowDoor";
 import type { WorkoutData, WorkoutRevision } from "./types";
 import { durationOf } from "../insights/analytics";
 import { capAfterNumber } from "../shared/casing";
@@ -28,6 +29,7 @@ export default function DurationCard({ workout, onCorrect }: {
   const [editing, setEditing] = useState(false);
   const [endIn, setEndIn] = useState(hhmm(workout.endedAt));
   const revisions = workout.revisions ?? [];
+  const endRef = useRef<HTMLInputElement>(null);
   const correct = (to: number) => {
     if (!onCorrect || !Number.isFinite(to) || to <= workout.startedAt || to === workout.endedAt) return;
     onCorrect(to, { at: Date.now(), field: "endedAt", from: workout.endedAt, to });
@@ -84,10 +86,11 @@ export default function DurationCard({ workout, onCorrect }: {
           </>
         )}
         {onCorrect && editing && (
-          <div className="row">
+          // The label lands in the field (Dave 2026-09-15: "I want all rows clickable").
+          <div className="row" onClick={() => endRef.current?.focus()}>
             <div className="row-grow"><div className="conn-name">End Time</div></div>
-            <input className="input set-field" type="time" aria-label="End time" value={endIn} onChange={(e) => setEndIn(e.target.value)} />
-            <button type="button" className="pill-act" onClick={commitTyped}>Save</button>
+            <input ref={endRef} className="input set-field" type="time" aria-label="End time" value={endIn} onChange={(e) => setEndIn(e.target.value)} />
+            <button type="button" className="pill-act" onClick={own(commitTyped)}>Save</button>
           </div>
         )}
       </div></div>

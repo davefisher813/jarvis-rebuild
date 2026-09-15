@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AnytimeRow from "./AnytimeRow";
@@ -46,5 +46,26 @@ describe("AnytimeRow: the count is the one expand door", () => {
     expect(label?.tagName).not.toBe("BUTTON");
     expect(container.querySelector(".anytime-head .pill-action")).toBeNull();
     expect(queryByRole("button", { name: /show all/i })).toBeNull();
+  });
+});
+
+// THE WHOLE ROW IS THE DOOR (Dave 2026-09-15, photographed this row: "I want
+// all rows clickable"). The row opens the task; Drop and the ring keep their
+// own verbs and never also open it.
+describe("AnytimeRow: the row opens the task", () => {
+  it("row tap and Enter open; Drop schedules; the ring completes", () => {
+    const onOpen = vi.fn(), onSchedule = vi.fn(), onToggle = vi.fn();
+    const { getByRole } = render(<AnytimeRow items={[task(1)]} onOpen={onOpen} onSchedule={onSchedule} onToggle={onToggle} />);
+    const row = getByRole("button", { name: "Open Task 1" });
+    fireEvent.click(row.querySelector(".task-name")!);
+    expect(onOpen).toHaveBeenCalledWith("t1");
+    fireEvent.keyDown(row, { key: "Enter" });
+    expect(onOpen).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(getByRole("button", { name: "Give Task 1 a time" }));
+    expect(onSchedule).toHaveBeenCalledWith("t1");
+    fireEvent.click(getByRole("checkbox", { name: "Complete Task 1" }));
+    expect(onToggle).toHaveBeenCalledWith("t1");
+    expect(onOpen).toHaveBeenCalledTimes(2);
   });
 });

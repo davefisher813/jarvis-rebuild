@@ -9,7 +9,7 @@ import { monthMatrix, fmtTime, openSlots, minToHHMM, addDays } from "../calendar
 import { isFocusRange } from "../../routine/types";
 import { openMinutes } from "../planLoad";
 import { catColor } from "../../shared/categories";
-import { pressable } from "../../shared/pressable";
+import { pressable, onPressKey } from "../../shared/pressable";
 import SkeletonRows from "../../shared/SkeletonRows";
 import DayRow from "./DayRow";
 import LockedRow from "./LockedRow";
@@ -92,7 +92,7 @@ export default function SchedulePage({
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate, openSourceFor, notedEvents, onNotes,
   onShiftBlock, onRetimeBlock, onResizeBlock,
   proposed, dayFooter,
-  anytimeItems = [], onToggleTask, onScheduleTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
+  anytimeItems = [], onToggleTask, onScheduleTask, onOpenTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
   windowStartMin, windowEndMin,
 }: {
   year: number; month: number; selected: string; todayDate: string;
@@ -168,6 +168,8 @@ export default function SchedulePage({
   onRetimeBlock?: (id: string, startMin: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string, startHHMM?: string) => void;
+  /** Open an Anytime task in the TaskSheet (the whole row is the door). */
+  onOpenTask?: (id: string) => void;
   // The goal an Anytime task moves, by its short name (the ruled row).
   parentOf?: (t: TaskItem) => ParentLine | null;
   attachMap?: Record<string, AttachInfo>;
@@ -267,6 +269,16 @@ export default function SchedulePage({
       // Read the gap BEFORE cleanup: cleanup drops the ghost and the drag
       // class, and elementFromPoint stops seeing what was under the finger.
       const at = dropped ? gapUnder(ev.clientX, ev.clientY) : null;
+      // A finished drag is not a tap (Dave 2026-09-15, the Anytime row is now
+      // a door): the click the browser synthesizes after this pointerup would
+      // otherwise open the task sheet when the drag was let go over the row.
+      // Swallowed once, in capture, and forgotten after this turn so a click
+      // that never comes cannot eat the next real tap.
+      if (active) {
+        const swallow = (c: MouseEvent) => { c.stopPropagation(); c.preventDefault(); };
+        window.addEventListener("click", swallow, { capture: true, once: true });
+        window.setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), 0);
+      }
       cleanup();
       if (dropped) onScheduleTask(id, at ?? undefined);
     };
@@ -630,13 +642,17 @@ export default function SchedulePage({
           At two or more clashes the card folds to one quiet summary line
           (hotfix 2026-08-21): nine alarms taught nothing; one count does. */}
       {mode === "day" && overlap && onFixOverlap && clashCount < 2 && (
-        <div className="pad-x"><div className="card"><div className="row">
+        // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15): the clash row opens
+        // the same fix sheet its pill opens.
+        <div className="pad-x"><div className="card"><div className="row" role="button" tabIndex={0} aria-label="Fix the overlap"
+          onClick={onFixOverlap}
+          onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(onFixOverlap)(e); }}>
           <div className="row-glyph cat-fg-orange"><AlertTriangle className="ic" /></div>
           <div className="row-grow">
             <div className="conn-name">Two Things Collide</div>
             <div className="conn-meta">{overlap.line}</div>
           </div>
-          <button className="pill-act" onClick={onFixOverlap}>Fix It</button>
+          <button className="pill-act" onClick={(e) => { e.stopPropagation(); onFixOverlap(); }}>Fix It</button>
         </div></div></div>
       )}
       {mode === "day" && onFixOverlap && clashCount >= 2 && (
@@ -673,7 +689,7 @@ export default function SchedulePage({
             )}
           </div>
           {mode === "day" && (
-            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} parentOf={parentOf} />
+            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} />
           )}
         </>
       ) : (
@@ -898,7 +914,7 @@ export default function SchedulePage({
             Anytime live? A section below the timeline"). It sat above,
             which put the unplaced work in front of the day it was not in. */}
         {mode === "day" && (
-          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} parentOf={parentOf} />
+          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} />
         )}
         {/* The trailing "Open ..." list is retired in EVERY mode now (B4,
             2026-08-23). It survived for week and month on the reasoning that

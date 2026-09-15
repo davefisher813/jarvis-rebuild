@@ -408,6 +408,7 @@ export default function MailNotices({
                   </div>
                 )}
                 {chips.length > 0 && !draft && (
+                  /* row-tap: quick-answer chip strip under the card; the card body opens the thread */
                   <div className="row mail-chips">
                     {chips.map((c) => (
                       <button key={c} className="chip chip-act" onClick={(e) => { e.stopPropagation(); void send(n, c); }}>{c}</button>
@@ -427,6 +428,7 @@ export default function MailNotices({
                       disabled={draft.sending}
                       onChange={(e) => setDrafts((d) => ({ ...d, [n.key]: { ...draft, text: e.target.value } }))}
                     />
+                    {/* row-tap: verbs line under the draft (Send, Discard, Open It); sending stays button-only */}
                     <div className="row mail-draft-acts">
                       {/* UP-MIND-26 (2026-09-05): the card's draft is his
                           words before they go out over his name, so it is

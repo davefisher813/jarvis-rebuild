@@ -13,6 +13,8 @@ import { RepeatGlyph, PinGlyph, TargetGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
 import SheetBar from "../../shared/SheetBar";
 import HeadMenu from "../../shared/HeadMenu";
+import { tapField } from "../../shared/FormSheet";
+import { onPressKey } from "../../shared/pressable";
 import { addDays } from "../../schedule/calendar";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
@@ -366,7 +368,7 @@ export default function TaskSheet({
 
           <div className="grp xs-grp"><div className="eyebrow">Task</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div className="row xs-row">
+            <div className="row xs-row" onClick={tapField}>
               <Tile tone="red"><CheckSquare className="ic" /></Tile>
               <input
                 className={"xs-input" + (err ? " input-error" : "")}
@@ -402,7 +404,7 @@ export default function TaskSheet({
           </div>
           <div className="pad-x"><div className="card xs-group">
             {steps.map((s, i) => (
-              <div className="row xs-row" key={i}>
+              <div className="row xs-row" key={i} onClick={tapField}>
                 <button
                   type="button"
                   className={"cb" + (s.done ? " on" : "")}
@@ -429,19 +431,23 @@ export default function TaskSheet({
             ))}
             <button type="button" className="row row-act" onClick={addStep}>Add Item</button>
             {allStepsDone && mode === "edit" && (
-              <div className="row xs-row">
+              // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+              // clickable"): the offer row makes its one offer, as the pill does.
+              <div className="row xs-row" role="button" tabIndex={0}
+                onClick={() => save(true)}
+                onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => save(true))(e); }}>
                 <div className="row-grow"><div className="conn-name">Checklist Complete</div></div>
                 {/* One tap both saves the checked list and marks the task
                     done -- "it never closes the task for you" means this is
                     an offer, not an auto-complete, not that it takes two taps. */}
-                <button type="button" className="pill-act" onClick={() => save(true)}>Close Task</button>
+                <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); save(true); }}>Close Task</button>
               </div>
             )}
           </div></div>
 
           <div className="grp xs-grp"><div className="eyebrow">When</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div className="row xs-row">
+            <div className="row xs-row" onClick={tapField}>
               <Tile tone="orange"><Clock className="ic" /></Tile>
               <div className="conn-name">Due
                 {slidingNote && <div className="conn-meta">{slidingNote}</div>}
@@ -454,11 +460,11 @@ export default function TaskSheet({
                 onPick={pickDue} />
             </div>
             {dueMode === "pick" && (
-              <div className="row xs-row xs-date">
+              <div className="row xs-row xs-date" onClick={tapField}>
                 <input ref={dateRef} type="date" className="xs-input" aria-label="Due date" value={due} onChange={(e) => setDue(e.target.value)} />
               </div>
             )}
-            <div className="row xs-row">
+            <div className="row xs-row" onClick={tapField}>
               <Tile tone="green"><RepeatGlyph /></Tile>
               <div className="conn-name">Repeat</div>
               <HeadMenu variant="value" ariaLabel="Repeat" value={repeat} off={repeat === ""}
@@ -476,7 +482,7 @@ export default function TaskSheet({
                 pre-selected. Selecting it for him would store a number
                 JARVIS guessed as one he chose, and from then on the
                 category could no longer teach this task anything. */}
-            <div className="row xs-row">
+            <div className="row xs-row" onClick={tapField}>
               <Tile tone="purple"><Hourglass className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Length</div>
@@ -490,7 +496,7 @@ export default function TaskSheet({
 
           <div className="grp xs-grp"><div className="eyebrow">Where</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div className="row xs-row">
+            <div className="row xs-row" onClick={tapField}>
               <Tile tone="blue"><Tag className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Area</div>
@@ -507,7 +513,7 @@ export default function TaskSheet({
                 Prep card at all. The chooser hands back a real contact's
                 id, so neither end has to guess. */}
             {people.length > 0 && (
-              <div className="row xs-row">
+              <div className="row xs-row" onClick={tapField}>
                 <Tile tone="teal"><User className="ic" /></Tile>
                 <div className="conn-name">Person</div>
                 <HeadMenu variant="value" ariaLabel="Person" value={personId} label={personWord} off={personId === ""}
@@ -516,7 +522,7 @@ export default function TaskSheet({
               </div>
             )}
             {projects.length > 0 && (
-              <div className="row xs-row">
+              <div className="row xs-row" onClick={tapField}>
                 <Tile tone="indigo"><FolderKanban className="ic" /></Tile>
                 <div className="conn-name">Project</div>
                 <HeadMenu variant="value" ariaLabel="Project" value={projectId} label={projectWord} off={projectId === ""}
@@ -546,7 +552,7 @@ export default function TaskSheet({
                 title, because two practices called "Practice" are not the
                 same practice. */}
             {events.length > 0 && (
-              <div className="row xs-row">
+              <div className="row xs-row" onClick={tapField}>
                 <Tile tone="sky"><CalendarDays className="ic" /></Tile>
                 <div className="conn-name">Event</div>
                 <HeadMenu variant="value" ariaLabel="Event" value={eventId} label={eventWord} off={eventId === ""}

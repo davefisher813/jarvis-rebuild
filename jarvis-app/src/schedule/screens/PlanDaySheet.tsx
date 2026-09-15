@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as RKeyboardEvent } from "react";
 import type { EventItem } from "../types";
 import { planDay, type PlanBlock } from "../planDay";
 import { fmtTime, todayISO } from "../calendar";
@@ -22,6 +22,8 @@ import { planCount } from "../dayShape";
 import { estimateFor } from "../padding";
 import { capAfterNumber } from "../../shared/casing";
 import { DUR_CHOICES } from "../durations";
+import { tapField } from "../../shared/FormSheet";
+import { onPressKey } from "../../shared/pressable";
 
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
@@ -414,6 +416,15 @@ export default function PlanDaySheet({
     () => (load.fits ? [] : dropToFit(picks, durFor, load.overMin)),
     [load, picks, durations],
   );
+  const dropOverflow = () => setPicks((p) => p.filter((id) => !overflow.includes(id)));
+  // A notice row that does its pill's verb. Keys answer the row itself only,
+  // so Enter on the pill stays the pill's.
+  const rowDoor = (fn: () => void) => ({
+    role: "button" as const,
+    tabIndex: 0,
+    onClick: fn,
+    onKeyDown: (e: RKeyboardEvent) => { if (e.target === e.currentTarget) onPressKey(fn)(e); },
+  });
   const blockFor = (id: string) => plan.blocks.find((b) => realId(b.taskId) === id);
   const timeFor = (id: string) => blockFor(id)?.start ?? null;
 
@@ -573,7 +584,7 @@ export default function PlanDaySheet({
             </button>
           </div>
           {doneByOpen && (
-            <div className="row plan-doneby">
+            <div className="row plan-doneby" onClick={tapField}>
               <div className="row-grow"><div className="conn-name">Done By</div></div>
               <input type="time" className="input input-compact" aria-label="Done by" value={doneBy || fromMin(effEnd)} onChange={(e) => setDoneBy(e.target.value)} />
               {doneBy && <button type="button" className="plan-drop" onClick={() => { setDoneBy(""); setDoneByOpen(false); }}>Clear</button>}
@@ -586,12 +597,14 @@ export default function PlanDaySheet({
           {/* R4: planning "today" at 10:54 PM is planning a dead day, and the
               sheet used to ask cheerfully anyway. */}
           {clock && onTarget && !dismissed.clock && (
-            <div className="card"><div className="row">
+            // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+            // clickable"): the notice row does its one verb, as its pill does.
+            <div className="card"><div className="row" {...rowDoor(() => { hide("clock"); onTarget("tomorrow"); })}>
               <div className="row-stack">
                 <div className="conn-name">{clock.title}</div>
                 <div className="conn-meta">{clock.sub}</div>
               </div>
-              <button type="button" className="pill-act" onClick={() => { hide("clock"); onTarget("tomorrow"); }}>Plan Tomorrow</button>
+              <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); hide("clock"); onTarget("tomorrow"); }}>Plan Tomorrow</button>
             </div></div>
           )}
 
@@ -615,12 +628,14 @@ export default function PlanDaySheet({
           {/* The day says no where the picking happens, with the fix in the
               same breath. */}
           {overflow.length > 0 && (
-            <div className="card"><div className="row">
+            // Its one verb only un-picks (nothing is deleted), so the row
+            // does it too (Dave 2026-09-15: "I want all rows clickable").
+            <div className="card"><div className="row" {...rowDoor(dropOverflow)}>
               <div className="row-stack">
                 <div className="conn-name">{dropLine(overflow.length)}</div>
                 <div className="conn-meta">You&rsquo;re {hhmm(load.overMin)} over what&rsquo;s open</div>
               </div>
-              <button type="button" className="pill-act" onClick={() => setPicks((p) => p.filter((id) => !overflow.includes(id)))}>
+              <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); dropOverflow(); }}>
                 {overflow.length === 1 ? "Drop It" : `Drop ${overflow.length}`}
               </button>
             </div></div>
@@ -811,7 +826,7 @@ export default function PlanDaySheet({
           {/* P7: if the thing he wants to do is not a task yet, it becomes
               one here, picked, without leaving the sheet. */}
           {onAddTask && (
-            <div className="row plan-add">
+            <div className="row plan-add" onClick={tapField}>
               <input
                 className="input input-compact"
                 placeholder="Add Something to This Day"

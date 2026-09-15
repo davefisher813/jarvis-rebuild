@@ -5,6 +5,7 @@ import {
   WINDOW_LENGTHS, MAX_WINDOWS, DAY_SHORT,
   type WindowSettings,
 } from "./batching";
+import { rowDoor } from "../shared/rowDoor";
 
 // THE WINDOWS EDITOR (2026-08-22). Turning the curtain on is a decision made
 // here, with every window visible and editable, never a stray tap on a row.
@@ -76,6 +77,7 @@ export default function WindowsSheet({
           <div className="p3-q">Email opens only in these windows</div>
           <div className="plan-sub">Outside them the tab rests. Open Anyway always works, and VIPs always show.</div>
 
+          {/* row-tap: seven day chips in a strip, each its own toggle; no item behind it */}
           <div className="row win-days" role="group" aria-label="Days">
             {DAY_SHORT.map((l, d) => (
               <button
@@ -148,12 +150,13 @@ export default function WindowsSheet({
           )}
 
           {/* E-14: the mirror is a choice, made here, off by default. */}
-          <div className="row">
+          {/* Settings row: the tap flips it (Dave 2026-09-15: "I want all rows clickable"). */}
+          <div className="row" {...rowDoor(() => setMirrorDraft((v) => !v))}>
             <div className="row-grow">
               <div className="conn-name">Same on Every Device</div>
               <div className="conn-meta">{mirrorDraft ? "On · Rides the mail mirror" : "Off · These windows stay on this device"}</div>
             </div>
-            <button type="button" className="pill-act" aria-pressed={mirrorDraft} onClick={() => setMirrorDraft((v) => !v)}>
+            <button type="button" className="pill-act" aria-pressed={mirrorDraft} onClick={(e) => { e.stopPropagation(); setMirrorDraft((v) => !v); }}>
               {mirrorDraft ? "Turn Off" : "Turn On"}
             </button>
           </div>

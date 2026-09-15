@@ -1,4 +1,5 @@
 import { useState, type PointerEvent as RPointerEvent } from "react";
+import { onPressKey } from "../../shared/pressable";
 import type { TaskItem } from "../../tasks/TasksService";
 import { ParentLineGlyph } from "../../shared/glyphs";
 import type { ParentLine } from "../../life/parent";
@@ -22,6 +23,7 @@ export default function AnytimeRow({
   items,
   onToggle,
   onSchedule,
+  onOpen,
   onDragStart,
   cap = DEFAULT_CAP,
   parentOf,
@@ -29,6 +31,8 @@ export default function AnytimeRow({
   items: TaskItem[];
   onToggle?: (id: string) => void;
   onSchedule?: (id: string) => void;
+  /** Open the task in the same TaskSheet Today and Tasks open. */
+  onOpen?: (id: string) => void;
   onDragStart?: (id: string, label: string, e: RPointerEvent) => void;
   cap?: number;
   // THE RULED ROW (2026-09-01): the second line names the goal the task
@@ -65,13 +69,22 @@ export default function AnytimeRow({
               neutral ring, name, then where it lives (the parent's own glyph
               in its category colour, then its name; 2026-09-02). The trailing slot is Drop, the contract's verb
               for "give this a time in the day" (§4.4: Start on Tasks, Drop
-              on Anytime). Tapping the row opens the same placement. */}
+              on Anytime). THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want
+              all rows clickable"): tapping the row opens the task in the same
+              TaskSheet Today and Tasks open. The title used to be a second
+              Drop, which read as dead. Drop gives it a time, the ring
+              completes it, and a long press still drags it onto the grid. */}
           {shown.map((it) => {
             const parent = parentOf?.(it) ?? null;
             return (
               <div
                 className="task-row anytime-row"
                 key={it.id}
+                role="button"
+                tabIndex={0}
+                aria-label={"Open " + it.data.text}
+                onClick={() => onOpen?.(it.id)}
+                onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => onOpen?.(it.id))(e); }}
                 onPointerDown={(e) => onDragStart?.(it.id, it.data.text, e)}
               >
                 <div
@@ -83,7 +96,7 @@ export default function AnytimeRow({
                 >
                   <div className="task-check" />
                 </div>
-                <div className="task-title" role="button" tabIndex={0} onClick={() => onSchedule?.(it.id)} aria-label={"Give " + it.data.text + " a time"}>
+                <div className="task-title">
                   <span className="task-name">{it.data.text}</span>
                   <div className="r-k">
                     {parent
@@ -91,7 +104,7 @@ export default function AnytimeRow({
                       : <span className="r-goal r-cat">No category</span>}
                   </div>
                 </div>
-                <button className="pill-act" onClick={(e) => { e.stopPropagation(); onSchedule?.(it.id); }}>Drop</button>
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); onSchedule?.(it.id); }} aria-label={"Give " + it.data.text + " a time"}>Drop</button>
               </div>
             );
           })}

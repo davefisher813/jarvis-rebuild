@@ -446,6 +446,10 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         uniform={false}
         stack
         action={{ label: pattern.stale ? "Still True" : pattern.routineBlock ? "Add to Routine" : "Remember This", onClick: () => void acceptPattern() }}
+        // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): there is no
+        // page behind a pattern, and accepting it is a lasting write the pill
+        // must ask for, so the body folds the card back to its whisper.
+        onOpen={() => setOpen(false)}
         onDismiss={dismissThis}
       />
     );
@@ -463,6 +467,9 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         tone="cat-fg-yellow"
         title={aiPick.s.text}
         action={aiPick.s.task ? { label: "Add", onClick: () => void addToToday(aiPick.i, aiPick.s.task!) } : undefined}
+        // ROW-TAP (Dave 2026-09-15): nothing to open; the body folds the card
+        // back to its whisper, the same way it opened.
+        onOpen={() => setOpen(false)}
         onDismiss={dismissThis}
       />
     );
@@ -512,6 +519,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     <>
       {primary}
       {extraMoments.map((m) => (
+        // row-tap: claim card with no page behind it; accepting is a lasting write that stays on the pill
         <NoticeCard
           key={m.derivation}
           icon={<Lightbulb className="ic" />}

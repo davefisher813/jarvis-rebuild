@@ -33,7 +33,7 @@ import { RECEIPT_EXTRACT_PROMPT, parseReceiptExtract } from "./receiptExtract";
 import { Paperclip, Image as ImageGlyph, FileText, Calendar, FolderKanban, Check as CheckGlyph } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
-import { pressable } from "../shared/pressable";
+import { pressable, onPressKey } from "../shared/pressable";
 
 const CHEV = <div className="chev" />;
 const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
@@ -258,6 +258,14 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   };
   const [envName, setEnvName] = useState("");
   const [envAmt, setEnvAmt] = useState("");
+  // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+  // clickable"). A set-aside row opens itself in the adder it was made in,
+  // filled, and Save replaces it in place. Remove stays button-only.
+  const [envEditing, setEnvEditing] = useState<string | null>(null);
+  const envNameRef = useRef<HTMLInputElement>(null);
+  const editEnvelope = (e: Envelope) => { setEnvEditing(e.id); setEnvName(e.name); setEnvAmt(String(e.amount)); setEnvOpen(true); };
+  // Keys answer the row itself only, so Enter on an inner button stays its own.
+  const rowKey = (fn: () => void) => (ev: React.KeyboardEvent) => { if (ev.target === ev.currentTarget) onPressKey(fn)(ev); };
   // HMN-F-12 (2026-09-05): every envelope change is one guarded write to the
   // profile, and the screen only shows what actually landed.
   const writeEnvelopes = async (next: Envelope[]): Promise<boolean> => {
@@ -651,17 +659,18 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
               <div className="sh2 sh2-quiet"><span className="t">Set Aside</span>{envelopes.length > 0 && <span className="n">{envelopes.length}</span>}</div>
               <div className="pad-x"><div className="card list-card-ruled">
                 {envelopes.map((e) => (
-                  <div className="task-row p2" key={e.id}>
+                  <div className="task-row p2" key={e.id} role="button" tabIndex={0} aria-label={"Edit " + e.name}
+                    onClick={() => editEnvelope(e)} onKeyDown={rowKey(() => editEnvelope(e))}>
                     <div className="task-title"><span className="task-name">{e.name}</span></div>
                     <span className="money-amt">{formatMoney(e.amount)}</span>
                     <button className="conn-remove" aria-label={"Remove " + e.name}
-                      onClick={() => void removeEnvelope(e)}>{TRASH}</button>
+                      onClick={(ev) => { ev.stopPropagation(); void removeEnvelope(e); }}>{TRASH}</button>
                   </div>
                 ))}
                 {envOpen ? (
-                  <div className="row">
+                  <div className="row" onClick={(ev) => { if (ev.target === ev.currentTarget) envNameRef.current?.focus(); }}>
                     <div className="row-grow budget-add">
-                      <input className="input" placeholder="What For" value={envName} onChange={(ev) => setEnvName(ev.target.value)} />
+                      <input ref={envNameRef} className="input" placeholder="What For" value={envName} onChange={(ev) => setEnvName(ev.target.value)} />
                       <input className="input budget-amt" inputMode="numeric" placeholder="0" value={envAmt}
                         onChange={(ev) => setEnvAmt(ev.target.value)} />
                       <button className="btn btn-primary btn-sm" onClick={() => {
@@ -674,14 +683,17 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                           return;
                         }
                         void (async () => {
-                          const ok = await writeEnvelopes([...envelopes, { id: envelopeId(), name: envName, amount: amt }]);
-                          if (ok) { setEnvName(""); setEnvAmt(""); setEnvOpen(false); }
+                          const next = envEditing
+                            ? envelopes.map((x) => (x.id === envEditing ? { ...x, name: envName, amount: amt } : x))
+                            : [...envelopes, { id: envelopeId(), name: envName, amount: amt }];
+                          const ok = await writeEnvelopes(next);
+                          if (ok) { setEnvName(""); setEnvAmt(""); setEnvOpen(false); setEnvEditing(null); }
                         })();
-                      }}>Add</button>
+                      }}>{envEditing ? "Save" : "Add"}</button>
                     </div>
                   </div>
                 ) : (
-                  <button className="row row-act" onClick={() => setEnvOpen(true)}>Set Money Aside</button>
+                  <button className="row row-act" onClick={() => { setEnvEditing(null); setEnvName(""); setEnvAmt(""); setEnvOpen(true); }}>Set Money Aside</button>
                 )}
               </div></div>
               {envelopes.length === 0 && (
@@ -751,7 +763,12 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
               <div className="sh2 sh2-quiet"><span className="t">Saving Toward</span><span className="n">{savingsGoals.length}</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
                 {savingsGoals.map((g) => (
-                  <div className="task-row p2 goal-row-ruled" key={g.id}>
+                  // The row's one verb is Add, so the row opens the amount
+                  // (Dave 2026-09-15: "I want all rows clickable"); taps inside
+                  // the open amount stay there.
+                  <div className="task-row p2 goal-row-ruled" key={g.id} role="button" tabIndex={0} aria-label={"Add to " + g.data.title}
+                    onClick={() => { if (saveInto !== g.id) { setSaveInto(g.id); setSaveAmt(""); } }}
+                    onKeyDown={rowKey(() => { if (saveInto !== g.id) { setSaveInto(g.id); setSaveAmt(""); } })}>
                     {/* Area color, brand red when unhomed -- the same
                         goalTone every goal glyph wears (2026-08-31). */}
                     <div className="task-check-tap"><span className={"gm-slot " + goalTone(g.data.tags)}><TargetGlyph /></span></div>
@@ -763,13 +780,13 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                       )}
                     </div>
                     {saveInto === g.id ? (
-                      <div className="budget-add">
-                        <input className="input budget-amt" inputMode="numeric" placeholder="0" value={saveAmt}
+                      <div className="budget-add" onClick={(ev) => ev.stopPropagation()}>
+                        <input className="input budget-amt" inputMode="numeric" placeholder="0" value={saveAmt} autoFocus
                           onChange={(ev) => setSaveAmt(ev.target.value)} />
                         <button className="btn btn-primary btn-sm" onClick={() => void addSavings(g)}>Add</button>
                       </div>
                     ) : (
-                      <button className="pill-act" onClick={() => { setSaveInto(g.id); setSaveAmt(""); }}>Add</button>
+                      <button className="pill-act" onClick={(ev) => { ev.stopPropagation(); setSaveInto(g.id); setSaveAmt(""); }}>Add</button>
                     )}
                   </div>
                 ))}

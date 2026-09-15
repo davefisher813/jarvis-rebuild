@@ -185,11 +185,14 @@ export default function PersonDetail({
           <KV label="JARVIS writes" value={writeStyle} />
           <KV label="Areas" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} />
           {lastTalked && (
-            <div className="row">
+            // Row tap (Dave 2026-09-15, "I want all rows clickable"): a quiet
+            // contact's row drafts the check in, as its pill does. It opens a
+            // draft in the mail app and never sends.
+            <div className="row" {...(quiet && onCheckIn && !checkingIn ? pressable(onCheckIn) : {})}>
               <div className="row-grow"><div className="conn-name">Last Talked</div></div>
               <span className="kv-val">{lastTalked}</span>
               {quiet && onCheckIn && (
-                <button className="pill-act" disabled={checkingIn} onClick={onCheckIn}>
+                <button className="pill-act" disabled={checkingIn} onClick={(ev) => { ev.stopPropagation(); onCheckIn(); }}>
                   {checkingIn ? "Drafting" : "Check In"}
                 </button>
               )}
@@ -215,12 +218,14 @@ export default function PersonDetail({
                 The purple fact is the promise; the deadline beside it; Add
                 Task writes the task and the row leaves. */}
             {promises.map((p) => (
-              <div className="row" key={"promise:" + p.threadId}>
+              // Row tap (Dave 2026-09-15): a promise has no task yet, so the row
+              // does its pill's verb, Add Task.
+              <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => onAddTask(p)) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.text}</div>
                   <div className="facts"><span className="fact purp">You promised</span>{p.due && <span className="fact">{shortDate(p.due)}</span>}</div>
                 </div>
-                {onAddTask && <button type="button" className="pill-act" onClick={() => onAddTask(p)}>Add Task</button>}
+                {onAddTask && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onAddTask(p); }}>Add Task</button>}
               </div>
             ))}
             {openWith.map((m) => (

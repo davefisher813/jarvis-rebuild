@@ -1,6 +1,6 @@
 import { useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { Head, Card, Switch, Row, Menu } from "./kit";
+import { Head, Card, Switch, Row, Menu, focusField } from "./kit";
 import { readHealthSettings, updateHealthSettings, SHORTCUTS, type HealthSettings, type ShortcutKey } from "../health/settings";
 import { readGymSettings, writeGymSettings } from "../gym/settings";
 import { HARD_SET_RANGE } from "../gym/muscles";
@@ -76,7 +76,7 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
             <Switch label="Workout Reminder" meta={workoutReminder ? "Every day, on your reminders" : "One reminder, at a time you choose"} on={!!workoutReminder}
               onToggle={() => onWorkoutReminder(workoutReminder ? null : "17:30")} />
             {workoutReminder && (
-              <div className="row set-row">
+              <div className="row set-row" onClick={focusField}>
                 <div className="conn-name">Reminder Time</div>
                 <input className="set-field" type="time" aria-label="Reminder time" value={reminderClock}
                   onChange={(e) => { if (/^\d{2}:\d{2}$/.test(e.target.value)) onWorkoutReminder(e.target.value); }} />
@@ -99,13 +99,13 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
       </Card>
       <Head label="Weekly Sets" />
       <Card>
-        <div className="row set-row">
+        <div className="row set-row" onClick={focusField}>
           <div className="conn-name">Low</div>
           <input className="set-field" type="number" inputMode="numeric" aria-label="Weekly sets low" value={lowIn}
             onChange={(e) => { setLowIn(e.target.value); commitBand(Number(e.target.value), Number(highIn)); }}
             onBlur={() => setLowIn(String((readHealthSettings().volumeBand ?? HARD_SET_RANGE).low))} />
         </div>
-        <div className="row set-row">
+        <div className="row set-row" onClick={focusField}>
           <div className="conn-name">High</div>
           <input className="set-field" type="number" inputMode="numeric" aria-label="Weekly sets high" value={highIn}
             onChange={(e) => { setHighIn(e.target.value); commitBand(Number(lowIn), Number(e.target.value)); }}

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import HeadMenu, { type MenuOption } from "../shared/HeadMenu";
 import { haptics } from "../shared/haptics";
 
@@ -24,8 +24,15 @@ export function Row({ label, meta, value, onClick, chev = false, children, class
   label: ReactNode; meta?: ReactNode; value?: ReactNode; onClick?: () => void; chev?: boolean; children?: ReactNode; className?: string; disabled?: boolean;
 }) {
   const tap = onClick && !disabled ? () => { haptics.selection(); onClick(); } : undefined;
+  // Enter and Space on the row itself only: a key pressed in a control the
+  // row holds belongs to that control.
+  const key = tap ? (e: KeyboardEvent) => {
+    if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+    e.preventDefault();
+    tap();
+  } : undefined;
   return (
-    <div className={"row set-row " + className} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} aria-disabled={disabled || undefined} onClick={tap}>
+    <div className={"row set-row " + className} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} aria-disabled={disabled || undefined} onClick={tap} onKeyDown={key}>
       <div className="row-grow"><div className="conn-name">{label}</div>{meta && <div className="conn-meta">{meta}</div>}</div>
       {value !== undefined && <span className="row-value">{value}</span>}
       {children}
@@ -34,17 +41,27 @@ export function Row({ label, meta, value, onClick, chev = false, children, class
   );
 }
 
-/** A row with the switch at the right. */
+/** A row with the switch at the right. The whole row flips it (Dave
+ *  2026-09-15, "I want all rows clickable"); a locked switch takes no tap
+ *  from the row either. */
 export function Switch({ label, meta, on, onToggle, ariaLabel, locked = false }: {
   label: string; meta?: ReactNode; on: boolean; onToggle: () => void; ariaLabel?: string; locked?: boolean;
 }) {
   return (
-    <Row label={label} meta={meta}>
+    <Row label={label} meta={meta} onClick={locked ? undefined : onToggle}>
       <div className={"switch" + (on ? "" : " off") + (locked ? " switch-locked" : "")} role="switch" aria-checked={on} aria-label={ariaLabel ?? label} tabIndex={0}
-        onClick={() => { if (!locked) { haptics.selection(); onToggle(); } }}
+        onClick={(e) => { e.stopPropagation(); if (!locked) { haptics.selection(); onToggle(); } }}
         onKeyDown={(e) => { if (!locked && (e.key === " " || e.key === "Enter")) { e.preventDefault(); onToggle(); } }} />
     </Row>
   );
+}
+
+/** A form row's tap: a tap on the row's bare ground focuses the field it
+ *  holds; a tap on the field or another control is left to that control
+ *  (Dave 2026-09-15, "I want all rows clickable"). */
+export function focusField(e: MouseEvent<HTMLElement>) {
+  if (e.target instanceof Element && e.target.closest("button, input, select, textarea, [role=button], [role=switch]")) return;
+  e.currentTarget.querySelector<HTMLElement>("input, select, textarea")?.focus();
 }
 
 /** A row whose value opens the dropdown. */

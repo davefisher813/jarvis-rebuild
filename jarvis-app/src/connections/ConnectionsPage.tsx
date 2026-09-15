@@ -5,6 +5,7 @@ import { googleConfigured } from "./google/config";
 import { importCalendar } from "./google/sync";
 import { Mail, CalendarDays, Link2, Plus } from "../shared/icons";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
+import { pressable } from "../shared/pressable";
 
 // Settings -> Connections (multi-account, 2026-08-04). Each Google account is
 // its own row with its own feature toggles and its own disconnect. Adding an
@@ -102,6 +103,14 @@ export default function ConnectionsPage({
     return email + " connected." + importLine(await importCalendar(api, schedule));
   });
 
+  // Reconnect one account: silent first, so on an account that is already
+  // signed in it just refreshes the sign-in. Shared by the Reconnect chip and
+  // the account row.
+  const reconnectOne = (email: string, signedOut: boolean) => run(async () => {
+    await g.reconnect(email);
+    return email + (signedOut ? " reconnected." : " is connected.");
+  });
+
   const reconnectAll = () => run(async () => {
     await g.connect();
     for (const { api } of g.apis("cal")) await importCalendar(api, schedule).catch(() => {});
@@ -132,7 +141,10 @@ export default function ConnectionsPage({
           {g.accounts.map((a) => {
             const signedOut = !g.tokenEmails.includes(a.email);
             return (
-            <div className="row" key={a.email}>
+            // Row tap (Dave 2026-09-15, "I want all rows clickable"): there is no
+            // account detail, so the row does the one safe verb, Reconnect.
+            // Disconnect stays on its own armed chip.
+            <div className="row" key={a.email} {...pressable(() => { if (!busy) void reconnectOne(a.email, signedOut); })}>
               <div className="proj-icon cat-bg-sky"><Mail className="ic" /></div>
               <div className="row-grow">
                 <div className="conn-name truncate">{a.email}</div>
@@ -144,16 +156,17 @@ export default function ConnectionsPage({
                 <div className="msg-chips conn-acct-chips">
                   {signedOut && (
                     <button className="chip on" disabled={busy}
-                      onClick={() => void run(async () => { await g.reconnect(a.email); return a.email + " reconnected."; })}>Reconnect</button>
+                      onClick={(ev) => { ev.stopPropagation(); void reconnectOne(a.email, true); }}>Reconnect</button>
                   )}
                   <button className={"chip" + (a.mail ? " on" : "")} disabled={busy}
-                    onClick={() => void toggleFeature(a.email, "mail", !a.mail)}>Email</button>
+                    onClick={(ev) => { ev.stopPropagation(); void toggleFeature(a.email, "mail", !a.mail); }}>Email</button>
                   <button className={"chip" + (a.cal ? " on" : "")} disabled={busy}
-                    onClick={() => void toggleFeature(a.email, "cal", !a.cal)}>Calendar</button>
+                    onClick={(ev) => { ev.stopPropagation(); void toggleFeature(a.email, "cal", !a.cal); }}>Calendar</button>
                   {/* Armed two-tap (2026-08-09): disconnect sat one accidental
                       tap away, styled like the harmless toggles beside it. */}
                   <button className="chip" disabled={busy}
-                    onClick={() => {
+                    onClick={(ev) => {
+                      ev.stopPropagation();
                       if (armDisc !== a.email) { setArmDisc(a.email); return; }
                       setArmDisc(null);
                       void run(async () => { await g.disconnect(a.email); return a.email + " disconnected."; });
@@ -191,7 +204,7 @@ export default function ConnectionsPage({
       )}
 
       {g.accounts.some((a) => a.mail) && (
-        <div className="pad-x"><div className="card list-card-ruled conn-mail-card"><div className="row">
+        <div className="pad-x"><div className="card list-card-ruled conn-mail-card"><div className="row" {...pressable(() => { if (!busy) void toggleTrackOpens(); })}>
           <div className="row-grow">
             <div className="conn-name">Know When Your Email Is Opened</div>
             <div className="conn-meta">Read receipts on sent mail · Powers Opened</div>
@@ -202,7 +215,7 @@ export default function ConnectionsPage({
             aria-checked={trackOpens}
             aria-label="Know When Your Email Is Opened"
             disabled={busy}
-            onClick={() => void toggleTrackOpens()}
+            onClick={(ev) => { ev.stopPropagation(); void toggleTrackOpens(); }}
           />
         </div></div></div>
       )}

@@ -23,6 +23,7 @@ import { refreshMailSnapshot } from "../messages/snapshotRefresh";
 import { runSentSweep } from "../messages/sweepRun";
 import { loadMailSnapshot, type MailSnapshot } from "../messages/home";
 import { foundLine, foundRows, openCount, FOUND_CLEAN, FOUND_UNKNOWN } from "./found";
+import { pressable } from "../shared/pressable";
 
 const ic = (d: string) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
@@ -545,10 +546,12 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       <>
         <div className="pad-x"><div className="card">
           {seeds.map((s, i) => (
-            <div className="row" key={i}>
+            // Row tap (Dave 2026-09-15, "I want all rows clickable"): the row
+            // focuses its name field; Remove keeps its own tap.
+            <div className="row" key={i} onClick={(e) => { if (!(e.target instanceof Element) || !e.target.closest("button, input")) e.currentTarget.querySelector("input")?.focus(); }}>
               <span className={"ob-swatch cat-bg-" + s.color} />
               <div className="row-grow"><input className="input ob-rename" value={s.name} onChange={(e) => updateSeed(i, e.target.value)} aria-label={"Area " + (i + 1) + " name"} /></div>
-              <button className="ob-x" aria-label={"Remove " + s.name} onClick={() => removeSeed(i)}>{X}</button>
+              <button className="ob-x" aria-label={"Remove " + s.name} onClick={(ev) => { ev.stopPropagation(); removeSeed(i); }}>{X}</button>
             </div>
           ))}
           <button className="row row-act" onClick={addSeed}>Add Area</button>
@@ -614,6 +617,10 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     // same ranking the home page uses, each with the sentence it was read
     // from and one action that genuinely finishes here.
     const rows = foundSnap ? foundRows(foundSnap, todayISO()) : [];
+    const addFound = async (text: string, due?: string) => {
+      const ok = await saveFoundTask(text, due);
+      showToast({ message: ok ? "Added to your tasks" : "Couldn't add it · Check your connection and try again" });
+    };
     const n = foundSnap ? openCount(foundSnap) : 0;
     control = (
       <>
@@ -631,16 +638,14 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
             <div className="row"><div className="row-grow"><div className="conn-name">{FOUND_CLEAN}</div></div></div>
           )}
           {found === "ready" && n > 0 && rows.map((r) => (
-            <div className="row" key={r.key}>
+            // Row tap (Dave 2026-09-15): the found row does its one verb, Add Task.
+            <div className="row" key={r.key} {...pressable(() => void addFound(r.taskText, r.due))}>
               <div className="row-grow">
                 <div className="conn-name truncate">{r.title}</div>
                 {/* The sender's own sentence, quoted, never a rewrite. */}
                 <div className="conn-meta">{r.sentence}</div>
               </div>
-              <button className="btn-sm" onClick={() => void (async () => {
-                const ok = await saveFoundTask(r.taskText, r.due);
-                showToast({ message: ok ? "Added to your tasks" : "Couldn't add it · Check your connection and try again" });
-              })()}>Add Task</button>
+              <button className="btn-sm" onClick={(ev) => { ev.stopPropagation(); void addFound(r.taskText, r.due); }}>Add Task</button>
             </div>
           ))}
         </div></div>

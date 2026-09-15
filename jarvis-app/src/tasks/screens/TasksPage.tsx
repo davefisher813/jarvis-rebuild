@@ -231,7 +231,7 @@ export function TaskRow({
   // the ones the checkbox already had. An open row is closing, not
   // completing; a done row has nothing to complete.
   const completable = !t.done && !!onToggle && !selecting;
-  const { dx, dragging, handlers } = useSwipe({
+  const { dx, dragging, handlers, open: swipeOpen, closeThen } = useSwipe({
     revealW: snoozable ? 176 : 88,
     rightW: completable ? 88 : 0,
     ...(completable ? { onRightCommit: tapCheck } : {}),
@@ -282,6 +282,22 @@ export function TaskRow({
         className={"task-row" + (renaming ? " renaming" : "") + (t.done ? " completed" : "") + (burst ? " just-done" : "") + (dragging ? " swiping" : "")}
         style={{ transform: dx ? `translateX(${dx}px)` : undefined }}
         {...handlers}
+        // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+        // clickable"). The title used to be the only door, so the gap past
+        // the words and the space around Start were dead. The ring, the star,
+        // the person and the pill each stop their own tap. A tap on a row
+        // whose Delete is showing closes it instead of opening the task.
+        role="button"
+        tabIndex={0}
+        onClick={() => {
+          if (swipeOpen || dx) { closeThen(); return; }
+          if (selecting) onPick?.(item.id); else onOpen?.(item.id);
+        }}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+          e.preventDefault();
+          if (selecting) onPick?.(item.id); else onOpen?.(item.id);
+        }}
       >
         {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
         {!selecting && <EntityStar entityType="task" entityId={item.id} title={t.text} />}
@@ -319,7 +335,7 @@ export function TaskRow({
             <Burst show={burst} size={burstSize} />
           </div>
         )}
-        <div className="task-title" role="button" tabIndex={0} onClick={() => (selecting ? onPick?.(item.id) : onOpen?.(item.id))}>
+        <div className="task-title">
           {/* THE TAP OPENS. RENAME IS THE LONG PRESS (Dave 2026-08-24: "when
               I tap to edit a task it now edits the text instead... it's WAY
               more important that I can easily click and edit the tasks").

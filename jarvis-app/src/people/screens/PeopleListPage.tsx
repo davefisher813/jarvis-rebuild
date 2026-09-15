@@ -92,11 +92,13 @@ export default function PeopleListPage({
         <div className="pad-x"><div className="card list-card-ruled pad">
           <div className="conn-name">From your old list · Still handle with care?</div>
           {pendingReview.map((p) => (
-            <div className="offer-row" key={p.id}>
+            // Row tap (Dave 2026-09-15, "I want all rows clickable"): the row
+            // opens the person; Yes and No keep their own taps.
+            <div {...pressable(() => onOpen(p.id))} className="offer-row" key={p.id}>
               <div className="av av-32 cat-bg-graphite">{personInitials(p.data.name)}</div>
               <div className="row-grow"><div className="conn-name truncate">{p.data.name}</div></div>
-              <button className="btn-sm" onClick={() => onConfirmFlag?.(p.id)}>Yes</button>
-              <button className="quiet-action" onClick={() => onClearFlag?.(p.id)}>No, move out</button>
+              <button className="btn-sm" onClick={(ev) => { ev.stopPropagation(); onConfirmFlag?.(p.id); }}>Yes</button>
+              <button className="quiet-action" onClick={(ev) => { ev.stopPropagation(); onClearFlag?.(p.id); }}>No, move out</button>
             </div>
           ))}
         </div></div>

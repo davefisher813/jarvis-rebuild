@@ -72,6 +72,22 @@ describe("LibraryPage: the row's anatomy", () => {
     // The sheet lands on the muscle question, over the page.
     expect(document.body.querySelector(".sheet-scrim")).not.toBeNull();
     expect(screen.getByText("Muscles Worked")).toBeInTheDocument();
+    // The chip kept its own verb: the exercise opened once, from the name.
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  // Dave 2026-09-15: "I want all rows clickable."
+  it("opens the exercise from anywhere on its row, and from Enter on the row", () => {
+    const onOpen = vi.fn();
+    render(<LibraryPage {...base} rows={[row()]} onOpen={onOpen} />);
+    const rowEl = document.querySelector(".ex-row") as HTMLElement;
+    fireEvent.click(rowEl);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(rowEl, { key: "Enter" });
+    expect(onOpen).toHaveBeenCalledTimes(2);
+    // Enter on the overflow is the overflow's, not the row's.
+    fireEvent.keyDown(screen.getByRole("button", { name: "More for Bench Press" }), { key: "Enter" });
+    expect(onOpen).toHaveBeenCalledTimes(2);
   });
 
   it("holds Edit Details, Rename, Set Goal, Merge, Favorites and Hide in the overflow", () => {

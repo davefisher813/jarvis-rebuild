@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SheetBar from "../shared/SheetBar";
 import { capAfterNumber } from "../shared/casing";
@@ -49,6 +49,7 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
   const [values, setValues] = useState<string[]>([]);
   const [tagText, setTagText] = useState("");
   const [preview, setPreview] = useState(false);
+  const tagRef = useRef<HTMLInputElement>(null);
 
   // One value for the single-answer axes, many for the list ones.
   const multi = field === "primary" || field === "secondary" || field === "tags";
@@ -129,6 +130,7 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
             <>
               <div className="grp xs-grp"><div className="eyebrow">Field</div></div>
               <div className="pad-x"><div className="card xs-group">
+                {/* row-tap: chip strip, every inch of it is one of the field chips */}
                 <div className="row xs-row">
                   <div className="chip-row">
                     {FIELDS.map((f) => (
@@ -144,6 +146,7 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
 
               <div className="grp xs-grp"><div className="eyebrow">How</div></div>
               <div className="pad-x"><div className="card xs-group">
+                {/* row-tap: chip strip, every inch of it is one of the three mode chips */}
                 <div className="row xs-row">
                   <div className="chip-row">
                     {(["add", "replace", "clear"] as BatchMode[]).map((m) => (
@@ -162,12 +165,14 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
                   <div className="grp xs-grp"><div className="eyebrow">{BATCH_LABEL[field]}</div></div>
                   <div className="pad-x"><div className="card xs-group">
                     {field === "tags" ? (
-                      <div className="row xs-row">
+                      // A tap anywhere on the row lands in the field (Dave 2026-09-15: "I want all rows clickable").
+                      <div className="row xs-row" onClick={() => tagRef.current?.focus()}>
                         <div className="xs-label">Tags</div>
-                        <input className="xs-input" value={tagText} placeholder="Comma Separated" aria-label="Tags"
+                        <input ref={tagRef} className="xs-input" value={tagText} placeholder="Comma Separated" aria-label="Tags"
                           onChange={(e) => setTagText(e.target.value)} />
                       </div>
                     ) : (
+                      // row-tap: chip strip, every inch of it is one of the value chips
                       <div className="row xs-row">
                         <div className="chip-row">
                           {options.map((o) => (

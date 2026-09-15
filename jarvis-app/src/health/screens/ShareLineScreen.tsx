@@ -1,4 +1,5 @@
 import type { ConsentGrant, HealthCategoryId } from "../types";
+import { pressable } from "../../shared/pressable";
 import { HEALTH_CATEGORIES, HEALTH_CATEGORY_LABEL, HEALTH_CATEGORY_DESC, KID_ROOM_CATEGORIES, KID_ROOM_LABEL, DEFAULT_GRANTED } from "../shareLine";
 import { haptics } from "../../shared/haptics";
 
@@ -21,6 +22,7 @@ export default function ShareLineScreen({
   onBack: () => void;
 }) {
   const grantedFor = (c: HealthCategoryId) => grants.find((g) => g.category === c)?.granted ?? DEFAULT_GRANTED[c];
+  const flip = (c: HealthCategoryId) => { haptics.selection(); onToggle(c, !grantedFor(c)); };
 
   return (
     <div className="screen ruled health-ruled">
@@ -37,7 +39,8 @@ export default function ShareLineScreen({
       <div className="sh2 sh2-quiet"><span className="t">Areas</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
         {HEALTH_CATEGORIES.map((c) => (
-          <div className="row" key={c}>
+          // Row tap (Dave 2026-09-15, "I want all rows clickable"): the row flips its switch.
+          <div className="row" key={c} {...pressable(() => flip(c))}>
             <div className="row-grow">
               <div className="conn-name">{HEALTH_CATEGORY_LABEL[c]}</div>
               <div className="bp-sub">{HEALTH_CATEGORY_DESC[c]}</div>
@@ -47,7 +50,7 @@ export default function ShareLineScreen({
               role="switch"
               aria-checked={grantedFor(c)}
               aria-label={HEALTH_CATEGORY_LABEL[c]}
-              onClick={() => { haptics.selection(); onToggle(c, !grantedFor(c)); }}
+              onClick={(ev) => { ev.stopPropagation(); flip(c); }}
             />
           </div>
         ))}
@@ -56,6 +59,7 @@ export default function ShareLineScreen({
       <div className="sh2 sh2-quiet"><span className="t">Never Shared, No Matter What</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
         {KID_ROOM_CATEGORIES.map((c) => (
+          // row-tap: Kid's Room rows are deliberately not switches and must never take a tap (healthPrivacy law)
           <div className="row" key={c}>
             <div className="row-grow">
               <div className="conn-name">{KID_ROOM_LABEL[c]}</div>

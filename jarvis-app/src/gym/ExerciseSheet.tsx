@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useRef, useState, type ReactNode } from "react";
+import { own } from "../shared/rowDoor";
 import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL, asksCount, countsFor, defaultCount, loadStyleOf, weightless, type Counted, type Equipment, type LoadStyle } from "./equipment";
 import { condCap, condSummary, mmss } from "./conditioning";
@@ -164,6 +165,10 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   // REORDER IS A MODE (Health Preview): the strip's grips come out from the
   // group's own Reorder pill and go away on Done.
   const [reorderSets, setReorderSets] = useState(false);
+  // Form rows land their tap on their own field (Dave 2026-09-15: "I want all rows clickable").
+  const nameRef = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLInputElement>(null);
+  const toggleStrip = () => { setStripOpen((o) => !o); setReorderSets(false); };
 
   // Picking a suggestion carries kind, unit and the last-used target forward
   // (catalog §3.5) -- exactness, not just proximity, is what stops the fork.
@@ -253,9 +258,10 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               glyph in the gym's orange, the field as the row. */}
           <div className="grp xs-grp"><div className="eyebrow">Name</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div className="row xs-row">
+            <div className="row xs-row" onClick={() => nameRef.current?.focus()}>
               <Tile tone="orange"><Dumbbell className="ic" /></Tile>
               <input
+                ref={nameRef}
                 className={"xs-input" + (touched && !name.trim() ? " input-error" : "")}
                 placeholder="Exercise Name"
                 aria-label="Exercise name"
@@ -385,12 +391,12 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                       options={TIME_UNITS.map((u) => ({ value: u, label: u }))} onPick={setTimeUnit} />
                   </div>
                 )}
-                <div className="row xs-row">
+                <div className="row xs-row" onClick={toggleStrip}>
                   <div className="row-grow">
                     <div className="conn-name">Customize Individual Sets</div>
                     <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by set"}</div>
                   </div>
-                  <button className="pill-act pill-neutral" aria-expanded={stripOpen} onClick={() => { setStripOpen((o) => !o); setReorderSets(false); }}>
+                  <button className="pill-act pill-neutral" aria-expanded={stripOpen} onClick={own(toggleStrip)}>
                     {stripOpen ? "Hide" : "Show"}
                   </button>
                 </div>
@@ -493,7 +499,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 the weight re-ramps for free. The preview below is the real
                 derivation, so what it says is what the session offers. */}
             {kind === "weight_reps" && (
-              <div className="row xs-row">
+              <div className="row xs-row" onClick={() => setRamp((r) => !r)}>
                 <Tile tone="yellow"><Flame className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Warm-Up Ramp</div>
@@ -505,20 +511,20 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                   )}
                 </div>
                 <div className={"switch" + (ramp ? "" : " off")} role="switch" aria-checked={ramp} aria-label="Warm-up ramp" tabIndex={0}
-                  onClick={() => setRamp((r) => !r)} />
+                  onClick={own(() => setRamp((r) => !r))} />
               </div>
             )}
             {/* PAIR WITH (Health Push E, H-24): who this one alternates with,
                 and the door to the day's own Group With picker, so pairing no
                 longer hides behind a long press on the day list. */}
             {onPairWith && (
-              <div className="row xs-row">
+              <div className="row xs-row" onClick={onPairWith}>
                 <Tile tone="teal"><Link2 className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Pair With</div>
                   <div className="conn-meta">{partner ?? "Not paired"}</div>
                 </div>
-                <button className="pill-act pill-neutral" onClick={onPairWith}>{partner ? "Change" : "Choose"}</button>
+                <button className="pill-act pill-neutral" onClick={own(onPairWith)}>{partner ? "Change" : "Choose"}</button>
               </div>
             )}
             {/* REST AFTER THE ROUND (Part 3 wave 2): only once the exercise
@@ -538,23 +544,23 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 paired with, instead of the athlete standing around. Pairing
                 itself is set from the day list's long-press menu, once both
                 exercises exist. */}
-            <div className="row xs-row">
+            <div className="row xs-row" onClick={() => setFiller((f) => !f)}>
               <Tile tone="purple"><Shuffle className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Filler</div>
                 <div className="conn-meta">Offered during a pair's rest</div>
               </div>
               <div className={"switch" + (filler ? "" : " off")} role="switch" aria-checked={filler} aria-label="Filler" tabIndex={0}
-                onClick={() => setFiller((f) => !f)} />
+                onClick={own(() => setFiller((f) => !f))} />
             </div>
           </div></div>
 
           <div className="grp xs-grp"><div className="eyebrow">Note</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div className="row xs-row">
+            <div className="row xs-row" onClick={() => noteRef.current?.focus()}>
               <Tile tone="graphite"><StickyNote className="ic" /></Tile>
               {/* Reference, never coaching: the app does not tell anyone how to lift. */}
-              <input className="xs-input" placeholder="Optional" aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} />
+              <input ref={noteRef} className="xs-input" placeholder="Optional" aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
           </div></div>
 

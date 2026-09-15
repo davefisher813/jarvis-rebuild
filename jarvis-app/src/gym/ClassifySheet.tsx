@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { own } from "../shared/rowDoor";
 import { createPortal } from "react-dom";
 import SheetBar from "../shared/SheetBar";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
@@ -39,10 +40,13 @@ const OPEN_GROUP: Record<Chip["field"], string> = {
 function TextRow({ label, value, placeholder, onChange }: {
   label: string; value: string; placeholder: string; onChange: (v: string) => void;
 }) {
+  const ref = useRef<HTMLInputElement>(null);
   return (
-    <div className="row xs-row">
+    // The label and the gaps land in the field too (Dave 2026-09-15: "I want all rows clickable").
+    <div className="row xs-row" onClick={() => ref.current?.focus()}>
       <div className="xs-label">{label}</div>
       <input
+        ref={ref}
         className="xs-input"
         value={value}
         placeholder={placeholder}
@@ -61,6 +65,7 @@ function ChipRow<T extends string>({ items, label: labelOf, value, onPick, ariaP
   ariaPrefix: string;
 }) {
   return (
+    // row-tap: chip strip, every inch of it is one of the answer chips
     <div className="row xs-row">
       <div className="chip-row">
         {items.map((t) => (
@@ -119,6 +124,7 @@ export default function ClassifySheet({
   };
 
   const counts = countsFor(c.equipment);
+  const toggleArchived = () => (c.archived ? clear("archived") : set({ archived: true }));
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
@@ -142,6 +148,7 @@ export default function ClassifySheet({
                 <div className="conn-meta">Tap once for primary, twice for secondary</div>
               </div>
             </div>
+            {/* row-tap: chip strip, every inch of it is one of the muscle chips */}
             <div className="row xs-row">
               <div className="chip-row">
                 {MUSCLE_GROUPS.map((m) => {
@@ -179,6 +186,7 @@ export default function ClassifySheet({
             <>
               <div className="grp xs-grp"><div className="eyebrow">Applies To</div></div>
               <div className="pad-x"><div className="card xs-group">
+                {/* row-tap: chip strip, every inch of it is one of the three scope chips */}
                 <div className="row xs-row">
                   <div className="chip-row">
                     {(["all", "existing", "future"] as MuscleScope[]).map((s) => (
@@ -281,12 +289,14 @@ export default function ClassifySheet({
 
               <div className="grp xs-grp"><div className="eyebrow">Archive</div></div>
               <div className="pad-x"><div className="card xs-group">
-                <div className="row xs-row">
+                {/* The row flips the draft the same way its pill does; nothing is
+                    written until Save (Dave 2026-09-15: "I want all rows clickable"). */}
+                <div className="row xs-row" onClick={toggleArchived}>
                   <div className="row-grow">
                     <div className="conn-name">{c.archived ? "Archived" : "Active"}</div>
                     <div className="conn-meta">An archived exercise keeps every record it has</div>
                   </div>
-                  <button type="button" className="pill-act" onClick={() => (c.archived ? clear("archived") : set({ archived: true }))}>
+                  <button type="button" className="pill-act" onClick={own(toggleArchived)}>
                     {c.archived ? "Restore" : "Archive"}
                   </button>
                 </div>

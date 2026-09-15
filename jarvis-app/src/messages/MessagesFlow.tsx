@@ -152,6 +152,7 @@ import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, fi
 import { liveSweep, loadSweep } from "./sentSweep";
 import { runSentSweep } from "./sweepRun";
 import { pressable } from "../shared/pressable";
+import { rowDoor } from "../shared/rowDoor";
 import { fullThreadsFor, SENT_BODY_CAP } from "./sentBodies";
 import { laterTaskTitle } from "./deck";
 
@@ -492,6 +493,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }, []);
   const [noiseGroups, setNoiseGroups] = useState<Record<string, boolean>>({});
   const [closeDone, setCloseDone] = useState(false);
+  // The amnesty row's tap lists the threads it would close, never closes them.
+  const [amnestyOpen, setAmnestyOpen] = useState(false);
   // EMAIL-F-08 (2026-09-05): what the last Close It Out archived, for the
   // week the card promises it can be put back in.
   const [closedBatch, setClosedBatch] = useState<ClosedBatch | null>(() => loadClosedBatch());
@@ -1635,6 +1638,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g, search, searchPeople, acctFilter]);
+
+  // A sender row's door (Dave 2026-09-15: "I want all rows clickable"). A
+  // rule, a receipt or a noise offer is ABOUT a sender, so its tap shows that
+  // sender's mail: the threads the rule governs. Nothing is filed or sent.
+  const showFrom = (senders: string[]) => {
+    const q = senders.map((x) => "from:" + x).join(" OR ");
+    if (!q) return;
+    setView("list");
+    setSearch(q);
+    void runSearch(q);
+  };
 
   // UP-MIND-15: it answers as you type, from three characters. Debounced so
   // walking to "marco" is one request, not four.
@@ -2833,8 +2847,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="sh2 sh2-quiet"><span className="t">{title}</span><span className="n">{rows2.length}</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
           {rows2.map((r) => (
-            <div className="row" key={title + ":" + r.key}>
-              <div className="row-grow" {...pressable(() => openRow(r))}>
+            <div className="row" key={title + ":" + r.key} {...rowDoor(() => openRow(r))}>
+              <div className="row-grow">
                 <div className="conn-name truncate">{r.who || r.what}</div>
                 <div className="conn-meta truncate">{r.who ? r.what + " · " + r.since : r.since}</div>
               </div>
@@ -2956,6 +2970,31 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // permanent and invisible is not a rule, it is a haunting.
   if (view === "rules") {
     const filed = Object.entries(rules);
+    const flipAutoReply = () => {
+      const next = !autoReplyOn;
+      setAutoReplyOn(next);
+      // EMAIL-F-16: the switch the AppShell pump reads, so turning it
+      // on here starts the background pass rather than an effect that
+      // dies with this screen.
+      setAutoReplyEnabled(next);
+    };
+    const putBack = async () => {
+      if (closeBusy || !closedBatch) return;
+      setCloseBusy(true);
+      try {
+        const threads = closedBatch.threads;
+        const put = await settleAll(threads, (t) => apiFor(t.account)?.modifyThread(t.id, ["INBOX"], []));
+        if (put.ok.length) {
+          clearClosedBatch();
+          setClosedBatch(null);
+          setCloseDone(false);
+          void loadThreads();
+        }
+        say(settleLine(put.ok.length, put.failed.length, RESTORE_WORDS));
+      } finally {
+        setCloseBusy(false);
+      }
+    };
     return (
       <div className={"screen ruled " + pushCls} key="rules">
         <div className="nav-bar"><button className="nav-back" onClick={() => setView("list")}>Email</button>
@@ -2967,7 +3006,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           ) : filed.map(([sender, rule]) => {
             const mailAccts = g.accounts.filter((a) => a.mail);
             return (
-            <div className={"row rule-row" + (rule.enabled ? "" : " rule-off")} key={sender}>
+            // A rule row opens the rule: the sender's mail it governs.
+            <div className={"row rule-row" + (rule.enabled ? "" : " rule-off")} key={sender} {...rowDoor(() => showFrom([sender]))}>
               <div className="row-grow">
                 <div className="line-between">
                   {/* The rule's storage key is an address. The row underneath
@@ -2982,16 +3022,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 <Facts facts={ruleAccountFact(rule.account ? acctLabel(rule.account) : undefined, rule.enabled)} />
               </div>
               <div className="rule-acts">
-                <button className="pill-act" onClick={() => { setRules(setRuleEnabled(sender, !rule.enabled)); mirrorMail(); }}>{rule.enabled ? "Turn Off" : "Turn On"}</button>
-                <button className="quiet-action" onClick={() => { setRules(clearRule(sender)); mirrorMail(); }}>Undo</button>
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); setRules(setRuleEnabled(sender, !rule.enabled)); mirrorMail(); }}>{rule.enabled ? "Turn Off" : "Turn On"}</button>
+                <button className="quiet-action" onClick={(e) => { e.stopPropagation(); setRules(clearRule(sender)); mirrorMail(); }}>Undo</button>
               </div>
               {/* The chips take a full line under the row so no account
                   label is ever clipped behind the controls. */}
               {mailAccts.length > 1 && (
                 <div className="msg-chips rule-scope">
-                  <button className={"chip" + (!rule.account ? " on" : "")} onClick={() => { setRules(setRuleAccount(sender, undefined)); mirrorMail(); }}>All</button>
+                  <button className={"chip" + (!rule.account ? " on" : "")} onClick={(e) => { e.stopPropagation(); setRules(setRuleAccount(sender, undefined)); mirrorMail(); }}>All</button>
                   {mailAccts.map((a) => (
-                    <button key={a.email} className={"chip" + (rule.account === a.email.toLowerCase() ? " on" : "")} onClick={() => { setRules(setRuleAccount(sender, a.email)); mirrorMail(); }}>
+                    <button key={a.email} className={"chip" + (rule.account === a.email.toLowerCase() ? " on" : "")} onClick={(e) => { e.stopPropagation(); setRules(setRuleAccount(sender, a.email)); mirrorMail(); }}>
                       {acctLabel(a.email)}
                     </button>
                   ))}
@@ -3013,13 +3053,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {unsubs.map((r) => {
                 const s2 = stillSending([r], rows)[0];
                 return (
-                  <div className="row" key={r.sender}>
+                  // Row tap shows what they still send; Block stays button-only.
+                  <div className="row" key={r.sender} {...rowDoor(() => showFrom([r.sender]))}>
                     <div className="row-grow">
                       <div className="conn-name truncate">{nameFor(names, r.sender, prettyHandle(r.sender.split("@")[0] ?? "") ?? r.sender)}</div>
                       <div className="conn-meta">{unsubReceipt(r, s2?.since ?? 0, todayISO())}</div>
                     </div>
                     {s2 && canBlock(s2) && (
-                      <button className="pill-act" onClick={() => void (async () => {
+                      <button className="pill-act" onClick={(e) => { e.stopPropagation(); void (async () => {
                         // The app doing what the sender would not: file them
                         // to noise from now on, and archive what is here.
                         setRules(saveRule(r.sender, "noise"));
@@ -3028,7 +3069,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         if (ok.length) setRows((rs) => rs.filter((x) => !ok.some((o) => o.id === x.id)));
                         say(settleLine(ok.length, failed.length, ARCHIVE_WORDS));
                         mirrorMail();
-                      })()}>Block</button>
+                      })(); }}>Block</button>
                     )}
                   </div>
                 );
@@ -3045,27 +3086,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <>
             <Head label="Last Close" />
             <Card>
-              <div className="row">
+              {/* Row tap is Put It Back: it only restores, never removes
+                  (Dave 2026-09-15: "I want all rows clickable"). */}
+              <div className="row" {...rowDoor(() => void putBack())}>
                 <div className="row-grow">
                   <div className="conn-name">{putBackLine(closedBatch)}</div>
                   <div className="conn-meta">Still searchable in Gmail · Can go back for a week</div>
                 </div>
-                <button className="pill-act" disabled={closeBusy} onClick={() => void (async () => {
-                  setCloseBusy(true);
-                  try {
-                    const threads = closedBatch.threads;
-                    const put = await settleAll(threads, (t) => apiFor(t.account)?.modifyThread(t.id, ["INBOX"], []));
-                    if (put.ok.length) {
-                      clearClosedBatch();
-                      setClosedBatch(null);
-                      setCloseDone(false);
-                      void loadThreads();
-                    }
-                    say(settleLine(put.ok.length, put.failed.length, RESTORE_WORDS));
-                  } finally {
-                    setCloseBusy(false);
-                  }
-                })()}>{closeBusy ? "Putting Back…" : "Put It Back"}</button>
+                <button className="pill-act" disabled={closeBusy} onClick={(e) => { e.stopPropagation(); void putBack(); }}>{closeBusy ? "Putting Back…" : "Put It Back"}</button>
               </div>
             </Card>
           </>
@@ -3075,19 +3103,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             lives OFF until he turns it on. */}
         <Head label="Heads-Down Auto-Reply" />
         <Card>
+          {/* row-tap: turning on the one feature that sends mail without a tap stays on its own Turn On pill, never a stray row tap */}
           <div className="row">
             <div className="row-grow">
               <div className="conn-name">{autoReplyOn ? "On During Focus Blocks" : "Off"}</div>
               <div className="conn-meta">{AUTO_REPLY_EXPLAINER}</div>
             </div>
-            <button className="pill-act" onClick={() => {
-              const next = !autoReplyOn;
-              setAutoReplyOn(next);
-              // EMAIL-F-16: the switch the AppShell pump reads, so turning it
-              // on here starts the background pass rather than an effect that
-              // dies with this screen.
-              setAutoReplyEnabled(next);
-            }}>{autoReplyOn ? "Turn Off" : "Turn On"}</button>
+            <button className="pill-act" onClick={(e) => { e.stopPropagation(); flipAutoReply(); }}>{autoReplyOn ? "Turn Off" : "Turn On"}</button>
           </div>
           {vips.length === 0 && (
             <div className="row"><div className="row-grow">
@@ -3103,9 +3125,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           ) : muted.map((id) => {
             const r = rows.find((x) => x.id === id);
             return (
-              <div className="row" key={id}>
+              // An email row opens its thread; Unmute stays on its button.
+              <div className="row" key={id} {...rowDoor(() => void openThread(id))}>
                 <div className="row-grow"><div className="conn-name truncate">{r ? r.subject : "A thread"}</div></div>
-                <button className="quiet-action" onClick={() => { setMuted(unmute(id)); mirrorMail(); }}>Unmute</button>
+                <button className="quiet-action" onClick={(e) => { e.stopPropagation(); setMuted(unmute(id)); mirrorMail(); }}>Unmute</button>
               </div>
             );
           })}
@@ -3246,6 +3269,39 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }
 
   if (view === "compose") {
+    const attachHinted = async () => {
+      if (!attachHint) return;
+
+      if (attachingHint || !notesSvc) return;
+      setAttachingHint(true);
+      try {
+        const note = await notesSvc.note(attachHint.candidate.id);
+        if (!note) {
+          say("Couldn't find that note anymore", undefined, 4000);
+        } else {
+          const filename = attachmentFilename(note.title);
+          setDraft((d) => ({ ...d, attachment: { filename, mimeType: "text/plain", content: noteAsText(note) } }));
+          say("Attached · " + filename, undefined, 4000);
+        }
+      } catch {
+        say("Couldn't attach that file", undefined, 4000);
+      } finally {
+        setAttachingHint(false);
+      }
+    };
+    // The attached file's own door: it opens what will ride along, as text.
+    const openDraftAttachment = () => {
+      const a = draft.attachment;
+      if (!a) return;
+      const url = URL.createObjectURL(new Blob([a.content], { type: a.mimeType }));
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    };
+    // Off, then each chase length, then Off again.
+    const nextChase = () => {
+      const order = [0, ...CHASE_DAYS];
+      setChaseDays(order[(order.indexOf(chaseDays) + 1) % order.length] ?? 0);
+    };
     return (
       <div className={"screen ruled " + pushCls} key="compose">
         <div className="nav-bar">
@@ -3331,38 +3387,25 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               it himself). Hidden once something is actually attached, so the
               offer does not keep sitting there after it has been taken. */}
           {attachHint && !draft.attachment && (
-            <div className="card"><div className="row">
+            // Row tap attaches, the same as the pill; nothing is sent
+            // (Dave 2026-09-15: "I want all rows clickable").
+            <div className="card"><div className="row" {...rowDoor(() => void attachHinted())}>
               <div className="row-grow">
                 <div className="conn-name">You Have That File</div>
                 <div className="conn-meta">{suggestLine(attachHint)}</div>
               </div>
-              <button className="pill-act" disabled={attachingHint} onClick={() => void (async () => {
-                if (attachingHint || !notesSvc) return;
-                setAttachingHint(true);
-                try {
-                  const note = await notesSvc.note(attachHint.candidate.id);
-                  if (!note) {
-                    say("Couldn't find that note anymore", undefined, 4000);
-                  } else {
-                    const filename = attachmentFilename(note.title);
-                    setDraft((d) => ({ ...d, attachment: { filename, mimeType: "text/plain", content: noteAsText(note) } }));
-                    say("Attached · " + filename, undefined, 4000);
-                  }
-                } catch {
-                  say("Couldn't attach that file", undefined, 4000);
-                } finally {
-                  setAttachingHint(false);
-                }
-              })()}>{attachingHint ? "Attaching…" : "Attach It"}</button>
+              <button className="pill-act" disabled={attachingHint} onClick={(e) => { e.stopPropagation(); void attachHinted(); }}>{attachingHint ? "Attaching…" : "Attach It"}</button>
             </div></div>
           )}
           {draft.attachment && (
-            <div className="card"><div className="row">
+            // Row tap opens the file; Remove stays on its button
+            // (Dave 2026-09-15: "I want all rows clickable").
+            <div className="card"><div className="row" {...rowDoor(openDraftAttachment)}>
               <div className="row-grow">
                 <div className="conn-name">Attached</div>
                 <div className="conn-meta">{draft.attachment.filename}</div>
               </div>
-              <button className="pill-act" onClick={() => setDraft((d) => ({ ...d, attachment: undefined }))}>Remove</button>
+              <button className="pill-act" onClick={(e) => { e.stopPropagation(); setDraft((d) => ({ ...d, attachment: undefined })); }}>Remove</button>
             </div></div>
           )}
 
@@ -3370,15 +3413,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               remembers he is owed anything. It cancels itself the instant
               they write back. */}
           {draft.threadId && (
-            <div className="card"><div className="row">
+            // Form row: the tap steps to the next chase length. It sends nothing.
+            <div className="card"><div className="row" {...rowDoor(nextChase)}>
               <div className="row-grow">
                 <div className="conn-name">Chase If No Reply</div>
                 <div className="conn-meta">{chaseDays === 0 ? "Off · Waiting On will still find it eventually" : `In ${chaseDays} days`}</div>
               </div>
               <div className="msg-chips">
-                <button className={"chip" + (chaseDays === 0 ? " on" : "")} onClick={() => setChaseDays(0)}>Off</button>
+                <button className={"chip" + (chaseDays === 0 ? " on" : "")} onClick={(e) => { e.stopPropagation(); setChaseDays(0); }}>Off</button>
                 {CHASE_DAYS.map((d) => (
-                  <button key={d} className={"chip" + (chaseDays === d ? " on" : "")} onClick={() => setChaseDays(d)}>{d}d</button>
+                  <button key={d} className={"chip" + (chaseDays === d ? " on" : "")} onClick={(e) => { e.stopPropagation(); setChaseDays(d); }}>{d}d</button>
                 ))}
               </div>
             </div></div>
@@ -3725,82 +3769,88 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             const m = lastMsg(thread);
             const offer = attachOffer({ from: displayName(m.from), subject: thread.subject, body: cleanBody(m.body), attachments: m.attachments });
             if (!offer || attachDone) return null;
+            const addIt = async () => {
+              if (attachBusy) return;
+              setAttachBusy(true);
+              try {
+                // THE BUTTON DOES THE THING (2026-08-25). This branch used
+                // to fire "Open the attachment to add it · Your Calendar
+                // handles .ics", mark the card done, and hide it: a button
+                // labelled Add whose entire effect was to hand the job
+                // back and withdraw the offer. The file states the title,
+                // the date and the time; ics.ts reads them.
+                if (offer.kind === "calendar") {
+                  const read = await readIcsAttachment(m.id, offer.attachmentId);
+                  if (!read?.event) {
+                    // Law 1: unreadable means unreadable. It opens the
+                    // file rather than inventing an appointment, and the
+                    // card STAYS so the offer is not silently spent.
+                    say("Couldn't read that invite · Opening the file", undefined, 3500);
+                    if (offer.attachmentId) void openAttachment(m.id, offer.attachmentId, offer.filename ?? "invite.ics", "text/calendar");
+                    return;
+                  }
+                  const { event: ev, count } = read;
+                  const extra = count > 1 ? " · " + (count - 1) + " more in the file" : "";
+                  if (ev.start && scheduleSvc) {
+                    const id = await scheduleSvc.createEvent(ev.title, {
+                      date: ev.date, start: ev.start,
+                      end: endOfAct(ev.start, ev.durationMin ?? 60),
+                      source: madeBy("email", thread.id),
+                    });
+                    if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
+                    say("On your schedule · " + dayPhrase(ev.date, todayISO()) + " " + fmtTime(ev.start).time + " " + fmtTime(ev.start).ap + extra, undefined, 3500);
+                  } else if (tasks) {
+                    // Law 2: an all-day invite has a date and no time.
+                    // It stays a date rather than becoming a 9am nobody
+                    // wrote down. E-30: one task per thread.
+                    const dup = await findTaskForThread(tasks, thread.id);
+                    if (dup) { sayAlreadyTask(dup); return; }
+                    const id = await tasks.createTask(ev.title, { due: ev.date, fromThread: thread.id, source: madeBy("email", thread.id) });
+                    if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
+                    say("Added to your tasks · " + dayPhrase(ev.date, todayISO()) + extra, undefined, 3500);
+                  } else {
+                    return;
+                  }
+                  setAttachDone(true);
+                  return;
+                }
+                // A card offering a write with no service behind it is a
+                // button that does nothing, silently. The sheet's own file
+                // legislated against this shape; this card never got it.
+                if (!tasks) { say("Tasks aren't available right now", undefined, 3000); return; }
+                // E-30: one task per thread.
+                const dup = await findTaskForThread(tasks, thread.id);
+                if (dup) { sayAlreadyTask(dup); return; }
+                const id = offer.kind === "bill" && offer.amount != null
+                  ? await tasks.createTask(offer.title, { bill: { amount: offer.amount }, fromThread: thread.id, source: madeBy("email", thread.id) })
+                  : await tasks.createTask(offer.title, { fromThread: thread.id, source: madeBy("email", thread.id) });
+                // createTask returns null for blank text without throwing.
+                if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
+                say(offer.kind === "bill" && offer.amount != null
+                  ? "Added to Money · $" + offer.amount.toFixed(2)
+                  : "Added to your tasks", undefined, 3000);
+                setAttachDone(true);
+              } catch {
+                // Unwrapped before (2026-08-25): a throwing write produced
+                // an unhandled rejection, no toast, and a card that stayed
+                // put with no explanation.
+                say("Couldn't add it · Nothing was saved", undefined, 3000);
+              } finally {
+                setAttachBusy(false);
+              }
+            };
+            // The row opens the file itself, when there is one to open; a
+            // bill read off the subject has no file, so its row does the Add
+            // (Dave 2026-09-15: "I want all rows clickable").
+            const file = m.attachments.find((a) => a.filename === offer.filename);
+            const openIt = () => (file ? void openAttachment(m.id, file.attachmentId, file.filename, file.mime) : void addIt());
             return (
-              <div className="pad-x"><div className="card"><div className="row">
+              <div className="pad-x"><div className="card"><div className="row" {...rowDoor(openIt)}>
                 <div className="row-grow">
                   <div className="conn-name">{offer.title}</div>
                   <div className="conn-meta">{offer.sub}</div>
                 </div>
-                <button className="pill-act" disabled={attachBusy} onClick={() => void (async () => {
-                  if (attachBusy) return;
-                  setAttachBusy(true);
-                  try {
-                    // THE BUTTON DOES THE THING (2026-08-25). This branch used
-                    // to fire "Open the attachment to add it · Your Calendar
-                    // handles .ics", mark the card done, and hide it: a button
-                    // labelled Add whose entire effect was to hand the job
-                    // back and withdraw the offer. The file states the title,
-                    // the date and the time; ics.ts reads them.
-                    if (offer.kind === "calendar") {
-                      const read = await readIcsAttachment(m.id, offer.attachmentId);
-                      if (!read?.event) {
-                        // Law 1: unreadable means unreadable. It opens the
-                        // file rather than inventing an appointment, and the
-                        // card STAYS so the offer is not silently spent.
-                        say("Couldn't read that invite · Opening the file", undefined, 3500);
-                        if (offer.attachmentId) void openAttachment(m.id, offer.attachmentId, offer.filename ?? "invite.ics", "text/calendar");
-                        return;
-                      }
-                      const { event: ev, count } = read;
-                      const extra = count > 1 ? " · " + (count - 1) + " more in the file" : "";
-                      if (ev.start && scheduleSvc) {
-                        const id = await scheduleSvc.createEvent(ev.title, {
-                          date: ev.date, start: ev.start,
-                          end: endOfAct(ev.start, ev.durationMin ?? 60),
-                          source: madeBy("email", thread.id),
-                        });
-                        if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
-                        say("On your schedule · " + dayPhrase(ev.date, todayISO()) + " " + fmtTime(ev.start).time + " " + fmtTime(ev.start).ap + extra, undefined, 3500);
-                      } else if (tasks) {
-                        // Law 2: an all-day invite has a date and no time.
-                        // It stays a date rather than becoming a 9am nobody
-                        // wrote down. E-30: one task per thread.
-                        const dup = await findTaskForThread(tasks, thread.id);
-                        if (dup) { sayAlreadyTask(dup); return; }
-                        const id = await tasks.createTask(ev.title, { due: ev.date, fromThread: thread.id, source: madeBy("email", thread.id) });
-                        if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
-                        say("Added to your tasks · " + dayPhrase(ev.date, todayISO()) + extra, undefined, 3500);
-                      } else {
-                        return;
-                      }
-                      setAttachDone(true);
-                      return;
-                    }
-                    // A card offering a write with no service behind it is a
-                    // button that does nothing, silently. The sheet's own file
-                    // legislated against this shape; this card never got it.
-                    if (!tasks) { say("Tasks aren't available right now", undefined, 3000); return; }
-                    // E-30: one task per thread.
-                    const dup = await findTaskForThread(tasks, thread.id);
-                    if (dup) { sayAlreadyTask(dup); return; }
-                    const id = offer.kind === "bill" && offer.amount != null
-                      ? await tasks.createTask(offer.title, { bill: { amount: offer.amount }, fromThread: thread.id, source: madeBy("email", thread.id) })
-                      : await tasks.createTask(offer.title, { fromThread: thread.id, source: madeBy("email", thread.id) });
-                    // createTask returns null for blank text without throwing.
-                    if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
-                    say(offer.kind === "bill" && offer.amount != null
-                      ? "Added to Money · $" + offer.amount.toFixed(2)
-                      : "Added to your tasks", undefined, 3000);
-                    setAttachDone(true);
-                  } catch {
-                    // Unwrapped before (2026-08-25): a throwing write produced
-                    // an unhandled rejection, no toast, and a card that stayed
-                    // put with no explanation.
-                    say("Couldn't add it · Nothing was saved", undefined, 3000);
-                  } finally {
-                    setAttachBusy(false);
-                  }
-                })()}>{attachBusy ? "Adding…" : offer.action}</button>
+                <button className="pill-act" disabled={attachBusy} onClick={(e) => { e.stopPropagation(); void addIt(); }}>{attachBusy ? "Adding…" : offer.action}</button>
               </div></div></div>
             );
           })()}
@@ -4239,13 +4289,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               // the person: "17 threads older than two weeks", not "17 you
               // ignored". The promise under it is the whole reason a one-tap
               // bulk action is safe to take, so it is stated in full.
-              <div className="pad-x"><div className="card"><div className="row">
+              // Row tap LISTS what would close; only the pill archives
+              // (Dave 2026-09-15: "I want all rows clickable").
+              <div className="pad-x"><div className="card"><div className="row" {...rowDoor(() => setAmnestyOpen((v) => !v))}>
                 <div className="row-grow">
                   <div className="conn-name">{amnestyLine(set)}</div>
                   <div className="conn-meta">{closeLine(set)}</div>
                   <div className="conn-meta msg-amnesty-promise">{amnestyPromise()}</div>
                 </div>
-                <button className="pill-act" onClick={() => void (async () => {
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); void (async () => {
                   const ids = set.ids;
                   const kept = rows.filter((r) => ids.includes(r.id));
                   setRows((rs) => rs.filter((r) => !ids.includes(r.id)));
@@ -4286,8 +4338,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     } : undefined,
                   );
                   setClosedBatch(loadClosedBatch());
-                })()}>Close It Out</button>
-              </div></div></div>
+                })(); }}>Close It Out</button>
+              </div>
+              {amnestyOpen && rows.filter((r) => set.ids.includes(r.id)).map((r) => (
+                <div className="row" key={r.id} {...pressable(() => void openThread(r.id))}>
+                  <div className="row-grow">
+                    <div className="conn-name truncate">{r.subject}</div>
+                    <div className="conn-meta truncate">{displayName(r.from)}</div>
+                  </div>
+                  <div className="chev" />
+                </div>
+              ))}
+              </div></div>
             );
           })()}
 
@@ -4307,6 +4369,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 title="Continue Your Reply"
                 sub={<Facts facts={[{ text: "To " + who }, cont.draft.subject ? { text: cont.draft.subject } : null]} />}
                 action={{ label: "Open It", onClick: () => continueLocalDraft(cont.key) }}
+                onOpen={() => continueLocalDraft(cont.key)}
                 alt={{ label: "Throw it away", onClick: () => { clearLocalDraft(cont.key); setLocalDrafts(loadLocalDrafts()); } }}
               />
             );
@@ -4737,6 +4800,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 })(),
               }}
               alt={{ label: "Leave them", onClick: () => { sweep.forEach((c) => markAsked(c.sender)); setSweep([]); } }}
+              onOpen={() => showFrom(sweep.map((c) => c.sender))}
             />
           ) : toss ? (
             <NoticeCard
@@ -4756,6 +4820,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 },
               }}
               alt={{ label: "No thanks", onClick: () => { markAsked(toss.sender); setToss(null); } }}
+              onOpen={() => showFrom([toss.sender])}
             />
           ) : autoOffer ? (
             <NoticeCard
@@ -4766,6 +4831,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               sub={<Facts facts={[{ text: "From now on" }, { text: "Named on the receipt each time" }]} />}
               action={{ label: "Turn It On", onClick: enableAutoNoise }}
               alt={{ label: "Keep it manual", onClick: () => setAutoOffer(false) }}
+              onOpen={() => setView("rules")}
             />
           ) : null}
           {/* E12 (2026-08-23): the close-out. It goes at the bottom because
@@ -5067,13 +5133,15 @@ function SendHold({
     return (
       <div className="pad-x">
         <div className="card send-hold">
-          <div className="row">
+          {/* The failed message's row opens it in the composer, like Edit. */}
+          <div className="row" {...rowDoor(onEdit)}>
             <div className="row-glyph cat-fg-red"><Send className="ic" /></div>
             <div className="row-grow">
               <div className="conn-name">{interrupted ? "Send Interrupted" : "Could Not Send"}</div>
               <div className="conn-meta">{item.error || "Try again"}</div>
             </div>
           </div>
+          {/* row-tap: the failed card's verbs line (Edit, Retry, Discard); the row above it is the door */}
           <div className="row row-acts">
             <button className="pill-act" onClick={onEdit}>Edit</button>
             <button className="btn-sm" onClick={onRetry}>Retry</button>
@@ -5103,14 +5171,18 @@ function SendHold({
   return (
     <div className="pad-x">
       <div className="card send-hold">
-        <div className="row">
+        {/* The held message's row pulls it back into the composer (Undo);
+            it never sends. Send Now stays button-only
+            (Dave 2026-09-15: "I want all rows clickable"). */}
+        <div className="row" {...rowDoor(onUndo)}>
           <div className="row-glyph cat-fg-blue"><Send className="ic" /></div>
           <div className="row-grow">
             <div className="conn-name">{holdLine(item, now)}</div>
             <div className="conn-meta">Nothing has left yet</div>
           </div>
-          <button className="pill-act" onClick={onUndo}>Undo</button>
+          <button className="pill-act" onClick={(e) => { e.stopPropagation(); onUndo(); }}>Undo</button>
         </div>
+        {/* row-tap: the held card's verbs line, only Send Now, which must stay a deliberate button */}
         <div className="row row-acts">
           <button className="btn-sm" onClick={onNow}>Send Now</button>
         </div>

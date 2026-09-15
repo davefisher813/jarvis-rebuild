@@ -1778,6 +1778,7 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "condBench.tsx",                       // bench harness, run by hand
     "healthBench.tsx",                     // bench harness, run by hand
     "score.ts",                            // golden-set scorer, run by hand
+    "rowTap.scan.ts",                      // the row-tap law's scanner, run by laws/rowTap.test.ts
   ];
 
   // Written, tested, and NOT reachable from the running app. Each line is a

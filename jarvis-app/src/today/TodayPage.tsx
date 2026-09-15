@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { DollarSign, RotateCcw } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
+import { rowDoor, own } from "../shared/rowDoor";
 import { rankStream, DEALT, WAITING, NEW, AMBIENT } from "./stream";
 import { cloneElement } from "react";
 import type { EventItem } from "../schedule/types";
@@ -101,12 +102,17 @@ function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOp
     return kept.length ? kept.join(" \u00b7 ") : null;
   })();
   return (
-    <div className={"task-row" + (localDone ? " just-done" : "")}>
-      <div className="task-check-tap" role="checkbox" aria-checked={done} aria-label={done ? "Mark not done" : "Mark done"} onClick={tap}>
+    // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+    // clickable. How is the first thing that renders on the app not
+    // clickable?"). Only the title used to open the task; the ring's gutter,
+    // the kicker's padding and the space around Start were dead. The row
+    // takes the tap now, and the ring and Start keep their own verbs.
+    <div className={"task-row" + (localDone ? " just-done" : "")} {...(onOpen ? rowDoor(onOpen) : {})}>
+      <div className="task-check-tap" role="checkbox" aria-checked={done} aria-label={done ? "Mark not done" : "Mark done"} onClick={own(tap)}>
         <div className={"task-check" + (done ? " done" : "")} />
         <Burst show={bursting} size={burstSize} />
       </div>
-      <div className="task-title" role="button" tabIndex={0} onClick={onOpen}>
+      <div className="task-title">
         <span className="task-name">{t.data.text}</span>
         {/* THE SECOND LINE ANSWERS THE PAGE'S QUESTION (Dave 2026-09-01,
             "Together" catalog, on the row he hated). Bar first, so the
@@ -251,12 +257,14 @@ export default function TodayPage({
   daypart,
   birthdays,
   onTextPerson,
+  onOpenPerson,
   onCallPerson,
   mail,
   onSeeAllMail,
   mailEmpty,
   billLine,
   onPayBill,
+  onOpenBill,
   conflicts,
   attachMap,
   firstMoveMap,
@@ -294,6 +302,7 @@ export default function TodayPage({
   mailEmpty?: boolean;
   billLine?: { title: string; sub: string }; // bills due within 3 days, from billsLine (2026-08-09)
   onPayBill?: () => void; // marks the SOONEST due bill paid, with undo
+  onOpenBill?: () => void; // the bill card's body: the bill, or the list of them
   summary: DaySummary;
   todayEvents: EventItem[];
   now: string;
@@ -410,6 +419,7 @@ export default function TodayPage({
   // Drafting, the Call Prep card), and both are hidden when there is no
   // number to use them with.
   onTextPerson?: (id: string) => void;
+  onOpenPerson?: (id: string) => void;
   onCallPerson?: (id: string) => void;
 }) {
   // THE STREAM SHOWS THREE (Dave 2026-08-26, from the five-way render
@@ -486,7 +496,10 @@ export default function TodayPage({
       <div>
         <div>
           {birthdays.map((b) => (
-            <div className="row" key={b.id}>
+            // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the
+            // row opens the person, or failing that drafts the text (a
+            // sheet, never a send).
+            <div className="row" key={b.id} {...(onOpenPerson ? rowDoor(() => onOpenPerson(b.id)) : b.phone && onTextPerson ? rowDoor(() => onTextPerson(b.id)) : {})}>
               <div className="av av-32 cat-bg-pink">{b.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div>
               <div className="row-grow">
                 <div className="conn-name truncate">{b.name}</div>
@@ -498,10 +511,10 @@ export default function TodayPage({
                   opens Messages Drafting with the message already written;
                   Call opens the Call Prep card. No phone, no pills. */}
               {b.phone && onTextPerson && (
-                <button type="button" className="pill-act" onClick={() => onTextPerson(b.id)}>Text</button>
+                <button type="button" className="pill-act" onClick={own(() => onTextPerson(b.id))}>Text</button>
               )}
               {b.phone && onCallPerson && (
-                <button type="button" className="pill-act" onClick={() => onCallPerson(b.id)}>Call</button>
+                <button type="button" className="pill-act" onClick={own(() => onCallPerson(b.id))}>Call</button>
               )}
             </div>
           ))}
@@ -579,6 +592,7 @@ export default function TodayPage({
     // so it stays, saying what it counts. A chip that is a whole phrase can
     // never be swallowed by the word in front of it, and it is set off in its
     // own weight and ink so the eye takes them as two things.
+    // row-tap: centring wrapper whose only content is the Focus button itself
     <div key="waiting" className="notice-clear-row focus-row">
       <button className="row-act" onClick={onUpNext}>
         <BullseyeGlyph />
@@ -652,7 +666,7 @@ export default function TodayPage({
           {/* Weeklies/monthlies surface on their day only; the day before gets
               this one quiet heads-up row (roadmap v2 dailies weaving). */}
           {tomorrowTasks.map((t) => (
-            <div className="sched-row" key={t.id}>
+            <div className="sched-row" key={t.id} {...(onOpenTask ? rowDoor(() => onOpenTask(t.id)) : {})}>
               <div className="sched-time" />
               <div className="sched-body">
                 <div className="sched-title">{t.data.text}</div>
@@ -690,6 +704,9 @@ export default function TodayPage({
         // A bill card with no button is the same dead end the old email line
         // was: it tells him he owes money and stops. One tap marks it paid.
         action={onPayBill ? { label: "Paid", onClick: onPayBill } : undefined}
+        // ROW-TAP (Dave 2026-09-15): the body opens the bill; paying stays
+        // on the pill.
+        onOpen={onOpenBill}
       />
     ) : null,
     freshStart ? (
@@ -701,6 +718,8 @@ export default function TodayPage({
         title="Rough Day? Fresh Start."
         sub="Re-plan what's left · Nothing lost"
         action={{ label: "Re-plan", onClick: freshStart }}
+        // ROW-TAP (Dave 2026-09-15): the body opens the same re-plan sheet.
+        onOpen={freshStart}
       />
     ) : null,
     // AMBIENT (2026-08-26 soundness pass): the weather ask used to carry no

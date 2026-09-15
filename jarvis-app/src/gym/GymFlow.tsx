@@ -67,6 +67,7 @@ import { capAfterNumber } from "../shared/casing";
 import { BarbellGlyph } from "../shared/glyphs";
 import { Ellipsis } from "../shared/icons";
 import Stepper from "../shared/Stepper";
+import { own, rowDoor } from "../shared/rowDoor";
 
 const CHEV = (
   <div className="chev" />
@@ -438,11 +439,13 @@ function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
     // preview anatomy. Empty stays legal: no items means the card is just
     // its door.
     <div className="pad-x"><div className={"card list-card-ruled" + (has ? (tone === "cool" ? " banner-cool" : " banner-warn") : "")}>
-      <div className="row">
+      {/* The header row opens the block editor, same as its pill (Dave
+          2026-09-15: "I want all rows clickable"). */}
+      <div className="row" {...rowDoor(onEdit)}>
         <div className="row-grow">
           <div className={"eyebrow" + (has ? (tone === "cool" ? " eyebrow-cool" : " eyebrow-warn") : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${minutes} Min` : ""}</div>
         </div>
-        <button className="pill-act" onClick={onEdit}>{has ? "Edit" : "Add"}</button>
+        <button className="pill-act" onClick={own(onEdit)}>{has ? "Edit" : "Add"}</button>
       </div>
       {blocks?.map((b) => (
         <div className="row" key={b.id}>
@@ -2784,6 +2787,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     recent[0] ? `Last trained ${agoPhraseLower(recent[0].data.date, todayISO())}` : null,
                   ].filter(Boolean).join(" · ")}
                 </div>
+                {/* row-tap: the launch card's verb line, filled edge to edge by its one Start button */}
                 <div className="offer-row">
                   <button className="btn btn-primary btn-launch btn-block" onClick={() => requestStart(nextDay)}>Start {nextDay.name}</button>
                 </div>
@@ -2955,7 +2959,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
 function ProgramRowStatic({ program, onMenu }: { program: Program; onMenu: () => void }) {
   const hold = useLongPress({ onLongPress: onMenu });
   return (
-    <div className="row" {...hold}>
+    // The row opens the same menu its trailing button does (Dave 2026-09-15:
+    // "I want all rows clickable").
+    <div className="row" {...hold} {...rowDoor(onMenu)}>
       <div className="row-grow"><div className="conn-name truncate">{program.data.name}</div></div>
       <RowMenuButton onMenu={onMenu} what={program.data.name} />
     </div>

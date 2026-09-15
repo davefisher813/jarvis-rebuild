@@ -76,13 +76,14 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
         <>
           <div className="sh2 sh2-quiet"><span className="t">Last Time</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
-            <div className="row">
+            {/* Row tap (Dave 2026-09-15): the last night's row opens Edit Time. */}
+            <div className="row" {...(canEdit && !editing ? pressable(() => setEditing(true)) : {})}>
               <div className="row-grow">
                 <div className="conn-name">{weekdayShortDateFromMs(last.data.at)}</div>
                 <div className="facts"><span className="fact violet">{clockOf(last.data.at)}</span></div>
               </div>
               {canEdit && !editing && (
-                <button type="button" className="pill-act pill-quiet" onClick={() => setEditing(true)}>Edit Time</button>
+                <button type="button" className="pill-act pill-quiet" onClick={(ev) => { ev.stopPropagation(); setEditing(true); }}>Edit Time</button>
               )}
               {canEdit && editing && (
                 <input className="input set-field" type="time" aria-label="Bedtime time" defaultValue={timeValue} autoFocus

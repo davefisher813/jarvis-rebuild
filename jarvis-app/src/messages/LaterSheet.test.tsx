@@ -27,4 +27,15 @@ describe("LaterSheet", () => {
     expect(onClose).toHaveBeenCalled();
     expect(onPick).not.toHaveBeenCalled();
   });
+  // Dave 2026-09-15: "I want all rows clickable".
+  it("the Pick a Day row's own tap focuses the date field and picks nothing", () => {
+    const onPick = vi.fn();
+    render(<LaterSheet who="Wei" today="2026-09-12" onPick={onPick} onClose={() => {}} />);
+    fireEvent.click(screen.getByText("Pick a Day"));
+    fireEvent.click(screen.getByText("Pick a Day"));
+    expect(screen.getByLabelText("Day")).toHaveFocus();
+    expect(onPick).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByText("Save"), { key: "Enter" });
+    expect(onPick).not.toHaveBeenCalled();
+  });
 });

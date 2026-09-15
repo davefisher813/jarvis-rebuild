@@ -141,20 +141,20 @@ describe("SHARED-F-13: a scrim tap cannot throw away what you typed", () => {
 
   it("an untouched sheet still closes on a scrim tap", () => {
     const { onCancel, scrim } = sheet();
-    fireEvent.click(scrim);
+    fireEvent.click(scrim!);
     expect(onCancel, "the gesture is not taken away, only the loss is").toHaveBeenCalledTimes(1);
   });
 
   it("a sheet with typing in it ignores the tap", () => {
     const { onCancel, scrim } = sheet();
     type("Ridgeline dues");
-    fireEvent.click(scrim);
+    fireEvent.click(scrim!);
     expect(onCancel, "Cancel in the bar is still the way out").not.toHaveBeenCalled();
   });
 
   it("the dirty prop holds a sheet whose work is not in a field", () => {
     const { onCancel, scrim } = sheet(true);
-    fireEvent.click(scrim);
+    fireEvent.click(scrim!);
     expect(onCancel).not.toHaveBeenCalled();
   });
 
@@ -162,7 +162,7 @@ describe("SHARED-F-13: a scrim tap cannot throw away what you typed", () => {
   it("dirty={false} cannot hand back a sheet full of typing", () => {
     const { onCancel, scrim } = sheet(false);
     type("typed");
-    fireEvent.click(scrim);
+    fireEvent.click(scrim!);
     expect(onCancel).not.toHaveBeenCalled();
   });
 
@@ -170,5 +170,29 @@ describe("SHARED-F-13: a scrim tap cannot throw away what you typed", () => {
     const { onCancel } = sheet();
     fireEvent.click(document.querySelector(".form-sheet")!);
     expect(onCancel).not.toHaveBeenCalled();
+  });
+});
+
+// THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows clickable").
+// A field row hands a tap on its label to its field; a tap that closes an open
+// menu through its portaled scrim must not reopen it.
+describe("tapField: a form row's tap reaches its field", () => {
+  it("a tap on a field row's label focuses the input", () => {
+    const { container } = render(<Group label="Name"><FieldRow label="Name" ariaLabel="Name" value="" onChange={() => {}} /></Group>);
+    fireEvent.click(container.querySelector(".conn-name")!);
+    expect(document.activeElement).toBe(container.querySelector("input"));
+  });
+
+  it("closing a menu row's menu by its scrim does not reopen it", () => {
+    const { container } = render(
+      <Group label="When"><MenuRow tone="blue" glyph={<Glyph />} label="Due" ariaLabel="Due" value="a"
+        options={[{ value: "a", label: "A" }]} onPick={() => {}} /></Group>,
+    );
+    const dd = container.querySelector(".dd")!;
+    fireEvent.click(dd);
+    const scrim = document.querySelector(".hmenu-scrim");
+    expect(scrim).not.toBeNull();
+    fireEvent.click(scrim!);
+    expect(dd.getAttribute("aria-expanded")).toBe("false");
   });
 });

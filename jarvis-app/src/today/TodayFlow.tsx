@@ -12,13 +12,14 @@ import { ENTITY_TASK } from "../notes/types";
 import { useFreshLists } from "../data/useFreshLists";
 import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
-import { tomorrowISO, nowHHMM, daySummary, dayRing, todaysTasks, billsLine, payableBill } from "./todayData";
+import { tomorrowISO, nowHHMM, daySummary, dayRing, todaysTasks, billsLine, billsDueSoon, payableBill } from "./todayData";
 import TodayPage from "./TodayPage";
 import MailNotices from "./MailNotices";
 import ReportFlow, { reportSeen, markReportSeen } from "../review/ReportPage";
 import { monthName as monthTitle } from "../review/report";
 import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
+import { rowDoor, own } from "../shared/rowDoor";
 import WhySheet from "./WhySheet";
 import OtherChoicesSheet from "./OtherChoicesSheet";
 import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
@@ -2161,7 +2162,10 @@ export default function TodayFlow({
             // thinking, the better"): when nothing is teed up, Now still hands
             // him the one-tap way in instead of stating the time and stopping.
             // ...on ONE row with the fact it belongs to (Dave 2026-09-11).
-            <div className="row">
+            // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the row
+            // is the open window, and filling it is its one verb, so the
+            // whole line opens the same picker the pill does.
+            <div className="row" {...rowDoor(() => setUpNextOpen(true))}>
               <RowIcon kind="event" />
               <div className="row-stack">
                 <div className="conn-name truncate">{shortSpan(nowCtx.gapMin)} open</div>
@@ -2172,7 +2176,7 @@ export default function TodayFlow({
                   day's own button row a few hundred pixels below, which is
                   the same verb twice in one section. This card is about the
                   next few minutes; planning the day belongs to the day. */}
-              <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
+              <button className="pill-act" onClick={own(() => setUpNextOpen(true))}>Pick Something</button>
             </div>
           )}
           </>
@@ -2193,7 +2197,9 @@ export default function TodayFlow({
           // cases up already proves one row can hold a title, a time, and a
           // pill together. Same anatomy, so the action reads as attached to
           // the fact instead of floating under it.
-          <div className="row">
+          // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): inside
+          // an event the row opens that event; otherwise it opens the picker.
+          <div className="row" {...rowDoor(() => { if (insideEvent) onOpenEvent(insideEvent.id); else setUpNextOpen(true); })}>
             <RowIcon kind="event" />
             {/* THE PRODUCER SAYS THE TWO HALVES (Dave 2026-09-11: "title case
                 isn't being applied in the subtext in the now pill. 'until'
@@ -2217,13 +2223,13 @@ export default function TodayFlow({
                 inside a meeting that has a link: being in the call is the
                 thing, and the page for it is one row away on the schedule. */}
             {insideEvent?.data.url ? (
-              <a className="pill-act" href={insideEvent.data.url} target="_blank" rel="noreferrer">Join</a>
+              <a className="pill-act" href={insideEvent.data.url} target="_blank" rel="noreferrer" onClick={own()}>Join</a>
             ) : insideEvent && onOpenNote ? (
-              <button className="pill-act" onClick={() => void openEventNote(insideEvent)}>
+              <button className="pill-act" onClick={own(() => void openEventNote(insideEvent))}>
                 {notedEvents.has(insideEvent.id) ? "Notes" : "Take Notes"}
               </button>
             ) : (
-              <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
+              <button className="pill-act" onClick={own(() => setUpNextOpen(true))}>Pick Something</button>
             )}
           </div>
         )}
@@ -2232,15 +2238,18 @@ export default function TodayFlow({
             open and when you last wrote, never advice about it. Both taps
             are ones the user would otherwise make by hand. */}
         {prep && (
-          <div className="row">
+          // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the row
+          // is about the person you are about to meet, so it opens them.
+          <div className="row" {...rowDoor(() => void (onOpenPerson ?? onAskSaid)?.(prep.person.id))}>
             <RowIcon kind="event" />
             <div className="row-stack">
               <div className="conn-name truncate">{prep.line}</div>
+              {/* row-tap: chip strip inside the prep row, not a row of its own */}
               <div className="row mail-chips">
                 {prep.open.length > 0 && (
-                  <button className="chip" onClick={() => void onOpenPerson?.(prep.person.id)}>What's Open</button>
+                  <button className="chip" onClick={own(() => void onOpenPerson?.(prep.person.id))}>What's Open</button>
                 )}
-                <button className="chip" onClick={() => void onAskSaid?.(prep.person.id)}>What Did You Say</button>
+                <button className="chip" onClick={own(() => void onAskSaid?.(prep.person.id))}>What Did You Say</button>
               </div>
             </div>
           </div>
@@ -2293,10 +2302,11 @@ export default function TodayFlow({
             <div className={"chev chev-down" + (draftMoreOpen ? " chev-open" : "")} />
           </button>
           {draftMoreOpen && dayDraft.anytime.map((a) => (
-            <div className="row" key={a.id}>
+            // ROW-TAP (Dave 2026-09-15): the row is a task; it opens the task.
+            <div className="row" key={a.id} {...rowDoor(() => void onOpenTask(a.id))}>
               <RowIcon kind="task" />
               <div className="row-grow"><div className="conn-name truncate">{a.text}</div></div>
-              <button className="pill-act" onClick={() => applyEdit({ add: a.id })}>Add</button>
+              <button className="pill-act" onClick={own(() => applyEdit({ add: a.id }))}>Add</button>
             </div>
           ))}
         </>
@@ -2351,6 +2361,9 @@ export default function TodayFlow({
       title={slippedCount === 1 ? "1 Block Slipped" : `${slippedCount} Blocks Slipped`}
       sub="The plan is behind the clock"
       action={{ label: "Re-Flow", onClick: () => void runReflow() }}
+      // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the card is
+      // about the day's plan, so its body opens the Schedule that holds it.
+      onOpen={onGoSchedule}
       // Keying it revealed that it had no way out at all (the every-notice-
       // can-be-dismissed law only ever saw keyed cards). Waving it off is
       // this visit's UI state only, exactly like the live-gym card: the plan
@@ -2368,6 +2381,8 @@ export default function TodayFlow({
       tone="cat-fg-orange"
       title={overflowOffer.title}
       sub="No room left today"
+      // ROW-TAP (Dave 2026-09-15): the body opens the event that has no room.
+      onOpen={() => onOpenEvent(overflowOffer.eventId)}
       // Leaving it where it is IS the dismissal, so it rides the swipe under
       // the standard word and the visible control is the offer the card
       // exists to make. Before this the one visible verb was "Leave", which
@@ -2485,6 +2500,8 @@ export default function TodayFlow({
         sub="You wanted to revisit this today"
         action={{ label: "Keep", onClick: () => void stillGood(revisit) }}
         alt={{ label: "Change It", onClick: () => setRevisitSheet(true) }}
+        // ROW-TAP (Dave 2026-09-15): the body opens the decision's sheet.
+        onOpen={() => setRevisitSheet(true)}
         foot={(
           <div className="dec-outcome-acts notice-foot-acts">
             {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
@@ -2502,6 +2519,9 @@ export default function TodayFlow({
         tone="cat-fg-red"
         title="Couldn't Move Yesterday's Tasks"
         sub="Nothing was lost · Try again"
+        // ROW-TAP (Dave 2026-09-15): nothing to open, so the body retries,
+        // the same safe verb as the pill.
+        onOpen={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}
         action={{
           label: "Retry",
           onClick: () => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })(),
@@ -2528,6 +2548,9 @@ export default function TodayFlow({
           label: "Plan",
           onClick: () => void openPlan("today"),
         }}
+        // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
+        // opens Tasks, where the moved tasks are.
+        onOpen={onGoTasks}
         alt={sweepCand && !planned.has(sweepCand.id) ? {
           label: "Set Aside",
           onClick: () => void (async () => {
@@ -2624,6 +2647,8 @@ export default function TodayFlow({
         title={spot.label}
         sub={spotAgo(spot)}
         action={{ label: "Resume", onClick: () => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); } }}
+        // ROW-TAP (Dave 2026-09-15): the body opens the bookmarked thing too.
+        onOpen={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}
         // LAW 2: this card had no dismiss at all -- its swipe rail was
         // empty, so the only exits were taking it or waiting out twelve
         // hours, and every visit longer than five minutes ago re-armed it.
@@ -2668,6 +2693,9 @@ export default function TodayFlow({
             </div>
           }
           action={{ label: card.fresh ? "Start" : "Resume", onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
+          // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
+          // opens the session, like the pill.
+          onOpen={() => onRestoreSpot?.("gym", gymCatId ?? "")}
           onDismiss={() => setGymDismissed(true)}
         />
       );
@@ -2688,6 +2716,9 @@ export default function TodayFlow({
         title={finishedProject.project.data.title}
         sub={capAfterNumber(`All ${finishedProject.progress?.total ?? 0} done`)}
         action={{ label: "Close", onClick: () => void closeProject(finishedProject.project.id) }}
+        // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
+        // opens the project; closing it stays on the pill.
+        onOpen={onOpenProject ? () => onOpenProject(finishedProject.project.id) : undefined}
         // LAW 2 (2026-08-29): "every task in it is finished" is not the same
         // claim as "the project is over", and a project he is deliberately
         // keeping open had no way to say so -- the card returned every day
@@ -2710,6 +2741,9 @@ export default function TodayFlow({
         title={dueProject.project.data.title}
         sub={dueProject.line}
         action={{ label: "Open", onClick: () => onOpenProject?.(dueProject.project.id) }}
+        // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
+        // opens the project too.
+        onOpen={() => onOpenProject?.(dueProject.project.id)}
         onDismiss={() => { goQuiet(dueProject.project.id, today, closeOfferStore); setSweepDismissTick((n) => n + 1); }}
       />
     ) : null,
@@ -2732,6 +2766,9 @@ export default function TodayFlow({
         title={momentum.data.text}
         sub={momentumSub(momentum)}
         action={{ label: "Start", onClick: () => { const t = momentum; setMomentum(null); void startFifteen(t); } }}
+        // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
+        // opens the task.
+        onOpen={() => void onOpenTask(momentum.id)}
         onDismiss={() => { dismissChain(today); setMomentum(null); }}
       />
     ) : null,
@@ -2753,6 +2790,9 @@ export default function TodayFlow({
         action={tomorrowBirthday.phone
           ? { label: "Text", onClick: () => setMsgPerson({ id: tomorrowBirthday.id, about: BIRTHDAY_ABOUT }) }
           : undefined}
+        // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
+        // opens the person; texting stays on the pill.
+        onOpen={onOpenPerson ? () => onOpenPerson(tomorrowBirthday.id) : undefined}
         onDismiss={() => { goQuiet(tomorrowBirthday.id, today, birthdayStore); setBirthdayDismissTick((n) => n + 1); }}
       />
     ) : null,
@@ -2787,6 +2827,9 @@ export default function TodayFlow({
         // meaning, and it matches Pick One on Tasks (which took this
         // shorter name itself on 2026-08-26, so the two are now identical).
         action={{ label: "Pick One", onClick: () => onGoBigger?.(untouched.id) }}
+        // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
+        // opens the goal.
+        onOpen={() => onGoBigger?.(untouched.id)}
         onDismiss={() => { dismissGoalNudge(untouched.id, today); setGoalNudgeTick((n) => n + 1); }}
       />
     ) : null,
@@ -2874,6 +2917,8 @@ export default function TodayFlow({
       sub={"Missed at " + fmtTime(r.time).time + " " + fmtTime(r.time).ap}
       action={{ label: "Ask Again in 15m", onClick: () => void onAskAgainReminder(r.id) }}
       alt={{ label: "Done", onClick: () => void onTickReminder(r.id, true) }}
+      // The row opens the reminder (Dave 2026-09-15: "I want all rows clickable").
+      onOpen={() => openReminder(r.id)}
     />
   ));
   // B10 (2026-08-23): guarded already, but silent and final. A reminder is one
@@ -3225,6 +3270,8 @@ export default function TodayFlow({
       title={`Your ${monthTitle(reportMonth)} is ready`}
       sub="Two minutes"
       action={{ label: "Read", onClick: () => setReportOpen(true) }}
+      // ROW-TAP (Dave 2026-09-15): the body opens the report.
+      onOpen={() => setReportOpen(true)}
       // LAW 2 (2026-08-29): it had no way out. Reading the report marked it
       // seen; NOT wanting to read it had no expression at all, so the card
       // sat there every day until he gave in. Dismiss marks the same month
@@ -3314,6 +3361,11 @@ export default function TodayFlow({
         const next = payableBill(taskItems, today);
         return next ? () => void onToggleTask(next.id) : undefined;
       })()}
+      onOpenBill={(() => {
+        const due = billsDueSoon(taskItems, today);
+        const one = due.length === 1 ? due[0] : undefined;
+        return one ? () => void onOpenTask(one.id) : onGoTasks;
+      })()}
       freshStart={offTrack ? () => setFreshOpen(true) : undefined}
       locked={blocked}
       onOpenEvent={onOpenEvent}
@@ -3367,6 +3419,7 @@ export default function TodayFlow({
       avatar={initials}
       birthdays={birthdays}
       onTextPerson={(id) => setMsgPerson({ id, about: BIRTHDAY_ABOUT })}
+      onOpenPerson={onOpenPerson}
       onCallPerson={(id) => setCallPerson(id)}
     />
     {planOpen && (

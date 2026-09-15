@@ -16,6 +16,7 @@ import { agoPhrase, agoPhraseLower } from "./summary";
 import { todayISO } from "../tasks/grouping";
 import { shortDate } from "../shared/dateFormat";
 import InsightEvidence from "../brain/InsightEvidence";
+import { own, rowDoor } from "../shared/rowDoor";
 
 const CHEV = <div className="chev" />;
 
@@ -366,12 +367,13 @@ export default function LiftDetailScreen({
                     grey, mid-card. The rule has not changed; it just says the
                     fact instead of the policy, and offers the logs. */}
                 {lane && (
-                  <div className="row">
+                  // The row opens the logs, same as its pill (Dave 2026-09-15: "I want all rows clickable").
+                  <div className="row" {...(onOpenLogs ? rowDoor(onOpenLogs) : {})}>
                     <div className="row-grow">
                       <div className="conn-meta">{`${lane.data.name}, same ${WEEKS} weeks`}</div>
                       {laneVals.every((v) => v == null) && <div className="facts"><span className="fact">Not enough records</span></div>}
                     </div>
-                    {onOpenLogs && <button type="button" className="pill-act pill-quiet" onClick={onOpenLogs}>View Logs</button>}
+                    {onOpenLogs && <button type="button" className="pill-act pill-quiet" onClick={own(onOpenLogs)}>View Logs</button>}
                   </div>
                 )}
               </div></div>

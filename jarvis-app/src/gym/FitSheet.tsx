@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { ProgramDay, Workout } from "./types";
 import type { RackConfig } from "./ramp";
+import { own } from "../shared/rowDoor";
 import { estimateDay, leverOffers, trimTargets, type FitPlan, type LeverKey } from "./fit";
 
 // THE FIT SHEET, D5 (Training Catalog V2, approved 2026-08-31). "Starting a
@@ -83,13 +84,14 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
             <div className="pad-x"><div className="input-label">Levers</div></div>
             <div><div className="list-flat">
               {offers.map((o) => (
-                <div className="row" key={o.key}>
+                // The whole lever row flips its switch (Dave 2026-09-15: "I want all rows clickable").
+                <div className="row" key={o.key} onClick={() => toggle(o.key)}>
                   <div className="row-grow">
                     <div className="conn-name truncate">{o.name}</div>
                     <div className="conn-meta">{o.sub}</div>
                   </div>
                   <div className={"switch" + (o.on ? "" : " off")} role="switch" aria-checked={o.on} tabIndex={0}
-                    onClick={() => toggle(o.key)} />
+                    onClick={own(() => toggle(o.key))} />
                 </div>
               ))}
             </div></div>
