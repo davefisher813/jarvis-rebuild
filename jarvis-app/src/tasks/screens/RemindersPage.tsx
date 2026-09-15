@@ -101,7 +101,7 @@ export default function RemindersPage({
     </div>
   );
 
-  const card = (it: PageRow, current: boolean) => {
+  const card = (it: PageRow) => {
     const r = it.reminder;
     const link = r.linkedItem;
     const area = it.category ? catName(it.category) : "";
@@ -130,7 +130,7 @@ export default function RemindersPage({
         : it.state === "skipped" && it.skippedDate ? { label: "Restore", onClick: () => onRestore(it.id, it.skippedDate!) }
         : null;
     return (
-      <div key={it.id + (it.skippedDate ?? "")} className={"card rem-card" + (current ? " current" : "") + (it.state === "done" ? " done" : "")} {...rowDoor(() => onOpen(it.id))}>
+      <div key={it.id + (it.skippedDate ?? "")} className={"rem-card" + (it.state === "done" ? " done" : "")} {...rowDoor(() => onOpen(it.id))}>
         <div className="rem-card-top">
           {it.state === "open" ? ring(it) : <span className="rem-card-cb-space" aria-hidden="true" />}
           {dueToday && <div className="rem-time-gutter">{fmtTime(it.time!).time}<span className="ampm">{fmtTime(it.time!).ap}</span></div>}
@@ -206,7 +206,18 @@ export default function RemindersPage({
             {s.label === "Now" && <span className="rem-now-dot" aria-hidden="true" />}
             <span className="t">{s.label}</span><span className="n">{s.rows.length}</span>
           </div>
-          <div className="pad-x">{s.rows.map((it, i) => card(it, s.label === "Now" && i === 0))}</div>
+          {/* ONE CARD PER SECTION, ROWS INSIDE IT (Dave 2026-09-15, holding
+              Life's four segments side by side: "every other section is
+              normal and then look at reminders"). Tasks, Projects and Goals
+              each group a section's rows into one .list-card-ruled with a
+              divider between them; Reminders was the only lens giving every
+              row a card of its own, which is what made it read as bigger and
+              looser than the three beside it. */}
+          <div className="pad-x">
+            <div className="card list-card-ruled">
+              {s.rows.map((it) => card(it))}
+            </div>
+          </div>
         </div>
       ))}
       <div className="screen-foot" />
