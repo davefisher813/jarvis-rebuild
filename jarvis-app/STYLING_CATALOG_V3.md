@@ -674,6 +674,20 @@ The brief cites `JARVIS_UI_CONTRACT.md` as the locked styling source. No file of
 
 **THE INK RULING (2026-09-14, conflict 1), applied.** Four ink levels collapse to two app-wide: `--tx-2` and `--tx-3` are one secondary value (dark #D2D2D6, light #3A3A40), `--tx-4` is structure only (dark #7C7C82, light #8E8E93) and may never colour text. Applied by redefining the tokens in `jarvis-design-system.css` (the names stay, so no ported surface changed its markup) and sweeping the 74 rules that still painted words in `--tx-4` to `--tx-2`: placeholders, done and let-go names, the calendar's out-of-month days, block menus, meta lines, disabled labels. The two glyph separators drawn as `::before` content (`.r-cue::before`, `.fact + .fact::before`) keep the structure grey, as do every border, ring, chevron and leader. The law in `laws.test.ts` ("the structure ink never colours text") fails any rule that sets color to `--tx-4` again and holds the tokens to two tiers; the two browser-walk laws that pinned the old 30 percent quaternary were superseded and now hold the two-tier shape. The prefers-contrast boost keeps the shape with a stronger secondary. The two signals the ruling asked to re-check: a read email is dimmer than an unread one by weight (`.mfrom.strong`), not by ink, and a nested step count on a task row (`.tr-steps`) sits on secondary under a primary parent; both gaps are between primary and secondary and survive. Both halves are authored and measured (browserWalk.test.ts, "the secondary clears 4.5:1 and the structure grey 3:1 on every ground"): the secondary clears AA on the page and every surface in both themes; the structure grey was raised from the ruling's #7C7C82 to #84848A in dark and from the harness's HIG twin #8E8E93 to #8A8A90 in light so it clears the 3:1 non-text bar on surface-3 as well, where the first values measured 2.74:1 and 2.92:1.
 
+## §AG. Reminders (Dave's build handoff and preview, 2026-09-15, built in pushes A through D)
+
+**THE QUICK FORM (push A).** Three things above the fold: the name field, the When strip, Save on the bar. The When strip is chips (In 15 Minutes, In 1 Hour, Tomorrow Morning, Choose Date & Time, Unscheduled), the chosen one active. A timed reminder shows Start Day, Time, the quick hours, Repeat and a Next row that names the computed occurrence; an unscheduled one shows one row reading Unscheduled with "No timed alert" and a note, and never a clock. Everything else sits behind one More Options disclosure (`.rem-more`, the export sheet's disclosure chrome): Area, Follow-up, Time Zone.
+
+**READ FROM YOUR WORDS (push A).** When the name field's words name a day, a time or a rhythm, a strip under the field carries one secondary word ("Read from your words", `.rem-read-k`) and the read values as active chips; tapping a chip puts the words back and clears the read. Nothing is guessed for a word that cannot be read.
+
+**WHERE IS AREA, IF YOU MISS IT IS FOLLOW-UP.** The Area row is the same menu row every task sheet uses, in the area's colour dot. Follow-up is a menu (None, Ask Again in 15m, 30m, 1h), None by default; once chosen, At Most and Stop After rows appear under it with one note.
+
+**THE RECEIPT.** Saving shows the app toast with the next moment it fires ("Reminder Set · Tomorrow, 8:00 AM") or "Reminder Saved · Unscheduled". Never a bare Saved.
+
+**THE INVARIANT.** No surface renders a clock beside an unscheduled reminder. The Today strip prints the word Unscheduled in secondary ink (`.rem-unsch`) where the time would be; the model's `timeLabelFor` is null for it and every new surface asks that before printing a time.
+
+**EDIT MODE.** A Series group with one row, Pause or Resume. A More Actions disclosure at the foot holding Export to Calendar and Delete Reminder, the app's own destructive row, never beside Save.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

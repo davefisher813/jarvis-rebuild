@@ -1,11 +1,12 @@
 import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
 import { setCategories as setCategoriesOf } from "./categories";
-import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo, type ReminderInfo, type TaskStep } from "../notes/types";
+import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo, type ReminderInfo, type ReminderEvent, type LinkedItem, type TaskStep } from "../notes/types";
 import { groupFor, todayISO, nextDue, type TaskGroup } from "./grouping";
 import { nextStreak } from "./lifecycle";
 import { recordCompletion } from "../shared/timeSense";
 import { countEnactment } from "./automaticity";
+import { withEvent } from "./reminders";
 import { isUsable, type IfThen } from "./ifThen";
 import { madeBy } from "../shared/provenance";
 
@@ -337,8 +338,45 @@ export class TasksService {
 
   // --- Reminders (2026-08-19). A reminder is a task wearing reminder facts;
   // these are the only writes that touch them, so the shape stays honest.
-  async createReminder(text: string, r: ReminderInfo, category = ""): Promise<string | null> {
-    return this.createTask(text, { category, reminder: r });
+  async createReminder(text: string, r: ReminderInfo, category = "", due: string | null = null): Promise<string | null> {
+    return this.createTask(text, { category, reminder: r, due: due ?? r.startDate ?? null });
+  }
+
+  // THE REMINDERS REBUILD (2026-09-15). Every event that happens to a
+  // reminder is written to its history; the doctrine that done is derived
+  // from lastDone stands, and history is the record beside it.
+  async logReminderEvent(id: string, kind: ReminderEvent["kind"], meta?: Record<string, unknown>): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t?.reminder) return false;
+    const next = withEvent(t.reminder, kind, new Date().toISOString(), meta);
+    return this.patchReminder(id, { history: next.history });
+  }
+  // Pause stops every future occurrence and alert; resume brings them back.
+  async pauseReminder(id: string, paused: boolean): Promise<boolean> {
+    const ok = await this.patchReminder(id, { paused: paused || undefined });
+    if (ok) await this.logReminderEvent(id, paused ? "paused" : "resumed");
+    return ok;
+  }
+  // Skip this occurrence: that date runs no more; the series continues.
+  async skipReminderOccurrence(id: string, date: string): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t?.reminder) return false;
+    const skipped = [...new Set([...(t.reminder.skippedDates ?? []), date])].slice(-60);
+    const ok = await this.patchReminder(id, { skippedDates: skipped });
+    if (ok) await this.logReminderEvent(id, "skipped", { date });
+    return ok;
+  }
+  // Reschedule this occurrence: that date, another time; the series untouched.
+  async rescheduleReminderOccurrence(id: string, date: string, time: string): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t?.reminder) return false;
+    const moved = { ...(t.reminder.movedTimes ?? {}), [date]: time };
+    const ok = await this.patchReminder(id, { movedTimes: moved });
+    if (ok) await this.logReminderEvent(id, "rescheduled", { date, time });
+    return ok;
+  }
+  async setReminderLink(id: string, linkedItem: LinkedItem | null): Promise<boolean> {
+    return this.patchReminder(id, { linkedItem: linkedItem ?? undefined });
   }
 
   private async patchReminder(id: string, patch: Partial<ReminderInfo>): Promise<boolean> {
@@ -366,14 +404,19 @@ export class TasksService {
     // 2026-08-25). Its own durable type, NOT task.completed: the reminder
     // doctrine keeps ticks out of the day's numbers, and the log keeps the
     // same promise. An untick is a correction and stays local.
-    if (ok) this.onEvent({ type: "reminder.ticked", entityType: ENTITY_TASK, entityId: id });
+    if (ok) {
+      this.onEvent({ type: "reminder.ticked", entityType: ENTITY_TASK, entityId: id });
+      await this.logReminderEvent(id, "completed", { date: today });
+    }
     return ok;
   }
   untickReminder(id: string): Promise<boolean> {
     return this.patchReminder(id, { lastDone: undefined });
   }
-  snoozeReminder(id: string, to: string, today: string): Promise<boolean> {
-    return this.patchReminder(id, { snoozedTo: to, snoozeDate: today });
+  async snoozeReminder(id: string, to: string, today: string): Promise<boolean> {
+    const ok = await this.patchReminder(id, { snoozedTo: to, snoozeDate: today });
+    if (ok) await this.logReminderEvent(id, "snoozed", { date: today, to });
+    return ok;
   }
   editReminder(id: string, patch: Partial<ReminderInfo>): Promise<boolean> {
     return this.patchReminder(id, patch);

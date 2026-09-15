@@ -108,7 +108,11 @@ export default function RemindersStrip({
                 "reminders are rendering in military time"). r.time is the
                 stored HH:MM; every other surface runs it through fmtTime and
                 this one printed it raw, so 9 PM meds read "21:00". */}
-            <span className="rem-time">{fmtTime(r.time).time}<span className="ampm">{fmtTime(r.time).ap}</span></span>
+            {/* THE INVARIANT (the reminders rebuild, 2026-09-15): an unscheduled
+                reminder never renders a clock. It says the word instead. */}
+            {r.unscheduled
+              ? <span className="rem-time rem-unsch">Unscheduled</span>
+              : <span className="rem-time">{fmtTime(r.time).time}<span className="ampm">{fmtTime(r.time).ap}</span></span>}
             {/* BROWSER-F-07 (2026-09-05): the name is what you tap to open a
                 reminder and it measured 226x22. The row around it is already
                 44 (min-height on .rem-row) and nothing else lives above or

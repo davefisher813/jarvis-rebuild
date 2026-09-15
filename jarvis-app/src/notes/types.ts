@@ -160,6 +160,73 @@ export interface ReminderInfo {
   // which is what the strip already did, so every existing reminder keeps
   // behaving exactly as it does today.
   onMiss?: "nag" | "let_go";
+
+  // THE REMINDERS REBUILD (2026-09-15, Dave's brief). Everything below is
+  // additive: a reminder written before this carries none of it and reads
+  // exactly as it did. See tasks/reminders.ts for how each is read.
+  //
+  // Timed or unscheduled, said explicitly rather than inferred from which
+  // fields happen to be filled (the "selected time, No Date and Every Day at
+  // once" bug). Absent means timed.
+  scheduleKind?: "timed" | "unscheduled";
+  // The day the schedule starts, ISO. Mirrors the task's own due when the
+  // sheet writes both; the rules below anchor on it.
+  startDate?: string;
+  // The rhythm, richer than days[]: when present it wins over days, which is
+  // kept written alongside for every older reader.
+  repeat?: RepeatRule;
+  // The record this reminder is about. One way: deleting the reminder never
+  // touches the record.
+  linkedItem?: LinkedItem;
+  // Asking again after it fires. Absent means the old onMiss decides (nag is
+  // one ask fifteen minutes on, let_go is none); null means none; a config
+  // is explicit and capped.
+  followUp?: FollowUpConfig | null;
+  // An in-app prompt tied to what is on screen, never to another app.
+  contextTrigger?: ContextTriggerConfig;
+  // A paused series produces no occurrences and no alerts until resumed.
+  paused?: boolean;
+  // Occurrences skipped on purpose, by date; the series continues.
+  skippedDates?: string[];
+  // One occurrence moved to another time, by date; the series untouched.
+  movedTimes?: Record<string, string>;
+  // "local" keeps the clock time through a timezone change; an IANA zone
+  // pins the moment. Absent means local.
+  tz?: string;
+  // What actually happened, newest last, capped. Replaces "Done N times"
+  // as the record; doneCount stays for the repetitions line.
+  history?: ReminderEvent[];
+}
+
+export type RepeatRule =
+  | { kind: "once" }
+  | { kind: "daily" }
+  | { kind: "weekdays"; days: number[] }
+  | { kind: "weekly" }
+  | { kind: "monthly" }
+  | { kind: "everyNDays"; n: number }
+  | { kind: "afterCompletion"; days: number };
+
+export type LinkedType = "task" | "note" | "email" | "decision" | "event" | "healthItem" | "contact";
+export interface LinkedItem { type: LinkedType; id: string; label?: string }
+
+export interface FollowUpConfig {
+  delayMinutes: number;
+  maxCount: number;
+  stopAt: string | null;
+}
+
+export interface ContextTriggerConfig {
+  kind: "onOpenArea" | "afterCompleteTask";
+  targetId: string | null;
+  cooldownMinutes: number;
+  lastShownAt: string | null;
+}
+
+export interface ReminderEvent {
+  at: string;
+  kind: "completed" | "notificationOpened" | "notificationDismissed" | "snoozed" | "skipped" | "rescheduled" | "edited" | "paused" | "resumed";
+  meta?: Record<string, unknown>;
 }
 
 export interface TaskData {

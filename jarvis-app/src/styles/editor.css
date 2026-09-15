@@ -182,3 +182,9 @@ body.writing .screen-editor { padding-bottom: 140px; }
 .doc-kai { color: var(--hl-cyan); }
 .ai-original { max-height: 22vh; }
 .ai-result { max-height: 34vh; }
+
+/* THE REMINDER SHEET (the reminders rebuild, 2026-09-15): the quick read's
+   caption in front of its chips, and the disclosure that holds the rest. */
+.rem-read-k { font-size: calc(12.5px * var(--type-scale)); color: var(--tx-2); align-self: center; white-space: nowrap; }
+.rem-more { padding: 0 var(--s-4); }
+.rem-more > summary { padding: var(--s-2) 0; }

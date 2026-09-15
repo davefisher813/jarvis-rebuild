@@ -2866,24 +2866,37 @@ export default function TodayFlow({
   // select a date for a reminder. Expand the booking options"). A reminder has
   // always been a TASK carrying a ReminderInfo, so `due` and `category` were
   // there the whole time and this door simply never wrote them.
-  const onSaveReminder = async (text: string, r: ReminderInfo, extra: { due: string | null; category: string }) => {
+  const onSaveReminder = async (text: string, r: ReminderInfo, extra: { due: string | null; category: string; receipt: string }) => {
     const sheet = remSheet;
     setRemSheet(null);
     if (!sheet) return;
+    let ok = false;
     if (sheet.mode === "new") {
-      await attemptWrite(async () => {
+      ok = await attemptWrite(async () => {
         const id = await tasks.createTask(text, { reminder: r, category: extra.category, due: extra.due });
         return !!id;
       });
     } else {
-      await attemptWrite(async () => {
+      ok = await attemptWrite(async () => {
         await tasks.editText(sheet.id, text);
         await tasks.editReminder(sheet.id, r);
         await tasks.setDue(sheet.id, extra.due);
         await tasks.setCategory(sheet.id, extra.category);
+        await tasks.logReminderEvent(sheet.id, "edited");
       });
     }
     await reload();
+    // THE RECEIPT IS CONCRETE (the reminders rebuild, 2026-09-15): the next
+    // moment it fires, or the word Unscheduled, never a generic "Saved".
+    if (ok) showToast({ message: extra.receipt });
+  };
+  const onPauseReminder = async (paused: boolean) => {
+    const sheet = remSheet;
+    if (!sheet || sheet.mode !== "edit") return;
+    setRemSheet(null);
+    const ok = await attemptWrite(() => tasks.pauseReminder(sheet.id, paused));
+    await reload();
+    if (ok) showToast({ message: paused ? "Paused · No alerts until you resume" : "Resumed" });
   };
   // B4 (2026-09-04): "If You Miss It" defaults every reminder to "Ask Again
   // in 15m" (ReminderSheet.tsx's onMiss "nag"), but nothing ever read that
@@ -3634,6 +3647,7 @@ export default function TodayFlow({
         categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color as string }))}
         onSave={(text, r, extra) => void onSaveReminder(text, r, extra)}
         onDelete={remSheet.mode === "edit" ? () => void onDeleteReminder() : undefined}
+        onPause={remSheet.mode === "edit" ? (p) => void onPauseReminder(p) : undefined}
         onAddToCalendar={remSheet.mode === "edit" ? () => void addRemindersToCalendar([remSheet.id]) : undefined}
         onCancel={() => setRemSheet(null)}
       />

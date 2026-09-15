@@ -498,3 +498,43 @@ describe("buildTaskReminderNotifications over a week", () => {
     expect(out).toHaveLength(6);
   });
 });
+
+// THE REMINDERS REBUILD (2026-09-15): what the builder does with the new
+// fields. Unscheduled and paused fire nothing; a moved occurrence fires at
+// its moved time; the follow-up is the reminder's own, counted and stopped.
+describe("buildTaskReminderNotifications, the rebuilt fields", () => {
+  const TODAY = "2026-08-09";
+  const TOMORROW = "2026-08-10";
+  const NOW = new Date("2026-08-09T08:00:00").getTime();
+  const rem = (id: string, text: string, reminder: ReminderInfo): TaskReminderInput => ({ id, text, reminder });
+
+  it("an unscheduled reminder schedules no alert at all", () => {
+    expect(buildTaskReminderNotifications([rem("r1", "Call Mom", { time: "21:00", scheduleKind: "unscheduled" })], TODAY, NOW, 2)).toEqual([]);
+  });
+  it("a paused series schedules nothing until resumed", () => {
+    expect(buildTaskReminderNotifications([rem("r1", "Meds", { time: "21:00", paused: true })], TODAY, NOW, 2)).toEqual([]);
+  });
+  it("a skipped date is silent and the series continues", () => {
+    const out = buildTaskReminderNotifications([rem("r1", "Meds", { time: "21:00", onMiss: "let_go", skippedDates: [TODAY] })], TODAY, NOW, 2);
+    expect(out.map((n) => n.at)).toEqual([new Date("2026-08-10T21:00:00")]);
+  });
+  it("a moved occurrence fires at its moved time, the rest at the real one", () => {
+    const out = buildTaskReminderNotifications([rem("r1", "Meds", { time: "21:00", onMiss: "let_go", movedTimes: { [TOMORROW]: "07:30" } })], TODAY, NOW, 2);
+    expect(out.map((n) => n.at)).toEqual([new Date("2026-08-09T21:00:00"), new Date("2026-08-10T07:30:00")]);
+  });
+  it("an explicit follow-up asks its count of times at its delay and never past its stop time", () => {
+    const out = buildTaskReminderNotifications(
+      [rem("r1", "Meds", { time: "21:00", followUp: { delayMinutes: 10, maxCount: 3, stopAt: "21:25" } })], TODAY, NOW, 1,
+    );
+    expect(out.map((n) => n.at)).toEqual([
+      new Date("2026-08-09T21:00:00"),
+      new Date("2026-08-09T21:10:00"),
+      new Date("2026-08-09T21:20:00"),
+    ]);
+    expect(out.filter((n) => n.body === "Asking again")).toHaveLength(2);
+  });
+  it("an explicit null follow-up is none, whatever onMiss says", () => {
+    const out = buildTaskReminderNotifications([rem("r1", "Meds", { time: "21:00", onMiss: "nag", followUp: null })], TODAY, NOW, 1);
+    expect(out).toHaveLength(1);
+  });
+});

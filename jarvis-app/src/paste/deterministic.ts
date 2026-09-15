@@ -188,6 +188,11 @@ const REPEAT_RE = new RegExp(
 
 interface RepeatHit { recurrence: Recurrence; days?: number[]; text: string }
 
+/** The repeat a line names, for the reminder sheet's quick read. */
+export function resolveRepeat(lower: string): { recurrence: Recurrence; days?: number[]; text: string } | null {
+  return matchRepeat(lower);
+}
+
 function matchRepeat(lower: string): RepeatHit | null {
   const m = lower.match(REPEAT_RE);
   if (!m) return null;

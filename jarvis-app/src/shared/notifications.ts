@@ -14,7 +14,7 @@ import type { RoutineData } from "../routine/types";
 import { LADDER, ladderBody, type Rung } from "../schedule/countdown";
 import { addDays } from "../schedule/calendar";
 import type { ReminderInfo } from "../notes/types";
-import { runsOn, effectiveTime, isDone } from "../tasks/reminders";
+import { runsOn, effectiveTime, isDone, followUpOf, fireAt, scheduleKindOf } from "../tasks/reminders";
 import { MAIL_DIGEST_BASE } from "../messages/mailDigest";
 
 export interface CheckinNotification {
@@ -613,25 +613,33 @@ export function buildTaskReminderNotifications(
   const out: { title: string; body: string; at: Date; taskId: string }[] = [];
   for (const r of reminders) {
     if (!r.text.trim()) continue;
+    // THE REMINDERS REBUILD (2026-09-15): an unscheduled reminder has no
+    // timed alert and a paused one has none until resumed; runsOn says so
+    // for both, and so does this, so the intent is stated twice on purpose.
+    if (scheduleKindOf(r.reminder) === "unscheduled" || r.reminder.paused) continue;
     for (const date of dates) {
       if (!runsOn(r.reminder, date) || isDone(r.reminder, date)) continue;
       // A snooze set today only ever applies to today's ping (effectiveTime
-      // enforces that itself); tomorrow's occurrence always uses the real time.
-      const time = date === today ? effectiveTime(r.reminder, today) : r.reminder.time;
-      const at = new Date(`${date}T${time}:00`);
+      // enforces that itself); a later occurrence uses its own time, or the
+      // time that one occurrence was moved to.
+      const time = date === today ? effectiveTime(r.reminder, today) : (r.reminder.movedTimes?.[date] ?? r.reminder.time);
+      const at = fireAt(date, time, r.reminder.tz);
       if (!Number.isFinite(at.getTime())) continue;
       if (at.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Reminder", at, taskId: r.id });
-      // "Let it go" means exactly that, here as everywhere else (see
-      // reminders.ts): it fires once and never chases. Everything else nags,
-      // because that is what the setting he was given says by default.
-      //
-      // Judged on its own fire time, not the ping's: a reschedule that runs
-      // in the ten minutes AFTER the reminder buzzed (Today reloads
-      // constantly) would otherwise drop the follow-up as part of an
-      // occurrence already past, which is the one moment it exists for.
-      if (r.reminder.onMiss !== "let_go") {
-        const again = new Date(at.getTime() + NAG_AFTER_MIN * 60_000);
-        if (again.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Asking again", at: again, taskId: r.id });
+      // THE FOLLOW-UP is the reminder's own: none for let-go, one ask fifteen
+      // minutes on for every reminder written before the field existed, and
+      // an explicit delay, count and stop time when set. Each ask is judged
+      // on its own fire time, not the ping's: a reschedule that runs in the
+      // minutes AFTER the reminder buzzed (Today reloads constantly) would
+      // otherwise drop the follow-up as part of an occurrence already past,
+      // which is the one moment it exists for.
+      const fu = followUpOf(r.reminder);
+      if (fu) {
+        for (let k = 1; k <= fu.maxCount; k++) {
+          const again = new Date(at.getTime() + fu.delayMinutes * k * 60_000);
+          if (fu.stopAt && (again.getHours() * 60 + again.getMinutes()) > (Number(fu.stopAt.slice(0, 2)) * 60 + Number(fu.stopAt.slice(3, 5)))) break;
+          if (again.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Asking again", at: again, taskId: r.id });
+        }
       }
     }
   }
