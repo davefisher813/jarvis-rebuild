@@ -16,3 +16,11 @@ dist/
 # Sandbox scratch: staging tarballs and bundles are transport, never source.
 *.tar.gz
 *.bundle
+
+# Design previews (Dave 2026-09-15: "build me a html preview before you
+# actually apply anything"). A preview is one screen's real markup with the
+# real stylesheets inlined, generated to be looked at on the phone and thrown
+# away: ~600KB of duplicated CSS each, one per review round. The source of
+# truth is the component it was rendered from, so the file is transport, not
+# source, the same way the tarballs above are.
+*-preview.html
