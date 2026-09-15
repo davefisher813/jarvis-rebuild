@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
 import type { LinkedItem } from "../../notes/types";
-import { PAGE_TABS, type PageTab, type PageSection, type PageRow, whenWords, describeRepeat, repeatRuleOf, scheduleKindOf } from "../reminders";
+import { type PageSection, type PageRow, whenWords, describeRepeat, repeatRuleOf, scheduleKindOf } from "../reminders";
 import { actionLabelFor } from "../reminderHistory";
 import { catName, catColor } from "../../shared/categories";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
@@ -14,8 +14,14 @@ import { fmtTime } from "../../schedule/calendar";
 // corrected again, v3, 2026-09-15: one shape, one colour dot, one amber
 // signal).
 // The date as an eyebrow over "Reminders."; New Reminder as the page's one
-// filled red beside Search; four views as a segmented control; sections of
-// cards.
+// filled red beside Search; then sections of cards, straight away.
+//
+// NO VIEW TABS (Dave 2026-09-15, holding the fixture beside the build: "they
+// should look like clones if I put them side by side"). The segmented control
+// for Today / Upcoming / Routines / Done is not in the fixture, so it is not
+// on the page. pageSections still builds every one of those views and the
+// flow still asks it for "today", so restoring the control is putting this
+// block back, not rebuilding the views.
 //
 // The "On Your Radar" hero card is gone (Dave 2026-09-15: it matched no
 // other component in the app). Now / Later Today carry the same info the
@@ -52,13 +58,11 @@ export interface PageChrome {
 }
 
 export default function RemindersPage({
-  chrome, sections, tab, onTab, query, onQuery, searchOpen, onSearchToggle, today,
+  chrome, sections, query, onQuery, searchOpen, onSearchToggle, today,
   onNew, onSettings, onOpen, onTick, onSnooze, onOpenLinked, onResume, onRestore,
 }: {
   chrome: PageChrome;
   sections: PageSection[];
-  tab: PageTab;
-  onTab: (t: PageTab) => void;
   query: string;
   onQuery: (q: string) => void;
   searchOpen: boolean;
@@ -170,11 +174,6 @@ export default function RemindersPage({
         <div className="rem-toolbar">
           <button type="button" className="btn btn-primary" onClick={onNew}><Plus className="ic" />New Reminder</button>
           <button type="button" className={"btn btn-secondary" + (searchOpen ? " on" : "")} aria-pressed={searchOpen} onClick={onSearchToggle}><Search className="ic" />Search</button>
-        </div>
-        <div className="segmented" role="tablist" aria-label="Reminder views">
-          {PAGE_TABS.map((t) => (
-            <button key={t.key} role="tab" aria-selected={t.key === tab} className={"seg" + (t.key === tab ? " active" : "")} onClick={() => onTab(t.key)}>{t.label}</button>
-          ))}
         </div>
       </div>
       {searchOpen && (
