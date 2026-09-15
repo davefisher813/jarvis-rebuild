@@ -1456,7 +1456,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-toolbar .btn .ic { width: 18px; height: 18px; }
 .rem-page .segmented { margin-bottom: var(--s-2); }
 .rem-page .sub-bar { padding: 0 var(--s-4) var(--s-2); }
-.rem-card { padding: var(--s-3) var(--s-4); margin-bottom: var(--s-2h); cursor: pointer; }
+.rem-card { padding: var(--s-3); margin-bottom: var(--s-2h); cursor: pointer; }
 .rem-card.current { border-left: 3px solid var(--warn); }
 .rem-card.done .rem-card-title { color: var(--tx-2); text-decoration: line-through; text-decoration-color: var(--tx-4); }
 /* Row anatomy corrected 2026-09-15, v3: a plain checkbox leads (`.cb`, the
@@ -1464,24 +1464,38 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    one fact), a fixed time gutter carries today's clock time out of the
    facts line in plain grey, then the body. Centred, not top-aligned, so the
    leading controls sit against the middle of the two-line body. */
-.rem-card-top { display: flex; align-items: center; gap: var(--s-3); }
+.rem-card-top { display: flex; align-items: center; gap: var(--s-2h); min-height: var(--tap-min); }
 .rem-card-cb-space { width: 22px; flex-shrink: 0; }
-.rem-time-gutter { flex-shrink: 0; width: 46px; font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
-.rem-time-gutter .ampm { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-2); margin-left: 2px; }
-.rem-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+/* The gutter holds a clock and its meridiem and MUST NOT clip one: at a flat
+   46px "12:00 PM" ran straight over the facts line beside it (Dave's
+   screenshot, 2026-09-15), and a flat 64px still cut the meridiem on a wider
+   font. So it is a min-width, not a width: the column lines up at the common
+   case and the one wide clock takes the few pixels it needs instead of
+   losing them. Tabular figures keep the digits themselves aligned. */
+.rem-time-gutter { flex-shrink: 0; min-width: 58px; white-space: nowrap; font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
+.rem-time-gutter .ampm { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-2); margin-left: 2px; }
+.rem-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .rem-card-title { font-size: var(--t-h3); font-weight: var(--w-semi); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rem-card-more { background: none; border: 0; color: var(--tx-2); padding: var(--s-1); min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.rem-card-more .ic { width: 20px; height: 20px; }
+/* ONE FACTS LINE, ALWAYS (Dave 2026-09-15, v3). The shared .facts wraps by
+   design; on this row a wrap is what turned a reminder into a three-line
+   card, so here the line stays on one line. The facts are ordered so the
+   ones that earn the space come first, and the LAST one gives way in an
+   ellipsis rather than the line hard-clipping mid-word and leaving its
+   separator dangling over the edge. */
+.rem-card .facts { flex-wrap: nowrap; overflow: hidden; }
+.rem-card .facts > .fact { flex-shrink: 0; }
+.rem-card .facts > .fact.cat { min-width: 0; flex-shrink: 1; }
+.rem-card .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rem-card .facts .fact.when { color: var(--warn); font-weight: var(--w-semi); }
 .rem-card .facts .fact.later { color: var(--tx-2); font-weight: var(--w-semi); }
 /* The one filled chip the facts line allows (Dave 2026-09-15, v3): the
    "Today" urgency flag, so amber never collides with an orange-toned
-   category dot sitting right next to it the way plain amber text did. */
-.rem-flag-today { display: inline-flex; align-items: center; background: var(--warn-fill); color: var(--on-fill-dark); border-radius: var(--r-pill); padding: 1px 8px; font-size: var(--t-meta); font-weight: var(--w-bold); text-transform: uppercase; letter-spacing: 0.04em; }
+   category dot sitting right next to it the way plain amber text did. It
+   sits inside a plain .fact, so the line's "·" stays grey and outside it. */
+.rem-flag-today { display: inline-flex; align-items: center; background: var(--warn-fill); color: var(--on-fill-dark); border-radius: var(--r-pill); padding: 0 7px; font-size: var(--t-eyebrow); font-weight: var(--w-bold); text-transform: uppercase; letter-spacing: var(--track-caps); }
 /* The one accent section head (ASTRA I3) gets a leading dot, same grammar
    Schedule and Today already use for "the section about this minute". */
 .rem-now-dot { width: 6px; height: 6px; border-radius: var(--r-circle); background: var(--accent-chrome); flex-shrink: 0; }
-.rem-card-acts { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
 .rem-detail .sheet-form { padding-top: var(--s-1); }
 .rem-detail-head { padding: var(--s-2) var(--s-4) var(--s-3); display: flex; flex-direction: column; gap: var(--s-1h); }
 .rem-detail-title { font-size: calc(26px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.01em; line-height: 1.2; }
@@ -2904,7 +2918,8 @@ button {
 .rem-row + .rem-row::before { content: ""; position: absolute;
   left: calc(var(--s-4) + 22px + var(--s-3)); right: 0; top: 0; height: 0.5px; background: var(--divider); }
 .rem-time { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 46px; }
-.rem-name { font-size: var(--t-h3); color: var(--tx-1); display: flex; align-items: center; gap: var(--s-1h); }
+.rem-name { font-size: var(--t-h3); color: var(--tx-1); display: flex; align-items: center; gap: var(--s-1h); min-width: 0; }
+.rem-name-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The one dot of colour restored to the strip (Dave 2026-09-15): same shape
    as the Reminders page's category dot, just placed inline before the name
    instead of in a facts line this strip doesn't have. */

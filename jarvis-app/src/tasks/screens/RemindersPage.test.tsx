@@ -37,7 +37,7 @@ describe("RemindersPage", () => {
     expect(screen.getByText("Search")).toBeInTheDocument();
   });
 
-  it("a card is the door; the ring leads, a time gutter carries today's clock, and one pill answers (row anatomy corrected 2026-09-15)", () => {
+  it("a card is the door; the checkbox leads, a time gutter carries today's clock, and one pill answers (row anatomy corrected 2026-09-15, v3)", () => {
     const onOpen = vi.fn(); const onOpenLinked = vi.fn(); const onSnooze = vi.fn(); const onTick = vi.fn();
     page("today", { onOpen, onOpenLinked, onSnooze, onTick });
     expect(screen.getByText("Now")).toBeInTheDocument();
@@ -46,7 +46,10 @@ describe("RemindersPage", () => {
     expect(screen.getByText("9:00")).toBeInTheDocument();
     expect(screen.getByText("AM")).toBeInTheDocument();
     expect(screen.getAllByText("Today", { selector: ".rem-flag-today" }).length).toBeGreaterThan(0);
-    expect(screen.getByText("Weekdays")).toBeInTheDocument();
+    // v3: a row already carrying a clock and a Today chip does not also carry
+    // its rhythm. That fact was the one that overflowed the line; it stays on
+    // the rows with no gutter competing for the room, and in the detail sheet.
+    expect(screen.queryByText("Weekdays")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Bridge Planning Before Jarvis"));
     expect(onOpen).toHaveBeenCalledWith("now1");
     // A linked reminder shows its verb, not Snooze — Snooze is still one tap
@@ -58,21 +61,32 @@ describe("RemindersPage", () => {
     expect(onSnooze).toHaveBeenCalledWith("later1");
     fireEvent.click(screen.getByLabelText("Mark Bridge Planning Before Jarvis done"));
     expect(onTick).toHaveBeenCalledWith("now1", true);
-    fireEvent.click(screen.getByLabelText("Options for Follow Up With Alberto"));
+  });
+
+  // v3: the row is one line of one height, so the trailing slot holds the
+  // one action and nothing else. The options glyph that used to ride beside
+  // it opened the same sheet the row already opens, so it is gone rather
+  // than restyled; the row itself is still the door to it.
+  it("the row carries no options glyph, and the action sits in the row, not under it", () => {
+    const onOpen = vi.fn();
+    const { container } = page("today", { onOpen });
+    expect(screen.queryByLabelText("Options for Follow Up With Alberto")).not.toBeInTheDocument();
+    expect(container.querySelector(".rem-card-acts")).toBeNull();
+    expect(container.querySelector(".rem-card-top .pill-act")).not.toBeNull();
+    fireEvent.click(screen.getByText("Follow Up With Alberto"));
     expect(onOpen).toHaveBeenCalledWith("later1");
-    expect(onOpen).toHaveBeenCalledTimes(2);
   });
 
   it("Routines offers Resume; Done offers Reopen and Restore", () => {
     const onResume = vi.fn(); const onTick = vi.fn(); const onRestore = vi.fn();
     const r = page("routines", { onResume });
-    fireEvent.click(screen.getByText("Resume Reminder"));
+    fireEvent.click(screen.getByText("Resume"));
     expect(onResume).toHaveBeenCalledWith("p1");
     r.unmount();
     page("done", { onTick, onRestore });
-    fireEvent.click(screen.getByText("Reopen Occurrence"));
+    fireEvent.click(screen.getByText("Reopen"));
     expect(onTick).toHaveBeenCalledWith("done1", false);
-    fireEvent.click(screen.getByText("Restore Occurrence"));
+    fireEvent.click(screen.getByText("Restore"));
     expect(onRestore).toHaveBeenCalledWith("sk1", TUE);
     expect(screen.getByText(/^Skipped · Today/)).toBeInTheDocument();
   });

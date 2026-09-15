@@ -6,7 +6,7 @@ import { catName, catColor } from "../../shared/categories";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
 import { rowDoor } from "../../shared/rowDoor";
 import { Burst } from "../../shared/Burst";
-import { Check, Search, Plus, Ellipsis, Gauge } from "../../shared/icons";
+import { Check, Search, Plus, Gauge } from "../../shared/icons";
 import { fmtTime } from "../../schedule/calendar";
 
 // THE REMINDERS PAGE (the reminders rebuild push E, 2026-09-15; row anatomy
@@ -23,21 +23,26 @@ import { fmtTime } from "../../schedule/calendar";
 // (Now alone keeps the accent head, ASTRA I3 style: one page, one "look
 // here").
 //
-// A card is a door (the whole card opens the details): a plain checkbox
-// leads (`.cb`, the existing reminder control, not a task ring: v1 drew it
-// as one and the v3 correction named the mistake), a fixed time gutter for
-// today's timed occurrences in plain grey, the title on one line, a facts
-// line of inline words (the area in its colour via a single dot, its name
-// left plain grey, then a filled amber "Today" chip when due today, the
-// one amber signal on the row now that the time is grey again, and the one
-// filled chip the facts line allows, Dave 2026-09-15 v3), the options
-// glyph, and exactly one action pill: the linked verb when there is one,
-// otherwise Snooze. No icon tile beside the checkbox: two shapes for one
-// fact was the exact "two circles" problem the row rules elsewhere in the
-// app already ban (Dave 2026-09-15). Every other action (including Snooze
-// when a linked verb already has the slot) lives one tap away in the detail
-// sheet. A done card offers Reopen Occurrence, a paused one Resume
-// Reminder, a skipped one Restore Occurrence.
+// A card is a door (the whole card opens the details), and it is ONE row of
+// one fixed height, never a stack: a plain checkbox leads (`.cb`, the
+// existing reminder control, not a task ring: v1 drew it as one and the v3
+// correction named the mistake), then a fixed time gutter for today's timed
+// occurrences in plain grey, then the body (the title on one line, ellipsis,
+// over one facts line that never wraps), then one action in the trailing
+// slot. The facts are the area in its colour via a single dot with its name
+// left plain grey, then a filled amber "Today" chip when due today (the one
+// amber signal on the row now that the time is grey again, and the one
+// filled chip the facts line allows, Dave 2026-09-15 v3), then the rhythm
+// plain.
+//
+// No icon tile beside the checkbox: two shapes for one fact was the exact
+// "two circles" problem the row rules elsewhere in the app already ban (Dave
+// 2026-09-15). No options glyph either: it opened the same sheet the row
+// already opens, so it was a third control in a row the ruling gives one.
+// The trailing slot holds the linked verb when there is one and Snooze
+// otherwise, Reopen on a done row, Resume on a paused one, Restore on a
+// skipped one. Whatever the slot displaces is one tap away in the detail
+// sheet, not dropped.
 
 export interface PageChrome {
   back?: string;
@@ -104,12 +109,20 @@ export default function RemindersPage({
     const dueToday = it.state === "open" && timed && it.date === today && !!it.time;
     const when = it.state === "skipped" ? "Skipped · " + whenWords(r, it.date, it.time, today, area) : whenWords(r, it.date, it.time, today, area);
     const tone = it.state === "open" && it.date === today ? "when" : "later";
-    // Exactly one action pill (never two beside the ring): the linked verb
-    // when there is one, Snooze otherwise. The one it displaces is still one
-    // tap away in the detail sheet, not dropped.
-    const primaryAct = link && onOpenLinked
-      ? { label: actionLabelFor(link), onClick: () => onOpenLinked(link) }
-      : timed ? { label: "Snooze", onClick: () => onSnooze(it.id) } : null;
+    // ONE RIGHT-SLOT ACTION, whatever the state (Dave 2026-09-15, v3: the row
+    // stacked to three lines because the pill took a line of its own under
+    // the body). Open rows answer with the linked verb when there is one and
+    // Snooze otherwise; the other states answer with their one verb. Whatever
+    // this slot displaces is still one tap away in the detail sheet.
+    const act: { label: string; quiet?: boolean; onClick: () => void } | null =
+      it.state === "open"
+        ? link && onOpenLinked
+          ? { label: actionLabelFor(link), onClick: () => onOpenLinked(link) }
+          : timed ? { label: "Snooze", onClick: () => onSnooze(it.id) } : null
+        : it.state === "done" ? { label: "Reopen", quiet: true, onClick: () => onTick(it.id, false) }
+        : it.state === "paused" ? { label: "Resume", onClick: () => onResume(it.id) }
+        : it.state === "skipped" && it.skippedDate ? { label: "Restore", onClick: () => onRestore(it.id, it.skippedDate!) }
+        : null;
     return (
       <div key={it.id + (it.skippedDate ?? "")} className={"card rem-card" + (current ? " current" : "") + (it.state === "done" ? " done" : "")} {...rowDoor(() => onOpen(it.id))}>
         <div className="rem-card-top">
@@ -119,21 +132,25 @@ export default function RemindersPage({
             <div className="rem-card-title">{it.text}</div>
             <div className="facts">
               {!dueToday && <span className={"fact " + (it.state === "open" ? tone : "")}>{when}</span>}
-              {area && <span className="fact cat"><span className={"cd cat-bg-" + catColor(it.category)} />{area}</span>}
-              {dueToday && <span className="fact rem-flag-today">Today</span>}
-              {timed && rule.kind !== "once" && <span className="fact">{describeRepeat(rule)}</span>}
+              {/* The area name takes its own element so IT is what gives way
+                  when the line runs out of room. Its colour is already on the
+                  dot beside it, so a clipped name still says which area this
+                  is; a clipped urgency chip would not say anything. */}
+              {area && <span className="fact cat"><span className={"cd cat-bg-" + catColor(it.category)} /><span className="cat-t">{area}</span></span>}
+              {/* The chip rides INSIDE a plain .fact so the line's own "·"
+                  separator renders on the grey wrapper, outside the amber
+                  fill, instead of inside the pill with it. */}
+              {dueToday && <span className="fact"><span className="rem-flag-today">Today</span></span>}
+              {/* The rhythm is the first thing to go when the row is already
+                  carrying a clock and a Today chip: on this view it was the
+                  fact that overflowed, and "Every Day" is what the detail
+                  sheet and the Routines view are for. Rows without a gutter
+                  keep it, where it is the line's most useful word. */}
+              {timed && rule.kind !== "once" && !dueToday && <span className="fact">{describeRepeat(rule)}</span>}
             </div>
           </div>
-          <button type="button" className="rem-card-more" aria-label={"Options for " + it.text} onClick={() => onOpen(it.id)}><Ellipsis className="ic" /></button>
+          {act && <button type="button" className={"pill-act" + (act.quiet ? " pill-quiet" : "")} onClick={act.onClick}>{act.label}</button>}
         </div>
-        {it.state === "open" && primaryAct && (
-          <div className="rem-card-acts">
-            <button type="button" className="pill-act" onClick={primaryAct.onClick}>{primaryAct.label}</button>
-          </div>
-        )}
-        {it.state === "done" && <div className="rem-card-acts"><button type="button" className="pill-act pill-quiet" onClick={() => onTick(it.id, false)}>Reopen Occurrence</button></div>}
-        {it.state === "paused" && <div className="rem-card-acts"><button type="button" className="pill-act" onClick={() => onResume(it.id)}>Resume Reminder</button></div>}
-        {it.state === "skipped" && it.skippedDate && <div className="rem-card-acts"><button type="button" className="pill-act" onClick={() => onRestore(it.id, it.skippedDate!)}>Restore Occurrence</button></div>}
       </div>
     );
   };

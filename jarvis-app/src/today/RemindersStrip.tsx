@@ -132,7 +132,11 @@ export default function RemindersStrip({
             <div className="row-grow tap44" role="button" tabIndex={0} onClick={() => onOpen?.(r.id)}>
               <div className="rem-name">
                 {r.category && !r.done && <span className={"rem-row-cd cat-bg-" + catColor(r.category)} aria-hidden="true" />}
-                {r.text}
+                {/* The name takes its own element so it can end in an
+                    ellipsis rather than wrap (Dave 2026-09-15: "Make sure you
+                    have enough money for bills" ran to three lines and the
+                    row grew with it). One row, one height, here too. */}
+                <span className="rem-name-t">{r.text}</span>
               </div>
             </div>
             {/* Snooze only exists while it still matters: once it is done,
