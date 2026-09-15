@@ -4463,6 +4463,39 @@ describe("LAW: a planned task can be finished from where it is shown", () => {
     expect(src, "with the app's own ring").toMatch(/task-check-tap/);
   });
 
+  // THE SWEEP (Dave, 2026-09-15, ruling: one rule, everywhere). Every surface
+  // that draws a real task draws its ring. The exemptions are DECISIONS and
+  // are named here, so a future one is argued for rather than forgotten:
+  //
+  //   upnext/FreshStartFlow.tsx -- a preview of a bulk reshuffle, with Run It
+  //     and Cancel under it. You are confirming an operation, not working a
+  //     list, and nothing on it has happened yet. Same reason the exercise
+  //     merge review does not tick lifts off.
+  //   schedule/screens/PlanDaySheet.tsx -- the same shape: tasks being placed
+  //     into a day and confirmed as one batch.
+  it("every surface that draws a real task can finish one", () => {
+    const EXEMPT = new Set([
+      "upnext/FreshStartFlow.tsx",
+      "schedule/screens/PlanDaySheet.tsx",
+    ]);
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const r = rel(f);
+      if (EXEMPT.has(r)) continue;
+      const src = read(f);
+      // A TASK list, specifically. `.data.text` alone is far too loose: Brain
+      // strands and the meal log carry the same field and are not tasks, and
+      // a law that flags them is a law that collects exemptions until it
+      // means nothing. The file has to actually handle a TaskItem.
+      if (!/\bTaskItem\b/.test(src)) continue;
+      if (!/\.data\.text\}/.test(src)) continue;
+      if (!/conn-name|task-title/.test(src)) continue;
+      if (/task-check|onToggle|onComplete|onTick|toggleDone/.test(src)) continue;
+      bad.push(r);
+    }
+    expect(bad, "a task you can see is a task you can finish").toEqual([]);
+  });
+
   it("Today wires every one of those seams, or they are props", () => {
     const src = read(join(SRC, "today/TodayFlow.tsx"));
     expect(src, "the proposed day must carry completion").toMatch(/onComplete: \(id: string\) => void onToggleTask\(id\)/);

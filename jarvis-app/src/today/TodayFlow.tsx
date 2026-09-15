@@ -2612,14 +2612,15 @@ export default function TodayFlow({
         // beside a card that has timed four of them is a false alarm.
         title={unplannedMoved.length === 1 ? "1 Moved to Today" : `${unplannedMoved.length} Moved to Today`}
         sub={unplannedMoved.length > 1 ? "No times yet" : undefined}
-        action={{
-          // PLAN THEM (2026-08-21). Seven untimed tasks arriving at once is
-          // exactly how a day turns into the one Dave photographed. The list
-          // is already assembled and the planner already takes a list, so
-          // the forward move costs nothing.
-          label: "Plan",
-          onClick: () => void openPlan("today"),
-        }}
+        // 2026-09-15: THE SECOND PLANNING DOOR IS GONE (Dave: "do the buttons
+        // really have any value to the user"). This pill and Plan My Day at
+        // the foot of the day were the identical call -- openPlan("today") --
+        // about eight hundred pixels apart, so the page asked the same
+        // question twice and answered it the same way. Plan My Day is the one
+        // door. This card goes back to being what its words say it is, a
+        // receipt that five things arrived, and the row-tap below already
+        // shows you the five. Set Aside keeps the swipe, where every notice's
+        // second path lives.
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
         // opens Tasks, where the moved tasks are.
         onOpen={onGoTasks}
@@ -2683,6 +2684,23 @@ export default function TodayFlow({
         title={sweepCand.text}
         sub={`Slid ${sweepCand.slips}d`}
         heat="warm"
+        // 2026-09-15: THE DIAGNOSIS CARRIES ITS OWN REMEDY (Dave: "if they're
+        // not going to give real, real value, then we have to adjust them or
+        // get rid of some of them").
+        //
+        // This card's whole argument, written into it in August, is that "a
+        // task that has slid five days running is not a discipline failure;
+        // it is a task whose first step was never obvious" -- and the only
+        // thing it offered was a tap to go look at it. It named a count of
+        // failures and handed over nothing to do about it. Break It Down is
+        // the move that argument points at, it already exists on this flow,
+        // and it is one line from here.
+        //
+        // Offered only when a model is actually reachable: a button that
+        // needs the AI and cannot have it is the exact shape this pass is
+        // removing everywhere else. Without one the row still opens the task,
+        // which is what it has always done.
+        {...(ai.available ? { action: { label: "Break It Down", onClick: () => { markOffered(sweepCand.id, today); void breakDownTask(sweepCand.id); } } } : {})}
         onOpen={() => { markOffered(sweepCand.id, today); void onOpenTask(sweepCand.id); }}
         // Quiet for DISMISS_DAYS, not forever: the old markOffered list had
         // no expiry, so one dismissal meant this task could never be flagged

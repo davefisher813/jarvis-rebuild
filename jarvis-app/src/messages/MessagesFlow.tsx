@@ -6,6 +6,7 @@ import { leadFor, faceSlot } from "./rowAnatomy";
 import { Facts, waitingFor, ruleAccountFact } from "./factsLine";
 import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
 import type { TaskItem } from "../tasks/TasksService";
+import { attemptWrite } from "../shared/guard";
 import NoticeCard from "../today/NoticeCard";
 import "../styles/mail-rows.css";
 import EntityStar from "../shared/EntityStar";
@@ -3572,9 +3573,34 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <>
                 <div className="sh2 sh2-quiet"><span className="t">Linked</span><span className="n">{threadTasks.length + (link ? 1 : 0)}</span></div>
                 <div className="card list-card-ruled">
+                  {/* 2026-09-15 (Dave: "if there's a task being highlighted,
+                      you can't even clear it if you've completed it").
+                      This row already SAID whether the task was done -- the
+                      fact line below reads "Done" or its due date -- and
+                      offered no way to make it so. You are looking at the
+                      email that produced the task, with the task in front of
+                      you, and the only route to finishing it was another tab.
+                      The app's own ring, in the lead slot, same as every
+                      other task row. */}
                   {threadTasks.map((t) => (
-                    <div className="row" key={t.id}>
-                      <span className="row-ico cat-bg-graphite" aria-hidden="true"><ListChecks className="ic" /></span>
+                    // The whole row is the door (the row-tap law), and the
+                    // ring inside it stops the event so ticking off never
+                    // navigates on the way.
+                    <div className="row" key={t.id} {...rowDoor(() => onOpenTask?.(t.id))}>
+                      {tasks ? (
+                        <div className="task-check-tap" role="checkbox" aria-checked={!!t.data.done}
+                          aria-label={t.data.done ? `Mark ${t.data.text} not done` : `Mark ${t.data.text} done`}
+                          onClick={() => void (async () => {
+                            const ok = await attemptWrite(() => tasks.toggleDone(t.id));
+                            if (!ok) return;
+                            const ts = await tasks.listTasks();
+                            setThreadTasks(ts.filter((x) => x.data.fromThread === thread.id));
+                          })()}>
+                          <div className={"task-check" + (t.data.done ? " on" : "")} />
+                        </div>
+                      ) : (
+                        <span className="row-ico cat-bg-graphite" aria-hidden="true"><ListChecks className="ic" /></span>
+                      )}
                       <div className="row-grow">
                         <div className="conn-name">{t.data.text}</div>
                         <Facts facts={[

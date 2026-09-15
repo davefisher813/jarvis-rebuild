@@ -12,6 +12,7 @@ import { DUR_CHOICES, durLabel } from "../../schedule/durations";
 import { RepeatGlyph, PinGlyph, TargetGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
 import SheetBar from "../../shared/SheetBar";
+import { rowDoor } from "../../shared/rowDoor";
 import HeadMenu from "../../shared/HeadMenu";
 import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
@@ -374,9 +375,12 @@ export default function TaskSheet({
             lead slot beside the name, where the hand already looks. */}
         {mode === "edit" && (
           <div className="pad-x"><div className="card xs-group">
-            <div className="row xs-row">
-              <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done"
-                onClick={() => void save(true)}>
+            {/* The whole row finishes it (the row-tap law): the ring is the
+                affordance, and the words beside it are the same target, so a
+                thumb aimed anywhere on the row does the one thing the row is
+                for. */}
+            <div className="row xs-row" {...rowDoor(() => void save(true))}>
+              <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done">
                 <div className="task-check" />
               </div>
               <div className="row-grow"><div className="conn-name">Mark Done</div></div>
