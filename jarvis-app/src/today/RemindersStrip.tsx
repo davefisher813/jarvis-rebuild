@@ -4,7 +4,10 @@ import React, { useRef, useState } from "react";
 import { useSwipe } from "../shared/useSwipe";
 import type { ReminderView } from "../tasks/reminders";
 import { fmtTime } from "../schedule/calendar";
-import { catColor } from "../shared/categories";
+import { catColor, catName } from "../shared/categories";
+
+/** The area's name, when it has one to give. */
+const area = (r: { category: string }) => (r.category ? catName(r.category) : "");
 
 // THE REMINDERS STRIP (Dave 2026-08-19: "taking meds should just be a set
 // reminder"). One line each, the time, the thing, a circle. Tap the circle,
@@ -130,14 +133,27 @@ export default function RemindersStrip({
                 below the name, so .tap44 takes the free space the row was
                 keeping for nobody. */}
             <div className="row-grow tap44" role="button" tabIndex={0} onClick={() => onOpen?.(r.id)}>
-              <div className="rem-name">
-                {r.category && !r.done && <span className={"rem-row-cd cat-bg-" + catColor(r.category)} aria-hidden="true" />}
-                {/* The name takes its own element so it can end in an
-                    ellipsis rather than wrap (Dave 2026-09-15: "Make sure you
-                    have enough money for bills" ran to three lines and the
-                    row grew with it). One row, one height, here too. */}
-                <span className="rem-name-t">{r.text}</span>
-              </div>
+              {/* The name takes its own element so it can end in an
+                  ellipsis rather than wrap (Dave 2026-09-15: "Make sure you
+                  have enough money for bills" ran to three lines and the
+                  row grew with it). One row, one height, here too. */}
+              <div className="rem-name"><span className="rem-name-t">{r.text}</span></div>
+              {/* THE AREA SAYS ITS NAME (Dave 2026-09-15: "why is there a
+                  yellow dot and no category next to it"). The dot alone was
+                  a colour with nothing to read it by. It is the Reminders
+                  page's facts line, the same dot and the same plain grey
+                  name, so the two surfaces read as one component. No TODAY
+                  chip here: every row on this strip is today, and a tag
+                  repeated on every row of a view named for it says nothing
+                  (the rule Tasks already follows on its Today filter). */}
+              {area(r) && !r.done && (
+                <div className="facts">
+                  <span className="fact cat">
+                    <span className={"cd cat-bg-" + catColor(r.category)} />
+                    <span className="cat-t">{area(r)}</span>
+                  </span>
+                </div>
+              )}
             </div>
             {/* Snooze only exists while it still matters: once it is done,
                 pushing it later is nonsense. */}

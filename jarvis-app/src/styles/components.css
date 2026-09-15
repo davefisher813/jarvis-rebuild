@@ -2919,10 +2919,15 @@ button {
 .rem-time { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 46px; }
 .rem-name { font-size: var(--t-h3); color: var(--tx-1); display: flex; align-items: center; gap: var(--s-1h); min-width: 0; }
 .rem-name-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* The one dot of colour restored to the strip (Dave 2026-09-15): same shape
-   as the Reminders page's category dot, just placed inline before the name
-   instead of in a facts line this strip doesn't have. */
-.rem-row-cd { width: 7px; height: 7px; border-radius: var(--r-circle); flex-shrink: 0; }
+/* The strip's facts line, the Reminders page's own (Dave 2026-09-15: "why is
+   there a yellow dot and no category next to it"). The bare dot the strip
+   wore for a day was a colour with no word to read it by; this is the same
+   .fact.cat the page row carries, so the two read as one component. One line
+   here too: the name gives way in an ellipsis rather than wrapping the row. */
+.rem-row .facts { flex-wrap: nowrap; overflow: hidden; margin-top: 1px; }
+.rem-row .facts > .fact { flex-shrink: 0; }
+.rem-row .facts > .fact.cat { min-width: 0; flex-shrink: 1; }
+.rem-row .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rem-row.missed .rem-time { color: var(--tx-1); font-weight: var(--w-semi); }
 .rem-row.done .rem-name { color: var(--tx-2); text-decoration: line-through; }
 /* A FINISHED REMINDER RECEDES (2026-08-24). `.cb.on` fills with `--sel-bg`,
