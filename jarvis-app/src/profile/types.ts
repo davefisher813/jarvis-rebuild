@@ -28,7 +28,17 @@ export interface ProfileData {
   // Optional like `checkins`, and absent reads as ON: an existing profile has
   // never stored it, and defaulting a switch off would mean the feature ships
   // silent for everyone already using the app.
-  notify?: { overdue: boolean; events: boolean; goals: boolean; checkins?: boolean; rest?: boolean };
+  notify?: {
+    overdue: boolean; events: boolean; goals: boolean; checkins?: boolean; rest?: boolean;
+    // THE REMINDER SETTINGS (the reminders rebuild push E, 2026-09-15).
+    // Quiet hours silence follow-up asks and context prompts between the two
+    // clock times; a reminder's own alert still rings. Default follow-up
+    // gives a new reminder one ask an hour on. Private alerts make a health
+    // reminder's banner say only that there is one.
+    quietHours?: boolean; quietFrom?: string; quietTo?: string;
+    defaultFollowUp?: boolean;
+    privateAlerts?: boolean;
+  };
   // Open tracking on outgoing mail (2026-08-09). Default ON preserves what
   // the app always did; the point of the field is that it is now a VISIBLE
   // choice with an off switch and a privacy-policy line, not a silent one.

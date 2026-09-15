@@ -4,9 +4,12 @@ import type { ReactNode } from "react";
 // day lands; Projects and Goals are the same tree, further up. A segmented
 // control under the page head, the app's own .segmented, remembered within
 // the session and reset on launch (the same rule the filter chips follow).
-export type LifeSegment = "tasks" | "projects" | "goals";
+export type LifeSegment = "tasks" | "reminders" | "projects" | "goals";
 export const LIFE_SEGMENTS: { key: LifeSegment; label: string }[] = [
   { key: "tasks", label: "Tasks" },
+  // THE REMINDERS REBUILD (push E, 2026-09-15): the page lives here as well
+  // as behind Today's See All, the same component both ways.
+  { key: "reminders", label: "Reminders" },
   { key: "projects", label: "Projects" },
   { key: "goals", label: "Goals" },
 ];

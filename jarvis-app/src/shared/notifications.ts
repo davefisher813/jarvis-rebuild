@@ -14,7 +14,7 @@ import type { RoutineData } from "../routine/types";
 import { LADDER, ladderBody, type Rung } from "../schedule/countdown";
 import { addDays } from "../schedule/calendar";
 import type { ReminderInfo } from "../notes/types";
-import { runsOn, effectiveTime, isDone, followUpOf, fireAt, scheduleKindOf } from "../tasks/reminders";
+import { runsOn, effectiveTime, isDone, followUpOf, fireAt, scheduleKindOf, inQuietHours } from "../tasks/reminders";
 import { MAIL_DIGEST_BASE } from "../messages/mailDigest";
 
 export interface CheckinNotification {
@@ -585,7 +585,9 @@ export async function ensureEventReminders(events: ReminderInput[], nowMs: numbe
 
 export const TASK_REMINDER_BASE = 9300;
 
-export interface TaskReminderInput { id: string; text: string; reminder: ReminderInfo }
+export interface TaskReminderInput { id: string; text: string; reminder: ReminderInfo   /** Push E: a health reminder whose banner should say only that there is one. */
+  sensitive?: boolean;
+}
 // UP-PLAT-01 (2026-09-06): `taskId` is the task the banner is about, which
 // the builder had in hand all along and dropped. Done and Tomorrow on the
 // lock screen need it, and so does a plain tap that opens the task itself
@@ -620,11 +622,21 @@ export const REMINDER_DAYS_AHEAD = 7;
 // applies on the day it was set), and its last-done (isDone: a reminder
 // already ticked for a date does not ping again for it). Only future
 // fire-times survive, same rule as buildEventReminders.
+// THE REMINDER SETTINGS (push E): quiet hours drop the follow-up asks that
+// would land inside the window (the alert itself still rings); a private
+// reminder's banner says only that there is one.
+export interface ReminderNotifyOptions {
+  quietFrom?: string;
+  quietTo?: string;
+}
+export const PRIVATE_TITLE = "Health Reminder";
+export const PRIVATE_BODY = "Open JARVIS to see it";
 export function buildTaskReminderNotifications(
   reminders: TaskReminderInput[],
   today: string,
   nowMs: number,
   daysAhead: number = REMINDER_DAYS_AHEAD,
+  opts: ReminderNotifyOptions = {},
 ): TaskReminderNotification[] {
   const dates: string[] = [];
   // Stepped as calendar days (addDays uses setDate), never by adding a day's
@@ -645,7 +657,9 @@ export function buildTaskReminderNotifications(
       const time = date === today ? effectiveTime(r.reminder, today) : (r.reminder.movedTimes?.[date] ?? r.reminder.time);
       const at = fireAt(date, time, r.reminder.tz);
       if (!Number.isFinite(at.getTime())) continue;
-      if (at.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Reminder", at, taskId: r.id });
+      const title = r.sensitive ? PRIVATE_TITLE : r.text.trim();
+      const body = r.sensitive ? PRIVATE_BODY : "Reminder";
+      if (at.getTime() > nowMs) out.push({ title, body, at, taskId: r.id });
       // THE FOLLOW-UP is the reminder's own: none for let-go, one ask fifteen
       // minutes on for every reminder written before the field existed, and
       // an explicit delay, count and stop time when set. Each ask is judged
@@ -658,7 +672,9 @@ export function buildTaskReminderNotifications(
         for (let k = 1; k <= fu.maxCount; k++) {
           const again = new Date(at.getTime() + fu.delayMinutes * k * 60_000);
           if (fu.stopAt && (again.getHours() * 60 + again.getMinutes()) > (Number(fu.stopAt.slice(0, 2)) * 60 + Number(fu.stopAt.slice(3, 5)))) break;
-          if (again.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Asking again", at: again, taskId: r.id });
+          const clock = String(again.getHours()).padStart(2, "0") + ":" + String(again.getMinutes()).padStart(2, "0");
+          if (opts.quietFrom && opts.quietTo && inQuietHours(clock, opts.quietFrom, opts.quietTo)) continue;
+          if (again.getTime() > nowMs) out.push({ title, body: r.sensitive ? PRIVATE_BODY : "Asking again", at: again, taskId: r.id });
         }
       }
     }
@@ -671,6 +687,7 @@ export async function ensureTaskReminders(
   reminders: TaskReminderInput[],
   today: string,
   nowMs: number = Date.now(),
+  opts: ReminderNotifyOptions = {},
 ): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   return taskQueue(async () => {
@@ -682,7 +699,7 @@ export async function ensureTaskReminders(
       await LocalNotifications.cancel({
         notifications: Array.from({ length: TASK_REMINDER_SPAN }, (_, i) => ({ id: TASK_REMINDER_BASE + i })),
       });
-      const specs = buildTaskReminderNotifications(reminders, today, nowMs);
+      const specs = buildTaskReminderNotifications(reminders, today, nowMs, REMINDER_DAYS_AHEAD, opts);
       if (specs.length === 0) return;
       await registerNotificationActions();
       await LocalNotifications.schedule({

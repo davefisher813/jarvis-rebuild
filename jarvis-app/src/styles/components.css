@@ -1446,31 +1446,57 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Let-go recedes rather than disappearing: the day still happened. */
 .rem-row.let-go .rem-name, .rem-row.let-go .rem-time { color: var(--tx-2); }
 .rem-row .rem-unsch { color: var(--tx-2); font-variant-numeric: normal; }
-/* REMINDERS HOME (2026-09-15): the strip's row with a second line of facts
-   (time, area, rhythm as inline coloured words with middle dots, never
-   filled chips) and the pills after it. */
-.rem-home .rem-row { align-items: center; }
-.rem-home .rem-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.rem-home .rem-body .rem-name { white-space: normal; }
-.rem-home .facts .fact.when { color: var(--warn); font-weight: var(--w-semi); }
-.rem-home .facts .fact.later { color: var(--tx-2); font-weight: var(--w-semi); }
-.rem-home .rem-more { padding: 0 var(--s-4); }
-.rem-home .rem-more > summary { color: var(--tx-2); }
-.rem-home .rem-explain { font-size: var(--t-meta); color: var(--tx-2); }
-/* LINK AN ITEM (2026-09-15): the picker over the reminder sheet. Its list
-   scrolls inside itself, so the sheet under it never moves. */
+/* THE REMINDERS PAGE (the reminders rebuild push E, 2026-09-15, Dave's
+   interactive preview on the app's own chrome). */
+.rem-hero { display: flex; flex-direction: column; gap: 2px; }
+.rem-hero-dot { color: var(--tint); }
+.rem-overview { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-4); }
+.rem-overview-body { min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+.rem-overview-count { display: flex; align-items: baseline; gap: var(--s-1h); }
+.rem-overview-count .n { font-size: calc(40px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.03em; color: var(--warn); line-height: 1; }
+.rem-overview-count .w { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-1); }
+.rem-overview-line { font-size: var(--t-meta); color: var(--tx-2); }
+.rem-orbit { flex-shrink: 0; width: 92px; height: 92px; border-radius: var(--r-circle); border: 1px solid var(--warn); background: var(--press-3); color: var(--tx-1); font-family: var(--f); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: var(--s-2); font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi); text-align: center; line-height: 1.2; }
+.rem-orbit .ic { width: 22px; height: 22px; color: var(--warn); }
+.rem-orbit.still { border-color: var(--divider); }
+.rem-orbit.still .ic { color: var(--good); }
+.rem-toolbar { display: flex; gap: var(--s-2); margin: var(--s-3) 0; }
+.rem-toolbar .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h); }
+.rem-toolbar .btn-primary { flex: 1; }
+.rem-toolbar .btn .ic { width: 18px; height: 18px; }
+.rem-page .segmented { margin-bottom: var(--s-2); }
+.rem-page .sub-bar { padding: 0 var(--s-4) var(--s-2); }
+.rem-card { padding: var(--s-3) var(--s-4); margin-bottom: var(--s-2h); cursor: pointer; }
+.rem-card.current { border-left: 3px solid var(--warn); }
+.rem-card.done .rem-card-title { color: var(--tx-2); text-decoration: line-through; text-decoration-color: var(--tx-4); }
+.rem-card-top { display: flex; align-items: flex-start; gap: var(--s-3); }
+.rem-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.rem-card-title { font-size: var(--t-h3); font-weight: var(--w-semi); line-height: 1.3; }
+.rem-card-more { background: none; border: 0; color: var(--tx-2); padding: var(--s-1); min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
+.rem-card-more .ic { width: 20px; height: 20px; }
+.rem-card .facts .fact.when { color: var(--warn); font-weight: var(--w-semi); }
+.rem-card .facts .fact.later { color: var(--tx-2); font-weight: var(--w-semi); }
+.rem-card-acts { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
+.rem-card-acts .cb { margin-left: auto; }
+.rem-detail .sheet-form { padding-top: var(--s-1); }
+.rem-detail-head { padding: var(--s-2) var(--s-4) var(--s-3); display: flex; flex-direction: column; gap: var(--s-1h); }
+.rem-detail-title { font-size: calc(26px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.01em; line-height: 1.2; }
+.rem-detail-acts { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-2) var(--s-4); }
+.rem-detail-acts .btn { width: 100%; }
+.rem-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+.rem-more { padding: 0 var(--s-4); }
+.rem-more > summary { color: var(--tx-2); }
+.rem-prompt-sheet .sheet-form { padding-top: var(--s-3); }
+.rem-prompt-eyebrow { color: var(--tint); padding: 0 var(--s-4); }
+.rem-prompt-sheet .rem-detail-title { padding: var(--s-1) var(--s-4) 0; }
+.rem-prompt-line { padding: var(--s-1) var(--s-4) var(--s-2); font-size: var(--t-meta); color: var(--tx-2); }
+.rem-summary { margin: var(--s-2) var(--s-4); padding: var(--s-2h) var(--s-3); border-radius: var(--r-md); background: var(--good-tint); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--divider)); }
+.rem-summary-head { color: var(--good); font-weight: var(--w-semi); font-size: var(--t-body); }
+.rem-summary-line { color: var(--tx-2); font-size: var(--t-meta); margin-top: 2px; }
 .link-sheet .sub-bar { padding-inline: var(--s-3); }
 .link-sheet-list { max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .link-sheet-kind { padding: var(--s-2) var(--s-4) var(--s-1); }
 .link-sheet .row.on .conn-name { color: var(--tint); font-weight: var(--w-semi); }
-/* THE CONTEXT PROMPT (2026-09-15): a card above the day or the area, the
-   reminder's words, what it is about, and its three answers as pills. */
-.rem-prompt { padding: var(--s-3) var(--s-4); margin-bottom: var(--s-3); }
-.rem-prompt-head { display: flex; align-items: flex-start; gap: var(--s-3); }
-.rem-prompt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.rem-prompt-body .rem-name { white-space: normal; }
-.rem-prompt-body .rem-explain { font-size: var(--t-meta); color: var(--tx-2); }
-.rem-prompt-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
 /* The primary marker inside a picked category chip (2026-08-21). Uppercase
    micro-label, not a colour: the chip is already carrying a colour that means
    the category, and a second meaning on the same paint is how palettes rot. */

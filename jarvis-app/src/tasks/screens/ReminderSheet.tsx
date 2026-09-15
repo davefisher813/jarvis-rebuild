@@ -1,53 +1,35 @@
 import { useMemo, useState } from "react";
 import type { ReminderInfo, RepeatRule, FollowUpConfig, LinkedItem, ContextTriggerConfig } from "../../notes/types";
+import { nextOccurrence, describeRepeat, followUpOf, repeatRuleOf, scheduleKindOf, WEEKDAYS, WEEKENDS } from "../reminders";
 import { COOLDOWNS, DEFAULT_COOLDOWN_MIN } from "../contextPrompts";
-import { actionLabelFor, scheduleAdvice, adviceLine, recentEvents } from "../reminderHistory";
-import LinkedItemSheet, { type LinkCandidate } from "./LinkedItemSheet";
-import { repetitionsLine } from "../automaticity";
-import { nextOccurrence, describeRepeat, followUpOf, repeatRuleOf, scheduleKindOf, runsOn, isDone, WEEKDAYS, WEEKENDS } from "../reminders";
 import { readQuick, morningTime, inMinutes } from "../quickReminder";
-import { FormSheet, Group, Row, FieldRow, MenuRow, Strip, Note, DeleteRow, ErrorLine, SwitchRow } from "../../shared/FormSheet";
-import { Clock, CalendarPlus, Calendar, Tag, CircleSlash, Hourglass, Link2, Forward } from "../../shared/icons";
+import { FormSheet, Group, Row, FieldRow, MenuRow, Strip, Note, ErrorLine, SwitchRow } from "../../shared/FormSheet";
+import { Clock, Calendar, Tag, Link2, Forward } from "../../shared/icons";
 import { BellGlyph, RepeatGlyph, WarningGlyph } from "../../shared/glyphs";
 import { todayISO } from "../grouping";
 import { addDays, fmtTime } from "../../schedule/calendar";
 import { pressable } from "../../shared/pressable";
+import { actionLabelFor } from "../reminderHistory";
+import LinkedItemSheet, { type LinkCandidate } from "./LinkedItemSheet";
 
-// THE REMINDER SHEET, REBUILT (the reminders rebuild, 2026-09-15, Dave's
-// brief sections 2 and 3).
-//
-// Quick creation is three things: what to remember, when, Save. The words
-// are read as they are typed (tasks/quickReminder.ts, the same deterministic
-// resolvers Smart Paste uses) and what they name becomes chips the person
-// can change; nothing is guessed for a word that cannot be read. When is
-// four shortcuts and a real date and time. Everything else (Repeat, Area,
-// Follow-up, time zone) waits behind one disclosure, collapsed.
-//
-// Timed or unscheduled is said explicitly (scheduleKind), never inferred
-// from which fields happen to be filled: a timed reminder shows its start
-// day, time, repeat and the computed next occurrence together; an
-// unscheduled one shows the word Unscheduled and its one-line explainer and
-// nothing shaped like a schedule. Save is never a dead button: whatever is
-// missing says so at its field.
-//
-// "Where" is Area, and it is the same area record every task and event
-// uses. "If You Miss It" is Follow-up: not responding is not failure.
-// Delete lives in More Actions at the foot, alone, never beside Save.
-
-const QUICK_TIMES = [
-  { v: "07:00", label: "7 AM" }, { v: "08:00", label: "8 AM" },
-  { v: "12:00", label: "12 PM" }, { v: "18:00", label: "6 PM" },
-  { v: "21:00", label: "9 PM" },
-];
+// THE REMINDER FORM (the reminders rebuild, push E to Dave's interactive
+// preview, on the app's own rows). What would you like to remember; when
+// should it appear (at a date and time, when I open the area, after I
+// complete the task, or unscheduled); for a timed one the day, the time,
+// two shortcuts, the rhythm; then one green line saying what was just set;
+// then Area, Linked Action and Follow-up behind a disclosure. The words are
+// read as they are typed and shown as chips. Save is never dead: whatever
+// is missing says so at its field. Pause, Skip, Export and Delete live on
+// the details sheet, not here.
 
 type RepeatKey = "once" | "daily" | "weekdaysOnly" | "weekends" | "weekly" | "monthly" | "every3" | "after3";
 const REPEAT_OPTIONS: { value: RepeatKey; label: string; rule: RepeatRule }[] = [
-  { value: "once", label: "Just Once", rule: { kind: "once" } },
-  { value: "daily", label: "Every Day", rule: { kind: "daily" } },
+  { value: "once", label: "Never", rule: { kind: "once" } },
+  { value: "daily", label: "Daily", rule: { kind: "daily" } },
   { value: "weekdaysOnly", label: "Weekdays", rule: { kind: "weekdays", days: WEEKDAYS } },
   { value: "weekends", label: "Weekends", rule: { kind: "weekdays", days: WEEKENDS } },
-  { value: "weekly", label: "Every Week", rule: { kind: "weekly" } },
-  { value: "monthly", label: "Every Month", rule: { kind: "monthly" } },
+  { value: "weekly", label: "Weekly", rule: { kind: "weekly" } },
+  { value: "monthly", label: "Monthly", rule: { kind: "monthly" } },
   { value: "every3", label: "Every 3 Days", rule: { kind: "everyNDays", n: 3 } },
   { value: "after3", label: "3 Days After Completion", rule: { kind: "afterCompletion", days: 3 } },
 ];
@@ -56,13 +38,24 @@ function keyOf(rule: RepeatRule): RepeatKey {
   return hit?.value ?? (rule.kind === "weekdays" ? "weekdaysOnly" : rule.kind === "everyNDays" ? "every3" : rule.kind === "afterCompletion" ? "after3" : "daily");
 }
 
-type FollowKey = "off" | "15" | "30" | "60";
+type WhenKey = "time" | "area" | "task" | "none";
+const WHEN_OPTIONS: { value: WhenKey; label: string }[] = [
+  { value: "time", label: "At a Date and Time" },
+  { value: "area", label: "When I Open the Area" },
+  { value: "task", label: "After I Complete the Task" },
+  { value: "none", label: "Unscheduled" },
+];
+
+type FollowKey = "off" | "15" | "60";
 const FOLLOW_OPTIONS: { value: FollowKey; label: string }[] = [
   { value: "off", label: "None" },
-  { value: "15", label: "Ask Again in 15m" },
-  { value: "30", label: "Ask Again in 30m" },
-  { value: "60", label: "Ask Again in 1h" },
+  { value: "15", label: "Once After 15 Minutes" },
+  { value: "60", label: "Once After 1 Hour" },
 ];
+function followKeyOf(fu: FollowUpConfig | null): FollowKey {
+  if (!fu) return "off";
+  return fu.delayMinutes >= 60 ? "60" : "15";
+}
 
 // The day and time as a person says them.
 export function whenLabel(date: string, time: string, today: string): string {
@@ -73,7 +66,7 @@ export function whenLabel(date: string, time: string, today: string): string {
   const t = fmtTime(time);
   return `${day}, ${t.time} ${t.ap}`;
 }
-
+const clock = (hhmm: string) => { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; };
 const localZone = (): string => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "local"; } catch { return "local"; } };
 
 export default function ReminderSheet({
@@ -81,315 +74,210 @@ export default function ReminderSheet({
   mode = "new",
   categories = [],
   onSave,
-  onDelete,
-  onPause,
-  onAddToCalendar,
   onCancel,
   now = Date.now(),
-  onSkip,
-  onReschedule,
-  onKeepSchedule,
   onOpenLinked,
   linkCandidates = [],
   today: todayProp,
   nowHHMM,
+  defaultFollowUp = false,
 }: {
   initial?: { text: string; reminder: ReminderInfo; due?: string | null; category?: string };
   mode?: "new" | "edit";
-  /** The areas this reminder can be filed to; with none the row does not render. */
+  /** The areas this reminder can be filed to. */
   categories?: { id: string; name: string; color: string }[];
   onSave: (text: string, r: ReminderInfo, extra: { due: string | null; category: string; receipt: string }) => void;
-  onDelete?: () => void;
-  /** Pause or resume the series, one tap from the sheet. */
-  onPause?: (paused: boolean) => void;
-  onAddToCalendar?: () => void;
   onCancel: () => void;
   now?: number;
-  /** Push C: this occurrence, the advice, the linked record. Each writes at once, not on Save. */
-  onSkip?: (date: string) => void;
-  onReschedule?: (date: string, time: string) => void;
-  onKeepSchedule?: () => void;
   onOpenLinked?: (link: LinkedItem) => void;
   linkCandidates?: LinkCandidate[];
   today?: string;
   nowHHMM?: string;
+  /** The Reminder Settings default: a new reminder asks once an hour on. */
+  defaultFollowUp?: boolean;
 }) {
   const today = todayProp ?? todayISO();
-  const init = initial?.reminder;
   const nowClock = nowHHMM ?? new Date(now).toTimeString().slice(0, 5);
-  // The record this reminder is about; written with the rest on Save.
+  const init = initial?.reminder;
+  const initWhen: WhenKey = init
+    ? (init.contextTrigger?.targetId && scheduleKindOf(init) === "unscheduled" ? (init.contextTrigger.kind === "onOpenArea" ? "area" : "task") : scheduleKindOf(init) === "unscheduled" ? "none" : "time")
+    : "time";
+  const [text, setText] = useState(initial?.text ?? "");
+  const [when, setWhen] = useState<WhenKey>(initWhen);
+  const [time, setTime] = useState<string>(init?.time && scheduleKindOf(init) === "timed" ? init.time : "");
+  const [due, setDue] = useState(initial?.due ?? init?.startDate ?? (mode === "new" ? today : ""));
+  const [category, setCategory] = useState(initial?.category ?? "");
+  const [repeat, setRepeat] = useState<RepeatRule>(init ? repeatRuleOf(init) : { kind: "once" });
+  const [repeatTouched, setRepeatTouched] = useState(mode === "edit");
+  const initFollow = init ? followUpOf(init) : (defaultFollowUp ? { delayMinutes: 60, maxCount: 1, stopAt: null } : null);
+  const [follow, setFollow] = useState<FollowKey>(followKeyOf(initFollow));
+  const [fixedZone, setFixedZone] = useState(!!init?.tz && init.tz !== "local");
   const [link, setLink] = useState<LinkedItem | null>(init?.linkedItem ?? null);
   const [pickingLink, setPickingLink] = useState(false);
-  // SHOW WHEN (push D): a prompt in the app when the area opens or after
-  // the linked task completes. Never a gate; Continue Anyway is always there.
-  const [trigger, setTrigger] = useState<ContextTriggerConfig | null>(init?.contextTrigger ?? null);
-  const triggerValue = trigger ? (trigger.kind === "onOpenArea" ? "area" : "task") : "never";
-  const advice = mode === "edit" && init ? scheduleAdvice(init) : null;
-  const history = mode === "edit" && init ? recentEvents(init, today) : [];
-  // The occurrence the This Occurrence group is about: today's when it
-  // runs today and is not done, otherwise the next one.
-  const occurrence = mode === "edit" && init && scheduleKindOf(init) === "timed" && !init.paused
-    ? (runsOn(init, today) && !isDone(init, today) ? { date: today, time: init.movedTimes?.[today] ?? init.time } : nextOccurrence(init, today, nowClock))
-    : null;
-  const occurrenceWord = occurrence ? (occurrence.date === today ? "Today" : occurrence.date === addDays(today, 1) ? "Tomorrow" : whenLabel(occurrence.date, occurrence.time, today).split(",")[0] ?? occurrence.date) : "";
-  const [text, setText] = useState(initial?.text ?? "");
-  const [kind, setKind] = useState<"timed" | "unscheduled">(init ? scheduleKindOf(init) : "timed");
-  const [time, setTime] = useState<string>(init?.time ?? "");
-  const [due, setDue] = useState(initial?.due ?? init?.startDate ?? "");
-  const [category, setCategory] = useState(initial?.category ?? "");
-  const [repeat, setRepeat] = useState<RepeatRule>(init ? repeatRuleOf(init) : (initial?.due ? { kind: "once" } : { kind: "daily" }));
-  // A day picked before any rhythm was chosen means Just Once, the way "on
-  // Thursday" does; a rhythm the person chose is never overwritten.
-  const [repeatTouched, setRepeatTouched] = useState(mode === "edit");
-  const initFollow = init ? followUpOf(init) : null;
-  const [follow, setFollow] = useState<FollowKey>(initFollow ? (String(initFollow.delayMinutes) as FollowKey) : "off");
-  const [followMax, setFollowMax] = useState(initFollow?.maxCount ?? 1);
-  const [followStop, setFollowStop] = useState(initFollow?.stopAt ?? "");
-  const [fixedZone, setFixedZone] = useState(!!init?.tz && init.tz !== "local");
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [cooldown, setCooldown] = useState(init?.contextTrigger?.cooldownMinutes ?? DEFAULT_COOLDOWN_MIN);
+  const [moreOpen, setMoreOpen] = useState(mode === "edit");
   const [errName, setErrName] = useState(false);
   const [errTime, setErrTime] = useState(false);
+  const [errArea, setErrArea] = useState(false);
+  const [errLink, setErrLink] = useState(false);
   const [saving, setSaving] = useState(false);
   const [readOff, setReadOff] = useState(false);
-  const autoLine = repetitionsLine(init?.doneCount);
   const tzName = localZone();
   const zoneShort = ((): string => {
     try { return new Intl.DateTimeFormat([], { timeZoneName: "short" }).formatToParts(new Date(now)).find((p) => p.type === "timeZoneName")?.value ?? tzName; } catch { return tzName; }
   })();
 
-  // THE QUICK READ: what the words name, as chips. Applied while the person
-  // types a new reminder; a chip cleared with a tap puts that word back.
+  // THE QUICK READ: what the words name, as chips.
   const read = useMemo(() => (mode === "new" && !readOff ? readQuick(text, today) : null), [text, today, mode, readOff]);
-  const readActive = !!read && read.matched.length > 0;
+  const readActive = !!read && read.matched.length > 0 && when === "time";
   const effDay = readActive && read!.day ? read!.day : due;
   const effTime = readActive && read!.time ? read!.time : time;
-  // A day read from the words with no rhythm beside it means once, the
-  // same as a day picked by hand before any rhythm was chosen.
   const effRepeat: RepeatRule = readActive && read!.repeat ? read!.repeat : readActive && read!.day && !repeatTouched ? { kind: "once" } : repeat;
   const effText = readActive ? read!.title : text;
+  const areaName = categories.find((c) => c.id === category)?.name ?? "";
 
+  const trigger = (): ContextTriggerConfig | undefined => {
+    if (when === "area") return { kind: "onOpenArea", targetId: category || null, cooldownMinutes: cooldown, lastShownAt: init?.contextTrigger?.lastShownAt ?? null };
+    if (when === "task") return { kind: "afterCompleteTask", targetId: link?.type === "task" ? link.id : null, cooldownMinutes: cooldown, lastShownAt: init?.contextTrigger?.lastShownAt ?? null };
+    return undefined;
+  };
   const draft = (): ReminderInfo => {
     const rule = effRepeat;
-    const fu: FollowUpConfig | null = follow === "off" ? null : { delayMinutes: Number(follow), maxCount: followMax, stopAt: followStop || null };
+    const fu: FollowUpConfig | null = follow === "off" ? null : { delayMinutes: Number(follow), maxCount: 1, stopAt: null };
+    const timed = when === "time";
     return {
       ...init,
-      time: effTime || init?.time || "08:00",
-      days: rule.kind === "weekdays" ? rule.days : undefined,
+      time: (timed && effTime) || init?.time || "08:00",
+      days: timed && rule.kind === "weekdays" ? rule.days : undefined,
       onMiss: fu ? "nag" : "let_go",
-      scheduleKind: kind,
-      startDate: kind === "timed" ? (effDay || today) : undefined,
-      repeat: rule,
+      scheduleKind: timed ? "timed" : "unscheduled",
+      startDate: timed ? (effDay || today) : undefined,
+      repeat: timed ? rule : { kind: "once" },
       followUp: fu,
       tz: fixedZone ? tzName : "local",
       linkedItem: link ?? undefined,
-      contextTrigger: trigger
-        ? { ...trigger, targetId: trigger.kind === "onOpenArea" ? (category || null) : (link?.type === "task" ? link.id : null) }
-        : undefined,
+      contextTrigger: trigger(),
     };
   };
-  const next = kind === "timed" && effTime ? nextOccurrence(draft(), today, new Date(now).toTimeString().slice(0, 5)) : null;
+  const next = when === "time" && effTime ? nextOccurrence(draft(), today, nowClock) : null;
 
   const save = () => {
     const name = effText.trim();
     const missingName = !name;
-    const missingTime = kind === "timed" && !effTime;
-    setErrName(missingName);
-    setErrTime(missingTime);
-    if (missingName || missingTime) return;
+    const missingTime = when === "time" && !effTime;
+    const missingArea = when === "area" && !category;
+    const missingLink = when === "task" && link?.type !== "task";
+    setErrName(missingName); setErrTime(missingTime); setErrArea(missingArea); setErrLink(missingLink);
+    if (missingArea || missingLink) setMoreOpen(true);
+    if (missingName || missingTime || missingArea || missingLink) return;
     if (saving) return;
     setSaving(true);
     const r = draft();
-    const receipt = kind === "unscheduled" ? "Reminder Saved · Unscheduled" : next ? "Reminder Set · " + whenLabel(next.date, next.time, today) : "Reminder Set";
-    onSave(name, r, { due: kind === "timed" && effRepeat.kind === "once" ? (effDay || today) : null, category, receipt });
+    const receipt = when === "time"
+      ? (next ? "Reminder Set · " + whenLabel(next.date, next.time, today) : "Reminder Set")
+      : when === "area" ? "Reminder Set · When you open " + areaName
+        : when === "task" ? "Reminder Set · After " + (link?.label ?? "the task")
+          : "Reminder Saved · Unscheduled";
+    onSave(name, r, { due: when === "time" && effRepeat.kind === "once" ? (effDay || today) : null, category, receipt });
   };
 
   const pickDay = (day: string) => { setDue(day); if (day && !repeatTouched) setRepeat({ kind: "once" }); };
-  const pick = (day: string, hhmm: string) => { setKind("timed"); pickDay(day); setTime(hhmm); setErrTime(false); if (readActive) setReadOff(true); };
-  const chooseDateTime = () => {
-    setKind("timed");
-    if (readActive) setReadOff(true);
-    // The day field is on screen once the kind is timed; the next frame it
-    // takes the focus so the picker is one tap, not two.
-    requestAnimationFrame(() => { const el = document.querySelector<HTMLInputElement>("input[aria-label=\"Start day\"]"); el?.focus(); });
-  };
+  const pick = (day: string, hhmm: string) => { setWhen("time"); pickDay(day); setTime(hhmm); setErrTime(false); if (readActive) setReadOff(true); };
   const chip = (on: boolean, label: string, onPick: () => void, key: string) => (
     <div key={key} {...pressable(onPick)} className={"chip" + (on ? " active" : "")} aria-pressed={on}>{label}</div>
   );
-  const m15 = inMinutes(now, 15);
   const h1 = inMinutes(now, 60);
   const tomorrowMorning = { day: addDays(today, 1), time: morningTime() };
-  const isPick = (p: { day: string; time: string }) => kind === "timed" && effDay === p.day && effTime === p.time;
+  const isPick = (p: { day: string; time: string }) => when === "time" && effDay === p.day && effTime === p.time;
+
+  // THE GREEN LINE: what was just set, in words.
+  const summary = when === "time"
+    ? (effTime
+      ? { head: `${effRepeat.kind === "once" ? "One Time" : describeRepeat(effRepeat)} · ${clock(effTime)}`, line: next ? "Next " + whenLabel(next.date, next.time, today) : `Starts ${effDay === today || !effDay ? "Today" : effDay === addDays(today, 1) ? "Tomorrow" : effDay}` }
+      : null)
+    : when === "none" ? { head: "Unscheduled", line: "Sits in Upcoming · No timed alert" }
+      : when === "area" ? { head: areaName ? `When You Open ${areaName}` : "When You Open the Area", line: "An in-app prompt · You can always continue" }
+        : { head: link?.type === "task" ? `After ${link.label ?? "the Task"}` : "After You Complete the Task", line: "An in-app prompt · You can always continue" };
 
   return (
-    <FormSheet title={mode === "edit" ? "Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"}>
-      {/* THE PRIMARY ACTION (push C): the verb that opens what this is about.
-          Opening never completes the reminder; the ring does that. */}
-      {mode === "edit" && link && onOpenLinked && (
-        <Group>
-          <Row tone="red" glyph={<Forward className="ic" />} label={actionLabelFor(link)} meta={link.label ?? ""} onClick={() => onOpenLinked(link)} chev />
-        </Group>
-      )}
-      {advice && (
-        <Group label="Advice">
-          <Note>{adviceLine(advice)}</Note>
-          <Strip>
-            {advice.kind === "later"
-              ? <button type="button" className="pill-act" onClick={() => { setTime(advice.time); setRepeatTouched(true); setErrTime(false); }}>Move It There</button>
-              : <button type="button" className="pill-act" onClick={() => { const el = document.querySelector<HTMLInputElement>("input[aria-label=\"Time\"]"); el?.focus(); }}>Change Time</button>}
-            {onPause && <button type="button" className="pill-act" onClick={() => onPause(true)}>Pause</button>}
-            {onKeepSchedule && <button type="button" className="pill-act" onClick={onKeepSchedule}>Keep Schedule</button>}
-          </Strip>
-        </Group>
-      )}
-      <Group label="What to Remember">
-        <FieldRow tone="orange" glyph={<BellGlyph />} value={text} onChange={(v) => { setText(v); setErrName(false); setReadOff(false); }} placeholder="Meds at 8 · every day"
+    <FormSheet title={mode === "edit" ? "Edit Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"}>
+      <Group label="What Would You Like to Remember?">
+        <FieldRow tone="orange" glyph={<BellGlyph />} value={text} onChange={(v) => { setText(v); setErrName(false); setReadOff(false); }} placeholder="e.g. Call Alberto"
           ariaLabel="Reminder" error={errName} right={false} onEnter={save} />
         {readActive && (
           <Strip>
             <span className="rem-read-k">Read from your words</span>
             {read!.day && chip(true, effDay === today ? "Today" : effDay === addDays(today, 1) ? "Tomorrow" : effDay, () => setReadOff(true), "rd")}
-            {read!.time && chip(true, fmtTime(read!.time).time + " " + fmtTime(read!.time).ap, () => setReadOff(true), "rt")}
+            {read!.time && chip(true, clock(read!.time), () => setReadOff(true), "rt")}
             {read!.repeat && chip(true, describeRepeat(read!.repeat), () => setReadOff(true), "rr")}
           </Strip>
         )}
       </Group>
-      <ErrorLine text={errName ? "Add a name." : null} />
+      <ErrorLine text={errName ? "Enter something to remember." : null} />
 
-      <Group label="When">
-        <Strip>
-          {chip(isPick(m15), "In 15 Minutes", () => pick(m15.day, m15.time), "m15")}
-          {chip(isPick(h1), "In 1 Hour", () => pick(h1.day, h1.time), "h1")}
-          {chip(isPick(tomorrowMorning), "Tomorrow Morning", () => pick(tomorrowMorning.day, tomorrowMorning.time), "tm")}
-          {chip(false, "Choose Date & Time", chooseDateTime, "dt")}
-          {chip(kind === "unscheduled", "Unscheduled", () => { setKind("unscheduled"); setErrTime(false); }, "un")}
-        </Strip>
-        {kind === "timed" ? (
+      <Group label="When Should It Appear?">
+        <MenuRow tone="purple" glyph={<Clock className="ic" />} label="Appears" value={when} word={WHEN_OPTIONS.find((o) => o.value === when)?.label ?? ""} ariaLabel="When should it appear"
+          options={WHEN_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          onPick={(v) => { setWhen(v as WhenKey); setErrTime(false); setErrArea(false); setErrLink(false); }} />
+        {when === "time" && (
           <>
-            <FieldRow tone="indigo" glyph={<Calendar className="ic" />} label="Start Day" type="date" value={effDay} onChange={(v) => { pickDay(v); if (readActive) setReadOff(true); }} ariaLabel="Start day" />
+            <FieldRow tone="indigo" glyph={<Calendar className="ic" />} label="Day" type="date" value={effDay} onChange={(v) => { pickDay(v); if (readActive) setReadOff(true); }} ariaLabel="Start day" />
             <FieldRow tone="blue" glyph={<Clock className="ic" />} label="Time" type="time" value={effTime} onChange={(v) => { setTime(v); setErrTime(false); if (readActive) setReadOff(true); }} ariaLabel="Time" error={errTime} />
             <Strip>
-              {QUICK_TIMES.map((q) => chip(effTime === q.v, q.label, () => { setTime(q.v); setErrTime(false); if (readActive) setReadOff(true); }, q.v))}
+              {chip(isPick(h1), "In 1 Hour", () => pick(h1.day, h1.time), "h1")}
+              {chip(isPick(tomorrowMorning), "Tomorrow Morning", () => pick(tomorrowMorning.day, tomorrowMorning.time), "tm")}
             </Strip>
-            <ErrorLine text={errTime ? "Pick a time, or mark this Unscheduled." : null} />
-            <MenuRow tone="sky" glyph={<RepeatGlyph />} label="Repeat" value={keyOf(effRepeat)} word={describeRepeat(effRepeat)} ariaLabel="Repeat"
+            <ErrorLine text={errTime ? "Pick a time, or choose Unscheduled." : null} />
+            <MenuRow tone="sky" glyph={<RepeatGlyph />} label="Repeat" value={keyOf(effRepeat)} word={REPEAT_OPTIONS.find((o) => o.value === keyOf(effRepeat))?.label ?? describeRepeat(effRepeat)} ariaLabel="Repeat"
               options={REPEAT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
               onPick={(v) => { const o = REPEAT_OPTIONS.find((x) => x.value === v); if (o) setRepeat(o.rule); setRepeatTouched(true); if (readActive) setReadOff(true); }} />
-            <Row tone="green" glyph={<Clock className="ic" />} label="Next" meta={next ? whenLabel(next.date, next.time, today) : effTime ? "Nothing ahead on this schedule" : "Pick a time"} />
           </>
-        ) : (
-          <>
-            <Row tone="grey" glyph={<CircleSlash className="ic" />} label="Unscheduled" meta="No timed alert" />
-            <Note>Appears in Reminders until you clear it or give it a time.</Note>
-          </>
+        )}
+        {(when === "area" || when === "task") && (
+          <MenuRow tone="purple" glyph={<WarningGlyph />} label="At Most Every" value={String(cooldown)} ariaLabel="Prompt cooldown"
+            word={COOLDOWNS.find((c) => c.minutes === cooldown)?.label ?? cooldown + " Minutes"}
+            options={COOLDOWNS.map((c) => ({ value: String(c.minutes), label: c.label }))}
+            onPick={(v) => setCooldown(Number(v))} />
+        )}
+        {summary && (
+          <div className="rem-summary" role="status">
+            <div className="rem-summary-head">{summary.head}</div>
+            <div className="rem-summary-line">{summary.line}</div>
+          </div>
         )}
       </Group>
-
-      {occurrence && (onSkip || onReschedule) && (
-        <Group label="This Occurrence">
-          {onReschedule && (
-            <FieldRow tone="indigo" glyph={<Clock className="ic" />} label={"Move " + occurrenceWord + " To"} type="time" value={init?.movedTimes?.[occurrence.date] ?? ""} onChange={(v) => { if (/^\d{2}:\d{2}$/.test(v)) onReschedule(occurrence.date, v); }} ariaLabel="Move this occurrence to" />
-          )}
-          {onSkip && (
-            <Row tone="grey" glyph={<CircleSlash className="ic" />} label={"Skip " + occurrenceWord} meta="The series continues" onClick={() => onSkip(occurrence.date)} chev />
-          )}
-        </Group>
-      )}
+      <ErrorLine text={errArea ? "Choose an area below." : errLink ? "Link a task below." : null} />
 
       <details className="exp-more rem-more" open={moreOpen} onToggle={(e) => setMoreOpen((e.target as HTMLDetailsElement).open)}>
-        <summary>More Options</summary>
-        <Group label="Linked Item">
-          <Row tone="sky" glyph={<Link2 className="ic" />} label="Linked Item" meta={link ? (link.label ?? "Linked") : "None"} onClick={() => setPickingLink(true)} chev />
-          <Note>What this reminder is about. Opening it never marks the reminder done.</Note>
-        </Group>
-        {(category || link?.type === "task" || trigger) && (
-          <Group label="Show When">
-            <MenuRow tone="purple" glyph={<BellGlyph />} label="Prompt Me" value={triggerValue} ariaLabel="Show when" off={!trigger}
-              word={!trigger ? "Never" : trigger.kind === "onOpenArea" ? "When I Open the Area" : "After I Complete the Task"}
-              options={[
-                { value: "never", label: "Never" },
-                ...(category ? [{ value: "area", label: "When I Open the Area" }] : []),
-                ...(link?.type === "task" ? [{ value: "task", label: "After I Complete the Task" }] : []),
-              ]}
-              onPick={(v) => setTrigger(v === "never" ? null : { kind: v === "area" ? "onOpenArea" : "afterCompleteTask", targetId: null, cooldownMinutes: trigger?.cooldownMinutes ?? DEFAULT_COOLDOWN_MIN, lastShownAt: null })} />
-            {trigger && (
-              <MenuRow tone="purple" glyph={<Hourglass className="ic" />} label="At Most Every" value={String(trigger.cooldownMinutes)} ariaLabel="Prompt cooldown"
-                word={COOLDOWNS.find((c) => c.minutes === trigger.cooldownMinutes)?.label ?? trigger.cooldownMinutes + " Minutes"}
-                options={COOLDOWNS.map((c) => ({ value: String(c.minutes), label: c.label }))}
-                onPick={(v) => setTrigger({ ...trigger, cooldownMinutes: Number(v) })} />
-            )}
-            <Note>A prompt inside JARVIS, never a gate. It offers its action, Continue Anyway, and a day off.</Note>
-          </Group>
-        )}
+        <summary>Area, Linked Action and Follow-up</summary>
         {categories.length > 0 && (
           <Group label="Area">
             <MenuRow tone="blue" glyph={<Tag className="ic" />} label="Area" value={category} ariaLabel="Area"
-              word={categories.find((c) => c.id === category)?.name ?? "None"} off={category === ""}
+              word={areaName || "None"} off={category === ""}
               options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
-              onPick={setCategory} />
+              onPick={(v) => { setCategory(v); setErrArea(false); }} />
           </Group>
         )}
-        {kind === "timed" && (
-          <Group label="Follow-up">
-            <MenuRow tone="sand" glyph={<WarningGlyph />} label="Follow-up" value={follow} ariaLabel="Follow-up"
-              word={FOLLOW_OPTIONS.find((o) => o.value === follow)?.label ?? "Off"} off={follow === "off"}
-              options={FOLLOW_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-              onPick={(v) => setFollow(v as FollowKey)} />
-            {follow !== "off" && (
-              <>
-                <MenuRow tone="sand" glyph={<RepeatGlyph />} label="At Most" value={String(followMax)} ariaLabel="Follow-ups at most"
-                  word={followMax === 1 ? "Once" : followMax + " Times"}
-                  options={[1, 2, 3].map((n) => ({ value: String(n), label: n === 1 ? "Once" : n + " Times" }))}
-                  onPick={(v) => setFollowMax(Number(v))} />
-                <FieldRow tone="sand" glyph={<Clock className="ic" />} label="Stop After" type="time" value={followStop} onChange={setFollowStop} ariaLabel="Stop follow-ups after" />
-                <Note>One ask per occurrence unless you say otherwise. Never after the stop time.</Note>
-              </>
-            )}
-          </Group>
-        )}
-        {kind === "timed" && (
-          <Group label="Time Zone">
+        <Group label="Linked Action">
+          <Row tone="sky" glyph={<Link2 className="ic" />} label="Linked Item" meta={link ? (link.label ?? "Linked") : "None"} onClick={() => setPickingLink(true)} chev />
+          {mode === "edit" && link && onOpenLinked && (
+            <Row tone="red" glyph={<Forward className="ic" />} label={actionLabelFor(link)} meta={link.label ?? ""} onClick={() => onOpenLinked(link)} chev />
+          )}
+          <Note>What this reminder is about · Opening it never marks the reminder done</Note>
+        </Group>
+        <Group label="Follow-up">
+          <MenuRow tone="sand" glyph={<WarningGlyph />} label="Follow-up" value={follow} ariaLabel="Follow-up"
+            word={FOLLOW_OPTIONS.find((o) => o.value === follow)?.label ?? "None"} off={follow === "off"}
+            options={FOLLOW_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            onPick={(v) => setFollow(v as FollowKey)} />
+          {when === "time" && (
             <SwitchRow tone="indigo" glyph={<Clock className="ic" />} label="Pin to This Time Zone" meta={zoneShort} on={fixedZone} onToggle={() => setFixedZone((v) => !v)} ariaLabel="Pin to this time zone" />
-            <Note>{fixedZone ? "Pinned to this zone: the alert keeps its moment when you travel." : "Local clock: the alert follows the clock wherever you are."}</Note>
-          </Group>
-        )}
+          )}
+        </Group>
       </details>
 
-      {history.length > 0 && (
-        <Group label="History">
-          {history.map((h, i) => <Row key={i} tone="grey" glyph={<Clock className="ic" />} label={h.word} meta={h.when} />)}
-        </Group>
-      )}
-
       {pickingLink && (
-        <LinkedItemSheet candidates={linkCandidates} current={link} onPick={(l) => { setLink(l); setPickingLink(false); }} onCancel={() => setPickingLink(false)} />
-      )}
-
-      {autoLine && (
-        <Group label="So Far">
-          <Strip plain>
-            <div className="auto-line">
-              <div className="auto-text">{autoLine}</div>
-            </div>
-          </Strip>
-        </Group>
-      )}
-
-      {mode === "edit" && (onPause || onAddToCalendar || onDelete) && (
-        <>
-          {onPause && (
-            <Group label="Series">
-              <Row tone="grey" glyph={<Hourglass className="ic" />} label={init?.paused ? "Resume" : "Pause"} meta={init?.paused ? "Paused · No alerts until you resume" : "Stops alerts until you resume"} onClick={() => onPause(!init?.paused)} chev />
-            </Group>
-          )}
-          <details className="exp-more rem-more">
-            <summary>More Actions</summary>
-            <Group className="xs-actions">
-              {onAddToCalendar && <Row tone="red" glyph={<CalendarPlus className="ic" />} label="Export to Calendar" onClick={onAddToCalendar} chev />}
-              {onDelete && <DeleteRow label="Delete Reminder" onClick={onDelete} />}
-            </Group>
-            {onAddToCalendar && <Note>A one-time copy of this reminder as a calendar file.</Note>}
-          </details>
-        </>
+        <LinkedItemSheet candidates={linkCandidates} current={link} onPick={(l) => { setLink(l); setErrLink(false); setPickingLink(false); }} onCancel={() => setPickingLink(false)} />
       )}
     </FormSheet>
   );

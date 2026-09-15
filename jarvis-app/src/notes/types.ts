@@ -190,6 +190,9 @@ export interface ReminderInfo {
   skippedDates?: string[];
   // One occurrence moved to another time, by date; the series untouched.
   movedTimes?: Record<string, string>;
+  // An occurrence moved onto a day the rule would not run (push E): that
+  // day runs once, at movedTimes[day] or the reminder's time.
+  extraDates?: string[];
   // "local" keeps the clock time through a timezone change; an IANA zone
   // pins the moment. Absent means local.
   tz?: string;

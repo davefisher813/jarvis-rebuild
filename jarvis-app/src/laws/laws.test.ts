@@ -879,6 +879,7 @@ describe("LAW: one filled red per screen", () => {
     // Files whose multiple fills are provably not simultaneous. Each needs a
     // reason, and the reason has to be checkable by reading the file.
     const EXCLUSIVE: Record<string, string> = {
+      "tasks/screens/ReminderDetailSheet.tsx": "the linked verb and Mark Done are the two arms of one ternary",
       "messages/MessagesFlow.tsx": "sweep / toss / autoOffer are one if-else chain; the rest are separate views",
       "upnext/UpNextFlow.tsx": "three mutually exclusive branches of one switch",
       "gym/GymFlow.tsx": "Create a Program and Start are gated on !program vs program",

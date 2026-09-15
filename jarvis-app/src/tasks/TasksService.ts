@@ -6,7 +6,7 @@ import { groupFor, todayISO, nextDue, type TaskGroup } from "./grouping";
 import { nextStreak } from "./lifecycle";
 import { recordCompletion } from "../shared/timeSense";
 import { countEnactment } from "./automaticity";
-import { withEvent } from "./reminders";
+import { withEvent, repeatRuleOf, scheduleKindOf, runsOn } from "./reminders";
 import { isUsable, type IfThen } from "./ifThen";
 import { madeBy } from "../shared/provenance";
 
@@ -382,6 +382,37 @@ export class TasksService {
   // lastShownAt carries it (tasks/contextPrompts.ts computes the value).
   async markPromptShown(id: string, contextTrigger: ContextTriggerConfig): Promise<boolean> {
     return this.patchReminder(id, { contextTrigger });
+  }
+  async clearPrompt(id: string): Promise<boolean> {
+    return this.patchReminder(id, { contextTrigger: undefined });
+  }
+  // CHOOSE A BETTER TIME (push E): one occurrence, moved. The same day is a
+  // new time for that day; another day is that day instead of this one. A
+  // one-off simply moves; a series skips this day and runs on the other
+  // (its own rule, or an extra day when the rule would not).
+  async moveOccurrence(id: string, fromDate: string, toDate: string, time: string): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t?.reminder) return false;
+    const r = t.reminder;
+    let ok: boolean;
+    if (toDate === fromDate) {
+      ok = await this.patchReminder(id, { movedTimes: { ...(r.movedTimes ?? {}), [fromDate]: time }, snoozedTo: undefined, snoozeDate: undefined });
+    } else if (repeatRuleOf(r).kind === "once" || scheduleKindOf(r) === "unscheduled") {
+      ok = await this.patchReminder(id, { scheduleKind: "timed", startDate: toDate, time, repeat: { kind: "once" }, days: undefined, skippedDates: undefined, movedTimes: undefined, snoozedTo: undefined, snoozeDate: undefined });
+      if (ok) await this.setDue(id, toDate);
+    } else {
+      const skipped = [...new Set([...(r.skippedDates ?? []), fromDate])].slice(-60);
+      const extra = runsOn({ ...r, skippedDates: skipped }, toDate) ? (r.extraDates ?? []) : [...new Set([...(r.extraDates ?? []), toDate])].slice(-60);
+      ok = await this.patchReminder(id, { skippedDates: skipped, extraDates: extra, movedTimes: { ...(r.movedTimes ?? {}), [toDate]: time } });
+    }
+    if (ok) await this.logReminderEvent(id, "rescheduled", { date: toDate, time });
+    return ok;
+  }
+  // Restore a skipped occurrence: that day runs again.
+  async restoreOccurrence(id: string, date: string): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t?.reminder) return false;
+    return this.patchReminder(id, { skippedDates: (t.reminder.skippedDates ?? []).filter((d) => d !== date) });
   }
 
   private async patchReminder(id: string, patch: Partial<ReminderInfo>): Promise<boolean> {

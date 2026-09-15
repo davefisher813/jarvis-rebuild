@@ -74,6 +74,7 @@ export function repeatRuleOf(r: ReminderInfo): RepeatRule {
 export function runsOn(r: ReminderInfo, date: string): boolean {
   if (scheduleKindOf(r) === "unscheduled" || r.paused) return false;
   if (r.skippedDates?.includes(date)) return false;
+  if (r.extraDates?.includes(date)) return true;
   const rule = repeatRuleOf(r);
   const start = r.startDate ?? null;
   if (start && date < start) return false;
@@ -358,4 +359,127 @@ export function homeSections(items: TaskItem[], today: string, now: string, hori
   out.laterToday.sort(byTime);
   out.upcoming.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? "") || byTime(a, b));
   return out;
+}
+
+// THE REMINDERS PAGE (push E, 2026-09-15, Dave's interactive preview): four
+// views, each a few sections. Today is Ready Now and Later Today; Upcoming
+// is Scheduled, Unscheduled and On an Action; Routines is Repeating and
+// Contextual, then Paused; Done is Completed Today and Skipped. A search
+// replaces the view with one section over every open reminder.
+export type PageTab = "today" | "upcoming" | "routines" | "done";
+export const PAGE_TABS: { key: PageTab; label: string }[] = [
+  { key: "today", label: "Today" },
+  { key: "upcoming", label: "Upcoming" },
+  { key: "routines", label: "Routines" },
+  { key: "done", label: "Done" },
+];
+export type RowState = "open" | "done" | "paused" | "skipped";
+export interface PageRow extends HomeItem {
+  state: RowState;
+  /** The date a skipped row is about. */
+  skippedDate?: string;
+}
+export interface PageSection { label: string; rows: PageRow[] }
+
+function isContextual(r: ReminderInfo): boolean {
+  return !!r.contextTrigger && !!r.contextTrigger.targetId;
+}
+function isRepeating(r: ReminderInfo): boolean {
+  return scheduleKindOf(r) === "timed" && repeatRuleOf(r).kind !== "once";
+}
+
+export function pageSections(items: TaskItem[], tab: PageTab, today: string, now: string, query = "", areaName: (id: string) => string = () => ""): PageSection[] {
+  const h = homeSections(items, today, now);
+  const open = (x: HomeItem): PageRow => ({ ...x, state: "open" });
+  const q = query.trim().toLowerCase();
+  if (q) {
+    const rows: PageRow[] = [];
+    for (const it of items) {
+      const r = it.data.reminder;
+      if (!r || it.data.done) continue;
+      const hay = (it.data.text + " " + areaName(it.data.category ?? "")).toLowerCase();
+      if (!hay.includes(q)) continue;
+      const base: HomeItem = { id: it.id, text: it.data.text, category: it.data.category ?? "", reminder: r, date: null, time: null, done: isDone(r, today) };
+      const next = r.paused || scheduleKindOf(r) === "unscheduled" ? null : nextOccurrence(r, today, "00:00");
+      rows.push({ ...base, date: next?.date ?? null, time: next?.time ?? null, state: r.paused ? "paused" : base.done ? "done" : "open" });
+    }
+    return rows.length ? [{ label: "Search Results", rows }] : [];
+  }
+  let sections: PageSection[] = [];
+  if (tab === "today") {
+    sections = [
+      { label: "Ready Now", rows: h.now.map(open) },
+      { label: "Later Today", rows: h.laterToday.map(open) },
+    ];
+  } else if (tab === "upcoming") {
+    sections = [
+      { label: "Scheduled", rows: h.upcoming.map(open) },
+      { label: "Unscheduled", rows: h.unscheduled.filter((x) => !isContextual(x.reminder)).map(open) },
+      { label: "On an Action", rows: [...h.unscheduled, ...h.upcoming, ...h.now, ...h.laterToday].filter((x) => isContextual(x.reminder)).map(open) },
+    ];
+  } else if (tab === "routines") {
+    const all = [...h.now, ...h.laterToday, ...h.upcoming, ...h.unscheduled];
+    sections = [
+      { label: "Repeating and Contextual", rows: all.filter((x) => isRepeating(x.reminder) || isContextual(x.reminder)).map(open) },
+      { label: "Paused", rows: h.paused.map((x) => ({ ...x, state: "paused" as const })) },
+    ];
+  } else {
+    const skipped: PageRow[] = [];
+    const floor = addDaysIso(today, -7);
+    for (const it of items) {
+      const r = it.data.reminder;
+      if (!r || it.data.done) continue;
+      for (const d of r.skippedDates ?? []) {
+        if (d >= floor && d <= today) skipped.push({ id: it.id, text: it.data.text, category: it.data.category ?? "", reminder: r, date: d, time: r.movedTimes?.[d] ?? r.time, done: false, state: "skipped", skippedDate: d });
+      }
+    }
+    skipped.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    sections = [
+      { label: "Completed Today", rows: h.completed.map((x) => ({ ...x, state: "done" as const })) },
+      { label: "Skipped", rows: skipped },
+    ];
+  }
+  return sections.filter((s) => s.rows.length > 0);
+}
+
+function addDaysIso(iso: string, n: number): string {
+  const d = localNoon(iso);
+  d.setDate(d.getDate() + n);
+  return isoOf(d);
+}
+
+// The words on a row and in the details for when a reminder is (push E).
+export function whenWords(r: ReminderInfo, date: string | null, time: string | null, today: string, areaName = ""): string {
+  if (r.paused) return "Paused";
+  const ct = r.contextTrigger;
+  if (ct && ct.targetId && scheduleKindOf(r) === "unscheduled") {
+    return ct.kind === "onOpenArea" ? (areaName ? "When I Open " + areaName : "When I Open the Area") : "After I Complete the Task";
+  }
+  if (scheduleKindOf(r) === "unscheduled" || !date || !time) return "Unscheduled";
+  const t = fmtClock(time);
+  const day = date === today ? "Today" : date === addDaysIso(today, 1) ? "Tomorrow" : localNoon(date).toLocaleDateString([], { month: "short", day: "numeric" });
+  return day + " · " + t;
+}
+function fmtClock(hhmm: string): string {
+  const [hRaw, mRaw] = hhmm.split(":");
+  const h = Number(hRaw);
+  return (h % 12 || 12) + ":" + (mRaw ?? "00").padStart(2, "0") + " " + (h < 12 ? "AM" : "PM");
+}
+
+// The follow-up in words (push E): None, Once After 15 Minutes, Once After 1 Hour.
+export function followUpWords(r: ReminderInfo): string {
+  const fu = followUpOf(r);
+  if (!fu) return "None";
+  const once = fu.maxCount === 1 ? "Once" : fu.maxCount + " Times";
+  const delay = fu.delayMinutes % 60 === 0 ? (fu.delayMinutes / 60) + (fu.delayMinutes === 60 ? " Hour" : " Hours") : fu.delayMinutes + " Minutes";
+  return once + " After " + delay;
+}
+
+// Quiet hours (push E): a clock time inside the window, which may wrap
+// midnight. The window is closed at its end, so 8:00 with quiet to 8:00 is
+// not quiet.
+export function inQuietHours(hhmm: string, from: string, to: string): boolean {
+  const m = toMin(hhmm), a = toMin(from), b = toMin(to);
+  if (a === b) return false;
+  return a < b ? m >= a && m < b : m >= a || m < b;
 }

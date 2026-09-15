@@ -1,6 +1,6 @@
 import { isIn } from "../tasks/categories";
 import { promptsDue, shownNow, snoozedForADay } from "../tasks/contextPrompts";
-import ContextPromptCard from "../tasks/screens/ContextPromptCard";
+import ContextPromptSheet from "../tasks/screens/ContextPromptSheet";
 import type { LinkedItem, ContextTriggerConfig } from "../notes/types";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine, usePeople, useProfile } from "../data/NotesProvider";
@@ -1877,10 +1877,14 @@ export default function CategoryDetail({
         <button className="nav-action-text" onClick={() => setSheet({ kind: "edit" })}>Edit</button>
       </div>
 
-      {prompts.map((p) => (
-        <ContextPromptCard key={p.id} item={p} onOpenLinked={doorFor(p.data.reminder?.linkedItem)}
-          onContinue={(id) => void writePrompt(id, shownNow)} onSnooze={(id) => void writePrompt(id, snoozedForADay)} />
-      ))}
+      {prompts[0] && (
+        <ContextPromptSheet item={prompts[0]} eyebrow={"Opening " + cat.data.name} onOpenLinked={doorFor(prompts[0].data.reminder?.linkedItem)}
+          onContinue={(id) => void writePrompt(id, shownNow)} onSnooze={(id) => void writePrompt(id, snoozedForADay)}
+          onTurnOff={(id) => void (async () => {
+            setAllTasks((prev) => prev.map((x) => (x.id === id && x.data.reminder ? { ...x, data: { ...x.data, reminder: { ...x.data.reminder, contextTrigger: undefined } } } : x)));
+            await attemptWrite(() => tasksSvc.clearPrompt(id));
+          })()} />
+      )}
       {autoOpenLog && kind === "health" && (
         <RunOnce key={logNonce ?? 0} run={() => {
           switch (autoOpenLog) {

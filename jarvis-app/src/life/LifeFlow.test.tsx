@@ -34,7 +34,7 @@ describe("LifeFlow", () => {
     expect(await screen.findByText("Pay the deposit", {}, { timeout: 3000 })).toBeInTheDocument();
     expect(document.querySelector(".pagehead-title")).toHaveTextContent("Life");
     const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
-    expect(tabs).toEqual(["Tasks", "Projects", "Goals"]);
+    expect(tabs).toEqual(["Tasks", "Reminders", "Projects", "Goals"]);
     expect(screen.getByRole("tab", { name: "Tasks" })).toHaveAttribute("aria-selected", "true");
   });
 

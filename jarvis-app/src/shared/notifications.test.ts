@@ -538,3 +538,29 @@ describe("buildTaskReminderNotifications, the rebuilt fields", () => {
     expect(out).toHaveLength(1);
   });
 });
+
+// THE REMINDER SETTINGS (push E): quiet hours drop the follow-up asks that
+// land inside the window (the alert itself still rings); a private
+// reminder's banner says only that there is one.
+describe("buildTaskReminderNotifications, the settings", () => {
+  const TODAY = "2026-08-09";
+  const NOW = new Date("2026-08-09T08:00:00").getTime();
+  it("quiet hours silence the follow-up, never the reminder", () => {
+    const out = buildTaskReminderNotifications(
+      [{ id: "r1", text: "Meds", reminder: { time: "21:00", followUp: { delayMinutes: 15, maxCount: 1, stopAt: null } } }],
+      TODAY, NOW, 1, { quietFrom: "21:10", quietTo: "08:00" },
+    );
+    expect(out.map((n) => n.at)).toEqual([new Date("2026-08-09T21:00:00")]);
+    const loud = buildTaskReminderNotifications(
+      [{ id: "r1", text: "Meds", reminder: { time: "21:00", followUp: { delayMinutes: 15, maxCount: 1, stopAt: null } } }],
+      TODAY, NOW, 1, { quietFrom: "22:00", quietTo: "08:00" },
+    );
+    expect(loud).toHaveLength(2);
+  });
+  it("a private reminder's banner carries no words of its own", () => {
+    const out = buildTaskReminderNotifications([{ id: "r1", text: "Take the blue pill", reminder: { time: "21:00", onMiss: "let_go" }, sensitive: true }], TODAY, NOW, 1);
+    expect(out[0]!.title).toBe("Health Reminder");
+    expect(out[0]!.body).toBe("Open JARVIS to see it");
+    expect(JSON.stringify(out)).not.toContain("blue pill");
+  });
+});

@@ -95,12 +95,12 @@ import { loadMailSnapshot, mailNotices, type MailNotice } from "../messages/home
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
-import RemindersHome from "../tasks/screens/RemindersHome";
+import RemindersFlow from "../tasks/screens/RemindersFlow";
 import type { LinkCandidate } from "../tasks/screens/LinkedItemSheet";
 import { displayTitle } from "../notes/docModel";
 import type { LinkedItem, ContextTriggerConfig } from "../notes/types";
 import { promptsDue, shownNow, snoozedForADay } from "../tasks/contextPrompts";
-import ContextPromptCard from "../tasks/screens/ContextPromptCard";
+import ContextPromptSheet from "../tasks/screens/ContextPromptSheet";
 import { SHORTCUTS } from "../health/settings";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
 import { stripReminders, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
@@ -787,6 +787,7 @@ export default function TodayFlow({
   // REMINDERS HOME (the reminders rebuild push B, 2026-09-15): a screen
   // pushed from the strip's See All, the way the event page is; not a route.
   const [remHome, setRemHome] = useState(false);
+  const [remOpenId, setRemOpenId] = useState<string | null>(null);
   // Push D: the task just completed, for the reminders that asked to be
   // shown after it. One at a time; the next completion replaces it.
   const [promptCtx, setPromptCtx] = useState<{ completedTaskId?: string }>({});
@@ -2938,17 +2939,6 @@ export default function TodayFlow({
     // moment it fires, or the word Unscheduled, never a generic "Saved".
     if (ok) showToast({ message: extra.receipt });
   };
-  const pauseReminderById = async (id: string, paused: boolean) => {
-    const ok = await attemptWrite(() => tasks.pauseReminder(id, paused));
-    await reload();
-    if (ok) showToast({ message: paused ? "Paused · No alerts until you resume" : "Resumed" });
-  };
-  const onPauseReminder = async (paused: boolean) => {
-    const sheet = remSheet;
-    if (!sheet || sheet.mode !== "edit") return;
-    setRemSheet(null);
-    await pauseReminderById(sheet.id, paused);
-  };
   // B4 (2026-09-04): "If You Miss It" defaults every reminder to "Ask Again
   // in 15m" (ReminderSheet.tsx's onMiss "nag"), but nothing ever read that
   // value -- missedReminders() was written for exactly this and had zero
@@ -2988,29 +2978,6 @@ export default function TodayFlow({
   // B10 (2026-08-23): guarded already, but silent and final. A reminder is one
   // row with everything about it on the client, so it takes the same Undo the
   // event delete four hundred lines up already offers.
-  const onDeleteReminder = async () => {
-    const sheet = remSheet;
-    setRemSheet(null);
-    if (!sheet || sheet.mode !== "edit") return;
-    // The sheet already carries the text and the reminder it was editing, so
-    // the snapshot costs nothing and cannot go stale.
-    const { text: keptText, reminder: keptRem } = sheet;
-    const ok = await attemptWrite(() => tasks.deleteTask(sheet.id));
-    await reload();
-    if (ok) {
-      showToast({
-        message: "Reminder deleted",
-        actionLabel: "Undo",
-        onAction: async () => {
-          await attemptWrite(() => tasks.createReminder(keptText, keptRem));
-          await reload();
-        },
-      });
-    }
-    // B1-1 (2026-09-04): a second, unguarded showToast used to fire here on
-    // the very next line, overwriting the Undo toast above in the same tick.
-    // The recovery path could never be tapped. One toast per delete, full stop.
-  };
   // CALENDAR HANDOFF: iOS Calendar owns the alarm from here, which means it
   // fires offline, with JARVIS closed, forever. Still worth offering now that
   // S1-01 schedules real local notifications: a calendar entry survives the
@@ -3036,39 +3003,13 @@ export default function TodayFlow({
     }
   };
 
-  const openReminder = (id: string) => {
-    const t = taskItems.find((x) => x.id === id);
-    if (t?.data.reminder) setRemSheet({ mode: "edit", id, text: t.data.text, reminder: t.data.reminder, due: t.data.due ?? null, category: t.data.category ?? "" });
-  };
+  // A reminder opened from the strip lands on the Reminders page with its
+  // details sheet up (push E): the page owns every action on a reminder.
+  const openReminder = (id: string) => { setRemOpenId(id); setRemHome(true); };
 
   // The sheet's writes that happen at once, not on Save: they each say what
   // they did and refresh the open sheet so the record it shows is the one
   // just written.
-  const refreshOpenSheet = async (id: string) => {
-    const t = await tasks.task(id);
-    setRemSheet((prev) => (prev && prev.mode === "edit" && prev.id === id && t?.reminder ? { ...prev, reminder: t.reminder } : prev));
-  };
-  const onSkipReminder = async (date: string) => {
-    const sheet = remSheet;
-    if (!sheet || sheet.mode !== "edit") return;
-    const ok = await attemptWrite(() => tasks.skipReminderOccurrence(sheet.id, date));
-    await reload();
-    if (ok) { await refreshOpenSheet(sheet.id); showToast({ message: "Skipped · The series continues" }); }
-  };
-  const onRescheduleReminder = async (date: string, time: string) => {
-    const sheet = remSheet;
-    if (!sheet || sheet.mode !== "edit") return;
-    const ok = await attemptWrite(() => tasks.rescheduleReminderOccurrence(sheet.id, date, time));
-    await reload();
-    if (ok) { await refreshOpenSheet(sheet.id); const t = fmtTime(time); showToast({ message: `Moved · ${t.time} ${t.ap} ${date === today ? "today" : "that day"}` }); }
-  };
-  const onKeepSchedule = async () => {
-    const sheet = remSheet;
-    if (!sheet || sheet.mode !== "edit") return;
-    const ok = await attemptWrite(() => tasks.logReminderEvent(sheet.id, "keptSchedule"));
-    await reload();
-    if (ok) { await refreshOpenSheet(sheet.id); showToast({ message: "Kept the Schedule" }); }
-  };
   // The linked record, opened through the shell. Opening never completes.
   const openLinked = (link: LinkedItem) => {
     const kind = link.type === "contact" ? "person" : link.type;
@@ -3403,12 +3344,6 @@ export default function TodayFlow({
         initial={remSheet.mode === "edit" ? { text: remSheet.text, reminder: remSheet.reminder, due: remSheet.due, category: remSheet.category } : undefined}
         categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color as string }))}
         onSave={(text, r, extra) => void onSaveReminder(text, r, extra)}
-        onDelete={remSheet.mode === "edit" ? () => void onDeleteReminder() : undefined}
-        onPause={remSheet.mode === "edit" ? (p) => void onPauseReminder(p) : undefined}
-        onAddToCalendar={remSheet.mode === "edit" ? () => void addRemindersToCalendar([remSheet.id]) : undefined}
-        onSkip={remSheet.mode === "edit" ? (date) => void onSkipReminder(date) : undefined}
-        onReschedule={remSheet.mode === "edit" ? (date, time) => void onRescheduleReminder(date, time) : undefined}
-        onKeepSchedule={remSheet.mode === "edit" ? () => void onKeepSchedule() : undefined}
         onOpenLinked={onOpenEntity ? openLinked : undefined}
         linkCandidates={linkCandidates}
         today={today}
@@ -3421,21 +3356,12 @@ export default function TodayFlow({
 
   if (remHome) {
     return (
-      <>
-        <RemindersHome
-          items={taskItems}
-          today={today}
-          now={nhm}
-          onBack={() => setRemHome(false)}
-          onAdd={() => setRemSheet({ mode: "new" })}
-          onOpen={openReminder}
-          onTick={(id, done) => void onTickReminder(id, done)}
-          onSnooze={(id) => void onSnoozeReminder(id)}
-          onPause={(id, paused) => void pauseReminderById(id, paused)}
-          onOpenLinked={onOpenEntity ? openLinked : undefined}
-        />
-        {remSheetNode}
-      </>
+      <RemindersFlow
+        chrome={{ back: "Today", onBack: () => { setRemHome(false); setRemOpenId(null); } }}
+        onOpenEntity={onOpenEntity}
+        openId={remOpenId ?? undefined}
+        onOpened={() => setRemOpenId(null)}
+      />
     );
   }
 
@@ -3543,10 +3469,6 @@ export default function TodayFlow({
       dayFooter={draftFooter ?? draftReceipt}
       dayPrimary={draftPrimary}
       reminders={<>
-        {prompts.map((p) => (
-          <ContextPromptCard key={p.id} item={p} onOpenLinked={onOpenEntity ? openLinked : undefined}
-            onContinue={(id) => void writePrompt(id, shownNow)} onSnooze={(id) => void writePrompt(id, snoozedForADay)} />
-        ))}
         <RemindersStrip
           items={reminders}
           onTick={(id, done) => void onTickReminder(id, done)}
@@ -3788,6 +3710,11 @@ export default function TodayFlow({
       />
     )}
     {remSheetNode}
+    {prompts[0] && (
+      <ContextPromptSheet item={prompts[0]} eyebrow="After Completing a Task" onOpenLinked={onOpenEntity ? openLinked : undefined}
+        onContinue={(id) => void writePrompt(id, shownNow)} onSnooze={(id) => void writePrompt(id, snoozedForADay)}
+        onTurnOff={(id) => void (async () => { await attemptWrite(() => tasks.clearPrompt(id)); await reload(); showToast({ message: "Prompt Turned Off" }); })()} />
+    )}
     </>
   );
 }

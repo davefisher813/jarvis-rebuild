@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import TasksFlow from "../tasks/TasksFlow";
 import BiggerPictureFlow from "../bigger/BiggerPictureFlow";
 import LifeSegments, { type LifeSegment } from "./LifeSegments";
+import RemindersFlow from "../tasks/screens/RemindersFlow";
 
 // LIFE (ruled 2026-09-01): Tasks and Your Life, one tab. This flow owns only
 // the segment; each lens keeps its own flow, sheets, deep links and data, so
@@ -13,8 +14,10 @@ import LifeSegments, { type LifeSegment } from "./LifeSegments";
 let lastSegment: LifeSegment = "tasks";
 
 export default function LifeFlow({
-  segment, segmentNav, taskOpenId, taskNonce, onTaskOpened, taskFilter, filterNonce, onFilterApplied, projectOpenId, projectNonce, onProjectOpened, goalOpenId, goalNonce, onGoalOpened, onOpenNote, onWhatNow, onOpenDecision, onGoEmail,
+  segment, segmentNav, taskOpenId, taskNonce, onTaskOpened, taskFilter, filterNonce, onFilterApplied, projectOpenId, projectNonce, onProjectOpened, goalOpenId, goalNonce, onGoalOpened, onOpenNote, onWhatNow, onOpenDecision, onGoEmail, onOpenEntity,
 }: {
+  /** Push E: the Reminders segment's door to any linked record. */
+  onOpenEntity?: (kind: string, id: string) => void;
   segment?: LifeSegment;
   /** Bumped by the shell on every deep link, so a link to the lens already
    *  remembered still moves a page that has since changed lens. */
@@ -44,6 +47,9 @@ export default function LifeFlow({
   // This One from the Goals lens, say) still wins, once.
   useEffect(() => { if (segment) pick(segment); }, [segment, segmentNav]);
   const segments = <LifeSegments value={seg} onPick={pick} />;
+  if (seg === "reminders") {
+    return <RemindersFlow chrome={{ segments }} onOpenEntity={onOpenEntity} />;
+  }
   if (seg === "tasks") {
     return <TasksFlow title="Life" segments={segments} openId={taskOpenId} openNonce={taskNonce} onOpenConsumed={onTaskOpened} openFilter={taskFilter} filterNonce={filterNonce} onFilterApplied={onFilterApplied} onOpenNote={onOpenNote} onGoEmail={onGoEmail} onWhatNow={onWhatNow} />;
   }
