@@ -287,12 +287,36 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
     return () => document.body.classList.remove("writing");
   }, [focused]);
 
+  // THE BAR SAYS HOW TALL IT IS (Dave 2026-09-15: the bar "is blocking the
+  // screen behind it"). The room under the words was a flat 140px, which is
+  // one number for a bar with several heights: it grows a whole row when
+  // Format, List or Insert opens its menu, and it carries the home-indicator
+  // inset under that. Too small a number and the last rows of the screen sit
+  // under the bar with no way to scroll them out. So the bar measures itself
+  // and the stylesheet does the arithmetic; nothing downstream guesses.
+  const barRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = barRef.current;
+    const root = document.documentElement;
+    if (!el) { root.style.removeProperty("--doc-kbar-h"); return; }
+    const measure = () => root.style.setProperty("--doc-kbar-h", Math.ceil(el.getBoundingClientRect().height) + "px");
+    measure();
+    // The effect already re-runs when the bar appears and when a menu opens
+    // a row, which is every height this bar has. The observer is the belt on
+    // top of those braces, for a height nothing here asked for (a rotation, a
+    // dynamic-type change), and jsdom has no ResizeObserver to give.
+    if (typeof ResizeObserver === "undefined") return () => root.style.removeProperty("--doc-kbar-h");
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.removeProperty("--doc-kbar-h"); };
+  }, [focused, menu]);
+
   const swallow = (e: React.SyntheticEvent) => e.preventDefault();
   const run = (fn: (ed: Editor) => void) => () => { if (!editor) return; fn(editor); setMenu(null); };
   const on = (name: string, attrs?: Record<string, unknown>) => !!editor?.isActive(name, attrs);
 
   const bar = editor && focused ? (
-    <div className="doc-kbar" role="toolbar" aria-label="Writing tools" onMouseDown={swallow}>
+    <div className="doc-kbar" ref={barRef} role="toolbar" aria-label="Writing tools" onMouseDown={swallow}>
       {paste && (
         <div className="doc-paste" role="group" aria-label="Paste options">
           <span className="doc-paste-k">Pasted</span>
