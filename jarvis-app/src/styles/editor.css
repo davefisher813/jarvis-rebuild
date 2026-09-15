@@ -76,6 +76,18 @@
 .doc-kbar { position: fixed; left: 0; right: 0; z-index: 70;
   top: calc(var(--vv-top, 0px) + var(--vv-h, 100dvh)); transform: translateY(-100%);
   background: var(--surface-2); border-top: 0.5px solid var(--divider); padding-bottom: 0; }
+/* THE TWO BARS READ AS ONE (Dave 2026-09-15: "there doesn't need to be a
+   gap, those bars should look connected"). iOS parks its own accessory pill
+   between our bar and the keys, and it is translucent, so the note behind it
+   showed through as ghost text under our bar. Our surface now carries on
+   down through that space: the pill sits on our ground instead of on the
+   words, and the two read as one bar. The height is the room below our bar
+   the bar itself measured, so it is exactly the gap and nothing more; at
+   zero (no pill, the keys straight under us) this paints nothing, and any
+   part that falls behind the keyboard is hidden by the keyboard. */
+.doc-kbar::after { content: ""; position: absolute; top: 100%; left: 0; right: 0;
+  height: max(0px, calc(var(--doc-kbar-clear, 0px) - var(--doc-kbar-h, 0px)));
+  background: var(--surface-2); pointer-events: none; }
 .doc-kbar-row { display: flex; align-items: center; gap: var(--s-1); padding: 6px var(--s-2); min-height: 52px; }
 .doc-kbtn { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 var(--s-3);
   border: 0; border-radius: var(--r-pill); background: transparent; color: var(--tx-1); font-family: var(--f); font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
@@ -94,6 +106,15 @@
    aside so the bar is the only thing between the words and the keys. The
    room under the words keeps the active line clear of the bar. */
 body.writing .tab-bar, body.writing .voice-dock { display: none; }
+/* NOTHING RUNS THROUGH THE CLOCK (Dave 2026-09-15, the note title drawn
+   straight over 7:18 and the signal bars). While the keyboard is up iOS
+   scrolls the layout viewport to bring the caret into view, which carries
+   the sticky .nav-bar off the top; the words behind it then pass under the
+   status bar with nothing opaque in between. This is that missing ground,
+   the status bar's own inset and no taller, above the words and below our
+   writing bar (z 70). On a browser the inset is 0 and it paints nothing. */
+body.writing .screen-editor::before { content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+  height: var(--safe-top, env(safe-area-inset-top, 0px)); background: var(--bg); pointer-events: none; }
 /* The room under the screen is the bar's OWN height plus a margin, not a
    constant (Dave 2026-09-15: the bar was sitting over the rows behind it with
    nothing the scroll could do about it). --doc-kbar-h is written by the bar
