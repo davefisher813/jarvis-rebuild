@@ -109,6 +109,7 @@ import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
 import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
+import { dealFrom, markNotThisOne } from "./notThisOne";
 import { liveCard, currentLine } from "../gym/liveCard";
 import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
 
@@ -371,6 +372,9 @@ export default function TodayFlow({
   // live either way, so it is back the next time Today opens. A permanent
   // silence would defeat the one thing this card exists for.
   const [gymDismissed, setGymDismissed] = useState(false);
+  // Re-render after a "Not This One": the list it filters lives in
+  // localStorage, so nothing else would tell React the deal has changed.
+  const [, setNotThisOneTick] = useState(0);
   useEffect(() => {
     // LAW 1 (Dave 2026-08-29): the spot is a bookmark, and a bookmark
     // outlives the page. Offering to resume a note that was deleted hours
@@ -1576,7 +1580,10 @@ export default function TodayFlow({
   // dot plus plain words (G4), and the length is the task's own estimate
   // before its area's usual, the order every other surface asks in. Evening
   // has no dealt task, so it has no headliner either.
-  const moveTask = !evening ? upNextAll[0] ?? null : null;
+  // 2026-09-15: the leading slot steps over anything he said "Not This One"
+  // to today (today/notThisOne.ts). The deck itself is untouched -- Focus
+  // still counts it, Still Open still lists it, Tasks still has it.
+  const moveTask = !evening ? dealFrom(upNextAll, today)[0] ?? null : null;
   const moveCategory = moveTask
     && catName(moveTask.data.category)
     // A task with no area says nothing about it (2026-09-13): "No category"
@@ -2271,15 +2278,25 @@ export default function TodayFlow({
             {/* UP-CORE-10 (2026-09-05): JOIN BEATS EVERYTHING while you are
                 inside a meeting that has a link: being in the call is the
                 thing, and the page for it is one row away on the schedule. */}
+            {/* 2026-09-15 (Dave: "do the buttons really have any value to the
+                user"). THE THIRD DOOR TO THE SAME DECK IS GONE. Pick
+                Something here opened setUpNextOpen -- the identical sheet
+                the Focus pill at the top of Your Move opens, and the
+                identical sheet Pick Something opens from the OPEN-GAP row a
+                few cases up. Three controls, three labels, one destination.
+                The gap row keeps its copy, because open time is exactly the
+                moment "pick something" is the answer. In here it is not: he
+                is already inside Deep Work, and a verb offering him a
+                different thing to do is the block arguing with itself. Join
+                and Notes stay, because those act on the block he is in. With
+                neither, the row states the fact and stops. */}
             {insideEvent?.data.url ? (
               <a className="pill-act" href={insideEvent.data.url} target="_blank" rel="noreferrer" onClick={own()}>Join</a>
             ) : insideEvent && onOpenNote ? (
               <button className="pill-act" onClick={own(() => void openEventNote(insideEvent))}>
                 {notedEvents.has(insideEvent.id) ? "Notes" : "Take Notes"}
               </button>
-            ) : (
-              <button className="pill-act" onClick={own(() => setUpNextOpen(true))}>Pick Something</button>
-            )}
+            ) : null}
           </div>
         )}
         {/* UP-MIND-24 (2026-09-05): the next meeting with somebody the app
@@ -2330,6 +2347,12 @@ export default function TodayFlow({
     onToggle: (id: string) => setTuning((t) => (t === id ? null : id)),
     onDuration: (id: string, minutes: number) => applyEdit({ minutes: { [id]: minutes } }),
     onDrop: (id: string) => { setTuning(null); applyEdit({ drop: id }); },
+    // 2026-09-15 (Dave: "you can't even clear it if you've completed it").
+    // A planned task is a task. It ticks off from the day that planned it,
+    // through the same door every other completion on this page uses, so the
+    // momentum chain and the burst behave exactly as they do elsewhere.
+    onComplete: (id: string) => void onToggleTask(id),
+    onOpen: (id: string) => void onOpenTask(id),
   } : undefined;
 
   const draftFooter = draftStanding ? (
@@ -2989,8 +3012,14 @@ export default function TodayFlow({
   // (ics.ts saveIcsFile writes the file and hands it to the share sheet on
   // native), and the receipt only prints once it resolves.
   const addRemindersToCalendar = async (ids?: string[]) => {
-    const picked = taskItems.filter((t) => t.data.reminder && (!ids || ids.includes(t.id)));
-    if (picked.length === 0) return;
+    // A DONE REMINDER IS NOT AN APPOINTMENT (Dave, 2026-09-15, photographed:
+    // both reminders on screen struck through, with Add All to Calendar
+    // under them). This filtered on `reminder` alone, so the one control
+    // there offered to put things he had already finished into his calendar.
+    // Nothing else on the page treats a ticked reminder as live; neither
+    // does this now.
+    const picked = taskItems.filter((t) => t.data.reminder && !t.data.done && (!ids || ids.includes(t.id)));
+    if (picked.length === 0) { showToast({ message: "Nothing left to add · These are all done" }); return; }
     const ics = remindersToIcs(
       picked.map((t) => ({ id: t.id, text: t.data.text, reminder: t.data.reminder! })),
       today,
@@ -3636,6 +3665,7 @@ export default function TodayFlow({
         taskId={moveTask.id}
         reasons={[...moveReasons, ...(movePlacement ? [movePlacement] : [])]}
         leaningOn={leanedOnFor(today, moveTask.id, pendingPicks(today))}
+        onNotThisOne={() => { markNotThisOne(moveTask.id, today); setNotThisOneTick((n) => n + 1); }}
         onClose={() => setWhyOpen(false)}
       />
     )}
@@ -3654,6 +3684,7 @@ export default function TodayFlow({
           if (t) void startFifteen(t);
         }}
         onOpen={(id) => void onOpenTask(id)}
+        onComplete={(id) => { setChoicesOpen(false); void onToggleTask(id); }}
         onPickSomethingElse={() => setUpNextOpen(true)}
         onClose={() => setChoicesOpen(false)}
       />

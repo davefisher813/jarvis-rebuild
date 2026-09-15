@@ -106,12 +106,17 @@ export default function MoveHeadliner({
           </div>
         </div>
       </div>
+      {/* NO SECOND COUNT OF THE SAME PILE (Dave, 2026-09-15). This said
+          "2 more" while the Focus pill on the same card said "28 Waiting" --
+          both about the open deck behind the dealt task. "2" is how many this
+          sheet SHOWS, not how many exist, so read against its neighbour it
+          was simply wrong. Focus carries the one true count; this row is a
+          door and says so with a chevron, the way every other door does. */}
       {otherCount > 0 && onOther && (
         <div className="row hl-other" role="button" tabIndex={0} onClick={onOther}>
           <div className="row-stack">
             <div className="conn-name">Other Good Choices</div>
           </div>
-          <span className="r-count">{otherCount} more</span>
           <span className="chev" aria-hidden="true" />
         </div>
       )}

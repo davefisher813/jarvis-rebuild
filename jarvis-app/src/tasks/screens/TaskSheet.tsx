@@ -361,6 +361,28 @@ export default function TaskSheet({
             save's first parameter is closeNow -- passing `save` directly
             would read every ordinary click as a truthy closeNow. */}
         <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={() => save()} saveLabel={saving ? "Saving" : "Save"} />
+        {/* TICKING IT OFF IS NOT A CHECKLIST FEATURE (Dave, 2026-09-15: "you
+            can't even clear it if you've completed it... which is
+            ridiculous").
+            The ONLY way to finish a task from inside its own sheet was the
+            Close Task pill further down, and that appears only when the task
+            HAS a checklist and every item on it is already ticked. A task
+            with no checklist -- which is most of them -- could be renamed,
+            rescheduled, broken down, texted about and deleted from here, and
+            not finished. You had to back out and find its ring in a list.
+            It is the same 24px ring every task row in the app uses, in the
+            lead slot beside the name, where the hand already looks. */}
+        {mode === "edit" && (
+          <div className="pad-x"><div className="card xs-group">
+            <div className="row xs-row">
+              <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done"
+                onClick={() => void save(true)}>
+                <div className="task-check" />
+              </div>
+              <div className="row-grow"><div className="conn-name">Mark Done</div></div>
+            </div>
+          </div></div>
+        )}
         <div className="sheet-form">
           {/* SHARED-F-17 (2026-09-05): the sheet's provenance line opens its
               source too, when the flow has a route to it. */}

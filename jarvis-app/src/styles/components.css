@@ -5337,3 +5337,20 @@ span.row-star { cursor: default; }
 [data-hue="violet"] { --h-hue: var(--hl-violet); --h-tint: var(--hl-violet-tint); }
 [data-hue="hblue"]  { --h-hue: var(--hl-blue);   --h-tint: var(--hl-blue-tint); }
 [data-hue="pink"]   { --h-hue: var(--hl-pink);   --h-tint: var(--hl-pink-tint); }
+
+/* TICKING OFF A PLANNED TASK (2026-09-15, Dave: "you can't even clear it if
+   you've completed it when it enlarges like that, which is ridiculous").
+
+   A proposed task had two renderings and neither could be finished: the row
+   out in the timeline offered a duration picker and Move to Anytime, and the
+   nested version inside a holding block offered a tap that set state nothing
+   rendered. Both carry the app's own 24px ring now, in their lead slot, so
+   the gesture is the one every other task row already answers to.
+
+   The ring is never category-coloured here either (the ruled-row rule): it is
+   the completion control only, and the category keeps the dot or the bar. */
+.sched-row .sched-check { flex-shrink: 0; margin: 0 var(--s-2) 0 0; }
+.block-held .bh-check { flex-shrink: 0; margin: 0; }
+/* The nested row's title stops being a plain span the moment it is a door,
+   so it gets the door's affordance without growing a second one. */
+.block-held-prop .block-held-t[role="button"] { cursor: pointer; }

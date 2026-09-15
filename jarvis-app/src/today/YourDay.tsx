@@ -21,6 +21,18 @@ export interface ProposedDay {
   onToggle: (taskId: string) => void;
   onDuration: (taskId: string, minutes: number) => void;
   onDrop: (taskId: string) => void;
+  /** TICK IT OFF FROM THE DAY (Dave, 2026-09-15: "if there's a task being
+   *  highlighted, you can't even clear it if you've completed it").
+   *
+   *  A proposed task had a duration picker and a Move to Anytime and no way
+   *  to say it was DONE -- on either of its two renderings. A planned task
+   *  you finished could not be finished from the page that planned it. */
+  onComplete?: (taskId: string) => void;
+  /** Open the task itself. The nested rendering below needs this because
+   *  its old tap was dead: it called onToggle, which sets openId, which only
+   *  ProposedRow reads -- and a task nested inside a block never renders
+   *  one. The tap set state nothing displayed. */
+  onOpen?: (taskId: string) => void;
   // C-32 (Astra, 2026-09-12): accept ONE proposed block, from the row it
   // nests in. Optional so a caller with only the whole-day Accept keeps
   // rendering exactly as it did.
@@ -216,6 +228,7 @@ function DaySet({
           onToggle={() => proposed!.onToggle(en.b.taskId)}
           onDuration={(m) => proposed!.onDuration(en.b.taskId, m)}
           onDrop={() => proposed!.onDrop(en.b.taskId)}
+          {...(proposed!.onComplete ? { onComplete: () => proposed!.onComplete!(en.b.taskId) } : {})}
         />,
       );
     } else {
@@ -246,11 +259,28 @@ function DaySet({
                   <span className="block-held-u">{fmtTime(h.data.start).time}</span>
                 </div>
               ))}
+              {/* A TASK HELD IN A BLOCK IS STILL A TASK (2026-09-15).
+                  It had no completion control, and its one tap was dead --
+                  onToggle sets openId, and openId is read only by
+                  ProposedRow, which this row is not. Now the ring ticks it
+                  off and the words open it, which are the same two gestures
+                  every other task row in the app answers to. */}
               {props.map((b) => (
-                <div className="block-held block-held-prop" key={"p" + b.taskId} role="button" tabIndex={0}
-                  onClick={(ev) => { ev.stopPropagation(); proposed?.onToggle(b.taskId); }}>
-                  <span className={"cat-dot-hollow cat-bd-" + catColor(b.category)} />
-                  <span className="block-held-t truncate">{b.text}</span>
+                <div className="block-held block-held-prop" key={"p" + b.taskId}>
+                  {proposed?.onComplete ? (
+                    <div className="task-check-tap bh-check" role="checkbox" aria-checked={false}
+                      aria-label={`Mark ${b.text} done`}
+                      onClick={(ev) => { ev.stopPropagation(); proposed.onComplete!(b.taskId); }}>
+                      <div className="task-check" />
+                    </div>
+                  ) : (
+                    <span className={"cat-dot-hollow cat-bd-" + catColor(b.category)} />
+                  )}
+                  <span className="block-held-t truncate" role={proposed?.onOpen ? "button" : undefined}
+                    tabIndex={proposed?.onOpen ? 0 : undefined}
+                    onClick={(ev) => { if (!proposed?.onOpen) return; ev.stopPropagation(); proposed.onOpen(b.taskId); }}>
+                    {b.text}
+                  </span>
                   <span className="block-held-u">{fmtTime(b.start).time}</span>
                 </div>
               ))}

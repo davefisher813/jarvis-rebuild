@@ -20,13 +20,18 @@ export interface Choice {
 }
 
 export default function OtherChoicesSheet({
-  offeredId, choices, onStart, onOpen, onPickSomethingElse, onClose,
+  offeredId, choices, onStart, onOpen, onComplete, onPickSomethingElse, onClose,
 }: {
   /** The headliner's task: the one that was offered and not taken. */
   offeredId: string;
   choices: Choice[];
   onStart: (id: string) => void;
   onOpen?: (id: string) => void;
+  /** Tick one off from here (2026-09-15). These are real tasks, and one of
+   *  the three things you can want to do with a real task you are looking at
+   *  is say it is finished. Optional, so a caller with no completion wiring
+   *  renders exactly as before rather than showing a ring that does nothing. */
+  onComplete?: (id: string) => void;
   onPickSomethingElse?: () => void;
   onClose: () => void;
 }) {
@@ -44,7 +49,17 @@ export default function OtherChoicesSheet({
           // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
           // clickable"). Only the words used to open the task; the row does
           // now, and falls back to Start when there is nothing to open.
+          //
+          // The ring keeps its own tap (2026-09-15, the completion sweep):
+          // it sits INSIDE the door, so it stops the event rather than
+          // opening the task on the way to ticking it off.
           <div className="row" key={c.id} {...rowDoor(() => (onOpen ? onOpen(c.id) : start(c.id)))}>
+            {onComplete && (
+              <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label={`Mark ${c.text} done`}
+                onClick={(e) => { e.stopPropagation(); onComplete(c.id); }}>
+                <div className="task-check" />
+              </div>
+            )}
             <div className="row-stack">
               <div className="conn-name truncate">{c.text}</div>
               {c.facts && <div className="facts"><span className="fact">{c.facts}</span></div>}

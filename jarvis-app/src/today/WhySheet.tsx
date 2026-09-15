@@ -8,13 +8,28 @@ import { emit } from "../events";
 // taps that tell JARVIS whether it was right.
 //
 // Everything here is a fact the ranker already produced. Nothing is written
-// for the sheet, and there is no free-text box: the two buttons emit
-// suggestion.accepted / suggestion.dismissed with kind "why" and the task's
-// id, which is the entire payload. What was suggested, and whether he took
-// it, is the signal; what he might have typed about it is not the log's
-// business.
+// for the sheet, and there is no free-text box.
+//
+// 2026-09-15 (Dave: "if they're not going to give real, real value, then we
+// have to adjust them or get rid of some of them").
+//
+// IT USED TO HAVE TWO BUTTONS AND NEITHER DID ANYTHING.
+//
+//   "That's Right" emitted an event and closed the sheet. Closing the sheet
+//   is what the scrim already does, so it was a Close button with an opinion.
+//   It is gone.
+//
+//   "That's Wrong" emitted an event too. The event reaches the month seal's
+//   suggestion tally and the AI context summary, and no ranker anywhere reads
+//   it -- so you could tell JARVIS its pick was wrong and it would offer the
+//   same task ten seconds later. It is one button now, it says what it does,
+//   and it does it: the task steps out of the leading slot for the rest of
+//   today and the next one takes its place (today/notThisOne.ts).
+//
+// The event still fires, because the monthly tally is a real if slow use of
+// the signal. It is no longer the ONLY thing that happens.
 export default function WhySheet({
-  taskId, reasons, leaningOn, onOpenStrand, onClose,
+  taskId, reasons, leaningOn, onOpenStrand, onNotThisOne, onClose,
 }: {
   taskId: string;
   /** The ranker's own fragments, in its own order. */
@@ -22,15 +37,20 @@ export default function WhySheet({
   /** The strand the day's plan leaned on, when the plan came from the AI. */
   leaningOn?: { text: string; confidence?: string } | null;
   onOpenStrand?: () => void;
+  /** Step this task out of the leading slot for the rest of today. Absent,
+   *  the sheet is a read-only explanation and shows no verb at all, rather
+   *  than a button that cannot keep its promise. */
+  onNotThisOne?: () => void;
   onClose: () => void;
 }) {
-  const answer = (right: boolean) => {
+  const notThisOne = () => {
     emit({
-      type: right ? "suggestion.accepted" : "suggestion.dismissed",
+      type: "suggestion.dismissed",
       entityType: "task",
       entityId: taskId,
       props: { kind: "why" },
     });
+    onNotThisOne?.();
     onClose();
   };
   return createPortal(
@@ -66,10 +86,12 @@ export default function WhySheet({
             </div>
           </>
         )}
-        <div className="sheet-form">
-          <button className="btn btn-primary" onClick={() => answer(true)}>That&rsquo;s Right</button>
-          <button className="quiet-action" onClick={() => answer(false)}>That&rsquo;s Wrong</button>
-        </div>
+        {onNotThisOne && (
+          <div className="sheet-form">
+            <button className="btn btn-secondary btn-block" onClick={notThisOne}>Not This One</button>
+            <div className="bp-sub">It keeps its date and stays in the deck. Today just leads with something else.</div>
+          </div>
+        )}
       </div>
     </div>,
     document.body,

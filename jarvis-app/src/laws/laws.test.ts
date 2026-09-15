@@ -4412,6 +4412,112 @@ describe("LAW: only one file asks for the screen wake lock", () => {
 // the SAME onRestoreSpot("gym", ...) door, now actually carrying a category
 // id and a flag through AppShell -> BrainFlow -> CategoryDetail so it lands
 // IN the session, not just on the tab.
+// ===========================================================================
+// LAW: A TASK YOU CAN SEE IS A TASK YOU CAN FINISH, AND NO CONTROL IS A PROP
+//
+// (Dave, 2026-09-15: "if there's a task being highlighted, you can't even
+// clear it if you've completed it when it enlarges like that, which is
+// ridiculous"; and "the worst thing is for someone to click on something and
+// it's pointless and it doesn't help or it's incorrect".)
+//
+// Four surfaces drew a real task and offered no way to finish it: the
+// proposed row out in the timeline (duration chips and Move to Anytime), the
+// same task nested inside a holding block, Other Good Choices, and the task's
+// OWN sheet -- where the one completion control appeared only if the task had
+// a checklist and every item on it was already ticked.
+//
+// The nested one was worse than missing: its tap called onToggle, which sets
+// openId, which only ProposedRow reads, and a nested task never renders one.
+// The control set state nothing displayed.
+// ===========================================================================
+describe("LAW: a planned task can be finished from where it is shown", () => {
+  it("the proposed row carries a completion ring, not only a duration picker", () => {
+    const src = read(join(SRC, "schedule/screens/ProposedRow.tsx"));
+    expect(src, "ProposedRow must accept a completion seam").toMatch(/onComplete\?:/);
+    expect(src, "and draw the app's own ring for it").toMatch(/task-check-tap/);
+  });
+
+  it("a task nested inside a holding block carries the same ring", () => {
+    const src = read(join(SRC, "today/YourDay.tsx"));
+    const held = src.slice(src.indexOf("props.map("));
+    const body = held.slice(0, held.indexOf("))}"));
+    expect(body, "the nested proposal must offer completion").toMatch(/onComplete/);
+    expect(body, "and must not still route its tap through the tuning state that nothing nested renders")
+      .not.toMatch(/onToggle\(/);
+  });
+
+  it("the task's own sheet can finish it without a checklist", () => {
+    const src = read(join(SRC, "tasks/screens/TaskSheet.tsx"));
+    // The old control was gated on allStepsDone; a task with no steps could
+    // be edited, scheduled, broken down and deleted from its sheet, and not
+    // finished. The ungated control is the fix, and it must not be gated on
+    // the checklist again.
+    const gate = src.match(/\{mode === "edit" && \(\s*\n\s*<div className="pad-x">/);
+    expect(gate, "the sheet must offer completion on any task it is editing").toBeTruthy();
+    expect(src, "and draw the app's own ring for it").toMatch(/aria-label="Mark done"/);
+  });
+
+  it("Other Good Choices can tick one off, not only start it", () => {
+    const src = read(join(SRC, "today/OtherChoicesSheet.tsx"));
+    expect(src, "the sheet lists real tasks and must let one be finished").toMatch(/onComplete\?:/);
+    expect(src, "with the app's own ring").toMatch(/task-check-tap/);
+  });
+
+  it("Today wires every one of those seams, or they are props", () => {
+    const src = read(join(SRC, "today/TodayFlow.tsx"));
+    expect(src, "the proposed day must carry completion").toMatch(/onComplete: \(id: string\) => void onToggleTask\(id\)/);
+    expect(src, "Other Good Choices must carry completion").toMatch(/onComplete=\{\(id\) =>[^}]*onToggleTask\(id\)/);
+  });
+});
+
+// A CONTROL THAT CANNOT KEEP ITS PROMISE IS WORSE THAN NO CONTROL.
+//
+// "That's Wrong" in the Why sheet emitted suggestion.dismissed and nothing
+// re-ranked: the same task was still the lead ten seconds later. One button
+// now, and it does the thing its words claim.
+describe("LAW: the Why sheet's verb changes what is dealt", () => {
+  it("the sheet no longer ships a second button that only closes it", () => {
+    // The comment header names the retired button to explain why it went;
+    // only a rendered string can break the rule.
+    const src = read(join(SRC, "today/WhySheet.tsx")).split("\n")
+      .filter((l) => { const t = l.trim(); return !t.startsWith("//") && !t.startsWith("*") && !t.startsWith("/*"); })
+      .join("\n");
+    expect(src, "That's Right was a Close button with an opinion").not.toMatch(/That&rsquo;s Right|That's Right/);
+  });
+
+  it("its one verb steps the task out of today's lead", () => {
+    const src = read(join(SRC, "today/WhySheet.tsx"));
+    expect(src, "the sheet must take a real action seam").toMatch(/onNotThisOne\?:/);
+    // And it is optional, so a caller that cannot honour it renders no verb
+    // at all rather than a button that does nothing.
+    expect(src, "the verb renders only when it can be honoured").toMatch(/\{onNotThisOne && \(/);
+    const flow = read(join(SRC, "today/TodayFlow.tsx"));
+    expect(flow, "Today must honour it").toMatch(/markNotThisOne\(moveTask\.id, today\)/);
+    expect(flow, "and the deal must actually read the list").toMatch(/dealFrom\(upNextAll, today\)/);
+  });
+});
+
+// ONE DECK, ONE DOOR, ONE COUNT.
+//
+// "Other Good Choices · 2 more", "Focus · 28 Waiting" and "Pick Something"
+// all opened the same sheet, and the first two disagreed about how many were
+// behind it because one counted what it SHOWS and the other counted what
+// exists.
+describe("LAW: the open deck is not offered three times over", () => {
+  it("Pick Something is gone from inside a named block", () => {
+    const src = read(join(SRC, "today/TodayFlow.tsx"));
+    const hits = (src.match(/>Pick Something</g) ?? []).length;
+    // One: the open-gap row, where picking something IS the answer.
+    expect(hits, "only the open-gap row may offer Pick Something").toBe(1);
+  });
+
+  it("only one control states how deep the deck is", () => {
+    const head = read(join(SRC, "today/MoveHeadliner.tsx"));
+    expect(head, "the runner-up row is a door, not a second count")
+      .not.toMatch(/\{otherCount\} more/);
+  });
+});
+
 describe("LAW: a live gym session is visible and reachable from Today", () => {
   it("Today reads the live session straight off gym/liveSession.ts, unconditionally", () => {
     const today = read(SRC + "/today/TodayFlow.tsx");

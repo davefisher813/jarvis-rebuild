@@ -34,12 +34,20 @@ export default function ProposedRow({
   onToggle,
   onDuration,
   onDrop,
+  onComplete,
 }: {
   block: PlanBlock;
   open: boolean;
   onToggle: () => void;
   onDuration: (minutes: number) => void;
   onDrop: () => void;
+  /** TICK IT OFF (Dave, 2026-09-15). This row could resize the task and send
+   *  it back to Anytime and could not say it was done -- so a planned task
+   *  you actually finished had to be found somewhere else to be closed.
+   *  The ring is the same 24px anatomy every task row in the app uses, in
+   *  the lead slot, where the hand already looks for it. Optional, so a
+   *  caller with no completion wiring renders exactly as it did. */
+  onComplete?: () => void;
 }) {
   const t = fmtTime(block.start);
   const slot = catColor(block.category);
@@ -57,6 +65,13 @@ export default function ProposedRow({
       >
         <span className={"sched-bar sched-bar-proposed cat-bd-" + slot} />
         <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+        {onComplete && (
+          <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
+            aria-label={`Mark ${block.text} done`}
+            onClick={(e) => { e.stopPropagation(); onComplete(); }}>
+            <div className="task-check" />
+          </div>
+        )}
         <div className="sched-body">
           <div className="sched-title">{block.text}</div>
           <div className="sched-cat">
