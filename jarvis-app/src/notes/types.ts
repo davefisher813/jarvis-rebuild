@@ -225,7 +225,7 @@ export interface ContextTriggerConfig {
 
 export interface ReminderEvent {
   at: string;
-  kind: "completed" | "notificationOpened" | "notificationDismissed" | "snoozed" | "skipped" | "rescheduled" | "edited" | "paused" | "resumed";
+  kind: "completed" | "notificationOpened" | "notificationDismissed" | "snoozed" | "skipped" | "rescheduled" | "edited" | "paused" | "resumed" | "keptSchedule";
   meta?: Record<string, unknown>;
 }
 

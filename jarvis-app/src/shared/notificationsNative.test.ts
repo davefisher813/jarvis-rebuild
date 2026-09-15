@@ -33,7 +33,7 @@ vi.mock("@capacitor/local-notifications", () => ({
   },
 }));
 
-import { ensureCheckinNotifications, ensureEventReminders, ensureTaskReminders, EVENT_ACTION_TYPE, TASK_ACTION_TYPE, ACTION_DONE, ACTION_TOMORROW } from "./notifications";
+import { ensureCheckinNotifications, ensureEventReminders, ensureTaskReminders, EVENT_ACTION_TYPE, TASK_ACTION_TYPE, REMINDER_ACTION_TYPE, ACTION_DONE, ACTION_TOMORROW } from "./notifications";
 
 beforeEach(() => {
   checkPermissions.mockReset();
@@ -86,14 +86,16 @@ describe("no scheduler ever raises the permission dialog", () => {
 describe("the banner carries its buttons and its item (UP-PLAT-01)", () => {
   const NOW2 = new Date("2026-08-09T08:00:00").getTime();
 
-  it("a task reminder is scheduled with the task action type and the task id", async () => {
+  // THE REMINDERS REBUILD (push C): a reminder banner carries the reminder's
+  // own three actions (Open, Done, Snooze 15m), not the task pair.
+  it("a task reminder is scheduled with the reminder action type and the task id", async () => {
     checkPermissions.mockResolvedValue({ display: "granted" });
     await ensureTaskReminders([{ id: "t7", text: "Meds", reminder: { time: "21:00" } }], "2026-08-09", NOW2);
     expect(schedule).toHaveBeenCalledTimes(1);
     const sent = schedule.mock.calls[0]![0] as { notifications: { actionTypeId?: string; extra?: { taskId?: string } }[] };
     expect(sent.notifications.length).toBeGreaterThan(0);
     for (const n of sent.notifications) {
-      expect(n.actionTypeId).toBe(TASK_ACTION_TYPE);
+      expect(n.actionTypeId).toBe(REMINDER_ACTION_TYPE);
       expect(n.extra?.taskId).toBe("t7");
     }
   });

@@ -688,6 +688,12 @@ The brief cites `JARVIS_UI_CONTRACT.md` as the locked styling source. No file of
 
 **REMINDERS HOME (push B).** A screen with the large-title nav (back to Today, one bar action, Add), organised by when: Now wears the section accent, Later Today, Upcoming and Unscheduled are quiet heads with counts, Paused and Completed Today are disclosures. Rows are the strip's row (`.rem-home .rem-row`) with a facts line under the name (`.facts`: the when in `.fact.when` warm for today and `.fact.later` secondary beyond, the area as `.fact.cat` with its dot, the rhythm plain) and at most one pill after it (Snooze 10m, Add a Time, Resume). No filled chips on a row; the only red on the page is the Now head.
 
+**THE PRIMARY ACTION (push C).** A linked reminder's edit sheet leads with one row in the tint: the verb for the record (Open Task, Open Conversation, Review Decision) with the record's name as its meta and a chevron. On the Home row the same verb is a pill before Snooze. Neither is filled: the page's one red stays the Now head.
+
+**ADVICE (push C).** A group under the primary action, its line as the group's note ("Snoozed the last 3 times · Choose a better time?", "Usually done around 9:40 PM · Move it there?") and a strip of quiet pills: Move It There or Change Time, Pause, Keep Schedule. Never a modal, never applied on its own.
+
+**THIS OCCURRENCE AND HISTORY (push C).** A time row "Move Today To" (or the day it means) and a Skip row with "The series continues" as its meta; a History group of plain rows, the word on the left and the moment on the right, five at most. The link picker (`.link-sheet`) is the action sheet's chrome with a search bar and rows by kind, its list scrolling inside itself.
+
 **EDIT MODE.** A Series group with one row, Pause or Resume. A More Actions disclosure at the foot holding Export to Calendar and Delete Reminder, the app's own destructive row, never beside Save.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)

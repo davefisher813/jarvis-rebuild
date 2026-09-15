@@ -96,6 +96,9 @@ import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
 import RemindersHome from "../tasks/screens/RemindersHome";
+import type { LinkCandidate } from "../tasks/screens/LinkedItemSheet";
+import { displayTitle } from "../notes/docModel";
+import type { LinkedItem } from "../notes/types";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
 import { stripReminders, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
 import { remindersToIcs, saveIcsFile } from "../tasks/ics";
@@ -204,7 +207,16 @@ export default function TodayFlow({
   onOpenPerson,
   onAskSaid,
   onGoBigger,
+  reminderOpenId,
+  reminderNonce,
+  onReminderOpened,
+  onOpenEntity,
 }: {
+  /** The reminders rebuild (push C): a banner's Open, and the door to any linked record. */
+  reminderOpenId?: string;
+  reminderNonce?: number;
+  onReminderOpened?: () => void;
+  onOpenEntity?: (kind: string, id: string) => void;
   onGoSchedule: () => void;
   onGoTasks: () => void;
   onGoTasksAll?: () => void;
@@ -2008,8 +2020,34 @@ export default function TodayFlow({
   // since D4-C off this same DayRow; the page the athlete is on at six in the
   // evening did not, so a gym block here was a plain row and the only way
   // into a session was Resume on one already running.
-  const gymDoor = useGymDoor(todayEvents, today, today);
+  // A BANNER'S OPEN LANDS ON THE REMINDER (push C): the shell fires the id;
+  // the sheet opens once the day's tasks are in.
+  useEffect(() => {
+    if (!reminderOpenId || taskItems.length === 0) return;
+    openReminder(reminderOpenId);
+    onReminderOpened?.();
+  }, [reminderOpenId, reminderNonce, taskItems.length]);
 
+  // What a reminder can be about: today's records, and the notes and
+  // decisions loaded once the sheet is open.
+  const [extraLinkCandidates, setExtraLinkCandidates] = useState<LinkCandidate[]>([]);
+  useEffect(() => {
+    if (!remSheet) return;
+    let on = true;
+    void (async () => {
+      try {
+        const [notes, decisions] = await Promise.all([notesSvc.listNotes(), decisionsSvc.listAll()]);
+        if (!on) return;
+        setExtraLinkCandidates([
+          ...notes.map((n) => ({ type: "note" as const, id: n.id, label: displayTitle(n.data as { title?: string }) || "Untitled" })),
+          ...decisions.map((d) => ({ type: "decision" as const, id: d.id, label: d.data.decision })),
+        ]);
+      } catch { /* the picker lists what it has */ }
+    })();
+    return () => { on = false; };
+  }, [remSheet !== null]);
+
+  const gymDoor = useGymDoor(todayEvents, today, today);
 
   // THE EVENT'S OWN PAGE (2026-09-09), pushed the same way the gym door and
   // Brain's category page are: a screen, not a route. Read here and handed
@@ -2996,6 +3034,46 @@ export default function TodayFlow({
     if (t?.data.reminder) setRemSheet({ mode: "edit", id, text: t.data.text, reminder: t.data.reminder, due: t.data.due ?? null, category: t.data.category ?? "" });
   };
 
+  // The sheet's writes that happen at once, not on Save: they each say what
+  // they did and refresh the open sheet so the record it shows is the one
+  // just written.
+  const refreshOpenSheet = async (id: string) => {
+    const t = await tasks.task(id);
+    setRemSheet((prev) => (prev && prev.mode === "edit" && prev.id === id && t?.reminder ? { ...prev, reminder: t.reminder } : prev));
+  };
+  const onSkipReminder = async (date: string) => {
+    const sheet = remSheet;
+    if (!sheet || sheet.mode !== "edit") return;
+    const ok = await attemptWrite(() => tasks.skipReminderOccurrence(sheet.id, date));
+    await reload();
+    if (ok) { await refreshOpenSheet(sheet.id); showToast({ message: "Skipped · The series continues" }); }
+  };
+  const onRescheduleReminder = async (date: string, time: string) => {
+    const sheet = remSheet;
+    if (!sheet || sheet.mode !== "edit") return;
+    const ok = await attemptWrite(() => tasks.rescheduleReminderOccurrence(sheet.id, date, time));
+    await reload();
+    if (ok) { await refreshOpenSheet(sheet.id); const t = fmtTime(time); showToast({ message: `Moved · ${t.time} ${t.ap} ${date === today ? "today" : "that day"}` }); }
+  };
+  const onKeepSchedule = async () => {
+    const sheet = remSheet;
+    if (!sheet || sheet.mode !== "edit") return;
+    const ok = await attemptWrite(() => tasks.logReminderEvent(sheet.id, "keptSchedule"));
+    await reload();
+    if (ok) { await refreshOpenSheet(sheet.id); showToast({ message: "Kept the Schedule" }); }
+  };
+  // The linked record, opened through the shell. Opening never completes.
+  const openLinked = (link: LinkedItem) => {
+    const kind = link.type === "contact" ? "person" : link.type;
+    onOpenEntity?.(kind, link.id);
+  };
+  const linkCandidates: LinkCandidate[] = [
+    ...taskItems.filter((t) => !t.data.done && !t.data.reminder).map((t) => ({ type: "task" as const, id: t.id, label: t.data.text })),
+    ...allEvents.map((e) => ({ type: "event" as const, id: e.id, label: e.data.title })),
+    ...extraLinkCandidates,
+    ...peopleList.map((p) => ({ type: "contact" as const, id: p.id, label: p.data.name })),
+  ];
+
   // U1/U3 (2026-08-20): the home card drafts and sends. Before this it named
   // the email that needed him and then handed him a trip to another tab,
   // which is the same trip the count line used to make him take.
@@ -3312,6 +3390,13 @@ export default function TodayFlow({
         onDelete={remSheet.mode === "edit" ? () => void onDeleteReminder() : undefined}
         onPause={remSheet.mode === "edit" ? (p) => void onPauseReminder(p) : undefined}
         onAddToCalendar={remSheet.mode === "edit" ? () => void addRemindersToCalendar([remSheet.id]) : undefined}
+        onSkip={remSheet.mode === "edit" ? (date) => void onSkipReminder(date) : undefined}
+        onReschedule={remSheet.mode === "edit" ? (date, time) => void onRescheduleReminder(date, time) : undefined}
+        onKeepSchedule={remSheet.mode === "edit" ? () => void onKeepSchedule() : undefined}
+        onOpenLinked={onOpenEntity ? openLinked : undefined}
+        linkCandidates={linkCandidates}
+        today={today}
+        nowHHMM={nhm}
         onCancel={() => setRemSheet(null)}
       />
   );
@@ -3331,6 +3416,7 @@ export default function TodayFlow({
           onTick={(id, done) => void onTickReminder(id, done)}
           onSnooze={(id) => void onSnoozeReminder(id)}
           onPause={(id, paused) => void pauseReminderById(id, paused)}
+          onOpenLinked={onOpenEntity ? openLinked : undefined}
         />
         {remSheetNode}
       </>

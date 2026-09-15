@@ -81,3 +81,18 @@ describe("RemindersHome", () => {
     expect(onBack).toHaveBeenCalled();
   });
 });
+
+// PUSH C: a linked reminder's row carries its verb, and opening it never
+// completes it.
+describe("RemindersHome, the primary action", () => {
+  it("shows the verb for the linked record and opens it without ticking", () => {
+    const onOpenLinked = vi.fn(); const onTick = vi.fn(); const onOpen = vi.fn();
+    const link = { type: "email" as const, id: "th1", label: "Alberto" };
+    render(<RemindersHome items={[item({ time: "14:00", linkedItem: link }, "Follow Up With Alberto", "l1")]} today={TUE} now="09:30"
+      onBack={noop} onAdd={noop} onOpen={onOpen} onTick={onTick} onSnooze={noop} onPause={noop} onOpenLinked={onOpenLinked} />);
+    fireEvent.click(screen.getByText("Open Conversation"));
+    expect(onOpenLinked).toHaveBeenCalledWith(link);
+    expect(onTick).not.toHaveBeenCalled();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+});

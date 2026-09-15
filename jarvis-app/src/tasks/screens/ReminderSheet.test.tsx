@@ -176,3 +176,100 @@ describe("ReminderSheet", () => {
     expect(onPause).toHaveBeenCalledWith(false);
   });
 });
+
+// PUSH C (2026-09-15): what the reminder is about, this occurrence, the
+// advice, the history. Each of these writes at once, not on Save.
+describe("ReminderSheet, push C", () => {
+  const TUE = "2026-09-15";
+  const NOW = new Date(`${TUE}T09:00:00`).getTime();
+  const link = { type: "task" as const, id: "t9", label: "Bridge Priorities" };
+
+  it("a linked reminder leads with its verb, and the link rides in the save", () => {
+    const onOpenLinked = vi.fn();
+    const onSave = vi.fn();
+    render(<ReminderSheet mode="edit" today={TUE} nowHHMM="09:00" now={NOW} initial={{ text: "Bridge Planning", reminder: { time: "09:30", linkedItem: link } }}
+      onSave={onSave} onOpenLinked={onOpenLinked} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText("Open Task"));
+    expect(onOpenLinked).toHaveBeenCalledWith(link);
+    expect(screen.getAllByText("Bridge Priorities").length).toBe(2);
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![1].linkedItem).toEqual(link);
+  });
+
+  it("the picker links a record and No Link clears it", () => {
+    const onSave = vi.fn();
+    render(<ReminderSheet today={TUE} nowHHMM="09:00" now={NOW} linkCandidates={[{ type: "note", id: "n1", label: "Q3 Plan" }, { type: "contact", id: "p1", label: "Alberto" }]}
+      onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Reminder"), { target: { value: "Follow up" } });
+    fireEvent.click(screen.getByText("8 AM"));
+    fireEvent.click(screen.getAllByText("Linked Item")[1]!);
+    fireEvent.change(screen.getByLabelText("Search items to link"), { target: { value: "alb" } });
+    expect(screen.queryByText("Q3 Plan")).toBeNull();
+    fireEvent.click(screen.getByText("Alberto"));
+    expect(screen.getByText("Alberto")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![1].linkedItem).toEqual({ type: "contact", id: "p1", label: "Alberto" });
+  });
+
+  it("this occurrence can be moved or skipped, and says which day it means", () => {
+    const onSkip = vi.fn(); const onReschedule = vi.fn();
+    render(<ReminderSheet mode="edit" today={TUE} nowHHMM="09:00" now={NOW} initial={{ text: "Meds", reminder: { time: "21:00" } }}
+      onSave={() => {}} onSkip={onSkip} onReschedule={onReschedule} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText("Skip Today"));
+    expect(onSkip).toHaveBeenCalledWith(TUE);
+    fireEvent.change(screen.getByLabelText("Move this occurrence to"), { target: { value: "14:30" } });
+    expect(onReschedule).toHaveBeenCalledWith(TUE, "14:30");
+  });
+
+  it("a weekday reminder on a Saturday offers its Monday occurrence", () => {
+    const onSkip = vi.fn();
+    render(<ReminderSheet mode="edit" today="2026-09-19" nowHHMM="09:00" now={NOW} initial={{ text: "Bridge Planning", reminder: { time: "09:00", days: [1, 2, 3, 4, 5] } }}
+      onSave={() => {}} onSkip={onSkip} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText(/^Skip Mon/));
+    expect(onSkip).toHaveBeenCalledWith("2026-09-21");
+  });
+
+  it("three snoozes running is advice with three answers; nothing changes on its own", () => {
+    const onKeep = vi.fn(); const onPause = vi.fn(); const onSave = vi.fn();
+    const history = ["a", "b", "c"].map((at) => ({ at, kind: "snoozed" as const }));
+    render(<ReminderSheet mode="edit" today={TUE} nowHHMM="09:00" now={NOW} initial={{ text: "Meds", reminder: { time: "21:00", history } }}
+      onSave={onSave} onKeepSchedule={onKeep} onPause={onPause} onCancel={() => {}} />);
+    expect(screen.getByText("Snoozed the last 3 times · Choose a better time?")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Keep Schedule"));
+    expect(onKeep).toHaveBeenCalled();
+    fireEvent.click(screen.getAllByText("Pause")[0]!);
+    expect(onPause).toHaveBeenCalledWith(true);
+    expect(onSave).not.toHaveBeenCalled();
+    expect((screen.getByLabelText("Time") as HTMLInputElement).value).toBe("21:00");
+  });
+
+  it("Move It There puts the usual time in the field, and Save writes it", () => {
+    const onSave = vi.fn();
+    const history = Array.from({ length: 8 }, (_, i) => ({ at: `2026-09-0${i + 1}T21:45:00`, kind: "completed" as const }));
+    render(<ReminderSheet mode="edit" today={TUE} nowHHMM="09:00" now={NOW} initial={{ text: "Meds", reminder: { time: "21:00", history } }}
+      onSave={onSave} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText("Move It There"));
+    expect((screen.getByLabelText("Time") as HTMLInputElement).value).toBe("21:45");
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![1].time).toBe("21:45");
+  });
+
+  it("history reads newest first, in words", () => {
+    const history = [
+      { at: "2026-09-14T21:05:00", kind: "completed" as const },
+      { at: `${TUE}T08:00:00`, kind: "snoozed" as const, meta: { to: "08:10" } },
+    ];
+    render(<ReminderSheet mode="edit" today={TUE} nowHHMM="09:00" now={NOW} initial={{ text: "Meds", reminder: { time: "21:00", history } }}
+      onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getByText("History")).toBeInTheDocument();
+    expect(screen.getByText("Snoozed to 8:10 AM")).toBeInTheDocument();
+    expect(screen.getByText("Today, 8:00 AM")).toBeInTheDocument();
+    expect(screen.getByText("Yesterday, 9:05 PM")).toBeInTheDocument();
+  });
+
+  it("an unscheduled reminder has no occurrence to move or skip", () => {
+    render(<ReminderSheet mode="edit" today={TUE} nowHHMM="09:00" now={NOW} initial={{ text: "Call Mom", reminder: { time: "08:00", scheduleKind: "unscheduled" } }}
+      onSave={() => {}} onSkip={() => {}} onReschedule={() => {}} onCancel={() => {}} />);
+    expect(screen.queryByText("This Occurrence")).toBeNull();
+  });
+});

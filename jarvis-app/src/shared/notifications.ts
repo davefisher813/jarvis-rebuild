@@ -272,9 +272,15 @@ export async function cancelRestOver(): Promise<void> {
 // is a foreground action because opening the event is the entire point of it.
 export const TASK_ACTION_TYPE = "jarvis-task";
 export const EVENT_ACTION_TYPE = "jarvis-event";
+// THE REMINDERS REBUILD (2026-09-15, push C): a reminder's banner carries
+// the same three actions the app offers it, so a tap never lands on a dead
+// end: Open (the linked item, or the reminder), Done, Snooze 15m.
+export const REMINDER_ACTION_TYPE = "jarvis-reminder";
 export const ACTION_DONE = "done";
 export const ACTION_TOMORROW = "tomorrow";
 export const ACTION_OPEN = "open";
+export const ACTION_SNOOZE = "snooze";
+export const BANNER_SNOOZE_MIN = 15;
 
 // Registered once per launch. Memoised on the promise rather than a boolean
 // so the schedulers below can await it, and reset on failure so a transient
@@ -297,6 +303,14 @@ export function registerNotificationActions(): Promise<void> {
           {
             id: EVENT_ACTION_TYPE,
             actions: [{ id: ACTION_OPEN, title: "Open", foreground: true }],
+          },
+          {
+            id: REMINDER_ACTION_TYPE,
+            actions: [
+              { id: ACTION_OPEN, title: "Open", foreground: true },
+              { id: ACTION_DONE, title: "Done" },
+              { id: ACTION_SNOOZE, title: "Snooze 15m" },
+            ],
           },
         ],
       }))
@@ -671,7 +685,7 @@ export async function ensureTaskReminders(
           title: s.title,
           body: s.body,
           schedule: { at: s.at, allowWhileIdle: true },
-          actionTypeId: TASK_ACTION_TYPE,
+          actionTypeId: REMINDER_ACTION_TYPE,
           extra: { taskId: s.taskId },
         })),
       });

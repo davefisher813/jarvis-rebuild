@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import type { ReminderInfo, RepeatRule, FollowUpConfig } from "../../notes/types";
+import type { ReminderInfo, RepeatRule, FollowUpConfig, LinkedItem } from "../../notes/types";
+import { actionLabelFor, scheduleAdvice, adviceLine, recentEvents } from "../reminderHistory";
+import LinkedItemSheet, { type LinkCandidate } from "./LinkedItemSheet";
 import { repetitionsLine } from "../automaticity";
-import { nextOccurrence, describeRepeat, followUpOf, repeatRuleOf, scheduleKindOf, WEEKDAYS, WEEKENDS } from "../reminders";
+import { nextOccurrence, describeRepeat, followUpOf, repeatRuleOf, scheduleKindOf, runsOn, isDone, WEEKDAYS, WEEKENDS } from "../reminders";
 import { readQuick, morningTime, inMinutes } from "../quickReminder";
 import { FormSheet, Group, Row, FieldRow, MenuRow, Strip, Note, DeleteRow, ErrorLine, SwitchRow } from "../../shared/FormSheet";
-import { Clock, CalendarPlus, Calendar, Tag, CircleSlash, Hourglass } from "../../shared/icons";
+import { Clock, CalendarPlus, Calendar, Tag, CircleSlash, Hourglass, Link2, Forward } from "../../shared/icons";
 import { BellGlyph, RepeatGlyph, WarningGlyph } from "../../shared/glyphs";
 import { todayISO } from "../grouping";
 import { addDays, fmtTime } from "../../schedule/calendar";
@@ -83,6 +85,13 @@ export default function ReminderSheet({
   onAddToCalendar,
   onCancel,
   now = Date.now(),
+  onSkip,
+  onReschedule,
+  onKeepSchedule,
+  onOpenLinked,
+  linkCandidates = [],
+  today: todayProp,
+  nowHHMM,
 }: {
   initial?: { text: string; reminder: ReminderInfo; due?: string | null; category?: string };
   mode?: "new" | "edit";
@@ -95,9 +104,29 @@ export default function ReminderSheet({
   onAddToCalendar?: () => void;
   onCancel: () => void;
   now?: number;
+  /** Push C: this occurrence, the advice, the linked record. Each writes at once, not on Save. */
+  onSkip?: (date: string) => void;
+  onReschedule?: (date: string, time: string) => void;
+  onKeepSchedule?: () => void;
+  onOpenLinked?: (link: LinkedItem) => void;
+  linkCandidates?: LinkCandidate[];
+  today?: string;
+  nowHHMM?: string;
 }) {
-  const today = todayISO();
+  const today = todayProp ?? todayISO();
   const init = initial?.reminder;
+  const nowClock = nowHHMM ?? new Date(now).toTimeString().slice(0, 5);
+  // The record this reminder is about; written with the rest on Save.
+  const [link, setLink] = useState<LinkedItem | null>(init?.linkedItem ?? null);
+  const [pickingLink, setPickingLink] = useState(false);
+  const advice = mode === "edit" && init ? scheduleAdvice(init) : null;
+  const history = mode === "edit" && init ? recentEvents(init, today) : [];
+  // The occurrence the This Occurrence group is about: today's when it
+  // runs today and is not done, otherwise the next one.
+  const occurrence = mode === "edit" && init && scheduleKindOf(init) === "timed" && !init.paused
+    ? (runsOn(init, today) && !isDone(init, today) ? { date: today, time: init.movedTimes?.[today] ?? init.time } : nextOccurrence(init, today, nowClock))
+    : null;
+  const occurrenceWord = occurrence ? (occurrence.date === today ? "Today" : occurrence.date === addDays(today, 1) ? "Tomorrow" : whenLabel(occurrence.date, occurrence.time, today).split(",")[0] ?? occurrence.date) : "";
   const [text, setText] = useState(initial?.text ?? "");
   const [kind, setKind] = useState<"timed" | "unscheduled">(init ? scheduleKindOf(init) : "timed");
   const [time, setTime] = useState<string>(init?.time ?? "");
@@ -147,6 +176,7 @@ export default function ReminderSheet({
       repeat: rule,
       followUp: fu,
       tz: fixedZone ? tzName : "local",
+      linkedItem: link ?? undefined,
     };
   };
   const next = kind === "timed" && effTime ? nextOccurrence(draft(), today, new Date(now).toTimeString().slice(0, 5)) : null;
@@ -184,6 +214,25 @@ export default function ReminderSheet({
 
   return (
     <FormSheet title={mode === "edit" ? "Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"}>
+      {/* THE PRIMARY ACTION (push C): the verb that opens what this is about.
+          Opening never completes the reminder; the ring does that. */}
+      {mode === "edit" && link && onOpenLinked && (
+        <Group>
+          <Row tone="red" glyph={<Forward className="ic" />} label={actionLabelFor(link)} meta={link.label ?? ""} onClick={() => onOpenLinked(link)} chev />
+        </Group>
+      )}
+      {advice && (
+        <Group label="Advice">
+          <Note>{adviceLine(advice)}</Note>
+          <Strip>
+            {advice.kind === "later"
+              ? <button type="button" className="pill-act" onClick={() => { setTime(advice.time); setRepeatTouched(true); setErrTime(false); }}>Move It There</button>
+              : <button type="button" className="pill-act" onClick={() => { const el = document.querySelector<HTMLInputElement>("input[aria-label=\"Time\"]"); el?.focus(); }}>Change Time</button>}
+            {onPause && <button type="button" className="pill-act" onClick={() => onPause(true)}>Pause</button>}
+            {onKeepSchedule && <button type="button" className="pill-act" onClick={onKeepSchedule}>Keep Schedule</button>}
+          </Strip>
+        </Group>
+      )}
       <Group label="What to Remember">
         <FieldRow tone="orange" glyph={<BellGlyph />} value={text} onChange={(v) => { setText(v); setErrName(false); setReadOff(false); }} placeholder="Meds at 8 · every day"
           ariaLabel="Reminder" error={errName} right={false} onEnter={save} />
@@ -227,8 +276,23 @@ export default function ReminderSheet({
         )}
       </Group>
 
+      {occurrence && (onSkip || onReschedule) && (
+        <Group label="This Occurrence">
+          {onReschedule && (
+            <FieldRow tone="indigo" glyph={<Clock className="ic" />} label={"Move " + occurrenceWord + " To"} type="time" value={init?.movedTimes?.[occurrence.date] ?? ""} onChange={(v) => { if (/^\d{2}:\d{2}$/.test(v)) onReschedule(occurrence.date, v); }} ariaLabel="Move this occurrence to" />
+          )}
+          {onSkip && (
+            <Row tone="grey" glyph={<CircleSlash className="ic" />} label={"Skip " + occurrenceWord} meta="The series continues" onClick={() => onSkip(occurrence.date)} chev />
+          )}
+        </Group>
+      )}
+
       <details className="exp-more rem-more" open={moreOpen} onToggle={(e) => setMoreOpen((e.target as HTMLDetailsElement).open)}>
         <summary>More Options</summary>
+        <Group label="Linked Item">
+          <Row tone="sky" glyph={<Link2 className="ic" />} label="Linked Item" meta={link ? (link.label ?? "Linked") : "None"} onClick={() => setPickingLink(true)} chev />
+          <Note>What this reminder is about. Opening it never marks the reminder done.</Note>
+        </Group>
         {categories.length > 0 && (
           <Group label="Area">
             <MenuRow tone="blue" glyph={<Tag className="ic" />} label="Area" value={category} ariaLabel="Area"
@@ -262,6 +326,16 @@ export default function ReminderSheet({
           </Group>
         )}
       </details>
+
+      {history.length > 0 && (
+        <Group label="History">
+          {history.map((h, i) => <Row key={i} tone="grey" glyph={<Clock className="ic" />} label={h.word} meta={h.when} />)}
+        </Group>
+      )}
+
+      {pickingLink && (
+        <LinkedItemSheet candidates={linkCandidates} current={link} onPick={(l) => { setLink(l); setPickingLink(false); }} onCancel={() => setPickingLink(false)} />
+      )}
 
       {autoLine && (
         <Group label="So Far">

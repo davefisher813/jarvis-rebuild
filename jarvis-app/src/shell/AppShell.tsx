@@ -22,9 +22,10 @@ import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym, useSettings } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
-import { onNotificationTap, ensureTaskReminders, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW } from "../shared/notifications";
+import { onNotificationTap, ensureTaskReminders, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW, ACTION_SNOOZE, BANNER_SNOOZE_MIN } from "../shared/notifications";
+import { nowHHMM } from "../today/todayData";
 import { addDays } from "../schedule/calendar";
-import { isDone as isReminderDone } from "../tasks/reminders";
+import { isDone as isReminderDone, snoozeTime } from "../tasks/reminders";
 import { useDayKey } from "./useDayKey";
 import { useAI } from "../ai/useAI";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
@@ -116,6 +117,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const taskFilterIntent = useOneShot<string>();
   const projectIntent = useOneShot<string>();
   const eventIntent = useOneShot<string>();
+  // THE REMINDERS REBUILD (push C): a reminder banner's Open lands on the
+  // reminder itself, on Today, when it has no linked item to open instead.
+  const reminderIntent = useOneShot<string>();
   const goalIntent = useOneShot<string>();
   // Which Life segment a deep link wants. Undefined lets the tab remember.
   const [lifeSegment, setLifeSegment] = useState<"tasks" | "projects" | "goals" | undefined>(undefined);
@@ -374,6 +378,34 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     if (ok) showToast({ message: `Completed ${t.text}` });
   };
 
+  // SNOOZE FROM THE BANNER (the reminders rebuild, push C): fifteen minutes
+  // from the clock, the reminder's own snooze, logged as one; the ensure
+  // effect below reschedules the alert from the new time.
+  const snoozeFromBanner = async (taskId: string) => {
+    const t = await tasks.task(taskId);
+    if (!t?.reminder) return;
+    const today = todayISO();
+    if (isReminderDone(t.reminder, today)) return;
+    const to = snoozeTime(nowHHMM(), BANNER_SNOOZE_MIN);
+    const ok = await attemptWrite(() => tasks.snoozeReminder(taskId, to, today));
+    if (ok) showToast({ message: `Snoozed ${t.text} · ${BANNER_SNOOZE_MIN} minutes` });
+  };
+  // OPEN FROM THE BANNER: the linked item when there is one (opening never
+  // completes the reminder), otherwise the reminder on Today. Either way
+  // the open is written to its history.
+  const openFromBanner = async (taskId: string) => {
+    const t = await tasks.task(taskId);
+    if (!t?.reminder) { setActive("today"); return; }
+    void tasks.logReminderEvent(taskId, "notificationOpened");
+    const link = t.reminder.linkedItem;
+    if (link) {
+      const kind = link.type === "contact" ? "person" : link.type;
+      if (kind !== "healthItem") { void navigateToEntity(kind, link.id); return; }
+    }
+    reminderIntent.fire(taskId);
+    setActive("today");
+  };
+
   // TOMORROW, through the one push path. Auto-Sweep moves a task with
   // TasksService.setDue and nothing else (tasks/autoSweep.ts:103), which is
   // where the slips counter advances and task.pushed fires, so the banner
@@ -403,8 +435,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     return onNotificationTap((tap) => {
       if (tap.actionId === ACTION_DONE && tap.taskId) { void doneFromBanner(tap.taskId); return; }
       if (tap.actionId === ACTION_TOMORROW && tap.taskId) { void tomorrowFromBanner(tap.taskId); return; }
+      if (tap.actionId === ACTION_SNOOZE && tap.taskId) { void snoozeFromBanner(tap.taskId); return; }
       if (tap.kind === "reminder") {
-        if (tap.taskId) { taskIntent.fire(tap.taskId); goLife("tasks"); }
+        if (tap.taskId) void openFromBanner(tap.taskId);
         else setActive("today");
         return;
       }
@@ -546,7 +579,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             every once-per-open job (the sweep, the autopay roll, the spot,
             the Day Loop draft, Fresh Start, the mail dismissals) runs for
             the new day instead of yesterday's. See shell/useDayKey.ts. */}
-        {active === "today" && <TodayFlow key={dayKey} onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { goLife("tasks"); taskFilterIntent.fire("all"); }} onGoTasksOverdue={() => { goLife("tasks"); taskFilterIntent.fire("overdue"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); }} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
+        {active === "today" && <TodayFlow key={dayKey} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { goLife("tasks"); taskFilterIntent.fire("all"); }} onGoTasksOverdue={() => { goLife("tasks"); taskFilterIntent.fire("overdue"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); }} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
           /* UP-MIND-24 (2026-09-05): the meeting line's two taps. Both go to
              screens that already answer the question: the person's own card
              for what is open, and Chat for what you told them. */

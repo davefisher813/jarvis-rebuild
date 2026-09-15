@@ -1,6 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import type { TaskItem } from "../TasksService";
 import { homeSections, describeRepeat, repeatRuleOf, type HomeItem } from "../reminders";
+import { actionLabelFor } from "../reminderHistory";
+import type { LinkedItem } from "../../notes/types";
 import { fmtTime, addDays } from "../../schedule/calendar";
 import { catName, catColor } from "../../shared/categories";
 import LargeTitleNav from "../../shared/LargeTitleNav";
@@ -33,8 +35,10 @@ function whenWord(it: HomeItem, today: string): string {
 }
 
 export default function RemindersHome({
-  items, today, now, onBack, onAdd, onOpen, onTick, onSnooze, onPause,
+  items, today, now, onBack, onAdd, onOpen, onTick, onSnooze, onPause, onOpenLinked,
 }: {
+  /** Push C: the row's primary action opens what the reminder is about. */
+  onOpenLinked?: (link: LinkedItem) => void;
   items: TaskItem[];
   today: string;
   /** "HH:MM" */
@@ -94,6 +98,9 @@ export default function RemindersHome({
         {facts(it, tone)}
         {!it.time && !it.reminder.paused && <div className="rem-explain">No timed alert. Here until you clear it or give it a time.</div>}
       </div>
+      {it.reminder.linkedItem && onOpenLinked && !it.done && (
+        <button className="pill-act" onClick={() => onOpenLinked(it.reminder.linkedItem!)}>{actionLabelFor(it.reminder.linkedItem)}</button>
+      )}
       {extra}
     </div>
   );
