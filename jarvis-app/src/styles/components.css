@@ -1459,7 +1459,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* A row inside the section's card, not a card of its own: same padding and
    same hairline the strip and the task list already use, so Reminders sits
    at the density of the three lenses beside it in Life. */
-.rem-card { padding: var(--s-2h) var(--s-4); cursor: pointer; }
+.rem-card { padding: 8px var(--s-4); cursor: pointer; }
 .rem-card + .rem-card { position: relative; }
 .rem-card + .rem-card::before { content: ""; position: absolute;
   left: calc(var(--s-4) + 22px + var(--s-2h)); right: 0; top: 0; height: 0.5px; background: var(--divider); }
@@ -1477,10 +1477,15 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    font. So it is a min-width, not a width: the column lines up at the common
    case and the one wide clock takes the few pixels it needs instead of
    losing them. Tabular figures keep the digits themselves aligned. */
-.rem-time-gutter { flex-shrink: 0; min-width: 58px; white-space: nowrap; font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
+.rem-time-gutter { flex-shrink: 0; min-width: 56px; white-space: nowrap; font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
 .rem-time-gutter .ampm { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-2); margin-left: 2px; }
 .rem-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.rem-card-title { font-size: var(--t-h3); font-weight: var(--w-semi); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The task row's type, exactly (Dave 2026-09-15: "the font is too big").
+   .ruled .task-row .task-title is 16px at --w-regular with -0.01em; this row
+   was 17px at --w-semi, which read a size bigger AND a weight heavier than
+   the three lenses beside it in Life. Same numbers now, one place to change
+   if that row ever moves. */
+.rem-card-title { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* ONE FACTS LINE, ALWAYS (Dave 2026-09-15, v3). The shared .facts wraps by
    design; on this row a wrap is what turned a reminder into a three-line
    card, so here the line stays on one line. The facts are ordered so the
@@ -2922,7 +2927,8 @@ button {
 .rem-row + .rem-row::before { content: ""; position: absolute;
   left: calc(var(--s-4) + 22px + var(--s-3)); right: 0; top: 0; height: 0.5px; background: var(--divider); }
 .rem-time { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 46px; }
-.rem-name { font-size: var(--t-h3); color: var(--tx-1); display: flex; align-items: center; gap: var(--s-1h); min-width: 0; }
+/* The task row's type here too, so the strip and the Reminders page agree. */
+.rem-name { font-size: calc(16px * var(--type-scale)); letter-spacing: -0.01em; color: var(--tx-1); display: flex; align-items: center; gap: var(--s-1h); min-width: 0; }
 .rem-name-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The strip's facts line, the Reminders page's own (Dave 2026-09-15: "why is
    there a yellow dot and no category next to it"). The bare dot the strip
