@@ -21,9 +21,9 @@ const items = [
 ];
 
 describe("pageSections", () => {
-  it("Today is Ready Now and Later Today", () => {
+  it("Today is Now and Later Today", () => {
     const s = pageSections(items, "today", TUE, "09:30");
-    expect(s.map((x) => [x.label, x.rows.map((r) => r.id)])).toEqual([["Ready Now", ["now1"]], ["Later Today", ["later1"]]]);
+    expect(s.map((x) => [x.label, x.rows.map((r) => r.id)])).toEqual([["Now", ["now1"]], ["Later Today", ["later1"]]]);
   });
   it("Upcoming is Scheduled, Unscheduled and On an Action", () => {
     const s = pageSections(items, "upcoming", TUE, "09:30");

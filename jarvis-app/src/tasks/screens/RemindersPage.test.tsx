@@ -40,12 +40,12 @@ describe("RemindersPage", () => {
   it("a card is the door; the ring leads, a time gutter carries today's clock, and one pill answers (row anatomy corrected 2026-09-15)", () => {
     const onOpen = vi.fn(); const onOpenLinked = vi.fn(); const onSnooze = vi.fn(); const onTick = vi.fn();
     page("today", { onOpen, onOpenLinked, onSnooze, onTick });
-    expect(screen.getByText("Ready Now")).toBeInTheDocument();
+    expect(screen.getByText("Now")).toBeInTheDocument();
     // Time moved out of the facts line into its own gutter: "9:00" and "AM"
     // render separately rather than as one "Today · 9:00 AM" string.
     expect(screen.getByText("9:00")).toBeInTheDocument();
     expect(screen.getByText("AM")).toBeInTheDocument();
-    expect(screen.getAllByText("Today", { selector: ".fact.when" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Today", { selector: ".rem-flag-today" }).length).toBeGreaterThan(0);
     expect(screen.getByText("Weekdays")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Bridge Planning Before Jarvis"));
     expect(onOpen).toHaveBeenCalledWith("now1");

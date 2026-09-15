@@ -361,8 +361,9 @@ export function homeSections(items: TaskItem[], today: string, now: string, hori
   return out;
 }
 
-// THE REMINDERS PAGE (push E, 2026-09-15, Dave's interactive preview): four
-// views, each a few sections. Today is Ready Now and Later Today; Upcoming
+// THE REMINDERS PAGE (push E, 2026-09-15, Dave's interactive preview; the
+// section renamed Now on the row-anatomy correction the same day): four
+// views, each a few sections. Today is Now and Later Today; Upcoming
 // is Scheduled, Unscheduled and On an Action; Routines is Repeating and
 // Contextual, then Paused; Done is Completed Today and Skipped. A search
 // replaces the view with one section over every open reminder.
@@ -408,7 +409,7 @@ export function pageSections(items: TaskItem[], tab: PageTab, today: string, now
   let sections: PageSection[] = [];
   if (tab === "today") {
     sections = [
-      { label: "Ready Now", rows: h.now.map(open) },
+      { label: "Now", rows: h.now.map(open) },
       { label: "Later Today", rows: h.laterToday.map(open) },
     ];
   } else if (tab === "upcoming") {

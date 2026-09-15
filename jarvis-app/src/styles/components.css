@@ -1459,10 +1459,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-card { padding: var(--s-3) var(--s-4); margin-bottom: var(--s-2h); cursor: pointer; }
 .rem-card.current { border-left: 3px solid var(--warn); }
 .rem-card.done .rem-card-title { color: var(--tx-2); text-decoration: line-through; text-decoration-color: var(--tx-4); }
-/* Row anatomy corrected 2026-09-15: the ring leads (never an icon tile
-   beside it — two shapes for one fact), a fixed time gutter carries today's
-   clock time out of the facts line, then the body. Centred, not top-aligned,
-   so the leading controls sit against the middle of the two-line body. */
+/* Row anatomy corrected 2026-09-15, v3: a plain checkbox leads (`.cb`, the
+   existing reminder control, never an icon tile beside it: two shapes for
+   one fact), a fixed time gutter carries today's clock time out of the
+   facts line in plain grey, then the body. Centred, not top-aligned, so the
+   leading controls sit against the middle of the two-line body. */
 .rem-card-top { display: flex; align-items: center; gap: var(--s-3); }
 .rem-card-cb-space { width: 22px; flex-shrink: 0; }
 .rem-time-gutter { flex-shrink: 0; width: 46px; font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
@@ -1473,6 +1474,13 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-card-more .ic { width: 20px; height: 20px; }
 .rem-card .facts .fact.when { color: var(--warn); font-weight: var(--w-semi); }
 .rem-card .facts .fact.later { color: var(--tx-2); font-weight: var(--w-semi); }
+/* The one filled chip the facts line allows (Dave 2026-09-15, v3): the
+   "Today" urgency flag, so amber never collides with an orange-toned
+   category dot sitting right next to it the way plain amber text did. */
+.rem-flag-today { display: inline-flex; align-items: center; background: var(--warn-fill); color: var(--on-fill-dark); border-radius: var(--r-pill); padding: 1px 8px; font-size: var(--t-meta); font-weight: var(--w-bold); text-transform: uppercase; letter-spacing: 0.04em; }
+/* The one accent section head (ASTRA I3) gets a leading dot, same grammar
+   Schedule and Today already use for "the section about this minute". */
+.rem-now-dot { width: 6px; height: 6px; border-radius: var(--r-circle); background: var(--accent-chrome); flex-shrink: 0; }
 .rem-card-acts { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
 .rem-detail .sheet-form { padding-top: var(--s-1); }
 .rem-detail-head { padding: var(--s-2) var(--s-4) var(--s-3); display: flex; flex-direction: column; gap: var(--s-1h); }

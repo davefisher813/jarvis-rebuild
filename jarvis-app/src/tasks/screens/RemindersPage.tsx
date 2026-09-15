@@ -10,28 +10,34 @@ import { Check, Search, Plus, Ellipsis, Gauge } from "../../shared/icons";
 import { fmtTime } from "../../schedule/calendar";
 
 // THE REMINDERS PAGE (the reminders rebuild push E, 2026-09-15; row anatomy
-// corrected the same day after Dave's review of the interactive preview).
+// corrected the same day after Dave's review of the interactive preview;
+// corrected again, v3, 2026-09-15: one shape, one colour dot, one amber
+// signal).
 // The date as an eyebrow over "Reminders."; New Reminder as the page's one
 // filled red beside Search; four views as a segmented control; sections of
 // cards.
 //
 // The "On Your Radar" hero card is gone (Dave 2026-09-15: it matched no
-// other component in the app). Ready Now / Later Today already say what it
-// said; the first Ready Now row keeps its amber rail as the one thing that
-// used to need a hero.
+// other component in the app). Now / Later Today carry the same info the
+// hero did, as the app's standard dotted-leader section head with a count
+// (Now alone keeps the accent head, ASTRA I3 style: one page, one "look
+// here").
 //
-// A card is a door (the whole card opens the details): the ring leads (the
-// only thing that completes a reminder), a fixed time gutter for today's
-// timed occurrences, the title on one line, a facts line of inline coloured
-// words (the area in its colour via a single dot, "Today" in amber, the
-// rhythm plain (never filled chips, Dave 2026-09-15), the options glyph,
-// and exactly one action pill: the linked verb when there is one, otherwise
-// Snooze. No icon tile beside the ring: two shapes for one fact was the
-// exact "two circles" problem the row rules elsewhere in the app already
-// ban (Dave 2026-09-15). Every other action (including Snooze when a linked
-// verb already has the slot) lives one tap away in the detail sheet. A done
-// card offers Reopen Occurrence, a paused one Resume Reminder, a skipped one
-// Restore Occurrence.
+// A card is a door (the whole card opens the details): a plain checkbox
+// leads (`.cb`, the existing reminder control, not a task ring: v1 drew it
+// as one and the v3 correction named the mistake), a fixed time gutter for
+// today's timed occurrences in plain grey, the title on one line, a facts
+// line of inline words (the area in its colour via a single dot, its name
+// left plain grey, then a filled amber "Today" chip when due today, the
+// one amber signal on the row now that the time is grey again, and the one
+// filled chip the facts line allows, Dave 2026-09-15 v3), the options
+// glyph, and exactly one action pill: the linked verb when there is one,
+// otherwise Snooze. No icon tile beside the checkbox: two shapes for one
+// fact was the exact "two circles" problem the row rules elsewhere in the
+// app already ban (Dave 2026-09-15). Every other action (including Snooze
+// when a linked verb already has the slot) lives one tap away in the detail
+// sheet. A done card offers Reopen Occurrence, a paused one Resume
+// Reminder, a skipped one Restore Occurrence.
 
 export interface PageChrome {
   back?: string;
@@ -114,7 +120,7 @@ export default function RemindersPage({
             <div className="facts">
               {!dueToday && <span className={"fact " + (it.state === "open" ? tone : "")}>{when}</span>}
               {area && <span className="fact cat"><span className={"cd cat-bg-" + catColor(it.category)} />{area}</span>}
-              {dueToday && <span className="fact when">Today</span>}
+              {dueToday && <span className="fact rem-flag-today">Today</span>}
               {timed && rule.kind !== "once" && <span className="fact">{describeRepeat(rule)}</span>}
             </div>
           </div>
@@ -169,8 +175,11 @@ export default function RemindersPage({
       )}
       {sections.map((s) => (
         <div key={s.label}>
-          <div className={"sh2" + (s.label === "Ready Now" ? "" : " sh2-quiet")}><span className="t">{s.label}</span><span className="n">{s.rows.length}</span></div>
-          <div className="pad-x">{s.rows.map((it, i) => card(it, s.label === "Ready Now" && i === 0))}</div>
+          <div className={"sh2" + (s.label === "Now" ? "" : " sh2-quiet")}>
+            {s.label === "Now" && <span className="rem-now-dot" aria-hidden="true" />}
+            <span className="t">{s.label}</span><span className="n">{s.rows.length}</span>
+          </div>
+          <div className="pad-x">{s.rows.map((it, i) => card(it, s.label === "Now" && i === 0))}</div>
         </div>
       ))}
       <div className="screen-foot" />
