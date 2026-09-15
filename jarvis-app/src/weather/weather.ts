@@ -138,9 +138,45 @@ export function staleSuffix(snap: WeatherSnapshot, now: () => number = Date.now)
   return ` · Checked ${Math.round(mins / 60)} hr ago`;
 }
 
+// WHICH WEATHER IT IS (Dave, 2026-09-15: "add weather emojis when there's a
+// weather notification. Right now it's just grey text that looks terrible").
+//
+// It was a bare string in --tx-3, the same ink as "Until 10:00 AM" and every
+// other meta line on the page, so "Rain likely 2 PM-5 PM" had exactly the
+// weight of page furniture. A forecast you have to read to notice is not
+// doing its job.
+//
+// The KIND is decided here, beside the thresholds that choose the wording,
+// rather than by a component re-reading the finished sentence to guess what
+// it was about. Four conditions, because four is what this file measures.
+//
+// These are the app's first emoji, and they earn it: a glyph would need a
+// colour to carry rain-versus-heat, colour on this page is spoken for (one
+// coloured fact per line), and an emoji brings its own without spending the
+// page's. They are the neutral weather symbols, never the faces -- a
+// forecast reports, it does not react.
+export type WeatherKind = "rain" | "hot" | "cold" | "wind";
+
+export const WEATHER_EMOJI: Record<WeatherKind, string> = {
+  rain: "\u{1F327}\u{FE0F}",
+  hot: "\u2600\u{FE0F}",
+  cold: "\u2744\u{FE0F}",
+  wind: "\u{1F4A8}",
+};
+
+export interface WeatherFact {
+  kind: WeatherKind;
+  /** The sentence, exactly as the line has always read it. */
+  text: string;
+}
+
 // The morning line: today's first rain window, or the day's extreme, or
 // nothing. One sentence, one fact.
-export function morningLine(snap: WeatherSnapshot, todayIso: string, now: () => number = Date.now): string | null {
+//
+// morningLine/eventLine below are the string forms, kept as one-liners onto
+// these: every existing caller and test reads a string, and the sentence they
+// read has not changed.
+export function morningFact(snap: WeatherSnapshot, todayIso: string, now: () => number = Date.now): WeatherFact | null {
   const stale = staleSuffix(snap, now);
   if (stale === null) return null;
   const { hourly } = snap;
@@ -162,24 +198,29 @@ export function morningLine(snap: WeatherSnapshot, todayIso: string, now: () => 
     const line = until && until.startsWith(todayIso)
       ? `Rain likely ${fmtHour(hourly.time[rainStart]!)}-${fmtHour(until)}`
       : `Rain likely from ${fmtHour(hourly.time[rainStart]!)}`;
-    return line + stale;
+    return { kind: "rain", text: line + stale };
   }
 
   const temps = idx.map(({ i }) => hourly.tempF[i] ?? 70);
   const hi = Math.max(...temps);
   const lo = Math.min(...temps);
-  if (hi >= HOT_F) return `${Math.round(hi)} At the peak` + stale;
-  if (lo <= COLD_F) return `Down to ${Math.round(lo)}` + stale;
+  if (hi >= HOT_F) return { kind: "hot", text: `${Math.round(hi)} At the peak` + stale };
+  if (lo <= COLD_F) return { kind: "cold", text: `Down to ${Math.round(lo)}` + stale };
 
   const wind = Math.max(...idx.map(({ i }) => hourly.windMph[i] ?? 0));
-  if (wind >= WINDY_MPH) return `Wind to ${Math.round(wind)} mph` + stale;
+  if (wind >= WINDY_MPH) return { kind: "wind", text: `Wind to ${Math.round(wind)} mph` + stale };
 
   return null; // mild: silence
 }
 
+/** The string form, unchanged for every caller that wants a sentence. */
+export function morningLine(snap: WeatherSnapshot, todayIso: string, now: () => number = Date.now): string | null {
+  return morningFact(snap, todayIso, now)?.text ?? null;
+}
+
 // The day-of line for an event with a place: conditions at its start hour,
 // only when a threshold is crossed there.
-export function eventLine(snap: WeatherSnapshot, dateIso: string, startHHMM: string, now: () => number = Date.now): string | null {
+export function eventFact(snap: WeatherSnapshot, dateIso: string, startHHMM: string, now: () => number = Date.now): WeatherFact | null {
   const stale = staleSuffix(snap, now);
   if (stale === null) return null;
   const i = hourIndex(snap.hourly, `${dateIso}T${startHHMM.slice(0, 2)}:00`);
@@ -187,9 +228,14 @@ export function eventLine(snap: WeatherSnapshot, dateIso: string, startHHMM: str
   const p = snap.hourly.precipProb[i] ?? 0;
   const t = snap.hourly.tempF[i];
   const w = snap.hourly.windMph[i] ?? 0;
-  if (p >= RAIN_PROB_MIN) return `Rain likely at start` + stale;
-  if (t !== undefined && t >= HOT_F) return `${Math.round(t)} At start` + stale;
-  if (t !== undefined && t <= COLD_F) return `${Math.round(t)} At start` + stale;
-  if (w >= WINDY_MPH) return `Wind to ${Math.round(w)} mph at start` + stale;
+  if (p >= RAIN_PROB_MIN) return { kind: "rain", text: `Rain likely at start` + stale };
+  if (t !== undefined && t >= HOT_F) return { kind: "hot", text: `${Math.round(t)} At start` + stale };
+  if (t !== undefined && t <= COLD_F) return { kind: "cold", text: `${Math.round(t)} At start` + stale };
+  if (w >= WINDY_MPH) return { kind: "wind", text: `Wind to ${Math.round(w)} mph at start` + stale };
   return null;
+}
+
+/** The string form, unchanged for every caller that wants a sentence. */
+export function eventLine(snap: WeatherSnapshot, dateIso: string, startHHMM: string, now: () => number = Date.now): string | null {
+  return eventFact(snap, dateIso, startHHMM, now)?.text ?? null;
 }

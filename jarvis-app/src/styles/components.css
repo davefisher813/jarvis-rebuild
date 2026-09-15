@@ -2302,8 +2302,19 @@ button {
 /* Weather Fact (addendum item 4, LOCKED-CSS CHANGE FLAGGED): one quiet line
    on Today, one inline fragment on an event row. Facts wear meta styling;
    weather gets no color, no icon, no theater. */
-.weather-line { margin-top: var(--s-1); }
-.weather-inline { font-size: var(--t-meta); color: var(--tx-3); }
+/* THE FORECAST IS NOT PAGE FURNITURE (2026-09-15, Dave: "right now it's just
+   grey text that looks terrible"). Both lines sat at --tx-3, the meta ink
+   every "Until 10:00 AM" uses, so a rain warning had the weight of a label.
+   The symbol carries the condition and the words read at --tx-2, one step up,
+   which is as loud as a fact that is not asking for a tap ever gets. */
+.weather-line { margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tx-2); }
+.weather-inline { font-size: var(--t-meta); color: var(--tx-2); }
+/* Sized off the line rather than the root so it scales with the text it
+   leads, and given its own right margin so the glyph never touches the word.
+   line-height 1 keeps an emoji from pushing the row taller than its
+   neighbours, which is the usual cost of putting one in a list. */
+.weather-ico { margin-right: var(--s-1h); font-size: 1.15em; line-height: 1;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
 
 /* Music Tier 1 (addendum item 5, LOCKED-CSS CHANGE FLAGGED): the paste-a-link
    field inside the music picker row. Chips are standard .chip anatomy. */

@@ -9,6 +9,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   morningLine,
   eventLine,
+  morningFact,
+  eventFact,
+  WEATHER_EMOJI,
   staleSuffix,
   getWeather,
   writeCoords,
@@ -108,5 +111,62 @@ describe("location is coarse", () => {
   it("stores two decimals, a neighborhood, nothing finer", () => {
     writeCoords({ lat: 41.05366789, lon: -73.53879123 });
     expect(readCoords()).toEqual({ lat: 41.05, lon: -73.54 });
+  });
+});
+
+// THE SYMBOL IS PICKED WHERE THE SENTENCE IS (2026-09-15, Dave: "add weather
+// emojis when there's a weather notification. Right now it's just grey text
+// that looks terrible"). The kind rides with the words rather than being
+// guessed later by re-reading them, so a reworded sentence can never end up
+// under the wrong glyph.
+describe("weather facts carry their condition", () => {
+  const wsnap = (over: Partial<WeatherSnapshot["hourly"]> = {}): WeatherSnapshot => ({
+    fetchedAt: Date.now(),
+    hourly: {
+      time: ["2026-09-15T08:00", "2026-09-15T09:00", "2026-09-15T10:00"],
+      precipProb: [0, 0, 0],
+      tempF: [70, 70, 70],
+      windMph: [2, 2, 2],
+      ...over,
+    },
+  } as WeatherSnapshot);
+
+  it("names rain, and says the same sentence the string form always said", () => {
+    const s = wsnap({ precipProb: [0, 80, 80] });
+    const fact = morningFact(s, "2026-09-15");
+    expect(fact?.kind).toBe("rain");
+    expect(fact?.text).toBe(morningLine(s, "2026-09-15"));
+    expect(fact?.text).toMatch(/^Rain likely/);
+  });
+
+  it("names heat, cold and wind off the same thresholds as the words", () => {
+    expect(morningFact(wsnap({ tempF: [70, 96, 80] }), "2026-09-15")?.kind).toBe("hot");
+    expect(morningFact(wsnap({ tempF: [70, 20, 60] }), "2026-09-15")?.kind).toBe("cold");
+    expect(morningFact(wsnap({ windMph: [2, 40, 3] }), "2026-09-15")?.kind).toBe("wind");
+  });
+
+  it("stays silent on a mild day, glyph and all", () => {
+    expect(morningFact(wsnap(), "2026-09-15")).toBeNull();
+    expect(morningLine(wsnap(), "2026-09-15")).toBeNull();
+  });
+
+  it("does the same for an event's own hour", () => {
+    const s = wsnap({ precipProb: [0, 90, 0] });
+    const fact = eventFact(s, "2026-09-15", "09:00");
+    expect(fact?.kind).toBe("rain");
+    expect(fact?.text).toBe(eventLine(s, "2026-09-15", "09:00"));
+  });
+
+  it("has a symbol for every condition it can report, and none of them is a face", () => {
+    for (const k of ["rain", "hot", "cold", "wind"] as const) {
+      expect(WEATHER_EMOJI[k], `${k} has no symbol`).toBeTruthy();
+    }
+    // A forecast reports; it does not react. No 🥵 / 🥶 / ☹️ shapes here.
+    const faces = /[\u{1F600}-\u{1F64F}]|[\u{1F910}-\u{1F97F}]/u;
+    for (const v of Object.values(WEATHER_EMOJI)) expect(v).not.toMatch(faces);
+  });
+
+  it("gives each condition its own symbol, so two never read alike", () => {
+    expect(new Set(Object.values(WEATHER_EMOJI)).size).toBe(4);
   });
 });

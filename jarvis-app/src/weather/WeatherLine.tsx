@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getWeather, morningLine, eventLine, readCoords, writeCoords, readSnapshot } from "./weather";
+import { getWeather, morningFact, eventFact, WEATHER_EMOJI, readCoords, writeCoords, readSnapshot, type WeatherFact } from "./weather";
 import NoticeCard from "../today/NoticeCard";
 import { CloudGlyph } from "../shared/glyphs";
 import { showToast } from "../shared/toast";
@@ -9,32 +9,52 @@ import { showToast } from "../shared/toast";
 // no location, or while loading. Weather never blocks a paint and never
 // adjusts a number anywhere else in the app.
 
+// THE FORECAST LEADS WITH WHAT IT IS (Dave, 2026-09-15: "add weather emojis
+// when there's a weather notification. Right now it's just grey text that
+// looks terrible").
+//
+// Both lines rendered a bare sentence in the page's meta ink, which is the
+// same ink as "Until 10:00 AM" and every other piece of furniture around
+// them -- so the one line on the page that might change what he wears read
+// as the quietest thing on it. The symbol goes first, where the eye lands,
+// and the words step up out of --tx-3 to the reading ink they should always
+// have had. aria-hidden on the glyph: a screen reader gets "Rain likely 2 PM
+// to 5 PM", which already says it, not "cloud with rain" in front of it.
+function Fact({ fact }: { fact: WeatherFact }) {
+  return (
+    <>
+      <span className="weather-ico" aria-hidden="true">{WEATHER_EMOJI[fact.kind]}</span>
+      {fact.text}
+    </>
+  );
+}
+
 export function MorningWeatherLine({ todayIso }: { todayIso: string }) {
-  const [line, setLine] = useState<string | null>(() => {
+  const [fact, setFact] = useState<WeatherFact | null>(() => {
     const snap = readSnapshot();
-    return snap ? morningLine(snap, todayIso) : null;
+    return snap ? morningFact(snap, todayIso) : null;
   });
   useEffect(() => {
     let on = true;
-    void getWeather().then((snap) => { if (on && snap) setLine(morningLine(snap, todayIso)); });
+    void getWeather().then((snap) => { if (on && snap) setFact(morningFact(snap, todayIso)); });
     return () => { on = false; };
   }, [todayIso]);
-  if (!line) return null;
-  return <div className="conn-meta weather-line">{line}</div>;
+  if (!fact) return null;
+  return <div className="weather-line"><Fact fact={fact} /></div>;
 }
 
 export function EventWeatherLine({ dateIso, start }: { dateIso: string; start: string }) {
-  const [line, setLine] = useState<string | null>(() => {
+  const [fact, setFact] = useState<WeatherFact | null>(() => {
     const snap = readSnapshot();
-    return snap ? eventLine(snap, dateIso, start) : null;
+    return snap ? eventFact(snap, dateIso, start) : null;
   });
   useEffect(() => {
     let on = true;
-    void getWeather().then((snap) => { if (on && snap) setLine(eventLine(snap, dateIso, start)); });
+    void getWeather().then((snap) => { if (on && snap) setFact(eventFact(snap, dateIso, start)); });
     return () => { on = false; };
   }, [dateIso, start]);
-  if (!line) return null;
-  return <span className="weather-inline">{line}</span>;
+  if (!fact) return null;
+  return <span className="weather-inline"><Fact fact={fact} /></span>;
 }
 
 const OFFER_KEY = "jarvis.weather.offer.v1";
