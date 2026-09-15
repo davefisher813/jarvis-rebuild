@@ -123,6 +123,10 @@ The sheet (`tasks/screens/ReminderSheet.tsx`) is the quick form the brief asked 
 
 Departures, each stated in the commit: a repeating reminder writes its start to the reminder and leaves the task's own due null, so it never reads as an overdue task (a one-off still writes its day to due, as before); the calendar export stays native (the ICS share sheet works there) and is renamed Export to Calendar; Delete keeps the app's own destructive row rather than the preview's red-on-pill button; the "Choose Date & Time" shortcut focuses the day field rather than opening a second picker, since the fields are already on the sheet. Not looked at on a device. Pushes B (Reminders Home and the Today summary), C (linking, snooze, reschedule, skip, history) and D (context triggers, health linking, notification settings with a test send) follow.
 
+## The reminders rebuild, push B: Reminders Home and the Today door
+
+Phase 3. `tasks/screens/RemindersHome.tsx` is a screen pushed from Today (the strip's See All), the way the event page is, never a tab (decision 2 of the handoff). `homeSections` in `tasks/reminders.ts` organises by when: Now (due or past on the day, not done), Later Today, Upcoming (the next occurrence within 30 days for what is not running today), Unscheduled, then Paused and Completed Today collapsed to one disclosure each. A row is the strip's row with a facts line under the name (the when in the warm tone for today and secondary for later, the area with its dot, the rhythm), inline words with middle dots and never filled chips; the whole row opens the sheet (`rowDoor`), the ring is the only thing that completes, Snooze 10m is the strip's own, an unscheduled row explains itself and offers Add a Time, a paused row offers Resume. The bar's Add and the empty state's Add a Reminder open the quick form; the sheet mounts over the page as it does over Today. The other clock surfaces now ask the invariant: the category page's task kicker goes through `timeLabelFor`, and the calendar export skips unscheduled and paused reminders. Quick Capture already turns "meds at 8 every day" into a reminder through Smart Paste, so Reminder needed no new capture kind. Not looked at on a device.
+
 ## How Cowork work lands
 
 Cowork cannot push to this repo (403). It hands over a `git format-patch` file in `Claude outputs/`; apply it with `git checkout -b claude/<name> <base>` and `git am <file>`, run the full gate, fast-forward main, push, poll CI. The 14 Sep patch applied clean on `b856c34`, gated green (5,551 tests) and CI green as `e900709`.
@@ -157,7 +161,7 @@ The live project is ref `roonancpktqigdndrumo` ("Javris Project", org "Jarvis", 
 
 ## Open items
 
-- The reminders rebuild, pushes B to D (see its section above); Reminder as a Quick Capture kind; the morning-time settings row.
+- The reminders rebuild, pushes C and D (see its sections above); the morning-time settings row.
 - Migration 0040, to apply.
 - Track 3's blockers above; the round-robin booking shape is undesigned.
 - The reference's finish page has an effort select inline; JARVIS opens the 1 to 10 screen from the receipt. Fine unless Dave wants it inline.

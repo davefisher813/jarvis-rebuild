@@ -95,6 +95,7 @@ import { loadMailSnapshot, mailNotices, type MailNotice } from "../messages/home
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
+import RemindersHome from "../tasks/screens/RemindersHome";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
 import { stripReminders, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
 import { remindersToIcs, saveIcsFile } from "../tasks/ics";
@@ -767,6 +768,9 @@ export default function TodayFlow({
   // rather than sending him somewhere: one door, one destination, wherever the
   // event was tapped. Edit on the page opens the sheet this used to open.
   const [eventDetail, setEventDetail] = useState<string | null>(null);
+  // REMINDERS HOME (the reminders rebuild push B, 2026-09-15): a screen
+  // pushed from the strip's See All, the way the event page is; not a route.
+  const [remHome, setRemHome] = useState(false);
   const [eventDetailNotes, setEventDetailNotes] = useState<{ id: string; title: string }[]>([]);
   useEffect(() => {
     if (!eventDetail) { setEventDetailNotes([]); return; }
@@ -2006,7 +2010,6 @@ export default function TodayFlow({
   // into a session was Resume on one already running.
   const gymDoor = useGymDoor(todayEvents, today, today);
 
-  if (loading) return <SkeletonScreen />;
 
   // THE EVENT'S OWN PAGE (2026-09-09), pushed the same way the gym door and
   // Brain's category page are: a screen, not a route. Read here and handed
@@ -2890,13 +2893,16 @@ export default function TodayFlow({
     // moment it fires, or the word Unscheduled, never a generic "Saved".
     if (ok) showToast({ message: extra.receipt });
   };
+  const pauseReminderById = async (id: string, paused: boolean) => {
+    const ok = await attemptWrite(() => tasks.pauseReminder(id, paused));
+    await reload();
+    if (ok) showToast({ message: paused ? "Paused · No alerts until you resume" : "Resumed" });
+  };
   const onPauseReminder = async (paused: boolean) => {
     const sheet = remSheet;
     if (!sheet || sheet.mode !== "edit") return;
     setRemSheet(null);
-    const ok = await attemptWrite(() => tasks.pauseReminder(sheet.id, paused));
-    await reload();
-    if (ok) showToast({ message: paused ? "Paused · No alerts until you resume" : "Resumed" });
+    await pauseReminderById(sheet.id, paused);
   };
   // B4 (2026-09-04): "If You Miss It" defaults every reminder to "Ask Again
   // in 15m" (ReminderSheet.tsx's onMiss "nag"), but nothing ever read that
@@ -3297,6 +3303,40 @@ export default function TodayFlow({
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
+  const remSheetNode = remSheet && (
+      <ReminderSheet
+        mode={remSheet.mode}
+        initial={remSheet.mode === "edit" ? { text: remSheet.text, reminder: remSheet.reminder, due: remSheet.due, category: remSheet.category } : undefined}
+        categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color as string }))}
+        onSave={(text, r, extra) => void onSaveReminder(text, r, extra)}
+        onDelete={remSheet.mode === "edit" ? () => void onDeleteReminder() : undefined}
+        onPause={remSheet.mode === "edit" ? (p) => void onPauseReminder(p) : undefined}
+        onAddToCalendar={remSheet.mode === "edit" ? () => void addRemindersToCalendar([remSheet.id]) : undefined}
+        onCancel={() => setRemSheet(null)}
+      />
+  );
+
+  if (loading) return <SkeletonScreen />;
+
+  if (remHome) {
+    return (
+      <>
+        <RemindersHome
+          items={taskItems}
+          today={today}
+          now={nhm}
+          onBack={() => setRemHome(false)}
+          onAdd={() => setRemSheet({ mode: "new" })}
+          onOpen={openReminder}
+          onTick={(id, done) => void onTickReminder(id, done)}
+          onSnooze={(id) => void onSnoozeReminder(id)}
+          onPause={(id, paused) => void pauseReminderById(id, paused)}
+        />
+        {remSheetNode}
+      </>
+    );
+  }
+
   return (
     <>
     <TodayPage
@@ -3408,6 +3448,7 @@ export default function TodayFlow({
           onAdd={() => setRemSheet({ mode: "new" })}
           onOpen={openReminder}
           onAddAllToCalendar={() => void addRemindersToCalendar()}
+          onSeeAll={() => setRemHome(true)}
         />
       }
       notices={notices}
@@ -3640,18 +3681,7 @@ export default function TodayFlow({
         }}
       />
     )}
-    {remSheet && (
-      <ReminderSheet
-        mode={remSheet.mode}
-        initial={remSheet.mode === "edit" ? { text: remSheet.text, reminder: remSheet.reminder, due: remSheet.due, category: remSheet.category } : undefined}
-        categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color as string }))}
-        onSave={(text, r, extra) => void onSaveReminder(text, r, extra)}
-        onDelete={remSheet.mode === "edit" ? () => void onDeleteReminder() : undefined}
-        onPause={remSheet.mode === "edit" ? (p) => void onPauseReminder(p) : undefined}
-        onAddToCalendar={remSheet.mode === "edit" ? () => void addRemindersToCalendar([remSheet.id]) : undefined}
-        onCancel={() => setRemSheet(null)}
-      />
-    )}
+    {remSheetNode}
     </>
   );
 }

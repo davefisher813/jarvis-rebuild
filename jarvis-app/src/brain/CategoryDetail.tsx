@@ -28,6 +28,7 @@ import { Plus } from "../shared/icons";
 import { eventLog } from "../events";
 import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
+import { timeLabelFor } from "../tasks/reminders";
 import { nextActionOf } from "../bigger/related";
 import { dayPhrase } from "../money/bills";
 import { fmtTime, addMinutes, addDays, eventsForDate } from "../schedule/calendar";
@@ -1517,7 +1518,9 @@ export default function CategoryDetail({
           should have the same clearing ability as well"). */}
       <div className="pad-x"><div className="card list-card-ruled">
         {open.map((t) => {
-          const rem = t.data.reminder?.time;
+          // THE INVARIANT (the reminders rebuild): an unscheduled reminder
+          // prints no clock, here as everywhere.
+          const rem = t.data.reminder ? timeLabelFor(t.data.reminder, today) : null;
           return (
             <TaskRow
               key={t.id}

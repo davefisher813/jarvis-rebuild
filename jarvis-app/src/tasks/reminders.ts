@@ -307,3 +307,55 @@ export function fireAt(date: string, time: string, tz?: string): Date {
 export function timeLabelFor(r: ReminderInfo, today: string): string | null {
   return scheduleKindOf(r) === "unscheduled" ? null : effectiveTime(r, today);
 }
+
+// REMINDERS HOME (the reminders rebuild push B, 2026-09-15): the page is
+// organised by when, never an endless list. Now is what is due or past on
+// the day and not yet done; Later Today is the rest of today; Upcoming is
+// the next occurrence within the horizon for everything not running today;
+// Unscheduled sits after them; Paused and Completed collapse to one row
+// each so they never crowd out what is actionable.
+export interface HomeItem {
+  id: string;
+  text: string;
+  category: string;
+  reminder: ReminderInfo;
+  /** The occurrence this row is about: null for unscheduled and paused. */
+  date: string | null;
+  time: string | null;
+  done: boolean;
+}
+export interface HomeSections {
+  now: HomeItem[];
+  laterToday: HomeItem[];
+  upcoming: HomeItem[];
+  unscheduled: HomeItem[];
+  paused: HomeItem[];
+  completed: HomeItem[];
+}
+export function homeSections(items: TaskItem[], today: string, now: string, horizonDays = 30): HomeSections {
+  const out: HomeSections = { now: [], laterToday: [], upcoming: [], unscheduled: [], paused: [], completed: [] };
+  for (const it of items) {
+    const r = it.data.reminder;
+    if (!r || it.data.done) continue;
+    const base = { id: it.id, text: it.data.text, category: it.data.category ?? "", reminder: r };
+    if (r.paused) { out.paused.push({ ...base, date: null, time: null, done: false }); continue; }
+    const done = isDone(r, today);
+    if (scheduleKindOf(r) === "unscheduled") {
+      (done ? out.completed : out.unscheduled).push({ ...base, date: null, time: null, done });
+      continue;
+    }
+    if (done) { out.completed.push({ ...base, date: today, time: effectiveTime(r, today), done }); continue; }
+    if (runsOn(r, today)) {
+      const time = effectiveTime(r, today);
+      (toMin(time) <= toMin(now) ? out.now : out.laterToday).push({ ...base, date: today, time, done: false });
+      continue;
+    }
+    const next = nextOccurrence(r, today, now, horizonDays);
+    if (next) out.upcoming.push({ ...base, date: next.date, time: next.time, done: false });
+  }
+  const byTime = (a: HomeItem, b: HomeItem) => toMin(a.time ?? "00:00") - toMin(b.time ?? "00:00");
+  out.now.sort(byTime);
+  out.laterToday.sort(byTime);
+  out.upcoming.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? "") || byTime(a, b));
+  return out;
+}

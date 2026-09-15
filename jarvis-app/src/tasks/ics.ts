@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 import type { ReminderInfo } from "../notes/types";
+import { scheduleKindOf } from "./reminders";
 
 // CALENDAR HANDOFF (Dave 2026-08-19: "whatever you can within the iOS").
 //
@@ -91,6 +92,9 @@ export function remindersToIcs(items: IcsReminder[], today: string, stamp = "202
     "METHOD:PUBLISH",
   ];
   for (const it of items) {
+    // An unscheduled reminder has no moment to put on a calendar; a paused
+    // series has none until it resumes.
+    if (scheduleKindOf(it.reminder) === "unscheduled" || it.reminder.paused) continue;
     const start = dtStart(today, it.reminder.time);
     const end = dtStart(today, addMinutesToHHMM(it.reminder.time, 5));
     lines.push(

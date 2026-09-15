@@ -92,3 +92,18 @@ describe("remindersToIcs", () => {
     expect(remindersToIcs(one, TODAY)).toContain("\r\n");
   });
 });
+
+// THE REMINDERS REBUILD (2026-09-15): nothing without a moment goes on a
+// calendar. An unscheduled reminder and a paused series are left out.
+describe("remindersToIcs, the rebuilt fields", () => {
+  it("skips unscheduled and paused reminders and keeps the rest", () => {
+    const ics = remindersToIcs([
+      { id: "u", text: "Call Mom", reminder: { time: "08:00", scheduleKind: "unscheduled" } },
+      { id: "p", text: "Stretch", reminder: { time: "07:00", paused: true } },
+      { id: "t", text: "Meds", reminder: { time: "21:00" } },
+    ], "2026-09-15");
+    expect(ics).toContain("jarvis-reminder-t@");
+    expect(ics).not.toContain("jarvis-reminder-u@");
+    expect(ics).not.toContain("jarvis-reminder-p@");
+  });
+});

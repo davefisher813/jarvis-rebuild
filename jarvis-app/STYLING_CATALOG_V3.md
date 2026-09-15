@@ -686,6 +686,8 @@ The brief cites `JARVIS_UI_CONTRACT.md` as the locked styling source. No file of
 
 **THE INVARIANT.** No surface renders a clock beside an unscheduled reminder. The Today strip prints the word Unscheduled in secondary ink (`.rem-unsch`) where the time would be; the model's `timeLabelFor` is null for it and every new surface asks that before printing a time.
 
+**REMINDERS HOME (push B).** A screen with the large-title nav (back to Today, one bar action, Add), organised by when: Now wears the section accent, Later Today, Upcoming and Unscheduled are quiet heads with counts, Paused and Completed Today are disclosures. Rows are the strip's row (`.rem-home .rem-row`) with a facts line under the name (`.facts`: the when in `.fact.when` warm for today and `.fact.later` secondary beyond, the area as `.fact.cat` with its dot, the rhythm plain) and at most one pill after it (Snooze 10m, Add a Time, Resume). No filled chips on a row; the only red on the page is the Now head.
+
 **EDIT MODE.** A Series group with one row, Pause or Resume. A More Actions disclosure at the foot holding Export to Calendar and Delete Reminder, the app's own destructive row, never beside Save.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
