@@ -55,10 +55,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
 
   const [items, setItems] = useState<TaskItem[]>([]);
   const [cats, setCats] = useState<{ id: string; name: string; color: string }[]>([]);
-  // The page shows one view, Today, since the fixture Dave signed off carries
-  // no view tabs (2026-09-15). pageSections still builds the others, so this
-  // is the only line that has to change to bring them back.
-  const tab: PageTab = "today";
+  const [tab, setTab] = useState<PageTab>("today");
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -197,6 +194,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
     await reload();
     if (ok) {
       showToast({ message: extra.receipt });
+      if (s.mode === "new") setTab(r.scheduleKind === "unscheduled" || (r.startDate && r.startDate > today) ? "upcoming" : "today");
     }
   };
   const saveSettings = async (p: ReminderPrefs) => {
@@ -224,6 +222,8 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
       <RemindersPage
         chrome={chrome ?? {}}
         sections={sections}
+        tab={tab}
+        onTab={setTab}
         query={query}
         onQuery={setQuery}
         searchOpen={searchOpen}

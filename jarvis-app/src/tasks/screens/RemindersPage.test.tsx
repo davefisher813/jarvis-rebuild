@@ -21,20 +21,27 @@ const items = [
 ];
 function page(tab: PageTab, extra: Partial<Parameters<typeof RemindersPage>[0]> = {}) {
   const sections = pageSections(items, tab, TUE, "09:30");
-  return render(<RemindersPage chrome={{ back: "Today", onBack: noop }} sections={sections}
+  return render(<RemindersPage chrome={{ back: "Today", onBack: noop }} sections={sections} tab={tab} onTab={noop}
     query="" onQuery={noop} searchOpen={false} onSearchToggle={noop} today={TUE} onNew={noop} onSettings={noop} onOpen={noop}
     onTick={noop} onSnooze={noop} onResume={noop} onRestore={noop} {...extra} />);
 }
 
 describe("RemindersPage", () => {
-  it("wears the date and the title, and goes straight to the sections (no hero, no view tabs, 2026-09-15)", () => {
-    page("today");
+  it("wears the date and the title, and the four views as chips, never a second tab bar (2026-09-15)", () => {
+    const onTab = vi.fn();
+    page("today", { onTab });
     expect(screen.getByText(/September 15/)).toBeInTheDocument();
     expect(screen.queryByText("On Your Radar")).not.toBeInTheDocument();
     expect(screen.queryByText("Take the Next Step")).not.toBeInTheDocument();
-    // The fixture carries no segmented control, so neither does the page.
+    // Life already spends the page's one segmented control on its own
+    // segments, so these choose as chips and nothing here is a tab.
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
-    expect(screen.queryByText("Upcoming")).not.toBeInTheDocument();
+    const chips = document.querySelectorAll(".chip-row .chip");
+    expect([...chips].map((c) => c.textContent)).toEqual(["Today", "Upcoming", "Routines", "Done"]);
+    expect(chips[0]).toHaveAttribute("aria-pressed", "true");
+    expect(chips[1]).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(screen.getByText("Upcoming"));
+    expect(onTab).toHaveBeenCalledWith("upcoming");
     expect(screen.getByText("New Reminder")).toBeInTheDocument();
     expect(screen.getByText("Search")).toBeInTheDocument();
   });
@@ -95,7 +102,7 @@ describe("RemindersPage", () => {
 
   it("with nothing in the view, the empty state carries its Add", () => {
     const onNew = vi.fn();
-    render(<RemindersPage chrome={{ back: "Today", onBack: noop }} sections={[]}
+    render(<RemindersPage chrome={{ back: "Today", onBack: noop }} sections={[]} tab="upcoming" onTab={noop}
       query="" onQuery={noop} searchOpen={false} onSearchToggle={noop} today={TUE} onNew={onNew} onSettings={noop} onOpen={noop}
       onTick={noop} onSnooze={noop} onResume={noop} onRestore={noop} />);
     expect(screen.getByText("Nothing Here Right Now")).toBeInTheDocument();

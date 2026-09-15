@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
 import type { LinkedItem } from "../../notes/types";
-import { type PageSection, type PageRow, whenWords, describeRepeat, repeatRuleOf, scheduleKindOf } from "../reminders";
+import { PAGE_TABS, type PageTab, type PageSection, type PageRow, whenWords, describeRepeat, repeatRuleOf, scheduleKindOf } from "../reminders";
 import { actionLabelFor } from "../reminderHistory";
 import { catName, catColor } from "../../shared/categories";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
@@ -16,12 +16,12 @@ import { fmtTime } from "../../schedule/calendar";
 // The date as an eyebrow over "Reminders."; New Reminder as the page's one
 // filled red beside Search; then sections of cards, straight away.
 //
-// NO VIEW TABS (Dave 2026-09-15, holding the fixture beside the build: "they
-// should look like clones if I put them side by side"). The segmented control
-// for Today / Upcoming / Routines / Done is not in the fixture, so it is not
-// on the page. pageSections still builds every one of those views and the
-// flow still asks it for "today", so restoring the control is putting this
-// block back, not rebuilding the views.
+// THE VIEWS ARE CHIPS, NOT A SECOND TAB BAR (Dave 2026-09-15: "we can't have
+// two tab bars on one page"). Life already spends the page's one segmented
+// control on Tasks / Reminders / Projects / Goals, so Today / Upcoming /
+// Routines / Done take the chip row Notes uses for its own filters: same
+// .chip-row .chip-wrap-row, same filled-when-chosen chip, wrapping rather
+// than scrolling. Chips choose, which is what these do.
 //
 // The "On Your Radar" hero card is gone (Dave 2026-09-15: it matched no
 // other component in the app). Now / Later Today carry the same info the
@@ -58,11 +58,13 @@ export interface PageChrome {
 }
 
 export default function RemindersPage({
-  chrome, sections, query, onQuery, searchOpen, onSearchToggle, today,
+  chrome, sections, tab, onTab, query, onQuery, searchOpen, onSearchToggle, today,
   onNew, onSettings, onOpen, onTick, onSnooze, onOpenLinked, onResume, onRestore,
 }: {
   chrome: PageChrome;
   sections: PageSection[];
+  tab: PageTab;
+  onTab: (t: PageTab) => void;
   query: string;
   onQuery: (q: string) => void;
   searchOpen: boolean;
@@ -175,6 +177,12 @@ export default function RemindersPage({
           <button type="button" className="btn btn-primary" onClick={onNew}><Plus className="ic" />New Reminder</button>
           <button type="button" className={"btn btn-secondary" + (searchOpen ? " on" : "")} aria-pressed={searchOpen} onClick={onSearchToggle}><Search className="ic" />Search</button>
         </div>
+      </div>
+      <div className="chip-row chip-wrap-row rem-views">
+        {PAGE_TABS.map((t) => (
+          <button key={t.key} type="button" className={"chip" + (t.key === tab ? " active" : "")}
+            aria-pressed={t.key === tab} onClick={() => onTab(t.key)}>{t.label}</button>
+        ))}
       </div>
       {searchOpen && (
         <div className="sub-bar">

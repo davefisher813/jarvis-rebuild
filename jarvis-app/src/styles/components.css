@@ -1488,6 +1488,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-card .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rem-card .facts .fact.when { color: var(--warn); font-weight: var(--w-semi); }
 .rem-card .facts .fact.later { color: var(--tx-2); font-weight: var(--w-semi); }
+/* The four views, as chips rather than a second segmented control (Dave
+   2026-09-15: "we can't have two tab bars on one page"). Same row Notes'
+   filters wear; it only has to close the gap the toolbar above already left. */
+.rem-views { padding-top: 0; }
 /* The one accent section head (ASTRA I3) gets a leading dot, same grammar
    Schedule and Today already use for "the section about this minute". */
 .rem-now-dot { width: 6px; height: 6px; border-radius: var(--r-circle); background: var(--accent-chrome); flex-shrink: 0; }
