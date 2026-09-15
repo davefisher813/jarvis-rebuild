@@ -2896,7 +2896,11 @@ button {
 .rem-row + .rem-row::before { content: ""; position: absolute;
   left: calc(var(--s-4) + 22px + var(--s-3)); right: 0; top: 0; height: 0.5px; background: var(--divider); }
 .rem-time { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 46px; }
-.rem-name { font-size: var(--t-h3); color: var(--tx-1); }
+.rem-name { font-size: var(--t-h3); color: var(--tx-1); display: flex; align-items: center; gap: var(--s-1h); }
+/* The one dot of colour restored to the strip (Dave 2026-09-15): same shape
+   as the Reminders page's category dot, just placed inline before the name
+   instead of in a facts line this strip doesn't have. */
+.rem-row-cd { width: 7px; height: 7px; border-radius: var(--r-circle); flex-shrink: 0; }
 .rem-row.missed .rem-time { color: var(--tx-1); font-weight: var(--w-semi); }
 .rem-row.done .rem-name { color: var(--tx-2); text-decoration: line-through; }
 /* A FINISHED REMINDER RECEDES (2026-08-24). `.cb.on` fills with `--sel-bg`,

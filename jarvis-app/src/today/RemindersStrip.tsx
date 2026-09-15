@@ -4,15 +4,22 @@ import React, { useRef, useState } from "react";
 import { useSwipe } from "../shared/useSwipe";
 import type { ReminderView } from "../tasks/reminders";
 import { fmtTime } from "../schedule/calendar";
+import { catColor } from "../shared/categories";
 
 // THE REMINDERS STRIP (Dave 2026-08-19: "taking meds should just be a set
 // reminder"). One line each, the time, the thing, a circle. Tap the circle,
 // done, gone until tomorrow.
 //
-// Deliberately NOT a task list: no due dates, no category kickers, no counts,
-// no overdue styling. A missed reminder greys its time rather than reddening
-// it, because "you didn't take your meds yet" is information and "YOU ARE
-// LATE" is a reason to stop opening the app.
+// Deliberately NOT a task list: no due dates, no category TEXT kicker, no
+// counts, no overdue styling. A missed reminder greys its time rather than
+// reddening it, because "you didn't take your meds yet" is information and
+// "YOU ARE LATE" is a reason to stop opening the app.
+//
+// One dot of colour restored (Dave 2026-09-15: "the reminders on the
+// homepage look too dull"): a single small category-colour dot before the
+// name, the same dot the Reminders page already uses, no text label riding
+// with it. Still not a kicker (a kicker names the category in words) and
+// still no red, no counts, no due-date phrasing.
 // UP-CORE-15 (2026-09-05): SWIPE RIGHT TAKES IT. One row, one gesture, the
 // same one a task and a bill answer to: the whole row is the target, which
 // is what a thumb on a moving bus actually hits. Extracted from the map so
@@ -123,7 +130,10 @@ export default function RemindersStrip({
                 below the name, so .tap44 takes the free space the row was
                 keeping for nobody. */}
             <div className="row-grow tap44" role="button" tabIndex={0} onClick={() => onOpen?.(r.id)}>
-              <div className="rem-name">{r.text}</div>
+              <div className="rem-name">
+                {r.category && !r.done && <span className={"rem-row-cd cat-bg-" + catColor(r.category)} aria-hidden="true" />}
+                {r.text}
+              </div>
             </div>
             {/* Snooze only exists while it still matters: once it is done,
                 pushing it later is nonsense. */}
