@@ -45,7 +45,7 @@ describe("RemindersPage", () => {
     // render separately rather than as one "Today · 9:00 AM" string.
     expect(screen.getByText("9:00")).toBeInTheDocument();
     expect(screen.getByText("AM")).toBeInTheDocument();
-    expect(screen.getAllByText("Today", { selector: ".rem-flag-today" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Today", { selector: ".uchip" }).length).toBeGreaterThan(0);
     // v3: a row already carrying a clock and a Today chip does not also carry
     // its rhythm. That fact was the one that overflowed the line; it stays on
     // the rows with no gutter competing for the room, and in the detail sheet.

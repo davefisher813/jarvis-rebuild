@@ -137,10 +137,13 @@ export default function RemindersPage({
                   dot beside it, so a clipped name still says which area this
                   is; a clipped urgency chip would not say anything. */}
               {area && <span className="fact cat"><span className={"cd cat-bg-" + catColor(it.category)} /><span className="cat-t">{area}</span></span>}
-              {/* The chip rides INSIDE a plain .fact so the line's own "·"
-                  separator renders on the grey wrapper, outside the amber
-                  fill, instead of inside the pill with it. */}
-              {dueToday && <span className="fact"><span className="rem-flag-today">Today</span></span>}
+              {/* The urgency chip is the app's own .uchip (LAW 11 finding 2,
+                  the one Tasks already wears): a tint of the tag's colour with
+                  the colour on the words, never a new chip and never a solid
+                  fill. It rides INSIDE a plain .fact so the line's own "·"
+                  separator renders on the grey wrapper, outside the tint,
+                  instead of inside the chip with it. */}
+              {dueToday && <span className="fact"><span className="uchip u-today">Today</span></span>}
               {/* The rhythm is the first thing to go when the row is already
                   carrying a clock and a Today chip: on this view it was the
                   fact that overflowed, and "Every Day" is what the detail

@@ -1456,7 +1456,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-toolbar .btn .ic { width: 18px; height: 18px; }
 .rem-page .segmented { margin-bottom: var(--s-2); }
 .rem-page .sub-bar { padding: 0 var(--s-4) var(--s-2); }
-.rem-card { padding: var(--s-3); margin-bottom: var(--s-2h); cursor: pointer; }
+.rem-card { padding: var(--s-2h) var(--s-3); margin-bottom: var(--s-2h); cursor: pointer; }
 .rem-card.current { border-left: 3px solid var(--warn); }
 .rem-card.done .rem-card-title { color: var(--tx-2); text-decoration: line-through; text-decoration-color: var(--tx-4); }
 /* Row anatomy corrected 2026-09-15, v3: a plain checkbox leads (`.cb`, the
@@ -1488,11 +1488,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-card .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rem-card .facts .fact.when { color: var(--warn); font-weight: var(--w-semi); }
 .rem-card .facts .fact.later { color: var(--tx-2); font-weight: var(--w-semi); }
-/* The one filled chip the facts line allows (Dave 2026-09-15, v3): the
-   "Today" urgency flag, so amber never collides with an orange-toned
-   category dot sitting right next to it the way plain amber text did. It
-   sits inside a plain .fact, so the line's "·" stays grey and outside it. */
-.rem-flag-today { display: inline-flex; align-items: center; background: var(--warn-fill); color: var(--on-fill-dark); border-radius: var(--r-pill); padding: 0 7px; font-size: var(--t-eyebrow); font-weight: var(--w-bold); text-transform: uppercase; letter-spacing: var(--track-caps); }
 /* The one accent section head (ASTRA I3) gets a leading dot, same grammar
    Schedule and Today already use for "the section about this minute". */
 .rem-now-dot { width: 6px; height: 6px; border-radius: var(--r-circle); background: var(--accent-chrome); flex-shrink: 0; }
