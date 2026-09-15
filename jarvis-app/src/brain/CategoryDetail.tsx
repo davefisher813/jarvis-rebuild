@@ -1,4 +1,7 @@
 import { isIn } from "../tasks/categories";
+import { promptsDue, shownNow, snoozedForADay } from "../tasks/contextPrompts";
+import ContextPromptCard from "../tasks/screens/ContextPromptCard";
+import type { LinkedItem, ContextTriggerConfig } from "../notes/types";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine, usePeople, useProfile } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
@@ -174,6 +177,9 @@ export default function CategoryDetail({
   autoOpenGym,
   gymNonce,
   onGymConsumed,
+  autoOpenLog,
+  logNonce,
+  onLogConsumed,
 }: {
   categoryId: string;
   onBack: () => void;
@@ -195,6 +201,10 @@ export default function CategoryDetail({
   // consumes it.
   gymNonce?: number;
   onGymConsumed?: () => void;
+  /** Push D: a health log to open on arrival (a ShortcutKey), from a reminder's link. */
+  autoOpenLog?: string;
+  logNonce?: number;
+  onLogConsumed?: () => void;
 }) {
   const tasksSvc = useTasks();
   const schedule = useSchedule();
@@ -566,6 +576,26 @@ export default function CategoryDetail({
     if (!ok) return;
     onChanged?.();
     await reload();
+  };
+
+  // CONTEXT PROMPTS (push D): the reminders that asked to be shown when
+  // this area opens, cooled down and never a gate. Written back to the
+  // trigger on Continue Anyway or Snooze, and dropped from the list at once.
+  const prompts = promptsDue(allTasks, { areaId: categoryId }, today, Date.now());
+  const writePrompt = async (id: string, next: (ct: ContextTriggerConfig, nowMs: number) => ContextTriggerConfig) => {
+    const t = allTasks.find((x) => x.id === id);
+    const ct = t?.data.reminder?.contextTrigger;
+    if (!t || !ct) return;
+    const written = next(ct, Date.now());
+    setAllTasks((prev) => prev.map((x) => (x.id === id && x.data.reminder ? { ...x, data: { ...x.data, reminder: { ...x.data.reminder, contextTrigger: written } } } : x)));
+    await attemptWrite(() => tasksSvc.markPromptShown(id, written));
+  };
+  const doorFor = (link: LinkedItem | undefined): ((l: LinkedItem) => void) | undefined => {
+    if (!link) return undefined;
+    if (link.type === "task" && onOpenTask) return (l) => onOpenTask(l.id);
+    if (link.type === "note" && onOpenNote) return (l) => onOpenNote(l.id);
+    if (link.type === "contact" && onOpenPerson) return (l) => onOpenPerson(l.id);
+    return undefined;
   };
 
   if (!cat) return <div className="screen" />;
@@ -1847,6 +1877,26 @@ export default function CategoryDetail({
         <button className="nav-action-text" onClick={() => setSheet({ kind: "edit" })}>Edit</button>
       </div>
 
+      {prompts.map((p) => (
+        <ContextPromptCard key={p.id} item={p} onOpenLinked={doorFor(p.data.reminder?.linkedItem)}
+          onContinue={(id) => void writePrompt(id, shownNow)} onSnooze={(id) => void writePrompt(id, snoozedForADay)} />
+      ))}
+      {autoOpenLog && kind === "health" && (
+        <RunOnce key={logNonce ?? 0} run={() => {
+          switch (autoOpenLog) {
+            case "bedtime": setHealthScreen("lightsOut"); break;
+            case "meal": setHealthScreen("meal"); break;
+            case "checkin": setHealthScreen("checkin"); break;
+            case "effort": setHealthScreen("callIt"); break;
+            case "discomfort": setHealthScreen("pointAtIt"); break;
+            case "medication": setMedPage(true); break;
+            case "water": if (water) water.onPlus(); else setMetricSheet({ kind: "add" }); break;
+            default: break;
+          }
+          onLogConsumed?.();
+        }} />
+      )}
+
       {paused && (
         <div className="pad-x"><div className="card">
           {/* Row tap (Dave 2026-09-15): the banner's only verb is Wake Up. */}
@@ -2274,4 +2324,11 @@ export default function CategoryDetail({
       )}
     </div>
   );
+}
+
+// One effect, on mount, for a page whose hooks all sit above its first
+// early return: the log a reminder asked for opens once the page is up.
+function RunOnce({ run }: { run: () => void }) {
+  useEffect(() => { run(); }, []);
+  return null;
 }

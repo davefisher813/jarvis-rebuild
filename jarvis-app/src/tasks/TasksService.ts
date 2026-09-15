@@ -1,7 +1,7 @@
 import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
 import { setCategories as setCategoriesOf } from "./categories";
-import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo, type ReminderInfo, type ReminderEvent, type LinkedItem, type TaskStep } from "../notes/types";
+import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo, type ReminderInfo, type ReminderEvent, type LinkedItem, type ContextTriggerConfig, type TaskStep } from "../notes/types";
 import { groupFor, todayISO, nextDue, type TaskGroup } from "./grouping";
 import { nextStreak } from "./lifecycle";
 import { recordCompletion } from "../shared/timeSense";
@@ -377,6 +377,11 @@ export class TasksService {
   }
   async setReminderLink(id: string, linkedItem: LinkedItem | null): Promise<boolean> {
     return this.patchReminder(id, { linkedItem: linkedItem ?? undefined });
+  }
+  // A context prompt shown, continued past or snoozed: the trigger's own
+  // lastShownAt carries it (tasks/contextPrompts.ts computes the value).
+  async markPromptShown(id: string, contextTrigger: ContextTriggerConfig): Promise<boolean> {
+    return this.patchReminder(id, { contextTrigger });
   }
 
   private async patchReminder(id: string, patch: Partial<ReminderInfo>): Promise<boolean> {

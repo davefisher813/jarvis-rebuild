@@ -22,7 +22,7 @@ const DOC_TOPIC: Record<string, string> = {
 // The Brain tab. The hub is built. Contacts opens the one people list (the
 // Inner Circle / Adversarial rows were cut 2026-08-03); the doc rows open a
 // lightweight placeholder for now. "Your Categories" is populated live.
-export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBlockId, onRoutineBlockConsumed, personOpenId, personNonce, onPersonConsumed, decisionOpenId, decisionNonce, onDecisionConsumed, factOpenId, factNonce, onFactConsumed, onOpenNote, onOpenProject, onOpenMoney, onOpenEntity, autoOpenGym, gymNonce, onGymConsumed }: { openKey?: string;
+export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBlockId, onRoutineBlockConsumed, personOpenId, personNonce, onPersonConsumed, decisionOpenId, decisionNonce, onDecisionConsumed, factOpenId, factNonce, onFactConsumed, onOpenNote, onOpenProject, onOpenMoney, onOpenEntity, autoOpenGym, gymNonce, onGymConsumed, healthLogKey, healthLogNonce, onHealthLogConsumed }: { openKey?: string;
   // BRAIN-F-03 (2026-09-05): the nonce and the callback, the shape
   // shell/intents.ts describes. Without them openKey was read once in the
   // useState below, so a deep link that arrived while the Brain tab was
@@ -39,7 +39,9 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   decisionOpenId?: string; decisionNonce?: number; onDecisionConsumed?: () => void;
   factOpenId?: string; factNonce?: number; onFactConsumed?: () => void;
   onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void; onOpenEntity?: (kind: string, id: string) => void;
-  autoOpenGym?: boolean; gymNonce?: number; onGymConsumed?: () => void } = {}) {
+  autoOpenGym?: boolean; gymNonce?: number; onGymConsumed?: () => void;
+  /** Push D: open the health area with this log (a ShortcutKey) already open. */
+  healthLogKey?: string; healthLogNonce?: number; onHealthLogConsumed?: () => void } = {}) {
   const cats = useCategories();
   const [categories, setCategories] = useState<BrainCategory[]>([]);
   const [open, setOpen] = useState<{ key: string; name: string } | null>(
@@ -122,6 +124,15 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
     }
   }, [open, categories, onOpenMoney]);
 
+  // A health log asked for by a reminder: the health area is whichever
+  // category is of that kind; the page opens the logger and says consumed.
+  useEffect(() => {
+    if (!healthLogKey || !catsLoaded) return;
+    const cat = categories.find((c) => c.kind === "health");
+    if (cat) setOpen({ key: cat.id, name: cat.name });
+    else onHealthLogConsumed?.();
+  }, [healthLogKey, healthLogNonce, catsLoaded, categories, onHealthLogConsumed]);
+
   const pushCls = usePushDepth(open ? 1 : 0);
 
   const detail = (() => {
@@ -174,6 +185,9 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
           autoOpenGym={autoOpenGym}
           gymNonce={gymNonce}
           onGymConsumed={onGymConsumed}
+          autoOpenLog={healthLogKey}
+          logNonce={healthLogNonce}
+          onLogConsumed={onHealthLogConsumed}
         />
       );
     }

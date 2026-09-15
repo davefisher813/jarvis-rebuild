@@ -88,3 +88,36 @@ describe("NotificationsPage tells the truth about the OS permission", () => {
     await waitFor(() => expect(screen.getByText(/iOS will ask to allow notifications/)).toBeInTheDocument());
   });
 });
+
+// THE REMINDERS REBUILD (push D): "morning" is one setting for the whole
+// app, and a test send says what happened on this phone.
+describe("NotificationsPage, reminders", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("the morning time is remembered app-wide", async () => {
+    window.localStorage.removeItem("jarvis.reminders.morning.v1");
+    render(<NotesProvider userId="u1"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    const menu = await screen.findByLabelText("Morning time");
+    expect(menu.textContent).toContain("8:00 AM");
+    fireEvent.click(menu);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "6:30 AM" }));
+    expect(window.localStorage.getItem("jarvis.reminders.morning.v1")).toBe("06:30");
+  });
+
+  it("on the web there is no test row; on the phone it sends and says so", async () => {
+    const { unmount } = render(<NotesProvider userId="u1"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await screen.findByLabelText("Morning time");
+    expect(screen.queryByText("Send a Test Reminder")).toBeNull();
+    unmount();
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+    vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("granted");
+    const send = vi.spyOn(notifications, "sendTestReminder").mockResolvedValue("sent");
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    render(<NotesProvider userId="u1"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Send a Test Reminder"));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(seen.some((m) => m.startsWith("Test reminder in"))).toBe(true));
+    stop();
+  });
+});

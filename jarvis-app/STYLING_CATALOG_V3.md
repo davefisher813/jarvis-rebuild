@@ -694,6 +694,12 @@ The brief cites `JARVIS_UI_CONTRACT.md` as the locked styling source. No file of
 
 **THIS OCCURRENCE AND HISTORY (push C).** A time row "Move Today To" (or the day it means) and a Skip row with "The series continues" as its meta; a History group of plain rows, the word on the left and the moment on the right, five at most. The link picker (`.link-sheet`) is the action sheet's chrome with a search bar and rows by kind, its list scrolling inside itself.
 
+**THE CONTEXT PROMPT (push D).** A card (`.rem-prompt`, role status) above the area page's content or above Today's strip: a purple bell tile, the reminder's words as the name, one secondary line saying what it is about, and a row of pills: the verb for the linked record, Continue Anyway, and Snooze This Prompt in the quiet pill. Never modal, never a gate, one tap to dismiss.
+
+**SHOW WHEN (push D).** In More Options, offered only when there is an area or a linked task to hang it on: Prompt Me (Never, When I Open the Area, After I Complete the Task) and At Most Every (1 Hour, 4 Hours, 1 Day) as menu rows in the purple tone, with one note.
+
+**THE SETTINGS (push D).** The Notifications page's Reminders card: Morning as a menu row (6:00 AM to 10:00 AM by the half hour), and Send a Test Reminder as a chevron row on the phone only, its meta saying when it arrives or that notifications are off in iOS Settings.
+
 **EDIT MODE.** A Series group with one row, Pause or Resume. A More Actions disclosure at the foot holding Export to Calendar and Delete Reminder, the app's own destructive row, never beside Save.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)

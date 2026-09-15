@@ -1463,6 +1463,14 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .link-sheet-list { max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .link-sheet-kind { padding: var(--s-2) var(--s-4) var(--s-1); }
 .link-sheet .row.on .conn-name { color: var(--tint); font-weight: var(--w-semi); }
+/* THE CONTEXT PROMPT (2026-09-15): a card above the day or the area, the
+   reminder's words, what it is about, and its three answers as pills. */
+.rem-prompt { padding: var(--s-3) var(--s-4); margin-bottom: var(--s-3); }
+.rem-prompt-head { display: flex; align-items: flex-start; gap: var(--s-3); }
+.rem-prompt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rem-prompt-body .rem-name { white-space: normal; }
+.rem-prompt-body .rem-explain { font-size: var(--t-meta); color: var(--tx-2); }
+.rem-prompt-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
 /* The primary marker inside a picked category chip (2026-08-21). Uppercase
    micro-label, not a colour: the chip is already carrying a colour that means
    the category, and a second meaning on the same paint is how palettes rot. */

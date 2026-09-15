@@ -273,3 +273,52 @@ describe("ReminderSheet, push C", () => {
     expect(screen.queryByText("This Occurrence")).toBeNull();
   });
 });
+
+// PUSH D: Show When. A prompt in the app, never a gate, written with the
+// rest on Save; offered only when there is an area or a linked task to
+// hang it on.
+describe("ReminderSheet, Show When", () => {
+  const TUE = "2026-09-15";
+  const NOW = new Date(`${TUE}T09:00:00`).getTime();
+
+  it("is not offered with nothing to hang it on", () => {
+    render(<ReminderSheet today={TUE} nowHHMM="09:00" now={NOW} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.queryByLabelText("Show when")).toBeNull();
+  });
+
+  it("with an area chosen, When I Open the Area writes the trigger on that area with a cooldown", () => {
+    const onSave = vi.fn();
+    render(<ReminderSheet today={TUE} nowHHMM="09:00" now={NOW} categories={[{ id: "c-bridge", name: "Bridge", color: "teal" }]} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Reminder"), { target: { value: "Do Bridge work first" } });
+    fireEvent.click(screen.getByText("Unscheduled"));
+    fireEvent.click(screen.getByLabelText("Area"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Bridge/ }));
+    fireEvent.click(screen.getByLabelText("Show when"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "When I Open the Area" }));
+    fireEvent.click(screen.getByLabelText("Prompt cooldown"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "1 Day" }));
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![1].contextTrigger).toEqual({ kind: "onOpenArea", targetId: "c-bridge", cooldownMinutes: 1440, lastShownAt: null });
+  });
+
+  it("with a linked task, After I Complete the Task targets that task; Never clears it", () => {
+    const onSave = vi.fn();
+    const link = { type: "task" as const, id: "t9", label: "Bridge Priorities" };
+    render(<ReminderSheet mode="edit" today={TUE} nowHHMM="09:00" now={NOW} initial={{ text: "Then plan", reminder: { time: "09:00", linkedItem: link, contextTrigger: { kind: "afterCompleteTask", targetId: "t9", cooldownMinutes: 60, lastShownAt: "2026-09-14T09:00:00Z" } } }}
+      onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getByLabelText("Show when").textContent).toContain("After I Complete the Task");
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![1].contextTrigger).toMatchObject({ kind: "afterCompleteTask", targetId: "t9", cooldownMinutes: 60, lastShownAt: "2026-09-14T09:00:00Z" });
+  });
+
+  it("Never clears a trigger that was set", () => {
+    const onSave = vi.fn();
+    const link = { type: "task" as const, id: "t9", label: "Bridge Priorities" };
+    render(<ReminderSheet mode="edit" today={TUE} nowHHMM="09:00" now={NOW} initial={{ text: "Then plan", reminder: { time: "09:00", linkedItem: link, contextTrigger: { kind: "afterCompleteTask", targetId: "t9", cooldownMinutes: 60, lastShownAt: null } } }}
+      onSave={onSave} onCancel={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Show when"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Never" }));
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![1].contextTrigger).toBeUndefined();
+  });
+});

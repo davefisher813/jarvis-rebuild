@@ -32,6 +32,12 @@ export const EVENING_ID = 9002;
 // block as the check-ins and clear of both spans below (9100+ and 9300+), so
 // arming a rest can never cancel an event rung or a task reminder.
 export const REST_OVER_ID = 9003;
+// THE TEST REMINDER (the reminders rebuild push D, 2026-09-15): one banner,
+// ten seconds out, so the settings page can show what a reminder looks
+// like on this phone. It lives in the check-in block and is gone in ten
+// seconds, so it is not counted in the budget below.
+export const TEST_REMINDER_ID = 9004;
+export const TEST_REMINDER_DELAY_S = 10;
 
 // ---- THE BUDGET (SHARED-F-05, 2026-09-05) ----
 //
@@ -709,6 +715,7 @@ export type NotificationKind = "morning" | "evening" | "event" | "reminder" | nu
 export function kindOfNotification(id: number): NotificationKind {
   if (id === MORNING_ID) return "morning";
   if (id === EVENING_ID) return "evening";
+  if (id === TEST_REMINDER_ID) return "reminder";
   // The spans, so a tap on a notification an earlier build scheduled still
   // lands on the right screen instead of nowhere.
   if (id >= EVENT_REMINDER_BASE && id < EVENT_REMINDER_BASE + EVENT_REMINDER_SPAN) return "event";
@@ -757,4 +764,28 @@ export function onNotificationTap(handler: (tap: NotificationTap) => void): () =
     });
   });
   return () => { void sub.then((h) => h.remove()); };
+}
+
+// SEND A TEST REMINDER (push D). Says what happened: sent, denied at the
+// OS, or not a phone. Never asks for the permission itself (the switches
+// on the same page own that ask).
+export async function sendTestReminder(): Promise<"sent" | "denied" | "unsupported"> {
+  if (!Capacitor.isNativePlatform()) return "unsupported";
+  try {
+    const perm = await LocalNotifications.checkPermissions();
+    if (perm.display !== "granted") return "denied";
+    await registerNotificationActions();
+    await LocalNotifications.schedule({
+      notifications: [{
+        id: TEST_REMINDER_ID,
+        title: "Test Reminder",
+        body: "This is how a reminder arrives",
+        schedule: { at: new Date(Date.now() + TEST_REMINDER_DELAY_S * 1000), allowWhileIdle: true },
+        actionTypeId: REMINDER_ACTION_TYPE,
+      }],
+    });
+    return "sent";
+  } catch {
+    return "unsupported";
+  }
 }

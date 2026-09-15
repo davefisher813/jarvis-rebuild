@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import type { ReminderInfo, RepeatRule, FollowUpConfig, LinkedItem } from "../../notes/types";
+import type { ReminderInfo, RepeatRule, FollowUpConfig, LinkedItem, ContextTriggerConfig } from "../../notes/types";
+import { COOLDOWNS, DEFAULT_COOLDOWN_MIN } from "../contextPrompts";
 import { actionLabelFor, scheduleAdvice, adviceLine, recentEvents } from "../reminderHistory";
 import LinkedItemSheet, { type LinkCandidate } from "./LinkedItemSheet";
 import { repetitionsLine } from "../automaticity";
@@ -119,6 +120,10 @@ export default function ReminderSheet({
   // The record this reminder is about; written with the rest on Save.
   const [link, setLink] = useState<LinkedItem | null>(init?.linkedItem ?? null);
   const [pickingLink, setPickingLink] = useState(false);
+  // SHOW WHEN (push D): a prompt in the app when the area opens or after
+  // the linked task completes. Never a gate; Continue Anyway is always there.
+  const [trigger, setTrigger] = useState<ContextTriggerConfig | null>(init?.contextTrigger ?? null);
+  const triggerValue = trigger ? (trigger.kind === "onOpenArea" ? "area" : "task") : "never";
   const advice = mode === "edit" && init ? scheduleAdvice(init) : null;
   const history = mode === "edit" && init ? recentEvents(init, today) : [];
   // The occurrence the This Occurrence group is about: today's when it
@@ -177,6 +182,9 @@ export default function ReminderSheet({
       followUp: fu,
       tz: fixedZone ? tzName : "local",
       linkedItem: link ?? undefined,
+      contextTrigger: trigger
+        ? { ...trigger, targetId: trigger.kind === "onOpenArea" ? (category || null) : (link?.type === "task" ? link.id : null) }
+        : undefined,
     };
   };
   const next = kind === "timed" && effTime ? nextOccurrence(draft(), today, new Date(now).toTimeString().slice(0, 5)) : null;
@@ -293,6 +301,25 @@ export default function ReminderSheet({
           <Row tone="sky" glyph={<Link2 className="ic" />} label="Linked Item" meta={link ? (link.label ?? "Linked") : "None"} onClick={() => setPickingLink(true)} chev />
           <Note>What this reminder is about. Opening it never marks the reminder done.</Note>
         </Group>
+        {(category || link?.type === "task" || trigger) && (
+          <Group label="Show When">
+            <MenuRow tone="purple" glyph={<BellGlyph />} label="Prompt Me" value={triggerValue} ariaLabel="Show when" off={!trigger}
+              word={!trigger ? "Never" : trigger.kind === "onOpenArea" ? "When I Open the Area" : "After I Complete the Task"}
+              options={[
+                { value: "never", label: "Never" },
+                ...(category ? [{ value: "area", label: "When I Open the Area" }] : []),
+                ...(link?.type === "task" ? [{ value: "task", label: "After I Complete the Task" }] : []),
+              ]}
+              onPick={(v) => setTrigger(v === "never" ? null : { kind: v === "area" ? "onOpenArea" : "afterCompleteTask", targetId: null, cooldownMinutes: trigger?.cooldownMinutes ?? DEFAULT_COOLDOWN_MIN, lastShownAt: null })} />
+            {trigger && (
+              <MenuRow tone="purple" glyph={<Hourglass className="ic" />} label="At Most Every" value={String(trigger.cooldownMinutes)} ariaLabel="Prompt cooldown"
+                word={COOLDOWNS.find((c) => c.minutes === trigger.cooldownMinutes)?.label ?? trigger.cooldownMinutes + " Minutes"}
+                options={COOLDOWNS.map((c) => ({ value: String(c.minutes), label: c.label }))}
+                onPick={(v) => setTrigger({ ...trigger, cooldownMinutes: Number(v) })} />
+            )}
+            <Note>A prompt inside JARVIS, never a gate. It offers its action, Continue Anyway, and a day off.</Note>
+          </Group>
+        )}
         {categories.length > 0 && (
           <Group label="Area">
             <MenuRow tone="blue" glyph={<Tag className="ic" />} label="Area" value={category} ariaLabel="Area"

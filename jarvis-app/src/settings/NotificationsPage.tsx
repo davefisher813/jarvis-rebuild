@@ -3,8 +3,11 @@ import { useProfile } from "../data/NotesProvider";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { updateHealthSettings } from "../health/settings";
 import { Capacitor } from "@capacitor/core";
-import { requestNotificationPermission, notificationPermissionState, type NotifyPermission } from "../shared/notifications";
-import { Head, Card, Switch, Foot } from "./kit";
+import { requestNotificationPermission, notificationPermissionState, sendTestReminder, TEST_REMINDER_DELAY_S, type NotifyPermission } from "../shared/notifications";
+import { Head, Card, Switch, Foot, Menu, Row } from "./kit";
+import { morningTime, setMorningTime } from "../tasks/quickReminder";
+import { fmtTime } from "../schedule/calendar";
+import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 
 type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean; rest: boolean };
@@ -44,6 +47,19 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   };
   const native = Capacitor.isNativePlatform();
   const denied = perm === "denied";
+  // THE REMINDERS REBUILD (push D): "morning" is one setting for the whole
+  // app (every Tomorrow Morning shortcut means it), and a test send shows
+  // what a reminder looks like on this phone.
+  const [morning, setMorning] = useState(morningTime());
+  const morningWord = (hhmm: string) => { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; };
+  const [testing, setTesting] = useState(false);
+  const sendTest = async () => {
+    if (testing) return;
+    setTesting(true);
+    const r = await sendTestReminder();
+    setTesting(false);
+    showToast({ message: r === "sent" ? `Test reminder in ${TEST_REMINDER_DELAY_S} seconds · Lock the phone to see it` : r === "denied" ? "Notifications are off for JARVIS in iOS Settings" : "Test reminders need the phone app" });
+  };
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Notifications" back="Settings" onBack={onBack} />
@@ -73,6 +89,13 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
           for permission it will not use well has spent that permission for
           nothing. Say so once, plainly, instead of letting him find out by
           waiting for a buzz that was never coming. */}
+      <Head label="Reminders" />
+      <Card>
+        <Menu label="Morning" meta="What Tomorrow Morning means" value={morning} word={morningWord(morning)} ariaLabel="Morning time"
+          options={["06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00"].map((v) => ({ value: v, label: morningWord(v) }))}
+          onPick={(v) => { setMorning(v); setMorningTime(v); }} />
+        {native && <Row label={testing ? "Sending" : "Send a Test Reminder"} meta={denied ? "Off in iOS Settings" : `Arrives in ${TEST_REMINDER_DELAY_S} seconds`} onClick={() => void sendTest()} disabled={denied || testing} chev />}
+      </Card>
       <Foot>
         {!native
           ? "On the web these only decide what shows on the Notifications screen."

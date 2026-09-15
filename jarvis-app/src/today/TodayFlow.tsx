@@ -98,7 +98,10 @@ import RemindersStrip from "./RemindersStrip";
 import RemindersHome from "../tasks/screens/RemindersHome";
 import type { LinkCandidate } from "../tasks/screens/LinkedItemSheet";
 import { displayTitle } from "../notes/docModel";
-import type { LinkedItem } from "../notes/types";
+import type { LinkedItem, ContextTriggerConfig } from "../notes/types";
+import { promptsDue, shownNow, snoozedForADay } from "../tasks/contextPrompts";
+import ContextPromptCard from "../tasks/screens/ContextPromptCard";
+import { SHORTCUTS } from "../health/settings";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
 import { stripReminders, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
 import { remindersToIcs, saveIcsFile } from "../tasks/ics";
@@ -700,6 +703,7 @@ export default function TodayFlow({
     const ok = await attemptWrite(() => tasks.toggleDone(id));
     await reload();
     if (!ok) return;
+    if (before && !before.done) setPromptCtx({ completedTaskId: id });
     // UP-CORE-09 (2026-09-05): THE CHAIN, ON TODAY. momentum.ts and its two
     // helpers have existed since item 7 and were wired to the Tasks tab
     // alone, so the dopamine of a tick on the page where ticks actually
@@ -783,6 +787,9 @@ export default function TodayFlow({
   // REMINDERS HOME (the reminders rebuild push B, 2026-09-15): a screen
   // pushed from the strip's See All, the way the event page is; not a route.
   const [remHome, setRemHome] = useState(false);
+  // Push D: the task just completed, for the reminders that asked to be
+  // shown after it. One at a time; the next completion replaces it.
+  const [promptCtx, setPromptCtx] = useState<{ completedTaskId?: string }>({});
   const [eventDetailNotes, setEventDetailNotes] = useState<{ id: string; title: string }[]>([]);
   useEffect(() => {
     if (!eventDetail) { setEventDetailNotes([]); return; }
@@ -3072,7 +3079,16 @@ export default function TodayFlow({
     ...allEvents.map((e) => ({ type: "event" as const, id: e.id, label: e.data.title })),
     ...extraLinkCandidates,
     ...peopleList.map((p) => ({ type: "contact" as const, id: p.id, label: p.data.name })),
+    ...SHORTCUTS.map((s) => ({ type: "healthItem" as const, id: s.key, label: s.label })),
   ];
+  const prompts = promptsDue(taskItems, promptCtx, today, Date.now());
+  const writePrompt = async (id: string, next: (ct: ContextTriggerConfig, nowMs: number) => ContextTriggerConfig) => {
+    const t = taskItems.find((x) => x.id === id);
+    const ct = t?.data.reminder?.contextTrigger;
+    if (!ct) return;
+    await attemptWrite(() => tasks.markPromptShown(id, next(ct, Date.now())));
+    await reload();
+  };
 
   // U1/U3 (2026-08-20): the home card drafts and sends. Before this it named
   // the email that needed him and then handed him a trip to another tab,
@@ -3526,7 +3542,11 @@ export default function TodayFlow({
       proposedDay={proposedDay}
       dayFooter={draftFooter ?? draftReceipt}
       dayPrimary={draftPrimary}
-      reminders={
+      reminders={<>
+        {prompts.map((p) => (
+          <ContextPromptCard key={p.id} item={p} onOpenLinked={onOpenEntity ? openLinked : undefined}
+            onContinue={(id) => void writePrompt(id, shownNow)} onSnooze={(id) => void writePrompt(id, snoozedForADay)} />
+        ))}
         <RemindersStrip
           items={reminders}
           onTick={(id, done) => void onTickReminder(id, done)}
@@ -3536,7 +3556,7 @@ export default function TodayFlow({
           onAddAllToCalendar={() => void addRemindersToCalendar()}
           onSeeAll={() => setRemHome(true)}
         />
-      }
+      </>}
       notices={notices}
       offersQuiet={notices.length >= 2}
       // TWO notices, not one glued pair. Bundling them into a single slot

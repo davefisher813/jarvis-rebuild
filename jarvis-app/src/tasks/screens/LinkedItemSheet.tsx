@@ -3,15 +3,15 @@ import { createPortal } from "react-dom";
 import type { LinkedItem, LinkedType } from "../../notes/types";
 import { linkedTypeWord } from "../reminderHistory";
 import { pressable } from "../../shared/pressable";
-import { Search, ListChecks, FileText, CalendarDays, Lightbulb, User, CircleSlash } from "../../shared/icons";
+import { Search, ListChecks, FileText, CalendarDays, Lightbulb, User, CircleSlash, Gauge } from "../../shared/icons";
 
 // LINK AN ITEM (the reminders rebuild push C, 2026-09-15, brief section 4).
 // A reminder can be about one record: a task, a note, an event, a decision
-// or a contact. The link is one way (deleting the reminder never touches
-// the record) and gives the reminder its primary action. This is the picker:
-// a sheet over the reminder sheet, one search field over every kind, rows
-// grouped by kind, and No Link to clear. Emails and health items can be
-// linked by the surfaces that own them; they are not offered here.
+// a contact, or a health log (push D). The link is one way (deleting the
+// reminder never touches the record) and gives the reminder its primary
+// action. This is the picker: a sheet over the reminder sheet, one search
+// field over every kind, rows grouped by kind, and No Link to clear. Emails
+// can be linked by the surface that owns them; they are not offered here.
 
 export interface LinkCandidate { type: LinkedType; id: string; label: string }
 
@@ -21,9 +21,11 @@ const GLYPH: Record<string, React.ReactNode> = {
   event: <CalendarDays className="ic" />,
   decision: <Lightbulb className="ic" />,
   contact: <User className="ic" />,
+  healthItem: <Gauge className="ic" />,
 };
-const TONE: Record<string, string> = { task: "red", note: "orange", event: "sky", decision: "purple", contact: "pink" };
-const ORDER: LinkedType[] = ["task", "event", "note", "decision", "contact"];
+const PLURAL: Record<string, string> = { task: "Tasks", event: "Events", note: "Notes", decision: "Decisions", contact: "Contacts", healthItem: "Health", email: "Emails" };
+const TONE: Record<string, string> = { task: "red", note: "orange", event: "sky", decision: "purple", contact: "pink", healthItem: "green" };
+const ORDER: LinkedType[] = ["task", "event", "note", "decision", "contact", "healthItem"];
 
 export default function LinkedItemSheet({ candidates, current, onPick, onCancel }: {
   candidates: LinkCandidate[];
@@ -60,7 +62,7 @@ export default function LinkedItemSheet({ candidates, current, onPick, onCancel 
           )}
           {groups.map((g) => (
             <div key={g.type}>
-              <div className="eyebrow link-sheet-kind">{linkedTypeWord(g.type) + "s"}</div>
+              <div className="eyebrow link-sheet-kind">{PLURAL[g.type] ?? linkedTypeWord(g.type)}</div>
               {g.rows.map((c) => (
                 <div key={c.type + c.id} className={"row" + (current?.id === c.id && current.type === c.type ? " on" : "")} {...pressable(() => pick(c))} aria-pressed={current?.id === c.id && current.type === c.type}>
                   <div className={"proj-icon cat-bg-" + (TONE[c.type] ?? "graphite")}>{GLYPH[c.type]}</div>

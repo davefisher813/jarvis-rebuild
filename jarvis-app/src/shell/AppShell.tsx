@@ -120,6 +120,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // THE REMINDERS REBUILD (push C): a reminder banner's Open lands on the
   // reminder itself, on Today, when it has no linked item to open instead.
   const reminderIntent = useOneShot<string>();
+  // Push D: a reminder linked to a health log opens that log on the Health
+  // page (BrainFlow finds the health area itself).
+  const healthLogIntent = useOneShot<string>();
   const goalIntent = useOneShot<string>();
   // Which Life segment a deep link wants. Undefined lets the tab remember.
   const [lifeSegment, setLifeSegment] = useState<"tasks" | "projects" | "goals" | undefined>(undefined);
@@ -191,6 +194,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     // one value today, files/types.ts: "money", so the Money tab IS the
     // file's page, and a second scope needs a map here).
     else if (kind === "email") { mailIntent.fire(targetId); setActive("messages"); }
+    else if (kind === "healthItem") { healthLogIntent.fire(targetId); setActive("brain"); }
     else if (kind === "file") { setActive("money"); }
     else if (kind === "person") {
       const p = await people.get(targetId);
@@ -398,10 +402,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     if (!t?.reminder) { setActive("today"); return; }
     void tasks.logReminderEvent(taskId, "notificationOpened");
     const link = t.reminder.linkedItem;
-    if (link) {
-      const kind = link.type === "contact" ? "person" : link.type;
-      if (kind !== "healthItem") { void navigateToEntity(kind, link.id); return; }
-    }
+    if (link) { void navigateToEntity(link.type === "contact" ? "person" : link.type, link.id); return; }
     reminderIntent.fire(taskId);
     setActive("today");
   };
@@ -587,7 +588,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           onAskSaid={(personId) => { chatAskIntent.fire(personId); setActive("chat"); }} onGoBigger={(goalId?: string) => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); }} />}
         {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => { mailIntent.fire(threadId); setActive("messages"); }} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} onNavigate={(kind, id) => void navigateToEntity(kind, id)} />}
-        {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} />}
+        {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} healthLogKey={healthLogIntent.value} healthLogNonce={healthLogIntent.nonce} onHealthLogConsumed={healthLogIntent.clear} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent.value} openNonce={noteIntent.nonce} onOpenConsumed={noteIntent.clear} />}
 
         {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} composeNonce={composeIntent.nonce} onComposeConsumed={composeIntent.clear} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} onOpenTask={(id) => void navigateToEntity("task", id)} />}
