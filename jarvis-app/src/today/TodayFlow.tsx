@@ -3003,9 +3003,11 @@ export default function TodayFlow({
     }
   };
 
-  // A reminder opened from the strip lands on the Reminders page with its
-  // details sheet up (push E): the page owns every action on a reminder.
-  const openReminder = (id: string) => { setRemOpenId(id); setRemHome(true); };
+  // A reminder opened from Today (the strip, a missed-reminder card) opens
+  // its details sheet in place, over Today (Dave 2026-09-15: it was landing
+  // on the Reminders page and staying there after the sheet closed). Going
+  // to the full Reminders page is "See All" alone, below.
+  const openReminder = (id: string) => { setRemOpenId(id); };
 
   // The sheet's writes that happen at once, not on Save: they each say what
   // they did and refresh the open sheet so the record it shows is the one
@@ -3710,6 +3712,14 @@ export default function TodayFlow({
       />
     )}
     {remSheetNode}
+    {!remHome && remOpenId && (
+      <RemindersFlow
+        pageless
+        onOpenEntity={onOpenEntity}
+        openId={remOpenId}
+        onOpened={() => setRemOpenId(null)}
+      />
+    )}
     {prompts[0] && (
       <ContextPromptSheet item={prompts[0]} eyebrow="After Completing a Task" onOpenLinked={onOpenEntity ? openLinked : undefined}
         onContinue={(id) => void writePrompt(id, shownNow)} onSnooze={(id) => void writePrompt(id, snoozedForADay)}

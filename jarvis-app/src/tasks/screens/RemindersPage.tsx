@@ -6,27 +6,32 @@ import { catName, catColor } from "../../shared/categories";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
 import { rowDoor } from "../../shared/rowDoor";
 import { Burst } from "../../shared/Burst";
-import { Check, Search, Plus, Ellipsis, Forward, ListChecks, FileText, CalendarDays, Lightbulb, User, Gauge } from "../../shared/icons";
-import { BellGlyph } from "../../shared/glyphs";
+import { Check, Search, Plus, Ellipsis, Gauge } from "../../shared/icons";
+import { fmtTime } from "../../schedule/calendar";
 
-// THE REMINDERS PAGE (the reminders rebuild push E, 2026-09-15, Dave's
-// interactive preview, on the app's own chrome). The date as an eyebrow
-// over "Reminders." with the gear; the On Your Radar card with today's
-// count and Take the Next Step; New Reminder as the page's one filled red
-// beside Search; four views as a segmented control; sections of cards.
+// THE REMINDERS PAGE (the reminders rebuild push E, 2026-09-15; row anatomy
+// corrected the same day after Dave's review of the interactive preview).
+// The date as an eyebrow over "Reminders."; New Reminder as the page's one
+// filled red beside Search; four views as a segmented control; sections of
+// cards.
 //
-// A card is a door (the whole card opens the details), with the symbol
-// tile, the words, a facts line of inline coloured words (the when in
-// amber, the area in its colour, the rhythm plain; never filled chips,
-// Dave 2026-09-15), the options glyph, and one row of answers: the linked
-// verb, Snooze, and the ring that marks it done. A done card offers Reopen
-// Occurrence, a paused one Resume Reminder, a skipped one Restore
-// Occurrence. Nothing here completes a reminder except the ring.
-
-const GLYPH: Record<string, ReactNode> = {
-  task: <ListChecks className="ic" />, note: <FileText className="ic" />, event: <CalendarDays className="ic" />,
-  decision: <Lightbulb className="ic" />, contact: <User className="ic" />, healthItem: <Gauge className="ic" />, email: <Forward className="ic" />,
-};
+// The "On Your Radar" hero card is gone (Dave 2026-09-15: it matched no
+// other component in the app). Ready Now / Later Today already say what it
+// said; the first Ready Now row keeps its amber rail as the one thing that
+// used to need a hero.
+//
+// A card is a door (the whole card opens the details): the ring leads (the
+// only thing that completes a reminder), a fixed time gutter for today's
+// timed occurrences, the title on one line, a facts line of inline coloured
+// words (the area in its colour via a single dot, "Today" in amber, the
+// rhythm plain (never filled chips, Dave 2026-09-15), the options glyph,
+// and exactly one action pill: the linked verb when there is one, otherwise
+// Snooze. No icon tile beside the ring: two shapes for one fact was the
+// exact "two circles" problem the row rules elsewhere in the app already
+// ban (Dave 2026-09-15). Every other action (including Snooze when a linked
+// verb already has the slot) lives one tap away in the detail sheet. A done
+// card offers Reopen Occurrence, a paused one Resume Reminder, a skipped one
+// Restore Occurrence.
 
 export interface PageChrome {
   back?: string;
@@ -36,16 +41,13 @@ export interface PageChrome {
 }
 
 export default function RemindersPage({
-  chrome, sections, tab, onTab, todayCount, nextId, query, onQuery, searchOpen, onSearchToggle, today,
+  chrome, sections, tab, onTab, query, onQuery, searchOpen, onSearchToggle, today,
   onNew, onSettings, onOpen, onTick, onSnooze, onOpenLinked, onResume, onRestore,
 }: {
   chrome: PageChrome;
   sections: PageSection[];
   tab: PageTab;
   onTab: (t: PageTab) => void;
-  todayCount: number;
-  /** The reminder Take the Next Step opens, or null when there is none. */
-  nextId: string | null;
   query: string;
   onQuery: (q: string) => void;
   searchOpen: boolean;
@@ -88,27 +90,39 @@ export default function RemindersPage({
     const area = it.category ? catName(it.category) : "";
     const timed = scheduleKindOf(r) === "timed" && !r.paused;
     const rule = repeatRuleOf(r);
+    // A fixed left time gutter only for today's timed occurrences (Ready
+    // Now, Later Today): the common case, and the one Dave reviewed. Every
+    // other case (unscheduled, paused, a future date, a context trigger,
+    // skipped) keeps the existing whenWords() phrase in the facts line,
+    // where a bare clock time wouldn't say enough on its own.
+    const dueToday = it.state === "open" && timed && it.date === today && !!it.time;
     const when = it.state === "skipped" ? "Skipped · " + whenWords(r, it.date, it.time, today, area) : whenWords(r, it.date, it.time, today, area);
     const tone = it.state === "open" && it.date === today ? "when" : "later";
+    // Exactly one action pill (never two beside the ring): the linked verb
+    // when there is one, Snooze otherwise. The one it displaces is still one
+    // tap away in the detail sheet, not dropped.
+    const primaryAct = link && onOpenLinked
+      ? { label: actionLabelFor(link), onClick: () => onOpenLinked(link) }
+      : timed ? { label: "Snooze", onClick: () => onSnooze(it.id) } : null;
     return (
       <div key={it.id + (it.skippedDate ?? "")} className={"card rem-card" + (current ? " current" : "") + (it.state === "done" ? " done" : "")} {...rowDoor(() => onOpen(it.id))}>
         <div className="rem-card-top">
-          <div className={"row-ico cat-bg-" + catColor(it.category || undefined)}>{link ? GLYPH[link.type] ?? <BellGlyph /> : <BellGlyph />}</div>
+          {it.state === "open" ? ring(it) : <span className="rem-card-cb-space" aria-hidden="true" />}
+          {dueToday && <div className="rem-time-gutter">{fmtTime(it.time!).time}<span className="ampm">{fmtTime(it.time!).ap}</span></div>}
           <div className="rem-card-body">
             <div className="rem-card-title">{it.text}</div>
             <div className="facts">
-              <span className={"fact " + (it.state === "open" ? tone : "")}>{when}</span>
+              {!dueToday && <span className={"fact " + (it.state === "open" ? tone : "")}>{when}</span>}
               {area && <span className="fact cat"><span className={"cd cat-bg-" + catColor(it.category)} />{area}</span>}
+              {dueToday && <span className="fact when">Today</span>}
               {timed && rule.kind !== "once" && <span className="fact">{describeRepeat(rule)}</span>}
             </div>
           </div>
           <button type="button" className="rem-card-more" aria-label={"Options for " + it.text} onClick={() => onOpen(it.id)}><Ellipsis className="ic" /></button>
         </div>
-        {it.state === "open" && (
+        {it.state === "open" && primaryAct && (
           <div className="rem-card-acts">
-            {link && onOpenLinked && <button type="button" className="pill-act" onClick={() => onOpenLinked(link)}>{actionLabelFor(link)}</button>}
-            {timed && <button type="button" className="pill-act" onClick={() => onSnooze(it.id)}>Snooze</button>}
-            {ring(it)}
+            <button type="button" className="pill-act" onClick={primaryAct.onClick}>{primaryAct.label}</button>
           </div>
         )}
         {it.state === "done" && <div className="rem-card-acts"><button type="button" className="pill-act pill-quiet" onClick={() => onTick(it.id, false)}>Reopen Occurrence</button></div>}
@@ -127,16 +141,6 @@ export default function RemindersPage({
             hero={<div className="rem-hero"><div className="eyebrow">{dateWord}</div><div className="pagehead-title">Reminders<span className="rem-hero-dot">.</span></div></div>} />}
 
       <div className="pad-x">
-        <div className="card rem-overview">
-          <div className="rem-overview-body">
-            <div className="eyebrow">On Your Radar</div>
-            <div className="rem-overview-count"><span className="n">{todayCount}</span><span className="w">{todayCount === 1 ? " for today" : " for today"}</span></div>
-            <div className="rem-overview-line">{todayCount > 0 ? "Your next step is ready." : "Space for what comes next."}</div>
-          </div>
-          {nextId
-            ? <button type="button" className="rem-orbit" onClick={() => onOpen(nextId)}><Forward className="ic" /><span>Take the Next Step</span></button>
-            : <div className="rem-orbit still" aria-hidden="true"><Check className="ic" /><span>All Clear</span></div>}
-        </div>
         <div className="rem-toolbar">
           <button type="button" className="btn btn-primary" onClick={onNew}><Plus className="ic" />New Reminder</button>
           <button type="button" className={"btn btn-secondary" + (searchOpen ? " on" : "")} aria-pressed={searchOpen} onClick={onSearchToggle}><Search className="ic" />Search</button>

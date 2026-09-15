@@ -21,47 +21,46 @@ const items = [
 ];
 function page(tab: PageTab, extra: Partial<Parameters<typeof RemindersPage>[0]> = {}) {
   const sections = pageSections(items, tab, TUE, "09:30");
-  return render(<RemindersPage chrome={{ back: "Today", onBack: noop }} sections={sections} tab={tab} onTab={noop} todayCount={2} nextId="now1"
+  return render(<RemindersPage chrome={{ back: "Today", onBack: noop }} sections={sections} tab={tab} onTab={noop}
     query="" onQuery={noop} searchOpen={false} onSearchToggle={noop} today={TUE} onNew={noop} onSettings={noop} onOpen={noop}
     onTick={noop} onSnooze={noop} onResume={noop} onRestore={noop} {...extra} />);
 }
 
 describe("RemindersPage", () => {
-  it("wears the date, the title, the radar count and the four views", () => {
+  it("wears the date, the title and the four views (no On Your Radar hero, 2026-09-15)", () => {
     page("today");
     expect(screen.getByText(/September 15/)).toBeInTheDocument();
-    expect(screen.getByText("On Your Radar")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-    expect(screen.getByText("Your next step is ready.")).toBeInTheDocument();
+    expect(screen.queryByText("On Your Radar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Take the Next Step")).not.toBeInTheDocument();
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Today", "Upcoming", "Routines", "Done"]);
     expect(screen.getByText("New Reminder")).toBeInTheDocument();
     expect(screen.getByText("Search")).toBeInTheDocument();
   });
 
-  it("a card is the door; the verb, Snooze and the ring are its answers", () => {
+  it("a card is the door; the ring leads, a time gutter carries today's clock, and one pill answers (row anatomy corrected 2026-09-15)", () => {
     const onOpen = vi.fn(); const onOpenLinked = vi.fn(); const onSnooze = vi.fn(); const onTick = vi.fn();
     page("today", { onOpen, onOpenLinked, onSnooze, onTick });
     expect(screen.getByText("Ready Now")).toBeInTheDocument();
-    expect(screen.getByText("Today · 9:00 AM")).toBeInTheDocument();
+    // Time moved out of the facts line into its own gutter: "9:00" and "AM"
+    // render separately rather than as one "Today · 9:00 AM" string.
+    expect(screen.getByText("9:00")).toBeInTheDocument();
+    expect(screen.getByText("AM")).toBeInTheDocument();
+    expect(screen.getAllByText("Today", { selector: ".fact.when" }).length).toBeGreaterThan(0);
     expect(screen.getByText("Weekdays")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Bridge Planning Before Jarvis"));
     expect(onOpen).toHaveBeenCalledWith("now1");
+    // A linked reminder shows its verb, not Snooze — Snooze is still one tap
+    // away, in the detail sheet, not on this row.
     fireEvent.click(screen.getByText("Open Task"));
     expect(onOpenLinked).toHaveBeenCalledWith({ type: "task", id: "t1", label: "Bridge Priorities" });
-    fireEvent.click(screen.getAllByText("Snooze")[0]!);
-    expect(onSnooze).toHaveBeenCalledWith("now1");
+    expect(screen.queryAllByText("Snooze").length).toBe(1); // only later1's row, which has no linked item
+    fireEvent.click(screen.getByText("Snooze"));
+    expect(onSnooze).toHaveBeenCalledWith("later1");
     fireEvent.click(screen.getByLabelText("Mark Bridge Planning Before Jarvis done"));
     expect(onTick).toHaveBeenCalledWith("now1", true);
     fireEvent.click(screen.getByLabelText("Options for Follow Up With Alberto"));
     expect(onOpen).toHaveBeenCalledWith("later1");
     expect(onOpen).toHaveBeenCalledTimes(2);
-  });
-
-  it("Take the Next Step opens the next reminder", () => {
-    const onOpen = vi.fn();
-    page("today", { onOpen });
-    fireEvent.click(screen.getByText("Take the Next Step"));
-    expect(onOpen).toHaveBeenCalledWith("now1");
   });
 
   it("Routines offers Resume; Done offers Reopen and Restore", () => {
@@ -80,12 +79,11 @@ describe("RemindersPage", () => {
 
   it("with nothing in the view, the empty state carries its Add", () => {
     const onNew = vi.fn();
-    render(<RemindersPage chrome={{ back: "Today", onBack: noop }} sections={[]} tab="upcoming" onTab={noop} todayCount={0} nextId={null}
+    render(<RemindersPage chrome={{ back: "Today", onBack: noop }} sections={[]} tab="upcoming" onTab={noop}
       query="" onQuery={noop} searchOpen={false} onSearchToggle={noop} today={TUE} onNew={onNew} onSettings={noop} onOpen={noop}
       onTick={noop} onSnooze={noop} onResume={noop} onRestore={noop} />);
     expect(screen.getByText("Nothing Here Right Now")).toBeInTheDocument();
-    expect(screen.getByText("Space for what comes next.")).toBeInTheDocument();
-    expect(screen.getByText("All Clear")).toBeInTheDocument();
+    expect(screen.getByText("Reminders appear here when they match this view.")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Add a Reminder"));
     expect(onNew).toHaveBeenCalled();
   });

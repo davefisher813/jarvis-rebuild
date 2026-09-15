@@ -4,7 +4,7 @@ import { useTasks, useProfile, useNotes, useDecisions, usePeople, useSchedule, u
 import type { TaskItem } from "../TasksService";
 import type { ReminderInfo, LinkedItem } from "../../notes/types";
 import type { ProfileData } from "../../profile/types";
-import { pageSections, homeSections, nextOccurrence, runsOn, isDone, scheduleKindOf, type PageTab } from "../reminders";
+import { pageSections, nextOccurrence, runsOn, isDone, scheduleKindOf, type PageTab } from "../reminders";
 import { catName } from "../../shared/categories";
 import { todayISO } from "../grouping";
 import { nowHHMM } from "../../today/todayData";
@@ -29,12 +29,19 @@ import type { LinkCandidate } from "./LinkedItemSheet";
 // thing and stay in step. Every write says what it did, and the ones that
 // can be undone offer Undo on the toast.
 
-export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened }: {
-  chrome: PageChrome;
+export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, pageless }: {
+  chrome?: PageChrome;
   onOpenEntity?: (kind: string, id: string) => void;
   /** Arrive with this reminder's details up (Today's strip, a banner). */
   openId?: string;
   onOpened?: () => void;
+  /** Mount only the sheets (detail, snooze, edit, settings, delete-confirm)
+   * over whatever screen is already showing, with no Reminders Home
+   * underneath and no navigation away from it. Today mounts RemindersFlow
+   * this way so tapping a reminder row opens its detail in place instead of
+   * swapping the whole screen for Reminders Home behind it (Dave 2026-09-15:
+   * the sheet opened, but dismissing it left you on Reminders, not Today). */
+  pageless?: boolean;
 }) {
   const tasks = useTasks();
   const profile = useProfile();
@@ -109,9 +116,6 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened }
   };
   const areaName = (id: string) => (cats.find((c) => c.id === id)?.name ?? catName(id));
   const sections = pageSections(items, tab, today, now, query, areaName);
-  const home = homeSections(items, today, now);
-  const todayCount = home.now.length + home.laterToday.length;
-  const nextId = home.now[0]?.id ?? home.laterToday[0]?.id ?? null;
   const itemOf = (id: string | null) => (id ? items.find((t) => t.id === id) ?? null : null);
 
   // ---- the writes, each with its word ----
@@ -214,13 +218,12 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened }
 
   return (
     <>
+      {!pageless && (
       <RemindersPage
-        chrome={chrome}
+        chrome={chrome ?? {}}
         sections={sections}
         tab={tab}
         onTab={setTab}
-        todayCount={todayCount}
-        nextId={nextId}
         query={query}
         onQuery={setQuery}
         searchOpen={searchOpen}
@@ -235,6 +238,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened }
         onResume={(id) => void pause(id, false)}
         onRestore={(id, date) => void restore(id, date)}
       />
+      )}
       {detail && (
         <ReminderDetailSheet
           item={detail}
