@@ -287,28 +287,64 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
     return () => document.body.classList.remove("writing");
   }, [focused]);
 
-  // THE BAR SAYS HOW TALL IT IS (Dave 2026-09-15: the bar "is blocking the
-  // screen behind it"). The room under the words was a flat 140px, which is
-  // one number for a bar with several heights: it grows a whole row when
-  // Format, List or Insert opens its menu, and it carries the home-indicator
-  // inset under that. Too small a number and the last rows of the screen sit
-  // under the bar with no way to scroll them out. So the bar measures itself
-  // and the stylesheet does the arithmetic; nothing downstream guesses.
+  // THE BAR SAYS WHAT IT COVERS (Dave 2026-09-15: the bar "is blocking the
+  // screen behind it", then: render the page above it).
+  //
+  // The room under the words was a flat 140px, which is one number for a
+  // stack of several heights. Our own bar grows a whole row when Format, List
+  // or Insert opens its menu. Under it sits iOS's own accessory pill (the
+  // field chevrons and its tick), which is the platform's, not ours, and is
+  // staying for now: the web app ships without the native dependency that
+  // could turn it off (see CLAUDE.md, the writing bar decision). Under that,
+  // the keys.
+  //
+  // So measure the thing that actually matters: the distance from the top of
+  // our bar to the bottom of the layout viewport. For a fixed element that is
+  // innerHeight minus its own top, and it counts our bar, the pill and
+  // whatever else the platform parks down there, without this file having to
+  // know what any of them are. --doc-kbar-h stays as the bar's own height for
+  // anything that wants just that.
   const barRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = barRef.current;
     const root = document.documentElement;
-    if (!el) { root.style.removeProperty("--doc-kbar-h"); return; }
-    const measure = () => root.style.setProperty("--doc-kbar-h", Math.ceil(el.getBoundingClientRect().height) + "px");
+    const clearAll = () => { root.style.removeProperty("--doc-kbar-h"); root.style.removeProperty("--doc-kbar-clear"); };
+    if (!el) { clearAll(); return; }
+    const measure = () => {
+      const box = el.getBoundingClientRect();
+      root.style.setProperty("--doc-kbar-h", Math.ceil(box.height) + "px");
+      root.style.setProperty("--doc-kbar-clear", Math.max(0, Math.ceil(window.innerHeight - box.top)) + "px");
+    };
     measure();
-    // The effect already re-runs when the bar appears and when a menu opens
-    // a row, which is every height this bar has. The observer is the belt on
-    // top of those braces, for a height nothing here asked for (a rotation, a
-    // dynamic-type change), and jsdom has no ResizeObserver to give.
-    if (typeof ResizeObserver === "undefined") return () => root.style.removeProperty("--doc-kbar-h");
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => { ro.disconnect(); root.style.removeProperty("--doc-kbar-h"); };
+    // The keyboard and its pill arrive by animation, and the visual viewport
+    // is what reports them. shared/viewport.ts answers the same two events by
+    // writing --vv-top and --vv-h on the next frame, and the bar's own top is
+    // those two values; measuring synchronously here would read the position
+    // it had BEFORE that write. So take the frame after, which is the frame
+    // the bar has actually moved in.
+    const vv = window.visualViewport;
+    let queued = false;
+    const afterFrame = () => {
+      if (queued) return;
+      queued = true;
+      const run = () => { queued = false; measure(); };
+      if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => requestAnimationFrame(run));
+      else run();
+    };
+    vv?.addEventListener("resize", afterFrame);
+    vv?.addEventListener("scroll", afterFrame);
+    // The effect already re-runs when the bar appears and when a menu opens a
+    // row. The observer is the belt on top of those braces, for a height
+    // nothing here asked for (a rotation, a dynamic-type change), and jsdom
+    // has no ResizeObserver to give.
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    ro?.observe(el);
+    return () => {
+      ro?.disconnect();
+      vv?.removeEventListener("resize", afterFrame);
+      vv?.removeEventListener("scroll", afterFrame);
+      clearAll();
+    };
   }, [focused, menu]);
 
   const swallow = (e: React.SyntheticEvent) => e.preventDefault();
