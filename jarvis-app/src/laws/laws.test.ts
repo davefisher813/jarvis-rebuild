@@ -4699,6 +4699,35 @@ describe("LAW: a live gym session is visible and reachable from Today", () => {
     expect(strings, "progress counts what was logged, never what is owed")
       .not.toMatch(/remaining|left to do|to go/i);
   });
+
+  // AND IT IS NOT RANKED OFF THE SCREEN (Dave 2026-09-16, photographed from
+  // inside a workout: "my workout isn't anywhere on the home page which it's
+  // supposed to be").
+  //
+  // Every law above this one passed while that was true. They prove Today
+  // READS the session, re-reads it when the gym door closes, and renders the
+  // plan rather than a bookmark -- all of which was working. What none of them
+  // could see is that the card was declared RESUME (40), so two missed
+  // reminders at WAITING and a moved-tasks notice at NEW outranked it, the
+  // stream cut at three, and a session in progress sat behind See All.
+  //
+  // So the weight is a law now. A live session is the one member of this
+  // stream that gets WORSE while you look away, and it may never be outranked.
+  it("a live session outranks every other band in the stream", () => {
+    const stream = read(SRC + "/today/stream.ts");
+    const band = (name: string) => {
+      const m = stream.match(new RegExp("export const " + name + " = (\\d+);"));
+      expect(m, name + " must be a declared band").toBeTruthy();
+      return Number(m![1]);
+    };
+    const live = band("LIVE");
+    for (const other of ["FAILING", "DEALT", "WAITING", "NEW", "RESUME", "AMBIENT"]) {
+      expect(live, "LIVE must outrank " + other).toBeGreaterThan(band(other));
+    }
+    const today = read(SRC + "/today/TodayFlow.tsx");
+    expect(today, "and the live-gym card must declare it")
+      .toMatch(/weight=\{tuningWeight\(tunings, "live-gym", LIVE\)\}/);
+  });
 });
 
 // TODAY-F-12 (2026-09-05): Batch 2 removed toISOString().slice(0,10) from
@@ -5156,6 +5185,9 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     const src = read(join(SRC, "shared/viewport.ts"));
     expect(src).toContain("--vv-h");
     expect(src).toContain("--vv-top");
+    // --vv-bot (2026-09-16): the same band read from the other end, for the
+    // bottom-anchored bars. The Log bar rides it; see healthSkin law 5.
+    expect(src).toContain("--vv-bot");
     // both events: the keyboard resizes the band AND scrolls it down the page,
     // and listening to resize alone leaves the bar off screen.
     expect(src).toMatch(/addEventListener\("resize"/);
@@ -5168,7 +5200,7 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     // sheet on a browser without visualViewport is byte for byte what shipped.
     const src = read(join(SRC, "shared/viewport.ts"));
     expect(src).toMatch(/if \(!vv\) return/);
-    const uses = [...CSS.matchAll(/var\(--vv-(h|top)(,\s*[^)]*)?\)/g)];
+    const uses = [...CSS.matchAll(/var\(--vv-(h|top|bot)(,\s*[^)]*)?\)/g)];
     expect(uses.length).toBeGreaterThan(2);
     for (const u of uses) expect(u[2], `var(--vv-${u[1]}) with no fallback`).toBeTruthy();
   });

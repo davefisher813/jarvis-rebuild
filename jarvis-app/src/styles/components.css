@@ -3569,6 +3569,29 @@ button {
 /* An armed chip: a length, a day, a feel. Reads like the selected state of a
    segmented control because that is what a chip row is. */
 .chip.chip-on { background: var(--accent-fill); color: #fff; }
+/* A THIRD CHIP STATE: ON, BUT THE LESSER OF TWO (2026-09-16, Dave
+   photographed the exercise editor: "these modals need to be remodeled and
+   cleaned up completely").
+
+   The muscle picker has three states, not two -- unset, primary, secondary --
+   and it was spending .chip.active on primary and .chip.chip-on on secondary.
+   Everywhere else in the app .chip-on means simply SELECTED, and it is the
+   accent fill, so on this one sheet the loudest chip on the card was the
+   weaker of the two roles: Glutes in solid red beside Hamstrings in white,
+   with red meaning less. Colour was arguing with the words under it
+   ("Primary Hamstrings, Secondary Glutes").
+
+   .chip-half is the ring: the plain chip's ground, the selected chip's ink,
+   and an outline in it. On, clearly, and clearly below the filled one.
+
+   IT IS NOT A TINT OF THE ACCENT, and the first cut of this was: law L1 (red
+   is a verb, never a status) went red on it within the minute, and it was
+   right to. A muscle being secondary is a status. The three states here read
+   by WEIGHT -- plain, ringed, filled -- which is the one axis that carries
+   "more or less of the same thing" without spending a colour that means
+   something else. */
+.chip.chip-half { background: var(--press-3); color: var(--tx-1);
+  box-shadow: inset 0 0 0 1.5px var(--sel-bg); }
 .chip-act { color: var(--accent-tx); }
 /* The load line under the strip. Amber only when the day says no; a neutral
    day must never look like a warning. */
@@ -5044,6 +5067,38 @@ body.selecting .voice-dock { display: none; }
    date is picked, the if-then plan folded under its row, the last group
    the actions, Delete in the system red and centred, the way iOS sets a
    destructive row. */
+/* A WRAPPED CHIP ROW INSIDE A FORM ROW PAYS ONE INSET, NOT TWO (2026-09-16).
+   .chip-row carries its own s-4 side padding because it is normally a
+   full-bleed scroller sitting directly on a screen. Nested in an .xs-row --
+   which is already inset by its card -- that padding is charged twice, and on
+   a 393pt phone the chips lost about 60pt of the line: "Each Hand" and "The
+   Whole Load" wrapped to two rows where all three would have fitted on one.
+   Wrapped is the right behaviour in a form (you cannot choose what you cannot
+   see), so the row keeps the wrap and gives back the second inset. */
+.xs-row > .chip-wrap-row { padding-left: 0; padding-right: 0; }
+
+/* A FREE-TEXT ROW IN A SHEET (2026-09-16, Dave photographed the exercise
+   editor: every placeholder sat on a black rounded slab and read as a value he
+   had already typed -- "Neutral / Wide / Hook" looked entered, not offered).
+
+   .xs-input is styled only inside .xs, and a sheet built on .sheet-form is not
+   .xs, so these inputs were falling through to the platform's own dark field.
+   On a charcoal card that paints a near-black capsule, which is exactly what a
+   FILLED value looks like in this app.
+
+   So the sheet's own rows get the treatment .xs already gives: no ground of
+   their own (the card is the ground), the value right-aligned against its
+   label the way every other sheet in the app sets a typed value, and a
+   placeholder at --tx-3, one step quieter than the label beside it, so an
+   example cannot be mistaken for an answer. */
+.sheet-form .xs-input {
+  flex: 1; min-width: 0; height: 32px; padding: 0;
+  background: transparent; border: 0; outline: none; -webkit-appearance: none; appearance: none;
+  font-family: var(--f); font-size: calc(16px * var(--type-scale));
+  color: var(--tx-1); text-align: right;
+}
+.sheet-form .xs-input::placeholder { color: var(--tx-3); }
+
 .form-sheet .xs-field { text-align: right; color: var(--tx-2); font-size: calc(16px * var(--type-scale)); }
 .form-sheet .xs-field::placeholder { color: var(--tx-2); }
 .form-sheet .xs-field[type="date"], .form-sheet .xs-field[type="time"] { flex: 0 1 auto; width: auto; max-width: 60%; }

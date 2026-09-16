@@ -16,6 +16,24 @@
 
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 
+// A SESSION RUNNING RIGHT NOW OUTRANKS EVERYTHING (Dave 2026-09-16,
+// photographed mid-workout: "my workout isn't anywhere on the home page which
+// it's supposed to be").
+//
+// It was there. It was declared RESUME, the pick-up-where-you-left-off band at
+// 40, so two missed reminders (WAITING, 70) and a moved-tasks notice (NEW, 50)
+// all outranked it, the stream cut at three, and a workout he was in the
+// middle of sat behind See All. Every law about this card passed: they check
+// that Today READS the live session, re-reads it when the gym door closes, and
+// renders the plan rather than a bookmark -- and all of that was true. None of
+// them could see that the card was ranked off the screen.
+//
+// RESUME was the wrong band because it describes the wrong thing. Resuming is
+// something you might do; a live session is something you ARE doing, and it is
+// the only member of this stream that gets worse while you look away -- the
+// rest timer runs out, the block keeps burning. It outranks FAILING too: a
+// failing thing is a warning about the day, and this is the day.
+export const LIVE = 95;      // a session in progress, right now
 export const FAILING = 90;   // sliding tasks, broken sweeps, an overloaded day
 // THE DEALT TASK'S OWN WEIGHT (2026-08-26, Dave: "the logic behind all of
 // this needs to be sound"). Your Move's dealt task was always MEANT to lead

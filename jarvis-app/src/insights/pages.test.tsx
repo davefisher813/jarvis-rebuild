@@ -37,7 +37,7 @@ describe("InsightsPage", () => {
     expect(screen.getByText("As a List")).toBeInTheDocument();
     // Unassigned sets are shown, not dropped, with the coverage stated.
     expect(screen.getByText("Unassigned")).toBeInTheDocument();
-    expect(screen.getByText("0 of 1 working sets mapped")).toBeInTheDocument();
+    expect(screen.getByText("0 of 1 Working sets mapped")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Assign Muscles"));
     expect(onAssign).toHaveBeenCalledWith([{ name: "Incline Bench", exerciseKey: "k1", sets: 1 }]);
     // Sleep over the nights logged, never a zero for a night not logged.
@@ -49,9 +49,9 @@ describe("InsightsPage", () => {
   it("changes every card with the period, and labels a chart that spans more than it", () => {
     render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={workouts} metricDefs={[sleep]} metricLogs={logs} logs={none} muscleMap={new Map([["k1", ["chest"]]])} cards={null}
       onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
-    expect(screen.getByText("1 of 1 working sets mapped")).toBeInTheDocument();
+    expect(screen.getByText("1 of 1 Working sets mapped")).toBeInTheDocument();
     fireEvent.click(screen.getByText("28 Days"));
-    expect(screen.getByText("3 of 3 working sets mapped")).toBeInTheDocument();
+    expect(screen.getByText("3 of 3 Working sets mapped")).toBeInTheDocument();
     expect(screen.getByText(/Spans the sessions, not only this period/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Strength" }));
     expect(screen.getByText("3 sessions in the period")).toBeInTheDocument();
@@ -67,15 +67,30 @@ describe("InsightsPage", () => {
 
 describe("AllDataPage", () => {
   const records = allRecords({ workouts: [w("a", "2026-09-13", 135)], metricDefs: [sleep], metricLogs: logs, lightsOut: [], tookIt: [], medDefs: [], callIt: [], pointAtIt: [], meals: [{ id: "me", data: { category: "fuel", at: T("2026-09-13", 12), text: "Oats" } }], checkins: [] });
-  it("filters by kind and day, opens a record, and offers Delete only where the row has no editor", () => {
+  // DELETE IS BEHIND THE ROW'S OPTIONS since 2026-09-16 (the health polish
+  // handoff: "Delete moves into entry options with existing confirmation and
+  // undo behavior. Do not expose accidental destructive pills in browsing
+  // lists"). The door is the app's own RowMenuButton, the sheet is its own
+  // ActionSheet, and the caller's Undo is untouched -- which is what this
+  // still proves: the same onDelete, with the same record.
+  it("filters by kind and day, opens a record, and offers Delete behind the row's options", () => {
     const onFilter = vi.fn(), onOpen = vi.fn(), onDelete = vi.fn();
     const filter = { category: "all" as const, range: "28d" as const, period: periodFor("28d", today), date: null, query: "" };
     const { rerender } = render(<AllDataPage view="data" onView={() => {}} records={records} filter={filter} onFilter={onFilter} today={today} scrollRef={{ current: 0 }} onOpen={onOpen} onDelete={onDelete} onExport={() => {}} />);
     expect(screen.getByText("Push")).toBeInTheDocument();
     expect(screen.getByText("Oats")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Nutrition · 1"));
+    // The kind filter is a selector since 2026-09-16, not a wrapping chip
+    // cloud (health polish: "Counts can appear inside selection menu rather
+    // than a large wrapping cloud"). The count still shows, as the sub line
+    // of the choice, where there is room for it.
+    fireEvent.click(screen.getByLabelText("Filter by kind of record"));
+    expect(screen.getAllByText("1 Recorded").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByText("Nutrition"));
     expect(onFilter).toHaveBeenCalledWith(expect.objectContaining({ category: "nutrition" }));
-    fireEvent.click(screen.getByLabelText("Delete Meal"));
+    // No destructive pill sits in the list any more; the row's options hold it.
+    expect(screen.queryByLabelText("Delete Meal")).toBeNull();
+    fireEvent.click(screen.getByLabelText("More Actions for Meal"));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ title: "Meal" }));
     fireEvent.click(screen.getByText("Push"));
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ open: { kind: "workout", id: "a" } }));

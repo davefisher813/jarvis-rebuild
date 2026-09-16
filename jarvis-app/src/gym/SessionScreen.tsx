@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadStyleOf, plateMath, styleSummary, weightLabel } from "./equipment";
+import { loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, type LoadStyle } from "./equipment";
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
@@ -22,6 +22,7 @@ import CondReceipt from "./CondReceipt";
 import { condResultEntry } from "./conditioning";
 import LibraryPickSheet from "./LibraryPickSheet";
 import PlateSheet from "./PlateSheet";
+import LoadSheet from "./LoadSheet";
 import ExerciseSheet from "./ExerciseSheet";
 import MusicChip from "../music/MusicChip";
 import { showToast } from "../shared/toast";
@@ -66,6 +67,7 @@ export default function SessionScreen({
   onSkip,
   onMove,
   onSwap,
+  onSetLoad,
   onAddMidSession,
   onUpdateProgram,
   onAcceptSuggestion,
@@ -105,6 +107,11 @@ export default function SessionScreen({
   onSkip: () => void;
   onMove: (idx: number) => void;
   onSwap: (sub: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string }) => void;
+  /** HOW THIS LIFT LOADS, SET FROM IN HERE (2026-09-16, Dave: "I don't even
+   *  have the option while I'm logging to select what type of weight system
+   *  it is"). The equipment, the reading and the reps axis. Absent leaves the
+   *  header chip a fact rather than a door, which is what it was. */
+  onSetLoad?: (next: LoadStyle) => void;
   onAddMidSession: (draft: Omit<Exercise, "id">) => void;
   /** Part 3 wave 5 (Dave's 10a): a swapped or added exercise changes this
    *  session only; this is the one explicit way to carry it into the
@@ -147,6 +154,10 @@ export default function SessionScreen({
   const current = live.exercises[idx]!;
   const logged = current.sets;
   const noun = entryNoun(exercise.kind);
+  // WHAT THIS THING LOADS WITH, read once. It drives the strip's own steppers
+  // now (2026-09-16), not just the header chip and the calculator's door.
+  const style = loadStyleOf(exercise);
+  const [loadOpen, setLoadOpen] = useState(false);
   // LAST TIME, ALWAYS IN SIGHT -- D2 (Training Catalog V2, approved
   // 2026-08-31). One header line (whole last session, date, all-time best)
   // plus a per-position reference under every chip, with tap-to-match on
@@ -179,6 +190,10 @@ export default function SessionScreen({
   const [swapOpen, setSwapOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [platesOpen, setPlatesOpen] = useState(false);
+  /** What the open set's two fields say this moment, or null before a key is
+   *  pressed (then the plan stands). Cleared on every write, and by the effect
+   *  below when the athlete moves to another exercise. */
+  const [draft, setDraft] = useState<{ w: number; r: number } | null>(null);
   // GYM-F-01 (2026-09-05): the rest is a deadline on the live session, not a
   // tick counter in screen state -- see RestTimer.tsx and LiveSession.restEndsAt.
   const restEndsAt = live.restEndsAt ?? null;
@@ -199,8 +214,8 @@ export default function SessionScreen({
       // 2026-09-14: the smallest real jump is a PAIR of the smallest plates
       // on anything you load plates onto -- a barbell and a plate-loaded
       // machine both -- and is meaningless on a pinned stack.
-      ...(plateMath(loadStyleOf(exercise)).offer ? { smallestJump: Math.min(...rackFrom(readGymSettings()).plates) * 2 } : {}),
-      ...(loadStyleOf(exercise).equipment ? { equipmentLabel: styleSummary(loadStyleOf(exercise)) } : {}),
+      ...(plateMath(style).offer ? { smallestJump: Math.min(...rackFrom(readGymSettings()).plates) * 2 } : {}),
+      ...(style.equipment ? { equipmentLabel: styleSummary(style) } : {}),
     })
     : null;
   const [basisOpen, setBasisOpen] = useState(false);
@@ -407,15 +422,36 @@ export default function SessionScreen({
       onAction: () => onSetLogged(before, idx),
     });
   };
+  // WHAT THE FIELDS SAY, RIGHT NOW (2026-09-16, Dave, mid-session: "when you
+  // do see it, it just defaults to like whatever it originally was. So it'll
+  // just say log eight reps when I put in a bunch of other info").
+  //
+  // He was right and it was worse than a label bug. There were TWO ways to log
+  // one set and they logged different things: the small tick inside the open
+  // set wrote what the fields said, and the big red Log Set -- the obvious one,
+  // the one your thumb is already on -- wrote the PLAN and discarded the
+  // typing. So the number that landed in his history was not the number he had
+  // just entered, and the button had been telling him so the whole time.
+  //
+  // The open set's fields report upward as they are typed (SetStrip's
+  // onGhostDraft). One draft, for the set he is ON, and both doors write it.
+  // A draft belongs to ONE open set. Moving exercise leaves it behind rather
+  // than carrying last exercise's numbers onto the next one's button.
+  useEffect(() => { setDraft(null); }, [exercise.name, exercise.kind, workLogged]);
+
   const log = () => {
     if (exercise.kind === "done") { const e = { id: newSetId(), done: true }; onLog(e); receiptForLog(e); return; }
     // The plan is the WORK, so it is indexed by working sets logged. Warm-ups
     // sit in the same strip and must never advance the athlete's place in it.
     const next = plannedEntryAt(planEx, workLogged);
-    if (next) { const e = duplicateEntry(next); onLog(e); startRest(); receiptForLog(e); return; }
+    if (next) {
+      const e = { ...duplicateEntry(next), ...(draft ?? {}) };
+      onLog(e); setDraft(null); startRest(); receiptForLog(e); return;
+    }
     const lastWork = [...logged].reverse().find((x) => !x.warmup && !x.drop);
-    const e = lastWork ? duplicateEntry(lastWork) : blankEntry();
+    const e = { ...(lastWork ? duplicateEntry(lastWork) : blankEntry()), ...(draft ?? {}) };
     onLog(e);
+    setDraft(null);
     startRest();
     receiptForLog(e);
   };
@@ -500,7 +536,23 @@ export default function SessionScreen({
             mid-set there is no doubt whether the number on the button is one
             dumbbell or the pair. "Load" was the old word for it; the row it
             mirrors is called Equipment now. */}
-        {loadStyleOf(exercise).equipment && <div className="se-chips"><span className="se-chip se-chip-pair"><em>{weightLabel(loadStyleOf(exercise))}</em>{styleSummary(loadStyleOf(exercise))}</span></div>}
+        {/* A DOOR, AND IT IS THERE WHEN NOTHING HAS BEEN SAID (2026-09-16).
+            The chip rendered only once an equipment existed, so the lift that
+            most needed the question -- the unclassified one, whose strip was
+            stepping by 5 and calling its number "Weight" -- was the one with
+            no way to answer it. It asks now, and answering is one tap from
+            the rack. */}
+        {onSetLoad ? (
+          <div className="se-chips">
+            <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={() => setLoadOpen(true)}>
+              <em>{style.equipment ? weightLabel(style) : "Equipment"}</em>
+              {style.equipment ? styleSummary(style) : "Not Set"}
+            </button>
+            {style.sided && <span className="se-chip se-chip-pair"><em>Reps</em>Per Side</span>}
+          </div>
+        ) : style.equipment && (
+          <div className="se-chips"><span className="se-chip se-chip-pair"><em>{weightLabel(style)}</em>{styleSummary(style)}</span></div>
+        )}
         {/* UP-CORE-06 (2026-09-05): the guard, under the title. A workout is
             one of the two places two hours disappear, and the person is by
             definition not looking at their calendar. A fact, in the same
@@ -639,8 +691,17 @@ export default function SessionScreen({
 
       {/* One head grammar across the gym pages (reformat 2026-08-31): the
           quiet sh2, same as the program page's Days and Recent. */}
-      <div className="sh2 sh2-quiet"><span className="t">{noun}</span>
-        {!cond && !current.skipped && planEx.sets.length > 0 && <span className="n">{`${workLogged} of ${planEx.sets.length}`}</span>}</div>
+      {/* AND IT SAYS WHICH LIFT (2026-09-16, Dave mid-set: "if I'm trying to
+          log something, I don't even know what I'm logging, whether it's the
+          exercise before or the exercise after"). The head said SETS. The
+          exercise's name was a screen above it, past the warm-up card, the
+          suggestion card and the superset row, and the list of every OTHER
+          exercise in the session sits directly below the strip -- so the one
+          place the athlete actually types a number was the one place nothing
+          named the lift. The name takes the head and the noun rides the count,
+          which is where the noun was doing its work anyway. */}
+      <div className="sh2 sh2-quiet"><span className="t">{exercise.name}</span>
+        {!cond && !current.skipped && planEx.sets.length > 0 && <span className="n">{capAfterNumber(`${workLogged} of ${planEx.sets.length} ${noun.toLowerCase()}`)}</span>}</div>
       <div className="pad-x">
         {current.skipped ? (
           <div className="card list-card-ruled"><div className="row"><div className="row-grow"><div className="conn-name">Skipped</div></div></div></div>
@@ -656,11 +717,13 @@ export default function SessionScreen({
             kind={exercise.kind}
             unit={exercise.unit}
             timeUnit={exercise.timeUnit}
+            style={style}
             entries={logged}
             ghost={ghost}
             onLogGhost={(i) => { onLog(duplicateEntry(ghost[i]!)); startRest(); }}
             editableGhosts
-            onLogGhostAs={(i, patch) => { const e = { ...duplicateEntry(ghost[i]!), ...patch }; onLog(e); startRest(); receiptForLog(e); }}
+            onLogGhostAs={(i, patch) => { const e = { ...duplicateEntry(ghost[i]!), ...patch }; onLog(e); setDraft(null); startRest(); receiptForLog(e); }}
+            onGhostDraft={setDraft}
             onChange={changeSets}
             prAt={celebrations ? (i) => isSessionPR(history, exercise, exercise.kind, logged, i) : undefined}
             moveTracking
@@ -679,8 +742,26 @@ export default function SessionScreen({
             {upNext && !(partner && partnerLiveIdx >= 0) && (
               <button className="row-create" role="button" tabIndex={0} onClick={() => onMove(upNextIdx)}>{`Up Next · ${upNext.name}`}</button>
             )}
-            {exercise.kind === "weight_reps" && !cond && (
-              <button className="row-create" role="button" tabIndex={0} onClick={() => setPlatesOpen(true)}>Plate Calculator</button>
+            {/* ONLY WHERE THERE ARE PLATES (2026-09-16, Dave: "it just always
+                defaults to dumbbell weight, so the plate loading and all that
+                is completely off"). It was gated on the measurement kind
+                alone, which every loaded exercise shares -- so a dumbbell press,
+                a cable row and a selectorized machine all offered to work out
+                which plates go on a barbell, and the sheet then assumed the
+                rack's 45 lb bar. plateMath already answers this exactly and
+                was already imported at the top of this file; it simply was
+                not being asked. */}
+            {/* WHATEVER THIS THING LOADS WITH (2026-09-16, Dave: "the plate
+                calculator has to factor in all of the weight loading options
+                not just dumbbells"). It used to be gated on the measurement
+                kind, which every loaded exercise shares, so a stack and a
+                dumbbell were both offered barbell plate math. It is offered
+                now where there is something to WORK OUT -- plates to hang, a
+                pair to total, a pin to find -- and the sheet answers in that
+                equipment's own terms. A band has no number and bodyweight and
+                assisted are the number itself, so neither asks. */}
+            {loadCalcFor(style) && !cond && (
+              <button className="row-create" role="button" tabIndex={0} onClick={() => setPlatesOpen(true)}>{loadCalcFor(style)}</button>
             )}
             {onAdjustTime && (
               <button className="row-create" role="button" tabIndex={0} onClick={onAdjustTime}>Adjust Time</button>
@@ -760,7 +841,7 @@ export default function SessionScreen({
                 {logged.length === 0 ? "Start the Clock" : "Run It Again"}
               </button>
             : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
-                {logButtonLabel(planEx, workLogged)}
+                {logButtonLabel(planEx, workLogged, draft ?? undefined)}
               </button>}
         </div>
       )}
@@ -776,7 +857,15 @@ export default function SessionScreen({
         />
       )}
       {platesOpen && (
-        <PlateSheet total={nextPlannedWeight} unit={exercise.unit} rack={rack} onClose={() => setPlatesOpen(false)} />
+        <PlateSheet total={nextPlannedWeight} unit={exercise.unit} rack={rack} style={style} onClose={() => setPlatesOpen(false)} />
+      )}
+      {loadOpen && onSetLoad && (
+        <LoadSheet
+          name={exercise.name}
+          initial={style}
+          onSave={(next) => { onSetLoad(next); setLoadOpen(false); }}
+          onCancel={() => setLoadOpen(false)}
+        />
       )}
       {addOpen && (
         <ExerciseSheet

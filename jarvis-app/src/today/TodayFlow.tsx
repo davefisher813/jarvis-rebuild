@@ -20,7 +20,7 @@ import { monthName as monthTitle } from "../review/report";
 import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
 import { rowDoor, own } from "../shared/rowDoor";
-import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
+import { FAILING, WAITING, NEW, RESUME, LIVE, spotIsDuplicate } from "./stream";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
 import { leadFor } from "../schedule/leaveBy";
@@ -2851,7 +2851,7 @@ export default function TodayFlow({
         <NoticeCard
           key="live-gym"
           {...tuneProps("live-gym", "Back to " + card.dayName)}
-          weight={tuningWeight(tunings, "live-gym", RESUME)}
+          weight={tuningWeight(tunings, "live-gym", LIVE)}
           icon={<BarbellGlyph />}
           tone="cat-fg-orange"
           title={card.fresh ? `${card.dayName} is ready` : `Back to ${card.dayName}`}

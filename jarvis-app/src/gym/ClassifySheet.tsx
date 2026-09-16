@@ -67,7 +67,7 @@ function ChipRow<T extends string>({ items, label: labelOf, value, onPick, ariaP
   return (
     // row-tap: chip strip, every inch of it is one of the answer chips
     <div className="row xs-row">
-      <div className="chip-row">
+      <div className="chip-row chip-wrap-row">
         {items.map((t) => (
           <button
             key={t}
@@ -150,14 +150,21 @@ export default function ClassifySheet({
             </div>
             {/* row-tap: chip strip, every inch of it is one of the muscle chips */}
             <div className="row xs-row">
-              <div className="chip-row">
+              <div className="chip-row chip-wrap-row">
                 {MUSCLE_GROUPS.map((m) => {
                   const role = roleOf(m);
                   return (
                     <button
                       key={m}
                       type="button"
-                      className={"chip" + (role === "primary" ? " active" : role === "secondary" ? " chip-on" : "")}
+                      // Three states, strongest first: primary is the filled
+                      // .active chip, secondary the .chip-half tint below it,
+                      // unset the plain chip. It used to spend .chip-on --
+                      // which means SELECTED everywhere else in the app -- on
+                      // SECONDARY, so the loudest chip on the card was the
+                      // weaker role and the colour argued with the line under
+                      // it. See the note at .chip-half in components.css.
+                      className={"chip" + (role === "primary" ? " active" : role === "secondary" ? " chip-half" : "")}
                       aria-pressed={role !== null}
                       aria-label={`${MUSCLE_LABEL[m]}${role ? ", " + role : ""}`}
                       onClick={() => cycle(m)}
@@ -174,7 +181,15 @@ export default function ClassifySheet({
                   <span className="fact">{c.primary.length ? `Primary ${c.primary.map((m) => MUSCLE_LABEL[m]).join(", ")}` : "No primary yet"}</span>
                   {c.secondary.length > 0 && <span className="fact cyan">{`Secondary ${c.secondary.map((m) => MUSCLE_LABEL[m]).join(", ")}`}</span>}
                 </div>
+                {/* The counting convention is methodology, which rule 3 of the
+                  2026-09-16 polish puts behind a labelled disclosure: you need
+                  it once, and then it is a grey sentence in the middle of a
+                  form you come back to. The line above it -- which muscles are
+                  actually set -- is the fact, and stays. */}
+              <details className="exp-more">
+                <summary>How Sets Are Counted</summary>
                 <div className="conn-meta">A primary counts a whole working set, a secondary counts half</div>
+              </details>
               </div>
             </div>
           </div></div>
@@ -188,7 +203,7 @@ export default function ClassifySheet({
               <div className="pad-x"><div className="card xs-group">
                 {/* row-tap: chip strip, every inch of it is one of the three scope chips */}
                 <div className="row xs-row">
-                  <div className="chip-row">
+                  <div className="chip-row chip-wrap-row">
                     {(["all", "existing", "future"] as MuscleScope[]).map((s) => (
                       <button key={s} type="button" className={"chip" + (scope === s ? " active" : "")}
                         aria-pressed={scope === s} onClick={() => setScope(s)}>
@@ -304,10 +319,17 @@ export default function ClassifySheet({
             </>
           )}
 
-          {/* WHAT IT SAYS NOW, at the foot, so Save is not a leap of faith. */}
-          <div className="pad-x"><div className="bp-sub">
+          {/* WHAT IT SAYS NOW, at the foot, so Save is not a leap of faith.
+              It is the app's own quiet foot line since 2026-09-16 (Dave,
+              photographed: "these modals need to be remodeled and cleaned up
+              completely"). As a bare .bp-sub it sat under the last card with
+              no label and no ground, so "Hamstrings · Also Glutes" read as a
+              stray sentence somebody forgot to delete rather than as the
+              receipt for what Save is about to write. .list-floor is what this
+              app uses for a line that reports rather than asks. */}
+          <div className="list-floor">
             {valueLine(c, "muscles") ?? "No muscles yet"}
-          </div></div>
+          </div>
           <div className="xs-foot" />
         </div>
       </div>

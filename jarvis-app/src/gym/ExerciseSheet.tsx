@@ -402,7 +402,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 </div>
                 {stripOpen && (
                   <div className="row xs-strip">
-                    <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} entries={sets} onChange={setSets} handles={reorderSets}
+                    <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} style={loadStyle} entries={sets} onChange={setSets} handles={reorderSets}
                       lastFor={lastHit ? (i) => (lastHit.sets[i] ? `Last: ${formatSet(lastHit.fx, lastHit.sets[i]!)}` : null) : undefined} />
                   </div>
                 )}

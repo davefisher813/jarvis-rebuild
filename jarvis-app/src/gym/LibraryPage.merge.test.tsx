@@ -59,7 +59,7 @@ describe("LibraryPage: the duplicate summary row", () => {
   it("is one compact row with the real unresolved count, not a stack of cards", () => {
     render(<LibraryPage {...base} rows={forked} dismissedDupes={[]} onDismissDuplicate={() => {}} />);
     expect(screen.getByText("Possible Duplicates")).toBeInTheDocument();
-    expect(screen.getByText("1 pair")).toHaveClass("fact", "amber");
+    expect(screen.getByText("1 Pair")).toHaveClass("fact", "amber");
     // The library is still the page: the row is a row, and the exercises are
     // right there under it rather than pushed off the screen.
     expect(screen.getByText("Bench Press")).toBeInTheDocument();

@@ -52,8 +52,14 @@ describe("the Health page's three doors", () => {
     expect(screen.getByText("Exercises")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
     // Two exercises in the program, two program days, one logged session.
+    //
+    // A COUNT SAYS WHAT IT COUNTS (Dave 2026-09-16, the health polish pass:
+    // "keep your order, take the better rows"). These were bare numbers under
+    // a word, which reads as nothing once the eye leaves the label; they carry
+    // their own noun now, through capAfterNumber like every other counted line
+    // in the app, and the singular is real rather than "1 sessions".
     const counts = Array.from(document.querySelectorAll(".h-door-n")).map((n) => n.textContent);
-    expect(counts).toEqual(["2", "2", "1"]);
+    expect(counts).toEqual(["2 Exercises", "2 Days", "1 Session"]);
   });
 
   it("opens Program and History from their own doors", () => {

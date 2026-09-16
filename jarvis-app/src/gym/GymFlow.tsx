@@ -25,7 +25,7 @@ import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
 import { dayWithSessionEntry } from "./edit";
 import { defaultUnit, equipmentOf } from "./types";
-import { loadStyleOf } from "./equipment";
+import { loadStyleOf, type LoadStyle } from "./equipment";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
@@ -54,6 +54,8 @@ import { pairId } from "./duplicates";
 import { mmss } from "./conditioning";
 import DurationCard from "./DurationCard";
 import ActionSheet, { PickSheet, type SheetAction, type PickItem } from "./ActionSheet";
+// The row's one visible menu door, shared with All Data since 2026-09-16.
+import RowMenuButton from "../shared/RowMenuButton";
 import SetStrip from "./SetStrip";
 import ReorderList from "../shared/ReorderList";
 import SwipeDelete from "../shared/SwipeDelete";
@@ -293,19 +295,6 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
  * door: the same trailing pill on every row, opening the same ActionSheet.
  * A real button, so Enter and Space are free and the label is announced.
  */
-function RowMenuButton({ onMenu, what }: { onMenu: () => void; what: string }) {
-  return (
-    <button
-      className="row-menu-btn"
-      aria-label={`More Actions for ${what}`}
-      onClick={(e) => { e.stopPropagation(); onMenu(); }}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
-      <Ellipsis className="ic" />
-    </button>
-  );
-}
-
 function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day: ProgramDay; onOpen: () => void; onPin?: () => void; onMenu: () => void;
   /** 2026-09-14 (the reference's "Completed Monday"): the weekday of this
    *  day's last session when it was inside the last week. */
@@ -330,12 +319,21 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
           {!current && doneWord && <span className="se-chip se-chip-done"><em>Done</em>{doneWord}</span>}
         </div>
       </div>
-      {/* PINS, D4, preview dress: the weekday claim is the row's trailing
-          pill -- "Pin Days" is a verb (red) until a pin exists, then the
-          claim is a quiet fact (white). Both open the picker. */}
-      {onPin && (day.pinDays?.length
-        ? <button className="pill-act pill-neutral day-pin" onClick={(e) => { e.stopPropagation(); onPin(); }}>{pinLabel(day.pinDays)}</button>
-        : <button className="pill-act day-pin" onClick={(e) => { e.stopPropagation(); onPin(); }}>Pin Days</button>)}
+      {/* PINS, D4: the weekday claim is a FACT on this row, not a verb.
+          (2026-09-16, the polish handoff: "Move Pin Days into day options;
+          preserve accessible direct access in the day screen Schedule row.")
+
+          Every day carried a red "Pin Days" capsule until it was pinned, so a
+          five-day program showed five red verbs down the right edge, each one
+          the loudest thing on its row and none of them the thing you came to
+          do. It was also a THIRD trailing control beside the menu and the
+          chevron, on a row the app's own arity rule gives one.
+
+          Setting a pin was never lost and is not moved here: the row's own
+          options already carried "Pin Days..." before this change, and the
+          day screen keeps its Schedule row. What survives on the row is the
+          claim itself, once made, in the quiet ink a fact wears. */}
+      {day.pinDays?.length ? <span className="se-chip se-chip-pin">{pinLabel(day.pinDays)}</span> : null}
       <RowMenuButton onMenu={onMenu} what={day.name} />
       {CHEV}
     </div>
@@ -438,14 +436,28 @@ function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
     // and each item states its amount at the row's far right -- the exact
     // preview anatomy. Empty stays legal: no items means the card is just
     // its door.
-    <div className="pad-x"><div className={"card list-card-ruled" + (has ? (tone === "cool" ? " banner-cool" : " banner-warn") : "")}>
-      {/* The header row opens the block editor, same as its pill (Dave
+    // THE TONE MOVES TO THE LABEL (2026-09-16, the polish handoff: "Warm-up
+    // and cool-down: compact neutral card, title, aligned duration and Edit
+    // text action. Avoid large amber/blue filled slabs"). Dave photographed
+    // the warm-up as a solid amber block two shades louder than the exercises
+    // it warms up for, which is backwards -- it is the smallest thing on the
+    // day and it was painting the largest.
+    //
+    // His 2026-09-13 ruling stands and is what the hue still says: warm-up is
+    // the warm colour, cool-down "a blue that fades out". That was a ruling
+    // about WHICH colour, not about washing a whole card in it. The eyebrow
+    // already had both variants; the card goes back to the grouped list every
+    // other block on this page uses.
+    <div className="pad-x"><div className="card list-card-ruled">
+      {/* The header row opens the block editor, same as its action (Dave
           2026-09-15: "I want all rows clickable"). */}
       <div className="row" {...rowDoor(onEdit)}>
         <div className="row-grow">
           <div className={"eyebrow" + (has ? (tone === "cool" ? " eyebrow-cool" : " eyebrow-warn") : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${minutes} Min` : ""}</div>
         </div>
-        <button className="pill-act" onClick={own(onEdit)}>{has ? "Edit" : "Add"}</button>
+        {/* A text action, not a capsule: it opens an editor, it does not act
+            on the row (polish rule 2). */}
+        <button className="see-all" onClick={own(onEdit)}>{has ? "Edit" : "Add"}</button>
       </div>
       {blocks?.map((b) => (
         <div className="row" key={b.id}>
@@ -1256,6 +1268,46 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     }
   };
 
+  // HOW A LIFT LOADS, ANSWERED FROM THE RACK (2026-09-16, Dave: "I don't even
+  // have the option while I'm logging to select what type of weight system it
+  // is"). Two writes, and both are needed for different reasons.
+  //
+  // The LIVE entry takes it first and unconditionally, because that is what
+  // makes the strip's steppers, its labels and the plate calculator right for
+  // the set he is about to do -- and because WorkoutExercise carries the
+  // convention into the saved record, so these sets are filed under what they
+  // actually were. This is the only write a swapped or added lift can take;
+  // it is not in the program, and this session is the whole of its life.
+  //
+  // The PROGRAM's exercise takes it too when the lift really is in this day's
+  // plan, because equipment is a fact about a lift and not about an
+  // afternoon: answering it once should not have to be answered again next
+  // week. Same identity check acceptSuggestion makes, and for the same
+  // reason -- Swap keeps the original slot's exerciseId (liveSession.ts), so
+  // trusting that id would write a dumbbell's reading onto the barbell lift
+  // it replaced.
+  const setLoadStyle = async (ex: Exercise, next: LoadStyle) => {
+    const patch = {
+      equipment: next.equipment,
+      counted: next.counted,
+      ...(next.sided ? { sided: true as const } : { sided: undefined }),
+    };
+    patchLive((l) => ({
+      ...l,
+      exercises: l.exercises.map((e, i) => (i === l.idx ? { ...e, ...patch } : e)),
+    }));
+    if (!program || !live) return;
+    const week = program.data.weeks.find((w) => w.days.some((d) => d.id === live.dayId));
+    const day = week?.days.find((d) => d.id === live.dayId);
+    if (!week || !day) return;
+    const entry = live.exercises[live.idx];
+    const behind = entry ? programExerciseFor(entry, day) : undefined;
+    if (!behind || behind.id !== ex.id) return;
+    await saveDays(week.id, week.days.map((d) => (d.id !== day.id ? d : {
+      ...d, exercises: d.exercises.map((e) => (e.id === ex.id ? { ...e, ...patch } : e)),
+    })));
+  };
+
   // THE FINISH IS TWO STEPS (H-30, Health Push B, 2026-09-12). The receipt
   // opens BEFORE anything is written: Done commits the session, with the note
   // if he wrote one, and Keep Training closes the receipt and leaves the
@@ -1853,6 +1905,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 kind={e.kind}
                 unit={e.unit}
                 timeUnit={e.timeUnit}
+                // The convention these sets were LOGGED under, which the
+                // record carries (WorkoutExercise.equipment/counted). An
+                // editor that stepped a stack by 5 and called its number
+                // "Weight" was correcting history in the wrong language.
+                style={loadStyleOf(e)}
                 entries={workoutDraft[ei]?.sets ?? []}
                 onChange={(sets) => setWorkoutDraft((d) => d && d.map((x, i) => (i === ei ? { ...x, sets } : x)))}
                 moveTracking
@@ -1936,7 +1993,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     // them. Only a swapped or added entry, which has no program exercise at
     // all, takes the bare path now.
     const behind = liveEx ? programExerciseFor(liveEx, day) : undefined;
-    const exercise: Exercise | undefined = liveEx?.custom
+    // THE LIVE ENTRY'S OWN READING WINS (2026-09-16). The session's Equipment
+    // sheet writes here first and to the program second, and for a swapped or
+    // added lift the program write never happens at all -- so a base that only
+    // ever read the program would answer with the convention the athlete just
+    // replaced, or with none. Undefined fields are dropped rather than
+    // spread, or an entry that predates the sheet would erase what its
+    // program exercise says.
+    const liveLoad = liveEx ? {
+      ...(liveEx.equipment ? { equipment: liveEx.equipment } : {}),
+      ...(liveEx.counted ? { counted: liveEx.counted } : {}),
+      ...(liveEx.sided ? { sided: true as const } : {}),
+    } : {};
+    const withLoad = (ex: Exercise | undefined): Exercise | undefined => (ex ? { ...ex, ...liveLoad } : undefined);
+    const exercise: Exercise | undefined = withLoad(liveEx?.custom
       ? (behind
         ? { ...behind, sets: liveEx.plan ?? [] }
         // GYM-F-21 (2026-09-05): an added exercise has no program exercise
@@ -1955,7 +2025,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           const base = behind ?? planned;
           if (base) return liveEx?.plan ? { ...base, sets: liveEx.plan } : base;
           return liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined;
-        })();
+        })());
     if (!exercise) return <div className="screen ruled health-ruled" />;
     return (
       <>
@@ -1973,6 +2043,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         onSkip={() => patchLive((l) => ({ ...skipExercise(l, l.idx), idx: Math.min(l.idx + 1, l.exercises.length - 1) }))}
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
         onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); showToast({ message: `Swapped in ${sub.name}` }); }}
+        onSetLoad={(next) => { void setLoadStyle(exercise, next); }}
         onAddMidSession={(draft) => { patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note })); showToast({ message: `Added ${draft.name}` }); }}
         onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
         // Part 3 wave 5 (Dave's 10a): only a swapped or added entry offers it.
@@ -2567,8 +2638,19 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               )}
             </div></div>
             {/* 2026-09-14 (the reference's day plan): an edit here reaches the
-                next session; a logged session keeps the numbers it logged. */}
-            <div className="pad-x"><div className="input-hint">Edits apply to future workouts · Logged sessions keep their own numbers</div></div>
+                next session; a logged session keeps the numbers it logged.
+                BEHIND A LABELLED DISCLOSURE since the health polish pass
+                (2026-09-16). The handoff moves exactly this line: "Edits apply
+                to future workouts. Logged sessions keep their recorded values
+                -- moves to About changes disclosure." It is an edit EFFECT,
+                which rule 3 puts in a disclosure beside methodology and
+                limitations: true, worth stating once, and a permanent grey
+                sentence under a list you edit often. The summary names what is
+                inside, so nothing is silently removed. */}
+            <div className="pad-x"><details className="exp-more">
+              <summary>About Changes to This Workout</summary>
+              <div className="input-hint">Edits apply to future workouts {"\u00b7"} Logged sessions keep their own numbers</div>
+            </details></div>
             {(live ?? parkedLive) && (
               <div className="pad-x">
                 <button className="btn btn-secondary btn-block" onClick={() => enterSession(readLive() ?? live ?? parkedLive)}>Return to Current Session</button>
@@ -2748,11 +2830,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 LINK (catalog §4.7) rides its meta line: strictly a fact,
                 never a prescription -- the day a game lands on, nothing
                 about what to do with the lift. It floated too. */}
-            <div className="sh2 sh2-quiet"><span className="t">Program</span></div>
+            {/* SAY IT ONCE (health polish 2026-09-16, rule 6: "navigation
+                title '5 Day Program' should not be followed by 'PROGRAM' and
+                another identically named card"). The nav title IS the
+                program's name, so the head said the category and the row
+                said the name again: the same words three deep before a
+                single fact. The head is gone and the row says what it opens
+                -- the switcher's own shelf, whose eyebrow is Programs -- so
+                the only thing repeated on this screen is nothing. The row
+                itself stays, per catalog §3.11: the switcher and the
+                Archived shelf are always reachable. */}
             <div className="pad-x"><div className="card list-card-ruled">
               <div className="row" role="button" tabIndex={0} onClick={() => setSwitcherOpen(true)}>
                 <div className="row-grow">
-                  <div className="conn-name truncate">{program.data.name}</div>
+                  <div className="conn-name truncate">All Programs</div>
                   {(programs.length > 1 || program.data.inSeason) && (
                     <div className="conn-meta">
                       {[
@@ -2770,10 +2861,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               // The launch card wears the offer anatomy the First Step card
               // settled (eyebrow says WHAT the card is; the old "Next: X"
               // folded that into the title).
-              // THE PREVIEW IS THE SPEC (2026-09-01): the launch card wears
-              // the blue performance wash (preview "card tb"), same identity
-              // as the Health page's training surfaces.
-              <div className="pad-x"><div className="card pad banner-blue">
+              // THE TONE MOVES TO THE LABEL (2026-09-16, the polish handoff:
+              // "Up Next card has compact count and estimate", and its rule 1
+              // against large filled slabs). The whole card wore the blue
+              // performance wash, which on a black page is the brightest
+              // rectangle on the screen -- louder than the red Start inside
+              // it, so the card shouted and its own verb whispered. The
+              // eyebrow keeps the blue, which is where the identity was doing
+              // real work; the card is the app's own.
+              <div className="pad-x"><div className="card pad">
                 <div className="eyebrow eyebrow-blue">Up Next</div>
                 <div className="conn-name">{nextDay.name}</div>
                 {/* D4: when a pin chose this day, the meta says so; D5: the
@@ -2886,7 +2982,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             <div {...pressable(() => setLibraryOpen(true))} className="task-row p2">
               <div className="task-title">
                 <span className="task-name">Your Lifts</span>
-                <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(library.length + (library.length === 1 ? " exercise, with its history" : " exercises, each with its history"))}</span></div>
+                {/* A COUNT, NOT A SENTENCE (health polish 2026-09-16: "Your
+                    Lifts: trailing 24 exercises; remove each with its
+                    history"). The right slot of a task row holds a value;
+                    it held a clause explaining what the door leads to,
+                    which is what the door is for. */}
+                <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(library.length + (library.length === 1 ? " exercise" : " exercises"))}</span></div>
               </div>
               {CHEV}
             </div>
@@ -2894,9 +2995,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         )}
         {recent.length > 0 && (
           <>
-            {/* History wears the home-page head pill (Dave 2026-08-26's
-                rule, spread here 2026-08-31 with the count-pill wave). */}
-            <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all pill-action" onClick={() => setHistoryOpen(true)}>History</button></div>
+            {/* NOT A PILL (health polish 2026-09-16, rule 2: "Recent header:
+                View history, a text action, no standalone pill"). It wore the
+                home-page head pill from the 2026-08-31 count-pill wave, which
+                put a capsule round a link that only navigates -- and a capsule
+                in this app means a verb that acts on the row it sits in. It is
+                the head's own .see-all now, like every other section head, and
+                it says the verb rather than repeating the noun beside it. */}
+            <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all" onClick={() => setHistoryOpen(true)}>View History</button></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {recent.map((w) => {
                 const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;

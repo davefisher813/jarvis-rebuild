@@ -75,6 +75,38 @@ describe("the sheet's visible band", () => {
     install(undefined);
     const stop = trackVisualViewport();
     expect(read()).toEqual({ h: "", top: "" });
+    expect(document.documentElement.style.getPropertyValue("--vv-bot")).toBe("");
+    stop();
+  });
+
+  // --vv-bot: the band read from the other end, which is what a bar anchored
+  // to the bottom needs. Dave 2026-09-16: the Log button sat under the keys
+  // the moment he typed a weight into a set.
+  it("says how much of the layout the keyboard has taken", () => {
+    const k = fakeViewport(844, 0);
+    install(k.vv);
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    const stop = trackVisualViewport();
+    expect(document.documentElement.style.getPropertyValue("--vv-bot")).toBe("0px");
+    k.move(508, 0);
+    return new Promise<void>((done) => {
+      setTimeout(() => {
+        expect(document.documentElement.style.getPropertyValue("--vv-bot")).toBe("336px");
+        stop();
+        done();
+      }, 40);
+    });
+  });
+
+  // A band that has been scrolled PAST the layout floor (iOS does this: the
+  // 508-tall band sits 310 down an 844 page, 818 of 844 used) must not report
+  // a negative inset, which in CSS would push the bar off the bottom.
+  it("never reports a negative inset", () => {
+    const k = fakeViewport(508, 310);
+    install(k.vv);
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 768 });
+    const stop = trackVisualViewport();
+    expect(document.documentElement.style.getPropertyValue("--vv-bot")).toBe("0px");
     stop();
   });
 });

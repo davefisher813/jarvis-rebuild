@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { MeasureKind, SetEntry } from "./types";
 import { entryNoun, fieldsFor, formatSet } from "./measures";
 import { plateFacts, type PlateFacts } from "./ramp";
+import { plateMath, type LoadStyle } from "./equipment";
 import { setState, setKicker, type SetState } from "./stateWord";
 import { readGymSettings, rackFrom } from "./settings";
 import { duplicateEntry, blankEntry } from "./strip";
@@ -10,7 +11,14 @@ import { useSwipe } from "../shared/useSwipe";
 import Stepper from "../shared/Stepper";
 import { Trash2, Check } from "../shared/icons";
 
-const LONG_PRESS_MS = 550;
+// A SLOW TAP IS NOT A SECOND SET (2026-09-16, Dave: "when you log something,
+// it automatically adds a set. That's not correct."). A 550ms press on a chip
+// used to duplicate it -- which is a thumb resting on a phone between sets,
+// and it inserted a set silently, with no toast and no undo. GYM-F-26 settled
+// this argument once already on the gym's other rows: a long press that is
+// the only door to an action is a door nothing announces, no keyboard or
+// VoiceOver user can open, and every slow tap opens by accident. Duplicate is
+// a row in the editor the chip's own tap already opens.
 
 /**
  * THE SET STRIP (catalog §3.1). One chip per set, independently editable:
@@ -27,11 +35,21 @@ const LONG_PRESS_MS = 550;
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, entries, onChange, ghost, onLogGhost, onLogGhostAs, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false,
+  kind, unit, timeUnit, style, entries, onChange, ghost, onLogGhost, onLogGhostAs, onGhostDraft, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false,
 }: {
   kind: MeasureKind;
   unit?: string;
   timeUnit?: string;
+  /** WHAT THIS THING LOADS WITH (2026-09-16, Dave: "if I'm using dumbbells,
+   *  it doesn't adjust for dumbbells"). equipment.ts has known a stack steps
+   *  in 10s, a dip belt in 2.5s and an assisted machine records help rather
+   *  than load since it was written, and ExerciseSheet's own steppers have
+   *  read it since -- but the STRIP, which is the thing an athlete actually
+   *  types into mid-set, called fieldsFor(kind) with no context at all. So
+   *  every chip in the app stepped by 5 and said "Weight", whatever it was
+   *  attached to. Absent keeps that universal behaviour for callers with no
+   *  exercise in hand. */
+  style?: LoadStyle;
   entries: SetEntry[];
   onChange: (next: SetEntry[]) => void;
   /** Planned sets not yet logged (live session only): shown as unfilled
@@ -43,6 +61,10 @@ export default function SetStrip({
    *  and a tick: change a number, tick, and that is the set logged. The row
    *  body still logs the plan as it stands. */
   onLogGhostAs?: (ghostIdx: number, patch: Partial<SetEntry>) => void;
+  /** What the CURRENT set's fields say, reported as they are typed, so the
+   *  session's own Log button can log the same numbers the athlete is looking
+   *  at rather than the plan they replaced. */
+  onGhostDraft?: (patch: { w: number; r: number }) => void;
   editableGhosts?: boolean;
   disabled?: boolean;
   /** True at an index that earned the in-session PR pill (live session only). */
@@ -66,11 +88,19 @@ export default function SetStrip({
   handles?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const fields = fieldsFor(kind);
-  const fx = { kind, unit, timeUnit };
+  const fields = fieldsFor(kind, style ? { ...style, unit } : undefined);
+  // The bar is the equipment's, not the rack's. A Smith carriage and a
+  // plate-loaded machine both take real plates and neither has a 45 to
+  // subtract first; the open chip was subtracting a barbell's bar from both,
+  // which put every machine's plate count out by a bar. plateMath has
+  // answered this since equipment.ts shipped.
+  const math = plateMath(style ?? {});
+  const fx = { kind, unit, timeUnit, sided: style?.sided };
   // PLATE MATH (D8-A): the athlete's own bar and rack, so an open chip can
   // say what to load instead of making them do arithmetic on a gym floor.
   const rack = rackFrom(readGymSettings());
+  // With no style at all the old universal reading stands: a barbell's bar.
+  const bar = !style ? rack.bar : math.hasBar ? rack.bar : 0;
   // H-17 / R9 (Health Push B, 2026-09-12): the working set the athlete is on
   // is the first planned working set not yet logged, -1 once they are all
   // logged. Every row derives its state from its place against it.
@@ -130,15 +160,28 @@ export default function SetStrip({
                 last={lastFor?.(i) ?? null}
                 onToggle={() => setOpenId(openId === id ? null : id)}
                 onDelete={() => remove(id)}
-                onDuplicate={() => duplicate(id)}
               />
               {openId === id && !disabled && (
                 <SetChipEditor kind={kind} fields={fields} entry={e} onPatch={(p) => patch(id, p)} moveTracking={moveTracking}
+                  // WHICH SET THIS IS (2026-09-16, Dave: "I don't even know
+                  // what I'm logging"). The editor drops open UNDER the chip
+                  // it belongs to, and once the steppers and the How Did It
+                  // Move chips are on screen the chip itself is above the
+                  // fold. It says its own name now.
+                  title={chipKicker(e, isLog ? setState(e, i, nowPos) : null, workNoAt(i))}
+                  onDuplicate={() => duplicate(id)}
                   // GYM-F-19 (2026-09-05): the kg guard was from before the
                   // rack had a unit, and it meant a lifter who HAD set a 20 kg
                   // bar and kg plates (S5-Q32) still never saw plate math.
                   // plateLine converts between the chip's unit and the rack's.
-                  plates={kind === "weight_reps" ? plateFacts(e.w ?? 0, rack, unit) : null} />
+                  // OFFERED WHERE THERE ARE PLATES, not on every loaded lift
+                  // (2026-09-16): a dumbbell press and a cable row are both
+                  // weight_reps, and both were being told which plates to
+                  // hang on a barbell. With no style at all (a planning strip
+                  // that was never given one) the old reading stands.
+                  plates={kind === "weight_reps" && (!style || math.offer)
+                    ? plateFacts(e.w ?? 0, rack, unit, bar)
+                    : null} />
               )}
             </div>
           );
@@ -159,7 +202,11 @@ export default function SetStrip({
                       the rest say Up Next in quiet ink at full strength. */}
                   <div className={"se-kick " + st}>{setKicker(st, workNoAt(pos))}</div>
                   {editableGhosts && kind === "weight_reps" && onLogGhostAs
-                    ? <GhostGrid entry={g} unit={unit} setNo={workNoAt(pos)} onLog={(patch) => onLogGhostAs(i, patch)} />
+                    ? <GhostGrid entry={g} unit={unit} step={fields.find((f) => f.key === "w")?.step ?? 0.5} setNo={workNoAt(pos)} onLog={(patch) => onLogGhostAs(i, patch)}
+                        // Only the set he is ON reports upward: the session's
+                        // Log Set button logs that one, so a later ghost's
+                        // fields must not steer it.
+                        onDraft={st === "now" ? onGhostDraft : undefined} />
                     : <div className="conn-name">{kind === "done" ? "Mark Done" : formatSet(fx, g)}</div>}
                   {/* D2 tap-to-match: the faint last-time line is itself the
                       door to logging those exact numbers -- the row still
@@ -185,8 +232,20 @@ export default function SetStrip({
   );
 }
 
+/** WHAT A CHIP CALLS ITSELF: Set 2, Warm-Up, Drop, or the state word the
+ *  live strip uses. A ramp set is real work but not the work, so it says so
+ *  and counts toward nothing (D3-A). Pulled out of SetChipRow 2026-09-16 so
+ *  the editor that opens under a chip can wear the same name -- one name, one
+ *  place, and the two can never drift apart. */
+function chipKicker(entry: SetEntry, state: SetState | null, workNo: number): string {
+  if (state) return setKicker(state, workNo, true);
+  if (entry.warmup) return "Warm-Up";
+  if (entry.drop) return "Drop";
+  return `Set ${workNo}`;
+}
+
 function SetChipRow({
-  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, onDuplicate, state, workNo,
+  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, state, workNo,
 }: {
   index: number;
   entry: SetEntry;
@@ -203,21 +262,11 @@ function SetChipRow({
   last?: string | null;
   onToggle: () => void;
   onDelete: () => void;
-  onDuplicate: () => void;
 }) {
   const swipe = useSwipe({ revealW: 88, enabled: !disabled });
-  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const firedLongPress = useRef(false);
-  const startXY = useRef<{ x: number; y: number } | null>(null);
-
-  const clearPress = () => {
-    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
-  };
 
   const label = entry.skipped ? "Skipped" : kind === "done" ? (entry.done ? "Done" : "Not Marked Yet") : formatSet(fx, entry);
-  // A ramp set is real work but not the work: it says so, and it counts
-  // toward nothing (D3-A).
-  const kicker = state ? setKicker(state, workNo, true) : entry.warmup ? "Warm-Up" : entry.drop ? "Drop" : `Set ${workNo}`;
+  const kicker = chipKicker(entry, state, workNo);
 
   return (
     <div className={"task-swipe set-chip-swipe" + (swipe.dx ? " swipe-open" : "")}>
@@ -229,24 +278,8 @@ function SetChipRow({
         role="button"
         tabIndex={0}
         aria-expanded={open}
-        aria-label={`${kicker}, ${label}, tap to edit, hold to duplicate`}
-        onPointerDown={disabled ? undefined : (e) => {
-          startXY.current = { x: e.clientX, y: e.clientY };
-          firedLongPress.current = false;
-          clearPress();
-          pressTimer.current = setTimeout(() => { firedLongPress.current = true; onDuplicate(); }, LONG_PRESS_MS);
-        }}
-        onPointerMove={(e) => {
-          const s = startXY.current;
-          if (!s) return;
-          if (Math.abs(e.clientX - s.x) > 10 || Math.abs(e.clientY - s.y) > 10) clearPress();
-        }}
-        onPointerUp={clearPress}
-        onPointerLeave={clearPress}
-        onClick={() => {
-          if (firedLongPress.current) { firedLongPress.current = false; return; }
-          if (!disabled) onToggle();
-        }}
+        aria-label={`${kicker}, ${label}, tap to edit`}
+        onClick={() => { if (!disabled) onToggle(); }}
       >
         <div className="row-grow">
           {/* KILL THE GREY SUBTEXT (Dave 2026-09-10). SET 1 / 220 lb x 3 /
@@ -281,18 +314,22 @@ const MOVED_OPTIONS: { value: "clean" | "grind" | "missed"; label: string; hue: 
 // A warm-up is supposed to move well, so marking one says nothing about the
 // work and the progression engine ignores it (D6). No chips on a ramp set.
 
-function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
+function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, title, onDuplicate }: {
   kind: MeasureKind;
   fields: ReturnType<typeof fieldsFor>;
   entry: SetEntry;
   onPatch: (p: Partial<SetEntry>) => void;
   moveTracking?: boolean;
+  /** The chip's own name, so the panel says which set it is editing. */
+  title: string;
+  onDuplicate: () => void;
   /** PLATE MATH (D8-A): what goes on each side, or null when this rack
    *  cannot build the number exactly -- silence beats a wrong answer. */
   plates?: PlateFacts | null;
 }) {
   return (
     <div className="set-chip-editor">
+      <div className="grp"><div className="eyebrow">Editing {title}</div></div>
       {/* PLATE MATH READS AS PLATES (Dave 2026-09-10). "45 · 35 · 5 · 2.5"
           over a grey "Per side" is a sentence about plates; a lifter loading a
           bar wants to SEE them. Each number is its own chip, in the ramp's
@@ -349,6 +386,11 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
       <div className="row" role="button" tabIndex={0} onClick={() => onPatch({ skipped: !entry.skipped, done: false })}>
         <div className="row-grow"><div className="conn-name">{entry.skipped ? "Unskip This Set" : "Skip This Set"}</div></div>
       </div>
+      {/* The door the long press used to be (see the note at the top of this
+          file). A real row, so Enter and Space reach it. */}
+      <div className="row" role="button" tabIndex={0} onClick={onDuplicate}>
+        <div className="row-grow"><div className="conn-name">Duplicate This Set</div></div>
+      </div>
     </div>
   );
 }
@@ -356,20 +398,34 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
 // THE GRID ROW (2026-09-14): the plan's weight and reps as two fields, the
 // tick logs them. Typing never touches the plan; only the tick writes, and it
 // writes exactly what the fields say.
-function GhostGrid({ entry, unit, setNo, onLog }: {
+//
+// AND IT SAYS SO OUT LOUD (2026-09-16, Dave: "it just defaults to like
+// whatever it originally was"). These numbers used to live only in here, so
+// the session's own big red Log Set button could not see them: it logged the
+// PLAN while the fields on screen said something else, and the athlete watched
+// the wrong set land. `onDraft` lifts what is typed to the session, which is
+// what the button now logs and what its label now reads. The fields stay
+// uncontrolled -- the local state is still the source of truth for the input,
+// so nothing re-renders under the thumb mid-keystroke.
+function GhostGrid({ entry, unit, step, setNo, onLog, onDraft }: {
   entry: SetEntry;
   unit?: string;
+  /** The equipment's own increment, so the field's up/down arrows move by
+   *  what the rack can actually do. */
+  step: number;
   setNo: number;
   onLog: (patch: Partial<SetEntry>) => void;
+  onDraft?: (patch: { w: number; r: number }) => void;
 }) {
   const [w, setW] = useState(String(entry.w ?? 0));
   const [r, setR] = useState(String(entry.r ?? 0));
+  const report = (nw: string, nr: string) => onDraft?.({ w: Number(nw) || 0, r: Number(nr) || 0 });
   const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
   return (
     <div className="se-grid" onClick={stop} onPointerDown={stop}>
-      <input className="set-field" type="number" inputMode="decimal" min={0} step={0.5} value={w} aria-label={`Set ${setNo} weight`} onChange={(e) => setW(e.target.value)} />
+      <input className="set-field" type="number" inputMode="decimal" min={0} step={step} value={w} aria-label={`Set ${setNo} weight`} onChange={(e) => { setW(e.target.value); report(e.target.value, r); }} />
       <span className="se-grid-u">{unit ?? ""}</span>
-      <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} aria-label={`Set ${setNo} reps`} onChange={(e) => setR(e.target.value)} />
+      <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} aria-label={`Set ${setNo} reps`} onChange={(e) => { setR(e.target.value); report(w, e.target.value); }} />
       <span className="se-grid-u">reps</span>
       <button type="button" className="se-tick" aria-label={`Log set ${setNo}`} onClick={() => onLog({ w: Number(w) || 0, r: Number(r) || 0 })}><Check className="ic" /></button>
     </div>

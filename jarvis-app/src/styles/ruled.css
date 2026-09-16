@@ -792,7 +792,13 @@
 .ruled .ins-v.ins-v-warn { color: var(--hl-amber); }
 /* Part 3 wave 3 (2026-09-13): the Evidence pill under a card and the rows it
    opens, in the card's own row anatomy. */
-.ruled .ins-acts { display: flex; gap: 8px; margin-top: 8px; }
+.ruled .ins-acts { display: flex; align-items: center; gap: var(--s-3); margin-top: 8px; }
+/* A .see-all at a card's foot (health polish 2026-09-16): the head rule gives
+   it the 44px target and pulls the extra height back out of layout, and a card
+   foot needs the same trade -- the paint is a line of text, the target is a
+   thumb's. Same numbers as .sec-head .see-all, for the same reason. */
+.ruled .ins-acts .see-all { min-height: var(--tap-min); display: inline-flex; align-items: center;
+  margin-block: -13px; padding: 0; }
 .ruled .ins-ev { margin-top: 8px; }
 .ruled .ins-sub { font-size: calc(11.5px * var(--type-scale)); color: var(--tx-2); }
 /* What changed: label left, the move right, in one aligned column. */
@@ -1453,6 +1459,25 @@
 .ruled.health-ruled .se-chip-when, .ruled.health-ruled .se-chip-game { color: var(--tx-3); background: var(--press-3); }
 /* The three states of an exercise in the session list. */
 .ruled.health-ruled .se-chip-done { color: var(--hl-lime); background: var(--hl-lime-tint); }
+/* THE PIN IS A CLAIM, NOT A VERB (2026-09-16). "Pin Days" was a red capsule on
+   every unpinned day, so a five-day program showed five red verbs down one
+   edge and none of them was the thing you came to do; setting a pin lives in
+   the row's options, where it already lived. What stays on the row is the
+   weekday the day claims, once it claims one, in the quiet ink a fact wears. */
+.ruled.health-ruled .se-chip-pin { color: var(--tx-2); background: var(--press-3); }
+/* A CHIP THAT IS A DOOR (2026-09-16). The session's Equipment chip answers
+   Dave's "I don't even have the option while I'm logging to select what type
+   of weight system it is", so it has to be a real <button> -- Enter and Space
+   free, the tap target the tap law asks for -- while reading as the same fact
+   chip it was. The chevron is what says it opens; the 44px reach is an
+   ::after, so the chip keeps its own 3px/9px size and the thumb still gets
+   the whole minimum. */
+.ruled.health-ruled .se-chip-door { position: relative; border: 0; font-family: var(--f);
+  padding-right: 6px; cursor: pointer; }
+.ruled.health-ruled .se-chip-door::before { content: ""; width: 5px; height: 5px; align-self: center;
+  border-right: 1.5px solid currentColor; border-top: 1.5px solid currentColor;
+  transform: rotate(45deg); margin-left: 2px; order: 9; }
+.ruled.health-ruled .se-chip-door::after { content: ""; position: absolute; inset: -11px -4px; }
 .ruled.health-ruled .se-chip-skip { color: var(--hl-amber); background: var(--hl-amber-tint); }
 .ruled.health-ruled .se-chip-todo { color: var(--tx-3); background: transparent; box-shadow: inset 0 0 0 1px var(--rim-card); }
 
@@ -1545,7 +1570,12 @@
 .ruled.health-ruled .se-kick-ic { width: 10px; height: 10px; vertical-align: -1px; margin-right: 3px; }
 .ruled.health-ruled .set-chip-ghost.setrow-now { border-color: transparent; }
 /* The session screen leaves room for the Log bar (H-11). */
-.ruled.health-ruled.screen-session { padding-bottom: 104px; }
+/* The room under the session is the Log bar plus whatever the keyboard has
+   taken (2026-09-16). A constant 104px was right until the bar started riding
+   the keys: with the keyboard up the last set on the screen could not be
+   scrolled clear of it, which is the other half of Dave's "I don't even know
+   what I'm logging". */
+.ruled.health-ruled.screen-session { padding-bottom: calc(104px + var(--vv-bot, 0px)); }
 .ruled.health-ruled .se-elapsed { margin: 6px 0 2px; }
 .ruled.health-ruled .nav-action-quiet { color: var(--tx-2); font-weight: var(--w-medium); }
 /* The catch-up banner (H-28): the minutes over, then the change and its saving. */
@@ -1567,8 +1597,26 @@
    be a second answer to the same question. The button goes full width here
    because there is only ever one of it and it is pressed with a thumb between
    sets. */
-.ruled.health-ruled .logbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
-  padding: var(--s-3) var(--s-4) calc(var(--s-3) + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+/* THE KEYS DO NOT GET TO SIT ON IT (Dave 2026-09-16, four photographs of a
+   live set: the red button "renders all fucked up. Like it's behind the Apple
+   bar, the clear bar. So you can't even see it."). bottom: 0 is the LAYOUT
+   viewport's floor, and iOS does not move that floor for the keyboard -- it
+   shrinks the VISUAL viewport instead. So the one control that logs the set
+   was parked under the keys the moment the athlete typed a weight, which is
+   the only moment it is wanted.
+   This is the writing bar's own answer, the one .doc-kbar has used since
+   2026-09-15 (editor.css): sit at the foot of the VISIBLE band and pull up by
+   your own height. The band's foot is the top of iOS's accessory pill, so the
+   button clears the pill and the keys both, without this rule knowing what
+   either of them is. With no keyboard the band is the whole screen and
+   nothing moves; with no visualViewport at all the fallbacks are 0 and 100dvh
+   and this is byte for byte the bar that shipped.
+   The home-indicator inset comes off by exactly what the keyboard has taken
+   (--vv-bot), because the keys are already covering that strip: full inset
+   when the keyboard is down, none when it is up, and no gap either way. */
+.ruled.health-ruled .logbar { position: fixed; left: 0; right: 0; z-index: 5;
+  top: calc(var(--vv-top, 0px) + var(--vv-h, 100dvh)); transform: translateY(-100%);
+  padding: var(--s-3) var(--s-4) calc(var(--s-3) + max(0px, var(--safe-bottom, env(safe-area-inset-bottom, 0px)) - var(--vv-bot, 0px)));
   background: linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 38%); display: flex; justify-content: center; }
 [data-theme="light"] .ruled.health-ruled .logbar { background: linear-gradient(180deg, rgba(242,242,247,0), var(--bg) 38%); }
 .ruled.health-ruled .logbar .btn { width: 100%; }
@@ -1946,14 +1994,39 @@
 .ruled .dup-row .btn-row { display: flex; gap: var(--s-2); margin-top: var(--s-2h); }
 .ruled .dup-row .btn-row .btn { flex: 1; margin: 0; padding: 9px 10px; font-size: calc(13px * var(--type-scale)); min-width: 0; }
 
-/* THE THREE DOORS under the week on Health (§1). One row, three taps, each
-   with the count that says what is behind it. */
-.ruled .h-doors { display: flex; padding: 0; overflow: hidden; }
-.ruled .h-door { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: var(--s-3) var(--s-2); background: none; border: none; min-height: 44px; }
-.ruled .h-door + .h-door { border-left: 0.5px solid var(--divider); }
-.ruled .h-door-k { color: var(--tx-1); font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi); }
-.ruled .h-door-n { color: var(--tx-3); font-size: calc(12px * var(--type-scale)); font-variant-numeric: tabular-nums; }
+/* THE THREE DOORS under the week on Health (§1). They stay where Dave put
+   them on 2026-09-14, immediately below the week card; HealthDoors.test.tsx
+   holds them to it.
+
+   THEY ARE ROWS NOW (2026-09-16, the health polish pass). They were three
+   buttons abreast in one strip, each a word over a bare number, divided by
+   vertical hairlines: a shape nothing else in the app uses, with a count that
+   could not be read without the word above it and a title column so narrow
+   that "Exercises" nearly filled it. This is the app's own navigation row --
+   name at the text edge, value and chevron trailing, one horizontal hairline
+   between -- which is what every other "go somewhere" row on a ruled page
+   looks like, and it lets the count say what it counts.
+
+   The card carries .list-card-ruled now, so the hairlines, the inset and the
+   press state all come from the shared grouped-list rules rather than from
+   three bespoke declarations here. */
+/* An empty sleep tile: the dash is the app saying it has nothing, so it wears
+   the quiet ink rather than the violet a real reading wears. See the note at
+   the tile in HealthBody.tsx. */
+.ruled.health-ruled .h-stat.violet b.h-stat-none,
+.ruled.health-ruled .h-stat b.h-stat-none { color: var(--tx-3); }
+
+.ruled .h-doors { padding: 0; overflow: hidden; }
+.ruled .h-door { display: flex; align-items: center; gap: var(--s-2); width: 100%;
+  padding: var(--s-3) var(--s-4); background: none; border: none; min-height: var(--tap-min);
+  font-family: var(--f); text-align: left; cursor: pointer; }
+.ruled .h-door + .h-door { position: relative; }
+.ruled .h-door + .h-door::before { content: ""; position: absolute; left: var(--s-4); right: 0; top: 0;
+  height: 0.5px; background: var(--divider); }
+.ruled .h-door-k { flex: 1; min-width: 0; color: var(--tx-1);
+  font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; }
+.ruled .h-door-n { flex-shrink: 0; color: var(--tx-3); font-size: calc(14px * var(--type-scale));
+  font-variant-numeric: tabular-nums; }
 
 /* The classification editor's free-text rows: a label that does not shrink
    beside an input that takes the rest. */

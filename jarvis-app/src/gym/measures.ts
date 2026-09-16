@@ -1,5 +1,5 @@
 import type { Exercise, MeasureKind, SetEntry, SetLog } from "./types";
-import { comparable, loadStyleOf, lowerIsStronger, volumeFactor, weightLabel, weightStep, type LoadStyle } from "./equipment";
+import { comparable, loadStyleOf, lowerIsStronger, repLabel, sideSuffix, volumeFactor, weightLabel, weightStep, type LoadStyle } from "./equipment";
 
 // Per-kind behavior in ONE place: what a set reads like, what the big in-gym
 // button says, which direction wins a PR, and whether volume means anything.
@@ -35,20 +35,25 @@ export const has = (n: number | undefined): n is number => (n ?? 0) > 0;
  *  set speaks only the numbers it actually has: "115 lb × 8", "8 reps" when
  *  no weight was said, "115 lb" when no reps were, "Done" for the bare done
  *  mark, and "Empty" for a chip with nothing in it yet. */
-export function formatSet(ex: Pick<Exercise, "kind" | "unit" | "timeUnit">, s: SetLog): string {
+export function formatSet(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> & { sided?: boolean }, s: SetLog): string {
   const u = ex.unit ?? "";
   const bare = s.done ? "Done" : "Empty";
+  // ONE SIDE AT A TIME (2026-09-16). "8" on a Bulgarian split squat is 8 per
+  // leg, and a chip that just says 8 is the same ambiguity a bare "100" was
+  // on a dumbbell before equipment.ts named it. Nothing is doubled; the chip
+  // says which reading its number is.
+  const side = sideSuffix({ sided: ex.sided });
   switch (ex.kind) {
     case "weight_reps": {
       const w = has(s.w) ? `${trim(s.w)} ${u}`.trim() : null;
       const r = has(s.r) ? trim(s.r) : null;
-      if (w && r) return `${w} × ${r}`;
-      if (r) return `${r} reps`;
+      if (w && r) return `${w} × ${r}${side}`;
+      if (r) return `${r} reps${side}`;
       if (w) return w;
       return bare;
     }
     case "reps":
-      return has(s.r) ? `${trim(s.r)} reps` : bare;
+      return has(s.r) ? `${trim(s.r)} reps${side}` : bare;
     case "rounds":
       // An AMRAP's reps past the last full round ride the score: "7 rounds + 12".
       return has(s.r) ? `${trim(s.r)} ${s.r === 1 ? "round" : "rounds"}${has(s.extra) ? ` + ${trim(s.extra)}` : ""}` : bare;
@@ -86,14 +91,14 @@ export function fieldsFor(
     case "weight_reps": {
       // Reps before weight: the sheet reads Sets, Reps, Weight, the way a
       // plan is said out loud (Dave, 2026-08-15).
-      const style: LoadStyle = ctx ? { equipment: ctx.equipment, counted: ctx.counted } : {};
+      const style: LoadStyle = ctx ? { equipment: ctx.equipment, counted: ctx.counted, sided: ctx.sided } : {};
       return [
-        { key: "r", label: "Reps", step: 1 },
+        { key: "r", label: ctx ? repLabel(style) : "Reps", step: 1 },
         { key: "w", label: ctx ? weightLabel(style) : "Weight", step: ctx ? weightStep(style, ctx.unit) : 5 },
       ];
     }
     case "reps":
-      return [{ key: "r", label: "Reps", step: 1 }];
+      return [{ key: "r", label: ctx ? repLabel({ sided: ctx.sided }) : "Reps", step: 1 }];
     case "rounds":
       return [{ key: "r", label: "Rounds", step: 1 }];
     case "time_faster":
@@ -128,12 +133,18 @@ export function hasTarget(ex: Pick<Exercise, "kind" | "sets">): boolean {
  * filled this session; past the end of the plan it says what it will do
  * rather than offering to log a meaningless zero.
  */
-export function logButtonLabel(ex: Exercise, loggedCount: number): string {
+export function logButtonLabel(ex: Exercise, loggedCount: number, draft?: Partial<SetEntry>): string {
   if (ex.kind === "done") return "Mark Done";
-  const next = plannedEntryAt(ex, loggedCount);
+  // WHAT IT WILL ACTUALLY WRITE (2026-09-16). The label read the PLAN, so it
+  // said "Log 8 reps" while the fields on screen said four at fifty and the
+  // button was about to write the four. A button that names a number has to
+  // name the one it is going to log; the draft is what the open set's fields
+  // say this moment, and it wins over the plan it replaced.
+  const planned0 = plannedEntryAt(ex, loggedCount);
+  const next = planned0 || draft ? { ...(planned0 ?? {}), ...(draft ?? {}) } as SetEntry : null;
   const keys = fieldsFor(ex.kind).map((f) => f.key);
-  const planned = next && keys.some((k) => (next[k] ?? 0) > 0);
-  if (!planned) return `Log ${entryNoun(ex.kind, false)}`;
+  const ready = next && keys.some((k) => (next[k] ?? 0) > 0);
+  if (!ready) return `Log ${entryNoun(ex.kind, false)}`;
   return `Log ${formatSet(ex, next!)}`;
 }
 

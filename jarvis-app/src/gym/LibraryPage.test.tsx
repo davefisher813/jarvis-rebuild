@@ -42,7 +42,9 @@ describe("LibraryPage: the row's anatomy", () => {
 
   it("says the two counts as separate fields, not one grey sentence", () => {
     render(<LibraryPage {...base} rows={[row()]} />);
-    expect(screen.getByText("4 sessions")).toHaveClass("fact");
+    // The count leads the line, so the word behind it carries the capital
+    // (shared/casing.ts; applied here in the 2026-09-16 health polish pass).
+    expect(screen.getByText("4 Sessions")).toHaveClass("fact");
     // "Last yesterday" was half of a run-on; when it happened is its own
     // field now, and it opens with a capital because it is the first word of
     // a line rather than the tail of a sentence.
