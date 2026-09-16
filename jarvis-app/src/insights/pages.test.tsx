@@ -79,7 +79,13 @@ describe("AllDataPage", () => {
     const { rerender } = render(<AllDataPage view="data" onView={() => {}} records={records} filter={filter} onFilter={onFilter} today={today} scrollRef={{ current: 0 }} onOpen={onOpen} onDelete={onDelete} onExport={() => {}} />);
     expect(screen.getByText("Push")).toBeInTheDocument();
     expect(screen.getByText("Oats")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Nutrition · 1"));
+    // The kind filter is a selector since 2026-09-16, not a wrapping chip
+    // cloud (health polish: "Counts can appear inside selection menu rather
+    // than a large wrapping cloud"). The count still shows, as the sub line
+    // of the choice, where there is room for it.
+    fireEvent.click(screen.getByLabelText("Filter by kind of record"));
+    expect(screen.getAllByText("1 Recorded").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByText("Nutrition"));
     expect(onFilter).toHaveBeenCalledWith(expect.objectContaining({ category: "nutrition" }));
     // No destructive pill sits in the list any more; the row's options hold it.
     expect(screen.queryByLabelText("Delete Meal")).toBeNull();

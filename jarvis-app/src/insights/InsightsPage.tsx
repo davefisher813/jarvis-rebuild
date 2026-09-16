@@ -9,6 +9,7 @@ import type { CallItEntry, PointAtItEntry, MealEntry, TookItEntry, CheckInEntry 
 import { monthDay } from "../money/bills";
 import { pressable } from "../shared/pressable";
 import { capAfterNumber } from "../shared/casing";
+import { PickSheet } from "../gym/ActionSheet";
 import { FileText } from "../shared/icons";
 import HealthNav, { type HealthView } from "./HealthNav";
 import { periodFor, periodOverview, muscleBreakdown, liftTable, hoursLabel, weekdayShort, inPeriod, type RangeKey, type Period } from "./analytics";
@@ -87,6 +88,7 @@ export default function InsightsPage({
   const overview = useMemo(() => periodOverview(workouts, sleepDef, metricLogs, period), [workouts, sleepDef, metricLogs, period]);
   const breakdown = useMemo(() => muscleBreakdown(workouts, muscleMap, period), [workouts, muscleMap, period]);
   const lifts = useMemo(() => chartableExercises(workouts), [workouts]);
+  const [pickLift, setPickLift] = useState(false);
   const [liftIdx, setLiftIdx] = useState(0);
   const lift = lifts[liftIdx] ?? null;
   // The headline: the best comparable change on a lift trained in the period.
@@ -279,13 +281,35 @@ const musclesCard = (
         <div className="empty-state"><div className="empty-title">No Sets Logged Yet</div><div className="empty-sub">A logged session puts its lifts here</div></div>
       ) : (
         <>
-          <div className="pad-x">
-            <div className="chip-row chip-wrap-row" role="group" aria-label="Exercise">
-              {lifts.map((l, i) => (
-                <div key={(l.exerciseKey ?? l.name) + l.kind} {...pressable(() => setLiftIdx(i))} className={"chip" + (i === liftIdx ? " active" : "")} aria-pressed={i === liftIdx}>{l.name}</div>
-              ))}
+          {/* ONE SELECTOR, NOT A CLOUD (health polish 2026-09-16: "Replace
+              giant multirow exercise pill cloud with one full-width selector
+              and searchable sheet. Keep selected exercise title immediately
+              above its metrics").
+
+              Every chartable lift was a chip, so a real library wrapped four
+              or five rows deep and the reading you came for started below the
+              fold. The chip row was also lying about its own kind: a .chip
+              cloud in this app is a filter you combine, and this is a single
+              choice of one. It is the app's own picker now -- the sheet the
+              gym rows already open -- behind a row that names the current
+              choice, so the card under it starts at the top of the screen
+              however many lifts you have. */}
+          <div className="sh2 sh2-quiet"><span className="t">Exercise</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            <div {...pressable(() => setPickLift(true))} className="row" aria-label="Choose exercise">
+              <div className="row-grow"><div className="conn-name">{lift ? lift.name : "Choose an Exercise"}</div></div>
+              {lifts.length > 1 && <span className="row-value">{capAfterNumber(`${lifts.length} logged`)}</span>}
+              {CHEV}
             </div>
-          </div>
+          </div></div>
+          {pickLift && (
+            <PickSheet
+              title="Exercise"
+              items={lifts.map((l, i) => ({ id: String(i), label: l.name }))}
+              onPick={(ids) => { const i = Number(ids[0]); if (Number.isFinite(i)) setLiftIdx(i); setPickLift(false); }}
+              onCancel={() => setPickLift(false)}
+            />
+          )}
           {lift && (() => {
             const table = liftTable(workouts, lift);
             const g = lift.kind === "weight_reps" ? comparableGain(workouts, lift) : null;

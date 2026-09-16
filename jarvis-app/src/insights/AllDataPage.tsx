@@ -8,7 +8,7 @@ import { fmtTime } from "../schedule/calendar";
 import { pressable } from "../shared/pressable";
 import { capAfterNumber } from "../shared/casing";
 import RowMenuButton from "../shared/RowMenuButton";
-import ActionSheet from "../gym/ActionSheet";
+import ActionSheet, { PickSheet } from "../gym/ActionSheet";
 
 // ALL DATA (2026-09-14, item 8). Every record, searchable and filterable
 // by category, period and one day, grouped by day, each with its date,
@@ -60,6 +60,7 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
   const deletable = (r: DataRecord) => r.open.kind !== "workout" && r.open.kind !== "metric" && !("pending" in r.open && r.open.pending);
   // The row whose options are open. One at a time; the sheet is the app's own.
   const [menuFor, setMenuFor] = useState<DataRecord | null>(null);
+  const [pickKind, setPickKind] = useState(false);
 
   return (
     <>
@@ -80,18 +81,38 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
           )}
         </div>
       </div>
-      <div className="pad-x">
-        <div className="chip-row chip-wrap-row" role="group" aria-label="Kind of record">
-          <div {...pressable(() => onFilter({ ...filter, category: "all" }))} className={"chip" + (filter.category === "all" ? " active" : "")} aria-pressed={filter.category === "all"}>All</div>
-          {CATEGORIES.map((c) => {
-            const n = counts.get(c) ?? 0;
-            if (n === 0 && filter.category !== c) return null;
-            return (
-              <div key={c} {...pressable(() => onFilter({ ...filter, category: c }))} className={"chip" + (filter.category === c ? " active" : "")} aria-pressed={filter.category === c}>{`${CATEGORY_LABEL[c]} · ${n}`}</div>
-            );
-          })}
+      {/* THE KIND FILTER IS A SELECTOR, NOT A CLOUD (health polish 2026-09-16:
+          "Two compact filters: date range and entry type. Counts can appear
+          inside selection menu rather than a large wrapping cloud").
+
+          Every category with a record in it was a chip carrying its own count,
+          so a person who logs a few different things pushed the records they
+          came to read two or three rows down the screen -- and the row grew
+          the more they used the app, which is exactly backwards. The counts
+          are not lost: they are the sub line of each choice in the sheet,
+          where there is room to read them.
+
+          The period filter above stays chips. Four fixed options on one line
+          is a real segmented selection, which rule 2 says to keep distinct. */}
+      <div className="pad-x"><div className="card list-card-ruled">
+        <div {...pressable(() => setPickKind(true))} className="row" aria-label="Filter by kind of record">
+          <div className="row-grow"><div className="conn-name">{filter.category === "all" ? "All Entries" : CATEGORY_LABEL[filter.category]}</div></div>
+          <span className="row-value">{capAfterNumber(`${rows.length} ${rows.length === 1 ? "entry" : "entries"}`)}</span>
+          {CHEV}
         </div>
-      </div>
+      </div></div>
+      {pickKind && (
+        <PickSheet
+          title="Kind of Record"
+          items={[
+            { id: "all", label: "All Entries", sub: capAfterNumber(`${records.length} in all`) },
+            ...CATEGORIES.filter((c) => (counts.get(c) ?? 0) > 0 || filter.category === c)
+              .map((c) => ({ id: c, label: CATEGORY_LABEL[c], sub: capAfterNumber(`${counts.get(c) ?? 0} recorded`) })),
+          ]}
+          onPick={(ids) => { const id = ids[0]; if (id) onFilter({ ...filter, category: id as DataCategory | "all" }); setPickKind(false); }}
+          onCancel={() => setPickKind(false)}
+        />
+      )}
       {pendingCount > 0 && <div className="pad-x h-sync">{capAfterNumber(`${pendingCount} waiting to sync`)}</div>}
       {groups.length === 0 ? (
         <div className="empty-state">
