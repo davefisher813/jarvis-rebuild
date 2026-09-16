@@ -319,12 +319,21 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
           {!current && doneWord && <span className="se-chip se-chip-done"><em>Done</em>{doneWord}</span>}
         </div>
       </div>
-      {/* PINS, D4, preview dress: the weekday claim is the row's trailing
-          pill -- "Pin Days" is a verb (red) until a pin exists, then the
-          claim is a quiet fact (white). Both open the picker. */}
-      {onPin && (day.pinDays?.length
-        ? <button className="pill-act pill-neutral day-pin" onClick={(e) => { e.stopPropagation(); onPin(); }}>{pinLabel(day.pinDays)}</button>
-        : <button className="pill-act day-pin" onClick={(e) => { e.stopPropagation(); onPin(); }}>Pin Days</button>)}
+      {/* PINS, D4: the weekday claim is a FACT on this row, not a verb.
+          (2026-09-16, the polish handoff: "Move Pin Days into day options;
+          preserve accessible direct access in the day screen Schedule row.")
+
+          Every day carried a red "Pin Days" capsule until it was pinned, so a
+          five-day program showed five red verbs down the right edge, each one
+          the loudest thing on its row and none of them the thing you came to
+          do. It was also a THIRD trailing control beside the menu and the
+          chevron, on a row the app's own arity rule gives one.
+
+          Setting a pin was never lost and is not moved here: the row's own
+          options already carried "Pin Days..." before this change, and the
+          day screen keeps its Schedule row. What survives on the row is the
+          claim itself, once made, in the quiet ink a fact wears. */}
+      {day.pinDays?.length ? <span className="se-chip se-chip-pin">{pinLabel(day.pinDays)}</span> : null}
       <RowMenuButton onMenu={onMenu} what={day.name} />
       {CHEV}
     </div>
@@ -427,14 +436,28 @@ function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
     // and each item states its amount at the row's far right -- the exact
     // preview anatomy. Empty stays legal: no items means the card is just
     // its door.
-    <div className="pad-x"><div className={"card list-card-ruled" + (has ? (tone === "cool" ? " banner-cool" : " banner-warn") : "")}>
-      {/* The header row opens the block editor, same as its pill (Dave
+    // THE TONE MOVES TO THE LABEL (2026-09-16, the polish handoff: "Warm-up
+    // and cool-down: compact neutral card, title, aligned duration and Edit
+    // text action. Avoid large amber/blue filled slabs"). Dave photographed
+    // the warm-up as a solid amber block two shades louder than the exercises
+    // it warms up for, which is backwards -- it is the smallest thing on the
+    // day and it was painting the largest.
+    //
+    // His 2026-09-13 ruling stands and is what the hue still says: warm-up is
+    // the warm colour, cool-down "a blue that fades out". That was a ruling
+    // about WHICH colour, not about washing a whole card in it. The eyebrow
+    // already had both variants; the card goes back to the grouped list every
+    // other block on this page uses.
+    <div className="pad-x"><div className="card list-card-ruled">
+      {/* The header row opens the block editor, same as its action (Dave
           2026-09-15: "I want all rows clickable"). */}
       <div className="row" {...rowDoor(onEdit)}>
         <div className="row-grow">
           <div className={"eyebrow" + (has ? (tone === "cool" ? " eyebrow-cool" : " eyebrow-warn") : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${minutes} Min` : ""}</div>
         </div>
-        <button className="pill-act" onClick={own(onEdit)}>{has ? "Edit" : "Add"}</button>
+        {/* A text action, not a capsule: it opens an editor, it does not act
+            on the row (polish rule 2). */}
+        <button className="see-all" onClick={own(onEdit)}>{has ? "Edit" : "Add"}</button>
       </div>
       {blocks?.map((b) => (
         <div className="row" key={b.id}>
@@ -2748,11 +2771,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 LINK (catalog §4.7) rides its meta line: strictly a fact,
                 never a prescription -- the day a game lands on, nothing
                 about what to do with the lift. It floated too. */}
-            <div className="sh2 sh2-quiet"><span className="t">Program</span></div>
+            {/* SAY IT ONCE (health polish 2026-09-16, rule 6: "navigation
+                title '5 Day Program' should not be followed by 'PROGRAM' and
+                another identically named card"). The nav title IS the
+                program's name, so the head said the category and the row
+                said the name again: the same words three deep before a
+                single fact. The head is gone and the row says what it opens
+                -- the switcher's own shelf, whose eyebrow is Programs -- so
+                the only thing repeated on this screen is nothing. The row
+                itself stays, per catalog §3.11: the switcher and the
+                Archived shelf are always reachable. */}
             <div className="pad-x"><div className="card list-card-ruled">
               <div className="row" role="button" tabIndex={0} onClick={() => setSwitcherOpen(true)}>
                 <div className="row-grow">
-                  <div className="conn-name truncate">{program.data.name}</div>
+                  <div className="conn-name truncate">All Programs</div>
                   {(programs.length > 1 || program.data.inSeason) && (
                     <div className="conn-meta">
                       {[
@@ -2770,10 +2802,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               // The launch card wears the offer anatomy the First Step card
               // settled (eyebrow says WHAT the card is; the old "Next: X"
               // folded that into the title).
-              // THE PREVIEW IS THE SPEC (2026-09-01): the launch card wears
-              // the blue performance wash (preview "card tb"), same identity
-              // as the Health page's training surfaces.
-              <div className="pad-x"><div className="card pad banner-blue">
+              // THE TONE MOVES TO THE LABEL (2026-09-16, the polish handoff:
+              // "Up Next card has compact count and estimate", and its rule 1
+              // against large filled slabs). The whole card wore the blue
+              // performance wash, which on a black page is the brightest
+              // rectangle on the screen -- louder than the red Start inside
+              // it, so the card shouted and its own verb whispered. The
+              // eyebrow keeps the blue, which is where the identity was doing
+              // real work; the card is the app's own.
+              <div className="pad-x"><div className="card pad">
                 <div className="eyebrow eyebrow-blue">Up Next</div>
                 <div className="conn-name">{nextDay.name}</div>
                 {/* D4: when a pin chose this day, the meta says so; D5: the
@@ -2886,7 +2923,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             <div {...pressable(() => setLibraryOpen(true))} className="task-row p2">
               <div className="task-title">
                 <span className="task-name">Your Lifts</span>
-                <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(library.length + (library.length === 1 ? " exercise, with its history" : " exercises, each with its history"))}</span></div>
+                {/* A COUNT, NOT A SENTENCE (health polish 2026-09-16: "Your
+                    Lifts: trailing 24 exercises; remove each with its
+                    history"). The right slot of a task row holds a value;
+                    it held a clause explaining what the door leads to,
+                    which is what the door is for. */}
+                <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(library.length + (library.length === 1 ? " exercise" : " exercises"))}</span></div>
               </div>
               {CHEV}
             </div>

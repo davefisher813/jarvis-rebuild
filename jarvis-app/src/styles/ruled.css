@@ -1459,6 +1459,12 @@
 .ruled.health-ruled .se-chip-when, .ruled.health-ruled .se-chip-game { color: var(--tx-3); background: var(--press-3); }
 /* The three states of an exercise in the session list. */
 .ruled.health-ruled .se-chip-done { color: var(--hl-lime); background: var(--hl-lime-tint); }
+/* THE PIN IS A CLAIM, NOT A VERB (2026-09-16). "Pin Days" was a red capsule on
+   every unpinned day, so a five-day program showed five red verbs down one
+   edge and none of them was the thing you came to do; setting a pin lives in
+   the row's options, where it already lived. What stays on the row is the
+   weekday the day claims, once it claims one, in the quiet ink a fact wears. */
+.ruled.health-ruled .se-chip-pin { color: var(--tx-2); background: var(--press-3); }
 .ruled.health-ruled .se-chip-skip { color: var(--hl-amber); background: var(--hl-amber-tint); }
 .ruled.health-ruled .se-chip-todo { color: var(--tx-3); background: transparent; box-shadow: inset 0 0 0 1px var(--rim-card); }
 
