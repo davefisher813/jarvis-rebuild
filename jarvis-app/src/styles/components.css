@@ -5282,8 +5282,14 @@ body.selecting .voice-dock { display: none; }
 /* RED IS A VERB, and Start is the one verb on this page that spends real
    minutes (Dave 2026-09-16, picking option 3 from the rendered comparison:
    "Option 3"). It keeps the accent fill and changes nothing else -- same
-   100px column, same height, same capsule as every control in this card. */
-.ruled .stream-card .pill-act.pill-go { background: var(--red); color: #fff; }
+   100px column, same height, same capsule as every control in this card.
+   --accent-fill, NOT --red (Dave 2026-09-16: "the start button color is off.
+   Make it Jarvis red (accept the day button color)"). --red is the SYSTEM
+   red, #FF453A, which is iOS's alert colour and reads orange beside the
+   app's own; --accent-fill (#E2051E) is the red that carries white text on
+   every filled control in the app, Accept the Day included, and this is one
+   of those. Same token .h-hero's pill already uses for the same reason. */
+.ruled .stream-card .pill-act.pill-go { background: var(--accent-fill); color: #fff; }
 
 /* THE SCHEDULE STATE WORDS (C-28, Push C). LIVE rides the Now rule on both
    day surfaces; a proposed pick nested in its holder carries its facts on
