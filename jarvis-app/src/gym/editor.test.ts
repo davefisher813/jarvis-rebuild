@@ -304,9 +304,17 @@ describe("GYM-F-26: every row menu has a visible door", () => {
     const rendered = body.replace(/\/\*[\s\S]*?\*\//g, "");
     expect(rendered, "last time stays off this row").not.toMatch(/Last:/);
     expect(rendered, "and so does any grey line under the title").not.toMatch(/className="conn-meta"/);
-    expect(rendered).toMatch(/<span className="se-chip se-chip-plan">\{planChipText\(exercise\)\}<\/span>/);
+    // AMENDED hours later the same day (Dave, on the Exercises page: "This
+    // looks good. But it's not consistent throughout"). The plan is still the
+    // row's value in its own slot; what changed is the slot -- .facts, which
+    // is the house contract every other list already obeyed, instead of the
+    // filled capsule the gym had invented for the same job.
+    expect(rendered).toMatch(/<div className="facts">/);
+    expect(rendered).toMatch(/<span className="fact cyan">\{planChipText\(exercise\)\}<\/span>/);
     expect(rendered, "rest is its own fact, only when there is one")
-      .toMatch(/exercise\.restSec \? <span className="se-chip se-chip-when"><em>Rest<\/em>\{mmss\(exercise\.restSec\)\}<\/span> : null/);
+      .toMatch(/exercise\.restSec \? <span className="fact">\{`\$\{mmss\(exercise\.restSec\)\} rest`\}<\/span> : null/);
+    expect(rendered, "and no capsule stands in for a value here")
+      .not.toMatch(/se-chip/);
     // The Settings toggle keeps every home that is about last time.
     expect(src("SessionScreen.tsx"), "the session header still obeys it")
       .toMatch(/const showLast = readGymSettings\(\)\.showLast/);

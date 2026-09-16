@@ -819,12 +819,17 @@ export default function SessionScreen({
                   for -- seeing at a glance what is done -- took reading seven
                   lines of identical text. Done is lime, skipped is amber,
                   untouched is a hollow outline that says To Do. */}
-              <div className="r-k">
+              {/* ONE ROW ANATOMY (2026-09-16): the three states keep their
+                  three colours, which is the whole point of this list; what
+                  changes is that they are facts on the row's own second line
+                  like every other list in the app, not filled capsules this
+                  screen invented for itself. */}
+              <div className="facts">
                 {e.skipped
-                  ? <span className="se-chip se-chip-skip">Skipped</span>
+                  ? <span className="fact st amber">Skipped</span>
                   : e.sets.length > 0
-                    ? <span className="se-chip se-chip-done">{e.sets.length} {e.sets.length === 1 ? "Set" : "Sets"}</span>
-                    : <span className="se-chip se-chip-todo">To Do</span>}
+                    ? <span className="fact lime">{capAfterNumber(`${e.sets.length} ${e.sets.length === 1 ? "set" : "sets"}`)}</span>
+                    : <span className="fact st gray">To Do</span>}
               </div>
             </div>
             {/* NOW is the one row you are standing on. It was .pill-subdued,

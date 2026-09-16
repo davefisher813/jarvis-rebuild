@@ -312,13 +312,26 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
             day in the same grey turned the one number that distinguishes them
             into wallpaper. It is a chip, and an empty day says so in amber
             rather than reading as a day with work in it. */}
-        <div className="r-k">
-          <span className={"se-chip " + (day.exercises.length === 0 ? "se-chip-todo" : "se-chip-last")}>
-            {day.exercises.length === 0 ? "Empty" : <>{day.exercises.length}<em>{day.exercises.length === 1 ? "Lift" : "Lifts"}</em></>}
-          </span>
-          {current && <span className="se-chip se-chip-time">Current Session</span>}
-          {!current && doneWord && <span className="se-chip se-chip-done"><em>Done</em>{doneWord}</span>}
-        </div>
+      {/* ONE ROW ANATOMY (Dave 2026-09-16, on the Exercises page: "This looks
+          good. But it's not consistent throughout. Uniform everything so it
+          looks like a real app. Everything should follow rules").
+
+          The rule was already written: .facts is "the row's second line as
+          facts, not a sentence" (G3, G6), the CSS draws the middot so no
+          string carries one, and K.3 governs the hues. Every other list in
+          this app obeys it -- All Data, Insights, the Exercises page he
+          approved. The gym invented a second answer for the same job, filled
+          .se-chip capsules in a .r-k slot, so two lists a scroll apart said
+          the same kind of thing in two different shapes.
+
+          Capsules are not gone; they keep the job they are actually for, on
+          the Exercises page (a classification you can tap) and on a card's
+          face. What they stop doing is standing in for a row's values. */}
+      <div className="facts">
+        <span className="fact">{day.exercises.length === 0 ? "Empty" : capAfterNumber(`${day.exercises.length} ${day.exercises.length === 1 ? "lift" : "lifts"}`)}</span>
+        {current && <span className="fact st cyan">Live</span>}
+        {!current && doneWord && <span className="fact lime">{doneWord}</span>}
+      </div>
       </div>
       {/* PINS, D4: the weekday claim is a FACT on this row, not a verb.
           (2026-09-16, the polish handoff: "Move Pin Days into day options;
@@ -362,11 +375,14 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
  *  Nothing is capped or rewritten. The chip says the same number in the ink a
  *  warning wears, with the word on it, and the row it sits in already opens
  *  the sheet that fixes it. */
-function minutesChip(w: WorkoutData) {
+function minutesFact(w: WorkoutData) {
   const d = durationOf(w);
+  // TWO FACTS, NOT ONE STRING WITH A MIDDOT IN IT. components.css: "Adjacent
+  // facts are separated by a middle dot the CSS draws, so no string ever
+  // carries one." A fact that punctuates itself is a sentence again.
   return d.flagged
-    ? <span className="se-chip se-chip-over" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}><em>Review</em>{d.activeMin} Min</span>
-    : <span className="se-chip se-chip-budget">{workoutMinutes(w)}<em>Min</em></span>;
+    ? <><span className="fact amber" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}>{capAfterNumber(`${d.activeMin} min`)}</span><span className="fact">Worth Reviewing</span></>
+    : <span className="fact">{capAfterNumber(`${workoutMinutes(w)} min`)}</span>;
 }
 
 function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
@@ -405,9 +421,9 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
 
             Rest rides beside it as its own fact rather than a clause glued on
             with a middot, and only when there is one. */}
-        <div className="r-k">
-          <span className="se-chip se-chip-plan">{planChipText(exercise)}</span>
-          {exercise.restSec ? <span className="se-chip se-chip-when"><em>Rest</em>{mmss(exercise.restSec)}</span> : null}
+        <div className="facts">
+          <span className="fact cyan">{planChipText(exercise)}</span>
+          {exercise.restSec ? <span className="fact">{`${mmss(exercise.restSec)} rest`}</span> : null}
         </div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
@@ -1888,7 +1904,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             VERB). Quiet sentence-case meta like every other date line. */}
         <div className="pad-x"><div className="se-chips">
           <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
-          {minutesChip(w.data)}
+          {minutesFact(w.data)}
           {w.data.backdated && <span className="se-chip se-chip-skip">Logged Later</span>}
         </div></div>
         {/* THE DURATION, SHOWN AND CORRECTABLE (2026-09-14, item 9). The
@@ -1914,19 +1930,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             <div className="sh2 sh2-quiet"><span className="t">How It Went</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {onRateSession && (
-                <div {...pressable(onRateSession)} className="task-row p2">
-                  <div className="task-title">
-                    <span className="task-name">How Hard It Was</span>
-                    <div className="r-k"><span className="r-goal r-cat">Rate the session, 1 to 10</span></div>
+                <div {...pressable(onRateSession)} className="row">
+                  <div className="row-grow">
+                    <div className="conn-name">How Hard It Was</div>
                   </div>
                   {CHEV}
                 </div>
               )}
               {onLogSoreSpot && (
-                <div {...pressable(onLogSoreSpot)} className="task-row p2">
-                  <div className="task-title">
-                    <span className="task-name">Where It Hurts</span>
-                    <div className="r-k"><span className="r-goal r-cat">Tap the spot on a body map</span></div>
+                <div {...pressable(onLogSoreSpot)} className="row">
+                  <div className="row-grow">
+                    <div className="conn-name">Where It Hurts</div>
                   </div>
                   {CHEV}
                 </div>
@@ -3029,15 +3043,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             library grows. Offered whenever there is a library to look at. */}
         {library.length > 0 && (
           <div className="pad-x"><div className="card list-card-ruled">
-            <div {...pressable(() => setLibraryOpen(true))} className="task-row p2">
-              <div className="task-title">
-                <span className="task-name">Your Lifts</span>
+            <div {...pressable(() => setLibraryOpen(true))} className="row">
+              <div className="row-grow">
+                <div className="conn-name">Your Lifts</div>
                 {/* A COUNT, NOT A SENTENCE (health polish 2026-09-16: "Your
                     Lifts: trailing 24 exercises; remove each with its
                     history"). The right slot of a task row holds a value;
                     it held a clause explaining what the door leads to,
                     which is what the door is for. */}
-                <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(library.length + (library.length === 1 ? " exercise" : " exercises"))}</span></div>
+                <div className="facts"><span className="fact">{capAfterNumber(library.length + (library.length === 1 ? " exercise" : " exercises"))}</span></div>
               </div>
               {CHEV}
             </div>
@@ -3074,11 +3088,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                             minutes, and how much of the plan was actually
                             logged. It was one grey sentence joined by middots
                             and the completeness fact was the last thing on it. */}
-                        <div className="r-k">
-                          <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
-                          {minutesChip(w.data)}
-                          <span className={"se-chip " + (logged === total ? "se-chip-done" : "se-chip-skip")}>
-                            {logged === total ? <>{total}<em>{total === 1 ? "Lift" : "Lifts"}</em></> : <>{logged}<em>of {total}</em></>}
+                        <div className="facts">
+                          <span className="fact cyan">{monthDay(w.data.date)}</span>
+                          {minutesFact(w.data)}
+                          <span className={"fact" + (logged === total ? " lime" : "")}>
+                            {logged === total
+                              ? capAfterNumber(`${total} ${total === 1 ? "lift" : "lifts"}`)
+                              : `${logged} of ${total}`}
                           </span>
                         </div>
                       </div>

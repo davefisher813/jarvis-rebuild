@@ -301,10 +301,10 @@ const musclesCard = (
           <details className="ins-table">
             <summary>How Sets Are Counted</summary>
             <div className="facts">
-              <span className="fact">First muscle whole, the rest half {"\u00b7"} The app's convention</span>
+              <span className="fact">First muscle whole, the rest half</span><span className="fact">The app's convention</span>
             </div>
             <div className="facts">
-              <span className="fact">Working sets only {"\u00b7"} Warm-ups are not counted</span>
+              <span className="fact">Working sets only</span><span className="fact">Warm-ups are not counted</span>
             </div>
           </details>
           <div className="ins-acts">
@@ -413,7 +413,8 @@ const musclesCard = (
                     <>
                       <div className="facts">
                         <span className="fact lime">{`${sign(g.delta)} ${lift.unit ?? "lb"} at ${g.reps} reps`}</span>
-                        <span className="fact">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)} · ${g.sessions} comparable sessions`}</span>
+                        <span className="fact">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)}`}</span>
+                        <span className="fact">{`${g.sessions} comparable sessions`}</span>
                       </div>
                       {chart(pts, lift.unit ?? "lb")}
                     </>
@@ -502,7 +503,7 @@ const musclesCard = (
           ))}
         </div></div>
       )}
-      <div className="pad-x"><div className="facts"><span className="fact">Records, dates and counts only · Nothing here reads a cause into a coincidence</span></div></div>
+      <div className="pad-x"><div className="facts"><span className="fact">Records, dates and counts only</span><span className="fact">Nothing here reads a cause into a coincidence</span></div></div>
     </>
   );
 

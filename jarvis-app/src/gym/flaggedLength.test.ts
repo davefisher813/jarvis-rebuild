@@ -40,9 +40,12 @@ describe("a length worth reviewing says so where it is read", () => {
     const flow = src("GymFlow.tsx");
     // One helper, so the Recent row and the workout's own head cannot
     // disagree about when a length is worth a look.
-    expect(flow).toMatch(/function minutesChip\(w: WorkoutData\)/);
-    expect(flow).toMatch(/d\.flagged[\s\S]{0,200}se-chip-over/);
-    expect(flow.match(/\{minutesChip\(w\.data\)\}/g)?.length, "the Recent row and the workout head").toBe(2);
+    // AMENDED 2026-09-16: it draws a .fact now, not a capsule, because the
+    // gym's rows came onto the house anatomy the same day. The law is about
+    // the flag reaching the browsing rows, which is unchanged.
+    expect(flow).toMatch(/function minutesFact\(w: WorkoutData\)/);
+    expect(flow).toMatch(/d\.flagged[\s\S]{0,200}fact amber/);
+    expect(flow.match(/\{minutesFact\(w\.data\)\}/g)?.length, "the Recent row and the workout head").toBe(2);
     // And no row states the minutes without going through it.
     expect(flow).not.toMatch(/se-chip-budget">\{mins\}/);
   });

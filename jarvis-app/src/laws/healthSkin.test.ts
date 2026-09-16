@@ -232,6 +232,78 @@ describe("HEALTH law 4: no opacity on a health row or card that carries text", (
 // Structural rather than rendered: AppShell's provider tree is expensive to
 // stand up and beside the point; gym/sessionChrome.test.ts proves the store.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// LAW 6 (Dave 2026-09-16, on the Exercises page: "This looks good. But it's
+// not consistent throughout. Uniform everything so it looks like a real app.
+// Everything should follow rules and be uniformed").
+//
+// ONE ROW ANATOMY. The rule was already written and the gym was the only
+// place not keeping it: .facts is "the row's second line as facts, not a
+// sentence" (G3, G6, components.css), the CSS draws the middot so no string
+// ever carries one, and K.3 -- extended for health by law 2 above -- governs
+// which of them may take a hue. All Data, Insights, the Exercises page he
+// approved: all of them obey it. The gym had invented a second answer for the
+// same job, filled .se-chip capsules inside a .r-k slot, so two lists a
+// scroll apart said the same kind of thing in two different shapes.
+//
+// CAPSULES ARE NOT BANNED. They keep the job they are for: a classification
+// you can tap (.ex-chip on the Exercises page) and a card's own face, which
+// is not a row. What they may not do is stand in for a row's values.
+//
+// .r-k is the TASK row's right slot and belongs to Contract 4.1. A gym row is
+// not a task row, so borrowing its container was the tell.
+// ---------------------------------------------------------------------------
+describe("HEALTH law 6: every browsing row wears the one anatomy", () => {
+  const ROWS = ["gym/GymFlow.tsx", "gym/SessionScreen.tsx", "gym/HistoryScreen.tsx", "gym/LibraryPage.tsx", "insights/AllDataPage.tsx", "insights/InsightsPage.tsx"];
+
+  it("no gym or insights row builds its second line out of capsules", () => {
+    const bad: string[] = [];
+    for (const f of ROWS) {
+      const src = read(join(SRC, f));
+      // The container is the tell: .r-k is the task row's right slot, and a
+      // .se-chip inside one is a capsule doing a fact's job.
+      const re = /<div className="r-k"[\s\S]{0,600}?<\/div>/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(src))) {
+        if (/se-chip|r-goal/.test(m[0])) bad.push(`${f}: a .r-k slot carrying ${/se-chip/.test(m[0]) ? "capsules" : "a goal line"}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("and the contract they wear instead is the one components.css writes down", () => {
+    expect(COMPONENTS_CSS, "the middot is the CSS's, never a string's")
+      .toMatch(/\.fact \+ \.fact::before \{ content: "\\00B7"/);
+    // Every row file that shows a value shows it as a fact.
+    for (const f of ROWS) {
+      expect(read(join(SRC, f)), `${f} has no .facts line at all`).toMatch(/className="facts"/);
+    }
+  });
+
+  // The other half of the same contract, and the one I broke myself on the
+  // first pass: "Adjacent facts are separated by a middle dot the CSS draws,
+  // so no string ever carries one." A fact that punctuates itself is a
+  // sentence again, which is the whole thing .facts replaced.
+  it("no fact carries the separator the CSS is there to draw", () => {
+    const bad: string[] = [];
+    for (const f of walk(SRC).filter((x) => /\/(gym|insights)\//.test(x) && x.endsWith(".tsx") && !/\.test\./.test(x))) {
+      const src = read(f);
+      const re = /className="fact[^"]*"[^>]*>\{?([^<]{0,140})/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(src))) {
+        if (m[1]!.includes("\u00b7") || m[1]!.includes("\\u00b7")) bad.push(`${rel(f)}: "${m[1]!.trim().slice(0, 60)}"`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("a capsule still does the job a capsule is for", () => {
+    // The Exercises page's classification chips: tappable, and a real button.
+    expect(read(join(SRC, "gym/LibraryPage.tsx"))).toMatch(/className=\{"ex-chip"/);
+    expect(RULED, "and they are drawn").toMatch(/\.ruled \.ex-chip \{/);
+  });
+});
+
 describe("HEALTH law 5: the shell hides its chrome while a session is live", () => {
   it("AppShell reads the session store and its tab bar follows it", () => {
     const shell = read(join(SRC, "shell/AppShell.tsx"));

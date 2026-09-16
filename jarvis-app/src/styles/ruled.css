@@ -1465,18 +1465,18 @@
 .ruled.health-ruled .se-chip-budget, .ruled.health-ruled .se-chip-pair { color: var(--hl-violet); background: var(--hl-violet-tint); }
 .ruled.health-ruled .se-chip-over { color: var(--hl-amber); background: var(--hl-amber-tint); }
 .ruled.health-ruled .se-chip-when, .ruled.health-ruled .se-chip-game { color: var(--tx-3); background: var(--press-3); }
-/* The three states of an exercise in the session list. */
-.ruled.health-ruled .se-chip-done { color: var(--hl-lime); background: var(--hl-lime-tint); }
+
 /* THE PIN IS A CLAIM, NOT A VERB (2026-09-16). "Pin Days" was a red capsule on
    every unpinned day, so a five-day program showed five red verbs down one
    edge and none of them was the thing you came to do; setting a pin lives in
    the row's options, where it already lived. What stays on the row is the
    weekday the day claims, once it claims one, in the quiet ink a fact wears. */
 .ruled.health-ruled .se-chip-pin { color: var(--tx-2); background: var(--press-3); }
-/* THE PLAN, as a row's value. Same cyan a day row's count wears, because it
-   is the same kind of fact: what this row is FOR, stated in its own slot
-   rather than as a grey line under its name. */
-.ruled.health-ruled .se-chip-plan { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+/* se-chip-plan, se-chip-done and se-chip-todo lived here until 2026-09-16.
+   All three existed only to dress a BROWSING ROW's values as capsules, which
+   is the job .facts has had app-wide since G3 -- see healthSkin law 6. The
+   variants that remain are the ones on a card's own face, which is not a
+   row. A dead colour is a colour the next pass reaches for by accident. */
 /* A CHIP THAT IS A DOOR (2026-09-16). The session's Equipment chip answers
    Dave's "I don't even have the option while I'm logging to select what type
    of weight system it is", so it has to be a real <button> -- Enter and Space
@@ -1491,7 +1491,7 @@
   transform: rotate(45deg); margin-left: 2px; order: 9; }
 .ruled.health-ruled .se-chip-door::after { content: ""; position: absolute; inset: -11px -4px; }
 .ruled.health-ruled .se-chip-skip { color: var(--hl-amber); background: var(--hl-amber-tint); }
-.ruled.health-ruled .se-chip-todo { color: var(--tx-3); background: transparent; box-shadow: inset 0 0 0 1px var(--rim-card); }
+
 
 /* WHERE YOU ARE, DRAWN. Filled for finished, ringed for the current one,
    hollow for what is left -- the shape every training app uses because it is
