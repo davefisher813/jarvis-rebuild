@@ -206,6 +206,13 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       brainIntent.fire("contacts");
       setActive("brain");
     }
+    // LIFE_AREAS_TAB_HANDOFF (2026-09-16): the Areas tab opens a category's
+    // own page the same way a search hit always has (SHELL-F-21) -- this was
+    // missing from the shared function itself, so wiring the Areas tab to
+    // navigateToEntity("category", id) silently did nothing (Dave: "I also
+    // can't click on anything"). SearchFlow's own inline case below still
+    // works and is now just one of two callers of the same branch.
+    else if (kind === "category") { brainIntent.fire(targetId); setActive("brain"); }
   };
   const [notesChrome, setNotesChrome] = useState(true);
   const [ready, setReady] = useState(false);
@@ -674,9 +681,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         // A search hit becomes the open thing (2026-08-09). SHELL-F-21
         // (2026-09-05): an account is now one of them, so the only surface
         // still landing on its tab rather than its item is a category, which
-        // IS the surface. Everything else opens the exact item.
+        // IS the surface. Everything else opens the exact item. The category
+        // case moved into navigateToEntity itself (2026-09-16) once the
+        // Areas tab needed the same door; one branch, two callers.
         if (kind === "account") { accountIntent.fire(id); setActive("money"); }
-        else if (kind === "category") { brainIntent.fire(id); setActive("brain"); }
         else void navigateToEntity(kind, id);
       }} /></Suspense>}
     </div>

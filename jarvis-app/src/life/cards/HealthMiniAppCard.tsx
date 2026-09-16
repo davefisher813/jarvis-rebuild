@@ -1,15 +1,15 @@
 import { catIcon } from "../../categories/icons";
 import type { ColorSlot } from "../../categories/types";
-import { pressable } from "../../shared/pressable";
 
 // HEALTH IS NOT AN AREA, IT IS A MINI-APP (LIFE_AREAS_TAB_HANDOFF, approved
 // visual). Bridge, Work and the rest are task/goal/project collections;
-// Health is a dashboard with its own subsystems, so it wears a distinct
-// card -- a tinted frame and a preview of what is actually inside -- rather
-// than the plain disc-and-stats row every other area gets. The four
-// sections are a label, not a route each: the whole card opens the one
-// Health area page (CategoryDetail), same as every other area, and the grid
-// is there so tapping it is never a guess about what is behind it.
+// Health is a dashboard with its own subsystems, so it keeps the section
+// preview the approved mock calls for -- but rides the same gm-slot glyph
+// and task-title anatomy every other area row wears (the first pass's
+// mistake was building this off the Brain nav-row language instead; fixed
+// 2026-09-16, Dave: "follow the design catalog"). No chevron: the approved
+// visual never gave this card one, since the whole card is already the
+// one tap target and its own content says where it goes.
 const HEALTH_SECTIONS = [
   { label: "Log It", desc: "Workouts, sleep, fuel, mood" },
   { label: "Reports", desc: "Recovery, trends, doctor" },
@@ -25,10 +25,10 @@ export default function HealthMiniAppCard({ category, onOpen }: {
   onOpen: () => void;
 }) {
   return (
-    <div {...pressable(onOpen)} className="row health-mini-app">
-      <div className={"lib-ico lib-disc cat-bg-" + category.color}>{catIcon(category.icon)}</div>
-      <div className="row-grow">
-        <div className="conn-name">{category.name}</div>
+    <div className="task-row p2 health-mini-app" role="button" tabIndex={0} onClick={onOpen}>
+      <div className="task-check-tap"><span className={"gm-slot cat-fg-" + category.color}>{catIcon(category.icon)}</span></div>
+      <div className="task-title">
+        <span className="task-name">{category.name}</span>
         <div className="health-sections">
           {HEALTH_SECTIONS.map((s) => (
             <div className="health-section-item" key={s.label}>

@@ -41,9 +41,9 @@ describe("AreasTab", () => {
   it("loads and shows every non-money area, with accurate task/goal/project counts", async () => {
     render(<NotesProvider userId="areas-1"><Seeded /></NotesProvider>);
     expect(await screen.findByText("Bridge", {}, { timeout: 3000 })).toBeInTheDocument();
-    const row = screen.getByText("Bridge").closest(".area-row") as HTMLElement;
+    const row = screen.getByText("Bridge").closest(".area-row-ruled") as HTMLElement;
     expect(row).toBeTruthy();
-    expect(row.querySelector(".area-stats")?.textContent).toBe("2 tasks1 goal1 project");
+    expect(row.querySelector(".r-k")?.textContent).toBe("2 tasks · 1 goal · 1 project");
     // Money-kind is excluded outright, its task included (BrainPage's rule,
     // now enforced here): no row, no leak of its count into anything else.
     expect(screen.queryByText("Budget")).not.toBeInTheDocument();
@@ -56,8 +56,8 @@ describe("AreasTab", () => {
     expect(healthRow).toBeTruthy();
     // Hardcoded, per the handoff -- no query backs these, they're a preview.
     ["Log It", "Reports", "Meds", "Privacy"].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
-    // It never wears the standard area's stats line.
-    expect(healthRow.querySelector(".area-stats")).toBeNull();
+    // It never wears the standard area's fact line.
+    expect(healthRow.querySelector(".r-k")).toBeNull();
   });
 
   it("tapping an area, and tapping Health, both call onOpenCategory with that area's id", async () => {
@@ -87,7 +87,7 @@ describe("AreasTab", () => {
     expect(onOpenCategory.mock.calls[1]![0]).not.toBe("health");
   });
 
-  it("an area with nothing filed shows its name alone, no stats line", async () => {
+  it("an area with nothing filed shows its name alone, no fact line", async () => {
     function Empty() {
       const cats = useCategories();
       const [ready, setReady] = useState(false);
@@ -95,7 +95,7 @@ describe("AreasTab", () => {
       return ready ? <AreasTab segments={<div>segments</div>} onOpenCategory={vi.fn()} /> : null;
     }
     render(<NotesProvider userId="areas-4"><Empty /></NotesProvider>);
-    const row = (await screen.findByText("Personal", {}, { timeout: 3000 })).closest(".area-row") as HTMLElement;
-    expect(row.querySelector(".area-stats")).toBeNull();
+    const row = (await screen.findByText("Personal", {}, { timeout: 3000 })).closest(".area-row-ruled") as HTMLElement;
+    expect(row.querySelector(".r-k")).toBeNull();
   });
 });
