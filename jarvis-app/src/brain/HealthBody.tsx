@@ -294,9 +294,16 @@ export default function HealthBody({
             <span className="h-log-ico" data-hue={f.hue} aria-hidden="true">{findGlyph(f)}</span>
             <div className="task-title">
               <span className="task-name">{f.title}</span>
+              {/* ONE SPAN PER FACT (2026-09-16, Dave's Health screenshot:
+                  "· +140 lb at 2 reps since 2026-08-24 · 6 compa…"). The
+                  context was one long string with its own middots in it, so
+                  it could not wrap the way a row of facts does: it either ran
+                  off the end of the row or wrapped and left the separator
+                  leading the new line. components.css draws the separator
+                  between facts; the finding hands over facts now. */}
               <div className="facts">
                 <span className={"fact " + f.hue}>{f.value}</span>
-                <span className="fact">{f.context}</span>
+                {f.context.map((c) => <span className="fact" key={c}>{c}</span>)}
               </div>
               {f.action && <div className="facts"><span className="fact cyan">{f.action}</span></div>}
             </div>
