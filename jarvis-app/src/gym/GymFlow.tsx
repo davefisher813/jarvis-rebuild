@@ -2556,8 +2556,19 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               )}
             </div></div>
             {/* 2026-09-14 (the reference's day plan): an edit here reaches the
-                next session; a logged session keeps the numbers it logged. */}
-            <div className="pad-x"><div className="input-hint">Edits apply to future workouts · Logged sessions keep their own numbers</div></div>
+                next session; a logged session keeps the numbers it logged.
+                BEHIND A LABELLED DISCLOSURE since the health polish pass
+                (2026-09-16). The handoff moves exactly this line: "Edits apply
+                to future workouts. Logged sessions keep their recorded values
+                -- moves to About changes disclosure." It is an edit EFFECT,
+                which rule 3 puts in a disclosure beside methodology and
+                limitations: true, worth stating once, and a permanent grey
+                sentence under a list you edit often. The summary names what is
+                inside, so nothing is silently removed. */}
+            <div className="pad-x"><details className="exp-more">
+              <summary>About Changes to This Workout</summary>
+              <div className="input-hint">Edits apply to future workouts {"\u00b7"} Logged sessions keep their own numbers</div>
+            </details></div>
             {(live ?? parkedLive) && (
               <div className="pad-x">
                 <button className="btn btn-secondary btn-block" onClick={() => enterSession(readLive() ?? live ?? parkedLive)}>Return to Current Session</button>
