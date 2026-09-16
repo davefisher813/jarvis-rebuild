@@ -41,9 +41,9 @@ describe("AreasTab", () => {
   it("loads and shows every non-money area, with accurate task/goal/project counts", async () => {
     render(<NotesProvider userId="areas-1"><Seeded /></NotesProvider>);
     expect(await screen.findByText("Bridge", {}, { timeout: 3000 })).toBeInTheDocument();
-    const row = screen.getByText("Bridge").closest(".lib-row") as HTMLElement;
+    const row = screen.getByText("Bridge").closest(".area-card") as HTMLElement;
     expect(row).toBeTruthy();
-    expect(row.querySelector(".lib-sub")?.textContent).toBe("2 tasks · 1 goal · 1 project");
+    expect(row.querySelector(".area-sub")?.textContent).toBe("2 tasks · 1 goal · 1 project");
     // Money-kind is excluded outright, its task included (BrainPage's rule,
     // now enforced here): no row, no leak of its count into anything else.
     expect(screen.queryByText("Budget")).not.toBeInTheDocument();
@@ -55,13 +55,13 @@ describe("AreasTab", () => {
   it("renders Health as the five-section mini-app card, not a standard row", async () => {
     render(<NotesProvider userId="areas-2"><Seeded /></NotesProvider>);
     await screen.findByText("Bridge", {}, { timeout: 3000 });
-    const healthRow = screen.getByText("Health").closest(".health-mini-app") as HTMLElement;
+    const healthRow = screen.getByText("Health").closest(".area-card-health") as HTMLElement;
     expect(healthRow).toBeTruthy();
     // Hardcoded, per the handoff -- no query backs these, they're a preview.
-    ["Track", "Activity", "Reports", "Meds", "Privacy"].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
+    ["Track", "Train", "Reports", "Meds", "Privacy"].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
     expect(screen.getByText("5 Sections")).toBeInTheDocument();
-    // It never wears the standard area's fact line.
-    expect(healthRow.querySelector(".lib-sub")).toBeNull();
+    // Its second line is the section count, never the task/goal/project facts.
+    expect(healthRow.querySelector(".area-sub")?.textContent).toBe("5 Sections");
   });
 
   // THE SECTIONS ARE LABELS, NOT BUTTONS. The whole card is the one tap
@@ -70,9 +70,10 @@ describe("AreasTab", () => {
   it("offers no control of its own: the card is the door", async () => {
     render(<NotesProvider userId="areas-5"><Seeded /></NotesProvider>);
     await screen.findByText("Bridge", {}, { timeout: 3000 });
-    const healthRow = screen.getByText("Health").closest(".health-mini-app") as HTMLElement;
+    const healthRow = screen.getByText("Health").closest(".area-card-health") as HTMLElement;
     expect(healthRow.querySelectorAll("button")).toHaveLength(0);
-    expect(healthRow.querySelector(".chev")).toBeNull();
+    // The chevron is a glyph on the door, not a second control.
+    expect(healthRow.querySelector(".chev")).not.toBeNull();
   });
 
   it("tapping an area, and tapping Health, both call onOpenCategory with that area's id", async () => {
@@ -110,7 +111,7 @@ describe("AreasTab", () => {
       return ready ? <AreasTab segments={<div>segments</div>} onOpenCategory={vi.fn()} /> : null;
     }
     render(<NotesProvider userId="areas-4"><Empty /></NotesProvider>);
-    const row = (await screen.findByText("Personal", {}, { timeout: 3000 })).closest(".lib-row") as HTMLElement;
+    const row = (await screen.findByText("Personal", {}, { timeout: 3000 })).closest(".area-card") as HTMLElement;
     expect(row.querySelector(".lib-sub")).toBeNull();
   });
 });

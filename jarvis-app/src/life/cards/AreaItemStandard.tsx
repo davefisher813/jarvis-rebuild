@@ -3,20 +3,13 @@ import type { ColorSlot } from "../../categories/types";
 import { Nums } from "../../bigger/GoalRowRuled";
 import { pressable } from "../../shared/pressable";
 
-// AREAS TAB (2026-09-16, LIFE_AREAS_TAB_HANDOFF). CORRECTED AGAIN (Dave,
-// 2026-09-16, showing the old Brain "Your Areas" screenshot: "it originally
-// looked like this and still should for the most part"). The first pass
-// read J3 ("cards and glyph tiles are retired from lists") as covering
-// .lib-disc and rebuilt the row on GoalRowRuled's plain gm-slot -- wrong:
-// a category's glyph is locked to the colour disc wherever it appears
-// (catalog "a category becomes a color disc with a white glyph -- .lib-disc",
-// and G4's "a category is a coloured dot plus plain text, never coloured
-// text"). gm-slot is GoalRowRuled's own target-icon language, not a
-// category's. The row anatomy that survives from Brain is .lib-row / lib-ico
-// lib-disc / lib-stack (lib-name + lib-sub), the exact shape Templates.tsx
-// already uses for a name plus a quiet second line. "For the most part"
-// is the one real change: Brain's row was name-only, this one adds the
-// task/goal/project counts the handoff asked for, as the lib-sub line.
+// AREAS TAB (2026-09-16). Restyled to Dave's reference the same day (his
+// screenshot of the ChatGPT mock: "I love the new style for the life areas
+// page"): every area is its own card, led by a flat colour tile wearing the
+// category's glyph in white (the tile is flat on purpose: "eliminate the
+// shading on the icons"), the name over its counts, a chevron at the right.
+// The whole card is the door. A departure from J3's "no glyph tiles in
+// lists", stated in the commit: Dave asked for this shape by name.
 export interface AreaCounts { taskCount: number; goalCount: number; projectCount: number }
 export interface AreaSummary { id: string; name: string; color: ColorSlot; icon?: string }
 
@@ -37,13 +30,13 @@ export default function AreaItemStandard({ area, counts, onOpen }: {
   ].filter((s): s is string => s !== null);
 
   return (
-    <div className="lib-row" {...pressable(onOpen)}>
-      <div className={"lib-ico lib-disc cat-bg-" + area.color}>{catIcon(area.icon)}</div>
-      <div className="lib-stack">
-        <div className="lib-name">{area.name}</div>
-        {stats.length > 0 && <div className="lib-sub"><Nums text={stats.join(" · ")} /></div>}
+    <div className="card area-card" {...pressable(onOpen)}>
+      <div className={"area-tile cat-bg-" + area.color}>{catIcon(area.icon)}</div>
+      <div className="area-stack">
+        <div className="area-name">{area.name}</div>
+        {stats.length > 0 && <div className="area-sub"><Nums text={stats.join(" · ")} /></div>}
       </div>
-      <div className="chev" />
+      <div className="area-chev"><div className="chev" /></div>
     </div>
   );
 }

@@ -87,12 +87,12 @@ export default function AreasTab({ segments, onOpenCategory }: {
       {loaded && total > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Areas</span><span className="n">{total}</span></div>
-          <div className="pad-x"><div className="card list-card-ruled">
+          <div className="pad-x area-cards">
             {health && <HealthMiniAppCard category={health} onOpen={() => onOpenCategory(health.id)} />}
             {areas.map((a) => (
               <AreaItemStandard key={a.id} area={a} counts={a.counts} onOpen={() => onOpenCategory(a.id)} />
             ))}
-          </div></div>
+          </div>
         </>
       )}
       {loaded && total === 0 && (

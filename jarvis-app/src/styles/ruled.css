@@ -2094,16 +2094,24 @@
    hue stays where it carries meaning -- the category's own disc and the
    section chips -- so Health still reads as Health without a block of colour
    behind it. */
-.ruled .health-mini-app { align-items: flex-start; }
-/* OPTION B FINAL (Dave 2026-09-16): the title and the section count share a
-   line, the names wrap under it. The 2x2 grid of labelled tiles it replaces
-   spent two lines per section and still could not hold a fifth. */
-.ruled .health-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
-.ruled .health-sections { display: flex; flex-wrap: wrap; gap: var(--s-1h); margin-top: var(--s-1h); }
-/* A LABEL, NOT A BUTTON. Colour on its own tint, the same treatment .uchip
-   uses for a chip nobody taps, so five section names cannot read as five
-   controls -- the whole card is the one tap target. Reading size rather than
-   uchip's 10px small caps, because these are words to read. */
-.ruled .health-chip { color: var(--good); background: var(--good-tint);
-  font-size: calc(13px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.005em;
-  padding: 4px var(--s-2h); border-radius: var(--r-pill); white-space: nowrap; }
+/* THE AREAS CARDS (Dave 2026-09-16, his reference mock): each area its own
+   card, a flat colour tile with the white glyph, the name over its counts,
+   the chevron at the right; Health leads on the good tint with white words
+   and five icon chips. No shading on any tile. */
+.ruled .area-cards { display: flex; flex-direction: column; gap: var(--s-2h); }
+.ruled .area-card { display: flex; align-items: center; gap: var(--s-3h); padding: var(--s-3) var(--s-4); cursor: pointer; }
+.ruled .area-card:active { opacity: 0.85; }
+.ruled .area-card-top { display: flex; align-items: center; gap: var(--s-3h); width: 100%; }
+.ruled .area-card-health { flex-direction: column; align-items: stretch; gap: var(--s-3); background: var(--good-tint); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--divider)); }
+.ruled .area-tile { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+.ruled .area-tile .ic { width: 26px; height: 26px; }
+.ruled .area-stack { flex: 1; min-width: 0; }
+.ruled .area-name { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .area-sub { font-size: var(--t-body); color: var(--tx-2); margin-top: 2px; }
+.ruled .area-card-health .area-sub { color: var(--tx-1); opacity: 0.85; }
+.ruled .area-chev { width: 30px; height: 30px; border-radius: var(--r-circle); background: var(--press-3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ruled .area-chev .chev { margin-right: 3px; border-color: var(--tx-2); }
+.ruled .health-sections { display: flex; flex-wrap: nowrap; gap: var(--s-1h); overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; margin: 0 calc(-1 * var(--s-4)); padding: 0 var(--s-4); }
+.ruled .health-sections::-webkit-scrollbar { display: none; }
+.ruled .health-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--good) 22%, var(--good-tint)); color: var(--tx-1); font-size: calc(13px * var(--type-scale)); font-weight: var(--w-semi); white-space: nowrap; flex-shrink: 0; }
+.ruled .health-chip .ic { width: 15px; height: 15px; color: var(--good); }
