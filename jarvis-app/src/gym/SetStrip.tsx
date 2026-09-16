@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { MeasureKind, SetEntry } from "./types";
 import { entryNoun, fieldsFor, formatSet } from "./measures";
 import { plateFacts, type PlateFacts } from "./ramp";
@@ -10,7 +10,14 @@ import { useSwipe } from "../shared/useSwipe";
 import Stepper from "../shared/Stepper";
 import { Trash2, Check } from "../shared/icons";
 
-const LONG_PRESS_MS = 550;
+// A SLOW TAP IS NOT A SECOND SET (2026-09-16, Dave: "when you log something,
+// it automatically adds a set. That's not correct."). A 550ms press on a chip
+// used to duplicate it -- which is a thumb resting on a phone between sets,
+// and it inserted a set silently, with no toast and no undo. GYM-F-26 settled
+// this argument once already on the gym's other rows: a long press that is
+// the only door to an action is a door nothing announces, no keyboard or
+// VoiceOver user can open, and every slow tap opens by accident. Duplicate is
+// a row in the editor the chip's own tap already opens.
 
 /**
  * THE SET STRIP (catalog §3.1). One chip per set, independently editable:
@@ -134,10 +141,16 @@ export default function SetStrip({
                 last={lastFor?.(i) ?? null}
                 onToggle={() => setOpenId(openId === id ? null : id)}
                 onDelete={() => remove(id)}
-                onDuplicate={() => duplicate(id)}
               />
               {openId === id && !disabled && (
                 <SetChipEditor kind={kind} fields={fields} entry={e} onPatch={(p) => patch(id, p)} moveTracking={moveTracking}
+                  // WHICH SET THIS IS (2026-09-16, Dave: "I don't even know
+                  // what I'm logging"). The editor drops open UNDER the chip
+                  // it belongs to, and once the steppers and the How Did It
+                  // Move chips are on screen the chip itself is above the
+                  // fold. It says its own name now.
+                  title={chipKicker(e, isLog ? setState(e, i, nowPos) : null, workNoAt(i))}
+                  onDuplicate={() => duplicate(id)}
                   // GYM-F-19 (2026-09-05): the kg guard was from before the
                   // rack had a unit, and it meant a lifter who HAD set a 20 kg
                   // bar and kg plates (S5-Q32) still never saw plate math.
@@ -193,8 +206,20 @@ export default function SetStrip({
   );
 }
 
+/** WHAT A CHIP CALLS ITSELF: Set 2, Warm-Up, Drop, or the state word the
+ *  live strip uses. A ramp set is real work but not the work, so it says so
+ *  and counts toward nothing (D3-A). Pulled out of SetChipRow 2026-09-16 so
+ *  the editor that opens under a chip can wear the same name -- one name, one
+ *  place, and the two can never drift apart. */
+function chipKicker(entry: SetEntry, state: SetState | null, workNo: number): string {
+  if (state) return setKicker(state, workNo, true);
+  if (entry.warmup) return "Warm-Up";
+  if (entry.drop) return "Drop";
+  return `Set ${workNo}`;
+}
+
 function SetChipRow({
-  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, onDuplicate, state, workNo,
+  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, state, workNo,
 }: {
   index: number;
   entry: SetEntry;
@@ -211,21 +236,11 @@ function SetChipRow({
   last?: string | null;
   onToggle: () => void;
   onDelete: () => void;
-  onDuplicate: () => void;
 }) {
   const swipe = useSwipe({ revealW: 88, enabled: !disabled });
-  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const firedLongPress = useRef(false);
-  const startXY = useRef<{ x: number; y: number } | null>(null);
-
-  const clearPress = () => {
-    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
-  };
 
   const label = entry.skipped ? "Skipped" : kind === "done" ? (entry.done ? "Done" : "Not Marked Yet") : formatSet(fx, entry);
-  // A ramp set is real work but not the work: it says so, and it counts
-  // toward nothing (D3-A).
-  const kicker = state ? setKicker(state, workNo, true) : entry.warmup ? "Warm-Up" : entry.drop ? "Drop" : `Set ${workNo}`;
+  const kicker = chipKicker(entry, state, workNo);
 
   return (
     <div className={"task-swipe set-chip-swipe" + (swipe.dx ? " swipe-open" : "")}>
@@ -237,24 +252,8 @@ function SetChipRow({
         role="button"
         tabIndex={0}
         aria-expanded={open}
-        aria-label={`${kicker}, ${label}, tap to edit, hold to duplicate`}
-        onPointerDown={disabled ? undefined : (e) => {
-          startXY.current = { x: e.clientX, y: e.clientY };
-          firedLongPress.current = false;
-          clearPress();
-          pressTimer.current = setTimeout(() => { firedLongPress.current = true; onDuplicate(); }, LONG_PRESS_MS);
-        }}
-        onPointerMove={(e) => {
-          const s = startXY.current;
-          if (!s) return;
-          if (Math.abs(e.clientX - s.x) > 10 || Math.abs(e.clientY - s.y) > 10) clearPress();
-        }}
-        onPointerUp={clearPress}
-        onPointerLeave={clearPress}
-        onClick={() => {
-          if (firedLongPress.current) { firedLongPress.current = false; return; }
-          if (!disabled) onToggle();
-        }}
+        aria-label={`${kicker}, ${label}, tap to edit`}
+        onClick={() => { if (!disabled) onToggle(); }}
       >
         <div className="row-grow">
           {/* KILL THE GREY SUBTEXT (Dave 2026-09-10). SET 1 / 220 lb x 3 /
@@ -289,18 +288,22 @@ const MOVED_OPTIONS: { value: "clean" | "grind" | "missed"; label: string; hue: 
 // A warm-up is supposed to move well, so marking one says nothing about the
 // work and the progression engine ignores it (D6). No chips on a ramp set.
 
-function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
+function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, title, onDuplicate }: {
   kind: MeasureKind;
   fields: ReturnType<typeof fieldsFor>;
   entry: SetEntry;
   onPatch: (p: Partial<SetEntry>) => void;
   moveTracking?: boolean;
+  /** The chip's own name, so the panel says which set it is editing. */
+  title: string;
+  onDuplicate: () => void;
   /** PLATE MATH (D8-A): what goes on each side, or null when this rack
    *  cannot build the number exactly -- silence beats a wrong answer. */
   plates?: PlateFacts | null;
 }) {
   return (
     <div className="set-chip-editor">
+      <div className="grp"><div className="eyebrow">Editing {title}</div></div>
       {/* PLATE MATH READS AS PLATES (Dave 2026-09-10). "45 · 35 · 5 · 2.5"
           over a grey "Per side" is a sentence about plates; a lifter loading a
           bar wants to SEE them. Each number is its own chip, in the ramp's
@@ -356,6 +359,11 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
       )}
       <div className="row" role="button" tabIndex={0} onClick={() => onPatch({ skipped: !entry.skipped, done: false })}>
         <div className="row-grow"><div className="conn-name">{entry.skipped ? "Unskip This Set" : "Skip This Set"}</div></div>
+      </div>
+      {/* The door the long press used to be (see the note at the top of this
+          file). A real row, so Enter and Space reach it. */}
+      <div className="row" role="button" tabIndex={0} onClick={onDuplicate}>
+        <div className="row-grow"><div className="conn-name">Duplicate This Set</div></div>
       </div>
     </div>
   );

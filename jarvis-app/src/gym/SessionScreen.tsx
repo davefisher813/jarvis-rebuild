@@ -664,8 +664,17 @@ export default function SessionScreen({
 
       {/* One head grammar across the gym pages (reformat 2026-08-31): the
           quiet sh2, same as the program page's Days and Recent. */}
-      <div className="sh2 sh2-quiet"><span className="t">{noun}</span>
-        {!cond && !current.skipped && planEx.sets.length > 0 && <span className="n">{`${workLogged} of ${planEx.sets.length}`}</span>}</div>
+      {/* AND IT SAYS WHICH LIFT (2026-09-16, Dave mid-set: "if I'm trying to
+          log something, I don't even know what I'm logging, whether it's the
+          exercise before or the exercise after"). The head said SETS. The
+          exercise's name was a screen above it, past the warm-up card, the
+          suggestion card and the superset row, and the list of every OTHER
+          exercise in the session sits directly below the strip -- so the one
+          place the athlete actually types a number was the one place nothing
+          named the lift. The name takes the head and the noun rides the count,
+          which is where the noun was doing its work anyway. */}
+      <div className="sh2 sh2-quiet"><span className="t">{exercise.name}</span>
+        {!cond && !current.skipped && planEx.sets.length > 0 && <span className="n">{capAfterNumber(`${workLogged} of ${planEx.sets.length} ${noun.toLowerCase()}`)}</span>}</div>
       <div className="pad-x">
         {current.skipped ? (
           <div className="card list-card-ruled"><div className="row"><div className="row-grow"><div className="conn-name">Skipped</div></div></div></div>

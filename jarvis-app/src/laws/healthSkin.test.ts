@@ -263,4 +263,18 @@ describe("HEALTH law 5: the shell hides its chrome while a session is live", () 
     // set cannot be scrolled clear of the bar that just moved up over it.
     expect(RULED).toMatch(/\.screen-session \{ padding-bottom: calc\(104px \+ var\(--vv-bot, 0px\)\)/);
   });
+
+  // ADDED 2026-09-16 (Dave mid-set: "if I'm trying to log something, I don't
+  // even know what I'm logging, whether it's the exercise before or the
+  // exercise after"). The head over the set strip said SETS. The lift's name
+  // was a screen above it, past the warm-up card, the suggestion card and the
+  // superset row, and the list of every OTHER exercise in the session sits
+  // directly below the strip.
+  it("and the strip's own head names the lift being logged", () => {
+    const screen = read(join(SRC, "gym/SessionScreen.tsx"));
+    expect(screen, "the set strip's head takes the exercise's name")
+      .toMatch(/<div className="sh2 sh2-quiet"><span className="t">\{exercise\.name\}<\/span>/);
+    expect(screen, "and the noun rides the count, so neither fact is lost")
+      .toMatch(/\$\{workLogged\} of \$\{planEx\.sets\.length\} \$\{noun\.toLowerCase\(\)\}/);
+  });
 });
