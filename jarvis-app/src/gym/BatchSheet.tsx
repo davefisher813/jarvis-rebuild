@@ -132,7 +132,7 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
               <div className="pad-x"><div className="card xs-group">
                 {/* row-tap: chip strip, every inch of it is one of the field chips */}
                 <div className="row xs-row">
-                  <div className="chip-row">
+                  <div className="chip-row chip-wrap-row">
                     {FIELDS.map((f) => (
                       <button key={f} type="button" className={"chip" + (field === f ? " active" : "")}
                         aria-pressed={field === f}
@@ -148,7 +148,7 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
               <div className="pad-x"><div className="card xs-group">
                 {/* row-tap: chip strip, every inch of it is one of the three mode chips */}
                 <div className="row xs-row">
-                  <div className="chip-row">
+                  <div className="chip-row chip-wrap-row">
                     {(["add", "replace", "clear"] as BatchMode[]).map((m) => (
                       <button key={m} type="button" className={"chip" + (mode === m ? " active" : "")}
                         aria-pressed={mode === m} onClick={() => setMode(m)}>
@@ -174,7 +174,7 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
                     ) : (
                       // row-tap: chip strip, every inch of it is one of the value chips
                       <div className="row xs-row">
-                        <div className="chip-row">
+                        <div className="chip-row chip-wrap-row">
                           {options.map((o) => (
                             <button key={o.id} type="button" className={"chip" + (values.includes(o.id) ? " active" : "")}
                               aria-pressed={values.includes(o.id)} onClick={() => toggle(o.id)}>
@@ -188,12 +188,18 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
                 </>
               )}
 
+              {/* ONE LINE, NOT THREE (2026-09-16, Dave: "modals not done...
+                  grey subtext all over the place"; polish rule 3: "Essential
+                  metadata gets one short readable line"). Two grey lines sat
+                  stacked here and the second promised what the button beside
+                  it already says: the save action reads Preview until it has
+                  been pressed. The fact -- how many of the selected this
+                  would actually touch -- is the one worth a line. */}
               <div className="pad-x"><div className="bp-sub">
                 {ready
                   ? capAfterNumber(`${plan.changes.length} of the ${rows.length} selected would change`)
                   : "Pick what to write, then preview it"}
               </div></div>
-              {ready && <div className="pad-x"><div className="bp-sub">Preview shows each one before anything is written.</div></div>}
             </>
           )}
           <div className="xs-foot" />

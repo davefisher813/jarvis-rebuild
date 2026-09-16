@@ -48,6 +48,22 @@ describe("SetStrip: the chip's editor", () => {
     expect(screen.getByText("Editing Set 2")).toBeInTheDocument();
   });
 
+  // The NAME, not the state word. On a live strip the chip above says
+  // "Set 1 · Done", and repeating that here read as a state the editing was
+  // in rather than the set it was on.
+  it("names the set without wearing its state word", () => {
+    render(<SetStrip kind="weight_reps" unit="lb" entries={entries} ghost={[]} onChange={() => {}} moveTracking />);
+    fireEvent.click(screen.getByLabelText("Set 1 · Done, 185 lb × 5, tap to edit"));
+    expect(screen.getByText("Editing Set 1")).toBeInTheDocument();
+    expect(screen.queryByText("Editing Set 1 · Done")).toBeNull();
+  });
+
+  it("but a warm-up still says what it is, because that is its name", () => {
+    render(<SetStrip kind="weight_reps" unit="lb" entries={[{ id: "w1", w: 95, r: 10, warmup: true }]} onChange={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Warm-Up, 95 lb × 10, tap to edit"));
+    expect(screen.getByText("Editing Warm-Up")).toBeInTheDocument();
+  });
+
   it("holding a chip adds nothing at all", () => {
     const onChange = vi.fn();
     render(<SetStrip kind="weight_reps" unit="lb" entries={entries} onChange={onChange} />);

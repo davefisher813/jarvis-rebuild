@@ -168,7 +168,12 @@ export default function SetStrip({
                   // it belongs to, and once the steppers and the How Did It
                   // Move chips are on screen the chip itself is above the
                   // fold. It says its own name now.
-                  title={chipKicker(e, isLog ? setState(e, i, nowPos) : null, workNoAt(i))}
+                  // The chip's NAME, not its state word: the row above already
+                  // says Done, and "Editing Set 1 · Done" reads as a state the
+                  // editing is in (2026-09-16, caught in a render). A warm-up
+                  // and a drop still say what they are, because that is their
+                  // name and not a state.
+                  title={chipKicker(e, null, workNoAt(i))}
                   onDuplicate={() => duplicate(id)}
                   // GYM-F-19 (2026-09-05): the kg guard was from before the
                   // rack had a unit, and it meant a lifter who HAD set a 20 kg
