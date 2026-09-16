@@ -73,6 +73,9 @@ export interface MentionItem {
   title: string;
   sub?: string;
   done?: boolean;
+  /** True when the sub is a reminder time rather than a due date: this one
+   *  pings on its own. */
+  reminder?: boolean;
 }
 
 // Open work and upcoming time involving this person. Done tasks and past
@@ -90,7 +93,7 @@ export interface MentionItem {
 // fallback for everything written by hand.
 export function openWith(
   person: { id?: string; name: string; aliases?: string[] },
-  tasks: { id: string; text: string; done?: boolean; due?: string | null; personId?: string }[],
+  tasks: { id: string; text: string; done?: boolean; due?: string | null; personId?: string; reminderAt?: string }[],
   events: { id: string; title: string; date: string; start?: string; location?: string }[],
   today: string,
   max = 6,
@@ -106,7 +109,17 @@ export function openWith(
     // guess at ("Will", "Grace"): a task filed off Will's own email is about
     // Will, whatever his first name looks like in a sentence.
     if (!linked(t) && !hit(t.text)) continue;
-    out.push({ id: t.id, kind: "task", title: t.text, sub: t.due ?? undefined });
+    // A REMINDER IS NOT A SECOND ROW (People handoff, 2026-09-16, which asks
+    // for reminders on the card). A reminder in this app IS a task carrying a
+    // ping, so giving it its own section would list the same thing twice on
+    // one card, which is the duplication the app's own rules are against.
+    // The alarm rides the row it belongs to instead, which is the fact worth
+    // knowing: this one will speak up on its own.
+    out.push({
+      id: t.id, kind: "task", title: t.text,
+      sub: t.reminderAt ?? t.due ?? undefined,
+      ...(t.reminderAt ? { reminder: true } : {}),
+    });
   }
   // With no usable name patterns the events half has nothing to match on;
   // events carry no person link of their own yet.

@@ -1990,8 +1990,15 @@
    neutral row ground every other area sits on, and its icon anchors to the
    top of the row rather than centering against the section grid beneath it. */
 .ruled .health-mini-app { align-items: flex-start; background: var(--good-tint); border-radius: var(--r-md); }
-.ruled .health-sections { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-1h); margin-top: var(--s-1h); }
-.ruled .health-section-item { background: var(--surface-2); border-radius: var(--r-sm);
-  padding: 5px var(--s-2); text-align: center; }
-.ruled .health-section-label { color: var(--good); font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi); }
-.ruled .health-section-desc { color: var(--tx-3); font-size: calc(9.5px * var(--type-scale)); margin-top: 1px; }
+/* OPTION B FINAL (Dave 2026-09-16): the title and the section count share a
+   line, the names wrap under it. The 2x2 grid of labelled tiles it replaces
+   spent two lines per section and still could not hold a fifth. */
+.ruled .health-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.ruled .health-sections { display: flex; flex-wrap: wrap; gap: var(--s-1h); margin-top: var(--s-1h); }
+/* A LABEL, NOT A BUTTON. Colour on its own tint, the same treatment .uchip
+   uses for a chip nobody taps, so five section names cannot read as five
+   controls -- the whole card is the one tap target. Reading size rather than
+   uchip's 10px small caps, because these are words to read. */
+.ruled .health-chip { color: var(--good); background: var(--good-tint);
+  font-size: calc(13px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.005em;
+  padding: 4px var(--s-2h); border-radius: var(--r-pill); white-space: nowrap; }

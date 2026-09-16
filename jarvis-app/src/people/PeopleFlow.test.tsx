@@ -203,3 +203,131 @@ describe("repairing contact details out of the notes", () => {
     expect(screen.queryByRole("button", { name: "Not One" })).not.toBeInTheDocument();
   });
 });
+
+// THE IMPORT REVIEW QUEUE (People handoff, 2026-09-16). The old preview
+// deduped by lowercase name and SKIPPED whatever matched, which lost a real
+// second "John Smith" with nothing said.
+describe("importing a file with a same-name stranger in it", () => {
+  const VCF = [
+    "BEGIN:VCARD", "FN:John Smith", "TEL;TYPE=CELL:555-0999", "END:VCARD",
+  ].join("\r\n");
+  const drop = async (text: string, name = "contacts.vcf") => {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([text], name, { type: "text/vcard" });
+    Object.defineProperty(file, "text", { value: () => Promise.resolve(text) });
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    fireEvent.change(input);
+    await waitFor(() => expect(screen.getByText("Import Contacts")).toBeInTheDocument());
+  };
+
+  it("asks which John Smith this is instead of dropping them", async () => {
+    render(
+      <NotesProvider userId="i1">
+        <PeopleFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByText("Add Person"));
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "John Smith" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.getAllByText("John Smith").length).toBeGreaterThan(0));
+
+    await drop(VCF);
+    // Not "skipping 1 already here": a row waiting on an answer is something
+    // to check, and saying otherwise was the lie the old preview told.
+    expect(screen.getByText("1 To check")).toBeInTheDocument();
+    expect(screen.getByText("John Smith is already a name you have")).toBeInTheDocument();
+    // Both answers are on offer, and neither has happened yet.
+    expect(screen.getByText("Someone New")).toBeInTheDocument();
+  });
+
+  it("creates a second person when you say it is someone new", async () => {
+    render(
+      <NotesProvider userId="i2">
+        <PeopleFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByText("Add Person"));
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "John Smith" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.getAllByText("John Smith").length).toBeGreaterThan(0));
+
+    await drop(VCF);
+    fireEvent.click(screen.getByText("Someone New"));
+    fireEvent.click(screen.getByText("Apply"));
+    await waitFor(() => expect(screen.queryByText("Import Contacts")).not.toBeInTheDocument());
+    // Two of them now, which is the whole point: a real person is not lost to
+    // sharing a name.
+    await waitFor(() => expect(screen.getAllByText("John Smith")).toHaveLength(2));
+  });
+
+  it("reports a file that changes nothing rather than claiming a skip", async () => {
+    render(
+      <NotesProvider userId="i3">
+        <PeopleFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByText("Add Person"));
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Linda Fisher" } });
+    fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "555-010-3311" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.getAllByText("Linda Fisher").length).toBeGreaterThan(0));
+
+    // Same person, same number, written differently: recognized, nothing new.
+    await drop(["BEGIN:VCARD", "FN:Linda Fisher", "TEL:+1 (555) 010-3311", "END:VCARD"].join("\r\n"));
+    expect(screen.getByText("1 Already current")).toBeInTheDocument();
+  });
+});
+
+// A CSV THIS PARSER CANNOT READ IS NOT A DEAD END (People handoff,
+// 2026-09-16: "CSV needs a field mapping preview"). It used to report the
+// file as unreadable and stop, with no way to say which column was which.
+describe("a CSV whose headers mean nothing to the parser", () => {
+  const drop = async (text: string, name = "export.csv") => {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([text], name, { type: "text/csv" });
+    Object.defineProperty(file, "text", { value: () => Promise.resolve(text) });
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    fireEvent.change(input);
+  };
+  const mount = (uid: string) => render(
+    <NotesProvider userId={uid}><PeopleFlow onBack={() => {}} /></NotesProvider>,
+  );
+
+  it("asks which column is which instead of calling the file unreadable", async () => {
+    mount("m1");
+    await drop("Handle,Digits\nLinda Fisher,555-010-3311");
+    await waitFor(() => expect(screen.getByText("Which Column Is Which")).toBeInTheDocument());
+    // A missing field is not a parse failure: the file read fine.
+    expect(screen.queryByText(/Couldn't read that file/)).not.toBeInTheDocument();
+    expect(screen.getByText("Handle")).toBeInTheDocument();
+    expect(screen.getByText("Digits")).toBeInTheDocument();
+  });
+
+  it("will not run until a column is pointed at a name", async () => {
+    mount("m2");
+    await drop("Handle,Digits\nLinda Fisher,555-010-3311");
+    await waitFor(() => expect(screen.getByText("Which Column Is Which")).toBeInTheDocument());
+    expect(screen.getByText("Read It This Way")).toBeDisabled();
+    expect(screen.getByText("Point one column at a name before this can run")).toBeInTheDocument();
+  });
+
+  it("reads the file once the columns are named", async () => {
+    mount("m3");
+    await drop("Handle,Digits\nLinda Fisher,555-010-3311");
+    await waitFor(() => expect(screen.getByText("Which Column Is Which")).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText("What Handle holds"));
+    fireEvent.click(await screen.findByText("Full Name"));
+    fireEvent.click(screen.getByLabelText("What Digits holds"));
+    fireEvent.click(await screen.findByText("Phone"));
+    fireEvent.click(screen.getByText("Read It This Way"));
+    // Straight into the ordinary plan, with the person it found.
+    await waitFor(() => expect(screen.getByText("Import Contacts")).toBeInTheDocument());
+    expect(screen.getByText("1 New")).toBeInTheDocument();
+  });
+
+  it("still calls a file with nothing in it unreadable", async () => {
+    mount("m4");
+    await drop("", "empty.csv");
+    await waitFor(() => expect(screen.getByText(/Couldn't read that file/)).toBeInTheDocument());
+  });
+});

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { usePeople, useNotes, useCategories, useTasks, useSchedule, useHealth, useOptionalProjects, useOptionalDecisions } from "../data/NotesProvider";
+import { usePeople, useNotes, useCategories, useTasks, useSchedule, useHealth, useOptionalProjects, useOptionalDecisions, useOptionalGoals } from "../data/NotesProvider";
 import { loadMailSnapshot } from "../messages/home";
 import { titleCase as titleCaseMail } from "../shared/casing";
 import { loadLinks } from "../messages/threadLink";
@@ -17,7 +17,18 @@ import MessageDraftSheet from "./MessageDraftSheet";
 import { useAI } from "../ai/useAI";
 import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
-import { parseContactsFile, type ImportedContact } from "./importContacts";
+import { parseContactsFile, parseContactsCSV, csvMapping, type CsvMapping } from "./importContacts";
+import { planImport, mergeReview, draftFrom, planLine, summaryLine, describe, type MatchPlan } from "./importMatch";
+import { fmtTime } from "../schedule/calendar";
+import { capAfterNumber } from "../shared/casing";
+import HeadMenu from "../shared/HeadMenu";
+
+// "Reminds at 2:00PM". The words, not just the clock, so the row says why
+// there is a time on it at all.
+const reminderLabel = (hhmm: string) => {
+  const t = fmtTime(hhmm);
+  return `Reminds at ${t.time}${t.ap}`;
+};
 import { repairCandidates, applyFindings, type NoteFinding } from "./repairNotes";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -106,6 +117,14 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   const decisionsSvc = useOptionalDecisions();
   const [personProjects, setPersonProjects] = useState<{ id: string; title: string; next?: string | null }[]>([]);
   const [decided, setDecided] = useState<{ id: string; decision: string; createdAt: string }[]>([]);
+  // THE GOALS THEIR WORK IS UNDER (People handoff, 2026-09-16: "Goals:
+  // relevant people and connected projects"). Derived through the projects
+  // they are on, which is the only honest link the app has: a person is not
+  // attached to a goal directly, their work is. No progress figures -- the
+  // handoff says not to invent them, and a goal's progress is a fact about
+  // the goal, not about this person's part in it.
+  const goalsSvc = useOptionalGoals();
+  const [personGoals, setPersonGoals] = useState<{ id: string; title: string; via: string }[]>([]);
   const [promises, setPromises] = useState<{ threadId: string; text: string; due?: string }[]>([]);
 
   // ONE list, everyone (the Inner Circle / Adversarial lists were removed
@@ -154,7 +173,12 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           // the name matcher was right to refuse to guess at. UP-MIND-10
           // widens the same match to tasks born from this person's email.
           { id: currentId, name: currentName, aliases: currentAliases ? currentAliases.split("\u0000") : [] },
-          ts.map((t) => ({ id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null, personId: t.data.personId })),
+          // The reminder's own time, formatted here because this screen's
+          // data comes pre-resolved and mentions.ts holds no formatter.
+          ts.map((t) => ({
+            id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null, personId: t.data.personId,
+            ...(t.data.reminder ? { reminderAt: reminderLabel(t.data.reminder.time) } : {}),
+          })),
           evs.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start, location: e.data.location })),
           todayISO(),
         ));
@@ -164,14 +188,15 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   }, [currentName, currentId, currentAliases, tasksSvc, schedSvc]);
 
   useEffect(() => {
-    if (!currentId) { setPersonProjects([]); setDecided([]); setPromises([]); return; }
+    if (!currentId) { setPersonProjects([]); setDecided([]); setPromises([]); setPersonGoals([]); return; }
     let on = true;
     void (async () => {
       try {
-        const [ts, prs, ds] = await Promise.all([
+        const [ts, prs, ds, gs] = await Promise.all([
           tasksSvc.listTasks(),
           projectsSvc ? projectsSvc.list() : Promise.resolve([]),
           decisionsSvc ? decisionsSvc.list() : Promise.resolve([]),
+          goalsSvc ? goalsSvc.list() : Promise.resolve([]),
         ]);
         if (!on) return;
         const links = loadLinks();
@@ -184,13 +209,22 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           const next = ts.find((t) => t.data.projectId === p.id && !t.data.done);
           return { id: p.id, title: p.data.title, next: next?.data.text ?? null };
         }));
+        // A goal reached through a project they are on, and it says WHICH
+        // project, so the link is visible rather than asserted.
+        const goalVia = new Map<string, string>();
+        for (const pr of live) {
+          if (pr.data.goalId && !goalVia.has(pr.data.goalId)) goalVia.set(pr.data.goalId, pr.data.title);
+        }
+        setPersonGoals(gs
+          .filter((g) => goalVia.has(g.id))
+          .map((g) => ({ id: g.id, title: g.data.title, via: goalVia.get(g.id)! })));
         setDecided(ds.filter((d) => linksOf(d.data).some((l) => l.type === "person" && l.id === currentId))
           .map((d) => ({ id: d.id, decision: d.data.decision, createdAt: d.data.createdAt })));
         setPromises(snap.promises.filter((p) => p.personId === currentId).map((p) => ({ threadId: p.threadId, text: titleCaseMail(p.text), ...(p.due ? { due: p.due } : {}) })));
-      } catch { if (on) { setPersonProjects([]); setDecided([]); setPromises([]); } }
+      } catch { if (on) { setPersonProjects([]); setDecided([]); setPromises([]); setPersonGoals([]); } }
     })();
     return () => { on = false; };
-  }, [currentId, tasksSvc, projectsSvc, decisionsSvc]);
+  }, [currentId, tasksSvc, projectsSvc, decisionsSvc, goalsSvc]);
 
   // C-61: Add Task on a promise writes the task with the person on it and
   // the row leaves; the same write the Today notice makes.
@@ -337,65 +371,109 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     });
   };
 
-  // Contact import (Dave 2026-07-30): parse a shared .vcf/.csv, dedupe by
-  // name against everyone, preview the count, then create all on confirm.
-  const [importPreview, setImportPreview] = useState<{ fresh: ImportedContact[]; dupes: number; bad: boolean } | null>(null);
+  // Contact import (Dave 2026-07-30), rebuilt on the matching ladder (People
+  // handoff, 2026-09-16). The old preview deduped by lowercase NAME and
+  // SKIPPED whatever matched, which lost two things silently: a contact whose
+  // details had changed was never updated, and a genuine second "John Smith"
+  // was dropped and never created. planImport answers who each row is, and
+  // this only reports and applies what it decided. See importMatch.ts.
+  const [importPlan, setImportPlan] = useState<{ plan: MatchPlan; bad: boolean } | null>(null);
   const [importing, setImporting] = useState(false);
   const [importedSoFar, setImportedSoFar] = useState(0);
+  const [importError, setImportError] = useState<string | null>(null);
+  // A same-name row waits here until it is answered. Keyed by position in the
+  // review list; the answer is either a person to merge into or "new".
+  const [reviewAt, setReviewAt] = useState(0);
+  // A CSV WHOSE HEADERS THIS PARSER CANNOT READ IS NOT A DEAD END (People
+  // handoff, 2026-09-16: "CSV needs a field mapping preview"). It used to
+  // report the file as unreadable and stop; now the columns are shown with
+  // the parser's own guess beside each, and the user says which is which.
+  // Only for CSV: a vCard's fields are named by the format itself.
+  const [mapping, setMapping] = useState<{ text: string; headers: string[]; field: CsvMapping["field"] } | null>(null);
+  const [resolved, setResolved] = useState<Record<number, string>>({});
+
+  // ONE FILLED RED PER FILE. The import sheet and the column-mapping sheet
+  // are mutually exclusive, but the law counts what is written and it is
+  // right to: two `btn btn-primary` in one file is a second filled red the
+  // next reader has to reason about. One button, told what it is.
+  const Primary = ({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) => (
+    <button className="btn btn-primary btn-block" disabled={disabled} onClick={onClick}>{label}</button>
+  );
+
+  const answerReview = (index: number, answer: string) => {
+    setResolved((r) => ({ ...r, [index]: answer }));
+    // Straight on to the next unanswered one, so a file with several is a
+    // run of taps rather than a hunt.
+    setReviewAt((i) => i + 1);
+  };
+
+  const startPlan = (parsed: ReturnType<typeof parseContactsFile>) => {
+    setReviewAt(0);
+    setResolved({});
+    setImportError(null);
+    setMapping(null);
+    setImportPlan({ plan: planImport(list, parsed), bad: false });
+  };
+
   const onImportFile = async (file: File) => {
     const text = await file.text();
     const parsed = parseContactsFile(file.name, text);
-    if (parsed.length === 0) { setImportPreview({ fresh: [], dupes: 0, bad: true }); return; }
-    const existing = new Set(list.map((p) => p.data.name.trim().toLowerCase()));
-    const fresh = parsed.filter((c) => !existing.has(c.name.trim().toLowerCase()));
-    setImportPreview({ fresh, dupes: parsed.length - fresh.length, bad: false });
+    if (parsed.length > 0) { startPlan(parsed); return; }
+    // Nothing came back. A CSV that has columns has a mapping problem, not a
+    // parse failure, and the handoff asks for those to be told apart.
+    const guess = csvMapping(text);
+    if (guess && guess.headers.length) {
+      setImportPlan(null);
+      setImportError(null);
+      setMapping({ text, headers: guess.headers, field: guess.field });
+      return;
+    }
+    setImportPlan({ plan: { create: [], update: [], unchanged: 0, review: [] }, bad: true });
   };
-  const [importError, setImportError] = useState<string | null>(null);
+
+  const applyMapping = () => {
+    if (!mapping) return;
+    startPlan(parseContactsCSV(mapping.text, mapping.field));
+  };
+
   const runImport = async () => {
-    if (!importPreview || importing) return;
+    if (!importPlan || importing) return;
+    const { plan } = importPlan;
     setImporting(true);
     setImportedSoFar(0);
     setImportError(null);
-    const n = importPreview.fresh.length;
-    // Bulk insert in chunks of 100: one round trip per chunk, live count on
-    // the button. 758 contacts lands in seconds instead of minutes. A network
-    // failure mid-run can never strand the button on "Adding...": whatever
-    // landed stays saved, the sheet reports it plainly, and tapping again
-    // continues with only the remaining people (2026-07-30: the first version
-    // had no error handling and froze at "Adding..." on one failed call).
-    const CHUNK = 100;
-    let added = 0;
+    // Everything the review answered, folded into the two real piles.
+    const creates = [...plan.create];
+    const updates = plan.update.map((u) => ({ id: u.person.id, patch: u.patch }));
+    plan.review.forEach((r, i) => {
+      const answer = resolved[i];
+      if (!answer) return;              // unanswered rows are simply not acted on
+      if (answer === "new") { creates.push(r.contact); return; }
+      const person = r.candidates.find((c) => c.id === answer);
+      if (person) updates.push({ id: person.id, patch: mergeReview(person, r.contact) });
+    });
+    const total = creates.length + updates.length;
+    let done = 0;
     try {
-      for (let i = 0; i < n; i += CHUNK) {
-        // EVERYTHING THE FILE CARRIED REACHES THE RECORD (People handoff,
-        // 2026-09-16). This used to map six fields and drop the rest of what
-        // the parser had already read, which is the other half of "a number
-        // in Notes with Phone blank": even once the parser kept it, nothing
-        // here carried it across.
-        const batch = importPreview.fresh.slice(i, i + CHUNK).map((c) => ({
-          name: c.name, group: "contacts" as const,
-          birthday: c.birthday, notes: c.notes,
-          email: c.email, phone: c.phone,
-          ...(c.phones ? { phones: c.phones } : {}),
-          ...(c.emails ? { emails: c.emails } : {}),
-          ...(c.org ? { org: c.org } : {}),
-          ...(c.title ? { title: c.title } : {}),
-          ...(c.urls ? { urls: c.urls } : {}),
-          ...(c.addresses ? { addresses: c.addresses } : {}),
-        }));
-        await people.createMany(batch);
-        added = Math.min(n, i + CHUNK);
-        setImportedSoFar(added);
+      // Updates first: they are one write each and they cannot fail halfway
+      // through a batch the way a chunked create can.
+      for (const u of updates) {
+        await people.update(u.id, u.patch);
+        setImportedSoFar(++done);
+      }
+      const CHUNK = 100;
+      for (let i = 0; i < creates.length; i += CHUNK) {
+        await people.createMany(creates.slice(i, i + CHUNK).map(draftFrom));
+        done = updates.length + Math.min(creates.length, i + CHUNK);
+        setImportedSoFar(done);
       }
       setImporting(false);
-      setImportPreview(null);
+      setImportPlan(null);
       await reload();
-      showToast({ message: `Added ${n} ${n === 1 ? "person" : "people"}` });
+      showToast({ message: summaryLine(creates.length, updates.length, plan.unchanged) });
     } catch {
       setImporting(false);
-      const remaining = importPreview.fresh.slice(added);
-      setImportPreview({ fresh: remaining, dupes: importPreview.dupes, bad: false });
-      setImportError(`Stopped at ${added} of ${n} · Saved so far · Tap to finish`);
+      setImportError(`Stopped at ${done} of ${total} · Saved so far · Tap to finish`);
       await reload();
     }
   };
@@ -467,36 +545,113 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     await reload();
   };
 
-  const importEl = importPreview && createPortal(
-    <div className="sheet-scrim" onClick={() => !importing && setImportPreview(null)}>
+  // THE MAPPING STEP. One row per column, each saying what the parser made of
+  // it, each changeable. A column left as Skip is simply not read, which is
+  // the honest answer for the half of an export that is empty anyway.
+  const FIELD_OPTS = [
+    { value: "", label: "Skip" },
+    { value: "name", label: "Full Name" },
+    { value: "first", label: "First Name" },
+    { value: "last", label: "Last Name" },
+    { value: "phone", label: "Phone" },
+    { value: "email", label: "Email" },
+    { value: "birthday", label: "Birthday" },
+    { value: "note", label: "Note" },
+  ];
+  const mapped = mapping ? Object.values(mapping.field) : [];
+  const canMap = mapped.includes("name") || mapped.includes("first");
+  const mappingEl = mapping && createPortal(
+    <div className="sheet-scrim" onClick={() => setMapping(null)}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="grp"><div className="eyebrow">Which Column Is Which</div></div>
+        <div className="pad-x sheet-form">
+          {/* A MISSING FIELD IS NOT A PARSE FAILURE (People handoff). The file
+              read fine; its headers just are not ones this parser knows. */}
+          <div className="plan-sub">{capAfterNumber(`${mapping.headers.length} columns read · Name the ones worth keeping`)}</div>
+          <div className="card list-card-ruled">
+            {mapping.headers.map((h, i) => (
+              <div className="row" key={h + i}>
+                <div className="row-grow"><div className="conn-name truncate">{h || "Column " + (i + 1)}</div></div>
+                <HeadMenu variant="value" ariaLabel={"What " + (h || "column " + (i + 1)) + " holds"}
+                  value={mapping.field[i] ?? ""} off={!mapping.field[i]}
+                  label={FIELD_OPTS.find((o) => o.value === (mapping.field[i] ?? ""))?.label ?? "Skip"}
+                  options={FIELD_OPTS}
+                  onPick={(v: string) => setMapping((m) => {
+                    if (!m) return m;
+                    const field = { ...m.field };
+                    if (v) field[i] = v as CsvMapping["field"][number]; else delete field[i];
+                    return { ...m, field };
+                  })} />
+              </div>
+            ))}
+          </div>
+          {!canMap && <div className="input-note">Point one column at a name before this can run</div>}
+        </div>
+        <div className="pad-x sheet-actions">
+          <Primary disabled={!canMap} onClick={applyMapping} label="Read It This Way" />
+          <button className="btn btn-secondary btn-block" onClick={() => setMapping(null)}>Cancel</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+
+  const review = importPlan?.plan.review ?? [];
+  const pending = review.filter((_, i) => !resolved[i]).length;
+  const importEl = importPlan && createPortal(
+    <div className="sheet-scrim" onClick={() => !importing && setImportPlan(null)}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Import Contacts</div></div>
         <div className="pad-x sheet-form">
-          {importPreview.bad ? (
+          {importPlan.bad ? (
             <div className="plan-sub">Couldn't read that file · Use .vcf or .csv with names</div>
           ) : (
             <>
+              {/* THE SUMMARY SAYS ALL FOUR THINGS (People handoff: "Show
+                  added, updated, skipped, conflicts, and failures"). The old
+                  one could only say "found" and "skipping", because skipping
+                  was all it did. */}
               <div className="plan-sub">
-                Found {importPreview.fresh.length + importPreview.dupes} {importPreview.fresh.length + importPreview.dupes === 1 ? "person" : "people"}
-                {importPreview.dupes > 0 && ` · Skipping ${importPreview.dupes} already here`}
-                {importPreview.fresh.length > 0 && ` · Adding ${importPreview.fresh.length}`}
+                {planLine(importPlan.plan, Object.keys(resolved).length)}
               </div>
-              {importPreview.fresh.length > 0 && (
-                <div className="input-help">{importPreview.fresh.slice(0, 5).map((c) => c.name).join(", ")}{importPreview.fresh.length > 5 ? ` and ${importPreview.fresh.length - 5} more` : ""}</div>
+              {importPlan.plan.create.length > 0 && (
+                <div className="input-help">
+                  {importPlan.plan.create.slice(0, 5).map((c) => c.name).join(", ")}
+                  {importPlan.plan.create.length > 5 ? ` and ${importPlan.plan.create.length - 5} more` : ""}
+                </div>
+              )}
+              {/* A SAME NAME IS NOT A MATCH. One at a time, and until it is
+                  answered nothing happens to that row either way -- the old
+                  code's answer was to drop the person. */}
+              {pending > 0 && review[reviewAt] && !resolved[reviewAt] && (
+                <div className="card list-card-ruled">
+                  <div className="pad">
+                    <div className="conn-name">{review[reviewAt]!.contact.name} is already a name you have</div>
+                    <div className="bp-sub">Same name, nothing else in common. Which is this?</div>
+                  </div>
+                  {review[reviewAt]!.candidates.map((c) => (
+                    <button className="row" key={c.id} onClick={() => answerReview(reviewAt, c.id)}>
+                      <div className="row-grow">
+                        <div className="conn-name">{c.data.name}</div>
+                        <div className="conn-meta">{describe(c)}</div>
+                      </div>
+                    </button>
+                  ))}
+                  <button className="row-create" onClick={() => answerReview(reviewAt, "new")}>Someone New</button>
+                </div>
               )}
               {importError && <div className="input-note">{importError}</div>}
             </>
           )}
         </div>
         <div className="pad-x sheet-actions">
-          {!importPreview.bad && importPreview.fresh.length > 0 && (
-            <button className="btn btn-primary btn-block" disabled={importing} onClick={runImport}>
-              {importing ? `Adding ${importedSoFar} of ${importPreview.fresh.length}...` : `Add ${importPreview.fresh.length} ${importPreview.fresh.length === 1 ? "Person" : "People"}`}
-            </button>
+          {!importPlan.bad && (importPlan.plan.create.length > 0 || importPlan.plan.update.length > 0 || Object.keys(resolved).length > 0) && (
+            <Primary disabled={importing} onClick={runImport} label={importing ? `Saving ${importedSoFar}...` : "Apply"} />
           )}
-          <button className="btn btn-secondary btn-block" disabled={importing} onClick={() => setImportPreview(null)}>
-            {importPreview.bad || importPreview.fresh.length === 0 ? "Close" : "Cancel"}
+          <button className="btn btn-secondary btn-block" disabled={importing} onClick={() => setImportPlan(null)}>
+            {importPlan.bad ? "Close" : "Cancel"}
           </button>
         </div>
       </div>
@@ -544,6 +699,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           onAddPoint={(text) => void addPoint(current.id, text)}
           onTogglePoint={(pid) => void togglePoint(current.id, pid)}
           projects={personProjects}
+          goals={personGoals}
+          onOpenGoal={onOpenItem ? (id) => onOpenItem("goal", id) : undefined}
           onOpenProject={onOpenItem ? (id) => onOpenItem("project", id) : undefined}
           decided={decided}
           onOpenDecision={onOpenItem ? (id) => onOpenItem("decision", id) : undefined}
@@ -595,6 +752,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
       />
       {sheetEl}
       {importEl}
+      {mappingEl}
     </div>
   );
 }

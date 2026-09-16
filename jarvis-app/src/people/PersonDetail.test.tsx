@@ -226,3 +226,31 @@ describe("roles, per area", () => {
     expect(screen.getByText("Family")).toBeInTheDocument();
   });
 });
+
+// THE GOALS THEIR WORK IS UNDER (People handoff, 2026-09-16). Reached through
+// the projects they are on, because a person is not attached to a goal --
+// their work is.
+describe("goals, reached through their projects", () => {
+  const person = { id: "g1", data: { name: "Alberto Martinez", group: "contacts" as const } };
+
+  it("names the goal and says which project carried them there", () => {
+    render(<PersonDetail person={person} onEdit={() => {}} onBack={() => {}}
+      goals={[{ id: "goal1", title: "Open the second site", via: "Facility planning" }]} />);
+    expect(screen.getByText("Open the second site")).toBeInTheDocument();
+    // The link is visible rather than asserted.
+    expect(screen.getByText("Through Facility planning")).toBeInTheDocument();
+  });
+
+  it("invents no progress figure for it", () => {
+    const { container } = render(<PersonDetail person={person} onEdit={() => {}} onBack={() => {}}
+      goals={[{ id: "goal1", title: "Open the second site", via: "Facility planning" }]} />);
+    // The handoff: "do not invent progress calculations". Nothing on the row
+    // claims a percentage or a count of anything.
+    expect(container.textContent).not.toMatch(/%/);
+  });
+
+  it("says nothing at all when their work sits under no goal", () => {
+    render(<PersonDetail person={person} onEdit={() => {}} onBack={() => {}} />);
+    expect(screen.queryByText("Goals")).not.toBeInTheDocument();
+  });
+});
