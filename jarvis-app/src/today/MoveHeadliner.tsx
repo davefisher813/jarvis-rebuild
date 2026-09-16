@@ -26,13 +26,24 @@ export interface MoveFacts {
   state?: StateWord | null;
 }
 
+// EVERY VERB ON THIS CARD CHANGES THE DAY (Dave 2026-09-16: "I still haven't
+// clicked a button and it helped me in any single way on this home page. They
+// all SUCK... if not, just don't put a button").
+//
+// Why and Other Good Choices are gone. Both acted on the app's own model
+// rather than on his evening: Why explained a ranking he never asked about and
+// offered to re-deal it, and Other Good Choices opened a second list beside
+// the one already on screen. A good ranking does not need explaining and a bad
+// one is not fixed by explaining it. What is left is Start, which commits real
+// minutes, and Tomorrow, which moves the task to a real slot and names it.
 export default function MoveHeadliner({
-  title, facts, onStart, onWhy, onToggle, otherCount, onOther, onOpen,
+  title, facts, onStart, onTomorrow, onToggle, onOpen,
 }: {
   title: string;
   facts: MoveFacts;
   onStart?: () => void;
-  onWhy?: () => void;
+  /** Move it to a named open slot tomorrow. Says which one on the toast. */
+  onTomorrow?: () => void;
   /** Tick it off from here.
    *
    *  THE ONE PLACE THIS DEPARTS FROM THE HARNESS (2026-09-12). The approved
@@ -43,9 +54,6 @@ export default function MoveHeadliner({
    *  unreachable. That is a function the mock was not deciding about, so
    *  the ring stays, in the same 24px anatomy every task row uses. */
   onToggle?: () => void;
-  /** How many ranked tasks are behind this one. The row is silent at zero. */
-  otherCount: number;
-  onOther?: () => void;
   onOpen?: () => void;
 }) {
   return (
@@ -100,26 +108,14 @@ export default function MoveHeadliner({
           </div>
           <div className="hl-acts">
             {onStart && <button type="button" className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); onStart(); }}>Start</button>}
-            {/* The Why chip is the same anatomy as the mail evidence chip: a
-                claim you can open to see the working behind it. */}
-            {onWhy && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onWhy(); }}>Why</button>}
+            {/* The honest answer to "not tonight". It does not re-rank, snooze
+                or hide anything: it books the task into a real open slot
+                tomorrow and the toast says which one, so the answer to "when,
+                then?" is on screen instead of implied. */}
+            {onTomorrow && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onTomorrow(); }}>Tomorrow</button>}
           </div>
         </div>
       </div>
-      {/* NO SECOND COUNT OF THE SAME PILE (Dave, 2026-09-15). This said
-          "2 more" while the Focus pill on the same card said "28 Waiting" --
-          both about the open deck behind the dealt task. "2" is how many this
-          sheet SHOWS, not how many exist, so read against its neighbour it
-          was simply wrong. Focus carries the one true count; this row is a
-          door and says so with a chevron, the way every other door does. */}
-      {otherCount > 0 && onOther && (
-        <div className="row hl-other" role="button" tabIndex={0} onClick={onOther}>
-          <div className="row-stack">
-            <div className="conn-name">Other Good Choices</div>
-          </div>
-          <span className="chev" aria-hidden="true" />
-        </div>
-      )}
     </>
   );
 }

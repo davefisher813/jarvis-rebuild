@@ -226,8 +226,7 @@ export default function TodayPage({
   moveCategory,
   moveEstimate,
   moveReason,
-  onWhyMove,
-  onOtherChoices,
+  onTomorrowMove,
   freshStart,
   locked,
   onOpenEvent,
@@ -339,10 +338,8 @@ export default function TodayPage({
   /** Why this one, now: "Fits before Deep Work". The sky fact, and silent
    *  when the pick has no placement to claim. */
   moveReason?: string | null;
-  /** Opens the Why sheet (C-25). */
-  onWhyMove?: () => void;
-  /** Opens Other Good Choices. */
-  onOtherChoices?: () => void;
+  /** Books the dealt task into a named open slot tomorrow. */
+  onTomorrowMove?: () => void;
   freshStart?: () => void;
   locked?: { s: number; e: number; label: string; id?: string }[];
   onOpenEvent?: (id: string) => void;
@@ -553,13 +550,9 @@ export default function TodayPage({
         estimate: moveEstimate ?? null,
         reason: moveReason ?? null,
       }}
-      // The count is what the sheet actually holds, not the whole deck: "2
-      // more" opens two. The deck's own number lives on the Focus row.
-      otherCount={Math.min(2, upNextWaiting ?? 0)}
       onToggle={onToggleTask ? () => onToggleTask(upNextTop.id) : undefined}
       onStart={onStartTask ? () => onStartTask(upNextTop.id) : undefined}
-      onWhy={onWhyMove}
-      onOther={onOtherChoices}
+      onTomorrow={onTomorrowMove}
       onOpen={() => onOpenTask?.(upNextTop.id)}
     />
   ) : null;

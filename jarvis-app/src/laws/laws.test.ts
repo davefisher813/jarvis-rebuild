@@ -1667,8 +1667,10 @@ describe("LAW: stored shapes are versioned", () => {
     const src = read(SRC + "/today/TodayFlow.tsx");
     expect(src, "movesLine must be derived for the headliner").toMatch(/movesLine\(goalTitleForTask\(goalIdx, moveTask\)/);
     expect(src, "and the Now card must not deal a second task").not.toMatch(/\{gapMoves \?\? "Fits this gap"\}/);
-    // The reasons reach the Why sheet, which is where the whole list lives.
-    expect(src).toMatch(/reasons=\{\[\.\.\.moveReasons/);
+    // It reaches him on the card's own facts line now. The Why sheet that
+    // used to hold the whole list is gone (2026-09-16), so this is the only
+    // place the goal a task moves is said, and it must not go quiet.
+    expect(src, "the line must reach the headliner").toMatch(/moveReason=\{movePlacement \?\? moveMoves\}/);
   });
 
   // A GOAL'S LINE IS DERIVED ONCE. Two passes over the same data drift: the
@@ -4457,10 +4459,13 @@ describe("LAW: a planned task can be finished from where it is shown", () => {
     expect(src, "and draw the app's own ring for it").toMatch(/aria-label="Mark done"/);
   });
 
-  it("Other Good Choices can tick one off, not only start it", () => {
-    const src = read(join(SRC, "today/OtherChoicesSheet.tsx"));
-    expect(src, "the sheet lists real tasks and must let one be finished").toMatch(/onComplete\?:/);
-    expect(src, "with the app's own ring").toMatch(/task-check-tap/);
+  // Other Good Choices carried its own ring until the sheet itself went
+  // (2026-09-16). It is named here rather than quietly dropped: the sweep
+  // below still covers every surface that draws a real task, and one fewer
+  // surface draws one now.
+  it("Other Good Choices is gone, not merely unreferenced", () => {
+    expect(existsSync(join(SRC, "today/OtherChoicesSheet.tsx")),
+      "a deleted surface must not come back without its ring").toBe(false);
   });
 
   // THE SWEEP (Dave, 2026-09-15, ruling: one rule, everywhere). Every surface
@@ -4499,34 +4504,38 @@ describe("LAW: a planned task can be finished from where it is shown", () => {
   it("Today wires every one of those seams, or they are props", () => {
     const src = read(join(SRC, "today/TodayFlow.tsx"));
     expect(src, "the proposed day must carry completion").toMatch(/onComplete: \(id: string\) => void onToggleTask\(id\)/);
-    expect(src, "Other Good Choices must carry completion").toMatch(/onComplete=\{\(id\) =>[^}]*onToggleTask\(id\)/);
   });
 });
 
 // A CONTROL THAT CANNOT KEEP ITS PROMISE IS WORSE THAN NO CONTROL.
 //
-// "That's Wrong" in the Why sheet emitted suggestion.dismissed and nothing
-// re-ranked: the same task was still the lead ten seconds later. One button
-// now, and it does the thing its words claim.
-describe("LAW: the Why sheet's verb changes what is dealt", () => {
-  it("the sheet no longer ships a second button that only closes it", () => {
-    // The comment header names the retired button to explain why it went;
-    // only a rendered string can break the rule.
-    const src = read(join(SRC, "today/WhySheet.tsx")).split("\n")
-      .filter((l) => { const t = l.trim(); return !t.startsWith("//") && !t.startsWith("*") && !t.startsWith("/*"); })
-      .join("\n");
-    expect(src, "That's Right was a Close button with an opinion").not.toMatch(/That&rsquo;s Right|That's Right/);
+// The Why sheet was the case that proved the rule twice. Its first pair of
+// buttons emitted events no ranker read. Its replacement, Not This One, did
+// re-deal -- and re-dealing was still the app asking Dave to manage it
+// rather than doing anything for him (2026-09-16: "I still haven't clicked a
+// button and it helped me in any single way on this home page"). The sheet,
+// the verb and the deal it honoured are all gone. What replaced it is on the
+// card itself and books real time: see the Tomorrow law below.
+describe("LAW: the headliner offers no button that only rearranges the app", () => {
+  it("the Why sheet and its deal are gone, not just unmounted", () => {
+    for (const f of ["today/WhySheet.tsx", "today/notThisOne.ts", "today/notThisOne.test.ts"]) {
+      expect(existsSync(join(SRC, f)), f + " must stay deleted").toBe(false);
+    }
+    const flow = read(join(SRC, "today/TodayFlow.tsx"));
+    expect(flow, "nothing may re-deal the lead behind his back").not.toMatch(/markNotThisOne|dealFrom/);
+    const head = read(join(SRC, "today/MoveHeadliner.tsx"));
+    expect(head, "and the card must not offer Why again").not.toMatch(/>Why</);
   });
 
-  it("its one verb steps the task out of today's lead", () => {
-    const src = read(join(SRC, "today/WhySheet.tsx"));
-    expect(src, "the sheet must take a real action seam").toMatch(/onNotThisOne\?:/);
-    // And it is optional, so a caller that cannot honour it renders no verb
-    // at all rather than a button that does nothing.
-    expect(src, "the verb renders only when it can be honoured").toMatch(/\{onNotThisOne && \(/);
-    const flow = read(join(SRC, "today/TodayFlow.tsx"));
-    expect(flow, "Today must honour it").toMatch(/markNotThisOne\(moveTask\.id, today\)/);
-    expect(flow, "and the deal must actually read the list").toMatch(/dealFrom\(upNextAll, today\)/);
+  it("every verb the headliner does offer changes the day, not the ranking", () => {
+    const head = read(join(SRC, "today/MoveHeadliner.tsx"));
+    // Start commits real minutes; Tomorrow books a real slot. Both are seams
+    // the flow must honour, and both are optional so a caller that cannot
+    // honour one renders no button rather than a dead one.
+    expect(head, "Start is a seam").toMatch(/onStart\?:/);
+    expect(head, "Tomorrow is a seam").toMatch(/onTomorrow\?:/);
+    expect(head, "Start renders only when it can be honoured").toMatch(/\{onStart && </);
+    expect(head, "Tomorrow renders only when it can be honoured").toMatch(/\{onTomorrow && </);
   });
 });
 
@@ -4546,8 +4555,11 @@ describe("LAW: the open deck is not offered three times over", () => {
 
   it("only one control states how deep the deck is", () => {
     const head = read(join(SRC, "today/MoveHeadliner.tsx"));
-    expect(head, "the runner-up row is a door, not a second count")
-      .not.toMatch(/\{otherCount\} more/);
+    // The runner-up row went with Other Good Choices (2026-09-16), so the
+    // headliner counts nothing at all now. Focus carries the one true count.
+    expect(head, "the headliner must not count the deck").not.toMatch(/otherCount/);
+    const page = read(join(SRC, "today/TodayPage.tsx"));
+    expect(page, "Focus keeps the deck's one count").toMatch(/\{upNextWaiting\} Waiting/);
   });
 });
 

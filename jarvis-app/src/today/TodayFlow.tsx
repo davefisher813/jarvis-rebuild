@@ -6,7 +6,7 @@ import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta"
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
-import { todayISO, fmtTime, addMinutes, minToHHMM, shiftFitsDay, nextOccurrence, addDays, daysBetween } from "../schedule/calendar";
+import { todayISO, fmtTime, addMinutes, minToHHMM, shiftFitsDay, nextOccurrence, nextFreeSlot, addDays, daysBetween } from "../schedule/calendar";
 import { ENTITY_EVENT, type EventItem } from "../schedule/types";
 import { ENTITY_TASK } from "../notes/types";
 import { useFreshLists } from "../data/useFreshLists";
@@ -20,8 +20,6 @@ import { monthName as monthTitle } from "../review/report";
 import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
 import { rowDoor, own } from "../shared/rowDoor";
-import WhySheet from "./WhySheet";
-import OtherChoicesSheet from "./OtherChoicesSheet";
 import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
@@ -47,7 +45,7 @@ import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventRemi
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap, todayPlan } from "./evening";
 import { pendingPicks } from "../events/planOutcome";
-import { rememberLeanedOn, leanedOnFor } from "./leanedOn";
+import { rememberLeanedOn } from "./leanedOn";
 import { readSamples } from "../shared/timeSense";
 import { settleDuePlans } from "../events/pipeline";
 import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
@@ -109,7 +107,6 @@ import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
 import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
-import { dealFrom, markNotThisOne } from "./notThisOne";
 import { liveCard, currentLine } from "../gym/liveCard";
 import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
 
@@ -372,9 +369,6 @@ export default function TodayFlow({
   // live either way, so it is back the next time Today opens. A permanent
   // silence would defeat the one thing this card exists for.
   const [gymDismissed, setGymDismissed] = useState(false);
-  // Re-render after a "Not This One": the list it filters lives in
-  // localStorage, so nothing else would tell React the deal has changed.
-  const [, setNotThisOneTick] = useState(0);
   useEffect(() => {
     // LAW 1 (Dave 2026-08-29): the spot is a bookmark, and a bookmark
     // outlives the page. Offering to resume a note that was deleted hours
@@ -569,10 +563,6 @@ export default function TodayFlow({
   const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
-  // C-24 / C-25: the headliner's two doors. Why opens the reasons behind the
-  // pick; Other Good Choices opens the two behind it.
-  const [whyOpen, setWhyOpen] = useState(false);
-  const [choicesOpen, setChoicesOpen] = useState(false);
   // THE MONTHLY REPORT (2026-08-25). Arrives as one row in the notice
   // stream, unannounced, when the previous month is sealed and this device
   // has not read it. No countdown, no teaser: anticipating a landmark
@@ -1580,10 +1570,11 @@ export default function TodayFlow({
   // dot plus plain words (G4), and the length is the task's own estimate
   // before its area's usual, the order every other surface asks in. Evening
   // has no dealt task, so it has no headliner either.
-  // 2026-09-15: the leading slot steps over anything he said "Not This One"
-  // to today (today/notThisOne.ts). The deck itself is untouched -- Focus
-  // still counts it, Still Open still lists it, Tasks still has it.
-  const moveTask = !evening ? dealFrom(upNextAll, today)[0] ?? null : null;
+  // 2026-09-16: the ranker's own pick leads, full stop. "Not This One" and
+  // the deal that honoured it are gone with the Why sheet that offered them:
+  // re-ordering a deck was work the app asked of him, not work it did for
+  // him. Tomorrow answers "not tonight" now, by booking a real slot.
+  const moveTask = !evening ? upNextAll[0] ?? null : null;
   const moveCategory = moveTask
     && catName(moveTask.data.category)
     // A task with no area says nothing about it (2026-09-13): "No category"
@@ -1593,15 +1584,6 @@ export default function TodayFlow({
   const moveEstimate = moveTask
     ? `${moveTask.data.estimateMin ?? estimates[moveTask.data.category ?? ""] ?? 45} min`
     : null;
-  // C-25: the fragments behind the pick, in the ranker's own order, plus the
-  // goal it moves when naming it says something the title did not. Nothing
-  // here is written for the sheet.
-  const moveReasons = moveTask
-    ? [
-      ...reasonFor(moveTask, today, inPeakNow).split(" · "),
-      movesLine(goalTitleForTask(goalIdx, moveTask), moveTask.data.text),
-    ].filter((x): x is string => !!x)
-    : [];
   // UP-CORE-03: tomorrow's birthday, in the evening only, one at a time,
   // and silent once waved off. upcomingBirthdays already knows how to say
   // "Tomorrow" and already handles the year wrap.
@@ -2153,6 +2135,15 @@ export default function TodayFlow({
   // nothing anywhere claims it does. Nothing else reads gapPick.
   const movePlacement = moveTask && gapPick?.id === moveTask.id && nowCtx.nextTitle
     ? `Fits before ${nowCtx.nextTitle}`
+    : null;
+  // WHAT IT MOVES, ON THE CARD (2026-09-16). This line used to reach him only
+  // by opening the Why sheet, so when the sheet went it would have gone with
+  // it. It is not an explanation of the ranking, which is what the sheet was
+  // and why the sheet is gone: it is a fact about his own goals, and the one
+  // fact the title cannot say. It takes the reason slot when the placement
+  // has nothing to claim, so the line never carries two.
+  const moveMoves = moveTask
+    ? movesLine(goalTitleForTask(goalIdx, moveTask), moveTask.data.text)
     : null;
 
   // Approved V2 anatomy (preview 2026-08-15): the free window reads as two
@@ -3316,6 +3307,45 @@ export default function TodayFlow({
     if (id) showToast({ message: `Fifteen minutes on ${t.data.text}` });
   };
 
+  // NOT TONIGHT, AND HERE IS WHEN INSTEAD (Dave 2026-09-16: every button on
+  // this page either does something that helps or comes off).
+  //
+  // This is the honest answer to "I am not doing this". It is not a snooze,
+  // a dismissal or a re-deal: the task leaves today because its date moves,
+  // and it lands on a real open slot tomorrow that the toast names, so the
+  // question "when, then?" is answered on screen rather than implied. The
+  // slot comes from the same nextFreeSlot the Schedule page books with, and
+  // the write is commitPlan, which replaces any block that task already had
+  // rather than leaving two. Undo puts both halves back.
+  const moveToTomorrow = async (t: TaskItem) => {
+    const mins = t.data.estimateMin && t.data.estimateMin > 0 ? t.data.estimateMin : 60;
+    const start = nextFreeSlot(tomorrowEvents, tmrw, new Date(), mins);
+    const end = addMinutes(start, mins);
+    const wasDue = t.data.due ?? null;
+    let evId: string | null = null;
+    const ok = await attemptWrite(async () => {
+      await tasks.setDue(t.id, tmrw);
+      const r = await schedule.commitPlan(tmrw, [{
+        taskId: t.id, text: t.data.text, category: t.data.category ?? "", start, end,
+      }]);
+      evId = r.created[0] ?? null;
+    });
+    await reload();
+    if (!ok) return;
+    const when = fmtTime(start);
+    showToast({
+      message: `Tomorrow at ${when.time}${when.ap}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => {
+          if (evId) await schedule.deleteEvent(evId);
+          await tasks.setDue(t.id, wasDue);
+        });
+        await reload();
+      },
+    });
+  };
+
   // PICK 26 (Dave 2026-08-22): an email-born task lands with its lineage.
   // Not a guess: the ONLY signal used is that a task from this same thread
   // already exists and somebody already filed it. The first task off a thread
@@ -3451,9 +3481,8 @@ export default function TodayFlow({
       upNextReason={upNextAll[0] ? reasonFor(upNextAll[0], today, inPeakNow) : null}
       moveCategory={moveCategory}
       moveEstimate={moveEstimate}
-      moveReason={movePlacement}
-      onWhyMove={moveTask ? () => setWhyOpen(true) : undefined}
-      onOtherChoices={moveTask && upNextAll.length > 1 ? () => setChoicesOpen(true) : undefined}
+      moveReason={movePlacement ?? moveMoves}
+      onTomorrowMove={moveTask ? () => void moveToTomorrow(moveTask) : undefined}
       blendMap={blendMap}
       gymDoorFor={gymDoor.doorFor}
       onStartTask={(id) => {
@@ -3674,38 +3703,6 @@ export default function TodayFlow({
       <Suspense fallback={null}>
         <UpNextFlow onClose={() => { setUpNextOpen(false); void reload(); }} />
       </Suspense>
-    )}
-    {/* C-25: why this one, and the two taps that say whether it was right.
-        The fragments are the ranker's own, plus the placement when the pick
-        fits the open window. */}
-    {whyOpen && moveTask && (
-      <WhySheet
-        taskId={moveTask.id}
-        reasons={[...moveReasons, ...(movePlacement ? [movePlacement] : [])]}
-        leaningOn={leanedOnFor(today, moveTask.id, pendingPicks(today))}
-        onNotThisOne={() => { markNotThisOne(moveTask.id, today); setNotThisOneTick((n) => n + 1); }}
-        onClose={() => setWhyOpen(false)}
-      />
-    )}
-    {/* C-24: the two ranked behind the headliner, each startable, and one
-        quiet way through to What Now. */}
-    {choicesOpen && moveTask && (
-      <OtherChoicesSheet
-        offeredId={moveTask.id}
-        choices={upNextAll.slice(1, 3).map((t) => ({
-          id: t.id,
-          text: t.data.text,
-          facts: reasonFor(t, today, inPeakNow),
-        }))}
-        onStart={(id) => {
-          const t = taskItems.find((x) => x.id === id);
-          if (t) void startFifteen(t);
-        }}
-        onOpen={(id) => void onOpenTask(id)}
-        onComplete={(id) => { setChoicesOpen(false); void onToggleTask(id); }}
-        onPickSomethingElse={() => setUpNextOpen(true)}
-        onClose={() => setChoicesOpen(false)}
-      />
     )}
     {freshOpen && (
       <Suspense fallback={null}>
