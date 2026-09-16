@@ -37,7 +37,7 @@ describe("InsightsPage", () => {
     expect(screen.getByText("As a List")).toBeInTheDocument();
     // Unassigned sets are shown, not dropped, with the coverage stated.
     expect(screen.getByText("Unassigned")).toBeInTheDocument();
-    expect(screen.getByText("0 of 1 working sets mapped")).toBeInTheDocument();
+    expect(screen.getByText("0 of 1 Working sets mapped")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Assign Muscles"));
     expect(onAssign).toHaveBeenCalledWith([{ name: "Incline Bench", exerciseKey: "k1", sets: 1 }]);
     // Sleep over the nights logged, never a zero for a night not logged.
@@ -49,9 +49,9 @@ describe("InsightsPage", () => {
   it("changes every card with the period, and labels a chart that spans more than it", () => {
     render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={workouts} metricDefs={[sleep]} metricLogs={logs} logs={none} muscleMap={new Map([["k1", ["chest"]]])} cards={null}
       onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
-    expect(screen.getByText("1 of 1 working sets mapped")).toBeInTheDocument();
+    expect(screen.getByText("1 of 1 Working sets mapped")).toBeInTheDocument();
     fireEvent.click(screen.getByText("28 Days"));
-    expect(screen.getByText("3 of 3 working sets mapped")).toBeInTheDocument();
+    expect(screen.getByText("3 of 3 Working sets mapped")).toBeInTheDocument();
     expect(screen.getByText(/Spans the sessions, not only this period/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Strength" }));
     expect(screen.getByText("3 sessions in the period")).toBeInTheDocument();

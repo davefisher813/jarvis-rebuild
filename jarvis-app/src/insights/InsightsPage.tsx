@@ -213,10 +213,31 @@ const musclesCard = (
               <span className="fact amber">{breakdown.unassigned}</span>
             </div>
           )}
+          {/* THE METHOD GOES IN A DISCLOSURE (health polish rule 3: "Do not
+              turn every grey paragraph into a colored badge. Essential
+              metadata gets one short readable line. Methodology, citations,
+              limitations and edit effects remain available in labeled
+              disclosures. No meaning may be silently removed").
+
+              Two grey lines sat under every reading of this card, on every
+              visit, saying the same thing they said last time. The first is
+              the fact -- how much of the period is actually mapped -- and it
+              stays on the face, because it is what makes the bars above it
+              mean anything. The second is the counting convention, which you
+              need once and then never again, so it is behind a summary that
+              names it. Nothing is removed. */}
           <div className="facts">
-            <span className="fact">{`${breakdown.assigned} of ${breakdown.total} working sets mapped`}</span>
-            <span className="fact">First muscle whole, the rest half · The app's convention</span>
+            <span className="fact">{capAfterNumber(`${breakdown.assigned} of ${breakdown.total} working sets mapped`)}</span>
           </div>
+          <details className="ins-table">
+            <summary>How Sets Are Counted</summary>
+            <div className="facts">
+              <span className="fact">First muscle whole, the rest half {"\u00b7"} The app's convention</span>
+            </div>
+            <div className="facts">
+              <span className="fact">Working sets only {"\u00b7"} Warm-ups are not counted</span>
+            </div>
+          </details>
           <div className="ins-acts">
             {breakdown.unassigned > 0 && <button type="button" className="pill-act" onClick={() => onAssignMuscles(breakdown.untagged)}>Assign Muscles</button>}
             <button type="button" className="see-all" onClick={() => onOpenAllData("sets", period)}>View Sets</button>

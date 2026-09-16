@@ -9,6 +9,7 @@ import ActionSheet, { PickSheet, type PickItem, type SheetAction } from "./Actio
 import ClassifySheet from "./ClassifySheet";
 import BatchSheet from "./BatchSheet";
 import { DuplicateBar, DuplicatesSheet } from "./DuplicateReview";
+import { capAfterNumber } from "../shared/casing";
 import { findDuplicates, pairId, type DuplicatePair } from "./duplicates";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, loadStyleOf, type Equipment } from "./equipment";
@@ -125,7 +126,7 @@ export default function LibraryPage({
   const mergeItems: PickItem[] = merging
     ? rows
       .filter((r) => r.key !== merging.key && r.kind === merging.kind)
-      .map((r) => ({ id: r.key, label: r.name, sub: r.sessions > 0 ? r.sessions + (r.sessions === 1 ? " session" : " sessions") : "Never done" }))
+      .map((r) => ({ id: r.key, label: r.name, sub: r.sessions > 0 ? capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) : "Never done" }))
     : [];
 
   const setF = (patch: Partial<LibraryFilter>) => { setJustSaved([]); setFilter((f) => ({ ...f, ...patch })); };
@@ -279,7 +280,12 @@ export default function LibraryPage({
                     {/* §7: "2 sessions · Last yesterday" was one grey line
                         doing two jobs. Two compact fields. */}
                     <div className="facts">
-                      <span className="fact">{r.sessions > 0 ? `${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}` : "Never done"}</span>
+                      {/* A count leads this line, so the word behind it takes
+                          the capital (shared/casing.ts). Health polish 2026-09-16:
+                          the mockup printed "1 sessions" on every row of this
+                          list; the app has always had the singular right, and
+                          now it has the capital too. */}
+                      <span className="fact">{r.sessions > 0 ? capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) : "Never done"}</span>
                       {r.lastDate && <span className="fact cyan">{capitalize(agoPhraseLower(r.lastDate, todayIso))}</span>}
                       {r.favorite && <span className="fact">Favorite</span>}
                       {r.hidden && <span className="fact">Hidden</span>}
