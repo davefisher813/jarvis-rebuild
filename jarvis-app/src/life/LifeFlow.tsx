@@ -3,6 +3,7 @@ import TasksFlow from "../tasks/TasksFlow";
 import BiggerPictureFlow from "../bigger/BiggerPictureFlow";
 import LifeSegments, { type LifeSegment } from "./LifeSegments";
 import RemindersFlow from "../tasks/screens/RemindersFlow";
+import AreasTab from "./tabs/AreasTab";
 
 // LIFE (ruled 2026-09-01): Tasks and Your Life, one tab. This flow owns only
 // the segment; each lens keeps its own flow, sheets, deep links and data, so
@@ -11,13 +12,19 @@ import RemindersFlow from "../tasks/screens/RemindersFlow";
 // The segment is remembered within the session and reset on launch. A deep
 // link (a task, a project, a goal) picks the segment it needs and wins over
 // the memory, once.
-let lastSegment: LifeSegment = "tasks";
+// AREAS TAB (2026-09-16): the default landing segment, per the approved
+// handoff -- browsing what an area holds is the more common reason to open
+// Life than any one lens is.
+let lastSegment: LifeSegment = "areas";
 
 export default function LifeFlow({
-  segment, segmentNav, taskOpenId, taskNonce, onTaskOpened, taskFilter, filterNonce, onFilterApplied, projectOpenId, projectNonce, onProjectOpened, goalOpenId, goalNonce, onGoalOpened, onOpenNote, onWhatNow, onOpenDecision, onGoEmail, onOpenEntity,
+  segment, segmentNav, taskOpenId, taskNonce, onTaskOpened, taskFilter, filterNonce, onFilterApplied, projectOpenId, projectNonce, onProjectOpened, goalOpenId, goalNonce, onGoalOpened, onOpenNote, onWhatNow, onOpenDecision, onGoEmail, onOpenEntity, onOpenCategory,
 }: {
   /** Push E: the Reminders segment's door to any linked record. */
   onOpenEntity?: (kind: string, id: string) => void;
+  /** Areas tab: opens a category's own detail page (Brain's CategoryDetail,
+   *  the same page BrainFlow already renders for a category deep link). */
+  onOpenCategory?: (id: string) => void;
   segment?: LifeSegment;
   /** Bumped by the shell on every deep link, so a link to the lens already
    *  remembered still moves a page that has since changed lens. */
@@ -47,6 +54,9 @@ export default function LifeFlow({
   // This One from the Goals lens, say) still wins, once.
   useEffect(() => { if (segment) pick(segment); }, [segment, segmentNav]);
   const segments = <LifeSegments value={seg} onPick={pick} />;
+  if (seg === "areas") {
+    return <AreasTab segments={segments} onOpenCategory={onOpenCategory ?? (() => {})} />;
+  }
   if (seg === "reminders") {
     return <RemindersFlow chrome={{ segments }} onOpenEntity={onOpenEntity} />;
   }

@@ -9,14 +9,15 @@ import BrainFlow from "./BrainFlow";
 // One Money (2026-08-10): Dave, first "there should only be one money
 // category with all of its features", then, after the category still opened
 // a page here, "it looks the same. i only want one money category." The
-// category no longer renders as a row in Brain at all (BrainPage.tsx drops
-// money-kind categories from Your Categories), so there is nothing to tap
-// here to reach it. The one remaining path that can still land on a money
-// category id is a deep-link (openKey, e.g. from search): that gets caught
-// here and handed to onOpenMoney instead of opening a page.
+// category no longer renders as a row in Brain at all -- LIFE_AREAS_TAB_HANDOFF
+// (2026-09-16) moved every category off Brain and onto Life's Areas tab,
+// money-kind included by name -- so there is nothing to tap here to reach
+// it. The one remaining path that can still land on a money category id is
+// a deep-link (openKey, e.g. from search): that gets caught here and handed
+// to onOpenMoney instead of opening a page.
 
 describe("BrainFlow: the Money category is never a destination here", () => {
-  it("a Money category renders no row at all, so an ordinary category is the only thing to tap", async () => {
+  it("no category renders as a row on Brain at all, money-kind or ordinary", async () => {
     function Seeded() {
       const cats = useCategories();
       const [ready, setReady] = useState(false);
@@ -30,7 +31,9 @@ describe("BrainFlow: the Money category is never a destination here", () => {
       return ready ? <BrainFlow /> : null;
     }
     render(<NotesProvider userId="b1"><Seeded /></NotesProvider>);
-    expect(await screen.findByText("Home")).toBeInTheDocument();
+    // The hub itself, proven by a static nav row that always renders.
+    expect(await screen.findByText("Contacts")).toBeInTheDocument();
+    expect(screen.queryByText("Home")).not.toBeInTheDocument();
     expect(screen.queryByText("Money")).not.toBeInTheDocument();
   });
 
@@ -158,8 +161,10 @@ describe("BrainFlow deep links while the tab is already open (BRAIN-F-03)", () =
   it("opens on a key that arrives after mount, and says it consumed it", async () => {
     const consumed = vi.fn();
     render(<NotesProvider userId="deep1"><Deep onKeyConsumed={consumed} /></NotesProvider>);
-    // The hub, with no detail open.
-    expect(await screen.findByText("Bridge")).toBeInTheDocument();
+    // The hub, with no detail open. "Link It" only renders once the area
+    // exists (Deep's own mount gate), the same readiness "Bridge" as a row
+    // used to prove before categories moved off Brain entirely.
+    expect(await screen.findByText("Link It")).toBeInTheDocument();
     expect(screen.queryByText("Up Next")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Link It"));
@@ -169,7 +174,7 @@ describe("BrainFlow deep links while the tab is already open (BRAIN-F-03)", () =
 
   it("the same key a second time still navigates, because the nonce moved", async () => {
     render(<NotesProvider userId="deep2"><Deep /></NotesProvider>);
-    await screen.findByText("Bridge");
+    await screen.findByText("Link It");
     fireEvent.click(screen.getByText("Link It"));
     await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
 
