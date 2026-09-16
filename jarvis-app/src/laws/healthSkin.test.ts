@@ -270,6 +270,32 @@ describe("HEALTH law 5: the shell hides its chrome while a session is live", () 
   // was a screen above it, past the warm-up card, the suggestion card and the
   // superset row, and the list of every OTHER exercise in the session sits
   // directly below the strip.
+  // WARM MEANS WARM EVERYWHERE IT IS DRAWN (Dave 2026-09-13 "that should not
+  // be a warm color... a blue that fades out", and 2026-09-16 "you actually
+  // took the color out of warm up and cool down sections").
+  //
+  // There are THREE surfaces that draw a warm-up or a cool-down, not one: the
+  // workout day's BlockList, and the live session's own two checklists. The
+  // day screen has worn the tones since September and the session has been
+  // plain grey the whole time -- so a block that was amber on the page you
+  // planned it on was grey on the page you stood in front of at the rack,
+  // which is worse than either answer chosen on purpose. This law is the
+  // three of them agreeing.
+  it("every warm-up and cool-down wears its tone, on the day AND in the session", () => {
+    const flow = read(join(SRC, "gym/GymFlow.tsx"));
+    const screen = read(join(SRC, "gym/SessionScreen.tsx"));
+    // The day's BlockList: one component, both tones, card and label.
+    expect(flow, "the BlockList card takes the tone").toMatch(/tone === "cool" \? " banner-cool" : " banner-warn"/);
+    expect(flow, "and so does its eyebrow").toMatch(/tone === "cool" \? " eyebrow-cool" : " eyebrow-warn"/);
+    // The session's two checklists, each named so a failure says which.
+    expect(screen, "the session's warm-up card").toMatch(/className="card list-card-ruled banner-warn">\s*<div className="grp"><div className="eyebrow eyebrow-warn">Warm-Up/);
+    expect(screen, "the session's cool-down card").toMatch(/className="card list-card-ruled banner-cool">\s*<div className="grp"><div className="eyebrow eyebrow-cool">Cool-Down/);
+    // And the tones themselves are still the ruling: warm is amber, cool is a
+    // blue that fades out rather than a flat fill.
+    expect(RULED).toMatch(/\.banner-warn \{[^{}]*--hl-amber-tint/);
+    expect(RULED).toMatch(/\.banner-cool \{[^{}]*linear-gradient\(180deg, var\(--hl-blue-tint\), transparent/);
+  });
+
   it("and the strip's own head names the lift being logged", () => {
     const screen = read(join(SRC, "gym/SessionScreen.tsx"));
     expect(screen, "the set strip's head takes the exercise's name")

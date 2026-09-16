@@ -595,9 +595,17 @@ export default function SessionScreen({
       {/* THE WARM-UP, in session (D3-C): the day's own checklist, checked
           off block by block, skippable as one unit. Shows on the first
           exercise until it is done or waved off. */}
+      {/* AND IT WEARS ITS COLOUR IN HERE TOO (Dave, 2026-09-16: "you actually
+          took the color out of warm up and cool down sections"). The workout
+          DAY has drawn the warm amber and the fading blue since his
+          2026-09-13 ruling; this checklist, the one he actually stands in
+          front of at the rack, has been plain grey the whole time. Nothing
+          took the colour out of it -- it never had it, and the day screen
+          beside it did, which is worse than either answer on its own. Same
+          two classes, same tones, same eyebrow. */}
       {showWarm && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="grp"><div className="eyebrow">Warm-Up{programDay?.warmUpMin ? ` · ${programDay.warmUpMin} Min` : ""}</div></div>
+        <div className="pad-x"><div className="card list-card-ruled banner-warn">
+          <div className="grp"><div className="eyebrow eyebrow-warn">Warm-Up{programDay?.warmUpMin ? ` · ${programDay.warmUpMin} Min` : ""}</div></div>
           {warmBlocks.map((b) => {
             const done = !!live.warmDone?.includes(b.id);
             return (
@@ -778,8 +786,8 @@ export default function SessionScreen({
       {/* THE COOL-DOWN (D3-C): offered when the work is done, skippable as
           a unit. Skipping here is the same lever the fit sheet offers. */}
       {showCool && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="grp"><div className="eyebrow">Cool-Down{programDay?.coolDownMin ? ` · ${programDay.coolDownMin} Min` : ""}</div></div>
+        <div className="pad-x"><div className="card list-card-ruled banner-cool">
+          <div className="grp"><div className="eyebrow eyebrow-cool">Cool-Down{programDay?.coolDownMin ? ` · ${programDay.coolDownMin} Min` : ""}</div></div>
           {coolBlocks.map((b) => {
             const done = !!live.coolDone?.includes(b.id);
             return (
