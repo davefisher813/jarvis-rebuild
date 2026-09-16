@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.25 (2026-09-12)
+# JARVIS Styling Catalog V4.26 (2026-09-16)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -693,6 +693,30 @@ The preview at jarvis-reminders-dave-preview governs layout and behaviour; every
 **THE CONTEXT PROMPT (`.rem-prompt-sheet`).** A sheet: an eyebrow in the tint saying what just happened, the words, one line, the linked verb as the one filled action, Continue Anyway, then Snooze Prompt and Turn Off in the grid, and Why This Appeared under a disclosure. Tapping the scrim continues.
 
 **THE INVARIANT.** No surface renders a clock beside an unscheduled reminder; the word Unscheduled stands where the time would be.
+
+## §AH. Start opens something (V4.26, Dave 2026-09-16: "a large Start button implies useful assistance, yet it merely starts a clock. The existing First Step logic is more valuable")
+
+He was right twice. Start booked a fifteen-minute calendar block and called that help, and First Step, which works out the smallest real opening move, was reachable from one row in the app: the task that had already been overdue five days. The good logic was only available once you were already failing.
+
+**ONE RESOLVER BEHIND EVERY START (2026-09-16).** `tasks/startAction.ts` answers one question about a task, a project or a goal: what is already openable here? It returns a structured action, never a sentence of encouragement, and the surface that renders it is free to be a row, a card or a screen. Start, Pick One, Just Fifteen and First Step stop being four different answers to the same question.
+
+**THE ORDER IS HIS WORK FIRST (2026-09-16).** A blocker he named, then work he already saved, then a child he wrote in his order, then a linked record, then grounded assistance, then a task-type template, then one concrete question. A project starts through a real child task, never through a plan the app invented on the spot.
+
+**THE CLOCK IS NOT WHAT START MEANS (2026-09-16).** The fifteen-minute block still exists, one tap further in, as a row under **Optional Support** that says what it will do before it does it. Nothing on the start path writes to the schedule, changes a date, or begins a countdown. The card that picks a task carries the promise in words: `No clock starts · No dates change`.
+
+**A PLACE TO BEGIN (2026-09-16).** The top card replaces the unexplained Pick One. It names the task, says what is ready on it in the resolver's own words, carries one primary that reads **Start Now** or **Resume**, and answers **Why This** out of metadata a person can go and check: a real date distance, work he had saved, what the app actually found. It never claims urgency, available time, mood, difficulty, or a preference it decided he holds.
+
+**THE WORKING SURFACE (2026-09-16).** Ruled screen, the task's name left, one card. Inside it: the action's headline, the facts line naming what was read and what is missing, a work area, and one filled red whose label is the exact verb (`Save Draft`, `Open Note`, `Mark It Done`, `Save Starting Brief`). Under the button, the line that says what it will not do. The two ways out, **Make this smaller** and **Something's in the way**, sit quiet and side by side, in the user's own voice, as the app's third and fourth named exceptions to Title Case.
+
+**A HOLE IS NAMED, NEVER FILLED (2026-09-16).** A prepared message states the linked event's real day and time and leaves `Location still needed` as a warn fact. The alternative, writing "at the usual place", is how an app sends eleven people to the wrong field. A send to a group with no contact on the task says `Recipients still needed` rather than guessing a roster.
+
+**OPENING IS NOT FINISHING (2026-09-16).** Every action's completion type says `completesTask: false`, and the type cannot express true. Saving a draft writes the task's notes; ticking a step writes the step; both leave the task open. **Finish This Task** is its own row and says that it ticks the task itself.
+
+**BLOCKED MEANS SOMEBODY SAID SO (2026-09-16).** `TaskData.blockedBy` is written only by Something's in the Way, in the user's own words, and by nothing else in the app. A blocked task's row reads **Unblock**, it resolves to its blocker, and the top card will not offer it as a place to begin. A draft prepared against a blocker is a nudge and does not clear it.
+
+**AN AUTOMATED SENDER IS NOT A CORRESPONDENT (2026-09-16).** A task born from a no-reply address never becomes "get back to them". It asks which error to look at, using the inbox's own `isMachineAddress` rather than a second list that could drift from it.
+
+**ONE WORKSPACE PER THING, FOREVER (2026-09-16).** `jarvis.start.session.v1` is keyed by the entity, not the tap, so opening the same task ten times leaves one draft. A workspace opened and left empty takes no seat at all, so nothing offers to resume nothing. Leaving suggests a stopping point from the real last line written, and never demands one before letting him go.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 

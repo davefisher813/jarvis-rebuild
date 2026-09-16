@@ -7,6 +7,12 @@ import SyllabusUploadFlow from "../life/SyllabusUploadFlow";
 import MessageDraftSheet from "../people/MessageDraftSheet";
 import { pausedCategoryIds, offHoursCategoryIds } from "../categories/kinds";
 import TasksPage from "./screens/TasksPage";
+import StartScreen from "./screens/StartScreen";
+import { startAction, shapeOf, blockerOf, type StartAction, type StartTarget, type InTheWay } from "./startAction";
+import { contextFor, type StartRecords } from "./startGround";
+import { loadSession, saveSession, clearSession, sessionHasWork, loadSessions } from "./startStore";
+import { topPick, otherPicks } from "./startPick";
+import StartCard from "./screens/StartCard";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { useProjects, useGoals } from "../data/NotesProvider";
 import type { Goal } from "../life/types";
@@ -676,16 +682,191 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // now, as a REAL block on the real day. Not an in-app timer, because a
   // timer dies when he closes JARVIS, which is exactly the moment starting
   // goes wrong.
-  const onStartTask = async (id: string) => {
+  const onStartTask = async (id: string) => { await openStart(id); };
+
+  // START OPENS SOMETHING (Start Now, 2026-09-16, Dave: "a large Start
+  // button implies useful assistance, yet it merely starts a clock").
+  //
+  // Start used to be the fifteen-minute block below. It still exists, one
+  // tap further in, under Optional Support on the working surface: booking
+  // time is a real thing people want, it is simply not what the word Start
+  // should mean. What Start means now is that the resolver went and found
+  // whatever is already openable on this task and put it on screen.
+  const [starting, setStarting] = useState<{ target: StartTarget; action: StartAction; tags: string[] } | null>(null);
+  // Choosing another HIDES this one for the visit; nothing is written, and
+  // nothing is deferred. Same posture the What Now sheet's Something Else
+  // already takes.
+  const [skippedStarts] = useState<string[]>([]);
+
+  /** The label the row's pill wears, from the same resolver the screen uses,
+   *  so a row can never say Start about something it is about to call
+   *  blocked. Cheap on purpose: no records are read to paint a list. */
+  const startLabelFor = useCallback((id: string): "Start" | "Resume" | "Unblock" => {
+    const t = parts.all.find((x) => x.id === id);
+    if (t && blockerOf(t.data)) return "Unblock";
+    const saved = loadSession(id);
+    return saved && sessionHasWork(saved) ? "Resume" : "Start";
+  }, [parts.all]);
+
+  /** Load only the links this task actually claims, then resolve. Nothing
+   *  is fetched that the task does not already point at. */
+  const openStart = useCallback(async (id: string) => {
     const t = await svc.task(id);
     if (!t) return;
+    const target: StartTarget = { kind: "task", id, title: t.text, data: t };
+    const records: StartRecords = {};
+    if (t.fromNote) {
+      const n = await notesSvc.note(t.fromNote).catch(() => null);
+      if (n) records.note = { id: t.fromNote, title: n.title };
+    }
+    // The event is loaded only where it is GROUNDING for a message. A door
+    // this screen cannot open is a door it must not draw (law L4), and the
+    // task list has no route to the calendar.
+    const comms = shapeOf(t.text) === "comms";
+    if (t.eventId && comms) {
+      const e = await schedule.event(t.eventId).catch(() => null);
+      if (e) records.event = { id: t.eventId, title: e.title, date: e.date, start: e.start, ...(e.location ? { location: e.location } : {}) };
+    }
+    if (t.personId) {
+      const person = await peopleSvc.get(t.personId).catch(() => null);
+      if (person) records.person = { id: t.personId, name: person.data.name };
+    }
+    const ctx = contextFor(target, {
+      records,
+      saved: loadSession(id),
+      today,
+      shapeIsComms: comms,
+    });
+    setStarting({ target, action: startAction(target, ctx), tags: tagsForTask(id, t) });
+  }, [svc, notesSvc, schedule, peopleSvc, today, projects, goalIdx]);
+
+  /** The chips over the title: what this belongs to, from real records. */
+  const tagsForTask = (id: string, t: TaskData): string[] => {
+    const out: string[] = [];
+    const proj = t.projectId ? projects.find((p) => p.id === t.projectId) : undefined;
+    if (proj) out.push(proj.data.title);
+    const goal = goalTitleForTask(goalIdx, { id, data: t });
+    if (goal && goal !== proj?.data.title) out.push(goal);
+    return out;
+  };
+
+  /** The fifteen-minute block, exactly as it was, now chosen rather than
+   *  implied. Nothing else on the start path touches the schedule. */
+  const bookBlock = async (id: string, text: string, category?: string) => {
     const now = new Date();
     const start = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const ok = await attemptWrite(() => schedule.createEvent(t.text, {
+    const ok = await attemptWrite(() => schedule.createEvent(text, {
       date: today, start, end: addMinutes(start, FIFTEEN),
-      category: t.category || undefined, sourceTaskId: id,
+      category: category || undefined, sourceTaskId: id,
     }));
-    if (ok) { haptics.selection(); showToast({ message: `Fifteen minutes on ${t.text}` }); }
+    if (ok) { haptics.selection(); showToast({ message: `Fifteen minutes on ${text}` }); }
+  };
+
+  /** The one primary on the working surface. Each branch writes exactly the
+   *  field its verb named, and not one of them ticks the task. */
+  const runStartPrimary = async (text: string): Promise<string | null> => {
+    if (!starting) return null;
+    const { target, action } = starting;
+    const id = target.id;
+    switch (action.completion.saves) {
+      case "draft":
+      case "note": {
+        // Both land in the task's own notes field, which is where the
+        // longer text under a task already lives. The task stays open.
+        const ok = await attemptWrite(() => svc.setNotes(id, text.trim() || null));
+        if (!ok) return null;
+        clearSession(id);
+        await reload();
+        return action.completion.saves === "draft" ? "Saved to this task \u00b7 Not sent" : "Saved to this task";
+      }
+      case "step": {
+        // Tick the step the resolver named, or log the move as a done step
+        // when there was no step to tick. Either way the task stays open.
+        const t = await svc.task(id);
+        if (!t) return null;
+        const steps = [...(t.steps ?? [])];
+        const at = steps.findIndex((x) => !x.done && x.text.trim());
+        if (at >= 0) steps[at] = { ...steps[at]!, done: true };
+        else steps.push({ text: action.ready, done: true });
+        const ok = await attemptWrite(() => svc.setSteps(id, steps));
+        if (!ok) return null;
+        clearSession(id);
+        await reload();
+        return "Step logged \u00b7 The task stays open";
+      }
+      default:
+        return null;
+    }
+  };
+
+  /** Something's in the Way, answered. Only Missing Information writes a
+   *  blocker, and it writes the user's own words. */
+  const answerInTheWay = (answer: InTheWay, text: string) => {
+    if (!starting) return;
+    const id = starting.target.id;
+    if (answer === "Stop Here") { leaveStart(text); return; }
+    if (answer === "Different Task") { setStarting(null); pickOne(); return; }
+    if (answer === "Too Big") return; // the screen already shrank what it could
+    // Missing Information: what he is waiting on, in his words, from the box
+    // he already typed in. An empty box asks for the words rather than
+    // inventing a blocker nobody named.
+    const what = text.trim();
+    if (!what) { showToast({ message: "Name what is missing first" }); return; }
+    void (async () => {
+      const ok = await attemptWrite(() => svc.setBlocked(id, { what, since: today }));
+      if (!ok) return;
+      clearSession(id);
+      setStarting(null);
+      await reload();
+      showToast({ message: "Marked blocked \u00b7 " + what });
+    })();
+  };
+
+  // A PLACE TO BEGIN. The card is built here because this is where the
+  // services are; the page only renders what it is handed.
+  //
+  // The resolver runs WITHOUT loading linked records for the card: painting
+  // a list must not fetch the world, so the card says what is ready from
+  // what the task itself carries, and the working surface does the real
+  // reading on the tap. The two never disagree about the launch label,
+  // which is the only thing both of them claim.
+  const sessions = loadSessions();
+  const pick = topPick(parts.all, today, sessions, { skip: skippedStarts });
+  const readyFor = useCallback((t: TaskItem): string => {
+    const target: StartTarget = { kind: "task", id: t.id, title: t.data.text, data: t.data };
+    return startAction(target, { saved: loadSession(t.id) }).ready;
+  }, []);
+  const startCard = pick ? (
+    <StartCard
+      pick={pick}
+      action={startAction(
+        { kind: "task", id: pick.task.id, title: pick.task.data.text, data: pick.task.data },
+        { saved: loadSession(pick.task.id) },
+      )}
+      others={otherPicks(parts.all, today, pick.task.id)}
+      readyFor={readyFor}
+      onStart={(id) => void openStart(id)}
+      onToggle={(id) => void onToggle(id)}
+    />
+  ) : null;
+
+  /** The doors this flow can really open. Anything else returns null and
+   *  the working surface simply does not draw a door (law L4). */
+  const routeFor = (d: StartAction["destination"]): (() => void) | null => {
+    if (!d) return null;
+    if (d.kind === "url") return () => { window.open(d.id, "_blank", "noopener,noreferrer"); };
+    if (d.kind === "note" && onOpenNote) return () => { setStarting(null); onOpenNote(d.id); };
+    if (d.kind === "thread" && onGoEmail) return () => { setStarting(null); onGoEmail(d.id); };
+    return null;
+  };
+
+  /** Leaving keeps the place, and never demands a note to do it. */
+  const leaveStart = (stopPoint: string) => {
+    if (starting) {
+      const draft = loadSession(starting.target.id)?.draft ?? "";
+      saveSession(starting.target.id, { kind: starting.action.kind, draft, stopPoint });
+    }
+    setStarting(null);
   };
 
   // THE KEEPS SLIDING ROW (Fewer Buttons, Dave 2026-09-02: "I don't like all
@@ -803,12 +984,34 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     });
   };
 
+  // The working surface replaces the list while it is open, the same way
+  // every other full screen in this flow does.
+  if (starting) {
+    return (
+      <StartScreen
+        target={starting.target}
+        action={starting.action}
+        tags={starting.tags}
+        onDraftChange={(text) => saveSession(starting.target.id, { kind: starting.action.kind, draft: text })}
+        onPrimary={runStartPrimary}
+        {...(routeFor(starting.action.destination) ? { onOpenDestination: routeFor(starting.action.destination)! } : {})}
+        onBack={leaveStart}
+        onInTheWay={answerInTheWay}
+        onFinish={() => { const id = starting.target.id; setStarting(null); void onToggle(id); }}
+        onStartTimer={() => void bookBlock(starting.target.id, starting.target.title, starting.target.data?.category)}
+        timerLabel="Fifteen minutes, as a real block"
+      />
+    );
+  }
+
   return (
     <>
       <TasksPage
         title={title}
         segments={segments}
         onPickOne={pickOne}
+        startLabel={startLabelFor}
+        startCard={startCard}
         overwhelmed={overwhelmed}
         onCalm={() => { haptics.selection(); setOverwhelmed(setOverwhelmedFlag(false, today)); }}
         onMoveAllToToday={() => void moveAllToToday()}

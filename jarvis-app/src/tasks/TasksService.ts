@@ -554,6 +554,21 @@ export class TasksService {
     return true;
   }
 
+  // WHAT IS IN THE WAY (Start Now, 2026-09-16). Written only by Something's
+  // in the Way on the working surface, in the user's own words, and cleared
+  // by passing null. Nothing in the app infers a blocker, so a task reading
+  // as blocked always means a person said it was.
+  async setBlocked(id: string, blockedBy: { what: string; since: string } | null): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    const what = blockedBy?.what.trim() ?? "";
+    await this.store.update(this.ownerId, id, {
+      blockedBy: what ? { what, since: blockedBy!.since } : null,
+    } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
   // UP-CORE-02: how long this one takes, in minutes. Null clears it and the
   // learned category median takes over again, so there is always an answer
   // and never an invented one.

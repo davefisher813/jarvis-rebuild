@@ -1132,6 +1132,16 @@
    task row's shape for its tasks (check, name, chip and day), the note row
    for its notes, the dropdown for its area and goal. */
 .ruled .list-card-ruled.proj-detail-hero { padding: var(--s-6) var(--s-4); margin-bottom: var(--s-3); }
+/* THE WORKING SURFACE (Start Now, 2026-09-16). A ruled card is glass, so
+   the text box inside it needs its own ground or it reads as a hole in the
+   card rather than a place to type. Same treatment .sheet-form already
+   gives inputs that sit on one. */
+.ruled.start-ruled .start-box { background: var(--surface-3); border: 0.5px solid var(--card-bd); }
+/* The two ways out are text, not pills: a pill beside a filled red reads as
+   a second answer to the same question, and these are exits from it. */
+.ruled.start-ruled .start-support .quiet-action { background: none; padding: 0; min-height: 44px;
+  color: var(--tx-2); white-space: nowrap; }
+
 .ruled.proj-ruled .proj-done-fold { margin-top: var(--s-3); }
 .ruled.proj-ruled .proj-done-fold .list-card-ruled { margin-left: 0; margin-right: 0; }
 .ruled.proj-ruled .task-row .task-check-tap[role="checkbox"] { cursor: pointer; }

@@ -122,6 +122,7 @@ export function TaskRow({
   onSnooze,
   onRename,
   onStart,
+  startLabel,
   selecting = false,
   picked = false,
   onPick,
@@ -159,6 +160,7 @@ export function TaskRow({
   // with -- getting going -- was only reachable from a card on Today that
   // showed one task. Same pill, same behaviour, same place in the row.
   onStart?: (id: string) => void;
+  startLabel?: (id: string) => "Start" | "Resume" | "Unblock";
   // THE RULED ROW (2026-09-01, 2026-09-02): the second line says where this task
   // moves. Null when it moves none; the row then says the category, so
   // every row keeps two lines and a fact. Derived by the flow from one
@@ -501,7 +503,12 @@ export function TaskRow({
           : !shownDone && hasUnfinishedSteps(steps)
           ? <StepCount {...steps} />
           : onStart && !shownDone
-          ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(item.id); }}>Start</button>
+          // START NOW (2026-09-16): the pill says what the tap will actually
+          // do. A task the user marked blocked reads Unblock, and one with
+          // work already saved reads Resume, both from the same resolver the
+          // working surface uses, so a row can never promise a start it is
+          // about to call something else.
+          ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(item.id); }}>{startLabel?.(item.id) ?? "Start"}</button>
           : u && u.kind === "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
       </div>
     </div>
@@ -520,6 +527,8 @@ export default function TasksPage({
   onDeleteTask,
   onSnoozeTask,
   onStartTask,
+  startLabel,
+  startCard,
   onNew,
   onUpload,
   onRenameTask,
@@ -557,6 +566,9 @@ export default function TasksPage({
   onDeleteTask?: (id: string) => void;
   onSnoozeTask?: (id: string) => void;
   onStartTask?: (id: string) => void;
+  startLabel?: (id: string) => "Start" | "Resume" | "Unblock";
+  /** A Place to Begin, built by the flow that has the services. */
+  startCard?: React.ReactNode;
   onNew?: () => void;
   // UP-CORE-12 (2026-09-05): read a syllabus (or any dated handout) into
   // tasks and events. Absent when the flow has no AI, so the door never
@@ -688,13 +700,17 @@ export default function TasksPage({
         <div className="pad-x pick-one">
           <button className="btn btn-block" onClick={onCalm}>{OVERWHELM_EXIT}</button>
         </div>
+      ) : startCard ? (
+        // START NOW (2026-09-16, Dave: "No unexplained huge Pick One
+        // button"). The red button that named nothing is a card that names
+        // the task, says what is ready on it, and can be asked why. Pick
+        // One survives as the fallback below for a caller that mounts this
+        // page without a start card (tests, and any future embed), so the
+        // decision killer is never a dead button, only the weaker of the
+        // two shapes.
+        startCard
       ) : onPickOne && counts.all > 0 && (
         <div className="pad-x pick-one">
-          {/* "Pick One", matching Today's identical action (see the note on
-              the goal nudge in TodayFlow, which named itself after this
-              button). Was "Just Pick One For Me": "Just" reads as begging
-              and "For Me" casts the user as a dependent asking a
-              caretaker, when the app is simply doing its job. */}
           <button className="btn btn-primary btn-lg btn-block" onClick={onPickOne}>Pick One</button>
         </div>
       )}
@@ -827,7 +843,7 @@ export default function TasksPage({
                   <React.Fragment key={it.id}>
                     <TaskRow
                       item={it} today={today} onToggle={onToggle} onOpen={onOpenTask}
-                      onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} onRename={onRenameTask}
+                      onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} startLabel={startLabel} onRename={onRenameTask}
                       selecting={sel.active} picked={sel.isSelected(it.id)}
                       onPick={sel.toggle} muteToday={filter === "today"}
                       parent={parentOf?.(it) ?? null}

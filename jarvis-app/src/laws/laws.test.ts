@@ -265,6 +265,14 @@ describe("LAW: Apple HIG casing", () => {
       "Yes, end them", "Yes, do both",
       // E-25 (2026-09-12): the Continue Your Reply offer's no.
       "Throw it away",
+      // START NOW (2026-09-16): the two ways out of the working surface.
+      // Both are the person talking about their own situation, sat under a
+      // Title Case primary that is the app naming its action. "Something's
+      // in the way" is deliberately about the SITUATION and not the person:
+      // it is the honest opposite of the "I'm Overwhelmed" shape the law
+      // below outlawed, which is why it reads as a door rather than a
+      // confession.
+      "Make this smaller", "Something\u2019s in the way",
     ]);
     const BRAND = /^(iCloud|iPhone|iPad|iOS|iMessage|macOS|kg|lb|min|hr)$/;
     // THE LAW ONLY EVER LOOKED ONE WAY (Dave 2026-09-03, pics 2 and 4:
@@ -2890,13 +2898,29 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
   // This One lives inside it"). One red button on the page, full width.
   // Just This One is an action on the What Now sheet that button opens:
   // the same ranking, one door. The pair and its class are retired here.
+  // AMENDED 2026-09-16 (START NOW, Dave: "No unexplained huge Pick One
+  // button"). The decision killer is still one full-width primary with
+  // nothing beside it; what changed is that it now NAMES the task it picked
+  // and says what is ready on it, because a button that removes a decision
+  // while explaining nothing about the decision is the shape he objected
+  // to. Pick One survives underneath as the fallback for a caller that
+  // mounts this page without a start card, exactly the way it already
+  // survives without onWhatNow, so the law still has a fill to point at.
   it("the Tasks page carries one decision killer, full width", () => {
     const src = page();
     expect(src, "the pair is gone").not.toMatch(/cta-pair|onOverwhelmed/);
-    const row = src.slice(src.indexOf('className="pad-x pick-one">\n          {/* "Pick One"'));
+    // Anchored on the fallback branch itself: the overwhelmed exit wears
+    // .pick-one too, and it is the first one in the file.
+    const row = src.slice(src.indexOf("onPickOne && counts.all > 0"));
     const body = row.slice(0, row.indexOf("</div>"));
-    expect(body, "Pick One is the fill, and it has the row").toMatch(/btn btn-primary btn-lg btn-block/);
+    expect(body, "the fallback fill is still the fill, and it has the row").toMatch(/btn btn-primary btn-lg btn-block/);
     expect(body, "nothing sits beside it").not.toMatch(/OVERWHELM_ENTER/);
+    // And the card that stands in front of it carries exactly one primary.
+    const card = read(join(SRC, "tasks/screens/StartCard.tsx"));
+    expect(card.match(/btn-primary/g)?.length, "one primary on the card").toBe(1);
+    expect(card, "which names what it picked").toMatch(/\{pick\.task\.data\.text\}/);
+    expect(card, "and says what is ready on it").toMatch(/\{action\.ready\}/);
+    expect(card, "and can be asked why").toMatch(/Why This/);
   });
 
   it("Just This One is an action on the What Now sheet, wired to the same flag", () => {

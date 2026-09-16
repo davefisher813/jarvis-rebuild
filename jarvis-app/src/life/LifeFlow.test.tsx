@@ -211,7 +211,11 @@ function TaskLinked() {
 describe("a task link is spent once (SHELL-F-12)", () => {
   it("does not reopen the sheet, or re-apply the filter, after a segment round trip", async () => {
     render(<NotesProvider userId="deep-life-3"><TaskLinked /></NotesProvider>);
-    await screen.findByText("Pay the deposit", {}, { timeout: 3000 });
+    // START NOW (2026-09-16): A Place to Begin names the top-picked task
+    // above the list, so the name can legitimately appear twice here. This
+    // test is about the list, so it counts rows rather than names.
+    const rows = () => screen.queryAllByText("Pay the deposit").filter((el) => !el.classList.contains("start-top-name"));
+    await waitFor(() => expect(rows().length).toBeGreaterThan(0), { timeout: 3000 });
     fireEvent.click(screen.getByText("Link Task"));
     await waitFor(() => expect(screen.getByText("Edit Task")).toBeInTheDocument());
     // The filter the link asked for is showing (the Show menu names it).
@@ -222,9 +226,9 @@ describe("a task link is spent once (SHELL-F-12)", () => {
 
     // Projects, then back to Tasks: the lens flow unmounts and remounts.
     fireEvent.click(screen.getByRole("tab", { name: "Projects" }));
-    await waitFor(() => expect(screen.queryByText("Pay the deposit")).not.toBeInTheDocument());
+    await waitFor(() => expect(rows().length).toBe(0));
     fireEvent.click(screen.getByRole("tab", { name: "Tasks" }));
-    await screen.findByText("Pay the deposit", {}, { timeout: 3000 });
+    await waitFor(() => expect(rows().length).toBeGreaterThan(0), { timeout: 3000 });
 
     expect(screen.queryByText("Edit Task")).not.toBeInTheDocument();
     // And the filter is the list's own default, not the one that link carried.

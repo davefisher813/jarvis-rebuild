@@ -330,6 +330,14 @@ export interface TaskData {
   // sender's id is written at creation, because a link that was never
   // written cannot be recovered from a title later. One field, two writers.
   personId?: string;
+  // WHAT IS IN THE WAY (Start Now, 2026-09-16, Dave: "A blocked task may say
+  // Unblock rather than pretend it is ready"). Written ONLY by Something's
+  // in the Way on the start screen, in the user's own words, and cleared
+  // only by the user. Nothing in the app infers it, so a task reading as
+  // blocked always means a person said it was. Optional and additive, and
+  // read through startAction.ts's blockerOf so a malformed value is simply
+  // not a blocker.
+  blockedBy?: { what: string; since: string };
 }
 
 export type TemplateKey =

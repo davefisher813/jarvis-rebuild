@@ -57,7 +57,7 @@ describe("TasksFlow snooze (LIFE-F-01)", () => {
     process.env.TZ = "Asia/Tokyo";
     try {
       render(<NotesProvider userId="tz-life-01"><Seeded /></NotesProvider>);
-      await waitFor(() => expect(screen.getByText("Email Sam")).toBeInTheDocument());
+      await waitFor(() => expect(rowNamed("Email Sam")).toBeInTheDocument());
       const today = todayISO();
       const want = localTomorrow();
       expect(want).not.toBe(today);
@@ -97,8 +97,8 @@ function SeededForNote() {
 describe("TasksFlow add a note (BROWSER-F-01)", () => {
   it("Add a Note opens the note it just made", async () => {
     render(<NotesProvider userId="note-life-b01"><SeededForNote /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Create Calder invoice")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Create Calder invoice"));
+    await waitFor(() => expect(rowNamed("Create Calder invoice")).toBeInTheDocument());
+    fireEvent.click(rowNamed("Create Calder invoice"));
     await waitFor(() => expect(screen.getByText("Add a Note")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add a Note"));
     await waitFor(() => expect(opened.length).toBe(1));
@@ -206,12 +206,18 @@ function SeededTextPerson() {
   return ready ? <TasksFlow /> : null;
 }
 
+// START NOW (2026-09-16): A Place to Begin names the top-picked task above
+// the list, so a task can legitimately appear twice on this screen. These
+// tests are about the ROW, so they ask for the row.
+const rowNamed = (name: string) =>
+  screen.getAllByText(name).find((el) => !el.classList.contains("start-top-name")) as HTMLElement;
+
 describe("TasksFlow: the task's Text door hands the sheet a real voice (UP-MIND-01 class)", () => {
   it("gathers How You Write before the sheet opens, same as every other door", async () => {
     draftProps.length = 0;
     render(<NotesProvider userId="text-voice-tasks"><SeededTextPerson /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Confirm the venue")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Confirm the venue"));
+    await waitFor(() => expect(rowNamed("Confirm the venue")).toBeInTheDocument());
+    fireEvent.click(rowNamed("Confirm the venue"));
     fireEvent.click(await screen.findByText("Text Nadia Brandt"));
     await waitFor(() => expect(draftProps.length).toBeGreaterThan(0));
     // BEFORE the fix, MessageDraftSheet was never even passed a voice prop
