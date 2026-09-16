@@ -672,3 +672,66 @@ describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
     }
   });
 });
+
+// THE RAIL SITS BESIDE ITS OWN TIME (Dave 2026-09-16, photographed: a teal
+// line drawn straight through "7:59 PM").
+//
+// The schedule row's category rail is absolutely positioned while everything
+// beside it is laid out, so its left has to be told about anything that
+// leads the row and pushes the time gutter right. Two controls do: the
+// Remember star (C-50) and the multi-select box. Measured at 390px with the
+// star present, the gutter starts at 71 and ends at 133, and the rail was
+// pinned at 98, which is inside the digits.
+//
+// The law is the SHAPE, not the number: the rail's left must be written in
+// terms of the per-row lead, and every control that can take the leading
+// slot must declare one. A new leading control with no declaration is the
+// same bug again.
+describe("LAW: the schedule rail is positioned past whatever leads the row", () => {
+  const ruled = () => readFileSync(join(SRC, "styles/ruled.css"), "utf8");
+
+  it("the rail's left reads the row's own lead instead of a fixed gutter", () => {
+    const bare = ruled().replace(/\/\*[\s\S]*?\*\//g, "");
+    const bar = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter((m) => m[1]!.split(",").some((s) => s.trim() === ".ruled .sched-bar"))
+      .map((m) => m[2]!).join(" ");
+    expect(bar, ".ruled .sched-bar still has its own rule").toBeTruthy();
+    expect(bar, "the rail's left must include the row's lead").toMatch(/left:[^;]*var\(--sched-lead/);
+  });
+
+  it("every control that can lead a schedule row declares its lead", () => {
+    const bare = ruled().replace(/\/\*[\s\S]*?\*\//g, "");
+    // The default, so a row with nothing in front is exactly where it was.
+    expect(bare).toMatch(/\.ruled \.sched-row \{[^}]*--sched-lead:\s*0px/);
+    for (const lead of ["row-star", "sched-sel"]) {
+      expect(bare, lead + " must declare the room it takes")
+        .toMatch(new RegExp("\\.ruled \\.sched-row:has\\(> \\." + lead + "\\)[^{]*\\{[^}]*--sched-lead:"));
+    }
+  });
+
+  // The two leading controls, as the row markup actually carries them. The
+  // leading slot is the source between the rail and the time; anything that
+  // lands there and is not one of the declared pair is the bug again.
+  it("nothing undeclared sits between the rail and the time", () => {
+    for (const f of ["schedule/screens/DayRow.tsx", "schedule/screens/ProposedRow.tsx"]) {
+      const src = readFileSync(join(SRC, f), "utf8");
+      const from = src.indexOf("sched-bar");
+      const to = src.indexOf("sched-time");
+      expect(from, f + " draws the rail").toBeGreaterThan(-1);
+      expect(to, f + " draws the time").toBeGreaterThan(from);
+      const lead = src.slice(from, to);
+      const classes = [...lead.matchAll(/className=\{?"([^"]+)"/g)].flatMap((m) => m[1]!.split(/\s+/));
+      for (const c of classes) {
+        // "ic" is the glyph INSIDE the select box, not a sibling of it.
+        expect(["sel-box", "sched-sel", "cat-bg-", "sched-bar", "ic"].some((ok) => c.startsWith(ok)),
+          `${f}: "${c}" leads the row with no --sched-lead declared for it`).toBe(true);
+      }
+      // A component in the leading slot hides its own class, so the ones
+      // allowed there are named outright.
+      const comps = [...lead.matchAll(/<([A-Z]\w+)/g)].map((m) => m[1]!);
+      for (const c of comps) {
+        expect(["EntityStar", "CheckGlyph"], `${f}: <${c}> leads the row with no --sched-lead declared for it`).toContain(c);
+      }
+    }
+  });
+});

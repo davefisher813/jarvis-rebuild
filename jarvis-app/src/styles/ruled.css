@@ -607,7 +607,25 @@
 .ruled .sched-time { width: 62px; font-size: calc(14.5px * var(--type-scale)); font-weight: 650; color: var(--tx-2); letter-spacing: -0.01em;
   padding-top: 2px; text-align: right; }
 .ruled .sched-time .ampm { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-quiet); letter-spacing: 0.02em; margin-left: 2px; }
-.ruled .sched-bar { width: 3px; border-radius: 2px; left: calc(var(--s-4) + 62px + 4px); top: 7px; bottom: 7px; }
+/* THE RAIL SITS AFTER THE TIME GUTTER, WHATEVER LEADS THE ROW (Dave
+   2026-09-16, photographed: a teal line drawn straight through "7:59 PM").
+   The rail is absolutely positioned while everything else in the row is laid
+   out, so its left was written as "row padding + the 62px gutter" back when
+   the row began with the time. It does not begin with the time any more: the
+   Remember star leads it (C-50, 2026-09-12) and the multi-select box takes
+   the same slot while picking. Both push the gutter right and neither moves
+   the rail, so the rail landed inside the digits.
+   The lead is declared per row rather than folded into one constant, because
+   the rows in one list do not agree: an event row has a star, a locked row
+   and a proposed row have none, and each rail belongs beside its own time.
+   A leading control nobody adds here degrades to no lead, which is exactly
+   where the rail sits today, so a miss is the old look and never a scramble. */
+.ruled .sched-row { --sched-lead: 0px; }
+/* .row-star: 8 left margin, 16 wide, 4 right margin, then the row's 11 gap. */
+.ruled .sched-row:has(> .row-star) { --sched-lead: calc(var(--s-2) + 16px + var(--s-1) + 11px); }
+/* .sched-sel: 22 wide, 4 right margin, then the gap. No left margin. */
+.ruled .sched-row:has(> .sched-sel) { --sched-lead: calc(22px + var(--s-1) + 11px); }
+.ruled .sched-bar { width: 3px; border-radius: 2px; left: calc(var(--s-4) + var(--sched-lead, 0px) + 62px + 4px); top: 7px; bottom: 7px; }
 .ruled .sched-body { padding-left: 3px; }
 .ruled .sched-title { font-size: calc(15.5px * var(--type-scale)); font-weight: var(--w-medium); letter-spacing: -0.01em; margin-bottom: 3px; }
 .ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: calc(12.5px * var(--type-scale)); }
