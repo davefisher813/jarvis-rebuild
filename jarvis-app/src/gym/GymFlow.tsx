@@ -468,19 +468,18 @@ function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
     // and each item states its amount at the row's far right -- the exact
     // preview anatomy. Empty stays legal: no items means the card is just
     // its door.
-    // THE TONE MOVES TO THE LABEL (2026-09-16, the polish handoff: "Warm-up
-    // and cool-down: compact neutral card, title, aligned duration and Edit
-    // text action. Avoid large amber/blue filled slabs"). Dave photographed
-    // the warm-up as a solid amber block two shades louder than the exercises
-    // it warms up for, which is backwards -- it is the smallest thing on the
-    // day and it was painting the largest.
+    // THE WASH STAYS (Dave, 2026-09-16: "keep the warm up and cool down
+    // colors"). The polish handoff's rule 1 asked for a compact neutral card
+    // here, and it was tried: the fill came off and the hue lived on the
+    // eyebrow alone. He looked at it and said no. The handoff is a proposal;
+    // he is the one reading this page in a gym, and his 2026-09-13 ruling --
+    // warm-up warm, cool-down "a blue that fades out" -- was about the card
+    // and not only the label. Both come back.
     //
-    // His 2026-09-13 ruling stands and is what the hue still says: warm-up is
-    // the warm colour, cool-down "a blue that fades out". That was a ruling
-    // about WHICH colour, not about washing a whole card in it. The eyebrow
-    // already had both variants; the card goes back to the grouped list every
-    // other block on this page uses.
-    <div className="pad-x"><div className="card list-card-ruled">
+    // What the same rule bought elsewhere is untouched: the Up Next launch
+    // card, which really was the brightest rectangle on a black page and had
+    // a red Start inside it, stays plain.
+    <div className="pad-x"><div className={"card list-card-ruled" + (has ? (tone === "cool" ? " banner-cool" : " banner-warn") : "")}>
       {/* The header row opens the block editor, same as its action (Dave
           2026-09-15: "I want all rows clickable"). */}
       <div className="row" {...rowDoor(onEdit)}>
