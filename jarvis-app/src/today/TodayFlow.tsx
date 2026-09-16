@@ -829,6 +829,17 @@ export default function TodayFlow({
   // pushed from the strip's See All, the way the event page is; not a route.
   const [remHome, setRemHome] = useState(false);
   const [remOpenId, setRemOpenId] = useState<string | null>(null);
+  // BUG (Dave 2026-09-16, "I can't click on them on the Today page to edit
+  // them"): RemindersFlow (pageless) was mounted on `remOpenId && (...)`, the
+  // SAME value its own openId effect clears once it has opened the detail
+  // sheet. Both state writes (RemindersFlow's local setDetailId AND this
+  // component's onOpened -> setRemOpenId(null)) land in one batched commit,
+  // so the sheet was set open and the whole tree it lives in unmounted in
+  // the same render -- it never painted. Mounting now tracks its OWN flag
+  // that a "consumed" openId is free to clear without taking the sheet with
+  // it, the same way every other one-shot in this app (personOpenId,
+  // factOpenId, ...) mounts its destination on a condition that outlives it.
+  const [remFlowMounted, setRemFlowMounted] = useState(false);
   // Push D: the task just completed, for the reminders that asked to be
   // shown after it. One at a time; the next completion replaces it.
   const [promptCtx, setPromptCtx] = useState<{ completedTaskId?: string }>({});
@@ -3133,7 +3144,7 @@ export default function TodayFlow({
   // its details sheet in place, over Today (Dave 2026-09-15: it was landing
   // on the Reminders page and staying there after the sheet closed). Going
   // to the full Reminders page is "See All" alone, below.
-  const openReminder = (id: string) => { setRemOpenId(id); };
+  const openReminder = (id: string) => { setRemOpenId(id); setRemFlowMounted(true); };
 
   // The sheet's writes that happen at once, not on Save: they each say what
   // they did and refresh the open sheet so the record it shows is the one
@@ -3911,11 +3922,11 @@ export default function TodayFlow({
       />
     )}
     {remSheetNode}
-    {!remHome && remOpenId && (
+    {!remHome && remFlowMounted && (
       <RemindersFlow
         pageless
         onOpenEntity={onOpenEntity}
-        openId={remOpenId}
+        openId={remOpenId ?? undefined}
         onOpened={() => setRemOpenId(null)}
       />
     )}

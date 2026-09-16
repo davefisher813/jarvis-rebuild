@@ -422,7 +422,17 @@ export class TasksService {
     // undefined survives a spread, so strip cleared keys rather than storing
     // an explicit undefined the adapter would have to reason about.
     (Object.keys(next) as (keyof ReminderInfo)[]).forEach((k) => { if (next[k] === undefined) delete next[k]; });
-    await this.store.update(this.ownerId, id, { reminder: next } as unknown as ItemData);
+    // SELF-HEALING (Dave 2026-09-16: a reminder pinged fine on Today but had
+    // vanished from Life > Reminders). Root cause: CategoryDetail's Up Next
+    // shares TaskRow with plain tasks, and its checkbox called the generic
+    // toggleDone -- which sets the TASK's own done, never touched by this
+    // service's reminder writes -- for a reminder row same as any other.
+    // That's fixed at the source (CategoryDetail.tsx now ticks/unticks a
+    // reminder row instead), but it can't undo a reminder that got stuck
+    // that way already. Every write that touches a reminder through its own
+    // mechanism clears the stray flag, so the next tick, snooze, edit or
+    // pause on an affected reminder repairs it without a data migration.
+    await this.store.update(this.ownerId, id, { reminder: next, done: false } as unknown as ItemData);
     return true;
   }
 

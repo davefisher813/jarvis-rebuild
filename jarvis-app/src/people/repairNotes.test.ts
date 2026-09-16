@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findInNotes, applyFindings, repairCandidates } from "./repairNotes";
+import { findInNotes, applyFindings, repairCandidates, duplicateNoteLines, cleanedNotes, cleanupCandidates } from "./repairNotes";
 import type { PersonData } from "./types";
 
 const person = (notes: string, extra: Partial<PersonData> = {}): PersonData =>
@@ -112,5 +112,65 @@ describe("the review list", () => {
 
   it("is empty when every contact is already in order, and stays silent", () => {
     expect(repairCandidates([{ id: "a", data: person("Cell 555-010-3311", { phone: "555-010-3311" }) }])).toEqual([]);
+  });
+});
+
+// THE SAME NUMBER, WRITTEN TWICE (Dave 2026-09-16: "On every contact page it
+// still has their number under notes as well"). The old import wrote it onto
+// its own line in the notes blob; once the field holds it too, findInNotes
+// goes quiet and the duplicate line has no way to leave.
+describe("clearing a note line that only repeats a field", () => {
+  it("removes the bare number an old import left behind", () => {
+    const d = person("2035361094", { phone: "2035361094" });
+    expect(duplicateNoteLines(d)).toEqual(["2035361094"]);
+    expect(cleanedNotes(d)).toBe("");
+  });
+
+  it("removes it however differently the two were written", () => {
+    expect(cleanedNotes(person("+1 (203) 536-1094", { phone: "2035361094" }))).toBe("");
+    expect(cleanedNotes(person("LF@Example.com", { email: "lf@example.com" }))).toBe("");
+  });
+
+  it("removes a label the field already carries", () => {
+    expect(cleanedNotes(person("Cell: 203-536-1094", { phone: "2035361094" }))).toBe("");
+    expect(cleanedNotes(person("Mobile 2035361094", { phone: "2035361094" }))).toBe("");
+  });
+
+  it("keeps the lines around it", () => {
+    const d = person("Met at the clinic\n2035361094\nAllergic to shellfish", { phone: "2035361094" });
+    expect(cleanedNotes(d)).toBe("Met at the clinic\nAllergic to shellfish");
+  });
+
+  // A LINE THAT SAYS ANYTHING ELSE IS STILL SOMEONE'S OWN WORDS. Editing
+  // round them to tidy a field is not a cleanup.
+  it("leaves a line alone when it carries more than the number", () => {
+    const d = person("Cell 203-536-1094, call after 6", { phone: "2035361094" });
+    expect(duplicateNoteLines(d)).toEqual([]);
+    expect(cleanedNotes(d)).toBeNull();
+  });
+
+  // A number the record does NOT have is the other feature's job: it gets
+  // offered as a repair, and is never quietly deleted.
+  it("never deletes a number the record does not already hold", () => {
+    const d = person("2035361094", { phone: "555-010-3311" });
+    expect(duplicateNoteLines(d)).toEqual([]);
+    expect(cleanedNotes(d)).toBeNull();
+    // It is a repair finding instead.
+    expect(findInNotes(d).map((f) => f.value)).toEqual(["2035361094"]);
+  });
+
+  it("says nothing about an ordinary note", () => {
+    expect(cleanedNotes(person("Met at the clinic", { phone: "2035361094" }))).toBeNull();
+    expect(cleanedNotes(person("", { phone: "2035361094" }))).toBeNull();
+  });
+
+  it("names only the contacts with something to clear", () => {
+    const list = cleanupCandidates([
+      { id: "a", data: person("2035361094", { phone: "2035361094" }) },
+      { id: "b", data: person("Met at the clinic", { phone: "2035361094" }) },
+    ]);
+    expect(list.map((c) => c.id)).toEqual(["a"]);
+    expect(list[0]!.removed).toEqual(["2035361094"]);
+    expect(list[0]!.notes).toBe("");
   });
 });

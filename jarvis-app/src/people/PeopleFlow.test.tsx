@@ -331,3 +331,63 @@ describe("a CSV whose headers mean nothing to the parser", () => {
     await waitFor(() => expect(screen.getByText(/Couldn't read that file/)).toBeInTheDocument());
   });
 });
+
+// THE SAME NUMBER, WRITTEN TWICE (Dave 2026-09-16: "On every contact page it
+// still has their number under notes as well. Delete that"). The old import
+// wrote it onto its own line; once the field holds it too, the repair offer
+// goes quiet and the duplicate has no way out.
+describe("clearing a number that is in the notes and the field both", () => {
+  const withBoth = async (uid: string, name: string, phone: string, note: string) => {
+    render(
+      <NotesProvider userId={uid}>
+        <PeopleFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByText("Add Person"));
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: name } });
+    fireEvent.change(screen.getByLabelText("Phone"), { target: { value: phone } });
+    fireEvent.change(screen.getByLabelText("Notes"), { target: { value: note } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.getAllByText(name).length).toBeGreaterThan(0));
+  };
+
+  it("offers to clear it, says where it came from, and clears in one tap", async () => {
+    await withBoth("d1", "Mom", "2035361094", "2035361094");
+    expect(await screen.findByText("One contact has their own number in their notes as well")).toBeInTheDocument();
+    expect(screen.getByText("Left there by an old import")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clear Them" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Clear Them" })).not.toBeInTheDocument();
+    });
+    // It says what it did and hands back the way out: a bulk edit to
+    // someone's own writing is not something to do without a way back.
+    const last = toasts[toasts.length - 1]!;
+    expect(last.message).toBe("1 Note tidied");
+    expect(last.actionLabel).toBe("Undo");
+  });
+
+  it("puts every note back exactly as it was on undo", async () => {
+    await withBoth("d2", "Mom", "2035361094", "2035361094");
+    fireEvent.click(await screen.findByRole("button", { name: "Clear Them" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Clear Them" })).not.toBeInTheDocument());
+    await toasts[toasts.length - 1]!.onAction!();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Clear Them" })).toBeInTheDocument();
+    });
+  });
+
+  // A LINE THAT SAYS ANYTHING ELSE IS STILL SOMEONE'S OWN WORDS.
+  it("says nothing when the line carries more than the number", async () => {
+    await withBoth("d3", "Mom", "2035361094", "Cell 203-536-1094, call after 6");
+    expect(await screen.findByText("Mom")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear Them" })).not.toBeInTheDocument();
+  });
+
+  // A number the record does NOT hold is the repair flow's job, and is never
+  // quietly deleted.
+  it("offers a repair, not a deletion, for a number the record lacks", async () => {
+    await withBoth("d4", "Mom", "", "2035361094");
+    expect(await screen.findByRole("button", { name: "It's a number" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear Them" })).not.toBeInTheDocument();
+  });
+});

@@ -1995,11 +1995,18 @@
    plain area row, gets its own CSS below.
 
    Health is a mini-app, not a task/goal/project collection (the approved
-   visual's whole point), so its row wears the app's own "good" tone -- the
-   hue Health already carries everywhere else in JARVIS -- instead of the
-   neutral row ground every other area sits on, and its icon anchors to the
-   top of the row rather than centering against the section grid beneath it. */
-.ruled .health-mini-app { align-items: flex-start; background: var(--good-tint); border-radius: var(--r-md); }
+   visual's whole point), and its icon anchors to the top of the row rather
+   than centering against the sections beneath it.
+
+   THE TINTED PANEL IS GONE (Dave 2026-09-16, photographed: "remove the green
+   background"). The row used to sit on --good-tint so the mini-app read as a
+   different KIND of thing from the areas under it. It does not need the
+   panel to say that: it is the only row with sections, a count and no
+   chevron, and those are differences in content rather than in paint. The
+   hue stays where it carries meaning -- the category's own disc and the
+   section chips -- so Health still reads as Health without a block of colour
+   behind it. */
+.ruled .health-mini-app { align-items: flex-start; }
 /* OPTION B FINAL (Dave 2026-09-16): the title and the section count share a
    line, the names wrap under it. The 2x2 grid of labelled tiles it replaces
    spent two lines per section and still could not hold a fifth. */

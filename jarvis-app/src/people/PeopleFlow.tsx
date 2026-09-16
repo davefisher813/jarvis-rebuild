@@ -29,7 +29,7 @@ const reminderLabel = (hhmm: string) => {
   const t = fmtTime(hhmm);
   return `Reminds at ${t.time}${t.ap}`;
 };
-import { repairCandidates, applyFindings, type NoteFinding } from "./repairNotes";
+import { repairCandidates, applyFindings, cleanupCandidates, type NoteFinding } from "./repairNotes";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { createPortal } from "react-dom";
@@ -502,6 +502,34 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     .map((c) => ({ ...c, findings: c.findings.filter((f) => !skipped.includes(c.id + "|" + f.value)) }))
     .filter((c) => c.findings.length > 0);
 
+  // THE SAME NUMBER, WRITTEN TWICE (Dave 2026-09-16: "On every contact page
+  // it still has their number under notes as well. Delete that"). The old
+  // import wrote it onto its own line in the notes blob, and the repair
+  // offer stays silent once the field holds it too, so the duplicate has no
+  // way out. One tap clears every one of them, with one Undo that puts every
+  // note back exactly as it was -- a bulk edit to someone's own writing is
+  // not something to do without a way back.
+  const dupes = cleanupCandidates(list);
+  const clearDupes = async () => {
+    const before = dupes.map((c) => ({ id: c.id, notes: list.find((p) => p.id === c.id)?.data.notes }));
+    const ok = await attemptWrite(async () => {
+      for (const c of dupes) await people.update(c.id, { notes: c.notes || undefined });
+    });
+    await reload();
+    if (!ok) return;
+    const n = dupes.length;
+    showToast({
+      message: capAfterNumber(`${n} ${n === 1 ? "note" : "notes"} tidied`),
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => {
+          for (const b of before) await people.update(b.id, { notes: b.notes });
+        });
+        await reload();
+      },
+    });
+  };
+
   const repairOne = async (personId: string, finding: NoteFinding) => {
     const p = list.find((x) => x.id === personId);
     if (!p) return;
@@ -746,6 +774,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
         onAdd={() => setSheet({ kind: "new" })}
         onImportFile={onImportFile}
         repairs={repairs}
+        duplicateNotes={dupes.length}
+        onClearDuplicateNotes={dupes.length > 0 ? () => void clearDupes() : undefined}
         onRepair={(id, f) => void repairOne(id, f)}
         onSkipRepair={skipRepair}
         onBack={onBack}

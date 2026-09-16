@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
-import { phonesOf, emailsOf } from "../contactMethods";
+import { phonesOf, emailsOf, phoneText } from "../contactMethods";
 import InlineEdit from "../../shared/InlineEdit";
 import { catColor } from "../../shared/categories";
 import { RowGlyph } from "../../shared/anatomy";
@@ -15,12 +15,23 @@ const EDIT = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
 );
 
-function KV({ label, value }: { label: string; value?: string }) {
+// TAP A FACT TO CHANGE IT (Dave 2026-09-16: "Why can't I edit anything?").
+//
+// These rows stated what the app knew and answered no tap, so the only way
+// to change a single wrong word was to find the pencil in the bar. The row
+// is the door now, to the same sheet the pencil opens -- the app's own
+// row-tap rule applied to the one section that is entirely facts.
+//
+// Not an inline field: a person's facts save as a set (the sheet's Save is
+// what commits them), and a row that edited one value in place would be a
+// second write path to the same record for no gain.
+function KV({ label, value, onEdit }: { label: string; value?: string; onEdit?: () => void }) {
   if (!value) return null;
   return (
-    <div className="row">
+    <div className="row" {...(onEdit ? pressable(onEdit) : {})}>
       <div className="row-grow"><div className="conn-name">{label}</div></div>
       <span className="kv-val">{value}</span>
+      {onEdit && <div className="chev" />}
       <div className="screen-foot" />
     </div>
   );
@@ -131,6 +142,9 @@ export default function PersonDetail({
   const points = person.data.talkingPoints ?? [];
   const openPoints = points.filter((pt) => !pt.discussed);
   const [adding, setAdding] = useState(false);
+  // True when the relationship is just an area's name said again.
+  const areaEchoes = !!relationship
+    && categoryColors.some((c) => c.name.trim().toLowerCase() === relationship.trim().toLowerCase());
   const phones = phonesOf(person.data);
   const emails = emailsOf(person.data);
   const phone = phones[0]?.value;
@@ -157,7 +171,13 @@ export default function PersonDetail({
             fact; an area is a dot and plain text. */}
         {(relationship || categoryColors.length > 0) && (
           <div className="facts person-facts">
-            {relationship && <span className="fact sky">{relationship}</span>}
+            {/* NOT THE SAME WORD TWICE (Dave 2026-09-16, photographed:
+                "Family · Family"). The handoff bans duplicated relationship
+                labels, and this is how one appears: "Family" typed as the
+                relationship next to the Family area chip. The area already
+                says it, in colour, so the relationship chip stands down
+                rather than repeating it. */}
+            {relationship && !areaEchoes && <span className="fact sky">{relationship}</span>}
             {/* A ROLE PER AREA (People handoff, 2026-09-16). Where a role
                 is set, the area says what they are IN it: "Family · Mother",
                 "Bridge · Board secretary". Both facts on one chip, because
@@ -187,13 +207,13 @@ export default function PersonDetail({
             // card, which carries the dial. Context first, then the phone.
             <div {...pressable(onCallPrep)} className="row person-reach">
               <div className="row-grow"><div className="conn-name">Call</div></div>
-              <span className="kv-val">{phone}</span>
+              <span className="kv-val">{phoneText(phone)}</span>
             </div>
           )}
           {phone && !onCallPrep && (
             <a className="row person-reach" href={"tel:" + phone.replace(/[^+\d]/g, "")}>
               <div className="row-grow"><div className="conn-name">Call</div></div>
-              <span className="kv-val">{phone}</span>
+              <span className="kv-val">{phoneText(phone)}</span>
             </a>
           )}
           {phone && onMessage && (
@@ -201,13 +221,13 @@ export default function PersonDetail({
             // drafting sheet; the draft exists when it opens.
             <div {...pressable(onMessage)} className="row person-reach">
               <div className="row-grow"><div className="conn-name">Text</div></div>
-              <span className="kv-val">{phone}</span>
+              <span className="kv-val">{phoneText(phone)}</span>
             </div>
           )}
           {phone && !onMessage && (
             <a className="row person-reach" href={"sms:" + phone.replace(/[^+\d]/g, "")}>
               <div className="row-grow"><div className="conn-name">Text</div></div>
-              <span className="kv-val">{phone}</span>
+              <span className="kv-val">{phoneText(phone)}</span>
             </a>
           )}
           {email && (
@@ -228,7 +248,7 @@ export default function PersonDetail({
           {phones.slice(1).map((m) => (
             <a className="row person-reach" key={"p" + m.value} href={"tel:" + m.value.replace(/[^+\d]/g, "")}>
               <div className="row-grow"><div className="conn-name">{m.label ? "Call " + m.label : "Call"}</div></div>
-              <span className="kv-val">{m.value}</span>
+              <span className="kv-val">{phoneText(m.value)}</span>
             </a>
           ))}
           {emails.slice(1).map((m) => (
@@ -281,10 +301,10 @@ export default function PersonDetail({
       {hasAttrs && <div className="sh2 sh2-quiet"><span className="t">About</span></div>}
       {hasAttrs && (
         <div className="pad-x"><div className="card list-card-ruled">
-          <KV label="Relationship" value={relationship} />
-          <KV label="Birthday" value={birthday} />
-          <KV label="JARVIS writes" value={writeStyle} />
-          <KV label="Areas" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} />
+          <KV label="Relationship" value={relationship} onEdit={onEdit} />
+          <KV label="Birthday" value={birthday} onEdit={onEdit} />
+          <KV label="JARVIS writes" value={writeStyle} onEdit={onEdit} />
+          <KV label="Areas" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} onEdit={onEdit} />
           {lastTalked && (
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): a quiet
             // contact's row drafts the check in, as its pill does. It opens a
