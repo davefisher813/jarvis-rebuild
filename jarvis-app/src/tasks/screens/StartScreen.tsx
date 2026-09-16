@@ -129,12 +129,14 @@ export default function StartScreen({
             there is something to open. */}
         {shown.prompt !== undefined ? (
           <>
+            {/* The question is the label, and it stays put while he types.
+                It is deliberately NOT repeated as a placeholder: the same
+                sentence twice reads as two asks. */}
             <div className="start-label">{shown.prompt}</div>
             <textarea
               ref={boxRef}
               className="msg-textarea start-box"
               aria-label={shown.prompt}
-              placeholder={shown.prompt}
               value={text}
               onChange={(e) => type(e.target.value)}
             />
@@ -218,12 +220,12 @@ function truthOf(a: StartAction): string {
   switch (a.completion.saves) {
     case "draft":
       return "Choosing who it goes to stays with you · Nothing is sent here";
-    case "step":
-      return "Logs this step · The task stays open";
+    case "step_new":
+      return "Becomes the first step · The task stays open";
+    case "step_tick":
+      return "Ticks this step · The task stays open";
     case "note":
       return "Saves onto this task · The task stays open";
-    case "blocker":
-      return "Records what you are waiting on · Nothing is chased";
     default:
       return "Opens the real record · Nothing is changed";
   }

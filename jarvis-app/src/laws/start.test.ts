@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { posix } from "node:path";
-import { startAction, type StartTarget } from "../tasks/startAction";
+import { startAction, promptFor, type StartTarget } from "../tasks/startAction";
 
 // THE START LAWS (Dave 2026-09-16, the Start Now handoff).
 //
@@ -141,6 +141,53 @@ describe("START law 4: nothing is invented", () => {
 
   it("the resolver reads records rather than fetching them, so it cannot reach past what it was given", () => {
     expect(code(RESOLVER), "no services in the pure layer").not.toMatch(/await |fetch\(|Service|localStorage/);
+  });
+});
+
+// Dave, 2026-09-16, on a screenshot of "Set up wallet card" answered with
+// "Put what you need for set up wallet card within reach": "This logic makes
+// no sense. How is the first step 'mark it done'".
+//
+// It made no sense because it was a mad-lib. The title was pasted into a
+// sentence frame, and the primary then asked him to certify the result,
+// which wrote the invented sentence onto the task as a completed step.
+describe("START law 7: the app asks rather than invents, and ticks only what somebody wrote", () => {
+  it("no branch builds an instruction out of the task's own title", () => {
+    // The tell is string concatenation around the title inside the resolver.
+    const body = code(RESOLVER);
+    expect(body, "no sentence frame around the title").not.toMatch(/"[^"]*" \+ (lowerFirst\(|title|target\.title)/);
+    expect(body, "and the mad-lib helper is gone for good").not.toMatch(/physicalStep|within reach/);
+  });
+
+  it("every prompt the classifier can choose is a question", () => {
+    const shapes = ["comms", "inspect", "vague"] as const;
+    for (const kind of ["task", "project", "goal"] as const) {
+      for (const shape of shapes) {
+        expect(promptFor(shape, kind), shape + "/" + kind).toMatch(/\?$/);
+      }
+    }
+  });
+
+  it("Mark It Done is offered only against a step that already exists", () => {
+    const bare = startAction({ kind: "task", id: "x", title: "Set up wallet card", data: { text: "x", category: "", done: false } });
+    expect(bare.verb).not.toBe("Mark It Done");
+    expect(bare.completion.saves).toBe("step_new");
+    const withStep = startAction({ kind: "task", id: "x", title: "Set up wallet card",
+      data: { text: "x", category: "", done: false, steps: [{ text: "Find the card", done: false }] } });
+    expect(withStep.verb).toBe("Mark It Done");
+    expect(withStep.completion.saves).toBe("step_tick");
+    // And the writer can only ever tick a step it found, never push one.
+    const tick = FLOW.slice(FLOW.indexOf('case "step_tick"'));
+    const tickBody = tick.slice(0, tick.indexOf("      }"));
+    expect(tickBody, "nothing is invented to tick").not.toMatch(/steps\.push/);
+    expect(tickBody, "no open step means nothing to report").toMatch(/if \(at < 0\) return null;/);
+  });
+
+  it("saving never replaces text the task already had", () => {
+    const save = FLOW.slice(FLOW.indexOf('case "draft":'));
+    const body = save.slice(0, save.indexOf('case "step_new"'));
+    expect(body, "the existing notes are read and kept").toMatch(/const had = \(t\.notes \?\? ""\)\.trim\(\)/);
+    expect(body, "and appended to, never overwritten").toMatch(/had \? had \+ "\\n\\n" \+ words : words/);
   });
 });
 

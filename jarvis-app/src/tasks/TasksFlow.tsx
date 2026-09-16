@@ -768,31 +768,52 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     if (!starting) return null;
     const { target, action } = starting;
     const id = target.id;
+    const words = text.trim();
+    if (!words) return null;
     switch (action.completion.saves) {
       case "draft":
       case "note": {
-        // Both land in the task's own notes field, which is where the
-        // longer text under a task already lives. The task stays open.
-        const ok = await attemptWrite(() => svc.setNotes(id, text.trim() || null));
+        // APPENDED, NEVER REPLACED (2026-09-16 audit). setNotes takes the
+        // whole field, so writing the draft straight into it erased any
+        // notes the task already had. A person who saves a draft onto a
+        // task with notes on it must not lose the notes.
+        const t = await svc.task(id);
+        if (!t) return null;
+        const had = (t.notes ?? "").trim();
+        const ok = await attemptWrite(() => svc.setNotes(id, had ? had + "\n\n" + words : words));
         if (!ok) return null;
         clearSession(id);
         await reload();
         return action.completion.saves === "draft" ? "Saved to this task \u00b7 Not sent" : "Saved to this task";
       }
-      case "step": {
-        // Tick the step the resolver named, or log the move as a done step
-        // when there was no step to tick. Either way the task stays open.
+      case "step_new": {
+        // HIS words become step one, undone, because naming a step is not
+        // doing it. Next time Start opens, the step branch hands this back
+        // as the opening move, and it is his sentence rather than one the
+        // app wrote for him.
         const t = await svc.task(id);
         if (!t) return null;
-        const steps = [...(t.steps ?? [])];
-        const at = steps.findIndex((x) => !x.done && x.text.trim());
-        if (at >= 0) steps[at] = { ...steps[at]!, done: true };
-        else steps.push({ text: action.ready, done: true });
+        const steps = [...(t.steps ?? []), { text: words, done: false }];
         const ok = await attemptWrite(() => svc.setSteps(id, steps));
         if (!ok) return null;
         clearSession(id);
         await reload();
-        return "Step logged \u00b7 The task stays open";
+        return "Saved as the first step \u00b7 The task stays open";
+      }
+      case "step_tick": {
+        // Ticks the step that is already there. Nothing is ever invented to
+        // tick: if there is no open step, there is nothing to report done.
+        const t = await svc.task(id);
+        if (!t) return null;
+        const steps = [...(t.steps ?? [])];
+        const at = steps.findIndex((x) => !x.done && x.text.trim());
+        if (at < 0) return null;
+        steps[at] = { ...steps[at]!, done: true };
+        const ok = await attemptWrite(() => svc.setSteps(id, steps));
+        if (!ok) return null;
+        clearSession(id);
+        await reload();
+        return "Step ticked \u00b7 The task stays open";
       }
       default:
         return null;

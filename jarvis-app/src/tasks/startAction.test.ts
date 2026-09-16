@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  startAction, shapeOf, promptFor, physicalStep, blockerOf, firstOpenStep,
+  startAction, shapeOf, promptFor, blockerOf, firstOpenStep,
   type StartTarget, type StartContext,
 } from "./startAction";
 import type { TaskData } from "../notes/types";
@@ -71,8 +71,8 @@ describe("startAction: what is already openable", () => {
     const a = startAction(task("Finish Jarvis visuals"), { saved });
     expect(a.kind).toBe("resume");
     expect(a.ready).toBe("Left off at the roster");
-    expect(a.verb).toBe("Save Starting Brief");
-    expect(a.completion.saves).toBe("note");
+    expect(a.verb).toBe("Save First Step");
+    expect(a.completion.saves).toBe("step_new");
   });
 });
 
@@ -90,7 +90,7 @@ describe("startAction: children before anything invented", () => {
     expect(a.ready).toBe("Fix the headliner");
     expect(a.sources[0]!.label).toBe("Step 2 of 3");
     // Ticking a step ticks the step.
-    expect(a.completion.saves).toBe("step");
+    expect(a.completion.saves).toBe("step_tick");
     expect(a.completion.completesTask).toBe(false);
   });
 
@@ -108,7 +108,7 @@ describe("startAction: children before anything invented", () => {
   it("a project with no children asks for one job, and never drafts a plan", () => {
     const a = startAction({ kind: "project", id: "p1", title: "Create AI agent family" });
     expect(a.kind).toBe("capture_next_action");
-    expect(a.prompt).toBe("Name one job this needs done");
+    expect(a.prompt).toBe("What is one job this needs done?");
     expect(a.missing).toEqual([]);
   });
 
@@ -183,37 +183,62 @@ describe("startAction: drafts are grounded or honest", () => {
 });
 
 describe("startAction: physical work and vague work", () => {
-  it("a physical task gets one achievable move, and JARVIS never claims to have done it", () => {
-    const a = startAction(task("Pack for practice"));
-    expect(a.kind).toBe("physical_step");
-    expect(a.ready).toBe("Put what you need for practice within reach");
-    expect(a.verb).toBe("Mark It Done");
-    expect(a.completion.completesTask).toBe(false);
-    expect(physicalStep("Pack for practice")).toBe("Put what you need for practice within reach");
-    expect(physicalStep("")).toBe("Put it within reach");
+  // THE MAD-LIB IS GONE (2026-09-16). Dave photographed "Set up wallet card"
+  // answered with "Put what you need for set up wallet card within reach"
+  // and asked how that was a first step. It was not one: it was the title
+  // pasted into a sentence frame. The app asks instead.
+  it("a task it knows nothing about asks, and never manufactures an instruction", () => {
+    for (const title of ["Set up wallet card", "Pack for practice", "Buy milk", "Install the shelf"]) {
+      const a = startAction(task(title));
+      expect(a.kind, title).toBe("capture_next_action");
+      expect(a.verb, title).toBe("Save First Step");
+      // The answer is a QUESTION, and the title is never pasted into it.
+      expect(a.prompt, title).toMatch(/\?$/);
+      expect(a.prompt!.toLowerCase(), title).not.toContain(title.toLowerCase());
+      expect(a.ready, title).toBe("Start by naming the first step");
+      expect(a.completion.saves, title).toBe("step_new");
+      expect(a.completion.completesTask, title).toBe(false);
+    }
+  });
+
+  it("Mark It Done is only ever offered against a step somebody actually wrote", () => {
+    // No step on the task: nothing is offered as done-able.
+    const bare = startAction(task("Pack for practice"));
+    expect(bare.verb).not.toBe("Mark It Done");
+    expect(bare.completion.saves).not.toBe("step_tick");
+    // His own step: now ticking it is honest, and it ticks the step only.
+    const withStep = startAction(task("Pack for practice", { steps: [{ text: "Put the bag by the door", done: false }] }));
+    expect(withStep.verb).toBe("Mark It Done");
+    expect(withStep.ready).toBe("Put the bag by the door");
+    expect(withStep.completion.saves).toBe("step_tick");
+    expect(withStep.completion.completesTask).toBe(false);
   });
 
   it("a vague task gets exactly one question, never a questionnaire", () => {
     const a = startAction(task("Create AI agent family"));
     expect(a.kind).toBe("capture_next_action");
-    expect(a.prompt).toBe("Name one change you want to make");
+    expect(a.prompt).toBe("What is the first thing you would do?");
     // One prompt, and nothing that asks for duration, energy, mood or priority.
     expect(JSON.stringify(a)).not.toMatch(/energy|mood|difficulty|priority|how long/i);
   });
 
-  it("the shape comes from the user's own verb, and inspect beats the errand reading", () => {
+  it("the shape only ever picks a question, so a wrong guess costs a question", () => {
     expect(shapeOf("Clean up backend storage")).toBe("inspect");
-    expect(shapeOf("Clean the kitchen")).toBe("physical");
     expect(shapeOf("Send team practice details")).toBe("comms");
     expect(shapeOf("Create AI agent family")).toBe("vague");
-    expect(promptFor("inspect", "task")).toBe("Name one thing to look at first");
+    expect(shapeOf("Clean the kitchen")).toBe("vague");
+    // Every shape resolves to an interrogative, never to an instruction.
+    for (const shape of ["comms", "inspect", "vague"] as const) {
+      expect(promptFor(shape, "task"), shape).toMatch(/\?$/);
+    }
+    expect(promptFor("inspect", "task")).toBe("What is the first thing to look at?");
   });
 
   it("an inspection with nothing connected asks what to look at", () => {
     const a = startAction(task("Clean up backend storage"));
     expect(a.kind).toBe("capture_next_action");
-    expect(a.prompt).toBe("Name one thing to look at first");
-    expect(a.ready).toBe("Nothing linked yet");
+    expect(a.prompt).toBe("What is the first thing to look at?");
+    expect(a.ready).toBe("Start by naming the first step");
   });
 });
 

@@ -130,15 +130,34 @@ describe("StartScreen: the ways out are subordinate", () => {
     expect(onInTheWay).toHaveBeenCalledWith("Missing Information", expect.any(String));
   });
 
-  it("a physical move shows the move and offers no text box to fill", () => {
-    const physical: StartTarget = { kind: "task", id: "t2", title: "Pack for practice",
-      data: { text: "Pack for practice", category: "life", done: false } };
-    render(<StartScreen target={physical} action={startAction(physical)} onDraftChange={() => {}}
+  // 2026-09-16: the screen Dave photographed. A task the app knows nothing
+  // about used to answer with a manufactured instruction and a Mark It Done
+  // against it. It asks now, and the answer is his.
+  it("a task it knows nothing about asks one question and offers to save the answer", () => {
+    const bare: StartTarget = { kind: "task", id: "t2", title: "Set up wallet card",
+      data: { text: "Set up wallet card", category: "life", done: false } };
+    render(<StartScreen target={bare} action={startAction(bare)} onDraftChange={() => {}}
       onPrimary={noop} onBack={() => {}} onInTheWay={() => {}} />);
-    expect(screen.getByText("Put what you need for practice within reach")).toBeInTheDocument();
+    expect(screen.getByText("Name the first step")).toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+    expect(screen.getByText("Save First Step")).toBeInTheDocument();
+    expect(screen.getByText(/Becomes the first step/)).toBeInTheDocument();
+    // Nothing on screen tells him to do a thing the app made up.
+    expect(screen.queryByText("Mark It Done")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/within reach/i);
+    // And an empty answer cannot be saved, so nothing blank lands as a step.
+    expect(screen.getByText("Save First Step")).toBeDisabled();
+  });
+
+  it("a step he wrote is shown, and ticking it is the honest primary", () => {
+    const withStep: StartTarget = { kind: "task", id: "t3", title: "Pack for practice",
+      data: { text: "Pack for practice", category: "life", done: false, steps: [{ text: "Put the bag by the door", done: false }] } };
+    render(<StartScreen target={withStep} action={startAction(withStep)} onDraftChange={() => {}}
+      onPrimary={noop} onBack={() => {}} onInTheWay={() => {}} />);
+    expect(screen.getByText("Put the bag by the door")).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.getByText("Mark It Done")).toBeInTheDocument();
-    expect(screen.getByText(/The task stays open/)).toBeInTheDocument();
+    expect(screen.getByText(/Ticks this step/)).toBeInTheDocument();
   });
 
   it("a resource opens the real record instead of describing it", () => {

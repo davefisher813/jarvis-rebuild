@@ -37,7 +37,6 @@ export type StartKind =
   | "open_resource"
   | "prepare_draft"
   | "capture_next_action"
-  | "physical_step"
   | "resolve_blocker";
 
 /** Where a fact on the working surface came from. The screen renders these
@@ -61,7 +60,11 @@ export interface StartDestination {
 /** What pressing the primary button does to stored records. The point of
  *  the type is that `completesTask` cannot be true. */
 export interface StartCompletion {
-  saves: "draft" | "note" | "step" | "blocker" | "none";
+  /** Exactly which write the primary performs. Split finer than it was
+   *  (2026-09-16, the Mark It Done audit): "step" covered both TICKING a
+   *  step and INVENTING one, and the line under the button could not tell
+   *  the truth about both. */
+  saves: "draft" | "note" | "step_new" | "step_tick" | "none";
   completesTask: false;
 }
 
@@ -158,45 +161,45 @@ export function blockerOf(data: TaskData | undefined): BlockedBy | null {
 // Task-type templates
 // ---------------------------------------------------------------------------
 
-// Deterministic and deliberately small. These read the verb the user
-// themselves wrote, so the shape of the help matches the shape of the work
-// without a model and without a guess about the person.
+// A CLASSIFIER MAY CHOOSE A QUESTION, NEVER AN INSTRUCTION (2026-09-16,
+// after Dave photographed "Put what you need for set up wallet card within
+// reach" and asked how that was a first step).
 //
-// INSPECT is tested first on purpose: "clean up backend storage" is a thing
-// to go look at, and "clean the kitchen" is an errand, and both open with
-// the same word. The two-word forms disambiguate.
-const INSPECT = /^(clean up|clean out|review|check|audit|inspect|look at|go through|read|sort out|triage|assess|figure out|work out|decide|research|compare|plan)\b/i;
+// It was not one. It was the task's own title pasted into a sentence frame,
+// which is a mad-lib: confident, grammatical and empty. Reading a verb off
+// a title is a GUESS, and the rule this file now keeps is that a guess is
+// only ever allowed to pick which question gets asked. Get the guess wrong
+// and the cost is a slightly-off question, which a person answers in their
+// own words anyway. Get an invented instruction wrong and the app has
+// asserted nonsense and asked to be believed.
+//
+// So there are two shapes, not four, and both only decide a prompt: mail
+// is worth knowing because it also gates a grounded draft, and a thing to
+// go and look at gets a sharper question than the general one.
+const INSPECT = /^(clean up|clean out|review|check|audit|inspect|look at|go through|read|sort out|triage|assess|figure out|work out|decide|research|compare)\b/i;
 const COMMS = /^(send|email|e-mail|reply|respond|write|text|message|call|ring|ask|tell|invite|confirm|follow up|follow-up|check in|check-in|remind|thank|update|notify|ping|share|forward)\b/i;
-const PHYSICAL = /^(pack|bring|grab|find|put|take|move|buy|pick up|drop off|print|clean|wash|load|unload|charge|fill|empty|carry|hang|mail|post|return|collect|tidy|set up|install)\b/i;
 
-export type TaskShape = "comms" | "physical" | "inspect" | "vague";
+export type TaskShape = "comms" | "inspect" | "vague";
 
 export function shapeOf(title: string): TaskShape {
   const t = title.trim();
   if (INSPECT.test(t)) return "inspect";
   if (COMMS.test(t)) return "comms";
-  if (PHYSICAL.test(t)) return "physical";
   return "vague";
 }
 
 /** The one question a thing with nothing linked gets asked. One at a time,
- *  always about the work, never about mood, energy, or difficulty. */
+ *  always about the work, never about mood, energy, or difficulty. The
+ *  answer is the user's, in their words, and it becomes the task's first
+ *  step, which is the whole of the value here: the app does not know what
+ *  the first move is, and asking beats inventing. */
 export function promptFor(shape: TaskShape, kind: StartTarget["kind"]): string {
-  if (kind === "project" || kind === "goal") return "Name one job this needs done";
+  if (kind === "project" || kind === "goal") return "What is one job this needs done?";
   switch (shape) {
     case "comms": return "Who needs to hear it, and what do they need to know?";
-    case "inspect": return "Name one thing to look at first";
-    case "physical": return "Name the first thing to put in reach";
-    default: return "Name one change you want to make";
+    case "inspect": return "What is the first thing to look at?";
+    default: return "What is the first thing you would do?";
   }
-}
-
-/** The physical move, from the user's own words. Deliberately literal: it
- *  puts the object they named within reach rather than inventing a tidier
- *  errand than the one they actually have. */
-export function physicalStep(title: string): string {
-  const t = title.trim().replace(/^(pack|get|grab|find|bring|collect)\s+(for\s+|the\s+)?/i, "").trim();
-  return t ? "Put what you need for " + lowerFirst(t) + " within reach" : "Put it within reach";
 }
 
 // ---------------------------------------------------------------------------
@@ -263,7 +266,10 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
   if (step) {
     return {
       kind: "open_child_task",
-      headline: "Your first step",
+      // It is HIS step: either he wrote it on the task, or he answered the
+      // question below and this is the answer coming back. The app never
+      // authors one, which is what makes offering to tick it honest.
+      headline: "Your next step",
       verb: "Mark It Done",
       launchLabel: "Start",
       ready: step.text,
@@ -272,7 +278,7 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
       // Ticking a step ticks the step. The task it belongs to is untouched,
       // which is already the rule in TasksService.setSteps and stays true
       // when the tick happens from here.
-      completion: { saves: "step", completesTask: false },
+      completion: { saves: "step_tick", completesTask: false },
     };
   }
   const child = ctx.children?.[0];
@@ -333,31 +339,25 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
     };
   }
 
-  if (shape === "physical" && target.kind === "task") {
-    return {
-      kind: "physical_step",
-      headline: "One move, right now",
-      verb: "Mark It Done",
-      launchLabel: "Start",
-      ready: physicalStep(title),
-      sources: [],
-      missing: [],
-      // It logs the move he made. JARVIS did not do it and never says so.
-      completion: { saves: "step", completesTask: false },
-    };
-  }
-
   // 6. One concrete question, and nothing else asked.
+  //
+  // This is the honest floor of the whole feature. When the app knows
+  // nothing about a task, the valuable thing it can do is ask one good
+  // question and KEEP the answer, so the next visit opens on a first step
+  // its owner wrote. The thing it must not do is manufacture a first step
+  // and ask to be believed.
   return {
     kind: "capture_next_action",
-    headline: "Name the next action",
-    verb: "Save Starting Brief",
+    headline: "Name the first step",
+    verb: "Save First Step",
     launchLabel: "Start",
-    ready: machine ? "Capture the error to look at" : "Nothing linked yet",
+    ready: machine ? "Capture the error to look at" : "Start by naming the first step",
     prompt: machine ? "Which error do you need to look at?" : promptFor(shape, target.kind),
     sources: [],
     missing: [],
-    completion: { saves: "note", completesTask: false },
+    // It becomes step one, in his words, and comes back as the opening move
+    // next time. Undone, because naming a step is not doing it.
+    completion: { saves: "step_new", completesTask: false },
   };
 }
 
@@ -375,14 +375,14 @@ export function firstOpenStep(data: TaskData | undefined): { text: string; index
 }
 
 function verbForSaved(kind: StartKind): string {
-  if (kind === "capture_next_action") return "Save Starting Brief";
-  if (kind === "physical_step" || kind === "open_child_task") return "Mark It Done";
+  if (kind === "capture_next_action") return "Save First Step";
+  if (kind === "open_child_task") return "Mark It Done";
   return "Save Draft";
 }
 
 function savesForSaved(kind: StartKind): StartCompletion["saves"] {
-  if (kind === "capture_next_action") return "note";
-  if (kind === "physical_step" || kind === "open_child_task") return "step";
+  if (kind === "capture_next_action") return "step_new";
+  if (kind === "open_child_task") return "step_tick";
   return "draft";
 }
 
@@ -407,9 +407,6 @@ function sourceKindFor(kind: StartDestination["kind"]): StartSource["kind"] {
   }
 }
 
-function lowerFirst(s: string): string {
-  return s.charAt(0).toLowerCase() + s.slice(1);
-}
 
 // ---------------------------------------------------------------------------
 // Make This Smaller
@@ -456,25 +453,19 @@ export function smallerAction(a: StartAction, target: StartTarget): StartAction 
         kind: "capture_next_action",
         headline: "Name what you are looking for",
         prompt: "Name one thing to look at first",
-        verb: "Save Starting Brief",
+        verb: "Save First Step",
         seed: "",
         destination: undefined,
-        completion: { saves: "note", completesTask: false },
-      });
-    case "physical_step":
-      return shrunk({
-        headline: "Find one thing",
-        ready: "Find the first thing you need",
-        verb: "Mark It Done",
+        completion: { saves: "step_new", completesTask: false },
       });
     case "resolve_blocker":
       return shrunk({
         kind: "capture_next_action",
         headline: "Name who can move it",
         prompt: "Who can move this?",
-        verb: "Save Starting Brief",
+        verb: "Save First Step",
         seed: "",
-        completion: { saves: "note", completesTask: false },
+        completion: { saves: "step_new", completesTask: false },
       });
     case "resume":
     case "open_child_task":

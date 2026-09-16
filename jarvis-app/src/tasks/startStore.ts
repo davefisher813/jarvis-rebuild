@@ -30,8 +30,13 @@ const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v 
 
 const KINDS = new Set<string>([
   "resume", "open_child_task", "open_resource", "prepare_draft",
-  "capture_next_action", "physical_step", "resolve_blocker",
+  "capture_next_action", "resolve_blocker",
 ]);
+// physical_step was retired on 2026-09-16 (it manufactured its own
+// instruction). A workspace saved under it still holds real typed words, so
+// it is read as the question it should always have been rather than thrown
+// away with them.
+const LEGACY: Record<string, StartKind> = { physical_step: "capture_next_action" };
 
 export function loadSessions(storage: Pick<Storage, "getItem"> = localStorage): Sessions {
   try {
@@ -41,10 +46,11 @@ export function loadSessions(storage: Pick<Storage, "getItem"> = localStorage): 
     for (const [k, v] of Object.entries(p as Record<string, unknown>)) {
       const s = v as Partial<SavedStart> | null;
       if (!s || typeof s !== "object") continue;
-      if (typeof s.savedAt !== "number" || !KINDS.has(String(s.kind))) continue;
+      const kind = LEGACY[String(s.kind)] ?? (s.kind as StartKind);
+      if (typeof s.savedAt !== "number" || !KINDS.has(String(kind))) continue;
       out[k] = {
         entityId: str(s.entityId) ?? k,
-        kind: s.kind as StartKind,
+        kind,
         savedAt: s.savedAt,
         ...(str(s.draft) ? { draft: s.draft as string } : {}),
         ...(str(s.stopPoint) ? { stopPoint: s.stopPoint as string } : {}),
