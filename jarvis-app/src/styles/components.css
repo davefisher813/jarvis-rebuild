@@ -2370,17 +2370,23 @@ button {
 
 /* Momentum Chain: the next-best thing SLIDES INTO the finished slot, riding
    the same spring as the rest of the app's completion moment. Green-tinted
-   like the done flash it follows, cooling to the card surface. */
+   like the done flash it follows, cooling to the card surface.
+
+   REBUILT 2026-09-16 (Dave, on "Brainstorm for Jos..." with Start and Not
+   Now floating loose at narrow widths: "It offers no value and is an eye
+   sore/inconvenience... I can't even clear it when it's like this or
+   swipe"). The row was bespoke markup with two always-visible pills in one
+   trailing slot; `.momentum-slot { flex-wrap: wrap }` let the pair drop to
+   their own line and drift right once the label did not fit beside them,
+   which is exactly the photo. `.momentum-row` is now a `.task-row` like
+   every other row on this screen: one pill (Start), and Not Now moved
+   behind the swipe every other dismiss action already lives behind. */
 @keyframes momentumIn { 0% { opacity: 0; transform: translateX(32px); background: var(--good-tint); }
   60% { opacity: 1; transform: none; background: var(--good-tint); }
   100% { opacity: 1; transform: none; background: transparent; } }
-.momentum-slot { animation: momentumIn 0.5s var(--ease-spring); }
-/* At 320 wide the label and these two buttons do not fit on one line, and
-   flex-shrink:0 sent them off the right edge of the page (sweep 2026-08-21).
-   Wrapping is self-correcting: it costs nothing at any width where the row
-   fits, and it is the only behaviour that works at every width where it
-   does not. */
-.momentum-slot { flex-wrap: wrap; }
+.momentum-row { animation: momentumIn 0.5s var(--ease-spring); }
+/* Reused by MessagesFlow's waiting card (wait-card-acts) as a plain
+   right-aligned action row; not exclusive to the Momentum Chain. */
 .momentum-actions { display: flex; gap: var(--s-2); flex-shrink: 0; margin-left: auto; }
 
 /* Auto-Sweep: the receipt banner at the top of Today. A success is quiet;
@@ -2392,7 +2398,7 @@ button {
 .sweep-receipt .momentum-actions { justify-content: flex-end; }
 .sweep-receipt.sweep-error { flex-direction: row; align-items: center; }
 .sweep-receipt.sweep-error { border-left: 3px solid var(--warn-fill); background: var(--warn-tint); cursor: pointer; }
-@media (prefers-reduced-motion: reduce) { .restore-banner, .sweep-receipt, .momentum-slot { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .restore-banner, .sweep-receipt, .momentum-row { animation: none; } }
 
 /* BANNER ANATOMY V2 (approved preview 2026-08-15, LOCKED-CSS CHANGE FLAGGED).
    Dave: the Now stack read as identical gray rows. Every banner now carries
