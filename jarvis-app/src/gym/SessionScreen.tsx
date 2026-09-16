@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadStyleOf, plateMath, styleSummary, weightLabel } from "./equipment";
+import { loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel } from "./equipment";
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
@@ -714,8 +714,17 @@ export default function SessionScreen({
                 rack's 45 lb bar. plateMath already answers this exactly and
                 was already imported at the top of this file; it simply was
                 not being asked. */}
-            {plateMath(loadStyleOf(exercise)).offer && !cond && (
-              <button className="row-create" role="button" tabIndex={0} onClick={() => setPlatesOpen(true)}>Plate Calculator</button>
+            {/* WHATEVER THIS THING LOADS WITH (2026-09-16, Dave: "the plate
+                calculator has to factor in all of the weight loading options
+                not just dumbbells"). It used to be gated on the measurement
+                kind, which every loaded exercise shares, so a stack and a
+                dumbbell were both offered barbell plate math. It is offered
+                now where there is something to WORK OUT -- plates to hang, a
+                pair to total, a pin to find -- and the sheet answers in that
+                equipment's own terms. A band has no number and bodyweight and
+                assisted are the number itself, so neither asks. */}
+            {loadCalcFor(loadStyleOf(exercise)) && !cond && (
+              <button className="row-create" role="button" tabIndex={0} onClick={() => setPlatesOpen(true)}>{loadCalcFor(loadStyleOf(exercise))}</button>
             )}
             {onAdjustTime && (
               <button className="row-create" role="button" tabIndex={0} onClick={onAdjustTime}>Adjust Time</button>
@@ -811,7 +820,7 @@ export default function SessionScreen({
         />
       )}
       {platesOpen && (
-        <PlateSheet total={nextPlannedWeight} unit={exercise.unit} rack={rack} onClose={() => setPlatesOpen(false)} />
+        <PlateSheet total={nextPlannedWeight} unit={exercise.unit} rack={rack} style={loadStyleOf(exercise)} onClose={() => setPlatesOpen(false)} />
       )}
       {addOpen && (
         <ExerciseSheet

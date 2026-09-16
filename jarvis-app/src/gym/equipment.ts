@@ -307,6 +307,28 @@ export function plateMath(style: LoadStyle): { offer: boolean; hasBar: boolean }
   return { offer: !!spec?.plates, hasBar: !!spec?.hasBar };
 }
 
+/**
+ * THE LOAD CALCULATOR'S DOOR, AND ITS WORDS (2026-09-16, Dave: "the plate
+ * calculator has to factor in all of the weight loading options not just
+ * dumbbells").
+ *
+ * There is something to work out whenever the number the athlete records is
+ * not the thing they physically set: plates to hang and halve, a pair to
+ * total, a pin to land on. The label says which of those it is, because
+ * "Plate Calculator" over a cable stack was the whole complaint.
+ *
+ * Null where the number IS the setting and a calculator would be a lie: a
+ * band has no number, and bodyweight and assisted record the number itself.
+ */
+export function loadCalcFor(style: LoadStyle): string | null {
+  const e = style.equipment;
+  if (!e) return null;
+  if (SPEC[e].plates) return "Plate Calculator";
+  if (e === "dumbbell" || e === "kettlebell") return "What the Pair Moves";
+  if (e === "stack" || e === "cable") return "Find the Pin";
+  return null;
+}
+
 /** HOW MANY OF THE NUMBER ARE ACTUALLY MOVING, for tonnage only.
  *
  *  Two 50s is 100 lb in the air. A plate machine loaded 100 a side is 200.

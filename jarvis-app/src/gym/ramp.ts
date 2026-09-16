@@ -175,11 +175,18 @@ export type PlateFacts =
  *  cannot build this number and the nearest it can (H-29). Null when there is
  *  nothing on the bar to say. `at` and `nearest` are in the exercise's own
  *  unit, the one the athlete typed. */
-export function plateFacts(total: number, rack: RackConfig, unit?: string): PlateFacts | null {
+export function plateFacts(total: number, rack: RackConfig, unit?: string, bar = rack.bar): PlateFacts | null {
+  // `bar` is what to subtract before halving, and it is NOT always the rack's
+  // (2026-09-16). A Smith carriage and a plate-loaded machine both load real
+  // plates and neither has a 45 to take off first -- equipment.ts has said so
+  // since it was written (plates: true, hasBar: false) and this function was
+  // subtracting the barbell's bar from them anyway, which put every machine's
+  // plate count out by a bar's worth. Callers pass what their own equipment
+  // has; the default keeps the barbell's behaviour for callers that do not.
   const w = weightIn(total, unit, rack.unit);
-  if (w <= rack.bar) return null;
-  const per = platesPerSide(w, rack.bar, rack.plates);
+  if (w <= bar) return null;
+  const per = platesPerSide(w, bar, rack.plates);
   if (per) return per.length ? { kind: "plates", per } : null;
-  const near = nearestBuildable(w, rack.bar, rack.plates);
+  const near = nearestBuildable(w, bar, rack.plates);
   return { kind: "none", at: total, nearest: near == null ? null : weightIn(near, rack.unit, unit) };
 }
