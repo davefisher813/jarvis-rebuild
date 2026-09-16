@@ -5082,22 +5082,35 @@ body.selecting .voice-dock { display: none; }
    had already typed -- "Neutral / Wide / Hook" looked entered, not offered).
 
    .xs-input is styled only inside .xs, and a sheet built on .sheet-form is not
-   .xs, so these inputs were falling through to the platform's own dark field.
-   On a charcoal card that paints a near-black capsule, which is exactly what a
-   FILLED value looks like in this app.
+   always .xs (Grip and Tags below carry neither), so these inputs were
+   falling through to the platform's own dark field. On a charcoal card that
+   paints a near-black capsule, which is exactly what a FILLED value looks
+   like in this app.
 
    So the sheet's own rows get the treatment .xs already gives: no ground of
-   their own (the card is the ground), the value right-aligned against its
-   label the way every other sheet in the app sets a typed value, and a
-   placeholder at --tx-3, one step quieter than the label beside it, so an
-   example cannot be mistaken for an answer. */
+   their own (the card is the ground), and a placeholder at --tx-3, one step
+   quieter than the label beside it, so an example cannot be mistaken for an
+   answer. */
 .sheet-form .xs-input {
   flex: 1; min-width: 0; height: 32px; padding: 0;
   background: transparent; border: 0; outline: none; -webkit-appearance: none; appearance: none;
   font-family: var(--f); font-size: calc(16px * var(--type-scale));
-  color: var(--tx-1); text-align: right;
+  color: var(--tx-1);
 }
 .sheet-form .xs-input::placeholder { color: var(--tx-3); }
+/* RIGHT ONLY WHEN THERE IS SOMETHING TO SIT AGAINST (found 2026-09-16, Dave
+   photographed "Set up wallet card" and "Pick location for fundraiser"
+   both pushed to the far right of their own row, an empty gap the width of
+   the icon tile where the name used to start).
+   The rule above used to right-align every .xs-input in a .sheet-form
+   unconditionally. That is correct for Grip and Tags (this rule's own
+   target): the row states a label first (.xs-label) and the typed value
+   answers it, right-aligned, the same as every HeadMenu value in this file.
+   It is wrong for a task's name, a checklist line, an event's title, an
+   area's name, an exercise's name or note, and a library rename or search:
+   none of those rows carries a label to sit against, because the input IS
+   the row, the same as .task-name and .conn-name always read left. */
+.sheet-form .xs-row:has(> .xs-label) .xs-input { text-align: right; }
 
 .form-sheet .xs-field { text-align: right; color: var(--tx-2); font-size: calc(16px * var(--type-scale)); }
 .form-sheet .xs-field::placeholder { color: var(--tx-2); }
