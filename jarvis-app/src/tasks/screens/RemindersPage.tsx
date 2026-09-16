@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
 import type { LinkedItem } from "../../notes/types";
-import { PAGE_TABS, type PageTab, type PageSection, type PageRow, whenWords, describeRepeat, repeatRuleOf, scheduleKindOf } from "../reminders";
+import { PAGE_TABS, type PageTab, type PageSection, type PageRow, whenWords, dateWord as dateWordFor, describeRepeat, repeatRuleOf, scheduleKindOf } from "../reminders";
 import { actionLabelFor } from "../reminderHistory";
 import { catName, catColor } from "../../shared/categories";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
@@ -107,12 +107,20 @@ export default function RemindersPage({
     const area = it.category ? catName(it.category) : "";
     const timed = scheduleKindOf(r) === "timed" && !r.paused;
     const rule = repeatRuleOf(r);
-    // A fixed left time gutter only for today's timed occurrences (Ready
-    // Now, Later Today): the common case, and the one Dave reviewed. Every
-    // other case (unscheduled, paused, a future date, a context trigger,
-    // skipped) keeps the existing whenWords() phrase in the facts line,
-    // where a bare clock time wouldn't say enough on its own.
-    const dueToday = it.state === "open" && timed && it.date === today && !!it.time;
+    // A fixed left time gutter for every open, timed occurrence (Dave
+    // 2026-09-16: "Transfer funds for bills," a future date with a category
+    // and a rhythm, crammed "Sep 19 · 12:00 PM" into the same facts line
+    // those two were fighting over and the category lost its name entirely
+    // -- three facts plus a Snooze pill simply do not fit phone width. The
+    // clock now always lives in its own column, whatever the date; the
+    // facts line says the DATE alone (dateWord, no time -- the gutter
+    // already has that) for a future occurrence, and nothing for today's
+    // (implied by which section, Ready Now or Later Today, it sits in, same
+    // as before). Only unscheduled, paused, contextual and skipped rows --
+    // none of which carry a bare clock reading on their own -- still run the
+    // full whenWords() phrase through the facts line.
+    const hasGutter = it.state === "open" && timed && !!it.time;
+    const dueToday = hasGutter && it.date === today;
     const when = it.state === "skipped" ? "Skipped · " + whenWords(r, it.date, it.time, today, area) : whenWords(r, it.date, it.time, today, area);
     const tone = it.state === "open" && it.date === today ? "when" : "later";
     // ONE RIGHT-SLOT ACTION, whatever the state (Dave 2026-09-15, v3: the row
@@ -133,11 +141,19 @@ export default function RemindersPage({
       <div key={it.id + (it.skippedDate ?? "")} className={"rem-card" + (it.state === "done" ? " done" : "")} {...rowDoor(() => onOpen(it.id))}>
         <div className="rem-card-top">
           {it.state === "open" ? ring(it) : <span className="rem-card-cb-space" aria-hidden="true" />}
-          {dueToday && <div className="rem-time-gutter">{fmtTime(it.time!).time}<span className="ampm">{fmtTime(it.time!).ap}</span></div>}
+          {hasGutter && <div className="rem-time-gutter">{fmtTime(it.time!).time}<span className="ampm">{fmtTime(it.time!).ap}</span></div>}
           <div className="rem-card-body">
             <div className="rem-card-title">{it.text}</div>
             <div className="facts">
-              {!dueToday && <span className={"fact " + (it.state === "open" ? tone : "")}>{when}</span>}
+              {/* A gutter row's clock already lives in its own column, so
+                  this fact says only the DATE (nothing at all for today's,
+                  implied by the section it sits in); every other row --
+                  unscheduled, paused, contextual, skipped -- has no clock to
+                  split out, and keeps the full whenWords() phrase it always
+                  has. */}
+              {hasGutter
+                ? (!dueToday && <span className={"fact " + tone}>{dateWordFor(it.date!, today)}</span>)
+                : <span className={"fact " + (it.state === "open" ? tone : "")}>{when}</span>}
               {/* The area name takes its own element so IT is what gives way
                   when the line runs out of room. Its colour is already on the
                   dot beside it, so a clipped name still says which area this
@@ -150,12 +166,19 @@ export default function RemindersPage({
                   separator renders on the grey wrapper, outside the tint,
                   instead of inside the chip with it. */}
               {dueToday && <span className="fact"><span className="uchip u-today">Today</span></span>}
-              {/* The rhythm is the first thing to go when the row is already
-                  carrying a clock and a Today chip: on this view it was the
-                  fact that overflowed, and "Every Day" is what the detail
-                  sheet and the Routines view are for. Rows without a gutter
-                  keep it, where it is the line's most useful word. */}
-              {timed && rule.kind !== "once" && !dueToday && <span className="fact">{describeRepeat(rule)}</span>}
+              {/* The rhythm is the first thing to go when the row already
+                  carries a clock: on this view it was the fact that
+                  overflowed, and "Every Day" is what the detail sheet and
+                  the Routines view are for. Rows without a gutter (no bare
+                  clock reading to begin with) keep it, where it is the
+                  line's most useful word. This used to check dueToday alone,
+                  so a FUTURE gutter row (Dave 2026-09-16: "Transfer funds
+                  for bills," Money, Every Month, Sep 19) still tried to
+                  carry rhythm beside a date and a category and squeezed the
+                  category's name down to nothing -- the one fact that must
+                  never be the one that gives way, since it says whose
+                  reminder this is. */}
+              {timed && rule.kind !== "once" && !hasGutter && <span className="fact">{describeRepeat(rule)}</span>}
             </div>
           </div>
           {act && <button type="button" className={"pill-act" + (act.quiet ? " pill-quiet" : "")} onClick={act.onClick}>{act.label}</button>}

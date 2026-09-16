@@ -31,7 +31,7 @@ import { Plus } from "../shared/icons";
 import { eventLog } from "../events";
 import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
-import { timeLabelFor } from "../tasks/reminders";
+import { timeLabelFor, isDone } from "../tasks/reminders";
 import { nextActionOf } from "../bigger/related";
 import { dayPhrase } from "../money/bills";
 import { fmtTime, addMinutes, addDays, eventsForDate } from "../schedule/calendar";
@@ -1274,7 +1274,26 @@ export default function CategoryDetail({
   // BRAIN-F-12 (2026-09-05): a check that failed used to fail silently, so
   // the row came back unchecked with nothing said. Same guard the deletes and
   // snoozes on this page already run through.
-  const toggle = async (id: string) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reload(); };
+  //
+  // A REMINDER ROW TICKS, IT DOES NOT FINISH (Dave 2026-09-16: a reminder
+  // showed fine on Today but was gone from Life > Reminders). Up Next shares
+  // TaskRow with plain tasks -- Snooze and Start are already disabled below
+  // for a reminder row because those verbs are not its own, and this same
+  // toggle called the generic toggleDone regardless, setting the TASK's own
+  // done outright on what is meant to recur (tickReminder/untickReminder use
+  // lastDone, the per-day mark; nothing else ever meant data.done to apply
+  // to a reminder). A reminder checked here now ticks or unticks today's
+  // occurrence, the same as its own row everywhere else.
+  const toggle = async (id: string) => {
+    const t = allTasks.find((x) => x.id === id);
+    if (t?.data.reminder) {
+      const done = isDone(t.data.reminder, today);
+      await attemptWrite(() => (done ? tasksSvc.untickReminder(id) : tasksSvc.tickReminder(id, today)));
+    } else {
+      await attemptWrite(() => tasksSvc.toggleDone(id));
+    }
+    await reload();
+  };
 
   // THE SAME CLEARING AS EVERYWHERE (Dave 2026-09-02, the Health page's Up
   // Next: "the same clearing ability as well"). Delete with an Undo that
@@ -1551,10 +1570,18 @@ export default function CategoryDetail({
           // THE INVARIANT (the reminders rebuild): an unscheduled reminder
           // prints no clock, here as everywhere.
           const rem = t.data.reminder ? timeLabelFor(t.data.reminder, today) : null;
+          // TaskRow's checkbox reads item.data.done, which a reminder row
+          // never sets true (its completion is lastDone, per day, never the
+          // task's own done -- see toggle() above). Displaying the real
+          // item would leave the checkbox permanently unchecked even right
+          // after ticking it today, so a reminder row shows a clone whose
+          // done mirrors today's actual tick; toggle() itself still reads
+          // the real task, so the write is unaffected by this clone.
+          const displayItem = t.data.reminder ? { ...t, data: { ...t.data, done: isDone(t.data.reminder, today) } } : t;
           return (
             <TaskRow
               key={t.id}
-              item={t}
+              item={displayItem}
               today={today}
               kicker={t.data.reminder && rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null}
               parent={parentForTask(parentIdx, t)}
