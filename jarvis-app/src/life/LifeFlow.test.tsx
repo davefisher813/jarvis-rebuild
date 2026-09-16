@@ -13,7 +13,7 @@ import { todayISO } from "../tasks/grouping";
 // The area is seeded as a real category record, not the bare string "money":
 // both lenses group by the ids the frame actually holds, so a made-up id lands
 // everything in More Work and proves nothing about the heads.
-function Seeded({ segment }: { segment?: "tasks" | "projects" | "goals" }) {
+function Seeded({ segment }: { segment?: "areas" | "tasks" | "projects" | "goals" }) {
   const p = useProjects(); const g = useGoals(); const t = useTasks(); const c = useCategories();
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -29,18 +29,26 @@ function Seeded({ segment }: { segment?: "tasks" | "projects" | "goals" }) {
 }
 
 describe("LifeFlow", () => {
-  it("lands on Tasks under a head called Life, with the three segments", async () => {
+  // LIFE_AREAS_TAB_HANDOFF (2026-09-16): Areas is the default entry point
+  // now, ahead of Tasks -- browsing what an area holds is why Life gets
+  // opened more often than any one lens is.
+  it("lands on Areas under a head called Life, with the five segments", async () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
-    expect(await screen.findByText("Pay the deposit", {}, { timeout: 3000 })).toBeInTheDocument();
+    // The seeded category is named "Money", which suggestKind infers as
+    // money-kind with no explicit kind set -- the same exclusion Brain's own
+    // area list always applied (BrainPage's prior "drops money-kind
+    // categories" coverage), so the Areas tab correctly shows none here.
+    expect(await screen.findByText("No areas yet · Add one in Settings > Categories", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.queryByText("Money")).not.toBeInTheDocument();
     expect(document.querySelector(".pagehead-title")).toHaveTextContent("Life");
     const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
-    expect(tabs).toEqual(["Tasks", "Reminders", "Projects", "Goals"]);
-    expect(screen.getByRole("tab", { name: "Tasks" })).toHaveAttribute("aria-selected", "true");
+    expect(tabs).toEqual(["Areas", "Tasks", "Reminders", "Projects", "Goals"]);
+    expect(screen.getByRole("tab", { name: "Areas" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("Projects groups projects under their AREA with the goal-row anatomy; Goals shows goals only", async () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
-    await screen.findByText("Pay the deposit", {}, { timeout: 3000 });
+    await screen.findByText("No areas yet · Add one in Settings > Categories", {}, { timeout: 3000 });
     fireEvent.click(screen.getByRole("tab", { name: "Projects" }));
     // The one ask names the project too (it has no next move), so scope to the row.
     await screen.findByText("Add Project");
