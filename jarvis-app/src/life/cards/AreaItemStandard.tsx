@@ -1,13 +1,16 @@
 import { catIcon } from "../../categories/icons";
 import type { ColorSlot } from "../../categories/types";
-import { pressable } from "../../shared/pressable";
+import { Nums } from "../../bigger/GoalRowRuled";
 
-// AREAS TAB (2026-09-16, LIFE_AREAS_TAB_HANDOFF): one row per area, the same
-// disc-glyph-plus-name anatomy the Brain hub's nav rows used to wear, now
-// with what the area actually holds instead of a bare chevron. Stats ride as
-// quiet chips (not colored facts: three would break the "one colored fact
-// per sub" law), one per count that isn't zero, so an area with nothing
-// filed reads as a plain name rather than "0 tasks · 0 goals · 0 projects".
+// AREAS TAB (2026-09-16, LIFE_AREAS_TAB_HANDOFF) -- CORRECTED to the row
+// anatomy the rest of Life already wears (Dave, on the first pass: "needs a
+// complete visual overhaul and you need to follow the design catalog"). An
+// area row is not a Brain nav row (that was the mistake: .lib-row/.lib-disc
+// is the NAV LIST language, and cards/glyph-tiles are retired from lists,
+// catalog J3). It is a CONTENT row, so it wears exactly what GoalRowRuled
+// and ProjectRowRuled already do: the 24px gm-slot glyph in the area's own
+// colour, the name, and one quiet r-k fact line -- never a chip, which the
+// catalog reserves for choosers and filters (G3), not inert counts.
 export interface AreaCounts { taskCount: number; goalCount: number; projectCount: number }
 export interface AreaSummary { id: string; name: string; color: ColorSlot; icon?: string }
 
@@ -28,13 +31,13 @@ export default function AreaItemStandard({ area, counts, onOpen }: {
   ].filter((s): s is string => s !== null);
 
   return (
-    <div {...pressable(onOpen)} className="row area-row">
-      <div className={"lib-ico lib-disc cat-bg-" + area.color}>{catIcon(area.icon)}</div>
-      <div className="row-grow">
-        <div className="conn-name">{area.name}</div>
+    <div className="task-row p2 area-row-ruled" role="button" tabIndex={0} onClick={onOpen}>
+      <div className="task-check-tap"><span className={"gm-slot cat-fg-" + area.color}>{catIcon(area.icon)}</span></div>
+      <div className="task-title">
+        <span className="task-name">{area.name}</span>
         {stats.length > 0 && (
-          <div className="area-stats">
-            {stats.map((s) => <span className="chip" key={s}>{s}</span>)}
+          <div className="r-k">
+            <span className="r-goal"><Nums text={stats.join(" · ")} /></span>
           </div>
         )}
       </div>

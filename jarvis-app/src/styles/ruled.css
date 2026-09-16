@@ -1970,18 +1970,19 @@
 .lg-row.on .lg-n { color: var(--tx-1); font-weight: var(--w-semi); }
 .lg-row.on .lg-v { color: var(--tx-2); }
 
-/* AREAS TAB (LIFE_AREAS_TAB_HANDOFF, 2026-09-16). A standard area row is the
-   library anatomy (disc glyph, name) plus what it holds, as quiet chips
-   instead of the colored-fact slot: three colored facts on one row would
-   break "one colored fact per sub", and these are counts, not a verdict. */
-.ruled .area-row { align-items: flex-start; }
-.ruled .area-stats { display: flex; flex-wrap: wrap; gap: var(--s-1h); margin-top: var(--s-1); }
-.ruled .area-stats .chip { height: auto; padding: 3px var(--s-2); font-size: calc(11px * var(--type-scale)); }
+/* AREAS TAB (LIFE_AREAS_TAB_HANDOFF, 2026-09-16; corrected the same day,
+   Dave: "needs a complete visual overhaul and you need to follow the design
+   catalog"). An area row is the SAME anatomy GoalRowRuled and ProjectRowRuled
+   already wear -- .task-row.p2, a 24px .gm-slot glyph, .task-title, one
+   quiet .r-k fact line -- so .area-row-ruled itself carries no rules of its
+   own here, the same way its two siblings carry none of theirs. Only Health,
+   which is deliberately NOT a plain area row, gets its own CSS below.
 
-/* Health is a mini-app, not a task/goal/project collection (the approved
+   Health is a mini-app, not a task/goal/project collection (the approved
    visual's whole point), so its row wears the app's own "good" tone -- the
    hue Health already carries everywhere else in JARVIS -- instead of the
-   neutral card ground every other area row sits on. */
+   neutral row ground every other area sits on, and its icon anchors to the
+   top of the row rather than centering against the section grid beneath it. */
 .ruled .health-mini-app { align-items: flex-start; background: var(--good-tint); border-radius: var(--r-md); }
 .ruled .health-sections { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-1h); margin-top: var(--s-1h); }
 .ruled .health-section-item { background: var(--surface-2); border-radius: var(--r-sm);
