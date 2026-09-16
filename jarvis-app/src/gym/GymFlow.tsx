@@ -4,6 +4,7 @@ import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, u
 import { todayISO } from "../tasks/grouping";
 import { monthDay, dayPhrase } from "../money/bills";
 import { agoPhraseLower, workoutMinutes } from "./summary";
+import { durationOf } from "../insights/analytics";
 import { setSessionOpen } from "./sessionChrome";
 import { readHealthSettings } from "../health/settings";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
@@ -344,6 +345,28 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
       <RowMenuButton onMenu={onMenu} what={day.name} />
     </div>
   );
+}
+
+/** THE LENGTH, AND WHETHER TO BELIEVE IT (2026-09-16, Dave's Program
+ *  screenshot: a recent session reading 382 MIN, stated as flatly as the date
+ *  beside it).
+ *
+ *  A session's end is stamped when Finish is tapped, so one left open -- the
+ *  app closed with it live, the phone in a locker, a finish the next morning
+ *  -- records the whole wall clock as time trained. DurationCard has said so
+ *  since the 2026-09-14 design, and can correct it; analytics.durationOf has
+ *  owned the threshold for as long. But the BROWSING rows never asked, so the
+ *  number that needed the sheet was the one thing on the row with no way to
+ *  know it did.
+ *
+ *  Nothing is capped or rewritten. The chip says the same number in the ink a
+ *  warning wears, with the word on it, and the row it sits in already opens
+ *  the sheet that fixes it. */
+function minutesChip(w: WorkoutData) {
+  const d = durationOf(w);
+  return d.flagged
+    ? <span className="se-chip se-chip-over" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}><em>Review</em>{d.activeMin} Min</span>
+    : <span className="se-chip se-chip-budget">{workoutMinutes(w)}<em>Min</em></span>;
 }
 
 function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
@@ -1843,7 +1866,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   }
   if (viewWorkout && workoutDraft) {
     const w = viewWorkout;
-    const mins = workoutMinutes(w.data);
     const dirty = JSON.stringify(workoutDraft) !== JSON.stringify(w.data.exercises);
     const closeWorkout = () => { setViewWorkout(null); setWorkoutDraft(null); };
     return (
@@ -1858,7 +1880,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             VERB). Quiet sentence-case meta like every other date line. */}
         <div className="pad-x"><div className="se-chips">
           <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
-          <span className="se-chip se-chip-budget">{mins}<em>Min</em></span>
+          {minutesChip(w.data)}
           {w.data.backdated && <span className="se-chip se-chip-skip">Logged Later</span>}
         </div></div>
         {/* THE DURATION, SHOWN AND CORRECTABLE (2026-09-14, item 9). The
@@ -3010,7 +3032,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               {recent.map((w) => {
                 const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;
                 const total = w.data.exercises.length;
-                const mins = workoutMinutes(w.data);
                 return (
                   // Tappable since 2026-08-09: these rows were inert, which
                   // made a mislogged workout permanent. The detail sheet
@@ -3030,7 +3051,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                             and the completeness fact was the last thing on it. */}
                         <div className="r-k">
                           <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
-                          <span className="se-chip se-chip-budget">{mins}<em>Min</em></span>
+                          {minutesChip(w.data)}
                           <span className={"se-chip " + (logged === total ? "se-chip-done" : "se-chip-skip")}>
                             {logged === total ? <>{total}<em>{total === 1 ? "Lift" : "Lifts"}</em></> : <>{logged}<em>of {total}</em></>}
                           </span>

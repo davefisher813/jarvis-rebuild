@@ -4,6 +4,7 @@ import type { Workout } from "../gym/types";
 import type { MetricDef, MetricLog } from "../gym/metrics";
 import { hueForMetric, type HueKind } from "./hue";
 import { workoutMinutes } from "../gym/summary";
+import { durationOf } from "../insights/analytics";
 import { capAfterNumber } from "../shared/casing";
 
 // TODAY'S LOG, IN ORDER (Health Push C, H-48, Dave's picks 2026-09-12). One
@@ -73,7 +74,11 @@ export function chronologicalLog(inp: LogInputs): LogRow[] {
   for (const e of inp.pointAtIt) if (inDay(e.data.at)) rows.push({ id: "pa-" + e.id, kind: "discomfort", title: "Discomfort", at: e.data.at, detail: null, open: { kind: "pointAtIt" } });
   for (const w of inp.workouts) {
     if (w.data.date !== inp.day) continue;
-    rows.push({ id: "w-" + w.id, kind: "sets", title: w.data.dayName, at: w.data.endedAt, detail: capAfterNumber(`${workoutMinutes(w.data)} min`), open: { kind: "workout", id: w.id } });
+    // A LENGTH WORTH A LOOK SAYS SO HERE TOO (2026-09-16). durationOf owns
+    // the threshold; a session left open records the whole wall clock, and
+    // this row is the one place in Health the number appears at all.
+    const d = durationOf(w.data);
+    rows.push({ id: "w-" + w.id, kind: "sets", title: w.data.dayName, at: w.data.endedAt, detail: capAfterNumber(`${workoutMinutes(w.data)} min`) + (d.flagged ? " · Worth Reviewing" : ""), open: { kind: "workout", id: w.id } });
   }
   const defById = new Map(inp.metricDefs.map((d) => [d.id, d] as const));
   for (const l of inp.metricLogs) {
