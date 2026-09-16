@@ -189,6 +189,45 @@ export function loadWindowsMirror(storage: Pick<Storage, "getItem"> = localStora
 export function saveWindowsMirror(on: boolean, storage: Pick<Storage, "setItem"> = localStorage): void {
   try { storage.setItem(MIRROR_KEY, on ? "1" : "0"); } catch { /* private mode */ }
 }
+// OPEN ANYWAY MEANS OPEN (Dave 2026-09-16: "if I open up my email outside
+// the time window it shouldn't close every single time I switch screens").
+//
+// It did, and the reason is structural rather than a mistake in the door:
+// AppShell renders the tab as `{active === "messages" && <MessagesFlow/>}`,
+// so Email to Today and back is a full unmount, and `peeked` was React
+// state. "This visit" meant "this mount", which is a far shorter thing than
+// a person means by it.
+//
+// The peek now lasts until the curtain would lift on its own: the next time
+// a window opens. That is the honest end of "I am working outside my
+// windows right now", it needs no new setting, and it cannot leak into
+// tomorrow because the next opening is always sooner than that.
+const PEEK_KEY = "jarvis.mail.peek.v1";
+
+export function loadPeek(now = Date.now(), storage: Pick<Storage, "getItem"> = localStorage): boolean {
+  try {
+    const until = Number(storage.getItem(PEEK_KEY) || "0");
+    return Number.isFinite(until) && until > now;
+  } catch {
+    return false;
+  }
+}
+
+export function savePeek(untilMs: number, storage: Pick<Storage, "setItem"> = localStorage): void {
+  try { storage.setItem(PEEK_KEY, String(Math.round(untilMs))); } catch { /* private mode */ }
+}
+
+export function clearPeek(storage: Pick<Storage, "removeItem"> = localStorage): void {
+  try { storage.removeItem(PEEK_KEY); } catch { /* private mode */ }
+}
+
+/** When a peek taken now should end: the next opening, or four hours if the
+ *  settings can name no opening at all. */
+export function peekUntil(w: WindowSettings, now = new Date()): number {
+  const next = nextOpen(w, now);
+  return next ? next.getTime() : now.getTime() + 4 * 3600e3;
+}
+
 /** Windows in the mirror's shape: exactly {on, windows, days}, nothing else. */
 export function windowsForMirror(w: WindowSettings): WindowSettings {
   return { on: w.on, windows: sortW(w.windows).map((x) => ({ startMin: x.startMin, minutes: x.minutes })), days: [...w.days] };

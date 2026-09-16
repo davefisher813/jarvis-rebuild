@@ -223,3 +223,125 @@ describe("EMAIL law 2: every manual task path asks for an existing task first", 
     guardedBefore(FLOW, "const id = await tasks.createTask(laterTaskTitle(displayName(r.from), r.subject), {", "the Later picker");
   });
 });
+
+// ---------------------------------------------------------------------------
+// THE 2026-09-16 MAIL RULINGS (Dave, on two screenshots of an interview
+// thread). Three complaints, three laws, each written the session its fix
+// landed and each proven to bite before it shipped.
+// ---------------------------------------------------------------------------
+
+// "this should be EXTREMELY easy to add to the Jarvis calendar ... But I care
+// more about it NOT automatically saving in my Jarvis calendar. That's the
+// entire point of it being able to read my emails. It should take ACTION if I
+// want it to."
+//
+// Reading his mail earns the OFFER. It is not a licence to write to his
+// calendar. The event exists only after the tap, and the whole difference
+// between the two is one line of code, so the line is nailed down here.
+describe("EMAIL law 9: a meeting the mail mentions is filed only on the tap", () => {
+  const CARD = read(join(SRC, "messages/ThreadStateCard.tsx"));
+  it("the brief's meeting has exactly one writer, and it is the tap handler", () => {
+    const at = FLOW.indexOf("const addMeetingToCalendar =");
+    expect(at, "the tap handler exists").toBeGreaterThan(-1);
+    const body = FLOW.slice(at, FLOW.indexOf("\n  };", at));
+    expect(body, "and it is what writes the event").toMatch(/scheduleSvc\.createEvent\(m\.title/);
+    // Nowhere else in the screen may write an event out of a brief.
+    expect(FLOW.match(/createEvent\(m\.title/g)?.length, "one meeting writer").toBe(1);
+  });
+  it("nothing schedules it: no effect and no timer reaches the writer", () => {
+    // Every call site of the writer must sit in a handler the person
+    // pressed. An effect or a timeout around it would be the automatic
+    // save he explicitly did not want.
+    for (const m of FLOW.matchAll(/addMeetingToCalendar\(/g)) {
+      const before = FLOW.slice(Math.max(0, m.index - 400), m.index);
+      const decl = /const addMeetingToCalendar =\s*$/.test(before.trimEnd() + "");
+      if (decl) continue;
+      expect(before, "a call to the writer sits inside an effect or a timer")
+        .not.toMatch(/useEffect\(|setTimeout\(|setInterval\(/);
+    }
+    // And the card itself has no lifecycle at all: it cannot fire the offer
+    // for him on render.
+    expect(CARD, "ThreadStateCard runs an effect").not.toMatch(/useEffect/);
+  });
+  it("opening the thread only LOOKS for an event, it never makes one", () => {
+    const at = FLOW.indexOf("const findFiledMeeting =");
+    expect(at).toBeGreaterThan(-1);
+    const body = FLOW.slice(at, FLOW.indexOf("\n  }, [scheduleSvc]);", at));
+    expect(body, "the load-time check writes").not.toMatch(/createEvent|updateEvent|deleteEvent/);
+    expect(body, "and it reads one day, not a scan").toMatch(/eventsOn\(m\.date\)/);
+  });
+});
+
+// "if I open up my email outside of the time window it shouldn't close every
+// single time I switch screens."
+//
+// AppShell mounts the mail tab as `{active === "messages" && <MessagesFlow/>}`,
+// so every tab switch is a full unmount. A peek held in component state died
+// with it and the curtain came back down. The peek is stored, with an expiry,
+// so the habit still re-forms at the next opening.
+describe("EMAIL law 10: Open Anyway outlives the tab switch", () => {
+  it("the peek is read from the store, not from a fresh false", () => {
+    expect(FLOW).toMatch(/const \[peeked, setPeeked\] = useState\(\(\) => loadPeek\(\)\)/);
+    expect(FLOW, "the peek must never be seeded as plain component state")
+      .not.toMatch(/useState\(false\)[^\n]*peek/i);
+  });
+  it("and opening the curtain writes it with an end", () => {
+    const at = FLOW.indexOf("const openAnyway =");
+    expect(at).toBeGreaterThan(-1);
+    const body = FLOW.slice(at, FLOW.indexOf("\n  };", at));
+    expect(body).toMatch(/savePeek\(peekUntil\(windows/);
+  });
+  it("the peek ends: it is a window, not a switch that stays off", () => {
+    const B = read(join(SRC, "messages/batching.ts"));
+    const at = B.indexOf("export function loadPeek");
+    expect(at).toBeGreaterThan(-1);
+    expect(B.slice(at, at + 400), "loadPeek must compare the stored end to now")
+      .toMatch(/until > now/);
+    // Turning the windows off entirely clears it rather than leaving a
+    // stale end behind for the next time they are turned on.
+    expect(FLOW).toMatch(/if \(!next\.on\) \{ clearPeek\(\); setPeeked\(false\); \}/);
+  });
+});
+
+// "It also shouldn't need to read my emails every time I go back to the
+// screen it's killing api usage."
+//
+// The mount had no freshness gate at all: about 93 Gmail requests per visit,
+// per account. Each pass now keeps its own clock, and only a deliberate
+// refresh ignores them.
+describe("EMAIL law 11: a return to the screen is not a reason to re-read the mail", () => {
+  it("the inbox load answers from cache while its last read is fresh", () => {
+    expect(FLOW).toMatch(/if \(!force && max === undefined && isFresh\("threads"\)\) \{/);
+    const at = FLOW.indexOf('if (!force && max === undefined && isFresh("threads"))');
+    const branch = FLOW.slice(at, at + 900);
+    expect(branch, "and paints the rows it already has").toMatch(/loadRows\(\)/);
+    // Cached is not sorted. Rows that came back without a request say
+    // nothing about whether they have been triaged, and only runTriage may
+    // answer that: asserting it here put unsorted mail under For You.
+    expect(branch, "the cache path declares the sort done itself")
+      .not.toMatch(/setTriaged\(true\)|setTriageState\("ready"\)/);
+    expect(branch, "it must hand the question to runTriage").toMatch(/void runTriage\(cached\.rows\)/);
+  });
+  it("every expensive satellite keeps its own clock", () => {
+    for (const kind of ["waiting", "sweep", "meetings"]) {
+      expect(FLOW, kind + " must be gated on its own freshness")
+        .toMatch(new RegExp('force \\|\\| !isFresh\\("' + kind + '"\\)'));
+    }
+    expect(FLOW, "drafts too").toMatch(/!draftsLoaded && !isFresh\("drafts"\)/);
+  });
+  it("a deliberate refresh always wins", () => {
+    // Pull to refresh, Try Again and Load More all force the read.
+    expect(FLOW).toMatch(/void loadThreads\(undefined, true\)/);
+    expect(FLOW).toMatch(/loadThreads\(pageRef\.current \+ MAIL_PAGE, true\)/);
+  });
+  it("a write that changed the inbox drops what it invalidated", () => {
+    expect(FLOW).toMatch(/invalidateReads\(\["waiting", "sweep"\]\)/);
+  });
+  it("a cached read may be stale but never old enough to be a lie", () => {
+    const C = read(join(SRC, "messages/mailCache.ts"));
+    expect(C).toMatch(/export const ROWS_MAX_AGE_MS/);
+    const at = C.indexOf("export function loadRows");
+    expect(C.slice(at, at + 700), "loadRows must refuse rows past the max age")
+      .toMatch(/now - p\.ts > ROWS_MAX_AGE_MS \|\| now < p\.ts/);
+  });
+});

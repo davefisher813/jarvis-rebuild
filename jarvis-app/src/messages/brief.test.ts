@@ -93,3 +93,71 @@ describe("the thread state card", () => {
     expect(b.replies).toHaveLength(2);
   });
 });
+
+// THE CONFIRMED MEETING (Dave 2026-09-16: "this should be EXTREMELY easy to
+// add to the Jarvis calendar"). This one writes to a calendar, so the parser
+// is strict: anything it cannot fully resolve is dropped whole rather than
+// offered with a guessed date.
+import { parseMeeting } from "./brief";
+describe("parseMeeting", () => {
+  const good = { title: "GM interview", date: "2026-09-21", start: "15:00", durationMin: 45 };
+
+  it("takes a fully resolved time and computes its end", () => {
+    expect(parseMeeting(good)).toEqual({ title: "GM interview", date: "2026-09-21", start: "15:00", end: "15:45" });
+    // An unstated duration is an hour, which is the prompt's own default.
+    expect(parseMeeting({ ...good, durationMin: undefined })?.end).toBe("16:00");
+  });
+
+  it("drops anything it cannot fully resolve, rather than guessing", () => {
+    for (const bad of [
+      null, undefined, "Monday at 3", [],
+      { ...good, title: "" },
+      { ...good, date: "Monday" },
+      { ...good, date: "2026-9-21" },
+      { ...good, start: "3pm" },
+      { ...good, start: "25:00" },
+      { ...good, date: undefined },
+      { ...good, start: undefined },
+    ]) {
+      expect(parseMeeting(bad), JSON.stringify(bad)).toBeNull();
+    }
+  });
+
+  it("refuses a well-shaped string that is not a real day", () => {
+    expect(parseMeeting({ ...good, date: "2026-02-31" })).toBeNull();
+    expect(parseMeeting({ ...good, date: "2026-13-01" })).toBeNull();
+  });
+
+  it("clamps a runaway duration and never runs past midnight", () => {
+    expect(parseMeeting({ ...good, durationMin: 99999 })?.end).toBe("23:59");
+    expect(parseMeeting({ ...good, start: "23:30", durationMin: 120 })?.end).toBe("23:59");
+    // A duration below the floor is raised rather than producing a zero-length event.
+    expect(parseMeeting({ ...good, durationMin: 1 })?.end).toBe("15:15");
+  });
+
+  it("a brief with a malformed meeting still carries everything else", () => {
+    const b = parseBrief(JSON.stringify({
+      summary: "Interview confirmed", replies: ["Thanks"],
+      state: "scheduled", agreed: ["Interview set for Monday at 3pm"],
+      meeting: { title: "GM interview", date: "next Monday", start: "15:00" },
+    }));
+    expect(b?.summary).toBe("Interview confirmed");
+    expect(b?.agreed).toEqual(["Interview set for Monday at 3pm"]);
+    expect(b?.meeting, "an unresolvable date is not a calendar entry").toBeUndefined();
+  });
+
+  it("a brief with a good meeting carries it through", () => {
+    const b = parseBrief(JSON.stringify({
+      summary: "Interview confirmed", replies: [],
+      meeting: good,
+    }));
+    expect(b?.meeting).toEqual({ title: "GM interview", date: "2026-09-21", start: "15:00", end: "15:45" });
+  });
+
+  it("the prompt asks only for a settled time, and says today so a weekday resolves", () => {
+    const p = briefPrompt("AJ: Monday at 3pm works", "2026-09-16");
+    expect(p).toContain("Today is 2026-09-16");
+    expect(p).toMatch(/BOTH sides have settled on/);
+    expect(p).toMatch(/Leave it out entirely if the time is only PROPOSED/);
+  });
+});

@@ -724,6 +724,26 @@ He was right twice. Start booked a fifteen-minute calendar block and called that
 
 **ONE WORKSPACE PER THING, FOREVER (2026-09-16).** `jarvis.start.session.v1` is keyed by the entity, not the tap, so opening the same task ten times leaves one draft. A workspace opened and left empty takes no seat at all, so nothing offers to resume nothing. Leaving suggests a stopping point from the real last line written, and never demands one before letting him go.
 
+## §AI. Mail takes action, and stops re-reading itself (V4.27, Dave 2026-09-16, on two screenshots of an interview thread)
+
+Four complaints in one message, about the same screen: the **Where This Stands** card "look[s] awful"; a confirmed interview time "should be EXTREMELY easy to add to the Jarvis calendar · It should take ACTION if I want it to"; the email curtain "shouldn't close every single time I switch screens"; and the tab "shouldn't need to read my emails every time I go back to the screen it's killing api usage".
+
+**THE CARD IS ORDERED BY WHAT THE READER CAME FOR (2026-09-16).** It had four text shapes stacked with no order to them. It is now: **what is true** (the state, the deadline and the next move as one `facts` line, which is the app's own shape for per-row data that is read rather than tapped), **what to do** (the calendar offer, then the decision offer, each a `row` with a capsule), **what was said** (Agreed and Still Open, behind one **More** row that owns its own line), and last **how to correct it**. The two correction chips used to sit directly under the eyebrow, where they read as the card's headline rather than as a correction to it; corrections are the rarest thing anyone does here and they now go last.
+
+**A WIDE VERB TAKES ITS OWN LINE (2026-09-16).** **Add to Calendar** is spelled out, which is wider than a card this narrow can carry beside a meeting's name. The capsule wraps to its own line, right aligned, rather than clipping the title or wrapping the time. A row never abbreviates its verb to fit.
+
+**READING HIS MAIL EARNS THE OFFER, NOT THE WRITE (2026-09-16).** A thread that settles on a time surfaces that time as a row with one capsule. The event is created **only on the tap**, with an **Undo** carrying the event's real id, and the receipt states the day and time in the app's own clock words rather than the model's phrasing. His exact ruling: he cares more about it *not* saving automatically than about the convenience. The law is scanned: no effect and no timer may reach the writer, and the card has no lifecycle of its own.
+
+**THE SAME MEETING IS NOT FILED TWICE (2026-09-16).** Opening a thread reads the meeting's own day only, looks for an event whose source is this thread, and if it finds one the row says **On your calendar** and opens it instead of offering again. The check is a read; it can never create.
+
+**A GOOGLE CALENDAR MIRROR IS NOT BUILT (2026-09-16).** He asked for the event to reach Gmail's calendar too, "if I want it to". This build's Google scopes are `calendar.readonly`, `gmail.modify` and `gmail.send`: there is no write path, no `insertEvent`, and `connections/google/config.test.ts` refuses an endpoint without a granted scope. Adding it means a new scope and a fresh consent from him. Recorded in `docs/HANDOFF.md`, Open items, not silently skipped.
+
+**A PEEK OUTLIVES THE TAB SWITCH (2026-09-16).** AppShell mounts a tab as `{active === "messages" && <MessagesFlow/>}`, so every switch is a full unmount, and a peek held in component state died with it. **Open Anyway** now lasts until the curtain would lift on its own, which is what a person means by "I am working outside my windows right now". It is a window, not a switch: the habit still re-forms at the next opening, and turning the windows off clears the peek rather than leaving a stale end behind.
+
+**THE READ HE ALREADY PAID FOR (2026-09-16).** The mount had no freshness gate at all, so a tab switch re-read the mailbox: about 93 Gmail requests per visit, per account (31 inbox, 26 drafts, 17 waiting, 17 sent sweep, 2 meetings). `messages/mailCache.ts` keeps the rows and one timestamp per pass. **Cached mail is still his mail**: a stale read paints immediately and the screen never blanks to spare a request. **A deliberate refresh always wins**: pull, **Load More**, **Try Again** and any write that changed the inbox force the read. Each satellite keeps its own clock in proportion to what it costs and how slowly its answer moves, and the sent sweep's four hours match `MailSnapshotPump`'s own.
+
+**CACHED IS NOT SORTED (2026-09-16).** Rows that came back without a request say nothing about whether they have been triaged. The cache path hands that question to `runTriage` and never answers it itself; asserting it put unsorted mail under **For You** the first time anything re-ran the load.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

@@ -30,6 +30,29 @@ export interface Brief {
   // A real decision the thread contains, in its own words. It becomes a
   // "Worth remembering?" offer, and NOTHING is written without the tap.
   decision?: string;
+  // THE THING THAT WAS ACTUALLY SET (Dave 2026-09-16: "this should be
+  // EXTREMELY easy to add to the Jarvis calendar ... That's the entire
+  // point of it being able to read my emails").
+  //
+  // A CONFIRMED time, not a proposed one: meetingTimes.ts already handles
+  // "here are three slots, pick one". This is the other half, the one the
+  // state card kept describing in prose it could not act on: "Interview set
+  // for Monday at 3pm" was sitting in `agreed` as a sentence, and putting it
+  // in the calendar meant reading it and typing it in again.
+  //
+  // It rides the brief because the brief is ALREADY one AI call per thread.
+  // A separate extractor would double the mail spend to learn something the
+  // same read already saw.
+  meeting?: ConfirmedMeeting;
+}
+
+/** A time both sides settled on, resolved against the reader's own today. */
+export interface ConfirmedMeeting {
+  /** What to call it, in the thread's words, short enough for a row. */
+  title: string;
+  date: string;   // YYYY-MM-DD
+  start: string;  // HH:MM, 24-hour
+  end: string;    // HH:MM, 24-hour
 }
 
 // The closed vocabulary. A state outside it is dropped rather than shown:
@@ -49,7 +72,12 @@ const STATES = Object.keys(THREAD_STATE_LABEL) as ThreadState[];
 // cache only invalidates when a NEW message arrives, so every thread already
 // summarised would keep an entry with no state and never get one. One
 // re-summary on the next open buys the card.
-const KEY = "jarvis.mail.brief.v2";
+// v3 (2026-09-16): the cached shape gained the confirmed meeting. Same
+// reasoning the v2 bump carried: the cache only invalidates when a NEW
+// message arrives, so every thread already summarised would keep an entry
+// with no meeting and never get one. One re-summary on the next open buys
+// the calendar offer.
+const KEY = "jarvis.mail.brief.v3";
 const CAP = 100;
 const REPLY_MAX = 6; // words
 // A WALL BEHIND THE INSTRUCTION (2026-08-25). The prompt asks for 15 words
@@ -63,9 +91,10 @@ type Cache = Record<string, Brief>;
 export const BRIEF_SYSTEM =
   "You output only a JSON object, nothing else.\n" + HOSTILE_CLAUSE;
 
-export function briefPrompt(convo: string): string {
+export function briefPrompt(convo: string, todayISO = ""): string {
   return (
     "Read this email conversation.\n\n" +
+    (todayISO ? "Today is " + todayISO + ".\n\n" : "") +
     'Reply with ONLY: {"summary":"...","replies":["...","...","..."]}\n\n' +
     // THE SAME DISEASE AS THE PREVIEWS (Dave 2026-08-25: "The subtext on
     // email previews feels a little lengthy. It should be right to the
@@ -86,7 +115,15 @@ export function briefPrompt(convo: string): string {
     "unresolved: up to 3 short fragments, each a question the thread has not answered.\n" +
     "deadline: the date or phrase somebody stated, copied in their words.\n" +
     "next: the single next action, starting with a verb, under 8 words.\n" +
-    "decision: a settled choice the thread contains, COPIED as a sentence from the text. Leave it out unless you can copy it exactly.\n\n" +
+    "decision: a settled choice the thread contains, COPIED as a sentence from the text. Leave it out unless you can copy it exactly.\n" +
+    // The confirmed meeting. Deliberately narrow: CONFIRMED only, never a
+    // proposal, because an offer to put a maybe in the calendar is how a
+    // calendar stops being trustworthy.
+    "meeting: ONLY when the thread shows a specific time BOTH sides have settled on, as " +
+    "{\"title\":\"<short name, their words>\",\"date\":\"YYYY-MM-DD\",\"start\":\"HH:MM\",\"durationMin\":<number>}. " +
+    "Use 24-hour times, resolved against today's date above. " +
+    "Leave it out entirely if the time is only PROPOSED, is one of several options, is conditional, or if you cannot resolve a real date. " +
+    "Never invent a date, a time or a duration you were not given; default the duration to 60 when unstated.\n\n" +
     // UP-MIND-06 (2026-09-05): the whole conversation is outside text.
     untrustedBlock(convo)
   );
@@ -104,7 +141,7 @@ export function parseBrief(raw: string): Brief | null {
     return null;
   }
   if (typeof o !== "object" || o === null) return null;
-  const { summary, replies, state, agreed, unresolved, deadline, next, decision } = o as Record<string, unknown>;
+  const { summary, replies, state, agreed, unresolved, deadline, next, decision, meeting } = o as Record<string, unknown>;
   const s = typeof summary === "string" ? clip(noDashes(summary.trim()), SUMMARY_MAX) : "";
   const r = Array.isArray(replies)
     ? replies.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => noDashes(x.trim())).slice(0, 3)
@@ -121,6 +158,7 @@ export function parseBrief(raw: string): Brief | null {
   const dl = typeof deadline === "string" && deadline.trim() ? noDashes(deadline.trim().slice(0, 40)) : "";
   const nx = typeof next === "string" && next.trim() ? noDashes(clip(next.trim(), 60)) : "";
   const dc = typeof decision === "string" && decision.trim() ? noDashes(decision.trim().slice(0, 200)) : "";
+  const mt = parseMeeting(meeting);
   return {
     summary: s, replies: r,
     ...(st ? { state: st } : {}),
@@ -129,7 +167,37 @@ export function parseBrief(raw: string): Brief | null {
     ...(dl ? { deadline: dl } : {}),
     ...(nx ? { next: nx } : {}),
     ...(dc ? { decision: dc } : {}),
+    ...(mt ? { meeting: mt } : {}),
   };
+}
+
+// STRICT, BECAUSE THIS ONE WRITES TO A CALENDAR. Every field has to be
+// really there and really well-formed; a half-parsed meeting is dropped
+// whole rather than offered with a guessed date. The clamps are the same
+// ones meetingTimes.ts already applies to a proposed slot.
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const ISO_DAY = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+export function parseMeeting(v: unknown): ConfirmedMeeting | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const m = v as Record<string, unknown>;
+  const title = typeof m.title === "string" ? noDashes(clip(m.title.trim(), 60)) : "";
+  const date = typeof m.date === "string" ? m.date.trim() : "";
+  const start = typeof m.start === "string" ? m.start.trim() : "";
+  if (!title || !ISO_DAY.test(date) || !HHMM.test(start)) return null;
+  // A real calendar day, not merely a well-shaped string: 2026-02-31 passes
+  // the regex and is not a date.
+  const d = new Date(date + "T00:00:00");
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== date) return null;
+  const mins = typeof m.durationMin === "number" && Number.isFinite(m.durationMin)
+    ? Math.min(600, Math.max(15, Math.round(m.durationMin)))
+    : 60;
+  const from = Number(start.slice(0, 2)) * 60 + Number(start.slice(3, 5));
+  // Clamped inside the day, the same way a window is: an event that runs
+  // past midnight is a thing this app has already ruled out.
+  const to = Math.min(24 * 60 - 1, from + mins);
+  const end = `${String(Math.floor(to / 60)).padStart(2, "0")}:${String(to % 60).padStart(2, "0")}`;
+  return { title, date, start, end };
 }
 
 // Cut at a word boundary, with the ellipsis that says it happened.

@@ -1403,3 +1403,69 @@ describe("search results belong to the newest request", () => {
     expect(screen.queryByText("Slowman")).toBeNull();
   });
 });
+
+// THE READ HE ALREADY PAID FOR (Dave 2026-09-16: "It also shouldn't need to
+// read my emails every time I go back to the screen it's killing api usage").
+//
+// AppShell mounts this tab as `{active === "messages" && <MessagesFlow/>}`, so
+// a tab switch is a full unmount and the mount used to re-read the whole
+// mailbox: roughly 93 Gmail requests per visit, per account. The second half
+// of the fix is the one below it: rows that came back without a request are
+// not thereby SORTED, and saying they were put unsorted mail under For You.
+describe("MessagesFlow (the mail cache)", () => {
+  it("a second visit paints the inbox and asks Gmail for nothing", async () => {
+    let lists = 0;
+    const counting = () => makeApi({ listThreads: async () => { lists++; return THREADS; } });
+    const first = counting();
+    const trip = render(wrap(<MessagesFlow ai={noAI} configured />, first));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
+    const paid = lists;
+    expect(paid).toBeGreaterThan(0);
+    trip.unmount();
+
+    // He switched to Today and came back. Same mail on screen, no request.
+    render(wrap(<MessagesFlow ai={noAI} configured />, counting()));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
+    expect(lists, "the inbox was re-read on a return visit").toBe(paid);
+  });
+
+  it("a deliberate refresh always reads, however fresh the cache is", async () => {
+    let lists = 0;
+    const counting = () => makeApi({ listThreads: async () => { lists++; return THREADS; } });
+    const trip = render(wrap(<MessagesFlow ai={noAI} configured />, counting()));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Ridgeley");
+    const paid = lists;
+    trip.unmount();
+
+    render(wrap(<MessagesFlow ai={noAI} configured />, counting()));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Ridgeley");
+    expect(lists).toBe(paid);
+    // Load More is a thing he pressed, and it reads.
+    fireEvent.click(screen.getByText("Load More"));
+    await waitFor(() => expect(lists).toBeGreaterThan(paid));
+  });
+
+  it("rows that cost nothing are still not sorted mail", async () => {
+    // A sort that never finishes, over a warm row cache. The rows are his,
+    // so they paint; whether they belong under For You is a different
+    // question, and the honest answer while the sort runs is the calm state.
+    const hanging = new AIService({
+      available: true,
+      getToken: () => "tok",
+      fetchImpl: (() => new Promise(() => {})) as unknown as typeof fetch,
+    });
+    const trip = render(wrap(<MessagesFlow ai={noAI} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Ridgeley");
+    trip.unmount();
+
+    render(wrap(<MessagesFlow ai={hanging} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    expect(await screen.findByText("Reading Your Inbox")).toBeInTheDocument();
+    expect(screen.queryByText("Ridgeley"), "unsorted mail under For You").toBeNull();
+  });
+});

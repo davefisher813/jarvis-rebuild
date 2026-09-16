@@ -1193,6 +1193,32 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    account, about) pads itself; this one now does too. */
 .msg-summary { padding: var(--s-4); margin-bottom: var(--s-3); }
 .msg-summary-text { margin-top: var(--s-1h); color: var(--tx-1); line-height: 1.5; }
+/* WHERE THIS STANDS, rebuilt 2026-09-16. Four stacked text shapes with no
+   order became: one facts line for what is true, full-width rows for what
+   to do, one row that owns the More control, and the correction last. */
+.msg-stands-facts { margin-top: var(--s-1h); margin-bottom: var(--s-1); }
+.msg-stands-facts .fact.strong { color: var(--tx-1); font-weight: var(--w-semi); }
+.msg-stands-by { color: inherit; font-size: inherit; }
+/* An offer inside the card: a hairline above it so it reads as a separate
+   thing to do rather than more of the sentence above. */
+/* The verb is spelled out ("Add to Calendar"), which is wider than a row
+   this narrow can carry beside a title. The action takes its own line,
+   right aligned, so neither the meeting's name nor its time is clipped. */
+.msg-stands-act { border-top: 0.5px solid var(--divider); padding-left: 0; padding-right: 0; flex-wrap: wrap; }
+.msg-stands-act > .row-grow { flex-basis: 100%; }
+.msg-stands-act > .pill-act, .msg-stands-act > .msg-stands-done { margin-left: auto; margin-top: var(--s-1h); }
+.msg-stands-done { flex-shrink: 0; }
+.msg-stands-more { border-top: 0.5px solid var(--divider); padding-left: 0; padding-right: 0; }
+/* The detail sits at the card's own edge. It used to carry .pad-x, which
+   indented it against every line above it. */
+.msg-stands-detail { padding-bottom: var(--s-2); }
+/* A head inside a card is a label, not a section: the dotted rule .sh2 draws
+   was wider than the words it introduced. */
+.msg-stands-head { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-3);
+  text-transform: uppercase; letter-spacing: .06em; padding-top: var(--s-2); padding-bottom: 2px; }
+.msg-stands-fix { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
+  flex-wrap: wrap; border-top: 0.5px solid var(--divider); padding-top: var(--s-2); margin-top: var(--s-1); }
+.msg-stands-fix .msg-override { margin-top: 0; margin-bottom: 0; }
 .msg-body { white-space: pre-wrap; color: var(--tx-1); line-height: 1.5; }
 .msg-quick { display: flex; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
 .msg-actions { display: flex; gap: var(--s-2); margin-top: var(--s-3); }

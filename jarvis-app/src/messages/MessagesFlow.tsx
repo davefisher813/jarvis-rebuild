@@ -30,7 +30,8 @@ import MailSwipe from "./MailSwipe";
 import LetGoSwipe from "./LetGoSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
 import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY, type Unsub } from "./unsubscribe";
-import { BRIEF_SYSTEM, briefPrompt, parseBrief, briefFor, saveBrief } from "./brief";
+import { BRIEF_SYSTEM, briefPrompt, parseBrief, briefFor, saveBrief, type ConfirmedMeeting } from "./brief";
+import { loadRows, saveRows, mirrorRows, isFresh, markRead, invalidate as invalidateReads } from "./mailCache";
 import { emit } from "../events";
 import { usePushDepth } from "../shared/pushNav";
 import { Burst } from "../shared/Burst";
@@ -52,7 +53,7 @@ import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, forwardDraf
 import { alreadyPromised, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import EvidenceChip from "./EvidenceChip";
-import ThreadStateCard from "./ThreadStateCard";
+import ThreadStateCard, { whenLine } from "./ThreadStateCard";
 import DecisionCaptureSheet from "../decisions/DecisionCaptureSheet";
 import { anchorNeedsYou, needsAnchor, ANCHOR_CAP } from "./evidencePass";
 import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
@@ -134,7 +135,7 @@ import { attachOffer, amountIn } from "./attachmentKind";
 import { enqueueOutbox, removeFromOutbox, patchOutbox, holdUntil, sendSlots, holdLine, whenLabel, INTERRUPTED_LINE, type OutboxItem } from "./outbox";
 import { useOutbox } from "./useOutbox";
 import { subscribeSent } from "./sendPump";
-import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, windowStatusLine, loadWindowsMirror, saveWindowsMirror, type WindowSettings } from "./batching";
+import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, windowStatusLine, loadWindowsMirror, saveWindowsMirror, loadPeek, savePeek, clearPeek, peekUntil, type WindowSettings } from "./batching";
 import WindowsSheet from "./WindowsSheet";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
 import { saidEmpty, askSaid } from "./saidWhat";
@@ -747,9 +748,30 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   }, [ai]);
 
-  const loadThreads = useCallback(async (max?: number) => {
+  const loadThreads = useCallback(async (max?: number, force = false) => {
     const list = g.apis("mail");
     if (list.length === 0) return;
+    // THE READ HE ALREADY PAID FOR (2026-09-16). A tab switch remounts this
+    // whole screen, and the mount used to re-read the mailbox every time:
+    // about 93 Gmail requests per visit, per account. While the last read
+    // is still fresh the cached rows are the answer, and not one request is
+    // made. Anything deliberate (Load More, Try Again, a write that changed
+    // the inbox) passes force and always reads.
+    if (!force && max === undefined && isFresh("threads")) {
+      const cached = loadRows();
+      if (cached) {
+        pageRef.current = cached.page;
+        setRows(cached.rows);
+        setTriage(loadTriageCache());
+        // CACHED IS NOT SORTED. The rows come back without a request; whether
+        // they are SORTED is a separate question with its own cache, and only
+        // runTriage may answer it. Declaring "ready" here put unsorted mail
+        // under For You the moment anything re-ran this load.
+        void runTriage(cached.rows);
+        setLoading(false);
+        return;
+      }
+    }
     // EMAIL-F-18 (2026-09-05): the page size is state now, not the literal
     // 30 that used to be the whole inbox as far as this screen knew. A ref
     // rather than a dep so Load More can raise it without rebuilding the
@@ -804,11 +826,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // Everything, only when every account said so and none of them failed.
       setAtEnd(failures.length === 0 && good.every((p) => p.all));
       setRows(mapped);
+      saveRows(mapped, want);
+      markRead("threads");
       setTriage(loadTriageCache());
       void runTriage(mapped);
-      void loadWaiting();
-      void runSweep();
-      void findMeetings(splitByBucket(mapped, loadTriageCache()).needsYou);
+      // Each satellite costs its own pile of requests and answers a question
+      // that moves far more slowly than the inbox does, so each one keeps
+      // its own clock rather than riding the inbox's.
+      if (force || !isFresh("waiting")) { markRead("waiting"); void loadWaiting(); }
+      if (force || !isFresh("sweep")) { markRead("sweep"); void runSweep(); }
+      if (force || !isFresh("meetings")) {
+        markRead("meetings");
+        void findMeetings(splitByBucket(mapped, loadTriageCache()).needsYou);
+      }
     } catch (e) {
       setError(humanError(e, "Could not load mail"));
     } finally {
@@ -820,12 +850,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g.apis, runTriage]);
 
+  // THE CACHE FOLLOWS THE LIST (2026-09-16). Archive, trash and Close It Out
+  // all edit `rows` in place, and a cache that missed them would hand back
+  // mail he has already dealt with on the next visit. The timestamp is not
+  // touched: none of this was a fresh read, so the next expiry is still owed.
+  useEffect(() => { if (rows.length > 0) mirrorRows(rows); }, [rows]);
+
   // EMAIL-F-18 (2026-09-05): the floor tells the truth about which of the two
   // things it is. "That's everything." is a statement about his inbox, and
   // this screen only earns it once every account has answered with fewer
   // threads than it asked for. Until then the floor says what it is showing
   // and offers the next page, which is also the only way to reach thread 31.
-  const loadMore = () => void loadThreads(pageRef.current + MAIL_PAGE);
+  const loadMore = () => void loadThreads(pageRef.current + MAIL_PAGE, true);
   const mailFloor = () => (atEnd ? <ListFloor /> : (
     <ListFloor>
       <>
@@ -1289,6 +1325,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         account: email,
       })));
       setDraftsLoaded(true);
+      markRead("drafts");
     } catch (e) {
       setError(humanError(e, "Could not load drafts"));
     } finally {
@@ -1308,7 +1345,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // being remembered when you are NOT looking for it. Once per visit, 25
   // metadata rows per account, beside the inbox load.
   useEffect(() => {
-    if (g.hasToken && !draftsLoaded) void loadDrafts();
+    // EMAIL (2026-09-16): draftsLoaded is React state, so it de-duped within
+    // one mount and never across them, and a tab switch re-listed every
+    // draft (1 + up to 25 gets per account). The clock survives the unmount.
+    if (g.hasToken && !draftsLoaded && !isFresh("drafts")) void loadDrafts();
   }, [g.hasToken, draftsLoaded, loadDrafts]);
 
   // Arriving from a home-page notice: open that exact thread once the inbox
@@ -1752,11 +1792,29 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   // EMAIL WINDOWS. A curtain, never a lock: one tap opens it anyway, with no
-  // friction and no scolding. "Peeked" lasts for this visit only, so the
-  // habit re-forms next time rather than being permanently switched off by
-  // one impatient moment.
+  // friction and no scolding.
+  //
+  // A peek used to last "this visit", where a visit meant this MOUNT, and a
+  // tab switch unmounts the whole screen: he opened anyway, went to Today,
+  // came back, and the door was shut again (Dave 2026-09-16). It lasts until
+  // the curtain would lift on its own now, which is what a person means by
+  // "I am working outside my windows right now". The habit still re-forms
+  // at the next opening rather than being switched off.
   const [windows, setWindows] = useState(() => loadWindows());
-  const [peeked, setPeeked] = useState(false);
+  // The peek survives the unmount a tab switch causes (batching.ts).
+  const [peeked, setPeeked] = useState(() => loadPeek());
+  const openAnyway = () => {
+    savePeek(peekUntil(windows, new Date()));
+    setPeeked(true);
+  };
+  // THE MEETING THE THREAD SETTLED ON (Dave 2026-09-16: "this should be
+  // EXTREMELY easy to add to the Jarvis calendar ... It should take ACTION
+  // if I want it to").
+  //
+  // Read on opening a thread, written only on the tap. "already" is set
+  // when an event made from THIS thread is found on the meeting's own day,
+  // so a second visit offers to open it rather than filing it twice.
+  const [calState, setCalState] = useState<"none" | "added" | "already">("none");
   const [editWindows, setEditWindows] = useState(false);
   // E-14: the sheet's Save also carries the mirror choice; a change to
   // either is pushed to the profile so an opted-in device sees it next load.
@@ -1766,7 +1824,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     saveWindows(next);
     if (mirror !== undefined) { setWindowsMirror(mirror); saveWindowsMirror(mirror); }
     setEditWindows(false);
-    if (!next.on) setPeeked(false);
+    if (!next.on) { clearPeek(); setPeeked(false); }
     mirrorMail();
   };
   const curtained = windows.on && !peeked && !isOpenNow(windows, new Date());
@@ -1908,6 +1966,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       ...(personIdFor(draft.to.split(",")[0]?.trim()) ? { personId: personIdFor(draft.to.split(",")[0]?.trim())! } : {}),
     };
     enqueueOutbox(item);
+    // A sent mail changes who owes whom, so the two passes that answer that
+    // stop being fresh (2026-09-16).
+    invalidateReads(["waiting", "sweep"]);
     clearLocalDraft(draftKey(editingDraftId)); // E-26: queued, so the safety copy goes
     setView("list");
   };
@@ -1967,6 +2028,46 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     say("Discarded", { label: "Undo", run: () => enqueueOutbox(item) });
   };
 
+  // THE TAP THAT FILES IT (Dave 2026-09-16). One event, from the time the
+  // thread settled on, stamped with the thread it came from so it can say
+  // where it came from later and so a second visit can find it.
+  //
+  // Nothing here runs on its own. Reading his mail is what earns the OFFER;
+  // it is not a licence to write to his calendar, and the whole point he
+  // made is that the app should take action when he wants it to.
+  const addMeetingToCalendar = async (threadId: string, m: ConfirmedMeeting) => {
+    if (!scheduleSvc) { say("A calendar isn't connected"); return; }
+    // The id has to come back for the Undo, and attemptWrite answers with a
+    // boolean, so the id rides out through the closure the way TodayFlow's
+    // own creates already do.
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => {
+      id = await scheduleSvc.createEvent(m.title, {
+        date: m.date, start: m.start, end: m.end,
+        source: madeBy("email", threadId),
+      });
+    });
+    if (!ok || !id) { say("Couldn't add it \u00b7 Nothing was saved"); return; }
+    const eventId: string = id;
+    setCalState("added");
+    say("On your calendar \u00b7 " + whenLine(m, todayISO()), {
+      label: "Undo",
+      run: () => void (async () => {
+        await scheduleSvc.deleteEvent(eventId).catch(() => {});
+        setCalState("none");
+      })(),
+    });
+  };
+
+  /** Is this thread's meeting already filed? Read from the meeting's own
+   *  day only, so the check costs one local query and never a scan. */
+  const findFiledMeeting = useCallback(async (threadId: string, m: ConfirmedMeeting): Promise<string | null> => {
+    if (!scheduleSvc) return null;
+    const events = await scheduleSvc.eventsOn(m.date).catch(() => []);
+    const hit = events.find((e) => e.data.source?.type === "email" && e.data.source.ref === threadId);
+    return hit?.id ?? null;
+  }, [scheduleSvc]);
+
   // UP-MIND-12 (2026-09-05): `focusMsgId` is the message an evidence chip
   // pointed at. The thread opens scrolled to it and marks it, so "show me
   // where that came from" lands on the sentence rather than on the thread.
@@ -1983,6 +2084,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setAttachDone(false);
     setSummary(null);
     setReplies(DEFAULT_ANSWERS);
+    // A new thread, a fresh answer about the calendar. Set on EVERY open so
+    // the last thread's "Added" cannot be read as this one's.
+    setCalState("none");
     try {
       const full = mapThreadFull(await api.getThread(id));
       if (full.messages.length === 0) return;
@@ -2011,15 +2115,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (cached) {
         setSummary(cached.summary || null);
         if (cached.replies.length) setReplies(cached.replies);
+        // Already filed? Asked once per open, against the meeting's own day.
+        if (cached.meeting) void findFiledMeeting(id, cached.meeting).then((hit) => { if (hit) setCalState("already"); });
       } else if (ai.available) {
         const convo = full.messages.slice(-4).map((m) => m.from + ": " + cleanBody(m.body).slice(0, 1200)).join("\n---\n");
         if (convo.trim()) {
           try {
-            const brief = parseBrief(await ai.complete([{ role: "user", content: briefPrompt(convo) }], BRIEF_SYSTEM));
+            // todayISO is what resolves "Monday at 3pm" into a real date.
+            const brief = parseBrief(await ai.complete([{ role: "user", content: briefPrompt(convo, todayISO()) }], BRIEF_SYSTEM));
             if (brief) {
               saveBrief(lastId, brief);
               setSummary(brief.summary || null);
               if (brief.replies.length) setReplies(brief.replies);
+              if (brief.meeting) void findFiledMeeting(id, brief.meeting).then((hit) => { if (hit) setCalState("already"); });
             }
           } catch { /* the thread still reads fine without either */ }
         }
@@ -2989,7 +3097,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           clearClosedBatch();
           setClosedBatch(null);
           setCloseDone(false);
-          void loadThreads();
+          void loadThreads(undefined, true);
         }
         say(settleLine(put.ok.length, put.failed.length, RESTORE_WORDS));
       } finally {
@@ -3194,7 +3302,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 hatch being quiet. */}
             {/* E-13: the sheet promises "Open Anyway always works"; the
                 button says the same words. */}
-            <button className="btn btn-secondary" onClick={() => setPeeked(true)}>Open Anyway</button>
+            <button className="btn btn-secondary" onClick={openAnyway}>Open Anyway</button>
             <button className="quiet-action" onClick={() => setEditWindows(true)}>Adjust My Windows</button>
           </div>
           <div className="mail-door-who">You close email outside your windows</div>
@@ -3202,7 +3310,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         {vipRows.length > 0 && (
           <div className="pad-x"><div className="card list-card-ruled">
             {vipRows.map((r) => (
-              <div className="row" {...pressable(() => { setPeeked(true); void openThread(r.id); })} key={r.id}>
+              <div className="row" {...pressable(() => { openAnyway(); void openThread(r.id); })} key={r.id}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{displayName(r.from)}</div>
                   <div className="conn-meta truncate">VIP · {r.subject}</div>
@@ -3494,6 +3602,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 defaultOpen={fromLedger}
                 onOpenSource={(msgId) => setFocusMsg(msgId)}
                 onRemember={(decision) => setKeepDecision({ decision, threadId: thread.id })}
+                calendarState={calState}
+                {...(scheduleSvc ? { onAddToCalendar: (m: ConfirmedMeeting) => void addMeetingToCalendar(thread.id, m) } : {})}
                 {...(triaged ? {
                   override: overrides[thread.id] ?? null,
                   // E-16: this thread only. No sender rule is written here;
@@ -4205,7 +4315,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="empty-title">Couldn’t Reach Your Mail</div>
           <div className="empty-sub">Nothing lost · Nothing here was changed</div>
           <div className="conn-action">
-            <button className="btn btn-secondary btn-block" onClick={() => void loadThreads()}>Try Again</button>
+            <button className="btn btn-secondary btn-block" onClick={() => void loadThreads(undefined, true)}>Try Again</button>
             {onOpenConnections && <button className="quiet-action" onClick={onOpenConnections}>Open Connections</button>}
           </div>
         </div></div></div>

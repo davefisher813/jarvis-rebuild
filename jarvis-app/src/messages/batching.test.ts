@@ -163,3 +163,46 @@ describe("windowStatusLine", () => {
     expect(windowStatusLine(w, at(18))).toBe("Opens again at 9\u00a0AM tomorrow");
   });
 });
+
+// OPEN ANYWAY MEANS OPEN (Dave 2026-09-16: "if I open up my email outside
+// the time window it shouldn't close every single time I switch screens").
+import { loadPeek, savePeek, clearPeek, peekUntil } from "./batching";
+describe("the peek survives a tab switch", () => {
+  function mem() {
+    const m = new Map<string, string>();
+    return {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => { m.set(k, v); },
+      removeItem: (k: string) => { m.delete(k); },
+    };
+  }
+
+  it("lasts until the moment it was given, and not past it", () => {
+    const s = mem();
+    expect(loadPeek(1000, s), "nothing saved is not a peek").toBe(false);
+    savePeek(2000, s);
+    expect(loadPeek(1999, s)).toBe(true);
+    expect(loadPeek(2000, s), "the peek ends when the window opens").toBe(false);
+    clearPeek(s);
+    expect(loadPeek(1500, s)).toBe(false);
+  });
+
+  it("ends at the next opening, so it cannot leak into another day", () => {
+    // Weekdays at 9, 13 and 17, and it is Monday at 11 PM.
+    const w = { on: true, windows: [{ startMin: 9 * 60, minutes: 45 }, { startMin: 13 * 60, minutes: 45 }, { startMin: 17 * 60, minutes: 45 }], days: [1, 2, 3, 4, 5] };
+    const monday11pm = new Date(2026, 8, 14, 23, 0, 0);
+    const until = new Date(peekUntil(w, monday11pm));
+    // Tuesday 9 AM: the next time the curtain would lift on its own.
+    expect(until.getDate()).toBe(15);
+    expect(until.getHours()).toBe(9);
+    expect(until.getTime()).toBeGreaterThan(monday11pm.getTime());
+  });
+
+  it("falls back to a bounded window when the settings name no opening", () => {
+    const none = { on: true, windows: [], days: [] };
+    const now = new Date(2026, 8, 14, 23, 0, 0);
+    const until = peekUntil(none, now);
+    expect(until).toBeGreaterThan(now.getTime());
+    expect(until - now.getTime()).toBeLessThanOrEqual(4 * 3600e3);
+  });
+});
