@@ -337,6 +337,11 @@ export function homeSections(items: TaskItem[], today: string, now: string, hori
   const out: HomeSections = { now: [], laterToday: [], upcoming: [], unscheduled: [], paused: [], completed: [] };
   for (const it of items) {
     const r = it.data.reminder;
+    // A task marked done OUTRIGHT (its own data.done, never touched by
+    // tickReminder/untickReminder/patchReminder -- lastDone is the per-day
+    // completion) never shows here again, by design: it is off the reminder
+    // model entirely, not just today's occurrence. See "a task marked done
+    // outright is nowhere on the page" in reminders.home.test.ts.
     if (!r || it.data.done) continue;
     const base = { id: it.id, text: it.data.text, category: it.data.category ?? "", reminder: r };
     if (r.paused) { out.paused.push({ ...base, date: null, time: null, done: false }); continue; }
@@ -449,6 +454,14 @@ function addDaysIso(iso: string, n: number): string {
   return isoOf(d);
 }
 
+// "Today", "Tomorrow", or "Sep 19": the date half of a reminder's when,
+// split out (push E follow-up, 2026-09-16) so a row with its own time
+// gutter can show the date alone in its facts line instead of repeating
+// the clock a second time.
+export function dateWord(date: string, today: string): string {
+  return date === today ? "Today" : date === addDaysIso(today, 1) ? "Tomorrow" : localNoon(date).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
 // The words on a row and in the details for when a reminder is (push E).
 export function whenWords(r: ReminderInfo, date: string | null, time: string | null, today: string, areaName = ""): string {
   if (r.paused) return "Paused";
@@ -457,9 +470,7 @@ export function whenWords(r: ReminderInfo, date: string | null, time: string | n
     return ct.kind === "onOpenArea" ? (areaName ? "When I Open " + areaName : "When I Open the Area") : "After I Complete the Task";
   }
   if (scheduleKindOf(r) === "unscheduled" || !date || !time) return "Unscheduled";
-  const t = fmtClock(time);
-  const day = date === today ? "Today" : date === addDaysIso(today, 1) ? "Tomorrow" : localNoon(date).toLocaleDateString([], { month: "short", day: "numeric" });
-  return day + " · " + t;
+  return dateWord(date, today) + " · " + fmtClock(time);
 }
 function fmtClock(hhmm: string): string {
   const [hRaw, mRaw] = hhmm.split(":");
