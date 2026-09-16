@@ -26,7 +26,11 @@ export const ROW_CLASSES = new Set([
   "proj-row-ruled", "proj-row", "notif-row", "mrow", "file-row", "focus-row",
   "suggestion-row", "offer-row", "connect-row", "conn-row", "doc-find-row",
   "dup-row", "win-row", "p3-row", "msg-row", "lm-row", "lifemap-row",
-  "settings-row", "cat-row", "set-row", "hl",
+  "settings-row", "cat-row", "set-row",
+  // "hl" was here while the dealt task had a bespoke row of its own. It is
+  // the notice row's markup now (2026-09-16) and .hl marks the .pad-x that
+  // wraps it, so the row this scan must hold to being a door is the .row
+  // inside, which it already finds.
 ]);
 
 /** A row whose only content is a control that already fills it. */

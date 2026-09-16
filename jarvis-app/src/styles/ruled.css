@@ -92,6 +92,9 @@
 /* The writing system, wave 3: the note row's Add, third slot of its reveal. */
 .ruled .card .task-swipe > .note-append,
 .ruled .card .notice-swipe > .notice-dismiss, .ruled .card .notice-swipe > .notice-alt, .ruled .card .notice-swipe > .notice-delete,
+/* The dealt row on Today is a notice row that CAN be completed, so the Done
+   rail rides a .notice-swipe there (2026-09-16). Same rail, same hiding. */
+.ruled .card .notice-swipe > .task-done-rail,
 .ruled .card .sched-strip > .sched-actions { visibility: hidden; }
 .ruled .card .task-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,
 .ruled .card .notice-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,

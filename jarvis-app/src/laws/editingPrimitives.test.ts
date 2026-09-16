@@ -77,6 +77,9 @@ describe("law: one swipe controller", () => {
       "tasks/screens/TasksPage.tsx": "task-row",
       "today/TodayFlow.tsx": "task-row",
       "today/NoticeCard.tsx": "notice-card",
+      // The dealt row on Today renders the notice row's own markup, so it
+      // moves the same element and takes the same pan-y (2026-09-16).
+      "today/MoveHeadliner.tsx": "notice-card",
       "notes/screens/NotesList.tsx": "task-row",
       "messages/MailSwipe.tsx": "task-row",
       "messages/LetGoSwipe.tsx": "task-row",
