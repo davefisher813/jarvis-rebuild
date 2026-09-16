@@ -209,7 +209,17 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
    groups; a Brain document is the document level on the page. */
 .msg-compose-body { width: 100%; background: var(--surface-2); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); }
 .msg-compose-body .doc-pm { min-height: 160px; font-size: var(--t-body); }
-.task-notes .doc-editor, .card.pad .doc-editor { padding: var(--s-1) 0; }
+/* THE CARET WAS CROSSING THE ROUNDED CORNER (Dave 2026-09-16, a task's
+   Notes field: "the text inside the notes box makes no sense and is
+   conflicting with the border"). .card.pad already carries its own
+   var(--s-4) padding on every side (jarvis-design-system.css), so its
+   .doc-editor needs none of its own. .task-notes has no such class -- it is
+   a bare .card.xs-group, which (unlike a .row) supplies no horizontal inset
+   at all -- so the same zero-horizontal rule, written for .card.pad and
+   copied here by analogy, left the text and the caret sitting flush against
+   the card's own left edge, exactly where its top-left corner curves. */
+.task-notes .doc-editor { padding: var(--s-1) var(--s-4); }
+.card.pad .doc-editor { padding: var(--s-1) 0; }
 .sheet-form .doc-editor-quick .doc-pm { background: var(--surface-2); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); min-height: 60px; }
 
 /* JARVIS ON A SELECTION (wave 4): the word on the bar while words are

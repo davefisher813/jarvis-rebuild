@@ -561,15 +561,23 @@ export default function TaskSheet({
                 projects and a project owns tasks, so filing the task to the
                 project has already answered the goal question, and a second
                 picker that could disagree with the first is a bug waiting to
-                be filed. It appears only when the project climbs to a live
-                goal. */}
-            {goalTitle && (
-              <div className="row xs-row">
-                <Tile tone="red"><TargetGlyph /></Tile>
-                <div className="conn-name">Goal</div>
-                <div className="row-val">{goalTitle}</div>
-              </div>
-            )}
+                be filed.
+
+                ALWAYS ON SCREEN (Dave 2026-09-16: "Why do some have goals and
+                some don't? They should all have the same 5 options"). The
+                row used to appear only once a project climbed to a live
+                goal, so Where read as four fields on most tasks and five on
+                others -- an inconsistency he had no way to explain to
+                himself, since nothing here told him a fifth field existed at
+                all. It stays derived (still no chevron, still not a picker:
+                filing the project has already answered this), and now says
+                None like every other field here does when it has nothing to
+                report, rather than disappearing. */}
+            <div className="row xs-row">
+              <Tile tone="red"><TargetGlyph /></Tile>
+              <div className="conn-name">Goal</div>
+              <div className="row-val">{goalTitle || "None"}</div>
+            </div>
             {/* EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not
                 tied to task modals"). The event page could file a task to
                 itself from the day it was built, and that was the wrong half

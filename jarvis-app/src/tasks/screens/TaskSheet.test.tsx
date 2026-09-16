@@ -497,8 +497,11 @@ describe("TaskSheet: the smart Where group", () => {
   it("picking a project answers the empty Area and names the goal it climbs to", () => {
     const onSave = vi.fn();
     render(<TaskSheet mode="new" categories={CATS} projects={PROJ} onSave={onSave} onCancel={() => {}} />);
-    // The Goal row is DERIVED, so with no project picked there is nothing to derive.
-    expect(screen.queryByText("Goal")).toBeNull();
+    // The Goal row is DERIVED, so with no project picked it says None rather
+    // than disappearing (Dave 2026-09-16: "they should all have the same 5
+    // options").
+    expect(screen.getByText("Goal")).toBeInTheDocument();
+    expect(document.querySelector(".row-val")).toHaveTextContent("None");
     expect(screen.getByLabelText("Area").textContent).toContain("None");
     fireEvent.click(screen.getByLabelText("Project"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: /Kitchen Remodel/ }));

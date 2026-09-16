@@ -766,3 +766,27 @@ describe("BROWSER-F: a bare .xs-input reads left; one beside .xs-label reads rig
     expect((gripAndTags.match(/<div className="xs-label">/g) || []).length).toBeGreaterThanOrEqual(2);
   });
 });
+
+// THE CARET WAS CROSSING THE ROUNDED CORNER (Dave 2026-09-16, a task's Notes
+// field, focused and empty: "the text inside the notes box makes no sense
+// and is conflicting with the border"). .task-notes is a bare .card.xs-group,
+// which supplies no padding of its own (unlike .card.pad, which carries
+// var(--s-4) on every side): the zero-horizontal rule written for .card.pad
+// and reused here left the caret sitting at the card's own left edge, inside
+// the curve of its top-left corner.
+describe("BROWSER-F: a task's Notes field keeps its text clear of the card's rounded corner", () => {
+  const editor = () => read("styles/editor.css");
+  it(".task-notes gives its editor real horizontal room, unlike .card.pad which already has its own", () => {
+    const taskNotes = ruleBody(editor(), ".task-notes .doc-editor");
+    expect(taskNotes, ".task-notes .doc-editor must exist on its own now").not.toBeNull();
+    expect(taskNotes, "it must not be flush against the card's edge").not.toMatch(/padding:\s*var\(--s-1\)\s*0\s*;?\s*$/);
+    expect(taskNotes).toMatch(/padding:\s*var\(--s-1\)\s*var\(--s-4\)/);
+    // .card.pad already carries the inset (jarvis-design-system.css), so its
+    // own editor rule is right to stay at zero: fixing one must not touch
+    // the other.
+    const cardPad = ruleBody(editor(), ".card.pad .doc-editor");
+    expect(cardPad).toMatch(/padding:\s*var\(--s-1\)\s*0/);
+    const padRule = ruleBody(read("styles/jarvis-design-system.css"), ".card.pad");
+    expect(padRule, ".card.pad's own padding is the reason its editor needs none").toMatch(/padding:\s*var\(--s-4\)/);
+  });
+});
