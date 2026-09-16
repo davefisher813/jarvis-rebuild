@@ -1946,14 +1946,39 @@
 .ruled .dup-row .btn-row { display: flex; gap: var(--s-2); margin-top: var(--s-2h); }
 .ruled .dup-row .btn-row .btn { flex: 1; margin: 0; padding: 9px 10px; font-size: calc(13px * var(--type-scale)); min-width: 0; }
 
-/* THE THREE DOORS under the week on Health (§1). One row, three taps, each
-   with the count that says what is behind it. */
-.ruled .h-doors { display: flex; padding: 0; overflow: hidden; }
-.ruled .h-door { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: var(--s-3) var(--s-2); background: none; border: none; min-height: 44px; }
-.ruled .h-door + .h-door { border-left: 0.5px solid var(--divider); }
-.ruled .h-door-k { color: var(--tx-1); font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi); }
-.ruled .h-door-n { color: var(--tx-3); font-size: calc(12px * var(--type-scale)); font-variant-numeric: tabular-nums; }
+/* THE THREE DOORS under the week on Health (§1). They stay where Dave put
+   them on 2026-09-14, immediately below the week card; HealthDoors.test.tsx
+   holds them to it.
+
+   THEY ARE ROWS NOW (2026-09-16, the health polish pass). They were three
+   buttons abreast in one strip, each a word over a bare number, divided by
+   vertical hairlines: a shape nothing else in the app uses, with a count that
+   could not be read without the word above it and a title column so narrow
+   that "Exercises" nearly filled it. This is the app's own navigation row --
+   name at the text edge, value and chevron trailing, one horizontal hairline
+   between -- which is what every other "go somewhere" row on a ruled page
+   looks like, and it lets the count say what it counts.
+
+   The card carries .list-card-ruled now, so the hairlines, the inset and the
+   press state all come from the shared grouped-list rules rather than from
+   three bespoke declarations here. */
+/* An empty sleep tile: the dash is the app saying it has nothing, so it wears
+   the quiet ink rather than the violet a real reading wears. See the note at
+   the tile in HealthBody.tsx. */
+.ruled.health-ruled .h-stat.violet b.h-stat-none,
+.ruled.health-ruled .h-stat b.h-stat-none { color: var(--tx-3); }
+
+.ruled .h-doors { padding: 0; overflow: hidden; }
+.ruled .h-door { display: flex; align-items: center; gap: var(--s-2); width: 100%;
+  padding: var(--s-3) var(--s-4); background: none; border: none; min-height: var(--tap-min);
+  font-family: var(--f); text-align: left; cursor: pointer; }
+.ruled .h-door + .h-door { position: relative; }
+.ruled .h-door + .h-door::before { content: ""; position: absolute; left: var(--s-4); right: 0; top: 0;
+  height: 0.5px; background: var(--divider); }
+.ruled .h-door-k { flex: 1; min-width: 0; color: var(--tx-1);
+  font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; }
+.ruled .h-door-n { flex-shrink: 0; color: var(--tx-3); font-size: calc(14px * var(--type-scale));
+  font-variant-numeric: tabular-nums; }
 
 /* The classification editor's free-text rows: a label that does not shrink
    beside an input that takes the rest. */

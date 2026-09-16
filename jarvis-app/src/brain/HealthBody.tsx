@@ -144,32 +144,69 @@ export default function HealthBody({
           <button type="button" className="h-stat amber" onClick={() => onOpenRecords({ kind: "workouts" })}>
             <b>{overview.trainingMin}<small> min</small></b><span>Training Time</span>
           </button>
+          {/* NOTHING LOGGED IS NOT A READING (polish pass 2026-09-16; the
+              handoff names this one: "show a dash with Sleep not logged; never
+              zero or the large purple word None").
+
+              "None" sat at the same 28px in the same violet as a real average,
+              so an empty tile shouted louder than seven hours of sleep and the
+              eye read it as a value. A dash is the app saying it has nothing,
+              at the weight that deserves, and the label under it says which
+              nothing. The hue goes with the number: a dash is not a datum, and
+              a hue on a non-datum is the failure health skin law 2 exists for.
+
+              AN EN DASH, NOT AN EM DASH (Dave's pick, polish conflict 1). The
+              app bans U+2014 outright (laws.test.ts:63) and the two files that
+              may carry one are both about quoting somebody else's punctuation.
+              At this size the two are all but indistinguishable. */}
           <button type="button" className="h-stat violet" onClick={() => onOpenRecords({ kind: "sleep" })}>
-            <b>{overview.sleep.avgHours != null ? hoursLabel(overview.sleep.avgHours) : "None"}</b>
-            <span>{overview.sleep.nights > 0 ? `Sleep · ${overview.sleep.nights} ${overview.sleep.nights === 1 ? "night" : "nights"}` : "Sleep · Not logged"}</span>
+            {overview.sleep.avgHours != null ? (
+              <b>{hoursLabel(overview.sleep.avgHours)}</b>
+            ) : (
+              <b className="h-stat-none" aria-label="No sleep logged">{"\u2013"}</b>
+            )}
+            <span>{overview.sleep.nights > 0 ? capAfterNumber(`Sleep · ${overview.sleep.nights} ${overview.sleep.nights === 1 ? "night" : "nights"}`) : "Sleep Not Logged"}</span>
           </button>
         </div>
       </div></div>
 
-      {/* THE THREE DOORS, immediately under the week. Not a section of its
-          own and not a menu: one row, three words, each one tap from the
-          top of the page. */}
+      {/* THE THREE DOORS, immediately under the week (Dave 2026-09-14: "Add a
+          visible shortcut row near the top of Health, immediately below the
+          weekly overview... Do not bury it"). HealthDoors.test.tsx holds them
+          to that position.
+
+          A COUNT SAYS WHAT IT COUNTS (Dave 2026-09-16, picking "keep your
+          order, take the better rows" off the polish comparison). They used to
+          be three words in a strip with a bare number under each: "24" told
+          you nothing without reading the word above it, and a strip of three
+          buttons is not a shape this app uses anywhere else. They are the
+          app's own rows now -- name, value, chevron -- so they read like every
+          other navigation row on a ruled page, and the count carries its noun
+          through capAfterNumber like every other counted line in the app.
+
+          The polish mockup moved this block BELOW the next workout, under a
+          "Your Health" head. That was declined: on a phone it lands about
+          600px down past two cards, which is the burying the 09-14 note was
+          written against. Position is his; the row treatment is the mockup's. */}
       {(onOpenExercises || onOpenHistory) && (
-        <div className="pad-x"><div className="card h-doors">
+        <div className="pad-x"><div className="card list-card-ruled h-doors">
           {onOpenExercises && (
             <button type="button" className="h-door" onClick={onOpenExercises}>
               <span className="h-door-k">Exercises</span>
-              <span className="h-door-n">{exerciseCount}</span>
+              <span className="h-door-n">{capAfterNumber(`${exerciseCount} ${exerciseCount === 1 ? "exercise" : "exercises"}`)}</span>
+              {CHEV}
             </button>
           )}
           <button type="button" className="h-door" onClick={onOpenGym}>
             <span className="h-door-k">Program</span>
-            <span className="h-door-n">{days.length}</span>
+            <span className="h-door-n">{capAfterNumber(`${days.length} ${days.length === 1 ? "day" : "days"}`)}</span>
+            {CHEV}
           </button>
           {onOpenHistory && (
             <button type="button" className="h-door" onClick={onOpenHistory}>
               <span className="h-door-k">History</span>
-              <span className="h-door-n">{workouts.length}</span>
+              <span className="h-door-n">{capAfterNumber(`${workouts.length} ${workouts.length === 1 ? "session" : "sessions"}`)}</span>
+              {CHEV}
             </button>
           )}
         </div></div>
@@ -179,7 +216,18 @@ export default function HealthBody({
       <div className="pad-x h-hero-wrap"><div className="card list-card-ruled h-hero-card">
         <div className="h-hero-head">
           <span className="h-eyebrow">{live ? "Session Open" : "Next Workout"}</span>
-          {program && <button type="button" className="pill-act pill-quiet" onClick={onOpenGym}>Program</button>}
+          {/* NOT A GREY PILL (polish pass 2026-09-16, rule 2: "Remove isolated
+              grey pill buttons... Replace each according to meaning"). This one
+              only ever navigated, and a .pill-act is the app's word for a verb
+              that acts on the row it sits in. It is the head's own text action
+              now -- the same .see-all every section head in the app uses -- and
+              it says WHICH program it opens rather than the word "Program",
+              which the door below already says. */}
+          {program && (
+            <button type="button" className="see-all" onClick={onOpenGym}>
+              {program.data.name}
+            </button>
+          )}
         </div>
         {live ? (
           <>
@@ -230,8 +278,11 @@ export default function HealthBody({
       </div></div>
 
       {/* YOUR PROGRESS: up to three findings, each a door to its records. */}
+      {/* .see-all alone, not .see-all.pill-action: the capsule made a section
+          link look like a control (polish rule 2). The head action is red text
+          on the head's own baseline, which is what it is everywhere else. */}
       <div className="sh2 sh2-quiet"><span className="t">Your Progress</span>
-        <button className="see-all pill-action" onClick={onOpenInsights}>View Insights</button></div>
+        <button className="see-all" onClick={onOpenInsights}>View Insights</button></div>
       <div className="pad-x"><div className="card list-card-ruled">
         {findings.length === 0 ? (
           <div className="row"><div className="row-grow">
