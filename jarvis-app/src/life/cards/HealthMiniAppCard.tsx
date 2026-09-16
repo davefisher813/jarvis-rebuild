@@ -1,15 +1,18 @@
 import { catIcon } from "../../categories/icons";
 import type { ColorSlot } from "../../categories/types";
+import { pressable } from "../../shared/pressable";
 
 // HEALTH IS NOT AN AREA, IT IS A MINI-APP (LIFE_AREAS_TAB_HANDOFF, approved
 // visual). Bridge, Work and the rest are task/goal/project collections;
 // Health is a dashboard with its own subsystems, so it keeps the section
-// preview the approved mock calls for -- but rides the same gm-slot glyph
-// and task-title anatomy every other area row wears (the first pass's
-// mistake was building this off the Brain nav-row language instead; fixed
-// 2026-09-16, Dave: "follow the design catalog"). No chevron: the approved
-// visual never gave this card one, since the whole card is already the
-// one tap target and its own content says where it goes.
+// preview the approved mock calls for. CORRECTED 2026-09-16 (Dave, showing
+// the old Brain "Your Areas" screenshot: "it originally looked like this
+// and still should for the most part"): the leading glyph rides the same
+// lib-ico lib-disc every area row wears now, not GoalRowRuled's gm-slot --
+// a category's glyph is the colour disc wherever it appears, mini-app or
+// not. No chevron: the approved visual never gave this card one, since the
+// whole card is already the one tap target and its own content says where
+// it goes.
 const HEALTH_SECTIONS = [
   { label: "Log It", desc: "Workouts, sleep, fuel, mood" },
   { label: "Reports", desc: "Recovery, trends, doctor" },
@@ -25,10 +28,10 @@ export default function HealthMiniAppCard({ category, onOpen }: {
   onOpen: () => void;
 }) {
   return (
-    <div className="task-row p2 health-mini-app" role="button" tabIndex={0} onClick={onOpen}>
-      <div className="task-check-tap"><span className={"gm-slot cat-fg-" + category.color}>{catIcon(category.icon)}</span></div>
-      <div className="task-title">
-        <span className="task-name">{category.name}</span>
+    <div className="lib-row health-mini-app" {...pressable(onOpen)}>
+      <div className={"lib-ico lib-disc cat-bg-" + category.color}>{catIcon(category.icon)}</div>
+      <div className="lib-stack">
+        <div className="lib-name">{category.name}</div>
         <div className="health-sections">
           {HEALTH_SECTIONS.map((s) => (
             <div className="health-section-item" key={s.label}>

@@ -1196,8 +1196,15 @@ describe("LAW: one filled red per screen", () => {
   // exactly one mini-caps boundary label where user content begins). The nav
   // allowlist is explicit so a new lib-row surface must either label its
   // groups or be consciously registered as a nav list here.
+  //
+  // HEAD_IN_CALLER (2026-09-16): a lib-row leaf split out of its list --
+  // AreasTab.tsx composes both under its own "Areas" sh2 head -- carries no
+  // head of its own to find. Also a conscious registration, not a loophole:
+  // add a file here only when its caller is known to head the list, same as
+  // NAV_NO_HEAD is only for a list that heads nothing on purpose.
   it("every lib-row surface carries section heads or is a registered nav list", () => {
     const NAV_NO_HEAD = new Set(["more/MorePage.tsx", "more/SettingsPage.tsx"]);
+    const HEAD_IN_CALLER = new Set(["life/cards/AreaItemStandard.tsx", "life/cards/HealthMiniAppCard.tsx"]);
     const bad: string[] = [];
     for (const f of COMPONENTS) {
       const src = read(f);
@@ -1205,6 +1212,7 @@ describe("LAW: one filled red per screen", () => {
         if (src.includes('className="sh2"')) bad.push(rel(f) + " [nav list grew a head]");
         continue;
       }
+      if (HEAD_IN_CALLER.has(rel(f))) continue;
       if (src.includes('className="lib-row"') && !src.includes('"sh2')) bad.push(rel(f));
     }
     expect(bad).toEqual([]);
