@@ -7,6 +7,7 @@ import { pairId, type DuplicatePair } from "./duplicates";
 import { classConflicts, identityLine, valueLine, type Classification } from "./classify";
 import { movesLine, remainingLine, type MergeState } from "./merge";
 import type { LibraryRow } from "./libraryEdit";
+import { capAfterNumber } from "../shared/casing";
 
 // DUPLICATE REVIEW, OFF THE LIST AND INTO ITS OWN ROOM (handoff §6).
 //
@@ -243,7 +244,7 @@ export function DuplicateBar({ count, onOpen }: { count: number; onOpen: () => v
       <div className="row" {...pressable(onOpen)}>
         <div className="row-grow">
           <div className="conn-name">Possible Duplicates</div>
-          <div className="facts"><span className="fact amber">{`${count} ${count === 1 ? "pair" : "pairs"}`}</span></div>
+          <div className="facts"><span className="fact amber">{capAfterNumber(`${count} ${count === 1 ? "pair" : "pairs"}`)}</span></div>
         </div>
         <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Review</button>
       </div>
