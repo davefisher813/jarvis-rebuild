@@ -22,10 +22,6 @@ import type { BurstSize } from "../shared/completion";
 import { eveningSummary, todayPlanLine, EVENING_TASKS_NOTE, type EveningStats, type TodayPlan, type WeekRecap } from "./evening";
 import MoveHeadliner from "./MoveHeadliner";
 
-// The urgency chip shouts from CSS (.uchip is uppercase); the headliner's
-// facts line does not, so the same word arrives here in Title Case.
-const titleWord = (s?: string | null): string | null =>
-  (s ? s.split(" ").map((w) => (w[0] ?? "") + w.slice(1).toLowerCase()).join(" ") : null);
 import { capAfterNumber } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
 import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph, BullseyeGlyph } from "../shared/glyphs";
@@ -571,7 +567,10 @@ export default function TodayPage({
     <MoveHeadliner
       title={fifteen.text}
       facts={{
-        urgency: fifteenIsDealt && upNextTop ? titleWord(urgencyFor(upNextTop.data, today)?.label) : null,
+        // THE SAME CHIP THE TASK ROWS WEAR (Dave 2026-09-16: "'today' should
+        // be a chip"). distanceFor is the app's one chip producer, so the
+        // dealt row cannot drift from the rows under it.
+        urgency: fifteenIsDealt && upNextTop ? distanceFor(upNextTop.data, today) : null,
         category: fifteenIsDealt ? moveCategory ?? null : null,
         estimate: fifteenIsDealt ? moveEstimate ?? null : null,
         reason: fifteen.line,
@@ -589,9 +588,7 @@ export default function TodayPage({
     <MoveHeadliner
       title={upNextTop.data.text}
       facts={{
-        // The chip's own word, in the sentence case a fact wears: the caps
-        // on a .uchip come from CSS, and a fact is not a chip (H2).
-        urgency: titleWord(urgencyFor(upNextTop.data, today)?.label),
+        urgency: distanceFor(upNextTop.data, today),
         category: moveCategory ?? null,
         estimate: moveEstimate ?? null,
         reason: moveReason ?? null,

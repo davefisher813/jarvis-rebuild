@@ -75,15 +75,16 @@ describe("TodayPage", () => {
     expect(screen.getByText("Your Move")).toBeInTheDocument();
     expect(screen.queryByText("Up Next")).toBeNull(); // the section is gone, not renamed twice
     expect(screen.queryByText("See All")).toBeNull();
-    // C-24 (Astra, 2026-09-12): the dealt task is the band's HEADLINER now,
-    // not one uniform row in the stream. Title, one facts line, then Start
-    // and Why. The ruled-row anatomy this used to pin belongs to the rows
-    // under it, which are unchanged.
+    // C-24's promotion is repealed (Dave 2026-09-16: "make the dealt task a
+    // normal row in the stream"). It is the notice row's own markup now:
+    // title, a facts sub, and ONE control in the stream's action column.
     expect(container.querySelector(".hl-title")).toHaveTextContent("over");
     expect(container.querySelectorAll(".hl .facts .fact").length).toBeGreaterThan(0);
-    // The urgency is the headliner's one coloured fact, and it says the
-    // distance, the same words the chip used to.
-    expect(container.querySelector(".hl .fact.warn")).toHaveTextContent("Overdue");
+    // The urgency is the app's own chip, saying the distance in distanceFor's
+    // words (Dave 2026-09-16: "'today' should be a chip").
+    expect(container.querySelector(".hl .uchip.u-late")).toHaveTextContent("2 DAYS LATE");
+    // One control in the column, and it is the verb.
+    expect(container.querySelectorAll(".hl .pill-act").length).toBeLessThanOrEqual(1);
     // FOCUS REPLACED THE RECEIPT (Dave 2026-09-11: "The focus button should
     // be all the way up top under your move and replace that small grey
     // subtext that renders the up next page"). Both called onUpNext, so the
@@ -100,28 +101,37 @@ describe("TodayPage", () => {
     expect(screen.queryByText("Today\u2019s Tasks")).toBeNull();
   });
 
-  // C-24 (Astra, 2026-09-12): the headliner's facts line, in the harness's
-  // own order: the urgency in warn, the area as a dot plus plain words, the
-  // length, and the placement in sky. At most one coloured fact, which is the
-  // law in laws/astra.test.ts; the area dot does not count toward it.
-  it("the headliner says why this one, on one facts line", () => {
+  // TWO SLOTS, NOT FOUR (2026-09-16). The sub has about 175px beside the
+  // stream's 100px action column and a chip spends 80 of them, so the line
+  // listing urgency, area, length and placement printed the first two and cut
+  // the rest away mid-word. It carries WHEN and WHY, each with one fallback:
+  //   WHEN  the chip, else the area it lives in
+  //   WHY   the placement, else how long it takes
+  it("the dealt row says when and why, and only those two", () => {
     const { container, rerender } = render(
       <TodayPage {...base} upNext={[tk("due", "2026-05-20")]}
         moveCategory={{ name: "Personal", slot: "teal" }} moveEstimate="20 min"
         moveReason="Fits before Deep Work" onUpNext={() => {}} />,
     );
     const facts = container.querySelector(".hl .facts")!;
-    expect(facts).toHaveTextContent("Today");
-    expect(facts).toHaveTextContent("Personal");
-    expect(facts).toHaveTextContent("20 min");
+    expect(facts.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
     expect(facts).toHaveTextContent("Fits before Deep Work");
-    expect(facts.querySelector(".fact.cat .cd.cat-bg-teal")).toBeTruthy();
-    // The urgency owns the colour when there is one, so the placement stays
-    // quiet beside it: one coloured fact per line.
+    // The two it yields to them, rather than printing all four unreadably.
+    expect(facts).not.toHaveTextContent("Personal");
+    expect(facts).not.toHaveTextContent("20 min");
+    expect(facts.querySelectorAll(".fact").length).toBe(2);
+    // The chip is not a fact, so the placement keeps the sky it was always
+    // given and the line still carries exactly one coloured fact.
     expect(facts.querySelectorAll(".fact.warn, .fact.good, .fact.sky, .fact.purp, .fact.red").length).toBe(1);
-    // With no date to lead on, the placement takes the sky it was given.
-    rerender(<TodayPage {...base} upNext={[tk("nodate", null)]} moveReason="Fits before Deep Work" onUpNext={() => {}} />);
-    expect(container.querySelector(".hl .fact.sky")).toHaveTextContent("Fits before Deep Work");
+    // BOTH FALLBACKS. Nothing due tomorrow or later gets a chip at all
+    // (distanceFor's own rule, which is what keeps the chip loud), so the
+    // area takes the first slot; with no placement the length takes the
+    // second, which is the "TODAY / 45 min" pair Dave photographed.
+    rerender(<TodayPage {...base} upNext={[tk("nodate", null)]}
+      moveCategory={{ name: "Personal", slot: "teal" }} moveEstimate="20 min" onUpNext={() => {}} />);
+    expect(container.querySelector(".hl .uchip")).toBeNull();
+    expect(container.querySelector(".hl .fact.cat .cd.cat-bg-teal")).toBeTruthy();
+    expect(container.querySelector(".hl .facts")).toHaveTextContent("20 min");
   });
 
   it("shows three, folds the rest behind See All in the head, Less refolds", () => {
