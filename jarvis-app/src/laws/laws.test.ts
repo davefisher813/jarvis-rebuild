@@ -5185,6 +5185,9 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     const src = read(join(SRC, "shared/viewport.ts"));
     expect(src).toContain("--vv-h");
     expect(src).toContain("--vv-top");
+    // --vv-bot (2026-09-16): the same band read from the other end, for the
+    // bottom-anchored bars. The Log bar rides it; see healthSkin law 5.
+    expect(src).toContain("--vv-bot");
     // both events: the keyboard resizes the band AND scrolls it down the page,
     // and listening to resize alone leaves the bar off screen.
     expect(src).toMatch(/addEventListener\("resize"/);
@@ -5197,7 +5200,7 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     // sheet on a browser without visualViewport is byte for byte what shipped.
     const src = read(join(SRC, "shared/viewport.ts"));
     expect(src).toMatch(/if \(!vv\) return/);
-    const uses = [...CSS.matchAll(/var\(--vv-(h|top)(,\s*[^)]*)?\)/g)];
+    const uses = [...CSS.matchAll(/var\(--vv-(h|top|bot)(,\s*[^)]*)?\)/g)];
     expect(uses.length).toBeGreaterThan(2);
     for (const u of uses) expect(u[2], `var(--vv-${u[1]}) with no fallback`).toBeTruthy();
   });

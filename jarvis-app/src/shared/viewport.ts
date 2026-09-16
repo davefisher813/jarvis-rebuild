@@ -24,7 +24,18 @@
 // leaves both properties unset, and the CSS falls back to 100dvh and 0, which
 // is exactly the layout that ships today.
 
-/** Mirror the visual viewport into --vv-h and --vv-top. Returns the stopper. */
+// --vv-bot, ADDED 2026-09-16 (Dave, photographing a live set: the red Log
+// button "renders all fucked up. Like it's behind the Apple bar, the clear
+// bar. So you can't even see it."). The Log bar is position: fixed, bottom: 0,
+// which is the LAYOUT viewport's floor, and that floor is under the keyboard.
+// --vv-top and --vv-h already say where the visible band is; --vv-bot is the
+// third fact the band implies and the one a bottom-anchored element needs:
+// how much of the layout viewport the keyboard has taken. It is what lets a
+// bar ride the top of the keys AND drop the home-indicator inset, which the
+// keys are already covering, in the same rule.
+
+/** Mirror the visual viewport into --vv-h, --vv-top and --vv-bot. Returns the
+ *  stopper. */
 export function trackVisualViewport(): () => void {
   const vv = typeof window === "undefined" ? null : window.visualViewport;
   if (!vv) return () => {};
@@ -34,6 +45,7 @@ export function trackVisualViewport(): () => void {
     queued = false;
     root.style.setProperty("--vv-h", vv.height + "px");
     root.style.setProperty("--vv-top", vv.offsetTop + "px");
+    root.style.setProperty("--vv-bot", Math.max(0, window.innerHeight - vv.offsetTop - vv.height) + "px");
   };
   // The keyboard animates in, so resize and scroll both fire several times a
   // frame. One write per frame is enough and keeps the sheet off the main

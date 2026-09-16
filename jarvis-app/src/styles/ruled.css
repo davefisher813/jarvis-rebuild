@@ -1557,7 +1557,12 @@
 .ruled.health-ruled .se-kick-ic { width: 10px; height: 10px; vertical-align: -1px; margin-right: 3px; }
 .ruled.health-ruled .set-chip-ghost.setrow-now { border-color: transparent; }
 /* The session screen leaves room for the Log bar (H-11). */
-.ruled.health-ruled.screen-session { padding-bottom: 104px; }
+/* The room under the session is the Log bar plus whatever the keyboard has
+   taken (2026-09-16). A constant 104px was right until the bar started riding
+   the keys: with the keyboard up the last set on the screen could not be
+   scrolled clear of it, which is the other half of Dave's "I don't even know
+   what I'm logging". */
+.ruled.health-ruled.screen-session { padding-bottom: calc(104px + var(--vv-bot, 0px)); }
 .ruled.health-ruled .se-elapsed { margin: 6px 0 2px; }
 .ruled.health-ruled .nav-action-quiet { color: var(--tx-2); font-weight: var(--w-medium); }
 /* The catch-up banner (H-28): the minutes over, then the change and its saving. */
@@ -1579,8 +1584,26 @@
    be a second answer to the same question. The button goes full width here
    because there is only ever one of it and it is pressed with a thumb between
    sets. */
-.ruled.health-ruled .logbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
-  padding: var(--s-3) var(--s-4) calc(var(--s-3) + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+/* THE KEYS DO NOT GET TO SIT ON IT (Dave 2026-09-16, four photographs of a
+   live set: the red button "renders all fucked up. Like it's behind the Apple
+   bar, the clear bar. So you can't even see it."). bottom: 0 is the LAYOUT
+   viewport's floor, and iOS does not move that floor for the keyboard -- it
+   shrinks the VISUAL viewport instead. So the one control that logs the set
+   was parked under the keys the moment the athlete typed a weight, which is
+   the only moment it is wanted.
+   This is the writing bar's own answer, the one .doc-kbar has used since
+   2026-09-15 (editor.css): sit at the foot of the VISIBLE band and pull up by
+   your own height. The band's foot is the top of iOS's accessory pill, so the
+   button clears the pill and the keys both, without this rule knowing what
+   either of them is. With no keyboard the band is the whole screen and
+   nothing moves; with no visualViewport at all the fallbacks are 0 and 100dvh
+   and this is byte for byte the bar that shipped.
+   The home-indicator inset comes off by exactly what the keyboard has taken
+   (--vv-bot), because the keys are already covering that strip: full inset
+   when the keyboard is down, none when it is up, and no gap either way. */
+.ruled.health-ruled .logbar { position: fixed; left: 0; right: 0; z-index: 5;
+  top: calc(var(--vv-top, 0px) + var(--vv-h, 100dvh)); transform: translateY(-100%);
+  padding: var(--s-3) var(--s-4) calc(var(--s-3) + max(0px, var(--safe-bottom, env(safe-area-inset-bottom, 0px)) - var(--vv-bot, 0px)));
   background: linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 38%); display: flex; justify-content: center; }
 [data-theme="light"] .ruled.health-ruled .logbar { background: linear-gradient(180deg, rgba(242,242,247,0), var(--bg) 38%); }
 .ruled.health-ruled .logbar .btn { width: 100%; }

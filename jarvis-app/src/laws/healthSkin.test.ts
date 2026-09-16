@@ -246,4 +246,21 @@ describe("HEALTH law 5: the shell hides its chrome while a session is live", () 
     const screen = read(join(SRC, "gym/SessionScreen.tsx"));
     expect(screen, "the session screen renders the Log bar").toMatch(/className="logbar"/);
   });
+
+  // ADDED 2026-09-16 (Dave, four photographs of a live set: the red button
+  // "renders all fucked up. Like it's behind the Apple bar, the clear bar. So
+  // you can't even see it."). Owning the bottom edge is worth nothing if the
+  // bottom edge is under the keyboard, and typing a weight is the one moment
+  // the Log button is wanted. It rides the foot of the VISIBLE band, the
+  // writing bar's own answer since 2026-09-15.
+  it("and the Log bar sits at the foot of what you can see, not of the layout", () => {
+    const rule = RULED.match(/\.ruled\.health-ruled \.logbar \{[^{}]*\}/)?.[0] ?? "";
+    expect(rule, "the Log bar rule must exist").toBeTruthy();
+    expect(rule, "bottom: 0 is the layout floor, which is under the keys").not.toMatch(/bottom:\s*0/);
+    expect(rule).toMatch(/top:\s*calc\(var\(--vv-top,[^)]*\) \+ var\(--vv-h,[^)]*\)\)/);
+    expect(rule, "and pulled up by its own height").toMatch(/translateY\(-100%\)/);
+    // The room under the screen has to grow by the same amount, or the last
+    // set cannot be scrolled clear of the bar that just moved up over it.
+    expect(RULED).toMatch(/\.screen-session \{ padding-bottom: calc\(104px \+ var\(--vv-bot, 0px\)\)/);
+  });
 });
