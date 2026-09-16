@@ -1404,6 +1404,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           onAddStep={(text) => void addEventStep(detail.id, ev, text)}
           linkedNotes={linked}
           onOpenNote={onNavigate ? (id) => onNavigate("notes", id) : undefined}
+          openSourceFor={openSourceFor}
         />
       );
     }

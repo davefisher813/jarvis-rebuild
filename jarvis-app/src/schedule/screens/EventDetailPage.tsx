@@ -5,7 +5,7 @@ import { catColor, catName } from "../../shared/categories";
 import { pressable, onPressKey } from "../../shared/pressable";
 import { CalendarDays, ListChecks, StickyNote, User, Tag } from "../../shared/icons";
 import Provenance from "../../shared/ProvenanceLine";
-import { rowSource } from "../../shared/provenance";
+import { rowSource, type Source } from "../../shared/provenance";
 import InlineEdit from "../../shared/InlineEdit";
 
 // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07: "events aren't
@@ -37,7 +37,7 @@ export interface EventStep {
 export default function EventDetailPage({
   event, occurrence, onBack, onEdit,
   steps = [], onToggleStep, onAddStep, onOpenStep,
-  linkedNotes = [], onOpenNote, onOpenSource,
+  linkedNotes = [], onOpenNote, openSourceFor,
 }: {
   event: EventItem;
   /** The occurrence being looked at, for a repeating event. Defaults to the
@@ -52,7 +52,16 @@ export default function EventDetailPage({
   onOpenStep?: (id: string) => void;
   linkedNotes?: { id: string; title: string }[];
   onOpenNote?: (id: string) => void;
-  onOpenSource?: () => void;
+  /** PROVENANCE OPENS ITS SOURCE, HERE TOO (button audit 2026-09-16; Dave:
+   *  "wire it"). This took a bare `onOpenSource` that no caller ever passed,
+   *  so the line saying where the event came from was a fact and never a
+   *  door. It takes the same opener the task sheet, the task row and the note
+   *  editor take (shared/openSource.ts), which is the whole reason that
+   *  helper exists: one map from a source stamp to a route, so four surfaces
+   *  cannot disagree about where "From an email" goes. It still returns
+   *  undefined for a source type nothing can show, and Provenance draws a
+   *  plain fact for those. */
+  openSourceFor?: (source: Source) => (() => void) | undefined;
 }) {
   const e = event.data;
   const date = occurrence ?? e.date;
@@ -89,7 +98,7 @@ export default function EventDetailPage({
             {e.location && <div className="conn-meta">{e.location}</div>}
           </div>
         </div>
-        <Provenance source={prov} {...(prov && onOpenSource ? { onOpen: onOpenSource } : {})} />
+        <Provenance source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
       </div></div>
 
       {/* BEFORE THIS: the half that did not exist. A task can belong to an

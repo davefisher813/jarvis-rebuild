@@ -6345,3 +6345,54 @@ describe("LAW: no button is drawn that cannot act", () => {
     }
   });
 });
+
+// LAW: A SEAM IS WIRED OR IT IS GONE (button audit follow-up, 2026-09-16).
+//
+// The sweep found four handler props that were declared, guarded and never
+// passed: code written to make something tappable, unreachable because no
+// caller handed over the handler. Dave's call, from the audit page: wire the
+// three that were worth having, delete the one that was not. Each of these
+// pins the decision so the seam cannot quietly reopen.
+describe("LAW: a seam is wired or it is gone", () => {
+  it("a decision's source row is a door, and only where the shell can land", () => {
+    const flow = read(join(SRC, "decisions/DecisionsFlow.tsx"));
+    // Chat and manual decisions have nowhere to go, so they stay plain facts:
+    // a door onto nothing is the same bug in the other costume.
+    expect(flow, "only routable kinds open").toMatch(/SOURCE_ROUTE[^\n]*=\s*\{\s*note:\s*"note",\s*email:\s*"email"\s*\}/);
+    expect(flow, "and the row gates on that map").toMatch(/onOpenSource && d\.source\.entityId && SOURCE_ROUTE\[d\.source\.kind\]/);
+    const brain = read(join(SRC, "brain/BrainFlow.tsx"));
+    expect(brain, "the shell's own router is what it gets").toMatch(/<DecisionsFlow[\s\S]{0,300}?onOpenSource=\{onOpenEntity\}/);
+  });
+
+  it("an event's provenance line opens its source on both surfaces", () => {
+    const page = read(join(SRC, "schedule/screens/EventDetailPage.tsx"));
+    // The house opener, not a fifth hand-written map (shared/openSource.ts).
+    expect(page, "it takes the shared opener").toMatch(/openSourceFor\?:\s*\(source: Source\)/);
+    expect(page, "and reads it through Provenance").toMatch(/openSourceFor \? \{ onOpen: openSourceFor\(prov\) \}/);
+    expect(page, "the old unwired seam is gone").not.toMatch(/onOpenSource\?:/);
+    for (const f of ["schedule/ScheduleFlow.tsx", "today/TodayFlow.tsx"]) {
+      expect(read(join(SRC, f)), f + " hands the event page an opener")
+        .toMatch(/<EventDetailPage[\s\S]{0,900}?openSourceFor=\{openSourceFor\}/);
+    }
+    expect(read(join(SRC, "today/TodayFlow.tsx")), "Today builds it from the same helper")
+      .toMatch(/sourceOpener\(onOpenEntity\)/);
+  });
+
+  it("a proposed block can be booked one at a time, on Today too", () => {
+    const row = read(join(SRC, "schedule/screens/ProposedRow.tsx"));
+    expect(row, "the row offers it when a caller can honour it").toMatch(/\{onAccept && <button/);
+    const day = read(join(SRC, "today/YourDay.tsx"));
+    expect(day, "the top-level row gets it").toMatch(/proposed!\.onAccept \? \{ onAccept:/);
+    expect(day, "and so does the row nested in a block").toMatch(/proposed\?\.onAccept &&/);
+    const flow = read(join(SRC, "today/TodayFlow.tsx"));
+    expect(flow, "Today supplies it").toMatch(/onAccept: \(id: string\) => void acceptOneBlock\(id\)/);
+    // One block, committed the same way the whole day is, and undoable.
+    expect(flow, "it commits just that block").toMatch(/picks: \[b\.taskId\]/);
+    expect(flow, "the guard survives a render").toMatch(/acceptingOne = useRef\(false\)/);
+  });
+
+  it("the health flow keeps no event sink nobody fills", () => {
+    const src = read(join(SRC, "health/HealthFlow.tsx"));
+    expect(src.replace(/\/\/[^\n]*/g, ""), "onEvent must stay gone").not.toContain("onEvent");
+  });
+});

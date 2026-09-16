@@ -109,6 +109,7 @@ import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "
 import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
 import { liveCard, currentLine } from "../gym/liveCard";
 import { readFifteen, writeFifteen, clearFifteen, isStillLive, fifteenFace, extended, type LiveFifteen } from "./liveFifteen";
+import { sourceOpener } from "../shared/openSource";
 import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
 
 // "All its work is done" is an observation, not a verdict: a project he is
@@ -302,6 +303,9 @@ export default function TodayFlow({
   // second door to the same room, so the head stands down.
   const [mailResidual, setMailResidual] = useState(false);
   const reflowGuard = useRef(0);
+  // Double-tap guard for the per-block Accept, same shape as the Schedule
+  // tab's. A plain object would be new on every render and guard nothing.
+  const acceptingOne = useRef(false);
 
   // Group B (item 10): the Now line self-updates on a minute tick.
   const [, setMinuteTick] = useState(0);
@@ -1493,6 +1497,11 @@ export default function TodayFlow({
   // more hooks, and the error boundary swallowed the whole app. The return
   // now lives after the last effect; everything between here and there is
   // pure derivation that is safe on empty loading-state data.
+  // The same map every other provenance line in the app reads
+  // (shared/openSource.ts), so Today's copy of the event page opens a source
+  // exactly where the Schedule tab's copy does.
+  const openSourceFor = onOpenEntity ? sourceOpener(onOpenEntity) : undefined;
+
   const nhm = nowHHMM(now);
   // Evening posture (Phase 2 follow-on): after the workday (or 6 PM), Today
   // recaps instead of pushing, and the check-in leads.
@@ -2104,6 +2113,7 @@ export default function TodayFlow({
           onToggleStep={(id) => void onToggleTask(id)}
           onAddStep={(text) => void addEventStep(eventDetail, ev, text)}
           linkedNotes={eventDetailNotes}
+          openSourceFor={openSourceFor}
         />
       );
     }
@@ -2387,7 +2397,42 @@ export default function TodayFlow({
     // momentum chain and the burst behave exactly as they do elsewhere.
     onComplete: (id: string) => void onToggleTask(id),
     onOpen: (id: string) => void onOpenTask(id),
+    // TAKE ONE BLOCK, NOT THE WHOLE DAY (button audit 2026-09-16; Dave: "add
+    // it to Today"). The type has carried this since C-32 and only the
+    // Schedule tab implemented it, so Today's only answer to a draft was all
+    // of it or none. Same write the whole-day Accept makes, for one block,
+    // and the block leaves the draft on its own: liveBlocks drops any block
+    // whose task now has an event carrying its id, which is the checkpoint
+    // both surfaces already share.
+    onAccept: (id: string) => void acceptOneBlock(id),
   } : undefined;
+
+  const acceptOneBlock = async (taskId: string) => {
+    const b = liveDraftBlocks.find((x) => x.taskId === taskId);
+    if (!b || acceptingOne.current) return;
+    acceptingOne.current = true;
+    try {
+      let ids: string[] = [];
+      const ok = await attemptWrite(async () => {
+        ids = (await schedule.commitPlan(today, [{
+          taskId: b.taskId, text: b.text, category: b.category, start: b.start, end: b.end,
+        }], undefined, { picks: [b.taskId] })).created;
+      });
+      if (!ok) return;
+      setTuning(null);
+      await reload();
+      showToast({
+        message: "Booked " + fmtTime(b.start).time + fmtTime(b.start).ap,
+        actionLabel: "Undo",
+        onAction: async () => {
+          await attemptWrite(async () => { for (const id of ids) await schedule.deleteEvent(id); });
+          await reload();
+        },
+      });
+    } finally {
+      acceptingOne.current = false;
+    }
+  };
 
   const draftFooter = draftStanding ? (
     <>

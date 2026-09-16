@@ -5,6 +5,18 @@ import InlineEdit from "../shared/InlineEdit";
 import MarkdownField from "../shared/MarkdownField";
 import DecisionCaptureSheet, { type AttachOption, type DecisionDraft } from "./DecisionCaptureSheet";
 import { ENTITY_DECISION, linksOf, OUTCOME_LABEL, SOURCE_LABEL, type DecisionRecord, type OutcomeWord } from "./types";
+import type { DecisionSourceKind } from "./types";
+
+// WHERE A DECISION'S SOURCE ACTUALLY GOES (button audit, 2026-09-16; Dave:
+// "wire it"). The row below has been built to open its origin since C-53 and
+// nothing ever passed the handler, so "Email · Aug 12" under a decision was a
+// line you could tap forever.
+//
+// Only the two kinds the shell can land on are listed. A decision made in
+// Chat or entered by hand has nowhere to go, so its row stays the plain fact
+// it already was -- opening a door onto nothing is the same bug wearing the
+// other costume.
+const SOURCE_ROUTE: Partial<Record<DecisionSourceKind, string>> = { note: "note", email: "email" };
 import { todayISO } from "../schedule/calendar";
 import EntityStar from "../shared/EntityStar";
 import { attemptWrite } from "../shared/guard";
@@ -271,8 +283,8 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
             <>
               <div className="sh2 sh2-quiet"><span className="t">Source</span></div>
               <div className="pad-x"><div className="card">
-                {onOpenSource && d.source.entityId ? (
-                  <div {...pressable(() => onOpenSource(d.source!.kind, d.source!.entityId!))} className="row">
+                {onOpenSource && d.source.entityId && SOURCE_ROUTE[d.source.kind] ? (
+                  <div {...pressable(() => onOpenSource(SOURCE_ROUTE[d.source!.kind]!, d.source!.entityId!))} className="row">
                     <div className="row-grow"><div className="conn-name">{SOURCE_LABEL[d.source.kind]} · {srcAt}</div></div>
                     <Chev />
                   </div>

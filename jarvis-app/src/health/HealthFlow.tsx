@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Store } from "@core";
 import type { AIService } from "../ai/AIService";
-import type { EventInput } from "../events";
 import { HealthService } from "./HealthService";
 import type {
   ConsentGrant, HealthCategoryId, LightsOutEntry, AteBeforeEntry, TookItEntry, CallItEntry, PointAtItEntry,
@@ -102,7 +101,7 @@ function currentSeason(now: number = Date.now()): string {
 // wires Health into the real app (still out of scope here, same Track 3
 // follow-up the foundation already named) supplies these shapes.
 export default function HealthFlow({
-  store, ownerId, service, onEvent, candidates = [], callItDuration, initialScreen = "share", initialHandOff, onExit,
+  store, ownerId, service, candidates = [], callItDuration, initialScreen = "share", initialHandOff, onExit,
   sportSessions = [], weekDates, athleteAgeYears, monthsInSeason,
   nightBeforeCommitments = [], eatingWindowBlocks = [], sessionStarts = [],
   bagEvent, ai, onOffer, onLandParentTask, onCommitSeasonFeed, people = [], parentList = false,
@@ -111,11 +110,12 @@ export default function HealthFlow({
   // of it already uses (data/NotesProvider's useHealth), so a dose logged
   // through one of these screens is the same row the health area page's own
   // loggers read. The bench and this module's tests build one from a bare
-  // store instead, which is what these two props are still for.
+  // store instead, which is what those two props are still for. An onEvent
+  // sink sat here too and nothing ever passed one, the bench and the tests
+  // included (button audit 2026-09-16), so the service's own default stands.
   service?: HealthService;
   store?: Store;
   ownerId?: string;
-  onEvent?: (e: EventInput) => void;
   candidates?: AteBeforeCandidate[];
   callItDuration?: number;
   initialScreen?: ScreenKey;
@@ -170,7 +170,7 @@ export default function HealthFlow({
   // call landed on. On the Student template that is the parent's list.
   parentList?: boolean;
 }) {
-  const svc = useState(() => service ?? new HealthService(store!, ownerId ?? "", onEvent))[0];
+  const svc = useState(() => service ?? new HealthService(store!, ownerId ?? ""))[0];
   const [screen, setScreen] = useState<ScreenKey>(initialScreen);
   // UP-ATH-05: the dated summary in flight between Point at It and Say It to
   // Someone. Null on every other path through this flow.

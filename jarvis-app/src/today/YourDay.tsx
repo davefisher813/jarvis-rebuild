@@ -229,6 +229,7 @@ function DaySet({
           onDuration={(m) => proposed!.onDuration(en.b.taskId, m)}
           onDrop={() => proposed!.onDrop(en.b.taskId)}
           {...(proposed!.onComplete ? { onComplete: () => proposed!.onComplete!(en.b.taskId) } : {})}
+          {...(proposed!.onAccept ? { onAccept: () => proposed!.onAccept!(en.b.taskId) } : {})}
         />,
       );
     } else {
@@ -282,6 +283,13 @@ function DaySet({
                     {b.text}
                   </span>
                   <span className="block-held-u">{fmtTime(b.start).time}</span>
+                  {/* The same per-block Accept the Schedule tab draws on its
+                      own nested rows. Without it this was the one place a
+                      proposed block could be ticked off or opened but not
+                      booked. */}
+                  {proposed?.onAccept && (
+                    <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); proposed.onAccept!(b.taskId); }}>Accept</button>
+                  )}
                 </div>
               ))}
               </>

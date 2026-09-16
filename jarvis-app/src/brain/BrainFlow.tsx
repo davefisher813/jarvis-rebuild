@@ -156,7 +156,8 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
       return <RoutineFlow onBack={() => setOpen(null)} focusId={routineBlockId} onFocusConsumed={onRoutineBlockConsumed} />;
     }
     if (open.key === "decisions") {
-      return <DecisionsFlow openId={decisionOpenId} openNonce={decisionNonce} onOpenConsumed={onDecisionConsumed} onBack={() => setOpen(null)} />;
+      return <DecisionsFlow openId={decisionOpenId} openNonce={decisionNonce} onOpenConsumed={onDecisionConsumed}
+        onOpenSource={onOpenEntity} onBack={() => setOpen(null)} />;
     }
     if (open.key === "contacts") {
       // BRAIN-F-04: an explicit tap (personId, set by a person row on an area

@@ -35,6 +35,7 @@ export default function ProposedRow({
   onDuration,
   onDrop,
   onComplete,
+  onAccept,
 }: {
   block: PlanBlock;
   open: boolean;
@@ -48,6 +49,13 @@ export default function ProposedRow({
    *  the lead slot, where the hand already looks for it. Optional, so a
    *  caller with no completion wiring renders exactly as it did. */
   onComplete?: () => void;
+  /** BOOK THIS ONE BLOCK (button audit 2026-09-16; Dave: "add it to Today").
+   *  The proposed-day type has carried a per-block Accept since C-32 and only
+   *  the Schedule tab ever drew one, on its nested held rows. This is the
+   *  same verb on the row itself, so a draft can be taken a block at a time
+   *  wherever it is shown. Optional: a caller that only offers the whole-day
+   *  Accept passes nothing and this row is what it was. */
+  onAccept?: () => void;
 }) {
   const t = fmtTime(block.start);
   const slot = catColor(block.category);
@@ -108,6 +116,9 @@ export default function ProposedRow({
                 nothing is deleted, so it wears the app's own verb for the
                 move and the neutral capsule, never red. */}
             <div className="plan-when">
+              {/* Booking one block is the affirmative move, so it leads and
+                  Move to Anytime stays the quiet one beside it. */}
+              {onAccept && <button type="button" className="btn btn-primary btn-sm" onClick={onAccept}>Book It</button>}
               <button type="button" className="btn-sm" onClick={onDrop}>Move to Anytime</button>
             </div>
           </div>
