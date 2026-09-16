@@ -13,7 +13,13 @@ export interface SheetCategoryOpt { id: string; name: string; color: ColorSlot }
 
 export interface PersonDraft {
   name: string;
+  /** The other names you call them, one per line as typed. "Mom" for Linda
+   *  Fisher: one person, not a second contact. */
+  aliases: string[];
   relationship: string;
+  /** Who they are in a given area, for the people who wear two hats. Keyed by
+   *  area id, and only for areas they are actually in. */
+  roles: { categoryId: string; role: string }[];
   birthday: string;
   notes: string;
   color: ColorSlot;
@@ -60,7 +66,13 @@ export default function PersonSheet({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
+  // Typed as one line per name, which is the only shape that works on a phone
+  // without a chip editor. Stored as a list.
+  const [aliasText, setAliasText] = useState((initial?.aliases ?? []).join(", "));
   const [relationship, setRelationship] = useState(initial?.relationship ?? "");
+  const [roles, setRoles] = useState<Record<string, string>>(
+    Object.fromEntries((initial?.roles ?? []).map((r) => [r.categoryId, r.role])),
+  );
   const [birthday, setBirthday] = useState(initial?.birthday ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [color, setColor] = useState<ColorSlot>(initial?.color ?? "red");
@@ -91,7 +103,13 @@ export default function PersonSheet({
     // way) unlatches, so the sheet is usable again with the typing intact.
     const r = onSave({
       name: name.trim(),
+      aliases: aliasText.split(/[,\n]/).map((a) => a.trim()).filter(Boolean),
       relationship: relationship.trim(),
+      // Only for areas they are actually in: a role left behind by an area
+      // that was unticked is not a fact about them any more.
+      roles: categoryIds
+        .map((id) => ({ categoryId: id, role: (roles[id] ?? "").trim() }))
+        .filter((r) => r.role !== ""),
       birthday: birthday.trim(),
       notes: notes.trim(),
       color,
@@ -108,6 +126,11 @@ export default function PersonSheet({
       <Group label="Person">
         <FieldRow tone="pink" glyph={<User className="ic" />} value={name} onChange={setName} placeholder="Full Name" ariaLabel="Name"
           error={touched && !valid} right={false} />
+        {/* ONE PERSON, EVERY NAME YOU CALL THEM. Search and the mention
+            matcher read these, so "call Mom" finds Linda Fisher without a
+            second contact for her existing. */}
+        <FieldRow tone="purple" glyph={<PeopleGlyph />} label="Also Called" value={aliasText} onChange={setAliasText}
+          placeholder="Mom, Linda" ariaLabel="Other names for this person" />
       </Group>
       <ErrorLine text={touched && !valid ? "Add a name." : null} />
       <Group label="Who They Are to You">
@@ -133,6 +156,21 @@ export default function PersonSheet({
               options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color as string }))]}
               onPick={toggleCategory} />
           </Row>
+          {/* A ROLE PER AREA, and only for the areas they are in (People
+              handoff, 2026-09-16: "Mother belongs to Family context; Board
+              secretary belongs to Bridge context"). One label for the whole
+              person could not hold both, and picking one of them to be THE
+              answer is how a professional draft ends up carrying family
+              words. Blank is the normal case and says nothing. */}
+          {categoryIds.map((id) => {
+            const cat = categories.find((c) => c.id === id);
+            if (!cat) return null;
+            return (
+              <FieldRow key={id} tone={cat.color} glyph={<Tag className="ic" />} label={cat.name}
+                value={roles[id] ?? ""} onChange={(v) => setRoles((r) => ({ ...r, [id]: v }))}
+                placeholder="Their Role Here" ariaLabel={"Role in " + cat.name} />
+            );
+          })}
         </Group>
       )}
       <Group label="Color">

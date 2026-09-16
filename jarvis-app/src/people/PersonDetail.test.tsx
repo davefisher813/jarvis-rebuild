@@ -146,3 +146,83 @@ describe("reach them, with more than one of a kind", () => {
     expect(screen.queryByText("Call home")).not.toBeInTheDocument();
   });
 });
+
+// NEXT TIME WE TALK (People handoff, 2026-09-16). Undated points that raise
+// no alert: "Do not automatically schedule alerts for talking points."
+describe("next time we talk", () => {
+  const withPoints = (points?: { id: string; text: string; discussed?: boolean }[]) => ({
+    id: "p5",
+    data: {
+      name: "Alberto Martinez", group: "contacts" as const,
+      ...(points ? { talkingPoints: points } : {}),
+    },
+  });
+
+  it("is off entirely on a surface that cannot write", () => {
+    render(<PersonDetail person={withPoints()} onEdit={() => {}} onBack={() => {}} />);
+    expect(screen.queryByText("Next Time We Talk")).not.toBeInTheDocument();
+  });
+
+  it("offers a way to add one even when there are none yet", () => {
+    render(<PersonDetail person={withPoints()} onEdit={() => {}} onBack={() => {}} onAddPoint={() => {}} />);
+    expect(screen.getByText("Next Time We Talk")).toBeInTheDocument();
+    expect(screen.getByText("Add Something")).toBeInTheDocument();
+  });
+
+  it("counts only the ones still to raise", () => {
+    render(<PersonDetail onEdit={() => {}} onBack={() => {}} onAddPoint={() => {}}
+      person={withPoints([
+        { id: "a", text: "Ask about the layout" },
+        { id: "b", text: "Thank him for the ride", discussed: true },
+      ])} />);
+    // Both are shown -- a discussed one is kept, not deleted, so "did I bring
+    // that up?" is answerable -- and the count is of what is left.
+    expect(screen.getByText("Ask about the layout")).toBeInTheDocument();
+    expect(screen.getByText("Thank him for the ride")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("marks one discussed from the ring or from anywhere on the row", () => {
+    const toggled: string[] = [];
+    render(<PersonDetail onEdit={() => {}} onBack={() => {}} onAddPoint={() => {}}
+      onTogglePoint={(id) => toggled.push(id)}
+      person={withPoints([{ id: "a", text: "Ask about the layout" }])} />);
+    fireEvent.click(screen.getByLabelText("Mark discussed: Ask about the layout"));
+    expect(toggled).toEqual(["a"]);
+    // The row is the door: a talking point has nothing else to open, so a tap
+    // on the words means the same thing as a tap on the ring.
+    fireEvent.click(screen.getByText("Ask about the layout"));
+    expect(toggled).toEqual(["a", "a"]);
+  });
+
+  it("can undo the tick, so a wrong tap is not a one-way door", () => {
+    const toggled: string[] = [];
+    render(<PersonDetail onEdit={() => {}} onBack={() => {}} onAddPoint={() => {}}
+      onTogglePoint={(id) => toggled.push(id)}
+      person={withPoints([{ id: "a", text: "Ask about the layout", discussed: true }])} />);
+    fireEvent.click(screen.getByLabelText("Not discussed yet: Ask about the layout"));
+    expect(toggled).toEqual(["a"]);
+  });
+});
+
+// A ROLE PER AREA: "Family · Mother", "Bridge · Board secretary". One label
+// for the whole person could not hold both.
+describe("roles, per area", () => {
+  it("says what they are in each area that gave them a role", () => {
+    render(<PersonDetail onEdit={() => {}} onBack={() => {}}
+      person={{ id: "p6", data: { name: "Linda Fisher", group: "contacts" as const } }}
+      categoryColors={[
+        { name: "Family", color: "pink", role: "Mother" },
+        { name: "Bridge", color: "teal", role: "Board secretary" },
+      ]} />);
+    expect(screen.getByText("Family · Mother")).toBeInTheDocument();
+    expect(screen.getByText("Bridge · Board secretary")).toBeInTheDocument();
+  });
+
+  it("leaves an area with no role reading exactly as it did", () => {
+    render(<PersonDetail onEdit={() => {}} onBack={() => {}}
+      person={{ id: "p6", data: { name: "Linda Fisher", group: "contacts" as const } }}
+      categoryColors={[{ name: "Family", color: "pink" }]} />);
+    expect(screen.getByText("Family")).toBeInTheDocument();
+  });
+});

@@ -12,14 +12,47 @@ export interface ContactMethod {
   label?: string;
 }
 
+/** A role this person holds IN ONE AREA. Mom is "Mother" in Family and
+ *  "Board secretary" in Bridge, and neither answer is wrong -- which is why
+ *  `relationship` below, one string for the whole person, could not hold it. */
+export interface PersonRole {
+  categoryId: string;
+  role: string;
+}
+
+/** Something to raise the next time you talk. Undated on purpose: the whole
+ *  point is that it is NOT a deadline, and the handoff is explicit that these
+ *  never schedule an alert of their own. */
+export interface TalkingPoint {
+  id: string;
+  text: string;
+  /** Marked once it has been raised. Kept, not deleted, so it can be undone
+   *  and so the card can say what was covered last time. */
+  discussed?: boolean;
+}
+
 export interface PersonData {
   name: string;
+  // ONE PERSON, EVERY NAME YOU CALL THEM (People handoff, 2026-09-16: "Mom
+  // and Linda Fisher are one confirmed identity"). Search and the mention
+  // matcher read these as well as `name`, so a task that says "call Mom"
+  // finds Linda Fisher without a second contact existing for her.
+  aliases?: string[];
   // Legacy placement field. Kept readable for old rows; new people are always
   // "contacts". The Inner Circle / Adversarial lists were removed 2026-08-03
   // (a list only earns a tab when a feature acts on membership; none did).
   // The per-person facts below carry the value the lists claimed to.
   group: PersonGroup;
   relationship?: string; // the label: who they are to you ("Sister", "Client")
+  // Who they are IN A GIVEN AREA, when one label for the whole person is not
+  // the truth. `relationship` above stays the general answer and is what a
+  // person with one context still uses; this is for the ones who wear two.
+  roles?: PersonRole[];
+  // NEXT TIME WE TALK (People handoff, 2026-09-16). Undated points, kept on
+  // the person because that is the only place they mean anything. They raise
+  // no notification and set no date: a talking point that nags is a task, and
+  // the app already has tasks for that.
+  talkingPoints?: TalkingPoint[];
   birthday?: string;
   notes?: string;
   color?: ColorSlot;

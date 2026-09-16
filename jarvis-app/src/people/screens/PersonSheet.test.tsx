@@ -25,7 +25,7 @@ describe("PersonSheet", () => {
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "sam@work.com" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith({
-      name: "Sam Rivera", relationship: "Coworker", birthday: "", notes: "", color: "red",
+      name: "Sam Rivera", aliases: [], relationship: "Coworker", roles: [], birthday: "", notes: "", color: "red",
       email: "sam@work.com", phone: "", register: "casual", categoryIds: [],
     });
   });

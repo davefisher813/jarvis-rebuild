@@ -137,6 +137,10 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   // email counts even when their first name is one the matcher refuses to
   // guess at.
   const currentId = current?.id;
+  // ONE PERSON, EVERY NAME YOU CALL THEM: a task that says "call Mom" is
+  // about Linda Fisher, and the matcher can only know that if it is handed
+  // the alias. Joined for the dependency list, which takes primitives.
+  const currentAliases = (current?.data.aliases ?? []).join("\u0000");
   useEffect(() => {
     if (!currentName) { setStill([]); return; }
     let on = true;
@@ -149,7 +153,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           // person counts whatever its wording, so the card lists the work
           // the name matcher was right to refuse to guess at. UP-MIND-10
           // widens the same match to tasks born from this person's email.
-          { id: currentId, name: currentName },
+          { id: currentId, name: currentName, aliases: currentAliases ? currentAliases.split("\u0000") : [] },
           ts.map((t) => ({ id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null, personId: t.data.personId })),
           evs.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start, location: e.data.location })),
           todayISO(),
@@ -157,7 +161,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
       } catch { if (on) setStill([]); }
     })();
     return () => { on = false; };
-  }, [currentName, currentId, tasksSvc, schedSvc]);
+  }, [currentName, currentId, currentAliases, tasksSvc, schedSvc]);
 
   useEffect(() => {
     if (!currentId) { setPersonProjects([]); setDecided([]); setPromises([]); return; }
@@ -260,7 +264,9 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
 
   const onSave = async (d: PersonDraft) => {
     const facts = {
+      aliases: d.aliases.length ? d.aliases : undefined,
       relationship: d.relationship || undefined,
+      roles: d.roles.length ? d.roles : undefined,
       birthday: d.birthday || undefined,
       notes: d.notes || undefined,
       color: d.color,
@@ -439,6 +445,28 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     });
   };
 
+  // NEXT TIME WE TALK (People handoff, 2026-09-16). Undated, and they raise
+  // no notification: the handoff is explicit that a talking point must not
+  // schedule an alert, and a point that nags is a task, which the app already
+  // has. A discussed point is kept rather than deleted, so the tick is
+  // undoable and the card can still say what was covered.
+  const addPoint = async (personId: string, text: string) => {
+    const p = list.find((x) => x.id === personId);
+    if (!p) return;
+    const id = "tp" + Date.now().toString(36);
+    const next = [...(p.data.talkingPoints ?? []), { id, text: text.trim() }];
+    if (!await attemptWrite(() => people.update(personId, { talkingPoints: next }))) return;
+    await reload();
+  };
+  const togglePoint = async (personId: string, pointId: string) => {
+    const p = list.find((x) => x.id === personId);
+    if (!p) return;
+    const next = (p.data.talkingPoints ?? []).map((pt) =>
+      pt.id === pointId ? { ...pt, discussed: !pt.discussed } : pt);
+    if (!await attemptWrite(() => people.update(personId, { talkingPoints: next }))) return;
+    await reload();
+  };
+
   const importEl = importPreview && createPortal(
     <div className="sheet-scrim" onClick={() => !importing && setImportPreview(null)}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
@@ -507,7 +535,14 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           onCheckIn={current.data.email ? () => void checkIn() : undefined}
           checkingIn={checkingIn}
           openWith={still}
-          categoryColors={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)).filter((c): c is SheetCategoryOpt => !!c).map((c) => ({ name: c.name, color: c.color }))}
+          categoryColors={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)).filter((c): c is SheetCategoryOpt => !!c).map((c) => {
+            // The role they hold IN this area, when one is set. Resolved here
+            // like every other fact on that screen, which has no service access.
+            const role = (current.data.roles ?? []).find((r) => r.categoryId === c.id)?.role;
+            return role ? { name: c.name, color: c.color, role } : { name: c.name, color: c.color };
+          })}
+          onAddPoint={(text) => void addPoint(current.id, text)}
+          onTogglePoint={(pid) => void togglePoint(current.id, pid)}
           projects={personProjects}
           onOpenProject={onOpenItem ? (id) => onOpenItem("project", id) : undefined}
           decided={decided}
