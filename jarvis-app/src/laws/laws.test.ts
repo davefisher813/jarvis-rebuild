@@ -4534,8 +4534,30 @@ describe("LAW: the headliner offers no button that only rearranges the app", () 
     // honour one renders no button rather than a dead one.
     expect(head, "Start is a seam").toMatch(/onStart\?:/);
     expect(head, "Tomorrow is a seam").toMatch(/onTomorrow\?:/);
-    expect(head, "Start renders only when it can be honoured").toMatch(/\{onStart && </);
+    // The card carries ONE filled red, and which verb it is depends on
+    // whether a block is running (see the comment at hl-acts). Either way it
+    // renders only when the flow handed over something for it to do.
+    expect(head, "the primary verb renders only when it can be honoured").toMatch(/\{primary && \(/);
+    expect(head, "Start is that verb until a block runs").toContain('{ label: "Start", run: onStart }');
     expect(head, "Tomorrow renders only when it can be honoured").toMatch(/\{onTomorrow && </);
+  });
+
+  // AND START FINISHES THE JOB (Dave 2026-09-16, the same complaint). A
+  // button that writes a calendar block and leaves the page looking exactly
+  // as it did before the tap is one he cannot tell worked. The block is on
+  // screen while it runs, it ends, and the end asks one question with two
+  // real answers.
+  it("Start leaves something on the page, and the block ends out loud", () => {
+    const flow = read(join(SRC, "today/TodayFlow.tsx"));
+    expect(flow, "starting a fifteen must record a live block").toMatch(/writeFifteen\(/);
+    const head = read(join(SRC, "today/MoveHeadliner.tsx"));
+    for (const verb of ["\"Done\"", ">Another 15<", ">Stop<"]) {
+      expect(head, "the running block offers " + verb).toContain(verb);
+    }
+    // The countdown is read off the clock, never counted up by ticks: a
+    // backgrounded phone comes back correct instead of behind.
+    const live = read(join(SRC, "today/liveFifteen.ts"));
+    expect(live, "remaining time is wall-clock arithmetic").toMatch(/startedAt \+ s\.minutes \* 60_000 - now/);
   });
 });
 

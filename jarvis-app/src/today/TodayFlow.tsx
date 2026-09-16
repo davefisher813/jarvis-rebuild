@@ -108,6 +108,7 @@ import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, ma
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
 import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
 import { liveCard, currentLine } from "../gym/liveCard";
+import { readFifteen, writeFifteen, clearFifteen, isStillLive, fifteenFace, extended, type LiveFifteen } from "./liveFifteen";
 import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
 
 // "All its work is done" is an observation, not a verdict: a project he is
@@ -358,6 +359,48 @@ export default function TodayFlow({
       window.removeEventListener("focus", readLiveGym);
     };
   }, [readLiveGym]);
+
+  // THE FIFTEEN, WHILE IT RUNS (Dave 2026-09-16: "All buttons need to do
+  // something THAT ACTUALLY helps"). Start wrote a calendar block and said so
+  // once; the page then looked exactly as it had before the tap, which is
+  // what "it didn't help" means. The block is a thing on screen now for as
+  // long as it lasts, and it lives in localStorage rather than in this
+  // component for the same reason the gym session does: phones lock, apps
+  // background, and a countdown held in React state is one that resets when
+  // he checks a message. Same three moments the answer can change without a
+  // rebuild, so the same three reads.
+  const [fifteen, setFifteen] = useState<LiveFifteen | null>(null);
+  const readFif = useCallback(() => {
+    const f = readFifteen();
+    if (f && !isStillLive(f, todayISO())) clearFifteen();
+    setFifteen(f && isStillLive(f, todayISO()) ? f : null);
+  }, []);
+  useEffect(() => { readFif(); }, [readFif]);
+  useEffect(() => {
+    const onWake = () => { if (document.visibilityState === "visible") readFif(); };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", readFif);
+    return () => {
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", readFif);
+    };
+  }, [readFif]);
+  // A COUNTDOWN TICKS IN SECONDS, AND ONLY WHILE THERE IS ONE. The page's
+  // own heartbeat is a minute, which is right for "Now" and useless for a
+  // clock a person is watching run out. This interval exists only while a
+  // block is live, so a page with nothing running keeps the cost it had.
+  const [, setSecondTick] = useState(0);
+  useEffect(() => {
+    if (!fifteen) return;
+    const id = setInterval(() => {
+      // The question expires where liveFifteen says it does, and the block
+      // takes itself off the page when it gets there rather than waiting for
+      // the next time something happens to read storage.
+      if (!isStillLive(fifteen, todayISO())) { clearFifteen(); setFifteen(null); return; }
+      setSecondTick((n) => n + 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [fifteen]);
   // PLUMB-F-17 (2026-09-05): yesterday's picks were only scored at cold
   // start, so an app that lived across midnight left the Lately record and
   // the cap offer stale until the next full relaunch. Today is the screen
@@ -3304,7 +3347,68 @@ export default function TodayFlow({
       start, end: endOf(start, FIFTEEN),
     }]));
     await reload();
-    if (id) showToast({ message: `Fifteen minutes on ${t.data.text}` });
+    if (!id) return;
+    // "Fifteen minutes, and it ENDS" (tasks/rightNow.ts) is half a promise
+    // until the end is visible and arrives. The block becomes the headliner
+    // from here; the toast only confirms the write.
+    const live: LiveFifteen = {
+      taskId: t.id, text: t.data.text, startedAt: Date.now(),
+      startHHMM: start, date: today, minutes: FIFTEEN, rounds: 1,
+    };
+    writeFifteen(live);
+    setFifteen(live);
+    showToast({ message: `Fifteen minutes on ${t.data.text}` });
+  };
+
+  // THE END OF THE BLOCK ASKS ONE QUESTION, AND BOTH ANSWERS ARE REAL
+  // (2026-09-16). Done ticks the task through the same door every other tick
+  // on this page uses, so the chain, the receipts and the project arithmetic
+  // all still happen. Another 15 grows the block that is already on the
+  // calendar instead of booking a second one, because he did not stop and
+  // start again. Stop is the way out while it runs, and it trims the event
+  // to the minutes he actually sat: a block nobody sat through should not
+  // leave a full fifteen on the day claiming he did.
+  const fifteenCat = (id: string) => taskItems.find((x) => x.id === id)?.data.category ?? "";
+
+  const endFifteen = () => { clearFifteen(); setFifteen(null); };
+
+  const fifteenDone = async () => {
+    const f = fifteen;
+    if (!f) return;
+    endFifteen();
+    await onToggleTask(f.taskId);
+  };
+
+  const fifteenAgain = async () => {
+    const f = fifteen;
+    if (!f) return;
+    const next = extended(f, FIFTEEN);
+    const ok = await attemptWrite(() => schedule.commitPlan(today, [{
+      taskId: f.taskId, text: f.text, category: fifteenCat(f.taskId),
+      start: f.startHHMM, end: endOf(f.startHHMM, next.minutes),
+    }]));
+    if (!ok) return;
+    writeFifteen(next);
+    setFifteen(next);
+    await reload();
+    showToast({ message: "Fifteen more minutes" });
+  };
+
+  /** What the headliner shows while a block is live. Recomputed on every
+   *  second tick, off the clock, never off a counter. */
+  const liveFifteenFace = fifteen && isStillLive(fifteen, today) ? fifteenFace(fifteen) : null;
+
+  const fifteenStop = async () => {
+    const f = fifteen;
+    if (!f) return;
+    const sat = Math.max(1, Math.round((Date.now() - f.startedAt) / 60_000));
+    endFifteen();
+    const ok = await attemptWrite(() => schedule.commitPlan(today, [{
+      taskId: f.taskId, text: f.text, category: fifteenCat(f.taskId),
+      start: f.startHHMM, end: endOf(f.startHHMM, sat),
+    }]));
+    await reload();
+    if (ok) showToast({ message: capAfterNumber(`${sat} ${sat === 1 ? "minute" : "minutes"} on it`) });
   };
 
   // NOT TONIGHT, AND HERE IS WHEN INSTEAD (Dave 2026-09-16: every button on
@@ -3483,6 +3587,10 @@ export default function TodayFlow({
       moveEstimate={moveEstimate}
       moveReason={movePlacement ?? moveMoves}
       onTomorrowMove={moveTask ? () => void moveToTomorrow(moveTask) : undefined}
+      fifteen={liveFifteenFace}
+      onFifteenDone={() => void fifteenDone()}
+      onFifteenAgain={() => void fifteenAgain()}
+      onFifteenStop={() => void fifteenStop()}
       blendMap={blendMap}
       gymDoorFor={gymDoor.doorFor}
       onStartTask={(id) => {

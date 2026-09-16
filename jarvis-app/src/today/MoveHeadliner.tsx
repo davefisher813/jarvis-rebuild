@@ -37,13 +37,23 @@ export interface MoveFacts {
 // one is not fixed by explaining it. What is left is Start, which commits real
 // minutes, and Tomorrow, which moves the task to a real slot and names it.
 export default function MoveHeadliner({
-  title, facts, onStart, onTomorrow, onToggle, onOpen,
+  title, facts, onStart, onTomorrow, onDone, onAgain, onStop, onToggle, onOpen,
 }: {
   title: string;
   facts: MoveFacts;
   onStart?: () => void;
   /** Move it to a named open slot tomorrow. Says which one on the toast. */
   onTomorrow?: () => void;
+  /** THE FIFTEEN, WHILE IT RUNS (2026-09-16). When a block is running on
+   *  this task, Start and Tomorrow stand down and these take the line: the
+   *  clock is already in `facts.reason`, and the verbs are what to do about
+   *  it. Done ticks the task off from here; Stop ends the block early and
+   *  trims it on the calendar to the minutes he actually sat; Another 15
+   *  buys the next fifteen. The caller passes Stop while it runs and Another
+   *  15 once it is up, so there are never three. */
+  onDone?: () => void;
+  onAgain?: () => void;
+  onStop?: () => void;
   /** Tick it off from here.
    *
    *  THE ONE PLACE THIS DEPARTS FROM THE HARNESS (2026-09-12). The approved
@@ -56,6 +66,11 @@ export default function MoveHeadliner({
   onToggle?: () => void;
   onOpen?: () => void;
 }) {
+  const primary = onDone
+    ? { label: "Done", run: onDone }
+    : onStart
+      ? { label: "Start", run: onStart }
+      : null;
   return (
     <>
       {/* ONE LEFT EDGE (Dave 2026-09-12, photographed: "The 'text Shawna'
@@ -107,7 +122,23 @@ export default function MoveHeadliner({
             {facts.reason && <span className={"fact" + (facts.urgency ? "" : " sky")}>{facts.reason}</span>}
           </div>
           <div className="hl-acts">
-            {onStart && <button type="button" className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); onStart(); }}>Start</button>}
+            {/* ONE FILLED RED PER SCREEN, and on this card one primary verb:
+                the thing to do right now. Before the block that is Start;
+                while it runs it is Done, because the task is already started
+                and the only thing left to say about it is that it is
+                finished. Two <button> elements here would be two filled reds
+                in one file (laws.test.ts) even though only one can ever
+                render, so it is one button that knows which verb it is. */}
+            {primary && (
+              <button type="button" className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); primary.run(); }}>
+                {primary.label}
+              </button>
+            )}
+            {onAgain && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onAgain(); }}>Another 15</button>}
+            {/* A block you cannot stop is a trap. Stopping trims the event to
+                the minutes he actually sat, so the day does not keep a full
+                fifteen he did not take. */}
+            {onStop && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onStop(); }}>Stop</button>}
             {/* The honest answer to "not tonight". It does not re-rank, snooze
                 or hide anything: it books the task into a real open slot
                 tomorrow and the toast says which one, so the answer to "when,

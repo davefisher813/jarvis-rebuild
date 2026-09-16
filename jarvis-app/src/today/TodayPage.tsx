@@ -227,6 +227,10 @@ export default function TodayPage({
   moveEstimate,
   moveReason,
   onTomorrowMove,
+  fifteen,
+  onFifteenDone,
+  onFifteenAgain,
+  onFifteenStop,
   freshStart,
   locked,
   onOpenEvent,
@@ -340,6 +344,13 @@ export default function TodayPage({
   moveReason?: string | null;
   /** Books the dealt task into a named open slot tomorrow. */
   onTomorrowMove?: () => void;
+  /** THE FIFTEEN, WHILE IT RUNS (2026-09-16). Present only while a block
+   *  started from Start is running or has just run out. `line` is the clock
+   *  ("14:32 Left") or the fact that it is up; `over` says which. */
+  fifteen?: { taskId: string; text: string; line: string; over: boolean } | null;
+  onFifteenDone?: () => void;
+  onFifteenAgain?: () => void;
+  onFifteenStop?: () => void;
   freshStart?: () => void;
   locked?: { s: number; e: number; label: string; id?: string }[];
   onOpenEvent?: (id: string) => void;
@@ -539,7 +550,41 @@ export default function TodayPage({
   // and the runners-up are a quiet row rather than a third voice. The stream
   // is built from the notices alone now; its anchor rule still holds for the
   // day the dealt task ever rejoins it.
-  const headliner = upNextTop ? (
+  //
+  // AND WHILE A FIFTEEN RUNS, IT IS THE HEADLINER (Dave 2026-09-16: "I still
+  // haven't clicked a button and it helped me in any single way"). Start used
+  // to write a calendar block and leave the page looking exactly as it did
+  // before the tap. The block is now the one question at the top of the page
+  // for as long as it lasts: the clock where the reason sits, and the verbs
+  // that answer it. It outranks the dealt card because it IS the dealt card
+  // acted on, and it holds the slot in the evening too, where there is
+  // otherwise no headliner at all: a block started at 5:50 does not stop
+  // mattering at six.
+  //
+  // The facts stay honest about which task this is. When the running block is
+  // the task that was dealt, its own urgency, area and estimate still apply;
+  // when he started something else (the momentum chain hands Start a
+  // different task), the card carries only what the block itself knows.
+  const fifteenIsDealt = !!fifteen && fifteen.taskId === upNextTop?.id;
+  const headliner = fifteen ? (
+    <MoveHeadliner
+      title={fifteen.text}
+      facts={{
+        urgency: fifteenIsDealt && upNextTop ? titleWord(urgencyFor(upNextTop.data, today)?.label) : null,
+        category: fifteenIsDealt ? moveCategory ?? null : null,
+        estimate: fifteenIsDealt ? moveEstimate ?? null : null,
+        reason: fifteen.line,
+      }}
+      onDone={onFifteenDone}
+      // One question at the end, and it is his: finished, or another fifteen.
+      // While it runs the second verb is the way out, because a block you
+      // cannot stop is a trap, and stopping trims the calendar to the minutes
+      // he actually sat rather than leaving a lie on the day.
+      onAgain={fifteen.over ? onFifteenAgain : undefined}
+      onStop={fifteen.over ? undefined : onFifteenStop}
+      onOpen={() => onOpenTask?.(fifteen.taskId)}
+    />
+  ) : upNextTop ? (
     <MoveHeadliner
       title={upNextTop.data.text}
       facts={{
