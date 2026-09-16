@@ -2606,7 +2606,17 @@ button {
    of the gradient safe here, exactly as the pagebar's comment says of its
    own. */
 .pagehead-title::after { content: ""; display: block; margin-top: var(--s-1h); height: 2px; width: 64px;
-  border-radius: 2px; background: linear-gradient(90deg, #FA233B, #FB5C74 55%, rgba(251,92,116,0)); }
+  border-radius: 2px; background: linear-gradient(90deg, #FA233B, #FB5C74 55%, rgba(251,92,116,0));
+  transition: opacity var(--dur-fast) var(--ease-out); }
+/* THE STROKE LEAVES WITH THE FIRST SCROLL (Dave 2026-09-16, the Schedule
+   screenshot: a red line under the bar with nothing above it). The stroke
+   sits BELOW the words, so it is the last part of the large title to pass
+   under the bar: there is a band, about 70px of scroll wide, where the words
+   are already hidden behind the glass and the stroke is still showing under
+   the bar, orphaned. It belongs to the page at rest, and the moment the page
+   moves it is on its way out; .pagebar.on::after picks the same stroke up on
+   the bar as it condenses, so the mark never actually leaves the screen. */
+.pagebar.solid + .pagehead .pagehead-title::after { opacity: 0; }
 .barbtn { width: 32px; height: 32px; border-radius: var(--r-circle); background: var(--press-3); border: 0;
   display: flex; align-items: center; justify-content: center; color: var(--accent-tx); flex-shrink: 0; }
 .barbtn .ic { width: 17px; height: 17px; }
