@@ -6,7 +6,7 @@ import CallPrepSheet from "../people/CallPrepSheet";
 import SyllabusUploadFlow from "../life/SyllabusUploadFlow";
 import MessageDraftSheet from "../people/MessageDraftSheet";
 import { pausedCategoryIds, offHoursCategoryIds } from "../categories/kinds";
-import TasksPage from "./screens/TasksPage";
+import TasksPage, { MomentumRow } from "./screens/TasksPage";
 import StartScreen from "./screens/StartScreen";
 import { startAction, shapeOf, blockerOf, type StartAction, type StartTarget, type InTheWay } from "./startAction";
 import { contextFor, type StartRecords } from "./startGround";
@@ -40,12 +40,10 @@ import { FIFTEEN } from "./rightNow";
 import { scheduleTask, breakDownTask, undoBreakdown, splitLine, type BreakdownResult } from "./taskMoves";
 import { emit } from "../events";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum";
-import { RowIcon } from "../shared/anatomy";
 import { touchActivity, recordSpot } from "../restore/whereYouWere";
 import { capAfterNumber } from "../shared/casing";
 import { loadOverwhelmed, setOverwhelmed as setOverwhelmedFlag, subscribeOverwhelmed, theOneThing } from "./overwhelmed";
 import NoticeCard from "../today/NoticeCard";
-import { onPressKey } from "../shared/pressable";
 import { TargetGlyph } from "../shared/glyphs";
 import { haptics } from "../shared/haptics";
 import { useFreshLists } from "../data/useFreshLists";
@@ -1077,28 +1075,17 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         momentum={momentum && {
           afterId: momentum.afterId,
           el: (
-            // The row opens the task it offers (Dave 2026-09-15: "I want all
-            // rows clickable"); Start and Not Now keep their own taps.
-            <div className="row momentum-slot" role="button" tabIndex={0} aria-label={"Open " + momentum.task.data.text}
-              onClick={() => void openEdit(momentum.task.id)}
-              onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => void openEdit(momentum.task.id))(e); }}>
-              <RowIcon kind="task" />
-              <div className="row-stack">
-                <div className="eyebrow">Keep Going</div>
-                <div className="conn-name">{momentum.task.data.text}</div>
-                {chainReason(momentum.task, momentum.task.data.category ?? "", today) && (
-                  <div className="conn-meta">{chainReason(momentum.task, momentum.task.data.category ?? "", today)}</div>
-                )}
-              </div>
-              <div className="momentum-actions">
-                {/* B3-2 (2026-09-04): this called openEdit, which opens the
-                    full metadata form. onStartTask, in the same closure, is
-                    the real Start every other Start pill on this screen
-                    calls: fifteen minutes, right now, as a real block. */}
-                <button className="pill-act" onClick={(e) => { e.stopPropagation(); const id = momentum.task.id; setMomentum(null); void onStartTask(id); }}>Start</button>
-                <button className="btn-sm" onClick={(e) => { e.stopPropagation(); dismissChain(today); setMomentum(null); }}>Not Now</button>
-              </div>
-            </div>
+            // MomentumRow IS the suggested task's own row (2026-09-16): the
+            // check, the swipe and the open it always had elsewhere, plus
+            // the one pill every other row's trailing slot carries.
+            <MomentumRow
+              task={momentum.task}
+              reason={chainReason(momentum.task, momentum.task.data.category ?? "", today)}
+              onOpen={(id) => void openEdit(id)}
+              onToggle={(id) => { setMomentum(null); void onToggle(id); }}
+              onStart={(id) => { setMomentum(null); void onStartTask(id); }}
+              onNotNow={() => { dismissChain(today); setMomentum(null); }}
+            />
           ),
         }}
         onDeleteTask={onDeleteRow}

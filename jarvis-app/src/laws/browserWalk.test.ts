@@ -735,3 +735,34 @@ describe("LAW: the schedule rail is positioned past whatever leads the row", () 
     }
   });
 });
+
+// A FREE-TEXT ROW IN A SHEET, RIGHT ONLY WHEN THERE IS SOMETHING TO SIT
+// AGAINST (found 2026-09-16, Dave photographed "Set up wallet card" and
+// "Pick location for fundraiser" both pushed to the far right of their own
+// row, an empty gap the width of the icon tile where the name used to
+// start). A same-day fix for the exercise editor's Grip and Tags rows
+// ("Neutral / Wide / Hook" reading as an answer already typed) right-aligned
+// EVERY .xs-input in every .sheet-form, which is correct for a value sitting
+// against its own label and wrong for a row the input IS: a task's name, a
+// checklist line, an event's title, an area's name, an exercise's name or
+// note, a library rename or search. Those carry no label to sit against, the
+// same reason .task-name and .conn-name always read left.
+describe("BROWSER-F: a bare .xs-input reads left; one beside .xs-label reads right", () => {
+  it("the base rule sets no alignment (left, the platform default)", () => {
+    const body = ruleBody(css(), ".sheet-form .xs-input");
+    expect(body, ".sheet-form .xs-input must exist").not.toBeNull();
+    expect(body, "a bare field must not be forced right").not.toMatch(/text-align/);
+  });
+  it("only a row with a label beside it turns the value right", () => {
+    const body = ruleBody(css(), ".sheet-form .xs-row:has(> .xs-label) .xs-input");
+    expect(body, "the labelled-row rule must exist").not.toBeNull();
+    expect(body).toMatch(/text-align:\s*right/);
+  });
+  it("every row that already reads right keeps its own reason: an .xs-field or a labelled row", () => {
+    // Every current .xs-label row (Grip, Tags) still resolves to right via
+    // the rule above; asserting the two callers directly keeps this honest
+    // about what exists rather than about what the selector merely permits.
+    const gripAndTags = read("gym/ClassifySheet.tsx") + read("gym/BatchSheet.tsx");
+    expect((gripAndTags.match(/<div className="xs-label">/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
+});

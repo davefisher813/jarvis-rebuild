@@ -515,6 +515,80 @@ export function TaskRow({
   );
 }
 
+// MOMENTUM CHAIN, THE ROW ITSELF (Dave 2026-09-16, on a screenshot of
+// "Brainstorm for Jos..." with Start and Not Now floating loose at narrow
+// widths: "It offers no value and is an eye sore/inconvenience... I can't
+// even clear it when it's like this or swipe").
+//
+// The old row was bespoke markup carrying two always-visible pills wedged
+// into one trailing slot, a shape no other row here uses, and
+// `flex-wrap: wrap` let the pair drop onto their own line and drift right
+// once the label was too long to sit beside them -- which is exactly the
+// photo. The suggestion names a REAL task, the same one Not Now already
+// acted on, so it gets that task's own row: the check, the swipe, the open.
+// One pill (Start) leads, the way every other row's does; Not Now moves
+// behind the swipe every other dismiss action in the app already lives
+// behind, which is also the "or swipe" he asked for.
+export function MomentumRow({
+  task, reason, onOpen, onToggle, onStart, onNotNow,
+}: {
+  task: TaskItem;
+  /** momentum.ts's own derived line ("Same category, due today"), or null
+   *  when neither fact applied. */
+  reason: string | null;
+  onOpen: (id: string) => void;
+  onToggle: (id: string) => void;
+  onStart: (id: string) => void;
+  /** Quiets the chain for the day (momentum.ts's dismissChain) and drops
+   *  the offer. Reused as-is; a suggestion is deferred, never deleted. */
+  onNotNow: () => void;
+}) {
+  const { dx, dragging, handlers, open: swipeOpen, closeThen } = useSwipe({ revealW: 88 });
+  return (
+    <div className="task-swipe">
+      <button className="task-snooze" onClick={() => closeThen(onNotNow)} aria-label="Not now">
+        <Clock className="ic" />
+        <span className="swipe-label">Not Now</span>
+      </button>
+      <div
+        className={"task-row momentum-row" + (dragging ? " swiping" : "")}
+        style={{ transform: dx ? `translateX(${dx}px)` : undefined }}
+        {...handlers}
+        role="button"
+        tabIndex={0}
+        aria-label={"Open " + task.data.text}
+        onClick={() => { if (swipeOpen || dx) { closeThen(); return; } onOpen(task.id); }}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+          e.preventDefault();
+          onOpen(task.id);
+        }}
+      >
+        <div
+          className="task-check-tap"
+          onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
+          role="checkbox"
+          aria-checked={false}
+          aria-label="Mark done"
+        >
+          <div className="task-check" />
+        </div>
+        <div className="task-title">
+          <span className="task-name">{task.data.text}</span>
+          <div className="r-k r-k-one">
+            {/* THE VERDICT AS A CHIP, the same vocabulary the stalled row's
+                "Keeps Sliding" already uses: the app concluded this, the
+                reason line under it is the count it concluded from. */}
+            <span className="slide-tag">Keep Going</span>
+            {reason && <span className="r-goal r-cat">{reason}</span>}
+          </div>
+        </div>
+        <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(task.id); }}>Start</button>
+      </div>
+    </div>
+  );
+}
+
 export default function TasksPage({
   filter,
   counts,
