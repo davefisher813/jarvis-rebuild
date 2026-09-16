@@ -3,15 +3,16 @@ import { createPortal } from "react-dom";
 import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
 import { monthDay, dayPhrase } from "../money/bills";
-import { agoPhraseLower, workoutMinutes } from "./summary";
+import { agoPhrase, agoPhraseLower, workoutMinutes } from "./summary";
+import { durationOf } from "../insights/analytics";
 import { setSessionOpen } from "./sessionChrome";
 import { readHealthSettings } from "../health/settings";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
-import { targetLine, formatSet, isCompactPlan } from "./measures";
+import { targetLine, formatSet } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
-import { receiptFor, lastSessionFor, type Receipt } from "./prs";
+import { receiptFor, type Receipt } from "./prs";
 import { effectiveKind } from "../categories/kinds";
 import type { Goal } from "../life/types";
 import { liftMeasureState, trainingMeasureState, type LiftMeasure, type TrainingMeasure } from "./goalMeasures";
@@ -334,18 +335,43 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
           day screen keeps its Schedule row. What survives on the row is the
           claim itself, once made, in the quiet ink a fact wears. */}
       {day.pinDays?.length ? <span className="se-chip se-chip-pin">{pinLabel(day.pinDays)}</span> : null}
+      {/* ONE TRAILING CONTROL (2026-09-16, Dave's Push Day 1 screenshot). The
+          row wore a menu AND a chevron, which is the arity rule's two, and the
+          two say the same thing twice: the row opens on tap like every
+          .row-press row in the app, and the chevron is the decoration of that
+          while the menu is a real door. The two program rows in this same file
+          have carried the menu alone since GYM-F-26; this is the rest of the
+          file catching up to them. */}
       <RowMenuButton onMenu={onMenu} what={day.name} />
-      {CHEV}
     </div>
   );
 }
 
-function ExerciseRow({ exercise, pairLabel, last, onOpen, onMenu }: {
+/** THE LENGTH, AND WHETHER TO BELIEVE IT (2026-09-16, Dave's Program
+ *  screenshot: a recent session reading 382 MIN, stated as flatly as the date
+ *  beside it).
+ *
+ *  A session's end is stamped when Finish is tapped, so one left open -- the
+ *  app closed with it live, the phone in a locker, a finish the next morning
+ *  -- records the whole wall clock as time trained. DurationCard has said so
+ *  since the 2026-09-14 design, and can correct it; analytics.durationOf has
+ *  owned the threshold for as long. But the BROWSING rows never asked, so the
+ *  number that needed the sheet was the one thing on the row with no way to
+ *  know it did.
+ *
+ *  Nothing is capped or rewritten. The chip says the same number in the ink a
+ *  warning wears, with the word on it, and the row it sits in already opens
+ *  the sheet that fixes it. */
+function minutesChip(w: WorkoutData) {
+  const d = durationOf(w);
+  return d.flagged
+    ? <span className="se-chip se-chip-over" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}><em>Review</em>{d.activeMin} Min</span>
+    : <span className="se-chip se-chip-budget">{workoutMinutes(w)}<em>Min</em></span>;
+}
+
+function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
   exercise: Exercise;
   pairLabel?: string;
-  /** LAST TIME, D2, on the day list too (preview: "3 × 275 lb × 5 ·
-   *  Last: 295 lb × 5"). Null when history has nothing for this lift. */
-  last?: string | null;
   onOpen: () => void;
   onMenu: () => void;
 }) {
@@ -364,16 +390,22 @@ function ExerciseRow({ exercise, pairLabel, last, onOpen, onMenu }: {
         </div>
         {/* THE ROW IS A RECEIPT, NOT A LEDGER (2026-09 sweep, Dave's Pull day
             2 screenshot: a real pyramid set wrapped two lines of dense grey
-            numbers). A verbose per-set listing already fills the line on its
-            own -- "Last: X" only tacks on when the plan collapsed to one
-            short clause, which is exactly when the row has room for it. */}
-        <div className="conn-meta">{targetLine(exercise)}{exercise.restSec ? ` · ${mmss(exercise.restSec)} rest` : ""}{last && isCompactPlan(exercise) ? ` · Last: ${last}` : ""}</div>
+            numbers).
+            AND LAST TIME IS NOT ON IT (2026-09-16, the polish handoff: "take
+            the trailing Last: 185 lb x 3 off the exercise row"; Dave: "grey
+            subtext all over the place"). The line was the plan, then the rest,
+            then last time, three clauses joined by middots in one grey -- and
+            the first of them is the row's own value, which the other two were
+            burying. Last time has two homes that are about last time: the
+            lift's own page, and the session header the moment this lift comes
+            up, where it is a chip and not a clause. */}
+        <div className="conn-meta">{targetLine(exercise)}{exercise.restSec ? ` · ${mmss(exercise.restSec)} rest` : ""}</div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
         {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}
       </div>
+      {/* One trailing control, same as the day row above. */}
       <RowMenuButton onMenu={onMenu} what={exercise.name} />
-      {CHEV}
     </div>
   );
 }
@@ -436,19 +468,18 @@ function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
     // and each item states its amount at the row's far right -- the exact
     // preview anatomy. Empty stays legal: no items means the card is just
     // its door.
-    // THE TONE MOVES TO THE LABEL (2026-09-16, the polish handoff: "Warm-up
-    // and cool-down: compact neutral card, title, aligned duration and Edit
-    // text action. Avoid large amber/blue filled slabs"). Dave photographed
-    // the warm-up as a solid amber block two shades louder than the exercises
-    // it warms up for, which is backwards -- it is the smallest thing on the
-    // day and it was painting the largest.
+    // THE WASH STAYS (Dave, 2026-09-16: "keep the warm up and cool down
+    // colors"). The polish handoff's rule 1 asked for a compact neutral card
+    // here, and it was tried: the fill came off and the hue lived on the
+    // eyebrow alone. He looked at it and said no. The handoff is a proposal;
+    // he is the one reading this page in a gym, and his 2026-09-13 ruling --
+    // warm-up warm, cool-down "a blue that fades out" -- was about the card
+    // and not only the label. Both come back.
     //
-    // His 2026-09-13 ruling stands and is what the hue still says: warm-up is
-    // the warm colour, cool-down "a blue that fades out". That was a ruling
-    // about WHICH colour, not about washing a whole card in it. The eyebrow
-    // already had both variants; the card goes back to the grouped list every
-    // other block on this page uses.
-    <div className="pad-x"><div className="card list-card-ruled">
+    // What the same rule bought elsewhere is untouched: the Up Next launch
+    // card, which really was the brightest rectangle on a black page and had
+    // a red Start inside it, stays plain.
+    <div className="pad-x"><div className={"card list-card-ruled" + (has ? (tone === "cool" ? " banner-cool" : " banner-warn") : "")}>
       {/* The header row opens the block editor, same as its action (Dave
           2026-09-15: "I want all rows clickable"). */}
       <div className="row" {...rowDoor(onEdit)}>
@@ -593,9 +624,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // out when the Reorder head pill asks for them and step away when it says
   // Done, so a resting row is a name, a fact and one door.
   const [reorderTarget, setReorderTarget] = useState<"days" | "exercises" | null>(null);
-  // LAST TIME, D2: the same Settings -> Training toggle the sheet and the
-  // live session already obey.
-  const showLast = readGymSettings().showLast;
   // Seed from storage (2026-08-09): an in-progress session used to be
   // invisible until startDay silently overwrote it. Same-day sessions resume
   // right where they were; an older one with real work is SAVED as a partial
@@ -677,6 +705,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutExercise[] | null>(null);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [uploadOpen, setUploadOpen] = useState(false);
+  // MANAGE (2026-09-16, the polish handoff: "Move Upload a Program and Add a
+  // Week into Manage"; Dave's Program screenshot, a stack of red-text rows at
+  // the foot of the page). The Days card's create slot is for the thing the
+  // list is made of -- a day -- and it had grown two rows that create
+  // something else entirely: a whole program, and a week. Three red verbs down
+  // one card, and the one the athlete came for was first only by luck. Add Day
+  // keeps the slot; the other two are behind one head action.
+  const [manageOpen, setManageOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(!!startHistory);
   // UP-ATH-21 (2026-09-06): Your Lifts. `hiddenKeys` is read into state so a
   // hide shows immediately; the store is still the source of truth.
@@ -1829,7 +1865,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   }
   if (viewWorkout && workoutDraft) {
     const w = viewWorkout;
-    const mins = workoutMinutes(w.data);
     const dirty = JSON.stringify(workoutDraft) !== JSON.stringify(w.data.exercises);
     const closeWorkout = () => { setViewWorkout(null); setWorkoutDraft(null); };
     return (
@@ -1844,7 +1879,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             VERB). Quiet sentence-case meta like every other date line. */}
         <div className="pad-x"><div className="se-chips">
           <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
-          <span className="se-chip se-chip-budget">{mins}<em>Min</em></span>
+          {minutesChip(w.data)}
           {w.data.backdated && <span className="se-chip se-chip-skip">Logged Later</span>}
         </div></div>
         {/* THE DURATION, SHOWN AND CORRECTABLE (2026-09-14, item 9). The
@@ -2106,6 +2141,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // One derivation, shared with the Health page's hero (gym/nextDay.ts).
   const nextDay = nextDayFor(program, workouts, todayDow())?.day ?? null;
   const nextEst = nextDay ? estimateDay(nextDay, workouts, rackFrom(readGymSettings())).min : 0;
+  // THIS day's last session, not the newest of any day. See the Up Next card.
+  const lastNextDay = nextDay ? lastWorkoutForDay(nextDay.id) : null;
 
   function sheetEl() {
     if (sheet.kind === "closed") return null;
@@ -2614,12 +2651,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 renderRow={(id) => {
                   const e = openDay.exercises.find((x) => x.id === id);
                   if (!e) return null;
-                  const hit = showLast ? lastSessionFor(workouts, e, e.kind) : null;
                   return (
                     <ExerciseRow
                       exercise={e}
                       pairLabel={labels.get(e.id)}
-                      last={hit?.sets[0] ? formatSet(hit.fx, hit.sets[0]) : null}
                       onOpen={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id, exId: e.id })}
                       onMenu={() => setRowMenu({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id, exercise: e })}
                     />
@@ -2873,15 +2908,30 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 <div className="eyebrow eyebrow-blue">Up Next</div>
                 <div className="conn-name">{nextDay.name}</div>
                 {/* D4: when a pin chose this day, the meta says so; D5: the
-                    estimate rides along once there is anything to price. */}
-                <div className="conn-meta">
-                  {[
-                    pinnedToday === nextDay ? "Pinned today" : null,
-                    upcomingPin?.day === nextDay ? (upcomingPin.inDays === 1 ? "Pinned tomorrow" : `Pinned ${WEEKDAY_ABBR[(todayDow() + upcomingPin.inDays) % 7]}`) : null,
-                    `${nextDay.exercises.length} ${nextDay.exercises.length === 1 ? "exercise" : "exercises"}`,
-                    nextEst > 0 ? `Est ${nextEst} min` : null,
-                    recent[0] ? `Last trained ${agoPhraseLower(recent[0].data.date, todayISO())}` : null,
-                  ].filter(Boolean).join(" · ")}
+                    estimate rides along once there is anything to price.
+
+                    LAST TRAINED MEANS THIS DAY (2026-09-16, found proofing the
+                    polish pass). It read recent[0] -- the newest workout of
+                    ANY day -- so the Up Next card for Push Day 1 said "last
+                    trained three days ago" when three days ago was Leg Day.
+                    lastWorkoutForDay has answered this correctly since
+                    GYM-F-11 and simply was not asked.
+
+                    AND IT IS CHIPS, NOT A CLAUSE (Dave, all pass: "grey
+                    subtext all over the place"). Five facts joined by middots
+                    in one grey line is the shape every other card on these
+                    screens stopped using in September; polish rule 3 asks for
+                    one short readable line, and four aligned chips read in a
+                    glance where a sentence has to be parsed. */}
+                <div className="se-chips">
+                  <span className="se-chip se-chip-last">{nextDay.exercises.length}<em>{nextDay.exercises.length === 1 ? "Lift" : "Lifts"}</em></span>
+                  {nextEst > 0 && <span className="se-chip se-chip-budget"><em>Est</em>{nextEst} Min</span>}
+                  {(pinnedToday === nextDay || upcomingPin?.day === nextDay) && (
+                    <span className="se-chip se-chip-pin"><em>Pinned</em>{pinnedToday === nextDay
+                      ? "Today"
+                      : upcomingPin!.inDays === 1 ? "Tomorrow" : WEEKDAY_ABBR[(todayDow() + upcomingPin!.inDays) % 7]}</span>
+                  )}
+                  {lastNextDay && <span className="se-chip se-chip-when"><em>Last</em>{agoPhrase(lastNextDay.data.date, todayISO())}</span>}
                 </div>
                 {/* row-tap: the launch card's verb line, filled edge to edge by its one Start button */}
                 <div className="offer-row">
@@ -2892,7 +2942,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
 
             {multiWeek ? (
               <>
-                <div className="sh2 sh2-quiet"><span className="t">Weeks</span></div>
+                <div className="sh2 sh2-quiet"><span className="t">Weeks</span>
+                  <button className="see-all" onClick={() => setManageOpen(true)}>Manage</button>
+                </div>
                 <div className="pad-x"><div className="card list-card-ruled">
                   {weeks.map((w) => (
                     <div className="row" role="button" tabIndex={0} key={w.id} onClick={() => setOpenWeekId(w.id)}>
@@ -2907,24 +2959,19 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     </div>
                   ))}
                   <button className="row-create" onClick={() => openWeekSheet()}>Add Week</button>
-                  {/* GYM-F-17 (2026-09-05): the upload door only ever lived in
-                      the single-week Days card, so once a program went
-                      multi-week a second coach's sheet had no entry point at
-                      all. Same affordance, same handler, in the layout that
-                      replaced it. */}
-                  {ai.available && (
-                    <button className="row-create" onClick={() => setUploadOpen(true)}>Upload a Program</button>
-                  )}
                 </div></div>
               </>
             ) : (
               <>
                 <div className="sh2 sh2-quiet"><span className="t">Days</span>
-                  {singleWeek && singleWeek.days.length > 1 && (
-                    <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "days" ? null : "days"))}>
-                      {reorderTarget === "days" ? "Done" : "Reorder"}
-                    </button>
-                  )}
+                  <span className="sec-left">
+                    {singleWeek && singleWeek.days.length > 1 && (
+                      <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "days" ? null : "days"))}>
+                        {reorderTarget === "days" ? "Done" : "Reorder"}
+                      </button>
+                    )}
+                    <button className="see-all" onClick={() => setManageOpen(true)}>Manage</button>
+                  </span>
                 </div>
                 <div className="pad-x list-card"><div className="card list-card-ruled">
                   {singleWeek && (
@@ -2954,12 +3001,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                       2026-09-01). The floating .row-act pills were this
                       page's "looks like absolute shit". */}
                   {singleWeek && <button className="row-create" onClick={() => setSheet({ kind: "day", weekId: singleWeek.id })}>Add Day</button>}
-                  {ai.available && (
-                    <button className="row-create" onClick={() => setUploadOpen(true)}>Upload a Program</button>
-                  )}
-                  {singleWeek && (
-                    <button className="row-create" onClick={() => openWeekSheet()}>Add a Week</button>
-                  )}
                 </div></div>
               </>
             )}
@@ -3007,7 +3048,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               {recent.map((w) => {
                 const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;
                 const total = w.data.exercises.length;
-                const mins = workoutMinutes(w.data);
                 return (
                   // Tappable since 2026-08-09: these rows were inert, which
                   // made a mislogged workout permanent. The detail sheet
@@ -3027,7 +3067,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                             and the completeness fact was the last thing on it. */}
                         <div className="r-k">
                           <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
-                          <span className="se-chip se-chip-budget">{mins}<em>Min</em></span>
+                          {minutesChip(w.data)}
                           <span className={"se-chip " + (logged === total ? "se-chip-done" : "se-chip-skip")}>
                             {logged === total ? <>{total}<em>{total === 1 ? "Lift" : "Lifts"}</em></> : <>{logged}<em>of {total}</em></>}
                           </span>
@@ -3044,6 +3084,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         <div className="screen-foot" />
       </div>
 
+      {manageOpen && (
+        <ActionSheet
+          title="Manage Program"
+          actions={[
+            // GYM-F-17 (2026-09-05): the upload door only ever lived in the
+            // single-week Days card, so once a program went multi-week a
+            // second coach's sheet had no entry point at all. One door for
+            // both layouts is what that fix was reaching for.
+            ...(ai.available ? [{ label: "Upload a Program", onClick: () => setUploadOpen(true) }] : []),
+            { label: "Add a Week", onClick: () => openWeekSheet() },
+          ]}
+          onClose={() => setManageOpen(false)}
+        />
+      )}
       {sheetEl()}
       {rowMenuEl()}
       {pickerEl()}

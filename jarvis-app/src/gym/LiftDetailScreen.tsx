@@ -373,7 +373,14 @@ export default function LiftDetailScreen({
                       <div className="conn-meta">{`${lane.data.name}, same ${WEEKS} weeks`}</div>
                       {laneVals.every((v) => v == null) && <div className="facts"><span className="fact">Not enough records</span></div>}
                     </div>
-                    {onOpenLogs && <button type="button" className="pill-act pill-quiet" onClick={own(onOpenLogs)}>View Logs</button>}
+                    {/* A TEXT ACTION, NOT A CAPSULE (2026-09-16, polish rule
+                        2, which names this family by name: View Sets, View
+                        Sleep Logs). It only ever navigated to the records
+                        behind the lane, and a .pill-act is this app's word for
+                        a verb that acts on the row it sits in. The rest of
+                        this family became .see-all in September; this one was
+                        missed. */}
+                    {onOpenLogs && <button type="button" className="see-all" onClick={own(onOpenLogs)}>View Logs</button>}
                   </div>
                 )}
               </div></div>

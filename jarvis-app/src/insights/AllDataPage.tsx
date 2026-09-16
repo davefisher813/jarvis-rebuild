@@ -133,9 +133,37 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
                   <div className="facts">
                     <span className={"fact " + r.hue}>{clock(r.at)}</span>
                     {r.value && <span className={"fact " + r.hue}>{r.value}</span>}
-                    {r.detail && <span className="fact">{r.detail}</span>}
+                    {/* A LIFT'S SETS ARE A TABLE, NOT A SENTENCE (health polish
+                        2026-09-16: "All Data: expandable set tables"). Five
+                        sets of a pyramid joined by commas wrapped three grey
+                        lines in a list whose whole job is scanning, and the
+                        count beside them already said how many. The lines are
+                        behind the row's own disclosure now, one per set, each
+                        named -- the same exp-more this pass put the counting
+                        method and the edit-effects note behind.
+                        Everything else keeps its one-fact detail. */}
+                    {r.detail && !r.sets && <span className="fact">{r.detail}</span>}
                     {r.source !== "Logged by hand" && <span className="fact">{r.source}</span>}
                   </div>
+                  {r.sets && (
+                    // own(): the disclosure is its own control, and opening it
+                    // must not also open the record behind the row.
+                    <details className="exp-more ad-sets" onClick={(e) => e.stopPropagation()}>
+                      <summary>{`The ${r.sets.length === 1 ? "Set" : "Sets"}`}</summary>
+                      <div className="ins-rows">
+                        {/* A ramp and a drop wear the quiet key, so the work
+                            is what the eye lands on and neither is mistaken
+                            for it. Both are still here: a session is a record
+                            of what happened, not only of what counted. */}
+                        {r.sets.map((x, i) => (
+                          <div className="ins-row" key={x.label + i}>
+                            <span className={"ins-k" + (x.warm ? " ad-warm" : "")}>{x.label}</span>
+                            <span className="ins-sub">{x.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
                 </div>
                 {deletable(r)
                   ? <RowMenuButton what={r.title} onMenu={() => setMenuFor(r)} />

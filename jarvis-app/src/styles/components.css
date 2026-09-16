@@ -40,6 +40,13 @@
 /* groups header action buttons on the right (e.g. connections + delete) */
 .nav-actions { display: flex; align-items: center; gap: var(--s-1); }
 .nav-action.danger { color: var(--sys-red); }
+/* A COUNT IS NOT A VERB (2026-09-16, the polish handoff: "library count
+   neutral, not red"). .nav-action wears --tint because a bar action is
+   something you press; a badge saying how many rows are below it is a status,
+   and LAW L1 says red is a verb and never that. Same quiet ink and same
+   tabular figures as the .sh2 count it is the bar's version of. */
+.nav-action.nav-count { color: var(--tx-3); font-weight: var(--w-bold);
+  font-size: var(--t-eyebrow); font-variant-numeric: tabular-nums; letter-spacing: var(--track-caps); }
 /* A bar action that is a MODE, not a verb: it stays lit while the mode is on,
    so the editorial layout announces itself in the one place he looks. */
 .nav-action.on { color: var(--accent-chrome); }

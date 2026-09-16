@@ -39,6 +39,62 @@ export interface HealthLogsInput {
 
 const CHEV = <div className="chev" />;
 const CW = 300, CH = 90, PAD = 12;
+// THE DATE LABELS FIT, OR THEY ARE NOT DRAWN (2026-09-16, the polish handoff
+// asks for a check on clipped chart labels; the arithmetic says they were).
+//
+// Two ways this broke, both of them measurable rather than a matter of taste:
+//
+//  1. THE ENDS. Every label was textAnchor="middle", and the first and last
+//     points sit at x = PAD and x = CW - PAD. "Sep 16" is about 32 user units
+//     wide, so half of it hung 4 units past each edge of the viewBox and the
+//     SVG clipped it. The end labels anchor to their own edge now.
+//  2. THE MIDDLE. With eight or more sessions the points are closer together
+//     than a date is wide, so the labels overlapped into a grey smear. Only
+//     labels that clear their neighbour are drawn, and the last session always
+//     is: which sessions those are changes with the count, but every label on
+//     screen is readable, which is the whole job of an axis.
+//
+// LABEL_W is deliberately generous (--type-scale goes to 1.4, and these are
+// SVG user units that scale with it), because an axis that omits one date is
+// fine and an axis that prints two on top of each other is not.
+const LABEL_W = 46;
+
+/** The indices whose date is drawn: the last session always, then backwards
+ *  while each one clears the one after it. Takes the real x of every point,
+ *  because they are not evenly spaced (see chartX below). */
+export function axisTicks(xs: number[]): number[] {
+  if (xs.length <= 1) return xs.length === 1 ? [0] : [];
+  const keep = [xs.length - 1];
+  for (let i = xs.length - 2; i >= 0; i--) {
+    if (xs[keep[keep.length - 1]!]! - xs[i]! >= LABEL_W) keep.push(i);
+  }
+  return keep.reverse();
+}
+
+/** WHERE A SESSION SITS ON THE AXIS (2026-09-16, the polish handoff: "Use real
+ *  temporal spacing and preserve multiple points with identical dates; do not
+ *  misrepresent repeated Aug 24 entries as separate evenly spaced dates").
+ *
+ *  The chart spaced its points by INDEX, so a lift trained twice on one
+ *  morning and then not again for six weeks drew three evenly spaced dots and
+ *  read as steady fortnightly progress. That is the chart inventing a shape
+ *  the data does not have, which is the one thing a chart must not do.
+ *
+ *  x is the day itself now. Two sessions on one date land on one x and stack
+ *  by their weight, which is what actually happened: two readings, one day.
+ *  A set of points that all share a date has no span to scale, so they sit
+ *  together in the middle rather than dividing by zero.
+ *
+ *  `dates` are ISO days, oldest first. */
+export function chartX(dates: string[], w = CW, pad = PAD): number[] {
+  const day = (d: string) => Date.parse(d + "T00:00:00Z") / 86_400_000;
+  const ds = dates.map(day);
+  const first = ds[0] ?? 0, last = ds[ds.length - 1] ?? 0;
+  const span = last - first;
+  const inner = w - 2 * pad;
+  if (!Number.isFinite(span) || span <= 0) return ds.map(() => pad + inner / 2);
+  return ds.map((d) => pad + (inner * (d - first)) / span);
+}
 
 function localDay(at: number): string {
   const d = new Date(at);
@@ -111,9 +167,10 @@ export default function InsightsPage({
     if (pts.length < 2) return null;
     const min = Math.min(...pts.map((p) => p.w)), max = Math.max(...pts.map((p) => p.w));
     const span = max - min || 1;
-    const stepX = (CW - 2 * PAD) / (pts.length - 1);
-    const xy = pts.map((p, i) => ({ x: PAD + i * stepX, y: PAD + (CH - 2 * PAD) * (1 - (p.w - min) / span) }));
+    const xs = chartX(pts.map((p) => p.date));
+    const xy = pts.map((p, i) => ({ x: xs[i]!, y: PAD + (CH - 2 * PAD) * (1 - (p.w - min) / span) }));
     const path = xy.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+    const ticks = new Set(axisTicks(xs));
     return (
       <svg viewBox={`0 0 ${CW} ${CH + 16}`} className="ins-chart" role="img" aria-label={`Best set at this rep count over ${pts.length} sessions, in ${unit}`}>
         <line x1={PAD} y1={CH - PAD} x2={CW - PAD} y2={CH - PAD} stroke="currentColor" opacity={0.12} />
@@ -123,7 +180,12 @@ export default function InsightsPage({
             <circle cx={p.x} cy={p.y} r={4} fill="var(--hl-lime)" />
             <circle cx={p.x} cy={p.y} r={11} fill="transparent" role="button" tabIndex={0} aria-label={`${monthDay(pts[i]!.date)}, ${pts[i]!.w} ${unit}, open the session`}
               onClick={() => onOpenWorkout(pts[i]!.workoutId)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenWorkout(pts[i]!.workoutId); } }} />
-            <text x={p.x} y={CH + 10} textAnchor="middle" className="ins-axis">{monthDay(pts[i]!.date)}</text>
+            {ticks.has(i) && (
+              <text x={p.x} y={CH + 10} className="ins-axis"
+                textAnchor={p.x <= PAD + 1 ? "start" : p.x >= CW - PAD - 1 ? "end" : "middle"}>
+                {monthDay(pts[i]!.date)}
+              </text>
+            )}
           </g>
         ))}
       </svg>
@@ -149,12 +211,18 @@ export default function InsightsPage({
     </div>
   );
 
+  // SAID ONCE, AT THE TOP (2026-09-16, the polish handoff: "No repeated full
+  // date range on every card when shared section heading is sufficient"). The
+  // period chips above already print the range, and then every card head
+  // printed it again, so one screen said "Sep 10 to Sep 16" three times and
+  // the only card whose scope is DIFFERENT -- the headline lift, which spans
+  // every session and says so -- was the one with no label at all. The chips
+  // are the heading; a card labels its scope only when it is not the page's.
   const sleepCard = (
     <div className="pad-x"><div className="card ins-card">
       <div className="ins-head">
         <span className="ins-dot hue-hl-violet" />
         <span className="ins-t">Sleep</span>
-        <span className="fact">{rangeLabel}</span>
       </div>
       {overview.sleep.nights === 0 ? (
         <div className="facts"><span className="fact">No night logged in this period</span></div>
@@ -195,7 +263,6 @@ const musclesCard = (
       <div className="ins-head">
         <span className="ins-dot hue-hl-lime" />
         <span className="ins-t">Where Your Sets Went</span>
-        <span className="fact">{rangeLabel}</span>
       </div>
       {breakdown.total === 0 ? (
         <div className="facts"><span className="fact">No working sets in this period</span></div>
@@ -256,7 +323,16 @@ const musclesCard = (
         <span className="ins-t">{headline.lift.name}</span>
         {CHEV}
       </div>
-      <div className="facts"><span className="fact">{`Best set at ${headline.reps} reps`}</span></div>
+      <div className="facts">
+        <span className="fact">{`Best set at ${headline.reps} reps`}</span>
+        {/* THE ONE CARD THAT IS NOT THE PAGE'S PERIOD (polish: "Trend period
+            clearly 'All history'... Do not imply every card follows the same
+            date scope"). Every other card on this screen reads the chips at
+            the top; this one spans every comparable session there has ever
+            been, and that difference has to be on its face, not only in the
+            basis line at its foot. */}
+        <span className="fact">All History</span>
+      </div>
       <div className="ins-big lime">{`${headline.to.w} ${headline.lift.unit ?? "lb"}`}</div>
       <div className="facts">
         <span className="fact lime">{`${sign(headline.delta)} ${headline.lift.unit ?? "lb"} since ${monthDay(headline.from.date)}`}</span>

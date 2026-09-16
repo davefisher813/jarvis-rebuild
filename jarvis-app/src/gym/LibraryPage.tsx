@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LibraryRow } from "./libraryEdit";
 import { rowDoor } from "../shared/rowDoor";
-import { agoPhraseLower } from "./summary";
+import { agoPhrase } from "./summary";
 import { shortDate } from "../shared/dateFormat";
 import SheetBar from "../shared/SheetBar";
 import ActionSheet, { PickSheet, type PickItem, type SheetAction } from "./ActionSheet";
@@ -146,8 +146,14 @@ export default function LibraryPage({
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Exercises</div>
         {/* §7: "30 Exercises, each with its history" was a sentence doing a
-            badge's job. This is the badge. */}
-        <span className="nav-action"><span className="n">{rows.length}</span></span>
+            badge's job. This is the badge.
+            AND IT IS NOT RED (2026-09-16, the polish handoff: "library count
+            neutral, not red"). .nav-action is the tint, because a bar action
+            is a verb you can press; this is a count of what is on the page,
+            which is LAW L1's other half -- red is a verb, never a status.
+            It reads in the quiet ink a fact wears, like every other count
+            in the app's section heads. */}
+        <span className="nav-action nav-count">{rows.length}</span>
       </div>
 
       {rows.length === 0 ? (
@@ -286,7 +292,7 @@ export default function LibraryPage({
                           list; the app has always had the singular right, and
                           now it has the capital too. */}
                       <span className="fact">{r.sessions > 0 ? capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) : "Never done"}</span>
-                      {r.lastDate && <span className="fact cyan">{capitalize(agoPhraseLower(r.lastDate, todayIso))}</span>}
+                      {r.lastDate && <span className="fact cyan">{agoPhrase(r.lastDate, todayIso)}</span>}
                       {r.favorite && <span className="fact">Favorite</span>}
                       {r.hidden && <span className="fact">Hidden</span>}
                       {c.archived && <span className="fact">Archived</span>}
@@ -430,8 +436,7 @@ export default function LibraryPage({
   );
 }
 
-/** "yesterday" is a sentence fragment mid-line and a line's first word on its
- *  own, and this row prints it on its own. */
-function capitalize(s: string): string {
-  return s ? s[0]!.toUpperCase() + s.slice(1) : s;
-}
+// capitalize() lived here until 2026-09-16. It existed to put the capital
+// back on agoPhraseLower(), which is agoPhrase() with the capital taken off --
+// a round trip through two functions to arrive where the first one started.
+// This row prints the phrase on its own, so it asks for agoPhrase.

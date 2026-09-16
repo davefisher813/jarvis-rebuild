@@ -225,9 +225,16 @@ describe("GYM-F-17: an uploaded program is a program", () => {
     expect(flow).toContain('actionLabel: "Switch to It"');
   });
 
-  it("the upload door exists in the multi-week layout too", () => {
-    const doors = flow.match(/className="row-create" onClick=\{\(\) => setUploadOpen\(true\)\}>Upload a Program/g) ?? [];
-    expect(doors.length).toBe(2);
+  // AMENDED 2026-09-16: it was two doors, one per layout, and the polish
+  // handoff ("Move Upload a Program and Add a Week into Manage") made it one
+  // door that both layouts open. The law is about REACHABILITY -- a second
+  // coach's sheet must have an entry point whatever shape the program is in
+  // -- so it reads the head action both layouts render and the sheet behind
+  // it, rather than counting rows in a card.
+  it("the upload door is reachable from both layouts", () => {
+    const heads = flow.match(/<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/g) ?? [];
+    expect(heads.length, "one in the Days head, one in the Weeks head").toBe(2);
+    expect(flow).toMatch(/label: "Upload a Program", onClick: \(\) => setUploadOpen\(true\)/);
   });
 });
 
@@ -260,6 +267,40 @@ describe("GYM-F-26: every row menu has a visible door", () => {
 
   it("the archived row no longer claims to be a button it cannot honour", () => {
     expect(flow).not.toMatch(/<div className="row" role="button" tabIndex=\{0\} \{\.\.\.hold\}>/);
+  });
+
+  // ONE TRAILING CONTROL (2026-09-16, Dave's Push Day 1 screenshot, "grey
+  // subtext all over the place, ect"). GYM-F-26 put a visible menu button on
+  // four rows; two of them kept the chevron beside it, which is the arity
+  // rule's two and says the same thing twice -- the row opens on tap like
+  // every .row-press row in the app, and the chevron is the decoration of
+  // that while the menu is a real door. The program rows have carried the
+  // menu alone since GYM-F-26; this is the rest of the file agreeing.
+  it("a row with a menu button does not also wear a chevron", () => {
+    for (const row of ["DayRow", "ExerciseRow", "ProgramRow", "ProgramRowStatic"]) {
+      const body = new RegExp(`function ${row}\\(([\\s\\S]*?)\\n\\}\\n`).exec(flow)?.[1] ?? "";
+      expect(body, `${row} must exist`).toBeTruthy();
+      expect(body, `${row} carries both a menu and a chevron`).not.toMatch(/\{CHEV\}/);
+      expect(body, `${row} must keep its menu`).toMatch(/<RowMenuButton/);
+    }
+  });
+
+  // AND LAST TIME IS NOT ON THE ROW (the same screenshot; the polish handoff:
+  // "take the trailing Last: 185 lb x 3 off the exercise row"). The meta line
+  // was the plan, then the rest, then last time, three clauses in one grey
+  // joined by middots, and the first of them is the row's own value. Last
+  // time keeps the two homes that are about last time: the lift's own page,
+  // and the session header the moment the lift comes up, where it is a chip.
+  it("and the exercise row's meta line is the plan and its rest, nothing else", () => {
+    const body = /function ExerciseRow\(([\s\S]*?)\n\}\n/.exec(flow)![1]!;
+    // Comments out: this row's own note quotes the line it stopped rendering,
+    // which is the point of the note and would fail the blanket check below.
+    const rendered = body.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(rendered).not.toMatch(/Last:/);
+    expect(body).toMatch(/<div className="conn-meta">\{targetLine\(exercise\)\}\{exercise\.restSec \? ` · \$\{mmss\(exercise\.restSec\)\} rest` : ""\}<\/div>/);
+    // The Settings toggle keeps every home that is about last time.
+    expect(src("SessionScreen.tsx"), "the session header still obeys it")
+      .toMatch(/const showLast = readGymSettings\(\)\.showLast/);
   });
 
   it("the exercise sheet's suggestion rows answer the keyboard too", () => {

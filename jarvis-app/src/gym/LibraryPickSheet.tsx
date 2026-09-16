@@ -67,7 +67,17 @@ export default function LibraryPickSheet({
               onClick={() => (multi ? toggle(entry) : onPick(entry))}>
               <div className="row-grow">
                 <div className="conn-name truncate">{entry.name}</div>
-                <div className="conn-meta">{MEASURE_LABEL[entry.kind]}</div>
+                {/* ONLY WHEN IT IS NEWS (2026-09-16, the polish handoff: "drop
+                    the repeated Weight x Reps from the add-from-your-lifts
+                    list"). Nearly every lift in a gym is weight and reps, so
+                    the line was the same three grey words down the whole
+                    sheet, and the one row that said Rounds was invisible in
+                    them. It is silent on the default and speaks for anything
+                    else -- and silent entirely when a kindFilter is on, where
+                    by definition every row shares the kind. */}
+                {!kindFilter && entry.kind !== "weight_reps" && (
+                  <div className="conn-meta">{MEASURE_LABEL[entry.kind]}</div>
+                )}
               </div>
               {/* Part 3 wave 1: a starred lift says so, and leads the list. */}
               {entry.favorite && <span className="pill pill-good">Favorite</span>}
