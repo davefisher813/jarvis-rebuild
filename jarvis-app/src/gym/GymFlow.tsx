@@ -54,6 +54,8 @@ import { pairId } from "./duplicates";
 import { mmss } from "./conditioning";
 import DurationCard from "./DurationCard";
 import ActionSheet, { PickSheet, type SheetAction, type PickItem } from "./ActionSheet";
+// The row's one visible menu door, shared with All Data since 2026-09-16.
+import RowMenuButton from "../shared/RowMenuButton";
 import SetStrip from "./SetStrip";
 import ReorderList from "../shared/ReorderList";
 import SwipeDelete from "../shared/SwipeDelete";
@@ -293,19 +295,6 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
  * door: the same trailing pill on every row, opening the same ActionSheet.
  * A real button, so Enter and Space are free and the label is announced.
  */
-function RowMenuButton({ onMenu, what }: { onMenu: () => void; what: string }) {
-  return (
-    <button
-      className="row-menu-btn"
-      aria-label={`More Actions for ${what}`}
-      onClick={(e) => { e.stopPropagation(); onMenu(); }}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
-      <Ellipsis className="ic" />
-    </button>
-  );
-}
-
 function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day: ProgramDay; onOpen: () => void; onPin?: () => void; onMenu: () => void;
   /** 2026-09-14 (the reference's "Completed Monday"): the weekday of this
    *  day's last session when it was inside the last week. */

@@ -240,8 +240,17 @@ describe("GYM-F-26: every row menu has a visible door", () => {
   const flow = src("GymFlow.tsx");
 
   it("one button component, a real <button>, so Enter and Space are free", () => {
-    expect(flow).toMatch(/function RowMenuButton\(\{ onMenu, what \}/);
-    expect(flow).toMatch(/aria-label=\{`More Actions for \$\{what\}`\}/);
+    // It moved to shared/RowMenuButton.tsx on 2026-09-16, when All Data needed
+    // the same door (its Delete came off the row and went behind the row's
+    // options, per the health polish handoff). ONE version of it, which is
+    // what section 0 asks: this reads the shared file and the next test
+    // proves GymFlow still mounts it on all four rows.
+    const btn = readFileSync(join(__dirname, "..", "shared", "RowMenuButton.tsx"), "utf8");
+    expect(btn).toMatch(/function RowMenuButton\(\{ onMenu, what \}/);
+    expect(btn).toMatch(/aria-label=\{`More Actions for \$\{what\}`\}/);
+    expect(btn, "a real button, not a div").toMatch(/<button/);
+    expect(flow, "and GymFlow reads that one rather than keeping a copy")
+      .toMatch(/import RowMenuButton from "\.\.\/shared\/RowMenuButton"/);
   });
 
   it("it is on the day, exercise, program and archived-program rows alike", () => {

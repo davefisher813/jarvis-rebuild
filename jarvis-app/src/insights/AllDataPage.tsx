@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import HealthNav, { type HealthView } from "./HealthNav";
 import { CATEGORIES, CATEGORY_LABEL, filterRecords, groupByDay, type DataCategory, type DataRecord, type RecordFilter } from "./records";
 import { periodFor, type RangeKey } from "./analytics";
@@ -7,6 +7,8 @@ import { weekdayShortDate } from "../shared/dateFormat";
 import { fmtTime } from "../schedule/calendar";
 import { pressable } from "../shared/pressable";
 import { capAfterNumber } from "../shared/casing";
+import RowMenuButton from "../shared/RowMenuButton";
+import ActionSheet from "../gym/ActionSheet";
 
 // ALL DATA (2026-09-14, item 8). Every record, searchable and filterable
 // by category, period and one day, grouped by day, each with its date,
@@ -14,6 +16,14 @@ import { capAfterNumber } from "../shared/casing";
 // of its own offers Delete, and the caller's Undo puts it back. The filters
 // and the scroll position live with the caller, so coming back from a
 // record lands where the person left.
+//
+// DELETE IS BEHIND THE ROW'S OPTIONS (health polish 2026-09-16; the handoff
+// names this one: "Delete moves into entry options with existing confirmation
+// and undo behavior. Do not expose accidental destructive pills in browsing
+// lists"). It was a capsule in the trailing slot of a scrolling list, which is
+// a thumb's width from the row it was scrolling past -- and the trailing slot
+// is where every other list in the app puts a harmless verb. The undo is
+// untouched: the caller still toasts with an Undo that puts the record back.
 const CHEV = <div className="chev" />;
 
 export default function AllDataPage({ view, onView, records, filter, onFilter, today, scrollRef, onOpen, onDelete, onExport, pendingCount = 0 }: {
@@ -48,6 +58,8 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
   const setRange = (range: RangeKey | "all") => onFilter({ ...filter, range, period: range === "all" ? null : periodFor(range, today), date: null });
   const clock = (at: number) => { const d = new Date(at); const t = fmtTime(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`); return `${t.time} ${t.ap}`; };
   const deletable = (r: DataRecord) => r.open.kind !== "workout" && r.open.kind !== "metric" && !("pending" in r.open && r.open.pending);
+  // The row whose options are open. One at a time; the sheet is the app's own.
+  const [menuFor, setMenuFor] = useState<DataRecord | null>(null);
 
   return (
     <>
@@ -105,7 +117,7 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
                   </div>
                 </div>
                 {deletable(r)
-                  ? <button type="button" className="pill-act pill-quiet" aria-label={`Delete ${r.title}`} onClick={(ev) => { ev.stopPropagation(); onDelete(r); }}>Delete</button>
+                  ? <RowMenuButton what={r.title} onMenu={() => setMenuFor(r)} />
                   : CHEV}
               </div>
             ))}
@@ -116,6 +128,13 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
         <button type="button" className="btn btn-secondary" onClick={onExport}>Export Data</button>
       </div>
       <div className="screen-foot" />
+      {menuFor && (
+        <ActionSheet
+          title={menuFor.title}
+          actions={[{ label: "Delete", onClick: () => { const r = menuFor; setMenuFor(null); onDelete(r); } }]}
+          onClose={() => setMenuFor(null)}
+        />
+      )}
     </>
   );
 }
