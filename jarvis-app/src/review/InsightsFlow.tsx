@@ -56,7 +56,6 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
   const routineSvc = useOptionalRoutine();
   const rulesSvc = useOptionalRules();
   const [week, setWeek] = useState<WeekReport | null>(null);
-  const [cats, setCats] = useState<{ id: string; name: string; color: string }[]>([]);
   const [offered, setOffered] = useState(false);
   const loadWeek = useCallback(async (gl: Goal[], pj: Project[]) => {
     try {
@@ -69,8 +68,11 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
         routineSvc ? routineSvc.get().catch(() => null) : Promise.resolve(null),
         rulesSvc ? rulesSvc.resolve("plan.focus", "week").catch(() => null) : Promise.resolve(null),
       ]);
+      // Built for buildWeek below and for nothing else: this used to also
+      // land in a `cats` state nothing on this screen ever read (audit
+      // 2026-09-16), so every load re-rendered the flow to store a list it
+      // then ignored.
       const cs = categories.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }));
-      setCats(cs);
       const days7 = new Set(buildWeek({ today, rows: [], events: [], workouts: [], goals: [], projects: [], categories: [] }).days);
       const work = routine ? Math.max(0, routine.workEndMin - routine.workStartMin) : undefined;
       // The rule is pre-announced by create(); the doctrine still wants the

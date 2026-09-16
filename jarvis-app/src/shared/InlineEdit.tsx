@@ -11,8 +11,13 @@ import { parseRich, hasRich, displayToRawOffset } from "../notes/richtext";
 // Read-only when no onSave is given (static use). Sets its text once and on
 // external change; never while focused, so the caret is stable.
 //
-// The canvas hooks (onEnter, onEmptyBackspace, onTransform) exist for
-// block-canvas surfaces like the note editor; plain fields simply omit them.
+// THE CANVAS HOOKS ARE GONE (audit 2026-09-16). onEnter, onEmptyBackspace
+// and onTransform were written for a block-canvas note editor that this app
+// no longer has: the note editor is DocEditor (ProseMirror), which handles
+// Enter, backspace and markdown transforms itself. Nothing had passed any of
+// the three since that switch, so a third of this component's keyboard
+// handling could not run. Every field that uses InlineEdit is a plain field,
+// and a plain field commits on Enter (below).
 //
 // RICH MODE (2026-08-19, "dig deeper with the writing features"): with
 // rich, the block renders **bold**, *italic*, ==highlight==, ~~strike~~
@@ -28,9 +33,6 @@ export default function InlineEdit({
   focused,
   rich,
   bid,
-  onEnter,
-  onEmptyBackspace,
-  onTransform,
 }: {
   tag?: "div" | "span";
   className?: string;
@@ -40,9 +42,6 @@ export default function InlineEdit({
   focused?: boolean;
   rich?: boolean;
   bid?: string;
-  onEnter?: (current: string) => void;
-  onEmptyBackspace?: () => void;
-  onTransform?: (prefix: "#" | "[]" | "-" | "1.", rest: string) => void;
 }) {
   const ref = useRef<HTMLElement | null>(null);
   const [editing, setEditing] = useState(!!focused);
@@ -180,7 +179,7 @@ export default function InlineEdit({
       spellCheck
       autoCapitalize="sentences"
       autoCorrect="on"
-      enterKeyHint={onEnter ? "enter" : "done"}
+      enterKeyHint="done"
       onPaste={(e) => {
         // PASTE ARRIVES AS HTML UNLESS YOU STOP IT. The default paste drops
         // the source's own markup -- spans, styles, nested divs, whole
@@ -233,17 +232,11 @@ export default function InlineEdit({
         onSave(t);
       }}
       onKeyDown={(e) => {
-        const text = (e.currentTarget.textContent ?? "").trim();
-        if (e.key === "Enter" && !e.shiftKey && onEnter) {
-          e.preventDefault();
-          onEnter(text);
-        } else if (e.key === "Enter" && !e.shiftKey) {
-          // A PLAIN FIELD COMMITS ON ENTER (2026-08-24). The canvas surfaces
-          // pass onEnter because there Enter means "new block"; everywhere
-          // else it fell through to contentEditable's default, which inserts
-          // a line break into a single-line field. The doctrine at the top of
-          // this file says "blur or Enter saves" and Enter did not, on every
-          // consumer that was not a canvas.
+        if (e.key === "Enter" && !e.shiftKey) {
+          // A PLAIN FIELD COMMITS ON ENTER (2026-08-24). Without this it fell
+          // through to contentEditable's default, which inserts a line break
+          // into a single-line field. The doctrine at the top of this file
+          // says "blur or Enter saves" and Enter did not.
           e.preventDefault();
           e.currentTarget.blur();
         } else if (e.key === "Escape") {
@@ -252,19 +245,11 @@ export default function InlineEdit({
           // applied. There is no separate cancel path to keep in sync.
           e.currentTarget.textContent = value;
           e.currentTarget.blur();
-        } else if (e.key === "Backspace" && text === "" && onEmptyBackspace) {
-          e.preventDefault();
-          onEmptyBackspace();
         }
       }}
       onInput={(e) => {
         const t = e.currentTarget.textContent ?? "";
         dirty.current = t;
-        if (!onTransform) return;
-        if (t.startsWith("# ")) onTransform("#", t.slice(2));
-        else if (t.startsWith("[] ") || t.startsWith("[ ] ")) onTransform("[]", t.replace(/^\[\s?\]\s/, ""));
-        else if (t.startsWith("- ") || t.startsWith("* ")) onTransform("-", t.slice(2));
-        else if (/^1[.)] /.test(t)) onTransform("1.", t.slice(3));
       }}
     />
   );

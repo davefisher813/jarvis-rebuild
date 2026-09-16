@@ -28,7 +28,14 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 // plain toast is kept, because a queue of stale receipts is worse than the
 // newest one.
 let queued: { t: ToastState; ms: number } | null = null;
-const hasAction = (t: ToastState | null): boolean => !!t?.actionLabel;
+// A LABEL WITHOUT A HANDLER IS NOT AN ACTION (audit 2026-09-16). The two are
+// separate optionals, so `{ message, actionLabel: "Undo" }` with no onAction
+// type-checks; it used to count as an action here and draw a real capsule in
+// ToastHost that did nothing when tapped. Making them a union instead would
+// reject the spread form every caller legitimately uses
+// (`...(undo ? { actionLabel, onAction } : {})`), so the rule lives at the
+// two places that read the pair: an action is a label AND something to run.
+const hasAction = (t: ToastState | null): boolean => !!t?.actionLabel && !!t?.onAction;
 
 export function showToast(t: ToastState, ms = 5000): void {
   if (hasAction(current) && !hasAction(t)) {

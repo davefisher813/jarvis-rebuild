@@ -6290,3 +6290,58 @@ describe("LAW: the structure ink never colours text (2026-09-14)", () => {
     }
   });
 });
+
+// LAW: NO BUTTON IS DRAWN THAT CANNOT ACT (button audit, 2026-09-16).
+//
+// Dave, on Today: "All buttons need to do something THAT ACTUALLY helps. If
+// not, just don't put a button." The audit that followed swept all 1,660
+// handler sites in the app. It found no visible button whose handler was
+// unwired, which is the good news; what it did find was three ways one could
+// become unwired without anything failing, and this is the fence around each.
+describe("LAW: no button is drawn that cannot act", () => {
+  // 1. A TOAST CAPSULE NEEDS SOMETHING TO RUN. actionLabel and onAction are
+  //    two independent optionals on ToastState, so a label with no handler
+  //    type-checks. Both readers of the pair must require both.
+  it("a toast action is a label AND a handler, at both places that read it", () => {
+    const store = read(join(SRC, "shared/toast.ts"));
+    expect(store, "the store does not count a bare label as an action")
+      .toMatch(/hasAction[^\n]*!!t\?\.actionLabel && !!t\?\.onAction/);
+    const host = read(join(SRC, "shared/ToastHost.tsx"));
+    expect(host, "and the host does not draw a capsule for one")
+      .toMatch(/\{t\.actionLabel && t\.onAction &&/);
+  });
+
+  // 2. THE SWIPE REVEAL'S DELETE IS NOT OPTIONAL IN PRACTICE. TaskRow's
+  //    Snooze renders only where the caller can honour it (`snoozable` reads
+  //    !!onSnooze) but Delete is drawn unconditionally, and .task-snooze is
+  //    pinned at right:88px on the assumption Delete holds the slot beside
+  //    it. So the reveal is only honest while every consumer passes
+  //    onDelete. All three do today; this fails the moment one stops.
+  it("every row that can reveal Delete is given something to delete with", () => {
+    const rowFile = read(join(SRC, "tasks/screens/TasksPage.tsx"));
+    expect(rowFile, "Delete is still drawn unconditionally").toMatch(/className="task-del"[^\n]*onDelete\?\./);
+    for (const f of ["tasks/screens/TasksPage.tsx", "brain/CategoryDetail.tsx", "money/MoneyFlow.tsx"]) {
+      const src = read(join(SRC, f));
+      const uses = (src.match(/<TaskRow\b/g) ?? []).length;
+      const gives = (src.match(/onDelete=\{/g) ?? []).length;
+      expect(uses, f + " still renders the swipeable row").toBeGreaterThan(0);
+      expect(gives, f + " draws a Delete it cannot honour").toBeGreaterThanOrEqual(uses);
+    }
+    // Today's rows are a DIFFERENT TaskRow, local to TodayPage, with no
+    // swipe and no Delete. If that ever becomes the shared one, it joins the
+    // list above.
+    expect(read(join(SRC, "today/TodayPage.tsx")), "Today still has its own row")
+      .toMatch(/^function TaskRow\(\{ t, u,/m);
+  });
+
+  // 3. NOTHING KEEPS KEYBOARD HANDLING FOR A CALLER THAT DOES NOT EXIST.
+  //    InlineEdit carried onEnter, onEmptyBackspace and onTransform for a
+  //    block-canvas note editor this app replaced with DocEditor. A third of
+  //    its key handling could not run.
+  it("InlineEdit keeps no canvas hooks, now that there is no canvas", () => {
+    const src = read(join(SRC, "shared/InlineEdit.tsx"));
+    for (const hook of ["onEnter", "onEmptyBackspace", "onTransform"]) {
+      expect(src.replace(/\/\/[^\n]*/g, ""), hook + " must stay gone").not.toContain(hook);
+    }
+  });
+});

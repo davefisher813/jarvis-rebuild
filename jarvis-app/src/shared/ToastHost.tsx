@@ -11,8 +11,11 @@ export default function ToastHost() {
     <div className="toast-dock">
       <div className="toast" role="status">
         <span className="toast-msg">{t.message}</span>
-        {t.actionLabel && (
-          <button className="toast-action" onClick={() => { t.onAction?.(); hideToast(); }}>{t.actionLabel}</button>
+        {/* Both, never just the label: a capsule with nothing behind it is
+            a button that does nothing, which is the one thing this app does
+            not ship (audit 2026-09-16). See toast.ts's hasAction. */}
+        {t.actionLabel && t.onAction && (
+          <button className="toast-action" onClick={() => { t.onAction!(); hideToast(); }}>{t.actionLabel}</button>
         )}
       </div>
     </div>
