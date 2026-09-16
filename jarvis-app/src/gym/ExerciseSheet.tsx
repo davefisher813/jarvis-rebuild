@@ -117,6 +117,13 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   // opens with the right answer already in both rows.
   const [equipment, setEquipment] = useState<Equipment | "">(initial ? (loadStyleOf(initial).equipment ?? "") : "");
   const [counted, setCounted] = useState<Counted | undefined>(initial ? loadStyleOf(initial).counted : undefined);
+  // THE REPS AXIS (2026-09-16, Dave: "you cannot tell me the module that
+  // renders when you click on an exercise has everything you need... I still
+  // don't see enough options with various weight loading"). He is right: the
+  // live session's own sheet has asked this since this morning and the sheet
+  // that PLANS the exercise never did, so a lift could be set up here and
+  // still be wrong about its reps until it was corrected at the rack.
+  const [sided, setSided] = useState<boolean>(initial ? !!loadStyleOf(initial).sided : false);
   const loadStyle: LoadStyle = {
     ...(equipment ? { equipment } : {}),
     ...(counted ? { counted } : {}),
@@ -240,6 +247,10 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
       // that equipment's default: a set logged today has to keep meaning
       // what it meant if the defaults are ever revised.
       ...(kind === "weight_reps" && counted ? { counted } : {}),
+      // Not gated on weight_reps: a bodyweight lift measured in reps alone is
+      // exactly the case where per-side matters most (a pistol squat, a
+      // single-arm row on a band).
+      ...(sided ? { sided: true as const } : {}),
       ...(partner && roundRestSec > 0 ? { roundRestSec } : {}),
       ...(condBlock ? { cond: condBlock } : {}),
     });
@@ -349,6 +360,22 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                               onPick={(v) => setCounted(v as Counted)} />
                           </div>
                         )}
+                        {/* AND WHAT THE REPS MEAN, which is the other half and
+                            has never been askable here. Counted As says what
+                            the WEIGHT is; this says whether 8 is 8 or 8 a
+                            side.
+                            A VALUE, NOT A SWITCH: every other row in this
+                            group states its answer in the right slot
+                            (Dumbbells, Each Hand, lb), and a bare toggle
+                            would need a grey line under it explaining which
+                            way is on -- which is the exact sentence this pass
+                            is removing everywhere else. */}
+                        <div className="row xs-row">
+                          <div className="conn-name">Reps Count</div>
+                          <HeadMenu variant="value" ariaLabel="Reps count" value={sided ? "side" : "both"}
+                            options={[{ value: "both", label: "Both Sides" }, { value: "side", label: "Per Side" }]}
+                            onPick={(v) => setSided(v === "side")} />
+                        </div>
                       </>
                     )}
                     {/* SAY THE UNIT ONCE (2026-09-16, the polish handoff:

@@ -1,6 +1,7 @@
 import type { AddedExerciseFields, Exercise, WorkoutData, WorkoutExercise, SetEntry, MeasureKind, ProgramDay } from "./types";
 import { newClientId } from "../shared/clientId";
 import { entryFrom } from "./strip";
+import { loadFields, type Counted } from "./equipment";
 
 // OFFLINE-FIRST, and not optionally (2026-08-03 recon): the core Store only
 // queues UPDATES when offline, creates fail outright. Gyms are concrete boxes.
@@ -226,7 +227,7 @@ export function swapExercise(
  */
 export function addExerciseMidSession(
   s: LiveSession,
-  ex: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string; plan: SetEntry[] } & AddedExerciseFields,
+  ex: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string; equipment?: string; counted?: Counted; sided?: boolean; plan: SetEntry[] } & AddedExerciseFields,
 ): LiveSession {
   const exerciseId = `mid${Date.now().toString(36)}${midSeq++}`;
   // GYM-F-21 (2026-09-05): the added exercise used to keep only its identity
@@ -246,6 +247,12 @@ export function addExerciseMidSession(
     ...(ex.unit ? { unit: ex.unit } : {}),
     ...(ex.timeUnit ? { timeUnit: ex.timeUnit } : {}),
     ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}),
+    // AND ITS CONVENTION (2026-09-16), for the same reason GYM-F-21 gave for
+    // the clock and the ramp: nothing else in the session knows about this
+    // exercise, so what it carries here is all it will ever have. A lift
+    // added from the library arrived with no equipment, so the strip stepped
+    // it by 5 and the record filed it as unclassified.
+    ...loadFields(ex),
     sets: [], custom: true, plan: ex.plan,
     ...(Object.keys(program).length ? { program } : {}),
   };

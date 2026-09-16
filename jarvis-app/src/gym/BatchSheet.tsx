@@ -112,9 +112,7 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
                   </div>
                 ))}
                 {plan.changes.length === 0 && (
-                  <div className="row"><div className="row-grow"><div className="conn-meta">
-                    Every selected exercise already says this, so there is nothing to write
-                  </div></div></div>
+                  <div className="row"><div className="row-grow"><div className="conn-meta">Nothing to write</div></div></div>
                 )}
               </div></div>
               <div className="pad-x"><div className="bp-sub">

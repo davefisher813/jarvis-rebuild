@@ -1473,6 +1473,10 @@
    the row's options, where it already lived. What stays on the row is the
    weekday the day claims, once it claims one, in the quiet ink a fact wears. */
 .ruled.health-ruled .se-chip-pin { color: var(--tx-2); background: var(--press-3); }
+/* THE PLAN, as a row's value. Same cyan a day row's count wears, because it
+   is the same kind of fact: what this row is FOR, stated in its own slot
+   rather than as a grey line under its name. */
+.ruled.health-ruled .se-chip-plan { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
 /* A CHIP THAT IS A DOOR (2026-09-16). The session's Equipment chip answers
    Dave's "I don't even have the option while I'm logging to select what type
    of weight system it is", so it has to be a real <button> -- Enter and Space

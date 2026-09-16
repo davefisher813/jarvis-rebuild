@@ -52,11 +52,22 @@ describe("InsightsPage", () => {
     expect(screen.getByText("1 of 1 Working sets mapped")).toBeInTheDocument();
     fireEvent.click(screen.getByText("28 Days"));
     expect(screen.getByText("3 of 3 Working sets mapped")).toBeInTheDocument();
+    // AMENDED 2026-09-16: the basis is kept, not printed on the card's face
+    // (Dave: "this is not a manual"). <details> renders its content whether or
+    // not it is open, so the law still reads the words; what changed is that
+    // they are behind a summary that names the question.
+    expect(screen.getByText("What Is Being Compared")).toBeInTheDocument();
     expect(screen.getByText(/Spans the sessions, not only this period/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Strength" }));
     expect(screen.getByText("3 sessions in the period")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Rest and Readings" }));
-    expect(screen.getByText(/2 of 28 days logged · 26 without a log/)).toBeInTheDocument();
+    // AMENDED 2026-09-16 (Dave's Rest and Readings screenshot). The row said
+    // "Not logged · No log in 7 days" -- the same fact twice -- and the logged
+    // form ran to three clauses whose third was the second subtracted from the
+    // period. Two facts: when it last happened, and how much of the window is
+    // covered.
+    expect(screen.getByText(/2 of 28 days/)).toBeInTheDocument();
+    expect(screen.queryByText(/without a log/), "the subtraction is not printed").toBeNull();
   });
   it("is honest when there is nothing", () => {
     render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={[]} metricDefs={[]} metricLogs={[]} logs={none} muscleMap={new Map()} cards={null}

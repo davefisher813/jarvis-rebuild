@@ -1,6 +1,7 @@
 import type { Exercise, ProgramData, ProgramDay, ProgramWeek, SetEntry } from "./types";
 import { newSetId } from "./strip";
 import { newExerciseKey } from "./library";
+import { loadFields, type Counted } from "./equipment";
 
 // DUPLICATE, MOVE & COPY (catalog §3.2-3.4). Pure array surgery: GymFlow
 // calls these and hands the result straight to updateProgram. Every copy
@@ -248,14 +249,21 @@ export function applyExerciseEdit(existing: Exercise, draft: Omit<Exercise, "id"
 // settings the session gave it.
 export function dayWithSessionEntry(
   day: ProgramDay,
-  entry: { exerciseId: string; name: string; kind: Exercise["kind"]; unit?: string; timeUnit?: string; exerciseKey?: string; plan?: SetEntry[]; program?: Partial<Pick<Exercise, "cond" | "restSec" | "ramp" | "muscleGroup" | "note">> },
+  entry: { exerciseId: string; name: string; kind: Exercise["kind"]; unit?: string; timeUnit?: string; exerciseKey?: string; equipment?: string; counted?: Counted; sided?: boolean; plan?: SetEntry[]; program?: Partial<Pick<Exercise, "cond" | "restSec" | "ramp" | "muscleGroup" | "note">> },
   newId: () => string,
 ): ProgramDay {
+  // THE CONVENTION COMES WITH IT (2026-09-16). "Also Update the Program"
+  // carried a lift's name, kind and units into the program and left its
+  // equipment, its reading and its reps axis behind -- so a dumbbell press
+  // swapped in mid-session and kept landed in the plan as an unclassified
+  // lift, and the next session started it stepping by 5 and calling its
+  // number "Weight". loadFields is the one spelling of this copy.
   const identity = {
     name: entry.name, kind: entry.kind,
     ...(entry.unit ? { unit: entry.unit } : {}),
     ...(entry.timeUnit ? { timeUnit: entry.timeUnit } : {}),
     ...(entry.exerciseKey ? { exerciseKey: entry.exerciseKey } : {}),
+    ...loadFields(entry),
   };
   const idx = day.exercises.findIndex((e) => e.id === entry.exerciseId);
   if (idx >= 0) {

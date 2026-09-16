@@ -254,9 +254,12 @@ export default function LibraryPage({
           {selecting && (
             <div className="pad-x"><div className="card pad">
               <div className="row">
+                {/* The count is the fact. "Tap exercises to select, then
+                    classify them together" was an instruction for a mode you
+                    are standing in, printed above the two buttons that do it
+                    (2026-09-16, Dave: "this is not a manual"). */}
                 <div className="row-grow">
                   <div className="conn-name">{`${picked.length} Selected`}</div>
-                  <div className="conn-meta">Tap exercises to select, then classify them together</div>
                 </div>
               </div>
               <div className="btn-row">
@@ -365,9 +368,11 @@ export default function LibraryPage({
                   <input ref={renameRef} className="xs-input" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Exercise Name" />
                 </div>
               </div></div>
-              <div className="pad-x"><div className="bp-sub">
+              {/* The same reading: a real consequence, behind the question
+                  it answers rather than under the field on every visit. */}
+              <div className="pad-x"><details className="exp-more"><summary>About Renaming</summary><div className="bp-sub">
                 Renaming keeps every session this exercise already has, and the old name stays searchable.
-              </div></div>
+              </div></details></div>
               <div className="xs-foot" />
             </div>
           </div>

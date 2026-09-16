@@ -5225,6 +5225,36 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     for (const u of uses) expect(u[2], `var(--vv-${u[1]}) with no fallback`).toBeTruthy();
   });
 
+  // A ROW TITLE OUTWEIGHS ITS OWN SUBTEXT (Dave 2026-09-16, the Push Day 1
+  // screenshot: "the titles of stuff, like the titles of exercise, it looks
+  // the same as what's under it. So it just all blends together and you can't
+  // read anything. So there's no hierarchy. Why not use bolding").
+  //
+  // He was right by arithmetic. .conn-name was 17px at --w-normal in --tx-1
+  // and .conn-meta is 15px at the same weight in --tx-3 -- two pixels and,
+  // since the two-tier ink ramp collapsed --tx-2 and --tx-3 on 2026-09-14,
+  // one step of grey. Nothing else separated them.
+  //
+  // The fix has to be WEIGHT and not a quieter grey, because the quieter grey
+  // is already ruled out for contrast and browserWalk measures it. This law
+  // is that the ladder exists, stated as the comparison rather than as two
+  // numbers, so a future type pass has to keep the relationship and not just
+  // the values.
+  it("a row title is heavier than the line under it", () => {
+    const ds = read(join(SRC, "styles/jarvis-design-system.css"));
+    const weight = (n: string) => Number(new RegExp(`--${n}:\\s*(\\d+)`).exec(ds)?.[1] ?? "0");
+    const nameRule = /\.conn-name \{[^{}]*\}/.exec(ds)?.[0] ?? "";
+    const metaRule = /\.conn-meta \{[^{}]*\}/.exec(ds)?.[0] ?? "";
+    const nameW = weight(/font-weight:\s*var\(--([a-z-]+)\)/.exec(nameRule)?.[1] ?? "");
+    const metaW = weight(/font-weight:\s*var\(--([a-z-]+)\)/.exec(metaRule)?.[1] ?? "");
+    expect(nameW, "the row title states a weight at all").toBeGreaterThan(0);
+    expect(metaW, "and so does its subtext").toBeGreaterThan(0);
+    expect(nameW, "the title has to outweigh the line under it").toBeGreaterThan(metaW);
+    // And the ink ramp it cannot lean on instead is still two-tier, so this
+    // law is the only thing holding the hierarchy up.
+    expect(ds).toMatch(/--tx-2: #D2D2D6; --tx-3: #D2D2D6;/);
+  });
+
   it("the bar itself still meets the tap minimum", () => {
     // The other half of the same contract rule: reachable AND 44pt.
     expect(CSS).toMatch(/\.sheet-bar-cancel,\s*\.sheet-bar-save\s*\{[^{}]*min-height:\s*44px/);

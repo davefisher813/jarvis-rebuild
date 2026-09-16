@@ -708,9 +708,27 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .cat-dot { width: 10px; height: 10px; border-radius: var(--r-circle); flex-shrink: 0; }
 .cat-bar { width: 4px; align-self: stretch; border-radius: 2px; flex-shrink: 0; }
 
-.conn-name { font-size: var(--t-h3); flex: 1; }
+/* A ROW TITLE OUTWEIGHS ITS OWN SUBTEXT (Dave 2026-09-16: "the titles of
+   stuff, like the titles of exercise, it looks the same as what's under it.
+   So it all blends together and you can't read anything. There's no
+   hierarchy. Why not use bolding").
+
+   MEASURED, and he is right by arithmetic: .conn-name was 17px at --w-normal
+   (400) in --tx-1, and .conn-meta is 15px at 400 in --tx-3. Two pixels and,
+   since the two-tier ink ramp, a grey one step off white. Nothing else
+   separated them, so a title and its value read as one block of text.
+
+   The fix is WEIGHT and not a quieter grey, because the quieter grey was
+   already tried and ruled out: the two-tier ramp above collapsed --tx-2 and
+   --tx-3 on 2026-09-14 for contrast, and browserWalk measures it. Weight
+   costs nothing in contrast and is what every other title in this file
+   already uses -- .t-h3 is --w-medium, .eyebrow and .input-label are
+   --w-semi. The row title was the one title with no weight at all. */
+.conn-name { font-size: var(--t-h3); font-weight: var(--w-medium); flex: 1; }
 .conn-name.unread { font-weight: var(--w-semi); }
-.conn-meta { font-size: var(--t-meta); color: var(--tx-3); }
+/* And the subtext stays at the body weight, so the ladder is 600 over 400
+   rather than 400 over 400. */
+.conn-meta { font-size: var(--t-meta); font-weight: var(--w-normal); color: var(--tx-3); }
 
 .msg-row { align-items: flex-start; }
 .msg-body { flex: 1; min-width: 0; }

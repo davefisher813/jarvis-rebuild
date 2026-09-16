@@ -10,7 +10,7 @@ import { readHealthSettings } from "../health/settings";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
-import { targetLine, formatSet } from "./measures";
+import { targetLine, formatSet, planChipText } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
 import { receiptFor, type Receipt } from "./prs";
 import { effectiveKind } from "../categories/kinds";
@@ -26,7 +26,7 @@ import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
 import { dayWithSessionEntry } from "./edit";
 import { defaultUnit, equipmentOf } from "./types";
-import { loadStyleOf, type LoadStyle } from "./equipment";
+import { loadFields, loadStyleOf, type LoadStyle } from "./equipment";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
@@ -388,18 +388,27 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
           {exercise.ramp && <span className="xtag xtag-warn xtag-after">Ramp</span>}
           {exercise.filler && <span className="xtag xtag-dim xtag-after">Filler</span>}
         </div>
-        {/* THE ROW IS A RECEIPT, NOT A LEDGER (2026-09 sweep, Dave's Pull day
-            2 screenshot: a real pyramid set wrapped two lines of dense grey
-            numbers).
-            AND LAST TIME IS NOT ON IT (2026-09-16, the polish handoff: "take
-            the trailing Last: 185 lb x 3 off the exercise row"; Dave: "grey
-            subtext all over the place"). The line was the plan, then the rest,
-            then last time, three clauses joined by middots in one grey -- and
-            the first of them is the row's own value, which the other two were
-            burying. Last time has two homes that are about last time: the
-            lift's own page, and the session header the moment this lift comes
-            up, where it is a chip and not a clause. */}
-        <div className="conn-meta">{targetLine(exercise)}{exercise.restSec ? ` · ${mmss(exercise.restSec)} rest` : ""}</div>
+        {/* THE PLAN IS THE ROW'S VALUE, NOT A SENTENCE UNDER ITS NAME
+            (2026-09-16, Dave's Push Day 1 screenshot: "the titles of exercise,
+            it looks the same as what's under it. So it just all blends
+            together and you can't read anything. There's no hierarchy").
+
+            He is right by arithmetic: this line was .conn-meta, 15px at the
+            body weight in the secondary ink, sitting under a .conn-name that
+            was 17px at the SAME weight in white. Two pixels and one step of
+            grey apart, so a name and its numbers read as one block of text.
+            The title took its weight (jarvis-design-system.css); the numbers
+            take the bounded value slot every other list in this app already
+            puts its counts in -- the day row, the session list, the recent
+            row. A chip has an edge, so the eye lands on the name first and
+            finds the number second, which is the order they matter in.
+
+            Rest rides beside it as its own fact rather than a clause glued on
+            with a middot, and only when there is one. */}
+        <div className="r-k">
+          <span className="se-chip se-chip-plan">{planChipText(exercise)}</span>
+          {exercise.restSec ? <span className="se-chip se-chip-when"><em>Rest</em>{mmss(exercise.restSec)}</span> : null}
+        </div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
         {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}
@@ -1174,7 +1183,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       // Part 3 wave 5 (O3a): the plan is copied in at start, so a program
       // edit made mid-session reaches the next session, never this one; and
       // the equipment convention rides with every set logged from here.
-      : day.exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [], plan: e.sets, ...(loadStyleOf(e).equipment ? { equipment: loadStyleOf(e).equipment } : {}), ...(loadStyleOf(e).counted ? { counted: loadStyleOf(e).counted } : {}) }));
+      : day.exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [], plan: e.sets, ...loadFields(e) }));
     const startedAt = Date.now();
     const s: LiveSession = {
       programId: program.id, dayId: day.id, dayName: day.name, date,
@@ -2079,7 +2088,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
         onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); showToast({ message: `Swapped in ${sub.name}` }); }}
         onSetLoad={(next) => { void setLoadStyle(exercise, next); }}
-        onAddMidSession={(draft) => { patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note })); showToast({ message: `Added ${draft.name}` }); }}
+        onAddMidSession={(draft) => { patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, ...loadFields(draft), plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note })); showToast({ message: `Added ${draft.name}` }); }}
         onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
         // Part 3 wave 5 (Dave's 10a): only a swapped or added entry offers it.
         onUpdateProgram={liveEx?.custom && !live.sameAsLastTime && day ? () => {

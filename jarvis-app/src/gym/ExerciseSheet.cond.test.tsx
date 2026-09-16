@@ -74,7 +74,14 @@ describe("ExerciseSheet, the grouped table", () => {
     // Every value that opens a menu is the dropdown worn as a row value.
     // Equipment and Counted As now read in the order you meet them: above
     // Weight, above Unit, and well above Measure.
-    expect([...baseElement.querySelectorAll(".dd.dd-value")].map((d) => d.getAttribute("aria-label"))).toEqual(["Equipment", "Unit", "Measure", "Clock", "Muscle", "Rest Timer"]);
+    // AMENDED 2026-09-16 (Dave: "you cannot tell me the module that renders
+    // when you click on an exercise has everything you need... I still don't
+    // see enough options with various weight loading"). Reps Count joins them,
+    // beside the reading it completes: Counted As says what the WEIGHT is,
+    // Reps Count says whether 8 is 8 or 8 a side. It is a value and not a
+    // toggle for the same reason every row here is -- a switch cannot say
+    // which way is on without a line of grey under it.
+    expect([...baseElement.querySelectorAll(".dd.dd-value")].map((d) => d.getAttribute("aria-label"))).toEqual(["Equipment", "Reps count", "Unit", "Measure", "Clock", "Muscle", "Rest Timer"]);
     fireEvent.click(baseElement.querySelector(".sheet-bar-cancel")!);
     expect(onCancel).toHaveBeenCalled();
   });

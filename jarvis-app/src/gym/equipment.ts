@@ -273,6 +273,27 @@ export function loadStyleOf(ex: {
   return { ...(ex.counted ? { counted: ex.counted } : {}), ...side };
 }
 
+/** THE CONVENTION, AS FIELDS TO COPY ONTO A RECORD.
+ *
+ *  2026-09-16: `sided` was added as a third axis and three of the four places
+ *  that carry a lift's convention forward -- starting a session, adding one
+ *  mid-session, writing a session entry back into a program -- were each
+ *  spelling out equipment and counted by hand. All three silently dropped the
+ *  new axis, so a lift set to Per Side in the plan logged its sets as if it
+ *  were not. This is the one spelling of that copy; a fifth axis is one edit,
+ *  not a sweep and a bug. Absent fields are omitted rather than set
+ *  undefined, so nothing writes a null into storage. */
+export function loadFields(ex: { equipment?: string; counted?: Counted; sided?: boolean; load?: "each" | "total" }): {
+  equipment?: Equipment; counted?: Counted; sided?: true;
+} {
+  const st = loadStyleOf(ex);
+  return {
+    ...(st.equipment ? { equipment: st.equipment } : {}),
+    ...(st.counted ? { counted: st.counted } : {}),
+    ...(st.sided ? { sided: true as const } : {}),
+  };
+}
+
 /** The reading an equipment takes when nobody has said otherwise. */
 export function defaultCount(e: Equipment): Counted {
   return SPEC[e].counts[0]!;

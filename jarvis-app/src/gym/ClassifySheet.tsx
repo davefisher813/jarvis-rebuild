@@ -246,9 +246,19 @@ export default function ClassifySheet({
           <div className="pad-x"><div className="card xs-group">
             <ChipRow items={MEASURE_KINDS} label={(k: MeasureKind) => MEASURE_LABEL[k]} value={c.measure} ariaPrefix="Measured as"
               onPick={(k) => (k ? set({ measure: k }) : clear("measure"))} />
-            <div className="row xs-row"><div className="row-grow"><div className="conn-meta">
-              Sessions already logged keep the numbers and units they were recorded with
-            </div></div></div>
+            {/* AN EDIT EFFECT, WHICH IS A DISCLOSURE (polish rule 3, and
+                Dave 2026-09-16: "this is not a manual"). It is a real
+                consequence and may not be deleted -- changing what a lift
+                measures must never look like it rewrote last month's numbers
+                -- but it is read once and then it is a grey sentence in the
+                middle of a form you come back to. Same treatment the
+                edit-effects line on the workout day already took. */}
+            <div className="row xs-row"><div className="row-grow">
+              <details className="exp-more">
+                <summary>About Changing This</summary>
+                <div className="conn-meta">Sessions already logged keep the numbers and units they were recorded with</div>
+              </details>
+            </div></div>
           </div></div>
 
           <div className="pad-x">

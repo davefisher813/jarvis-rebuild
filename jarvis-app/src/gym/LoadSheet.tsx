@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { own } from "../shared/rowDoor";
 import SheetBar from "../shared/SheetBar";
+import HeadMenu from "../shared/HeadMenu";
 import {
   EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL,
   countsFor, asksCount, styleSummary, type Counted, type Equipment, type LoadStyle,
@@ -96,18 +96,25 @@ export default function LoadSheet({ name, initial, onSave, onCancel }: {
               side at a time. */}
           <div className="grp xs-grp"><div className="eyebrow">Reps</div></div>
           <div className="pad-x"><div className="card xs-group">
-            {/* The whole row flips the switch (Dave 2026-09-15: "I want all rows clickable"). */}
-            <div className="row xs-row" onClick={() => setStyle({ ...style, sided: !style.sided })}>
-              <div className="row-grow">
-                <div className="conn-name">Worked One Side at a Time</div>
-                <div className="conn-meta">{style.sided ? "The reps on a chip count one side, so a set of 8 is really 16" : "The reps on a chip count both sides together"}</div>
-              </div>
-              <div className={"switch" + (style.sided ? "" : " off")} role="switch" aria-checked={!!style.sided}
-                aria-label="Worked One Side at a Time" tabIndex={0}
-                onClick={own(() => setStyle({ ...style, sided: !style.sided }))} />
+            {/* A VALUE, NOT A SWITCH AND A SENTENCE (2026-09-16, Dave: "this
+                is not a manual, we don't need instructions everywhere"). This
+                row had a toggle and a line of grey under it explaining which
+                way was on, because a toggle cannot say what it means. The two
+                chips above state their answers in the right slot; so does
+                this now, and the sentence is gone with the toggle.
+                Same two answers ExerciseSheet's Reps Count row offers, in the
+                same words, because they are the same question. */}
+            <div className="row xs-row">
+              <div className="conn-name">Reps Count</div>
+              <HeadMenu variant="value" ariaLabel="Reps count" value={style.sided ? "side" : "both"}
+                options={[{ value: "both", label: "Both Sides" }, { value: "side", label: "Per Side" }]}
+                onPick={(v) => setStyle({ ...style, sided: v === "side" })} />
             </div>
           </div></div>
 
+          {/* What the three answers add up to, in the words the session's own
+              chip will use. One line, and it is a reading, not an
+              instruction. */}
           <div className="pad-x"><div className="facts">
             <span className="fact">{styleSummary(style)}</span>
             {style.sided && <span className="fact">Reps Per Side</span>}

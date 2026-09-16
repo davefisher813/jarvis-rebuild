@@ -346,7 +346,17 @@ const musclesCard = (
           <tbody>{series.map((p) => <tr key={p.workoutId}><td>{monthDay(p.date)}</td><td>{`${p.w} ${headline.lift.unit ?? "lb"}`}</td></tr>)}</tbody>
         </table>
       </details>
-      <div className="facts"><span className="fact">Same exercise, same equipment, same unit, same rep count · Spans the sessions, not only this period</span></div>
+      {/* THE BASIS IS KEPT, NOT PRINTED (2026-09-16, Dave: "this is not a
+          manual, we don't need instructions everywhere"; polish rule 3:
+          "Methodology... remains available in labeled disclosures"). Two
+          clauses of grey under the chart, on every visit, saying what the
+          comparison holds constant. It is the answer to one question asked
+          once, so it sits behind the question. */}
+      <details className="ins-table">
+        <summary>What Is Being Compared</summary>
+        <div className="facts"><span className="fact">Same exercise, same equipment, same unit, same rep count</span></div>
+        <div className="facts"><span className="fact">Spans the sessions, not only this period</span></div>
+      </details>
       <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(headline.lift)}>View Sets</button></div>
     </div></div>
   ) : null;
@@ -418,10 +428,19 @@ const musclesCard = (
                     <div {...pressable(() => onOpenWorkout(r.workoutId))} className="row" key={r.workoutId}>
                       <div className="row-grow">
                         <div className="conn-name">{monthDay(r.date)}</div>
-                        <div className="facts">
-                          <span className="fact lime">{`${r.working} working`}</span>
-                          <span className="fact">{r.sets.join(", ")}</span>
-                        </div>
+                        {/* The count is the fact; the sets are a table behind
+                            it, the same answer All Data took (2026-09-16).
+                            "120 lb × 6, 130 lb × 8, 140 lb × 6, 150 lb × 6"
+                            wrapped two grey lines on every row of this list. */}
+                        <div className="facts"><span className="fact lime">{capAfterNumber(`${r.working} working`)}</span></div>
+                        <details className="exp-more ad-sets" onClick={(e) => e.stopPropagation()}>
+                          <summary>{`The ${r.sets.length === 1 ? "Set" : "Sets"}`}</summary>
+                          <div className="ins-rows">
+                            {r.sets.map((x, i) => (
+                              <div className="ins-row" key={x + i}><span className="ins-k">{`Set ${i + 1}`}</span><span className="ins-sub">{x}</span></div>
+                            ))}
+                          </div>
+                        </details>
                       </div>
                       {CHEV}
                     </div>
@@ -445,7 +464,13 @@ const musclesCard = (
       const days = daysIn(mine.map((l) => l.data.date));
       const value = !latest ? "Not logged" : def.data.type === "yesno" ? (latest.data.yes ? "Yes" : "No") : `${latest.data.value}${def.data.type === "scale5" ? "/5" : def.data.unit ? " " + def.data.unit : ""}`;
       const isSleep = def.data.presetKey === "sleep";
-      rows.push({ key: def.id, title: def.data.name, hue: isSleep ? "violet" : "cyan", value, context: latest ? `Latest ${monthDay(latest.data.date)} · ${days} of ${period.days} days logged · ${period.days - days} without a log` : `No log in ${period.days} days`, category: isSleep ? "sleep" : def.data.presetKey === "bodyweight" ? "body" : "other" });
+      // SAY IT ONCE, AND DO NOT PRINT ARITHMETIC (2026-09-16, Dave's Rest and
+      // Readings screenshot: "Not logged · No log in 7 days"). The value
+      // already says Not logged; the context said it again in other words.
+      // And the logged version ran to three clauses, the third of which was
+      // the second subtracted from the period -- a number the reader can do
+      // and did not ask for.
+      rows.push({ key: def.id, title: def.data.name, hue: isSleep ? "violet" : "cyan", value, context: latest ? `Latest ${monthDay(latest.data.date)} · ${days} of ${period.days} days` : "", category: isSleep ? "sleep" : def.data.presetKey === "bodyweight" ? "body" : "other" });
     }
     const effort = logs.callIt.filter((e) => inPeriod(localDay(e.data.at), period));
     if (effort.length) rows.push({ key: "effort", title: "Session Effort", hue: "cyan", value: `${effort[effort.length - 1]!.data.rpe}/10 latest`, context: capAfterNumber(`${effort.length} rated ${effort.length === 1 ? "session" : "sessions"} · ${daysIn(effort.map((e) => localDay(e.data.at)))} days`), category: "effort" });
@@ -470,7 +495,7 @@ const musclesCard = (
             <div {...pressable(() => onOpenAllData(r.category, period))} className="row" key={r.key}>
               <div className="row-grow">
                 <div className="conn-name">{r.title}</div>
-                <div className="facts"><span className={"fact " + r.hue}>{r.value}</span><span className="fact">{r.context}</span></div>
+                <div className="facts"><span className={"fact " + r.hue}>{r.value}</span>{r.context && <span className="fact">{r.context}</span>}</div>
               </div>
               {CHEV}
             </div>
