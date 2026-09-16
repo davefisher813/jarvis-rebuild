@@ -5,6 +5,7 @@ import { personInitials, avatarClass } from "../types";
 import { searchPeople } from "../views";
 import { PeopleGlyph } from "../../shared/glyphs";
 import { pressable } from "../../shared/pressable";
+import { capAfterNumber } from "../../shared/casing";
 
 const CHEV = (
   <div className="chev" />
@@ -30,6 +31,9 @@ export default function PeopleListPage({
   onOpen,
   onAdd,
   onImportFile,
+  repairs = [],
+  onRepair,
+  onSkipRepair,
   onBack,
 }: {
   people: Person[];
@@ -39,6 +43,14 @@ export default function PeopleListPage({
   onOpen: (id: string) => void;
   onAdd: () => void;
   onImportFile?: (file: File) => void;
+  // A NUMBER THAT ENDED UP IN THE NOTES (People handoff, 2026-09-16). The
+  // import that put it there is fixed; these are the contacts already in the
+  // app carrying one. Reviewable, one at a time, because a run of digits in a
+  // note can be an order number or a door code and only the person who wrote
+  // it knows which.
+  repairs?: { id: string; name: string; findings: { kind: "phone" | "email"; value: string; context: string }[] }[];
+  onRepair?: (personId: string, finding: { kind: "phone" | "email"; value: string; context: string }) => void;
+  onSkipRepair?: (personId: string, value: string) => void;
   onBack: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -101,6 +113,36 @@ export default function PeopleListPage({
               <button className="quiet-action" onClick={(ev) => { ev.stopPropagation(); onClearFlag?.(p.id); }}>No, move out</button>
             </div>
           ))}
+        </div></div>
+      )}
+
+      {repairs.length > 0 && (onRepair || onSkipRepair) && (
+        <div className="pad-x"><div className="card list-card-ruled pad">
+          {/* Says the count as a fact, not as a chore with a badge on it. */}
+          <div className="conn-name">
+            {capAfterNumber(repairs.length === 1
+              ? "One contact has contact details sitting in their notes"
+              : `${repairs.length} contacts have contact details sitting in their notes`)}
+          </div>
+          {repairs.map((c) => c.findings.map((f) => (
+            // Row tap: the row opens the contact, so "is this really their
+            // number?" can be checked against the rest of their card before
+            // answering. The two verbs keep their own taps.
+            <div {...pressable(() => onOpen(c.id))} className="offer-row" key={c.id + f.value}>
+              <div className="av av-32 cat-bg-graphite">{personInitials(c.name)}</div>
+              <div className="row-grow">
+                <div className="conn-name truncate">{c.name}</div>
+                {/* The value, then the line it was found on, so the answer to
+                    "is this a phone number?" is on screen rather than assumed. */}
+                <div className="conn-meta truncate">{f.value}</div>
+                <div className="bp-sub truncate">{f.context}</div>
+              </div>
+              <button className="btn-sm" onClick={(ev) => { ev.stopPropagation(); onRepair?.(c.id, f); }}>
+                {f.kind === "phone" ? "It's a number" : "It's an address"}
+              </button>
+              <button className="quiet-action" onClick={(ev) => { ev.stopPropagation(); onSkipRepair?.(c.id, f.value); }}>Not One</button>
+            </div>
+          )))}
         </div></div>
       )}
 

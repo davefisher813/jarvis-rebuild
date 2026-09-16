@@ -140,3 +140,66 @@ describe("PeopleFlow delete undo (BRAIN-F-13)", () => {
     expect(await notesRef!.notesLinkedTo(personId)).toHaveLength(1);
   });
 });
+
+// THE NUMBER ALREADY SITTING IN THE NOTES (People handoff, 2026-09-16; the
+// contact Dave photographed had one, with the Phone field blank beside it).
+//
+// The harness adds the person through the sheet, the way the other tests in
+// this file do, so the note goes in the way a real one would.
+describe("repairing contact details out of the notes", () => {
+  const withNote = async (uid: string, name: string, note: string) => {
+    render(
+      <NotesProvider userId={uid}>
+        <PeopleFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByText("Add Person"));
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: name } });
+    const notes = screen.getByLabelText("Notes");
+    fireEvent.change(notes, { target: { value: note } });
+    fireEvent.click(screen.getByText("Save"));
+    // The name can appear twice once a repair is on offer: the list row and
+    // the offer row above it.
+    await waitFor(() => expect(screen.getAllByText(name).length).toBeGreaterThan(0));
+  };
+
+  it("offers what it found, with the line it came from, and applies nothing on its own", async () => {
+    await withNote("r1", "Aaron Roman", "Cell 555-010-3311, call after 6");
+    // The value and the line are both on screen, so "is this a number?" can
+    // actually be answered rather than assumed.
+    expect(await screen.findByText("555-010-3311")).toBeInTheDocument();
+    expect(screen.getByText("Cell 555-010-3311, call after 6")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "It's a number" })).toBeInTheDocument();
+  });
+
+  it("fills the field on confirmation, and the note survives it", async () => {
+    await withNote("r2", "Aaron Roman", "Cell 555-010-3311, call after 6");
+    fireEvent.click(await screen.findByRole("button", { name: "It's a number" }));
+    // The offer is gone because the number is now on the record, which is
+    // what makes it no longer a finding.
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "It's a number" })).not.toBeInTheDocument();
+    });
+    // It says what it did and hands back the way out.
+    const last = toasts[toasts.length - 1]!;
+    expect(last.message).toBe("Number moved to Aaron Roman");
+    expect(last.actionLabel).toBe("Undo");
+    // THE NOTE IS KEPT: open the person and the sentence is still there.
+    fireEvent.click(screen.getAllByText("Aaron Roman")[0]!);
+    expect(await screen.findByText("Cell 555-010-3311, call after 6")).toBeInTheDocument();
+  });
+
+  it("stops asking once you say it is not a number", async () => {
+    await withNote("r3", "Aaron Roman", "Order 5550103311 still open. Cell 555-010-9922");
+    fireEvent.click(await screen.findByRole("button", { name: "Not One" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "It's a number" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("says nothing about a contact whose notes hold no contact details", async () => {
+    await withNote("r4", "Lee Ramos", "Met at the clinic in 2019");
+    expect(screen.queryByRole("button", { name: "It's a number" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Not One" })).not.toBeInTheDocument();
+  });
+});

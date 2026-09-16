@@ -18,6 +18,7 @@ import { useAI } from "../ai/useAI";
 import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
 import { parseContactsFile, type ImportedContact } from "./importContacts";
+import { repairCandidates, applyFindings, type NoteFinding } from "./repairNotes";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { createPortal } from "react-dom";
@@ -393,6 +394,51 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     }
   };
 
+  // THE NUMBERS ALREADY SITTING IN NOTES (People handoff, 2026-09-16). The
+  // parser that put them there is fixed, which does nothing for the contacts
+  // already in the app. These are offered one at a time and never applied on
+  // the app's own say-so: a run of digits in a note can be an order number or
+  // a door code, and only the person who wrote it knows which.
+  //
+  // "Not one" has to STICK, or the same wrong guess is back on the next
+  // render and the offer becomes noise to scroll past. It is a per-viewer
+  // convenience, so it lives in localStorage rather than on the record: being
+  // wrong about it costs a dismissed row coming back, never data.
+  const SKIP_KEY = "jarvis.people.repairskip.v1";
+  const readSkips = (): string[] => {
+    try { return JSON.parse(localStorage.getItem(SKIP_KEY) ?? "[]") as string[]; } catch { return []; }
+  };
+  const [skipped, setSkipped] = useState<string[]>(readSkips);
+  const skipRepair = (personId: string, value: string) => {
+    const next = [...new Set([...skipped, personId + "|" + value])];
+    setSkipped(next);
+    try { localStorage.setItem(SKIP_KEY, JSON.stringify(next.slice(-500))); } catch { /* private mode */ }
+  };
+  const repairs = repairCandidates(list)
+    .map((c) => ({ ...c, findings: c.findings.filter((f) => !skipped.includes(c.id + "|" + f.value)) }))
+    .filter((c) => c.findings.length > 0);
+
+  const repairOne = async (personId: string, finding: NoteFinding) => {
+    const p = list.find((x) => x.id === personId);
+    if (!p) return;
+    // The note is NOT in the patch: it stays exactly as written, which is the
+    // whole rule. The field is filled; the sentence the user typed survives.
+    const ok = await attemptWrite(() => people.update(personId, applyFindings(p.data, [finding])));
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: (finding.kind === "phone" ? "Number" : "Address") + " moved to " + p.data.name,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(() => people.update(personId, {
+          phone: p.data.phone, phones: p.data.phones,
+          email: p.data.email, emails: p.data.emails,
+        }));
+        await reload();
+      },
+    });
+  };
+
   const importEl = importPreview && createPortal(
     <div className="sheet-scrim" onClick={() => !importing && setImportPreview(null)}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
@@ -507,6 +553,9 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
         onOpen={setOpenId}
         onAdd={() => setSheet({ kind: "new" })}
         onImportFile={onImportFile}
+        repairs={repairs}
+        onRepair={(id, f) => void repairOne(id, f)}
+        onSkipRepair={skipRepair}
         onBack={onBack}
       />
       {sheetEl}
