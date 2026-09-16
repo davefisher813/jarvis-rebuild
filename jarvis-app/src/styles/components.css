@@ -3505,7 +3505,11 @@ button {
 .stream-card > .pad-x { position: relative; }
 .stream-card > .pad-x + .pad-x::before,
 .stream-card > .task-row + .pad-x::before,
-.stream-card > .pad-x + .task-row::before {
+.stream-card > .pad-x + .task-row::before,
+/* The dealt row is one of these rows now (2026-09-16), so the hairline under
+   it is the same hairline. Without this line it was the one join in the card
+   with nothing drawn across it, which is what a promoted card looks like. */
+.stream-card > .hl + .pad-x::before {
   content: ""; position: absolute; left: calc(var(--s-4) + 44px + var(--s-3));
   right: 0; top: 0; height: 0.5px; background: var(--divider); }
 
@@ -5247,11 +5251,16 @@ body.selecting .voice-dock { display: none; }
 .row-star svg { width: 16px; height: 16px; display: block; }
 .row-star.on { color: var(--yellow); }
 
-/* THE YOUR MOVE HEADLINER (C-24, Push B). The one task he is meant to do
-   next, the only promoted thing on the page: title, one facts line, then
-   Start and the Why chip on the same line. The notices under it keep the
-   uniform row they have had since Combine B. The runners-up are the quiet
-   row below, never a second headliner. */
+/* YOUR MOVE, AT THE STREAM'S OWN SCALE (Dave 2026-09-16, photographed:
+   "There's no need for this massive first task. It's not like it's not
+   important than the rest so why are we doing that?").
+   C-24 drew the dealt task at 18px semibold over two lines, with a facts
+   line and a button line of its own, on top of notices that are one 16px
+   regular line each. Measured against the photograph that is about 125px
+   over 44px rows -- nearly three times its neighbours for a ranking the app
+   is only guessing at. The promotion is repealed and the function kept: the
+   task-row's exact type, the stream's lead column, and two lines instead of
+   four. See the note at the top of MoveHeadliner.tsx. */
 /* ONE LEFT EDGE (Dave 2026-09-12, photographed: "a real eye sore... the
    first thing a user sees. It needs to look perfect"). The first cut gave
    .hl no horizontal inset at all, so the facts line hung at the card's raw
@@ -5261,29 +5270,47 @@ body.selecting .voice-dock { display: none; }
    inset, a 44px ring column, s-3, then ONE text column -- the same
    calc(s-4 + 44px + s-3) edge the hairlines under it are drawn to, so the
    title, the facts, the verbs and every row below all start on one line. */
-.hl { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-3) var(--s-4) var(--s-3h); }
+.hl { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-2) var(--s-4); }
 /* The ring column, always reserved. The 44px tap target centres on the
    title's own line height and overflows above and below it, the same trick
    .task-check-tap's -8px margins pull on a 44px row. */
-.hl-lead { flex: 0 0 44px; height: calc(18px * var(--type-scale) * 1.25); display: flex; align-items: center; justify-content: center; }
+.hl-lead { flex: 0 0 44px; height: 30px; display: flex; align-items: center; justify-content: center; }
 .hl-lead .task-check-tap { margin: 0; }
 .hl-body { flex: 1; min-width: 0; }
-/* TWO LINES, AT A TITLE'S WEIGHT (Dave 2026-09-13: "way, way too many
-   lines, and it's in like max bold font, so it looks ridiculous"). A task
-   title written by a machine ("Get back to Mailchimp Imports: Your contacts
-   couldn't be imported: The Bridge Foundation") ran four lines at the
-   heaviest weight on the page. The headliner is the loudest ROW, not a
-   headline: semibold like every other screen title, 18px, and never more
-   than two lines; the whole title is one tap away on the task. */
-.hl-title { font-size: calc(18px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.01em; line-height: 1.25; min-width: 0;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.hl .facts { margin-top: 3px; }
-/* Left, under the facts they belong to, as the harness draws them. The
-   specificity is deliberate: the generic .hl-acts above is a notice row's
-   trailing verb line and carries that row's inset and right alignment;
-   inside the headliner the verbs sit in the text column, which already has
-   its inset, so this resets both. */
-.hl .hl-acts { display: flex; align-items: center; justify-content: flex-start; gap: var(--s-2); margin-top: var(--s-2h); padding: 0; }
+/* ONE LINE, AT A ROW'S WEIGHT. These are .ruled .task-row .task-title's
+   exact numbers, for the same reason the reminders rows take them (see
+   CLAUDE.md): the dealt task sits directly above notice rows, and any
+   difference in type reads as the app shouting. The clamp went from two
+   lines to one with it -- a machine-written title ("Get back to Mailchimp
+   Imports: Your contacts couldn't be imported: The Bridge Foundation") was
+   spending both of them, and the whole title is still one tap away on the
+   task itself, which is where it can wrap freely. */
+.hl-title { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; line-height: 1.25; min-width: 0;
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* LINE TWO CARRIES BOTH: why this one on the left, what to do about it on
+   the right. Two full-width lines (facts, then verbs) were most of the
+   height the photograph was objecting to, and the facts are short enough
+   ("Today · 45 min") to leave the verbs their own room. The facts yield
+   first and ellipsis, because a verb that loses its word stops being a
+   verb -- the same trade .notice-card-uniform makes on every row below. */
+/* LINE TWO CARRIES BOTH: why this one on the left, at the notice row's own
+   sub size, and the verbs on the right, in the trailing slot every other row
+   in this stream keeps its control in. The title keeps line one to itself
+   because two capsules beside it took 147px of 273 and left it saying "Get
+   back to ...". The facts wrap rather than clip -- a fragment cut mid-word
+   ("45 mi") is a fact that reads as a different fact. */
+.hl-line { display: flex; align-items: center; gap: var(--s-2); min-height: 30px; }
+.hl .facts { flex: 1; min-width: 0; margin-top: 0; font-size: calc(12.5px * var(--type-scale)); }
+/* The specificity is deliberate: the generic .hl-acts above is a notice
+   row's trailing verb line and carries that row's inset; here the verbs sit
+   in the row's trailing slot, which needs neither.
+   AT A ROW'S HEIGHT: .btn-sm is 34px and the app's base .btn floor pushes it
+   to 44, which on its own made this row half again as tall as the notices it
+   sits with. 30px is the capsule height the stream's own .pill-act controls
+   use, and the tap target is the whole row's. */
+.hl .hl-acts { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: var(--s-1h); margin-top: 0; padding: 0; }
+.hl .hl-acts .btn-sm, .hl .hl-acts .why { min-height: 30px; height: 30px; padding: 0 var(--s-2h);
+  font-size: calc(12px * var(--type-scale)); }
 /* The runners-up row. A count and a chevron: it is a door, not a list. The
    hairline above it is drawn to the shared text edge like every other
    divider in this card; without it the headliner and the row ran together

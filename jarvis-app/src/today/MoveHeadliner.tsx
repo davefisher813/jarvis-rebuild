@@ -1,16 +1,27 @@
-// YOUR MOVE HAS A HEADLINER AGAIN (C-24, Astra pass, Dave's picks
-// 2026-09-12, against the approved harness).
+// YOUR MOVE IS A NORMAL ROW (Dave 2026-09-16, photographed: "There's no need
+// for this massive first task. It's not like it's not important than the rest
+// so why are we doing that?" -- then, on the first cut: "make the dealt task a
+// normal row in the stream").
 //
-// The dealt task used to ride the stream as one uniform row among the
-// notices, which is the shape Combine B settled on in August: the page asked
-// one question and every answer wore the same clothes. The Astra pass takes
-// that back for the ONE task, and only that one: the thing he is meant to do
-// next is the loudest thing on the page, it says why it was chosen on its own
-// facts line, and the two runners-up fold into a row under it instead of
-// competing with it.
+// C-24 promoted the dealt task to a headliner: 18px semibold over two lines, a
+// facts line of its own, and a full-width button line, sitting on top of
+// notices that are one 16px line each. Measured, that was 125px over 58px
+// rows. The premise was "the thing he is meant to do next is the loudest thing
+// on the page", and he has rejected it: the ranker's pick is the app's guess,
+// the notices under it are facts, and drawing the guess at three times the
+// size tells him the app is more certain than it is.
 //
-// The notices keep the stream and keep their uniform. Nothing else is
-// promoted; a second headliner would be the pinned card coming back.
+// So this is a row in the stream's own uniform now, and the uniform is not
+// negotiable: the same 44px lead column, the task row's exact type on the
+// title (16px, --w-regular, -0.01em, one line -- see CLAUDE.md, where the
+// reminders rows take the same numbers for the same reason), the facts as the
+// row's quiet sub, and the verbs as capsules in the trailing slot every other
+// row keeps its control in. Nothing on this page is promoted now.
+//
+// The verbs stay, all of them. They were added two days ago for a reason that
+// has not gone away ("I still haven't clicked a button and it helped me in any
+// single way on this home page"); what changed is their volume, not their
+// existence.
 import type { StateWord } from "../schedule/stateWord";
 
 export interface MoveFacts {
@@ -105,45 +116,52 @@ export default function MoveHeadliner({
           )}
         </div>
         <div className="hl-body">
-          {/* The pill is the verb; everything else on the card opens the task. */}
+          {/* THE TITLE GETS THE WHOLE LINE. The first cut at this row put the
+              verbs beside it, and two capsules took 147px of a 273px line:
+              "Get back to davefisher813: [davefisher813/jarvis-rebuild] Run
+              failed" became "Get back to ...", which is a row that has stopped
+              saying what it is about. The verbs drop to the sub line instead,
+              where the facts are short enough to leave them room. */}
           <div className="hl-title">{title}</div>
-          <div className="facts">
-            {/* At most one coloured fact per line is the law (K.3, extended in
-                laws/astra.test.ts). Urgency is the one that gets the colour
-                when it exists, because a date is the fact that changes what he
-                does; the reason takes sky only when there is no urgency to
-                say. The area and the state word carry their own colour by
-                rule and do not count. */}
-            {facts.urgency && <span className="fact warn">{facts.urgency}</span>}
-            {facts.category && (
-              <span className="fact cat"><span className={"cd cat-bg-" + facts.category.slot} />{facts.category.name}</span>
-            )}
-            {facts.estimate && <span className="fact">{facts.estimate}</span>}
-            {facts.reason && <span className={"fact" + (facts.urgency ? "" : " sky")}>{facts.reason}</span>}
-          </div>
-          <div className="hl-acts">
-            {/* ONE FILLED RED PER SCREEN, and on this card one primary verb:
-                the thing to do right now. Before the block that is Start;
-                while it runs it is Done, because the task is already started
-                and the only thing left to say about it is that it is
-                finished. Two <button> elements here would be two filled reds
-                in one file (laws.test.ts) even though only one can ever
-                render, so it is one button that knows which verb it is. */}
-            {primary && (
-              <button type="button" className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); primary.run(); }}>
-                {primary.label}
-              </button>
-            )}
-            {onAgain && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onAgain(); }}>Another 15</button>}
-            {/* A block you cannot stop is a trap. Stopping trims the event to
-                the minutes he actually sat, so the day does not keep a full
-                fifteen he did not take. */}
-            {onStop && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onStop(); }}>Stop</button>}
-            {/* The honest answer to "not tonight". It does not re-rank, snooze
-                or hide anything: it books the task into a real open slot
-                tomorrow and the toast says which one, so the answer to "when,
-                then?" is on screen instead of implied. */}
-            {onTomorrow && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onTomorrow(); }}>Tomorrow</button>}
+          <div className="hl-line">
+            <div className="facts">
+              {/* At most one coloured fact per line is the law (K.3, extended in
+                  laws/astra.test.ts). Urgency is the one that gets the colour
+                  when it exists, because a date is the fact that changes what he
+                  does; the reason takes sky only when there is no urgency to
+                  say. The area and the state word carry their own colour by
+                  rule and do not count. */}
+              {facts.urgency && <span className="fact warn">{facts.urgency}</span>}
+              {facts.category && (
+                <span className="fact cat"><span className={"cd cat-bg-" + facts.category.slot} />{facts.category.name}</span>
+              )}
+              {facts.estimate && <span className="fact">{facts.estimate}</span>}
+              {facts.reason && <span className={"fact" + (facts.urgency ? "" : " sky")}>{facts.reason}</span>}
+            </div>
+            <div className="hl-acts">
+              {/* ONE PRIMARY VERB, structurally rather than by exemption: the
+                  thing to do right now. Before the block that is Start; while
+                  it runs it is Done, because the task is already started and
+                  the only thing left to say about it is that it is finished.
+                  Two <button> elements here would be two filled reds in one
+                  file (laws.test.ts) even though only one can ever render, so
+                  it is one button that knows which verb it is. */}
+              {primary && (
+                <button type="button" className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); primary.run(); }}>
+                  {primary.label}
+                </button>
+              )}
+              {onAgain && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onAgain(); }}>Another 15</button>}
+              {/* A block you cannot stop is a trap. Stopping trims the event to
+                  the minutes he actually sat, so the day does not keep a full
+                  fifteen he did not take. */}
+              {onStop && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onStop(); }}>Stop</button>}
+              {/* The honest answer to "not tonight". It does not re-rank, snooze
+                  or hide anything: it books the task into a real open slot
+                  tomorrow and the toast says which one, so the answer to "when,
+                  then?" is on screen instead of implied. */}
+              {onTomorrow && <button type="button" className="why" onClick={(e) => { e.stopPropagation(); onTomorrow(); }}>Tomorrow</button>}
+            </div>
           </div>
         </div>
       </div>
