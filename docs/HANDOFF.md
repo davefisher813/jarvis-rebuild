@@ -184,6 +184,8 @@ The live project is ref `roonancpktqigdndrumo` ("Javris Project", org "Jarvis", 
 - The reference's finish page has an effort select inline; JARVIS opens the 1 to 10 screen from the receipt. Fine unless Dave wants it inline.
 - The demo has no sets in its workouts, so History's Sessions rows read 0 sets there; the phone has real ones.
 - Coming back from a workout opened from History returns to the Lifts segment rather than Sessions.
+- **Dave, 2026-09-16: the first-step box becomes an AI chat box.** The work area on the start screen (`tasks/screens/StartScreen.tsx`, the `capture_next_action` branch's textarea, the one that asks "What is the first thing you would do?") is to become a conversation rather than a single text box. **Explicitly gated: "Once everything else is complete."** Not started, and not to be started ahead of the rest.
+  Whoever builds it inherits the 2026-09-16 audit, which is the whole reason that box exists: the app used to manufacture a first step from the task's title and ask him to certify it. So a chat there may ASK and may draft off records it really read, and it may not assert a first step it invented. What lands as step one stays his words or something he accepted, undone, never a model's suggestion written straight to the task. The deterministic question stays the fallback when AI is off, unavailable, slow or malformed (`AIService.available`), a late reply never overwrites text already being typed (`StartScreen`'s `touched` ref), and the call rides an existing `AIPinKey` rather than a new one unless `laws/aiControl.test.ts` gets a matching call site.
 
 ## Standing constraints
 

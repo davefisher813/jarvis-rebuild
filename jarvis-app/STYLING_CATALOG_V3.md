@@ -720,6 +720,8 @@ He was right twice. Start booked a fifteen-minute calendar block and called that
 
 **AN AUTOMATED SENDER IS NOT A CORRESPONDENT (2026-09-16).** A task born from a no-reply address never becomes "get back to them". It asks which error to look at, using the inbox's own `isMachineAddress` rather than a second list that could drift from it.
 
+**LATER, AND ONLY LATER: THE BOX BECOMES A CHAT (Dave 2026-09-16, "Once everything else is complete I want that box to be an AI chat box").** Recorded, not built, and gated on his own condition. The rule above travels with it: a chat may ask, and may draft off records it really read; it may not assert a first step it invented. Step one stays his words or something he accepted. The deterministic question is the fallback whenever AI is off or unavailable. See `docs/HANDOFF.md`, Open items.
+
 **ONE WORKSPACE PER THING, FOREVER (2026-09-16).** `jarvis.start.session.v1` is keyed by the entity, not the tap, so opening the same task ten times leaves one draft. A workspace opened and left empty takes no seat at all, so nothing offers to resume nothing. Leaving suggests a stopping point from the real last line written, and never demands one before letting him go.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
