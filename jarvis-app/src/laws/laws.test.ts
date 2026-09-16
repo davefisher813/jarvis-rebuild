@@ -847,6 +847,12 @@ describe("LAW: one filled red per screen", () => {
       // filled primary now, the same claim .btn-primary makes, on the same
       // kind of control; the outlined buttons under it stay unfilled.
       ".ruled .h-hero .pill-act",
+      // Today's dealt row Start (Dave 2026-09-16: "the start button color is
+      // off. Make it Jarvis red"). Same claim as .h-hero's pill on the same
+      // kind of control: the row is the stream's uniform row, and this is the
+      // one capsule in the card that spends real minutes rather than deferring
+      // something. The rows under it keep the tinted .pill-act they had.
+      ".ruled .stream-card .pill-act.pill-go",
       ".bench-act.prim", ".chip.chip-on",
       // Small round controls whose whole body is the control.
       ".ob-check-row", ".convo-send", ".voice-mic", ".voice-orb",
