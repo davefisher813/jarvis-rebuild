@@ -128,12 +128,18 @@ export function hasTarget(ex: Pick<Exercise, "kind" | "sets">): boolean {
  * filled this session; past the end of the plan it says what it will do
  * rather than offering to log a meaningless zero.
  */
-export function logButtonLabel(ex: Exercise, loggedCount: number): string {
+export function logButtonLabel(ex: Exercise, loggedCount: number, draft?: Partial<SetEntry>): string {
   if (ex.kind === "done") return "Mark Done";
-  const next = plannedEntryAt(ex, loggedCount);
+  // WHAT IT WILL ACTUALLY WRITE (2026-09-16). The label read the PLAN, so it
+  // said "Log 8 reps" while the fields on screen said four at fifty and the
+  // button was about to write the four. A button that names a number has to
+  // name the one it is going to log; the draft is what the open set's fields
+  // say this moment, and it wins over the plan it replaced.
+  const planned0 = plannedEntryAt(ex, loggedCount);
+  const next = planned0 || draft ? { ...(planned0 ?? {}), ...(draft ?? {}) } as SetEntry : null;
   const keys = fieldsFor(ex.kind).map((f) => f.key);
-  const planned = next && keys.some((k) => (next[k] ?? 0) > 0);
-  if (!planned) return `Log ${entryNoun(ex.kind, false)}`;
+  const ready = next && keys.some((k) => (next[k] ?? 0) > 0);
+  if (!ready) return `Log ${entryNoun(ex.kind, false)}`;
   return `Log ${formatSet(ex, next!)}`;
 }
 

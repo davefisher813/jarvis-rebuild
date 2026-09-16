@@ -27,7 +27,7 @@ const LONG_PRESS_MS = 550;
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, entries, onChange, ghost, onLogGhost, onLogGhostAs, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false,
+  kind, unit, timeUnit, entries, onChange, ghost, onLogGhost, onLogGhostAs, onGhostDraft, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false,
 }: {
   kind: MeasureKind;
   unit?: string;
@@ -43,6 +43,10 @@ export default function SetStrip({
    *  and a tick: change a number, tick, and that is the set logged. The row
    *  body still logs the plan as it stands. */
   onLogGhostAs?: (ghostIdx: number, patch: Partial<SetEntry>) => void;
+  /** What the CURRENT set's fields say, reported as they are typed, so the
+   *  session's own Log button can log the same numbers the athlete is looking
+   *  at rather than the plan they replaced. */
+  onGhostDraft?: (patch: { w: number; r: number }) => void;
   editableGhosts?: boolean;
   disabled?: boolean;
   /** True at an index that earned the in-session PR pill (live session only). */
@@ -159,7 +163,11 @@ export default function SetStrip({
                       the rest say Up Next in quiet ink at full strength. */}
                   <div className={"se-kick " + st}>{setKicker(st, workNoAt(pos))}</div>
                   {editableGhosts && kind === "weight_reps" && onLogGhostAs
-                    ? <GhostGrid entry={g} unit={unit} setNo={workNoAt(pos)} onLog={(patch) => onLogGhostAs(i, patch)} />
+                    ? <GhostGrid entry={g} unit={unit} setNo={workNoAt(pos)} onLog={(patch) => onLogGhostAs(i, patch)}
+                        // Only the set he is ON reports upward: the session's
+                        // Log Set button logs that one, so a later ghost's
+                        // fields must not steer it.
+                        onDraft={st === "now" ? onGhostDraft : undefined} />
                     : <div className="conn-name">{kind === "done" ? "Mark Done" : formatSet(fx, g)}</div>}
                   {/* D2 tap-to-match: the faint last-time line is itself the
                       door to logging those exact numbers -- the row still
@@ -356,20 +364,31 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
 // THE GRID ROW (2026-09-14): the plan's weight and reps as two fields, the
 // tick logs them. Typing never touches the plan; only the tick writes, and it
 // writes exactly what the fields say.
-function GhostGrid({ entry, unit, setNo, onLog }: {
+//
+// AND IT SAYS SO OUT LOUD (2026-09-16, Dave: "it just defaults to like
+// whatever it originally was"). These numbers used to live only in here, so
+// the session's own big red Log Set button could not see them: it logged the
+// PLAN while the fields on screen said something else, and the athlete watched
+// the wrong set land. `onDraft` lifts what is typed to the session, which is
+// what the button now logs and what its label now reads. The fields stay
+// uncontrolled -- the local state is still the source of truth for the input,
+// so nothing re-renders under the thumb mid-keystroke.
+function GhostGrid({ entry, unit, setNo, onLog, onDraft }: {
   entry: SetEntry;
   unit?: string;
   setNo: number;
   onLog: (patch: Partial<SetEntry>) => void;
+  onDraft?: (patch: { w: number; r: number }) => void;
 }) {
   const [w, setW] = useState(String(entry.w ?? 0));
   const [r, setR] = useState(String(entry.r ?? 0));
+  const report = (nw: string, nr: string) => onDraft?.({ w: Number(nw) || 0, r: Number(nr) || 0 });
   const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
   return (
     <div className="se-grid" onClick={stop} onPointerDown={stop}>
-      <input className="set-field" type="number" inputMode="decimal" min={0} step={0.5} value={w} aria-label={`Set ${setNo} weight`} onChange={(e) => setW(e.target.value)} />
+      <input className="set-field" type="number" inputMode="decimal" min={0} step={0.5} value={w} aria-label={`Set ${setNo} weight`} onChange={(e) => { setW(e.target.value); report(e.target.value, r); }} />
       <span className="se-grid-u">{unit ?? ""}</span>
-      <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} aria-label={`Set ${setNo} reps`} onChange={(e) => setR(e.target.value)} />
+      <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} aria-label={`Set ${setNo} reps`} onChange={(e) => { setR(e.target.value); report(w, e.target.value); }} />
       <span className="se-grid-u">reps</span>
       <button type="button" className="se-tick" aria-label={`Log set ${setNo}`} onClick={() => onLog({ w: Number(w) || 0, r: Number(r) || 0 })}><Check className="ic" /></button>
     </div>

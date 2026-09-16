@@ -179,6 +179,10 @@ export default function SessionScreen({
   const [swapOpen, setSwapOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [platesOpen, setPlatesOpen] = useState(false);
+  /** What the open set's two fields say this moment, or null before a key is
+   *  pressed (then the plan stands). Cleared on every write, and by the effect
+   *  below when the athlete moves to another exercise. */
+  const [draft, setDraft] = useState<{ w: number; r: number } | null>(null);
   // GYM-F-01 (2026-09-05): the rest is a deadline on the live session, not a
   // tick counter in screen state -- see RestTimer.tsx and LiveSession.restEndsAt.
   const restEndsAt = live.restEndsAt ?? null;
@@ -407,15 +411,36 @@ export default function SessionScreen({
       onAction: () => onSetLogged(before, idx),
     });
   };
+  // WHAT THE FIELDS SAY, RIGHT NOW (2026-09-16, Dave, mid-session: "when you
+  // do see it, it just defaults to like whatever it originally was. So it'll
+  // just say log eight reps when I put in a bunch of other info").
+  //
+  // He was right and it was worse than a label bug. There were TWO ways to log
+  // one set and they logged different things: the small tick inside the open
+  // set wrote what the fields said, and the big red Log Set -- the obvious one,
+  // the one your thumb is already on -- wrote the PLAN and discarded the
+  // typing. So the number that landed in his history was not the number he had
+  // just entered, and the button had been telling him so the whole time.
+  //
+  // The open set's fields report upward as they are typed (SetStrip's
+  // onGhostDraft). One draft, for the set he is ON, and both doors write it.
+  // A draft belongs to ONE open set. Moving exercise leaves it behind rather
+  // than carrying last exercise's numbers onto the next one's button.
+  useEffect(() => { setDraft(null); }, [exercise.name, exercise.kind, workLogged]);
+
   const log = () => {
     if (exercise.kind === "done") { const e = { id: newSetId(), done: true }; onLog(e); receiptForLog(e); return; }
     // The plan is the WORK, so it is indexed by working sets logged. Warm-ups
     // sit in the same strip and must never advance the athlete's place in it.
     const next = plannedEntryAt(planEx, workLogged);
-    if (next) { const e = duplicateEntry(next); onLog(e); startRest(); receiptForLog(e); return; }
+    if (next) {
+      const e = { ...duplicateEntry(next), ...(draft ?? {}) };
+      onLog(e); setDraft(null); startRest(); receiptForLog(e); return;
+    }
     const lastWork = [...logged].reverse().find((x) => !x.warmup && !x.drop);
-    const e = lastWork ? duplicateEntry(lastWork) : blankEntry();
+    const e = { ...(lastWork ? duplicateEntry(lastWork) : blankEntry()), ...(draft ?? {}) };
     onLog(e);
+    setDraft(null);
     startRest();
     receiptForLog(e);
   };
@@ -660,7 +685,8 @@ export default function SessionScreen({
             ghost={ghost}
             onLogGhost={(i) => { onLog(duplicateEntry(ghost[i]!)); startRest(); }}
             editableGhosts
-            onLogGhostAs={(i, patch) => { const e = { ...duplicateEntry(ghost[i]!), ...patch }; onLog(e); startRest(); receiptForLog(e); }}
+            onLogGhostAs={(i, patch) => { const e = { ...duplicateEntry(ghost[i]!), ...patch }; onLog(e); setDraft(null); startRest(); receiptForLog(e); }}
+            onGhostDraft={setDraft}
             onChange={changeSets}
             prAt={celebrations ? (i) => isSessionPR(history, exercise, exercise.kind, logged, i) : undefined}
             moveTracking
@@ -679,7 +705,16 @@ export default function SessionScreen({
             {upNext && !(partner && partnerLiveIdx >= 0) && (
               <button className="row-create" role="button" tabIndex={0} onClick={() => onMove(upNextIdx)}>{`Up Next · ${upNext.name}`}</button>
             )}
-            {exercise.kind === "weight_reps" && !cond && (
+            {/* ONLY WHERE THERE ARE PLATES (2026-09-16, Dave: "it just always
+                defaults to dumbbell weight, so the plate loading and all that
+                is completely off"). It was gated on the measurement kind
+                alone, which every loaded exercise shares -- so a dumbbell press,
+                a cable row and a selectorized machine all offered to work out
+                which plates go on a barbell, and the sheet then assumed the
+                rack's 45 lb bar. plateMath already answers this exactly and
+                was already imported at the top of this file; it simply was
+                not being asked. */}
+            {plateMath(loadStyleOf(exercise)).offer && !cond && (
               <button className="row-create" role="button" tabIndex={0} onClick={() => setPlatesOpen(true)}>Plate Calculator</button>
             )}
             {onAdjustTime && (
@@ -760,7 +795,7 @@ export default function SessionScreen({
                 {logged.length === 0 ? "Start the Clock" : "Run It Again"}
               </button>
             : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
-                {logButtonLabel(planEx, workLogged)}
+                {logButtonLabel(planEx, workLogged, draft ?? undefined)}
               </button>}
         </div>
       )}

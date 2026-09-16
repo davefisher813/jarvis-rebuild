@@ -40,6 +40,17 @@ export default function PlateSheet({ total, unit, rack, onClose }: {
                 <span className="fact amber">{`Not buildable at ${facts.at}`}</span>
                 {facts.nearest != null && <span className="fact">{`Nearest ${facts.nearest}`}</span>}
               </div>
+            ) : t < rack.bar ? (
+              // A TOTAL UNDER THE BAR IS NOT "JUST THE BAR" (2026-09-16, Dave
+              // photographed 35 lb reading "Includes the 45 lb bar / Just the
+              // bar"). plateFacts returns null both when the total IS the bar
+              // and when it is BELOW it, and this branch called both of them
+              // the same thing -- so an impossible number was reported as a
+              // loaded bar. Below the bar the honest answer is that the bar
+              // alone already weighs more than the target.
+              <div className="facts">
+                <span className="fact amber">{`The bar alone is ${rack.bar} ${rack.unit}`}</span>
+              </div>
             ) : (
               <div className="facts"><span className="fact">Just the bar</span></div>
             )}
