@@ -230,6 +230,10 @@ export const EQUIPMENT_NOTE = (e: Equipment): string => SPEC[e].note;
 export interface LoadStyle {
   equipment?: Equipment;
   counted?: Counted;
+  /** ONE SIDE AT A TIME (2026-09-16). The reps axis, independent of the two
+   *  above: see Exercise.sided in types.ts for why it is not a third value of
+   *  `counted`. Absent means both sides at once. */
+  sided?: boolean;
 }
 
 /** THE MIGRATION, in one place. Everything logged before 2026-09-14 carried
@@ -246,22 +250,27 @@ export interface LoadStyle {
 export function loadStyleOf(ex: {
   equipment?: string;
   counted?: Counted;
+  sided?: boolean;
   load?: "each" | "total";
 }): LoadStyle {
   const raw = ex.equipment;
+  // The reps axis rides along untouched by any of the equipment migrations
+  // below: it was never part of the old menu, so there is nothing to read
+  // back. Spread last in every branch.
+  const side = ex.sided ? { sided: true as const } : {};
   // "One Side at a Time" said how to COUNT and never said what the hardware
   // was, so it lands on Other rather than inventing a machine -- and Other
   // is the one equipment that offers all three readings, which keeps the row
   // visible and the old meaning editable instead of stranded.
-  if (raw === "unilateral") return { equipment: "other", counted: ex.counted ?? "each_side" };
-  if (raw === "timed") return { equipment: "other", counted: ex.counted ?? "total" };
-  if (raw === "dumbbell") return { equipment: "dumbbell", counted: ex.counted ?? "each_hand" };
+  if (raw === "unilateral") return { equipment: "other", counted: ex.counted ?? "each_side", ...side };
+  if (raw === "timed") return { equipment: "other", counted: ex.counted ?? "total", ...side };
+  if (raw === "dumbbell") return { equipment: "dumbbell", counted: ex.counted ?? "each_hand", ...side };
   if (raw && (EQUIPMENT_KINDS as string[]).includes(raw)) {
     const e = raw as Equipment;
-    return { equipment: e, counted: ex.counted ?? defaultCount(e) };
+    return { equipment: e, counted: ex.counted ?? defaultCount(e), ...side };
   }
-  if (ex.load === "each") return { equipment: "dumbbell", counted: ex.counted ?? "each_hand" };
-  return ex.counted ? { counted: ex.counted } : {};
+  if (ex.load === "each") return { equipment: "dumbbell", counted: ex.counted ?? "each_hand", ...side };
+  return { ...(ex.counted ? { counted: ex.counted } : {}), ...side };
 }
 
 /** The reading an equipment takes when nobody has said otherwise. */
@@ -293,6 +302,20 @@ export function weightStep(style: LoadStyle, unit?: string): number {
 /** The Weight row's label under this convention. */
 export function weightLabel(style: LoadStyle): string {
   return WEIGHT_LABEL[style.counted ?? "total"];
+}
+
+/** THE REPS ROW'S NAME. "Reps" means both sides at once; on a lift worked one
+ *  side at a time, 8 is 8 per leg and the set is 16, and the field has to say
+ *  which of those it is asking for. */
+export function repLabel(style: LoadStyle): string {
+  return style.sided ? "Reps Per Side" : "Reps";
+}
+
+/** What a chip adds after its numbers to stay honest about the reps: "185 lb
+ *  x 8 per side". Empty on everything else, which is every set logged before
+ *  the axis existed. */
+export function sideSuffix(style: LoadStyle): string {
+  return style.sided ? " per side" : "";
 }
 
 /** A band has reps and no number; the Weight field simply does not apply. */
@@ -346,6 +369,19 @@ export function loadCalcFor(style: LoadStyle): string | null {
  *  Added weight returns 1: the belt's plates are counted, the body is not,
  *  for the same reason -- and the receipt says that too. */
 export function volumeFactor(style: LoadStyle): number {
+  return sideFactor(style) * countFactor(style);
+}
+
+/** The reps half of the tonnage question (2026-09-16): a set of 8 per leg is
+ *  16 reps of work. Separate from the weight half so the two multiply rather
+ *  than one overwriting the other -- a dumbbell split squat is both. */
+function sideFactor(style: LoadStyle): number {
+  // Assistance is zero whatever the reps do, and zero times two is still the
+  // honest answer; countFactor below is what returns it.
+  return style.sided ? 2 : 1;
+}
+
+function countFactor(style: LoadStyle): number {
   switch (style.counted) {
     case "each_side":
     case "each_hand":

@@ -261,14 +261,25 @@ export function classOf(
     ...(base.equipment || !sighting?.equipment ? {} : { equipment: sighting.equipment }),
     ...(base.counted || !sighting?.counted ? {} : { counted: sighting.counted }),
     ...(base.measure || !row.kind ? {} : { measure: row.kind }),
+    // ONE SIDE AT A TIME IS UNILATERAL (2026-09-16). The two words are the
+    // same fact said at two levels -- Execution is the library's word for it,
+    // `sided` is the exercise's -- and having them drift apart is how a lift
+    // ends up marked Unilateral in the library and logging bilateral reps in
+    // the gym. A sighting that says so fills in an Execution nobody set; an
+    // Execution already chosen is the athlete's answer and is never
+    // overwritten, which is the rule the two rows above already keep.
+    ...(base.execution || !sighting?.sided ? {} : { execution: "unilateral" as const }),
   };
 }
 
-/** The load convention as equipment.ts wants it. */
+/** The load convention as equipment.ts wants it. `alternating` is NOT sided:
+ *  alternating means the two sides trade off WITHIN the set, so its rep count
+ *  already spans both. Only unilateral does all its reps on one side. */
 export function styleOf(c: Classification): LoadStyle {
   return {
     ...(c.equipment ? { equipment: c.equipment } : {}),
     ...(c.counted ? { counted: c.counted } : {}),
+    ...(c.execution === "unilateral" ? { sided: true as const } : {}),
   };
 }
 

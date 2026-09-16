@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel } from "./equipment";
+import { loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, type LoadStyle } from "./equipment";
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
@@ -22,6 +22,7 @@ import CondReceipt from "./CondReceipt";
 import { condResultEntry } from "./conditioning";
 import LibraryPickSheet from "./LibraryPickSheet";
 import PlateSheet from "./PlateSheet";
+import LoadSheet from "./LoadSheet";
 import ExerciseSheet from "./ExerciseSheet";
 import MusicChip from "../music/MusicChip";
 import { showToast } from "../shared/toast";
@@ -66,6 +67,7 @@ export default function SessionScreen({
   onSkip,
   onMove,
   onSwap,
+  onSetLoad,
   onAddMidSession,
   onUpdateProgram,
   onAcceptSuggestion,
@@ -105,6 +107,11 @@ export default function SessionScreen({
   onSkip: () => void;
   onMove: (idx: number) => void;
   onSwap: (sub: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string }) => void;
+  /** HOW THIS LIFT LOADS, SET FROM IN HERE (2026-09-16, Dave: "I don't even
+   *  have the option while I'm logging to select what type of weight system
+   *  it is"). The equipment, the reading and the reps axis. Absent leaves the
+   *  header chip a fact rather than a door, which is what it was. */
+  onSetLoad?: (next: LoadStyle) => void;
   onAddMidSession: (draft: Omit<Exercise, "id">) => void;
   /** Part 3 wave 5 (Dave's 10a): a swapped or added exercise changes this
    *  session only; this is the one explicit way to carry it into the
@@ -147,6 +154,10 @@ export default function SessionScreen({
   const current = live.exercises[idx]!;
   const logged = current.sets;
   const noun = entryNoun(exercise.kind);
+  // WHAT THIS THING LOADS WITH, read once. It drives the strip's own steppers
+  // now (2026-09-16), not just the header chip and the calculator's door.
+  const style = loadStyleOf(exercise);
+  const [loadOpen, setLoadOpen] = useState(false);
   // LAST TIME, ALWAYS IN SIGHT -- D2 (Training Catalog V2, approved
   // 2026-08-31). One header line (whole last session, date, all-time best)
   // plus a per-position reference under every chip, with tap-to-match on
@@ -203,8 +214,8 @@ export default function SessionScreen({
       // 2026-09-14: the smallest real jump is a PAIR of the smallest plates
       // on anything you load plates onto -- a barbell and a plate-loaded
       // machine both -- and is meaningless on a pinned stack.
-      ...(plateMath(loadStyleOf(exercise)).offer ? { smallestJump: Math.min(...rackFrom(readGymSettings()).plates) * 2 } : {}),
-      ...(loadStyleOf(exercise).equipment ? { equipmentLabel: styleSummary(loadStyleOf(exercise)) } : {}),
+      ...(plateMath(style).offer ? { smallestJump: Math.min(...rackFrom(readGymSettings()).plates) * 2 } : {}),
+      ...(style.equipment ? { equipmentLabel: styleSummary(style) } : {}),
     })
     : null;
   const [basisOpen, setBasisOpen] = useState(false);
@@ -525,7 +536,23 @@ export default function SessionScreen({
             mid-set there is no doubt whether the number on the button is one
             dumbbell or the pair. "Load" was the old word for it; the row it
             mirrors is called Equipment now. */}
-        {loadStyleOf(exercise).equipment && <div className="se-chips"><span className="se-chip se-chip-pair"><em>{weightLabel(loadStyleOf(exercise))}</em>{styleSummary(loadStyleOf(exercise))}</span></div>}
+        {/* A DOOR, AND IT IS THERE WHEN NOTHING HAS BEEN SAID (2026-09-16).
+            The chip rendered only once an equipment existed, so the lift that
+            most needed the question -- the unclassified one, whose strip was
+            stepping by 5 and calling its number "Weight" -- was the one with
+            no way to answer it. It asks now, and answering is one tap from
+            the rack. */}
+        {onSetLoad ? (
+          <div className="se-chips">
+            <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={() => setLoadOpen(true)}>
+              <em>{style.equipment ? weightLabel(style) : "Equipment"}</em>
+              {style.equipment ? styleSummary(style) : "Not Set"}
+            </button>
+            {style.sided && <span className="se-chip se-chip-pair"><em>Reps</em>Per Side</span>}
+          </div>
+        ) : style.equipment && (
+          <div className="se-chips"><span className="se-chip se-chip-pair"><em>{weightLabel(style)}</em>{styleSummary(style)}</span></div>
+        )}
         {/* UP-CORE-06 (2026-09-05): the guard, under the title. A workout is
             one of the two places two hours disappear, and the person is by
             definition not looking at their calendar. A fact, in the same
@@ -690,6 +717,7 @@ export default function SessionScreen({
             kind={exercise.kind}
             unit={exercise.unit}
             timeUnit={exercise.timeUnit}
+            style={style}
             entries={logged}
             ghost={ghost}
             onLogGhost={(i) => { onLog(duplicateEntry(ghost[i]!)); startRest(); }}
@@ -732,8 +760,8 @@ export default function SessionScreen({
                 pair to total, a pin to find -- and the sheet answers in that
                 equipment's own terms. A band has no number and bodyweight and
                 assisted are the number itself, so neither asks. */}
-            {loadCalcFor(loadStyleOf(exercise)) && !cond && (
-              <button className="row-create" role="button" tabIndex={0} onClick={() => setPlatesOpen(true)}>{loadCalcFor(loadStyleOf(exercise))}</button>
+            {loadCalcFor(style) && !cond && (
+              <button className="row-create" role="button" tabIndex={0} onClick={() => setPlatesOpen(true)}>{loadCalcFor(style)}</button>
             )}
             {onAdjustTime && (
               <button className="row-create" role="button" tabIndex={0} onClick={onAdjustTime}>Adjust Time</button>
@@ -829,7 +857,15 @@ export default function SessionScreen({
         />
       )}
       {platesOpen && (
-        <PlateSheet total={nextPlannedWeight} unit={exercise.unit} rack={rack} style={loadStyleOf(exercise)} onClose={() => setPlatesOpen(false)} />
+        <PlateSheet total={nextPlannedWeight} unit={exercise.unit} rack={rack} style={style} onClose={() => setPlatesOpen(false)} />
+      )}
+      {loadOpen && onSetLoad && (
+        <LoadSheet
+          name={exercise.name}
+          initial={style}
+          onSave={(next) => { onSetLoad(next); setLoadOpen(false); }}
+          onCancel={() => setLoadOpen(false)}
+        />
       )}
       {addOpen && (
         <ExerciseSheet

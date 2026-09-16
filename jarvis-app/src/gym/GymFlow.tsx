@@ -25,7 +25,7 @@ import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
 import { dayWithSessionEntry } from "./edit";
 import { defaultUnit, equipmentOf } from "./types";
-import { loadStyleOf } from "./equipment";
+import { loadStyleOf, type LoadStyle } from "./equipment";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
@@ -1268,6 +1268,46 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     }
   };
 
+  // HOW A LIFT LOADS, ANSWERED FROM THE RACK (2026-09-16, Dave: "I don't even
+  // have the option while I'm logging to select what type of weight system it
+  // is"). Two writes, and both are needed for different reasons.
+  //
+  // The LIVE entry takes it first and unconditionally, because that is what
+  // makes the strip's steppers, its labels and the plate calculator right for
+  // the set he is about to do -- and because WorkoutExercise carries the
+  // convention into the saved record, so these sets are filed under what they
+  // actually were. This is the only write a swapped or added lift can take;
+  // it is not in the program, and this session is the whole of its life.
+  //
+  // The PROGRAM's exercise takes it too when the lift really is in this day's
+  // plan, because equipment is a fact about a lift and not about an
+  // afternoon: answering it once should not have to be answered again next
+  // week. Same identity check acceptSuggestion makes, and for the same
+  // reason -- Swap keeps the original slot's exerciseId (liveSession.ts), so
+  // trusting that id would write a dumbbell's reading onto the barbell lift
+  // it replaced.
+  const setLoadStyle = async (ex: Exercise, next: LoadStyle) => {
+    const patch = {
+      equipment: next.equipment,
+      counted: next.counted,
+      ...(next.sided ? { sided: true as const } : { sided: undefined }),
+    };
+    patchLive((l) => ({
+      ...l,
+      exercises: l.exercises.map((e, i) => (i === l.idx ? { ...e, ...patch } : e)),
+    }));
+    if (!program || !live) return;
+    const week = program.data.weeks.find((w) => w.days.some((d) => d.id === live.dayId));
+    const day = week?.days.find((d) => d.id === live.dayId);
+    if (!week || !day) return;
+    const entry = live.exercises[live.idx];
+    const behind = entry ? programExerciseFor(entry, day) : undefined;
+    if (!behind || behind.id !== ex.id) return;
+    await saveDays(week.id, week.days.map((d) => (d.id !== day.id ? d : {
+      ...d, exercises: d.exercises.map((e) => (e.id === ex.id ? { ...e, ...patch } : e)),
+    })));
+  };
+
   // THE FINISH IS TWO STEPS (H-30, Health Push B, 2026-09-12). The receipt
   // opens BEFORE anything is written: Done commits the session, with the note
   // if he wrote one, and Keep Training closes the receipt and leaves the
@@ -1865,6 +1905,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 kind={e.kind}
                 unit={e.unit}
                 timeUnit={e.timeUnit}
+                // The convention these sets were LOGGED under, which the
+                // record carries (WorkoutExercise.equipment/counted). An
+                // editor that stepped a stack by 5 and called its number
+                // "Weight" was correcting history in the wrong language.
+                style={loadStyleOf(e)}
                 entries={workoutDraft[ei]?.sets ?? []}
                 onChange={(sets) => setWorkoutDraft((d) => d && d.map((x, i) => (i === ei ? { ...x, sets } : x)))}
                 moveTracking
@@ -1948,7 +1993,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     // them. Only a swapped or added entry, which has no program exercise at
     // all, takes the bare path now.
     const behind = liveEx ? programExerciseFor(liveEx, day) : undefined;
-    const exercise: Exercise | undefined = liveEx?.custom
+    // THE LIVE ENTRY'S OWN READING WINS (2026-09-16). The session's Equipment
+    // sheet writes here first and to the program second, and for a swapped or
+    // added lift the program write never happens at all -- so a base that only
+    // ever read the program would answer with the convention the athlete just
+    // replaced, or with none. Undefined fields are dropped rather than
+    // spread, or an entry that predates the sheet would erase what its
+    // program exercise says.
+    const liveLoad = liveEx ? {
+      ...(liveEx.equipment ? { equipment: liveEx.equipment } : {}),
+      ...(liveEx.counted ? { counted: liveEx.counted } : {}),
+      ...(liveEx.sided ? { sided: true as const } : {}),
+    } : {};
+    const withLoad = (ex: Exercise | undefined): Exercise | undefined => (ex ? { ...ex, ...liveLoad } : undefined);
+    const exercise: Exercise | undefined = withLoad(liveEx?.custom
       ? (behind
         ? { ...behind, sets: liveEx.plan ?? [] }
         // GYM-F-21 (2026-09-05): an added exercise has no program exercise
@@ -1967,7 +2025,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           const base = behind ?? planned;
           if (base) return liveEx?.plan ? { ...base, sets: liveEx.plan } : base;
           return liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined;
-        })();
+        })());
     if (!exercise) return <div className="screen ruled health-ruled" />;
     return (
       <>
@@ -1985,6 +2043,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         onSkip={() => patchLive((l) => ({ ...skipExercise(l, l.idx), idx: Math.min(l.idx + 1, l.exercises.length - 1) }))}
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
         onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); showToast({ message: `Swapped in ${sub.name}` }); }}
+        onSetLoad={(next) => { void setLoadStyle(exercise, next); }}
         onAddMidSession={(draft) => { patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note })); showToast({ message: `Added ${draft.name}` }); }}
         onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
         // Part 3 wave 5 (Dave's 10a): only a swapped or added entry offers it.

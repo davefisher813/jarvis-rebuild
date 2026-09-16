@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { MeasureKind, SetEntry } from "./types";
 import { entryNoun, fieldsFor, formatSet } from "./measures";
 import { plateFacts, type PlateFacts } from "./ramp";
+import { plateMath, type LoadStyle } from "./equipment";
 import { setState, setKicker, type SetState } from "./stateWord";
 import { readGymSettings, rackFrom } from "./settings";
 import { duplicateEntry, blankEntry } from "./strip";
@@ -34,11 +35,21 @@ import { Trash2, Check } from "../shared/icons";
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, entries, onChange, ghost, onLogGhost, onLogGhostAs, onGhostDraft, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false,
+  kind, unit, timeUnit, style, entries, onChange, ghost, onLogGhost, onLogGhostAs, onGhostDraft, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false,
 }: {
   kind: MeasureKind;
   unit?: string;
   timeUnit?: string;
+  /** WHAT THIS THING LOADS WITH (2026-09-16, Dave: "if I'm using dumbbells,
+   *  it doesn't adjust for dumbbells"). equipment.ts has known a stack steps
+   *  in 10s, a dip belt in 2.5s and an assisted machine records help rather
+   *  than load since it was written, and ExerciseSheet's own steppers have
+   *  read it since -- but the STRIP, which is the thing an athlete actually
+   *  types into mid-set, called fieldsFor(kind) with no context at all. So
+   *  every chip in the app stepped by 5 and said "Weight", whatever it was
+   *  attached to. Absent keeps that universal behaviour for callers with no
+   *  exercise in hand. */
+  style?: LoadStyle;
   entries: SetEntry[];
   onChange: (next: SetEntry[]) => void;
   /** Planned sets not yet logged (live session only): shown as unfilled
@@ -77,11 +88,19 @@ export default function SetStrip({
   handles?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const fields = fieldsFor(kind);
-  const fx = { kind, unit, timeUnit };
+  const fields = fieldsFor(kind, style ? { ...style, unit } : undefined);
+  // The bar is the equipment's, not the rack's. A Smith carriage and a
+  // plate-loaded machine both take real plates and neither has a 45 to
+  // subtract first; the open chip was subtracting a barbell's bar from both,
+  // which put every machine's plate count out by a bar. plateMath has
+  // answered this since equipment.ts shipped.
+  const math = plateMath(style ?? {});
+  const fx = { kind, unit, timeUnit, sided: style?.sided };
   // PLATE MATH (D8-A): the athlete's own bar and rack, so an open chip can
   // say what to load instead of making them do arithmetic on a gym floor.
   const rack = rackFrom(readGymSettings());
+  // With no style at all the old universal reading stands: a barbell's bar.
+  const bar = !style ? rack.bar : math.hasBar ? rack.bar : 0;
   // H-17 / R9 (Health Push B, 2026-09-12): the working set the athlete is on
   // is the first planned working set not yet logged, -1 once they are all
   // logged. Every row derives its state from its place against it.
@@ -155,7 +174,14 @@ export default function SetStrip({
                   // rack had a unit, and it meant a lifter who HAD set a 20 kg
                   // bar and kg plates (S5-Q32) still never saw plate math.
                   // plateLine converts between the chip's unit and the rack's.
-                  plates={kind === "weight_reps" ? plateFacts(e.w ?? 0, rack, unit) : null} />
+                  // OFFERED WHERE THERE ARE PLATES, not on every loaded lift
+                  // (2026-09-16): a dumbbell press and a cable row are both
+                  // weight_reps, and both were being told which plates to
+                  // hang on a barbell. With no style at all (a planning strip
+                  // that was never given one) the old reading stands.
+                  plates={kind === "weight_reps" && (!style || math.offer)
+                    ? plateFacts(e.w ?? 0, rack, unit, bar)
+                    : null} />
               )}
             </div>
           );
@@ -176,7 +202,7 @@ export default function SetStrip({
                       the rest say Up Next in quiet ink at full strength. */}
                   <div className={"se-kick " + st}>{setKicker(st, workNoAt(pos))}</div>
                   {editableGhosts && kind === "weight_reps" && onLogGhostAs
-                    ? <GhostGrid entry={g} unit={unit} setNo={workNoAt(pos)} onLog={(patch) => onLogGhostAs(i, patch)}
+                    ? <GhostGrid entry={g} unit={unit} step={fields.find((f) => f.key === "w")?.step ?? 0.5} setNo={workNoAt(pos)} onLog={(patch) => onLogGhostAs(i, patch)}
                         // Only the set he is ON reports upward: the session's
                         // Log Set button logs that one, so a later ghost's
                         // fields must not steer it.
@@ -381,9 +407,12 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, tit
 // what the button now logs and what its label now reads. The fields stay
 // uncontrolled -- the local state is still the source of truth for the input,
 // so nothing re-renders under the thumb mid-keystroke.
-function GhostGrid({ entry, unit, setNo, onLog, onDraft }: {
+function GhostGrid({ entry, unit, step, setNo, onLog, onDraft }: {
   entry: SetEntry;
   unit?: string;
+  /** The equipment's own increment, so the field's up/down arrows move by
+   *  what the rack can actually do. */
+  step: number;
   setNo: number;
   onLog: (patch: Partial<SetEntry>) => void;
   onDraft?: (patch: { w: number; r: number }) => void;
@@ -394,7 +423,7 @@ function GhostGrid({ entry, unit, setNo, onLog, onDraft }: {
   const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
   return (
     <div className="se-grid" onClick={stop} onPointerDown={stop}>
-      <input className="set-field" type="number" inputMode="decimal" min={0} step={0.5} value={w} aria-label={`Set ${setNo} weight`} onChange={(e) => { setW(e.target.value); report(e.target.value, r); }} />
+      <input className="set-field" type="number" inputMode="decimal" min={0} step={step} value={w} aria-label={`Set ${setNo} weight`} onChange={(e) => { setW(e.target.value); report(e.target.value, r); }} />
       <span className="se-grid-u">{unit ?? ""}</span>
       <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} aria-label={`Set ${setNo} reps`} onChange={(e) => { setR(e.target.value); report(w, e.target.value); }} />
       <span className="se-grid-u">reps</span>

@@ -191,6 +191,26 @@ export interface Exercise {
    *  Weight row's label, the stepper's increment, tonnage, and -- for
    *  assistance -- which direction counts as stronger. */
   counted?: Counted;
+  /** WORKED ONE SIDE AT A TIME (2026-09-16, Dave: "if it's a bilateral
+   *  exercise versus unilateral, that should change things. So if it's
+   *  unilateral, it should be amount of reps on each side").
+   *
+   *  `counted` above says what the WEIGHT means and has since it shipped.
+   *  This is the other half, and it is about the REPS: on a Bulgarian split
+   *  squat, 8 is 8 per leg and the set is 16. The two axes are genuinely
+   *  independent -- a dumbbell bench press is each_hand weight with both arms
+   *  pressing together, and a single-arm cable row is a whole-stack number
+   *  done one side at a time -- which is why this is not a third value of
+   *  `counted`.
+   *
+   *  A LABEL, never a conversion, exactly like every other convention in
+   *  equipment.ts: nothing doubles the reps the athlete typed. What it
+   *  changes is what the field is CALLED, what the chip reads, and what
+   *  tonnage counts.
+   *
+   *  Absent means both sides at once, which is what every lift logged before
+   *  this meant. */
+  sided?: boolean;
   /** The id of another exercise in the SAME day this one alternates with --
    *  A1/A2 notation (catalog §4.2). Pairing is symmetric: both sides carry
    *  the other's id. */
@@ -327,6 +347,10 @@ export interface WorkoutExercise {
    *  stack to a plate machine must not retroactively redefine what last
    *  month's chips meant, and comparability is checked against this. */
   counted?: Counted;
+  /** Whether the reps on these sets were per side (2026-09-16). Kept with the
+   *  record for the same reason equipment and counted are: a later change on
+   *  the program must not redefine what an old chip's 8 meant. */
+  sided?: boolean;
   /** Mid-session Swap or Add (catalog §3.9-3.10): this entry does not read
    *  its identity from the program day at this index -- name/kind/unit above
    *  are the real thing to show, and `plan` (not the day's own strip) is
