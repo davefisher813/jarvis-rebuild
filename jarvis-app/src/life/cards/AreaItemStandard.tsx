@@ -1,16 +1,22 @@
 import { catIcon } from "../../categories/icons";
 import type { ColorSlot } from "../../categories/types";
 import { Nums } from "../../bigger/GoalRowRuled";
+import { pressable } from "../../shared/pressable";
 
-// AREAS TAB (2026-09-16, LIFE_AREAS_TAB_HANDOFF) -- CORRECTED to the row
-// anatomy the rest of Life already wears (Dave, on the first pass: "needs a
-// complete visual overhaul and you need to follow the design catalog"). An
-// area row is not a Brain nav row (that was the mistake: .lib-row/.lib-disc
-// is the NAV LIST language, and cards/glyph-tiles are retired from lists,
-// catalog J3). It is a CONTENT row, so it wears exactly what GoalRowRuled
-// and ProjectRowRuled already do: the 24px gm-slot glyph in the area's own
-// colour, the name, and one quiet r-k fact line -- never a chip, which the
-// catalog reserves for choosers and filters (G3), not inert counts.
+// AREAS TAB (2026-09-16, LIFE_AREAS_TAB_HANDOFF). CORRECTED AGAIN (Dave,
+// 2026-09-16, showing the old Brain "Your Areas" screenshot: "it originally
+// looked like this and still should for the most part"). The first pass
+// read J3 ("cards and glyph tiles are retired from lists") as covering
+// .lib-disc and rebuilt the row on GoalRowRuled's plain gm-slot -- wrong:
+// a category's glyph is locked to the colour disc wherever it appears
+// (catalog "a category becomes a color disc with a white glyph -- .lib-disc",
+// and G4's "a category is a coloured dot plus plain text, never coloured
+// text"). gm-slot is GoalRowRuled's own target-icon language, not a
+// category's. The row anatomy that survives from Brain is .lib-row / lib-ico
+// lib-disc / lib-stack (lib-name + lib-sub), the exact shape Templates.tsx
+// already uses for a name plus a quiet second line. "For the most part"
+// is the one real change: Brain's row was name-only, this one adds the
+// task/goal/project counts the handoff asked for, as the lib-sub line.
 export interface AreaCounts { taskCount: number; goalCount: number; projectCount: number }
 export interface AreaSummary { id: string; name: string; color: ColorSlot; icon?: string }
 
@@ -31,15 +37,11 @@ export default function AreaItemStandard({ area, counts, onOpen }: {
   ].filter((s): s is string => s !== null);
 
   return (
-    <div className="task-row p2 area-row-ruled" role="button" tabIndex={0} onClick={onOpen}>
-      <div className="task-check-tap"><span className={"gm-slot cat-fg-" + area.color}>{catIcon(area.icon)}</span></div>
-      <div className="task-title">
-        <span className="task-name">{area.name}</span>
-        {stats.length > 0 && (
-          <div className="r-k">
-            <span className="r-goal"><Nums text={stats.join(" · ")} /></span>
-          </div>
-        )}
+    <div className="lib-row" {...pressable(onOpen)}>
+      <div className={"lib-ico lib-disc cat-bg-" + area.color}>{catIcon(area.icon)}</div>
+      <div className="lib-stack">
+        <div className="lib-name">{area.name}</div>
+        {stats.length > 0 && <div className="lib-sub"><Nums text={stats.join(" · ")} /></div>}
       </div>
       <div className="chev" />
     </div>

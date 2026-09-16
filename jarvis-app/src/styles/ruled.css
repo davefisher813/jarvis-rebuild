@@ -1970,13 +1970,19 @@
 .lg-row.on .lg-n { color: var(--tx-1); font-weight: var(--w-semi); }
 .lg-row.on .lg-v { color: var(--tx-2); }
 
-/* AREAS TAB (LIFE_AREAS_TAB_HANDOFF, 2026-09-16; corrected the same day,
-   Dave: "needs a complete visual overhaul and you need to follow the design
-   catalog"). An area row is the SAME anatomy GoalRowRuled and ProjectRowRuled
-   already wear -- .task-row.p2, a 24px .gm-slot glyph, .task-title, one
-   quiet .r-k fact line -- so .area-row-ruled itself carries no rules of its
-   own here, the same way its two siblings carry none of theirs. Only Health,
-   which is deliberately NOT a plain area row, gets its own CSS below.
+/* AREAS TAB (LIFE_AREAS_TAB_HANDOFF, 2026-09-16; corrected TWICE the same
+   day). First pass built the row on the Brain nav-row language (.lib-row/
+   .lib-disc) and Dave called it a design-catalog miss. Second pass over-
+   corrected onto GoalRowRuled's plain .gm-slot -- then Dave sent the old
+   Brain "Your Areas" screenshot: "it originally looked like this and still
+   should for the most part." The catalog actually locks a category's glyph
+   to the colour disc wherever it shows up (.lib-disc, "a category becomes a
+   color disc with a white glyph"; G4: "a category is a coloured dot plus
+   plain text"), so .lib-row/.lib-disc/.lib-stack IS the right anatomy here
+   -- the mistake was reading J3's "cards and glyph tiles" as covering it.
+   .lib-row and .lib-disc carry their own CSS already (components.css); an
+   area row needs none of its own. Only Health, which is deliberately NOT a
+   plain area row, gets its own CSS below.
 
    Health is a mini-app, not a task/goal/project collection (the approved
    visual's whole point), so its row wears the app's own "good" tone -- the
