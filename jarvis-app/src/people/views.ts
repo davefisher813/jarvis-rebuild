@@ -16,14 +16,27 @@ export function needsAdversarialReview(p: Person): boolean {
   return p.data.flagged === undefined && p.data.group === "adversarial";
 }
 
-/** Case-insensitive people search over name and label. */
+/**
+ * Case-insensitive people search over every name this person goes by and
+ * every role they hold.
+ *
+ * People handoff (2026-09-16): "Search names, aliases, roles". Searching
+ * "Mom" had to find Linda Fisher, and searching "secretary" had to find
+ * whoever that is -- which is most of the reason a person carries an alias
+ * and a per-area role at all.
+ */
 export function searchPeople(people: Person[], q: string): Person[] {
   const t = q.trim().toLowerCase();
   if (!t) return people;
+  const has = (v: string | undefined) => !!v && v.toLowerCase().includes(t);
   return people.filter(
     (p) =>
-      p.data.name.toLowerCase().includes(t) ||
-      (p.data.relationship ?? "").toLowerCase().includes(t),
+      has(p.data.name) ||
+      has(p.data.relationship) ||
+      (p.data.aliases ?? []).some(has) ||
+      (p.data.roles ?? []).some((r) => has(r.role)) ||
+      has(p.data.org) ||
+      has(p.data.title),
   );
 }
 

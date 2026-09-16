@@ -1,6 +1,8 @@
+import { useState } from "react";
 import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
 import { phonesOf, emailsOf } from "../contactMethods";
+import InlineEdit from "../../shared/InlineEdit";
 import { catColor } from "../../shared/categories";
 import { RowGlyph } from "../../shared/anatomy";
 import { pressable } from "../../shared/pressable";
@@ -27,6 +29,8 @@ function KV({ label, value }: { label: string; value?: string }) {
 export default function PersonDetail({
   person,
   onEdit,
+  onAddPoint,
+  onTogglePoint,
   onBack,
   linkedNotes = [],
   onOpenNote,
@@ -51,6 +55,10 @@ export default function PersonDetail({
 }: {
   person: Person;
   onEdit: () => void;
+  /** Next time we talk. Absent means the surface cannot write, and the whole
+   *  section stays off rather than rendering a list that cannot be added to. */
+  onAddPoint?: (text: string) => void;
+  onTogglePoint?: (id: string) => void;
   onBack: () => void;
   linkedNotes?: { id: string; title: string; category: string }[];
   onOpenNote?: (id: string) => void;
@@ -97,7 +105,7 @@ export default function PersonDetail({
   // relationship, the areas as dots), a Projects head with its count, a
   // Decided with Them head with no count (decisions are never counted), and
   // the promises he made this person in his own mail, in Still Open.
-  categoryColors?: { name: string; color: string }[];
+  categoryColors?: { name: string; color: string; role?: string }[];
   projects?: { id: string; title: string; next?: string | null }[];
   onOpenProject?: (id: string) => void;
   decided?: { id: string; decision: string; createdAt: string }[];
@@ -113,6 +121,9 @@ export default function PersonDetail({
   // second one was sitting in the notes blob under this very card.
   // contactMethods reads either storage shape, so a person saved before the
   // lists existed renders exactly as they did.
+  const points = person.data.talkingPoints ?? [];
+  const openPoints = points.filter((pt) => !pt.discussed);
+  const [adding, setAdding] = useState(false);
   const phones = phonesOf(person.data);
   const emails = emailsOf(person.data);
   const phone = phones[0]?.value;
@@ -140,7 +151,18 @@ export default function PersonDetail({
         {(relationship || categoryColors.length > 0) && (
           <div className="facts person-facts">
             {relationship && <span className="fact sky">{relationship}</span>}
-            {categoryColors.map((c) => <span className="fact cat" key={c.name}><span className={"cd cat-bg-" + catColor(c.color)} />{c.name}</span>)}
+            {/* A ROLE PER AREA (People handoff, 2026-09-16). Where a role
+                is set, the area says what they are IN it: "Family · Mother",
+                "Bridge · Board secretary". Both facts on one chip, because
+                they are one fact. An area with no role reads as it always
+                did. Text, never colour alone: the area's dot is the colour
+                and the words carry the meaning. */}
+            {categoryColors.map((c) => (
+              <span className="fact cat" key={c.name}>
+                <span className={"cd cat-bg-" + catColor(c.color)} />
+                {c.role ? c.name + " · " + c.role : c.name}
+              </span>
+            ))}
           </div>
         )}
         {trustedAdult && <div className="bp-sub">Trusted adult</div>}
@@ -208,6 +230,45 @@ export default function PersonDetail({
               <span className="kv-val">{m.value}</span>
             </a>
           ))}
+        </div></div>
+      )}
+      {/* NEXT TIME WE TALK (People handoff, 2026-09-16). Undated points, and
+          undated is the point: these raise no notification and set no date.
+          A talking point that nags is a task, and the app already has tasks.
+          Discussed ones are kept rather than deleted, so the answer to "did I
+          bring that up?" is on the card and the tick can be undone. */}
+      {onAddPoint && (
+        <div className="sh2 sh2-quiet">
+          <span className="t">Next Time We Talk</span>
+          {openPoints.length > 0 && <span className="n">{openPoints.length}</span>}
+        </div>
+      )}
+      {onAddPoint && (
+        <div className="pad-x"><div className="card list-card-ruled">
+          {points.map((pt) => (
+            // The row IS the door: a talking point has no detail to open, so
+            // the only thing a tap can mean here is "raised it" -- which is
+            // exactly what the ring does. Same gesture, whole row.
+            <div className={"row" + (pt.discussed ? " past" : "")} key={pt.id}
+              {...pressable(() => onTogglePoint?.(pt.id))}>
+              <div className="task-check-tap" role="checkbox" aria-checked={!!pt.discussed}
+                aria-label={(pt.discussed ? "Not discussed yet: " : "Mark discussed: ") + pt.text}
+                onClick={(ev) => { ev.stopPropagation(); onTogglePoint?.(pt.id); }}>
+                <div className={"task-check" + (pt.discussed ? " on" : "")} />
+              </div>
+              <div className="row-grow"><div className="conn-name">{pt.text}</div></div>
+            </div>
+          ))}
+          {adding ? (
+            <div className="row">
+              <div className="row-grow">
+                <InlineEdit className="conn-name" value="" focused placeholder="Bring This Up"
+                  onSave={(v) => { setAdding(false); const t = v.trim(); if (t) onAddPoint(t); }} />
+              </div>
+            </div>
+          ) : (
+            <button className="row-create" onClick={() => setAdding(true)}>Add Something</button>
+          )}
         </div></div>
       )}
       {hasAttrs && <div className="sh2 sh2-quiet"><span className="t">About</span></div>}

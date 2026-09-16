@@ -32,7 +32,18 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // The patterns that mean "this text is about this person". Empty when the
 // name gives us nothing safe to match on.
-export function namePatterns(fullName: string): RegExp[] {
+// ONE PERSON, EVERY NAME YOU CALL THEM (People handoff, 2026-09-16: "Mom and
+// Linda Fisher are one confirmed identity"). An alias is a name the user
+// typed about this exact person, so it matches under the same rules as the
+// real one -- including the ambiguity rule, because "Mom" is safe and "Art"
+// is not, whichever field it was typed into.
+export function namePatterns(fullName: string, aliases: string[] = []): RegExp[] {
+  const out = patternsFor(fullName);
+  for (const a of aliases) out.push(...patternsFor(a));
+  return out;
+}
+
+function patternsFor(fullName: string): RegExp[] {
   const name = (fullName ?? "").trim();
   if (name.length < 3) return [];
   const out: RegExp[] = [];
@@ -50,10 +61,10 @@ export function namePatterns(fullName: string): RegExp[] {
   return out;
 }
 
-export function mentions(text: string, fullName: string): boolean {
+export function mentions(text: string, fullName: string, aliases: string[] = []): boolean {
   const t = text ?? "";
   if (!t.trim()) return false;
-  return namePatterns(fullName).some((re) => re.test(t));
+  return namePatterns(fullName, aliases).some((re) => re.test(t));
 }
 
 export interface MentionItem {
@@ -78,13 +89,13 @@ export interface MentionItem {
 // so every existing caller still compiles, and the name matcher stays as the
 // fallback for everything written by hand.
 export function openWith(
-  person: { id?: string; name: string },
+  person: { id?: string; name: string; aliases?: string[] },
   tasks: { id: string; text: string; done?: boolean; due?: string | null; personId?: string }[],
   events: { id: string; title: string; date: string; start?: string; location?: string }[],
   today: string,
   max = 6,
 ): MentionItem[] {
-  const pats = namePatterns(person.name);
+  const pats = namePatterns(person.name, person.aliases ?? []);
   const linked = (t: { personId?: string }) => !!person.id && t.personId === person.id;
   const hit = (s: string) => pats.some((re) => re.test(s));
   const out: MentionItem[] = [];
