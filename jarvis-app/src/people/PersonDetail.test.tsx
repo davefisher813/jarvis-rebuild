@@ -119,7 +119,7 @@ describe("reach them, with more than one of a kind", () => {
   };
 
   it("keeps the three verbs on the primary and gives every other one a row", () => {
-    render(<PersonDetail person={many} onBack={() => {}} />);
+    render(<PersonDetail person={many} onEdit={() => {}} onBack={() => {}} />);
     // The primary still answers Call, Text and Email without a choice.
     expect(screen.getByText("Call")).toBeInTheDocument();
     expect(screen.getByText("Text")).toBeInTheDocument();
@@ -133,14 +133,14 @@ describe("reach them, with more than one of a kind", () => {
   });
 
   it("labels nothing the source did not label", () => {
-    render(<PersonDetail person={{ id: "p8", data: { name: "Plain", group: "contacts" as const, phones: [{ value: "555-1" }, { value: "555-2" }] } }} onBack={() => {}} />);
+    render(<PersonDetail person={{ id: "p8", data: { name: "Plain", group: "contacts" as const, phones: [{ value: "555-1" }, { value: "555-2" }] } }} onEdit={() => {}} onBack={() => {}} />);
     // The extra number is a row that says "Call", not "Call mobile" on the
     // app's say-so.
     expect(screen.getAllByText("Call")).toHaveLength(2);
   });
 
   it("reads a person saved before the lists existed exactly as it did", () => {
-    render(<PersonDetail person={{ id: "p7", data: { name: "Old Row", group: "contacts" as const, phone: "555-0100" } }} onBack={() => {}} />);
+    render(<PersonDetail person={{ id: "p7", data: { name: "Old Row", group: "contacts" as const, phone: "555-0100" } }} onEdit={() => {}} onBack={() => {}} />);
     // Call and Text each show the number, as they always have.
     expect(screen.getAllByText("555-0100")).toHaveLength(2);
     expect(screen.queryByText("Call home")).not.toBeInTheDocument();
