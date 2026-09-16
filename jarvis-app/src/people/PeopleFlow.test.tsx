@@ -277,3 +277,57 @@ describe("importing a file with a same-name stranger in it", () => {
     expect(screen.getByText("1 Already current")).toBeInTheDocument();
   });
 });
+
+// A CSV THIS PARSER CANNOT READ IS NOT A DEAD END (People handoff,
+// 2026-09-16: "CSV needs a field mapping preview"). It used to report the
+// file as unreadable and stop, with no way to say which column was which.
+describe("a CSV whose headers mean nothing to the parser", () => {
+  const drop = async (text: string, name = "export.csv") => {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([text], name, { type: "text/csv" });
+    Object.defineProperty(file, "text", { value: () => Promise.resolve(text) });
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    fireEvent.change(input);
+  };
+  const mount = (uid: string) => render(
+    <NotesProvider userId={uid}><PeopleFlow onBack={() => {}} /></NotesProvider>,
+  );
+
+  it("asks which column is which instead of calling the file unreadable", async () => {
+    mount("m1");
+    await drop("Handle,Digits\nLinda Fisher,555-010-3311");
+    await waitFor(() => expect(screen.getByText("Which Column Is Which")).toBeInTheDocument());
+    // A missing field is not a parse failure: the file read fine.
+    expect(screen.queryByText(/Couldn't read that file/)).not.toBeInTheDocument();
+    expect(screen.getByText("Handle")).toBeInTheDocument();
+    expect(screen.getByText("Digits")).toBeInTheDocument();
+  });
+
+  it("will not run until a column is pointed at a name", async () => {
+    mount("m2");
+    await drop("Handle,Digits\nLinda Fisher,555-010-3311");
+    await waitFor(() => expect(screen.getByText("Which Column Is Which")).toBeInTheDocument());
+    expect(screen.getByText("Read It This Way")).toBeDisabled();
+    expect(screen.getByText("Point one column at a name before this can run")).toBeInTheDocument();
+  });
+
+  it("reads the file once the columns are named", async () => {
+    mount("m3");
+    await drop("Handle,Digits\nLinda Fisher,555-010-3311");
+    await waitFor(() => expect(screen.getByText("Which Column Is Which")).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText("What Handle holds"));
+    fireEvent.click(await screen.findByText("Full Name"));
+    fireEvent.click(screen.getByLabelText("What Digits holds"));
+    fireEvent.click(await screen.findByText("Phone"));
+    fireEvent.click(screen.getByText("Read It This Way"));
+    // Straight into the ordinary plan, with the person it found.
+    await waitFor(() => expect(screen.getByText("Import Contacts")).toBeInTheDocument());
+    expect(screen.getByText("1 New")).toBeInTheDocument();
+  });
+
+  it("still calls a file with nothing in it unreadable", async () => {
+    mount("m4");
+    await drop("", "empty.csv");
+    await waitFor(() => expect(screen.getByText(/Couldn't read that file/)).toBeInTheDocument());
+  });
+});

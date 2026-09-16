@@ -49,15 +49,30 @@ describe("AreasTab", () => {
     expect(screen.queryByText("Budget")).not.toBeInTheDocument();
   });
 
-  it("renders Health as the four-section mini-app card, not a standard row", async () => {
+  // OPTION B FINAL (Dave 2026-09-16, from the rendered comparison): five
+  // named sections on one wrapping line with the count beside the title,
+  // replacing the four labelled tiles in a 2x2 grid.
+  it("renders Health as the five-section mini-app card, not a standard row", async () => {
     render(<NotesProvider userId="areas-2"><Seeded /></NotesProvider>);
     await screen.findByText("Bridge", {}, { timeout: 3000 });
     const healthRow = screen.getByText("Health").closest(".health-mini-app") as HTMLElement;
     expect(healthRow).toBeTruthy();
     // Hardcoded, per the handoff -- no query backs these, they're a preview.
-    ["Log It", "Reports", "Meds", "Privacy"].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
+    ["Track", "Activity", "Reports", "Meds", "Privacy"].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
+    expect(screen.getByText("5 Sections")).toBeInTheDocument();
     // It never wears the standard area's fact line.
     expect(healthRow.querySelector(".lib-sub")).toBeNull();
+  });
+
+  // THE SECTIONS ARE LABELS, NOT BUTTONS. The whole card is the one tap
+  // target, so five section names must not arrive as five controls -- which
+  // is the exact shape of dead button this app spent a day removing.
+  it("offers no control of its own: the card is the door", async () => {
+    render(<NotesProvider userId="areas-5"><Seeded /></NotesProvider>);
+    await screen.findByText("Bridge", {}, { timeout: 3000 });
+    const healthRow = screen.getByText("Health").closest(".health-mini-app") as HTMLElement;
+    expect(healthRow.querySelectorAll("button")).toHaveLength(0);
+    expect(healthRow.querySelector(".chev")).toBeNull();
   });
 
   it("tapping an area, and tapping Health, both call onOpenCategory with that area's id", async () => {

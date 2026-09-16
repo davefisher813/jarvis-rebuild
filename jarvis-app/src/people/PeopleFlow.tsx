@@ -17,9 +17,11 @@ import MessageDraftSheet from "./MessageDraftSheet";
 import { useAI } from "../ai/useAI";
 import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
-import { parseContactsFile } from "./importContacts";
+import { parseContactsFile, parseContactsCSV, csvMapping, type CsvMapping } from "./importContacts";
 import { planImport, mergeReview, draftFrom, planLine, summaryLine, describe, type MatchPlan } from "./importMatch";
 import { fmtTime } from "../schedule/calendar";
+import { capAfterNumber } from "../shared/casing";
+import HeadMenu from "../shared/HeadMenu";
 
 // "Reminds at 2:00PM". The words, not just the clock, so the row says why
 // there is a time on it at all.
@@ -382,7 +384,21 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   // A same-name row waits here until it is answered. Keyed by position in the
   // review list; the answer is either a person to merge into or "new".
   const [reviewAt, setReviewAt] = useState(0);
+  // A CSV WHOSE HEADERS THIS PARSER CANNOT READ IS NOT A DEAD END (People
+  // handoff, 2026-09-16: "CSV needs a field mapping preview"). It used to
+  // report the file as unreadable and stop; now the columns are shown with
+  // the parser's own guess beside each, and the user says which is which.
+  // Only for CSV: a vCard's fields are named by the format itself.
+  const [mapping, setMapping] = useState<{ text: string; headers: string[]; field: CsvMapping["field"] } | null>(null);
   const [resolved, setResolved] = useState<Record<number, string>>({});
+
+  // ONE FILLED RED PER FILE. The import sheet and the column-mapping sheet
+  // are mutually exclusive, but the law counts what is written and it is
+  // right to: two `btn btn-primary` in one file is a second filled red the
+  // next reader has to reason about. One button, told what it is.
+  const Primary = ({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) => (
+    <button className="btn btn-primary btn-block" disabled={disabled} onClick={onClick}>{label}</button>
+  );
 
   const answerReview = (index: number, answer: string) => {
     setResolved((r) => ({ ...r, [index]: answer }));
@@ -391,14 +407,33 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     setReviewAt((i) => i + 1);
   };
 
-  const onImportFile = async (file: File) => {
-    const text = await file.text();
-    const parsed = parseContactsFile(file.name, text);
-    if (parsed.length === 0) { setImportPlan({ plan: { create: [], update: [], unchanged: 0, review: [] }, bad: true }); return; }
+  const startPlan = (parsed: ReturnType<typeof parseContactsFile>) => {
     setReviewAt(0);
     setResolved({});
     setImportError(null);
+    setMapping(null);
     setImportPlan({ plan: planImport(list, parsed), bad: false });
+  };
+
+  const onImportFile = async (file: File) => {
+    const text = await file.text();
+    const parsed = parseContactsFile(file.name, text);
+    if (parsed.length > 0) { startPlan(parsed); return; }
+    // Nothing came back. A CSV that has columns has a mapping problem, not a
+    // parse failure, and the handoff asks for those to be told apart.
+    const guess = csvMapping(text);
+    if (guess && guess.headers.length) {
+      setImportPlan(null);
+      setImportError(null);
+      setMapping({ text, headers: guess.headers, field: guess.field });
+      return;
+    }
+    setImportPlan({ plan: { create: [], update: [], unchanged: 0, review: [] }, bad: true });
+  };
+
+  const applyMapping = () => {
+    if (!mapping) return;
+    startPlan(parseContactsCSV(mapping.text, mapping.field));
   };
 
   const runImport = async () => {
@@ -510,6 +545,58 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     await reload();
   };
 
+  // THE MAPPING STEP. One row per column, each saying what the parser made of
+  // it, each changeable. A column left as Skip is simply not read, which is
+  // the honest answer for the half of an export that is empty anyway.
+  const FIELD_OPTS = [
+    { value: "", label: "Skip" },
+    { value: "name", label: "Full Name" },
+    { value: "first", label: "First Name" },
+    { value: "last", label: "Last Name" },
+    { value: "phone", label: "Phone" },
+    { value: "email", label: "Email" },
+    { value: "birthday", label: "Birthday" },
+    { value: "note", label: "Note" },
+  ];
+  const mapped = mapping ? Object.values(mapping.field) : [];
+  const canMap = mapped.includes("name") || mapped.includes("first");
+  const mappingEl = mapping && createPortal(
+    <div className="sheet-scrim" onClick={() => setMapping(null)}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="grp"><div className="eyebrow">Which Column Is Which</div></div>
+        <div className="pad-x sheet-form">
+          {/* A MISSING FIELD IS NOT A PARSE FAILURE (People handoff). The file
+              read fine; its headers just are not ones this parser knows. */}
+          <div className="plan-sub">{capAfterNumber(`${mapping.headers.length} columns read · Name the ones worth keeping`)}</div>
+          <div className="card list-card-ruled">
+            {mapping.headers.map((h, i) => (
+              <div className="row" key={h + i}>
+                <div className="row-grow"><div className="conn-name truncate">{h || "Column " + (i + 1)}</div></div>
+                <HeadMenu variant="value" ariaLabel={"What " + (h || "column " + (i + 1)) + " holds"}
+                  value={mapping.field[i] ?? ""} off={!mapping.field[i]}
+                  label={FIELD_OPTS.find((o) => o.value === (mapping.field[i] ?? ""))?.label ?? "Skip"}
+                  options={FIELD_OPTS}
+                  onPick={(v: string) => setMapping((m) => {
+                    if (!m) return m;
+                    const field = { ...m.field };
+                    if (v) field[i] = v as CsvMapping["field"][number]; else delete field[i];
+                    return { ...m, field };
+                  })} />
+              </div>
+            ))}
+          </div>
+          {!canMap && <div className="input-note">Point one column at a name before this can run</div>}
+        </div>
+        <div className="pad-x sheet-actions">
+          <Primary disabled={!canMap} onClick={applyMapping} label="Read It This Way" />
+          <button className="btn btn-secondary btn-block" onClick={() => setMapping(null)}>Cancel</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+
   const review = importPlan?.plan.review ?? [];
   const pending = review.filter((_, i) => !resolved[i]).length;
   const importEl = importPlan && createPortal(
@@ -561,9 +648,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
         </div>
         <div className="pad-x sheet-actions">
           {!importPlan.bad && (importPlan.plan.create.length > 0 || importPlan.plan.update.length > 0 || Object.keys(resolved).length > 0) && (
-            <button className="btn btn-primary btn-block" disabled={importing} onClick={runImport}>
-              {importing ? `Saving ${importedSoFar}...` : "Apply"}
-            </button>
+            <Primary disabled={importing} onClick={runImport} label={importing ? `Saving ${importedSoFar}...` : "Apply"} />
           )}
           <button className="btn btn-secondary btn-block" disabled={importing} onClick={() => setImportPlan(null)}>
             {importPlan.bad ? "Close" : "Cancel"}
@@ -667,6 +752,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
       />
       {sheetEl}
       {importEl}
+      {mappingEl}
     </div>
   );
 }
