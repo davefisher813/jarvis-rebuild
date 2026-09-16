@@ -544,12 +544,13 @@ export default function TodayPage({
   // The section answers ONE question at the top of the page. In the evening
   // there is no dealt card and the stream stays what it was: Heads Up.
   const upNextTop = !evening ? upNext?.[0] : undefined;
-  // C-24 (Astra, 2026-09-12): the dealt task LEADS the band as a headliner
-  // instead of riding the stream as one uniform row. It is the only thing on
-  // this page that gets promoted, the notices under it keep their uniform,
-  // and the runners-up are a quiet row rather than a third voice. The stream
-  // is built from the notices alone now; its anchor rule still holds for the
-  // day the dealt task ever rejoins it.
+  // The dealt task LEADS the band, and since 2026-09-16 it leads it at the
+  // stream's own scale rather than as a promoted headliner (Dave: "There's no
+  // need for this massive first task. It's not like it's not important than
+  // the rest"). C-24's promotion is repealed; what survives it is the
+  // position, the facts line that says why this one, and the verbs. The
+  // stream is built from the notices alone; its anchor rule still holds for
+  // the day the dealt task ever rejoins it.
   //
   // AND WHILE A FIFTEEN RUNS, IT IS THE HEADLINER (Dave 2026-09-16: "I still
   // haven't clicked a button and it helped me in any single way"). Start used
