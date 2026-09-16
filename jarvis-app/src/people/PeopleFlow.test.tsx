@@ -203,3 +203,77 @@ describe("repairing contact details out of the notes", () => {
     expect(screen.queryByRole("button", { name: "Not One" })).not.toBeInTheDocument();
   });
 });
+
+// THE IMPORT REVIEW QUEUE (People handoff, 2026-09-16). The old preview
+// deduped by lowercase name and SKIPPED whatever matched, which lost a real
+// second "John Smith" with nothing said.
+describe("importing a file with a same-name stranger in it", () => {
+  const VCF = [
+    "BEGIN:VCARD", "FN:John Smith", "TEL;TYPE=CELL:555-0999", "END:VCARD",
+  ].join("\r\n");
+  const drop = async (text: string, name = "contacts.vcf") => {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([text], name, { type: "text/vcard" });
+    Object.defineProperty(file, "text", { value: () => Promise.resolve(text) });
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    fireEvent.change(input);
+    await waitFor(() => expect(screen.getByText("Import Contacts")).toBeInTheDocument());
+  };
+
+  it("asks which John Smith this is instead of dropping them", async () => {
+    render(
+      <NotesProvider userId="i1">
+        <PeopleFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByText("Add Person"));
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "John Smith" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.getAllByText("John Smith").length).toBeGreaterThan(0));
+
+    await drop(VCF);
+    // Not "skipping 1 already here": a row waiting on an answer is something
+    // to check, and saying otherwise was the lie the old preview told.
+    expect(screen.getByText("1 To check")).toBeInTheDocument();
+    expect(screen.getByText("John Smith is already a name you have")).toBeInTheDocument();
+    // Both answers are on offer, and neither has happened yet.
+    expect(screen.getByText("Someone New")).toBeInTheDocument();
+  });
+
+  it("creates a second person when you say it is someone new", async () => {
+    render(
+      <NotesProvider userId="i2">
+        <PeopleFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByText("Add Person"));
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "John Smith" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.getAllByText("John Smith").length).toBeGreaterThan(0));
+
+    await drop(VCF);
+    fireEvent.click(screen.getByText("Someone New"));
+    fireEvent.click(screen.getByText("Apply"));
+    await waitFor(() => expect(screen.queryByText("Import Contacts")).not.toBeInTheDocument());
+    // Two of them now, which is the whole point: a real person is not lost to
+    // sharing a name.
+    await waitFor(() => expect(screen.getAllByText("John Smith")).toHaveLength(2));
+  });
+
+  it("reports a file that changes nothing rather than claiming a skip", async () => {
+    render(
+      <NotesProvider userId="i3">
+        <PeopleFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByText("Add Person"));
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Linda Fisher" } });
+    fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "555-010-3311" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.getAllByText("Linda Fisher").length).toBeGreaterThan(0));
+
+    // Same person, same number, written differently: recognized, nothing new.
+    await drop(["BEGIN:VCARD", "FN:Linda Fisher", "TEL:+1 (555) 010-3311", "END:VCARD"].join("\r\n"));
+    expect(screen.getByText("1 Already current")).toBeInTheDocument();
+  });
+});

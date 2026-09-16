@@ -82,6 +82,10 @@ export interface PersonData {
   // who they are TO YOU ("Sister", "Client"), which is a different question.
   org?: string;
   title?: string;
+  /** The id the contact file gave this person (vCard UID). What a reimport
+   *  matches on FIRST, so recognizing someone never rests on their name. Set
+   *  only by an import; a person added by hand has none, and that is fine. */
+  sourceUid?: string;
   urls?: string[];
   addresses?: string[];
   // How JARVIS writes to them. Deliberately NOT "closeness": nobody should

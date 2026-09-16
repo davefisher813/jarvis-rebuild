@@ -17,7 +17,8 @@ import MessageDraftSheet from "./MessageDraftSheet";
 import { useAI } from "../ai/useAI";
 import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
-import { parseContactsFile, type ImportedContact } from "./importContacts";
+import { parseContactsFile } from "./importContacts";
+import { planImport, mergeReview, draftFrom, planLine, summaryLine, describe, type MatchPlan } from "./importMatch";
 import { repairCandidates, applyFindings, type NoteFinding } from "./repairNotes";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -337,65 +338,76 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     });
   };
 
-  // Contact import (Dave 2026-07-30): parse a shared .vcf/.csv, dedupe by
-  // name against everyone, preview the count, then create all on confirm.
-  const [importPreview, setImportPreview] = useState<{ fresh: ImportedContact[]; dupes: number; bad: boolean } | null>(null);
+  // Contact import (Dave 2026-07-30), rebuilt on the matching ladder (People
+  // handoff, 2026-09-16). The old preview deduped by lowercase NAME and
+  // SKIPPED whatever matched, which lost two things silently: a contact whose
+  // details had changed was never updated, and a genuine second "John Smith"
+  // was dropped and never created. planImport answers who each row is, and
+  // this only reports and applies what it decided. See importMatch.ts.
+  const [importPlan, setImportPlan] = useState<{ plan: MatchPlan; bad: boolean } | null>(null);
   const [importing, setImporting] = useState(false);
   const [importedSoFar, setImportedSoFar] = useState(0);
+  const [importError, setImportError] = useState<string | null>(null);
+  // A same-name row waits here until it is answered. Keyed by position in the
+  // review list; the answer is either a person to merge into or "new".
+  const [reviewAt, setReviewAt] = useState(0);
+  const [resolved, setResolved] = useState<Record<number, string>>({});
+
+  const answerReview = (index: number, answer: string) => {
+    setResolved((r) => ({ ...r, [index]: answer }));
+    // Straight on to the next unanswered one, so a file with several is a
+    // run of taps rather than a hunt.
+    setReviewAt((i) => i + 1);
+  };
+
   const onImportFile = async (file: File) => {
     const text = await file.text();
     const parsed = parseContactsFile(file.name, text);
-    if (parsed.length === 0) { setImportPreview({ fresh: [], dupes: 0, bad: true }); return; }
-    const existing = new Set(list.map((p) => p.data.name.trim().toLowerCase()));
-    const fresh = parsed.filter((c) => !existing.has(c.name.trim().toLowerCase()));
-    setImportPreview({ fresh, dupes: parsed.length - fresh.length, bad: false });
+    if (parsed.length === 0) { setImportPlan({ plan: { create: [], update: [], unchanged: 0, review: [] }, bad: true }); return; }
+    setReviewAt(0);
+    setResolved({});
+    setImportError(null);
+    setImportPlan({ plan: planImport(list, parsed), bad: false });
   };
-  const [importError, setImportError] = useState<string | null>(null);
+
   const runImport = async () => {
-    if (!importPreview || importing) return;
+    if (!importPlan || importing) return;
+    const { plan } = importPlan;
     setImporting(true);
     setImportedSoFar(0);
     setImportError(null);
-    const n = importPreview.fresh.length;
-    // Bulk insert in chunks of 100: one round trip per chunk, live count on
-    // the button. 758 contacts lands in seconds instead of minutes. A network
-    // failure mid-run can never strand the button on "Adding...": whatever
-    // landed stays saved, the sheet reports it plainly, and tapping again
-    // continues with only the remaining people (2026-07-30: the first version
-    // had no error handling and froze at "Adding..." on one failed call).
-    const CHUNK = 100;
-    let added = 0;
+    // Everything the review answered, folded into the two real piles.
+    const creates = [...plan.create];
+    const updates = plan.update.map((u) => ({ id: u.person.id, patch: u.patch }));
+    plan.review.forEach((r, i) => {
+      const answer = resolved[i];
+      if (!answer) return;              // unanswered rows are simply not acted on
+      if (answer === "new") { creates.push(r.contact); return; }
+      const person = r.candidates.find((c) => c.id === answer);
+      if (person) updates.push({ id: person.id, patch: mergeReview(person, r.contact) });
+    });
+    const total = creates.length + updates.length;
+    let done = 0;
     try {
-      for (let i = 0; i < n; i += CHUNK) {
-        // EVERYTHING THE FILE CARRIED REACHES THE RECORD (People handoff,
-        // 2026-09-16). This used to map six fields and drop the rest of what
-        // the parser had already read, which is the other half of "a number
-        // in Notes with Phone blank": even once the parser kept it, nothing
-        // here carried it across.
-        const batch = importPreview.fresh.slice(i, i + CHUNK).map((c) => ({
-          name: c.name, group: "contacts" as const,
-          birthday: c.birthday, notes: c.notes,
-          email: c.email, phone: c.phone,
-          ...(c.phones ? { phones: c.phones } : {}),
-          ...(c.emails ? { emails: c.emails } : {}),
-          ...(c.org ? { org: c.org } : {}),
-          ...(c.title ? { title: c.title } : {}),
-          ...(c.urls ? { urls: c.urls } : {}),
-          ...(c.addresses ? { addresses: c.addresses } : {}),
-        }));
-        await people.createMany(batch);
-        added = Math.min(n, i + CHUNK);
-        setImportedSoFar(added);
+      // Updates first: they are one write each and they cannot fail halfway
+      // through a batch the way a chunked create can.
+      for (const u of updates) {
+        await people.update(u.id, u.patch);
+        setImportedSoFar(++done);
+      }
+      const CHUNK = 100;
+      for (let i = 0; i < creates.length; i += CHUNK) {
+        await people.createMany(creates.slice(i, i + CHUNK).map(draftFrom));
+        done = updates.length + Math.min(creates.length, i + CHUNK);
+        setImportedSoFar(done);
       }
       setImporting(false);
-      setImportPreview(null);
+      setImportPlan(null);
       await reload();
-      showToast({ message: `Added ${n} ${n === 1 ? "person" : "people"}` });
+      showToast({ message: summaryLine(creates.length, updates.length, plan.unchanged) });
     } catch {
       setImporting(false);
-      const remaining = importPreview.fresh.slice(added);
-      setImportPreview({ fresh: remaining, dupes: importPreview.dupes, bad: false });
-      setImportError(`Stopped at ${added} of ${n} · Saved so far · Tap to finish`);
+      setImportError(`Stopped at ${done} of ${total} · Saved so far · Tap to finish`);
       await reload();
     }
   };
@@ -467,36 +479,63 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     await reload();
   };
 
-  const importEl = importPreview && createPortal(
-    <div className="sheet-scrim" onClick={() => !importing && setImportPreview(null)}>
+  const review = importPlan?.plan.review ?? [];
+  const pending = review.filter((_, i) => !resolved[i]).length;
+  const importEl = importPlan && createPortal(
+    <div className="sheet-scrim" onClick={() => !importing && setImportPlan(null)}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Import Contacts</div></div>
         <div className="pad-x sheet-form">
-          {importPreview.bad ? (
+          {importPlan.bad ? (
             <div className="plan-sub">Couldn't read that file · Use .vcf or .csv with names</div>
           ) : (
             <>
+              {/* THE SUMMARY SAYS ALL FOUR THINGS (People handoff: "Show
+                  added, updated, skipped, conflicts, and failures"). The old
+                  one could only say "found" and "skipping", because skipping
+                  was all it did. */}
               <div className="plan-sub">
-                Found {importPreview.fresh.length + importPreview.dupes} {importPreview.fresh.length + importPreview.dupes === 1 ? "person" : "people"}
-                {importPreview.dupes > 0 && ` · Skipping ${importPreview.dupes} already here`}
-                {importPreview.fresh.length > 0 && ` · Adding ${importPreview.fresh.length}`}
+                {planLine(importPlan.plan, Object.keys(resolved).length)}
               </div>
-              {importPreview.fresh.length > 0 && (
-                <div className="input-help">{importPreview.fresh.slice(0, 5).map((c) => c.name).join(", ")}{importPreview.fresh.length > 5 ? ` and ${importPreview.fresh.length - 5} more` : ""}</div>
+              {importPlan.plan.create.length > 0 && (
+                <div className="input-help">
+                  {importPlan.plan.create.slice(0, 5).map((c) => c.name).join(", ")}
+                  {importPlan.plan.create.length > 5 ? ` and ${importPlan.plan.create.length - 5} more` : ""}
+                </div>
+              )}
+              {/* A SAME NAME IS NOT A MATCH. One at a time, and until it is
+                  answered nothing happens to that row either way -- the old
+                  code's answer was to drop the person. */}
+              {pending > 0 && review[reviewAt] && !resolved[reviewAt] && (
+                <div className="card list-card-ruled">
+                  <div className="pad">
+                    <div className="conn-name">{review[reviewAt]!.contact.name} is already a name you have</div>
+                    <div className="bp-sub">Same name, nothing else in common. Which is this?</div>
+                  </div>
+                  {review[reviewAt]!.candidates.map((c) => (
+                    <button className="row" key={c.id} onClick={() => answerReview(reviewAt, c.id)}>
+                      <div className="row-grow">
+                        <div className="conn-name">{c.data.name}</div>
+                        <div className="conn-meta">{describe(c)}</div>
+                      </div>
+                    </button>
+                  ))}
+                  <button className="row-create" onClick={() => answerReview(reviewAt, "new")}>Someone New</button>
+                </div>
               )}
               {importError && <div className="input-note">{importError}</div>}
             </>
           )}
         </div>
         <div className="pad-x sheet-actions">
-          {!importPreview.bad && importPreview.fresh.length > 0 && (
+          {!importPlan.bad && (importPlan.plan.create.length > 0 || importPlan.plan.update.length > 0 || Object.keys(resolved).length > 0) && (
             <button className="btn btn-primary btn-block" disabled={importing} onClick={runImport}>
-              {importing ? `Adding ${importedSoFar} of ${importPreview.fresh.length}...` : `Add ${importPreview.fresh.length} ${importPreview.fresh.length === 1 ? "Person" : "People"}`}
+              {importing ? `Saving ${importedSoFar}...` : "Apply"}
             </button>
           )}
-          <button className="btn btn-secondary btn-block" disabled={importing} onClick={() => setImportPreview(null)}>
-            {importPreview.bad || importPreview.fresh.length === 0 ? "Close" : "Cancel"}
+          <button className="btn btn-secondary btn-block" disabled={importing} onClick={() => setImportPlan(null)}>
+            {importPlan.bad ? "Close" : "Cancel"}
           </button>
         </div>
       </div>
