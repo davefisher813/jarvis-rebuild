@@ -9,9 +9,9 @@ import { readHealthSettings } from "../health/settings";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
-import { targetLine, formatSet, isCompactPlan } from "./measures";
+import { targetLine, formatSet } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
-import { receiptFor, lastSessionFor, type Receipt } from "./prs";
+import { receiptFor, type Receipt } from "./prs";
 import { effectiveKind } from "../categories/kinds";
 import type { Goal } from "../life/types";
 import { liftMeasureState, trainingMeasureState, type LiftMeasure, type TrainingMeasure } from "./goalMeasures";
@@ -334,18 +334,21 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
           day screen keeps its Schedule row. What survives on the row is the
           claim itself, once made, in the quiet ink a fact wears. */}
       {day.pinDays?.length ? <span className="se-chip se-chip-pin">{pinLabel(day.pinDays)}</span> : null}
+      {/* ONE TRAILING CONTROL (2026-09-16, Dave's Push Day 1 screenshot). The
+          row wore a menu AND a chevron, which is the arity rule's two, and the
+          two say the same thing twice: the row opens on tap like every
+          .row-press row in the app, and the chevron is the decoration of that
+          while the menu is a real door. The two program rows in this same file
+          have carried the menu alone since GYM-F-26; this is the rest of the
+          file catching up to them. */}
       <RowMenuButton onMenu={onMenu} what={day.name} />
-      {CHEV}
     </div>
   );
 }
 
-function ExerciseRow({ exercise, pairLabel, last, onOpen, onMenu }: {
+function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
   exercise: Exercise;
   pairLabel?: string;
-  /** LAST TIME, D2, on the day list too (preview: "3 × 275 lb × 5 ·
-   *  Last: 295 lb × 5"). Null when history has nothing for this lift. */
-  last?: string | null;
   onOpen: () => void;
   onMenu: () => void;
 }) {
@@ -364,16 +367,22 @@ function ExerciseRow({ exercise, pairLabel, last, onOpen, onMenu }: {
         </div>
         {/* THE ROW IS A RECEIPT, NOT A LEDGER (2026-09 sweep, Dave's Pull day
             2 screenshot: a real pyramid set wrapped two lines of dense grey
-            numbers). A verbose per-set listing already fills the line on its
-            own -- "Last: X" only tacks on when the plan collapsed to one
-            short clause, which is exactly when the row has room for it. */}
-        <div className="conn-meta">{targetLine(exercise)}{exercise.restSec ? ` · ${mmss(exercise.restSec)} rest` : ""}{last && isCompactPlan(exercise) ? ` · Last: ${last}` : ""}</div>
+            numbers).
+            AND LAST TIME IS NOT ON IT (2026-09-16, the polish handoff: "take
+            the trailing Last: 185 lb x 3 off the exercise row"; Dave: "grey
+            subtext all over the place"). The line was the plan, then the rest,
+            then last time, three clauses joined by middots in one grey -- and
+            the first of them is the row's own value, which the other two were
+            burying. Last time has two homes that are about last time: the
+            lift's own page, and the session header the moment this lift comes
+            up, where it is a chip and not a clause. */}
+        <div className="conn-meta">{targetLine(exercise)}{exercise.restSec ? ` · ${mmss(exercise.restSec)} rest` : ""}</div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
         {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}
       </div>
+      {/* One trailing control, same as the day row above. */}
       <RowMenuButton onMenu={onMenu} what={exercise.name} />
-      {CHEV}
     </div>
   );
 }
@@ -593,9 +602,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // out when the Reorder head pill asks for them and step away when it says
   // Done, so a resting row is a name, a fact and one door.
   const [reorderTarget, setReorderTarget] = useState<"days" | "exercises" | null>(null);
-  // LAST TIME, D2: the same Settings -> Training toggle the sheet and the
-  // live session already obey.
-  const showLast = readGymSettings().showLast;
   // Seed from storage (2026-08-09): an in-progress session used to be
   // invisible until startDay silently overwrote it. Same-day sessions resume
   // right where they were; an older one with real work is SAVED as a partial
@@ -2614,12 +2620,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 renderRow={(id) => {
                   const e = openDay.exercises.find((x) => x.id === id);
                   if (!e) return null;
-                  const hit = showLast ? lastSessionFor(workouts, e, e.kind) : null;
                   return (
                     <ExerciseRow
                       exercise={e}
                       pairLabel={labels.get(e.id)}
-                      last={hit?.sets[0] ? formatSet(hit.fx, hit.sets[0]) : null}
                       onOpen={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id, exId: e.id })}
                       onMenu={() => setRowMenu({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id, exercise: e })}
                     />
