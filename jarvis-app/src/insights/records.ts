@@ -50,6 +50,13 @@ export interface DataRecord {
   source: "Logged by hand" | "Imported" | "Waiting to sync";
   hue: "lime" | "amber" | "violet" | "cyan" | "hblue" | "pink";
   open: RecordOpen;
+  /** THE SETS, AS A TABLE RATHER THAN A SENTENCE (2026-09-16, the polish
+   *  handoff: "All Data: expandable set tables"). A lift's record used to put
+   *  every set on the row, joined by commas, so five sets of a pyramid wrapped
+   *  three grey lines in a list whose whole job is scanning. The row says how
+   *  many; the lines are behind the row's own disclosure, one per set, each
+   *  named. Absent on every record that is not a lift's sets. */
+  sets?: { label: string; text: string }[];
 }
 
 export interface RecordInputs {
@@ -100,7 +107,12 @@ export function allRecords(inp: RecordInputs): DataRecord[] {
       if (working.length === 0) continue;
       out.push({
         id: "s-" + w.id + "-" + ex.exerciseId, category: "sets", date: w.data.date, at: w.data.endedAt,
-        title: ex.name, value: `${working.length} ${working.length === 1 ? "set" : "sets"}`, detail: working.map((s) => formatSet(ex, s)).join(", "),
+        title: ex.name, value: `${working.length} ${working.length === 1 ? "set" : "sets"}`,
+        // `detail` stays the full listing: it is what the search reads, and a
+        // lift found by typing "205" has to be findable whether or not its
+        // table is open. The PAGE draws the table instead of this string.
+        detail: working.map((s) => formatSet(ex, s)).join(", "),
+        sets: working.map((s, i) => ({ label: `Set ${i + 1}`, text: formatSet(ex, s) })),
         source: w.data.source ? "Imported" : "Logged by hand", hue: "lime", open: { kind: "workout", id: w.id },
       });
     }

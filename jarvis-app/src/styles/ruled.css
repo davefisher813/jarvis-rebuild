@@ -803,6 +803,11 @@
 .ruled .ins-sub { font-size: calc(11.5px * var(--type-scale)); color: var(--tx-2); }
 /* What changed: label left, the move right, in one aligned column. */
 .ruled .ins-rows { margin-top: 10px; }
+/* The set table inside an All Data row. The disclosure keeps its 44px
+   summary (the tap minimum is not negotiable) and the rows under it sit in
+   the row's own text column rather than starting a card of their own. */
+.ruled .ad-sets { margin-top: 2px; }
+.ruled .ad-sets .ins-rows { margin-top: 4px; }
 .ruled .ins-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 .ruled .ins-row + .ins-row { border-top: 0.5px solid var(--divider); }
 .ruled .ins-row .ins-k { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

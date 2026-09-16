@@ -146,8 +146,14 @@ export default function LibraryPage({
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Exercises</div>
         {/* §7: "30 Exercises, each with its history" was a sentence doing a
-            badge's job. This is the badge. */}
-        <span className="nav-action"><span className="n">{rows.length}</span></span>
+            badge's job. This is the badge.
+            AND IT IS NOT RED (2026-09-16, the polish handoff: "library count
+            neutral, not red"). .nav-action is the tint, because a bar action
+            is a verb you can press; this is a count of what is on the page,
+            which is LAW L1's other half -- red is a verb, never a status.
+            It reads in the quiet ink a fact wears, like every other count
+            in the app's section heads. */}
+        <span className="nav-action nav-count">{rows.length}</span>
       </div>
 
       {rows.length === 0 ? (

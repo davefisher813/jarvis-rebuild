@@ -39,6 +39,36 @@ export interface HealthLogsInput {
 
 const CHEV = <div className="chev" />;
 const CW = 300, CH = 90, PAD = 12;
+// THE DATE LABELS FIT, OR THEY ARE NOT DRAWN (2026-09-16, the polish handoff
+// asks for a check on clipped chart labels; the arithmetic says they were).
+//
+// Two ways this broke, both of them measurable rather than a matter of taste:
+//
+//  1. THE ENDS. Every label was textAnchor="middle", and the first and last
+//     points sit at x = PAD and x = CW - PAD. "Sep 16" is about 32 user units
+//     wide, so half of it hung 4 units past each edge of the viewBox and the
+//     SVG clipped it. The end labels anchor to their own edge now.
+//  2. THE MIDDLE. With eight or more sessions the points are closer together
+//     than a date is wide, so the labels overlapped into a grey smear. Only
+//     labels that clear their neighbour are drawn, and the last session always
+//     is: which sessions those are changes with the count, but every label on
+//     screen is readable, which is the whole job of an axis.
+//
+// LABEL_W is deliberately generous (--type-scale goes to 1.4, and these are
+// SVG user units that scale with it), because an axis that omits one date is
+// fine and an axis that prints two on top of each other is not.
+const LABEL_W = 46;
+
+/** The indices whose date is drawn: the last session always, then backwards
+ *  while each one clears the one after it. */
+export function axisTicks(count: number, stepX: number): number[] {
+  if (count <= 1) return count === 1 ? [0] : [];
+  const keep = [count - 1];
+  for (let i = count - 2; i >= 0; i--) {
+    if ((keep[keep.length - 1]! - i) * stepX >= LABEL_W) keep.push(i);
+  }
+  return keep.reverse();
+}
 
 function localDay(at: number): string {
   const d = new Date(at);
@@ -114,6 +144,7 @@ export default function InsightsPage({
     const stepX = (CW - 2 * PAD) / (pts.length - 1);
     const xy = pts.map((p, i) => ({ x: PAD + i * stepX, y: PAD + (CH - 2 * PAD) * (1 - (p.w - min) / span) }));
     const path = xy.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+    const ticks = new Set(axisTicks(pts.length, stepX));
     return (
       <svg viewBox={`0 0 ${CW} ${CH + 16}`} className="ins-chart" role="img" aria-label={`Best set at this rep count over ${pts.length} sessions, in ${unit}`}>
         <line x1={PAD} y1={CH - PAD} x2={CW - PAD} y2={CH - PAD} stroke="currentColor" opacity={0.12} />
@@ -123,7 +154,12 @@ export default function InsightsPage({
             <circle cx={p.x} cy={p.y} r={4} fill="var(--hl-lime)" />
             <circle cx={p.x} cy={p.y} r={11} fill="transparent" role="button" tabIndex={0} aria-label={`${monthDay(pts[i]!.date)}, ${pts[i]!.w} ${unit}, open the session`}
               onClick={() => onOpenWorkout(pts[i]!.workoutId)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenWorkout(pts[i]!.workoutId); } }} />
-            <text x={p.x} y={CH + 10} textAnchor="middle" className="ins-axis">{monthDay(pts[i]!.date)}</text>
+            {ticks.has(i) && (
+              <text x={p.x} y={CH + 10} className="ins-axis"
+                textAnchor={i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle"}>
+                {monthDay(pts[i]!.date)}
+              </text>
+            )}
           </g>
         ))}
       </svg>
