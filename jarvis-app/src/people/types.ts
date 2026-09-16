@@ -4,6 +4,14 @@ export const ENTITY_PERSON = "person";
 
 export type PersonGroup = "contacts" | "inner_circle" | "adversarial";
 
+/** One way to reach someone, with the label its source gave it ("mobile",
+ *  "work", "home"). The label is never invented: absent means the source did
+ *  not say, and the UI says nothing rather than guessing. */
+export interface ContactMethod {
+  value: string;
+  label?: string;
+}
+
 export interface PersonData {
   name: string;
   // Legacy placement field. Kept readable for old rows; new people are always
@@ -16,9 +24,33 @@ export interface PersonData {
   notes?: string;
   color?: ColorSlot;
   order?: number;
-  // Person pass (2026-08-03):
+  // Person pass (2026-08-03). These two are the PRIMARY method of each kind
+  // and stay the field every existing reader uses: Call, Text, Email, search,
+  // the meeting-prep matcher, the chat composer. They are always the first
+  // entry of the arrays below when those exist, so nothing had to be
+  // rewritten to keep working and nothing can drift between the two.
   email?: string;
   phone?: string;
+  // EVERY NUMBER A CONTACT ACTUALLY HAS (People handoff, 2026-09-16). One
+  // string per kind was the root of the bug Dave photographed: a contact with
+  // a mobile and a landline kept the first and the import pushed the second
+  // into `notes` (vCard) or dropped it outright (CSV), so the app showed a
+  // number in the notes blob with the Phone field looking blank beside it.
+  //
+  // The arrays are the truth; the singles above are the primary view of them.
+  // Both are optional, so a person saved before this existed reads exactly as
+  // they did -- contactMethods.ts is the one place that knows how to read
+  // either shape, and every writer goes through it so they cannot disagree.
+  phones?: ContactMethod[];
+  emails?: ContactMethod[];
+  // What a contact file carried and this app had nowhere to put, so it went
+  // into the notes blob or was dropped (People handoff, 2026-09-16). Facts
+  // about the person, not about the relationship: `relationship` above stays
+  // who they are TO YOU ("Sister", "Client"), which is a different question.
+  org?: string;
+  title?: string;
+  urls?: string[];
+  addresses?: string[];
   // How JARVIS writes to them. Deliberately NOT "closeness": nobody should
   // have to rate a relationship. unset = unknown = clean prose (guardrail).
   // "friend" is the loosest register (how people actually text close friends);

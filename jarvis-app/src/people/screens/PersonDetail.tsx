@@ -1,5 +1,6 @@
 import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
+import { phonesOf, emailsOf } from "../contactMethods";
 import { catColor } from "../../shared/categories";
 import { RowGlyph } from "../../shared/anatomy";
 import { pressable } from "../../shared/pressable";
@@ -104,7 +105,18 @@ export default function PersonDetail({
   promises?: { threadId: string; text: string; due?: string }[];
   onAddTask?: (p: { threadId: string; text: string; due?: string }) => void;
 }) {
-  const { name, relationship, birthday, notes, color, email, phone, register, flagged } = person.data;
+  const { name, relationship, birthday, notes, color, register, flagged } = person.data;
+  // EVERY WAY TO REACH THEM, NOT JUST THE FIRST (People handoff, 2026-09-16).
+  // This card read person.data.email and person.data.phone, which are the
+  // PRIMARY of each kind, so a contact with a mobile and a work line showed
+  // one and the other was invisible -- and before the parser was fixed, the
+  // second one was sitting in the notes blob under this very card.
+  // contactMethods reads either storage shape, so a person saved before the
+  // lists existed renders exactly as they did.
+  const phones = phonesOf(person.data);
+  const emails = emailsOf(person.data);
+  const phone = phones[0]?.value;
+  const email = emails[0]?.value;
   const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0 || !!lastTalked;
   // How JARVIS writes to them, stated in the card because it drives every
   // draft. Flagged wins over register, same precedence the drafting stack uses.
@@ -175,6 +187,27 @@ export default function PersonDetail({
               <span className="kv-val">{email}</span>
             </a>
           )}
+          {/* THE REST OF THEM (People handoff, 2026-09-16: "let the user
+              choose when multiple exist"). The primary keeps the three verbs
+              above, because that is the one a tap should reach without
+              thinking. Everything else is its own row, wearing the label the
+              contact file gave it and nothing the app made up: a number with
+              no label is drawn as a number.
+              Call and Text are one row per number rather than two, because a
+              second mobile does not need its own pair of verbs -- it needs to
+              be reachable at all, which it was not. */}
+          {phones.slice(1).map((m) => (
+            <a className="row person-reach" key={"p" + m.value} href={"tel:" + m.value.replace(/[^+\d]/g, "")}>
+              <div className="row-grow"><div className="conn-name">{m.label ? "Call " + m.label : "Call"}</div></div>
+              <span className="kv-val">{m.value}</span>
+            </a>
+          ))}
+          {emails.slice(1).map((m) => (
+            <a className="row person-reach" key={"e" + m.value} href={"mailto:" + m.value}>
+              <div className="row-grow"><div className="conn-name">{m.label ? "Email " + m.label : "Email"}</div></div>
+              <span className="kv-val">{m.value}</span>
+            </a>
+          ))}
         </div></div>
       )}
       {hasAttrs && <div className="sh2 sh2-quiet"><span className="t">About</span></div>}

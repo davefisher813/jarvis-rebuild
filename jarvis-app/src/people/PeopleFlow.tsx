@@ -360,7 +360,22 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     let added = 0;
     try {
       for (let i = 0; i < n; i += CHUNK) {
-        const batch = importPreview.fresh.slice(i, i + CHUNK).map((c) => ({ name: c.name, group: "contacts" as const, birthday: c.birthday, notes: c.notes, email: c.email, phone: c.phone }));
+        // EVERYTHING THE FILE CARRIED REACHES THE RECORD (People handoff,
+        // 2026-09-16). This used to map six fields and drop the rest of what
+        // the parser had already read, which is the other half of "a number
+        // in Notes with Phone blank": even once the parser kept it, nothing
+        // here carried it across.
+        const batch = importPreview.fresh.slice(i, i + CHUNK).map((c) => ({
+          name: c.name, group: "contacts" as const,
+          birthday: c.birthday, notes: c.notes,
+          email: c.email, phone: c.phone,
+          ...(c.phones ? { phones: c.phones } : {}),
+          ...(c.emails ? { emails: c.emails } : {}),
+          ...(c.org ? { org: c.org } : {}),
+          ...(c.title ? { title: c.title } : {}),
+          ...(c.urls ? { urls: c.urls } : {}),
+          ...(c.addresses ? { addresses: c.addresses } : {}),
+        }));
         await people.createMany(batch);
         added = Math.min(n, i + CHUNK);
         setImportedSoFar(added);

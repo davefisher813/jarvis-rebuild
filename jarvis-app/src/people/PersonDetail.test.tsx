@@ -95,3 +95,54 @@ describe("PersonDetail: Last Talked and the check-in draft (S6-Q40)", () => {
     expect(screen.queryByText("Trusted adult")).not.toBeInTheDocument();
   });
 });
+
+// EVERY WAY TO REACH THEM (People handoff, 2026-09-16). The card read the
+// PRIMARY of each kind, so a contact with a mobile and a work line showed one
+// and the other was invisible -- and before the import was fixed, the second
+// one was sitting in the notes blob under this very card.
+describe("reach them, with more than one of a kind", () => {
+  const many = {
+    id: "p9",
+    data: {
+      name: "Linda Fisher", group: "contacts" as const,
+      phone: "555-010-3311",
+      phones: [
+        { value: "555-010-3311", label: "mobile" },
+        { value: "555-010-9922", label: "home" },
+      ],
+      email: "linda@example.com",
+      emails: [
+        { value: "linda@example.com", label: "home" },
+        { value: "l.fisher@bridgeclub.org", label: "work" },
+      ],
+    },
+  };
+
+  it("keeps the three verbs on the primary and gives every other one a row", () => {
+    render(<PersonDetail person={many} onBack={() => {}} />);
+    // The primary still answers Call, Text and Email without a choice.
+    expect(screen.getByText("Call")).toBeInTheDocument();
+    expect(screen.getByText("Text")).toBeInTheDocument();
+    expect(screen.getByText("Email")).toBeInTheDocument();
+    // And the second of each is reachable at all, labelled as the file
+    // labelled it.
+    expect(screen.getByText("Call home")).toBeInTheDocument();
+    expect(screen.getByText("555-010-9922")).toBeInTheDocument();
+    expect(screen.getByText("Email work")).toBeInTheDocument();
+    expect(screen.getByText("l.fisher@bridgeclub.org")).toBeInTheDocument();
+  });
+
+  it("labels nothing the source did not label", () => {
+    render(<PersonDetail person={{ id: "p8", data: { name: "Plain", group: "contacts" as const, phones: [{ value: "555-1" }, { value: "555-2" }] } }} onBack={() => {}} />);
+    // The extra number is a row that says "Call", not "Call mobile" on the
+    // app's say-so.
+    expect(screen.getAllByText("Call")).toHaveLength(2);
+  });
+
+  it("reads a person saved before the lists existed exactly as it did", () => {
+    render(<PersonDetail person={{ id: "p7", data: { name: "Old Row", group: "contacts" as const, phone: "555-0100" } }} onBack={() => {}} />);
+    // Call and Text each show the number, as they always have.
+    expect(screen.getAllByText("555-0100")).toHaveLength(2);
+    expect(screen.queryByText("Call home")).not.toBeInTheDocument();
+  });
+});
