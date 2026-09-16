@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { act } from "@testing-library/react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import TasksPage from "./screens/TasksPage";
+import TasksPage, { MomentumRow } from "./screens/TasksPage";
 import type { TaskItem } from "./TasksService";
 import type { TaskFilter } from "./filters";
 import { setCategoryRegistry } from "../shared/categories";
@@ -420,6 +420,75 @@ describe("the Momentum Chain slot (LIFE-F-09)", () => {
         momentum={{ afterId: "just-completed", el }} />,
     );
     expect(screen.getByTestId("keep-going")).toBeInTheDocument();
+  });
+});
+
+// MomentumRow (Dave 2026-09-16, on a screenshot of "Brainstorm for Jos..."
+// with Start and Not Now floating loose at narrow widths: "It offers no
+// value and is an eye sore/inconvenience... I can't even clear it when it's
+// like this or swipe"). The row is now the suggested task's own row -- one
+// trailing pill, no bespoke wrap -- with Not Now moved behind the swipe.
+describe("MomentumRow (Dave 2026-09-16)", () => {
+  const task = tk("m1", "2026-05-20");
+
+  it("is a plain task row: one check, one title, one trailing pill, no second pill floating beside it", () => {
+    const { container } = render(
+      <MomentumRow task={task} reason="Same category, due today"
+        onOpen={() => {}} onToggle={() => {}} onStart={() => {}} onNotNow={() => {}} />,
+    );
+    // The old shape put two buttons in one trailing slot; this shape has
+    // exactly the one every other row's trailing slot carries.
+    expect(container.querySelectorAll(".pill-act").length).toBe(1);
+    expect(screen.getByText("Start")).toHaveClass("pill-act");
+    expect(container.querySelector(".task-check-tap")).toBeInTheDocument();
+    expect(screen.getByText("Keep Going")).toHaveClass("slide-tag");
+    expect(screen.getByText("Same category, due today")).toBeInTheDocument();
+    // Not Now is not a second visible button on the row; it lives behind
+    // the swipe reveal instead (asserted by class, below).
+    expect(screen.queryByRole("button", { name: "Not Now" })).toBeNull();
+    // No trace of the old bespoke wrap that let the pair drift loose.
+    expect(container.querySelector(".momentum-slot")).toBeNull();
+  });
+
+  it("opens the task on a tap, and the check and the pill stop that tap", () => {
+    const onOpen = vi.fn();
+    const onToggle = vi.fn();
+    const onStart = vi.fn();
+    render(
+      <MomentumRow task={task} reason={null}
+        onOpen={onOpen} onToggle={onToggle} onStart={onStart} onNotNow={() => {}} />,
+    );
+    fireEvent.click(screen.getByText("Start"));
+    expect(onStart).toHaveBeenCalledWith("m1");
+    expect(onOpen).not.toHaveBeenCalled();
+    fireEvent.click(document.querySelector(".task-check-tap")!);
+    expect(onToggle).toHaveBeenCalledWith("m1");
+    expect(onOpen).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText(task.data.text));
+    expect(onOpen).toHaveBeenCalledWith("m1");
+  });
+
+  it("Not Now sits behind the swipe reveal, on the row's own touch-action: pan-y surface", () => {
+    const onNotNow = vi.fn();
+    const { container } = render(
+      <MomentumRow task={task} reason={null}
+        onOpen={() => {}} onToggle={() => {}} onStart={() => {}} onNotNow={onNotNow} />,
+    );
+    // .task-row is the class laws/editingPrimitives.test.ts already holds to
+    // touch-action: pan-y for this exact screen; reusing it is what makes
+    // this row swipeable without a second gesture implementation.
+    expect(container.querySelector(".task-row.momentum-row")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Not now" }));
+    expect(onNotNow).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders no reason line when momentum.ts found neither fact", () => {
+    render(
+      <MomentumRow task={task} reason={null}
+        onOpen={() => {}} onToggle={() => {}} onStart={() => {}} onNotNow={() => {}} />,
+    );
+    expect(screen.getByText("Keep Going")).toBeInTheDocument();
+    expect(document.querySelector(".r-goal.r-cat")).toBeNull();
   });
 });
 
