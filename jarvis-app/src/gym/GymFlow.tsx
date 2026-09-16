@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
 import { monthDay, dayPhrase } from "../money/bills";
-import { agoPhraseLower, workoutMinutes } from "./summary";
+import { agoPhrase, agoPhraseLower, workoutMinutes } from "./summary";
 import { durationOf } from "../insights/analytics";
 import { setSessionOpen } from "./sessionChrome";
 import { readHealthSettings } from "../health/settings";
@@ -2141,6 +2141,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // One derivation, shared with the Health page's hero (gym/nextDay.ts).
   const nextDay = nextDayFor(program, workouts, todayDow())?.day ?? null;
   const nextEst = nextDay ? estimateDay(nextDay, workouts, rackFrom(readGymSettings())).min : 0;
+  // THIS day's last session, not the newest of any day. See the Up Next card.
+  const lastNextDay = nextDay ? lastWorkoutForDay(nextDay.id) : null;
 
   function sheetEl() {
     if (sheet.kind === "closed") return null;
@@ -2906,15 +2908,30 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 <div className="eyebrow eyebrow-blue">Up Next</div>
                 <div className="conn-name">{nextDay.name}</div>
                 {/* D4: when a pin chose this day, the meta says so; D5: the
-                    estimate rides along once there is anything to price. */}
-                <div className="conn-meta">
-                  {[
-                    pinnedToday === nextDay ? "Pinned today" : null,
-                    upcomingPin?.day === nextDay ? (upcomingPin.inDays === 1 ? "Pinned tomorrow" : `Pinned ${WEEKDAY_ABBR[(todayDow() + upcomingPin.inDays) % 7]}`) : null,
-                    `${nextDay.exercises.length} ${nextDay.exercises.length === 1 ? "exercise" : "exercises"}`,
-                    nextEst > 0 ? `Est ${nextEst} min` : null,
-                    recent[0] ? `Last trained ${agoPhraseLower(recent[0].data.date, todayISO())}` : null,
-                  ].filter(Boolean).join(" · ")}
+                    estimate rides along once there is anything to price.
+
+                    LAST TRAINED MEANS THIS DAY (2026-09-16, found proofing the
+                    polish pass). It read recent[0] -- the newest workout of
+                    ANY day -- so the Up Next card for Push Day 1 said "last
+                    trained three days ago" when three days ago was Leg Day.
+                    lastWorkoutForDay has answered this correctly since
+                    GYM-F-11 and simply was not asked.
+
+                    AND IT IS CHIPS, NOT A CLAUSE (Dave, all pass: "grey
+                    subtext all over the place"). Five facts joined by middots
+                    in one grey line is the shape every other card on these
+                    screens stopped using in September; polish rule 3 asks for
+                    one short readable line, and four aligned chips read in a
+                    glance where a sentence has to be parsed. */}
+                <div className="se-chips">
+                  <span className="se-chip se-chip-last">{nextDay.exercises.length}<em>{nextDay.exercises.length === 1 ? "Lift" : "Lifts"}</em></span>
+                  {nextEst > 0 && <span className="se-chip se-chip-budget"><em>Est</em>{nextEst} Min</span>}
+                  {(pinnedToday === nextDay || upcomingPin?.day === nextDay) && (
+                    <span className="se-chip se-chip-pin"><em>Pinned</em>{pinnedToday === nextDay
+                      ? "Today"
+                      : upcomingPin!.inDays === 1 ? "Tomorrow" : WEEKDAY_ABBR[(todayDow() + upcomingPin!.inDays) % 7]}</span>
+                  )}
+                  {lastNextDay && <span className="se-chip se-chip-when"><em>Last</em>{agoPhrase(lastNextDay.data.date, todayISO())}</span>}
                 </div>
                 {/* row-tap: the launch card's verb line, filled edge to edge by its one Start button */}
                 <div className="offer-row">

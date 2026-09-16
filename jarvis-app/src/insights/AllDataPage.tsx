@@ -151,9 +151,13 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
                     <details className="exp-more ad-sets" onClick={(e) => e.stopPropagation()}>
                       <summary>{`The ${r.sets.length === 1 ? "Set" : "Sets"}`}</summary>
                       <div className="ins-rows">
-                        {r.sets.map((x) => (
-                          <div className="ins-row" key={x.label}>
-                            <span className="ins-k">{x.label}</span>
+                        {/* A ramp and a drop wear the quiet key, so the work
+                            is what the eye lands on and neither is mistaken
+                            for it. Both are still here: a session is a record
+                            of what happened, not only of what counted. */}
+                        {r.sets.map((x, i) => (
+                          <div className="ins-row" key={x.label + i}>
+                            <span className={"ins-k" + (x.warm ? " ad-warm" : "")}>{x.label}</span>
                             <span className="ins-sub">{x.text}</span>
                           </div>
                         ))}

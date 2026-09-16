@@ -351,11 +351,16 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                         )}
                       </>
                     )}
+                    {/* SAY THE UNIT ONCE (2026-09-16, the polish handoff:
+                        "Weight plus unit share a row; no redundant 'lb' under
+                        label"). The unit was printed under the Weight label
+                        AND again as the value of the Unit row directly below
+                        it, so the sheet said lb twice in two rows -- and the
+                        one that could be changed was the second. The row that
+                        OWNS the unit keeps it; this one is the label alone. */}
                     <div className="row xs-row">
                       <div className="row-grow">
                         <div className="conn-name">{f.label}</div>
-                        {(f.key === "w" || f.key === "v") && unit && <div className="conn-meta">{unit}</div>}
-                        {f.key === "t" && <div className="conn-meta">{timeUnit}</div>}
                       </div>
                       <Stepper value={sets.find((s) => !s.skipped)?.[f.key] ?? 0} step={f.step} label={f.label}
                         onChange={(n) => setSets((s) => applyToAll(kind, s, f.key, n))} />

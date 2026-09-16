@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LibraryRow } from "./libraryEdit";
 import { rowDoor } from "../shared/rowDoor";
-import { agoPhraseLower } from "./summary";
+import { agoPhrase } from "./summary";
 import { shortDate } from "../shared/dateFormat";
 import SheetBar from "../shared/SheetBar";
 import ActionSheet, { PickSheet, type PickItem, type SheetAction } from "./ActionSheet";
@@ -292,7 +292,7 @@ export default function LibraryPage({
                           list; the app has always had the singular right, and
                           now it has the capital too. */}
                       <span className="fact">{r.sessions > 0 ? capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) : "Never done"}</span>
-                      {r.lastDate && <span className="fact cyan">{capitalize(agoPhraseLower(r.lastDate, todayIso))}</span>}
+                      {r.lastDate && <span className="fact cyan">{agoPhrase(r.lastDate, todayIso)}</span>}
                       {r.favorite && <span className="fact">Favorite</span>}
                       {r.hidden && <span className="fact">Hidden</span>}
                       {c.archived && <span className="fact">Archived</span>}
@@ -436,8 +436,7 @@ export default function LibraryPage({
   );
 }
 
-/** "yesterday" is a sentence fragment mid-line and a line's first word on its
- *  own, and this row prints it on its own. */
-function capitalize(s: string): string {
-  return s ? s[0]!.toUpperCase() + s.slice(1) : s;
-}
+// capitalize() lived here until 2026-09-16. It existed to put the capital
+// back on agoPhraseLower(), which is agoPhrase() with the capital taken off --
+// a round trip through two functions to arrive where the first one started.
+// This row prints the phrase on its own, so it asks for agoPhrase.

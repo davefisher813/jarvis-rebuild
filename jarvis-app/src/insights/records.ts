@@ -56,7 +56,7 @@ export interface DataRecord {
    *  three grey lines in a list whose whole job is scanning. The row says how
    *  many; the lines are behind the row's own disclosure, one per set, each
    *  named. Absent on every record that is not a lift's sets. */
-  sets?: { label: string; text: string }[];
+  sets?: { label: string; text: string; warm?: true }[];
 }
 
 export interface RecordInputs {
@@ -105,6 +105,17 @@ export function allRecords(inp: RecordInputs): DataRecord[] {
       if (ex.skipped) continue;
       const working = ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop);
       if (working.length === 0) continue;
+      // THE WARM-UP IS IN THE TABLE, AND SAYS SO (2026-09-16, the polish
+      // handoff: "Preserve warm-up vs working-set distinction when present").
+      // The COUNT stays the working sets, because a ramp counts toward
+      // nothing (D3-A) and this record's headline number has always been the
+      // work. But the table is a record of what happened, and a session where
+      // the athlete ramped four times before the first work set is not the
+      // same session as one where they did not. It is there, named, after the
+      // work -- never mixed into the numbering, which would make Set 1 a
+      // warm-up.
+      const ramp = ex.sets.filter((s) => !s.skipped && s.warmup);
+      const drops = ex.sets.filter((s) => !s.skipped && s.drop && !s.warmup);
       out.push({
         id: "s-" + w.id + "-" + ex.exerciseId, category: "sets", date: w.data.date, at: w.data.endedAt,
         title: ex.name, value: `${working.length} ${working.length === 1 ? "set" : "sets"}`,
@@ -112,7 +123,11 @@ export function allRecords(inp: RecordInputs): DataRecord[] {
         // lift found by typing "205" has to be findable whether or not its
         // table is open. The PAGE draws the table instead of this string.
         detail: working.map((s) => formatSet(ex, s)).join(", "),
-        sets: working.map((s, i) => ({ label: `Set ${i + 1}`, text: formatSet(ex, s) })),
+        sets: [
+          ...working.map((s, i) => ({ label: `Set ${i + 1}`, text: formatSet(ex, s) })),
+          ...drops.map((s) => ({ label: "Drop", text: formatSet(ex, s), warm: true as const })),
+          ...ramp.map((s) => ({ label: "Warm-Up", text: formatSet(ex, s), warm: true as const })),
+        ],
         source: w.data.source ? "Imported" : "Logged by hand", hue: "lime", open: { kind: "workout", id: w.id },
       });
     }
