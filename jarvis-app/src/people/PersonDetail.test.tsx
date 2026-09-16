@@ -127,7 +127,8 @@ describe("reach them, with more than one of a kind", () => {
     // And the second of each is reachable at all, labelled as the file
     // labelled it.
     expect(screen.getByText("Call home")).toBeInTheDocument();
-    expect(screen.getByText("555-010-9922")).toBeInTheDocument();
+    // Drawn grouped now, though the stored value is untouched.
+    expect(screen.getByText("(555) 010-9922")).toBeInTheDocument();
     expect(screen.getByText("Email work")).toBeInTheDocument();
     expect(screen.getByText("l.fisher@bridgeclub.org")).toBeInTheDocument();
   });
@@ -142,6 +143,8 @@ describe("reach them, with more than one of a kind", () => {
   it("reads a person saved before the lists existed exactly as it did", () => {
     render(<PersonDetail person={{ id: "p7", data: { name: "Old Row", group: "contacts" as const, phone: "555-0100" } }} onEdit={() => {}} onBack={() => {}} />);
     // Call and Text each show the number, as they always have.
+    // Seven digits: not a shape the formatter is certain about, so it draws
+    // exactly what was stored.
     expect(screen.getAllByText("555-0100")).toHaveLength(2);
     expect(screen.queryByText("Call home")).not.toBeInTheDocument();
   });
@@ -252,5 +255,41 @@ describe("goals, reached through their projects", () => {
   it("says nothing at all when their work sits under no goal", () => {
     render(<PersonDetail person={person} onEdit={() => {}} onBack={() => {}} />);
     expect(screen.queryByText("Goals")).not.toBeInTheDocument();
+  });
+});
+
+// TAP A FACT TO CHANGE IT (Dave 2026-09-16: "Why can't I edit anything?").
+// The About rows stated what the app knew and answered no tap, so changing
+// one wrong word meant finding the pencil in the bar.
+describe("editing from the card", () => {
+  const mom = {
+    id: "m1",
+    data: { name: "Mom", group: "contacts" as const, relationship: "Family", birthday: "1960-04-20" },
+  };
+
+  it("opens the editor from any fact row", () => {
+    const edits: number[] = [];
+    render(<PersonDetail person={mom} onEdit={() => edits.push(1)} onBack={() => {}} categoryNames={["Family"]} />);
+    fireEvent.click(screen.getByText("Relationship"));
+    fireEvent.click(screen.getByText("Birthday"));
+    expect(edits).toHaveLength(2);
+  });
+
+  // NOT THE SAME WORD TWICE (photographed: "Family · Family"). The handoff
+  // bans duplicated relationship labels, and typing "Family" as the
+  // relationship beside the Family area is how one appears.
+  it("drops a relationship chip that only repeats an area", () => {
+    const { container } = render(<PersonDetail person={mom} onEdit={() => {}} onBack={() => {}}
+      categoryColors={[{ name: "Family", color: "pink" }]} />);
+    const facts = container.querySelector(".person-facts")!;
+    expect(facts.querySelectorAll(".fact")).toHaveLength(1);
+    expect(facts.querySelector(".fact.sky")).toBeNull();
+  });
+
+  it("keeps a relationship that says something the areas do not", () => {
+    const { container } = render(
+      <PersonDetail person={{ ...mom, data: { ...mom.data, relationship: "Mother" } }}
+        onEdit={() => {}} onBack={() => {}} categoryColors={[{ name: "Family", color: "pink" }]} />);
+    expect(container.querySelector(".person-facts .fact.sky")?.textContent).toBe("Mother");
   });
 });

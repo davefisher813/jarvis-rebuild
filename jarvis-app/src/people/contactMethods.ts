@@ -136,3 +136,30 @@ export function matchKeys(d: Pick<PersonData, "phone" | "phones" | "email" | "em
   }
   return [...keys];
 }
+
+/**
+ * A NUMBER A PERSON CAN READ (Dave 2026-09-16, photographed: a contact card
+ * showing "2035361094").
+ *
+ * The value stored is whatever the source or the user wrote, and that stays
+ * true -- this only changes how it is DRAWN. An import from a phone often
+ * carries the raw digits, and a wall of ten of them is something you have to
+ * decode rather than recognize.
+ *
+ * Grouping is only applied where it is certainly right: ten digits, or eleven
+ * starting with a 1. Anything else (an international number, an extension, a
+ * short code) is returned exactly as written, because a wrong grouping is
+ * worse than none -- it tells the reader a lie about the number's shape.
+ */
+export function phoneText(v: string): string {
+  const raw = v.trim();
+  if (/[a-zA-Z]/.test(raw)) return raw;
+  const digits = raw.replace(/\D+/g, "");
+  const ten = digits.length === 10 ? digits
+    : digits.length === 11 && digits.startsWith("1") ? digits.slice(1)
+      : null;
+  if (!ten) return raw;
+  const grouped = `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
+  // A leading + belongs to the number and is kept in front of the grouping.
+  return raw.startsWith("+") && digits.length === 11 ? "+1 " + grouped : grouped;
+}

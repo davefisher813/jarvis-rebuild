@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   phonesOf, emailsOf, primaryPhone, primaryEmail, hasChoice,
-  withPhones, withEmails, normEmail, normPhone, matchKeys,
+  withPhones, withEmails, normEmail, normPhone, matchKeys, phoneText,
 } from "./contactMethods";
 
 describe("contact methods", () => {
@@ -94,5 +94,31 @@ describe("matching keys", () => {
 
   it("has no keys for a person with nothing reliable to match on", () => {
     expect(matchKeys({ })).toEqual([]);
+  });
+});
+
+// A NUMBER A PERSON CAN READ (Dave 2026-09-16, photographed: a contact card
+// showing "2035361094"). The stored value never changes; this is only how it
+// is drawn.
+describe("drawing a phone number", () => {
+  it("groups the ten digits an import left bare", () => {
+    expect(phoneText("2035361094")).toBe("(203) 536-1094");
+    expect(phoneText("12035361094")).toBe("(203) 536-1094");
+    expect(phoneText("+12035361094")).toBe("+1 (203) 536-1094");
+  });
+
+  it("regroups a number already punctuated, so one card reads one way", () => {
+    expect(phoneText("203-536-1094")).toBe("(203) 536-1094");
+    expect(phoneText("203.536.1094")).toBe("(203) 536-1094");
+    expect(phoneText(" (203) 536-1094 ")).toBe("(203) 536-1094");
+  });
+
+  // A wrong grouping is worse than none: it tells the reader a lie about the
+  // number's shape.
+  it("leaves alone anything it cannot be certain about", () => {
+    expect(phoneText("+44 20 7946 0958")).toBe("+44 20 7946 0958");
+    expect(phoneText("555-0100")).toBe("555-0100");
+    expect(phoneText("311")).toBe("311");
+    expect(phoneText("203-536-1094 x22")).toBe("203-536-1094 x22");
   });
 });
