@@ -2894,9 +2894,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         )}
         {recent.length > 0 && (
           <>
-            {/* History wears the home-page head pill (Dave 2026-08-26's
-                rule, spread here 2026-08-31 with the count-pill wave). */}
-            <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all pill-action" onClick={() => setHistoryOpen(true)}>History</button></div>
+            {/* NOT A PILL (health polish 2026-09-16, rule 2: "Recent header:
+                View history, a text action, no standalone pill"). It wore the
+                home-page head pill from the 2026-08-31 count-pill wave, which
+                put a capsule round a link that only navigates -- and a capsule
+                in this app means a verb that acts on the row it sits in. It is
+                the head's own .see-all now, like every other section head, and
+                it says the verb rather than repeating the noun beside it. */}
+            <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all" onClick={() => setHistoryOpen(true)}>View History</button></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {recent.map((w) => {
                 const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;

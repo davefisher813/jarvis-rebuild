@@ -172,12 +172,23 @@ export default function InsightsPage({
         </>
       )}
       <div className="ins-acts">
-        <button type="button" className="pill-act pill-quiet" onClick={() => onOpenAllData("sleep", period)}>View Sleep Logs</button>
+        <button type="button" className="see-all" onClick={() => onOpenAllData("sleep", period)}>View Sleep Logs</button>
       </div>
     </div></div>
   );
 
-  const musclesCard = (
+  // THE CARD FEET ARE LINKS, NOT PILLS (health polish 2026-09-16, rule 2 names
+// four of these by name: View Sets, View Sleep Logs). Every one of them only
+// ever navigated to the records behind its card, and a .pill-act is this app's
+// word for a verb that ACTS on the row it sits in -- so a grey capsule here
+// promised a control and delivered a page change. They are .see-all now, the
+// same red text action a section head uses, which is what the catalog already
+// had for "go and look at this".
+//
+// What did NOT change: Assign Muscles stays a real .pill-act, because it
+// writes; and the disclosures keep their capsules, because aria-expanded is a
+// control and rule 3 wants methodology behind a labelled one.
+const musclesCard = (
     <div className="pad-x"><div className="card ins-card">
       <div className="ins-head">
         <span className="ins-dot hue-hl-lime" />
@@ -208,7 +219,7 @@ export default function InsightsPage({
           </div>
           <div className="ins-acts">
             {breakdown.unassigned > 0 && <button type="button" className="pill-act" onClick={() => onAssignMuscles(breakdown.untagged)}>Assign Muscles</button>}
-            <button type="button" className="pill-act pill-quiet" onClick={() => onOpenAllData("sets", period)}>View Sets</button>
+            <button type="button" className="see-all" onClick={() => onOpenAllData("sets", period)}>View Sets</button>
           </div>
         </>
       )}
@@ -237,7 +248,7 @@ export default function InsightsPage({
         </table>
       </details>
       <div className="facts"><span className="fact">Same exercise, same equipment, same unit, same rep count · Spans the sessions, not only this period</span></div>
-      <div className="ins-acts"><button type="button" className="pill-act pill-quiet" onClick={() => onOpenLift(headline.lift)}>View Sets</button></div>
+      <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(headline.lift)}>View Sets</button></div>
     </div></div>
   ) : null;
 
@@ -278,7 +289,7 @@ export default function InsightsPage({
                   ) : (
                     <div className="facts"><span className="fact">No two sessions at the same rep count, equipment and unit yet, so no comparison is claimed</span></div>
                   )}
-                  <div className="ins-acts"><button type="button" className="pill-act pill-quiet" onClick={() => onOpenLift(lift)}>Open Exercise Page</button></div>
+                  <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(lift)}>Open Exercise Page</button></div>
                 </div></div>
                 <div className="sh2 sh2-quiet"><span className="t">Sessions</span><span className="n">{table.length}</span></div>
                 <div className="pad-x"><div className="card list-card-ruled">

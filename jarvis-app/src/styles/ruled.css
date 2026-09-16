@@ -792,7 +792,13 @@
 .ruled .ins-v.ins-v-warn { color: var(--hl-amber); }
 /* Part 3 wave 3 (2026-09-13): the Evidence pill under a card and the rows it
    opens, in the card's own row anatomy. */
-.ruled .ins-acts { display: flex; gap: 8px; margin-top: 8px; }
+.ruled .ins-acts { display: flex; align-items: center; gap: var(--s-3); margin-top: 8px; }
+/* A .see-all at a card's foot (health polish 2026-09-16): the head rule gives
+   it the 44px target and pulls the extra height back out of layout, and a card
+   foot needs the same trade -- the paint is a line of text, the target is a
+   thumb's. Same numbers as .sec-head .see-all, for the same reason. */
+.ruled .ins-acts .see-all { min-height: var(--tap-min); display: inline-flex; align-items: center;
+  margin-block: -13px; padding: 0; }
 .ruled .ins-ev { margin-top: 8px; }
 .ruled .ins-sub { font-size: calc(11.5px * var(--type-scale)); color: var(--tx-2); }
 /* What changed: label left, the move right, in one aligned column. */

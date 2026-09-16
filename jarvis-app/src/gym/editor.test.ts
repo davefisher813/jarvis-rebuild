@@ -272,7 +272,12 @@ describe("BROWSER-F-11: history does not need a program", () => {
     expect(i).toBeGreaterThan(branchEnd);
     // the block that closes the program branch comes BEFORE the Recent block
     expect(flow.lastIndexOf("          </>\n        )}\n", i)).toBeGreaterThan(branchEnd);
-    expect(flow).toMatch(/setHistoryOpen\(true\)\}>History<\/button>/);
+    // The label is "View History" since the health polish pass (2026-09-16):
+    // the head action lost its capsule and says the verb, because a pill in
+    // this app means a verb that acts on its own row and this one navigates.
+    // What this law is actually about is the PLACEMENT above, not the words;
+    // the door is matched here only so a rename cannot quietly delete it.
+    expect(flow).toMatch(/setHistoryOpen\(true\)\}>View History<\/button>/);
   });
 
   it("the empty state goes compact once there is history under it", () => {
