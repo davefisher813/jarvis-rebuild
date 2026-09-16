@@ -72,3 +72,41 @@ describe("one identity, several names", () => {
     expect(searchPeople([other], "alberto").map((p) => p.id)).toEqual(["p2"]);
   });
 });
+
+// A REMINDER IS NOT A SECOND ROW (People handoff, 2026-09-16, which asks for
+// reminders on the card). A reminder in this app IS a task carrying a ping,
+// so a section of its own would list the same thing twice on one card.
+describe("a reminder rides the row it belongs to", () => {
+  it("shows the ping time instead of the due date, and says which it is", () => {
+    const items = openWith(
+      { id: "p1", name: "Linda Fisher" },
+      [{ id: "t1", text: "Call Linda Fisher", done: false, due: "2026-09-20", reminderAt: "Reminds at 2:00PM" }],
+      [],
+      "2026-09-16",
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]!.sub).toBe("Reminds at 2:00PM");
+    expect(items[0]!.reminder).toBe(true);
+  });
+
+  it("leaves a plain task showing its due date, unmarked", () => {
+    const items = openWith(
+      { id: "p1", name: "Linda Fisher" },
+      [{ id: "t1", text: "Call Linda Fisher", done: false, due: "2026-09-20" }],
+      [],
+      "2026-09-16",
+    );
+    expect(items[0]!.sub).toBe("2026-09-20");
+    expect(items[0]!.reminder).toBeUndefined();
+  });
+
+  it("lists it once, not once as work and once as a reminder", () => {
+    const items = openWith(
+      { id: "p1", name: "Linda Fisher" },
+      [{ id: "t1", text: "Call Linda Fisher", done: false, reminderAt: "Reminds at 2:00PM" }],
+      [],
+      "2026-09-16",
+    );
+    expect(items.map((i) => i.id)).toEqual(["t1"]);
+  });
+});

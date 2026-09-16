@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { usePeople, useNotes, useCategories, useTasks, useSchedule, useHealth, useOptionalProjects, useOptionalDecisions } from "../data/NotesProvider";
+import { usePeople, useNotes, useCategories, useTasks, useSchedule, useHealth, useOptionalProjects, useOptionalDecisions, useOptionalGoals } from "../data/NotesProvider";
 import { loadMailSnapshot } from "../messages/home";
 import { titleCase as titleCaseMail } from "../shared/casing";
 import { loadLinks } from "../messages/threadLink";
@@ -19,6 +19,14 @@ import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
 import { parseContactsFile } from "./importContacts";
 import { planImport, mergeReview, draftFrom, planLine, summaryLine, describe, type MatchPlan } from "./importMatch";
+import { fmtTime } from "../schedule/calendar";
+
+// "Reminds at 2:00PM". The words, not just the clock, so the row says why
+// there is a time on it at all.
+const reminderLabel = (hhmm: string) => {
+  const t = fmtTime(hhmm);
+  return `Reminds at ${t.time}${t.ap}`;
+};
 import { repairCandidates, applyFindings, type NoteFinding } from "./repairNotes";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -107,6 +115,14 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   const decisionsSvc = useOptionalDecisions();
   const [personProjects, setPersonProjects] = useState<{ id: string; title: string; next?: string | null }[]>([]);
   const [decided, setDecided] = useState<{ id: string; decision: string; createdAt: string }[]>([]);
+  // THE GOALS THEIR WORK IS UNDER (People handoff, 2026-09-16: "Goals:
+  // relevant people and connected projects"). Derived through the projects
+  // they are on, which is the only honest link the app has: a person is not
+  // attached to a goal directly, their work is. No progress figures -- the
+  // handoff says not to invent them, and a goal's progress is a fact about
+  // the goal, not about this person's part in it.
+  const goalsSvc = useOptionalGoals();
+  const [personGoals, setPersonGoals] = useState<{ id: string; title: string; via: string }[]>([]);
   const [promises, setPromises] = useState<{ threadId: string; text: string; due?: string }[]>([]);
 
   // ONE list, everyone (the Inner Circle / Adversarial lists were removed
@@ -155,7 +171,12 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           // the name matcher was right to refuse to guess at. UP-MIND-10
           // widens the same match to tasks born from this person's email.
           { id: currentId, name: currentName, aliases: currentAliases ? currentAliases.split("\u0000") : [] },
-          ts.map((t) => ({ id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null, personId: t.data.personId })),
+          // The reminder's own time, formatted here because this screen's
+          // data comes pre-resolved and mentions.ts holds no formatter.
+          ts.map((t) => ({
+            id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null, personId: t.data.personId,
+            ...(t.data.reminder ? { reminderAt: reminderLabel(t.data.reminder.time) } : {}),
+          })),
           evs.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start, location: e.data.location })),
           todayISO(),
         ));
@@ -165,14 +186,15 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   }, [currentName, currentId, currentAliases, tasksSvc, schedSvc]);
 
   useEffect(() => {
-    if (!currentId) { setPersonProjects([]); setDecided([]); setPromises([]); return; }
+    if (!currentId) { setPersonProjects([]); setDecided([]); setPromises([]); setPersonGoals([]); return; }
     let on = true;
     void (async () => {
       try {
-        const [ts, prs, ds] = await Promise.all([
+        const [ts, prs, ds, gs] = await Promise.all([
           tasksSvc.listTasks(),
           projectsSvc ? projectsSvc.list() : Promise.resolve([]),
           decisionsSvc ? decisionsSvc.list() : Promise.resolve([]),
+          goalsSvc ? goalsSvc.list() : Promise.resolve([]),
         ]);
         if (!on) return;
         const links = loadLinks();
@@ -185,13 +207,22 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           const next = ts.find((t) => t.data.projectId === p.id && !t.data.done);
           return { id: p.id, title: p.data.title, next: next?.data.text ?? null };
         }));
+        // A goal reached through a project they are on, and it says WHICH
+        // project, so the link is visible rather than asserted.
+        const goalVia = new Map<string, string>();
+        for (const pr of live) {
+          if (pr.data.goalId && !goalVia.has(pr.data.goalId)) goalVia.set(pr.data.goalId, pr.data.title);
+        }
+        setPersonGoals(gs
+          .filter((g) => goalVia.has(g.id))
+          .map((g) => ({ id: g.id, title: g.data.title, via: goalVia.get(g.id)! })));
         setDecided(ds.filter((d) => linksOf(d.data).some((l) => l.type === "person" && l.id === currentId))
           .map((d) => ({ id: d.id, decision: d.data.decision, createdAt: d.data.createdAt })));
         setPromises(snap.promises.filter((p) => p.personId === currentId).map((p) => ({ threadId: p.threadId, text: titleCaseMail(p.text), ...(p.due ? { due: p.due } : {}) })));
-      } catch { if (on) { setPersonProjects([]); setDecided([]); setPromises([]); } }
+      } catch { if (on) { setPersonProjects([]); setDecided([]); setPromises([]); setPersonGoals([]); } }
     })();
     return () => { on = false; };
-  }, [currentId, tasksSvc, projectsSvc, decisionsSvc]);
+  }, [currentId, tasksSvc, projectsSvc, decisionsSvc, goalsSvc]);
 
   // C-61: Add Task on a promise writes the task with the person on it and
   // the row leaves; the same write the Today notice makes.
@@ -583,6 +614,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           onAddPoint={(text) => void addPoint(current.id, text)}
           onTogglePoint={(pid) => void togglePoint(current.id, pid)}
           projects={personProjects}
+          goals={personGoals}
+          onOpenGoal={onOpenItem ? (id) => onOpenItem("goal", id) : undefined}
           onOpenProject={onOpenItem ? (id) => onOpenItem("project", id) : undefined}
           decided={decided}
           onOpenDecision={onOpenItem ? (id) => onOpenItem("decision", id) : undefined}

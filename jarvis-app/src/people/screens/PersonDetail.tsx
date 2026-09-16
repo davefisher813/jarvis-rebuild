@@ -33,6 +33,8 @@ export default function PersonDetail({
   onTogglePoint,
   onBack,
   linkedNotes = [],
+  goals = [],
+  onOpenGoal,
   onOpenNote,
   onCallPrep,
   onMessage,
@@ -61,6 +63,11 @@ export default function PersonDetail({
   onTogglePoint?: (id: string) => void;
   onBack: () => void;
   linkedNotes?: { id: string; title: string; category: string }[];
+  /** Goals reached through the projects this person is on, each saying which
+   *  project carried them here. Resolved by the caller like everything else
+   *  on this screen, which has no service access on purpose. */
+  goals?: { id: string; title: string; via: string }[];
+  onOpenGoal?: (id: string) => void;
   onOpenNote?: (id: string) => void;
   // Opens the Call Prep card (addendum item 2). Without it the row falls
   // back to a bare tel: link (surfaces with no service access).
@@ -370,6 +377,29 @@ export default function PersonDetail({
                   <div className="facts"><span className="fact">{shortDate(d.createdAt)}</span></div>
                 </div>
                 {onOpenDecision && <div className="chev" />}
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+      {/* THE GOALS THEIR WORK IS UNDER (People handoff, 2026-09-16). Reached
+          through the projects they are on, which is the only honest link the
+          app has: a person is not attached to a goal, their work is. The row
+          says which project carried them here, so the connection is visible
+          rather than asserted. No progress figures: the handoff says not to
+          invent them, and a goal's progress is a fact about the goal, not
+          about this person's part in it. */}
+      {goals.length > 0 && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Goals</span><span className="n">{goals.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {goals.map((g) => (
+              <div className="row" key={g.id} {...(onOpenGoal ? pressable(() => onOpenGoal(g.id)) : {})}>
+                <div className="row-grow">
+                  <div className="conn-name">{g.title}</div>
+                  <div className="conn-meta">Through {g.via}</div>
+                </div>
+                {onOpenGoal && <div className="chev" />}
               </div>
             ))}
           </div></div>
