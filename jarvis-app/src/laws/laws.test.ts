@@ -4699,6 +4699,35 @@ describe("LAW: a live gym session is visible and reachable from Today", () => {
     expect(strings, "progress counts what was logged, never what is owed")
       .not.toMatch(/remaining|left to do|to go/i);
   });
+
+  // AND IT IS NOT RANKED OFF THE SCREEN (Dave 2026-09-16, photographed from
+  // inside a workout: "my workout isn't anywhere on the home page which it's
+  // supposed to be").
+  //
+  // Every law above this one passed while that was true. They prove Today
+  // READS the session, re-reads it when the gym door closes, and renders the
+  // plan rather than a bookmark -- all of which was working. What none of them
+  // could see is that the card was declared RESUME (40), so two missed
+  // reminders at WAITING and a moved-tasks notice at NEW outranked it, the
+  // stream cut at three, and a session in progress sat behind See All.
+  //
+  // So the weight is a law now. A live session is the one member of this
+  // stream that gets WORSE while you look away, and it may never be outranked.
+  it("a live session outranks every other band in the stream", () => {
+    const stream = read(SRC + "/today/stream.ts");
+    const band = (name: string) => {
+      const m = stream.match(new RegExp("export const " + name + " = (\\d+);"));
+      expect(m, name + " must be a declared band").toBeTruthy();
+      return Number(m![1]);
+    };
+    const live = band("LIVE");
+    for (const other of ["FAILING", "DEALT", "WAITING", "NEW", "RESUME", "AMBIENT"]) {
+      expect(live, "LIVE must outrank " + other).toBeGreaterThan(band(other));
+    }
+    const today = read(SRC + "/today/TodayFlow.tsx");
+    expect(today, "and the live-gym card must declare it")
+      .toMatch(/weight=\{tuningWeight\(tunings, "live-gym", LIVE\)\}/);
+  });
 });
 
 // TODAY-F-12 (2026-09-05): Batch 2 removed toISOString().slice(0,10) from
