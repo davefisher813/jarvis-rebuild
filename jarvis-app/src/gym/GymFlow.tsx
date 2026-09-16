@@ -683,6 +683,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutExercise[] | null>(null);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [uploadOpen, setUploadOpen] = useState(false);
+  // MANAGE (2026-09-16, the polish handoff: "Move Upload a Program and Add a
+  // Week into Manage"; Dave's Program screenshot, a stack of red-text rows at
+  // the foot of the page). The Days card's create slot is for the thing the
+  // list is made of -- a day -- and it had grown two rows that create
+  // something else entirely: a whole program, and a week. Three red verbs down
+  // one card, and the one the athlete came for was first only by luck. Add Day
+  // keeps the slot; the other two are behind one head action.
+  const [manageOpen, setManageOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(!!startHistory);
   // UP-ATH-21 (2026-09-06): Your Lifts. `hiddenKeys` is read into state so a
   // hide shows immediately; the store is still the source of truth.
@@ -2896,7 +2904,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
 
             {multiWeek ? (
               <>
-                <div className="sh2 sh2-quiet"><span className="t">Weeks</span></div>
+                <div className="sh2 sh2-quiet"><span className="t">Weeks</span>
+                  <button className="see-all" onClick={() => setManageOpen(true)}>Manage</button>
+                </div>
                 <div className="pad-x"><div className="card list-card-ruled">
                   {weeks.map((w) => (
                     <div className="row" role="button" tabIndex={0} key={w.id} onClick={() => setOpenWeekId(w.id)}>
@@ -2911,24 +2921,19 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     </div>
                   ))}
                   <button className="row-create" onClick={() => openWeekSheet()}>Add Week</button>
-                  {/* GYM-F-17 (2026-09-05): the upload door only ever lived in
-                      the single-week Days card, so once a program went
-                      multi-week a second coach's sheet had no entry point at
-                      all. Same affordance, same handler, in the layout that
-                      replaced it. */}
-                  {ai.available && (
-                    <button className="row-create" onClick={() => setUploadOpen(true)}>Upload a Program</button>
-                  )}
                 </div></div>
               </>
             ) : (
               <>
                 <div className="sh2 sh2-quiet"><span className="t">Days</span>
-                  {singleWeek && singleWeek.days.length > 1 && (
-                    <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "days" ? null : "days"))}>
-                      {reorderTarget === "days" ? "Done" : "Reorder"}
-                    </button>
-                  )}
+                  <span className="sec-left">
+                    {singleWeek && singleWeek.days.length > 1 && (
+                      <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "days" ? null : "days"))}>
+                        {reorderTarget === "days" ? "Done" : "Reorder"}
+                      </button>
+                    )}
+                    <button className="see-all" onClick={() => setManageOpen(true)}>Manage</button>
+                  </span>
                 </div>
                 <div className="pad-x list-card"><div className="card list-card-ruled">
                   {singleWeek && (
@@ -2958,12 +2963,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                       2026-09-01). The floating .row-act pills were this
                       page's "looks like absolute shit". */}
                   {singleWeek && <button className="row-create" onClick={() => setSheet({ kind: "day", weekId: singleWeek.id })}>Add Day</button>}
-                  {ai.available && (
-                    <button className="row-create" onClick={() => setUploadOpen(true)}>Upload a Program</button>
-                  )}
-                  {singleWeek && (
-                    <button className="row-create" onClick={() => openWeekSheet()}>Add a Week</button>
-                  )}
                 </div></div>
               </>
             )}
@@ -3048,6 +3047,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         <div className="screen-foot" />
       </div>
 
+      {manageOpen && (
+        <ActionSheet
+          title="Manage Program"
+          actions={[
+            // GYM-F-17 (2026-09-05): the upload door only ever lived in the
+            // single-week Days card, so once a program went multi-week a
+            // second coach's sheet had no entry point at all. One door for
+            // both layouts is what that fix was reaching for.
+            ...(ai.available ? [{ label: "Upload a Program", onClick: () => setUploadOpen(true) }] : []),
+            { label: "Add a Week", onClick: () => openWeekSheet() },
+          ]}
+          onClose={() => setManageOpen(false)}
+        />
+      )}
       {sheetEl()}
       {rowMenuEl()}
       {pickerEl()}

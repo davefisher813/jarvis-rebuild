@@ -225,9 +225,16 @@ describe("GYM-F-17: an uploaded program is a program", () => {
     expect(flow).toContain('actionLabel: "Switch to It"');
   });
 
-  it("the upload door exists in the multi-week layout too", () => {
-    const doors = flow.match(/className="row-create" onClick=\{\(\) => setUploadOpen\(true\)\}>Upload a Program/g) ?? [];
-    expect(doors.length).toBe(2);
+  // AMENDED 2026-09-16: it was two doors, one per layout, and the polish
+  // handoff ("Move Upload a Program and Add a Week into Manage") made it one
+  // door that both layouts open. The law is about REACHABILITY -- a second
+  // coach's sheet must have an entry point whatever shape the program is in
+  // -- so it reads the head action both layouts render and the sheet behind
+  // it, rather than counting rows in a card.
+  it("the upload door is reachable from both layouts", () => {
+    const heads = flow.match(/<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/g) ?? [];
+    expect(heads.length, "one in the Days head, one in the Weeks head").toBe(2);
+    expect(flow).toMatch(/label: "Upload a Program", onClick: \(\) => setUploadOpen\(true\)/);
   });
 });
 

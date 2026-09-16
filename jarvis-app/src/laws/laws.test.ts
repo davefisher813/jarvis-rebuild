@@ -3733,9 +3733,16 @@ describe("LAW 15: the gym speaks one grammar", () => {
   // preview's full-width red-text card row -- not the floating .row-act
   // pill (Dave's three editor screenshots). The law keeps its job: every
   // create wears the SAME affordance, and the chevron-nav dress stays gone.
+  // AMENDED 2026-09-16 (the polish handoff: "Move Upload a Program and Add a
+  // Week into Manage"). The law is about what an IN-LIST create wears, and two
+  // of the four labels stopped being in-list creates: the Days card's create
+  // slot is for the thing the list is made of, and it had grown a row that
+  // creates a whole program and a row that creates a week. They are one head
+  // action now (the test below this one), so the roster shrinks to the creates
+  // that are still creates in a list. The affordance itself has not moved.
   it("every in-list create on the program page is the one row-create affordance", () => {
     const src = read(join(SRC, "gym", "GymFlow.tsx"));
-    for (const label of ["Add Day", "Upload a Program", "Add a Week", "Add Exercise"]) {
+    for (const label of ["Add Day", "Add Week", "Add Exercise"]) {
       // Same line: the arrow handler's => sits between the class and the
       // label, so the gap crosses anything but a newline.
       expect(src).toMatch(new RegExp('className="row-create"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
@@ -3745,6 +3752,19 @@ describe("LAW 15: the gym speaks one grammar", () => {
     for (const f of ["GymFlow.tsx", "SessionScreen.tsx", "SetStrip.tsx", "RestTimer.tsx", "ExerciseSheet.tsx"]) {
       expect(read(join(SRC, "gym", f))).not.toContain('className="row row-act"');
     }
+  });
+
+  // THE OTHER HALF OF THE SAME RULING. Three red verbs down one card and the
+  // one the athlete came for was first only by luck (Dave's Program
+  // screenshot, 2026-09-16). What creates something OTHER than the thing the
+  // list is made of belongs behind one head action.
+  it("and what creates something other than a day is behind Manage, not in the list", () => {
+    const src = read(join(SRC, "gym", "GymFlow.tsx"));
+    for (const label of ["Upload a Program", "Add a Week"]) {
+      expect(src, `${label} is back in a list`).not.toMatch(new RegExp('className="row-create"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
+    }
+    expect(src, "both layouts' heads offer it").toMatch(/<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>[\s\S]*<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/);
+    expect(src, "and the sheet carries both actions").toMatch(/title="Manage Program"/);
   });
 
   it("the gym's long-press rows lay out as rows (the chevron never wraps under the text)", () => {
