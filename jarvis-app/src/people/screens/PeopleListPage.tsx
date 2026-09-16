@@ -34,6 +34,8 @@ export default function PeopleListPage({
   repairs = [],
   onRepair,
   onSkipRepair,
+  duplicateNotes = 0,
+  onClearDuplicateNotes,
   onBack,
 }: {
   people: Person[];
@@ -51,6 +53,10 @@ export default function PeopleListPage({
   repairs?: { id: string; name: string; findings: { kind: "phone" | "email"; value: string; context: string }[] }[];
   onRepair?: (personId: string, finding: { kind: "phone" | "email"; value: string; context: string }) => void;
   onSkipRepair?: (personId: string, value: string) => void;
+  /** How many contacts have their own number written in their notes as well,
+   *  which the old import did on its own line and nothing could undo. */
+  duplicateNotes?: number;
+  onClearDuplicateNotes?: () => void;
   onBack: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -113,6 +119,28 @@ export default function PeopleListPage({
               <button className="quiet-action" onClick={(ev) => { ev.stopPropagation(); onClearFlag?.(p.id); }}>No, move out</button>
             </div>
           ))}
+        </div></div>
+      )}
+
+      {/* THE SAME NUMBER, WRITTEN TWICE. Not a review, because there is
+          nothing to judge: the line repeats a field the contact already has,
+          word for word. One tap, one Undo. */}
+      {duplicateNotes > 0 && onClearDuplicateNotes && (
+        <div className="pad-x"><div className="card list-card-ruled">
+          {/* row-tap: clearing edits everyone's notes at once, so it waits for
+              the button rather than answering a stray tap on the words. There
+              is nothing else here to open. */}
+          <div className="row">
+            <div className="row-grow">
+              <div className="conn-name">
+                {capAfterNumber(duplicateNotes === 1
+                  ? "One contact has their own number in their notes as well"
+                  : `${duplicateNotes} contacts have their own number in their notes as well`)}
+              </div>
+              <div className="bp-sub">Left there by an old import</div>
+            </div>
+            <button className="pill-act" onClick={onClearDuplicateNotes}>Clear Them</button>
+          </div>
         </div></div>
       )}
 

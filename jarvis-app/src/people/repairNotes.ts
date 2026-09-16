@@ -131,3 +131,93 @@ export function repairCandidates(
   }
   return out;
 }
+
+// THE SAME NUMBER, WRITTEN TWICE (Dave 2026-09-16: "On every contact page it
+// still has their number under notes as well. Delete that and fix the bug").
+//
+// This is my rule biting. Repair COPIES a number into the field and keeps the
+// note, which is right when the note is a sentence the user wrote. But the
+// old import wrote the number onto its OWN LINE in the notes blob, and once
+// the field also holds it, findInNotes goes silent -- a method already on the
+// record is not a finding -- so the duplicate line has no way to leave. Every
+// contact imported before the parser was fixed shows their number twice, for
+// good, and nothing offers to do anything about it.
+//
+// So: a note line that says NOTHING the record does not already say is not
+// a note. It gets removed. A line carrying anything else is left exactly as
+// written, because that is still someone's own words.
+
+// The words a contact export puts in front of a number. They carry no
+// information once the number sits in a labelled field, so a line that is
+// only one of these plus the number is pure duplication.
+const LABEL_WORD = /\b(cell|mobile|phone|telephone|tel|home|work|main|fax|pager|email|e-?mail|address|contact|number|no)\b/gi;
+
+/** The note lines that only repeat a contact method the record already has. */
+export function duplicateNoteLines(
+  d: Pick<PersonData, "notes" | "phone" | "phones" | "email" | "emails">,
+): string[] {
+  const notes = d.notes ?? "";
+  if (!notes.trim()) return [];
+  const havePhones = new Set(phonesOf(d).map((m) => normPhone(m.value)).filter(Boolean));
+  const haveEmails = new Set(emailsOf(d).map((m) => normEmail(m.value)));
+
+  const out: string[] = [];
+  for (const line of notes.split(/\n/)) {
+    if (!line.trim()) continue;
+    let rest = line;
+    let matched = false;
+    // Take out every method on this line that the record already holds.
+    for (const m of line.matchAll(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g)) {
+      if (!haveEmails.has(normEmail(m[0]))) continue;
+      rest = rest.replace(m[0], "");
+      matched = true;
+    }
+    for (const m of line.matchAll(/[+(]?\d[\d\s().-]{5,}\d/g)) {
+      const k = normPhone(m[0]);
+      if (!k || !havePhones.has(k)) continue;
+      rest = rest.replace(m[0], "");
+      matched = true;
+    }
+    if (!matched) continue;
+    // WHAT IS LEFT DECIDES. Strip the label words and the punctuation that
+    // joined them; if the line had nothing else to say, it goes. If it did
+    // ("call after 6"), the whole line stays as written -- editing round
+    // someone's words to tidy a field is not a cleanup.
+    const leftover = rest.replace(LABEL_WORD, "").replace(/[\s:;,./|·-]+/g, "");
+    if (leftover === "") out.push(line);
+  }
+  return out;
+}
+
+/** The note with those lines gone, or null when there is nothing to remove.
+ *  An empty result clears the field rather than leaving a blank note. */
+export function cleanedNotes(
+  d: Pick<PersonData, "notes" | "phone" | "phones" | "email" | "emails">,
+): string | null {
+  const dupes = duplicateNoteLines(d);
+  if (!dupes.length) return null;
+  const drop = new Set(dupes);
+  const kept = (d.notes ?? "").split(/\n/).filter((l) => !drop.has(l));
+  return kept.join("\n").trim();
+}
+
+export interface CleanupCandidate {
+  id: string;
+  name: string;
+  /** What comes out, so a receipt can say how much and a test can see it. */
+  removed: string[];
+  notes: string;
+}
+
+/** Everyone whose notes repeat something their own fields already say. */
+export function cleanupCandidates(
+  people: { id: string; data: PersonData }[],
+): CleanupCandidate[] {
+  const out: CleanupCandidate[] = [];
+  for (const p of people) {
+    const removed = duplicateNoteLines(p.data);
+    if (!removed.length) continue;
+    out.push({ id: p.id, name: p.data.name, removed, notes: cleanedNotes(p.data) ?? "" });
+  }
+  return out;
+}
