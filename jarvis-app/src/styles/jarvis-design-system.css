@@ -722,9 +722,25 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    already tried and ruled out: the two-tier ramp above collapsed --tx-2 and
    --tx-3 on 2026-09-14 for contrast, and browserWalk measures it. Weight
    costs nothing in contrast and is what every other title in this file
-   already uses -- .t-h3 is --w-medium, .eyebrow and .input-label are
-   --w-semi. The row title was the one title with no weight at all. */
-.conn-name { font-size: var(--t-h3); font-weight: var(--w-medium); flex: 1; }
+   already uses -- .eyebrow and .input-label are --w-semi. The row title was
+   the one title with no weight at all.
+
+   AND THE NUMBER IS 700, NOT 600 (Dave, hours later: "I don't see any
+   difference"). It went out at --w-medium first and he could not see it on
+   the phone, which is the only screen that counts. Two reasons, and the
+   second is the one that matters:
+
+   1. THE PREVIEW LIED. CLAUDE.md has warned since 2026-09-15 that a preview
+      runs on Linux, which has no SF and falls back. The fallback has exactly
+      two weights, so 600 snapped to full bold and the before/after looked
+      dramatic. On SF, 600 is Semibold and the step from 400 is real but
+      small. A render is proof of structure, never of weight.
+   2. THE PAGE HE APPROVED IS 700. .ex-name, used by the Exercises page and
+      nothing else, has been --w-semi all along -- which is exactly why that
+      one page read right while every other page looked flat to him. The
+      answer was already in the file: take the number from the screen he
+      pointed at and said was good. */
+.conn-name { font-size: var(--t-h3); font-weight: var(--w-semi); flex: 1; }
 .conn-name.unread { font-weight: var(--w-semi); }
 /* And the subtext stays at the body weight, so the ladder is 600 over 400
    rather than 400 over 400. */

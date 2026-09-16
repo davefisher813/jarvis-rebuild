@@ -5250,6 +5250,15 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     expect(nameW, "the row title states a weight at all").toBeGreaterThan(0);
     expect(metaW, "and so does its subtext").toBeGreaterThan(0);
     expect(nameW, "the title has to outweigh the line under it").toBeGreaterThan(metaW);
+    // AND IT MATCHES THE SCREEN DAVE APPROVED. .ex-name is the Exercises
+    // page's row title and has been --w-semi all along, which is why that one
+    // page read right to him while the rest looked flat. The first attempt
+    // shipped --w-medium and he could not see it on SF; a Linux preview had
+    // made it look dramatic because the fallback font has only two weights.
+    // Pinning them together is what stops that being re-derived downward.
+    const exW = weight(/\.ruled \.ex-name \{[^{}]*font-weight:\s*var\(--([a-z-]+)\)/.exec(RULED)?.[1] ?? "");
+    expect(exW, "the approved page's row title states a weight").toBeGreaterThan(0);
+    expect(nameW, "and every other row title matches it").toBe(exW);
     // And the ink ramp it cannot lean on instead is still two-tier, so this
     // law is the only thing holding the hierarchy up.
     expect(ds).toMatch(/--tx-2: #D2D2D6; --tx-3: #D2D2D6;/);
