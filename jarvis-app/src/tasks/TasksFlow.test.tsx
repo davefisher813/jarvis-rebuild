@@ -253,7 +253,7 @@ function TwoViews() {
       // isFromEmail reads `source.type`, not `source.kind` -- an open task
       // with this stamp lands in From Email whatever the email-home setting
       // says (filters.partition), which is the view Dave was looking at.
-      await tasks.createTask("Get back to Google: Security alert", { due: todayISO(), source: { type: "email", id: "m1" } });
+      await tasks.createTask("Get back to Google: Security alert", { due: todayISO(), source: { type: "email", ref: "m1", ts: Date.now() } });
       twoSvc = tasks;
       setReady(true);
     })();
