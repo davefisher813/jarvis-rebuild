@@ -1,3 +1,4 @@
+import { NAME_FIELD } from "../shared/nameField";
 import { liftTitle } from "../shared/casing";
 import { createPortal } from "react-dom";
 import { Fragment, useRef, useState, type ReactNode } from "react";
@@ -75,7 +76,7 @@ function Tile({ tone, children }: { tone: string; children: ReactNode }) {
 // In the Session (Rest Timer, Warm-Up Ramp, Filler), Note. The header is
 // the ruled sheet bar (Cancel, the name, Save); Delete sits alone at the
 // very bottom. The set strip keeps its chips, which he approved.
-export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel, partner, onPairWith }: {
+export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel, partner, onPairWith, alsoOnDay }: {
   mode: "new" | "edit";
   initial?: Exercise;
   /** THE EXERCISE LIBRARY (catalog §3.5): every exercise name ever used,
@@ -94,6 +95,18 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
    *  absent on a new exercise and on a day with nothing else to pair. */
   partner?: string | null;
   onPairWith?: () => void;
+  /** WHERE A MID-SESSION ADD LANDS (Dave 2026-09-17: "when I add a new
+   *  exercise during a workout it doesn't save. It also doesn't allow me to
+   *  pair with another one").
+   *
+   *  Catalog §3.10 says an add mid-session does not touch the program, and
+   *  that is still a real thing to want -- one-off accessory work you are
+   *  never doing again. But it was the ONLY thing on offer, so the lift lived
+   *  inside one session and nowhere else: it could not be paired (a pair is a
+   *  program construct the live screen reads off the day) and it was not in
+   *  the library until the workout was finished. Now the sheet asks, with the
+   *  common answer already chosen. Absent when there is no day to add to. */
+  alsoOnDay?: { dayName: string; value: boolean; onChange: (v: boolean) => void };
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [kind, setKind] = useState<MeasureKind>(initial?.kind ?? "weight_reps");
@@ -279,6 +292,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <input
                 ref={nameRef}
                 className={"xs-input" + (touched && !name.trim() ? " input-error" : "")}
+                {...NAME_FIELD}
                 placeholder="Exercise Name"
                 aria-label="Exercise name"
                 value={name}
@@ -591,6 +605,26 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 onClick={own(() => setFiller((f) => !f))} />
             </div>
           </div></div>
+
+          {alsoOnDay && (
+            <>
+              <div className="grp xs-grp"><div className="eyebrow">Where It Lands</div></div>
+              <div className="pad-x"><div className="card xs-group">
+                <div className="row xs-row" onClick={() => alsoOnDay.onChange(!alsoOnDay.value)}>
+                  <Tile tone="blue"><Dumbbell className="ic" /></Tile>
+                  <div className="row-grow">
+                    <div className="conn-name">{`Add to ${alsoOnDay.dayName}`}</div>
+                    <div className="facts">
+                      <span className="fact">{alsoOnDay.value ? "Kept for next time" : "This session only"}</span>
+                      {alsoOnDay.value && <span className="fact">Can be paired</span>}
+                    </div>
+                  </div>
+                  <div className={"switch" + (alsoOnDay.value ? "" : " off")} role="switch" aria-checked={alsoOnDay.value}
+                    aria-label="Add to the day" tabIndex={0} onClick={own(() => alsoOnDay.onChange(!alsoOnDay.value))} />
+                </div>
+              </div></div>
+            </>
+          )}
 
           <div className="grp xs-grp"><div className="eyebrow">Note</div></div>
           <div className="pad-x"><div className="card xs-group">

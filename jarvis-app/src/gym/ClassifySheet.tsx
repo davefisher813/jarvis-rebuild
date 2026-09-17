@@ -1,3 +1,4 @@
+import { NAME_FIELD } from "../shared/nameField";
 import { useRef, useState } from "react";
 import { own } from "../shared/rowDoor";
 import { createPortal } from "react-dom";
@@ -86,6 +87,7 @@ function TextRow({ label, value, placeholder, onChange }: {
       <input
         ref={ref}
         className="xs-input"
+        {...NAME_FIELD}
         value={value}
         placeholder={placeholder}
         aria-label={label}

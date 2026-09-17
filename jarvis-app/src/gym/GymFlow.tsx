@@ -1,3 +1,4 @@
+import { NAME_FIELD } from "../shared/nameField";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics } from "../data/NotesProvider";
@@ -143,7 +144,7 @@ function NameSheet({ title, initial, placeholder, backOff, season, gameCategory,
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Name</div>
-            <input className="input" placeholder={placeholder} value={v} onChange={(e) => setV(e.target.value)} />
+            <input className="input" {...NAME_FIELD} placeholder={placeholder} value={v} onChange={(e) => setV(e.target.value)} />
           </div>
           {backOff && (
             <div className="field">
@@ -803,6 +804,23 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // document of its own to hang them on.
   const [createdLifts, setCreatedLifts] = useState<CreatedLift[]>(() => readGymSettings().createdLifts ?? []);
   const saveCreatedLifts = (next: CreatedLift[]) => { setCreatedLifts(next); writeGymSettings({ ...readGymSettings(), createdLifts: next }); };
+  /** PUT IT IN THE LIBRARY NOW (Dave 2026-09-17: a lift added mid-workout
+   *  "doesn't add to my exercise list").
+   *
+   *  buildLibrary derives from programs and finished workouts, so a lift
+   *  added to a session in progress was in neither: you could not classify
+   *  it, set a goal on it, or even see it, until the workout was saved --
+   *  and not at all if the session was abandoned. A seed costs nothing and
+   *  withCreated drops it the moment a real sighting of the same name at the
+   *  same measurement exists, so this never doubles a row. */
+  const seedLibrary = (draft: { name: string; kind: MeasureKind; unit?: string; exerciseKey?: string }) => {
+    const name = draft.name.trim();
+    if (!name) return;
+    const known = library.some((e) => e.name.trim().toLowerCase() === name.toLowerCase() && e.kind === draft.kind)
+      || createdLifts.some((c) => c.name.trim().toLowerCase() === name.toLowerCase() && c.kind === draft.kind);
+    if (known) return;
+    saveCreatedLifts([...createdLifts, { key: draft.exerciseKey ?? newExerciseKey(), name, kind: draft.kind, ...(draft.unit ? { unit: draft.unit } : {}) }]);
+  };
   // WHAT EACH EXERCISE IS (2026-09-14, second pass). The whole classification
   // by library key, read once through classify.readClassStore -- which also
   // carries the older flat muscleByKey forward, so nothing set this morning
@@ -2092,7 +2110,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           library={library}
           history={workouts}
           onSave={(draft) => {
-            patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note }));
+            // ...loadFields (2026-09-17): this path was missing it while the
+            // other mid-session add had it, so a lift that opened an empty
+            // session arrived with no equipment and no counting. The strip
+            // then stepped it by 5 for everything in the gym and the live
+            // card read "Equipment Not Set" on a lift that had just been
+            // told what it loads with, two screens earlier.
+            patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, ...loadFields(draft), plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note }));
+            seedLibrary(draft);
           }}
           onCancel={() => { clearLive(); enterSession(null); }}
         />
@@ -2161,9 +2186,30 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         onSetLogged={(sets: SetEntry[], at?: number) => patchLive((l) => setLoggedSets(l, at ?? l.idx, sets))}
         onSkip={() => patchLive((l) => ({ ...skipExercise(l, l.idx), idx: Math.min(l.idx + 1, l.exercises.length - 1) }))}
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
-        onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); showToast({ message: `Swapped in ${sub.name}` }); }}
+        // A free-text swap mints a lift the library has never seen, same as
+        // an add does, so it is seeded the same way.
+        onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); seedLibrary(sub); showToast({ message: `Swapped in ${sub.name}` }); }}
         onSetLoad={(next) => { void setLoadStyle(exercise, next); }}
-        onAddMidSession={(draft) => { patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, ...loadFields(draft), plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note })); showToast({ message: `Added ${draft.name}` }); }}
+        // THREE PLACES, NOT ONE (Dave 2026-09-17: "it doesn't save... doesn't
+        // allow me to pair... doesn't add to my exercise list").
+        //
+        // The live session, always -- that is the set you are about to do.
+        // The program day, when the sheet's switch says so, because a pair is
+        // a program construct the live screen reads off the day, so a lift
+        // that is not on the day can never be paired with anything.
+        // And the library, always, so the exercise is there to classify and
+        // set a goal on before the workout is even finished.
+        onAddMidSession={(draft, alsoOnDay) => {
+          patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, ...loadFields(draft), plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note }));
+          seedLibrary(draft);
+          const week = alsoOnDay && day ? program?.data.weeks.find((w) => w.days.some((d) => d.id === day.id)) : undefined;
+          if (week && day) {
+            void saveDays(week.id, week.days.map((d) => (d.id === day.id ? { ...d, exercises: [...d.exercises, { ...draft, id: nid("e") }] } : d)))
+              .then((ok) => showToast({ message: ok ? `${draft.name} added to ${workoutTitle(day.name)}` : `Added ${draft.name} for this session` }));
+          } else {
+            showToast({ message: `Added ${draft.name}` });
+          }
+        }}
         onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
         // Part 3 wave 5 (Dave's 10a): only a swapped or added entry offers it.
         onUpdateProgram={liveEx?.custom && !live.sameAsLastTime && day ? () => {

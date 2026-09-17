@@ -112,7 +112,8 @@ export default function SessionScreen({
    *  it is"). The equipment, the reading and the reps axis. Absent leaves the
    *  header chip a fact rather than a door, which is what it was. */
   onSetLoad?: (next: LoadStyle) => void;
-  onAddMidSession: (draft: Omit<Exercise, "id">) => void;
+  /** The draft, and whether it should also land on the program day. */
+  onAddMidSession: (draft: Omit<Exercise, "id">, alsoOnDay: boolean) => void;
   /** Part 3 wave 5 (Dave's 10a): a swapped or added exercise changes this
    *  session only; this is the one explicit way to carry it into the
    *  program. Absent on a planned exercise. */
@@ -189,6 +190,9 @@ export default function SessionScreen({
   const [keptPlan, setKeptPlan] = useState<string[]>([]);
   const [swapOpen, setSwapOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  // Default yes: a lift you bothered to name mid-workout is usually one
+  // you are doing again, and it is the answer that lets it be paired.
+  const [addToDay, setAddToDay] = useState(true);
   const [platesOpen, setPlatesOpen] = useState(false);
   /** What the open set's two fields say this moment, or null before a key is
    *  pressed (then the plan stands). Cleared on every write, and by the effect
@@ -885,7 +889,8 @@ export default function SessionScreen({
           mode="new"
           library={library}
           history={history}
-          onSave={(draft) => { onAddMidSession(draft); setAddOpen(false); }}
+          alsoOnDay={programDay ? { dayName: programDay.name, value: addToDay, onChange: setAddToDay } : undefined}
+          onSave={(draft) => { onAddMidSession(draft, !!programDay && addToDay); setAddOpen(false); }}
           onCancel={() => setAddOpen(false)}
         />
       )}

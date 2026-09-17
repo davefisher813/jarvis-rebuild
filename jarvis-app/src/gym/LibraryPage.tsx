@@ -1,3 +1,4 @@
+import { NAME_FIELD } from "../shared/nameField";
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LibraryRow } from "./libraryEdit";
@@ -413,7 +414,7 @@ export default function LibraryPage({
               <div className="grp xs-grp"><div className="eyebrow">Name</div></div>
               <div className="pad-x"><div className="card xs-group">
                 <div className="row xs-row xs-row-write" onClick={() => createRef.current?.focus()}>
-                  <input ref={createRef} className="xs-input" value={creating.name} placeholder="Barbell Row"
+                  <input ref={createRef} className="xs-input" {...NAME_FIELD} value={creating.name} placeholder="Barbell Row"
                     aria-label="Exercise Name" onChange={(e) => setCreating({ ...creating, name: e.target.value })} />
                 </div>
               </div></div>
@@ -460,7 +461,7 @@ export default function LibraryPage({
               <div className="grp xs-grp"><div className="eyebrow">Name</div></div>
               <div className="pad-x"><div className="card xs-group">
                 <div className="row xs-row" onClick={() => renameRef.current?.focus()}>
-                  <input ref={renameRef} className="xs-input" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Exercise Name" />
+                  <input ref={renameRef} className="xs-input" {...NAME_FIELD} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Exercise Name" />
                 </div>
               </div></div>
               {/* The same reading: a real consequence, behind the question
