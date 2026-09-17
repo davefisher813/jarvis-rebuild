@@ -851,7 +851,23 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // reading on the tap. The two never disagree about the launch label,
   // which is the only thing both of them claim.
   const sessions = loadSessions();
-  const pick = topPick(parts.all, today, sessions, { skip: skippedStarts });
+  /** THE CARD PICKS OUT OF WHAT YOU ARE LOOKING AT (Dave 2026-09-17: "the huge
+   *  start now container is the same for all of the pages. Like setting up
+   *  Jarvis has NOTHING to do with emails").
+   *
+   *  It read `parts.all` on every view, so the card sitting on top of seven
+   *  email tasks proposed a task from somewhere else entirely -- the same
+   *  card, the same suggestion, whichever chip was chosen. A card that
+   *  answers "what should I start" has to answer it about the list it is
+   *  sitting on, or it is answering a question nobody asked.
+   *
+   *  It reads the SELECTED view, through the same Area cut the list below it
+   *  is under. Two things follow for free: Done has no open task in it, so
+   *  topPick returns null and the card is simply gone there; and a view with
+   *  nothing startable in it shows no card rather than a card about
+   *  somewhere else. */
+  const startFrom = visible(filter);
+  const pick = topPick(startFrom, today, sessions, { skip: skippedStarts });
   const readyFor = useCallback((t: TaskItem): string => {
     const target: StartTarget = { kind: "task", id: t.id, title: t.data.text, data: t.data };
     return startAction(target, { saved: loadSession(t.id) }).ready;
@@ -863,7 +879,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         { kind: "task", id: pick.task.id, title: pick.task.data.text, data: pick.task.data },
         { saved: loadSession(pick.task.id) },
       )}
-      others={otherPicks(parts.all, today, pick.task.id)}
+      others={otherPicks(startFrom, today, pick.task.id)}
       readyFor={readyFor}
       onStart={(id) => void openStart(id)}
       onToggle={(id) => void onToggle(id)}

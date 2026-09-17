@@ -231,3 +231,54 @@ describe("TasksFlow: the task's Text door hands the sheet a real voice (UP-MIND-
     await waitFor(() => expect(draftProps.at(-1)!.voice).toMatch(/^User: /));
   });
 });
+
+// ---------------------------------------------------------------------------
+// DAVE, 2026-09-17: "the huge start now container is the same for all of the
+// pages. Like setting up Jarvis has NOTHING to do with emails."
+//
+// A Place to Begin read `parts.all` on every view, so the card sitting on top
+// of seven email tasks proposed a task from somewhere else entirely -- the
+// same card, the same suggestion, whichever chip was chosen.
+// ---------------------------------------------------------------------------
+let twoSvc: TasksService | null = null;
+
+function TwoViews() {
+  const tasks = useTasks();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const soon = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+      await tasks.createTask("Set up everything on jarvis", { due: todayISO() });
+      await tasks.createTask("Book the Bridge venue", { due: soon });
+      twoSvc = tasks;
+      setReady(true);
+    })();
+  }, []);
+  return ready ? <TasksFlow /> : null;
+}
+
+describe("A Place to Begin picks out of the view you are looking at", () => {
+  it("proposes a task from the chosen view, not one from somewhere else", async () => {
+    twoSvc = null;
+    render(<NotesProvider userId="start-per-view"><TwoViews /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("A Place to Begin")).toBeInTheDocument(), { timeout: 4000 });
+    const cardName = () => document.querySelector(".start-top-name")?.textContent ?? "";
+    // Today holds the one due today, so that is what the card is about.
+    await waitFor(() => expect(cardName()).toContain("Set up everything on jarvis"), { timeout: 4000 });
+
+    // Upcoming holds the other one. The card follows.
+    fireEvent.click(screen.getByRole("tab", { name: /Upcoming/ }));
+    await waitFor(() => expect(cardName()).toContain("Book the Bridge venue"), { timeout: 4000 });
+    expect(cardName(), "the card is about the list it is sitting on").not.toContain("jarvis");
+    void twoSvc;
+  });
+
+  // Done has no open task in it, so topPick returns null and the card is
+  // simply gone -- the page does not have to remember to hide it.
+  it("says nothing on a view with nothing startable in it", async () => {
+    render(<NotesProvider userId="start-per-view-2"><TwoViews /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("A Place to Begin")).toBeInTheDocument(), { timeout: 4000 });
+    fireEvent.click(screen.getByRole("tab", { name: /Done/ }));
+    await waitFor(() => expect(screen.queryByText("A Place to Begin")).toBeNull(), { timeout: 4000 });
+  });
+});

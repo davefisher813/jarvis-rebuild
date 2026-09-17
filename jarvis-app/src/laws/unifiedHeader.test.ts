@@ -241,3 +241,37 @@ describe("two containers are two containers", () => {
     expect(read("styles/components.css")).not.toContain(".hdr-chips:last-child { margin-top: 0; }");
   });
 });
+
+// ---------------------------------------------------------------------------
+// DAVE, 2026-09-17, on the live header again.
+// ---------------------------------------------------------------------------
+describe("the pinned menu sits on the chips' own line", () => {
+  // "Area is too high up. Align it with the rest of the chips." Measured at
+  // phone width: the capsule's centre sat 10px above the chips'. Two causes,
+  // both of them height one child had and the other did not.
+  const css = read("styles/components.css");
+
+  it("gives the chip row no padding of its own, so its box IS its chips", () => {
+    // .chip-row carries 8px of top padding for a row that stands alone.
+    expect(css).toContain(".hdr-chips { padding-top: 0; padding-bottom: 0;");
+  });
+
+  it("puts the gap above on the LINE, not on one child's margin", () => {
+    // align-items centres against the MARGIN box, so a margin on the chips
+    // alone lifted the capsule by half of it.
+    expect(css).toContain(".hdr-chip-line { display: flex; align-items: center; margin-top: 13px; }");
+    expect(css, "the chips must not carry it themselves").not.toMatch(/\.hdr-chips \{ margin-top: 13px/);
+  });
+});
+
+describe("A Place to Begin is about the list it sits on", () => {
+  // "the huge start now container is the same for all of the pages. Like
+  // setting up Jarvis has NOTHING to do with emails."
+  it("picks out of the selected view, through the same Area cut", () => {
+    const flow = read("tasks/TasksFlow.tsx");
+    expect(flow).toContain("const startFrom = visible(filter);");
+    expect(flow).toContain("const pick = topPick(startFrom, today, sessions, { skip: skippedStarts });");
+    expect(flow, "Choose Another offers from the same list").toContain("others={otherPicks(startFrom, today, pick.task.id)}");
+    expect(flow, "never the whole backlog again").not.toContain("topPick(parts.all,");
+  });
+});

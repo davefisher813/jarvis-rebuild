@@ -5635,7 +5635,15 @@ span.row-star { cursor: default; }
    left a sliver of the previous chip -- half a white pill, flush against
    x=0, cut square. Mandatory snap with the row's own left inset as the
    scroll padding means a chip is either fully in or fully out. */
-.hdr-chips { margin-top: 13px; padding-bottom: 0; scroll-snap-type: x mandatory; }
+/* THE ROW HUGS ITS CHIPS (Dave 2026-09-17: "Area is too high up. Align it
+   with the rest of the chips"). Measured at phone width: the capsule's centre
+   sat 10px above the chips'. .chip-row carries 8px of top padding of its own
+   (components.css:1951), which is right for a row that stands alone and wrong
+   here, where the header already owns the 13px above it -- so the row's box
+   was 8px taller than its chips and centring the pinned menu against that box
+   lifted it by half of that. Zeroed, the box IS the chips, and one
+   align-items: center lines the two up exactly. */
+.hdr-chips { padding-top: 0; padding-bottom: 0; scroll-snap-type: x mandatory; }
 /* NO FADE ON THIS ROW (Dave 2026-09-17: "the chips have visual issues when I
    scroll them"). .chip-row masks its last 32px to transparent as a "there is
    more" signal, and that signal was written for a row of small grey chips. On
@@ -5657,7 +5665,10 @@ span.row-star { cursor: default; }
    The chips scroll; this does not. It sits at the row's end on its own
    ground, so the one control that is not a view never scrolls out of reach
    and never reads as a seventh view. */
-.hdr-chip-line { display: flex; align-items: center; }
+/* The 13px gap belongs to the LINE, not to the chips inside it: a margin on
+   one child is height the other child does not have, and align-items centres
+   against the margin box. That was the last 6px of the capsule's lift. */
+.hdr-chip-line { display: flex; align-items: center; margin-top: 13px; }
 .hdr-chip-line > .hdr-chips { flex: 1 1 auto; min-width: 0; }
 /* It sits ON the page, not in the scroller, so the chips pass UNDER it and
    the page's own ground is what they disappear into -- a fade would read as
