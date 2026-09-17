@@ -105,7 +105,7 @@ export function useCondensed(): [(el: HTMLDivElement | null) => void, boolean, b
   return [attach, on, scrolled];
 }
 
-export default function PageHeader({ title, back, onBack, actions, hero, children }: {
+export default function PageHeader({ title, back, onBack, actions, headActions, hero, children }: {
   title: string;
   back?: string;
   onBack?: () => void;
@@ -115,6 +115,12 @@ export default function PageHeader({ title, back, onBack, actions, hero, childre
   hero?: ReactNode;
   // Rendered under the large title: search, chips.
   children?: ReactNode;
+  /** BESIDE THE LARGE TITLE (2026-09-17, the Unified Headers mockups). The
+   *  five Life pages put their one options control here rather than in the
+   *  bar: at rest the bar is empty, and a control floating alone up there
+   *  belongs to nothing on the screen. `actions` is still the bar's own slot
+   *  and every other page keeps using it. */
+  headActions?: ReactNode;
 }) {
   const [probe, on, scrolled] = useCondensed();
   return (
@@ -127,7 +133,18 @@ export default function PageHeader({ title, back, onBack, actions, hero, childre
         </div>
       </div>
       <div className="pagehead">
-        {hero ?? <div className="pagehead-title">{title}</div>}
+        {/* headActions rides beside whatever the title block IS -- the plain
+            large title, or a page's own hero. Reminders' standalone page has
+            a hero (the date over its name), and dropping its options control
+            because of that would leave one of the five pages without one. */}
+        {headActions
+          ? (
+            <div className="pagehead-row">
+              <div className="pagehead-titlebox">{hero ?? <div className="pagehead-title">{title}</div>}</div>
+              <div className="pagehead-acts">{headActions}</div>
+            </div>
+          )
+          : (hero ?? <div className="pagehead-title">{title}</div>)}
         <div ref={probe} />
         {children}
       </div>

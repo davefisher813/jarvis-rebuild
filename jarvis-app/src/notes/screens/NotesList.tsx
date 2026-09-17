@@ -1,5 +1,7 @@
 import { Fragment, useState, type ReactNode, useEffect } from "react";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
+import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
+import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
 import { Check, FileText, Paperclip, PenLine, Search, Tag, Trash2, Plus } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
@@ -41,6 +43,14 @@ export interface NoteListItem {
 
 // C-18: the filter chips. Choosers, so filled chips.
 type Filter = { kind: "all" } | { kind: "pinned" } | { kind: "unfiled" } | { kind: "area"; id: string } | { kind: "tag"; tag: string } | { kind: "archived" } | { kind: "deleted" };
+/** The three the handoff names, in its order. "Unfiled" is the mockup's
+ *  word for what this page called "Not Filed"; the filter itself is the
+ *  same `unfiled` it always was. */
+const VIEWS: HeaderView[] = [
+  { key: "all", label: "All" },
+  { key: "pinned", label: "Pinned" },
+  { key: "unfiled", label: "Unfiled" },
+];
 const sameFilter = (a: Filter, b: Filter) => JSON.stringify(a) === JSON.stringify(b);
 
 // THE SWIPE ON A NOTE (Dave 2026-09-02:
@@ -149,6 +159,10 @@ export default function NotesList({
   const query = q.trim().toLowerCase();
   const now = new Date();
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
+  const [optsOpen, setOptsOpen] = useState(false);
+  /** Which sub-list the options sheet is showing: the areas, or the tags.
+   *  Null is the sheet's own list of rows. */
+  const [optsPick, setOptsPick] = useState<"area" | "tag" | null>(null);
   // Newest first, always (Apple Notes' own order). A note the store cannot
   // date keeps the order the store gave it, behind every dated one.
   const ordered = [...notes].sort((a, b) => b.edited - a.edited);
@@ -283,46 +297,41 @@ export default function NotesList({
           bar, search under the title. */}
       <PageHeader
         title="Notes"
-        actions={
-          sel.active ? (
-            <BarText label="Done" strong onClick={sel.exit} />
-          ) : (
-            <>
-              {onDeleteMany && shown.length > 0 && <BarText label="Select" onClick={() => sel.enter()} />}
-              {onAddFile && <BarAction label={uploading ? "Uploading" : "Add a Photo or File"} onClick={() => !uploading && onAddFile()}><Paperclip className="ic" /></BarAction>}
-              <BarAction label="New Note" onClick={onNewNote}><PenLine className="ic" /></BarAction>
-            </>
-          )
-        }
+        actions={sel.active ? <BarText label="Done" strong onClick={sel.exit} /> : undefined}
+        headActions={sel.active ? undefined : <OptionsButton onClick={() => { setOptsPick(null); setOptsOpen(true); }} label="Notes Options" />}
       >
-        <div className="sub-bar">
-          <div className="search-bar">
-            <Search className="ic" />
-            <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
-          </div>
-        </div>
+        {/* ONE HEADER, FIVE PAGES (Dave 2026-09-17, Unified Headers). Notes
+            keeps its own page and its own place in the app -- the handoff is
+            explicit that header consistency is "shared controls and spacing,
+            not identical page contents" -- and takes the same search row,
+            the same Add and the same chip row as the other four. */}
+        <LifeHeader
+          query={q}
+          onQuery={setQ}
+          placeholder="Search Notes"
+          addLabel="New Note"
+          onAdd={() => onNewNote?.()}
+          views={VIEWS}
+          view={filter.kind === "all" || filter.kind === "pinned" || filter.kind === "unfiled" ? filter.kind : "all"}
+          onView={(k) => setFilter({ kind: k } as Filter)}
+          scope={q.trim() ? {
+            count: shown.length,
+            where: `${VIEWS.find((v) => v.key === filter.kind)?.label ?? "All"} notes`,
+            ...(filter.kind !== "all" ? { onAll: () => setFilter({ kind: "all" }), allLabel: "Search all notes" } : {}),
+          } : undefined}
+        />
       </PageHeader>
 
-      {/* C-18: the filter chips. All, Pinned, Not Filed with its count, each
-          live area with its dot, each tag, Archived. Filled chips, because
-          these choose. */}
-      {notes.length > 0 && (
-        <div className="chip-row chip-wrap-row notes-filters">
-          {([
-            { f: { kind: "all" } as Filter, label: "All" },
-            { f: { kind: "pinned" } as Filter, label: "Pinned" },
-            { f: { kind: "unfiled" } as Filter, label: unfiledCount > 0 ? `Not Filed · ${unfiledCount}` : "Not Filed" },
-            ...areaIds.map((id) => ({ f: { kind: "area", id } as Filter, label: catName(id) || "Area", dot: catColor(id) })),
-            ...tagNames.map((tag) => ({ f: { kind: "tag", tag } as Filter, label: "#" + tag })),
-            ...(archivedCount > 0 ? [{ f: { kind: "archived" } as Filter, label: "Archived" }] : []),
-            ...(deletedCount > 0 ? [{ f: { kind: "deleted" } as Filter, label: `Recently Deleted · ${deletedCount}` }] : []),
-          ] as { f: Filter; label: string; dot?: string }[]).map(({ f, label, dot }) => (
-            <button key={label} type="button" className={"chip" + (sameFilter(filter, f) ? " active" : "")} aria-pressed={sameFilter(filter, f)} onClick={() => setFilter(f)}>
-              {dot && <span className={"cat-dot cat-bg-" + dot} />}{label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* THE CHIPS ARE WORKFLOW STATE AND NOTHING ELSE (handoff rule 2: "Do
+          not mix area names, deleted records and workflow states in the same
+          row"; and by name, "Notes: All, Pinned and Unfiled; Recently Deleted
+          remains an options destination").
+          
+          What was here: those three, plus one chip per AREA with its dot,
+          plus one per TAG, plus Archived, plus Recently Deleted -- a row that
+          wrapped to three lines on a real library and mixed four different
+          kinds of thing. Areas, tags, archived and deleted are all one tap
+          away in the options sheet, which is where every page keeps them. */}
 
       {/* RED IS A VERB (Dave 2026-08-30, chapter three, history on LAW 11):
           this head spent one deploy in accent as "Notes' one red head"; his
@@ -343,6 +352,60 @@ export default function NotesList({
         <div className="pad-x"><div className="card list-card-ruled">
           <div className="task-row p2"><div className="task-title"><span className="task-name">No notes match &ldquo;{q.trim()}&rdquo;</span></div></div>
         </div></div>
+      )}
+      {/* EVERYTHING THAT IS NOT A WORKFLOW STATE (handoff rule 7: "Notes-
+          specific tools, including import and Recently Deleted, remain
+          available"). Area and Tag each open their own list of answers in
+          this same sheet rather than a second sheet on top of it. */}
+      {optsOpen && optsPick === null && (
+        <OptionsSheet title="Notes Options" rows={([
+          ...(areaIds.length > 0 ? [{
+            key: "area", label: "Area",
+            value: filter.kind === "area" ? (catName(filter.id) || "Area") : "All Areas",
+            onClick: () => setOptsPick("area"),
+          }] : []),
+          ...(tagNames.length > 0 ? [{
+            key: "tag", label: "Tag",
+            value: filter.kind === "tag" ? "#" + filter.tag : "Any",
+            onClick: () => setOptsPick("tag"),
+          }] : []),
+          ...(onDeleteMany && shown.length > 0 ? [{
+            key: "select", label: "Select Notes",
+            onClick: () => { setOptsOpen(false); sel.enter(); },
+          }] : []),
+          ...(onAddFile ? [{
+            key: "file", label: uploading ? "Uploading" : "Import or Attach",
+            onClick: () => { setOptsOpen(false); if (!uploading) onAddFile(); },
+          }] : []),
+          ...(archivedCount > 0 ? [{
+            key: "archived", label: "Archived", count: archivedCount,
+            onClick: () => { setOptsOpen(false); setFilter({ kind: "archived" }); },
+          }] : []),
+          // Excluded from ordinary searches unless explicitly opened, which
+          // is what opening it from here is.
+          ...(deletedCount > 0 ? [{
+            key: "deleted", label: "Recently Deleted", count: deletedCount,
+            onClick: () => { setOptsOpen(false); setFilter({ kind: "deleted" }); },
+          }] : []),
+        ] as OptionRow[])} onClose={() => setOptsOpen(false)} />
+      )}
+      {optsOpen && optsPick === "area" && (
+        <OptionsSheet title="Area" rows={([
+          { key: "all", label: "All Areas", onClick: () => { setOptsOpen(false); setFilter({ kind: "all" }); } },
+          ...areaIds.map((id) => ({
+            key: id, label: catName(id) || "Area",
+            onClick: () => { setOptsOpen(false); setFilter({ kind: "area", id }); },
+          })),
+        ] as OptionRow[])} onClose={() => setOptsPick(null)} />
+      )}
+      {optsOpen && optsPick === "tag" && (
+        <OptionsSheet title="Tag" rows={([
+          { key: "any", label: "Any Tag", onClick: () => { setOptsOpen(false); setFilter({ kind: "all" }); } },
+          ...tagNames.map((tag) => ({
+            key: tag, label: "#" + tag,
+            onClick: () => { setOptsOpen(false); setFilter({ kind: "tag", tag }); },
+          })),
+        ] as OptionRow[])} onClose={() => setOptsPick(null)} />
       )}
       {onDeleteMany && (
         <SelectBar sel={sel} noun="Note" onDelete={() => { onDeleteMany(sel.selected); sel.exit(); }} />

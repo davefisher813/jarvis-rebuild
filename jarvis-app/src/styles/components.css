@@ -5562,3 +5562,102 @@ span.row-star { cursor: default; }
 /* The nested row's title stops being a plain span the moment it is a door,
    so it gets the door's affordance without growing a second one. */
 .block-held-prop .block-held-t[role="button"] { cursor: pointer; }
+
+/* ============================================================
+   ONE HEADER, FIVE PAGES (Dave 2026-09-17, Unified Headers handoff)
+   Tasks, Reminders, Notes, Projects and Goals share this block: a search
+   field and a compact Add on one row, then one scrolling row of view chips.
+   The handoff's reference sizes -- 46px row, 9px gap, 12px radius, 13px
+   before the chips, 24px into content, Add about 77px -- are named there as
+   "visual baselines, not replacements for catalog tokens", so a token wins
+   wherever one lands on the number.
+   ============================================================ */
+.life-hdr { display: flex; flex-direction: column; }
+
+/* THE TITLE ROW (2026-09-17). The mockups put the options control on the same
+   line as the large page title, not up in the condensed bar where .pagebar's
+   actions live: at rest the bar is empty and a control floating alone up
+   there reads as belonging to nothing. The row keeps the title's own left
+   inset and the stroke under it, because .pagehead-title carries both. */
+.pagehead-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); padding-right: var(--s-4); }
+.pagehead-row > .pagehead-titlebox { flex: 1 1 auto; min-width: 0; }
+.pagehead-row > .pagehead-acts { flex-shrink: 0; display: flex; align-items: center; gap: var(--s-2); align-self: center; }
+
+/* 46px row, and its two children share it. */
+.hdr-find { display: flex; align-items: stretch; gap: 9px; padding: 0 var(--s-4); margin-top: var(--s-2); }
+
+.hdr-search {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--s-2);
+  height: 46px; padding: 0 var(--s-3h); border-radius: 12px;
+  background: var(--surface-2); color: var(--tx-3);
+}
+.hdr-search-ic { width: 20px; height: 20px; flex-shrink: 0; color: var(--tx-3); }
+.hdr-search-in {
+  flex: 1 1 auto; min-width: 0; background: none; border: 0; outline: none; padding: 0;
+  font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-regular); color: var(--tx-1);
+  /* A search field types in whatever case you feel like; see shared/nameField. */
+}
+.hdr-search-in::placeholder { color: var(--tx-3); font-weight: var(--w-regular); }
+.hdr-search-in::-webkit-search-cancel-button { display: none; }
+/* The clear control is the handoff's own X in the mockup's search state. A
+   44px target on a 20px glyph, by inset rather than by size. */
+.hdr-search-x {
+  position: relative; flex-shrink: 0; background: none; border: 0; padding: 0;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; color: var(--tx-3);
+}
+.hdr-search-x::after { content: ""; position: absolute; inset: -11px; }
+.hdr-search-x .ic { width: 18px; height: 18px; }
+
+/* ADD IS NOT A SECOND PRIMARY (handoff rule 1). Dark surface, red glyph,
+   white word: the page's real primary stays the one red block on screen. */
+.hdr-add {
+  flex: 0 0 auto; min-width: 77px; height: 46px; padding: 0 var(--s-3);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h);
+  border-radius: 12px; border: 1px solid var(--divider); background: var(--surface-2);
+  font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1);
+}
+/* THE RED IS THE GLYPH AND NOTHING ELSE, AND IT IS --tint.
+   The handoff asks for "a red plus", and the two obvious tokens are both
+   wrong: --accent-tx is WHITE in dark theme (it is the ink for text ON accent
+   chrome), and --accent is the brand red, which LAW "the brand red is never
+   used for a job it cannot do" bans as glyph ink because it does not clear
+   the contrast floor. --tint is the measured one, 5.49:1 on black, and its
+   own definition names this exact job: "the colour of things that are
+   tappable but are not buttons: the nav '+', back chevrons, links". */
+.hdr-add .ic { width: 20px; height: 20px; color: var(--tint); }
+
+/* 13px before the chips, 24px into the content below them. .chip-row already
+   owns the horizontal scroll, the mask and the no-wrap rule. */
+.hdr-chips { margin-top: 13px; padding-bottom: 0; }
+.life-hdr + *, .hdr-chips:last-child { margin-top: 0; }
+.life-hdr { padding-bottom: 24px; }
+/* Every chip clears 44px even where it draws smaller (handoff rule 1). */
+.hdr-chips > .chip { position: relative; }
+.hdr-chips > .chip::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+.hdr-chip-n { margin-left: var(--s-1h); font-weight: var(--w-bold); opacity: 0.6; }
+
+/* WHAT THE SEARCH IS ACTUALLY SEARCHING (handoff rule 4). A count, where it
+   looked, and one control that widens it -- never a silent widening. */
+.hdr-scope {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3);
+  padding: 0 var(--s-4); margin-top: var(--s-3h);
+}
+.hdr-scope-n { font-size: var(--t-meta); font-weight: var(--w-regular); color: var(--tx-3); }
+.hdr-scope-all {
+  flex-shrink: 0; background: none; border: 0; padding: 0;
+  font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--hl-cyan);
+}
+
+/* THE OPTIONS CONTROL, in the title bar: Area, Sort, Group and the page's
+   secondary tools, in one place on all five pages (handoff rule 7). */
+.hdr-opts {
+  width: 44px; height: 44px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 12px; background: var(--surface-2); color: var(--tx-1);
+}
+.hdr-opts .ic { width: 20px; height: 20px; }
+
+/* The options sheet's own head: the page's name and Done, nothing to save. */
+.opt-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-4) var(--s-3); }
+.opt-title { font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1); letter-spacing: -0.01em; }
+.opt-done { background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tint-on-sheet); }
+.opt-val { flex-shrink: 0; font-size: var(--t-body); font-weight: var(--w-regular); color: var(--tx-2); }

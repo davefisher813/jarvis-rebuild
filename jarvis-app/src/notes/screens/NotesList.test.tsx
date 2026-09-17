@@ -74,7 +74,10 @@ describe("NotesList", () => {
     const { container } = render(<NotesList notes={notes} onOpen={onOpen} onDeleteMany={onDeleteMany} />);
     fireEvent.click(screen.getByText("Coach Onboarding Plan"));
     expect(onOpen).toHaveBeenCalledWith("new");
-    fireEvent.click(screen.getByText("Select"));
+    // AMENDED 2026-09-17 (Unified Headers): Select is a row in the options
+    // sheet now, the one place all five pages keep their secondary tools.
+    fireEvent.click(screen.getByLabelText("Notes Options"));
+    fireEvent.click(screen.getByText("Select Notes"));
     expect(container.querySelectorAll(".note-row .task-check-tap .sel-box")).toHaveLength(4);
     fireEvent.click(screen.getByLabelText("Select Training Plan"));
     fireEvent.click(document.querySelector(".select-del")!);
@@ -83,7 +86,9 @@ describe("NotesList", () => {
 
   it("searches the titles and says so when nothing matches", () => {
     const { container } = render(<NotesList notes={notes} />);
-    fireEvent.change(container.querySelector(".search-bar input")!, { target: { value: "zzz" } });
+    // AMENDED 2026-09-17: the field is the shared header's, and it names what
+    // it searches rather than saying "Search".
+    fireEvent.change(screen.getByPlaceholderText("Search Notes"), { target: { value: "zzz" } });
     expect(container.querySelectorAll(".note-row")).toHaveLength(0);
     expect(screen.getByText(/No notes match/)).toBeInTheDocument();
   });
@@ -92,7 +97,7 @@ describe("NotesList", () => {
   // matches only a note's body -- never its title -- must still surface it.
   it("searches the body too, not just the title", () => {
     const { container } = render(<NotesList notes={notes} />);
-    fireEvent.change(container.querySelector(".search-bar input")!, { target: { value: "tents" } });
+    fireEvent.change(screen.getByPlaceholderText("Search Notes"), { target: { value: "tents" } });
     const names = [...container.querySelectorAll(".note-row .task-name")].map((el) => el.textContent);
     expect(names).toEqual(["Bridge Invitational Item List"]);
   });

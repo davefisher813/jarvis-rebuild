@@ -23,34 +23,34 @@ const tk = (id: string, due: string | null, cat = "orgB"): TaskItem => ({ id, da
 const counts: Record<TaskFilter, number> = { all: 6, daily: 0, today: 2, overdue: 1, upcoming: 3, email: 0, done: 1 };
 
 describe("TasksPage", () => {
-  it("the head is one line of menus: the view with its count, then the area, then the grouping", () => {
+  // AMENDED 2026-09-17 (the Unified Headers handoff). The view, the Area and
+  // the grouping were three dropdown capsules on one line under the head.
+  // The views are a chip row now -- "one horizontally scrollable chip row",
+  // with Today, Upcoming, All and Done leading it -- and Area and Group moved
+  // into the options sheet, unchanged: the SAME HeadMenu components, handed
+  // the same props, in a row instead of on a line.
+  it("the views are a chip row, four of them leading, each with its count", () => {
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
         categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]} />,
     );
-    // Fewer Buttons (2026-09-02): no chip rows anywhere on the page.
-    expect(container.querySelector(".chip-row")).toBeNull();
-    const dds = container.querySelectorAll(".dd-line .dd");
-    expect([...dds].map((d) => d.getAttribute("aria-label"))).toEqual(["Show", "Area", "Group by"]);
-    expect(dds[0]).toHaveClass("dd-lead");
-    expect(dds[0]).toHaveTextContent("Today1");
-    // The counts the chips carried live inside the view menu.
-    fireEvent.click(dds[0]!);
-    const items = screen.getAllByRole("menuitemradio");
-    expect(items.map((i) => i.textContent)).toEqual(["All6", "Daily0", "Today2", "Overdue1", "Upcoming3", "From Email0", "Done1"]);
-    expect(screen.getByRole("menuitemradio", { name: /Today/ })).toHaveAttribute("aria-checked", "true");
+    const chips = [...container.querySelectorAll(".hdr-chips .chip")];
+    // The mockup's four lead. The three the app already had follow them in
+    // the same scrolling row rather than being dropped (handoff rule 2:
+    // "Preserve the existing definitions").
+    expect(chips.map((c) => c.textContent)).toEqual(["Today2", "Upcoming3", "All6", "Done1", "Daily", "Overdue1", "From Email"]);
+    expect(chips[0]).toHaveClass("active");
+    expect(chips[0]).toHaveAttribute("aria-selected", "true");
+    // A chip that would say 0 says nothing instead.
+    expect(container.querySelector(".dd-line")).toBeNull();
   });
 
-  it("picking from the view menu fires the filter and closes the menu", () => {
+  it("picking a chip fires the filter, and the selected one is a no-op", () => {
     const onFilter = vi.fn();
-    const { container } = render(<TasksPage filter="today" counts={counts} items={[]} today="2026-05-20" onFilter={onFilter} />);
-    fireEvent.click(container.querySelector(".dd-lead")!);
-    fireEvent.click(screen.getByRole("menuitemradio", { name: /Overdue/ }));
+    render(<TasksPage filter="today" counts={counts} items={[]} today="2026-05-20" onFilter={onFilter} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Overdue/ }));
     expect(onFilter).toHaveBeenCalledWith("overdue");
-    expect(screen.queryByRole("menu")).toBeNull();
-    // The current option is a no-op pick.
-    fireEvent.click(container.querySelector(".dd-lead")!);
-    fireEvent.click(screen.getByRole("menuitemradio", { name: /Today/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Today/ }));
     expect(onFilter).toHaveBeenCalledTimes(1);
   });
 
@@ -60,16 +60,23 @@ describe("TasksPage", () => {
       <TasksPage filter="all" counts={counts} items={[]} today="2026-05-20" catFilter="orgB" onCatFilter={onCat}
         categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }, { id: "money", name: "Money", color: "yellow" }]} />,
     );
-    const area = container.querySelector('.dd[aria-label="Area"]')!;
+    // It lives behind the options control now, which is the one place every
+    // page's Area, Sort, Group and secondary tools are reachable from.
+    // The sheet is a portal, so it is on document.body, not in container.
+    fireEvent.click(screen.getByLabelText("Tasks Options"));
+    const area = document.body.querySelector('.dd[aria-label="Area"]')!;
     expect(area).toHaveTextContent("Ridgeley");
     expect(area.querySelector(".cat-dot.cat-bg-sky")).toBeTruthy();
     fireEvent.click(area);
     expect(screen.getAllByRole("menuitemradio").map((i) => i.textContent)).toEqual(["All Areas", "Ridgeley", "Money"]);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "All Areas" }));
     expect(onCat).toHaveBeenCalledWith("all");
-    // Unfiltered, the capsule names the control, like Group beside it.
+    // Unfiltered it names the answer, because the row beside it already
+    // names the control.
     const { container: c2 } = render(<TasksPage filter="all" counts={counts} items={[]} today="2026-05-20" catFilter="all" categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]} />);
-    expect(c2.querySelector('.dd[aria-label="Area"]')).toHaveTextContent(/^Area$/);
+    void c2;
+    fireEvent.click(screen.getAllByLabelText("Tasks Options")[1]!);
+    expect([...document.body.querySelectorAll('.dd[aria-label="Area"]')].pop()).toHaveTextContent(/^All Areas$/);
   });
 
   it("one decision killer: Pick One alone, full width; the mode's way out replaces it", () => {
@@ -180,16 +187,18 @@ describe("TasksPage", () => {
     );
     expect(container.querySelectorAll(".list-card-ruled")).toHaveLength(1);
     expect(container.querySelectorAll(".list-card-ruled .task-row")).toHaveLength(2);
-    expect(container.querySelector(".dd-lead")).toHaveTextContent("All2");
-    const group = () => container.querySelector('.dd[aria-label="Group by"]')!;
-    expect(group()).toHaveTextContent("Group");
+    fireEvent.click(screen.getByLabelText("Tasks Options"));
+    const group = () => document.body.querySelector('.dd[aria-label="Group by"]')!;
+    expect(group()).toHaveTextContent("None");
     // Open the menu, group by area: two cards under two heads, and the
     // capsule says what it is grouped by.
     fireEvent.click(group());
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Area" }));
     expect(container.querySelectorAll(".list-card-ruled")).toHaveLength(2);
     expect([...container.querySelectorAll(".grp-head")].map((h) => h.textContent)).toEqual(["Money1", "Family1"]);
-    expect(group()).toHaveTextContent("By Area");
+    // The row beside it says "Group", so the control says the answer:
+    // "Area", not "By Area" (2026-09-17, the options sheet).
+    expect(group()).toHaveTextContent(/^Area$/);
     // By goal: the goalless bucket comes last.
     fireEvent.click(group());
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Goal" }));
@@ -251,7 +260,10 @@ describe("TasksPage bulk select: Move to Project (S6-Q39)", () => {
       <TasksPage filter="all" counts={counts} items={[tk("a", null)]} today="2026-05-20"
         onDeleteMany={() => {}} onMoveMany={() => {}} projects={[]} />,
     );
-    fireEvent.click(screen.getByText("Select"));
+    // AMENDED 2026-09-17 (Unified Headers): Select is a row in the options
+    // sheet now, with Area, Group and Upload a Syllabus.
+    fireEvent.click(screen.getByLabelText("Tasks Options"));
+    fireEvent.click(screen.getByText("Select Tasks"));
     expect(document.querySelector(".select-bar")).toBeTruthy();
     expect(document.querySelector(".select-move")).toBeNull();
     cleanup();
@@ -265,7 +277,10 @@ describe("TasksPage bulk select: Move to Project (S6-Q39)", () => {
         onDeleteMany={() => {}} onMoveMany={onMoveMany}
         projects={[{ id: "p1", title: "Kitchen Remodel" }]} />,
     );
-    fireEvent.click(screen.getByText("Select"));
+    // AMENDED 2026-09-17 (Unified Headers): Select is a row in the options
+    // sheet now, with Area, Group and Upload a Syllabus.
+    fireEvent.click(screen.getByLabelText("Tasks Options"));
+    fireEvent.click(screen.getByText("Select Tasks"));
     fireEvent.click(screen.getByText("Select All"));
     fireEvent.click(document.querySelector(".select-move .dd")!);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Kitchen Remodel" }));
@@ -282,7 +297,10 @@ describe("TasksPage bulk select: Move to Project (S6-Q39)", () => {
         onDeleteMany={() => {}} onMoveMany={() => {}}
         projects={[{ id: "p1", title: "Kitchen Remodel" }]} />,
     );
-    fireEvent.click(screen.getByText("Select"));
+    // AMENDED 2026-09-17 (Unified Headers): Select is a row in the options
+    // sheet now, with Area, Group and Upload a Syllabus.
+    fireEvent.click(screen.getByLabelText("Tasks Options"));
+    fireEvent.click(screen.getByText("Select Tasks"));
     expect(document.querySelector(".select-move")).toHaveClass("select-move-off");
     cleanup();
   });

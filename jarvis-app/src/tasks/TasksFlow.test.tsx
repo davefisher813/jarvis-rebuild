@@ -143,6 +143,10 @@ describe("TasksFlow area filter (LIFE-F-11)", () => {
     render(<NotesProvider userId="area-life-11"><SeededAreas /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Work done one")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Clear 5 Completed" })).toBeInTheDocument();
+    // AMENDED 2026-09-17 (Unified Headers): Area moved from a capsule under
+    // the head into the options sheet, the one place all five pages keep
+    // their Area, Sort, Group and secondary tools. Same control, same menu.
+    fireEvent.click(screen.getByLabelText("Tasks Options"));
     fireEvent.click(screen.getByRole("button", { name: "Area" }));
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "Work" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Clear 2 Completed" })).toBeInTheDocument());

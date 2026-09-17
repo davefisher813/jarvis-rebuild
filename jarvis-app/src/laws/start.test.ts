@@ -216,7 +216,13 @@ describe("START law 6: one start door per screen", () => {
   it("the task page never shows the start card and Pick One at once", () => {
     const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
     // One if-else chain: overwhelmed exit, else the card, else the fallback.
-    expect(page).toMatch(/\) : startCard \? \(/);
+    // AMENDED 2026-09-17 (Unified Headers, rule 6: "Hide the suggestion card
+    // during local search and in Done so it does not distract from
+    // browsing"). The card's arm now has two more conditions on it. What
+    // this law is about -- the card and Pick One are arms of ONE chain, so
+    // the page can never draw both -- is unchanged, and is what the second
+    // assertion pins.
+    expect(page).toMatch(/\) : startCard && !q && filter !== "done" \? \(/);
     expect(page).toMatch(/\) : onPickOne && counts\.all > 0 && \(/);
   });
 

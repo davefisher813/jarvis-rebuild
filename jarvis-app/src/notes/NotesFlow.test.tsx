@@ -348,15 +348,26 @@ describe("NotesFlow: Recently Deleted", () => {
     fireEvent.click(screen.getAllByLabelText("Delete note")[0]!);
     await waitFor(() => expect(screen.queryByText("Roster")).toBeNull(), { timeout: 4000 });
     expect((await svc.note(id))!.deletedAt).toBeTruthy();
-    fireEvent.click(await screen.findByText(/Recently Deleted · 1/));
+    // AMENDED 2026-09-17 (Unified Headers, rule 2: "Do not mix area names,
+    // deleted records and workflow states in the same row"). Recently
+    // Deleted was a chip beside All and Pinned; it is an options destination
+    // now, which is also what keeps it out of ordinary searches. Everything
+    // this test is about -- the note goes there, restores, and deletes for
+    // good -- is unchanged.
+    const openDeleted = async () => {
+      fireEvent.click(screen.getByLabelText("Notes Options"));
+      fireEvent.click(await screen.findByText("Recently Deleted"));
+    };
+    await openDeleted();
     const row = await screen.findByText("Roster");
     expect(screen.getByText("Restore")).toBeInTheDocument();
     fireEvent.click(row);
     await waitFor(async () => expect((await svc.note(id))!.deletedAt).toBeFalsy(), { timeout: 4000 });
-    await waitFor(() => expect(screen.queryByText(/Recently Deleted/)).toBeNull(), { timeout: 4000 });
+    await waitFor(() => { fireEvent.click(screen.getByLabelText("Notes Options")); expect(screen.queryByText("Recently Deleted")).toBeNull(); }, { timeout: 4000 });
+    fireEvent.click(screen.getByText("Done"));
     // Delete again, then for good.
     fireEvent.click(screen.getAllByLabelText("Delete note")[0]!);
-    fireEvent.click(await screen.findByText(/Recently Deleted · 1/, {}, { timeout: 4000 }));
+    await waitFor(async () => { await openDeleted(); }, { timeout: 4000 });
     fireEvent.click(await screen.findByLabelText("Delete forever"));
     await waitFor(async () => expect(await svc.note(id)).toBeNull(), { timeout: 4000 });
   });

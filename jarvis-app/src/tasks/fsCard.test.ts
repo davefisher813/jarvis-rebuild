@@ -50,7 +50,11 @@ describe("The Keeps Sliding row", () => {
 
   it("the page pulls the stalled task out of its group and renders it once, first", () => {
     const page = readFileSync(join(__dirname, "screens", "TasksPage.tsx"), "utf8");
-    expect(page).toMatch(/groupItems\(stalledItem \? items\.filter\(\(it\) => it\.id !== stalledItem\.id\) : items/);
+    // AMENDED 2026-09-17 (Unified Headers): the page groups the list the
+    // HEADER'S SEARCH leaves, not the whole list it was handed, so `items`
+    // became `shown`. What this pins -- the stalled task is pulled out of its
+    // group so it cannot render twice -- is unchanged.
+    expect(page).toMatch(/groupItems\(stalledItem \? shown\.filter\(\(it\) => it\.id !== stalledItem\.id\) : shown/);
     expect(page).toMatch(/\{gi === 0 && stalledRow\}/);
     expect(page).toMatch(/tag=\{stalled\.tag\} kicker=\{stalled\.line\} kickerTone="stalled" action=\{stalled\.action\}/);
   });

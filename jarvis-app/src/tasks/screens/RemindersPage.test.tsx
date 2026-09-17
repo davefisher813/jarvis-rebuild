@@ -33,17 +33,23 @@ describe("RemindersPage", () => {
     expect(screen.getByText(/September 15/)).toBeInTheDocument();
     expect(screen.queryByText("On Your Radar")).not.toBeInTheDocument();
     expect(screen.queryByText("Take the Next Step")).not.toBeInTheDocument();
-    // Life already spends the page's one segmented control on its own
-    // segments, so these choose as chips and nothing here is a tab.
-    expect(screen.queryAllByRole("tab")).toHaveLength(0);
-    const chips = document.querySelectorAll(".chip-row .chip");
+    // AMENDED 2026-09-17 (Unified Headers). The four views, their meanings
+    // and their order are untouched; they sit in the shared header's one
+    // SCROLLING row now rather than a wrapping one, and say what they are
+    // with aria-selected, which is what a row of views is.
+    const chips = document.querySelectorAll(".hdr-chips .chip");
     expect([...chips].map((c) => c.textContent)).toEqual(["Today", "Upcoming", "Routines", "Done"]);
-    expect(chips[0]).toHaveAttribute("aria-pressed", "true");
-    expect(chips[1]).toHaveAttribute("aria-pressed", "false");
+    expect(chips[0]).toHaveAttribute("aria-selected", "true");
+    expect(chips[1]).toHaveAttribute("aria-selected", "false");
+    expect(document.querySelector(".chip-wrap-row")).toBeNull();
     fireEvent.click(screen.getByText("Upcoming"));
     expect(onTab).toHaveBeenCalledWith("upcoming");
-    expect(screen.getByText("New Reminder")).toBeInTheDocument();
-    expect(screen.getByText("Search")).toBeInTheDocument();
+    // The handoff's own named example: "Replace the large red New Reminder
+    // button and separate Search button with a visible search field and a
+    // compact, labeled Add control."
+    expect(screen.queryByText("New Reminder")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("New Reminder")).toHaveTextContent("Add");
+    expect(screen.getByPlaceholderText("Search Reminders")).toBeInTheDocument();
   });
 
   it("a card is the door; the checkbox leads, a time gutter carries today's clock, and one pill answers (row anatomy corrected 2026-09-15, v3)", () => {
@@ -111,13 +117,17 @@ describe("RemindersPage", () => {
     expect(onNew).toHaveBeenCalled();
   });
 
-  it("the gear opens settings, Search toggles the field, Back goes back", () => {
-    const onSettings = vi.fn(); const onSearchToggle = vi.fn(); const onBack = vi.fn();
-    page("today", { onSettings, onSearchToggle, chrome: { back: "Today", onBack } });
-    fireEvent.click(screen.getByLabelText("Reminder Settings"));
+  // AMENDED 2026-09-17 (Unified Headers): the gear became the options
+  // control every page shares, and the search field is always on screen, so
+  // there is no toggle left to fire.
+  it("options opens settings, the search field is always there, Back goes back", () => {
+    const onSettings = vi.fn(); const onQuery = vi.fn(); const onBack = vi.fn();
+    page("today", { onSettings, onQuery, chrome: { back: "Today", onBack } });
+    fireEvent.click(screen.getByLabelText("Reminders Options"));
+    fireEvent.click(screen.getByText("Reminder Settings"));
     expect(onSettings).toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Search"));
-    expect(onSearchToggle).toHaveBeenCalled();
+    fireEvent.change(screen.getByPlaceholderText("Search Reminders"), { target: { value: "meds" } });
+    expect(onQuery).toHaveBeenCalledWith("meds");
     fireEvent.click(screen.getByText("Today", { selector: ".nav-back" }));
     expect(onBack).toHaveBeenCalled();
   });

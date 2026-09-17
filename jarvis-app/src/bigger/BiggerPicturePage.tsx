@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from "react";
 import PageHeader from "../shared/PageHeader";
+import LifeHeader, { OptionsButton, type HeaderView } from "../shared/LifeHeader";
+import OptionsSheet from "../shared/OptionsSheet";
 import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
 import { progressLabel, bucketOf, closable, projStatus, rankGoals } from "./progress";
@@ -114,8 +116,32 @@ export default function BiggerPicturePage({
   const [doneGoalsOpen, setDoneGoalsOpen] = useState(false);
   // Move to Goal: the project whose hold opened the sheet (Dave 2026-09-13).
   const [moveFor, setMoveFor] = useState<string | null>(null);
-  // The Projects lens's Paused filter (Dave 2026-09-13).
-  const [pausedOnly, setPausedOnly] = useState(false);
+  // THE VIEW CHIPS (Dave 2026-09-17, Unified Headers). This replaces the
+  // Projects lens's own two-chip Paused filter (2026-09-13), which was the
+  // only filtering either lens had and only appeared when something was
+  // actually on hold.
+  //
+  // WHICH CHIPS EXIST IS DECIDED BY WHAT THE DATA HAS, not by the mockup.
+  // Rule 2 of the handoff: "If Paused or Achieved does not exist, map to an
+  // existing status or omit the chip for launch. Do not invent a lifecycle
+  // as part of this pass."
+  //
+  //   Projects have active | on_hold | done (projects/types.ts), so all four
+  //   chips are real. The mockup calls the middle one "Paused"; this app has
+  //   called that status "On Hold" everywhere since it shipped -- on the row
+  //   badge, in the project sheet, in the status picker -- so the chip says
+  //   On Hold. One word per state.
+  //
+  //   Goals have on_track | steady | at_risk | achieved (life/types.ts).
+  //   There is no paused goal, so there is no Paused chip: three, not four.
+  const [view, setView] = useState("active");
+  const [q, setQ] = useState("");
+  const [optsOpen, setOptsOpen] = useState(false);
+  /** THE AREA FILTER (2026-09-17). The one secondary control these two lenses
+   *  genuinely have: both already file by area -- a project by its category,
+   *  a goal by the first of its tags that names a live one -- and neither had
+   *  a way to look at one area at a time, which Tasks and Notes both do. */
+  const [areaOnly, setAreaOnly] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -367,40 +393,79 @@ export default function BiggerPicturePage({
   const showGoals = !projectsLens;
   const showProjects = !lensed || projectsLens;
 
-  // THE PAUSED FILTER (Dave 2026-09-13). Two chips over the Projects lens,
-  // shown only while something is actually on hold: All, the lens as it was,
-  // and Paused, only the projects put on hold. A filter with nothing to
-  // filter is furniture, so it goes away with the last paused project.
   const isPaused = (r: ProjectRow) => r.project.data.status === "on_hold";
   const pausedCount = openRows.filter(isPaused).length;
-  const showPausedOnly = pausedOnly && pausedCount > 0;
-  const lensRows = showPausedOnly ? openRows.filter(isPaused) : openRows;
-  const lensOrphans = showPausedOnly ? orphanRows.filter(isPaused) : orphanRows;
+  const showPausedOnly = view === "on_hold";
+  /** What the header's search leaves. Titles only, which is what a project
+   *  and a goal have -- the scope line says so rather than implying more
+   *  (handoff rule 4). */
+  const qq = q.trim().toLowerCase();
+  const hit = (t: string) => !qq || t.toLowerCase().includes(qq);
+  const inView = (r: ProjectRow) =>
+    view === "on_hold" ? isPaused(r)
+    : view === "done" ? bucketOf(r) === "done"
+    : view === "all" ? true
+    : bucketOf(r) !== "done" && !isPaused(r);
+  const inArea = (cat: string | null) => !areaOnly || cat === areaOnly;
+  const lensRows = projectRows.filter((r) => inView(r) && hit(r.project.data.title) && inArea(r.project.data.category ?? null));
+  const lensOrphans = areaOnly ? [] : orphanRows.filter((r) => inView(r) && hit(r.project.data.title));
+  /** The goals this view shows. Achieved goals leave the area cards on the
+   *  Active view exactly as they always have; the chips are what bring them
+   *  back, in place of the folded receipt at the foot. */
+  const viewGoals = (view === "achieved" ? doneGoals : view === "all" ? [...liveGoals, ...doneGoals] : liveGoals)
+    .filter((g) => hit(g.data.title) && inArea(homeOf(g)));
+  const PROJECT_VIEWS: HeaderView[] = [
+    { key: "active", label: "Active" },
+    ...(pausedCount > 0 ? [{ key: "on_hold", label: "On Hold", count: pausedCount }] : []),
+    ...(doneRows.length > 0 ? [{ key: "done", label: "Done", count: doneRows.length }] : []),
+    { key: "all", label: "All" },
+  ];
+  const GOAL_VIEWS: HeaderView[] = [
+    { key: "active", label: "Active" },
+    ...(doneGoals.length > 0 ? [{ key: "achieved", label: "Achieved", count: doneGoals.length }] : []),
+    { key: "all", label: "All" },
+  ];
   const movingProject = moveFor ? projectRows.find((r) => r.project.id === moveFor)?.project ?? null : null;
 
   if (lensed) {
     const goalIdsHomed = (c: { id: string }) => rankGoals(
-      liveGoals.filter((g) => homeOf(g) === c.id).map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g }; }),
+      viewGoals.filter((g) => homeOf(g) === c.id).map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g }; }),
     ).map((x) => x.goal);
     // Goals in the frame's order: homed goals section by section, then the
     // ones with no home.
-    const unhomed = liveGoals.filter((g) => homeOf(g) === null);
+    const unhomed = viewGoals.filter((g) => homeOf(g) === null);
     return (
       <div className="screen ruled">
-        <PageHeader title={title} />
-        {segments}
+        {/* ONE HEADER, FIVE PAGES (Dave 2026-09-17, Unified Headers). Neither
+            lens had a search field or a visible Add before this: the handoff
+            names that directly -- "Projects and Goals lack the same obvious
+            creation/search affordances as Reminders". */}
+        <PageHeader title={title} headActions={<OptionsButton onClick={() => setOptsOpen(true)} label={projectsLens ? "Projects Options" : "Goals Options"} />}>
+          <LifeHeader
+            query={q}
+            onQuery={setQ}
+            placeholder={projectsLens ? "Search Projects" : "Search Goals"}
+            addLabel={projectsLens ? "New Project" : "New Goal"}
+            onAdd={projectsLens ? onAddProject : onAddGoal}
+            views={projectsLens ? PROJECT_VIEWS : GOAL_VIEWS}
+            view={view}
+            onView={setView}
+            scope={qq ? {
+              count: projectsLens ? lensRows.length : viewGoals.length,
+              where: `${(projectsLens ? PROJECT_VIEWS : GOAL_VIEWS).find((v) => v.key === view)?.label ?? "Active"} ${projectsLens ? "projects" : "goals"}`,
+              ...(view !== "all" ? { onAll: () => setView("all"), allLabel: projectsLens ? "Search all projects" : "Search all goals" } : {}),
+            } : undefined}
+          >
+            {segments}
+          </LifeHeader>
+        </PageHeader>
         {/* THE ASK LIVES WITH ITS OWN KIND (Dave 2026-09-09: "why is there a
             random goal at the top that I can't even click on"). The one ask is
             a stalled PROJECT; on the Goals segment it was the only project on
             screen, wearing a target, so it read as a goal he had never made.
             It shows on Projects, and on the unlensed frame that holds both. */}
         {projectsLens && offer}
-        {projectsLens && pausedCount > 0 && (
-          <div className="chip-row chip-wrap-row proj-filters" role="group" aria-label="Show projects">
-            <button type="button" className={"chip" + (!showPausedOnly ? " active" : "")} aria-pressed={!showPausedOnly} onClick={() => setPausedOnly(false)}>All</button>
-            <button type="button" className={"chip" + (showPausedOnly ? " active" : "")} aria-pressed={showPausedOnly} onClick={() => setPausedOnly(true)}>{`Paused ${pausedCount}`}</button>
-          </div>
-        )}
+
         {/* MOVE TO GOAL (Dave 2026-09-13): every goal a project can be filed
             to, the one it is under disabled, and No Goal to take it off. */}
         {movingProject && onMoveProject && (
@@ -435,7 +500,10 @@ export default function BiggerPicturePage({
                 when it is alone (THE PREVIEW IS THE SPEC, 2026-09-01).
                 ...and when there IS no receipt above it, no card either:
                 see addRow below. */}
-            {doneRows.length > 0 && !showPausedOnly ? (
+            {/* The folded receipt was the only way to reach a done project;
+                the Done chip is that door now, so it belongs to the view
+                where it still is the only one. */}
+            {doneRows.length > 0 && view === "active" ? (
               <div className="pad-x"><div className="card list-card-ruled list-tail">
                 <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
                   <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
@@ -465,7 +533,7 @@ export default function BiggerPicturePage({
                 -- byte for byte the receipt the Projects lens above already
                 uses, because a finished goal and a finished project should
                 not need two different mental models. */}
-            {doneGoals.length > 0 ? (
+            {doneGoals.length > 0 && view === "active" ? (
               <div className="pad-x"><div className="card list-card-ruled list-tail">
                 <button className="receipt-line" onClick={() => setDoneGoalsOpen((v) => !v)}>
                   <span className="rl-t">{capAfterNumber(`${doneGoals.length} Done ${doneGoals.length === 1 ? "goal" : "goals"}`)}</span>
@@ -478,6 +546,15 @@ export default function BiggerPicturePage({
           </>
         )}
         <div className="screen-foot" />
+        {/* Neither lens had secondary tools of its own; the sheet is here so
+            the control in the bar is the same control on all five pages, and
+            it holds the one thing this lens can say about its list. */}
+        {optsOpen && (
+          <OptionsSheet title={projectsLens ? "Projects Options" : "Goals Options"} rows={[
+            { key: "all", label: "All Areas", onClick: () => { setOptsOpen(false); setAreaOnly(null); } },
+            ...sections.map((c) => ({ key: c.id, label: c.name, onClick: () => { setOptsOpen(false); setAreaOnly(c.id); } })),
+          ]} onClose={() => setOptsOpen(false)} />
+        )}
       </div>
     );
   }

@@ -594,6 +594,16 @@
   border: 0; font-family: inherit; }
 /* buttons, so the UA ground has to go; the active one keeps the system's. */
 .life-seg .segmented .seg:not(.active) { background: transparent; }
+/* FIVE LABELS, ONE ROW, NOTHING CLIPPED (2026-09-17, checked against the
+   Unified Headers mockups in a real Chromium render at phone width). The
+   system's .seg is `flex: 1`, equal columns, which is right for two or three
+   words and wrong for Areas / Tasks / Reminders / Projects / Goals: the
+   longest label overflows its column and the row's edge cuts "Goals" in half.
+   Each one sizes to its own word instead, and the row scrolls rather than
+   clips if a future label or a larger text size still overruns it. */
+.life-seg .segmented { overflow-x: auto; scrollbar-width: none; }
+.life-seg .segmented::-webkit-scrollbar { display: none; }
+.life-seg .segmented .seg { flex: 0 0 auto; padding-left: var(--s-2h); padding-right: var(--s-2h); white-space: nowrap; }
 /* A project row's lineage line: the goal it is filed to, short name and mark. */
 .ruled .proj-row .r-k { margin-top: 3px; }
 

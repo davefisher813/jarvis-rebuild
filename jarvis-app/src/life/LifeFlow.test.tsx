@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useEffect, useState } from "react";
 import { NotesProvider, useProjects, useGoals, useTasks, useCategories } from "../data/NotesProvider";
@@ -218,8 +218,11 @@ describe("a task link is spent once (SHELL-F-12)", () => {
     await waitFor(() => expect(rows().length).toBeGreaterThan(0), { timeout: 3000 });
     fireEvent.click(screen.getByText("Link Task"));
     await waitFor(() => expect(screen.getByText("Edit Task")).toBeInTheDocument());
-    // The filter the link asked for is showing (the Show menu names it).
-    expect(screen.getByLabelText("Show")).toHaveTextContent("Overdue");
+    // AMENDED 2026-09-17 (Unified Headers): the views are a chip row now, so
+    // the selected one names the filter the link asked for. The Show menu is
+    // gone; what this test is about -- a link is spent once -- is unchanged.
+    const views = () => within(screen.getByRole("tablist", { name: "Views" }));
+    expect(views().getByRole("tab", { selected: true })).toHaveTextContent("Overdue");
 
     fireEvent.click(screen.getByText("Cancel"));
     await waitFor(() => expect(screen.queryByText("Edit Task")).not.toBeInTheDocument());
@@ -232,7 +235,7 @@ describe("a task link is spent once (SHELL-F-12)", () => {
 
     expect(screen.queryByText("Edit Task")).not.toBeInTheDocument();
     // And the filter is the list's own default, not the one that link carried.
-    expect(screen.getByLabelText("Show")).toHaveTextContent("Today");
+    expect(views().getByRole("tab", { selected: true })).toHaveTextContent("Today");
   });
 });
 

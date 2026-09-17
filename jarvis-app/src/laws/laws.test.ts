@@ -2874,12 +2874,31 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
   // portal fixed to its capsule, so nothing overflows sideways and nothing
   // needs a "more" mark. The counts the chips carried live inside the
   // view menu, one per option.
-  it("the Tasks head is three menus, not chip rows", () => {
+  // REVERSED 2026-09-17, BY THE SAME PERSON (Dave, the Unified Headers
+  // handoff: "unify the headers of Tasks, Reminders, Notes, Projects and
+  // Goals using the attached mockups", and its mockup of this exact page).
+  //
+  // The 2026-09-02 ruling above -- one line of dropdowns, no chip rows --
+  // was made about a page carrying two big buttons, six filter chips, a row
+  // of area chips AND a floating card: six things before the first task.
+  // The dropdown line fixed that, and then held every VIEW behind a menu on
+  // the one page in the app where the view is the thing you change most.
+  //
+  // What the handoff keeps from the old ruling is the part that mattered:
+  // ONE row, scrolling, never wrapping, and nothing in it but workflow
+  // state. Area and Group are still menus and still one tap away; they moved
+  // from a line under the head into the options sheet, which is now the same
+  // control on all five pages. Both halves are pinned below, so neither the
+  // old shape nor a second wrapping chip row can come back by accident.
+  it("the Tasks views are one scrolling chip row, and Area and Group are menus in the options sheet", () => {
     const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
-    expect(page, "no chip row survives on the page").not.toMatch(/ChipRow|chip-row/);
-    expect(page.match(/<HeadMenu/g)?.length, "three menus: view, area, group").toBe(3);
-    expect(page, "the view menu leads, with the list's count and every filter's count")
-      .toMatch(/lead\s+ariaLabel="Show"[\s\S]*?count=\{items\.length\}[\s\S]*?options=\{FILTERS\.map\(\(f\) => \(\{ value: f, label: FILTER_LABEL\[f\], count: counts\[f\] \}\)\)\}/);
+    expect(page, "the views are the shared header's chip row").toMatch(/views=\{views\}/);
+    expect(page, "and every existing filter is in it, in the handoff's order")
+      .toMatch(/const LEAD_FILTERS: TaskFilter\[\] = \["today", "upcoming", "all", "done"\];[\s\S]*?FILTERS\.filter\(\(f\) => !LEAD_FILTERS\.includes\(f\)\)/);
+    expect(page, "one row, never two: the chip row this page spends wraps nothing").not.toMatch(/chip-wrap-row/);
+    expect(page.match(/<HeadMenu/g)?.length, "two menus, both in the options sheet: area, group").toBe(2);
+    expect(page, "and they are inside it, not on a line under the head")
+      .toMatch(/<OptionsSheet title="Tasks Options"[\s\S]*?<HeadMenu[\s\S]*?<HeadMenu/);
     const menu = read(join(SRC, "shared/HeadMenu.tsx"));
     expect(menu, "the panel is a portal fixed to the capsule, never clipped by a card")
       .toMatch(/createPortal\(/);

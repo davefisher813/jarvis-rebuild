@@ -148,6 +148,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // The door in is on the What Now sheet now (Fewer Buttons, 2026-09-02),
   // which lives in the shell; when it writes the flag, this page re-reads it.
   useEffect(() => subscribeOverwhelmed(() => setOverwhelmed(loadOverwhelmed(todayISO()))), []);
+  const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<TaskFilter>(
     openFilter && (FILTERS as string[]).includes(openFilter) ? (openFilter as TaskFilter) : "today",
   );
@@ -1028,6 +1029,12 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
       <TasksPage
         title={title}
         segments={segments}
+        // THE HEADER'S SEARCH (2026-09-17, Unified Headers). Held by the flow
+        // rather than the page so it survives opening a task and coming back,
+        // which is rule 4's "Preserve query, selected chip, Area and scroll
+        // position when returning from details".
+        query={query}
+        onQuery={setQuery}
         onPickOne={pickOne}
         startLabel={startLabelFor}
         startCard={startCard}
