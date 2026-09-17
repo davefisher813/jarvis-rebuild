@@ -1,3 +1,4 @@
+import { liftTitle } from "../shared/casing";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { ProgramDay, Workout } from "./types";
@@ -87,7 +88,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
                 // The whole lever row flips its switch (Dave 2026-09-15: "I want all rows clickable").
                 <div className="row" key={o.key} onClick={() => toggle(o.key)}>
                   <div className="row-grow">
-                    <div className="conn-name truncate">{o.name}</div>
+                    <div className="conn-name truncate">{liftTitle(o.name)}</div>
                     <div className="conn-meta">{o.sub}</div>
                   </div>
                   <div className={"switch" + (o.on ? "" : " off")} role="switch" aria-checked={o.on} tabIndex={0}

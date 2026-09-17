@@ -1,4 +1,4 @@
-import { workoutTitle } from "../shared/casing";
+import { liftTitle, workoutTitle } from "../shared/casing";
 import { useState } from "react";
 import MarkdownField from "../shared/MarkdownField";
 import { createPortal } from "react-dom";
@@ -145,7 +145,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
                 {receipt.prs.map((p) => (
                   <div className="row" key={p.name}>
                     <div className="row-grow">
-                      <div className="conn-name truncate">{p.name}</div>
+                      <div className="conn-name truncate">{liftTitle(p.name)}</div>
                       <div className="conn-meta">{p.text}{p.from ? ` · Up from ${p.from}` : " · First time"}</div>
                     </div>
                     <span className="pill pill-good">PR</span>

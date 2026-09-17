@@ -3,7 +3,7 @@ import { loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, type Lo
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
-import { capAfterNumber, workoutTitle } from "../shared/casing";
+import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
 import { REST_FLOOR_SEC } from "./pacing";
 import { logButtonLabel, plannedEntryAt, entryNoun, formatSet } from "./measures";
 import { newSetId, blankEntry, duplicateEntry, entryFrom } from "./strip";
@@ -530,7 +530,7 @@ export default function SessionScreen({
             <span className="se-chip se-chip-budget"><em>Budget</em>{clock(live.startedAt + (live.budgetMin ?? 0) * 60_000)}</span>
           </div>
         )}
-        <div className="p3-q">{exercise.name}</div>
+        <div className="p3-q">{liftTitle(exercise.name)}</div>
         {/* Part 3 wave 5: the equipment convention, on the session too. */}
         {/* 2026-09-14: the chip names the reading, not just the hardware, so
             mid-set there is no doubt whether the number on the button is one

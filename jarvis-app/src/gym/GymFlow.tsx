@@ -66,7 +66,7 @@ import { useLongPress } from "../shared/useLongPress";
 import { showToast } from "../shared/toast";
 import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { useAI } from "../ai/useAI";
-import { capAfterNumber, workoutTitle } from "../shared/casing";
+import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
 import { BarbellGlyph } from "../shared/glyphs";
 import { Ellipsis } from "../shared/icons";
 import Stepper from "../shared/Stepper";
@@ -429,7 +429,7 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
             colored facts, not more prose in the name. */}
         <div className="conn-name truncate">
           {pairLabel && <span className="xtag xtag-blue">{pairLabel}</span>}
-          {exercise.name}
+          {liftTitle(exercise.name)}
           {exercise.ramp && <span className="xtag xtag-warn xtag-after">Ramp</span>}
           {exercise.filler && <span className="xtag xtag-dim xtag-after">Filler</span>}
         </div>
@@ -468,7 +468,7 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
         {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}
       </div>
       {/* One trailing control, same as the day row above. */}
-      <RowMenuButton onMenu={onMenu} what={exercise.name} />
+      <RowMenuButton onMenu={onMenu} what={liftTitle(exercise.name)} />
     </div>
   );
 }
@@ -1845,8 +1845,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           onCreate={({ name, kind }) => {
             const twin = library.find((e) => e.name.trim().toLowerCase() === name.toLowerCase() && e.kind === kind);
             if (twin) { showToast({ message: `${twin.name} is already here` }); return; }
-            saveCreatedLifts([...createdLifts, { key: newExerciseKey(), name, kind }]);
-            showToast({ message: `${name} added` });
+            const cased = liftTitle(name);
+            saveCreatedLifts([...createdLifts, { key: newExerciseKey(), name: cased, kind }]);
+            showToast({ message: `${cased} added` });
           }}
           // THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list
           // of exercises there's a goal option"). Walks into the exercise it is
@@ -2017,7 +2018,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           <div key={e.exerciseId + ei}>
             {/* The one head grammar of the gym pages (reformat 2026-08-31):
                 quiet sh2, same as Days / Recent / Exercises. */}
-            <div className="sh2 sh2-quiet"><span className="t">{e.name}</span></div>
+            <div className="sh2 sh2-quiet"><span className="t">{liftTitle(e.name)}</span></div>
             <div className="pad-x">
               <SetStrip
                 kind={e.kind}
@@ -2492,7 +2493,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         }
       }
       actions.push({ label: "Delete...", onClick: () => setSheet({ kind: "exercise", weekId, dayId, exId: exercise.id }) });
-      return <ActionSheet title={exercise.name} actions={actions} onClose={() => setRowMenu(null)} />;
+      return <ActionSheet title={liftTitle(exercise.name)} actions={actions} onClose={() => setRowMenu(null)} />;
     }
     if (rowMenu.kind === "program") {
       const p = rowMenu.program;

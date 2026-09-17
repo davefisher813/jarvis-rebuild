@@ -1,3 +1,4 @@
+import { liftTitle } from "../shared/casing";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import SheetBar from "../shared/SheetBar";
@@ -93,7 +94,7 @@ export default function LibraryPickSheet({
               aria-pressed={multi ? isPicked(entry.key) : undefined}
               onClick={() => (multi ? toggle(entry) : onPick(entry))}>
               <div className="row-grow">
-                <div className="conn-name truncate">{entry.name}</div>
+                <div className="conn-name truncate">{liftTitle(entry.name)}</div>
                 {/* ONLY WHEN IT IS NEWS (2026-09-16, the polish handoff: "drop
                     the repeated Weight x Reps from the add-from-your-lifts
                     list"). Nearly every lift in a gym is weight and reps, so
@@ -119,7 +120,7 @@ export default function LibraryPickSheet({
             typed matches nothing, and it names what it would create. */}
         {onFreeText && q.trim() && (
           <div className="pad-x sheet-actions">
-            <button className="btn btn-secondary btn-block" onClick={() => onFreeText(q.trim())}>
+            <button className="btn btn-secondary btn-block" onClick={() => onFreeText(liftTitle(q.trim()))}>
               Use &ldquo;{q.trim()}&rdquo; Anyway
             </button>
           </div>

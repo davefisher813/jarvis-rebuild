@@ -1,3 +1,4 @@
+import { liftTitle } from "../shared/casing";
 import { createPortal } from "react-dom";
 import { Fragment, useRef, useState, type ReactNode } from "react";
 import { own } from "../shared/rowDoor";
@@ -230,7 +231,11 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   const save = () => {
     if (!valid) { setTouched(true); return; }
     onSave({
-      name: name.trim(), kind, sets: condBlock ? [] : sets,
+      // CASED ON THE WAY IN (Dave 2026-09-17: "Case those too"). This is
+      // where a name is minted or rewritten outright, so the record set
+      // converges on the spelling the app draws rather than the app
+      // redrawing a spelling the record set never agrees with.
+      name: liftTitle(name.trim()), kind, sets: condBlock ? [] : sets,
       ...(unit ? { unit } : {}),
       ...(kind === "distance_time" ? { timeUnit } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),

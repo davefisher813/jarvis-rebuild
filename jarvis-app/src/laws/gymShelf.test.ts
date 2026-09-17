@@ -81,11 +81,70 @@ describe("every place a workout names itself is cased", () => {
     expect(GYM_FLOW).toContain("onSave(workoutTitle(v.trim()))");
   });
 
-  // LAW 18, the never-guess doctrine: an exercise is named by the athlete and
-  // the app does not rewrite it. Only WORKOUT titles are cased.
-  it("leaves an exercise's own name alone", () => {
+  // A WORKOUT'S TITLE AND A LIFT'S NAME ARE CASED BY DIFFERENT FUNCTIONS
+  // (2026-09-17, the same afternoon: "Case those too"). Same spelling rule,
+  // different risk: a lift's name is its identity when it has no
+  // exerciseKey, so liftTitle carries the rule about never casing a value on
+  // its way into a comparison. Keeping them apart is what makes that rule
+  // readable at each call site.
+  it("cases a lift's name with the function that documents the identity risk", () => {
+    expect(GYM_FLOW).toContain("liftTitle(exercise.name)");
     expect(GYM_FLOW).not.toContain("workoutTitle(exercise.name)");
-    expect(read("gym/LibraryPage.tsx")).not.toContain("workoutTitle(");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2b. AN EXERCISE'S NAME IS TITLE CASE TOO, and casing it must never reach a
+// lookup. "Bulgarian split squats / Calf raise machine / Glute kickbacks" was
+// the library Dave was looking at.
+//
+// The danger this pins: the lift detail screen finds its record by matching
+// `r.name === liftDetailFor.name` across a LIBRARY row and a RECORD. Case one
+// side and the screen silently never finds its match -- no error, no warning,
+// just a note and a muscle that stopped appearing.
+// ---------------------------------------------------------------------------
+describe("casing a lift's name never reaches a comparison", () => {
+  it("leaves the by-name lookups reading raw record text", () => {
+    // The three that exist today, each comparing a row or a record name
+    // against the name the detail screen was opened with.
+    expect(GYM_FLOW).toContain("r.name === liftDetailFor.name");
+    expect(GYM_FLOW).toContain("e.name === liftDetailFor.name");
+    // Nothing anywhere compares a CASED name to anything. `===` next to a
+    // liftTitle call is the shape of the silent failure this law is about.
+    const cased = [...GYM_FLOW.matchAll(/liftTitle\([^)]*\)\s*===|===\s*liftTitle\(/g)].map((m) => m[0]);
+    expect(cased, "a cased name will never equal the raw one on the record").toEqual([]);
+  });
+
+  it("never cases the identity a library key is derived from", () => {
+    // fallbackKey(name, kind) IS the key for a lift with no exerciseKey.
+    const lib = read("gym/library.ts");
+    expect(lib).not.toContain("liftTitle");
+    expect(read("gym/libraryEdit.ts")).not.toContain("liftTitle");
+    expect(read("gym/identity.ts")).not.toContain("liftTitle");
+  });
+
+  it("cases the name at every screen that prints it", () => {
+    const SITES: [string, string][] = [
+      ["gym/LibraryPage.tsx", '<div className="ex-name">{liftTitle(r.name)}</div>'],
+      ["gym/LibraryPickSheet.tsx", "{liftTitle(entry.name)}"],
+      ["gym/HistoryScreen.tsx", '<div className="conn-name truncate">{liftTitle(r.name)}</div>'],
+      ["gym/LiftDetailScreen.tsx", "{liftTitle(name)}"],
+      ["gym/SessionScreen.tsx", "{liftTitle(exercise.name)}"],
+      ["gym/ReceiptSheet.tsx", "{liftTitle(p.name)}"],
+      ["gym/CondReceipt.tsx", "liftTitle(exercise.name)"],
+      ["gym/DuplicateReview.tsx", "{liftTitle(row.name)}"],
+      ["gym/BatchSheet.tsx", "{liftTitle(ch.name)}"],
+      ["gym/FitSheet.tsx", "{liftTitle(o.name)}"],
+    ];
+    const missing = SITES.filter(([f, call]) => !read(f).includes(call)).map(([f]) => f);
+    expect(missing, "these still print the raw spelling").toEqual([]);
+  });
+
+  it("cases the name at the doors that mint or rewrite one", () => {
+    expect(read("gym/ExerciseSheet.tsx")).toContain("name: liftTitle(name.trim())");
+    expect(read("gym/LibraryPage.tsx")).toContain("onRename(r, liftTitle(draft.trim()))");
+    expect(read("gym/LibraryPickSheet.tsx")).toContain("onFreeText(liftTitle(q.trim()))");
+    expect(GYM_FLOW).toContain("const cased = liftTitle(name);");
   });
 });
 

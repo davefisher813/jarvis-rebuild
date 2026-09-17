@@ -4,7 +4,7 @@ import { exerciseHistory, trendLine, doneCount, sessionGroups } from "./history"
 import { liftSessions, chartValue } from "./chartData";
 import { sameLiftAnyKind } from "./identity";
 import { monthDay } from "../money/bills";
-import { capAfterNumber, workoutTitle } from "../shared/casing";
+import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
 import { todayISO } from "../tasks/grouping";
 
 const CHEV = <div className="chev" />;
@@ -138,7 +138,7 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
             <div className="row" role="button" tabIndex={0} key={(r.exerciseKey ?? r.name) + r.kind}
               onClick={() => onOpenLift({ name: r.name, exerciseKey: r.exerciseKey, kind: r.kind, unit: r.unit, timeUnit: r.timeUnit })}>
               <div className="row-grow">
-                <div className="conn-name truncate">{r.name}</div>
+                <div className="conn-name truncate">{liftTitle(r.name)}</div>
                 {/* Row meta is quiet sentence case app-wide (gym
                     reformat 2026-08-31); eyebrows are kickers, not
                     sublines. */}
@@ -164,7 +164,7 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
             {doneRows.map((d) => (
               <div className="row" key={d.key}>
                 <div className="row-grow">
-                  <div className="conn-name truncate">{d.name}</div>
+                  <div className="conn-name truncate">{liftTitle(d.name)}</div>
                   <div className="facts"><span className="fact lime">{d.n > 1 ? capAfterNumber(`${d.n} times`) : "Done"}</span></div>
                 </div>
               </div>

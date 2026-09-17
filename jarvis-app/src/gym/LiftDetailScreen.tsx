@@ -11,7 +11,7 @@ import { liftMeasureState, type LiftMeasure } from "./goalMeasures";
 import { activeMetrics, numericValue, type MetricDef, type MetricLog } from "./metrics";
 import { MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 import { identityLine, valueLine, type Chip, type Classification } from "./classify";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, liftTitle } from "../shared/casing";
 import { agoPhrase, agoPhraseLower } from "./summary";
 import { todayISO } from "../tasks/grouping";
 import { shortDate } from "../shared/dateFormat";
@@ -226,7 +226,7 @@ export default function LiftDetailScreen({
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">{name}</div>
+        <div className="nav-title">{liftTitle(name)}</div>
         <span className="nav-action"></span>
       </div>
 

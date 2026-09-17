@@ -9,7 +9,7 @@ import ActionSheet, { PickSheet, type PickItem, type SheetAction } from "./Actio
 import ClassifySheet from "./ClassifySheet";
 import BatchSheet from "./BatchSheet";
 import { DuplicateBar, DuplicatesSheet } from "./DuplicateReview";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, liftTitle } from "../shared/casing";
 import { findDuplicates, pairId, type DuplicatePair } from "./duplicates";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 import { MEASURE_KINDS, MEASURE_LABEL, type MeasureKind } from "./types";
@@ -146,14 +146,14 @@ export default function LibraryPage({
   const mergeItems: PickItem[] = merging
     ? rows
       .filter((r) => r.key !== merging.key && r.kind === merging.kind)
-      .map((r) => ({ id: r.key, label: r.name, sub: r.sessions > 0 ? capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) : "Never done" }))
+      .map((r) => ({ id: r.key, label: liftTitle(r.name), sub: r.sessions > 0 ? capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) : "Never done" }))
     : [];
 
   const setF = (patch: Partial<LibraryFilter>) => { setJustSaved([]); setFilter((f) => ({ ...f, ...patch })); };
 
   const menuActions = (r: LibraryRow): SheetAction[] => [
     { label: "Edit Details", onClick: () => setClassing({ row: r, open: "muscles" }) },
-    { label: "Rename", onClick: () => { setRenaming(r); setDraft(r.name); } },
+    { label: "Rename", onClick: () => { setRenaming(r); setDraft(liftTitle(r.name)); } },
     ...(onSetGoal ? [{ label: "Set Goal", onClick: () => onSetGoal(r) }] : []),
     { label: "Merge Into Another Exercise", onClick: () => setMerging(r) },
     ...(onToggleFavorite ? [{ label: r.favorite ? "Remove From Favorites" : "Add to Favorites", onClick: () => onToggleFavorite(r) }] : []),
@@ -306,7 +306,7 @@ export default function LibraryPage({
                     : () => onOpen(r))}>
                   <div className="row-grow">
                     {/* The name wraps rather than clipping. */}
-                    <div className="ex-name">{r.name}</div>
+                    <div className="ex-name">{liftTitle(r.name)}</div>
                     {/* §7: "2 sessions · Last yesterday" was one grey line
                         doing two jobs. Two compact fields. */}
                     <div className="facts">
@@ -360,7 +360,7 @@ export default function LibraryPage({
                   {selecting
                     ? <span className={"ex-check" + (on ? " on" : "")} aria-hidden="true" />
                     : (
-                      <button type="button" className="ex-more" aria-label={`More for ${r.name}`}
+                      <button type="button" className="ex-more" aria-label={`More for ${liftTitle(r.name)}`}
                         onClick={(e) => { e.stopPropagation(); setMenu(r); }}>
                         <span aria-hidden="true">···</span>
                       </button>
@@ -447,13 +447,13 @@ export default function LibraryPage({
           <div className="card xs" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
             <SheetBar
-              title={renaming.name}
+              title={liftTitle(renaming.name)}
               onCancel={() => setRenaming(null)}
               saveLabel="Done"
               onSave={() => {
                 const r = renaming;
                 setRenaming(null);
-                if (draft.trim() && draft.trim() !== r.name) onRename(r, draft);
+                if (draft.trim() && draft.trim() !== r.name) onRename(r, liftTitle(draft.trim()));
               }}
             />
             <div className="sheet-form">
