@@ -11,14 +11,24 @@
 // exercise itself, set by hand in the editor, absent by default -- a row
 // with no tags renders nothing rather than a wrong one.
 
+// FOREARMS (Dave 2026-09-16, on the muscle picker: "needs forearms").
+//
+// It is a real group a real program trains on purpose -- every grip, carry
+// and hold, and the reason a row deadlift stops before the back does -- and
+// leaving it out meant those lifts either went untagged or got filed under
+// Biceps, which is wrong in the one place the app's own counting has to be
+// right. Added at the end of the arm run, where a reader looking for it will
+// look. Additive: nothing already assigned changes, and a store written
+// before today reads exactly as it did.
 export const MUSCLE_GROUPS = [
-  "chest", "back", "shoulders", "biceps", "triceps",
+  "chest", "back", "shoulders", "biceps", "triceps", "forearms",
   "quads", "hamstrings", "glutes", "calves", "core",
 ] as const;
 export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
 
 export const MUSCLE_LABEL: Record<MuscleGroup, string> = {
   chest: "Chest", back: "Back", shoulders: "Shoulders", biceps: "Biceps", triceps: "Triceps",
+  forearms: "Forearms",
   quads: "Quads", hamstrings: "Hamstrings", glutes: "Glutes", calves: "Calves", core: "Core",
 };
 

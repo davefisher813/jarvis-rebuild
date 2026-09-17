@@ -310,7 +310,11 @@ describe("GYM-F-26: every row menu has a visible door", () => {
     // is the house contract every other list already obeyed, instead of the
     // filled capsule the gym had invented for the same job.
     expect(rendered).toMatch(/<div className="facts">/);
-    expect(rendered).toMatch(/<span className="fact cyan">\{planChipText\(exercise\)\}<\/span>/);
+    // AMENDED 2026-09-16: the count leads the line and the noun wears the
+    // quiet ink, so the chip is drawn from parts instead of one string. The
+    // string survives as the label a screen reader speaks.
+    expect(rendered).toMatch(/<span className="fact cyan" aria-label=\{planChipText\(exercise\)\}>/);
+    expect(rendered).toMatch(/\{plan\.count\}<em className="fw">\{plan\.noun\}<\/em>\{plan\.target\}/);
     expect(rendered, "rest is its own fact, only when there is one")
       .toMatch(/exercise\.restSec \? <span className="fact">\{`\$\{mmss\(exercise\.restSec\)\} rest`\}<\/span> : null/);
     expect(rendered, "and no capsule stands in for a value here")

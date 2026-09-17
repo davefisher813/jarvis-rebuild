@@ -634,6 +634,17 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    scroll (2026-09-06, "the pages behind them end up scrolling instead"). */
 .sheet-scrim .sheet-form { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .sheet-scrim .sheet-actions { flex-shrink: 0; }
+/* A SHEET'S OWN LIST IS ITS SCROLLER (2026-09-16, Dave: "the modal doesn't
+   scroll. Can't get out of it. Freezes the whole app").
+
+   The card is a flex column capped at 92% of the visible band. Every child
+   above declares how it behaves in that column; a list rendered as a bare
+   <div> did not, and a flex item defaults to min-height: auto -- it cannot
+   shrink below its own content. So a long list grew past the cap and pushed
+   the actions off the bottom of the screen, with nothing scrollable because
+   nothing had been told it was the scroller. Same three rules .sheet-form has
+   always carried, on the element that actually holds the rows. */
+.sheet-scrim .sheet-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
 /* Category color + icon pickers (Category sheet). Tokens only. */
 /* BROWSER-F-08 (2026-09-05): --s-6, not --s-3. The swatch paints 24px, so a
@@ -3599,6 +3610,26 @@ button {
    something else. */
 .chip.chip-half { background: var(--press-3); color: var(--tx-1);
   box-shadow: inset 0 0 0 1.5px var(--sel-bg); }
+/* A SELECTION IN THE COLOUR OF ITS QUESTION (2026-09-16, Dave on the classify
+   sheet: "it's ugly, has no color").
+
+   .chip.active is the app's white pill and stays that everywhere else: where
+   a selection is just a selection, white is right. On a form where seven
+   different questions are answered the same way down one scroll, it is not --
+   nothing tells you which answer belongs to which question without reading
+   the heading above it again. The hue does that at a glance: lime for what
+   the body does, violet for what the hardware is, cyan for how the lift is
+   described. Same three meanings the library row's chips now use, so the
+   sheet and the list it was opened from agree.
+
+   Tinted fill plus a full-strength ring: a selected chip has to beat an
+   unselected one at arm's length in a gym, and a tint alone does not. */
+.chip.active.chip-lime { background: var(--hl-lime-tint); color: var(--hl-lime); box-shadow: inset 0 0 0 1.5px var(--hl-lime); }
+.chip.active.chip-violet { background: var(--hl-violet-tint); color: var(--hl-violet); box-shadow: inset 0 0 0 1.5px var(--hl-violet); }
+.chip.active.chip-cyan { background: var(--hl-cyan-tint); color: var(--hl-cyan); box-shadow: inset 0 0 0 1.5px var(--hl-cyan); }
+/* A secondary muscle is the same fact at half weight, which is exactly what
+   this app counts it as. Same hue, ring only. */
+.chip.chip-half.chip-lime { background: none; color: var(--hl-lime); box-shadow: inset 0 0 0 1.5px var(--hl-lime-tint); }
 .chip-act { color: var(--accent-tx); }
 /* The load line under the strip. Amber only when the day says no; a neutral
    day must never look like a warning. */
@@ -5118,6 +5149,16 @@ body.selecting .voice-dock { display: none; }
    none of those rows carries a label to sit against, because the input IS
    the row, the same as .task-name and .conn-name always read left. */
 .sheet-form .xs-row:has(> .xs-label) .xs-input { text-align: right; }
+/* EXCEPT WHERE YOU ARE WRITING A PHRASE (2026-09-16, Dave on the classify
+   sheet: "typing cursor is all the way to the right and makes editing
+   messy"). Right-aligning a VALUE is correct -- lb, 3, Barbell, and every
+   HeadMenu value in this file sits there. It is wrong for a field you type a
+   name into: the caret starts at the right edge, the text grows leftward away
+   from it, and the beginning of what you wrote is the first thing to go out
+   of view. A gym's name and a machine's name are that kind of field. The
+   four that were not -- grip, stance, angle, variation -- stopped being text
+   fields at all today and are chips now. */
+.sheet-form .xs-row.xs-row-write .xs-input { text-align: left; }
 
 .form-sheet .xs-field { text-align: right; color: var(--tx-2); font-size: calc(16px * var(--type-scale)); }
 .form-sheet .xs-field::placeholder { color: var(--tx-2); }

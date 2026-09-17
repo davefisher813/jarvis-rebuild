@@ -177,15 +177,41 @@ export function targetLine(ex: Exercise): string {
  *  the editor the row opens.
  *
  *  Nothing is hidden that the row could honestly have held. */
-export function planChipText(ex: Exercise): string {
+export interface PlanChip {
+  /** How many of them. */
+  count: number;
+  /** What they are: Sets, Rounds, Attempts, Times. */
+  noun: string;
+  /** What each one asks for, or null when the strip varies or has no target
+   *  and the honest answer is the count alone. */
+  target: string | null;
+}
+
+/** THE COUNT LEADS (2026-09-16, Dave: "should say sets to start it off, so:
+ *  3 sets 8x5 for example. Can use faded bold grey font for sets").
+ *
+ *  It read "3 × 275 lb × 5", which is two multiplication signs doing two
+ *  different jobs on one line: the first is "three of these" and the second
+ *  is "this weight for this many". Saying the first one in words separates
+ *  them, and puts the number a person scans for -- how many sets -- at the
+ *  front where the eye lands. Parts, not a string, so the noun can wear the
+ *  quiet ink and the numbers can keep the hue. */
+export function planChip(ex: Exercise): PlanChip {
   const work = ex.sets.filter((s) => !s.warmup);
   const n = work.length;
-  if (n === 0) return capAfterNumber(`${ex.sets.length} ${entryNoun(ex.kind, ex.sets.length !== 1).toLowerCase()}`);
-  if (ex.kind === "done") return capAfterNumber(`${n} ${n === 1 ? "time" : "times"}`);
+  if (n === 0) return { count: ex.sets.length, noun: entryNoun(ex.kind, ex.sets.length !== 1), target: null };
+  if (ex.kind === "done") return { count: n, noun: n === 1 ? "Time" : "Times", target: null };
   if (!hasTarget({ kind: ex.kind, sets: work }) || !isUniformStrip(ex.kind, work)) {
-    return capAfterNumber(`${n} ${entryNoun(ex.kind, n !== 1).toLowerCase()}`);
+    return { count: n, noun: entryNoun(ex.kind, n !== 1), target: null };
   }
-  return `${n} × ${formatSet(ex, work[0]!)}`;
+  return { count: n, noun: entryNoun(ex.kind, n !== 1), target: formatSet(ex, work[0]!) };
+}
+
+/** The same chip as one string, for a label a screen reader speaks and for
+ *  anywhere a row cannot draw the parts. */
+export function planChipText(ex: Exercise): string {
+  const c = planChip(ex);
+  return `${c.count} ${c.noun}${c.target ? " " + c.target : ""}`;
 }
 
 // isCompactPlan lived here until 2026-09-16. It answered one question -- may

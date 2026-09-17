@@ -1552,6 +1552,14 @@
 /* R2: the facts line's own ink is --tx-2 in Health, one rung up from the
    app's --tx-3, because it is read between sets at arm's length. */
 .ruled.health-ruled .facts { color: var(--tx-2); }
+/* A WORD INSIDE A FACT (2026-09-16, Dave: "can use faded bold grey font for
+   sets"). The noun in "3 Sets 275 lb × 5" is not a reading and must not wear
+   the reading's hue -- it is the label that tells the two numbers apart. Same
+   treatment the day row's chip label already used: small, bold, uppercase,
+   the quiet ink, so the numbers either side of it carry the line. */
+.ruled.health-ruled .fact em.fw { font-style: normal; font-size: calc(10.5px * var(--type-scale));
+  font-weight: var(--w-bold); letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--tx-3); margin: 0 5px; }
 
 /* ---------- THE SET ROW'S STATES, AND THE BAR THAT LOGS THEM (Health R9 /
    R8, Dave's picks 2026-09-12) ----------------------------------------------
@@ -1985,6 +1993,20 @@
   padding: 3px 8px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--tx-2);
   border: none; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
 .ruled .ex-chip.on { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+/* ONE MEANING PER HUE ON A ROW OF CHIPS (2026-09-16, Dave: "too much of the
+   same color"). Every chip that carried meaning was cyan, and so was the date
+   beside them, so a row said cyan three times about three unrelated things.
+   A muscle is what the lift trains, in the lime this app already spends on
+   work done. Equipment is violet, which is the hue the session header's own
+   equipment chip has worn since it shipped. The movement pattern keeps the
+   plain chip: it is the least load-bearing axis and does not need a colour to
+   be found. Cyan goes back to meaning one thing here -- when it last
+   happened. */
+.ruled .ex-chip.lime { color: var(--hl-lime); background: var(--hl-lime-tint); }
+.ruled .ex-chip.violet { color: var(--hl-violet); background: var(--hl-violet-tint); }
+/* A secondary muscle is the same fact at half weight (the app's own counting
+   convention), so it is the same hue with the fill taken off. */
+.ruled .ex-chip.lime.sec { color: var(--hl-lime); background: none; box-shadow: inset 0 0 0 1px var(--hl-lime-tint); }
 .ruled .ex-chip.sec { color: var(--tx-3); }
 .ruled .ex-chip.amber { color: var(--hl-amber); background: var(--hl-amber-tint); }
 .ruled .ex-chip.quiet { color: var(--tx-3); background: none; padding-left: 0; }

@@ -305,7 +305,6 @@ export default function HealthBody({
                 <span className={"fact " + f.hue}>{f.value}</span>
                 {f.context.map((c) => <span className="fact" key={c}>{c}</span>)}
               </div>
-              {f.action && <div className="facts"><span className="fact cyan">{f.action}</span></div>}
             </div>
             {CHEV}
           </div>

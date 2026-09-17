@@ -42,6 +42,14 @@ import { filterCount, floorLine, NO_FILTER, SORT_LABEL, viewRows, type LibraryFi
 
 const CHEV = <div className="chev" />;
 
+/** The colour an axis speaks in. One meaning per hue, so a row of chips can
+ *  be read by colour before it is read by word. */
+function chipTone(ch: Chip): string {
+  if (ch.field === "muscles") return ch.tone === "primary" ? " lime" : " lime sec";
+  if (ch.field === "equipment") return " violet";
+  return "";
+}
+
 export default function LibraryPage({
   rows, store, todayIso, onOpen, onRename, onSetClass, onBatch, onMerge, onToggleHidden,
   onToggleFavorite, onSetGoal, dismissedDupes, onDismissDuplicate, onBack,
@@ -306,7 +314,19 @@ export default function LibraryPage({
                         <button
                           key={ch.label + i}
                           type="button"
-                          className={"ex-chip" + (ch.tone === "primary" ? " on" : ch.tone === "secondary" ? " sec" : "")}
+                          // EACH AXIS ITS OWN COLOUR (2026-09-16, Dave: "too
+                          // much of the same color"). Every chip that meant
+                          // anything was cyan, and so was the date beside
+                          // them, so one row said cyan three times about
+                          // three unrelated things and the eye had nothing to
+                          // sort by. A muscle is what the lift trains and
+                          // takes the lime the app already spends on work
+                          // done; equipment takes the violet the session
+                          // header's own equipment chip has always worn; the
+                          // movement pattern is the least load-bearing axis
+                          // and stays quiet. Cyan goes back to meaning one
+                          // thing on this row: when it last happened.
+                          className={"ex-chip" + chipTone(ch)}
                           aria-label={`${ch.label}, edit`}
                           disabled={selecting}
                           onClick={(e) => { e.stopPropagation(); setClassing({ row: r, open: ch.field }); }}

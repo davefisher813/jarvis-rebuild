@@ -10,7 +10,7 @@ import { readHealthSettings } from "../health/settings";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
-import { targetLine, formatSet, planChipText } from "./measures";
+import { targetLine, formatSet, planChip, planChipText } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
 import { receiptFor, type Receipt } from "./prs";
 import { effectiveKind } from "../categories/kinds";
@@ -392,6 +392,7 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
   onMenu: () => void;
 }) {
   const hold = useLongPress({ onLongPress: onMenu });
+  const plan = planChip(exercise);
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
@@ -421,8 +422,17 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
 
             Rest rides beside it as its own fact rather than a clause glued on
             with a middot, and only when there is one. */}
+        {/* THE COUNT LEADS, AND THE NOUN IS QUIET (2026-09-16, Dave asked for
+            the sets to start the line, with a faded bold grey for the word).
+            The line used to carry two multiplication signs doing two
+            different jobs: the first meant three of these, the second meant
+            this weight for this many. The first is a word now, in the ink a
+            label wears, so the two numbers a person scans for are the two
+            things in colour. */}
         <div className="facts">
-          <span className="fact cyan">{planChipText(exercise)}</span>
+          <span className="fact cyan" aria-label={planChipText(exercise)}>
+            {plan.count}<em className="fw">{plan.noun}</em>{plan.target}
+          </span>
           {exercise.restSec ? <span className="fact">{`${mmss(exercise.restSec)} rest`}</span> : null}
         </div>
         {/* The athlete's own note echoes on the row, quoted (preview
