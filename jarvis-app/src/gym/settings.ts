@@ -1,4 +1,5 @@
 import type { MeasureKind } from "./types";
+import type { Counted } from "./equipment";
 import type { Storage2 } from "./liveSession";
 import { DEFAULT_BAR, DEFAULT_PLATES } from "./ramp";
 
@@ -96,6 +97,15 @@ export interface CreatedLift {
   name: string;
   kind: MeasureKind;
   unit?: string;
+  /** WHAT IT LOADS WITH (2026-09-17, second pass). The create sheet is the
+   *  full exercise editor now, so it can answer equipment and counting at
+   *  creation -- and a seed that dropped the answers would make the athlete
+   *  give them again the first time they used the lift. Read exactly like a
+   *  sighting's own convention (classify.classOf); a stored classification
+   *  still wins over both. */
+  equipment?: string;
+  counted?: Counted;
+  sided?: boolean;
 }
 
 /** One merge, as it happened. `undoable` goes false the moment anything else

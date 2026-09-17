@@ -8,12 +8,13 @@ import { shortDate } from "../shared/dateFormat";
 import SheetBar from "../shared/SheetBar";
 import ActionSheet, { PickSheet, type PickItem, type SheetAction } from "./ActionSheet";
 import ClassifySheet from "./ClassifySheet";
+import ExerciseSheet from "./ExerciseSheet";
 import BatchSheet from "./BatchSheet";
 import { DuplicateBar, DuplicatesSheet } from "./DuplicateReview";
 import { capAfterNumber, liftTitle } from "../shared/casing";
 import { findDuplicates, pairId, type DuplicatePair } from "./duplicates";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
-import { MEASURE_KINDS, MEASURE_LABEL, type MeasureKind } from "./types";
+import type { Exercise } from "./types";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, loadStyleOf, type Equipment } from "./equipment";
 import {
   classOf, needsMuscles, rowChips, valueLine, type Chip, type ClassStore, type Classification,
@@ -73,9 +74,14 @@ export default function LibraryPage({
   onToggleFavorite?: (row: LibraryRow) => void;
   onSetGoal?: (row: LibraryRow) => void;
   /** CREATE ONE HERE (Dave 2026-09-17: "I should be able to create exercises
-   *  here"). Name and measurement only; everything else about the exercise is
-   *  the classification editor's job, which is one tap away on the new row. */
-  onCreate?: (draft: { name: string; kind: MeasureKind }) => void;
+   *  here", then: "the modal should be a full add exercise modal").
+   *
+   *  It takes the WHOLE draft, because the sheet is now the same exercise
+   *  editor the program day and the live session open -- name, measurement,
+   *  equipment, counting, muscle, rest, ramp, note, and a planned strip. The
+   *  first version asked two questions and left the other nine to a second
+   *  sheet, which is two forms to fill for one lift. */
+  onCreate?: (draft: Omit<Exercise, "id">) => void;
   dismissedDupes?: string[];
   onDismissDuplicate?: (id: string) => void;
   onBack: () => void;
@@ -109,12 +115,21 @@ export default function LibraryPage({
   // is real and the filter is honest again the moment it is re-applied.
   const [justSaved, setJustSaved] = useState<string[]>([]);
 
-  /** The create sheet's draft. Null when closed. Measurement defaults to
-   *  weight and reps, which is what most of a gym is, and is one tap from
-   *  anything else rather than a required question. */
-  const [creating, setCreating] = useState<{ name: string; kind: MeasureKind } | null>(null);
-  const createRef = useRef<HTMLInputElement>(null);
-  const openCreate = () => setCreating({ name: "", kind: "weight_reps" });
+  /** The create sheet, which is the full exercise editor. */
+  const [creating, setCreating] = useState(false);
+  const openCreate = () => setCreating(true);
+  /** The rows as the exercise sheet's autocomplete reads them. No history
+   *  attached: this list exists to stop a duplicate being typed, not to
+   *  prefill last week's numbers. */
+  const pickables = useMemo(
+    () => rows.map((r) => ({
+      key: r.key, name: r.name, kind: r.kind,
+      ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}),
+      ...(r.unit ? { unit: r.unit } : {}),
+      lastUsed: 0, lastSets: [],
+    })),
+    [rows],
+  );
 
   // A classification nobody has written yet still shows what the athlete told
   // the exercise sheet: the equipment on its most recent sighting, read
@@ -292,6 +307,15 @@ export default function LibraryPage({
           )}
 
           <div className="pad-x"><div className="card list-card-ruled">
+            {/* AT THE TOP (Dave 2026-09-17: "the add exercise option should be
+                at the top of the page not the bottom"). It was the last row of
+                the list, on the reasoning that you arrive there having failed
+                to find what you were looking for -- which is true of a search
+                and false of a library you already know is missing something.
+                Thirty-two rows is a long way to scroll to reach a verb. It is
+                still .row-create, the same in-list create Add Day and Add Week
+                wear; it just leads. */}
+            {onCreate && !selecting && <button className="row-create" onClick={openCreate}>Add Exercise</button>}
             {shown.map((r) => {
               const c = classFor(r);
               const chips = rowChips(c);
@@ -372,72 +396,32 @@ export default function LibraryPage({
             {shown.length === 0 && (
               <div className="row"><div className="row-grow"><div className="conn-meta">Nothing matches what you are filtering by</div></div></div>
             )}
-            {/* .row-create is this app's in-list create, the same affordance
-                Add Day and Add Week wear. It sits at the foot of the list
-                because that is where you arrive having failed to find the
-                thing you were looking for. */}
-            {onCreate && !selecting && <button className="row-create" onClick={openCreate}>Add Exercise</button>}
           </div></div>
 
           <div className="pad-x"><div className="bp-sub">{floorLine(view, rows.length, filter)}</div></div>
         </>
       )}
 
-      {/* CREATE, the smallest sheet on this page (Dave 2026-09-17: "I should
-          be able to create exercises here").
+      {/* CREATE, and it is the whole editor (Dave 2026-09-17: "the modal
+          should be a full add exercise modal").
 
-          It asks TWO things, and the second one has a default. A name, and
-          what the exercise measures -- which is the only field the rest of
-          the app cannot work without, because it decides what the logging
-          strip even looks like. Muscles, equipment, grip and the other seven
-          axes are not asked here on purpose: nothing about a classification
-          is required (classify.ts rule 2), and a create form that looks
-          required is how a library ends up with four exercises in it. The
-          new row lands in the list with its own Assign Muscles chip, which
-          is the same door every other unclassified row offers. */}
-      {creating && createPortal(
-        <div className="sheet-scrim" onClick={() => setCreating(null)}>
-          <div className="card xs" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-handle" />
-            <SheetBar
-              title="New Exercise"
-              onCancel={() => setCreating(null)}
-              saveLabel="Add"
-              saveDisabled={!creating.name.trim()}
-              onSave={() => {
-                const d = creating;
-                setCreating(null);
-                if (d.name.trim() && onCreate) onCreate({ name: d.name.trim(), kind: d.kind });
-              }}
-            />
-            <div className="sheet-form">
-              <div className="grp xs-grp"><div className="eyebrow">Name</div></div>
-              <div className="pad-x"><div className="card xs-group">
-                <div className="row xs-row xs-row-write" onClick={() => createRef.current?.focus()}>
-                  <input ref={createRef} className="xs-input" {...NAME_FIELD} value={creating.name} placeholder="Barbell Row"
-                    aria-label="Exercise Name" onChange={(e) => setCreating({ ...creating, name: e.target.value })} />
-                </div>
-              </div></div>
-              <div className="grp xs-grp"><div className="eyebrow">Measurement</div></div>
-              <div className="pad-x"><div className="card xs-group">
-                {/* row-tap: chip strip, every inch of it is one of the answer chips */}
-                <div className="row xs-row">
-                  <div className="chip-row chip-wrap-row">
-                    {MEASURE_KINDS.map((k) => (
-                      <button key={k} type="button" className={"chip" + (creating.kind === k ? " active chip-cyan" : "")}
-                        aria-pressed={creating.kind === k} aria-label={`Measured as ${MEASURE_LABEL[k]}`}
-                        onClick={() => setCreating({ ...creating, kind: k })}>
-                        {MEASURE_LABEL[k]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div></div>
-              <div className="xs-foot" />
-            </div>
-          </div>
-        </div>,
-        document.body,
+          The first version asked a name and a measurement and left the other
+          nine axes to the classification sheet -- two forms to fill for one
+          lift, and the second one easy to never open. This is the same
+          ExerciseSheet the program day and the live session open, so a lift
+          created here can carry its equipment, its counting, its muscle, its
+          rest and its ramp the moment it exists. Nothing on it is required
+          beyond the name, which is the rule every other exercise form keeps. */}
+      {creating && onCreate && (
+        <ExerciseSheet
+          mode="new"
+          // The page IS the library, so the sheet's autocomplete offers what
+          // is already here: typing a name that exists lands you on that row
+          // rather than minting a second one for the merge review to find.
+          library={pickables}
+          onSave={(draft) => { setCreating(false); onCreate(draft); }}
+          onCancel={() => setCreating(false)}
+        />
       )}
 
       {/* RENAME, its own small sheet: it is the one edit that rewrites every

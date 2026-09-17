@@ -94,27 +94,33 @@ describe("the Exercises page can make one", () => {
     cleanup();
   });
 
-  it("asks a name and what it measures, and hands both back", () => {
-    const onCreate = vi.fn();
-    render(<LibraryPage {...base} rows={[row()]} onCreate={onCreate} />);
+  // AMENDED 2026-09-17 ("the modal should be a full add exercise modal").
+  // The first version was a two-question sheet of its own: a name and a
+  // measurement, with the other nine axes left to the classification editor.
+  // It is the same ExerciseSheet the program day and the live session open
+  // now, so these read that one instead.
+  it("opens the whole exercise editor, not a name and a menu", () => {
+    render(<LibraryPage {...base} rows={[row()]} onCreate={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Add Exercise" }));
-    fireEvent.change(screen.getByLabelText("Exercise Name"), { target: { value: "  Zercher Squat  " } });
-    fireEvent.click(screen.getByRole("button", { name: "Measured as Distance" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    expect(onCreate).toHaveBeenCalledWith({ name: "Zercher Squat", kind: "distance" });
+    expect(screen.getByText("New Exercise")).toBeInTheDocument();
+    for (const t of ["Sets", "Equipment", "Measure", "Muscle", "Rest Timer"]) {
+      expect(screen.getAllByText(t).length, t).toBeGreaterThan(0);
+    }
     cleanup();
   });
 
-  // Nothing about a classification is required (classify.ts rule 2), so the
-  // sheet defaults the one field the logging strip cannot work without and
-  // asks nothing else.
-  it("defaults to weight and reps, so a name alone is enough", () => {
+  it("hands the whole draft back, not two fields of it", () => {
     const onCreate = vi.fn();
     render(<LibraryPage {...base} rows={[row()]} onCreate={onCreate} />);
     fireEvent.click(screen.getByRole("button", { name: "Add Exercise" }));
-    fireEvent.change(screen.getByLabelText("Exercise Name"), { target: { value: "Zercher Squat" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    expect(onCreate).toHaveBeenCalledWith({ name: "Zercher Squat", kind: "weight_reps" });
+    fireEvent.change(screen.getByLabelText("Exercise name"), { target: { value: "Zercher Squat" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const draft = onCreate.mock.calls[0]![0];
+    expect(draft).toMatchObject({ name: "Zercher Squat", kind: "weight_reps" });
+    // The planned strip rides along, which is the thing the old sheet could
+    // not carry at all.
+    expect(Array.isArray(draft.sets)).toBe(true);
+    expect(draft.sets.length).toBeGreaterThan(0);
     cleanup();
   });
 
@@ -122,7 +128,7 @@ describe("the Exercises page can make one", () => {
     const onCreate = vi.fn();
     render(<LibraryPage {...base} rows={[row()]} onCreate={onCreate} />);
     fireEvent.click(screen.getByRole("button", { name: "Add Exercise" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onCreate).not.toHaveBeenCalled();
     cleanup();
   });
@@ -131,10 +137,18 @@ describe("the Exercises page can make one", () => {
     const onCreate = vi.fn();
     render(<LibraryPage {...base} rows={[row()]} onCreate={onCreate} />);
     fireEvent.click(screen.getByRole("button", { name: "Add Exercise" }));
-    fireEvent.change(screen.getByLabelText("Exercise Name"), { target: { value: "Zercher Squat" } });
+    fireEvent.change(screen.getByLabelText("Exercise name"), { target: { value: "Zercher Squat" } });
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onCreate).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText("Exercise Name")).toBeNull();
+    expect(screen.queryByLabelText("Exercise name")).toBeNull();
+    cleanup();
+  });
+
+  // "The add exercise option should be at the top of the page not the bottom."
+  it("leads the list rather than following thirty-two rows of it", () => {
+    const { container } = render(<LibraryPage {...base} rows={[row(), row({ key: "k2", name: "Squat" })]} onCreate={() => {}} />);
+    const card = container.querySelector(".list-card-ruled")!;
+    expect(card.firstElementChild, "Add Exercise is not the first thing in the list").toHaveClass("row-create");
     cleanup();
   });
 });

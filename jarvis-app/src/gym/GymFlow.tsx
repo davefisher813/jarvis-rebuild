@@ -48,7 +48,7 @@ import UploadFlow from "./UploadFlow";
 import HistoryScreen from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
 import { libraryRows, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, type LibraryRow, type AliasMap } from "./libraryEdit";
-import { classOf, isBlank, mergeClass, muscleListOf, needsMuscles, readClassStore, type Chip, type ClassConflict, type ClassStore } from "./classify";
+import { classOf, EMPTY_CLASS, isBlank, mergeClass, muscleListOf, needsMuscles, readClassStore, type Chip, type ClassConflict, type ClassStore } from "./classify";
 import ClassifySheet from "./ClassifySheet";
 import { expectedSignature, patchSignature, planMerge, repointGoal, undoSafe, type MergePlan, type MergeState } from "./merge";
 import { MergeReviewSheet } from "./DuplicateReview";
@@ -1911,11 +1911,26 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           // library at the same measurement is not created twice; the row is
           // already there, so saying so beats quietly minting a duplicate for
           // the merge review to find next week.
-          onCreate={({ name, kind }) => {
-            const twin = library.find((e) => e.name.trim().toLowerCase() === name.toLowerCase() && e.kind === kind);
+          onCreate={(draft) => {
+            const name = draft.name.trim();
+            const twin = library.find((e) => e.name.trim().toLowerCase() === name.toLowerCase() && e.kind === draft.kind);
             if (twin) { showToast({ message: `${twin.name} is already here` }); return; }
             const cased = liftTitle(name);
-            saveCreatedLifts([...createdLifts, { key: newExerciseKey(), name: cased, kind }]);
+            const key = draft.exerciseKey ?? newExerciseKey();
+            // The sheet is the whole editor now, so whatever it was told
+            // travels with the seed rather than being asked for again the
+            // first time the lift is used.
+            saveCreatedLifts([...createdLifts, {
+              key, name: cased, kind: draft.kind,
+              ...(draft.unit ? { unit: draft.unit } : {}),
+              ...loadFields(draft),
+            }]);
+            // A muscle is a CLASSIFICATION, not a property of the entry, so it
+            // goes where every other muscle assignment goes -- which is also
+            // what takes the amber Assign Muscles chip off the new row.
+            if (draft.muscleGroup) {
+              saveClassStore({ ...classStore, [key]: { ...EMPTY_CLASS, primary: [draft.muscleGroup], measure: draft.kind, ...loadFields(draft) } });
+            }
             showToast({ message: `${cased} added` });
           }}
           // THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list

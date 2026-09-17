@@ -290,6 +290,21 @@ export default function SessionScreen({
   // work in it, as one row under the strip. A group's own Next row wins.
   const upNextIdx = live.exercises.findIndex((e, i) => i > idx && !e.skipped && e.sets.filter((s) => !s.warmup && !s.drop && !s.skipped).length < Math.max(1, plannedFor(e)));
   const upNext = upNextIdx >= 0 ? live.exercises[upNextIdx] : undefined;
+  /** THIS EXERCISE HAS NOTHING LEFT IN IT (Dave 2026-09-17: "when logging
+   *  workouts there should be a done button for exercises right now it just
+   *  goes on forever til I switch to another exercise").
+   *
+   *  The log bar has always held one button that says Log, at every moment of
+   *  every exercise, so the plan running out looked exactly like the plan
+   *  having two sets left: the only way on was to notice a row further down
+   *  the screen and tap it. There was no way to SAY you were finished.
+   *
+   *  Finished means the planned working sets are logged -- or, for a lift with
+   *  no plan at all (added mid-session, or a scratch session), that at least
+   *  one set is. Warm-ups and drops are not the work and never have been. */
+  const planComplete = !current.skipped && (planEx.sets.length > 0
+    ? workLogged >= planEx.sets.length
+    : logged.length > 0);
   const nextPlannedWeight = (() => { const n = plannedEntryAt(planEx, workLogged); return n?.w ?? [...logged].reverse().find((x) => !x.warmup)?.w ?? 0; })();
 
   // D3-C in session: the day's own blocks, checked off as they happen.
@@ -853,13 +868,30 @@ export default function SessionScreen({
           the shell has stepped its tab bar and dock aside (gym/sessionChrome). */}
       {!current.skipped && (
         <div className="logbar">
-          {cond
-            ? <button className="btn btn-primary btn-launch btn-lg" onClick={() => setClockOpen(true)}>
-                {logged.length === 0 ? "Start the Clock" : "Run It Again"}
+          {/* THE SECOND HALF OF THE BAR (2026-09-17). Once the plan is done,
+              logging another set is the unusual move and moving on is the
+              common one, so they swap places: the extra set keeps a secondary
+              button (it is still one tap, nothing is taken away) and the
+              primary becomes what you actually meant. It says where it goes,
+              because "Done" alone on the last exercise of a session would be
+              a button that silently ends the workout. */}
+          {planComplete && (
+            cond
+              ? <button className="btn btn-secondary btn-lg" onClick={() => setClockOpen(true)}>Run It Again</button>
+              : <button className="btn btn-secondary btn-lg" onClick={log}>Log Another Set</button>
+          )}
+          {planComplete
+            ? <button className="btn btn-primary btn-launch btn-lg"
+                onClick={() => (upNextIdx >= 0 ? onMove(upNextIdx) : onFinish())}>
+                {upNextIdx >= 0 ? "Next Exercise" : "Finish Workout"}
               </button>
-            : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
-                {logButtonLabel(planEx, workLogged, draft ?? undefined)}
-              </button>}
+            : cond
+              ? <button className="btn btn-primary btn-launch btn-lg" onClick={() => setClockOpen(true)}>
+                  {logged.length === 0 ? "Start the Clock" : "Run It Again"}
+                </button>
+              : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
+                  {logButtonLabel(planEx, workLogged, draft ?? undefined)}
+                </button>}
         </div>
       )}
 

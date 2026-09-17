@@ -134,6 +134,10 @@ export function withCreated(library: LibraryEntry[], created: CreatedLift[]): Li
     extra.push({
       key: c.key, exerciseKey: c.key, name: c.name, kind: c.kind,
       ...(c.unit ? { unit: c.unit } : {}),
+      // The convention the create sheet was told, in the same two fields a
+      // sighting would have carried it in.
+      ...(c.equipment ? { equipment: c.equipment } : {}),
+      ...(c.counted ? { counted: c.counted } : {}),
       lastUsed: 0, lastSets: [],
     });
   }

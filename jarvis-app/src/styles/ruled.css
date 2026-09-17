@@ -1637,9 +1637,15 @@
 .ruled.health-ruled .logbar { position: fixed; left: 0; right: 0; z-index: 5;
   top: calc(var(--vv-top, 0px) + var(--vv-h, 100dvh)); transform: translateY(-100%);
   padding: var(--s-3) var(--s-4) calc(var(--s-3) + max(0px, var(--safe-bottom, env(safe-area-inset-bottom, 0px)) - var(--vv-bot, 0px)));
-  background: linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 38%); display: flex; justify-content: center; }
+  background: linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 38%); display: flex; justify-content: center;
+  gap: var(--s-2); }
 [data-theme="light"] .ruled.health-ruled .logbar { background: linear-gradient(180deg, rgba(242,242,247,0), var(--bg) 38%); }
 .ruled.health-ruled .logbar .btn { width: 100%; }
+/* TWO BUTTONS, ONCE THE PLAN IS DONE (2026-09-17). Both shrink to share the
+   bar; the primary keeps the larger share because moving on is the common
+   move at that point and the extra set is the exception. */
+.ruled.health-ruled .logbar .btn:not(:only-child) { flex: 1 1 0; min-width: 0; }
+.ruled.health-ruled .logbar .btn.btn-launch:not(:only-child) { flex: 1.35 1 0; }
 /* The PR mark, the loudest good thing a session can say. Lime fill, no bloom
    behind it (R5): the hue is already the loudest thing on the screen. */
 .ruled.health-ruled .se-pr { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
