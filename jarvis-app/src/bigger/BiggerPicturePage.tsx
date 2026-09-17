@@ -415,15 +415,18 @@ export default function BiggerPicturePage({
    *  back, in place of the folded receipt at the foot. */
   const viewGoals = (view === "achieved" ? doneGoals : view === "all" ? [...liveGoals, ...doneGoals] : liveGoals)
     .filter((g) => hit(g.data.title) && inArea(homeOf(g)));
+  // Four labels, no counts: the row fits at phone width and does not scroll
+  // (2026-09-17, measured). A state with nothing in it is still where you
+  // look, so these stand whatever they hold.
   const PROJECT_VIEWS: HeaderView[] = [
     { key: "active", label: "Active" },
-    ...(pausedCount > 0 ? [{ key: "on_hold", label: "On Hold", count: pausedCount }] : []),
-    ...(doneRows.length > 0 ? [{ key: "done", label: "Done", count: doneRows.length }] : []),
+    { key: "on_hold", label: "On Hold" },
+    { key: "done", label: "Done" },
     { key: "all", label: "All" },
   ];
   const GOAL_VIEWS: HeaderView[] = [
     { key: "active", label: "Active" },
-    ...(doneGoals.length > 0 ? [{ key: "achieved", label: "Achieved", count: doneGoals.length }] : []),
+    { key: "achieved", label: "Achieved" },
     { key: "all", label: "All" },
   ];
   const movingProject = moveFor ? projectRows.find((r) => r.project.id === moveFor)?.project ?? null : null;
@@ -456,19 +459,11 @@ export default function BiggerPicturePage({
               where: `${(projectsLens ? PROJECT_VIEWS : GOAL_VIEWS).find((v) => v.key === view)?.label ?? "Active"} ${projectsLens ? "projects" : "goals"}`,
               ...(view !== "all" ? { onAll: () => setView("all"), allLabel: projectsLens ? "Search all projects" : "Search all goals" } : {}),
             } : undefined}
-            // THE SAME PINNED AREA MENU TASKS AND NOTES HAVE (Dave 2026-09-17).
-            // Both lenses already file by area -- a project by its category, a
-            // goal by the first of its tags that names a live one -- and
-            // neither had a way to look at one area at a time.
-            menu={sections.length > 0 ? (
-              <HeadMenu
-                ariaLabel="Area"
-                value={areaOnly ?? "all"}
-                label={areaOnly ? undefined : "Area"}
-                options={[{ value: "all", label: "All Areas" }, ...sections.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
-                onPick={(v) => setAreaOnly(v === "all" ? null : v)}
-              />
-            ) : undefined}
+            // What is narrowing the list, when something is (handoff rule 7).
+            filters={areaOnly ? {
+              label: sections.find((c) => c.id === areaOnly)?.name ?? "One area",
+              onClear: () => setAreaOnly(null),
+            } : undefined}
           >
             {segments}
           </LifeHeader>
@@ -560,11 +555,23 @@ export default function BiggerPicturePage({
           </>
         )}
         <div className="screen-foot" />
-        {/* Area moved to the pinned menu beside the chips on 2026-09-17, so
-            what is left here is the lens's own reach: everything at once,
-            including the states the chips prune away when they are empty. */}
+        {/* The area cut lives here, with the page's other secondary tools:
+            the chip row is four labels wide and nothing else fits beside it
+            at phone width (2026-09-17, measured). */}
         {optsOpen && (
           <OptionsSheet title={projectsLens ? "Projects Options" : "Goals Options"} rows={[
+            ...(sections.length > 0 ? [{
+              key: "area", label: "Area",
+              right: (
+                <HeadMenu
+                  ariaLabel="Area"
+                  value={areaOnly ?? "all"}
+                  label={areaOnly ? undefined : "All Areas"}
+                  options={[{ value: "all", label: "All Areas" }, ...sections.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
+                  onPick={(v) => setAreaOnly(v === "all" ? null : v)}
+                />
+              ),
+            }] : []),
             { key: "all", label: "Show Everything", onClick: () => { setOptsOpen(false); setView("all"); setAreaOnly(null); } },
           ]} onClose={() => setOptsOpen(false)} />
         )}

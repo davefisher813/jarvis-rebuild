@@ -283,7 +283,11 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
     render(<NotesProvider userId="start-per-view-3"><TwoViews /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("A Place to Begin")).toBeInTheDocument(), { timeout: 4000 });
     const cardName = () => document.querySelector(".start-top-name")?.textContent ?? "";
-    fireEvent.click(screen.getByRole("tab", { name: /From Email/ }));
+    // From Email is a row in the options sheet since the chip row was cut to
+    // the four labels that fit (2026-09-17). Still a view, still the one
+    // Dave was looking at; reached one tap further along.
+    fireEvent.click(screen.getByLabelText("Tasks Options"));
+    fireEvent.click(await screen.findByText("From Email"));
     await waitFor(() => expect(cardName()).toContain("Get back to Google"), { timeout: 4000 });
     expect(cardName(), "setting up Jarvis has nothing to do with emails").not.toContain("jarvis");
   });

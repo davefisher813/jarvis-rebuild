@@ -23,39 +23,34 @@ const tk = (id: string, due: string | null, cat = "orgB"): TaskItem => ({ id, da
 const counts: Record<TaskFilter, number> = { all: 6, daily: 0, today: 2, overdue: 1, upcoming: 3, email: 0, done: 1 };
 
 describe("TasksPage", () => {
-  // AMENDED 2026-09-17 (the Unified Headers handoff). The view, the Area and
-  // the grouping were three dropdown capsules on one line under the head.
-  // The views are a chip row now -- "one horizontally scrollable chip row",
-  // with Today, Upcoming, All and Done leading it -- and Area and Group moved
-  // into the options sheet, unchanged: the SAME HeadMenu components, handed
-  // the same props, in a row instead of on a line.
-  it("the views are a chip row, four of them leading, each with its count", () => {
+  // AMENDED 2026-09-17, twice. First the Unified Headers handoff turned three
+  // dropdown capsules into a chip row. Then Dave, on the live one: "Look at
+  // what happens to the chips when they slide. This is simply not going to
+  // work." Measured at 393px: four labelled chips need 335 of the row's 361
+  // and do not scroll; give each a count and they need 458, which is what
+  // made the row scroll and cut a pill in half at every resting position.
+  // The set is fixed at the handoff's four. The other three views are rows in
+  // the options sheet, where they carry the counts these no longer do, with
+  // Area and Group beside them.
+  it("the views are four chips that fit the row, with no counts on them", () => {
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
         categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]} />,
     );
     const chips = [...container.querySelectorAll(".hdr-chips .chip")];
-    // The mockup's four lead. The three the app already had follow them in
-    // the same scrolling row rather than being dropped (handoff rule 2:
-    // "Preserve the existing definitions").
-    // AMENDED 2026-09-17 (Dave: "there's too many chips in my opinion on tasks
-    // page"). The mockup's four always stand. The three conditional views
-    // appear only when they hold something, which is the rule the Projects
-    // lens's Paused chip has followed since it shipped: a filter with nothing
-    // to filter is furniture. Daily is 0 and From Email is 0, so neither
-    // draws; Overdue has 1, so it does.
-    expect(chips.map((c) => c.textContent)).toEqual(["Today2", "Upcoming3", "All6", "Done1", "Overdue1"]);
+    expect(chips.map((c) => c.textContent)).toEqual(["Today", "Upcoming", "All", "Done"]);
     expect(chips[0]).toHaveClass("active");
     expect(chips[0]).toHaveAttribute("aria-selected", "true");
-    // A chip that would say 0 says nothing instead.
     expect(container.querySelector(".dd-line")).toBeNull();
+    // Nothing sits beside them: that is what buys the room.
+    expect(container.querySelector(".hdr-menu")).toBeNull();
   });
 
   it("picking a chip fires the filter, and the selected one is a no-op", () => {
     const onFilter = vi.fn();
     render(<TasksPage filter="today" counts={counts} items={[]} today="2026-05-20" onFilter={onFilter} />);
-    fireEvent.click(screen.getByRole("tab", { name: /Overdue/ }));
-    expect(onFilter).toHaveBeenCalledWith("overdue");
+    fireEvent.click(screen.getByRole("tab", { name: /Upcoming/ }));
+    expect(onFilter).toHaveBeenCalledWith("upcoming");
     fireEvent.click(screen.getByRole("tab", { name: /Today/ }));
     expect(onFilter).toHaveBeenCalledTimes(1);
   });
@@ -66,11 +61,11 @@ describe("TasksPage", () => {
       <TasksPage filter="all" counts={counts} items={[]} today="2026-05-20" catFilter="orgB" onCatFilter={onCat}
         categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }, { id: "money", name: "Money", color: "yellow" }]} />,
     );
-    // AMENDED 2026-09-17 (Dave: "I can no longer sort by category on any of
-    // these pages"). It spent one deploy inside the options sheet, which was
-    // reachable and not findable. It is pinned beside the chips now, where
-    // the filtering is: the same HeadMenu, the same menu, in view.
-    const area = container.querySelector('.hdr-menu .dd[aria-label="Area"]')!;
+    // It lives in the options sheet -- nothing fits beside four chips at
+    // phone width -- and the line under them says when it is narrowing the
+    // list, which is what keeps it from being invisible.
+    fireEvent.click(screen.getByLabelText("Tasks Options"));
+    const area = document.body.querySelector('.dd[aria-label="Area"]')!;
     expect(area).toHaveTextContent("Ridgeley");
     expect(area.querySelector(".cat-dot.cat-bg-sky")).toBeTruthy();
     fireEvent.click(area);
@@ -80,7 +75,9 @@ describe("TasksPage", () => {
     // Unfiltered it names the answer, because the row beside it already
     // names the control.
     const { container: c2 } = render(<TasksPage filter="all" counts={counts} items={[]} today="2026-05-20" catFilter="all" categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]} />);
-    expect(c2.querySelector('.hdr-menu .dd[aria-label="Area"]')).toHaveTextContent(/^Area$/);
+    void c2;
+    fireEvent.click(screen.getAllByLabelText("Tasks Options")[1]!);
+    expect([...document.body.querySelectorAll('.dd[aria-label="Area"]')].pop()).toHaveTextContent(/^All Areas$/);
   });
 
   it("one decision killer: Pick One alone, full width; the mode's way out replaces it", () => {

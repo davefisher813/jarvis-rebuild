@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NotesList, { editedLabel, type NoteListItem } from "./NotesList";
 import { setCategoryRegistry } from "../../shared/categories";
@@ -110,33 +110,47 @@ describe("NotesList", () => {
 // union, which made it a view: picking Family deselected All, Pinned and
 // Unfiled, because a note could only be in one of them at a time. That is not
 // what an area is, and it is not how Tasks has ever worked.
-describe("the Notes area is its own cut, beside the views", () => {
-  const areaMenu = (c: HTMLElement) => c.querySelector('.hdr-menu .dd[aria-label="Area"]')!;
+// AMENDED 2026-09-17 (Dave: "Look at what happens to the chips when they
+// slide. This is simply not going to work"). The area menu spent one deploy
+// pinned beside the chips; at phone width that row then had to scroll, and a
+// scrolling row of large filled pills is cut in half at every resting
+// position. Nothing sits beside the chips now -- the area is a row in the
+// options sheet, and the line under the chips says when it is narrowing the
+// list. What this file is really about is unchanged and is the important
+// part: the area is its own AXIS, not a view, so the two compose.
+describe("the Notes area is its own cut, composing with the view", () => {
+  // The sheet is a portal; the page behind it also prints area names on its
+  // rows, so every lookup inside it is scoped to the sheet.
+  const sheet = () => within(document.querySelector(".sheet-scrim") as HTMLElement);
+  const openArea = async () => {
+    fireEvent.click(screen.getByLabelText("Notes Options"));
+    fireEvent.click(sheet().getByText("Area"));
+    await Promise.resolve();
+  };
+  const pickArea = (name: string) => fireEvent.click(sheet().getByText(name));
 
-  it("is pinned beside the chips, not inside them", () => {
+  it("is a row in the options sheet, not a chip", () => {
     const { container } = render(<NotesList notes={notes} />);
-    expect(areaMenu(container)).toBeTruthy();
     expect(container.querySelector('.hdr-chips [aria-label="Area"]'), "it is not a view").toBeNull();
-    // The chips stay the three workflow states the handoff names.
     expect([...container.querySelectorAll(".hdr-chips .chip")].map((c) => c.textContent)).toEqual(["All", "Pinned", "Unfiled"]);
   });
 
-  it("names the control until an area is picked, then names the area", () => {
+  it("narrows the list, and says so on the line under the chips", async () => {
     const { container } = render(<NotesList notes={notes} />);
-    expect(areaMenu(container)).toHaveTextContent(/^Area$/);
-    fireEvent.click(areaMenu(container));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "Family" }));
-    expect(areaMenu(container)).toHaveTextContent("Family");
+    await openArea();
+    pickArea("Family");
     expect([...container.querySelectorAll(".note-row .task-name")].map((e) => e.textContent))
       .toEqual(["Bridge Invitational Item List"]);
+    // handoff rule 7: never leave someone wondering why records disappeared.
+    expect(container.querySelector(".hdr-scope-n")).toHaveTextContent("Family");
   });
 
   // The whole point: two cuts that compose. The selected view stays selected.
-  it("keeps the chosen view selected while an area narrows it", () => {
+  it("keeps the chosen view selected while an area narrows it", async () => {
     const { container } = render(<NotesList notes={notes} />);
     fireEvent.click(screen.getByRole("tab", { name: "All" }));
-    fireEvent.click(areaMenu(container));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "Work" }));
+    await openArea();
+    pickArea("Work");
     expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
     expect([...container.querySelectorAll(".note-row .task-name")].map((e) => e.textContent))
       .toEqual(["Coach Onboarding Plan"]);
@@ -145,23 +159,22 @@ describe("the Notes area is its own cut, beside the views", () => {
   // Unfiled means "has no area", so an area and that view can never both be
   // true: choosing one moves off the other rather than leaving a list that is
   // empty by construction.
-  it("moves off Unfiled rather than showing a list that cannot have anything in it", () => {
+  it("moves off Unfiled rather than showing a list that cannot have anything in it", async () => {
     const { container } = render(<NotesList notes={notes} />);
     fireEvent.click(screen.getByRole("tab", { name: "Unfiled" }));
-    expect(screen.getByRole("tab", { name: "Unfiled" })).toHaveAttribute("aria-selected", "true");
-    fireEvent.click(areaMenu(container));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "Work" }));
+    await openArea();
+    pickArea("Work");
     expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
     expect(container.querySelectorAll(".note-row")).toHaveLength(1);
   });
 
-  it("goes back to everything on All Areas", () => {
+  it("clears from the line that named it", async () => {
     const { container } = render(<NotesList notes={notes} />);
-    fireEvent.click(areaMenu(container));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "Work" }));
+    await openArea();
+    pickArea("Work");
     expect(container.querySelectorAll(".note-row")).toHaveLength(1);
-    fireEvent.click(areaMenu(container));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "All Areas" }));
+    fireEvent.click(screen.getByText("Clear"));
     expect(container.querySelectorAll(".note-row")).toHaveLength(4);
+    expect(container.querySelector(".hdr-scope")).toBeNull();
   });
 });

@@ -218,11 +218,14 @@ describe("a task link is spent once (SHELL-F-12)", () => {
     await waitFor(() => expect(rows().length).toBeGreaterThan(0), { timeout: 3000 });
     fireEvent.click(screen.getByText("Link Task"));
     await waitFor(() => expect(screen.getByText("Edit Task")).toBeInTheDocument());
-    // AMENDED 2026-09-17 (Unified Headers): the views are a chip row now, so
-    // the selected one names the filter the link asked for. The Show menu is
-    // gone; what this test is about -- a link is spent once -- is unchanged.
+    // AMENDED 2026-09-17 (Unified Headers), then again the same day when the
+    // chip row was cut to four labels that fit. Overdue is not a chip any
+    // more, so the thing that names the filter a link asked for is the line
+    // under the chips -- which is exactly the job that line exists for. What
+    // this test is about -- a link is spent once -- is unchanged.
     const views = () => within(screen.getByRole("tablist", { name: "Views" }));
-    expect(views().getByRole("tab", { selected: true })).toHaveTextContent("Overdue");
+    const narrowing = () => document.querySelector(".hdr-scope-n")?.textContent ?? "";
+    expect(narrowing(), "the list says it is cut to Overdue").toContain("Overdue");
 
     fireEvent.click(screen.getByText("Cancel"));
     await waitFor(() => expect(screen.queryByText("Edit Task")).not.toBeInTheDocument());
@@ -234,8 +237,10 @@ describe("a task link is spent once (SHELL-F-12)", () => {
     await waitFor(() => expect(rows().length).toBeGreaterThan(0), { timeout: 3000 });
 
     expect(screen.queryByText("Edit Task")).not.toBeInTheDocument();
-    // And the filter is the list's own default, not the one that link carried.
+    // And the filter is the list's own default, not the one that link carried:
+    // a standing chip again, with nothing left narrowing the list.
     expect(views().getByRole("tab", { selected: true })).toHaveTextContent("Today");
+    expect(narrowing(), "and nothing is cutting it any more").toBe("");
   });
 });
 

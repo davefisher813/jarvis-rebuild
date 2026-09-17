@@ -11,8 +11,8 @@ import OptionsSheet from "./OptionsSheet";
 // ---------------------------------------------------------------------------
 
 const VIEWS: HeaderView[] = [
-  { key: "today", label: "Today", count: 2 },
-  { key: "upcoming", label: "Upcoming", count: 3 },
+  { key: "today", label: "Today" },
+  { key: "upcoming", label: "Upcoming" },
   { key: "all", label: "All" },
 ];
 
@@ -70,17 +70,23 @@ describe("the view chips", () => {
   it("are one row of tabs, the selected one said out loud", () => {
     hdr();
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Today2", "Upcoming3", "All"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Today", "Upcoming", "All"]);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
     expect(tabs[0]).toHaveClass("active");
     cleanup();
   });
 
-  // A chip that says 0 is worse than a chip that says nothing.
-  it("draws a count only where there is a real one", () => {
-    hdr({ views: [{ key: "done", label: "Done", count: 0 }, { key: "all", label: "All", count: 4 }] });
-    expect(screen.getByRole("tab", { name: "Done" }).textContent).toBe("Done");
-    expect(screen.getByRole("tab", { name: /All/ }).textContent).toBe("All4");
+  // AMENDED 2026-09-17 (Dave: "Look at what happens to the chips when they
+  // slide"). A chip is a label and nothing else. Four chips with counts
+  // measure 458px of content at phone width in a 361px row, so the row had to
+  // scroll, and a scrolling row of large filled pills is cut in half at every
+  // resting position. Without counts the same four measure 335 and the row
+  // does not scroll. The approved mockups never had counts here.
+  it("carries a label and nothing else, so the row fits without scrolling", () => {
+    hdr();
+    for (const t of screen.getAllByRole("tab")) {
+      expect(t.textContent, "a count would push the row into a scroll").toMatch(/^[A-Za-z ]+$/);
+    }
     cleanup();
   });
 
@@ -164,32 +170,31 @@ describe("the options sheet", () => {
   });
 });
 
-describe("the pinned menu", () => {
-  it("stays out of the chip row's tablist, because it is not a view", () => {
-    hdr({ menu: <button data-testid="area">Area</button> });
-    const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Today2", "Upcoming3", "All"]);
-    expect(screen.getByTestId("area")).toBeInTheDocument();
-    expect(document.querySelector(".hdr-chips [data-testid=area]"), "it is beside the chips, not inside them").toBeNull();
-    cleanup();
-  });
-
-  it("pins to the row's end by default, and to its start when asked", () => {
-    hdr({ menu: <button data-testid="area">Area</button> });
-    const line = document.querySelector(".hdr-chip-line")!;
-    expect(line.lastElementChild).toHaveClass("hdr-menu");
-    expect(line.firstElementChild).toHaveClass("hdr-chips");
-    cleanup();
-    hdr({ menu: <button data-testid="area">Area</button>, menuSide: "start" });
-    const line2 = document.querySelector(".hdr-chip-line")!;
-    expect(line2.firstElementChild).toHaveClass("hdr-menu");
-    expect(line2.firstElementChild).toHaveClass("lead");
-    cleanup();
-  });
-
-  it("stays away entirely on a page with nothing to cut by", () => {
+// WHY THE ROWS YOU EXPECTED ARE NOT THERE (handoff rule 7: "Add a concise
+// visible indication and clear action when filters are applied; do not leave
+// users wondering why records disappeared"). With nothing beside the chips,
+// this line is what keeps an Area cut from being invisible.
+describe("the filter line", () => {
+  it("stays away when nothing is narrowing the list", () => {
     hdr();
-    expect(document.querySelector(".hdr-menu")).toBeNull();
+    expect(document.querySelector(".hdr-scope")).toBeNull();
+    cleanup();
+  });
+
+  it("names what is narrowing it and clears it in one tap", () => {
+    const onClear = vi.fn();
+    hdr({ filters: { label: "Overdue \u00b7 Personal", onClear } });
+    expect(screen.getByText("Overdue \u00b7 Personal")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Clear"));
+    expect(onClear).toHaveBeenCalled();
+    cleanup();
+  });
+
+  // One line, one job: a search already says its own scope there.
+  it("yields to the search scope while a search is running", () => {
+    hdr({ query: "x", filters: { label: "Personal", onClear: () => {} }, scope: { count: 2, where: "All tasks" } });
+    expect(screen.getByText("2 results in All tasks")).toBeInTheDocument();
+    expect(screen.queryByText("Personal")).toBeNull();
     cleanup();
   });
 });

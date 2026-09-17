@@ -172,7 +172,7 @@ export default function NotesList({
   const [optsOpen, setOptsOpen] = useState(false);
   /** Which sub-list the options sheet is showing: the areas, or the tags.
    *  Null is the sheet's own list of rows. */
-  const [optsPick, setOptsPick] = useState<"tag" | null>(null);
+  const [optsPick, setOptsPick] = useState<"area" | "tag" | null>(null);
   /** The area cut, composing with whichever view is chosen. Null is every
    *  area, which is what the menu calls All Areas. */
   const [area, setArea] = useState<string | null>(null);
@@ -336,21 +336,16 @@ export default function NotesList({
             where: `${VIEWS.find((v) => v.key === filter.kind)?.label ?? "All"} notes${area ? ` in ${catName(area) || "this area"}` : ""}`,
             ...(filter.kind !== "all" || area ? { onAll: () => { setFilter({ kind: "all" }); setArea(null); }, allLabel: "Search all notes" } : {}),
           } : undefined}
-          // THE SAME PINNED AREA MENU TASKS HAS (Dave 2026-09-17). The chips
-          // are views and they scroll; this is the cut across whichever view
-          // is chosen, so it is pinned beside them and never scrolls away.
-          menu={areaIds.length > 0 ? (
-            <HeadMenu
-              ariaLabel="Area"
-              value={area ?? "all"}
-              label={area ? undefined : "Area"}
-              options={[{ value: "all", label: "All Areas" }, ...areaIds.map((id) => ({ value: id, label: catName(id) || "Area", dot: catColor(id) }))]}
-              // Unfiled means "has no area", so an area and that view can
-              // never both be true: choosing one moves off the other rather
-              // than leaving a list that is empty by construction.
-              onPick={(v) => { setArea(v === "all" ? null : v); if (v !== "all" && filter.kind === "unfiled") setFilter({ kind: "all" }); }}
-            />
-          ) : undefined}
+          // What is narrowing the list, when something is (handoff rule 7).
+          // This is how the area cut stays visible with no control competing
+          // for room on the chip line.
+          filters={area || filter.kind === "tag" || filter.kind === "archived" || filter.kind === "deleted" ? {
+            label: [
+              filter.kind === "tag" ? "#" + filter.tag : filter.kind === "archived" ? "Archived" : filter.kind === "deleted" ? "Recently Deleted" : null,
+              area ? catName(area) || "One area" : null,
+            ].filter(Boolean).join(" · "),
+            onClear: () => { setArea(null); setFilter({ kind: "all" }); },
+          } : undefined}
         />
       </PageHeader>
 
@@ -391,6 +386,11 @@ export default function NotesList({
           this same sheet rather than a second sheet on top of it. */}
       {optsOpen && optsPick === null && (
         <OptionsSheet title="Notes Options" rows={([
+          ...(areaIds.length > 0 ? [{
+            key: "area", label: "Area",
+            value: area ? (catName(area) || "Area") : "All Areas",
+            onClick: () => setOptsPick("area"),
+          }] : []),
           ...(tagNames.length > 0 ? [{
             key: "tag", label: "Tag",
             value: filter.kind === "tag" ? "#" + filter.tag : "Any",
@@ -415,6 +415,18 @@ export default function NotesList({
             onClick: () => { setOptsOpen(false); setFilter({ kind: "deleted" }); },
           }] : []),
         ] as OptionRow[])} onClose={() => setOptsOpen(false)} />
+      )}
+      {optsOpen && optsPick === "area" && (
+        <OptionsSheet title="Area" rows={([
+          { key: "all", label: "All Areas", onClick: () => { setOptsOpen(false); setArea(null); } },
+          ...areaIds.map((id) => ({
+            key: id, label: catName(id) || "Area",
+            // Unfiled means "has no area", so an area and that view can never
+            // both be true: choosing one moves off the other rather than
+            // leaving a list that is empty by construction.
+            onClick: () => { setOptsOpen(false); setArea(id); if (filter.kind === "unfiled") setFilter({ kind: "all" }); },
+          })),
+        ] as OptionRow[])} onClose={() => setOptsPick(null)} />
       )}
       {optsOpen && optsPick === "tag" && (
         <OptionsSheet title="Tag" rows={([

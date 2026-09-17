@@ -741,24 +741,28 @@ export default function TasksPage({
    *  asked for by name on 2026-09-13, and rule 2 of this same handoff says
    *  "Preserve the existing definitions and do not reclassify data for
    *  visual consistency". One row, no wrapping, nothing lost. */
-  /** THE CHIPS ARE THE STANDARD VIEWS, AND ONLY THE ONES THAT HAVE ANYTHING
-   *  IN THEM (Dave 2026-09-17: "there's too many chips in my opinion on tasks
-   *  page").
+  /** FOUR CHIPS, FIXED, BECAUSE FOUR IS WHAT FITS (Dave 2026-09-17: "Look at
+   *  what happens to the chips when they slide. This is simply not going to
+   *  work. Either trim the amount down, use a dropdown").
    *
-   *  Seven chips is what you get from listing every filter the page has. Four
-   *  of them -- Today, Upcoming, All, Done -- are the handoff's own list and
-   *  always stand, because a view that is empty today is still where you look
-   *  tomorrow. The other three are conditional views, and the app already has
-   *  a rule for those, written for the Projects lens's Paused chip: "a filter
-   *  with nothing to filter is furniture, so it goes away with the last
-   *  paused project". So Overdue, Daily and From Email appear when they hold
-   *  something, and the chosen one always appears whatever it holds -- a
-   *  selected chip that vanished as you cleared the last row would take the
-   *  page out from under you. */
+   *  Measured at 393px: the row has 361px, four labelled chips need 335. Add
+   *  a fifth, or a count, or a control beside them, and the row has to
+   *  scroll -- and a scrolling row of large filled pills is cut in half at
+   *  every resting position, which is the thing he was looking at.
+   *
+   *  So the chip row is exactly the handoff's four, always, in its order, and
+   *  the other three views are rows in the options sheet with their counts
+   *  beside them. Nothing was dropped: Overdue, Daily and From Email are one
+   *  tap away and say how many they hold, which is more than the chips ever
+   *  said about them. */
   const LEAD_FILTERS: TaskFilter[] = ["today", "upcoming", "all", "done"];
-  const views: HeaderView[] = [...LEAD_FILTERS, ...FILTERS.filter((f) => !LEAD_FILTERS.includes(f))]
-    .filter((f) => LEAD_FILTERS.includes(f) || counts[f] > 0 || f === filter)
-    .map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] }));
+  const MORE_FILTERS = FILTERS.filter((f) => !LEAD_FILTERS.includes(f));
+  const views: HeaderView[] = LEAD_FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f] }));
+  /** What is narrowing the list right now, as words, or null when nothing is.
+   *  The area, and a view that is not one of the four on the row. */
+  const areaName = catFilter && catFilter !== "all" ? categories?.find((c) => c.id === catFilter)?.name : undefined;
+  const offRow = LEAD_FILTERS.includes(filter) ? undefined : FILTER_LABEL[filter];
+  const narrowing = [offRow, areaName].filter(Boolean).join(" · ") || null;
   const [optsOpen, setOptsOpen] = useState(false);
   // GROUP BY (ruled 2026-09-01: "a group-by dropdown"). Remembered within
   // the session, reset on launch, like the segment.
@@ -817,21 +821,14 @@ export default function TasksPage({
             where: `${FILTER_LABEL[filter]} tasks`,
             ...(filter !== "all" ? { onAll: () => onFilter?.("all"), allLabel: "Search all tasks" } : {}),
           } : undefined}
-          // THE CUT ACROSS WHATEVER VIEW IS CHOSEN (Dave 2026-09-17: "I can no
-          // longer sort by category on any of these pages"). It was reachable
-          // -- one tap, inside the options sheet -- and that is not the same
-          // as findable. It is the same HeadMenu it has always been, pinned
-          // beside the chips where the filtering is, so it never scrolls away
-          // and never reads as another view.
-          menu={categories && categories.length > 0 ? (
-            <HeadMenu
-              ariaLabel="Area"
-              value={!catFilter || catFilter === "all" ? "all" : catFilter}
-              label={!catFilter || catFilter === "all" ? "Area" : undefined}
-              options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
-              onPick={(v) => onCatFilter?.(v)}
-            />
-          ) : undefined}
+          // WHY THE ROWS YOU EXPECTED ARE NOT THERE (handoff rule 7). With no
+          // control on the chip line, this line is what keeps an Area cut and
+          // an off-row view from being invisible: it names them and clears
+          // them in one tap. Nothing shows when nothing is filtering.
+          filters={narrowing ? {
+            label: narrowing,
+            onClear: () => { if (offRow) onFilter?.("today"); if (areaName) onCatFilter?.("all"); },
+          } : undefined}
         >
           {segments}
         </LifeHeader>
@@ -1008,6 +1005,25 @@ export default function TasksPage({
           control is not rebuilding it. */}
       {optsOpen && (
         <OptionsSheet title="Tasks Options" rows={([
+          // THE VIEWS THAT DO NOT FIT ON THE ROW, with the counts the chips
+          // used to carry. A view is still a view; it just lives here.
+          ...MORE_FILTERS.map((f) => ({
+            key: f, label: FILTER_LABEL[f], count: counts[f],
+            onClick: () => { setOptsOpen(false); onFilter?.(f); },
+          })),
+          ...(categories && categories.length > 0 ? [{
+            key: "area",
+            label: "Area",
+            right: (
+              <HeadMenu
+                ariaLabel="Area"
+                value={!catFilter || catFilter === "all" ? "all" : catFilter}
+                label={!catFilter || catFilter === "all" ? "All Areas" : undefined}
+                options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
+                onPick={(v) => onCatFilter?.(v)}
+              />
+            ),
+          }] : []),
           {
             key: "group",
             label: "Group",
