@@ -272,3 +272,36 @@ export function dayWithSessionEntry(
   const added: Exercise = { id: newId(), ...identity, sets: (entry.plan ?? []).map((s) => ({ ...s, id: newSetId() })), ...(entry.program ?? {}) };
   return { ...day, exercises: [...day.exercises, added] };
 }
+
+/** MOVING A FINISHED SESSION TO ANOTHER DAY (Dave 2026-09-17: "should be able
+ *  to fully edit completed workouts").
+ *
+ *  `date` is the local ISO day every chart, streak and weekly total reads,
+ *  and `startedAt` / `endedAt` are the real clock stamps the duration is
+ *  measured between. Rewriting the day without the stamps leaves a session
+ *  dated Sep 14 that started at 6pm on Sep 17 -- the duration stays right and
+ *  everything that prints a time is wrong.
+ *
+ *  So both stamps shift by the same whole number of days. The duration is
+ *  untouched by construction (both ends move together), and the time of day
+ *  the session was done is kept, which is the only honest reading of "this
+ *  happened on Tuesday instead".
+ *
+ *  A patch, not a record: it returns only what changed, and nothing at all
+ *  when the day is the same or either side is not a date.
+ */
+export function movedToDay(
+  data: { date: string; startedAt?: number; endedAt?: number },
+  nextDate: string,
+): { date: string; startedAt?: number; endedAt?: number } | null {
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  if (!ISO.test(nextDate) || !ISO.test(data.date) || nextDate === data.date) return null;
+  const at = (iso: string) => new Date(iso + "T12:00:00").getTime();
+  const days = Math.round((at(nextDate) - at(data.date)) / 86_400_000);
+  const by = days * 86_400_000;
+  return {
+    date: nextDate,
+    ...(typeof data.startedAt === "number" ? { startedAt: data.startedAt + by } : {}),
+    ...(typeof data.endedAt === "number" ? { endedAt: data.endedAt + by } : {}),
+  };
+}

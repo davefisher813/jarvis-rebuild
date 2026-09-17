@@ -36,7 +36,7 @@ const ghost = (over: Partial<SetEntry> = {}): SetEntry => ({ id: "g1", ...over }
 function strip(g: SetEntry) {
   return render(
     <SetStrip
-      kind="weight_reps" unit="lb" entries={[]} ghost={[g]} nowPos={0}
+      kind="weight_reps" unit="lb" entries={[]} ghost={[g]}
       editableGhosts onLogGhost={() => {}} onLogGhostAs={() => {}}
       onChange={() => {}}
     />,
@@ -73,7 +73,7 @@ describe("the live log box does not print a zero nobody typed", () => {
   it("reports what is typed into an empty field, not the zero it replaced", () => {
     const onLogGhostAs = vi.fn();
     render(
-      <SetStrip kind="weight_reps" unit="lb" entries={[]} ghost={[ghost({ r: 8 })]} nowPos={0}
+      <SetStrip kind="weight_reps" unit="lb" entries={[]} ghost={[ghost({ r: 8 })]}
         editableGhosts onLogGhost={() => {}} onLogGhostAs={onLogGhostAs} onChange={() => {}} />,
     );
     fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "135" } });

@@ -25,7 +25,7 @@ import { bumpStrip, uniformStrip } from "./strip";
 import { buildLibrary, newExerciseKey, withAliases, withCreated, withFavorites, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
-import { dayWithSessionEntry } from "./edit";
+import { dayWithSessionEntry, movedToDay } from "./edit";
 import { defaultUnit, equipmentOf } from "./types";
 import { loadFields, loadStyleOf, type LoadStyle } from "./equipment";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
@@ -267,6 +267,50 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-launch btn-block" onClick={() => onStart(date || todayISO())}>Start Logging</button>
+          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** WHAT THE SESSION ITSELF IS (Dave 2026-09-17: "should be able to fully edit
+ *  completed workouts").
+ *
+ *  A finished workout could have its sets corrected and its end time
+ *  corrected, and that was all. Its NAME and its DATE -- the two things the
+ *  history list is read by, and the two most likely to be wrong on a session
+ *  logged from memory the next morning -- were fixed forever. Same shape as
+ *  BackdateSheet above, which is the other place a date is picked for a
+ *  session that already happened. */
+function WorkoutMetaSheet({ initialName, initialDate, onSave, onCancel }: {
+  initialName: string; initialDate: string;
+  onSave: (next: { dayName: string; date: string }) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(workoutTitle(initialName));
+  const [date, setDate] = useState(initialDate);
+  return createPortal(
+    <div className="sheet-scrim" onClick={onCancel}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="grp"><div className="eyebrow">This Session</div></div>
+        <div className="pad-x sheet-form">
+          <div className="field">
+            <div className="input-label">Name</div>
+            <input className="input" {...NAME_FIELD} value={name} aria-label="Session Name" onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="field">
+            <div className="input-label">Date</div>
+            {/* No future date: this is a session that already happened, the
+                same rule backdating keeps. */}
+            <input className="input" type="date" max={todayISO()} value={date} aria-label="Session Date" onChange={(e) => setDate(e.target.value)} />
+          </div>
+        </div>
+        <div className="pad-x sheet-actions">
+          <button className="btn btn-primary btn-launch btn-block" disabled={!name.trim()}
+            onClick={() => onSave({ dayName: workoutTitle(name.trim()), date: date || initialDate })}>Save</button>
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>
@@ -767,6 +811,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const finishing = useRef<{ data: WorkoutData; door: { id: string; date: string } | null } | null>(null);
   const [viewWorkout, setViewWorkout] = useState<Workout | null>(null);
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutExercise[] | null>(null);
+  // FULLY EDITABLE (Dave 2026-09-17). The finished session's own name and
+  // date, one exercise's overflow menu, its rename, and the door to adding a
+  // lift somebody forgot to log. All four were missing.
+  const [workoutMetaOpen, setWorkoutMetaOpen] = useState(false);
+  const [workoutExMenu, setWorkoutExMenu] = useState<number | null>(null);
+  const [workoutExRename, setWorkoutExRename] = useState<number | null>(null);
+  const [workoutAddOpen, setWorkoutAddOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [uploadOpen, setUploadOpen] = useState(false);
   // MANAGE (2026-09-16, the polish handoff: "Move Upload a Program and Add a
@@ -1970,13 +2021,35 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   if (viewWorkout && workoutDraft) {
     const w = viewWorkout;
     const dirty = JSON.stringify(workoutDraft) !== JSON.stringify(w.data.exercises);
-    const closeWorkout = () => { setViewWorkout(null); setWorkoutDraft(null); };
+    const closeWorkout = () => {
+      setViewWorkout(null); setWorkoutDraft(null);
+      setWorkoutMetaOpen(false); setWorkoutExMenu(null); setWorkoutExRename(null); setWorkoutAddOpen(false);
+    };
+    const patchDraft = (fn: (d: WorkoutExercise[]) => WorkoutExercise[]) => setWorkoutDraft((d) => (d ? fn(d) : d));
+    /** The session's own two facts, written straight through rather than held
+     *  in the exercise draft: they are not sets, and DurationCard next to them
+     *  has corrected the end time this way since it shipped. */
+    const saveWorkoutMeta = async (next: { dayName: string; date: string }) => {
+      setWorkoutMetaOpen(false);
+      // The clock stamps travel with the day, so a session moved to Tuesday
+      // still says it happened at six in the evening. See edit.movedToDay.
+      const moved = movedToDay(w.data, next.date);
+      const patch = { dayName: next.dayName, ...(moved ?? {}) };
+      if (patch.dayName === w.data.dayName && !moved) return;
+      const ok = await attemptWrite(() => svc.updateWorkout(w.id, patch));
+      await reload();
+      if (!ok) return;
+      setViewWorkout({ ...w, data: { ...w.data, ...patch } });
+      showToast({ message: "Session updated" });
+    };
     return (
       <div className="screen ruled health-ruled">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={closeWorkout}></button>
           <div className="nav-title">{workoutTitle(w.data.dayName)}</div>
-          <span className="nav-action"></span>
+          {/* The name and the date are what history is read by, and a session
+              logged from memory the next morning gets both wrong. */}
+          <button className="nav-action-text" onClick={() => setWorkoutMetaOpen(true)}>Edit</button>
         </div>
         {/* Meta, not a kicker: inside .grp a bare eyebrow inherits the
             accent-chrome kicker red, and this line is information (RED IS A
@@ -2032,11 +2105,24 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             that planned and logged it. PRs and the receipt are both derived
             from the workout list at render time, so saving here recomputes
             every number downstream for free. */}
-        {w.data.exercises.map((e, ei) => (
+        {/* THE DRAFT IS THE LIST (2026-09-17). This used to map the SAVED
+            exercises and read each strip's entries out of the draft by index,
+            which was fine while the only edit was to a set -- and is a
+            mismatched pair of lists the moment an exercise can be added or
+            removed. One list now, so a rename shows as you type it and a
+            removed lift leaves rather than leaving a hole behind. */}
+        {workoutDraft.map((e, ei) => (
           <div key={e.exerciseId + ei}>
             {/* The one head grammar of the gym pages (reformat 2026-08-31):
-                quiet sh2, same as Days / Recent / Exercises. */}
-            <div className="sh2 sh2-quiet"><span className="t">{liftTitle(e.name)}</span></div>
+                quiet sh2, same as Days / Recent / Exercises. Its overflow is
+                the same one every other gym row wears. */}
+            <div className="sh2 sh2-quiet">
+              <span className="t">{liftTitle(e.name)}</span>
+              <button type="button" className="ex-more" aria-label={`More for ${liftTitle(e.name)}`}
+                onClick={() => setWorkoutExMenu(ei)}>
+                <span aria-hidden="true">···</span>
+              </button>
+            </div>
             <div className="pad-x">
               <SetStrip
                 kind={e.kind}
@@ -2047,13 +2133,18 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 // editor that stepped a stack by 5 and called its number
                 // "Weight" was correcting history in the wrong language.
                 style={loadStyleOf(e)}
-                entries={workoutDraft[ei]?.sets ?? []}
-                onChange={(sets) => setWorkoutDraft((d) => d && d.map((x, i) => (i === ei ? { ...x, sets } : x)))}
+                entries={e.sets}
+                onChange={(sets) => patchDraft((d) => d.map((x, i) => (i === ei ? { ...x, sets } : x)))}
                 moveTracking
               />
             </div>
           </div>
         ))}
+        {/* A LIFT YOU FORGOT TO LOG (Dave 2026-09-17). Same .row-create the
+            program day and the live session spend on their own adds. */}
+        <div className="pad-x"><div className="card list-card-ruled">
+          <button className="row-create" onClick={() => setWorkoutAddOpen(true)}>Add Exercise</button>
+        </div></div>
         <div className="pad-x sheet-actions">
           {dirty && (
             <button className="btn btn-primary btn-launch btn-block" onClick={async () => {
@@ -2087,6 +2178,79 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           }}>Delete Workout</button>
         </div>
         <div className="screen-foot" />
+
+        {workoutMetaOpen && (
+          <WorkoutMetaSheet initialName={w.data.dayName} initialDate={w.data.date}
+            onSave={(next) => void saveWorkoutMeta(next)} onCancel={() => setWorkoutMetaOpen(false)} />
+        )}
+
+        {/* ONE EXERCISE'S OWN MENU. Both moves land in the draft, so Save
+            Changes is still the one write and Cancel is still backing out of
+            the screen -- a removal that wrote straight through would be the
+            only destructive edit here with no way back. */}
+        {workoutExMenu !== null && workoutDraft[workoutExMenu] && (
+          <ActionSheet
+            title={liftTitle(workoutDraft[workoutExMenu]!.name)}
+            actions={[
+              { label: "Rename", onClick: () => { setWorkoutExRename(workoutExMenu); setWorkoutExMenu(null); } },
+              {
+                // Not "Delete...": it lands in the draft, so backing out of
+                // the screen without saving is the way out. The armed confirm
+                // belongs to writes that land immediately.
+                label: "Remove From This Workout",
+                onClick: () => {
+                  const i = workoutExMenu;
+                  patchDraft((d) => d.filter((_, x) => x !== i));
+                  setWorkoutExMenu(null);
+                },
+              },
+            ]}
+            onClose={() => setWorkoutExMenu(null)}
+          />
+        )}
+
+        {workoutExRename !== null && workoutDraft[workoutExRename] && (
+          <NameSheet
+            title="Rename in This Workout"
+            initial={liftTitle(workoutDraft[workoutExRename]!.name)}
+            placeholder="Exercise Name"
+            onSave={(v) => {
+              const i = workoutExRename;
+              // liftTitle, not workoutTitle: this is a lift's name, and the
+              // rule about never casing one into a comparison still holds --
+              // nothing here compares it, the draft is written whole.
+              patchDraft((d) => d.map((x, k) => (k === i ? { ...x, name: liftTitle(v) } : x)));
+              setWorkoutExRename(null);
+            }}
+            onCancel={() => setWorkoutExRename(null)}
+          />
+        )}
+
+        {/* A LIFT SOMEBODY FORGOT TO LOG. It arrives with no sets, which is
+            the honest state: the sheet plans, and the strip below records
+            what was actually done. Its plan rides along as the ghost targets
+            the strip offers, exactly as a mid-session add does. */}
+        {workoutAddOpen && (
+          <ExerciseSheet
+            mode="new"
+            library={library}
+            history={workouts}
+            onSave={(draft) => {
+              patchDraft((d) => [...d, {
+                exerciseId: `add${Date.now().toString(36)}`,
+                name: draft.name, kind: draft.kind,
+                ...(draft.unit ? { unit: draft.unit } : {}),
+                ...(draft.timeUnit ? { timeUnit: draft.timeUnit } : {}),
+                ...(draft.exerciseKey ? { exerciseKey: draft.exerciseKey } : {}),
+                ...loadFields(draft),
+                sets: draft.sets, custom: true, plan: draft.sets,
+              }]);
+              seedLibrary(draft);
+              setWorkoutAddOpen(false);
+            }}
+            onCancel={() => setWorkoutAddOpen(false)}
+          />
+        )}
       </div>
     );
   }

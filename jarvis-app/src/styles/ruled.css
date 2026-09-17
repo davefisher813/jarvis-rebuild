@@ -2015,6 +2015,12 @@
 .ruled .ex-more { flex-shrink: 0; min-width: 44px; min-height: 44px; display: flex; align-items: center;
   justify-content: center; background: none; border: none; color: var(--tx-3);
   font-size: calc(17px * var(--type-scale)); letter-spacing: 0.08em; }
+/* THE SAME OVERFLOW, ON A SECTION HEAD (2026-09-17). A finished workout's
+   exercise is a .sh2 head rather than a row, and .sh2 orders its dotted rule
+   at 1 with everything trailing at 2 -- an unordered child lands at 0, which
+   would put the button between the name and the rule. It also gets its height
+   back, so a 44px target does not push the head open. */
+.ruled .sh2 .ex-more { order: 2; min-height: 0; margin: -13px 0; align-self: center; }
 .ruled .ex-check { flex-shrink: 0; width: 22px; height: 22px; border-radius: var(--r-circle);
   border: 1.5px solid var(--tx-4); align-self: center; }
 .ruled .ex-check.on { background: var(--hl-cyan); border-color: var(--hl-cyan); }
