@@ -51,7 +51,7 @@ describe("findings", () => {
   // row opens, with room to read it.
   it("hands over one fact, so the row cannot run to four lines", () => {
     const ws = [w("a", "2026-08-31", [{ w: 125, r: 5 }]), w("b", "2026-09-07", [{ w: 130, r: 5 }]), w("c", "2026-09-12", [{ w: 135, r: 5 }, { w: 135, r: 5 }])];
-    for (const p of ["7d", "28d", "90d"] as const) {
+    for (const p of ["7d", "30d", "90d"] as const) {
       for (const f of findings({ workouts: ws, sleepDef: null, logs: [], period: periodFor(p, "2026-09-14"), muscleMap: new Map(), now: T("2026-09-14", 12) })) {
         expect(f.context.length, `${f.title} carries ${f.context.length} facts`).toBeLessThanOrEqual(1);
       }
@@ -60,7 +60,7 @@ describe("findings", () => {
 
   it("no finding hands over a fact carrying its own separator", () => {
     const ws = [w("a", "2026-08-31", [{ w: 125, r: 5 }]), w("b", "2026-09-07", [{ w: 130, r: 5 }]), w("c", "2026-09-12", [{ w: 135, r: 5 }, { w: 135, r: 5 }])];
-    for (const p of ["7d", "28d", "90d"] as const) {
+    for (const p of ["7d", "30d", "90d"] as const) {
       for (const f of findings({ workouts: ws, sleepDef: null, logs: [], period: periodFor(p, "2026-09-14"), muscleMap: new Map(), now: T("2026-09-14", 12) })) {
         for (const c of [f.value, ...f.context]) {
           expect(c, `"${c}" carries its own middot`).not.toMatch(/\u00b7/);

@@ -1,3 +1,4 @@
+import type { MeasureKind } from "./types";
 import type { Storage2 } from "./liveSession";
 import { DEFAULT_BAR, DEFAULT_PLATES } from "./ramp";
 
@@ -67,10 +68,34 @@ export interface GymSettings {
    *  pairId. Kept so the page stops proposing a merge that has already been
    *  considered and declined. */
   dismissedDupes?: string[];
+  /** EXERCISES CREATED ON THE EXERCISES PAGE (Dave 2026-09-17: "I should be
+   *  able to create exercises here").
+   *
+   *  The library is a DERIVATION -- every exercise the athlete has ever put
+   *  in a program or logged in a session -- which meant the only way to get
+   *  a lift into it was to use it. That is backwards for the page the
+   *  handoff calls "the central place to organize exercises": you cannot
+   *  classify, set a goal on, or merge something you have not done yet.
+   *
+   *  So a created lift is a SEED, and only a seed: a key, a name and what it
+   *  measures. It joins the derivation with no sightings and no numbers, and
+   *  the moment it is actually used the derived entry takes over -- same key,
+   *  now carrying real history. Nothing here ever overwrites a real sighting.
+   *  Absent on every settings blob written before this, which reads as none. */
+  createdLifts?: CreatedLift[];
   /** MERGE HISTORY (handoff §5: "Provide recoverable merge history"). Newest
    *  last. A record of what was folded into what and when, so a merge is
    *  answerable weeks later even when it can no longer be safely reversed. */
   merges?: MergeRecord[];
+}
+
+/** A lift the athlete created by hand, before ever doing it. See
+ *  `createdLifts` above: a seed for the derived library, never a record. */
+export interface CreatedLift {
+  key: string;
+  name: string;
+  kind: MeasureKind;
+  unit?: string;
 }
 
 /** One merge, as it happened. `undoable` goes false the moment anything else

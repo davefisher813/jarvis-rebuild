@@ -62,7 +62,7 @@ export default function ExportSheet({ records, workouts, sleepDef, logs, today, 
             <div className="input-label">Period</div>
             <div className="chip-row chip-wrap-row" role="group" aria-label="Period">
               {chip(range === "7d", "7 Days", () => setRange("7d"), "7d")}
-              {chip(range === "28d", "28 Days", () => setRange("28d"), "28d")}
+              {chip(range === "30d", "30 Days", () => setRange("30d"), "30d")}
               {chip(range === "90d", "90 Days", () => setRange("90d"), "90d")}
               {chip(range === "custom", "Custom", () => setRange("custom"), "custom")}
             </div>

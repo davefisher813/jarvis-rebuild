@@ -266,7 +266,7 @@ export default function CategoryDetail({
   const [gymWorkoutId, setGymWorkoutId] = useState<string | null>(null);
   // ALL DATA (2026-09-14, item 8): the filters and the scroll position live
   // here, so coming back from a record lands where he left.
-  const [allDataFilter, setAllDataFilter] = useState<RecordFilter & { range: RangeKey | "all" }>(() => ({ category: "all", range: "28d", period: periodFor("28d", todayISO()), date: null, query: "" }));
+  const [allDataFilter, setAllDataFilter] = useState<RecordFilter & { range: RangeKey | "all" }>(() => ({ category: "all", range: "30d", period: periodFor("30d", todayISO()), date: null, query: "" }));
   const allDataScroll = useRef(0);
   const [exportOpen, setExportOpen] = useState<{ period: Period; category: DataCategory | "all" } | null>(null);
   const [assignOpen, setAssignOpen] = useState<{ name: string; exerciseKey?: string; sets: number }[] | null>(null);

@@ -3,7 +3,7 @@ import { loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, type Lo
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, workoutTitle } from "../shared/casing";
 import { REST_FLOOR_SEC } from "./pacing";
 import { logButtonLabel, plannedEntryAt, entryNoun, formatSet } from "./measures";
 import { newSetId, blankEntry, duplicateEntry, entryFrom } from "./strip";
@@ -473,7 +473,7 @@ export default function SessionScreen({
     <div className="screen ruled health-ruled screen-session">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title truncate">{live.dayName}</div>
+        <div className="nav-title truncate">{workoutTitle(live.dayName)}</div>
         {/* H-27: Pause beside Finish. Both quiet; the one filled control on
             this screen is the Log bar's. */}
         <div className="nav-actions">

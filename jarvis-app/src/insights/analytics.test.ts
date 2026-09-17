@@ -13,7 +13,11 @@ describe("periods", () => {
     const p = periodFor("7d", "2026-09-14");
     expect(p).toEqual({ key: "7d", from: "2026-09-08", to: "2026-09-14", days: 7 });
     expect(previousPeriod(p)).toEqual({ key: "7d", from: "2026-09-01", to: "2026-09-07", days: 7 });
-    expect(periodFor("28d", "2026-09-14").from).toBe("2026-08-18");
+    // AMENDED 2026-09-17 (Dave: "28 days makes no sense. Change to 30"). The
+    // middle range was four weeks because four weeks is a tidy number of
+    // weeks, which is not a thing anybody thinks in outside a spreadsheet.
+    // Thirty days ending today, inclusive, is Aug 16 through Sep 14.
+    expect(periodFor("30d", "2026-09-14")).toEqual({ key: "30d", from: "2026-08-16", to: "2026-09-14", days: 30 });
     expect(periodFor("custom", "2026-09-14", { from: "2026-09-01", to: "2026-09-10" })).toEqual({ key: "custom", from: "2026-09-01", to: "2026-09-10", days: 10 });
     expect(periodFor("custom", "2026-09-14", { from: "2026-09-10", to: "2026-09-01" }).key).toBe("7d");
   });

@@ -71,9 +71,9 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
       </div>
       <div className="pad-x">
         <div className="chip-row chip-wrap-row" role="group" aria-label="Period">
-          {(["7d", "28d", "90d", "all"] as (RangeKey | "all")[]).map((k) => (
+          {(["7d", "30d", "90d", "all"] as (RangeKey | "all")[]).map((k) => (
             <div key={k} {...pressable(() => setRange(k))} className={"chip" + (filter.range === k && !filter.date ? " active" : "")} aria-pressed={filter.range === k && !filter.date}>
-              {k === "7d" ? "7 Days" : k === "28d" ? "28 Days" : k === "90d" ? "90 Days" : "All Time"}
+              {k === "7d" ? "7 Days" : k === "30d" ? "30 Days" : k === "90d" ? "90 Days" : "All Time"}
             </div>
           ))}
           {filter.date && (

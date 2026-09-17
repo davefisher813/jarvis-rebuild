@@ -72,3 +72,26 @@ export function titleCase(text: string): string {
     })
     .join(" ");
 }
+
+// A WORKOUT'S OWN NAME, AS THE APP PRINTS IT (Dave 2026-09-17, photographing
+// a program whose days read "Push Day 1", "Leg Day", "Pull day 2": "all
+// workout titles should be title cased as well").
+//
+// These names are typed by hand, in a hurry, usually on a phone at the gym,
+// so they arrive in whatever case the keyboard felt like. The app's own
+// labels have been Title Case since catalog V3.1, which meant one row in a
+// list of six looked like a mistake next to its neighbours.
+//
+// It runs in TWO places on purpose:
+//
+//   - at the WRITE DOOR, so the store converges on the cased spelling and
+//     anything reading the raw name later agrees with the screen;
+//   - at the READ, so a name typed months before this shipped reads right
+//     today instead of waiting to be edited.
+//
+// titleCase is idempotent, so running both is not a bug, and it keeps
+// capitals that are already inside a word (RDLs stays RDLs, AMRAP stays
+// AMRAP) rather than flattening an acronym on the way past.
+export function workoutTitle(name: string): string {
+  return titleCase(name);
+}

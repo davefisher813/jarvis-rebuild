@@ -1,3 +1,4 @@
+import { workoutTitle } from "../shared/casing";
 import { useState } from "react";
 import MarkdownField from "../shared/MarkdownField";
 import { createPortal } from "react-dom";
@@ -55,7 +56,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Session Done</div></div>
         <div className="pad-x sheet-form">
-          <div className="p3-q">{dayName}</div>
+          <div className="p3-q">{workoutTitle(dayName)}</div>
           <div className="stat-row">
             {tiles.slice(0, 2).map((t) => (
               <div className="stat-tile" key={t.label}><div className="stat-num">{t.num}</div><div className="stat-label">{t.label}</div></div>

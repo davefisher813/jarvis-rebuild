@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { capAfterNumber, titleCase } from "./casing";
+import { capAfterNumber, titleCase, workoutTitle } from "./casing";
 
 // Dave 2026-08-20: "If a number leads a line the first letter after should be
 // capitalized." He caught it on "14 emails need you".
@@ -49,5 +49,32 @@ describe("titleCase is number-aware", () => {
   });
   it("keeps existing capitals inside a word", () => {
     expect(titleCase("book AA1187 now")).toBe("Book AA1187 Now");
+  });
+});
+
+// DAVE, 2026-09-17, photographing a program whose six days read "Push Day 1",
+// "Leg Day", "Pull Day 1", "Pull day 2": "workouts doesn't follow title case
+// rules. Fix it. Also, all workout titles should be title cased as well."
+describe("workoutTitle", () => {
+  it("cases a day name typed in a hurry", () => {
+    expect(workoutTitle("Pull day 2")).toBe("Pull Day 2");
+    expect(workoutTitle("push day 1")).toBe("Push Day 1");
+    expect(workoutTitle("leg day")).toBe("Leg Day");
+  });
+
+  it("leaves a name that is already cased exactly as it is", () => {
+    expect(workoutTitle("Auxiliary Day")).toBe("Auxiliary Day");
+    expect(workoutTitle("5 Day Program")).toBe("5 Day Program");
+  });
+
+  // It runs at the write door AND at the read, so it has to survive being
+  // applied to its own output.
+  it("is idempotent", () => {
+    expect(workoutTitle(workoutTitle("pull day 2"))).toBe("Pull Day 2");
+  });
+
+  // An acronym an athlete typed on purpose is not a casing mistake.
+  it("keeps capitals that are already inside a word", () => {
+    expect(workoutTitle("AMRAP finisher")).toBe("AMRAP Finisher");
   });
 });

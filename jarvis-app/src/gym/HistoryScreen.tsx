@@ -4,7 +4,7 @@ import { exerciseHistory, trendLine, doneCount, sessionGroups } from "./history"
 import { liftSessions, chartValue } from "./chartData";
 import { sameLiftAnyKind } from "./identity";
 import { monthDay } from "../money/bills";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, workoutTitle } from "../shared/casing";
 import { todayISO } from "../tasks/grouping";
 
 const CHEV = <div className="chev" />;
@@ -101,11 +101,11 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
               <div className="sh2 sh2-quiet"><span className="t">{g.label}</span><span className="n">{g.rows.length}</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
                 {g.rows.map((r) => (
-                  <div className="row" role="button" tabIndex={0} key={r.workout.id} aria-label={"Open " + r.workout.data.dayName + " " + monthDay(r.date)}
+                  <div className="row" role="button" tabIndex={0} key={r.workout.id} aria-label={"Open " + workoutTitle(r.workout.data.dayName) + " " + monthDay(r.date)}
                     onClick={() => onOpenWorkout?.(r.workout)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenWorkout?.(r.workout); } }}>
                     <div className="row-grow">
-                      <div className="conn-name truncate">{r.workout.data.dayName}</div>
+                      <div className="conn-name truncate">{workoutTitle(r.workout.data.dayName)}</div>
                       {/* Three facts: the date, the minutes in the time hue, the
                           working sets in the logged-work hue. */}
                       <div className="facts">

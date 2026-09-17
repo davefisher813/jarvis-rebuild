@@ -12,6 +12,7 @@ import { DuplicateBar, DuplicatesSheet } from "./DuplicateReview";
 import { capAfterNumber } from "../shared/casing";
 import { findDuplicates, pairId, type DuplicatePair } from "./duplicates";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
+import { MEASURE_KINDS, MEASURE_LABEL, type MeasureKind } from "./types";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, loadStyleOf, type Equipment } from "./equipment";
 import {
   classOf, needsMuscles, rowChips, valueLine, type Chip, type ClassStore, type Classification,
@@ -52,7 +53,7 @@ function chipTone(ch: Chip): string {
 
 export default function LibraryPage({
   rows, store, todayIso, onOpen, onRename, onSetClass, onBatch, onMerge, onToggleHidden,
-  onToggleFavorite, onSetGoal, dismissedDupes, onDismissDuplicate, onBack,
+  onToggleFavorite, onSetGoal, onCreate, dismissedDupes, onDismissDuplicate, onBack,
 }: {
   rows: LibraryRow[];
   /** Every exercise's classification, by library key. */
@@ -70,6 +71,10 @@ export default function LibraryPage({
   onToggleHidden: (row: LibraryRow) => void;
   onToggleFavorite?: (row: LibraryRow) => void;
   onSetGoal?: (row: LibraryRow) => void;
+  /** CREATE ONE HERE (Dave 2026-09-17: "I should be able to create exercises
+   *  here"). Name and measurement only; everything else about the exercise is
+   *  the classification editor's job, which is one tap away on the new row. */
+  onCreate?: (draft: { name: string; kind: MeasureKind }) => void;
   dismissedDupes?: string[];
   onDismissDuplicate?: (id: string) => void;
   onBack: () => void;
@@ -102,6 +107,13 @@ export default function LibraryPage({
   // Saved, until you change the filter. Nothing is hidden by this -- the row
   // is real and the filter is honest again the moment it is re-applied.
   const [justSaved, setJustSaved] = useState<string[]>([]);
+
+  /** The create sheet's draft. Null when closed. Measurement defaults to
+   *  weight and reps, which is what most of a gym is, and is one tap from
+   *  anything else rather than a required question. */
+  const [creating, setCreating] = useState<{ name: string; kind: MeasureKind } | null>(null);
+  const createRef = useRef<HTMLInputElement>(null);
+  const openCreate = () => setCreating({ name: "", kind: "weight_reps" });
 
   // A classification nobody has written yet still shows what the athlete told
   // the exercise sheet: the equipment on its most recent sighting, read
@@ -168,6 +180,7 @@ export default function LibraryPage({
         <div className="empty-state">
           <div className="empty-title">No Exercises Yet</div>
           <div className="empty-sub">Every exercise you add to a program or log in a session lands here</div>
+          {onCreate && <button className="btn btn-primary btn-launch" onClick={openCreate}>Add Exercise</button>}
         </div>
       ) : (
         <>
@@ -358,10 +371,72 @@ export default function LibraryPage({
             {shown.length === 0 && (
               <div className="row"><div className="row-grow"><div className="conn-meta">Nothing matches what you are filtering by</div></div></div>
             )}
+            {/* .row-create is this app's in-list create, the same affordance
+                Add Day and Add Week wear. It sits at the foot of the list
+                because that is where you arrive having failed to find the
+                thing you were looking for. */}
+            {onCreate && !selecting && <button className="row-create" onClick={openCreate}>Add Exercise</button>}
           </div></div>
 
           <div className="pad-x"><div className="bp-sub">{floorLine(view, rows.length, filter)}</div></div>
         </>
+      )}
+
+      {/* CREATE, the smallest sheet on this page (Dave 2026-09-17: "I should
+          be able to create exercises here").
+
+          It asks TWO things, and the second one has a default. A name, and
+          what the exercise measures -- which is the only field the rest of
+          the app cannot work without, because it decides what the logging
+          strip even looks like. Muscles, equipment, grip and the other seven
+          axes are not asked here on purpose: nothing about a classification
+          is required (classify.ts rule 2), and a create form that looks
+          required is how a library ends up with four exercises in it. The
+          new row lands in the list with its own Assign Muscles chip, which
+          is the same door every other unclassified row offers. */}
+      {creating && createPortal(
+        <div className="sheet-scrim" onClick={() => setCreating(null)}>
+          <div className="card xs" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <SheetBar
+              title="New Exercise"
+              onCancel={() => setCreating(null)}
+              saveLabel="Add"
+              saveDisabled={!creating.name.trim()}
+              onSave={() => {
+                const d = creating;
+                setCreating(null);
+                if (d.name.trim() && onCreate) onCreate({ name: d.name.trim(), kind: d.kind });
+              }}
+            />
+            <div className="sheet-form">
+              <div className="grp xs-grp"><div className="eyebrow">Name</div></div>
+              <div className="pad-x"><div className="card xs-group">
+                <div className="row xs-row xs-row-write" onClick={() => createRef.current?.focus()}>
+                  <input ref={createRef} className="xs-input" value={creating.name} placeholder="Barbell Row"
+                    aria-label="Exercise Name" onChange={(e) => setCreating({ ...creating, name: e.target.value })} />
+                </div>
+              </div></div>
+              <div className="grp xs-grp"><div className="eyebrow">Measurement</div></div>
+              <div className="pad-x"><div className="card xs-group">
+                {/* row-tap: chip strip, every inch of it is one of the answer chips */}
+                <div className="row xs-row">
+                  <div className="chip-row chip-wrap-row">
+                    {MEASURE_KINDS.map((k) => (
+                      <button key={k} type="button" className={"chip" + (creating.kind === k ? " active chip-cyan" : "")}
+                        aria-pressed={creating.kind === k} aria-label={`Measured as ${MEASURE_LABEL[k]}`}
+                        onClick={() => setCreating({ ...creating, kind: k })}>
+                        {MEASURE_LABEL[k]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div></div>
+              <div className="xs-foot" />
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
 
       {/* RENAME, its own small sheet: it is the one edit that rewrites every

@@ -21,7 +21,7 @@ import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
 import { bumpStrip, uniformStrip } from "./strip";
-import { buildLibrary, newExerciseKey, withAliases, withFavorites, type LibraryEntry } from "./library";
+import { buildLibrary, newExerciseKey, withAliases, withCreated, withFavorites, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
 import { dayWithSessionEntry } from "./edit";
@@ -38,7 +38,7 @@ import { muscleMapFrom } from "./insights";
 import type { MuscleGroup } from "./muscles";
 import { sameLiftAnyKind } from "./identity";
 import { estimateDay, type FitPlan } from "./fit";
-import { readGymSettings, writeGymSettings, rackFrom } from "./settings";
+import { readGymSettings, writeGymSettings, rackFrom, type CreatedLift } from "./settings";
 import FitSheet from "./FitSheet";
 import ExerciseSheet from "./ExerciseSheet";
 import SessionScreen from "./SessionScreen";
@@ -66,7 +66,7 @@ import { useLongPress } from "../shared/useLongPress";
 import { showToast } from "../shared/toast";
 import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { useAI } from "../ai/useAI";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, workoutTitle } from "../shared/casing";
 import { BarbellGlyph } from "../shared/glyphs";
 import { Ellipsis } from "../shared/icons";
 import Stepper from "../shared/Stepper";
@@ -187,7 +187,7 @@ function NameSheet({ title, initial, placeholder, backOff, season, gameCategory,
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-launch btn-block" disabled={busy}
-            onClick={() => { if (v.trim()) { setBusy(true); onSave(v.trim()); } }}>{busy ? "Saving..." : "Save"}</button>
+            onClick={() => { if (v.trim()) { setBusy(true); onSave(workoutTitle(v.trim())); } }}>{busy ? "Saving..." : "Save"}</button>
           {onDelete && (
             <button className={"btn btn-block " + (armed ? "btn-danger" : "btn-secondary btn-danger-text")}
               onClick={() => (armed ? onDelete() : setArmed(true))}>
@@ -296,6 +296,34 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
  * door: the same trailing pill on every row, opening the same ActionSheet.
  * A real button, so Enter and Space are free and the label is announced.
  */
+/** YOUR LIFTS, AS A ROW AND NOT A CARD (Dave 2026-09-17: "Your lifts / all
+ *  programs breaks the rule of stand alone small pill. Combine them into a
+ *  nice clean container that matches other containers in the health
+ *  section").
+ *
+ *  Two one-row cards, half a screen apart, each holding a single navigational
+ *  door, is the floating-pill shape this app spent the 2026-08-31 count-pill
+ *  wave getting rid of. They are the same KIND of thing -- a door to a list
+ *  you keep, with its count on it -- so they belong in one grouped card, which
+ *  is the Apple Health language every other shelf on these screens already
+ *  speaks. Extracted so the program branch can put it under All Programs and
+ *  the no-program branch can still show it on its own. */
+function LiftsRow({ count, onOpen }: { count: number; onOpen: () => void }) {
+  return (
+    <div {...pressable(onOpen)} className="row">
+      <div className="row-grow">
+        <div className="conn-name">Your Lifts</div>
+        {/* A COUNT, NOT A SENTENCE (health polish 2026-09-16: "Your Lifts:
+            trailing 24 exercises; remove each with its history"). The right
+            slot of a task row holds a value; it held a clause explaining what
+            the door leads to, which is what the door is for. */}
+        <div className="facts"><span className="fact">{capAfterNumber(count + (count === 1 ? " exercise" : " exercises"))}</span></div>
+      </div>
+      {CHEV}
+    </div>
+  );
+}
+
 function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day: ProgramDay; onOpen: () => void; onPin?: () => void; onMenu: () => void;
   /** 2026-09-14 (the reference's "Completed Monday"): the weekday of this
    *  day's last session when it was inside the last week. */
@@ -307,7 +335,7 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
-        <div className="conn-name truncate">{day.name}</div>
+        <div className="conn-name truncate">{workoutTitle(day.name)}</div>
         {/* KILL THE GREY SUBTEXT (Dave 2026-09-10). "6 exercises" under every
             day in the same grey turned the one number that distinguishes them
             into wallpaper. It is a chip, and an empty day says so in amber
@@ -450,7 +478,7 @@ function ProgramRow({ program, active, onSwitch, onMenu }: { program: Program; a
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onSwitch} {...hold}>
       <div className="row-grow">
-        <div className="conn-name truncate">{program.data.name}</div>
+        <div className="conn-name truncate">{workoutTitle(program.data.name)}</div>
         {program.data.archived && !active && <div className="conn-meta">Archived</div>}
       </div>
       {active && <span className="pill pill-good">Active</span>}
@@ -768,6 +796,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     () => (readGymSettings().muscleByKey ?? {}) as Record<string, MuscleGroup[]>,
   );
   const [dismissedDupes, setDismissedDupes] = useState<string[]>(() => readGymSettings().dismissedDupes ?? []);
+  // CREATED BY HAND (Dave 2026-09-17: "I should be able to create exercises
+  // here"). Seeds for the derived library; see settings.createdLifts and
+  // library.withCreated. Same read-once, write-on-change shape as the lists
+  // above it, for the same reason: they are facts about a library that has no
+  // document of its own to hang them on.
+  const [createdLifts, setCreatedLifts] = useState<CreatedLift[]>(() => readGymSettings().createdLifts ?? []);
+  const saveCreatedLifts = (next: CreatedLift[]) => { setCreatedLifts(next); writeGymSettings({ ...readGymSettings(), createdLifts: next }); };
   // WHAT EACH EXERCISE IS (2026-09-14, second pass). The whole classification
   // by library key, read once through classify.readClassStore -- which also
   // carries the older flat muscleByKey forward, so nothing set this morning
@@ -856,7 +891,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // every program (archived ones included -- real history) and every
   // workout, recomputed only when the underlying data actually changes.
   recordsRef.current = { workouts, programs: allPrograms };
-  const library = useMemo(() => withFavorites(withAliases(buildLibrary(allPrograms, workouts), aliasMap), favoriteKeys), [allPrograms, workouts, aliasMap, favoriteKeys]);
+  const library = useMemo(
+    () => withFavorites(withAliases(withCreated(buildLibrary(allPrograms, workouts), createdLifts), aliasMap), favoriteKeys),
+    [allPrograms, workouts, aliasMap, favoriteKeys, createdLifts],
+  );
 
   // UP-ATH-02 (2026-09-06), THE SEASON LINK's other half. The program row has
   // said "Next Game: Sep 12" since the link shipped, and the two screens an
@@ -1798,6 +1836,18 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           store={classStore}
           todayIso={todayISO()}
           onOpen={(r) => setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) })}
+          // CREATE ONE HERE (Dave 2026-09-17). The name is taken as typed --
+          // an exercise is not a workout title, and LAW 18 says the app never
+          // rewrites what the athlete called a lift. A name already in the
+          // library at the same measurement is not created twice; the row is
+          // already there, so saying so beats quietly minting a duplicate for
+          // the merge review to find next week.
+          onCreate={({ name, kind }) => {
+            const twin = library.find((e) => e.name.trim().toLowerCase() === name.toLowerCase() && e.kind === kind);
+            if (twin) { showToast({ message: `${twin.name} is already here` }); return; }
+            saveCreatedLifts([...createdLifts, { key: newExerciseKey(), name, kind }]);
+            showToast({ message: `${name} added` });
+          }}
           // THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list
           // of exercises there's a goal option"). Walks into the exercise it is
           // about and opens the same LiftGoalSheet its own page opens, rather
@@ -1906,7 +1956,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       <div className="screen ruled health-ruled">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={closeWorkout}></button>
-          <div className="nav-title">{w.data.dayName}</div>
+          <div className="nav-title">{workoutTitle(w.data.dayName)}</div>
           <span className="nav-action"></span>
         </div>
         {/* Meta, not a kicker: inside .grp a bare eyebrow inherits the
@@ -2848,7 +2898,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           <div className="pad-x"><div className="card list-card-ruled">
             <div className="row" role="button" tabIndex={0} onClick={() => enterSession(readLive() ?? parkedLive)}>
               <div className="row-grow">
-                <div className="conn-name truncate">Resume {parkedLive.dayName}</div>
+                <div className="conn-name truncate">Resume {workoutTitle(parkedLive.dayName)}</div>
                 <div className="conn-meta">{(() => {
                   const n = parkedLive.exercises.reduce((c, e) => c + e.sets.filter((x) => !x.skipped).length, 0);
                   return n > 0 ? `${n} ${n === 1 ? "set" : "sets"} logged` : "Nothing logged yet";
@@ -2908,21 +2958,21 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 the only thing repeated on this screen is nothing. The row
                 itself stays, per catalog §3.11: the switcher and the
                 Archived shelf are always reachable. */}
+            {/* ONE SHELF, TWO DOORS (Dave 2026-09-17). See LiftsRow. */}
             <div className="pad-x"><div className="card list-card-ruled">
               <div className="row" role="button" tabIndex={0} onClick={() => setSwitcherOpen(true)}>
                 <div className="row-grow">
                   <div className="conn-name truncate">All Programs</div>
                   {(programs.length > 1 || program.data.inSeason) && (
-                    <div className="conn-meta">
-                      {[
-                        programs.length > 1 ? `${programs.length} Active` : null,
-                        program.data.inSeason ? (nextGame ? `Next Game: ${monthDay(nextGame.date)}` : "In-Season") : null,
-                      ].filter(Boolean).join(" · ")}
+                    <div className="facts">
+                      {programs.length > 1 && <span className="fact">{`${programs.length} Active`}</span>}
+                      {program.data.inSeason && <span className="fact">{nextGame ? `Next Game ${monthDay(nextGame.date)}` : "In-Season"}</span>}
                     </div>
                   )}
                 </div>
                 {CHEV}
               </div>
+              {library.length > 0 && <LiftsRow count={library.length} onOpen={() => setLibraryOpen(true)} />}
             </div></div>
 
             {nextDay && nextDay.exercises.length > 0 && (
@@ -3051,20 +3101,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             nothing rendered it outside an autocomplete, so there was no way
             to see the list, rename one, or fold the duplicates a free-text
             library grows. Offered whenever there is a library to look at. */}
-        {library.length > 0 && (
+        {/* With a program, this row rides the shelf under All Programs. With
+            no program there is no shelf to ride, and a library is still worth
+            reaching, so it keeps its own card down here. */}
+        {!program && library.length > 0 && (
           <div className="pad-x"><div className="card list-card-ruled">
-            <div {...pressable(() => setLibraryOpen(true))} className="row">
-              <div className="row-grow">
-                <div className="conn-name">Your Lifts</div>
-                {/* A COUNT, NOT A SENTENCE (health polish 2026-09-16: "Your
-                    Lifts: trailing 24 exercises; remove each with its
-                    history"). The right slot of a task row holds a value;
-                    it held a clause explaining what the door leads to,
-                    which is what the door is for. */}
-                <div className="facts"><span className="fact">{capAfterNumber(library.length + (library.length === 1 ? " exercise" : " exercises"))}</span></div>
-              </div>
-              {CHEV}
-            </div>
+            <LiftsRow count={library.length} onOpen={() => setLibraryOpen(true)} />
           </div></div>
         )}
         {recent.length > 0 && (
@@ -3091,7 +3133,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                   <SwipeDelete key={w.id} label={w.data.dayName} onDelete={() => void removeWorkoutNow(w.id, w.data.dayName)}>
                     <div className="row" role="button" tabIndex={0} onClick={() => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}>
                       <div className="row-grow">
-                        <div className="conn-name truncate">{w.data.dayName}</div>
+                        <div className="conn-name truncate">{workoutTitle(w.data.dayName)}</div>
                         {/* Partial work is stated as the fact it is: never a
                             percentage, never a shortfall. */}
                         {/* Three facts, three chips, aligned -- the date, the

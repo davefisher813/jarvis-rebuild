@@ -138,7 +138,11 @@ describe("GYM-F-14: a parked session stays parked", () => {
 
   it("the parked session is one tap away on the program page", () => {
     expect(flow).toMatch(/\{parkedLive && \(/);
-    expect(flow).toContain("Resume {parkedLive.dayName}");
+    // AMENDED 2026-09-17: the day's name now goes through workoutTitle on
+    // the way to the screen (Dave: "all workout titles should be title cased
+    // as well"). What this test is about -- that the parked session names
+    // itself on the program page -- is unchanged.
+    expect(flow).toContain("Resume {workoutTitle(parkedLive.dayName)}");
   });
 });
 

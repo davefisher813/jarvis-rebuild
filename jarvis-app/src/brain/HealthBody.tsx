@@ -124,7 +124,12 @@ export default function HealthBody({
         </div>
         <div className="h-week-main">
           <button type="button" className="h-week-count" aria-label={`${overview.workouts} workouts, open the workouts`} onClick={() => onOpenRecords({ kind: "workouts" })}>
-            <b>{overview.workouts}</b><span>{overview.workouts === 1 ? "workout" : "workouts"}</span>
+            {/* TITLE CASE, LIKE EVERY OTHER LABEL ON THIS CARD (Dave
+                2026-09-17: "workouts doesn't follow title case rules").
+                Working Sets and Training Time sit two rows below in the same
+                type at the same size; this one word was lowercase, which read
+                as a typo rather than as a different kind of thing. */}
+            <b>{overview.workouts}</b><span>{overview.workouts === 1 ? "Workout" : "Workouts"}</span>
           </button>
           <div className="h-bars" role="group" aria-label="Workouts by day">
             {overview.days.map((d) => (

@@ -17,7 +17,7 @@ import { comparableGain, type LiftId, type RepGain } from "./findings";
 import type { DataCategory } from "./records";
 
 // INSIGHTS (the approved Health design, 2026-09-14, items 3 to 7). A real
-// page: the period (7, 28, 90 days or two dates) drives every card that
+// page: the period (7, 30, 90 days or two dates) drives every card that
 // reads the period; a card that reads a different span says so on its
 // face. Overview leads with the best comparable change, where the sets
 // went (with the unassigned sets shown, never dropped) and sleep over the
@@ -137,7 +137,7 @@ export default function InsightsPage({
   onExport: (period: Period) => void;
 }) {
   const [range, setRange] = useState<RangeKey>("7d");
-  const [custom, setCustom] = useState({ from: periodFor("28d", today).from, to: today });
+  const [custom, setCustom] = useState({ from: periodFor("30d", today).from, to: today });
   const [section, setSection] = useState<InsightsSection>("overview");
   const period = periodFor(range, today, custom);
   const sleepDef = metricDefs.find((d) => d.data.presetKey === "sleep" && !d.data.hidden) ?? null;
@@ -195,9 +195,9 @@ export default function InsightsPage({
   const rangeChips = (
     <div className="pad-x">
       <div className="chip-row chip-wrap-row" role="group" aria-label="Period">
-        {(["7d", "28d", "90d", "custom"] as RangeKey[]).map((k) => (
+        {(["7d", "30d", "90d", "custom"] as RangeKey[]).map((k) => (
           <div key={k} {...pressable(() => setRange(k))} className={"chip" + (range === k ? " active" : "")} aria-pressed={range === k}>
-            {k === "7d" ? "7 Days" : k === "28d" ? "28 Days" : k === "90d" ? "90 Days" : "Custom"}
+            {k === "7d" ? "7 Days" : k === "30d" ? "30 Days" : k === "90d" ? "90 Days" : "Custom"}
           </div>
         ))}
         <span className="fact ins-range">{rangeLabel}</span>
@@ -230,7 +230,7 @@ export default function InsightsPage({
         <>
           <div className="ins-big violet">{hoursLabel(overview.sleep.avgHours!)}</div>
           <div className="facts"><span className="fact">{`Average across ${overview.sleep.nights} logged ${overview.sleep.nights === 1 ? "night" : "nights"} of ${period.days}`}</span></div>
-          {period.days <= 28 && (
+          {period.days <= 31 && (
             <div className="ins-nights" role="img" aria-label={`${overview.sleep.nights} of ${period.days} nights logged`}>
               {overview.sleep.byDay.map((d) => (
                 <div key={d.date} className={"ins-night" + (d.hours != null ? " on" : "")} title={d.hours != null ? `${monthDay(d.date)} · ${hoursLabel(d.hours)}` : `${monthDay(d.date)} · Not logged`}>

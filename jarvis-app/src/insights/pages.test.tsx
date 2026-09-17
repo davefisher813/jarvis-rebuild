@@ -50,7 +50,7 @@ describe("InsightsPage", () => {
     render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={workouts} metricDefs={[sleep]} metricLogs={logs} logs={none} muscleMap={new Map([["k1", ["chest"]]])} cards={null}
       onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
     expect(screen.getByText("1 of 1 Working sets mapped")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("28 Days"));
+    fireEvent.click(screen.getByText("30 Days"));
     expect(screen.getByText("3 of 3 Working sets mapped")).toBeInTheDocument();
     // AMENDED 2026-09-16: the basis is kept, not printed on the card's face
     // (Dave: "this is not a manual"). <details> renders its content whether or
@@ -66,7 +66,7 @@ describe("InsightsPage", () => {
     // form ran to three clauses whose third was the second subtracted from the
     // period. Two facts: when it last happened, and how much of the window is
     // covered.
-    expect(screen.getByText(/2 of 28 days/)).toBeInTheDocument();
+    expect(screen.getByText(/2 of 30 days/)).toBeInTheDocument();
     expect(screen.queryByText(/without a log/), "the subtraction is not printed").toBeNull();
   });
   it("is honest when there is nothing", () => {
@@ -86,7 +86,7 @@ describe("AllDataPage", () => {
   // still proves: the same onDelete, with the same record.
   it("filters by kind and day, opens a record, and offers Delete behind the row's options", () => {
     const onFilter = vi.fn(), onOpen = vi.fn(), onDelete = vi.fn();
-    const filter = { category: "all" as const, range: "28d" as const, period: periodFor("28d", today), date: null, query: "" };
+    const filter = { category: "all" as const, range: "30d" as const, period: periodFor("30d", today), date: null, query: "" };
     const { rerender } = render(<AllDataPage view="data" onView={() => {}} records={records} filter={filter} onFilter={onFilter} today={today} scrollRef={{ current: 0 }} onOpen={onOpen} onDelete={onDelete} onExport={() => {}} />);
     expect(screen.getByText("Push")).toBeInTheDocument();
     expect(screen.getByText("Oats")).toBeInTheDocument();
