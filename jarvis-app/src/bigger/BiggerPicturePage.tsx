@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import PageHeader from "../shared/PageHeader";
 import LifeHeader, { OptionsButton, type HeaderView } from "../shared/LifeHeader";
+import HeadMenu from "../shared/HeadMenu";
 import OptionsSheet from "../shared/OptionsSheet";
 import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
@@ -455,6 +456,19 @@ export default function BiggerPicturePage({
               where: `${(projectsLens ? PROJECT_VIEWS : GOAL_VIEWS).find((v) => v.key === view)?.label ?? "Active"} ${projectsLens ? "projects" : "goals"}`,
               ...(view !== "all" ? { onAll: () => setView("all"), allLabel: projectsLens ? "Search all projects" : "Search all goals" } : {}),
             } : undefined}
+            // THE SAME PINNED AREA MENU TASKS AND NOTES HAVE (Dave 2026-09-17).
+            // Both lenses already file by area -- a project by its category, a
+            // goal by the first of its tags that names a live one -- and
+            // neither had a way to look at one area at a time.
+            menu={sections.length > 0 ? (
+              <HeadMenu
+                ariaLabel="Area"
+                value={areaOnly ?? "all"}
+                label={areaOnly ? undefined : "Area"}
+                options={[{ value: "all", label: "All Areas" }, ...sections.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
+                onPick={(v) => setAreaOnly(v === "all" ? null : v)}
+              />
+            ) : undefined}
           >
             {segments}
           </LifeHeader>
@@ -546,13 +560,12 @@ export default function BiggerPicturePage({
           </>
         )}
         <div className="screen-foot" />
-        {/* Neither lens had secondary tools of its own; the sheet is here so
-            the control in the bar is the same control on all five pages, and
-            it holds the one thing this lens can say about its list. */}
+        {/* Area moved to the pinned menu beside the chips on 2026-09-17, so
+            what is left here is the lens's own reach: everything at once,
+            including the states the chips prune away when they are empty. */}
         {optsOpen && (
           <OptionsSheet title={projectsLens ? "Projects Options" : "Goals Options"} rows={[
-            { key: "all", label: "All Areas", onClick: () => { setOptsOpen(false); setAreaOnly(null); } },
-            ...sections.map((c) => ({ key: c.id, label: c.name, onClick: () => { setOptsOpen(false); setAreaOnly(c.id); } })),
+            { key: "all", label: "Show Everything", onClick: () => { setOptsOpen(false); setView("all"); setAreaOnly(null); } },
           ]} onClose={() => setOptsOpen(false)} />
         )}
       </div>

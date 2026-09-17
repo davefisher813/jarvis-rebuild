@@ -91,10 +91,18 @@ describe("what the handoff forbids", () => {
   it("the Notes chips are three workflow states and nothing else", () => {
     const notes = read("notes/screens/NotesList.tsx");
     expect(notes).toMatch(/const VIEWS: HeaderView\[\] = \[\s*\{ key: "all", label: "All" \},\s*\{ key: "pinned", label: "Pinned" \},\s*\{ key: "unfiled", label: "Unfiled" \},\s*\];/);
-    // Areas, tags, archived and deleted are all options destinations now.
-    for (const s of ['key: "area"', 'key: "tag"', 'key: "deleted"', 'key: "archived"']) {
+    // Tags, archived and deleted are options destinations.
+    for (const s of ['key: "tag"', 'key: "deleted"', 'key: "archived"']) {
       expect(notes.slice(notes.indexOf("<OptionsSheet")), s + " is not in the options sheet").toContain(s);
     }
+    // AMENDED 2026-09-17 (Dave: "Don't forget to add it to notes page as
+    // well"). The area was in that sheet for one deploy and is a pinned menu
+    // beside the chips now, like Tasks. More than a move: it used to be a
+    // MEMBER of the filter union, so picking Personal deselected All, Pinned
+    // and Unfiled. An area is not a view; the two cuts compose.
+    expect(notes).toMatch(/menu=\{areaIds\.length > 0 \? \([\s\S]{0,200}?ariaLabel="Area"/);
+    expect(notes, "the area is its own axis, not a view").not.toMatch(/\{ kind: "area"; id: string \}/);
+    expect(notes).toContain("const filtered = area ? inView.filter((n) => n.category === area) : inView;");
   });
 });
 
@@ -181,10 +189,24 @@ describe("the chip row scrolls without looking broken", () => {
 });
 
 describe("the category cut is findable, not merely reachable", () => {
-  it("is pinned beside the chips on Tasks", () => {
-    const page = read("tasks/screens/TasksPage.tsx");
-    expect(page).toMatch(/menu=\{categories && categories\.length > 0 \? \(/);
-    expect(page).toMatch(/ariaLabel="Area"/);
+  // Every page that has areas has the same pinned menu, in the same place
+  // (Dave 2026-09-17: "I still want this to be uniform").
+  const WITH_AREAS = [
+    "tasks/screens/TasksPage.tsx",
+    "notes/screens/NotesList.tsx",
+    "bigger/BiggerPicturePage.tsx",
+  ];
+
+  it("is pinned beside the chips on every page that files by area", () => {
+    for (const f of WITH_AREAS) {
+      expect(read(f), f + " has no pinned area menu").toMatch(/menu=\{[\s\S]{0,240}?ariaLabel="Area"/);
+    }
+  });
+
+  it("names the control when nothing is picked and the area when one is", () => {
+    for (const f of WITH_AREAS) {
+      expect(read(f), f).toMatch(/label=\{[^}]*\? undefined : "Area"\}|label=\{!catFilter \|\| catFilter === "all" \? "Area" : undefined\}/);
+    }
   });
 
   // It is the cut across whichever view is chosen, not a view, so it must not

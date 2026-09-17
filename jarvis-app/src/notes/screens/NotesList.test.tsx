@@ -102,3 +102,66 @@ describe("NotesList", () => {
     expect(names).toEqual(["Bridge Invitational Item List"]);
   });
 });
+
+// DAVE, 2026-09-17: "Don't forget to add it to notes page as well" -- the
+// pinned Area menu Tasks got the same afternoon.
+//
+// It is more than a move. The area used to be a MEMBER of this page's filter
+// union, which made it a view: picking Family deselected All, Pinned and
+// Unfiled, because a note could only be in one of them at a time. That is not
+// what an area is, and it is not how Tasks has ever worked.
+describe("the Notes area is its own cut, beside the views", () => {
+  const areaMenu = (c: HTMLElement) => c.querySelector('.hdr-menu .dd[aria-label="Area"]')!;
+
+  it("is pinned beside the chips, not inside them", () => {
+    const { container } = render(<NotesList notes={notes} />);
+    expect(areaMenu(container)).toBeTruthy();
+    expect(container.querySelector('.hdr-chips [aria-label="Area"]'), "it is not a view").toBeNull();
+    // The chips stay the three workflow states the handoff names.
+    expect([...container.querySelectorAll(".hdr-chips .chip")].map((c) => c.textContent)).toEqual(["All", "Pinned", "Unfiled"]);
+  });
+
+  it("names the control until an area is picked, then names the area", () => {
+    const { container } = render(<NotesList notes={notes} />);
+    expect(areaMenu(container)).toHaveTextContent(/^Area$/);
+    fireEvent.click(areaMenu(container));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Family" }));
+    expect(areaMenu(container)).toHaveTextContent("Family");
+    expect([...container.querySelectorAll(".note-row .task-name")].map((e) => e.textContent))
+      .toEqual(["Bridge Invitational Item List"]);
+  });
+
+  // The whole point: two cuts that compose. The selected view stays selected.
+  it("keeps the chosen view selected while an area narrows it", () => {
+    const { container } = render(<NotesList notes={notes} />);
+    fireEvent.click(screen.getByRole("tab", { name: "All" }));
+    fireEvent.click(areaMenu(container));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Work" }));
+    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
+    expect([...container.querySelectorAll(".note-row .task-name")].map((e) => e.textContent))
+      .toEqual(["Coach Onboarding Plan"]);
+  });
+
+  // Unfiled means "has no area", so an area and that view can never both be
+  // true: choosing one moves off the other rather than leaving a list that is
+  // empty by construction.
+  it("moves off Unfiled rather than showing a list that cannot have anything in it", () => {
+    const { container } = render(<NotesList notes={notes} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Unfiled" }));
+    expect(screen.getByRole("tab", { name: "Unfiled" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(areaMenu(container));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Work" }));
+    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
+    expect(container.querySelectorAll(".note-row")).toHaveLength(1);
+  });
+
+  it("goes back to everything on All Areas", () => {
+    const { container } = render(<NotesList notes={notes} />);
+    fireEvent.click(areaMenu(container));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Work" }));
+    expect(container.querySelectorAll(".note-row")).toHaveLength(1);
+    fireEvent.click(areaMenu(container));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "All Areas" }));
+    expect(container.querySelectorAll(".note-row")).toHaveLength(4);
+  });
+});

@@ -1,6 +1,7 @@
 import { Fragment, useState, type ReactNode, useEffect } from "react";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
+import HeadMenu from "../../shared/HeadMenu";
 import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
 import { Check, FileText, Paperclip, PenLine, Search, Tag, Trash2, Plus } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
@@ -42,7 +43,16 @@ export interface NoteListItem {
 }
 
 // C-18: the filter chips. Choosers, so filled chips.
-type Filter = { kind: "all" } | { kind: "pinned" } | { kind: "unfiled" } | { kind: "area"; id: string } | { kind: "tag"; tag: string } | { kind: "archived" } | { kind: "deleted" };
+/** THE AREA IS ITS OWN AXIS NOW (Dave 2026-09-17: "Don't forget to add it to
+ *  notes page as well" -- the pinned Area menu Tasks got).
+ *
+ *  It used to be a member of this union, which made it a VIEW: picking
+ *  Personal deselected All, Pinned and Unfiled, because a note could only be
+ *  in one of them at a time. That is not what an area is. On Tasks the view
+ *  and the area have always been two independent cuts that compose -- Today
+ *  AND Personal -- and this page now reads the same way, which is the whole
+ *  point of one header on five pages. */
+type Filter = { kind: "all" } | { kind: "pinned" } | { kind: "unfiled" } | { kind: "tag"; tag: string } | { kind: "archived" } | { kind: "deleted" };
 /** The three the handoff names, in its order. "Unfiled" is the mockup's
  *  word for what this page called "Not Filed"; the filter itself is the
  *  same `unfiled` it always was. */
@@ -162,7 +172,10 @@ export default function NotesList({
   const [optsOpen, setOptsOpen] = useState(false);
   /** Which sub-list the options sheet is showing: the areas, or the tags.
    *  Null is the sheet's own list of rows. */
-  const [optsPick, setOptsPick] = useState<"area" | "tag" | null>(null);
+  const [optsPick, setOptsPick] = useState<"tag" | null>(null);
+  /** The area cut, composing with whichever view is chosen. Null is every
+   *  area, which is what the menu calls All Areas. */
+  const [area, setArea] = useState<string | null>(null);
   // Newest first, always (Apple Notes' own order). A note the store cannot
   // date keeps the order the store gave it, behind every dated one.
   const ordered = [...notes].sort((a, b) => b.edited - a.edited);
@@ -180,16 +193,20 @@ export default function NotesList({
   useEffect(() => {
     if ((filter.kind === "deleted" && deletedCount === 0) || (filter.kind === "archived" && archivedCount === 0)) setFilter({ kind: "all" });
   }, [filter.kind, deletedCount, archivedCount]);
-  const filtered = filter.kind === "deleted" ? ordered.filter((n) => !!n.deleted)
+  const inView = filter.kind === "deleted" ? ordered.filter((n) => !!n.deleted)
     : filter.kind === "archived" ? kept.filter((n) => !!n.archived)
     : filter.kind === "pinned" ? live.filter((n) => !!n.pinned)
     : filter.kind === "unfiled" ? live.filter((n) => !n.category)
-    : filter.kind === "area" ? live.filter((n) => n.category === filter.id)
     : filter.kind === "tag" ? live.filter((n) => (n.tags ?? []).includes(filter.tag))
     : live;
+  // The two cuts compose, in the order they are chosen: the view says which
+  // notes are in play, the area says which of those are this one's.
+  const filtered = area ? inView.filter((n) => n.category === area) : inView;
   // S6-Q37: title OR body, same two-part rule search.ts's noteHas uses.
   // Search reaches the archive too.
-  const shown = query ? kept.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : filtered;
+  const searched = query ? kept.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : filtered;
+  // A search is still cut by the area, which is what the scope line says.
+  const shown = query && area ? searched.filter((n) => n.category === area) : searched;
   // The SEARCHED list, not the whole one. Select All while a search is
   // narrowing the page must mean the notes on screen: deleting the ones
   // hidden behind a query would be the worst possible version of this.
@@ -316,9 +333,24 @@ export default function NotesList({
           onView={(k) => setFilter({ kind: k } as Filter)}
           scope={q.trim() ? {
             count: shown.length,
-            where: `${VIEWS.find((v) => v.key === filter.kind)?.label ?? "All"} notes`,
-            ...(filter.kind !== "all" ? { onAll: () => setFilter({ kind: "all" }), allLabel: "Search all notes" } : {}),
+            where: `${VIEWS.find((v) => v.key === filter.kind)?.label ?? "All"} notes${area ? ` in ${catName(area) || "this area"}` : ""}`,
+            ...(filter.kind !== "all" || area ? { onAll: () => { setFilter({ kind: "all" }); setArea(null); }, allLabel: "Search all notes" } : {}),
           } : undefined}
+          // THE SAME PINNED AREA MENU TASKS HAS (Dave 2026-09-17). The chips
+          // are views and they scroll; this is the cut across whichever view
+          // is chosen, so it is pinned beside them and never scrolls away.
+          menu={areaIds.length > 0 ? (
+            <HeadMenu
+              ariaLabel="Area"
+              value={area ?? "all"}
+              label={area ? undefined : "Area"}
+              options={[{ value: "all", label: "All Areas" }, ...areaIds.map((id) => ({ value: id, label: catName(id) || "Area", dot: catColor(id) }))]}
+              // Unfiled means "has no area", so an area and that view can
+              // never both be true: choosing one moves off the other rather
+              // than leaving a list that is empty by construction.
+              onPick={(v) => { setArea(v === "all" ? null : v); if (v !== "all" && filter.kind === "unfiled") setFilter({ kind: "all" }); }}
+            />
+          ) : undefined}
         />
       </PageHeader>
 
@@ -359,11 +391,6 @@ export default function NotesList({
           this same sheet rather than a second sheet on top of it. */}
       {optsOpen && optsPick === null && (
         <OptionsSheet title="Notes Options" rows={([
-          ...(areaIds.length > 0 ? [{
-            key: "area", label: "Area",
-            value: filter.kind === "area" ? (catName(filter.id) || "Area") : "All Areas",
-            onClick: () => setOptsPick("area"),
-          }] : []),
           ...(tagNames.length > 0 ? [{
             key: "tag", label: "Tag",
             value: filter.kind === "tag" ? "#" + filter.tag : "Any",
@@ -388,15 +415,6 @@ export default function NotesList({
             onClick: () => { setOptsOpen(false); setFilter({ kind: "deleted" }); },
           }] : []),
         ] as OptionRow[])} onClose={() => setOptsOpen(false)} />
-      )}
-      {optsOpen && optsPick === "area" && (
-        <OptionsSheet title="Area" rows={([
-          { key: "all", label: "All Areas", onClick: () => { setOptsOpen(false); setFilter({ kind: "all" }); } },
-          ...areaIds.map((id) => ({
-            key: id, label: catName(id) || "Area",
-            onClick: () => { setOptsOpen(false); setFilter({ kind: "area", id }); },
-          })),
-        ] as OptionRow[])} onClose={() => setOptsPick(null)} />
       )}
       {optsOpen && optsPick === "tag" && (
         <OptionsSheet title="Tag" rows={([
