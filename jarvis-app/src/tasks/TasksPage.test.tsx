@@ -38,7 +38,13 @@ describe("TasksPage", () => {
     // The mockup's four lead. The three the app already had follow them in
     // the same scrolling row rather than being dropped (handoff rule 2:
     // "Preserve the existing definitions").
-    expect(chips.map((c) => c.textContent)).toEqual(["Today2", "Upcoming3", "All6", "Done1", "Daily", "Overdue1", "From Email"]);
+    // AMENDED 2026-09-17 (Dave: "there's too many chips in my opinion on tasks
+    // page"). The mockup's four always stand. The three conditional views
+    // appear only when they hold something, which is the rule the Projects
+    // lens's Paused chip has followed since it shipped: a filter with nothing
+    // to filter is furniture. Daily is 0 and From Email is 0, so neither
+    // draws; Overdue has 1, so it does.
+    expect(chips.map((c) => c.textContent)).toEqual(["Today2", "Upcoming3", "All6", "Done1", "Overdue1"]);
     expect(chips[0]).toHaveClass("active");
     expect(chips[0]).toHaveAttribute("aria-selected", "true");
     // A chip that would say 0 says nothing instead.
@@ -60,11 +66,11 @@ describe("TasksPage", () => {
       <TasksPage filter="all" counts={counts} items={[]} today="2026-05-20" catFilter="orgB" onCatFilter={onCat}
         categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }, { id: "money", name: "Money", color: "yellow" }]} />,
     );
-    // It lives behind the options control now, which is the one place every
-    // page's Area, Sort, Group and secondary tools are reachable from.
-    // The sheet is a portal, so it is on document.body, not in container.
-    fireEvent.click(screen.getByLabelText("Tasks Options"));
-    const area = document.body.querySelector('.dd[aria-label="Area"]')!;
+    // AMENDED 2026-09-17 (Dave: "I can no longer sort by category on any of
+    // these pages"). It spent one deploy inside the options sheet, which was
+    // reachable and not findable. It is pinned beside the chips now, where
+    // the filtering is: the same HeadMenu, the same menu, in view.
+    const area = container.querySelector('.hdr-menu .dd[aria-label="Area"]')!;
     expect(area).toHaveTextContent("Ridgeley");
     expect(area.querySelector(".cat-dot.cat-bg-sky")).toBeTruthy();
     fireEvent.click(area);
@@ -74,9 +80,7 @@ describe("TasksPage", () => {
     // Unfiltered it names the answer, because the row beside it already
     // names the control.
     const { container: c2 } = render(<TasksPage filter="all" counts={counts} items={[]} today="2026-05-20" catFilter="all" categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]} />);
-    void c2;
-    fireEvent.click(screen.getAllByLabelText("Tasks Options")[1]!);
-    expect([...document.body.querySelectorAll('.dd[aria-label="Area"]')].pop()).toHaveTextContent(/^All Areas$/);
+    expect(c2.querySelector('.hdr-menu .dd[aria-label="Area"]')).toHaveTextContent(/^Area$/);
   });
 
   it("one decision killer: Pick One alone, full width; the mode's way out replaces it", () => {

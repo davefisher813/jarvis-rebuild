@@ -2890,15 +2890,20 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
   // from a line under the head into the options sheet, which is now the same
   // control on all five pages. Both halves are pinned below, so neither the
   // old shape nor a second wrapping chip row can come back by accident.
-  it("the Tasks views are one scrolling chip row, and Area and Group are menus in the options sheet", () => {
+  it("the Tasks views are one scrolling chip row, with Area pinned beside it and Group in the options sheet", () => {
     const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
     expect(page, "the views are the shared header's chip row").toMatch(/views=\{views\}/);
     expect(page, "and every existing filter is in it, in the handoff's order")
       .toMatch(/const LEAD_FILTERS: TaskFilter\[\] = \["today", "upcoming", "all", "done"\];[\s\S]*?FILTERS\.filter\(\(f\) => !LEAD_FILTERS\.includes\(f\)\)/);
     expect(page, "one row, never two: the chip row this page spends wraps nothing").not.toMatch(/chip-wrap-row/);
-    expect(page.match(/<HeadMenu/g)?.length, "two menus, both in the options sheet: area, group").toBe(2);
-    expect(page, "and they are inside it, not on a line under the head")
-      .toMatch(/<OptionsSheet title="Tasks Options"[\s\S]*?<HeadMenu[\s\S]*?<HeadMenu/);
+    // A conditional view that holds nothing is furniture; the four standard
+    // ones always stand, and so does whichever is chosen (2026-09-17).
+    expect(page).toMatch(/\.filter\(\(f\) => LEAD_FILTERS\.includes\(f\) \|\| counts\[f\] > 0 \|\| f === filter\)/);
+    expect(page.match(/<HeadMenu/g)?.length, "two menus: Area beside the chips, Group in the sheet").toBe(2);
+    expect(page, "Area is pinned to the chip line, not buried in the sheet")
+      .toMatch(/menu=\{categories && categories\.length > 0 \? \([\s\S]{0,240}?<HeadMenu[\s\S]{0,40}?ariaLabel="Area"/);
+    expect(page, "Group stays in the sheet with the page's other secondary tools")
+      .toMatch(/<OptionsSheet title="Tasks Options"[\s\S]*?ariaLabel="Group by"/);
     const menu = read(join(SRC, "shared/HeadMenu.tsx"));
     expect(menu, "the panel is a portal fixed to the capsule, never clipped by a card")
       .toMatch(/createPortal\(/);

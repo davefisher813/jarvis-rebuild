@@ -163,3 +163,33 @@ describe("the options sheet", () => {
     cleanup();
   });
 });
+
+describe("the pinned menu", () => {
+  it("stays out of the chip row's tablist, because it is not a view", () => {
+    hdr({ menu: <button data-testid="area">Area</button> });
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual(["Today2", "Upcoming3", "All"]);
+    expect(screen.getByTestId("area")).toBeInTheDocument();
+    expect(document.querySelector(".hdr-chips [data-testid=area]"), "it is beside the chips, not inside them").toBeNull();
+    cleanup();
+  });
+
+  it("pins to the row's end by default, and to its start when asked", () => {
+    hdr({ menu: <button data-testid="area">Area</button> });
+    const line = document.querySelector(".hdr-chip-line")!;
+    expect(line.lastElementChild).toHaveClass("hdr-menu");
+    expect(line.firstElementChild).toHaveClass("hdr-chips");
+    cleanup();
+    hdr({ menu: <button data-testid="area">Area</button>, menuSide: "start" });
+    const line2 = document.querySelector(".hdr-chip-line")!;
+    expect(line2.firstElementChild).toHaveClass("hdr-menu");
+    expect(line2.firstElementChild).toHaveClass("lead");
+    cleanup();
+  });
+
+  it("stays away entirely on a page with nothing to cut by", () => {
+    hdr();
+    expect(document.querySelector(".hdr-menu")).toBeNull();
+    cleanup();
+  });
+});

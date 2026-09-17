@@ -545,6 +545,15 @@
   content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
   height: 0.5px; background: var(--divider); pointer-events: none; }
 .ruled .list-card-ruled + .list-foot { margin-top: var(--s-3); }
+/* A CARD BLOCK AND THE LIST UNDER IT ARE TWO CONTAINERS (Dave 2026-09-17:
+   "there's containers on the task page vertically don't follow spacing/border
+   rules (way too close together)"). Measured at phone width: zero. The page
+   already spaces two .pad-x blocks 16px apart, but the ruled list card
+   carries its own page margin and is NOT wrapped in .pad-x, so it fell
+   outside that rule and sat flush against the card above it. */
+.ruled .pad-x:has(> .card) + .list-card-ruled,
+.ruled .pad-x:has(> .card) + .grp-head,
+.ruled .pad-x:has(> .card) + .task-list-block { margin-top: var(--s-4); }
 /* THE NOTICE ROW IN THE LIST (Fewer Buttons, 2026-09-02): the Keeps Sliding
    card stops floating above the list and is its first row, the same notice
    row the one ask on Goals wears: the tile in orange, the task's name, one

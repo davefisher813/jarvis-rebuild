@@ -741,8 +741,23 @@ export default function TasksPage({
    *  asked for by name on 2026-09-13, and rule 2 of this same handoff says
    *  "Preserve the existing definitions and do not reclassify data for
    *  visual consistency". One row, no wrapping, nothing lost. */
+  /** THE CHIPS ARE THE STANDARD VIEWS, AND ONLY THE ONES THAT HAVE ANYTHING
+   *  IN THEM (Dave 2026-09-17: "there's too many chips in my opinion on tasks
+   *  page").
+   *
+   *  Seven chips is what you get from listing every filter the page has. Four
+   *  of them -- Today, Upcoming, All, Done -- are the handoff's own list and
+   *  always stand, because a view that is empty today is still where you look
+   *  tomorrow. The other three are conditional views, and the app already has
+   *  a rule for those, written for the Projects lens's Paused chip: "a filter
+   *  with nothing to filter is furniture, so it goes away with the last
+   *  paused project". So Overdue, Daily and From Email appear when they hold
+   *  something, and the chosen one always appears whatever it holds -- a
+   *  selected chip that vanished as you cleared the last row would take the
+   *  page out from under you. */
   const LEAD_FILTERS: TaskFilter[] = ["today", "upcoming", "all", "done"];
   const views: HeaderView[] = [...LEAD_FILTERS, ...FILTERS.filter((f) => !LEAD_FILTERS.includes(f))]
+    .filter((f) => LEAD_FILTERS.includes(f) || counts[f] > 0 || f === filter)
     .map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] }));
   const [optsOpen, setOptsOpen] = useState(false);
   // GROUP BY (ruled 2026-09-01: "a group-by dropdown"). Remembered within
@@ -802,6 +817,21 @@ export default function TasksPage({
             where: `${FILTER_LABEL[filter]} tasks`,
             ...(filter !== "all" ? { onAll: () => onFilter?.("all"), allLabel: "Search all tasks" } : {}),
           } : undefined}
+          // THE CUT ACROSS WHATEVER VIEW IS CHOSEN (Dave 2026-09-17: "I can no
+          // longer sort by category on any of these pages"). It was reachable
+          // -- one tap, inside the options sheet -- and that is not the same
+          // as findable. It is the same HeadMenu it has always been, pinned
+          // beside the chips where the filtering is, so it never scrolls away
+          // and never reads as another view.
+          menu={categories && categories.length > 0 ? (
+            <HeadMenu
+              ariaLabel="Area"
+              value={!catFilter || catFilter === "all" ? "all" : catFilter}
+              label={!catFilter || catFilter === "all" ? "Area" : undefined}
+              options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
+              onPick={(v) => onCatFilter?.(v)}
+            />
+          ) : undefined}
         >
           {segments}
         </LifeHeader>
@@ -895,7 +925,13 @@ export default function TasksPage({
         </div>
         </>
       ) : (
-        <div>
+        // THE LIST IS A BLOCK, WITH THE PAGE'S OWN GAP ABOVE IT (Dave
+        // 2026-09-17: "there's containers on the task page vertically don't
+        // follow spacing/border rules (way too close together)"). Measured at
+        // phone width: zero. The ruled list card carries its own page margin
+        // rather than a .pad-x wrapper, so it fell outside the rule that
+        // spaces two card blocks, and sat flush against the card above it.
+        <div className="task-list-block">
           {/* ONE CARD (Dave 2026-09-01: "Go with pic 1. Apply that
               everywhere"). The 08-18 library form put bare rows on the
               page ground; every other list on Today wears a card, and this
@@ -972,19 +1008,6 @@ export default function TasksPage({
           control is not rebuilding it. */}
       {optsOpen && (
         <OptionsSheet title="Tasks Options" rows={([
-          ...(categories && categories.length > 0 ? [{
-            key: "area",
-            label: "Area",
-            right: (
-              <HeadMenu
-                ariaLabel="Area"
-                value={!catFilter || catFilter === "all" ? "all" : catFilter}
-                label={!catFilter || catFilter === "all" ? "All Areas" : undefined}
-                options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
-                onPick={(v) => onCatFilter?.(v)}
-              />
-            ),
-          }] : []),
           {
             key: "group",
             label: "Group",

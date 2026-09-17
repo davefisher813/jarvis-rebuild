@@ -73,7 +73,7 @@ export default function LifeHeader({
   query, onQuery, placeholder,
   addLabel, onAdd,
   views, view, onView,
-  scope,
+  scope, menu, menuSide,
   children,
 }: {
   query: string;
@@ -92,6 +92,17 @@ export default function LifeHeader({
   onView: (key: string) => void;
   /** Present only while a local search is running. */
   scope?: SearchScope;
+  /** THE ONE CONTROL BESIDE THE CHIPS (Dave 2026-09-17: "maybe chips for
+   *  standard options and a drop down to sort by category and in other way").
+   *
+   *  The chips are VIEWS and they scroll. This is not a view -- it is the
+   *  cut across whichever view is chosen -- so it does not scroll with them,
+   *  and it is pinned where filtering happens rather than buried in a sheet
+   *  the athlete has to go looking for. Absent on a page with nothing to cut
+   *  by. */
+  menu?: ReactNode;
+  /** Which end it is pinned to. Default is the row's end. */
+  menuSide?: "start" | "end";
   /** The page's own section navigation, above the search row. Life's tabs;
    *  nothing on Notes, which keeps its own place in the app. */
   children?: ReactNode;
@@ -132,20 +143,24 @@ export default function LifeHeader({
       </div>
       {/* ONE ROW, SCROLLING, NEVER WRAPPING (handoff rule 2). Two or three
           wrapping rows of chips is the shape this replaces. */}
-      <div className="chip-row hdr-chips" role="tablist" aria-label="Views">
-        {views.map((v) => (
-          <button
-            key={v.key}
-            type="button"
-            role="tab"
-            aria-selected={v.key === view}
-            className={"chip" + (v.key === view ? " active" : "")}
-            onClick={() => { if (v.key !== view) onView(v.key); }}
-          >
-            {v.label}
-            {typeof v.count === "number" && v.count > 0 && <span className="hdr-chip-n">{v.count}</span>}
-          </button>
-        ))}
+      <div className="hdr-chip-line">
+        {menu && menuSide === "start" && <div className="hdr-menu lead">{menu}</div>}
+        <div className="chip-row hdr-chips" role="tablist" aria-label="Views">
+          {views.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              role="tab"
+              aria-selected={v.key === view}
+              className={"chip" + (v.key === view ? " active" : "")}
+              onClick={() => { if (v.key !== view) onView(v.key); }}
+            >
+              {v.label}
+              {typeof v.count === "number" && v.count > 0 && <span className="hdr-chip-n">{v.count}</span>}
+            </button>
+          ))}
+        </div>
+        {menu && menuSide !== "start" && <div className="hdr-menu">{menu}</div>}
       </div>
       {scope && (
         <div className="hdr-scope">

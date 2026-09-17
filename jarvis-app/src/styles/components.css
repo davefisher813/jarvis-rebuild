@@ -5627,14 +5627,60 @@ span.row-star { cursor: default; }
 .hdr-add .ic { width: 20px; height: 20px; color: var(--tint); }
 
 /* 13px before the chips, 24px into the content below them. .chip-row already
-   owns the horizontal scroll, the mask and the no-wrap rule. */
-.hdr-chips { margin-top: 13px; padding-bottom: 0; }
-.life-hdr + *, .hdr-chips:last-child { margin-top: 0; }
+   owns the horizontal scroll and the no-wrap rule.
+
+   A CHIP NEVER PARKS HALF OFF THE EDGE (Dave 2026-09-17: "the chips have
+   visual issues when I scroll them"). .chip-row's own snap is `proximity`,
+   which is a suggestion the browser is free to ignore, so a scrolled row
+   left a sliver of the previous chip -- half a white pill, flush against
+   x=0, cut square. Mandatory snap with the row's own left inset as the
+   scroll padding means a chip is either fully in or fully out. */
+.hdr-chips { margin-top: 13px; padding-bottom: 0; scroll-snap-type: x mandatory; }
+/* NO FADE ON THIS ROW (Dave 2026-09-17: "the chips have visual issues when I
+   scroll them"). .chip-row masks its last 32px to transparent as a "there is
+   more" signal, and that signal was written for a row of small grey chips. On
+   a row of large filled pills carrying counts it reads as the pill DISSOLVING
+   -- "All 35" half gone, "Done" with its D eaten -- which looks like a
+   rendering fault, not an invitation to scroll. A chip cut square by the edge
+   of the screen is what every horizontal scroller on this platform does, and
+   it says the same thing without looking broken. */
+.hdr-chips { -webkit-mask-image: none; mask-image: none; }
 .life-hdr { padding-bottom: 24px; }
 /* Every chip clears 44px even where it draws smaller (handoff rule 1). */
 .hdr-chips > .chip { position: relative; }
 .hdr-chips > .chip::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
 .hdr-chip-n { margin-left: var(--s-1h); font-weight: var(--w-bold); opacity: 0.6; }
+
+/* THE PINNED MENU (Dave 2026-09-17: "I can no longer sort by category... so
+   maybe a sort by dropdown? I like the chips though. Maybe chips for standard
+   options and a drop down to sort by category").
+   The chips scroll; this does not. It sits at the row's end on its own
+   ground, so the one control that is not a view never scrolls out of reach
+   and never reads as a seventh view. */
+.hdr-chip-line { display: flex; align-items: center; }
+.hdr-chip-line > .hdr-chips { flex: 1 1 auto; min-width: 0; }
+/* It sits ON the page, not in the scroller, so the chips pass UNDER it and
+   the page's own ground is what they disappear into -- a fade would read as
+   the chip dissolving. The left inset is its own gap. */
+.hdr-chip-line > .hdr-menu {
+  flex: 0 0 auto; position: relative; z-index: 1;
+  padding: 0 var(--s-4) 0 var(--s-3); background: var(--bg);
+}
+.hdr-chip-line > .hdr-menu.lead { padding: 0 var(--s-3) 0 var(--s-4); }
+.hdr-chip-line > .hdr-menu.lead + .hdr-chips { padding-left: 0; scroll-padding-left: 0; }
+
+/* IT IS NOT A VIEW, SO IT DOES NOT LOOK LIKE ONE. .dd is the app's dropdown
+   capsule and it shouts in 12.5px uppercase with 0.1em tracking, which beside
+   a row of chips reads as a section eyebrow somebody dropped in the wrong
+   place. Here it takes the chips' own size and case, and keeps the quiet
+   ground a chip has when it is NOT chosen -- so the one white pill on the
+   line is always the view, and this is plainly a different kind of control. */
+.hdr-menu > .dd {
+  min-height: 34px; padding: 0 var(--s-2h) 0 var(--s-3);
+  font-size: var(--t-meta); font-weight: var(--w-semi);
+  letter-spacing: -0.01em; text-transform: none; color: var(--tx-2);
+}
+.hdr-menu > .dd[aria-expanded="true"], .hdr-menu > .dd.on { color: var(--tx-1); }
 
 /* WHAT THE SEARCH IS ACTUALLY SEARCHING (handoff rule 4). A count, where it
    looked, and one control that widens it -- never a silent widening. */

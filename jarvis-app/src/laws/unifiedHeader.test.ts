@@ -144,3 +144,78 @@ describe("search says what it searched", () => {
     expect(read("tasks/screens/TasksPage.tsx")).toContain('startCard && !q && filter !== "done"');
   });
 });
+
+// ---------------------------------------------------------------------------
+// THE FOUR THINGS DAVE FOUND ON THE LIVE HEADER, 2026-09-17:
+//
+//   "the chips have visual issues when I scroll them"
+//   "I can no longer sort by category on any of these pages"
+//   "there's too many chips in my opinion on tasks page"
+//   "there's containers on the task page vertically don't follow
+//    spacing/border rules (way too close together)"
+//
+// All four were measured in a real Chromium render at phone width before and
+// after, so the numbers below are observations, not intentions.
+// ---------------------------------------------------------------------------
+describe("the chip row scrolls without looking broken", () => {
+  const css = read("styles/components.css");
+
+  it("snaps, so a chip is either fully in or fully out", () => {
+    // .chip-row's own snap is `proximity`, which a browser may ignore, and a
+    // scrolled row left a sliver of the previous pill cut square at x=0.
+    expect(css).toContain("scroll-snap-type: x mandatory;");
+    expect(css).toMatch(/\.chip-row \{[^}]*scroll-padding-left: var\(--s-4\)|scroll-padding-left: var\(--s-4\);/);
+  });
+
+  it("does not dissolve its own pills", () => {
+    // .chip-row masks its last 32px to transparent as a "there is more"
+    // signal. On large filled pills carrying counts that reads as a fault.
+    expect(css).toContain(".hdr-chips { -webkit-mask-image: none; mask-image: none; }");
+  });
+
+  it("gives the pinned menu real ground, so chips pass UNDER it", () => {
+    const line = css.slice(css.indexOf(".hdr-chip-line > .hdr-menu {"), css.indexOf(".hdr-chip-line > .hdr-menu {") + 260);
+    expect(line).toContain("background: var(--bg)");
+    expect(line).toContain("z-index: 1");
+  });
+});
+
+describe("the category cut is findable, not merely reachable", () => {
+  it("is pinned beside the chips on Tasks", () => {
+    const page = read("tasks/screens/TasksPage.tsx");
+    expect(page).toMatch(/menu=\{categories && categories\.length > 0 \? \(/);
+    expect(page).toMatch(/ariaLabel="Area"/);
+  });
+
+  // It is the cut across whichever view is chosen, not a view, so it must not
+  // wear the chip's selected pill.
+  it("does not dress as a view chip", () => {
+    const css = read("styles/components.css");
+    const dd = css.slice(css.indexOf(".hdr-menu > .dd {"), css.indexOf(".hdr-menu > .dd {") + 240);
+    expect(dd, "not the uppercase eyebrow .dd draws by default").toContain("text-transform: none");
+    expect(dd, "and not the white pill a chosen view wears").toContain("color: var(--tx-2)");
+  });
+});
+
+describe("a view with nothing in it is not a chip", () => {
+  it("prunes the conditional views and keeps the four standard ones", () => {
+    expect(read("tasks/screens/TasksPage.tsx"))
+      .toMatch(/\.filter\(\(f\) => LEAD_FILTERS\.includes\(f\) \|\| counts\[f\] > 0 \|\| f === filter\)/);
+  });
+});
+
+describe("two containers are two containers", () => {
+  // Measured at phone width before the fix: zero. The ruled list card carries
+  // its own page margin rather than a .pad-x wrapper, so it fell outside the
+  // rule that spaces two card blocks and sat flush against the card above it.
+  it("spaces the list under the card above it", () => {
+    expect(read("styles/ruled.css")).toMatch(/\.ruled \.pad-x:has\(> \.card\) \+ \.task-list-block \{ margin-top: var\(--s-4\); \}/);
+    expect(read("tasks/screens/TasksPage.tsx")).toContain('<div className="task-list-block">');
+  });
+
+  // The chips lost their 13px because `.hdr-chips:last-child` matched
+  // whenever there was no scope line under them.
+  it("keeps the gap above the chips whether or not a scope line follows", () => {
+    expect(read("styles/components.css")).not.toContain(".hdr-chips:last-child { margin-top: 0; }");
+  });
+});
