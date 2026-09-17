@@ -250,6 +250,10 @@ function TwoViews() {
       const soon = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
       await tasks.createTask("Set up everything on jarvis", { due: todayISO() });
       await tasks.createTask("Book the Bridge venue", { due: soon });
+      // isFromEmail reads `source.type`, not `source.kind` -- an open task
+      // with this stamp lands in From Email whatever the email-home setting
+      // says (filters.partition), which is the view Dave was looking at.
+      await tasks.createTask("Get back to Google: Security alert", { due: todayISO(), source: { type: "email", id: "m1" } });
       twoSvc = tasks;
       setReady(true);
     })();
@@ -271,6 +275,17 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
     await waitFor(() => expect(cardName()).toContain("Book the Bridge venue"), { timeout: 4000 });
     expect(cardName(), "the card is about the list it is sitting on").not.toContain("jarvis");
     void twoSvc;
+  });
+
+  // The exact view in Dave's screenshot: seven email tasks with a card on top
+  // proposing something from somewhere else.
+  it("proposes an email task on From Email, never one from somewhere else", async () => {
+    render(<NotesProvider userId="start-per-view-3"><TwoViews /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("A Place to Begin")).toBeInTheDocument(), { timeout: 4000 });
+    const cardName = () => document.querySelector(".start-top-name")?.textContent ?? "";
+    fireEvent.click(screen.getByRole("tab", { name: /From Email/ }));
+    await waitFor(() => expect(cardName()).toContain("Get back to Google"), { timeout: 4000 });
+    expect(cardName(), "setting up Jarvis has nothing to do with emails").not.toContain("jarvis");
   });
 
   // Done has no open task in it, so topPick returns null and the card is
