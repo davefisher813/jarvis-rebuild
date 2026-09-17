@@ -23,27 +23,34 @@ const tk = (id: string, due: string | null, cat = "orgB"): TaskItem => ({ id, da
 const counts: Record<TaskFilter, number> = { all: 6, daily: 0, today: 2, overdue: 1, upcoming: 3, email: 0, done: 1 };
 
 describe("TasksPage", () => {
-  // AMENDED 2026-09-17, twice. First the Unified Headers handoff turned three
-  // dropdown capsules into a chip row. Then Dave, on the live one: "Look at
-  // what happens to the chips when they slide. This is simply not going to
-  // work." Measured at 393px: four labelled chips need 335 of the row's 361
-  // and do not scroll; give each a count and they need 458, which is what
-  // made the row scroll and cut a pill in half at every resting position.
-  // The set is fixed at the handoff's four. The other three views are rows in
-  // the options sheet, where they carry the counts these no longer do, with
-  // Area and Group beside them.
-  it("the views are four chips that fit the row, with no counts on them", () => {
+  // AMENDED 2026-09-17, three times. First the Unified Headers handoff turned
+  // three dropdown capsules into a chip row. Then Dave, on the live one:
+  // "Look at what happens to the chips when they slide. This is simply not
+  // going to work." Measured at 393px: four labelled chips need 351 of the
+  // row's 361 and do not scroll; give each a count and they need 458, which
+  // is what made the row scroll and cut a pill in half at every resting
+  // position. Then, on the fix: "Get rid of done. Make multiple dropdown
+  // chips like areas in the most logical way possible. Stack dropdowns next
+  // to each other." So three chips, and Area and Group are dropdowns on
+  // their own line under them -- a chip picks one of a fixed few, a dropdown
+  // holds a list that grows with the data.
+  it("the views are three chips that fit the row, with no counts on them", () => {
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
         categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]} />,
     );
     const chips = [...container.querySelectorAll(".hdr-chips .chip")];
-    expect(chips.map((c) => c.textContent)).toEqual(["Today", "Upcoming", "All", "Done"]);
+    expect(chips.map((c) => c.textContent)).toEqual(["Today", "Upcoming", "All"]);
     expect(chips[0]).toHaveClass("active");
     expect(chips[0]).toHaveAttribute("aria-selected", "true");
     expect(container.querySelector(".dd-line")).toBeNull();
-    // Nothing sits beside them: that is what buys the room.
-    expect(container.querySelector(".hdr-menu")).toBeNull();
+    // Nothing sits beside them on their line: that is what buys the room.
+    expect(container.querySelector(".hdr-chips .dd")).toBeNull();
+    // The dropdowns are the line below, stacked next to each other.
+    const drops = [...container.querySelectorAll(".hdr-drops .dd")];
+    expect(drops.map((d) => d.getAttribute("aria-label"))).toEqual(["Area", "Group by"]);
+    expect(drops[0]).toHaveTextContent("All Areas");
+    expect(drops[1]).toHaveTextContent("No Grouping");
   });
 
   it("picking a chip fires the filter, and the selected one is a no-op", () => {
@@ -61,11 +68,9 @@ describe("TasksPage", () => {
       <TasksPage filter="all" counts={counts} items={[]} today="2026-05-20" catFilter="orgB" onCatFilter={onCat}
         categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }, { id: "money", name: "Money", color: "yellow" }]} />,
     );
-    // It lives in the options sheet -- nothing fits beside four chips at
-    // phone width -- and the line under them says when it is narrowing the
-    // list, which is what keeps it from being invisible.
-    fireEvent.click(screen.getByLabelText("Tasks Options"));
-    const area = document.body.querySelector('.dd[aria-label="Area"]')!;
+    // It is a dropdown on the header's own line now (2026-09-17), so it
+    // states its answer without anything being opened.
+    const area = container.querySelector('.hdr-drops .dd[aria-label="Area"]')!;
     expect(area).toHaveTextContent("Ridgeley");
     expect(area.querySelector(".cat-dot.cat-bg-sky")).toBeTruthy();
     fireEvent.click(area);
@@ -188,18 +193,18 @@ describe("TasksPage", () => {
     );
     expect(container.querySelectorAll(".list-card-ruled")).toHaveLength(1);
     expect(container.querySelectorAll(".list-card-ruled .task-row")).toHaveLength(2);
-    fireEvent.click(screen.getByLabelText("Tasks Options"));
-    const group = () => document.body.querySelector('.dd[aria-label="Group by"]')!;
-    expect(group()).toHaveTextContent("None");
+    const group = () => container.querySelector('.hdr-drops .dd[aria-label="Group by"]')!;
+    expect(group()).toHaveTextContent("No Grouping");
     // Open the menu, group by area: two cards under two heads, and the
     // capsule says what it is grouped by.
     fireEvent.click(group());
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Area" }));
     expect(container.querySelectorAll(".list-card-ruled")).toHaveLength(2);
     expect([...container.querySelectorAll(".grp-head")].map((h) => h.textContent)).toEqual(["Money1", "Family1"]);
-    // The row beside it says "Group", so the control says the answer:
-    // "Area", not "By Area" (2026-09-17, the options sheet).
-    expect(group()).toHaveTextContent(/^Area$/);
+    // Standing on its own with no row to name it, the capsule says the whole
+    // thing: "By Area", not a bare "Area" that reads like a second Area menu
+    // beside the real one (2026-09-17).
+    expect(group()).toHaveTextContent(/^By Area$/);
     // By goal: the goalless bucket comes last.
     fireEvent.click(group());
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Goal" }));
@@ -207,6 +212,7 @@ describe("TasksPage", () => {
     // Back to none, for the next test: the memory is session-wide.
     fireEvent.click(group());
     fireEvent.click(screen.getByRole("menuitemradio", { name: "None" }));
+    expect(group()).toHaveTextContent("No Grouping");
   });
 
   it("shows an empty state when the filter has no items", () => {

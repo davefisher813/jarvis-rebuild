@@ -5,6 +5,7 @@ import { actionLabelFor } from "../reminderHistory";
 import { catName, catColor } from "../../shared/categories";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
 import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
+import HeadMenu from "../../shared/HeadMenu";
 import OptionsSheet from "../../shared/OptionsSheet";
 import { rowDoor } from "../../shared/rowDoor";
 import { Burst } from "../../shared/Burst";
@@ -83,6 +84,12 @@ export default function RemindersPage({
   onRestore: (id: string, date: string) => void;
 }) {
   const [optsOpen, setOptsOpen] = useState(false);
+  /** THE AREA CUT (Dave 2026-09-17: "Put it back and make it fit. That needs
+   *  to be on all pages"). Every reminder row already carries its area and
+   *  already prints its name; this is the same cut the other four pages have
+   *  always had, composed with whichever view is chosen rather than being a
+   *  view of its own. */
+  const [area, setArea] = useState<string | null>(null);
   const [burstId, setBurstId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const celebrate = (id: string) => {
@@ -197,8 +204,19 @@ export default function RemindersPage({
   // field and a compact, labeled Add control." A full-width red primary on
   // every visit, a Search button that revealed a field, and a chip row that
   // WRAPPED. The views, their meanings and their order are untouched --
-  // Today, Upcoming, Routines and Done are exactly the PAGE_TABS they were.
-  const views: HeaderView[] = PAGE_TABS.map((t) => ({ key: t.key, label: t.label }));
+  // Today, Upcoming and Routines are the PAGE_TABS they were; Done came off
+  // the row on 2026-09-17 ("Get rid of done") and is a row in the options
+  // sheet, named on the line under the chips while it is on -- the view you
+  // open least was holding a slot on the line you touch most.
+  const CHIP_TABS = PAGE_TABS.filter((t) => t.key !== "done");
+  const views: HeaderView[] = CHIP_TABS.map((t) => ({ key: t.key, label: t.label }));
+  const areaIds = [...new Set(sections.flatMap((s) => s.rows.map((r) => r.category)).filter((c): c is string => !!c))];
+  const offRow = CHIP_TABS.some((t) => t.key === tab) ? undefined : PAGE_TABS.find((t) => t.key === tab)?.label;
+  // The area composes with the view: it cuts the rows the view already chose,
+  // and a section left with none of them is not drawn at all.
+  const shownSections = area
+    ? sections.map((sec) => ({ ...sec, rows: sec.rows.filter((r) => r.category === area) })).filter((sec) => sec.rows.length > 0)
+    : sections;
   const header = (
     <LifeHeader
       query={query}
@@ -210,10 +228,20 @@ export default function RemindersPage({
       view={tab}
       onView={(k) => onTab(k as PageTab)}
       scope={query.trim() ? {
-        count: sections.reduce((n, sec) => n + sec.rows.length, 0),
+        count: shownSections.reduce((n, sec) => n + sec.rows.length, 0),
         where: `${PAGE_TABS.find((t) => t.key === tab)?.label ?? tab} reminders`,
         ...(tab !== "done" ? { onAll: () => onTab("done"), allLabel: "Search Done too" } : {}),
       } : undefined}
+      drops={areaIds.length > 0 ? (
+        <HeadMenu
+          ariaLabel="Area"
+          value={area ?? "all"}
+          label={area ? undefined : "All Areas"}
+          options={[{ value: "all", label: "All Areas" }, ...areaIds.map((id) => ({ value: id, label: catName(id) || "Area", dot: catColor(id) }))]}
+          onPick={(v) => setArea(v === "all" ? null : v)}
+        />
+      ) : undefined}
+      filters={offRow ? { label: offRow, onClear: () => onTab("today") } : undefined}
     >
       {chrome.segments}
     </LifeHeader>
@@ -226,14 +254,14 @@ export default function RemindersPage({
         : <PageHeader title="Reminders" back={chrome.back} onBack={chrome.onBack} headActions={opts}
             hero={<div className="rem-hero"><div className="eyebrow">{dateWord}</div><div className="pagehead-title">Reminders<span className="rem-hero-dot">.</span></div></div>}>{header}</PageHeader>}
 
-      {sections.length === 0 && (
+      {shownSections.length === 0 && (
         <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
           <div className="empty-title">Nothing Here Right Now</div>
           <div className="empty-sub">{query ? "Nothing matches that." : "Reminders appear here when they match this view."}</div>
           <button className="row row-act" onClick={onNew}><Plus className="ic" />Add a Reminder</button>
         </div></div></div>
       )}
-      {sections.map((s) => (
+      {shownSections.map((s) => (
         <div key={s.label}>
           <div className={"sh2" + (s.label === "Now" ? "" : " sh2-quiet")}>
             {s.label === "Now" && <span className="rem-now-dot" aria-hidden="true" />}
@@ -258,6 +286,9 @@ export default function RemindersPage({
           options sheet all five pages share (handoff rule 7). */}
       {optsOpen && (
         <OptionsSheet title="Reminders Options" rows={[
+          // The view that came off the chip row (2026-09-17). Still a view,
+          // one tap away, named on the line under the chips while it is on.
+          { key: "done", label: "Done", onClick: () => { setOptsOpen(false); onTab("done"); } },
           { key: "settings", label: "Reminder Settings", onClick: () => { setOptsOpen(false); onSettings(); } },
         ]} onClose={() => setOptsOpen(false)} />
       )}

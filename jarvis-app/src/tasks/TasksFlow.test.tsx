@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
 import { useEffect, useState } from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useTasks, useCategories, useNotes, usePeople } from "../data/NotesProvider";
 import type { TasksService } from "./TasksService";
@@ -297,7 +297,13 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
   it("says nothing on a view with nothing startable in it", async () => {
     render(<NotesProvider userId="start-per-view-2"><TwoViews /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("A Place to Begin")).toBeInTheDocument(), { timeout: 4000 });
-    fireEvent.click(screen.getByRole("tab", { name: /Done/ }));
+    // Done is a row in the options sheet since it came off the chip row
+    // (2026-09-17, "Get rid of done").
+    fireEvent.click(screen.getByLabelText("Tasks Options"));
+    // Scoped to the sheet: the sheet's own Done button closes it, and the
+    // page under it has a Done of its own.
+    const sheet = await waitFor(() => document.querySelector(".sheet-scrim")!);
+    fireEvent.click(within(sheet as HTMLElement).getByText("Done", { selector: ".conn-name" }));
     await waitFor(() => expect(screen.queryByText("A Place to Begin")).toBeNull(), { timeout: 4000 });
   });
 });

@@ -741,28 +741,30 @@ export default function TasksPage({
    *  asked for by name on 2026-09-13, and rule 2 of this same handoff says
    *  "Preserve the existing definitions and do not reclassify data for
    *  visual consistency". One row, no wrapping, nothing lost. */
-  /** FOUR CHIPS, FIXED, BECAUSE FOUR IS WHAT FITS (Dave 2026-09-17: "Look at
-   *  what happens to the chips when they slide. This is simply not going to
-   *  work. Either trim the amount down, use a dropdown").
+  /** THREE CHIPS, FIXED (Dave 2026-09-17: "Look at what happens to the chips
+   *  when they slide. This is simply not going to work. Either trim the
+   *  amount down, use a dropdown"; then, on the fix: "Get rid of done").
    *
-   *  Measured at 393px: the row has 361px, four labelled chips need 335. Add
-   *  a fifth, or a count, or a control beside them, and the row has to
-   *  scroll -- and a scrolling row of large filled pills is cut in half at
-   *  every resting position, which is the thing he was looking at.
+   *  Measured at 393px: the row has 361px, four labelled chips need 351. Add
+   *  a fifth, a count, or a control beside them and the row has to scroll --
+   *  and a scrolling row of large filled pills is cut in half at every
+   *  resting position, which is the thing he was looking at.
    *
-   *  So the chip row is exactly the handoff's four, always, in its order, and
-   *  the other three views are rows in the options sheet with their counts
-   *  beside them. Nothing was dropped: Overdue, Daily and From Email are one
-   *  tap away and say how many they hold, which is more than the chips ever
-   *  said about them. */
-  const LEAD_FILTERS: TaskFilter[] = ["today", "upcoming", "all", "done"];
+   *  Done went because it is the view you open least holding a slot on the
+   *  line you touch most. It is a row in the options sheet with its count,
+   *  like Overdue, Daily and From Email, and the line under the chips names
+   *  it while it is on. Nothing was dropped; four views are one tap away and
+   *  say how many they hold, which is more than the chips ever said. */
+  const LEAD_FILTERS: TaskFilter[] = ["today", "upcoming", "all"];
   const MORE_FILTERS = FILTERS.filter((f) => !LEAD_FILTERS.includes(f));
   const views: HeaderView[] = LEAD_FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f] }));
-  /** What is narrowing the list right now, as words, or null when nothing is.
-   *  The area, and a view that is not one of the four on the row. */
-  const areaName = catFilter && catFilter !== "all" ? categories?.find((c) => c.id === catFilter)?.name : undefined;
+  /** A VIEW THAT IS NOT ON THE ROW, SAID OUT LOUD (handoff rule 7). Done,
+   *  Overdue, Daily and From Email are set from the options sheet, so
+   *  without this line the list would simply be shorter than expected with
+   *  nothing on screen explaining it. The AREA is not in here: its dropdown
+   *  is on the line above, stating its own answer. */
   const offRow = LEAD_FILTERS.includes(filter) ? undefined : FILTER_LABEL[filter];
-  const narrowing = [offRow, areaName].filter(Boolean).join(" · ") || null;
+  const narrowing = offRow ?? null;
   const [optsOpen, setOptsOpen] = useState(false);
   // GROUP BY (ruled 2026-09-01: "a group-by dropdown"). Remembered within
   // the session, reset on launch, like the segment.
@@ -825,9 +827,34 @@ export default function TasksPage({
           // control on the chip line, this line is what keeps an Area cut and
           // an off-row view from being invisible: it names them and clears
           // them in one tap. Nothing shows when nothing is filtering.
+          // AREA AND GROUP, STACKED (Dave 2026-09-17: "Make multiple dropdown
+          // chips like areas in the most logical way possible. Stack
+          // dropdowns next to each other"). The same two HeadMenus the page
+          // has always had, on their own line: a chip picks one of a fixed
+          // few, a dropdown holds a list that grows with the data.
+          drops={(
+            <>
+              {categories && categories.length > 0 && (
+                <HeadMenu
+                  ariaLabel="Area"
+                  value={!catFilter || catFilter === "all" ? "all" : catFilter}
+                  label={!catFilter || catFilter === "all" ? "All Areas" : undefined}
+                  options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
+                  onPick={(v) => onCatFilter?.(v)}
+                />
+              )}
+              <HeadMenu
+                ariaLabel="Group by"
+                value={groupBy}
+                label={groupBy === "none" ? "No Grouping" : "By " + GROUP_LABEL[groupBy]}
+                options={(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => ({ value: g, label: GROUP_LABEL[g] }))}
+                onPick={(g) => setGroup(g as GroupBy)}
+              />
+            </>
+          )}
           filters={narrowing ? {
             label: narrowing,
-            onClear: () => { if (offRow) onFilter?.("today"); if (areaName) onCatFilter?.("all"); },
+            onClear: () => onFilter?.("today"),
           } : undefined}
         >
           {segments}
@@ -1011,32 +1038,6 @@ export default function TasksPage({
             key: f, label: FILTER_LABEL[f], count: counts[f],
             onClick: () => { setOptsOpen(false); onFilter?.(f); },
           })),
-          ...(categories && categories.length > 0 ? [{
-            key: "area",
-            label: "Area",
-            right: (
-              <HeadMenu
-                ariaLabel="Area"
-                value={!catFilter || catFilter === "all" ? "all" : catFilter}
-                label={!catFilter || catFilter === "all" ? "All Areas" : undefined}
-                options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
-                onPick={(v) => onCatFilter?.(v)}
-              />
-            ),
-          }] : []),
-          {
-            key: "group",
-            label: "Group",
-            right: (
-              <HeadMenu
-                ariaLabel="Group by"
-                value={groupBy}
-                label={groupBy === "none" ? "None" : GROUP_LABEL[groupBy]}
-                options={(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => ({ value: g, label: GROUP_LABEL[g] }))}
-                onPick={(g) => setGroup(g as GroupBy)}
-              />
-            ),
-          },
           ...(onDeleteMany && shown.length > 0 ? [{
             key: "select", label: "Select Tasks",
             onClick: () => { setOptsOpen(false); sel.enter(); },

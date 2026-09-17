@@ -27,18 +27,19 @@ function page(tab: PageTab, extra: Partial<Parameters<typeof RemindersPage>[0]> 
 }
 
 describe("RemindersPage", () => {
-  it("wears the date and the title, and the four views as chips, never a second tab bar (2026-09-15)", () => {
+  it("wears the date and the title, and the three views as chips, never a second tab bar (2026-09-15)", () => {
     const onTab = vi.fn();
     page("today", { onTab });
     expect(screen.getByText(/September 15/)).toBeInTheDocument();
     expect(screen.queryByText("On Your Radar")).not.toBeInTheDocument();
     expect(screen.queryByText("Take the Next Step")).not.toBeInTheDocument();
-    // AMENDED 2026-09-17 (Unified Headers). The four views, their meanings
-    // and their order are untouched; they sit in the shared header's one
-    // SCROLLING row now rather than a wrapping one, and say what they are
-    // with aria-selected, which is what a row of views is.
+    // AMENDED 2026-09-17 (Unified Headers), then again the same day (Dave:
+    // "Get rid of done"). The views, their meanings and their order are
+    // untouched; they sit in the shared header's one row now rather than a
+    // wrapping one, and Done is a row in the options sheet -- the view you
+    // open least was holding a slot on the line you touch most.
     const chips = document.querySelectorAll(".hdr-chips .chip");
-    expect([...chips].map((c) => c.textContent)).toEqual(["Today", "Upcoming", "Routines", "Done"]);
+    expect([...chips].map((c) => c.textContent)).toEqual(["Today", "Upcoming", "Routines"]);
     expect(chips[0]).toHaveAttribute("aria-selected", "true");
     expect(chips[1]).toHaveAttribute("aria-selected", "false");
     expect(document.querySelector(".chip-wrap-row")).toBeNull();

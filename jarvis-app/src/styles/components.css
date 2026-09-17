@@ -5652,6 +5652,36 @@ span.row-star { cursor: default; }
 .hdr-chips > .chip { position: relative; }
 .hdr-chips > .chip::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
 
+/* THE CUTS THAT ARE NOT VIEWS (Dave 2026-09-17: "Make multiple dropdown
+   chips like areas in the most logical way possible. Stack dropdowns next to
+   each other").
+
+   Their own line, under the chips, because that is the only place they fit:
+   one Area capsule beside four chips overflows a 361px row by 60px, and
+   beside three by 6px (measured in Chromium at 393px). Two lines of one
+   shape each also say what the shapes mean -- a chip picks one of a fixed
+   few, a dropdown opens a list that grows with the data and states its own
+   answer while closed.
+
+   overflow-x is the same floor the chips have: at an ordinary size two or
+   three capsules sit well inside the row and nothing scrolls. */
+.hdr-drops {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 0 var(--s-4); margin-top: 10px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.hdr-drops::-webkit-scrollbar { display: none; }
+.hdr-drops > * { flex: 0 0 auto; }
+/* These are controls, not the uppercase eyebrow .dd draws by default, and
+   not the white pill a chosen view wears: they must not read as a second
+   row of chips. */
+.hdr-drops .dd {
+  text-transform: none; letter-spacing: -0.01em;
+  font-size: calc(13px * var(--type-scale)); font-weight: var(--w-medium);
+  color: var(--tx-2); min-height: 32px;
+}
+.hdr-drops .dd .dd-w { max-width: 44vw; }
+
 /* WHAT THE SEARCH IS ACTUALLY SEARCHING (handoff rule 4). A count, where it
    looked, and one control that widens it -- never a silent widening. */
 .hdr-scope {

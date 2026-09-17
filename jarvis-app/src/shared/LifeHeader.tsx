@@ -79,7 +79,7 @@ export default function LifeHeader({
   query, onQuery, placeholder,
   addLabel, onAdd,
   views, view, onView,
-  scope, filters,
+  drops, scope, filters,
   children,
 }: {
   query: string;
@@ -96,6 +96,21 @@ export default function LifeHeader({
   views: HeaderView[];
   view: string;
   onView: (key: string) => void;
+  /** THE CUTS THAT ARE NOT VIEWS, STACKED ON THEIR OWN LINE (Dave
+   *  2026-09-17: "Make multiple dropdown chips like areas in the most
+   *  logical way possible. Stack dropdowns next to each other").
+   *
+   *  Area, Group, Tag. A chip PICKS one of a fixed few; a dropdown holds a
+   *  list that grows with the data, and states its own answer while closed.
+   *  Two different jobs, so two different shapes, on two different lines --
+   *  which is also the only arrangement that fits: one Area capsule beside
+   *  four chips overflows a 361px row by 60px (measured), and beside three
+   *  it still overflows by 6px.
+   *
+   *  A page passes its own HeadMenus; this reserves the line and spaces
+   *  them. A page with no areas and nothing to group passes nothing and the
+   *  line does not exist. */
+  drops?: ReactNode;
   /** Present only while a local search is running. */
   scope?: SearchScope;
   /** WHAT IS NARROWING THE LIST, SAID OUT LOUD (handoff rule 7: "Add a
@@ -149,10 +164,12 @@ export default function LifeHeader({
           horizontally scrollable row, and scrolling is what broke: at every
           resting position a large filled pill was cut in half by the screen
           edge. A row that fits needs no scroll and cuts nothing, which is
-          why the chips carry no counts and why a page puts at most four
-          here -- measured, not estimated. Everything past that is a row in
-          the options sheet, and whatever is narrowing the list says so on
-          the line below. */}
+          why the chips carry no counts and why a page puts at most three
+          here -- measured, not estimated.
+          THREE, NOT FOUR (Dave, same day: "Get rid of done"). The finished
+          view is the one you visit least and it was holding a slot on the
+          line you touch most; it is a row in the options sheet with its
+          count, and the line below names it while it is on. */}
       <div className="chip-row hdr-chips" role="tablist" aria-label="Views">
         {views.map((v) => (
           <button
@@ -167,6 +184,7 @@ export default function LifeHeader({
           </button>
         ))}
       </div>
+      {drops && <div className="hdr-drops">{drops}</div>}
       {!scope && filters && (
         <div className="hdr-scope">
           <span className="hdr-scope-n">{filters.label}</span>

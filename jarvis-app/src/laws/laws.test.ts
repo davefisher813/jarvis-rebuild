@@ -2892,7 +2892,9 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
   // AMENDED 2026-09-17, SAME DAY, BY MEASUREMENT (Dave, on a photograph of
   // the row mid-drag: "Look at what happens to the chips when they slide.
   // This is simply not going to work. Either trim the amount down, use a
-  // dropdown idk").
+  // dropdown idk"), and again hours later on the fix ("Get rid of done. Make
+  // multiple dropdown chips like areas in the most logical way possible.
+  // Stack dropdowns next to each other").
   //
   // The handoff said "one horizontally scrollable row", and scrolling is
   // exactly what broke. These chips are large filled pills, so at every
@@ -2909,22 +2911,31 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
   // 320px and very large type, with no snap and no mask, so the rare
   // overflow drags cleanly instead of resting on a cut pill.
   //
-  // What that costs is discoverability: a filter you cannot see on the chip
-  // line is a list that shrank for no visible reason. The filter line below
-  // the chips pays it back -- it appears only when something is narrowing
-  // the list, names it, and clears it in one tap. That is the handoff's own
-  // rule 7, and it is pinned here beside the row it makes possible.
+  // Three, not four: Done is the view you open least and it was holding a
+  // slot on the line you touch most. Area and Group are DROPDOWNS on their
+  // own line under the chips -- two shapes for two jobs, because a chip
+  // picks one of a fixed few and a dropdown holds a list that grows with the
+  // data and states its answer while closed. Their own line because it is
+  // also the only arrangement that fits: one Area capsule beside four chips
+  // overflows by 60px, and beside three by 6px.
+  //
+  // What the sheet costs is discoverability: a view you cannot see on the
+  // chip line is a list that shrank for no visible reason. The filter line
+  // below pays it back -- it appears only when one of those views is on,
+  // names it, and clears it in one tap. That is the handoff's own rule 7,
+  // and it is pinned here beside the row it makes possible.
   it("the Tasks views are one chip row that fits, and everything past it is in the options sheet", () => {
     const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
     expect(page, "the views are the shared header's chip row").toMatch(/views=\{views\}/);
-    expect(page, "and every existing filter is in it, in the handoff's order")
-      .toMatch(/const LEAD_FILTERS: TaskFilter\[\] = \["today", "upcoming", "all", "done"\];[\s\S]*?FILTERS\.filter\(\(f\) => !LEAD_FILTERS\.includes\(f\)\)/);
+    expect(page, "and every existing filter is still reachable, on the row or in the sheet")
+      .toMatch(/const LEAD_FILTERS: TaskFilter\[\] = \["today", "upcoming", "all"\];[\s\S]*?FILTERS\.filter\(\(f\) => !LEAD_FILTERS\.includes\(f\)\)/);
+    expect(page, "Done came off the row, it did not get deleted").not.toMatch(/LEAD_FILTERS[^\n]*"done"/);
     expect(page, "one row, never two: the chip row this page spends wraps nothing").not.toMatch(/chip-wrap-row/);
     // FOUR, FIXED. Not "four plus whichever else has a count": a row whose
     // length depends on the data is a row that fits on a quiet Tuesday and
     // overflows the day three emails land (2026-09-17, measured).
     const lead = page.match(/const LEAD_FILTERS: TaskFilter\[\] = \[([^\]]*)\]/)?.[1] ?? "";
-    expect(lead.split(",").length, "the chips are exactly the four that fit").toBe(4);
+    expect(lead.split(",").length, "the chips are exactly the three that fit").toBe(3);
     expect(page, "and they are labels: a count is 30px this row has not got")
       .toMatch(/LEAD_FILTERS\.map\(\(f\) => \(\{ key: f, label: FILTER_LABEL\[f\] \}\)\)/);
     expect(page, "no view is conditional on its count").not.toMatch(/counts\[f\] > 0 \|\| f === filter/);
@@ -2932,15 +2943,17 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
     // chip has not.
     expect(page, "the views that do not fit are rows in the sheet, counted")
       .toMatch(/<OptionsSheet title="Tasks Options"[\s\S]*?MORE_FILTERS\.map/);
-    expect(page.match(/<HeadMenu/g)?.length, "two menus, both in the sheet: Area and Group").toBe(2);
-    expect(page, "Area is a sheet row, not a capsule competing for the chip line")
-      .toMatch(/<OptionsSheet title="Tasks Options"[\s\S]*?ariaLabel="Area"/);
+    // TWO SHAPES, TWO LINES. Area and Group are the same two HeadMenus this
+    // page has always had, stacked next to each other under the chips.
+    expect(page.match(/<HeadMenu/g)?.length, "two menus: Area and Group").toBe(2);
+    expect(page, "both are on the header's dropdown line")
+      .toMatch(/drops=\{[\s\S]*?ariaLabel="Area"[\s\S]*?ariaLabel="Group by"[\s\S]*?\)\}/);
+    expect(page, "and neither is a sheet row any more")
+      .not.toMatch(/<OptionsSheet title="Tasks Options"[\s\S]*?<HeadMenu/);
     expect(page, "nothing is pinned beside the chips").not.toMatch(/\bmenu=\{/);
-    expect(page, "Group stays in the sheet with the page's other secondary tools")
-      .toMatch(/<OptionsSheet title="Tasks Options"[\s\S]*?ariaLabel="Group by"/);
     // AND THE LIST SAYS WHY IT SHRANK. A filter living in a sheet is
     // invisible until this line names it.
-    expect(page, "whatever is narrowing the list is named").toMatch(/const narrowing = \[offRow, areaName\]/);
+    expect(page, "a view set from the sheet is named on the page").toMatch(/const narrowing = offRow \?\? null;/);
     expect(page, "and cleared in one tap").toMatch(/filters=\{narrowing \? \{[\s\S]{0,200}?onClear:/);
     const menu = read(join(SRC, "shared/HeadMenu.tsx"));
     expect(menu, "the panel is a portal fixed to the capsule, never clipped by a card")

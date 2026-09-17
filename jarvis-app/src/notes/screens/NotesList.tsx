@@ -172,7 +172,6 @@ export default function NotesList({
   const [optsOpen, setOptsOpen] = useState(false);
   /** Which sub-list the options sheet is showing: the areas, or the tags.
    *  Null is the sheet's own list of rows. */
-  const [optsPick, setOptsPick] = useState<"area" | "tag" | null>(null);
   /** The area cut, composing with whichever view is chosen. Null is every
    *  area, which is what the menu calls All Areas. */
   const [area, setArea] = useState<string | null>(null);
@@ -315,7 +314,7 @@ export default function NotesList({
       <PageHeader
         title="Notes"
         actions={sel.active ? <BarText label="Done" strong onClick={sel.exit} /> : undefined}
-        headActions={sel.active ? undefined : <OptionsButton onClick={() => { setOptsPick(null); setOptsOpen(true); }} label="Notes Options" />}
+        headActions={sel.active ? undefined : <OptionsButton onClick={() => setOptsOpen(true)} label="Notes Options" />}
       >
         {/* ONE HEADER, FIVE PAGES (Dave 2026-09-17, Unified Headers). Notes
             keeps its own page and its own place in the app -- the handoff is
@@ -336,15 +335,44 @@ export default function NotesList({
             where: `${VIEWS.find((v) => v.key === filter.kind)?.label ?? "All"} notes${area ? ` in ${catName(area) || "this area"}` : ""}`,
             ...(filter.kind !== "all" || area ? { onAll: () => { setFilter({ kind: "all" }); setArea(null); }, allLabel: "Search all notes" } : {}),
           } : undefined}
+          // AREA AND TAG, STACKED (Dave 2026-09-17: "Make multiple dropdown
+          // chips like areas in the most logical way possible. Stack
+          // dropdowns next to each other"). Both were chips in the wrapping
+          // row this header replaced, then rows in the options sheet; they
+          // are the two lists on this page that grow with the library, which
+          // is exactly what a dropdown is for and a chip is not.
+          drops={areaIds.length > 0 || tagNames.length > 0 ? (
+            <>
+              {areaIds.length > 0 && (
+                <HeadMenu
+                  ariaLabel="Area"
+                  value={area ?? "all"}
+                  label={area ? undefined : "All Areas"}
+                  options={[{ value: "all", label: "All Areas" }, ...areaIds.map((id) => ({ value: id, label: catName(id) || "Area", dot: catColor(id) }))]}
+                  // Unfiled means "has no area", so an area and that view can
+                  // never both be true: choosing one moves off the other
+                  // rather than leaving a list that is empty by construction.
+                  onPick={(v) => { setArea(v === "all" ? null : v); if (v !== "all" && filter.kind === "unfiled") setFilter({ kind: "all" }); }}
+                />
+              )}
+              {tagNames.length > 0 && (
+                <HeadMenu
+                  ariaLabel="Tag"
+                  value={filter.kind === "tag" ? filter.tag : "all"}
+                  label={filter.kind === "tag" ? undefined : "All Tags"}
+                  options={[{ value: "all", label: "All Tags" }, ...tagNames.map((t) => ({ value: t, label: "#" + t }))]}
+                  onPick={(v) => setFilter(v === "all" ? { kind: "all" } : { kind: "tag", tag: v })}
+                />
+              )}
+            </>
+          ) : undefined}
           // What is narrowing the list, when something is (handoff rule 7).
-          // This is how the area cut stays visible with no control competing
-          // for room on the chip line.
-          filters={area || filter.kind === "tag" || filter.kind === "archived" || filter.kind === "deleted" ? {
-            label: [
-              filter.kind === "tag" ? "#" + filter.tag : filter.kind === "archived" ? "Archived" : filter.kind === "deleted" ? "Recently Deleted" : null,
-              area ? catName(area) || "One area" : null,
-            ].filter(Boolean).join(" · "),
-            onClear: () => { setArea(null); setFilter({ kind: "all" }); },
+          // Area and Tag are not in here: their dropdowns are on the line
+          // above, each stating its own answer. This is for the two
+          // destinations that have no control on the page at all.
+          filters={filter.kind === "archived" || filter.kind === "deleted" ? {
+            label: filter.kind === "archived" ? "Archived" : "Recently Deleted",
+            onClear: () => setFilter({ kind: "all" }),
           } : undefined}
         />
       </PageHeader>
@@ -384,18 +412,8 @@ export default function NotesList({
           specific tools, including import and Recently Deleted, remain
           available"). Area and Tag each open their own list of answers in
           this same sheet rather than a second sheet on top of it. */}
-      {optsOpen && optsPick === null && (
+      {optsOpen && (
         <OptionsSheet title="Notes Options" rows={([
-          ...(areaIds.length > 0 ? [{
-            key: "area", label: "Area",
-            value: area ? (catName(area) || "Area") : "All Areas",
-            onClick: () => setOptsPick("area"),
-          }] : []),
-          ...(tagNames.length > 0 ? [{
-            key: "tag", label: "Tag",
-            value: filter.kind === "tag" ? "#" + filter.tag : "Any",
-            onClick: () => setOptsPick("tag"),
-          }] : []),
           ...(onDeleteMany && shown.length > 0 ? [{
             key: "select", label: "Select Notes",
             onClick: () => { setOptsOpen(false); sel.enter(); },
@@ -415,27 +433,6 @@ export default function NotesList({
             onClick: () => { setOptsOpen(false); setFilter({ kind: "deleted" }); },
           }] : []),
         ] as OptionRow[])} onClose={() => setOptsOpen(false)} />
-      )}
-      {optsOpen && optsPick === "area" && (
-        <OptionsSheet title="Area" rows={([
-          { key: "all", label: "All Areas", onClick: () => { setOptsOpen(false); setArea(null); } },
-          ...areaIds.map((id) => ({
-            key: id, label: catName(id) || "Area",
-            // Unfiled means "has no area", so an area and that view can never
-            // both be true: choosing one moves off the other rather than
-            // leaving a list that is empty by construction.
-            onClick: () => { setOptsOpen(false); setArea(id); if (filter.kind === "unfiled") setFilter({ kind: "all" }); },
-          })),
-        ] as OptionRow[])} onClose={() => setOptsPick(null)} />
-      )}
-      {optsOpen && optsPick === "tag" && (
-        <OptionsSheet title="Tag" rows={([
-          { key: "any", label: "Any Tag", onClick: () => { setOptsOpen(false); setFilter({ kind: "all" }); } },
-          ...tagNames.map((tag) => ({
-            key: tag, label: "#" + tag,
-            onClick: () => { setOptsOpen(false); setFilter({ kind: "tag", tag }); },
-          })),
-        ] as OptionRow[])} onClose={() => setOptsPick(null)} />
       )}
       {onDeleteMany && (
         <SelectBar sel={sel} noun="Note" onDelete={() => { onDeleteMany(sel.selected); sel.exit(); }} />

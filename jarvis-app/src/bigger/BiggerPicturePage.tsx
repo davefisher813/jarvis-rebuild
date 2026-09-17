@@ -415,13 +415,15 @@ export default function BiggerPicturePage({
    *  back, in place of the folded receipt at the foot. */
   const viewGoals = (view === "achieved" ? doneGoals : view === "all" ? [...liveGoals, ...doneGoals] : liveGoals)
     .filter((g) => hit(g.data.title) && inArea(homeOf(g)));
-  // Four labels, no counts: the row fits at phone width and does not scroll
+  // Three labels, no counts: the row fits at phone width and does not scroll
   // (2026-09-17, measured). A state with nothing in it is still where you
-  // look, so these stand whatever they hold.
+  // look, so these stand whatever they hold. Done came off the row the same
+  // day ("Get rid of done") and is a row in the options sheet: the finished
+  // pile is the one you open least, and it was holding a slot on the line
+  // you touch most.
   const PROJECT_VIEWS: HeaderView[] = [
     { key: "active", label: "Active" },
     { key: "on_hold", label: "On Hold" },
-    { key: "done", label: "Done" },
     { key: "all", label: "All" },
   ];
   const GOAL_VIEWS: HeaderView[] = [
@@ -459,10 +461,23 @@ export default function BiggerPicturePage({
               where: `${(projectsLens ? PROJECT_VIEWS : GOAL_VIEWS).find((v) => v.key === view)?.label ?? "Active"} ${projectsLens ? "projects" : "goals"}`,
               ...(view !== "all" ? { onAll: () => setView("all"), allLabel: projectsLens ? "Search all projects" : "Search all goals" } : {}),
             } : undefined}
+            // THE AREA, ON ITS OWN LINE (Dave 2026-09-17: "Make multiple
+            // dropdown chips like areas... Stack dropdowns next to each
+            // other"). One dropdown here, because the area is the only cut
+            // these two lenses have that is not a status.
+            drops={sections.length > 0 ? (
+              <HeadMenu
+                ariaLabel="Area"
+                value={areaOnly ?? "all"}
+                label={areaOnly ? undefined : "All Areas"}
+                options={[{ value: "all", label: "All Areas" }, ...sections.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
+                onPick={(v) => setAreaOnly(v === "all" ? null : v)}
+              />
+            ) : undefined}
             // What is narrowing the list, when something is (handoff rule 7).
-            filters={areaOnly ? {
-              label: sections.find((c) => c.id === areaOnly)?.name ?? "One area",
-              onClear: () => setAreaOnly(null),
+            // The area is not in here: its dropdown states its own answer.
+            filters={projectsLens && view === "done" ? {
+              label: "Done", onClear: () => setView("active"),
             } : undefined}
           >
             {segments}
@@ -555,22 +570,14 @@ export default function BiggerPicturePage({
           </>
         )}
         <div className="screen-foot" />
-        {/* The area cut lives here, with the page's other secondary tools:
-            the chip row is four labels wide and nothing else fits beside it
-            at phone width (2026-09-17, measured). */}
+        {/* The area moved out of here and onto the header's dropdown line
+            (2026-09-17). What is left is the view that came off the chip
+            row, and the one control that puts everything back. */}
         {optsOpen && (
           <OptionsSheet title={projectsLens ? "Projects Options" : "Goals Options"} rows={[
-            ...(sections.length > 0 ? [{
-              key: "area", label: "Area",
-              right: (
-                <HeadMenu
-                  ariaLabel="Area"
-                  value={areaOnly ?? "all"}
-                  label={areaOnly ? undefined : "All Areas"}
-                  options={[{ value: "all", label: "All Areas" }, ...sections.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
-                  onPick={(v) => setAreaOnly(v === "all" ? null : v)}
-                />
-              ),
+            ...(projectsLens ? [{
+              key: "done", label: "Done",
+              onClick: () => { setOptsOpen(false); setView("done"); },
             }] : []),
             { key: "all", label: "Show Everything", onClick: () => { setOptsOpen(false); setView("all"); setAreaOnly(null); } },
           ]} onClose={() => setOptsOpen(false)} />
