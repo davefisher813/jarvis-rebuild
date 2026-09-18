@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { focusStarted } from "../events/focus";
 import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules, useBrainDocs, useOptionalStrands } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
 import { goalTone, catName, catColor as catColorOf } from "../shared/categories";
@@ -217,7 +218,15 @@ export default function TodayFlow({
   reminderNonce,
   onReminderOpened,
   onOpenEntity,
+  focusNonce,
+  onFocusOpened,
 }: {
+  /** FOCUS IS GLOBAL, AND IT LIVES HERE (2026-09-18). Every door to it -- the
+   *  capture bar's bolt, the Tasks list's own control -- fires an intent on
+   *  the shell, which lands on Today and opens this. One mount, one deck,
+   *  one clock. */
+  focusNonce?: number;
+  onFocusOpened?: () => void;
   /** The reminders rebuild (push C): a banner's Open, and the door to any linked record. */
   reminderOpenId?: string;
   reminderNonce?: number;
@@ -620,6 +629,13 @@ export default function TodayFlow({
   const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
+  const focusSeen = useRef(0);
+  useEffect(() => {
+    if (!focusNonce || focusNonce === focusSeen.current) return;
+    focusSeen.current = focusNonce;
+    setUpNextOpen(true);
+    onFocusOpened?.();
+  }, [focusNonce, onFocusOpened]);
   const [remAdjust, setRemAdjust] = useState<{ id: string; text: string } | null>(null);
   const [wrapUp, setWrapUp] = useState<string | null>(null);
   // THE MONTHLY REPORT (2026-08-25). Arrives as one row in the notice
@@ -3429,6 +3445,9 @@ export default function TodayFlow({
     };
     writeFifteen(live);
     setFifteen(live);
+    // THE ONE TAP WHERE A BLOCK TRULY BEGINS NOW (moved here 2026-09-18 with
+    // the What Now sheet's deletion, which used to be the only emitter).
+    focusStarted(t.id, FIFTEEN, "fifteen");
     showToast({ message: `Fifteen minutes on ${t.data.text}` });
   };
 

@@ -84,11 +84,17 @@ describe("TasksPage", () => {
     expect(c2.querySelector('.hdr-controls .dd[aria-label="Area"]')).toHaveTextContent(/^Area$/);
   });
 
-  it("one decision killer: Pick One alone, full width; the mode's way out replaces it", () => {
+  it("the door to Focus is a control, and the mode's way out is the only fill", () => {
     const onPickOne = vi.fn();
     const { container, rerender } = render(<TasksPage filter="all" counts={counts} items={[tk("a", null)]} today="2026-05-20" onPickOne={onPickOne} />);
-    expect(container.querySelectorAll(".pick-one .btn")).toHaveLength(1);
-    expect(container.querySelector(".pick-one .btn")).toHaveClass("btn-primary", "btn-block");
+    // THE SLAB IS GONE (2026-09-18, Dave: "that massive pick one chip looks
+    // terrible"). One control on the header line, opening Focus.
+    expect(container.querySelectorAll(".pick-one .btn")).toHaveLength(0);
+    const door = container.querySelector(".tasks-focus") as HTMLElement;
+    expect(door).toBeTruthy();
+    expect(door).toHaveTextContent("Focus");
+    fireEvent.click(door);
+    expect(onPickOne).toHaveBeenCalled();
     expect(container.textContent).not.toContain("Just This One");
     rerender(<TasksPage filter="all" counts={counts} items={[tk("a", null)]} today="2026-05-20" onPickOne={onPickOne} overwhelmed onCalm={() => {}} />);
     expect(container.querySelector(".pick-one .btn")).toHaveTextContent("Show Everything");

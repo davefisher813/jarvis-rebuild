@@ -74,7 +74,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   // landing on the full metadata form -- title, category, due date, project,
   // recurrence, plan -- for a button whose whole job was to remove a
   // decision. AppShell already has the right primitive one tap over on the
-  // capture bar's lightning bolt: openWhatNow -> RightNowSheet, one task,
+  // capture bar's lightning bolt: openFocus -> Focus, one task,
   // Start or Something Else, no form. Two "give me one task" buttons a few
   // hundred pixels apart doing different things was the bug the 2026-08-21
   // ADHD audit named and it was only ever fixed at the shell level. This
@@ -1053,6 +1053,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         query={query}
         onQuery={setQuery}
         onPickOne={pickOne}
+        onJustThisOne={() => { haptics.selection(); setOverwhelmed(setOverwhelmedFlag(true, today)); }}
         startLabel={startLabelFor}
         startCard={startCard}
         overwhelmed={overwhelmed}

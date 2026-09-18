@@ -36,7 +36,6 @@ import TodayOutboxPump from "../messages/TodayOutboxPump";
 import MailOutboxPump from "../messages/MailOutboxPump";
 import MailSnapshotPump from "../messages/MailSnapshotPump";
 import BrainPump from "../brain/BrainPump";
-import { focusStarted } from "../events/focus";
 import AutoReplyPump from "../messages/AutoReplyPump";
 
 // Heavier, less-visited surfaces load on demand so the startup bundle stays
@@ -59,9 +58,6 @@ import { supabase } from "../auth/supabaseClient";
 import type { WindowClient } from "../brain/window";
 import { ENTITY_CATEGORY } from "../categories/types";
 import { todayISO } from "../tasks/grouping";
-import RightNowSheet from "../tasks/screens/RightNowSheet";
-import { rightNow, endOf, type RightNow } from "../tasks/rightNow";
-import { useTaskEstimate } from "../schedule/useTaskEstimate";
 import { setOverwhelmed } from "../tasks/overwhelmed";
 import { showToast } from "../shared/toast";
 import { useOneShot } from "./intents";
@@ -125,6 +121,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // THE REMINDERS REBUILD (push C): a reminder banner's Open lands on the
   // reminder itself, on Today, when it has no linked item to open instead.
   const reminderIntent = useOneShot<string>();
+  /** Opens Focus, from anywhere: the bolt, or the Tasks list. */
+  const focusIntent = useOneShot<boolean>();
   // Push D: a reminder linked to a health log opens that log on the Health
   // page (BrainFlow finds the health area itself).
   const healthLogIntent = useOneShot<string>();
@@ -221,45 +219,18 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [ready, setReady] = useState(false);
   const [, bumpCatVer] = useState(0);
 
-  // WHAT NOW / JUST FIFTEEN. Global, because being stuck happens wherever you
-  // are, not on the Today screen. See tasks/rightNow.ts for the reasoning.
-  const [whatNow, setWhatNow] = useState<RightNow | null>(null);
-  const estimateOf = useTaskEstimate();
-  const [skipped, setSkipped] = useState<string[]>([]);
+  // ONE DOOR, AND IT IS FOCUS (2026-09-18, Dave: "why don't we combine focus
+  // and pick one and roll it all under focus").
+  //
+  // This used to hold a second answer to the same question: rightNow picked a
+  // task, RightNowSheet showed it with Just Fifteen / Just This One /
+  // Something Else / Not Now, and Focus showed the same pick with Start Now /
+  // Focus 15 Minutes / Done / Not This One. Two ranks, two vocabularies, two
+  // shapes. The sheet is gone and every door -- the capture bar's bolt, the
+  // Tasks list's own control -- opens Focus, which is still global: being
+  // stuck happens wherever you are.
+  const openFocus = () => { setActive("today"); focusIntent.fire(true); };
 
-  const openWhatNow = async (skip: string[] = skipped) => {
-    const all = await tasks.listTasks();
-    // LIFE-F-23 (2026-09-05): the estimate was the constant 30, so every
-    // task tied on size and What Now handed back the most overdue thing,
-    // usually the heaviest. See schedule/useTaskEstimate.
-    const pick = rightNow(all.filter((t) => !skip.includes(t.id)), estimateOf);
-    if (!pick) { showToast({ message: "Nothing open right now" }); setWhatNow(null); return; }
-    setWhatNow(pick);
-  };
-
-  // The container starts on the TAP. ADHD discounts delayed commitments
-  // steeply, so "later" is where this one would die: Set a Start is the tool
-  // for planning a day, and this is the tool for beginning right now.
-  const startFifteen = async (pick: RightNow) => {
-    setWhatNow(null);
-    const id = await schedule.createEvent(pick.task.data.text, {
-      date: todayISO(),
-      start: pick.startHHMM,
-      end: endOf(pick.startHHMM, pick.minutes),
-      category: pick.task.data.category || undefined,
-      sourceTaskId: pick.task.id,
-    });
-    // UP-MIND-05 (2026-09-05): focus.started has been reserved in the event
-    // schema since it was written and nothing ever emitted it. This is the
-    // one tap in the app where a focus block truly begins NOW, so it is the
-    // one place the row is true. Only on a block that really got made.
-    if (id) focusStarted(pick.task.id, pick.minutes, "fifteen");
-    showToast({
-      message: `Fifteen minutes on ${pick.task.data.text}`,
-      actionLabel: id ? "Undo" : undefined,
-      onAction: id ? async () => { await schedule.deleteEvent(id); } : undefined,
-    });
-  };
 
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -596,13 +567,13 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             every once-per-open job (the sweep, the autopay roll, the spot,
             the Day Loop draft, Fresh Start, the mail dismissals) runs for
             the new day instead of yesterday's. See shell/useDayKey.ts. */}
-        {active === "today" && <TodayFlow key={dayKey} onStartNow={(id) => { startIntent.fire(id); goLife("tasks"); }} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { goLife("tasks"); taskFilterIntent.fire("all"); }} onGoTasksOverdue={() => { goLife("tasks"); taskFilterIntent.fire("overdue"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); }} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
+        {active === "today" && <TodayFlow key={dayKey} focusNonce={focusIntent.nonce} onFocusOpened={focusIntent.clear} onStartNow={(id) => { startIntent.fire(id); goLife("tasks"); }} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { goLife("tasks"); taskFilterIntent.fire("all"); }} onGoTasksOverdue={() => { goLife("tasks"); taskFilterIntent.fire("overdue"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); }} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
           /* UP-MIND-24 (2026-09-05): the meeting line's two taps. Both go to
              screens that already answer the question: the person's own card
              for what is open, and Chat for what you told them. */
           onOpenPerson={(personId) => void navigateToEntity("person", personId)}
           onAskSaid={(personId) => { chatAskIntent.fire(personId); setActive("chat"); }} onGoBigger={(goalId?: string) => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); }} />}
-        {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} startOpenId={startIntent.value} startNonce={startIntent.nonce} onStartConsumed={startIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => { mailIntent.fire(threadId); setActive("messages"); }} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenCategory={(id) => void navigateToEntity("category", id)} />}
+        {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} startOpenId={startIntent.value} startNonce={startIntent.nonce} onStartConsumed={startIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={openFocus} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => { mailIntent.fire(threadId); setActive("messages"); }} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenCategory={(id) => void navigateToEntity("category", id)} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} onNavigate={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} healthLogKey={healthLogIntent.value} healthLogNonce={healthLogIntent.nonce} onHealthLogConsumed={healthLogIntent.clear} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent.value} openNonce={noteIntent.nonce} onOpenConsumed={noteIntent.clear} />}
@@ -646,7 +617,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           wrong on some device. */}
       <div id="select-bar-host" />
       {showCapture && (
-        <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={() => void openWhatNow()} />
+        <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={openFocus} />
       )}
       {showTabBar && (
         <>
@@ -663,21 +634,6 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             setActive(k);
           }} />
         </>
-      )}
-      {whatNow && (
-        <RightNowSheet
-          pick={whatNow}
-          onCancel={() => setWhatNow(null)}
-          // "Something Else" hides this one for the session and offers the
-          // next smallest. Hiding, never deferring: nothing is written, so a
-          // task he skipped past is exactly where it was tomorrow.
-          onOther={() => { const next = [...skipped, whatNow.task.id]; setSkipped(next); void openWhatNow(next); }}
-          // JUST THIS ONE (Fewer Buttons, 2026-09-02): the same pick, in the
-          // list, everything else hidden until Show Everything. The flag is
-          // day-keyed in overwhelmed.ts; TasksFlow hears the write.
-          onJustThisOne={() => { setWhatNow(null); setOverwhelmed(true, todayISO()); goLife("tasks"); }}
-          onStart={() => void startFifteen(whatNow)}
-        />
       )}
       {captureOpen && <Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} onOpen={(kind, id) => void navigateToEntity(kind, id)} /></Suspense>}
       {searchOpen && <Suspense fallback={null}><SearchFlow onClose={() => setSearchOpen(false)} onOpen={(kind, id) => {

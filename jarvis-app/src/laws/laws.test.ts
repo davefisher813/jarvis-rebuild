@@ -895,7 +895,7 @@ describe("LAW: one filled red per screen", () => {
     const EXCLUSIVE: Record<string, string> = {
       "tasks/screens/ReminderDetailSheet.tsx": "the linked verb and Mark Done are the two arms of one ternary",
       "messages/MessagesFlow.tsx": "sweep / toss / autoOffer are one if-else chain; the rest are separate views",
-      "upnext/UpNextFlow.tsx": "three mutually exclusive branches of one switch",
+      "upnext/FocusScreen.tsx": "Start Now and Done are the two arms of one ternary; only one is ever mounted",
       "gym/GymFlow.tsx": "Create a Program and Start are gated on !program vs program",
       "brain/HealthBody.tsx": "Resume Workout renders only while a session is live, Start Workout only while none is; one ternary (2026-09-14, the approved Health design: no competing start beside Resume)",
       "notes/screens/AISheet.tsx": "Apply, Insert After the Caret and Retry are one slot on three exclusive branches: a reply that fits, a reply over words that changed, a failed call (2026-09-14, the writing system, wave 4)",
@@ -2815,7 +2815,7 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
     // hands the same What Now to LifeFlow, and LifeFlow passes it through.
     const shell = read(join(SRC, "shell/AppShell.tsx"));
     expect(shell, "and AppShell actually wires it to the same What Now the lightning bolt uses")
-      .toMatch(/<LifeFlow[^>]*onWhatNow=\{\(\) => void openWhatNow\(\)\}/);
+      .toMatch(/<LifeFlow[^>]*onWhatNow=\{openFocus\}/);
     const life = read(join(SRC, "life/LifeFlow.tsx"));
     expect(life, "LifeFlow passes it through untouched").toMatch(/<TasksFlow[^>]*onWhatNow=\{onWhatNow\}/);
   });
@@ -2967,15 +2967,20 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
   // to. Pick One survives underneath as the fallback for a caller that
   // mounts this page without a start card, exactly the way it already
   // survives without onWhatNow, so the law still has a fill to point at.
-  it("the Tasks page carries one decision killer, full width", () => {
+  // ONE DECISION KILLER, AND IT IS NOT A SLAB ANY MORE (Dave 2026-09-18:
+  // "that massive pick one chip looks terrible... combine focus and pick one
+  // and roll it all under focus"). Pick One was a full-width red fill under
+  // the header that named nothing and opened a sheet to explain itself. The
+  // sheet is gone into Focus, so what is left on this page is a door: one
+  // control on the line the cuts already own, and no red fill at all.
+  it("the Tasks page's door to Focus is a control, not a fill", () => {
     const src = page();
     expect(src, "the pair is gone").not.toMatch(/cta-pair|onOverwhelmed/);
-    // Anchored on the fallback branch itself: the overwhelmed exit wears
-    // .pick-one too, and it is the first one in the file.
-    const row = src.slice(src.indexOf("onPickOne && counts.all > 0"));
-    const body = row.slice(0, row.indexOf("</div>"));
-    expect(body, "the fallback fill is still the fill, and it has the row").toMatch(/btn btn-primary btn-lg btn-block/);
-    expect(body, "nothing sits beside it").not.toMatch(/OVERWHELM_ENTER/);
+    expect(src, "and the slab is gone with it").not.toMatch(/btn btn-primary btn-lg btn-block/);
+    expect(src, "the door sits on the control line").toMatch(/className="tasks-focus"/);
+    expect(src, "and it is the only thing that opens Focus from here")
+      .toBe(src.replace(/onPickOne/g, "onPickOne"));
+    expect(src.match(/onClick=\{onPickOne\}/g)?.length, "one door").toBe(1);
     // And the card that stands in front of it carries exactly one primary.
     const card = read(join(SRC, "tasks/screens/StartCard.tsx"));
     expect(card.match(/btn-primary/g)?.length, "one primary on the card").toBe(1);
@@ -2994,22 +2999,34 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
     expect(card, "and no sheet opens off this card at all").not.toMatch(/createPortal|useState/);
   });
 
-  it("Just This One is an action on the What Now sheet, wired to the same flag", () => {
-    const sheet = read(join(SRC, "tasks/screens/RightNowSheet.tsx"));
-    expect(sheet, "the sheet offers it under the same vocabulary").toMatch(/onJustThisOne && <button className="btn btn-secondary btn-block" onClick=\{onJustThisOne\}>\{OVERWHELM_ENTER\}<\/button>/);
-    const shell = read(join(SRC, "shell/AppShell.tsx"));
-    expect(shell, "the shell sets the day-keyed flag and goes to the list")
-      .toMatch(/onJustThisOne=\{\(\) => \{ setWhatNow\(null\); setOverwhelmed\(true, todayISO\(\)\); goLife\("tasks"\); \}\}/);
+  // JUST THIS ONE MOVED HOME (2026-09-18). It was an action on the What Now
+  // sheet, which Focus replaced. It is a mode of the Tasks LIST, not of the
+  // screen that proposes a task, so it belongs to that list's own options --
+  // and it is still one flag, still day-keyed, still heard by the page.
+  it("Just This One is an action in the Tasks options, wired to the same flag", () => {
+    const src = page();
+    expect(src, "offered under the same vocabulary, in the options sheet")
+      .toMatch(/key: "one", label: OVERWHELM_ENTER/);
+    expect(src, "and never while it is already on").toMatch(/onJustThisOne && !overwhelmed/);
     const flow = read(join(SRC, "tasks/TasksFlow.tsx"));
+    expect(flow, "the flow sets the day-keyed flag")
+      .toMatch(/onJustThisOne=\{\(\) => \{ haptics\.selection\(\); setOverwhelmed\(setOverwhelmedFlag\(true, today\)\); \}\}/);
     expect(flow, "a mounted Tasks page hears the write").toMatch(/subscribeOverwhelmed\(\(\) => setOverwhelmed\(loadOverwhelmed\(todayISO\(\)\)\)\)/);
+    expect(existsSync(join(SRC, "tasks/screens/RightNowSheet.tsx")), "the sheet it left is gone").toBe(false);
   });
 
   // Two reds of equal weight side by side is exactly what Law 4 rations.
-  // Bare `.btn` is press-3 with `color: var(--tint)` -- red text -- so the
-  // secondary beside the sheet's red fill must name a neutral variant.
+  // Bare `.btn` is press-3 with `color: var(--tint)` -- red text -- so every
+  // quiet action beside a red fill has to name a neutral variant. The sheet
+  // this was written against is gone (2026-09-18); the screen that replaced
+  // it, Focus, is where the rule now has to hold: one fill, and everything
+  // beside it secondary.
   it("the quiet CTA is neutral, not accent-coloured text beside a red fill", () => {
-    const sheet = read(join(SRC, "tasks/screens/RightNowSheet.tsx"));
-    expect(sheet, "the alternative uses the neutral variant").toMatch(/btn btn-secondary btn-block" onClick=\{onJustThisOne\}/);
+    const focus = read(join(SRC, "upnext/FocusScreen.tsx"));
+    for (const m of focus.matchAll(/className="btn ([a-z- ]*)"/g)) {
+      const cls = m[1] ?? "";
+      expect(/btn-primary|btn-secondary/.test(cls), "bare .btn beside a fill: " + cls).toBe(true);
+    }
     // The CSS this relies on: bare .btn really is accent text, so if that
     // ever changes this law should be revisited rather than silently kept.
     expect(CSS, "bare .btn is still accent text, which is why secondary is required")
@@ -6258,7 +6275,9 @@ describe("a block made from a task links back to it (TRACE-01, 2026-09-07)", () 
     expect(bad).toEqual([]);
     // A floor, so a rename of the field cannot pass this law by matching
     // nothing at all.
-    expect(seen).toBeGreaterThanOrEqual(5);
+    // Was 5 until 2026-09-18, when the What Now sheet and the one
+    // createEvent inside it were deleted with the Focus merge.
+    expect(seen).toBeGreaterThanOrEqual(4);
   });
 });
 

@@ -5,7 +5,7 @@ import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHea
 import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
-import { Plus, Trash2, Clock, ListChecks, Check, Camera } from "../../shared/icons";
+import { Plus, Trash2, Clock, ListChecks, Check, Camera, Zap } from "../../shared/icons";
 import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
 import type { BurstSize } from "../../shared/completion";
@@ -616,6 +616,7 @@ export default function TasksPage({
   stalled = null,
   momentum,
   onPickOne,
+  onJustThisOne,
   onCalm,
   overwhelmed = false,
   onMoveAllToToday,
@@ -704,6 +705,8 @@ export default function TasksPage({
   // single best task for right now so the list never has to be read; Move
   // All resets an overdue pile in one tap instead of one tap per shame.
   onPickOne?: () => void;
+  /** Collapses the list to the one task, from this list's own options. */
+  onJustThisOne?: () => void;
   // F1: hide everything but the one smallest thing. A view, never a write.
   // The door in is on the What Now sheet (Fewer Buttons, 2026-09-02); the
   // page carries only the door out.
@@ -834,6 +837,18 @@ export default function TasksPage({
                 options={(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => ({ value: g, label: GROUP_LABEL[g] }))}
                 onPick={(g) => setGroup(g as GroupBy)}
               />
+              {/* THE DOOR TO FOCUS (Dave 2026-09-18: "that massive pick one
+                  chip looks terrible... combine focus and pick one and roll
+                  it all under focus"). It was a full-width red slab under
+                  the header that named nothing. Focus is where the proposal
+                  lives, so what is left here is the door: one control, the
+                  height of the cuts beside it, wearing the bolt the capture
+                  bar already uses for the same screen. */}
+              {onPickOne && counts.all > 0 && !overwhelmed && (
+                <button type="button" className="tasks-focus" onClick={onPickOne}>
+                  <Zap className="ic" />Focus
+                </button>
+              )}
             </>
           )}
         >
@@ -841,12 +856,10 @@ export default function TasksPage({
         </LifeHeader>
       </PageHeader>
 
-      {/* ONE DECISION KILLER (Fewer Buttons, Dave 2026-09-02, picked "Pick
-          One alone; Just This One lives inside it"). The row above the
-          head carries one red button. Just This One is an action on the
-          What Now sheet that button opens (the shell's RightNowSheet), so
-          the same ranking has one door. While the mode is on, the page IS
-          the one thing and this row is the way back out. */}
+      {/* THE WAY BACK OUT, and nothing else (2026-09-18). This row used to
+          carry Pick One, a full-width red fill that named nothing and opened
+          a sheet Focus has now absorbed. While Just This One is on, the page
+          IS the one thing, and this row is how you leave. */}
       {overwhelmed ? (
         <div className="pad-x pick-one">
           <button className="btn btn-block" onClick={onCalm}>{OVERWHELM_EXIT}</button>
@@ -865,11 +878,7 @@ export default function TasksPage({
         // decision killer is never a dead button, only the weaker of the
         // two shapes.
         startCard
-      ) : onPickOne && counts.all > 0 && (
-        <div className="pad-x pick-one">
-          <button className="btn btn-primary btn-lg btn-block" onClick={onPickOne}>Pick One</button>
-        </div>
-      )}
+      ) : null}
 
       {/* THE MODE STILL STATES ITSELF. Just This One replaces the list with
           one task, so it says so where the controls were. Everything else
@@ -1012,6 +1021,13 @@ export default function TasksPage({
           control is not rebuilding it. */}
       {optsOpen && (
         <OptionsSheet title="Tasks Options" rows={([
+          // JUST THIS ONE LIVES HERE NOW (2026-09-18). It was an action on
+          // the What Now sheet, which Focus replaced; it is a mode of THIS
+          // list, not of that screen, so it belongs to this list's options.
+          ...(onJustThisOne && !overwhelmed && counts.all > 1 ? [{
+            key: "one", label: OVERWHELM_ENTER,
+            onClick: () => { setOptsOpen(false); onJustThisOne(); },
+          }] : []),
           ...(onDeleteMany && shown.length > 0 ? [{
             key: "select", label: "Select Tasks",
             onClick: () => { setOptsOpen(false); sel.enter(); },

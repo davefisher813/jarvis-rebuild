@@ -721,14 +721,42 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* ===== Up Next / Quick Wins / Fresh Start (ADHD strategy Phase 1). One card,
    never a list. Tokens only; reuses .card/.btn/.chip/.conn-*; the overlay
    itself is .search-overlay (same rules, same z). ===== */
-.upnext-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--s-3); padding-bottom: var(--s-8); }
-.upnext-card { text-align: center; padding: var(--s-6) var(--s-5); }
-.upnext-cat { justify-content: center; display: flex; align-items: center; gap: var(--s-1h); margin-bottom: var(--s-3h); }
-.upnext-task { font-size: calc(26px * var(--type-scale)); font-weight: var(--w-bold); line-height: var(--lh-default); margin-bottom: var(--s-2h); }
-.upnext-done-wrap { position: relative; margin-top: var(--s-5); }
-.upnext-skip { background: 0; border: 0; color: var(--tx-quiet); font-size: var(--t-body); font-weight: var(--w-medium); font-family: var(--f); margin-top: var(--s-3h); }
-.upnext-pill-row { display: flex; justify-content: center; padding: var(--s-2) var(--s-4) 0; }
-.qw-pill { background: var(--red-tint); color: var(--accent-tx); font-weight: var(--w-bold); font-size: var(--t-meta); padding: var(--s-1h) var(--s-3h); border-radius: var(--r-pill); }
+/* FOCUS (rebuilt 2026-09-18: "roll it all under focus... which needs a major
+   facelift as well"). The body used to be `justify-content: center`, which is
+   why one card sat two thirds of the way down an otherwise black screen. It
+   starts at the top now. */
+/* The screen itself: the overlay's own column, so the body can start at the
+   top instead of centring one card in a black page. */
+.focus-screen { display: flex; flex-direction: column; }
+.focus-controls { display: flex; align-items: center; gap: var(--s-2); padding-top: var(--s-1); }
+.focus-controls .segmented { flex: 1 1 auto; min-width: 0; }
+.focus-controls .chip-row { flex: 0 0 auto; }
+.focus-run-line { padding: var(--s-2h) var(--s-4) 0; font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
+.focus-body { flex: 1; display: flex; flex-direction: column; gap: var(--s-2); padding-top: var(--s-3); }
+.focus-card { padding: var(--s-4); }
+.focus-task {
+  font-size: calc(22px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: -0.02em; line-height: 1.2; color: var(--tx-1); margin-top: var(--s-1h);
+}
+.focus-go { margin-top: var(--s-4); }
+.focus-acts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-2); }
+.focus-acts.three { grid-template-columns: 1fr 1fr 1fr; padding: 0 var(--s-3) var(--s-3); margin-top: 0; }
+.focus-acts .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h);
+  /* Two capsules of the SAME height: "15 Minutes" wrapped to two lines and
+     grew its half of the row taller than Done's. */
+  white-space: nowrap; padding-inline: var(--s-2); font-size: calc(15px * var(--type-scale));
+}
+.focus-acts .btn .ic { width: 16px; height: 16px; }
+.focus-skip {
+  display: block; width: 100%; background: 0; border: 0; font-family: var(--f);
+  margin-top: var(--s-3); padding: 0;
+  color: var(--tx-quiet); font-size: var(--t-sub); font-weight: var(--w-medium);
+}
+/* What is behind this card, so one card is not the whole screen's evidence. */
+.focus-rest { padding: 0 var(--s-4); font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
+.focus-live { margin-top: var(--s-3); }
+.focus-live .conn-meta.warn { color: var(--warn); }
 .fresh-faded { color: var(--tx-3); }
 /* Focus + Plan My Day as a pair: Focus keeps the accent (one red action per
    screen), Plan My Day drops to the quiet fill. */
@@ -1848,9 +1876,9 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    tapping an event open the length editor instead of the event. Its comment
    at :2535 argues the case; it keeps its 26px. A control inside a tappable
    row expands only into free space. */
-.tap44, .p3-time-btn, .upnext-skip, .search-cancel, .ob-x, .note-conn-add, .note-fix,
+.tap44, .p3-time-btn, .focus-skip, .search-cancel, .ob-x, .note-conn-add, .note-fix,
 .toast-action { position: relative; }
-.tap44::after, .p3-time-btn::after, .upnext-skip::after, .search-cancel::after,
+.tap44::after, .p3-time-btn::after, .focus-skip::after, .search-cancel::after,
 .ob-x::after, .note-conn-add::after, .note-fix::after, .toast-action::after {
   content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   min-width: var(--tap-min); min-height: var(--tap-min);
@@ -3114,7 +3142,6 @@ button {
 /* THE DECISION KILLERS (Dave 2026-08-19, ADHD round): Pick One is the Tasks
    page's one primary and sits above the filters, because reading the filters
    is already the work it exists to skip. */
-.pick-one { padding-top: var(--s-2); padding-bottom: var(--s-1); }
 
 /* TASKS AUDIT 2026-08-29 (findings A and B): Pick One and Just This One were
    two full-width buttons stacked, 106px of chrome answering one question
@@ -5742,10 +5769,24 @@ span.row-star { cursor: default; }
 .opt-val { flex-shrink: 0; font-size: var(--t-body); font-weight: var(--w-regular); color: var(--tx-2); }
 /* FOCUS, remodelled (2026-09-17): the facts line on the card, the verb grid
    under the one filled action, and the running block's own card. */
-.upnext-facts { justify-content: center; margin-bottom: var(--s-3); }
-.upnext-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-2h); }
-.upnext-grid.three { grid-template-columns: 1fr 1fr 1fr; padding: 0 var(--s-3) var(--s-3); margin-top: 0; }
-.upnext-grid .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h); }
-.upnext-grid .btn .ic { width: 16px; height: 16px; }
-.upnext-live { margin-top: var(--s-3); }
-.upnext-live .conn-meta.warn { color: var(--warn); }
+
+/* The row that carries the way out of Just This One. It used to carry Pick
+   One as well; that is a control on the header line now. */
+.pick-one { padding-top: var(--s-2); padding-bottom: var(--s-1); }
+
+/* FOCUS, ON THE CONTROL LINE (2026-09-18, Dave: "that massive pick one chip
+   looks terrible"). Pick One was a full-width red fill under the header, the
+   only red on the page, and it named nothing: it opened a sheet to find out
+   what it meant. Focus is where the proposal lives now, so this is only the
+   door -- the height of the cuts beside it, in the tinted red, wearing the
+   bolt the capture bar already uses for the same screen. */
+.hdr-controls .tasks-focus {
+  flex: 0 0 auto; margin-left: auto;
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 34px; padding: 0 var(--s-3);
+  border: 0; border-radius: var(--r-pill);
+  background: var(--red-tint); color: var(--accent-tx);
+  font-family: var(--f); font-size: calc(13.5px * var(--type-scale));
+  font-weight: var(--w-semi); letter-spacing: -0.01em; cursor: pointer;
+}
+.hdr-controls .tasks-focus .ic { width: 15px; height: 15px; }
