@@ -285,6 +285,11 @@ export default function TodayFlow({
   const [tomorrowEvents, setTomorrowEvents] = useState<EventItem[]>([]);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
+  // NOT THE EMAILS (Dave 2026-09-17: "they must go to the email section").
+  // A task born from a thread is the Ready to Send band's: it never leads
+  // Your Move, never rides the momentum chain, never sits in the slid card.
+  const isMailTask = (t: TaskItem): boolean => !!(t.data.fromThread || t.data.source?.type === "email" || /^get back to /i.test(t.data.text));
+  const notMail = (t: TaskItem): boolean => !isMailTask(t);
   const [prevMood, setPrevMood] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   // Group C (item 14): the Day Loop's draft for today.
@@ -762,7 +767,7 @@ export default function TodayFlow({
       // The season pause candidatesFor applies, at the other door a task
       // becomes work. nextBest already refuses bills and reminders.
       const fresh = (await tasks.listTasks()).filter((t) => !pausedCats.has(t.data.category ?? ""));
-      setMomentum(nextBest(fresh, id, before.category ?? ""));
+      setMomentum(nextBest(fresh.filter(notMail), id, before.category ?? ""));
     }
     const advanced = before && !before.done ? movedByTask(before, id) : null;
     if (comeback) {
@@ -1532,7 +1537,7 @@ export default function TodayFlow({
   // behind it is a count on a receipt line that opens the Focus deck. One
   // target on screen, because choosing among three is a decision tax the
   // page was charging before work could start.
-  const upNextAll = rankOpen(taskItems, today);
+  const upNextAll = rankOpen(taskItems.filter(notMail), today);
   const upNextRows = upNextAll.slice(0, 1);
   const inPeakNow = !!energy && nowMin >= energy.peakStartMin && nowMin < energy.peakEndMin;
 
@@ -1686,10 +1691,7 @@ export default function TodayFlow({
   // home page; there is no need to have repetitiveness"). A task that was
   // born from a thread is the email band's to surface, with its verb; the
   // slid-task card only ever names a task that is nothing but a task.
-  const mailBorn = (id: string): boolean => {
-    const t = taskItems.find((x) => x.id === id);
-    return !!(t?.data.fromThread || t?.data.source?.type === "email");
-  };
+  const mailBorn = (id: string): boolean => { const t = taskItems.find((x) => x.id === id); return !!t && isMailTask(t); };
   const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(movedNow.filter((m) => !mailBorn(m.id)), today) : null;
   // THE DAY LOOP (Group C item 14). Draft at first open, deterministic and
   // instant; Accept stays the one honest commit moment.
