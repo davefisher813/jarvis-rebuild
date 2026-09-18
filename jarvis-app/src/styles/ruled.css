@@ -1489,7 +1489,21 @@
 .ruled.health-ruled .se-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 /* On the hero the chips sit under a 19px title, so they take a tighter top. */
 .ruled.health-ruled .h-hero-chips { margin-top: 6px; }
-.ruled.health-ruled .se-chip-best { color: var(--hl-lime); background: var(--hl-lime-tint); }
+/* WHEN YOU LAST DID IT IS A COMPLETION FACT, AND THIS APP DRAWS THOSE LIME
+   (Dave 2026-09-18: "where it says last Monday - Monday should be a color").
+
+   The Up Next card said "LAST Monday" in the neutral grey .se-chip-when wears
+   for any date, sitting between a cyan count and a violet estimate -- and one
+   card below it, the same fact on the same screen, the weekday a day was last
+   trained, is a lime .fact. Identical fact, adjacent on screen, two different
+   colours.
+
+   .se-chip-when stays grey: it carries plain dates (a session's date, a range
+   on the lift screen) and on the session screen it sits beside .se-chip-best,
+   which is lime. This is the narrower thing -- the day you last finished this
+   -- so it gets its own name and the lime that fact already has. */
+.ruled.health-ruled .se-chip-best,
+.ruled.health-ruled .se-chip-done { color: var(--hl-lime); background: var(--hl-lime-tint); }
 .ruled.health-ruled .se-chip-last, .sheet-scrim > .card .se-chip-last, .ruled.health-ruled .se-chip-time { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
 .ruled.health-ruled .se-chip-budget, .ruled.health-ruled .se-chip-pair { color: var(--hl-violet); background: var(--hl-violet-tint); }
 .ruled.health-ruled .se-chip-over { color: var(--hl-amber); background: var(--hl-amber-tint); }

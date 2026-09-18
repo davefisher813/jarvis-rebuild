@@ -235,3 +235,22 @@ describe("a card that cannot compare does not explain comparison", () => {
     expect(ins, "the facts it does have stay").toContain("} in the period`");
   });
 });
+
+// "Where it says last Monday - Monday should be a color." The Up Next card
+// said "LAST Monday" in the neutral grey .se-chip-when wears for any date,
+// between a cyan count and a violet estimate -- while one card below it, on
+// the same screen, the weekday a day was last trained is a lime .fact. The
+// same fact, adjacent, in two colours.
+describe("the day you last trained is lime wherever it appears", () => {
+  it("gives the Up Next card the colour the day rows already use", () => {
+    expect(GYM_FLOW, "the last-trained chip is not the neutral date chip")
+      .toMatch(/className="se-chip se-chip-done"><em>Last<\/em>\{agoPhrase/);
+    expect(GYM_FLOW, "and the day row's weekday it matches is lime")
+      .toContain('<span className="fact lime">{doneWord}</span>');
+    const css = read("styles/ruled.css");
+    expect(css).toMatch(/\.ruled\.health-ruled \.se-chip-done \{ color: var\(--hl-lime\)/);
+    // .se-chip-when stays grey: it carries plain dates, and on the session
+    // screen it sits beside .se-chip-best, which is already lime.
+    expect(css).toMatch(/\.se-chip-when[^{]*\{ color: var\(--tx-3\)/);
+  });
+});

@@ -3245,7 +3245,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                       ? "Today"
                       : upcomingPin!.inDays === 1 ? "Tomorrow" : WEEKDAY_ABBR[(todayDow() + upcomingPin!.inDays) % 7]}</span>
                   )}
-                  {lastNextDay && <span className="se-chip se-chip-when"><em>Last</em>{agoPhrase(lastNextDay.data.date, todayISO())}</span>}
+                  {/* Lime, like the weekday on the day rows below it: this is
+                      the same fact, so it wears the same colour (2026-09-18). */}
+                  {lastNextDay && <span className="se-chip se-chip-done"><em>Last</em>{agoPhrase(lastNextDay.data.date, todayISO())}</span>}
                 </div>
                 {/* row-tap: the launch card's verb line, filled edge to edge by its one Start button */}
                 <div className="offer-row">
