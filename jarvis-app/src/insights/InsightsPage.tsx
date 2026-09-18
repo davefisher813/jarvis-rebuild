@@ -357,7 +357,7 @@ const musclesCard = (
     </div>
   );
   const ovSheet = picking === "overview" ? (
-    <PickSheet title="Exercise" items={ovPickItems} onPick={ovPick} onCancel={() => setPicking(null)} />
+    <PickSheet title="Exercise" searchLabel="Search Exercises" items={ovPickItems} onPick={ovPick} onCancel={() => setPicking(null)} />
   ) : null;
 
   const headlineCard = headline ? (
@@ -449,6 +449,7 @@ const musclesCard = (
           {picking === "strength" && (
             <PickSheet
               title="Exercise"
+              searchLabel="Search Exercises"
               items={lifts.map((l, i) => ({ id: String(i), label: l.name }))}
               onPick={(ids) => { const i = Number(ids[0]); if (Number.isFinite(i)) setLiftIdx(i); setPicking(null); }}
               onCancel={() => setPicking(null)}

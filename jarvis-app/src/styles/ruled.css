@@ -2008,9 +2008,20 @@
    (acceptance criterion 12), which is why it is its own block element above
    the chips rather than a flex child fighting a trailing control for width.
    =========================================================================== */
-.ruled .ex-search { margin-bottom: var(--s-2); }
-.ruled .ex-search .xs-input { width: 100%; background: var(--surface-2); border-radius: var(--r-md);
+/* A SHEET IS NOT INSIDE .ruled (2026-09-18). Every sheet in this app is a
+   portal to document.body, so a rule scoped to .ruled never reaches one: the
+   search bar on the Add from Your Lifts sheet, and now on any long PickSheet,
+   drew as the browser's own bare bordered input rather than this. The scrim
+   is the sheet's own root, so it is the second scope, and flex-shrink keeps
+   the field its height in the card's flex column. */
+.ruled .ex-search,
+.sheet-scrim .ex-search { margin-bottom: var(--s-2); }
+.sheet-scrim .ex-search { flex-shrink: 0; }
+.ruled .ex-search .xs-input,
+.sheet-scrim .ex-search .xs-input { width: 100%; background: var(--surface-2); border-radius: var(--r-md);
   padding: var(--s-2h) var(--s-3); font-size: calc(15px * var(--type-scale)); }
+.sheet-scrim .ex-search .xs-input { border: 0; outline: none; color: var(--tx-1); font-family: var(--f); }
+.sheet-scrim .ex-search .xs-input::placeholder { color: var(--tx-3); }
 .ruled .ex-bar { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-bottom: var(--s-2); }
 /* A control that is currently DOING something reads on, in the page's own
    reading hue. Not red: red is a verb here, never a state (LAW L1). */

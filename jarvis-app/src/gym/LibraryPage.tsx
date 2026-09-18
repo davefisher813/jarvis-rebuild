@@ -486,6 +486,7 @@ export default function LibraryPage({
       {merging && (
         <PickSheet
           title={"Merge " + merging.name + " Into"}
+          searchLabel="Search Exercises"
           items={mergeItems}
           emptyText="No other exercise logs the same way, so there is nothing to merge into."
           onPick={(ids) => {
