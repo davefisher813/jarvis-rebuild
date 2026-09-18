@@ -410,11 +410,22 @@ const musclesCard = (
        wrong. Nothing is claimed from one session. */
     <div className="pad-x"><div className="card ins-card">
       {ovHead}
-      <div className="facts">
-        <span className="fact">{ovLift
-          ? "No two sessions at the same rep count, equipment and unit yet, so no comparison is claimed"
-          : "No comparable change to show: two sessions at the same rep count, equipment and unit are what it takes"}</span>
-      </div>
+      {/* NO INSTRUCTIONS (Dave 2026-09-18: "Instructional subtext. It
+          shouldn't be anywhere"). The card used to explain what a comparison
+          needs -- two sessions at the same rep count, equipment and unit --
+          every time it could not make one. That is a manual, and the absence
+          of a chart already says there is nothing to compare. What is left is
+          what the card knows: how many sessions it has. */}
+      {ovLift && (() => {
+        const t = liftTable(workouts, ovLift);
+        const n = t.filter((r) => inPeriod(r.date, period)).length;
+        return (
+          <div className="facts">
+            <span className="fact lime">{`${n} ${n === 1 ? "session" : "sessions"} in the period`}</span>
+            <span className="fact">{capAfterNumber(`${t.length} recorded in all`)}</span>
+          </div>
+        );
+      })()}
       {ovLift && <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(ovLift)}>View Sets</button></div>}
     </div></div>
   );
@@ -477,9 +488,9 @@ const musclesCard = (
                       </div>
                       {chart(pts, lift.unit ?? "lb")}
                     </>
-                  ) : (
-                    <div className="facts"><span className="fact">No two sessions at the same rep count, equipment and unit yet, so no comparison is claimed</span></div>
-                  )}
+                  ) : null /* No instructions (2026-09-18). The counts above
+                      are the facts; a missing chart is not a thing to
+                      apologise for in a sentence. */}
                   <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(lift)}>Open Exercise Page</button></div>
                 </div></div>
                 <div className="sh2 sh2-quiet"><span className="t">Sessions</span><span className="n">{table.length}</span></div>

@@ -45,7 +45,10 @@ function Side({ row, c, today }: { row: LibraryRow; c: Classification; today: st
         {ident && <span className="fact">{ident}</span>}
       </div>
       {valueLine(c, "muscles") && <div className="facts"><span className="fact">{valueLine(c, "muscles")}</span></div>}
-      {row.aliases && row.aliases.length > 0 && <div className="facts"><span className="fact cyan">{`Also ${row.aliases.join(", ")}`}</span></div>}
+      {/* The merged-away names came off every surface on 2026-09-18 (Dave:
+          "also (other title) needs to be deleted and never render"). What
+          separates two exercises is still all here: the name, the sessions,
+          the sets, the dates, the equipment and the machine's identity. */}
       <div className="conn-meta">{today}</div>
     </div>
   );

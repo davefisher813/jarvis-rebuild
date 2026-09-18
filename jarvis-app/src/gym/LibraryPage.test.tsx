@@ -123,11 +123,18 @@ describe("LibraryPage: the row's anatomy", () => {
   });
 });
 
-// H-23, still true: the old names read on the row.
-describe("LibraryPage's alias line", () => {
-  it("lists what the exercise used to be called, only when there is one", () => {
+// H-23 IS RETIRED (Dave 2026-09-18: "also (other title) needs to be deleted
+// and never render"). The old names read on the row from H-23 until now. A
+// merged-away name is history, not an attribute of the exercise, and on a row
+// whose whole job is to carry one name it read as a second one.
+//
+// The names are not lost: a merge keeps them on the record, and the search
+// still matches them, so typing an old name still finds the exercise. What
+// went is the line that printed them at you.
+describe("LibraryPage does not print an exercise's old names", () => {
+  it("draws no alias line, with aliases or without", () => {
     const { rerender } = render(<LibraryPage {...base} rows={[row({ aliases: ["Flat Bench", "Bench"] })]} />);
-    expect(screen.getByText("Also Flat Bench, Bench")).toHaveClass("ex-chip", "quiet");
+    expect(screen.queryByText(/^Also /), "not on the row").toBeNull();
     rerender(<LibraryPage {...base} rows={[row()]} />);
     expect(screen.queryByText(/^Also /)).toBeNull();
   });

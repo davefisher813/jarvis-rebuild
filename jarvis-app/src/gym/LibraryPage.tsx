@@ -379,7 +379,11 @@ export default function LibraryPage({
                           Assign Muscles
                         </button>
                       )}
-                      {r.aliases && r.aliases.length > 0 && <span className="ex-chip quiet">{`Also ${r.aliases.join(", ")}`}</span>}
+                      {/* NO OTHER TITLE ON THE ROW (Dave 2026-09-18: "also
+                          (other title) needs to be deleted and never
+                          render"). A merged-away name is history, not an
+                          attribute of the exercise, and it read as a second
+                          name for a row whose whole job is to carry one. */}
                     </div>
                   </div>
                   {selecting

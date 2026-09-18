@@ -358,12 +358,17 @@ function LiftsRow({ count, onOpen }: { count: number; onOpen: () => void }) {
     <div {...pressable(onOpen)} className="row">
       <div className="row-grow">
         <div className="conn-name">Your Lifts</div>
-        {/* A COUNT, NOT A SENTENCE (health polish 2026-09-16: "Your Lifts:
-            trailing 24 exercises; remove each with its history"). The right
-            slot of a task row holds a value; it held a clause explaining what
-            the door leads to, which is what the door is for. */}
-        <div className="facts"><span className="fact">{capAfterNumber(count + (count === 1 ? " exercise" : " exercises"))}</span></div>
       </div>
+      {/* A CHIP ON THE ROW, NOT A LINE UNDER IT (Dave 2026-09-18: "your lifts
+          subtext should be a chip"; health polish 2026-09-16 before it: "Your
+          Lifts: trailing 24 exercises").
+
+          It was a clause explaining what the door leads to, which is what the
+          door is for, and it made this row two lines tall while All Programs
+          beside it was one. The count is the only thing it ever said, so it
+          says it in the trailing slot, in the capsule the ruled skin already
+          draws for a small fact on a row. */}
+      <span className="ex-chip">{capAfterNumber(count + (count === 1 ? " exercise" : " exercises"))}</span>
       {CHEV}
     </div>
   );

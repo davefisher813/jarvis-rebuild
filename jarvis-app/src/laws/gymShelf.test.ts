@@ -178,3 +178,60 @@ describe("the insight ranges", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// DAVE'S 2026-09-18 PASS, four more photographs.
+// ---------------------------------------------------------------------------
+
+// "Arrows are out of place." Measured at 393px: a Recent row inside a swipe
+// wrapper was 220px wide in a 361px card, so its trailing chevron sat 154px
+// short of the card's right edge while the same chevron on an unswipeable
+// Days row sat 13px from it.
+//
+// .swipe-row is a flex container and its child is a flex item, which defaults
+// to flex: 0 1 auto -- it shrink-wraps to its content instead of filling the
+// line. The lists carrying .task-row never showed it because that class sets
+// its own width; the gym's lists use the plain .row, and did.
+describe("a swiped row is the width of the list it is in", () => {
+  it("makes the swipe wrapper's child fill it", () => {
+    const ds = read("styles/jarvis-design-system.css");
+    expect(ds).toContain(".swipe-row { display: flex; align-items: stretch; overflow: hidden; }");
+    expect(ds, "and its one child is the whole row").toContain(".swipe-row > * { flex: 1 1 auto; min-width: 0; }");
+  });
+});
+
+// "Your lifts subtext should be a chip." It was a clause under the name
+// explaining what the door leads to, which is what the door is for, and it
+// made this row two lines tall while All Programs beside it was one.
+describe("the shelf's count is a chip on the row", () => {
+  it("puts the exercise count in the trailing slot, not on a second line", () => {
+    const lifts = GYM_FLOW.slice(GYM_FLOW.indexOf("function LiftsRow"), GYM_FLOW.indexOf("function DayRow"));
+    expect(lifts, "the count is a capsule").toMatch(/<span className="ex-chip">\{capAfterNumber\(count/);
+    expect(lifts, "and there is no facts line left under the name").not.toMatch(/className="facts"/);
+  });
+});
+
+// "Also (other title) needs to be deleted and never render." A merged-away
+// name is history, not an attribute of the exercise, and on a row whose whole
+// job is to carry one name it read as a second one. The names are not lost: a
+// merge keeps them on the record and search still matches them.
+describe("an exercise's old names are never printed", () => {
+  it("draws no alias line on any surface", () => {
+    for (const f of ["gym/LibraryPage.tsx", "gym/DuplicateReview.tsx"]) {
+      expect(read(f), f + " still prints an alias line").not.toMatch(/`Also \$\{[a-z]*\.?aliases/i);
+    }
+  });
+});
+
+// "Instructional subtext. It shouldn't be anywhere." The card explained what
+// a comparison needs -- two sessions at the same rep count, equipment and
+// unit -- every time it could not make one. That is a manual, and a missing
+// chart already says there is nothing to compare.
+describe("a card that cannot compare does not explain comparison", () => {
+  it("states its counts instead of its requirements", () => {
+    const ins = read("insights/InsightsPage.tsx");
+    expect(ins).not.toContain("No two sessions at the same rep count");
+    expect(ins).not.toContain("are what it takes");
+    expect(ins, "the facts it does have stay").toContain("} in the period`");
+  });
+});

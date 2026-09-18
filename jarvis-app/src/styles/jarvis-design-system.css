@@ -844,6 +844,16 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 
 /* SWIPE */
 .swipe-row { display: flex; align-items: stretch; overflow: hidden; }
+/* AND ITS CHILD IS THE WHOLE ROW (Dave 2026-09-18: "arrows are out of
+   place"). Measured at 393px: a Recent row inside a swipe wrapper was 220px
+   wide in a 361px card, so its trailing chevron sat 154px short of the card's
+   edge while the same chevron on an unswipeable Days row sat 13px from it.
+
+   .swipe-row is a flex container and its child is a flex item, which defaults
+   to flex: 0 1 auto -- it shrink-wraps to its content instead of filling the
+   line. The lists that carry .task-row never showed it because that class
+   sets its own width; the gym's lists use the plain .row and did. */
+.swipe-row > * { flex: 1 1 auto; min-width: 0; }
 .swipe-content { flex: 1; padding: var(--s-3h) var(--s-4); display: flex; align-items: center; gap: var(--s-3); }
 .swipe-action { display: flex; align-items: center; justify-content: center; padding: 0 var(--s-4); color: #fff; font-size: var(--t-meta); font-weight: var(--w-semi); min-width: 72px; }
 .swipe-archive { background: var(--warn-fill); } .swipe-delete { background: var(--red); }

@@ -102,7 +102,10 @@ describe("InsightsPage", () => {
   });
 
   // A lift you picked that has nothing to compare keeps its head, so the
-  // choice stays on screen and changeable, and says what is missing.
+  // choice stays on screen and changeable. What it does NOT do is explain
+  // what a comparison would need (Dave 2026-09-18: "Instructional subtext.
+  // It shouldn't be anywhere") -- the missing chart already says that, and
+  // the counts it does have are facts.
   it("keeps the card and its picker when the chosen lift has no comparison", () => {
     const one = [...workouts, w("d", "2026-09-08", 95, "k2", "Lat Pull Down")];
     render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={one} metricDefs={[sleep]} metricLogs={logs} logs={none} muscleMap={new Map()} cards={null}
@@ -110,7 +113,11 @@ describe("InsightsPage", () => {
     fireEvent.click(screen.getAllByLabelText("Choose exercise")[0]!);
     fireEvent.click(screen.getByText("Lat Pull Down"));
     expect(document.querySelector(".ins-card .ins-head")).toHaveTextContent("Lat Pull Down");
-    expect(screen.getByText(/No two sessions at the same rep count/)).toBeInTheDocument();
+    expect(screen.queryByText(/No two sessions at the same rep count/), "no manual").toBeNull();
+    expect(screen.queryByText(/are what it takes/), "nor the other wording of it").toBeNull();
+    // The counts it has, instead of a paragraph about the one it has not.
+    expect(screen.getByText("1 session in the period")).toBeInTheDocument();
+    expect(screen.getByText("1 Recorded in all")).toBeInTheDocument();
     expect(screen.getAllByLabelText("Choose exercise").length, "still changeable").toBeGreaterThan(0);
   });
 
