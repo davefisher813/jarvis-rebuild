@@ -596,7 +596,6 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .ob-templates { display: flex; flex-direction: column; gap: var(--s-3); padding-bottom: var(--s-5); }
 .ob-tpl { cursor: pointer; }
 .ob-tpl:active { transform: scale(0.99); }
-.ob-tpl .conn-name { font-size: calc(16px * var(--type-scale)); }
 .ob-tagline-1 { margin-top: var(--s-3); font-size: var(--t-h3); }
 .ob-host { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--tx-1); }
 
@@ -772,7 +771,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    The spine carries the identity, the wash only groups. */
 .sched-holds { background: rgba(255, 43, 60, 0.055); box-shadow: inset 3px 0 0 var(--accent-glyph); border-radius: var(--r-md); }
 [data-theme="light"] .sched-holds { background: rgba(204, 5, 27, 0.045); }
-.sched-holds .sched-title { color: var(--tx-1); font-weight: var(--w-semi); }
+.sched-holds .sched-title { color: var(--tx-1); }
 .block-nest { margin: var(--s-2) 0 0; padding-left: var(--s-3); border-left: 2px dotted var(--accent-chip-bd); display: flex; flex-direction: column; }
 .block-held { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1h) 0; background: 0; border: 0; width: 100%; text-align: left; font-family: var(--f); }
 .block-held-t { color: var(--tx-1); font-size: var(--t-body); flex: 1; min-width: 0; }
@@ -1174,7 +1173,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    wide. Found by screenshot, not by any test. */
 .msg-headline { font-size: var(--t-body); color: var(--tx-1); overflow: hidden;
   text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.msg-from { font-size: var(--t-meta); color: var(--tx-3); }
 .msg-line .msg-from { flex: 1; min-width: 0; }
 
 /* E5: the count on a band head, quieter than the section count above it. */
@@ -1341,7 +1339,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .wait-why { margin: calc(var(--s-2) * -1) 0 var(--s-2); color: var(--tx-3); }
 
 .msg-fold { margin-top: var(--s-3); }
-.msg-fold .conn-name { color: var(--tx-2); font-weight: var(--w-regular); }
+.msg-fold .conn-name { color: var(--tx-2); }
 .msg-fold-head {
   display: flex; align-items: baseline; justify-content: space-between;
   padding: var(--s-3) 0 var(--s-1);
@@ -1529,7 +1527,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    was 17px at --w-semi, which read a size bigger AND a weight heavier than
    the three lenses beside it in Life. Same numbers now, one place to change
    if that row ever moves. */
-.rem-card-title { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rem-card-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* ONE FACTS LINE, ALWAYS (Dave 2026-09-15, v3). The shared .facts wraps by
    design; on this row a wrap is what turned a reminder into a three-line
    card, so here the line stays on one line. The facts are ordered so the
@@ -1576,7 +1574,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .link-sheet .sub-bar { padding-inline: var(--s-3); }
 .link-sheet-list { max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .link-sheet-kind { padding: var(--s-2) var(--s-4) var(--s-1); }
-.link-sheet .row.on .conn-name { color: var(--tint); font-weight: var(--w-semi); }
+.link-sheet .row.on .conn-name { color: var(--tint); }
 /* The primary marker inside a picked category chip (2026-08-21). Uppercase
    micro-label, not a colour: the chip is already carrying a colour that means
    the category, and a second meaning on the same paint is how palettes rot. */
@@ -4390,7 +4388,7 @@ body.selecting .voice-dock { display: none; }
 .msg-lead { width: 34px; height: 34px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; }
 .msg-row-human { display: flex; align-items: center; gap: var(--s-3); }
-.msg-row-human .msg-from { font-weight: var(--w-semi); font-size: var(--t-h3); }
+.msg-row-human .msg-from { color: var(--tx-1); }
 
 /* The machine's line. One row for all of them, grey, with the count as a
    fact rather than an alarm and one action that ends the lot. */
@@ -4710,8 +4708,6 @@ body.selecting .voice-dock { display: none; }
 .row-pair { display: flex; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
 .row-pair .pill-act { align-self: auto; max-width: none; }
 .pill-act.pill-quiet { color: var(--tx-2); }
-.set-chip-warm .conn-name { font-weight: var(--w-medium); }
-.set-chip-drop .conn-name { font-weight: var(--w-medium); }
 /* TAP-TO-MATCH, D2 (Training Catalog V2, 2026-08-31). On a ghost chip the
    faint "Last: 250 × 2" line is itself the door to logging those numbers.
    The reference text stays quiet meta; the one-word verb wears the accent,
@@ -4935,7 +4931,6 @@ body.selecting .voice-dock { display: none; }
 /* A set's numbers read at the same 16px every other grouped-row value uses
    (2026-09-02); the set strip is a gym-only control, so the scope is the
    chip itself. */
-.set-chip .conn-name { font-size: calc(16px * var(--type-scale)); }
 /* The day-row pin pill (preview: "Pin Days" red verb until a pin exists,
    then the weekday claim as a quiet fact). Steps aside in reorder mode
    with the chevron. */
@@ -5063,7 +5058,6 @@ body.selecting .voice-dock { display: none; }
 .xs .card.xs-group { margin-bottom: 0; }
 .xs .row.xs-row { min-height: 48px; padding-top: var(--s-2); padding-bottom: var(--s-2); }
 .xs .row.xs-row > .conn-name { flex: 1; min-width: 0; }
-.xs .row.xs-row .row-grow .conn-name { font-size: calc(16px * var(--type-scale)); }
 .xs .row.xs-row .row-grow .conn-meta { margin-top: 2px; }
 /* The row that IS an input: no box inside a box, the field is the row. */
 .xs .xs-input { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none;
@@ -5071,7 +5065,6 @@ body.selecting .voice-dock { display: none; }
 .xs .xs-input::placeholder { color: var(--tx-2); }
 .xs .xs-error { padding: var(--s-1h) var(--s-4) 0 calc(var(--s-4) + 28px + var(--s-3)); }
 /* Suggestions from the library ride as rows under the name. */
-.xs .xs-suggest .conn-name { font-size: calc(16px * var(--type-scale)); }
 /* The strip inside the group: chips one step up from the group's ground. */
 /* No inset of its own: a set's own row padding (var(--s-4)) is what lines
    its edge up with every other row in the card, the same way .xs-row never
@@ -5306,7 +5299,7 @@ body.selecting .voice-dock { display: none; }
 .cr-head { display: flex; align-items: center; gap: 9px; }
 .cr-fmt { font-size: calc(11px * var(--type-scale)); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--blue);
   background: var(--blue-tint); padding: 3px 8px; border-radius: 6px; flex-shrink: 0; }
-.cr-name { flex: 1; min-width: 0; font-size: calc(16px * var(--type-scale)); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cr-name { flex: 1; min-width: 0; font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cr-cap { font-size: calc(13px * var(--type-scale)); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .cr-empty { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); margin-top: 10px; }
 .cr-attempt { margin-top: 8px; }
@@ -5364,8 +5357,18 @@ body.selecting .voice-dock { display: none; }
 /* .facts: the row's second line as facts, not a sentence (G3, G6). Flex,
    wraps, quiet ink. Adjacent facts are separated by a middle dot the CSS
    draws, so no string ever carries one. */
+/* THE SECOND LINE STATES ITS OWN WEIGHT (2026-09-18, caught in a render while
+   bolding the names).
+
+   .facts set a size and a colour but never a weight, so it INHERITED one from
+   whatever drew the name above it. That was survivable while names were 500;
+   the moment every name became 700 the facts under them went 700 too, and
+   bolding the title would have flattened the hierarchy instead of building
+   it -- the exact thing Dave has been photographing, made worse by the fix
+   for it. The ladder only exists if both rungs are nailed down. */
 .facts { display: flex; flex-wrap: wrap; align-items: center; gap: 1px 0; margin-top: 2px;
-  font-size: calc(14px * var(--type-scale)); color: var(--tx-3); line-height: 1.35; }
+  font-size: calc(14px * var(--type-scale)); font-weight: var(--w-normal);
+  color: var(--tx-3); line-height: 1.35; }
 .fact + .fact::before { content: "\00B7"; color: var(--tx-4); margin: 0 6px; }
 /* A fact that carries meaning takes its intent colour, semibold. At most one
    of these per .facts line (K.3, extended by the law in laws/astra.test.ts);

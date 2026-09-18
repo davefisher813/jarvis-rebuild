@@ -327,7 +327,7 @@ export default function EventSheet({
             {/* Memory: past events offered whole while typing, as rows under
                 the name, the exercise sheet's library form. */}
             {titleSugs.map((s) => (
-              <div key={s.title} className="row xs-row xs-suggest" role="button" tabIndex={0} onClick={() => applySug(s)}>
+              <div key={s.title} className="row xs-row" role="button" tabIndex={0} onClick={() => applySug(s)}>
                 <span className={"cat-dot cat-bg-" + catColor(s.category)} />
                 <div className="row-grow"><div className="conn-name">{s.title}</div><div className="conn-meta">{sugLabel(s)}</div></div>
               </div>
@@ -574,7 +574,7 @@ export default function EventSheet({
               </div>
             )}
             {locSugs.map((l) => (
-              <div key={l} className="row xs-row xs-suggest" role="button" tabIndex={0} onClick={() => setLocation(l)}>
+              <div key={l} className="row xs-row" role="button" tabIndex={0} onClick={() => setLocation(l)}>
                 <div className="conn-name">{l}</div>
               </div>
             ))}

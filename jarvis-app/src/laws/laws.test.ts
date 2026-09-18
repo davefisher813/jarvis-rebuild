@@ -3770,7 +3770,11 @@ describe("LAW 15: the gym speaks one grammar", () => {
     // A set's numbers stay at the grouped-row 16px without the skin.
     // UP-PLAT-09 (2026-09-06): still 16px, now times the text scale like
     // every other font-size in the app.
-    expect(css).toMatch(/\.set-chip \.conn-name\s*\{\s*font-size:\s*calc\(16px \* var\(--type-scale\)\)/);
+    // AMENDED 2026-09-18: the chip stopped restating that 16px and takes it
+    // from --t-name, the one place the name treatment is defined. Same
+    // number, one owner -- which is the whole point of the type law.
+    expect(read(SRC + "/styles/jarvis-design-system.css"))
+      .toMatch(/--t-name:\s*calc\(16px \* var\(--type-scale\)\)/);
     // No radius, no gap, no elevation escalation inside a sheet: a set row
     // reads exactly like its neighbouring .xs-row grouped-table rows.
     expect(chip).not.toMatch(/border-radius/);
@@ -5297,7 +5301,17 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
   // the values.
   it("a row title is heavier than the line under it", () => {
     const ds = read(join(SRC, "styles/jarvis-design-system.css"));
-    const weight = (n: string) => Number(new RegExp(`--${n}:\\s*(\\d+)`).exec(ds)?.[1] ?? "0");
+    // AMENDED 2026-09-18: the name treatment is a token now (--t-name,
+    // --w-name, --track-name), so a weight is read through one hop of
+    // indirection -- --w-name resolves to --w-semi resolves to 700. The
+    // relationship this law is about is unchanged; what changed is that
+    // there is one place to state it instead of twelve.
+    const weight = (n: string): number => {
+      const v = new RegExp(`--${n}:\\s*([^;]+);`).exec(ds)?.[1]?.trim() ?? "";
+      const ref = /^var\(--([a-z-]+)\)$/.exec(v);
+      if (ref) return weight(ref[1]!);
+      return Number(/^\d+$/.exec(v)?.[0] ?? "0");
+    };
     const nameRule = /\.conn-name \{[^{}]*\}/.exec(ds)?.[0] ?? "";
     const metaRule = /\.conn-meta \{[^{}]*\}/.exec(ds)?.[0] ?? "";
     const nameW = weight(/font-weight:\s*var\(--([a-z-]+)\)/.exec(nameRule)?.[1] ?? "");
@@ -5314,6 +5328,9 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     const exW = weight(/\.ruled \.ex-name \{[^{}]*font-weight:\s*var\(--([a-z-]+)\)/.exec(RULED)?.[1] ?? "");
     expect(exW, "the approved page's row title states a weight").toBeGreaterThan(0);
     expect(nameW, "and every other row title matches it").toBe(exW);
+    // They match because they are now the SAME DECLARATION, not two that
+    // happen to agree (2026-09-18). That is the part that kept drifting.
+    expect(nameW, "the approved page's weight is what the token holds").toBe(700);
     // And the ink ramp it cannot lean on instead is still two-tier, so this
     // law is the only thing holding the hierarchy up.
     expect(ds).toMatch(/--tx-2: #D2D2D6; --tx-3: #D2D2D6;/);
@@ -5438,7 +5455,12 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
   it("the clamp fits the chip and excludes a second line at every text scale", () => {
     const tokens = read(SRC + "/styles/jarvis-design-system.css");
     const lh = Number(/--lh-default:\s*([\d.]+)/.exec(tokens)![1]);
-    const rowFs = Number(/\.ruled \.task-row \.task-title \{[^}]*font-size: calc\(([\d.]+)px/.exec(RULED)![1]);
+    // AMENDED 2026-09-18: the row title's size is --t-name now, so it is read
+    // from the token rather than from the rule. The arithmetic below is
+    // unchanged -- and this is precisely why the token is worth having: the
+    // clamp is derived from the row's font size, so one definition means one
+    // thing to keep in step instead of twelve.
+    const rowFs = Number(/--t-name:\s*calc\(([\d.]+)px/.exec(tokens)![1]);
     const metaFs = Number(/\.ruled \.r-goal \{[^}]*font-size: calc\(([\d.]+)px/.exec(RULED)![1]);
     const chip = /\.ruled \.uchip \{[^}]*font-size: calc\(([\d.]+)px[^}]*padding:\s*([\d.]+)px/.exec(RULED)!;
     const chipFs = Number(chip[1]), chipPadY = Number(chip[2]);

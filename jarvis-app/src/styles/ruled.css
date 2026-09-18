@@ -118,8 +118,8 @@
    over subject, one line each, the verb in the action column. Row type
    inside a ruled stream card is the ruled row's: 16/500 for the name. */
 .ruled .stream-grouped .notice-card-uniform { min-height: 56px; }
-.ruled .stream-card .conn-name, .ruled .stream-card .vrow-fact {
-  font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; }
+.ruled .stream-card .conn-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
+.ruled .stream-card .vrow-fact { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; }
 .ruled .stream-card .notice-card .conn-meta { font-size: calc(12.5px * var(--type-scale)); }
 
 /* AN UPSTREAM ERROR IS READ, NOT GLANCED AT (TRACE-04, 2026-09-07).
@@ -194,7 +194,7 @@
 .ruled .task-row { min-height: 56px; padding: 8px var(--s-4); gap: 10px; }
 .ruled .task-row .task-check { border-color: var(--tx-4); }           /* never category-coloured; a rounded square since 2026-09-02 */
 .ruled .task-row .task-check.done { border-color: var(--good-fill); background: var(--good-fill); }
-.ruled .task-row .task-title { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em;
+.ruled .task-row .task-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
   min-width: 0; }
 .ruled .task-row .task-title > .task-name { display: block; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }
@@ -564,7 +564,7 @@
 .ruled .list-card-ruled > .pad-x .notice-swipe { border-radius: 0; }
 .ruled .list-card-ruled .notice-card { min-height: 56px; }
 .ruled .list-card-ruled .notice-card .notice-disc { margin: 0 7px; border-radius: 9px; }
-.ruled .list-card-ruled .notice-card .conn-name { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; }
+.ruled .list-card-ruled .notice-card .conn-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .ruled .list-card-ruled .notice-card .conn-meta { font-size: calc(12.5px * var(--type-scale)); }
 .ruled .list-card-ruled > .pad-x + .task-swipe { position: relative; }
 .ruled .list-card-ruled > .pad-x + .task-swipe::before {
@@ -649,14 +649,14 @@
 .ruled .sched-row:has(> .sched-sel) { --sched-lead: calc(22px + var(--s-1) + 11px); }
 .ruled .sched-bar { width: 3px; border-radius: 2px; left: calc(var(--s-4) + var(--sched-lead, 0px) + 62px + 4px); top: 7px; bottom: 7px; }
 .ruled .sched-body { padding-left: 3px; }
-.ruled .sched-title { font-size: calc(15.5px * var(--type-scale)); font-weight: var(--w-medium); letter-spacing: -0.01em; margin-bottom: 3px; }
+.ruled .sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: 3px; }
 .ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: calc(12.5px * var(--type-scale)); }
 .ruled .sched-cat .cat-dot { width: 7px; height: 7px; }
 .ruled .sched-rep, .ruled .sched-until { white-space: nowrap; } /* an item wraps whole or not at all */
 .ruled .sched-row + .sched-row::before, .ruled .sched-swipe-wrap + .sched-swipe-wrap .sched-row::before {
   left: calc(var(--s-4) + 62px + 11px); }
 /* Locked (protected) rows dim as they did; the lock rides at 11px in --tx-4. */
-.ruled .sched-locked .sched-title { color: var(--tx-3); font-weight: 550; }
+.ruled .sched-locked .sched-title { color: var(--tx-3); }
 /* THE ROW SPENDS NO RED (A Cleaner Top, Dave 2026-09-02). "Set Length" was
    an accent capsule on nearly every row of the day, and the place was an
    accent link under it: two reds per row for a blank field and an address.
@@ -706,10 +706,10 @@
 .ruled .seg-n { font-size: calc(11px * var(--type-scale)); font-weight: var(--w-bold); opacity: 0.6; font-variant-numeric: tabular-nums; }
 .ruled .outcome-head { margin-top: var(--s-2); }
 .ruled .list-card-ruled > .task-swipe + .task-swipe .row::before { display: none; }
-.ruled .msg-from { font-size: calc(15.5px * var(--type-scale)); font-weight: var(--w-regular); }
+.ruled .msg-from { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .ruled .msg-headline { font-size: calc(15px * var(--type-scale)); }
 .ruled .msg-headline.msg-strong { font-weight: var(--w-medium); }
-.ruled .msg-line .conn-name { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; }
+.ruled .msg-line .conn-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .ruled .msg-gist { font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); }
 .ruled .mail-arch[aria-label="Archive"] { background: #0A84FF; color: #fff; } /* More moves keeps the neutral fill */
 .ruled .msg-fold-head { padding-left: var(--s-4); }
@@ -795,7 +795,7 @@
 .ruled .ins-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ruled .ins-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
   background: var(--h-hue); box-shadow: 0 0 7px var(--h-tint); }
-.ruled .ins-t { flex: 1; min-width: 0; font-size: calc(15.5px * var(--type-scale)); font-weight: var(--w-semi);
+.ruled .ins-t { flex: 1; min-width: 0; font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
   color: var(--tx-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .ins-chip { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
   letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: var(--r-pill);
@@ -867,7 +867,6 @@
 .ruled .h-day.today i { box-shadow: 0 0 0 2px var(--hl-cyan); }
 .ruled .h-day.today.on i { box-shadow: 0 0 0 2px var(--hl-cyan); }
 .ruled .h-day.today { color: var(--tx-1); }
-.ruled .h-last .task-name { font-weight: var(--w-medium); }
 .ruled .h-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ruled .h-tile { position: relative; overflow: hidden; border-radius: 14px; padding: 12px 13px 11px; cursor: pointer;
   background: var(--glass-bg, var(--surface-1)); box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0,0,0,0.55);
@@ -1153,7 +1152,7 @@
 .ruled .set-field::placeholder { color: var(--tx-2); }
 .ruled .set-gap { margin-top: var(--s-5); }
 .ruled .set-foot { padding-top: var(--s-2); font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); line-height: 1.45; }
-.ruled .set-card > .set-act .conn-name { color: var(--tint); font-weight: var(--w-semi); }
+.ruled .set-card > .set-act .conn-name { color: var(--tint); }
 .ruled .set-card > .set-quiet .conn-name { color: var(--tx-3); }
 .ruled .set-card > .set-sub .conn-name { font-size: calc(14px * var(--type-scale)); color: var(--tx-3); }
 .ruled .set-card > .row-act { margin: var(--s-1) auto; }
@@ -2043,7 +2042,7 @@
 
 .ruled .ex-row { align-items: flex-start; }
 .ruled .ex-row.on { background: var(--hl-cyan-tint); }
-.ruled .ex-name { color: var(--tx-1); font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi);
+.ruled .ex-name { color: var(--tx-1); font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
   line-height: 1.25; overflow-wrap: anywhere; cursor: pointer; }
 .ruled .ex-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
 /* A chip is a door into its own field, so it has to look tappable without
@@ -2089,7 +2088,7 @@
    the name IS the evidence that two exercises are or are not one. */
 .ruled .dup-row { align-items: flex-start; }
 .ruled .dup-side + .dup-side { margin-top: var(--s-3); }
-.ruled .dup-name { color: var(--tx-1); font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi);
+.ruled .dup-name { color: var(--tx-1); font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
   line-height: 1.25; overflow-wrap: anywhere; }
 .ruled .dup-row .btn-row { display: flex; gap: var(--s-2); margin-top: var(--s-2h); }
 .ruled .dup-row .btn-row .btn { flex: 1; margin: 0; padding: 9px 10px; font-size: calc(13px * var(--type-scale)); min-width: 0; }
@@ -2123,8 +2122,7 @@
 .ruled .h-door + .h-door { position: relative; }
 .ruled .h-door + .h-door::before { content: ""; position: absolute; left: var(--s-4); right: 0; top: 0;
   height: 0.5px; background: var(--divider); }
-.ruled .h-door-k { flex: 1; min-width: 0; color: var(--tx-1);
-  font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; }
+.ruled .h-door-k { flex: 1; min-width: 0; color: var(--tx-1); font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .ruled .h-door-n { flex-shrink: 0; color: var(--tx-3); font-size: calc(14px * var(--type-scale));
   font-variant-numeric: tabular-nums; }
 

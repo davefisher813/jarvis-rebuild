@@ -315,7 +315,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               // not click. But it announced itself as a button with no key
               // path at all, so a keyboard or VoiceOver user could not pick a
               // suggestion. Enter and Space now do what the tap does.
-              <div className="row xs-row xs-suggest" role="button" tabIndex={0} key={s.key}
+              <div className="row xs-row" role="button" tabIndex={0} key={s.key}
                 onMouseDown={() => pickSuggestion(s)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickSuggestion(s); } }}>
                 <div className="row-grow">

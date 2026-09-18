@@ -28,6 +28,47 @@
   --t-meta: calc(15px * var(--type-scale));     /* subtext / meta (raised from 13px at Dave's request) */
   --t-eyebrow: calc(11px * var(--type-scale));  /* kicker labels */
 
+  /* ===================================================================
+     THE NAME OF A THING (Dave, 2026-09-18, approved from the Type Law
+     artifact: "let's start with bolding all of the main font everywhere...
+     let's just get this done once and for all because I'm exhausted").
+
+     THE AUDIT THAT PRODUCED THIS. Every line below is the name of the
+     thing its row is about -- a task, a note, an email, an event, an
+     exercise -- and the stylesheet had SIX answers for it in FOUR weights:
+
+       .task-title        Tasks, Notes, Projects, Goals    16 / 500
+       .rem-card-title    Reminders                        16 / 500
+       .stream-card       Today                            16 / 500
+       .notice-card       notice rows                      16 / 500
+       .msg-from          Mail                           15.5 / 500
+       .msg-line          Mail rows                        16 / 500
+       .sched-title       Schedule                       15.5 / 600
+       .h-door-k          Health doors                     16 / 500
+       .cr-name           condition receipts               16 / 500
+       .conn-name         everything else                  17 / 700
+       .ins-t             insight cards                  15.5 / 700
+       .ex-name           Exercises                        16 / 700
+
+     Every page he photographed was a 500. The one page he approved -- the
+     Exercises page -- was a 700. He was right every time and the stylesheet
+     was disagreeing with itself.
+
+     WHY A TOKEN AND NOT TWELVE EDITS. The twelve edits have been made
+     before, one screenshot at a time, and drifted back apart because
+     nothing named the treatment. These three custom properties are the one
+     place the answer lives; every rule that draws a name references them
+     and sets no size, weight or tracking of its own, and laws/typeLaw
+     checks that. A future session that wants a different answer changes it
+     here, once, for the whole app.
+
+     16px, not 17: it is what the approved page uses, and raising the Life
+     rows instead would make the densest lists in the app taller.
+     =================================================================== */
+  --t-name: calc(16px * var(--type-scale));
+  --w-name: var(--w-semi);          /* 700 */
+  --track-name: -0.01em;
+
   /* WEIGHTS */
   --w-bold: 800; --w-semi: 700; --w-medium: 600; --w-regular: 500; --w-normal: 400;
 
@@ -701,7 +742,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .task-check.done { border-color: var(--good-fill); background: var(--good-fill); }
 .task-check.done::before { content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px;
   border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
-.task-title { flex: 1; font-size: var(--t-h3); }
+.task-title { flex: 1; font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .task-meta { font-size: var(--t-meta); color: var(--tx-3); }
 .task-row.completed .task-title { text-decoration: line-through; color: var(--tx-2); }
 /* SYSTEMIC CATEGORY COLOR INDICATORS (use a category brand color, never grey) */
@@ -740,8 +781,8 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
       one page read right while every other page looked flat to him. The
       answer was already in the file: take the number from the screen he
       pointed at and said was good. */
-.conn-name { font-size: var(--t-h3); font-weight: var(--w-semi); flex: 1; }
-.conn-name.unread { font-weight: var(--w-semi); }
+.conn-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); flex: 1; }
+.conn-name.unread { font-weight: var(--w-name); }
 /* And the subtext stays at the body weight, so the ladder is 600 over 400
    rather than 400 over 400. */
 .conn-meta { font-size: var(--t-meta); font-weight: var(--w-normal); color: var(--tx-3); }
@@ -749,7 +790,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .msg-row { align-items: flex-start; }
 .msg-body { flex: 1; min-width: 0; }
 .msg-head { display: flex; align-items: center; gap: var(--s-2); margin-bottom: 2px; }
-.msg-name { font-size: var(--t-h3); font-weight: var(--w-semi); }
+.msg-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .msg-time { font-size: var(--t-meta); color: var(--tx-3); margin-left: auto; }
 .msg-subject { font-size: var(--t-body); font-weight: var(--w-semi); margin-bottom: 2px; }
 .msg-preview { font-size: var(--t-meta); color: var(--tx-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -769,7 +810,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    inside it was silently clipped off the right edge. Measured at 303px in a
    250px slot. This also makes the .truncate on sched titles actually work. */
 .sched-body { flex: 1; min-width: 0; }
-.sched-title { font-size: var(--t-h3); margin-bottom: 2px; }
+.sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: 2px; }
 .sched-loc { font-size: var(--t-meta); color: var(--tx-3); }
 
 .proj-icon { width: 32px; height: 32px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; font-size: var(--t-meta); font-weight: var(--w-bold); color: #fff; flex-shrink: 0; }
