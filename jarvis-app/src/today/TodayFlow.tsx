@@ -1682,7 +1682,15 @@ export default function TodayFlow({
   // deleted, or has moved on. See autoSweep.ts for the full reasoning.
   void sweepDismissTick; // re-derive after a sweep-card dismissal
   const movedNow = liveMoved(sweepReceipt, taskItems, today);
-  const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(movedNow, today) : null;
+  // NOT THE EMAILS (Dave 2026-09-17: "they have their own section on the
+  // home page; there is no need to have repetitiveness"). A task that was
+  // born from a thread is the email band's to surface, with its verb; the
+  // slid-task card only ever names a task that is nothing but a task.
+  const mailBorn = (id: string): boolean => {
+    const t = taskItems.find((x) => x.id === id);
+    return !!(t?.data.fromThread || t?.data.source?.type === "email");
+  };
+  const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(movedNow.filter((m) => !mailBorn(m.id)), today) : null;
   // THE DAY LOOP (Group C item 14). Draft at first open, deterministic and
   // instant; Accept stays the one honest commit moment.
   const todayDow = new Date().getDay();
@@ -2792,11 +2800,8 @@ export default function TodayFlow({
         // needs the AI and cannot have it is the exact shape this pass is
         // removing everywhere else. Without one the row still opens the task,
         // which is what it has always done.
-        // 2026-09-17 (Dave): no Break It Down here. The task that slides is
-        // almost always one that came out of an email, and the move it wants
-        // is the reply. Draft opens that thread; a task with no thread opens
-        // itself from the row.
-        {...((() => { const th = taskItems.find((x) => x.id === sweepCand.id)?.data.fromThread; return th && onGoEmail ? { action: { label: "Draft", onClick: () => { markOffered(sweepCand.id, today); onGoEmail(th); } } } : {}; })())}
+        // 2026-09-17 (Dave): no Break It Down, and no verb at all: the row
+        // opens the task, and the email band owns anything that came from mail.
         onOpen={() => { markOffered(sweepCand.id, today); void onOpenTask(sweepCand.id); }}
         // Quiet for DISMISS_DAYS, not forever: the old markOffered list had
         // no expiry, so one dismissal meant this task could never be flagged
