@@ -148,6 +148,30 @@ describe("THE LINE UNDER A NAME IS ONE TREATMENT", () => {
     "r-goal", "note-first", "area-fact", "h-hero-s", "rdy-why", "msg-gist",
   ];
 
+  // THE HOLE THIS LAW HAD, found by Dave in a screenshot hours after it was
+  // written. The check below reads the LAST CLASS in a selector, so
+  // `.fact.cat` resolved to "cat", was not on the roster, and sailed past --
+  // and six of the commonest facts in the app sat at 700 while the line they
+  // live on is 400 and the name above it is 700. The area on a reminder read
+  // as loud as the reminder's own name.
+  //
+  // A modifier on a subtext class is still that subtext class. .fact.st is
+  // the one exception and it is written out: an 11px uppercase status tag is
+  // a badge, a different object from the words beside it, the way an urgency
+  // chip is.
+  it("lets no modifier smuggle a weight back onto a fact", () => {
+    const offenders: string[] = [];
+    for (const { file, sel, body } of rules()) {
+      if (!/(^|[\s,>])\.facts?\./.test(sel)) continue;
+      if (/\.fact\.st\b/.test(sel)) continue;
+      const w = /font-weight:\s*(var\(--([a-z-]+)\)|\d+)/.exec(body);
+      if (!w) continue;
+      const n = w[2] ? weight(w[2]) : Number(w[1]);
+      if (n > weight("w-sub")) offenders.push(`${file}: ${sel} → ${n}`);
+    }
+    expect(offenders, "colour is the signal on a fact; weight is the ladder").toEqual([]);
+  });
+
   it("draws every one of them through those tokens", () => {
     const offenders: string[] = [];
     for (const { file, sel, body } of rules()) {

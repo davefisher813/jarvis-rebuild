@@ -1592,12 +1592,12 @@
    Styles only in this push: no health surface has adopted .facts yet, and
    each takes it when its own push lands (Session in B, the Health page in C).
    Same discipline Astra Push A shipped its primitives under. */
-.ruled.health-ruled .fact.lime   { color: var(--hl-lime);   font-weight: var(--w-semi); }
-.ruled.health-ruled .fact.cyan   { color: var(--hl-cyan);   font-weight: var(--w-semi); }
-.ruled.health-ruled .fact.amber  { color: var(--hl-amber);  font-weight: var(--w-semi); }
-.ruled.health-ruled .fact.violet { color: var(--hl-violet); font-weight: var(--w-semi); }
-.ruled.health-ruled .fact.hblue  { color: var(--hl-blue);   font-weight: var(--w-semi); }
-.ruled.health-ruled .fact.pink   { color: var(--hl-pink);   font-weight: var(--w-semi); }
+.ruled.health-ruled .fact.lime   { color: var(--hl-lime); }
+.ruled.health-ruled .fact.cyan   { color: var(--hl-cyan); }
+.ruled.health-ruled .fact.amber  { color: var(--hl-amber); }
+.ruled.health-ruled .fact.violet { color: var(--hl-violet); }
+.ruled.health-ruled .fact.hblue  { color: var(--hl-blue); }
+.ruled.health-ruled .fact.pink   { color: var(--hl-pink); }
 /* A state word takes the ramp too, and stays small caps rather than a pill. */
 .ruled.health-ruled .fact.st.lime  { color: var(--hl-lime); }
 .ruled.health-ruled .fact.st.cyan  { color: var(--hl-cyan); }

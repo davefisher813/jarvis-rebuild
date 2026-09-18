@@ -1213,7 +1213,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    order became: one facts line for what is true, full-width rows for what
    to do, one row that owns the More control, and the correction last. */
 .msg-stands-facts { margin-top: var(--s-1h); margin-bottom: var(--s-1); }
-.msg-stands-facts .fact.strong { color: var(--tx-1); font-weight: var(--w-semi); }
+.msg-stands-facts .fact.strong { color: var(--tx-1); }
 .msg-stands-by { color: inherit; font-size: inherit; }
 /* An offer inside the card: a hairline above it so it reads as a separate
    thing to do rather than more of the sentence above. */
@@ -1546,8 +1546,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    is), it just is not forced to every time. */
 .rem-card .facts > .fact:last-child { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rem-card .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rem-card .facts .fact.when { color: var(--warn); font-weight: var(--w-semi); }
-.rem-card .facts .fact.later { color: var(--tx-2); font-weight: var(--w-semi); }
+.rem-card .facts .fact.when { color: var(--warn); }
+.rem-card .facts .fact.later { color: var(--tx-2); }
 /* The four views, as chips rather than a second segmented control (Dave
    2026-09-15: "we can't have two tab bars on one page"). Same row Notes'
    filters wear; it only has to close the gap the toolbar above already left. */
@@ -5380,35 +5380,37 @@ body.selecting .voice-dock { display: none; }
 .facts > .fact { flex-shrink: 0; }
 .facts > .fact:last-child { flex-shrink: 1; }
 
-/* THE LEAD FACT IS A CHIP WHEN IT HAS COMPANY (Dave 2026-09-18: "I would
-   prefer one chip if there's two facts").
+/* THE LEAD CHIP IS REVERTED (2026-09-18, same day, on Dave's screenshots).
+   "I would prefer one chip if there's two facts" was implemented as: the
+   first of two or more facts draws as a capsule. That is a rule about the
+   NUMBER of facts, and the number of facts changes from screen to screen for
+   the same record -- so "Bridge" drew as a chip on Life, where the row also
+   carries a TODAY mark, and as plain text on Today, where it does not. One
+   reminder, two appearances, on two screens he can see at once.
 
-   One fact alone needs no anchor -- it is the only thing on the line. Two or
-   more and the eye needs somewhere to land, which is what the Exercises page
-   he approved does with its capsules. So the first of several draws as a
-   chip and keeps whatever colour it already carried; the rest stay plain,
-   and the dot that separates facts is not drawn against the chip's edge
-   because the chip's own shape already does that job.
-
-   This is one rule and no markup: deleting this block returns every line to
-   plain facts. */
-.facts > .fact:first-child:not(:last-child) {
-  background: var(--press-3); padding: 2px 7px; border-radius: var(--r-pill);
-  margin-right: 6px;
-}
-.facts > .fact:first-child:not(:last-child) + .fact::before { content: none; margin: 0; }
+   A rule that makes the same fact look different depending on its neighbours
+   cannot be the answer to "I want this uniform". Facts are plain; the things
+   that are genuinely capsules (an urgency uchip, a classification on the
+   Exercises page) are capsules because of WHAT THEY ARE, which does not
+   change between screens. */
 .fact + .fact::before { content: "\00B7"; color: var(--tx-4); margin: 0 6px; }
-/* A fact that carries meaning takes its intent colour, semibold. At most one
-   of these per .facts line (K.3, extended by the law in laws/astra.test.ts);
-   .fact.st and .fact.cat do not count toward it. */
-.fact.warn { color: var(--warn); font-weight: var(--w-semi); }
-.fact.good { color: var(--good); font-weight: var(--w-semi); }
-.fact.sky { color: var(--cat-sky); font-weight: var(--w-semi); }
-.fact.purp { color: var(--cat-purple); font-weight: var(--w-semi); }
-.fact.red { color: var(--accent-tx); font-weight: var(--w-semi); }
+/* A fact that carries meaning takes its intent COLOUR, and only its colour.
+   At most one of these per .facts line (K.3, extended by the law in
+   laws/astra.test.ts); .fact.st and .fact.cat do not count toward it.
+
+   AMENDED 2026-09-18. All five of these were also semibold, and .fact.cat
+   was too -- so six of the commonest facts in the app sat at 700 while the
+   line they live on is 400 and the name above it is 700. That is why the
+   area on a reminder read as loud as the reminder's own name. Colour is the
+   signal; weight is the ladder, and the ladder has two rungs, not three. */
+.fact.warn { color: var(--warn); }
+.fact.good { color: var(--good); }
+.fact.sky { color: var(--cat-sky); }
+.fact.purp { color: var(--cat-purple); }
+.fact.red { color: var(--accent-tx); }
 /* Category is a 7px dot in the category colour plus plain text, never
    coloured text (G4). The dot wears .cat-bg-<slot>. */
-.fact.cat { font-weight: var(--w-semi); color: var(--tx-2); display: inline-flex; align-items: center; gap: 5px; }
+.fact.cat { color: var(--tx-3); display: inline-flex; align-items: center; gap: 5px; }
 .fact.cat .cd { width: 7px; height: 7px; border-radius: var(--r-circle); display: inline-block; flex-shrink: 0; }
 /* The state word (G5): coloured small caps, never a filled pill. Colour from
    the variant beside it; gray is the quiet one. The words themselves are a
