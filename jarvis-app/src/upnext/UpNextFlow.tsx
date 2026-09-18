@@ -11,11 +11,18 @@ import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { DEFAULT_ROUTINE } from "../routine/types";
 import { pickNext, quickWins, reasonFor, QUICK_WINS_COUNT } from "./upnext";
 import MusicChip from "../music/MusicChip";
+import { Timer } from "../shared/icons";
 
-// Up Next (ADHD strategy Phase 1): one card at a time, never a list. Next mode
-// deals the single best task; Quick Wins deals a short rapid-fire run. Two
-// skips in Next mode offer Quick Wins instead of an infinite shuffle
-// (design law: escape hatches lead somewhere).
+// FOCUS (remodelled 2026-09-17, Dave: "the focus screen is a disaster"). One
+// card at a time, never a list: Next deals the single best task, Quick Wins
+// deals a short timed run. The card is the app's own card with the area and
+// the reason as a facts line, the task in the display size, the next hard
+// commitment as a fact, then the verbs: Start Now (the first-step screen)
+// as the one filled action, Focus 15 Minutes (the countdown, which used to
+// hide behind Today's Start pill) and Done as quiet capsules, Not This One
+// as a text button. A running block shows at the top with what is left and
+// its own three answers, so the countdown lives here. The views are chips,
+// never a second tab bar.
 
 const WINS_SECONDS = 10 * 60;
 
@@ -23,14 +30,22 @@ function fmtClock(s: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-export default function UpNextFlow({ onClose }: { onClose: () => void }) {
+export interface FifteenFace { taskId: string; text: string; line: string; over: boolean }
+
+export default function UpNextFlow({ onClose, onStartNow, onFifteen, fifteen, onFifteenDone, onFifteenAgain, onFifteenStop }: {
+  onClose: () => void;
+  /** The Start screen for a task (Start Now). */
+  onStartNow?: (id: string) => void;
+  /** The fifteen-minute block on a task. */
+  onFifteen?: (t: TaskItem) => void;
+  /** The block running right now, if one is. */
+  fifteen?: FifteenFace | null;
+  onFifteenDone?: () => void;
+  onFifteenAgain?: () => void;
+  onFifteenStop?: () => void;
+}) {
   const svc = useTasks();
   const routine = useRoutine();
-  // Hyperfocus Guard (item 12): today's events + a minute tick keep the
-  // commitment line honest while the user is deep in one card. UP-CORE-06
-  // (2026-09-05) moved the hand-rolled version here into the shared hook, so
-  // the note editor and the live gym session get the same line rather than a
-  // third and fourth copy of this effect.
   const guard = useHyperfocusGuard();
   const today = todayISO();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -38,14 +53,10 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
   const [mode, setMode] = useState<"next" | "wins">("next");
   const [skipped, setSkipped] = useState<string[]>([]);
   const [inPeak, setInPeak] = useState(false);
-
-  // Quick Wins run state: the deck is dealt once when the mode starts, so
-  // completing a card never reshuffles the run under the user.
   const [winsDeck, setWinsDeck] = useState<TaskItem[]>([]);
   const [winsAt, setWinsAt] = useState(0);
   const [winsDone, setWinsDone] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(WINS_SECONDS);
-
   const [bursting, fireBurst] = useBurst();
   const completing = useRef(false);
 
@@ -54,7 +65,6 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
     setTasks(items);
     setLoaded(true);
   }, [svc]);
-
   useEffect(() => { void reload(); }, [reload]);
 
   useEffect(() => {
@@ -83,19 +93,15 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
     setSecondsLeft(WINS_SECONDS);
     setMode("wins");
   };
+  const backToNext = () => { setMode("next"); };
 
   const current: TaskItem | null =
     mode === "next" ? pickNext(tasks, today, skipped) : winsDeck[winsAt] ?? null;
 
-  // Optimistic completion, same rhythm as everywhere else: burst plays, the
-  // real toggle lands 600ms later, then the next card slides in.
-  //
-  // B6-2 (2026-09-04): "One failed write bricks Up Next." The latch below
-  // used to have no try or finally around the write, so a single failed
-  // toggle left completing.current stuck true and every later Done tap did
-  // nothing until the overlay was closed. attemptWrite is the guard every
-  // TodayFlow handler already uses for exactly this; the finally always
-  // releases the latch, success or failure.
+  // Optimistic completion: the burst plays, the write lands 600ms later, the
+  // next card slides in. attemptWrite guards the write and the latch always
+  // releases (B6-2). Undo restores the pre-tick snapshot, never a second
+  // toggle, which re-rolls a recurring task.
   const complete = () => {
     const t = current;
     if (!t || completing.current) return;
@@ -111,11 +117,6 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
           setWinsDone((d) => d + 1);
           setWinsAt((i) => i + 1);
         }
-        // Undo (2026-08-09): the one-card mode is the easiest place in the app
-        // to fat-finger a completion, and it was the one completion without a
-        // way back. Same toast contract as the Tasks page.
-        // 2026-09-11: Undo restores the pre-tick snapshot (LIFE-F-02 /
-        // SHARED-F-03), never a second toggleDone, which re-rolls a recurring task.
         if (before) showToast({
           message: "Task completed",
           actionLabel: "Undo",
@@ -133,23 +134,31 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
   };
 
   const winsOver = mode === "wins" && (secondsLeft === 0 || winsAt >= winsDeck.length);
-  const offerWins = mode === "next" && skipped.length >= 2 && !!current;
+  const winsTotal = Math.min(QUICK_WINS_COUNT, winsDeck.length);
+  const leadsWithStart = mode === "next" && !!onStartNow;
 
   const card = (t: TaskItem) => (
     <div className="card pad upnext-card">
-      <div className="eyebrow upnext-cat">
-        <span className={"cat-dot cat-bg-" + catColor(t.data.category)} /> {catName(t.data.category) || "Anything"}
+      <div className="facts upnext-facts">
+        <span className="fact cat"><span className={"cd cat-bg-" + catColor(t.data.category)} />{catName(t.data.category) || "Anything"}</span>
+        <span className="fact">{reasonFor(t, today, inPeak)}</span>
       </div>
       <div className="upnext-task">{t.data.text}</div>
-      <div className="conn-meta">{reasonFor(t, today, inPeak)}</div>
-      {/* Hyperfocus Guard (Group B item 12): the next hard commitment as a
-          fact line on the focus card. Warn tone inside 10 minutes. Never a
-          modal; it informs, it does not interrupt. */}
       <HyperfocusLine guard={guard} />
       <div className="upnext-done-wrap">
-        <button className="btn btn-primary btn-block" onClick={complete} disabled={completing.current}>Done</button>
+        {/* ONE FILLED ACTION, by branch: Next leads with the first step;
+            Quick Wins is a run of Done taps and leads with Done. */}
+        {leadsWithStart
+          ? <button className="btn btn-primary btn-block" onClick={() => onStartNow!(t.id)}>Start Now</button>
+          : <button className="btn btn-primary btn-block" onClick={complete} disabled={completing.current}>Done</button>}
         <Burst show={bursting} />
       </div>
+      {mode === "next" && (
+        <div className="upnext-grid">
+          {onFifteen && !fifteen && <button className="btn btn-secondary" onClick={() => onFifteen(t)}><Timer className="ic" />Focus 15 Minutes</button>}
+          {leadsWithStart && <button className="btn btn-secondary" onClick={complete} disabled={completing.current}>Done</button>}
+        </div>
+      )}
       {mode === "next" && (
         <button className="upnext-skip" onClick={skip}>Not This One</button>
       )}
@@ -159,34 +168,39 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
   return (
     <div className="search-overlay ruled">
       <div className="nav-bar">
-        <div className="nav-large">{mode === "next" ? "Up Next" : "Quick Wins"}</div>
+        <div className="nav-large">Focus</div>
         <button className="nav-action-text" onClick={onClose}>Close</button>
       </div>
-      {mode === "next" && (
-        <div className="pad-x">
-          <div className="chip-wrap">
-            {/* TODAY-F-18 (2026-09-05): this said role="button" and carried
-                a tab stop, so VoiceOver announced it as a button and a
-                keyboard user could land on it, for a tap that did nothing:
-                it is the state you are already in. aria-current says that
-                instead, which is what it always meant. */}
-            <div className="chip active" aria-current="page">Next</div>
-            {/* WAVE 4, DUPLICATE DOORS (2026-08-29). Once you have skipped
-                twice, a full-width "Deal Five Quick Ones Instead" appears
-                under the card calling this exact handler, and offerWins is a
-                strict subset of the state this chip renders in. The chip is
-                the standing door; while the block button is offering the
-                same trip with a reason attached, the chip steps back. */}
-            {!offerWins && <div className="chip" role="button" tabIndex={0} onClick={startWins}>Quick Wins</div>}
-          </div>
-          {/* Music Tier 1 (addendum item 5): the focus context's remembered
-              link. One tap when remembered; a picker the first time. */}
-          <MusicChip context="focus" />
+      <div className="pad-x">
+        <div className="chip-row chip-wrap-row" role="group" aria-label="Focus views">
+          <div className={"chip" + (mode === "next" ? " active" : "")} role="button" tabIndex={0} aria-pressed={mode === "next"} onClick={backToNext}>Next</div>
+          <div className={"chip" + (mode === "wins" ? " active" : "")} role="button" tabIndex={0} aria-pressed={mode === "wins"} onClick={() => { if (mode !== "wins") startWins(); }}>Quick Wins</div>
         </div>
-      )}
+        {mode === "next" && <MusicChip context="focus" />}
+      </div>
       {mode === "wins" && !winsOver && (
         <div className="upnext-pill-row">
-          <span className="qw-pill">{winsDone} of {Math.min(QUICK_WINS_COUNT, winsDeck.length)} · {fmtClock(secondsLeft)} left</span>
+          <span className="qw-pill">{winsDone} of {winsTotal} · {fmtClock(secondsLeft)} left</span>
+        </div>
+      )}
+      {/* THE RUNNING BLOCK: what is on the clock and what is left, with its
+          three answers, so the countdown lives in Focus. */}
+      {fifteen && (
+        <div className="pad-x">
+          <div className="card upnext-live">
+            <div className="row">
+              <div className="row-ico cat-bg-brand"><Timer className="ic" /></div>
+              <div className="row-stack">
+                <div className="conn-name truncate">{fifteen.text}</div>
+                <div className={"conn-meta" + (fifteen.over ? " warn" : "")}>{fifteen.line}</div>
+              </div>
+            </div>
+            <div className="upnext-grid three">
+              {onFifteenDone && <button className="btn btn-secondary" onClick={onFifteenDone}>Done</button>}
+              {onFifteenAgain && <button className="btn btn-secondary" onClick={onFifteenAgain}>Another 15</button>}
+              {onFifteenStop && <button className="btn btn-secondary" onClick={onFifteenStop}>Stop</button>}
+            </div>
+          </div>
         </div>
       )}
       <div className="upnext-body pad-x">
@@ -194,31 +208,25 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
           <div className="card pad upnext-card">
             <div className="upnext-task">{winsDone > 0 ? `${winsDone} Down.` : "The deck's still here."}</div>
             <div className="conn-meta">
-              {winsDone >= Math.min(QUICK_WINS_COUNT, winsDeck.length) && winsDeck.length > 0
+              {winsDone >= winsTotal && winsDeck.length > 0
                 ? "A clean sweep."
                 : winsDone > 0
                   ? "That's momentum · Ride it or rest"
                   : "No pressure · It'll be here"}
             </div>
-            <div className="upnext-done-wrap">
-              <button className="btn btn-primary btn-block" onClick={onClose}>Back to Today</button>
+            <div className="upnext-grid">
+              <button className="btn btn-secondary" onClick={backToNext}>Back to Next</button>
+              <button className="btn btn-secondary" onClick={onClose}>Back to Today</button>
             </div>
           </div>
         ) : current ? (
-          <>
-            {card(current)}
-            {offerWins && (
-              <button className="btn btn-secondary btn-block" onClick={startWins}>
-                Deal Five Quick Ones Instead
-              </button>
-            )}
-          </>
+          card(current)
         ) : (
           <div className="card pad upnext-card">
             <div className="upnext-task">Nothing waiting.</div>
             <div className="conn-meta">Enjoy it</div>
-            <div className="upnext-done-wrap">
-              <button className="btn btn-primary btn-block" onClick={onClose}>Back to Today</button>
+            <div className="upnext-grid">
+              <button className="btn btn-secondary" onClick={onClose}>Back to Today</button>
             </div>
           </div>
         )}

@@ -5699,3 +5699,12 @@ span.row-star { cursor: default; }
 .opt-title { font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1); letter-spacing: -0.01em; }
 .opt-done { background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tint-on-sheet); }
 .opt-val { flex-shrink: 0; font-size: var(--t-body); font-weight: var(--w-regular); color: var(--tx-2); }
+/* FOCUS, remodelled (2026-09-17): the facts line on the card, the verb grid
+   under the one filled action, and the running block's own card. */
+.upnext-facts { justify-content: center; margin-bottom: var(--s-3); }
+.upnext-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-2h); }
+.upnext-grid.three { grid-template-columns: 1fr 1fr 1fr; padding: 0 var(--s-3) var(--s-3); margin-top: 0; }
+.upnext-grid .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h); }
+.upnext-grid .btn .ic { width: 16px; height: 16px; }
+.upnext-live { margin-top: var(--s-3); }
+.upnext-live .conn-meta.warn { color: var(--warn); }

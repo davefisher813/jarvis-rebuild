@@ -4651,7 +4651,7 @@ describe("LAW: the headliner offers no button that only rearranges the app", () 
     // whether a block is running (see the comment at hl-acts). Either way it
     // renders only when the flow handed over something for it to do.
     expect(head, "the primary verb renders only when it can be honoured").toMatch(/\{primary && \(/);
-    expect(head, "Start is that verb until a block runs").toContain('{ label: "Start", run: onStart }');
+    expect(head, "Start Now is that verb until a block runs (Dave 2026-09-17: the countdown moved to Focus)").toContain('{ label: "Start Now", run: onStart }');
     expect(head, "Tomorrow renders only when it can be honoured").toMatch(/\{onTomorrow && </);
   });
 
@@ -4685,7 +4685,7 @@ describe("LAW: the open deck is not offered three times over", () => {
     const src = read(join(SRC, "today/TodayFlow.tsx"));
     const hits = (src.match(/>Pick Something</g) ?? []).length;
     // One: the open-gap row, where picking something IS the answer.
-    expect(hits, "only the open-gap row may offer Pick Something").toBe(1);
+    expect(hits, "the open-gap row calls its door Focus now (Dave 2026-09-17); nothing else may say Pick Something").toBe(0);
   });
 
   it("only one control states how deep the deck is", () => {

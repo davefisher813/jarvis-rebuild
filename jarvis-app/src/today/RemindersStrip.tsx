@@ -162,7 +162,7 @@ export default function RemindersStrip({
                 minute pushes onto the reminder's original time; a snooze is
                 ten minutes from now, whether it is the first or the third. */}
             {!r.done && onSnooze && (
-              <button className="pill-act" onClick={() => onSnooze(r.id)}>Snooze 10m</button>
+              <button className="pill-act" onClick={() => onSnooze(r.id)}>Adjust</button>
             )}
           </ReminderRow>
         ))}

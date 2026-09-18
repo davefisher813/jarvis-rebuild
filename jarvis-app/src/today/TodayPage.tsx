@@ -941,7 +941,7 @@ export default function TodayPage({
           {/* C-26 (Astra, 2026-09-12): the band is named for what it wants
               from him, not for the app it came out of. Open Inbox stays, and
               the rows under it are untouched. */}
-          <span className="t">Needs You</span>
+          <span className="t">Ready to Send</span>
           {onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>Open Inbox</button>}
         </div>
       )}

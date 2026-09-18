@@ -52,7 +52,7 @@ import { ENTITY_TASK } from "../notes/types";
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], email: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onGoEmail, onWhatNow, title, segments }: {
+export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, startNonce, onStartConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onGoEmail, onWhatNow, title, segments }: {
   openId?: string; openFilter?: string; onOpenNote?: (id: string) => void;
   // SHARED-F-17 (2026-09-05): the mail route, so a task made from an email
   // can open the thread it came from.
@@ -64,6 +64,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // sheet popped open by itself. Arriving through Today's Overdue link, every
   // return to Tasks snapped the filter back to Overdue.
   openNonce?: number; onOpenConsumed?: () => void;
+  /** Start Now from Today (2026-09-17): the Start screen for this task, on arrival. */
+  startId?: string; startNonce?: number; onStartConsumed?: () => void;
   filterNonce?: number; onFilterApplied?: () => void;
   // LIFE (2026-09-01): when this list is the Tasks segment of the Life tab,
   // the head says Life and carries the segment control. Alone, it is Tasks.
@@ -502,6 +504,11 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     onOpenConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId, openNonce]);
+  useEffect(() => {
+    if (!startId) return;
+    void openStart(startId);
+    onStartConsumed?.();
+  }, [startId, startNonce]);
 
   // SHELL-F-12: the same for the filter a link asks for (Today's Overdue and
   // See All). Applied when it arrives, then spent.

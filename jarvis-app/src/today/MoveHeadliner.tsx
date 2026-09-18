@@ -97,7 +97,7 @@ export default function MoveHeadliner({
   const primary = onDone
     ? { label: "Done", run: onDone }
     : onStart
-      ? { label: "Start", run: onStart }
+      ? { label: "Start Now", run: onStart }
       : null;
   // The caller passes exactly one alt (Tomorrow before a block; Stop or
   // Another 15 while one runs), so the LEFT reveal is always one 88px slot
