@@ -2980,8 +2980,18 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
     const card = read(join(SRC, "tasks/screens/StartCard.tsx"));
     expect(card.match(/btn-primary/g)?.length, "one primary on the card").toBe(1);
     expect(card, "which names what it picked").toMatch(/\{pick\.task\.data\.text\}/);
-    expect(card, "and says what is ready on it").toMatch(/\{action\.ready\}/);
-    expect(card, "and can be asked why").toMatch(/Why This/);
+    expect(card, "and says what is ready on it").toMatch(/action\.ready/);
+    // IT SAYS WHY ON ITS FACE (2026-09-18). It used to be asked, through a
+    // Why This link into a sheet -- two taps for one line, and the line was
+    // sometimes "nothing else is closer to due", which was the tell that the
+    // pick had no reason. startPick makes no such pick now, so the reason is
+    // printed on the card. Anchored on the JSX, not the file: the note above
+    // this component still uses the old words to say what it replaced.
+    expect(card, "the reason is printed, not hidden behind a link")
+      .toMatch(/<span className="fact">\{line\}<\/span>/);
+    expect(card, "and the reason leads the line")
+      .toMatch(/const line = \[reason, action\.ready\]\.filter\(Boolean\)/);
+    expect(card, "and no sheet opens off this card at all").not.toMatch(/createPortal|useState/);
   });
 
   it("Just This One is an action on the What Now sheet, wired to the same flag", () => {

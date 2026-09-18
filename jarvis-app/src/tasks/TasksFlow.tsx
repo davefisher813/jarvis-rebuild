@@ -11,7 +11,7 @@ import StartScreen from "./screens/StartScreen";
 import { startAction, shapeOf, blockerOf, type StartAction, type StartTarget, type InTheWay } from "./startAction";
 import { contextFor, type StartRecords } from "./startGround";
 import { loadSession, saveSession, clearSession, sessionHasWork, loadSessions } from "./startStore";
-import { topPick, otherPicks } from "./startPick";
+import { topPick, startReason } from "./startPick";
 import StartCard from "./screens/StartCard";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { useProjects, useGoals } from "../data/NotesProvider";
@@ -875,10 +875,6 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
    *  somewhere else. */
   const startFrom = visible(filter);
   const pick = topPick(startFrom, today, sessions, { skip: skippedStarts });
-  const readyFor = useCallback((t: TaskItem): string => {
-    const target: StartTarget = { kind: "task", id: t.id, title: t.data.text, data: t.data };
-    return startAction(target, { saved: loadSession(t.id) }).ready;
-  }, []);
   const startCard = pick ? (
     <StartCard
       pick={pick}
@@ -886,10 +882,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         { kind: "task", id: pick.task.id, title: pick.task.data.text, data: pick.task.data },
         { saved: loadSession(pick.task.id) },
       )}
-      others={otherPicks(startFrom, today, pick.task.id)}
-      readyFor={readyFor}
+      reason={startReason(pick, today)}
       onStart={(id) => void openStart(id)}
-      onToggle={(id) => void onToggle(id)}
     />
   ) : null;
 

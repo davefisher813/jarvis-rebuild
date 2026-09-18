@@ -423,7 +423,11 @@ describe("A Place to Begin is about the list it sits on", () => {
     const flow = read("tasks/TasksFlow.tsx");
     expect(flow).toContain("const startFrom = visible(filter);");
     expect(flow).toContain("const pick = topPick(startFrom, today, sessions, { skip: skippedStarts });");
-    expect(flow, "Choose Another offers from the same list").toContain("others={otherPicks(startFrom, today, pick.task.id)}");
+    expect(flow, "and the reason comes off the same pick").toContain("reason={startReason(pick, today)}");
     expect(flow, "never the whole backlog again").not.toContain("topPick(parts.all,");
+    // Choose Another is gone with the slab (2026-09-18): the list the card
+    // sits on IS the other choices, and a sheet re-listing it was a second
+    // copy of the screen behind it.
+    expect(flow, "no sheet re-lists the list below").not.toContain("otherPicks");
   });
 });

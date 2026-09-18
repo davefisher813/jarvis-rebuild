@@ -1,6 +1,6 @@
 import type { TaskItem } from "./TasksService";
 import { rankOpen, daysBetween } from "../upnext/upnext";
-import { blockerOf, type StartAction } from "./startAction";
+import { blockerOf } from "./startAction";
 import { sessionHasWork, type Sessions } from "./startStore";
 import { capAfterNumber } from "../shared/casing";
 
@@ -9,7 +9,7 @@ import { capAfterNumber } from "../shared/casing";
 //
 // The old Pick One took a decision off him and told him nothing about the
 // decision it had taken. The top card names the task, says what is ready on
-// it, and can be asked why, out of real metadata and nothing else.
+// it, and says WHY it was picked, out of real metadata and nothing else.
 //
 // What this refuses to invent, because each one was on the list:
 //   - urgency nobody stated
@@ -29,14 +29,30 @@ export interface TopPick {
 }
 
 /**
- * The one task the top card offers.
+ * The one task the top card offers, or null.
+ *
+ * TWO GATES, ADDED 2026-09-18 (Dave: "if we are going to highlight one thing
+ * like that the logic better be flawless or else it's just random nonsense").
+ * He was right, and this is where it was wrong:
+ *
+ *   ONE OF ONE IS NOT A CHOICE. The card sat on top of a list holding a
+ *   single task and proposed that task, which the row underneath was already
+ *   offering with its own Start button. A highlight that highlights
+ *   everything is not a highlight.
+ *
+ *   NOTHING AHEAD, NO PICK. rankOpen keys every undated task to the same
+ *   bucket, and every task due on the same day to the same bucket too, so
+ *   "the top one" among equals was only whichever the array happened to hold
+ *   first -- and the card explained itself with "nothing else is closer to
+ *   due", which was true of all of them. The lead now has to be STRICTLY
+ *   ahead of the runner-up on a date he set. On a view where everything is
+ *   due the same day, nothing is ahead, and the list is its own answer.
+ *
+ * A resume point is exempt from the date gate and only from that one: it is
+ * his own decision being honoured, not a judgement being made.
  *
  * Blocked work is out: a thing waiting on somebody else is not a place to
- * begin, and offering it would be the pretence this feature removes. Done,
- * reminders and future recurrences are already out via rankOpen.
- *
- * Null when there is nothing honest to offer, which renders as an empty
- * state rather than as an encouraging card about nothing.
+ * begin. Done, reminders and future recurrences are already out via rankOpen.
  */
 export function topPick(
   tasks: TaskItem[],
@@ -46,7 +62,7 @@ export function topPick(
 ): TopPick | null {
   const skip = new Set(opts.skip ?? []);
   const eligible = rankOpen(tasks, today).filter((t) => !blockerOf(t.data) && !skip.has(t.id));
-  if (eligible.length === 0) return null;
+  if (eligible.length < 2) return null;
 
   // His own resume point first. It has to still be eligible: work saved
   // against a task he has since finished or blocked is not a place to begin.
@@ -58,43 +74,33 @@ export function topPick(
   }
   if (best) return { task: best.task, resuming: true };
 
-  return { task: eligible[0]!, resuming: false };
-}
-
-/** The rest of the list, for Choose Another: everything else that could be
- *  started, in the same order, with the blocked ones kept at the end rather
- *  than hidden, because "it is blocked" is the answer to "why not that one". */
-export function otherPicks(tasks: TaskItem[], today: string, exceptId: string): TaskItem[] {
-  const ranked = rankOpen(tasks, today).filter((t) => t.id !== exceptId);
-  const open = ranked.filter((t) => !blockerOf(t.data));
-  const blocked = ranked.filter((t) => !!blockerOf(t.data));
-  return [...open, ...blocked];
+  // Strictly ahead, or no pick. For dated work rankOpen is plain ascending
+  // due date (overdue oldest first, then today, then soonest), so this
+  // comparison is the ranking's own order asked whether it really separated
+  // them. An undated runner-up is behind any date by definition.
+  const lead = eligible[0]!;
+  const second = eligible[1]!;
+  const ahead = !!lead.data.due && (!second.data.due || lead.data.due < second.data.due);
+  return ahead ? { task: lead, resuming: false } : null;
 }
 
 /**
- * Why this one, out of metadata that is really on the record.
+ * WHY THIS ONE, ON THE FACE OF THE CARD (2026-09-18).
  *
- * Every line here can be pointed at: a date the task carries, a blocker he
- * wrote, work he saved, or what the resolver found to open. The last line is
- * the promise the card has to keep, and it is the one people check.
+ * It used to be a sheet behind a Why This link: two taps to learn something
+ * that fits on one line -- and the line it hid was sometimes "nothing else is
+ * closer to due", which was the tell that the pick had no reason at all.
+ * topPick will not make a pick without one now, so the reason is short,
+ * always concrete, and printed where the choice is made.
+ *
+ * Every word of it can be pointed at: work he saved, or a date he set.
  */
-export function whyStart(pick: TopPick, action: StartAction, today: string): string[] {
-  const out: string[] = [];
+export function startReason(pick: TopPick, today: string): string {
+  if (pick.resuming) return "You were already working on it";
   const due = pick.task.data.due;
-
-  if (pick.resuming) out.push("You were already working on it");
-  else if (due) {
-    const d = daysBetween(today, due);
-    if (d < 0) out.push(capAfterNumber(`${-d} ${-d === 1 ? "day" : "days"} late`));
-    else if (d === 0) out.push("Due today");
-    else out.push(capAfterNumber(`Due in ${d} ${d === 1 ? "day" : "days"}`));
-  } else out.push("Nothing else is closer to due");
-
-  // What is actually ready, in the resolver's own words.
-  if (action.ready) out.push(action.ready);
-  return out;
+  if (!due) return "";
+  const d = daysBetween(today, due);
+  if (d < 0) return capAfterNumber(`${-d} ${-d === 1 ? "day" : "days"} late`);
+  if (d === 0) return "Due today";
+  return capAfterNumber(`Due in ${d} ${d === 1 ? "day" : "days"}`);
 }
-
-/** The promise under the reasons. Said on the card that made the choice,
- *  because this is the sentence the old Start button broke. */
-export const NO_CLOCK_LINE = "No clock starts · No dates change";

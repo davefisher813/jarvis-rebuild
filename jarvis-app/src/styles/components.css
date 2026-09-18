@@ -3242,13 +3242,22 @@ button {
    says what is ready on it, and carries one primary. The two questions
    about the choice sit under it, quiet, side by side. */
 .start-top-wrap { padding-top: var(--s-2); }
-.start-top { display: flex; flex-direction: column; gap: var(--s-1h); }
-.start-top-name { font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1);
-  line-height: var(--lh-tight); letter-spacing: -0.01em; overflow-wrap: break-word; }
-.start-top-ready { font-size: var(--t-body); color: var(--tx-2); margin-bottom: var(--s-1h); }
-.start-top-quiet { display: flex; justify-content: space-between; gap: var(--s-3); padding-top: var(--s-1); }
-.start-top-quiet .quiet-action { background: none; padding: 0; min-height: 44px; color: var(--tx-2); white-space: nowrap; }
-.start-top-promise { font-size: var(--t-meta); color: var(--tx-3); padding-top: var(--s-2); }
+/* ONE ROW, NOT A SLAB (2026-09-18, Dave: "let's clean up this massive card
+   for one simple action. It's beyond overkill"). It was a column with an h2
+   name, a body line, a full-bleed primary and two quiet links: ~480px for one
+   tap, above a list whose first row offered the same task. It is a row now,
+   and the name takes the app's one name treatment rather than a heading size
+   of its own. */
+.start-top { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-3h); }
+.start-top .row-grow { flex: 1 1 auto; min-width: 0; }
+.start-top-name {
+  font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
+  color: var(--tx-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.start-top-go {
+  flex-shrink: 0; min-height: 34px; height: 34px; padding: 0 var(--s-3h);
+  font-size: calc(15px * var(--type-scale));
+}
 
 /* THE WORKING SURFACE (Start Now, 2026-09-16). One card, one loud button,
    and everything else quieter than it. The screen reuses the ruled anatomy
