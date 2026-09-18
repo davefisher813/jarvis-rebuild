@@ -102,7 +102,7 @@ describe("the card is square, and the shelf runs sideways", () => {
   // the browser sliced the third line through the middle of the letters. Two
   // lines of room, exactly, is what lets the ellipsis happen instead.
   it("gives the title exactly two lines, so it ellipses instead of slicing", () => {
-    expect(RULED).toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,400}?height: calc\(var\(--t-card-title\) \* 1\.12 \* 2\)/);
+    expect(RULED).toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,400}?max-height: calc\(var\(--t-card-title\) \* 1\.12 \* 2\)/);
     expect(RULED).toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,500}?-webkit-line-clamp: 2;/);
     expect(RULED, "and the foot anchors to the bottom whatever the title did")
       .toMatch(/\.ruled \.bp-card-foot \{[^{}]*margin-top: auto;/);
@@ -121,7 +121,20 @@ describe("the card is square, and the shelf runs sideways", () => {
     expect(RULED, "and it snaps, so a flick lands on a card")
       .toMatch(/\.ruled \.bp-grid \{[^{}]*scroll-snap-type: x/);
     expect(RULED, "the tile carries its own width").toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?width: calc\(160px \* var\(--type-scale\)\)/);
-    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?aspect-ratio: 1;/);
+  });
+
+  // "Make them shorter too so there isn't a massive gap in the cards."
+  // aspect-ratio held every tile at 160 tall whatever it held, so a card with
+  // no next action carried 38px of hole between its title and its count.
+  // MEASURED: the same shelf is 140 tall now, and the worst gap is one
+  // missing line instead of a third of the tile.
+  it("takes its height from what it holds, not from a square", () => {
+    const card = RULED.slice(RULED.indexOf(".ruled .bp-card {"), RULED.indexOf(".ruled .bp-card::before"))
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(card, "no square to pad out").not.toMatch(/aspect-ratio/);
+    expect(card, "and no floor to pad it out either").not.toMatch(/min-height/);
+    expect(RULED, "a one-line title costs one line")
+      .toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,400}?max-height: calc\(var\(--t-card-title\) \* 1\.12 \* 2\)/);
   });
 
   // The peek is what tells you it scrolls, and max-width is what protects it:
@@ -129,7 +142,6 @@ describe("the card is square, and the shelf runs sideways", () => {
   // screen and the next card would vanish.
   it("keeps the next card peeking at every text size", () => {
     expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?max-width: 76%;/);
-    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?min-height: calc\(132px \* var\(--type-scale\)\)/);
   });
 
   // "Just make sure there's an arrow so users know." Not a painted chevron:

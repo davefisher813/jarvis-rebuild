@@ -2220,15 +2220,18 @@
    THE PROJECT / GOAL CARD (Dave 2026-09-18, approved mockup).
 
    "Follow Apple Music's smaller square album tiles, not its large featured
-   cards or tall Replay cards... Keep cards square with consistent gaps and
-   padding. Do not stretch them vertically to fill the screen."
+   cards or tall Replay cards... Do not stretch them vertically to fill the
+   screen." The square itself was repealed on 2026-09-18, below.
 
-   THE SQUARE, AND WHEN IT YIELDS. The tile's width is its own, in px times
-   --type-scale, and aspect-ratio squares it off that. min-height is the
-   escape hatch the handoff asks for -- "at larger accessibility sizes, allow
-   the layout to adapt to preserve readability" -- and because both the width
-   and the floor are expressed in --type-scale, turning text up grows the card
-   with it rather than clipping the words inside a fixed box.
+   THE HEIGHT IS THE CONTENT'S. The tile's WIDTH is its own, in px times
+   --type-scale; its height is whatever it holds, and the shelf stretches the
+   row level so the counts and bars still line up across it. It was square,
+   and a square that a project with no next action could not fill left a hole
+   in the middle of the card (Dave: "Make them shorter too so there isn't a
+   massive gap in the cards"). Because the width is in --type-scale and
+   nothing else is pinned, turning text up grows the card with it instead of
+   clipping the words -- the adaptation the handoff asked for, arrived at by
+   having no fixed box at all.
 
    Dave approved a type exception here: "We can scale the font specifically
    for these cards it's fine." The title is the only place in the app that
@@ -2289,9 +2292,14 @@
      rule carries the neutral one, so a slot invented tomorrow still draws. */
   --bp-a: #6D6D73; --bp-b: #2E2E33;
   --t-card-title: calc(21px * var(--type-scale));
+  /* NO LONGER SQUARE (Dave 2026-09-18: "Make them shorter too so there isn't
+     a massive gap in the cards"). aspect-ratio held every tile at 160 tall
+     whatever it held, so a card with no next action carried 38px of hole
+     between its title and its count. The height is the content's now and the
+     row stretches them level, so the gap on the shortest card is one missing
+     line rather than a third of the tile. */
   flex: 0 0 auto; width: calc(160px * var(--type-scale)); max-width: 76%;
-  position: relative; aspect-ratio: 1;
-  min-height: calc(132px * var(--type-scale));
+  position: relative;
   display: flex; flex-direction: column;
   padding: var(--s-3h); border-radius: 18px; overflow: hidden;
   color: #FFFFFF; cursor: pointer;
@@ -2374,9 +2382,10 @@
 .ruled .bp-card-title {
   flex: 0 0 auto; margin-top: var(--s-2);
   font-size: var(--t-card-title); line-height: 1.12;
-  /* Two lines of room, exactly, so the clamp can fire instead of the box
-     slicing a third line in half. */
-  height: calc(var(--t-card-title) * 1.12 * 2);
+  /* Two lines of room at most, so the clamp fires instead of the box slicing
+     a third line in half -- and a one-line title costs one line, not two,
+     which is where the rest of the height went. */
+  max-height: calc(var(--t-card-title) * 1.12 * 2);
   font-weight: var(--w-bold); letter-spacing: -0.02em;
   color: #FFFFFF;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
