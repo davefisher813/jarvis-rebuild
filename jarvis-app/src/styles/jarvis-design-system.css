@@ -69,6 +69,30 @@
   --w-name: var(--w-semi);          /* 700 */
   --track-name: -0.01em;
 
+  /* ===================================================================
+     THE LINE UNDER IT (Dave, 2026-09-18, the same approval: "after that
+     let's address the subtext, I would like for it to be minimal, but if
+     we are going to use it let's figure out how we're going to use it and
+     reestablish those rules").
+
+     The same audit, the same disease, worse: about thirty rules drew "the
+     quiet line" at SEVEN different sizes -- 12, 12.5, 13, 13.5, 14, 14.5
+     and 15 -- in the same grey. Six of those are indistinguishable at
+     arm's length on a phone, which is the point: nobody chose them, they
+     accumulated one screen at a time, and no two screens agreed.
+
+     14px because that is what .facts already used, and .facts is the shape
+     the house contract (G3, G6, K.3) has specified all along; 400 because
+     the ladder under a 700 name has to be visibly lighter, and because
+     .facts was silently INHERITING its weight until this pass caught it.
+
+     The ink stays --tx-3. It is the only grey that clears the contrast
+     floor browserWalk measures, so the hierarchy is carried by weight and
+     size, never by fading the text further.
+     =================================================================== */
+  --t-sub: calc(14px * var(--type-scale));
+  --w-sub: var(--w-normal);         /* 400 */
+
   /* WEIGHTS */
   --w-bold: 800; --w-semi: 700; --w-medium: 600; --w-regular: 500; --w-normal: 400;
 
@@ -785,7 +809,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .conn-name.unread { font-weight: var(--w-name); }
 /* And the subtext stays at the body weight, so the ladder is 600 over 400
    rather than 400 over 400. */
-.conn-meta { font-size: var(--t-meta); font-weight: var(--w-normal); color: var(--tx-3); }
+.conn-meta { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 
 .msg-row { align-items: flex-start; }
 .msg-body { flex: 1; min-width: 0; }

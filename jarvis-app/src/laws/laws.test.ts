@@ -5385,7 +5385,12 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     // A height, not a max-height: every task row is then the same height
     // whether or not it carries a chip and whether or not the line ran out
     // of room. 57.05 / 59.80 before, 59.80 for all of them after.
-    expect(b, "one line box tall").toMatch(/height:\s*calc\(0\.8125em \+ 6px\)/);
+    // AMENDED 2026-09-18: the height is no longer a hand-fitted constant. It
+    // is stated as the two things it must cover -- one line of subtext, one
+    // chip -- because --t-sub raised that line from 12.5px to 14px and the
+    // old 0.8125em stopped covering it above 1.15x text scale. Still a
+    // height and not a max-height, which is what this law is really about.
+    expect(b, "one line box tall").toMatch(/height:\s*max\(calc\(var\(--t-sub\) \* 1\.3\), calc\(10px \* var\(--type-scale\) \* 1\.3 \+ 6px\)\)/);
     expect(b, "a second flex line is clipped, never shown").toMatch(/overflow:\s*hidden/);
     expect(b, "and the first line is packed to the top, never centred over two")
       .toMatch(/align-content:\s*flex-start/);
@@ -5461,15 +5466,21 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     // clamp is derived from the row's font size, so one definition means one
     // thing to keep in step instead of twelve.
     const rowFs = Number(/--t-name:\s*calc\(([\d.]+)px/.exec(tokens)![1]);
-    const metaFs = Number(/\.ruled \.r-goal \{[^}]*font-size: calc\(([\d.]+)px/.exec(RULED)![1]);
+    // The second line's size is --t-sub now, the one place it is defined.
+    const metaFs = Number(/--t-sub:\s*calc\(([\d.]+)px/.exec(tokens)![1]);
     const chip = /\.ruled \.uchip \{[^}]*font-size: calc\(([\d.]+)px[^}]*padding:\s*([\d.]+)px/.exec(RULED)!;
     const chipFs = Number(chip[1]), chipPadY = Number(chip[2]);
-    const clamp = /\.ruled \.r-k-one \{[^}]*height: calc\(([\d.]+)em \+ ([\d.]+)px\)/.exec(RULED)!;
-    const em = Number(clamp[1]), extra = Number(clamp[2]);
+    // AMENDED 2026-09-18: the clamp is no longer a hand-fitted constant. It
+    // states the two things it has to cover -- one line of subtext, and one
+    // chip -- and takes the taller. They cross at 1.15x text scale, which is
+    // why the single number it replaced could not hold both ends once the
+    // subtext token moved that line from 12.5px to 14px.
+    const clamp = /\.ruled \.r-k-one \{\s*height: max\(calc\(var\(--t-sub\) \* ([\d.]+)\), calc\(([\d.]+)px \* var\(--type-scale\) \* ([\d.]+) \+ ([\d.]+)px\)\)/.exec(RULED)!;
+    const subLh = Number(clamp[1]), cFs = Number(clamp[2]), cLh = Number(clamp[3]), cPad = Number(clamp[4]);
     const rowGap = Number(/\.ruled \.r-k \{[^}]*gap: ([\d.]+)px/.exec(RULED)![1]);
+    void rowFs;
     for (const scale of [1, 1.1, 1.2, 1.3, 1.4]) {
-      // The em resolves against the row's own font size, so the clamp scales.
-      const box = em * rowFs * scale + extra;
+      const box = Math.max(metaFs * scale * subLh, cFs * scale * cLh + cPad * 2);
       const chipH = chipFs * scale * lh + chipPadY * 2;
       const textH = metaFs * scale * lh;
       expect(box, `the chip fits at ${scale}x`).toBeGreaterThanOrEqual(chipH - 0.001);

@@ -37,7 +37,7 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
 
       <div className="pad-x"><div className="card pad">
         <div className="p3-q">How Hard Was That</div>
-        <div className="bp-sub">{durationMin ? capMinutes(durationMin) + " · Tap a block, easiest on the left" : "Tap a block, easiest on the left"}</div>
+        {durationMin && <div className="bp-sub">{capMinutes(durationMin)}</div>}
       </div></div>
 
       <div className="pad-x">

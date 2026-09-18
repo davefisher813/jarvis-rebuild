@@ -692,7 +692,7 @@ export default function EventSheet({
               <Tile tone="orange"><BarbellGlyph /></Tile>
               <div className="row-grow">
                 <div className="conn-name">{gym ? "This Block Opens the Gym" : "Training Door"}</div>
-                <div className="conn-meta">{gym ? "Names the day's lift, starts the session, stamps the real minutes" : "Make this block the door to your training"}</div>
+                <div className="conn-meta">{gym ? "On" : "Off"}</div>
               </div>
               <div className={"switch" + (gym ? "" : " off")} role="switch" aria-checked={gym} aria-label="Training door" tabIndex={0}
                 onClick={() => setGym((g) => !g)} />

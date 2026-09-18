@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { posix } from "node:path";
 
 // ---------------------------------------------------------------------------
@@ -121,5 +121,131 @@ describe("THE NAME OF A THING IS ONE TREATMENT", () => {
     const metaW = weight(/\.conn-meta \{[^{}]*font-weight:\s*var\(--([a-z-]+)\)/.exec(DS)?.[1] ?? "");
     expect(metaW, "the subtext states a weight").toBeGreaterThan(0);
     expect(weight("w-name"), "and the name outweighs it").toBeGreaterThan(metaW);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// THE LINE UNDER IT (the same approval: "I would like for it to be minimal,
+// but if we are going to use it let's figure out how we're going to use it and
+// reestablish those rules").
+//
+// The same audit found about thirty rules drawing "the quiet line" at SEVEN
+// sizes -- 12, 12.5, 13, 13.5, 14, 14.5, 15 -- in the same grey. Six of those
+// are indistinguishable at arm's length on a phone. Nobody chose them; they
+// accumulated one screen at a time and no two screens agreed.
+// ---------------------------------------------------------------------------
+describe("THE LINE UNDER A NAME IS ONE TREATMENT", () => {
+  it("names it once, in tokens", () => {
+    expect(DS, "the size").toMatch(/--t-sub:\s*calc\(14px \* var\(--type-scale\)\)/);
+    expect(DS, "the weight").toMatch(/--w-sub:\s*var\(--w-normal\)/);
+    expect(weight("w-sub"), "and it resolves to 400").toBe(400);
+  });
+
+  // The roster of classes whose job is the quiet line under a name. Same
+  // contract as the names: reference the tokens, state no numbers.
+  const SUBS = [
+    "conn-meta", "facts", "bp-sub", "empty-sub", "row-value",
+    "r-goal", "note-first", "area-fact", "h-hero-s", "rdy-why", "msg-gist",
+  ];
+
+  it("draws every one of them through those tokens", () => {
+    const offenders: string[] = [];
+    for (const { file, sel, body } of rules()) {
+      const subject = /\.([a-z0-9-]+)$/i.exec(sel.split(",")[0]!.trim().split(/\s+/).pop() ?? "")?.[1];
+      if (!subject || !SUBS.includes(subject)) continue;
+      if (/font-size:/.test(body) && !/font-size:\s*var\(--t-sub\)/.test(body)) {
+        offenders.push(`${file}: ${sel} sets its own font-size`);
+      }
+      if (/font-weight:/.test(body) && !/font-weight:\s*var\(--w-sub\)/.test(body)) {
+        offenders.push(`${file}: ${sel} sets its own font-weight`);
+      }
+    }
+    expect(offenders, "seven sizes of the same grey is how this got here").toEqual([]);
+  });
+
+  // AND IT NEVER INHERITS. .facts carried a size and a colour but no weight
+  // for its whole life, so it took whatever the name above it was set to --
+  // which meant bolding every name would have bolded every subtext with it
+  // and produced no hierarchy at all. Caught in a render on 2026-09-18.
+  it("states a weight rather than inheriting one from the name above it", () => {
+    // There is more than one `.facts` rule (a later one only sets wrapping),
+    // so this reads every rule whose subject is .facts rather than the first.
+    const facts = rules().filter((r) => r.sel === ".facts").map((r) => r.body).join(" ");
+    expect(facts, "the second line names its own weight").toMatch(/font-weight:\s*var\(--w-sub\)/);
+    expect(weight("w-name"), "and it sits below the name").toBeGreaterThan(weight("w-sub"));
+  });
+
+  // THE INK IS NOT THE LEVER. --tx-3 is the only grey that clears the
+  // contrast floor browserWalk measures, so hierarchy is carried by weight
+  // and size. A future pass that "quietens" the subtext by fading it further
+  // is making it unreadable, not quieter.
+  it("keeps the quiet line at the one legible grey", () => {
+    const offenders: string[] = [];
+    for (const { file, sel, body } of rules()) {
+      const subject = /\.([a-z0-9-]+)$/i.exec(sel.split(",")[0]!.trim().split(/\s+/).pop() ?? "")?.[1];
+      if (!subject || !SUBS.includes(subject)) continue;
+      const c = /(?:^|;)\s*color:\s*var\(--([a-z0-9-]+)\)/.exec(body)?.[1];
+      if (c && c !== "tx-3") offenders.push(`${file}: ${sel} → --${c}`);
+    }
+    expect(offenders, "a fainter grey is unreadable, not quieter").toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A FACT IS DATA THE RECORD HOLDS. NEVER A MANUAL.
+//
+// Dave has asked for this in four separate screenshots, in these words:
+//   "Purge the instructional grey subtext"        (2026-09-16)
+//   "this is not a manual, we don't need instructions everywhere" (09-16)
+//   "too much grey text... I'm sick of repeating myself"          (09-17)
+//   "Instructional subtext. It shouldn't be anywhere"             (09-18)
+//
+// It kept coming back because each pass deleted the sentences he had
+// photographed and nothing stopped the next one being written. This is the
+// test that says no.
+//
+// THE DISTINGUISHING QUESTION, and it is a sharp one: would the line still be
+// true on an empty database? A date, a count, an area, a status all change
+// with the record; "A reply reaches a list, not a person" does not, because
+// it is describing the app rather than the thing on screen.
+//
+// EMPTY STATES ARE EXEMPT, deliberately. .empty-sub is the one component
+// whose whole job is to say what would be here -- deleting its copy leaves a
+// blank screen, which is worse than a sentence. The rule is about the line
+// under a NAME, which is every line he has ever photographed.
+// ---------------------------------------------------------------------------
+describe("THE SECOND LINE IS NEVER A MANUAL", () => {
+  const walk = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const n of readdirSync(dir)) {
+      const p = join(dir, n);
+      if (statSync(p).isDirectory()) out.push(...walk(p));
+      else if (/\.tsx$/.test(n) && !/\.test\./.test(n)) out.push(p);
+    }
+    return out;
+  };
+
+  // The shapes a sentence uses to explain a mechanism. A fact needs none of
+  // them: "Today", "6 Lifts", "Sep 12", "On Hold", "3 sessions".
+  const EXPLAINING = /\b(so no|because|which means|when you|if you|are what it takes|it takes|will still|would be|rather than|instead of|in order to|make sure|so that|nothing has to|goes? nowhere|stays? on this)\b/i;
+
+  it("carries no explanation on any line under a name", () => {
+    const offenders: string[] = [];
+    for (const f of walk(SRC)) {
+      const r = f.slice(SRC.length + 1);
+      if (r.startsWith("bench/") || r.startsWith("testpanel/") || r.startsWith("laws/")) continue;
+      readFileSync(f, "utf8").split("\n").forEach((line, i) => {
+        const t = line.trim();
+        if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*")) return;
+        // Only the subtext components, and never the empty state.
+        if (!/className="[^"]*\b(conn-meta|facts|fact|bp-sub|r-goal|area-fact|rdy-why)\b/.test(line)) return;
+        if (/empty-sub|empty-state/.test(line)) return;
+        for (const m of line.matchAll(/["`]([^"`{}\\]{10,})["`]/g)) {
+          const lit = m[1]!;
+          if (EXPLAINING.test(lit)) offenders.push(`${r}:${i + 1} :: ${lit.slice(0, 68)}`);
+        }
+      });
+    }
+    expect(offenders, "a line that explains the app is a manual, not a fact").toEqual([]);
   });
 });

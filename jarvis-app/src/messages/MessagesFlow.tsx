@@ -3526,7 +3526,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="card"><div className="row" {...rowDoor(nextChase)}>
               <div className="row-grow">
                 <div className="conn-name">Chase If No Reply</div>
-                <div className="conn-meta">{chaseDays === 0 ? "Off · Waiting On will still find it eventually" : `In ${chaseDays} days`}</div>
+                <div className="conn-meta">{chaseDays === 0 ? "Off" : `In ${chaseDays} days`}</div>
               </div>
               <div className="msg-chips">
                 <button className={"chip" + (chaseDays === 0 ? " on" : "")} onClick={(e) => { e.stopPropagation(); setChaseDays(0); }}>Off</button>
@@ -3740,7 +3740,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="msg-actions">
                 <button className="btn btn-secondary" onClick={() => startForward(thread)}><Forward className="ic" /> Forward</button>
               </div>
-              <div className="conn-meta msg-noreply">{bulk ? "Bulk mail · A reply reaches a list, not a person" : "No-reply sender · Answers here go nowhere"}</div>
+              <div className="conn-meta msg-noreply">{bulk ? "Bulk mail" : "No-reply sender"}</div>
             </>
           ) : (
             <>

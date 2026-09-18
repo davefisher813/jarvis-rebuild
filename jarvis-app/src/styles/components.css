@@ -878,7 +878,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .msg-seg { padding: var(--s-1) var(--s-4) var(--s-3); }
 .msg-lead { width: 8px; flex-shrink: 0; margin-top: var(--s-1h); display: flex; justify-content: center; }
 .msg-sends { font-size: var(--t-meta); color: var(--tint); font-weight: var(--w-medium); }
-.empty-sub { font-size: var(--t-meta); color: var(--tx-3); text-align: center; max-width: 280px; }
+.empty-sub { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); text-align: center; max-width: 280px; }
 .money-hero { padding: var(--s-5) var(--s-4); }
 .money-hero-label { font-size: var(--t-meta); color: var(--tx-3); font-weight: var(--w-medium); margin-bottom: var(--s-1); }
 .money-hero-total { font-size: var(--t-h1); font-weight: var(--w-bold); color: var(--tx-1); }
@@ -901,7 +901,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .account-name { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
 .account-sub { font-size: var(--t-meta); color: var(--tx-3); }
 .about-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-6) var(--s-4); }
-.row-value { font-size: var(--t-body); color: var(--tx-3); }
+.row-value { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .proj-detail-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); padding: var(--s-6) var(--s-4); }
 .proj-detail-hero .proj-icon { width: 56px; height: 56px; border-radius: var(--r-lg); }
 .proj-detail-hero .proj-icon .ic { width: 26px; height: 26px; }
@@ -1534,7 +1534,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    ones that earn the space come first, and the LAST one gives way in an
    ellipsis rather than the line hard-clipping mid-word and leaving its
    separator dangling over the edge. */
-.rem-card .facts { flex-wrap: nowrap; overflow: hidden; }
 .rem-card .facts > .fact { flex-shrink: 0; }
 /* THE LAST ONE GIVES WAY, not whichever one happens to carry .cat (Dave
    2026-09-16: a reminder with a category AND a rhythm -- "Transfer funds for
@@ -1711,7 +1710,7 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
 .week-recap b { font-weight: var(--w-semi); }
 
 /* === Roadmap v2 Session 6: Bigger Picture (goals + projects, derived) === */
-.bp-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; }
+.bp-sub { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); margin-top: 2px; }
 .bp-stalled { color: var(--warn); }
 .bp-bar { height: 4px; background: var(--press-3); border-radius: 2px; overflow: hidden; margin-top: var(--s-1h); }
 .bp-bar-fill { height: 100%; border-radius: 2px; background: var(--good-fill); }
@@ -3013,7 +3012,7 @@ button {
    wore for a day was a colour with no word to read it by; this is the same
    .fact.cat the page row carries, so the two read as one component. One line
    here too: the name gives way in an ellipsis rather than wrapping the row. */
-.rem-row .facts { flex-wrap: nowrap; overflow: hidden; margin-top: 1px; }
+.rem-row .facts { margin-top: 1px; }
 .rem-row .facts > .fact { flex-shrink: 0; }
 .rem-row .facts > .fact.cat { min-width: 0; flex-shrink: 1; }
 .rem-row .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -5366,9 +5365,38 @@ body.selecting .voice-dock { display: none; }
    bolding the title would have flattened the hierarchy instead of building
    it -- the exact thing Dave has been photographing, made worse by the fix
    for it. The ladder only exists if both rungs are nailed down. */
-.facts { display: flex; flex-wrap: wrap; align-items: center; gap: 1px 0; margin-top: 2px;
-  font-size: calc(14px * var(--type-scale)); font-weight: var(--w-normal);
-  color: var(--tx-3); line-height: 1.35; }
+.facts { display: flex; flex-wrap: nowrap; align-items: center; gap: 1px 0; margin-top: 2px;
+  font-size: var(--t-sub); font-weight: var(--w-sub);
+  color: var(--tx-3); line-height: 1.35; overflow: hidden; }
+/* ONE LINE, AND THE LAST FACT GIVES WAY (2026-09-18, the approved rule: "three
+   facts, one line. If it would wrap to a second line, a fact comes off").
+
+   It wrapped before, so a busy row grew a third line of grey and the list
+   went ragged -- and three components had already been patched to nowrap
+   one at a time, which is the drift this pass exists to end. The facts are
+   ordered most-important-first everywhere, so the one that gives way is the
+   one at the end. It ellipses rather than clipping: cut text is a bug. */
+.facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facts > .fact { flex-shrink: 0; }
+.facts > .fact:last-child { flex-shrink: 1; }
+
+/* THE LEAD FACT IS A CHIP WHEN IT HAS COMPANY (Dave 2026-09-18: "I would
+   prefer one chip if there's two facts").
+
+   One fact alone needs no anchor -- it is the only thing on the line. Two or
+   more and the eye needs somewhere to land, which is what the Exercises page
+   he approved does with its capsules. So the first of several draws as a
+   chip and keeps whatever colour it already carried; the rest stay plain,
+   and the dot that separates facts is not drawn against the chip's edge
+   because the chip's own shape already does that job.
+
+   This is one rule and no markup: deleting this block returns every line to
+   plain facts. */
+.facts > .fact:first-child:not(:last-child) {
+  background: var(--press-3); padding: 2px 7px; border-radius: var(--r-pill);
+  margin-right: 6px;
+}
+.facts > .fact:first-child:not(:last-child) + .fact::before { content: none; margin: 0; }
 .fact + .fact::before { content: "\00B7"; color: var(--tx-4); margin: 0 6px; }
 /* A fact that carries meaning takes its intent colour, semibold. At most one
    of these per .facts line (K.3, extended by the law in laws/astra.test.ts);
@@ -5426,7 +5454,6 @@ body.selecting .voice-dock { display: none; }
    own. The line is the flex row .facts means it to be, and it clips nothing
    itself -- the LAST fact does, and says so. */
 .hl .conn-meta { display: flex; align-items: center; text-overflow: clip; }
-.hl .facts { flex-wrap: nowrap; overflow: hidden; margin-top: 1px; }
 .hl .facts > .fact { flex-shrink: 0; }
 .hl .facts > .fact:last-child { flex-shrink: 1; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
