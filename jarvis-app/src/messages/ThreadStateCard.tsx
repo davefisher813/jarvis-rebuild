@@ -5,7 +5,7 @@ import type { Evidence } from "./evidence";
 import type { Bucket } from "./triage";
 import { haptics } from "../shared/haptics";
 import { rowDoor } from "../shared/rowDoor";
-import { dayPhrase } from "../money/bills";
+import { dayPhrase, monthDay } from "../money/bills";
 import { fmtTime, todayISO } from "../schedule/calendar";
 
 // WHERE THIS STANDS (UP-MIND-19, Email E9, 5.6 and 5.13; Brain build order 5).
@@ -184,8 +184,24 @@ export default function ThreadStateCard({
 }
 
 /** The meeting in the app's own clock words, never the model's phrasing. */
+/** THE DATE IS PART OF THE OFFER (2026-09-18, Dave: "Nothing happened. Why
+ *  didn't it create the event").
+ *
+ *  This printed dayPhrase alone, which for anything two to six days out is a
+ *  bare weekday NAME -- "Monday". So a meeting the summariser resolved to
+ *  the WRONG Monday read exactly like one resolved to the right one, and the
+ *  only screen that could have shown the difference was hiding it. The one
+ *  thing you would check before tapping Add to Calendar was the one thing
+ *  not on the card.
+ *
+ *  Today and tomorrow keep their words: they are unambiguous, and a date
+ *  beside them is noise. Everything else carries the date it will be filed
+ *  under, which is the number that has to be right. */
 export function whenLine(m: ConfirmedMeeting, today = todayISO()): string {
   const s = fmtTime(m.start);
   const e = fmtTime(m.end);
-  return dayPhrase(m.date, today) + " · " + s.time + " " + s.ap + " to " + e.time + " " + e.ap;
+  const phrase = dayPhrase(m.date, today);
+  const named = phrase === "today" || phrase === "tomorrow" || phrase === "yesterday";
+  const when = named || phrase === monthDay(m.date) ? phrase : phrase + ", " + monthDay(m.date);
+  return when + " · " + s.time + " " + s.ap + " to " + e.time + " " + e.ap;
 }

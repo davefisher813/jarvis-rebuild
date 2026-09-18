@@ -187,8 +187,16 @@ export function parseMeeting(v: unknown): ConfirmedMeeting | null {
   if (!title || !ISO_DAY.test(date) || !HHMM.test(start)) return null;
   // A real calendar day, not merely a well-shaped string: 2026-02-31 passes
   // the regex and is not a date.
-  const d = new Date(date + "T00:00:00");
-  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== date) return null;
+  //
+  // FIXED 2026-09-18. This parsed the day at LOCAL midnight and compared it
+  // against toISOString(), which is UTC -- so anywhere east of Greenwich the
+  // round trip lands on the previous day and EVERY confirmed meeting was
+  // silently dropped, card and all. Measured: America/New_York round-trips
+  // "2026-09-22" to itself; Europe/Berlin and Asia/Tokyo both return
+  // "2026-09-21". The parts are compared instead, which has no zone in it.
+  const [yy, mm, dd] = date.split("-").map(Number) as [number, number, number];
+  const d = new Date(yy, mm - 1, dd);
+  if (Number.isNaN(d.getTime()) || d.getFullYear() !== yy || d.getMonth() !== mm - 1 || d.getDate() !== dd) return null;
   const mins = typeof m.durationMin === "number" && Number.isFinite(m.durationMin)
     ? Math.min(600, Math.max(15, Math.round(m.durationMin)))
     : 60;
