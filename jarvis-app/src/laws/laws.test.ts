@@ -853,6 +853,17 @@ describe("LAW: one filled red per screen", () => {
       // one capsule in the card that spends real minutes rather than deferring
       // something. The rows under it keep the tinted .pill-act they had.
       ".ruled .stream-card .pill-act.pill-go",
+      // The Tasks list's door to Focus (Dave 2026-09-18: "that focus button
+      // should be Jarvis red"), which is the same ruling he gave Today's
+      // Start pill two days earlier. It replaced Pick One, a full-width red
+      // FILL: the claim on the screen has not grown, it has shrunk to the
+      // size of a control, and it is still the one thing on the page that
+      // starts work rather than filtering it. The tinted version it shipped
+      // as read, on the dark theme, as dark red words inside a dark red
+      // capsule. The page's other primary is the empty state's New Task,
+      // which is gated on counts.all === 0 while this is gated on
+      // counts.all > 0, so the two can never paint at once.
+      ".hdr-controls .tasks-focus",
       ".bench-act.prim", ".chip.chip-on",
       // Small round controls whose whole body is the control.
       ".ob-check-row", ".convo-send", ".voice-mic", ".voice-orb",

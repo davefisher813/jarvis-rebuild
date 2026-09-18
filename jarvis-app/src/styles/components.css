@@ -5785,7 +5785,12 @@ span.row-star { cursor: default; }
   display: inline-flex; align-items: center; gap: 4px;
   min-height: 34px; padding: 0 var(--s-3);
   border: 0; border-radius: var(--r-pill);
-  background: var(--red-tint); color: var(--accent-tx);
+  /* JARVIS RED, FILLED (Dave 2026-09-18: "that focus button should be Jarvis
+     red"). It was the tinted ground with accent text, which on the dark theme
+     reads as a dark red capsule with dark red words in it. --accent-fill is
+     the one red in the palette that carries WHITE, which is why every primary
+     in the app uses it and why this one does too. */
+  background: var(--accent-fill); color: #FFFFFF;
   font-family: var(--f); font-size: calc(13.5px * var(--type-scale));
   font-weight: var(--w-semi); letter-spacing: -0.01em; cursor: pointer;
 }
