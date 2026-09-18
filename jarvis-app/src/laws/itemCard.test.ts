@@ -15,6 +15,9 @@ const read = (f: string) => readFileSync(join(SRC, f), "utf8");
 const CARD = read("bigger/ItemCard.tsx");
 const PAGE = read("bigger/BiggerPicturePage.tsx");
 const RULED = read("styles/ruled.css");
+/** The same sheet with its comments taken out, so a long note between two
+ *  declarations cannot push one out of a rule-shaped match. */
+const CSS = RULED.replace(/\/\*[\s\S]*?\*\//g, "");
 const TYPES = read("categories/types.ts");
 
 describe("a goal's bar is its outcome, never its paperwork", () => {
@@ -82,8 +85,8 @@ describe("the card is square, and the shelf runs sideways", () => {
   // a promise, so the head is a button that cuts the page to that area, and
   // a shelf with no area to open carries no chevron rather than a dead one.
   it("heads each shelf the way Apple Music does", () => {
-    expect(RULED).toMatch(/\.ruled \.bp-shelf-head \.t \{[\s\S]{0,200}?font-size: calc\(22px \* var\(--type-scale\)\)/);
-    expect(RULED).toMatch(/\.ruled \.bp-shelf-head \.t \{[\s\S]{0,240}?font-weight: var\(--w-bold\)/);
+    expect(CSS).toMatch(/\.ruled \.bp-shelf-head \.t \{[\s\S]{0,200}?font-size: calc\(22px \* var\(--type-scale\)\)/);
+    expect(CSS).toMatch(/\.ruled \.bp-shelf-head \.t \{[\s\S]{0,240}?font-weight: var\(--w-bold\)/);
     expect(CARD, "a chevron only where there is somewhere to go")
       .toMatch(/onOpen \? \(\s*<button type="button" className="bp-shelf-head"/);
     expect(CARD, "and no count on the head").not.toMatch(/bp-shelf-head[\s\S]{0,300}?\{n\}/);
@@ -97,15 +100,29 @@ describe("the card is square, and the shelf runs sideways", () => {
     expect(PAGE).not.toMatch(/areaName=/);
   });
 
-  // MEASURED. The title took whatever the card had left and clamped at three
-  // lines -- but a 160pt tile has room for two, so the clamp never fired and
-  // the browser sliced the third line through the middle of the letters. Two
-  // lines of room, exactly, is what lets the ellipsis happen instead.
-  it("gives the title exactly two lines, so it ellipses instead of slicing", () => {
-    expect(RULED).toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,400}?max-height: calc\(var\(--t-card-title\) \* 1\.12 \* 2\)/);
-    expect(RULED).toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,500}?-webkit-line-clamp: 2;/);
-    expect(RULED, "and the foot anchors to the bottom whatever the title did")
+  // MEASURED, TWICE. The title first took whatever the card had left and
+  // clamped at three lines -- but a square 160pt tile has room for two, so
+  // the clamp never fired and the browser sliced the third line through the
+  // middle of the letters. Then two lines of room at 21px ellipsed four of
+  // his nine real project names ("Word are also getting cut off CLEAN THIS
+  // SHIT UP"). Three lines at 17px, against a card whose height is its
+  // content, ellipses one: a 43-character name no tile this size could hold.
+  it("gives the title three lines, so real names fit instead of ellipsing", () => {
+    expect(CSS).toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,400}?max-height: calc\(var\(--t-card-title\) \* 1\.12 \* 3\)/);
+    expect(CSS).toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,500}?-webkit-line-clamp: 3;/);
+    expect(RULED, "the room and the clamp agree, or the box slices a line")
+      .toMatch(/--t-card-title: calc\(17px \* var\(--type-scale\)\)/);
+    expect(CSS, "and the foot anchors to the bottom whatever the title did")
       .toMatch(/\.ruled \.bp-card-foot \{[^{}]*margin-top: auto;/);
+  });
+
+  // The next action is the one line on the card whose whole job is to say
+  // what to do next, and it was one line with an ellipsis: six of nine real
+  // projects read "Next: Go to Bradfor...". It wraps now.
+  it("lets the next action wrap instead of cutting it mid-word", () => {
+    expect(CSS).toMatch(/\.ruled \.bp-card-lead \{[^{}]*-webkit-line-clamp: 2;/);
+    const lead = CSS.slice(CSS.indexOf(".ruled .bp-card-lead {"), CSS.indexOf(".ruled .bp-card-n {"));
+    expect(lead, "nothing may pin it back to one line").not.toMatch(/white-space: nowrap/);
   });
 
   // "Black is not an option change it." A slot with no rule of its own left
@@ -113,14 +130,14 @@ describe("the card is square, and the shelf runs sideways", () => {
   // ground with white text on it. The base rule carries the neutral pair now,
   // so a slot invented tomorrow still draws a card.
   it("can never draw a card with no colour at all", () => {
-    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?--bp-a: #6D6D73; --bp-b: #2E2E33;/);
+    expect(CSS).toMatch(/\.ruled \.bp-card \{[\s\S]{0,200}?--bp-a: #6D6D73; --bp-b: #2E2E33;/);
   });
 
   it("lays the cards out as one sideways row", () => {
-    expect(RULED).toMatch(/\.ruled \.bp-grid \{[^{}]*display: flex;[^{}]*overflow-x: auto;/);
-    expect(RULED, "and it snaps, so a flick lands on a card")
+    expect(CSS).toMatch(/\.ruled \.bp-grid \{[^{}]*display: flex;[^{}]*overflow-x: auto;/);
+    expect(CSS, "and it snaps, so a flick lands on a card")
       .toMatch(/\.ruled \.bp-grid \{[^{}]*scroll-snap-type: x/);
-    expect(RULED, "the tile carries its own width").toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?width: calc\(160px \* var\(--type-scale\)\)/);
+    expect(CSS, "the tile carries its own width").toMatch(/\.ruled \.bp-card \{[\s\S]{0,400}?width: calc\(160px \* var\(--type-scale\)\)/);
   });
 
   // "Make them shorter too so there isn't a massive gap in the cards."
@@ -129,19 +146,18 @@ describe("the card is square, and the shelf runs sideways", () => {
   // MEASURED: the same shelf is 140 tall now, and the worst gap is one
   // missing line instead of a third of the tile.
   it("takes its height from what it holds, not from a square", () => {
-    const card = RULED.slice(RULED.indexOf(".ruled .bp-card {"), RULED.indexOf(".ruled .bp-card::before"))
-      .replace(/\/\*[\s\S]*?\*\//g, "");
+    const card = CSS.slice(CSS.indexOf(".ruled .bp-card {"), CSS.indexOf(".ruled .bp-card::before"));
     expect(card, "no square to pad out").not.toMatch(/aspect-ratio/);
     expect(card, "and no floor to pad it out either").not.toMatch(/min-height/);
-    expect(RULED, "a one-line title costs one line")
-      .toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,400}?max-height: calc\(var\(--t-card-title\) \* 1\.12 \* 2\)/);
+    expect(CSS, "a short title costs only the lines it uses")
+      .toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,400}?max-height: calc\(var\(--t-card-title\) \* 1\.12 \* 3\)/);
   });
 
   // The peek is what tells you it scrolls, and max-width is what protects it:
   // at 1.4 text on a 320px phone the scaled width would otherwise fill the
   // screen and the next card would vanish.
   it("keeps the next card peeking at every text size", () => {
-    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?max-width: 76%;/);
+    expect(CSS).toMatch(/\.ruled \.bp-card \{[\s\S]{0,400}?max-width: 76%;/);
   });
 
   // "Just make sure there's an arrow so users know." Not a painted chevron:

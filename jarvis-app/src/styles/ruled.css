@@ -2291,7 +2291,7 @@
      text on the page's own ground. Every slot has a pair now AND the base
      rule carries the neutral one, so a slot invented tomorrow still draws. */
   --bp-a: #6D6D73; --bp-b: #2E2E33;
-  --t-card-title: calc(21px * var(--type-scale));
+  --t-card-title: calc(17px * var(--type-scale));
   /* NO LONGER SQUARE (Dave 2026-09-18: "Make them shorter too so there isn't
      a massive gap in the cards"). aspect-ratio held every tile at 160 tall
      whatever it held, so a card with no next action carried 38px of hole
@@ -2382,13 +2382,16 @@
 .ruled .bp-card-title {
   flex: 0 0 auto; margin-top: var(--s-2);
   font-size: var(--t-card-title); line-height: 1.12;
-  /* Two lines of room at most, so the clamp fires instead of the box slicing
-     a third line in half -- and a one-line title costs one line, not two,
-     which is where the rest of the height went. */
-  max-height: calc(var(--t-card-title) * 1.12 * 2);
+  /* THREE LINES OF ROOM AT MOST (Dave 2026-09-18: "Word are also getting cut
+     off CLEAN THIS SHIT UP"). Two lines at 21px ellipsed four of nine real
+     project names. Three lines at 17px ellipses one -- a 43-character name
+     that no tile this size could ever hold -- and the type is still the
+     heaviest thing on the card. Measured against his own titles, not made up
+     ones. A short title still costs only the lines it uses. */
+  max-height: calc(var(--t-card-title) * 1.12 * 3);
   font-weight: var(--w-bold); letter-spacing: -0.02em;
   color: #FFFFFF;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
   overflow-wrap: anywhere;
 }
 
@@ -2402,8 +2405,16 @@
 .ruled .bp-card-lead, .ruled .bp-card-n {
   font-size: calc(13px * var(--type-scale)); font-weight: var(--w-sub);
   color: rgba(255, 255, 255, 0.92);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* THE NEXT ACTION WRAPS (2026-09-18). It was one line with an ellipsis, so
+   six of nine real projects read "Next: Go to Bradfor..." -- the one line on
+   the card whose whole job is to say what to do next, cut mid-word. Two lines
+   holds every next action he has. */
+.ruled .bp-card-lead {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+/* The count is short by construction ("8 of 10 tasks"), so it stays one line. */
+.ruled .bp-card-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* A thin bar, and only where it is earned: a project's real task count, or a
    goal's Measure. Never a goal's task completion (see ItemCard). */
 .ruled .bp-card-bar {
