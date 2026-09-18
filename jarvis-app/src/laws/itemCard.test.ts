@@ -15,6 +15,7 @@ const read = (f: string) => readFileSync(join(SRC, f), "utf8");
 const CARD = read("bigger/ItemCard.tsx");
 const PAGE = read("bigger/BiggerPicturePage.tsx");
 const RULED = read("styles/ruled.css");
+const TYPES = read("categories/types.ts");
 
 describe("a goal's bar is its outcome, never its paperwork", () => {
   // THE ONE RULE IN THE HANDOFF THAT IS ABOUT TRUTH:
@@ -55,33 +56,66 @@ describe("a goal's bar is its outcome, never its paperwork", () => {
   });
 });
 
-describe("the card is square, and yields only to large text", () => {
-  it("takes its square from its own column", () => {
-    expect(RULED).toMatch(/\.ruled \.bp-grid \{[^{}]*grid-template-columns: 1fr 1fr/);
-    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,600}?aspect-ratio: 1;/);
+describe("the card is square, and the shelf runs sideways", () => {
+  // THE SHELF (Dave 2026-09-18: "They can scroll laterally like Apple Music
+  // to save vertical space. Just make sure there's an arrow so users know").
+  // A grid of squares costs one row of height per two items; a shelf costs
+  // one row full stop. The width is the tile's own, so aspect-ratio squares
+  // it off that rather than off a column that no longer exists.
+  it("lays the cards out as one sideways row", () => {
+    expect(RULED).toMatch(/\.ruled \.bp-grid \{[^{}]*display: flex;[^{}]*overflow-x: auto;/);
+    expect(RULED, "and it snaps, so a flick lands on a card")
+      .toMatch(/\.ruled \.bp-grid \{[^{}]*scroll-snap-type: x/);
+    expect(RULED, "the tile carries its own width").toMatch(/\.ruled \.bp-card \{[\s\S]{0,900}?width: calc\(160px \* var\(--type-scale\)\)/);
+    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,900}?aspect-ratio: 1;/);
   });
 
-  // MEASURED, because this one is a trap. With aspect-ratio set, a min-height
-  // that exceeds the square recomputes the WIDTH from it: at 1.4 text scale
-  // the cards grew to 184.8px inside a 174.5px track and overlapped their
-  // neighbours. max-width pins the width to the track so min-height can do
-  // its job -- the card stops being square and grows DOWN, which is the
-  // adaptation the handoff asks for ("at larger accessibility sizes, allow
-  // the layout to adapt to preserve readability").
-  it("pins its width to the track so a tall card cannot overlap its neighbour", () => {
-    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,600}?max-width: 100%;/);
-    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,700}?min-height: calc\(132px \* var\(--type-scale\)\)/);
+  // The peek is what tells you it scrolls, and max-width is what protects it:
+  // at 1.4 text on a 320px phone the scaled width would otherwise fill the
+  // screen and the next card would vanish.
+  it("keeps the next card peeking at every text size", () => {
+    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,900}?max-width: 76%;/);
+    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,900}?min-height: calc\(132px \* var\(--type-scale\)\)/);
   });
 
-  // Every colour slot gets a card. The gradient is mixed from the one
-  // category token, so a slot added later needs no new rule beyond its name.
-  it("gives every category slot a gradient", () => {
-    const slots = ["red", "orange", "sky", "pink", "yellow", "green", "blue", "teal", "graphite", "purple", "indigo", "magenta", "lime"];
-    for (const s of slots) {
-      expect(RULED, s + " has no card colour").toContain(`.ruled .bp-card-${s} { --bp-hue: var(--cat-${s}); }`);
+  // "Just make sure there's an arrow so users know." Not a painted chevron:
+  // a button, labelled, and present only when there is room that way -- which
+  // means it has to be measured rather than assumed from a count.
+  it("puts a real arrow on the shelf, driven by what actually fits", () => {
+    expect(CARD, "the arrow is a button").toMatch(/className="bp-shelf-arrow bp-shelf-arrow-r"/);
+    expect(CARD, "and it says what it does").toMatch(/aria-label="Scroll for more"/);
+    expect(CARD, "one back, once there is a back").toMatch(/aria-label="Scroll back"/);
+    expect(CARD, "shown from measurement, not from item count")
+      .toMatch(/el\.scrollWidth - el\.clientWidth/);
+    expect(CARD, "and it moves the shelf").toMatch(/el\.scrollBy\(\{ left: dir/);
+  });
+
+  // EVERY COLOUR THE PICKER OFFERS GETS A CARD. The first draft wrote thirteen
+  // rules against a twenty-four slot palette, so an area coloured violet or
+  // mint drew a card with no gradient at all -- white text on nothing.
+  it("gives every category slot its two stops", () => {
+    const from = TYPES.indexOf("export const COLOR_SLOTS");
+    const slots = TYPES.slice(from, TYPES.indexOf("];", from));
+    const names = [...slots.matchAll(/"([a-z]+)",/g)].map((m) => m[1]);
+    expect(names.length, "the palette is read from its own source").toBeGreaterThan(20);
+    for (const s of [...names, "red"]) {
+      expect(RULED, s + " has no card colour").toMatch(
+        new RegExp("\\.ruled \\.bp-card-" + s + " \\{ --bp-a: #[0-9A-F]{6}; --bp-b: #[0-9A-F]{6}; \\}"),
+      );
     }
-    expect(RULED, "and the two stops are mixed from that one token")
-      .toMatch(/color-mix\(in oklab, var\(--bp-hue\)/);
+  });
+
+  // "I want the coloring and shading identical to the pic I sent." His four
+  // areas were plane-fit off the image corner to corner; these are the numbers
+  // that came back, and the axis with them. They are not derived from the
+  // category tokens and cannot be -- his teal is H180 S37, the token is H189
+  // S72 -- so nothing here may be "simplified" back into a color-mix.
+  it("carries the sampled pairs exactly, on the sampled axis", () => {
+    expect(RULED).toContain(".ruled .bp-card-teal { --bp-a: #4EABAB; --bp-b: #1C4744; }");
+    expect(RULED).toContain(".ruled .bp-card-blue { --bp-a: #438AF8; --bp-b: #0E268D; }");
+    expect(RULED).toContain(".ruled .bp-card-purple { --bp-a: #703EE5; --bp-b: #2E1171; }");
+    expect(RULED).toContain(".ruled .bp-card-green { --bp-a: #58BF71; --bp-b: #1B452C; }");
+    expect(RULED).toMatch(/linear-gradient\(153deg, var\(--bp-a\) 0%, var\(--bp-b\) 100%\)/);
   });
 });
 

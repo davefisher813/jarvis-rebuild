@@ -2223,33 +2223,48 @@
    cards or tall Replay cards... Keep cards square with consistent gaps and
    padding. Do not stretch them vertically to fill the screen."
 
-   THE SQUARE, AND WHEN IT YIELDS. aspect-ratio makes the tile square from
-   its own column width, so two per row at any phone width stay square with
-   no arithmetic. min-height is the escape hatch the handoff asks for -- "at
-   larger accessibility sizes, allow the layout to adapt to preserve
-   readability" -- because it is expressed in --type-scale: at 1.0 it sits
-   under the square's height and the aspect-ratio governs, and as the reader
-   turns text up it overtakes it and the card grows taller than square rather
-   than clipping the words. One declaration, no media query, and the
-   adaptation is the one the handoff names.
+   THE SQUARE, AND WHEN IT YIELDS. The tile's width is its own, in px times
+   --type-scale, and aspect-ratio squares it off that. min-height is the
+   escape hatch the handoff asks for -- "at larger accessibility sizes, allow
+   the layout to adapt to preserve readability" -- and because both the width
+   and the floor are expressed in --type-scale, turning text up grows the card
+   with it rather than clipping the words inside a fixed box.
 
    Dave approved a type exception here: "We can scale the font specifically
    for these cards it's fine." The title is the only place in the app that
    takes it, and it still comes off --t-name so the type law's one definition
    is what it scales FROM.
    ========================================================================== */
+/* THE SHELF, NOT A WALL (Dave 2026-09-18: "They can scroll laterally like
+   Apple Music to save vertical space. Just make sure there's an arrow so
+   users know"). One row that scrolls sideways, so a lens with twenty
+   projects costs the same height as one with two, and the vertical scroll
+   underneath still belongs to the page.
+
+   It is full bleed on purpose: the padding is the SCROLLER'S, not a wrapper's,
+   so the first card lines up with every other left edge on the page while the
+   last one can still run off the right edge -- which is half of what tells you
+   it scrolls. The arrow is the other half, and it is a real button, because
+   the peeking card alone is the affordance Dave said was not enough. */
+.ruled .bp-shelf { position: relative; }
 .ruled .bp-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3);
-  align-items: start;
+  display: flex; gap: var(--s-3);
+  overflow-x: auto; overflow-y: hidden;
+  padding: 0 var(--s-4);
+  scroll-snap-type: x proximity; scroll-padding-left: var(--s-4);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.ruled .bp-grid::-webkit-scrollbar { width: 0; height: 0; }
+.ruled .bp-grid > * { scroll-snap-align: start; }
 .ruled .bp-card {
-  /* max-width is load-bearing, not belt-and-braces. With aspect-ratio set,
-     a min-height that exceeds the square recomputes the WIDTH from it, so at
-     1.4 text scale the cards grew to 184.8px inside a 174.5px grid track and
-     overlapped their neighbours (measured). Pinning the width to the track
-     leaves min-height free to do its job: the card stops being square and
-     grows DOWN, which is the adaptation the handoff asks for. */
-  position: relative; aspect-ratio: 1; max-width: 100%;
+  /* Two and a bit per screen, which is the Apple Music small-tile ratio the
+     handoff names and the reason the third card peeks. Measured off the
+     mockup: its tiles are 176pt in a two-up grid; 160 leaves 29px of the next
+     one showing at 393px wide. max-width holds the peek on a 320px phone at
+     1.4 text, where the scaled width would otherwise fill the screen. */
+  flex: 0 0 auto; width: calc(160px * var(--type-scale)); max-width: 76%;
+  position: relative; aspect-ratio: 1;
   min-height: calc(132px * var(--type-scale));
   display: flex; flex-direction: column;
   padding: var(--s-3h); border-radius: 18px; overflow: hidden;
@@ -2257,33 +2272,65 @@
   /* The card is its own surface: no card rim or shadow on top of a fill. */
   border: 0;
 }
-/* THE GRADIENT, FROM THE AREA AND NOTHING ELSE. Two stops mixed from the one
-   category token, so every colour slot gets a card and a slot added later
-   gets one without another rule. Deepened because the flat category colours
-   carry BLACK text by definition (.cat-bg-* sets --on-fill-dark); white on
-   them raw would not clear the contrast floor. */
+/* THE GRADIENT, SAMPLED FROM THE MOCKUP (Dave: "I want the coloring and
+   shading identical to the pic I sent"). Every card in his image was plane-fit
+   corner to corner: the axis came out 153deg and the far corner landed at
+   about 0.42 of the near one's lightness at the same hue. Personal, Bridge,
+   Work and Health -- teal, blue, purple, green -- carry the sampled pairs
+   EXACTLY. The other twenty slots take their own category hue at the family's
+   saturation and lightness, so a card exists for every colour the picker
+   offers rather than for the four that happened to be in the picture.
+
+   Two stops, written out, rather than mixed from --cat-*: his colours are not
+   the category tokens (his teal is H180 S37, the token is H189 S72), so a
+   derivation could not have produced them. */
 .ruled .bp-card::before {
   content: ""; position: absolute; inset: 0; z-index: 0;
-  background: linear-gradient(145deg,
-    color-mix(in oklab, var(--bp-hue) 82%, #1A1A1F) 0%,
-    color-mix(in oklab, var(--bp-hue) 42%, #101015) 100%);
+  background: linear-gradient(153deg, var(--bp-a) 0%, var(--bp-b) 100%);
 }
 .ruled .bp-card > * { position: relative; z-index: 1; }
 .ruled .bp-card:active { opacity: 0.85; }
 
-.ruled .bp-card-red { --bp-hue: var(--cat-red); }
-.ruled .bp-card-orange { --bp-hue: var(--cat-orange); }
-.ruled .bp-card-sky { --bp-hue: var(--cat-sky); }
-.ruled .bp-card-pink { --bp-hue: var(--cat-pink); }
-.ruled .bp-card-yellow { --bp-hue: var(--cat-yellow); }
-.ruled .bp-card-green { --bp-hue: var(--cat-green); }
-.ruled .bp-card-blue { --bp-hue: var(--cat-blue); }
-.ruled .bp-card-teal { --bp-hue: var(--cat-teal); }
-.ruled .bp-card-graphite { --bp-hue: var(--cat-graphite); }
-.ruled .bp-card-purple { --bp-hue: var(--cat-purple); }
-.ruled .bp-card-indigo { --bp-hue: var(--cat-indigo); }
-.ruled .bp-card-magenta { --bp-hue: var(--cat-magenta); }
-.ruled .bp-card-lime { --bp-hue: var(--cat-lime); }
+.ruled .bp-card-red { --bp-a: #D34D45; --bp-b: #5D1C19; }
+.ruled .bp-card-orange { --bp-a: #D39C45; --bp-b: #5D4219; }
+.ruled .bp-card-sky { --bp-a: #45AAD3; --bp-b: #19495D; }
+.ruled .bp-card-pink { --bp-a: #D34562; --bp-b: #5D1926; }
+.ruled .bp-card-yellow { --bp-a: #D3BC45; --bp-b: #5D5219; }
+.ruled .bp-card-green { --bp-a: #58BF71; --bp-b: #1B452C; }
+.ruled .bp-card-blue { --bp-a: #438AF8; --bp-b: #0E268D; }
+.ruled .bp-card-teal { --bp-a: #4EABAB; --bp-b: #1C4744; }
+.ruled .bp-card-graphite { --bp-a: #6D6D73; --bp-b: #2E2E33; }
+.ruled .bp-card-purple { --bp-a: #703EE5; --bp-b: #2E1171; }
+.ruled .bp-card-indigo { --bp-a: #4745D3; --bp-b: #1A195D; }
+.ruled .bp-card-magenta { --bp-a: #D345BA; --bp-b: #5D1951; }
+.ruled .bp-card-lime { --bp-a: #45D3CD; --bp-b: #195D5A; }
+.ruled .bp-card-sand { --bp-a: #D39545; --bp-b: #5D3F19; }
+.ruled .bp-card-coral { --bp-a: #D35845; --bp-b: #5D2219; }
+.ruled .bp-card-amber { --bp-a: #D3A445; --bp-b: #5D4619; }
+.ruled .bp-card-rust { --bp-a: #D36B45; --bp-b: #5D2B19; }
+.ruled .bp-card-rose { --bp-a: #D34570; --bp-b: #5D192D; }
+.ruled .bp-card-plum { --bp-a: #D345C7; --bp-b: #5D1957; }
+.ruled .bp-card-violet { --bp-a: #7A45D3; --bp-b: #32195D; }
+.ruled .bp-card-cyan { --bp-a: #45BED3; --bp-b: #19535D; }
+.ruled .bp-card-mint { --bp-a: #45D39F; --bp-b: #195D44; }
+.ruled .bp-card-olive { --bp-a: #A8D345; --bp-b: #485D19; }
+.ruled .bp-card-slate { --bp-a: #4585D3; --bp-b: #19385D; }
+
+/* The arrow, shown only while there is something that way to go. It sits over
+   the shelf rather than beside it so it costs no width, and it pages by most
+   of a screen, which lands on a card boundary near enough for the snap. */
+.ruled .bp-shelf-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 999px;
+  background: var(--surface-2); color: var(--tx-1);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.38);
+  cursor: pointer; z-index: 2;
+}
+.ruled .bp-shelf-arrow-r { right: 5px; }
+.ruled .bp-shelf-arrow-l { left: 5px; }
+.ruled .bp-shelf-arrow .ic { width: 17px; height: 17px; }
 
 /* Top row: the mark, the area, the overflow. One line, never wrapping. */
 .ruled .bp-card-top { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }

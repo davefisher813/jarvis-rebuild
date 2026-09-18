@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Target } from "../shared/icons";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight, Target } from "../shared/icons";
 import { FolderOpenGlyph } from "../shared/glyphs";
 import { catColor } from "../shared/categories";
 
@@ -15,14 +15,12 @@ import { catColor } from "../shared/categories";
 // card component with Project and Goal variants."
 //
 // WHAT THE GRADIENT IS MADE OF. Every card has to work "for any subject
-// without photos or custom artwork", so there is nothing to sample a colour
-// from except the item's own Area. The two stops are derived from that one
-// category token with color-mix, which means all thirteen colour slots get a
-// card without anyone hand-picking thirteen pairs, and a slot added later
-// gets one for free. The deepening is what makes white text legible on it:
-// the flat category colours are light enough that the app writes BLACK on
-// them (.cat-bg-* sets --on-fill-dark), so a card using them raw would have
-// failed the contrast floor browserWalk measures.
+// without photos or custom artwork", so there is nothing to colour it by
+// except the item's own Area. Dave then asked for "the coloring and shading
+// identical to the pic I sent", so the four areas in his mockup carry the
+// pairs sampled straight off it and every other colour slot carries its own
+// hue at that family's saturation and lightness. The pairs live in ruled.css,
+// one per slot; this only picks the slot.
 //
 // WHAT A GOAL MAY NOT CLAIM. "Do not treat linked task completion as outcome
 // progress. For example, finishing fundraising tasks does not mean money has
@@ -119,7 +117,64 @@ export default function ItemCard({
   );
 }
 
-/** The grid the cards sit in: two equal columns, square tiles, one gap. */
+// ---------------------------------------------------------------------------
+// THE SHELF (Dave 2026-09-18: "They can scroll laterally like Apple Music to
+// save vertical space. Just make sure there's an arrow so users know").
+//
+// One sideways row instead of a grid, so a lens with twenty projects costs
+// the same height as one with two. The next card peeks past the right edge,
+// which is the usual hint, and Dave said the hint is not enough on its own --
+// hence a real arrow, shown only while there is somewhere to go that way, and
+// tappable rather than decorative.
+//
+// The arrows are driven by measurement, not by a count: scrollWidth against
+// clientWidth after every scroll, resize and change of children. When the
+// cards already fit, neither arrow exists.
+// ---------------------------------------------------------------------------
 export function CardGrid({ children }: { children: ReactNode }) {
-  return <div className="pad-x"><div className="bp-grid">{children}</div></div>;
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [more, setMore] = useState({ left: false, right: false });
+
+  const measure = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const room = el.scrollWidth - el.clientWidth;
+    const at = el.scrollLeft;
+    setMore((p) => {
+      const next = { left: at > 4, right: room - at > 4 };
+      return p.left === next.left && p.right === next.right ? p : next;
+    });
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure, children]);
+
+  // A page is most of a screenful, which lands near a card boundary and lets
+  // the scroll-snap finish the job.
+  const page = (dir: 1 | -1) => {
+    const el = ref.current;
+    if (!el || typeof el.scrollBy !== "function") return;
+    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.8), behavior: "smooth" });
+  };
+
+  return (
+    <div className="bp-shelf">
+      <div className="bp-grid" ref={ref} onScroll={measure}>{children}</div>
+      {more.left && (
+        <button type="button" className="bp-shelf-arrow bp-shelf-arrow-l"
+          aria-label="Scroll back" onClick={() => page(-1)}>
+          <ChevronLeft className="ic" />
+        </button>
+      )}
+      {more.right && (
+        <button type="button" className="bp-shelf-arrow bp-shelf-arrow-r"
+          aria-label="Scroll for more" onClick={() => page(1)}>
+          <ChevronRight className="ic" />
+        </button>
+      )}
+    </div>
+  );
 }
