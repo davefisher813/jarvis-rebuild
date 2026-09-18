@@ -53,9 +53,16 @@ export interface NoteListItem {
  *  AND Personal -- and this page now reads the same way, which is the whole
  *  point of one header on five pages. */
 type Filter = { kind: "all" } | { kind: "pinned" } | { kind: "unfiled" } | { kind: "tag"; tag: string } | { kind: "archived" } | { kind: "deleted" };
-/** The three the handoff names, in its order. "Unfiled" is the mockup's
- *  word for what this page called "Not Filed"; the filter itself is the
- *  same `unfiled` it always was. */
+/** The three the handoff names, in its order, plus the two destinations that
+ *  used to live in the options sheet. "Unfiled" is the mockup's word for what
+ *  this page called "Not Filed"; the filter itself is the same `unfiled` it
+ *  always was.
+ *
+ *  Archived and Recently Deleted joined them on 2026-09-18, when the views
+ *  became a menu: they were always views of this library, and the only
+ *  reason they sat in the sheet was that a chip row had no room for five.
+ *  They still appear only when they hold something, because a view of
+ *  nothing is furniture. */
 const VIEWS: HeaderView[] = [
   { key: "all", label: "All" },
   { key: "pinned", label: "Pinned" },
@@ -327,8 +334,14 @@ export default function NotesList({
           placeholder="Search Notes"
           addLabel="New Note"
           onAdd={() => onNewNote?.()}
-          views={VIEWS}
-          view={filter.kind === "all" || filter.kind === "pinned" || filter.kind === "unfiled" ? filter.kind : "all"}
+          views={[
+            ...VIEWS,
+            ...(archivedCount > 0 ? [{ key: "archived", label: "Archived", count: archivedCount }] : []),
+            // Excluded from ordinary searches unless explicitly opened, which
+            // is what choosing it here is.
+            ...(deletedCount > 0 ? [{ key: "deleted", label: "Recently Deleted", short: "Deleted", count: deletedCount }] : []),
+          ]}
+          view={filter.kind === "tag" ? "all" : filter.kind}
           onView={(k) => setFilter({ kind: k } as Filter)}
           scope={q.trim() ? {
             count: shown.length,
@@ -347,7 +360,7 @@ export default function NotesList({
                 <HeadMenu
                   ariaLabel="Area"
                   value={area ?? "all"}
-                  label={area ? undefined : "All Areas"}
+                  label={area ? undefined : "Area"}
                   options={[{ value: "all", label: "All Areas" }, ...areaIds.map((id) => ({ value: id, label: catName(id) || "Area", dot: catColor(id) }))]}
                   // Unfiled means "has no area", so an area and that view can
                   // never both be true: choosing one moves off the other
@@ -359,21 +372,14 @@ export default function NotesList({
                 <HeadMenu
                   ariaLabel="Tag"
                   value={filter.kind === "tag" ? filter.tag : "all"}
-                  label={filter.kind === "tag" ? undefined : "All Tags"}
+                  label={filter.kind === "tag" ? undefined : "Tag"}
                   options={[{ value: "all", label: "All Tags" }, ...tagNames.map((t) => ({ value: t, label: "#" + t }))]}
                   onPick={(v) => setFilter(v === "all" ? { kind: "all" } : { kind: "tag", tag: v })}
                 />
               )}
             </>
           ) : undefined}
-          // What is narrowing the list, when something is (handoff rule 7).
-          // Area and Tag are not in here: their dropdowns are on the line
-          // above, each stating its own answer. This is for the two
-          // destinations that have no control on the page at all.
-          filters={filter.kind === "archived" || filter.kind === "deleted" ? {
-            label: filter.kind === "archived" ? "Archived" : "Recently Deleted",
-            onClear: () => setFilter({ kind: "all" }),
-          } : undefined}
+
         />
       </PageHeader>
 
@@ -421,16 +427,6 @@ export default function NotesList({
           ...(onAddFile ? [{
             key: "file", label: uploading ? "Uploading" : "Import or Attach",
             onClick: () => { setOptsOpen(false); if (!uploading) onAddFile(); },
-          }] : []),
-          ...(archivedCount > 0 ? [{
-            key: "archived", label: "Archived", count: archivedCount,
-            onClick: () => { setOptsOpen(false); setFilter({ kind: "archived" }); },
-          }] : []),
-          // Excluded from ordinary searches unless explicitly opened, which
-          // is what opening it from here is.
-          ...(deletedCount > 0 ? [{
-            key: "deleted", label: "Recently Deleted", count: deletedCount,
-            onClick: () => { setOptsOpen(false); setFilter({ kind: "deleted" }); },
           }] : []),
         ] as OptionRow[])} onClose={() => setOptsOpen(false)} />
       )}

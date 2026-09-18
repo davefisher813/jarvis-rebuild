@@ -91,10 +91,11 @@ describe("what the handoff forbids", () => {
   it("the Notes chips are three workflow states and nothing else", () => {
     const notes = read("notes/screens/NotesList.tsx");
     expect(notes).toMatch(/const VIEWS: HeaderView\[\] = \[\s*\{ key: "all", label: "All" \},\s*\{ key: "pinned", label: "Pinned" \},\s*\{ key: "unfiled", label: "Unfiled" \},\s*\];/);
-    // Archived and Recently Deleted are options destinations; Tag left the
-    // sheet for the dropdown line above.
-    for (const s of ['key: "deleted"', 'key: "archived"']) {
-      expect(notes.slice(notes.indexOf("<OptionsSheet")), s + " is not in the options sheet").toContain(s);
+    // Archived and Recently Deleted are VIEWS of this library, and they are
+    // options in the view menu as of 2026-09-18. They were only ever in the
+    // options sheet because a chip row had no room for five.
+    for (const k of ['key: "archived"', 'key: "deleted"']) {
+      expect(notes.slice(notes.indexOf("views={["), notes.indexOf("view={")), k + " is not a view").toContain(k);
     }
     // AMENDED 2026-09-17 three times: a pinned capsule beside the chips, then
     // a row in the options sheet when it would not fit, then a dropdown on
@@ -106,7 +107,7 @@ describe("what the handoff forbids", () => {
     // Through all three the area is still not a VIEW: it used to be a MEMBER
     // of the filter union, so picking Personal deselected All, Pinned and
     // Unfiled. An area is not a workflow state; the two cuts compose.
-    expect(notes, "Area and Tag are the dropdown line, in that order")
+    expect(notes, "Area and Tag are the cuts on the control line, in that order")
       .toMatch(/drops=\{[\s\S]*?ariaLabel="Area"[\s\S]*?ariaLabel="Tag"[\s\S]*?\)\}/);
     expect(notes, "the area is its own axis, not a view").not.toMatch(/\{ kind: "area"; id: string \}/);
     expect(notes).toContain("const filtered = area ? inView.filter((n) => n.category === area) : inView;");
@@ -137,8 +138,10 @@ describe("nothing was invented to make the pictures match", () => {
   // data for visual consistency." The mockup lists four Tasks chips; the page
   // has seven views, one of which Dave asked for by name on 2026-09-13.
   it("no existing view was dropped to match a four-chip picture", () => {
+    // Nor to fit a chip row, which is what the menu settled (2026-09-18):
+    // every FILTERS entry this page has is an option, in the page's order.
     expect(read("tasks/screens/TasksPage.tsx"))
-      .toMatch(/FILTERS\.filter\(\(f\) => !LEAD_FILTERS\.includes\(f\)\)/);
+      .toMatch(/const views: HeaderView\[\] = FILTERS\.map\(/);
   });
 });
 
@@ -179,35 +182,78 @@ describe("search says what it searched", () => {
 // not going to work"). Snapping and unmasking were both attempts to make a
 // scrolling row of large filled pills look deliberate. Neither could: at
 // every resting position between the ends, one pill is cut in half by the
-// screen edge. The row does not scroll any more, so there is nothing to make
-// look right.
-describe("the chip row does not scroll, because it fits", () => {
+// screen edge.
+//
+// SETTLED 2026-09-18, by the same person, on the two-row header that came out
+// of the day's earlier fixes: "All of these chips that are on the second row
+// should be on the first row. There is a ton of space... It should be one
+// line across on every single page. If you drop down, make the chips drop
+// down so everything is on one row directly across."
+//
+// The chip row is gone. What killed it was not the sliding, it was the
+// budget: a chip row has to fit its WHOLE list on the screen, so it shed its
+// counts (four with them: 458px of content in a 361px row), then shed Done
+// to make room for the Area control, and still wanted a second line. A menu
+// shows one answer and hands the list to a panel, so it costs the line one
+// capsule whatever it holds.
+describe("the header is one line of capsules, and it fits", () => {
   const css = read("styles/components.css");
 
-  it("carries neither snap nor mask, because there is nothing to hint at", () => {
-    expect(css).toContain(".hdr-chips { -webkit-mask-image: none; mask-image: none; scroll-snap-type: none; }");
+  it("spends one line, left to right, with nothing under it", () => {
+    const hdr = read("shared/LifeHeader.tsx");
+    expect(hdr, "the view leads the line").toMatch(/<div className="hdr-controls">[\s\S]{0,200}?<HeadMenu\s+lead\s+ariaLabel="View"/);
+    expect(hdr, "and the page's cuts follow it on the same line").toMatch(/ariaLabel="View"[\s\S]{0,300}?\{drops\}\s*<\/div>/);
+    expect(hdr, "the chip row is gone, not hidden").not.toMatch(/chip-row|hdr-chips|hdr-drops/);
+    expect(css).toMatch(/\.hdr-controls \{[\s\S]{0,160}?display: flex;/);
+    expect(css, "and there is no second line left to put anything on").not.toContain(".hdr-drops");
   });
 
-  it("is the same three-or-fewer labels on every page in the set", () => {
-    // 335px of content in a 361px row at 393px wide: 58px of slack. Counts
-    // put it at 458px, which is where the scrolling came from.
-    for (const [f] of PAGES) {
+  // THE LINE NEVER OVERFLOWS. overflow-x is a floor for very large Dynamic
+  // Type, not a plan, and before it can ever be reached the last control
+  // gives way and ellipses -- so the line cannot come to rest on a
+  // half-drawn capsule, which is the whole reason the chips went.
+  it("makes the last control give way rather than scroll", () => {
+    expect(css).toContain(".hdr-controls > *:last-child { flex: 0 1 auto; min-width: 0; }");
+    expect(css).toMatch(/\.hdr-controls \{[\s\S]{0,200}?overflow-x: auto;/);
+  });
+
+  // Words, not the eyebrow .dd draws by default: three or four of these sit
+  // where a sentence used to. The view leads in the page's ink, the cuts are
+  // quiet, so the line says at a glance whether anything is narrowing it.
+  it("reads as words, with the view leading", () => {
+    expect(css).toMatch(/\.hdr-controls \.dd \{[\s\S]{0,200}?text-transform: none;/);
+    expect(css).toMatch(/\.hdr-controls \.dd \{[\s\S]{0,240}?color: var\(--tx-2\);/);
+    expect(css).toContain(".hdr-controls .dd.dd-lead { font-weight: var(--w-semi); color: var(--tx-1); }");
+  });
+
+  // AND THE VIEWS GOT THEIR LIST BACK. Every view each page has, with its
+  // count, which no chip row ever managed.
+  it("gives every view back, counts and all", () => {
+    const hdr = read("shared/LifeHeader.tsx");
+    expect(hdr, "a view may carry a count again").toMatch(/export interface HeaderView \{[\s\S]{0,600}?count\?: number;/);
+    expect(read("tasks/screens/TasksPage.tsx"), "Tasks offers all seven")
+      .toContain("const views: HeaderView[] = FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] || undefined }));");
+    expect(read("tasks/screens/RemindersPage.tsx"), "Reminders' Done is back")
+      .toContain("const views: HeaderView[] = PAGE_TABS.map((t) => ({ key: t.key, label: t.label }));");
+    const bpp = read("bigger/BiggerPicturePage.tsx");
+    expect(bpp.slice(bpp.indexOf("const PROJECT_VIEWS"), bpp.indexOf("const GOAL_VIEWS")), "Projects' Done is back")
+      .toContain('key: "done"');
+    const notes = read("notes/screens/NotesList.tsx");
+    expect(notes, "Archived and Recently Deleted were always views of this library")
+      .toMatch(/views=\{\[[\s\S]*?key: "archived"[\s\S]*?key: "deleted"[\s\S]*?\]\}/);
+    // And the options sheets stop holding views they never should have.
+    for (const f of ["tasks/screens/TasksPage.tsx", "notes/screens/NotesList.tsx"]) {
       const src = read(f);
-      for (const m of src.matchAll(/HeaderView\[\] = \[([\s\S]*?)\n\s*\];/g)) {
-        const body = m[1] ?? "";
-        const keys = [...body.matchAll(/key: "/g)].length;
-        expect(keys, f + " puts more than three chips in a row that fits three").toBeLessThanOrEqual(3);
-        expect(body, f + " puts a count back on a chip").not.toMatch(/count:/);
-      }
+      expect(src.slice(src.indexOf("<OptionsSheet")), f + " still keeps a view in its sheet")
+        .not.toMatch(/key: "(done|archived|deleted)"/);
     }
-    const hdr = read("shared/LifeHeader.tsx");
-    expect(hdr, "and the type forbids one").toMatch(/export interface HeaderView \{\s*key: string;\s*label: string;\s*\}/);
   });
 
-  it("has no second control sharing its line", () => {
-    const hdr = read("shared/LifeHeader.tsx");
-    expect(hdr, "the chip row is the whole line").toMatch(/<div className="chip-row hdr-chips" role="tablist" aria-label="Views">/);
-    expect(hdr, "nothing is pinned beside it").not.toMatch(/hdr-chip-line|hdr-menu/);
+  // A label too long for a line that also carries the cuts says the short
+  // word closed and the whole one in the panel, where the choosing happens.
+  it("lets a long view name wear a shorter one while closed", () => {
+    expect(read("shared/LifeHeader.tsx")).toContain('label={views.find((v) => v.key === view)?.short}');
+    expect(read("notes/screens/NotesList.tsx")).toContain('label: "Recently Deleted", short: "Deleted"');
   });
 });
 
@@ -238,99 +284,81 @@ describe("the category cut is findable, not merely reachable", () => {
   // that shrank for no reason (handoff rule 7: "do not leave users wondering
   // why records disappeared"). So a page that is cutting by area says so,
   // under the chips, with one tap to undo it.
-  it("names itself on the page whenever it is actually cutting", () => {
-    // The Area capsule states its own answer, so the line under it is for
-    // the views that have no control on the page at all: Done, Overdue,
-    // From Email, Archived, Recently Deleted.
-    for (const f of WITH_AREAS) {
-      expect(read(f), f + " filters silently").toMatch(/filters=\{/);
+  it("names itself on the line, whether or not it is cutting", () => {
+    // The capsule IS the indication (handoff rule 7: "do not leave users
+    // wondering why records disappeared"). Unset it names the control --
+    // "Area", one word, on a line that also carries the view -- and set it
+    // wears the area's name and its dot. So a page that is cutting says so
+    // without a second line, which is what let the second line go.
+    for (const f of [...WITH_AREAS, "tasks/screens/RemindersPage.tsx"]) {
+      expect(read(f), f + " does not name the control while nothing is picked")
+        .toMatch(/label=\{[^}]*"Area"/);
     }
     const hdr = read("shared/LifeHeader.tsx");
-    expect(hdr, "the line appears only when something is narrowing")
+    expect(hdr, "the line under it survives for a page with no control at all")
       .toContain("{!scope && filters && (");
-    expect(hdr, "and clears it in one tap").toContain('<button type="button" className="hdr-scope-all" onClick={filters.onClear}>Clear</button>');
+    expect(hdr).toContain('<button type="button" className="hdr-scope-all" onClick={filters.onClear}>Clear</button>');
   });
 });
 
 // ---------------------------------------------------------------------------
 // DAVE, 2026-09-17, on the fix for the sliding chips: "Get rid of done. Make
 // multiple dropdown chips like areas in the most logical way possible. Stack
-// dropdowns next to each other."
+// dropdowns next to each other." Then 2026-09-18, on the two rows that made:
+// "everything is on one row directly across."
 //
-// Two shapes, two lines, and each shape does the job it is good at.
+// One shape, one line, on all five pages.
 // ---------------------------------------------------------------------------
-describe("a chip picks, a dropdown holds a list", () => {
-  const PAGES_WITH_DROPS = [
+describe("every page wears the same one line", () => {
+  const PAGES_WITH_CUTS = [
     "tasks/screens/TasksPage.tsx",
     "tasks/screens/RemindersPage.tsx",
     "notes/screens/NotesList.tsx",
     "bigger/BiggerPicturePage.tsx",
   ];
 
-  it("gives the dropdowns a line of their own, under the chips", () => {
-    const hdr = read("shared/LifeHeader.tsx");
-    expect(hdr, "the header reserves the line and spaces it").toContain('{drops && <div className="hdr-drops">{drops}</div>}');
-    const css = read("styles/components.css");
-    expect(css, "they sit next to each other, left to right").toMatch(/\.hdr-drops \{[\s\S]{0,140}?display: flex;/);
-    // Not a second row of chips: the eyebrow's uppercase and letter-spacing
-    // come off, and they wear the quiet ink rather than a view's white pill.
-    expect(css).toMatch(/\.hdr-drops \.dd \{[\s\S]{0,200}?text-transform: none;/);
-    expect(css).toMatch(/\.hdr-drops \.dd \{[\s\S]{0,240}?color: var\(--tx-2\);/);
-  });
-
-  it("puts every non-view cut there, on every page that has one", () => {
-    for (const f of PAGES_WITH_DROPS) {
-      expect(read(f), f + " has no dropdown line").toMatch(/drops=\{/);
-    }
-    // And nothing that IS a view: a workflow state is a chip.
-    for (const f of PAGES_WITH_DROPS) {
+  it("puts every non-view cut on it, on every page that has one", () => {
+    for (const f of PAGES_WITH_CUTS) {
       const src = read(f);
-      const drops = src.slice(src.indexOf("drops={"), src.indexOf("drops={") + 1400);
-      expect(drops, f + " has a dropdown naming none of the three cuts")
+      expect(src, f + " has no cuts on its control line").toMatch(/drops=\{/);
+      const drops = src.slice(src.indexOf("drops={"), src.indexOf("drops={") + 1600);
+      expect(drops, f + " has a cut naming none of the three axes")
         .toMatch(/ariaLabel="(Area|Group by|Tag)"/);
-      expect(drops, f + " put a view in the dropdown line").not.toMatch(/ariaLabel="View"/);
+      // A workflow state is a VIEW, and views are the one menu that leads.
+      expect(drops, f + " put a view among the cuts").not.toMatch(/ariaLabel="View"/);
     }
   });
 
-  // THE FINISHED PILE IS NOT A CHIP. It is the view you open least and it was
-  // holding a slot on the line you touch most. Every page keeps it one tap
-  // away, in the same options sheet, and the line under the chips names it
-  // while it is on so the list is never quietly shorter than expected.
-  it("takes Done off every chip row and leaves it reachable", () => {
-    const tasks = read("tasks/screens/TasksPage.tsx");
-    expect(tasks).toContain('const LEAD_FILTERS: TaskFilter[] = ["today", "upcoming", "all"];');
-    expect(tasks, "and it lands in the sheet with its count").toMatch(/MORE_FILTERS\.map[\s\S]{0,160}?count: counts\[f\]/);
-
-    const rem = read("tasks/screens/RemindersPage.tsx");
-    expect(rem).toContain('const CHIP_TABS = PAGE_TABS.filter((t) => t.key !== "done");');
-    expect(rem.slice(rem.indexOf("<OptionsSheet")), "Reminders keeps Done in its sheet").toContain('key: "done"');
-
-    const bpp = read("bigger/BiggerPicturePage.tsx");
-    const pv = bpp.slice(bpp.indexOf("const PROJECT_VIEWS"), bpp.indexOf("const GOAL_VIEWS"));
-    expect(pv, "Projects' Done came off the row too").not.toContain('key: "done"');
-    expect(bpp.slice(bpp.indexOf("<OptionsSheet")), "and into the sheet").toContain('key: "done"');
+  it("leaves no page with a chip row of any length", () => {
+    for (const [f] of PAGES) {
+      expect(read(f), f + " still draws view chips").not.toMatch(/className="chip-row|hdr-chips/);
+    }
   });
 
-  it("leaves no chip row longer than three", () => {
-    for (const [f] of PAGES) {
+  it("keeps the options sheet for tools, not for views", () => {
+    // Select, Import, Upload a Syllabus, Reminder Settings, Show Everything:
+    // things that DO something. Every view moved into the menu, and the two
+    // HeadMenus that were briefly rows here are on the line (2026-09-18).
+    for (const f of PAGES_WITH_CUTS) {
       const src = read(f);
-      for (const m of src.matchAll(/HeaderView\[\] = \[([\s\S]*?)\n\s*\];/g)) {
-        const keys = [...(m[1] ?? "").matchAll(/key: "/g)].length;
-        expect(keys, f + " has a chip row longer than three").toBeLessThanOrEqual(3);
-      }
+      const sheet = src.slice(src.indexOf("<OptionsSheet"));
+      expect(sheet, f + " keeps a menu in its sheet").not.toMatch(/<HeadMenu/);
     }
   });
 });
 
-describe("the set of chips does not depend on the data", () => {
+describe("the set of views does not depend on the data", () => {
   // It did for one deploy: the four standard views plus whichever else had a
   // count. A row whose length changes with the inbox fits on a quiet Tuesday
   // and overflows on a busy one, which is the worst version -- it breaks
-  // only sometimes. Four, fixed, on every page (2026-09-17).
-  it("keeps the four standard views and nothing conditional", () => {
+  // only sometimes. The menu ended the question: every view, always, because
+  // its length costs the line nothing (2026-09-18).
+  it("offers every view a page has, never a subset chosen by counts", () => {
     const page = read("tasks/screens/TasksPage.tsx");
-    expect(page).not.toMatch(/\.filter\(\(f\) => LEAD_FILTERS\.includes\(f\) \|\| counts\[f\] > 0 \|\| f === filter\)/);
-    expect(page).toMatch(/const views: HeaderView\[\] = LEAD_FILTERS\.map\(\(f\) => \(\{ key: f, label: FILTER_LABEL\[f\] \}\)\);/);
+    expect(page).not.toMatch(/counts\[f\] > 0 \|\| f === filter/);
+    expect(page).toMatch(/const views: HeaderView\[\] = FILTERS\.map\(/);
+    // A count of zero is not drawn: the view still stands, quietly.
+    expect(page).toContain("count: counts[f] || undefined");
   });
 });
 
@@ -353,24 +381,26 @@ describe("two containers are two containers", () => {
 // ---------------------------------------------------------------------------
 // DAVE, 2026-09-17, on the live header again.
 // ---------------------------------------------------------------------------
-describe("the chip row owns its own line", () => {
+describe("the control line owns its own gap", () => {
   // "Area is too high up. Align it with the rest of the chips." Measured at
   // phone width: the pinned capsule's centre sat 10px above the chips'. Both
   // causes were height one child had and the other did not -- .chip-row's
   // 8px of padding, and a 13px margin on the chips alone, which align-items
-  // centres against. There is nothing beside the chips now, so the gap is
-  // simply theirs and the padding stays off.
+  // centres against. There is one line of one kind of control now, so the
+  // 13px is simply the line's and nothing can be misaligned against it.
   const css = read("styles/components.css");
 
-  it("gives the chip row no padding of its own, so its box IS its chips", () => {
-    expect(css).toContain(".hdr-chips { padding-top: 0; padding-bottom: 0;");
+  it("carries the 13px itself, with no wrapper left to hold it", () => {
+    expect(css).toMatch(/\.hdr-controls \{[\s\S]{0,200}?margin-top: 13px;/);
+    expect(css, "the wrapper the pinned capsule needed is gone with it").not.toContain(".hdr-chip-line");
+    expect(css, "and so is the second line").not.toContain(".hdr-drops");
   });
 
-  it("carries the 13px itself, with no line wrapper left to hold it", () => {
-    expect(css).toContain(".hdr-chips { margin-top: 13px; }");
-    expect(css, "the wrapper the capsule needed is gone with it").not.toContain(".hdr-chip-line");
+  it("still gives the content below it 24px", () => {
+    expect(css).toContain(".life-hdr { padding-bottom: 24px; }");
   });
 });
+
 
 describe("A Place to Begin is about the list it sits on", () => {
   // "the huge start now container is the same for all of the pages. Like

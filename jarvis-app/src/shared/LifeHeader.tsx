@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { Plus, Search, SlidersHorizontal, X } from "./icons";
+import HeadMenu from "./HeadMenu";
 
 // ONE HEADER, FIVE PAGES (Dave 2026-09-17, the Unified Headers handoff:
 // "unify the headers of Tasks, Reminders, Notes, Projects and Goals using the
@@ -34,19 +35,25 @@ import { Plus, Search, SlidersHorizontal, X } from "./icons";
 // lands on the number and the literal only where nothing does. Touch targets
 // stay at 44px even where a chip draws smaller.
 
-/** One view chip. A LABEL AND NOTHING ELSE (2026-09-17, measured).
+/** One view. A LABEL, AND A COUNT WHEN THE PAGE HAS ONE (2026-09-18).
  *
- *  It carried a count for one day. Four chips with counts measure 458px of
- *  content at phone width in a 321px row, so the row had to scroll, and a
- *  scrolling row of large filled pills cuts one of them in half at every
- *  resting position -- which is what Dave was looking at when he said "this
- *  is simply not going to work". Without counts the same four measure 335px
- *  and the row does not scroll at all.
- *
- *  The approved mockups never had counts on these chips. They were mine. */
+ *  It was a chip for a day. Chips carry their whole list on the screen, so
+ *  the list has to be short enough to fit: four with counts measured 458px
+ *  of content in a 361px row, four without measured 351, and there was never
+ *  room beside them for the Area control the same page needs. A menu carries
+ *  one capsule and hands the rest to a panel, so every view can come back --
+ *  Overdue, Daily, From Email, Done -- with the counts the chips could not
+ *  afford. */
 export interface HeaderView {
   key: string;
   label: string;
+  /** Drawn inside the menu, beside its option. Never a zero. */
+  count?: number;
+  /** WHAT THE CLOSED CAPSULE SAYS, when the full label is too long for a
+   *  line that also carries the page's cuts. Notes' "Recently Deleted" is
+   *  16 characters and pushed the line 17px past a 393px screen; the panel
+   *  still names it in full, because that is where the choosing happens. */
+  short?: string;
 }
 
 /** WHAT THE SEARCH IS ACTUALLY SEARCHING (handoff rule 4: "Search must have a
@@ -96,20 +103,15 @@ export default function LifeHeader({
   views: HeaderView[];
   view: string;
   onView: (key: string) => void;
-  /** THE CUTS THAT ARE NOT VIEWS, STACKED ON THEIR OWN LINE (Dave
-   *  2026-09-17: "Make multiple dropdown chips like areas in the most
-   *  logical way possible. Stack dropdowns next to each other").
+  /** THE CUTS THAT ARE NOT THE VIEW (Dave 2026-09-17: "Make multiple
+   *  dropdown chips like areas in the most logical way possible. Stack
+   *  dropdowns next to each other"; 2026-09-18: "everything is on one row
+   *  directly across").
    *
-   *  Area, Group, Tag. A chip PICKS one of a fixed few; a dropdown holds a
-   *  list that grows with the data, and states its own answer while closed.
-   *  Two different jobs, so two different shapes, on two different lines --
-   *  which is also the only arrangement that fits: one Area capsule beside
-   *  four chips overflows a 361px row by 60px (measured), and beside three
-   *  it still overflows by 6px.
-   *
-   *  A page passes its own HeadMenus; this reserves the line and spaces
-   *  them. A page with no areas and nothing to group passes nothing and the
-   *  line does not exist. */
+   *  Area, Group, Tag, after the view on the same line. A page passes its
+   *  own HeadMenus rather than a description of them -- moving a control is
+   *  not the same as rebuilding it -- and a page with nothing to cut by
+   *  passes nothing. */
   drops?: ReactNode;
   /** Present only while a local search is running. */
   scope?: SearchScope;
@@ -160,31 +162,33 @@ export default function LifeHeader({
           <span>Add</span>
         </button>
       </div>
-      {/* ONE ROW THAT FITS (2026-09-17). The handoff asked for one
-          horizontally scrollable row, and scrolling is what broke: at every
-          resting position a large filled pill was cut in half by the screen
-          edge. A row that fits needs no scroll and cuts nothing, which is
-          why the chips carry no counts and why a page puts at most three
-          here -- measured, not estimated.
-          THREE, NOT FOUR (Dave, same day: "Get rid of done"). The finished
-          view is the one you visit least and it was holding a slot on the
-          line you touch most; it is a row in the options sheet with its
-          count, and the line below names it while it is on. */}
-      <div className="chip-row hdr-chips" role="tablist" aria-label="Views">
-        {views.map((v) => (
-          <button
-            key={v.key}
-            type="button"
-            role="tab"
-            aria-selected={v.key === view}
-            className={"chip" + (v.key === view ? " active" : "")}
-            onClick={() => { if (v.key !== view) onView(v.key); }}
-          >
-            {v.label}
-          </button>
-        ))}
+      {/* ONE LINE ACROSS (Dave 2026-09-18, on a header wearing two rows:
+          "All of these chips that are on the second row should be on the
+          first row... It should be one line across on every single page. If
+          you drop down, make the chips drop down so everything is on one row
+          directly across").
+
+          He is right that each row looked half empty, and right that they
+          cannot simply be joined: three view chips and two capsules measure
+          522px of content in a 361px row. One shape wins, and the menu is
+          the one that scales -- a chip must fit its whole list on the
+          screen, a menu need only fit its answer.
+
+          So: the view, then the page's own cuts, left to right, all of them
+          capsules, all of them on this line. Nothing scrolls at an ordinary
+          size, nothing is cut in half, and every view the page has is back
+          with its count beside it. */}
+      <div className="hdr-controls">
+        <HeadMenu
+          lead
+          ariaLabel="View"
+          value={view}
+          label={views.find((v) => v.key === view)?.short}
+          options={views.map((v) => ({ value: v.key, label: v.label, count: v.count }))}
+          onPick={onView}
+        />
+        {drops}
       </div>
-      {drops && <div className="hdr-drops">{drops}</div>}
       {!scope && filters && (
         <div className="hdr-scope">
           <span className="hdr-scope-n">{filters.label}</span>

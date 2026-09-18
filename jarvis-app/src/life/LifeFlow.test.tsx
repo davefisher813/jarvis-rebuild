@@ -218,14 +218,12 @@ describe("a task link is spent once (SHELL-F-12)", () => {
     await waitFor(() => expect(rows().length).toBeGreaterThan(0), { timeout: 3000 });
     fireEvent.click(screen.getByText("Link Task"));
     await waitFor(() => expect(screen.getByText("Edit Task")).toBeInTheDocument());
-    // AMENDED 2026-09-17 (Unified Headers), then again the same day when the
-    // chip row was cut to four labels that fit. Overdue is not a chip any
-    // more, so the thing that names the filter a link asked for is the line
-    // under the chips -- which is exactly the job that line exists for. What
+    // AMENDED 2026-09-17 (Unified Headers), then 2026-09-18 when the views
+    // became one menu on the header's single control line. The capsule
+    // states the view, so it is what names the filter a link asked for. What
     // this test is about -- a link is spent once -- is unchanged.
-    const views = () => within(screen.getByRole("tablist", { name: "Views" }));
-    const narrowing = () => document.querySelector(".hdr-scope-n")?.textContent ?? "";
-    expect(narrowing(), "the list says it is cut to Overdue").toContain("Overdue");
+    const view = () => screen.getByLabelText("View");
+    expect(view(), "the header says it is on Overdue").toHaveTextContent("Overdue");
 
     fireEvent.click(screen.getByText("Cancel"));
     await waitFor(() => expect(screen.queryByText("Edit Task")).not.toBeInTheDocument());
@@ -237,10 +235,8 @@ describe("a task link is spent once (SHELL-F-12)", () => {
     await waitFor(() => expect(rows().length).toBeGreaterThan(0), { timeout: 3000 });
 
     expect(screen.queryByText("Edit Task")).not.toBeInTheDocument();
-    // And the filter is the list's own default, not the one that link carried:
-    // a standing chip again, with nothing left narrowing the list.
-    expect(views().getByRole("tab", { selected: true })).toHaveTextContent("Today");
-    expect(narrowing(), "and nothing is cutting it any more").toBe("");
+    // And the filter is the list's own default, not the one that link carried.
+    expect(view()).toHaveTextContent("Today");
   });
 });
 

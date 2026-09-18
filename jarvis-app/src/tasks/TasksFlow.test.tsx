@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
 import { useEffect, useState } from "react";
-import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useTasks, useCategories, useNotes, usePeople } from "../data/NotesProvider";
 import type { TasksService } from "./TasksService";
@@ -261,6 +261,12 @@ function TwoViews() {
   return ready ? <TasksFlow /> : null;
 }
 
+/** The views are one menu now (2026-09-18): open it, pick the option. */
+const pickView = (name: RegExp) => {
+  fireEvent.click(screen.getByLabelText("View"));
+  fireEvent.click(screen.getByRole("menuitemradio", { name }));
+};
+
 describe("A Place to Begin picks out of the view you are looking at", () => {
   it("proposes a task from the chosen view, not one from somewhere else", async () => {
     twoSvc = null;
@@ -271,7 +277,7 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
     await waitFor(() => expect(cardName()).toContain("Set up everything on jarvis"), { timeout: 4000 });
 
     // Upcoming holds the other one. The card follows.
-    fireEvent.click(screen.getByRole("tab", { name: /Upcoming/ }));
+    pickView(/Upcoming/);
     await waitFor(() => expect(cardName()).toContain("Book the Bridge venue"), { timeout: 4000 });
     expect(cardName(), "the card is about the list it is sitting on").not.toContain("jarvis");
     void twoSvc;
@@ -283,11 +289,10 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
     render(<NotesProvider userId="start-per-view-3"><TwoViews /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("A Place to Begin")).toBeInTheDocument(), { timeout: 4000 });
     const cardName = () => document.querySelector(".start-top-name")?.textContent ?? "";
-    // From Email is a row in the options sheet since the chip row was cut to
-    // the four labels that fit (2026-09-17). Still a view, still the one
-    // Dave was looking at; reached one tap further along.
-    fireEvent.click(screen.getByLabelText("Tasks Options"));
-    fireEvent.click(await screen.findByText("From Email"));
+    // The views are one menu as of 2026-09-18, so From Email is back beside
+    // the rest instead of living in the options sheet. Still the same view,
+    // still the one Dave was looking at.
+    pickView(/From Email/);
     await waitFor(() => expect(cardName()).toContain("Get back to Google"), { timeout: 4000 });
     expect(cardName(), "setting up Jarvis has nothing to do with emails").not.toContain("jarvis");
   });
@@ -299,11 +304,7 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
     await waitFor(() => expect(screen.getByText("A Place to Begin")).toBeInTheDocument(), { timeout: 4000 });
     // Done is a row in the options sheet since it came off the chip row
     // (2026-09-17, "Get rid of done").
-    fireEvent.click(screen.getByLabelText("Tasks Options"));
-    // Scoped to the sheet: the sheet's own Done button closes it, and the
-    // page under it has a Done of its own.
-    const sheet = await waitFor(() => document.querySelector(".sheet-scrim")!);
-    fireEvent.click(within(sheet as HTMLElement).getByText("Done", { selector: ".conn-name" }));
+    pickView(/^Done/);
     await waitFor(() => expect(screen.queryByText("A Place to Begin")).toBeNull(), { timeout: 4000 });
   });
 });

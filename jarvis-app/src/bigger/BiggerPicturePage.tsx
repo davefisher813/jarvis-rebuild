@@ -415,15 +415,16 @@ export default function BiggerPicturePage({
    *  back, in place of the folded receipt at the foot. */
   const viewGoals = (view === "achieved" ? doneGoals : view === "all" ? [...liveGoals, ...doneGoals] : liveGoals)
     .filter((g) => hit(g.data.title) && inArea(homeOf(g)));
-  // Three labels, no counts: the row fits at phone width and does not scroll
-  // (2026-09-17, measured). A state with nothing in it is still where you
-  // look, so these stand whatever they hold. Done came off the row the same
-  // day ("Get rid of done") and is a row in the options sheet: the finished
-  // pile is the one you open least, and it was holding a slot on the line
-  // you touch most.
+  // The four states a project can be looked at in. They were a chip row, then
+  // three of them when Done came off it, and they are a menu as of
+  // 2026-09-18 ("If you drop down, make the chips drop down so everything is
+  // on one row directly across") -- so Done is back, because a menu's list
+  // costs the line nothing. A state with nothing in it is still where you
+  // look, so these stand whatever they hold.
   const PROJECT_VIEWS: HeaderView[] = [
     { key: "active", label: "Active" },
     { key: "on_hold", label: "On Hold" },
+    { key: "done", label: "Done" },
     { key: "all", label: "All" },
   ];
   const GOAL_VIEWS: HeaderView[] = [
@@ -469,16 +470,12 @@ export default function BiggerPicturePage({
               <HeadMenu
                 ariaLabel="Area"
                 value={areaOnly ?? "all"}
-                label={areaOnly ? undefined : "All Areas"}
+                label={areaOnly ? undefined : "Area"}
                 options={[{ value: "all", label: "All Areas" }, ...sections.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
                 onPick={(v) => setAreaOnly(v === "all" ? null : v)}
               />
             ) : undefined}
-            // What is narrowing the list, when something is (handoff rule 7).
-            // The area is not in here: its dropdown states its own answer.
-            filters={projectsLens && view === "done" ? {
-              label: "Done", onClear: () => setView("active"),
-            } : undefined}
+
           >
             {segments}
           </LifeHeader>
@@ -575,10 +572,6 @@ export default function BiggerPicturePage({
             row, and the one control that puts everything back. */}
         {optsOpen && (
           <OptionsSheet title={projectsLens ? "Projects Options" : "Goals Options"} rows={[
-            ...(projectsLens ? [{
-              key: "done", label: "Done",
-              onClick: () => { setOptsOpen(false); setView("done"); },
-            }] : []),
             { key: "all", label: "Show Everything", onClick: () => { setOptsOpen(false); setView("all"); setAreaOnly(null); } },
           ]} onClose={() => setOptsOpen(false)} />
         )}

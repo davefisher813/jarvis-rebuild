@@ -204,14 +204,13 @@ export default function RemindersPage({
   // field and a compact, labeled Add control." A full-width red primary on
   // every visit, a Search button that revealed a field, and a chip row that
   // WRAPPED. The views, their meanings and their order are untouched --
-  // Today, Upcoming and Routines are the PAGE_TABS they were; Done came off
-  // the row on 2026-09-17 ("Get rid of done") and is a row in the options
-  // sheet, named on the line under the chips while it is on -- the view you
-  // open least was holding a slot on the line you touch most.
-  const CHIP_TABS = PAGE_TABS.filter((t) => t.key !== "done");
-  const views: HeaderView[] = CHIP_TABS.map((t) => ({ key: t.key, label: t.label }));
+  // Today, Upcoming, Routines and Done are exactly the PAGE_TABS they were.
+  // Done came off the chip row on 2026-09-17 ("Get rid of done") and is back
+  // on 2026-09-18, because the views are a menu now: a menu shows one answer
+  // and hands the list to a panel, so the view you open least costs the line
+  // nothing at all.
+  const views: HeaderView[] = PAGE_TABS.map((t) => ({ key: t.key, label: t.label }));
   const areaIds = [...new Set(sections.flatMap((s) => s.rows.map((r) => r.category)).filter((c): c is string => !!c))];
-  const offRow = CHIP_TABS.some((t) => t.key === tab) ? undefined : PAGE_TABS.find((t) => t.key === tab)?.label;
   // The area composes with the view: it cuts the rows the view already chose,
   // and a section left with none of them is not drawn at all.
   const shownSections = area
@@ -236,12 +235,11 @@ export default function RemindersPage({
         <HeadMenu
           ariaLabel="Area"
           value={area ?? "all"}
-          label={area ? undefined : "All Areas"}
+          label={area ? undefined : "Area"}
           options={[{ value: "all", label: "All Areas" }, ...areaIds.map((id) => ({ value: id, label: catName(id) || "Area", dot: catColor(id) }))]}
           onPick={(v) => setArea(v === "all" ? null : v)}
         />
       ) : undefined}
-      filters={offRow ? { label: offRow, onClear: () => onTab("today") } : undefined}
     >
       {chrome.segments}
     </LifeHeader>
@@ -286,9 +284,6 @@ export default function RemindersPage({
           options sheet all five pages share (handoff rule 7). */}
       {optsOpen && (
         <OptionsSheet title="Reminders Options" rows={[
-          // The view that came off the chip row (2026-09-17). Still a view,
-          // one tap away, named on the line under the chips while it is on.
-          { key: "done", label: "Done", onClick: () => { setOptsOpen(false); onTab("done"); } },
           { key: "settings", label: "Reminder Settings", onClick: () => { setOptsOpen(false); onSettings(); } },
         ]} onClose={() => setOptsOpen(false)} />
       )}

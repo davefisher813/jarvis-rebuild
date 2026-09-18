@@ -66,37 +66,66 @@ describe("Add", () => {
   });
 });
 
-describe("the view chips", () => {
-  it("are one row of tabs, the selected one said out loud", () => {
-    hdr();
-    const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Today", "Upcoming", "All"]);
-    expect(tabs[0]).toHaveAttribute("aria-selected", "true");
-    expect(tabs[0]).toHaveClass("active");
+describe("the view menu", () => {
+  // AMENDED 2026-09-18 (Dave, on a header wearing two rows: "It should be one
+  // line across on every single page. If you drop down, make the chips drop
+  // down so everything is on one row directly across").
+  //
+  // The views were a chip row for a day. A chip row has to fit its WHOLE list
+  // on the screen, which is why it lost its counts (four with them: 458px of
+  // content in a 361px row), then lost Done, and still left no room for the
+  // Area control the same pages need. A menu shows its answer and hands the
+  // list to a panel, so it costs the line one capsule whatever it holds.
+  it("is one capsule stating the current view, on the header's one control line", () => {
+    const { container } = hdr();
+    const line = container.querySelector(".hdr-controls")!;
+    const dd = line.querySelector('.dd[aria-label="View"]')!;
+    expect(dd).toHaveTextContent("Today");
+    expect(dd, "the view leads the line").toHaveClass("dd-lead");
+    expect(container.querySelector(".hdr-chips"), "no chip row any more").toBeNull();
     cleanup();
   });
 
-  // AMENDED 2026-09-17 (Dave: "Look at what happens to the chips when they
-  // slide"). A chip is a label and nothing else. Four chips with counts
-  // measure 458px of content at phone width in a 361px row, so the row had to
-  // scroll, and a scrolling row of large filled pills is cut in half at every
-  // resting position. Without counts the same four measure 335 and the row
-  // does not scroll. The approved mockups never had counts here.
-  it("carries a label and nothing else, so the row fits without scrolling", () => {
-    hdr();
-    for (const t of screen.getAllByRole("tab")) {
-      expect(t.textContent, "a count would push the row into a scroll").toMatch(/^[A-Za-z ]+$/);
-    }
+  it("holds every view, with the counts a chip could not afford", () => {
+    hdr({ views: [
+      { key: "today", label: "Today", count: 4 },
+      { key: "upcoming", label: "Upcoming", count: 9 },
+      { key: "done", label: "Done", count: 40 },
+    ] });
+    fireEvent.click(screen.getByLabelText("View"));
+    const items = screen.getAllByRole("menuitemradio");
+    expect(items.map((i) => i.textContent)).toEqual(["Today4", "Upcoming9", "Done40"]);
+    expect(items[0]).toHaveAttribute("aria-checked", "true");
     cleanup();
   });
 
-  it("reports a change, and says nothing when the selected one is tapped", () => {
+  // A label too long for the line says the short word closed and the whole
+  // one in the panel, where the choosing happens.
+  it("lets a long view name wear a shorter one while closed", () => {
+    hdr({ views: [{ key: "deleted", label: "Recently Deleted", short: "Deleted" }], view: "deleted" });
+    expect(screen.getByLabelText("View")).toHaveTextContent("Deleted");
+    fireEvent.click(screen.getByLabelText("View"));
+    expect(screen.getByRole("menuitemradio", { name: "Recently Deleted" })).toBeInTheDocument();
+    cleanup();
+  });
+
+  it("reports a change, and says nothing when the selected one is picked", () => {
     const onView = vi.fn();
     hdr({ onView });
-    fireEvent.click(screen.getByRole("tab", { name: /Upcoming/ }));
+    fireEvent.click(screen.getByLabelText("View"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Upcoming" }));
     expect(onView).toHaveBeenCalledWith("upcoming");
-    fireEvent.click(screen.getByRole("tab", { name: /Today/ }));
+    fireEvent.click(screen.getByLabelText("View"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Today" }));
     expect(onView).toHaveBeenCalledTimes(1);
+    cleanup();
+  });
+
+  // THE WHOLE POINT OF THE CHANGE: the cuts share the view's line.
+  it("puts the page's own cuts on the same line, after it", () => {
+    const { container } = hdr({ drops: <button type="button" className="dd" aria-label="Area">Area</button> });
+    const line = [...container.querySelectorAll(".hdr-controls > *")];
+    expect(line.map((e) => e.getAttribute("aria-label"))).toEqual(["View", "Area"]);
     cleanup();
   });
 });

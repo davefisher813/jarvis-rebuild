@@ -27,23 +27,23 @@ function page(tab: PageTab, extra: Partial<Parameters<typeof RemindersPage>[0]> 
 }
 
 describe("RemindersPage", () => {
-  it("wears the date and the title, and the three views as chips, never a second tab bar (2026-09-15)", () => {
+  it("wears the date and the title, and the four views in one menu, never a second tab bar (2026-09-15)", () => {
     const onTab = vi.fn();
     page("today", { onTab });
     expect(screen.getByText(/September 15/)).toBeInTheDocument();
     expect(screen.queryByText("On Your Radar")).not.toBeInTheDocument();
     expect(screen.queryByText("Take the Next Step")).not.toBeInTheDocument();
-    // AMENDED 2026-09-17 (Unified Headers), then again the same day (Dave:
-    // "Get rid of done"). The views, their meanings and their order are
-    // untouched; they sit in the shared header's one row now rather than a
-    // wrapping one, and Done is a row in the options sheet -- the view you
-    // open least was holding a slot on the line you touch most.
-    const chips = document.querySelectorAll(".hdr-chips .chip");
-    expect([...chips].map((c) => c.textContent)).toEqual(["Today", "Upcoming", "Routines"]);
-    expect(chips[0]).toHaveAttribute("aria-selected", "true");
-    expect(chips[1]).toHaveAttribute("aria-selected", "false");
+    // AMENDED 2026-09-17 (Unified Headers), then 2026-09-18 (Dave: "If you
+    // drop down, make the chips drop down so everything is on one row
+    // directly across"). The views, their meanings and their order are
+    // untouched; they sit in one capsule on the shared header's single
+    // control line, with the Area cut beside them.
+    expect(screen.getByLabelText("View")).toHaveTextContent("Today");
     expect(document.querySelector(".chip-wrap-row")).toBeNull();
-    fireEvent.click(screen.getByText("Upcoming"));
+    fireEvent.click(screen.getByLabelText("View"));
+    expect(screen.getAllByRole("menuitemradio").map((i) => i.textContent))
+      .toEqual(["Today", "Upcoming", "Routines", "Done"]);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Upcoming" }));
     expect(onTab).toHaveBeenCalledWith("upcoming");
     // The handoff's own named example: "Replace the large red New Reminder
     // button and separate Search button with a visible search field and a

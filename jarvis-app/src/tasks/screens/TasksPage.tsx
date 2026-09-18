@@ -733,38 +733,21 @@ export default function TasksPage({
   const q = query.trim().toLowerCase();
   const shown = q ? items.filter((it) => it.data.text.toLowerCase().includes(q)) : items;
   const sel = useSelection(shown.map((i) => i.id));
-  /** THE VIEW CHIPS (handoff: "Tasks -- Today, Upcoming, All, Done").
+  /** EVERY VIEW, IN ONE MENU, WITH ITS COUNT (Dave 2026-09-18: "If you drop
+   *  down, make the chips drop down so everything is on one row directly
+   *  across").
    *
-   *  Those four lead, in the mockup's order. Overdue, Daily and From Email
-   *  follow them in the same scrolling row rather than being dropped: they
-   *  are existing views with existing definitions, From Email is one Dave
-   *  asked for by name on 2026-09-13, and rule 2 of this same handoff says
-   *  "Preserve the existing definitions and do not reclassify data for
-   *  visual consistency". One row, no wrapping, nothing lost. */
-  /** THREE CHIPS, FIXED (Dave 2026-09-17: "Look at what happens to the chips
-   *  when they slide. This is simply not going to work. Either trim the
-   *  amount down, use a dropdown"; then, on the fix: "Get rid of done").
+   *  The handoff's four led a chip row; Overdue, Daily and From Email lived
+   *  in the options sheet because the row could not hold seven, and Done
+   *  came off it too when the Area control needed the line. A menu has no
+   *  such budget: it shows one answer and hands the list to a panel. So all
+   *  seven are back, in the handoff's order, each saying how many it holds --
+   *  which the chips never did.
    *
-   *  Measured at 393px: the row has 361px, four labelled chips need 351. Add
-   *  a fifth, a count, or a control beside them and the row has to scroll --
-   *  and a scrolling row of large filled pills is cut in half at every
-   *  resting position, which is the thing he was looking at.
-   *
-   *  Done went because it is the view you open least holding a slot on the
-   *  line you touch most. It is a row in the options sheet with its count,
-   *  like Overdue, Daily and From Email, and the line under the chips names
-   *  it while it is on. Nothing was dropped; four views are one tap away and
-   *  say how many they hold, which is more than the chips ever said. */
-  const LEAD_FILTERS: TaskFilter[] = ["today", "upcoming", "all"];
-  const MORE_FILTERS = FILTERS.filter((f) => !LEAD_FILTERS.includes(f));
-  const views: HeaderView[] = LEAD_FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f] }));
-  /** A VIEW THAT IS NOT ON THE ROW, SAID OUT LOUD (handoff rule 7). Done,
-   *  Overdue, Daily and From Email are set from the options sheet, so
-   *  without this line the list would simply be shorter than expected with
-   *  nothing on screen explaining it. The AREA is not in here: its dropdown
-   *  is on the line above, stating its own answer. */
-  const offRow = LEAD_FILTERS.includes(filter) ? undefined : FILTER_LABEL[filter];
-  const narrowing = offRow ?? null;
+   *  Rule 2 of the same handoff: "Preserve the existing definitions and do
+   *  not reclassify data for visual consistency". Nothing here is redefined;
+   *  they are the FILTERS this page has always had. */
+  const views: HeaderView[] = FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] || undefined }));
   const [optsOpen, setOptsOpen] = useState(false);
   // GROUP BY (ruled 2026-09-01: "a group-by dropdown"). Remembered within
   // the session, reset on launch, like the segment.
@@ -827,18 +810,19 @@ export default function TasksPage({
           // control on the chip line, this line is what keeps an Area cut and
           // an off-row view from being invisible: it names them and clears
           // them in one tap. Nothing shows when nothing is filtering.
-          // AREA AND GROUP, STACKED (Dave 2026-09-17: "Make multiple dropdown
-          // chips like areas in the most logical way possible. Stack
-          // dropdowns next to each other"). The same two HeadMenus the page
-          // has always had, on their own line: a chip picks one of a fixed
-          // few, a dropdown holds a list that grows with the data.
+          // AREA AND GROUP, ON THE SAME LINE AS THE VIEW (Dave 2026-09-18:
+          // "everything is on one row directly across"). The same two
+          // HeadMenus the page has always had; each names its axis while
+          // nothing is picked and states the answer once something is, so
+          // the line itself says what is narrowing the list and no second
+          // line has to.
           drops={(
             <>
               {categories && categories.length > 0 && (
                 <HeadMenu
                   ariaLabel="Area"
                   value={!catFilter || catFilter === "all" ? "all" : catFilter}
-                  label={!catFilter || catFilter === "all" ? "All Areas" : undefined}
+                  label={!catFilter || catFilter === "all" ? "Area" : undefined}
                   options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
                   onPick={(v) => onCatFilter?.(v)}
                 />
@@ -846,16 +830,12 @@ export default function TasksPage({
               <HeadMenu
                 ariaLabel="Group by"
                 value={groupBy}
-                label={groupBy === "none" ? "No Grouping" : "By " + GROUP_LABEL[groupBy]}
+                label={groupBy === "none" ? "Group" : "By " + GROUP_LABEL[groupBy]}
                 options={(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => ({ value: g, label: GROUP_LABEL[g] }))}
                 onPick={(g) => setGroup(g as GroupBy)}
               />
             </>
           )}
-          filters={narrowing ? {
-            label: narrowing,
-            onClear: () => onFilter?.("today"),
-          } : undefined}
         >
           {segments}
         </LifeHeader>
@@ -1032,12 +1012,6 @@ export default function TasksPage({
           control is not rebuilding it. */}
       {optsOpen && (
         <OptionsSheet title="Tasks Options" rows={([
-          // THE VIEWS THAT DO NOT FIT ON THE ROW, with the counts the chips
-          // used to carry. A view is still a view; it just lives here.
-          ...MORE_FILTERS.map((f) => ({
-            key: f, label: FILTER_LABEL[f], count: counts[f],
-            onClick: () => { setOptsOpen(false); onFilter?.(f); },
-          })),
           ...(onDeleteMany && shown.length > 0 ? [{
             key: "select", label: "Select Tasks",
             onClick: () => { setOptsOpen(false); sel.enter(); },

@@ -128,20 +128,23 @@ describe("the Notes area is its own cut, composing with the view", () => {
   // header's own line now, beside Tag, which is where the two lists that grow
   // with the library belong. It still is not a VIEW.
   const openArea = async () => {
-    fireEvent.click(document.querySelector('.hdr-drops .dd[aria-label="Area"]')!);
+    fireEvent.click(document.querySelector('.hdr-controls .dd[aria-label="Area"]')!);
     await Promise.resolve();
   };
   const pickArea = (name: string) => fireEvent.click(screen.getByRole("menuitemradio", { name }));
 
-  it("is a dropdown under the chips, not a chip", () => {
+  it("shares the view's line, and is not a view", () => {
     const { container } = render(<NotesList notes={notes} />);
-    expect(container.querySelector('.hdr-chips [aria-label="Area"]'), "it is not a view").toBeNull();
-    expect([...container.querySelectorAll(".hdr-chips .chip")].map((c) => c.textContent)).toEqual(["All", "Pinned", "Unfiled"]);
-    // Area leads; Tag joins it only on a library that actually has tags, so
-    // an empty capsule is never drawn (these notes have none).
-    const drops = [...container.querySelectorAll(".hdr-drops .dd")];
-    expect(drops.map((d) => d.getAttribute("aria-label"))).toEqual(["Area"]);
-    expect(drops[0]).toHaveTextContent("All Areas");
+    // One line across (2026-09-18): the view, then the cuts. Tag joins it
+    // only on a library that actually has tags, so an empty capsule is never
+    // drawn (these notes have none).
+    const line = [...container.querySelectorAll(".hdr-controls .dd")];
+    expect(line.map((d) => d.getAttribute("aria-label"))).toEqual(["View", "Area"]);
+    expect(line[0]).toHaveTextContent("All");
+    expect(line[1]).toHaveTextContent("Area");
+    // The area is still not a MEMBER of the view list: the two cuts compose.
+    fireEvent.click(screen.getByLabelText("View"));
+    expect(screen.getAllByRole("menuitemradio").map((i) => i.textContent)).toEqual(["All", "Pinned", "Unfiled"]);
   });
 
   it("narrows the list, and the capsule states which area", async () => {
@@ -152,16 +155,15 @@ describe("the Notes area is its own cut, composing with the view", () => {
       .toEqual(["Bridge Invitational Item List"]);
     // handoff rule 7: never leave someone wondering why records disappeared.
     // The control says its own answer, so no second line has to.
-    expect(container.querySelector('.hdr-drops .dd[aria-label="Area"]')).toHaveTextContent("Family");
+    expect(container.querySelector('.hdr-controls .dd[aria-label="Area"]')).toHaveTextContent("Family");
   });
 
   // The whole point: two cuts that compose. The selected view stays selected.
   it("keeps the chosen view selected while an area narrows it", async () => {
     const { container } = render(<NotesList notes={notes} />);
-    fireEvent.click(screen.getByRole("tab", { name: "All" }));
     await openArea();
     pickArea("Work");
-    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("View"), "the view it was on stays on").toHaveTextContent("All");
     expect([...container.querySelectorAll(".note-row .task-name")].map((e) => e.textContent))
       .toEqual(["Coach Onboarding Plan"]);
   });
@@ -171,10 +173,11 @@ describe("the Notes area is its own cut, composing with the view", () => {
   // empty by construction.
   it("moves off Unfiled rather than showing a list that cannot have anything in it", async () => {
     const { container } = render(<NotesList notes={notes} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Unfiled" }));
+    fireEvent.click(screen.getByLabelText("View"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Unfiled" }));
     await openArea();
     pickArea("Work");
-    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("View")).toHaveTextContent("All");
     expect(container.querySelectorAll(".note-row")).toHaveLength(1);
   });
 
@@ -186,6 +189,6 @@ describe("the Notes area is its own cut, composing with the view", () => {
     await openArea();
     pickArea("All Areas");
     expect(container.querySelectorAll(".note-row")).toHaveLength(4);
-    expect(container.querySelector('.hdr-drops .dd[aria-label="Area"]')).toHaveTextContent("All Areas");
+    expect(container.querySelector('.hdr-controls .dd[aria-label="Area"]')).toHaveTextContent("Area");
   });
 });

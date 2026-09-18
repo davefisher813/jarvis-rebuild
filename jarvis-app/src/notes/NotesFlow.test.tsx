@@ -335,7 +335,7 @@ describe("NotesFlow: pending text survives leaving the tab (HMN-F-02)", () => {
 // list for its own room, comes back on Restore, and goes for good on Delete
 // Forever.
 describe("NotesFlow: Recently Deleted", () => {
-  it("moves a deleted note to its own chip, restores it, and deletes it for good", async () => {
+  it("moves a deleted note to its own view, restores it, and deletes it for good", async () => {
     svcRef = null;
     const user = "u-trash-w3";
     const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
@@ -349,22 +349,30 @@ describe("NotesFlow: Recently Deleted", () => {
     await waitFor(() => expect(screen.queryByText("Roster")).toBeNull(), { timeout: 4000 });
     expect((await svc.note(id))!.deletedAt).toBeTruthy();
     // AMENDED 2026-09-17 (Unified Headers, rule 2: "Do not mix area names,
-    // deleted records and workflow states in the same row"). Recently
-    // Deleted was a chip beside All and Pinned; it is an options destination
-    // now, which is also what keeps it out of ordinary searches. Everything
+    // deleted records and workflow states in the same row"), then again on
+    // 2026-09-18 when the views became a menu. Recently Deleted was a chip
+    // beside All and Pinned, then an options destination because a chip row
+    // had no room for five, and is an option in the view menu now -- which
+    // is what it always was. It still appears only when it holds something,
+    // and is still excluded from ordinary searches unless chosen. Everything
     // this test is about -- the note goes there, restores, and deletes for
     // good -- is unchanged.
     const openDeleted = async () => {
-      fireEvent.click(screen.getByLabelText("Notes Options"));
-      fireEvent.click(await screen.findByText("Recently Deleted"));
+      fireEvent.click(screen.getByLabelText("View"));
+      fireEvent.click(await screen.findByRole("menuitemradio", { name: /Recently Deleted/ }));
     };
     await openDeleted();
     const row = await screen.findByText("Roster");
     expect(screen.getByText("Restore")).toBeInTheDocument();
     fireEvent.click(row);
     await waitFor(async () => expect((await svc.note(id))!.deletedAt).toBeFalsy(), { timeout: 4000 });
-    await waitFor(() => { fireEvent.click(screen.getByLabelText("Notes Options")); expect(screen.queryByText("Recently Deleted")).toBeNull(); }, { timeout: 4000 });
-    fireEvent.click(screen.getByText("Done"));
+    // Empty again, so the view is gone from the menu: a view of nothing is
+    // furniture.
+    await waitFor(() => {
+      fireEvent.click(screen.getByLabelText("View"));
+      expect(screen.queryByRole("menuitemradio", { name: /Recently Deleted/ })).toBeNull();
+    }, { timeout: 4000 });
+    fireEvent.click(document.querySelector(".hmenu-scrim")!);
     // Delete again, then for good.
     fireEvent.click(screen.getAllByLabelText("Delete note")[0]!);
     await waitFor(async () => { await openDeleted(); }, { timeout: 4000 });

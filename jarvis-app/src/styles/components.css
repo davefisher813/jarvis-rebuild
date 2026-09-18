@@ -5626,61 +5626,53 @@ span.row-star { cursor: default; }
    tappable but are not buttons: the nav '+', back chevrons, links". */
 .hdr-add .ic { width: 20px; height: 20px; color: var(--tint); }
 
-/* 13px before the chips, 24px into the content below them.
+/* ONE LINE ACROSS (Dave 2026-09-18: "All of these chips that are on the
+   second row should be on the first row. There is a ton of space... It should
+   be one line across on every single page. If you drop down, make the chips
+   drop down so everything is on one row directly across").
 
-   THE ROW FITS, SO IT DOES NOT SCROLL (Dave 2026-09-17: "Look at what happens
-   to the chips when they slide. This is simply not going to work").
+   Each row DID look half empty, and they still could not be joined: three
+   view chips (275px with their margins) and the two capsules beside them
+   (271px) are 522px of content in a 361px row. A chip has to fit its whole
+   list on the screen; a menu only has to fit its answer. So the view became
+   a menu too, and the whole header is one line of capsules:
 
-   Measured at 393px, the narrowest phone this ships to: the row has 361px of
-   content width, four chips with counts need 458, four without need 335.
-   Every attempt to make the scroll behave was treating the symptom. A row of
-   large filled pills has no good half-state -- cut square it looks broken,
-   faded it looks like a rendering fault, snapped it jumps -- so the row must
-   simply fit, and a page that has more views than fit puts the rest in its
+     Today  |  Area  |  Group          Tasks
+     Today  |  Area                    Reminders
+     All    |  Area  |  Tag            Notes
+     Active |  Area                    Projects and Goals
+
+   Which gives the views back what the chips cost them: every one of them is
+   in the menu, with its count, instead of four on the row and three in the
    options sheet.
 
-   overflow-x stays auto as a floor, not a plan: at a large Dynamic Type size
-   the row can still be dragged rather than clipping something unreachable.
-   Nothing snaps and nothing is masked, because at every ordinary size there
-   is nothing to scroll. */
-.hdr-chips { padding-top: 0; padding-bottom: 0; }
-.hdr-chips { -webkit-mask-image: none; mask-image: none; scroll-snap-type: none; }
-.life-hdr { padding-bottom: 24px; }
-/* The 13px gap belongs to the row; there is nothing beside it any more. */
-.hdr-chips { margin-top: 13px; }
-/* Every chip clears 44px even where it draws smaller (handoff rule 1). */
-.hdr-chips > .chip { position: relative; }
-.hdr-chips > .chip::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
-
-/* THE CUTS THAT ARE NOT VIEWS (Dave 2026-09-17: "Make multiple dropdown
-   chips like areas in the most logical way possible. Stack dropdowns next to
-   each other").
-
-   Their own line, under the chips, because that is the only place they fit:
-   one Area capsule beside four chips overflows a 361px row by 60px, and
-   beside three by 6px (measured in Chromium at 393px). Two lines of one
-   shape each also say what the shapes mean -- a chip picks one of a fixed
-   few, a dropdown opens a list that grows with the data and states its own
-   answer while closed.
-
-   overflow-x is the same floor the chips have: at an ordinary size two or
-   three capsules sit well inside the row and nothing scrolls. */
-.hdr-drops {
+   13px above, 24px into the content below. overflow-x stays auto as a floor,
+   not a plan: at a large Dynamic Type size the line can still be dragged
+   rather than clipping a control. At every ordinary size it fits. */
+.hdr-controls {
   display: flex; align-items: center; gap: var(--s-2);
-  padding: 0 var(--s-4); margin-top: 10px;
+  padding: 0 var(--s-4); margin-top: 13px;
   overflow-x: auto; scrollbar-width: none;
 }
-.hdr-drops::-webkit-scrollbar { display: none; }
-.hdr-drops > * { flex: 0 0 auto; }
-/* These are controls, not the uppercase eyebrow .dd draws by default, and
-   not the white pill a chosen view wears: they must not read as a second
-   row of chips. */
-.hdr-drops .dd {
+.hdr-controls::-webkit-scrollbar { display: none; }
+.hdr-controls > * { flex: 0 0 auto; }
+/* AND THE LINE HOLDS. If a page ever does put more on it than fits -- a long
+   area name at a large Dynamic Type size -- the LAST control gives way and
+   ellipses, rather than the line scrolling and resting on a half-drawn
+   capsule, which is the thing this whole design is here to avoid. */
+.hdr-controls > *:last-child { flex: 0 1 auto; min-width: 0; }
+.life-hdr { padding-bottom: 24px; }
+/* Words, not the uppercase eyebrow .dd draws by default: five of these sit
+   where a sentence used to, and an all-caps line of five reads as shouting.
+   The view leads in the page's own ink; a cut that is not set is quiet, so
+   the line says at a glance whether anything is narrowing the list. */
+.hdr-controls .dd {
   text-transform: none; letter-spacing: -0.01em;
-  font-size: calc(13px * var(--type-scale)); font-weight: var(--w-medium);
-  color: var(--tx-2); min-height: 32px;
+  font-size: calc(13.5px * var(--type-scale)); font-weight: var(--w-medium);
+  color: var(--tx-2); min-height: 34px;
 }
-.hdr-drops .dd .dd-w { max-width: 44vw; }
+.hdr-controls .dd.dd-lead { font-weight: var(--w-semi); color: var(--tx-1); }
+.hdr-controls .dd .dd-w { max-width: 40vw; }
 
 /* WHAT THE SEARCH IS ACTUALLY SEARCHING (handoff rule 4). A count, where it
    looked, and one control that widens it -- never a silent widening. */
