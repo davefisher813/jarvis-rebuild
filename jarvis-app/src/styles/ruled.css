@@ -2246,6 +2246,24 @@
    last one can still run off the right edge -- which is half of what tells you
    it scrolls. The arrow is the other half, and it is a real button, because
    the peeking card alone is the affordance Dave said was not enough. */
+/* THE SECTION HEAD, APPLE MUSIC'S (Dave 2026-09-18: "Reference the formatting
+   of Apple Music it's perfect"). A big bold name and a chevron, no count and
+   no colour dot: the tiles under it are the colour, and a number on top of a
+   row you can see the length of is noise. Measured off his screenshot --
+   "Recently Played" is 22pt bold with the chevron on the baseline beside it,
+   and the next shelf starts about 24pt below the last tile. */
+.ruled .bp-sec + .bp-sec { margin-top: 26px; }
+.ruled .bp-shelf-head {
+  display: flex; align-items: center; gap: 3px; width: 100%;
+  padding: 0 var(--s-4); margin: 0 0 var(--s-2h);
+  border: 0; background: none; text-align: left; cursor: pointer;
+}
+.ruled .bp-shelf-head .t {
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: calc(22px * var(--type-scale)); font-weight: var(--w-bold);
+  letter-spacing: -0.02em; color: var(--tx-1);
+}
+.ruled .bp-shelf-head .ic { width: 18px; height: 18px; color: var(--tx-1); flex-shrink: 0; }
 .ruled .bp-shelf { position: relative; }
 .ruled .bp-grid {
   display: flex; gap: var(--s-3);
@@ -2263,6 +2281,14 @@
      mockup: its tiles are 176pt in a two-up grid; 160 leaves 29px of the next
      one showing at 393px wide. max-width holds the peek on a 320px phone at
      1.4 text, where the scaled width would otherwise fill the screen. */
+  /* THE FALLBACK PAIR, SO NO CARD IS EVER BLACK (Dave 2026-09-18: "Black is
+     not an option change it"). The first draft wrote colour rules for
+     thirteen of twenty-four slots, so an area on one of the other eleven got
+     --bp-a with nothing in it and the gradient dropped out entirely: white
+     text on the page's own ground. Every slot has a pair now AND the base
+     rule carries the neutral one, so a slot invented tomorrow still draws. */
+  --bp-a: #6D6D73; --bp-b: #2E2E33;
+  --t-card-title: calc(21px * var(--type-scale));
   flex: 0 0 auto; width: calc(160px * var(--type-scale)); max-width: 76%;
   position: relative; aspect-ratio: 1;
   min-height: calc(132px * var(--type-scale));
@@ -2336,11 +2362,7 @@
 .ruled .bp-card-top { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .ruled .bp-card-ic { display: inline-flex; flex-shrink: 0; }
 .ruled .bp-card-ic .ic, .ruled .bp-card-ic svg { width: 17px; height: 17px; color: #FFFFFF; }
-.ruled .bp-card-area {
-  flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-size: calc(13px * var(--type-scale)); font-weight: var(--w-medium);
-  color: rgba(255, 255, 255, 0.92);
-}
+.ruled .bp-card-spring { flex: 1; min-width: 0; }
 .ruled .bp-card-more {
   flex-shrink: 0; width: 28px; height: 22px; margin: -4px -4px -4px 0; padding: 0;
   border: 0; background: transparent; color: rgba(255, 255, 255, 0.92);
@@ -2350,11 +2372,14 @@
 /* The title takes the middle and clamps, so a long name spends its own room
    and never the count and bar underneath it. */
 .ruled .bp-card-title {
-  flex: 1 1 auto; min-height: 0; margin-top: var(--s-2);
-  font-size: calc(21px * var(--type-scale));
-  font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.12;
+  flex: 0 0 auto; margin-top: var(--s-2);
+  font-size: var(--t-card-title); line-height: 1.12;
+  /* Two lines of room, exactly, so the clamp can fire instead of the box
+     slicing a third line in half. */
+  height: calc(var(--t-card-title) * 1.12 * 2);
+  font-weight: var(--w-bold); letter-spacing: -0.02em;
   color: #FFFFFF;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
   overflow-wrap: anywhere;
 }
 
@@ -2364,7 +2389,7 @@
    top of "Next:" with nothing between them. The margin is the foot's, so it
    survives whatever the title does (measured against the two worst names in
    the bench: "Reynolds & Rowella General Manager..." and the 34-letter one). */
-.ruled .bp-card-foot { flex-shrink: 0; display: flex; flex-direction: column; gap: 3px; margin-top: var(--s-2); }
+.ruled .bp-card-foot { flex-shrink: 0; display: flex; flex-direction: column; gap: 3px; margin-top: auto; padding-top: var(--s-2); }
 .ruled .bp-card-lead, .ruled .bp-card-n {
   font-size: calc(13px * var(--type-scale)); font-weight: var(--w-sub);
   color: rgba(255, 255, 255, 0.92);

@@ -8,7 +8,7 @@ import type { ProjectRow, Progress } from "./progress";
 import { progressLabel, bucketOf, closable, projStatus, rankGoals } from "./progress";
 import type { GoalReach } from "./reach";
 import { reachLine, fileableGoals } from "./reach";
-import ItemCard, { CardGrid } from "./ItemCard";
+import ItemCard, { CardShelf } from "./ItemCard";
 import { Table, List } from "../shared/icons";
 import type { MeasureState } from "./measure";
 import { catColor, goalTone } from "../shared/categories";
@@ -329,11 +329,9 @@ export default function BiggerPicturePage({
   const projCard = ({ project, progress, stalled }: ProjectRow) => {
     const row: ProjectRow = { project, progress, stalled, lastAt: null };
     const ref = project.data.category ?? "";
-    const area = sections.find((c) => c.id === ref);
     return (
       <ItemCard key={project.id} kind="project"
         title={project.data.title}
-        areaName={area?.name ?? null}
         areaRef={ref}
         lead={nextActionTextOf?.(project.id) ? "Next: " + nextActionTextOf(project.id) : holdLineOf?.(project.id) ?? null}
         foot={progress ? capAfterNumber(`${progress.done} of ${progress.total} tasks`) : "No tasks yet"}
@@ -359,7 +357,6 @@ export default function BiggerPicturePage({
     const ms = measureOfGoal?.(g.id) ?? null;
     const finished = g.data.state === "achieved" || !!g.data.dropped;
     const ref = homeOf(g) ?? "";
-    const area = sections.find((c) => c.id === ref);
     const linked = projectRows.filter((row) => row.project.data.goalId === g.id).length;
     const lead = g.data.state === "achieved"
       ? (g.data.achievedOn ? "Finished " + fmtDay(g.data.achievedOn) : null)
@@ -367,7 +364,6 @@ export default function BiggerPicturePage({
     return (
       <ItemCard key={g.id} kind="goal"
         title={g.data.title}
-        areaName={area?.name ?? null}
         areaRef={ref}
         lead={lead}
         foot={linked > 0 ? capAfterNumber(`${linked} linked ${linked === 1 ? "project" : "projects"}`) : null}
@@ -619,7 +615,18 @@ export default function BiggerPicturePage({
         )}
         {projectsLens && cardView ? (
           <>
-            {lensRows.length > 0 && <CardGrid>{lensRows.map(projCard)}</CardGrid>}
+            {/* ONE SHELF PER AREA (Dave 2026-09-18: "They should all be
+                organized by category in each row and scroll to the right hand
+                of the user"). The same buckets the ruled list below uses, in
+                the same order, so switching shape never reorders the page. */}
+            {sections.map((c) => {
+              const mine = lensRows.filter((r) => (r.project.data.category ?? "") === c.id);
+              if (mine.length === 0) return null;
+              return <CardShelf key={c.id} title={c.name} onOpen={() => setAreaOnly(c.id)}>{mine.map(projCard)}</CardShelf>;
+            })}
+            {lensOrphans.length > 0 && (
+              <CardShelf title="More Work">{lensOrphans.map(projCard)}</CardShelf>
+            )}
             {lensRows.length === 0 && (
               <div className="empty-state"><div className="empty-title">No Projects Here</div></div>
             )}
@@ -627,7 +634,14 @@ export default function BiggerPicturePage({
           </>
         ) : !projectsLens && cardView ? (
           <>
-            {viewGoals.length > 0 && <CardGrid>{viewGoals.map(goalCard)}</CardGrid>}
+            {sections.map((c) => {
+              const mine = goalIdsHomed(c);
+              if (mine.length === 0) return null;
+              return <CardShelf key={c.id} title={c.name} onOpen={() => setAreaOnly(c.id)}>{mine.map(goalCard)}</CardShelf>;
+            })}
+            {unhomed.length > 0 && (
+              <CardShelf title="Working Toward">{unhomed.map(goalCard)}</CardShelf>
+            )}
             {viewGoals.length === 0 && (
               <div className="empty-state"><div className="empty-title">No Goals Here</div></div>
             )}

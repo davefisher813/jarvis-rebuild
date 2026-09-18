@@ -62,20 +62,74 @@ describe("the card is square, and the shelf runs sideways", () => {
   // A grid of squares costs one row of height per two items; a shelf costs
   // one row full stop. The width is the tile's own, so aspect-ratio squares
   // it off that rather than off a column that no longer exists.
+  // "They should all be organized by category in each row and scroll to the
+  // right hand of the user." One shelf per area, out of the same buckets the
+  // ruled list uses, so switching shape can never reorder the page.
+  it("gives every area its own shelf, in the list's own order", () => {
+    const view = PAGE.slice(PAGE.indexOf("{projectsLens && cardView ? ("), PAGE.indexOf(") : projectsLens ? ("));
+    expect(view, "projects grouped by section").toMatch(
+      /sections\.map\(\(c\) => \{[\s\S]{0,400}?<CardShelf key=\{c\.id\} title=\{c\.name\}/);
+    expect(view, "goals grouped the same way").toMatch(
+      /const mine = goalIdsHomed\(c\);[\s\S]{0,300}?<CardShelf key=\{c\.id\} title=\{c\.name\}/);
+    expect(view, "and the two catch-alls keep their names")
+      .toMatch(/<CardShelf title="More Work">/);
+    expect(view).toMatch(/<CardShelf title="Working Toward">/);
+    expect(view, "no card view left ungrouped").not.toMatch(/<CardGrid>/);
+  });
+
+  // "Reference the formatting of Apple Music it's perfect." Its shelf head is
+  // a big bold name and a chevron -- no count, no colour dot. The chevron is
+  // a promise, so the head is a button that cuts the page to that area, and
+  // a shelf with no area to open carries no chevron rather than a dead one.
+  it("heads each shelf the way Apple Music does", () => {
+    expect(RULED).toMatch(/\.ruled \.bp-shelf-head \.t \{[\s\S]{0,200}?font-size: calc\(22px \* var\(--type-scale\)\)/);
+    expect(RULED).toMatch(/\.ruled \.bp-shelf-head \.t \{[\s\S]{0,240}?font-weight: var\(--w-bold\)/);
+    expect(CARD, "a chevron only where there is somewhere to go")
+      .toMatch(/onOpen \? \(\s*<button type="button" className="bp-shelf-head"/);
+    expect(CARD, "and no count on the head").not.toMatch(/bp-shelf-head[\s\S]{0,300}?\{n\}/);
+  });
+
+  // The head already says the area in full. Printing it again on every tile
+  // gave "Elite Squ..." under a head reading "Elite Squad".
+  it("does not repeat the area name inside the card", () => {
+    expect(CARD).not.toMatch(/areaName/);
+    expect(CARD).not.toMatch(/bp-card-area/);
+    expect(PAGE).not.toMatch(/areaName=/);
+  });
+
+  // MEASURED. The title took whatever the card had left and clamped at three
+  // lines -- but a 160pt tile has room for two, so the clamp never fired and
+  // the browser sliced the third line through the middle of the letters. Two
+  // lines of room, exactly, is what lets the ellipsis happen instead.
+  it("gives the title exactly two lines, so it ellipses instead of slicing", () => {
+    expect(RULED).toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,400}?height: calc\(var\(--t-card-title\) \* 1\.12 \* 2\)/);
+    expect(RULED).toMatch(/\.ruled \.bp-card-title \{[\s\S]{0,500}?-webkit-line-clamp: 2;/);
+    expect(RULED, "and the foot anchors to the bottom whatever the title did")
+      .toMatch(/\.ruled \.bp-card-foot \{[^{}]*margin-top: auto;/);
+  });
+
+  // "Black is not an option change it." A slot with no rule of its own left
+  // --bp-a empty, the gradient dropped out, and the card was the page's own
+  // ground with white text on it. The base rule carries the neutral pair now,
+  // so a slot invented tomorrow still draws a card.
+  it("can never draw a card with no colour at all", () => {
+    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?--bp-a: #6D6D73; --bp-b: #2E2E33;/);
+  });
+
   it("lays the cards out as one sideways row", () => {
     expect(RULED).toMatch(/\.ruled \.bp-grid \{[^{}]*display: flex;[^{}]*overflow-x: auto;/);
     expect(RULED, "and it snaps, so a flick lands on a card")
       .toMatch(/\.ruled \.bp-grid \{[^{}]*scroll-snap-type: x/);
-    expect(RULED, "the tile carries its own width").toMatch(/\.ruled \.bp-card \{[\s\S]{0,900}?width: calc\(160px \* var\(--type-scale\)\)/);
-    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,900}?aspect-ratio: 1;/);
+    expect(RULED, "the tile carries its own width").toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?width: calc\(160px \* var\(--type-scale\)\)/);
+    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?aspect-ratio: 1;/);
   });
 
   // The peek is what tells you it scrolls, and max-width is what protects it:
   // at 1.4 text on a 320px phone the scaled width would otherwise fill the
   // screen and the next card would vanish.
   it("keeps the next card peeking at every text size", () => {
-    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,900}?max-width: 76%;/);
-    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,900}?min-height: calc\(132px \* var\(--type-scale\)\)/);
+    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?max-width: 76%;/);
+    expect(RULED).toMatch(/\.ruled \.bp-card \{[\s\S]{0,1600}?min-height: calc\(132px \* var\(--type-scale\)\)/);
   });
 
   // "Just make sure there's an arrow so users know." Not a painted chevron:

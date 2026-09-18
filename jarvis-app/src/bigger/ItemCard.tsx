@@ -42,9 +42,11 @@ export interface CardProgress {
 export interface ItemCardProps {
   kind: "project" | "goal";
   title: string;
-  /** The Area's name and its colour ref. Both may be absent: an unfiled item
-   *  still gets a card, in the neutral slot, rather than being left out. */
-  areaName?: string | null;
+  /** The Area's colour ref. May be absent: an unfiled item still gets a card,
+   *  in the neutral slot, rather than being left out. The area's NAME is not
+   *  here on purpose -- the shelf the card sits in is headed by it, and
+   *  printing it a third time on every tile was the "Elite Squ..." the head
+   *  above it had already said in full. */
   areaRef?: string | null;
   /** The line under the title. A project's next action, a goal's measure
    *  line. One line; the card clamps it rather than growing. */
@@ -63,7 +65,7 @@ export interface ItemCardProps {
 }
 
 export default function ItemCard({
-  kind, title, areaName, areaRef, lead, foot, progress, onOpen, onMenu, menuLabel,
+  kind, title, areaRef, lead, foot, progress, onOpen, onMenu, menuLabel,
 }: ItemCardProps) {
   const slot = catColor(areaRef ?? undefined);
   return (
@@ -78,9 +80,7 @@ export default function ItemCard({
         <span className="bp-card-ic" aria-hidden="true">
           {kind === "goal" ? <Target className="ic" /> : <FolderOpenGlyph />}
         </span>
-        {/* The area names itself. It is the only place the card's colour is
-            explained, so it is never dropped even when the name is long. */}
-        <span className="bp-card-area">{areaName ?? "Unfiled"}</span>
+        <span className="bp-card-spring" />
         {onMenu && (
           <button
             type="button"
@@ -93,11 +93,13 @@ export default function ItemCard({
         )}
       </div>
 
-      {/* THE TITLE WRAPS (the handoff: "Allow titles to wrap naturally.
-          Handle unusually long titles without overlapping metadata or
-          shrinking text excessively"). It takes the middle of the card and
-          clamps at three lines, so a long name eats its own space and never
-          the count and bar below it. The type does not shrink. */}
+      {/* THE TITLE IS TWO LINES, ALWAYS (2026-09-18). It was three, taking
+          whatever the card had left -- and on a 160pt tile that is less than
+          three lines, so the clamp never fired and the browser sliced the
+          last line through the middle of the letters instead. Two lines fit
+          the square at every text size, so a long name ellipses cleanly and
+          the count and bar sit at the same height on every card in the row.
+          The type does not shrink. */}
       <div className="bp-card-title">{title}</div>
 
       <div className="bp-card-foot">
@@ -119,19 +121,33 @@ export default function ItemCard({
 
 // ---------------------------------------------------------------------------
 // THE SHELF (Dave 2026-09-18: "They can scroll laterally like Apple Music to
-// save vertical space. Just make sure there's an arrow so users know").
+// save vertical space. Just make sure there's an arrow so users know", then
+// "They should all be organized by category in each row and scroll to the
+// right hand of the user... Reference the formatting of Apple Music it's
+// perfect").
 //
-// One sideways row instead of a grid, so a lens with twenty projects costs
-// the same height as one with two. The next card peeks past the right edge,
-// which is the usual hint, and Dave said the hint is not enough on its own --
-// hence a real arrow, shown only while there is somewhere to go that way, and
-// tappable rather than decorative.
+// So: ONE SHELF PER AREA, each with its name over it, each scrolling
+// sideways on its own. That is the Apple Music page shape -- Recently Played,
+// Stations for You, Golden Age Hip-Hop -- and it is also the grouping the
+// ruled list beside it has used since "the category should be the main
+// organizer" (2026-09-09). The two views now say the same thing in two
+// shapes instead of disagreeing about the order of the page.
+//
+// The head is a real button where there is somewhere to go: tapping an area's
+// name cuts the page to that area, which is what the chevron promises. The
+// catch-all shelves (More Work, Working Toward) have no area to open, so they
+// carry no chevron rather than a dead one.
 //
 // The arrows are driven by measurement, not by a count: scrollWidth against
 // clientWidth after every scroll, resize and change of children. When the
 // cards already fit, neither arrow exists.
 // ---------------------------------------------------------------------------
-export function CardGrid({ children }: { children: ReactNode }) {
+export function CardShelf({ title, onOpen, children }: {
+  title: string;
+  /** Cuts the page to this area. Absent on a catch-all shelf. */
+  onOpen?: () => void;
+  children: ReactNode;
+}) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [more, setMore] = useState({ left: false, right: false });
 
@@ -161,20 +177,30 @@ export function CardGrid({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="bp-shelf">
-      <div className="bp-grid" ref={ref} onScroll={measure}>{children}</div>
-      {more.left && (
-        <button type="button" className="bp-shelf-arrow bp-shelf-arrow-l"
-          aria-label="Scroll back" onClick={() => page(-1)}>
-          <ChevronLeft className="ic" />
-        </button>
-      )}
-      {more.right && (
-        <button type="button" className="bp-shelf-arrow bp-shelf-arrow-r"
-          aria-label="Scroll for more" onClick={() => page(1)}>
+    <section className="bp-sec">
+      {onOpen ? (
+        <button type="button" className="bp-shelf-head" onClick={onOpen}>
+          <span className="t">{title}</span>
           <ChevronRight className="ic" />
         </button>
+      ) : (
+        <div className="bp-shelf-head"><span className="t">{title}</span></div>
       )}
-    </div>
+      <div className="bp-shelf">
+        <div className="bp-grid" ref={ref} onScroll={measure}>{children}</div>
+        {more.left && (
+          <button type="button" className="bp-shelf-arrow bp-shelf-arrow-l"
+            aria-label="Scroll back" onClick={() => page(-1)}>
+            <ChevronLeft className="ic" />
+          </button>
+        )}
+        {more.right && (
+          <button type="button" className="bp-shelf-arrow bp-shelf-arrow-r"
+            aria-label="Scroll for more" onClick={() => page(1)}>
+            <ChevronRight className="ic" />
+          </button>
+        )}
+      </div>
+    </section>
   );
 }

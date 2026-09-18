@@ -3323,12 +3323,18 @@ describe("LAW 10: one taxonomy -- the category is the area", () => {
 
   it("the section head count is a count, never a score", () => {
     const page = read(join(SRC, "bigger/BiggerPicturePage.tsx"));
-    const heads = page.slice(page.indexOf("sections.map"));
-    const section = heads.slice(0, heads.indexOf("Working Toward"));
-    // The single frame counts goals plus loose projects; the ruled lenses
-    // (2026-09-02) count through catHead(c, n), one kind of thing per lens.
-    expect(section, "items shown, not percent done").toMatch(/\{mine\.length \+ loose\.length\}|catHead\(c, (?:mine|loose)\.length\)/);
-    expect(section).not.toMatch(/pct|%/);
+    // TWO HEAD SHAPES, ONE RULE (2026-09-18). The ruled lenses still count
+    // through catHead(c, n) -- items shown, never percent done.
+    const cat = page.slice(page.indexOf("const catHead ="));
+    expect(page, "items shown, not percent done").toMatch(/\{mine\.length \+ loose\.length\}|catHead\(c, (?:mine|loose)\.length\)/);
+    expect(cat.slice(0, cat.indexOf("</div>")), "and the head itself does no arithmetic").not.toMatch(/pct|%/);
+    // The card view's shelf head carries NO number, which is Apple Music's
+    // own shape (Dave: "Reference the formatting of Apple Music it's
+    // perfect") and satisfies this law the short way: a head with nothing to
+    // read cannot be read as a score. What it may never grow is one.
+    const shelves = [...page.matchAll(/<CardShelf[^>]*>/g)].map((m) => m[0]);
+    expect(shelves.length, "the card view heads its shelves").toBeGreaterThan(0);
+    for (const h of shelves) expect(h, "no number on a shelf head").not.toMatch(/pct|%|length/);
   });
 });
 
