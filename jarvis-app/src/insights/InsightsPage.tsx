@@ -144,11 +144,21 @@ export default function InsightsPage({
   const overview = useMemo(() => periodOverview(workouts, sleepDef, metricLogs, period), [workouts, sleepDef, metricLogs, period]);
   const breakdown = useMemo(() => muscleBreakdown(workouts, muscleMap, period), [workouts, muscleMap, period]);
   const lifts = useMemo(() => chartableExercises(workouts), [workouts]);
-  const [pickLift, setPickLift] = useState(false);
+  /** Which picker is open, or none. Two cards on this page choose a lift and
+   *  they choose independently, so the flag says which one asked. */
+  const [picking, setPicking] = useState<"overview" | "strength" | null>(null);
   const [liftIdx, setLiftIdx] = useState(0);
   const lift = lifts[liftIdx] ?? null;
+  /** THE OVERVIEW CARD IS A CHOICE, NOT ONLY A VERDICT (Dave 2026-09-18: "I
+   *  have no way to select exercises").
+   *
+   *  It picked the biggest comparable change and showed it, full stop: the
+   *  one exercise on the page you could not change. The pick is still the
+   *  default -- it is a good answer to "what is changing" and it is what the
+   *  card is for -- but it is a default now, and null means it. */
+  const [ovIdx, setOvIdx] = useState<number | null>(null);
   // The headline: the best comparable change on a lift trained in the period.
-  const headline = useMemo(() => {
+  const autoHeadline = useMemo(() => {
     let best: RepGain | null = null;
     for (const ex of lifts) {
       if (ex.kind !== "weight_reps") continue;
@@ -158,7 +168,27 @@ export default function InsightsPage({
     }
     return best;
   }, [lifts, workouts, period]);
+  /** The lift the overview card is about: the chosen one, or the auto pick.
+   *  A chosen lift is NOT gated on the period the way the auto pick is --
+   *  you asked for that exercise, so the card spans its sessions and says so
+   *  on its face, exactly as it already did for the automatic one. */
+  const ovLift = ovIdx != null ? lifts[ovIdx] ?? null : autoHeadline?.lift ?? null;
+  const headline = useMemo(() => {
+    if (ovIdx == null) return autoHeadline;
+    const ex = lifts[ovIdx];
+    return ex && ex.kind === "weight_reps" ? comparableGain(workouts, ex) : null;
+  }, [ovIdx, lifts, workouts, autoHeadline]);
   const series = useMemo(() => (headline ? gainSeries(workouts, headline) : []), [workouts, headline]);
+  /** The overview picker's options: the default first, then every chartable
+   *  lift. "Biggest Gain" is a real row rather than a Clear button, because
+   *  it is one of the answers, not the absence of one. */
+  const ovPickItems = [{ id: "auto", label: "Biggest Gain" }, ...lifts.map((l, i) => ({ id: String(i), label: l.name }))];
+  const ovPick = (ids: string[]) => {
+    const id = ids[0];
+    if (id === "auto") setOvIdx(null);
+    else { const i = Number(id); if (Number.isFinite(i)) setOvIdx(i); }
+    setPicking(null);
+  };
   const empty = workouts.length === 0 && metricLogs.length === 0 && logs.callIt.length + logs.pointAtIt.length + logs.meals.length + logs.tookIt.length + logs.checkins.length === 0;
   const rangeLabel = `${monthDay(period.from)} to ${monthDay(period.to)}`;
   const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "-" : "") + Math.abs(n);
@@ -316,14 +346,28 @@ const musclesCard = (
     </div></div>
   );
 
+  /** THE CARD, AND THE ONE CONTROL IT WAS MISSING. The head row chooses the
+   *  exercise; "View Sets" at the foot is still the way into its page, so
+   *  nothing that used to be one tap away is two now. */
+  const ovHead = (
+    <div {...pressable(() => setPicking("overview"))} className="ins-head" aria-label="Choose exercise">
+      <span className="ins-dot hue-hl-lime" />
+      <span className="ins-t">{ovLift ? ovLift.name : "Choose an Exercise"}</span>
+      {CHEV}
+    </div>
+  );
+  const ovSheet = picking === "overview" ? (
+    <PickSheet title="Exercise" items={ovPickItems} onPick={ovPick} onCancel={() => setPicking(null)} />
+  ) : null;
+
   const headlineCard = headline ? (
     <div className="pad-x"><div className="card ins-card">
-      <div {...pressable(() => onOpenLift(headline.lift))} className="ins-head">
-        <span className="ins-dot hue-hl-lime" />
-        <span className="ins-t">{headline.lift.name}</span>
-        {CHEV}
-      </div>
+      {ovHead}
       <div className="facts">
+        {/* WHY THIS ONE, WHEN NOBODY PICKED IT. The default is the biggest
+            comparable change, and a card that chose its own subject has to
+            say so or it reads as the only exercise you have. */}
+        {ovIdx == null && <span className="fact">Biggest gain</span>}
         <span className="fact">{`Best set at ${headline.reps} reps`}</span>
         {/* THE ONE CARD THAT IS NOT THE PAGE'S PERIOD (polish: "Trend period
             clearly 'All history'... Do not imply every card follows the same
@@ -359,7 +403,21 @@ const musclesCard = (
       </details>
       <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(headline.lift)}>View Sets</button></div>
     </div></div>
-  ) : null;
+  ) : (
+    /* A LIFT YOU PICKED THAT HAS NO COMPARISON YET IS NOT AN EMPTY PAGE
+       (2026-09-18). It keeps its head, so the choice you made is on screen
+       and changeable, and it says what is missing rather than what is
+       wrong. Nothing is claimed from one session. */
+    <div className="pad-x"><div className="card ins-card">
+      {ovHead}
+      <div className="facts">
+        <span className="fact">{ovLift
+          ? "No two sessions at the same rep count, equipment and unit yet, so no comparison is claimed"
+          : "No comparable change to show: two sessions at the same rep count, equipment and unit are what it takes"}</span>
+      </div>
+      {ovLift && <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(ovLift)}>View Sets</button></div>}
+    </div></div>
+  );
 
   const strength = (
     <>
@@ -382,18 +440,18 @@ const musclesCard = (
               however many lifts you have. */}
           <div className="sh2 sh2-quiet"><span className="t">Exercise</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
-            <div {...pressable(() => setPickLift(true))} className="row" aria-label="Choose exercise">
+            <div {...pressable(() => setPicking("strength"))} className="row" aria-label="Choose exercise">
               <div className="row-grow"><div className="conn-name">{lift ? lift.name : "Choose an Exercise"}</div></div>
               {lifts.length > 1 && <span className="row-value">{capAfterNumber(`${lifts.length} logged`)}</span>}
               {CHEV}
             </div>
           </div></div>
-          {pickLift && (
+          {picking === "strength" && (
             <PickSheet
               title="Exercise"
               items={lifts.map((l, i) => ({ id: String(i), label: l.name }))}
-              onPick={(ids) => { const i = Number(ids[0]); if (Number.isFinite(i)) setLiftIdx(i); setPickLift(false); }}
-              onCancel={() => setPickLift(false)}
+              onPick={(ids) => { const i = Number(ids[0]); if (Number.isFinite(i)) setLiftIdx(i); setPicking(null); }}
+              onCancel={() => setPicking(null)}
             />
           )}
           {lift && (() => {
@@ -525,12 +583,8 @@ const musclesCard = (
         <div className="empty-state"><div className="empty-title">Nothing Logged Yet</div><div className="empty-sub">Finish a workout or log a night of sleep and the numbers start here</div></div>
       ) : section === "overview" ? (
         <>
-          {headlineCard ?? (
-            <div className="pad-x"><div className="card ins-card">
-              <div className="ins-head"><span className="ins-dot hue-hl-lime" /><span className="ins-t">Strength</span></div>
-              <div className="facts"><span className="fact">No comparable change to show: two sessions at the same rep count, equipment and unit are what it takes</span></div>
-            </div></div>
-          )}
+          {headlineCard}
+          {ovSheet}
           {musclesCard}
           {sleepCard}
           {cards}

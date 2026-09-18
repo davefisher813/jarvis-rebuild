@@ -1238,6 +1238,16 @@
    gap is worth a little less, so the head still reads as the bigger break.
    On the wrapper, not the card, so one rule covers both. */
 .ruled .pad-x:has(> .card) + .pad-x { margin-top: var(--s-4); }
+/* AND THE OTHER DIRECTION (Dave 2026-09-18, on See What Is Changing:
+   "vertical card spacing isn't aligned with catalog rules on these pages").
+   Measured at phone width: the Overview / Strength / Rest segmented control
+   sat 0px above the first card, its bottom edge on the card's top edge.
+
+   The rule above only fires when the block ABOVE holds a card, so a page
+   whose cards follow a control block -- a segmented control, a chip row, a
+   date field -- got nothing. A card block is owed its 16px whatever precedes
+   it, which is the same sentence the rule above says from the other side. */
+.ruled .pad-x + .pad-x:has(> .card) { margin-top: var(--s-4); }
 
 /* ---------- A CREATE ROW WITH NOTHING TO END IS NOT A CARD ---------------
    (Dave 2026-09-03, pic 4: "add goal looks ridiculous".)

@@ -371,6 +371,20 @@ describe("two containers are two containers", () => {
     expect(read("tasks/screens/TasksPage.tsx")).toContain('<div className="task-list-block">');
   });
 
+  // AND THE OTHER DIRECTION (Dave 2026-09-18, on See What Is Changing:
+  // "vertical card spacing isn't aligned with catalog rules on these
+  // pages"). Measured at 393px: the Overview / Strength / Rest segmented
+  // control sat 0px above the first card, its bottom edge on the card's top
+  // edge. The rule only fired when the block ABOVE held a card, so a page
+  // whose cards follow a CONTROL block -- a segmented control, a chip row,
+  // a date field -- got nothing at all. A card block is owed its 16px
+  // whatever precedes it; that is the same sentence, said from both ends.
+  it("spaces a card under whatever block is above it, card or control", () => {
+    const css = read("styles/ruled.css");
+    expect(css).toMatch(/\.ruled \.pad-x:has\(> \.card\) \+ \.pad-x \{ margin-top: var\(--s-4\); \}/);
+    expect(css).toMatch(/\.ruled \.pad-x \+ \.pad-x:has\(> \.card\) \{ margin-top: var\(--s-4\); \}/);
+  });
+
   // The chips lost their 13px because `.hdr-chips:last-child` matched
   // whenever there was no scope line under them.
   it("keeps the gap above the chips whether or not a scope line follows", () => {
