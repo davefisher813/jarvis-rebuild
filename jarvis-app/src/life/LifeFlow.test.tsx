@@ -50,8 +50,12 @@ describe("LifeFlow", () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
     await screen.findByText("No areas yet · Add one in Settings > Categories", {}, { timeout: 3000 });
     fireEvent.click(screen.getByRole("tab", { name: "Projects" }));
-    // The one ask names the project too (it has no next move), so scope to the row.
+    // AMENDED 2026-09-18 (the approved card mockup). Projects and Goals open
+    // on the CARDS now; this test is about the ruled ROW anatomy, which is
+    // the other view, so it asks for that view first. Everything it checks
+    // below is unchanged, and the toggle is how a person reaches it too.
     await screen.findByText("Add Project");
+    fireEvent.click(screen.getByLabelText("Show as a list"));
     const row = screen.getAllByText("Kitchen remodel").map((e) => e.closest(".task-row")).find(Boolean) as HTMLElement;
     expect(row).toBeTruthy();
     // THE CATEGORY IS THE ORGANIZER (Dave 2026-09-09: "projects should be
@@ -74,6 +78,7 @@ describe("LifeFlow", () => {
     expect(screen.queryByText("Add Goal")).toBeNull();
 
     fireEvent.click(screen.getByRole("tab", { name: "Goals" }));
+    fireEvent.click(await screen.findByLabelText("Show as a list"));
     const goal = await screen.findByText("Build a six-month runway");
     expect(goal.closest(".task-row.goal-row-ruled")).toBeTruthy();
     expect(document.querySelector(".task-row .pp")).toBeNull();

@@ -8,6 +8,8 @@ import type { ProjectRow, Progress } from "./progress";
 import { progressLabel, bucketOf, closable, projStatus, rankGoals } from "./progress";
 import type { GoalReach } from "./reach";
 import { reachLine, fileableGoals } from "./reach";
+import ItemCard, { CardGrid } from "./ItemCard";
+import { Table, List } from "../shared/icons";
 import type { MeasureState } from "./measure";
 import { catColor, goalTone } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
@@ -138,6 +140,16 @@ export default function BiggerPicturePage({
   const [view, setView] = useState("active");
   const [q, setQ] = useState("");
   const [optsOpen, setOptsOpen] = useState(false);
+  /** CARDS OR ROWS (Dave 2026-09-18, the approved mockup). The cards are what
+   *  he approved and the default; the ruled list stays one tap away because
+   *  it is the denser read and nothing about it was asked to go. Session
+   *  state, like the grouping on Tasks: a view is a way of looking, not a
+   *  setting. */
+  const [cardView, setCardView] = useState(true);
+  /** The card's overflow opens the actions the ruled row already carries --
+   *  Close It and Move to Goal -- and nothing new (the handoff: "the
+   *  overflow menu keeps existing actions"). */
+  const [cardMenu, setCardMenu] = useState<string | null>(null);
   /** THE AREA FILTER (2026-09-17). The one secondary control these two lenses
    *  genuinely have: both already file by area -- a project by its category,
    *  a goal by the first of its tags that names a live one -- and neither had
@@ -310,6 +322,61 @@ export default function BiggerPicturePage({
     );
   };
 
+  // ---------------------------------------------------------------------
+  // THE CARDS (approved mockup, 2026-09-18). Same data as the rows beside
+  // them, same taps; what changes is the shape.
+  // ---------------------------------------------------------------------
+  const projCard = ({ project, progress, stalled }: ProjectRow) => {
+    const row: ProjectRow = { project, progress, stalled, lastAt: null };
+    const ref = project.data.category ?? "";
+    const area = sections.find((c) => c.id === ref);
+    return (
+      <ItemCard key={project.id} kind="project"
+        title={project.data.title}
+        areaName={area?.name ?? null}
+        areaRef={ref}
+        lead={nextActionTextOf?.(project.id) ? "Next: " + nextActionTextOf(project.id) : holdLineOf?.(project.id) ?? null}
+        foot={progress ? capAfterNumber(`${progress.done} of ${progress.total} tasks`) : "No tasks yet"}
+        progress={progress}
+        onOpen={() => onOpenProject(project.id)}
+        menuLabel={"More for " + project.data.title}
+        {...(closable(row) && onCloseProject ? { onMenu: () => setCardMenu(project.id) } : onMoveProject ? { onMenu: () => setCardMenu(project.id) } : {})}
+      />
+    );
+  };
+
+  /** A GOAL'S BAR IS ITS MEASURE, OR THERE IS NO BAR (the handoff, in its
+   *  own words: "Do not treat linked task completion as outcome progress.
+   *  For example, finishing fundraising tasks does not mean money has been
+   *  raised").
+   *
+   *  The ruled row beside this one falls back to reach.progress -- the
+   *  completion of the tasks filed under the goal -- when there is no
+   *  measure. On a card that reads as "$100K is 80% raised" when what is
+   *  80% done is the paperwork, so the card draws nothing instead and says
+   *  what it honestly has. */
+  const goalCard = (g: Goal) => {
+    const ms = measureOfGoal?.(g.id) ?? null;
+    const finished = g.data.state === "achieved" || !!g.data.dropped;
+    const ref = homeOf(g) ?? "";
+    const area = sections.find((c) => c.id === ref);
+    const linked = projectRows.filter((row) => row.project.data.goalId === g.id).length;
+    const lead = g.data.state === "achieved"
+      ? (g.data.achievedOn ? "Finished " + fmtDay(g.data.achievedOn) : null)
+      : ms ? ms.line : reachLine(reachOfGoal(g.id), finished);
+    return (
+      <ItemCard key={g.id} kind="goal"
+        title={g.data.title}
+        areaName={area?.name ?? null}
+        areaRef={ref}
+        lead={lead}
+        foot={linked > 0 ? capAfterNumber(`${linked} linked ${linked === 1 ? "project" : "projects"}`) : null}
+        progress={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : null}
+        onOpen={() => onOpenGoal(g.id)}
+      />
+    );
+  };
+
   // Goals lens: "One card, status capsule on the right." One card per
   // category; each goal a row with the target in the goal's own category
   // colour (the mark colour rule: always the category's, never a goal
@@ -434,6 +501,34 @@ export default function BiggerPicturePage({
   ];
   const movingProject = moveFor ? projectRows.find((r) => r.project.id === moveFor)?.project ?? null : null;
 
+  /* THE TAIL BELONGS TO THE LENS, NOT TO THE LIST (2026-09-18). The folded
+     receipt is the only door to a finished project or goal, and the Add row
+     ends the page; both were written inside the ruled list, so the card view
+     silently lost them until this pass caught it. One definition, rendered
+     under whichever shape is showing. The receipt still opens its rows as
+     ROWS: a done project is a receipt, and a receipt is a line, not a tile. */
+  const projectTail = doneRows.length > 0 && view === "active" ? (
+    <div className="pad-x"><div className="card list-card-ruled list-tail">
+      <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
+        <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
+        <div className="chev" />
+      </button>
+      {doneOpen && doneRows.map(pieRow)}
+      <button className="row-create" onClick={onAddProject}>Add Project</button>
+    </div></div>
+  ) : addRow("Add Project", onAddProject);
+
+  const goalTail = doneGoals.length > 0 && view === "active" ? (
+    <div className="pad-x"><div className="card list-card-ruled list-tail">
+      <button className="receipt-line" onClick={() => setDoneGoalsOpen((v) => !v)}>
+        <span className="rl-t">{capAfterNumber(`${doneGoals.length} Done ${doneGoals.length === 1 ? "goal" : "goals"}`)}</span>
+        <div className="chev" />
+      </button>
+      {doneGoalsOpen && doneGoals.map(goalRowRuled)}
+      <button className="row-create" onClick={onAddGoal}>Add Goal</button>
+    </div></div>
+  ) : addRow("Add Goal", onAddGoal);
+
   if (lensed) {
     const goalIdsHomed = (c: { id: string }) => rankGoals(
       viewGoals.filter((g) => homeOf(g) === c.id).map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g }; }),
@@ -466,16 +561,28 @@ export default function BiggerPicturePage({
             // dropdown chips like areas... Stack dropdowns next to each
             // other"). One dropdown here, because the area is the only cut
             // these two lenses have that is not a status.
-            drops={sections.length > 0 ? (
-              <HeadMenu
-                ariaLabel="Area"
-                value={areaOnly ?? "all"}
-                label={areaOnly ? undefined : "Area"}
-                options={[{ value: "all", label: "All Areas" }, ...sections.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
-                onPick={(v) => setAreaOnly(v === "all" ? null : v)}
-              />
-            ) : undefined}
-
+            drops={(
+              <>
+                {sections.length > 0 && (
+                  <HeadMenu
+                    ariaLabel="Area"
+                    value={areaOnly ?? "all"}
+                    label={areaOnly ? undefined : "Area"}
+                    options={[{ value: "all", label: "All Areas" }, ...sections.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
+                    onPick={(v) => setAreaOnly(v === "all" ? null : v)}
+                  />
+                )}
+                {/* CARDS OR ROWS (approved mockup, 2026-09-18), on the line
+                    the cuts already own. One control, showing the mark of
+                    what it switches TO. */}
+                <button type="button" className="bp-viewtog"
+                  aria-label={cardView ? "Show as a list" : "Show as cards"}
+                  aria-pressed={cardView}
+                  onClick={() => setCardView((v) => !v)}>
+                  {cardView ? <List className="ic" /> : <Table className="ic" />}
+                </button>
+              </>
+            )}
           >
             {segments}
           </LifeHeader>
@@ -487,6 +594,21 @@ export default function BiggerPicturePage({
             It shows on Projects, and on the unlensed frame that holds both. */}
         {projectsLens && offer}
 
+        {/* THE CARD'S OVERFLOW, carrying exactly what the ruled row carries
+            (approved mockup, 2026-09-18: "the overflow menu keeps existing
+            actions"). Close It where the row would offer it, Move to Goal
+            where the row would. Nothing new is invented here. */}
+        {cardMenu && (() => {
+          const row = projectRows.find((r) => r.project.id === cardMenu);
+          if (!row) return null;
+          return (
+            <RowActionSheet title={row.project.data.title} onCancel={() => setCardMenu(null)} actions={[
+              ...(closable(row) && onCloseProject ? [{ label: "Close It", onPick: () => { setCardMenu(null); onCloseProject(row.project.id); } }] : []),
+              ...(onMoveProject ? [{ label: "Move to Goal", onPick: () => { setCardMenu(null); setMoveFor(row.project.id); } }] : []),
+            ]} />
+          );
+        })()}
+
         {/* MOVE TO GOAL (Dave 2026-09-13): every goal a project can be filed
             to, the one it is under disabled, and No Goal to take it off. */}
         {movingProject && onMoveProject && (
@@ -495,7 +617,23 @@ export default function BiggerPicturePage({
             { label: "No Goal", onPick: () => onMoveProject(movingProject.id, null), disabled: !movingProject.data.goalId },
           ]} />
         )}
-        {projectsLens ? (
+        {projectsLens && cardView ? (
+          <>
+            {lensRows.length > 0 && <CardGrid>{lensRows.map(projCard)}</CardGrid>}
+            {lensRows.length === 0 && (
+              <div className="empty-state"><div className="empty-title">No Projects Here</div></div>
+            )}
+            {projectTail}
+          </>
+        ) : !projectsLens && cardView ? (
+          <>
+            {viewGoals.length > 0 && <CardGrid>{viewGoals.map(goalCard)}</CardGrid>}
+            {viewGoals.length === 0 && (
+              <div className="empty-state"><div className="empty-title">No Goals Here</div></div>
+            )}
+            {goalTail}
+          </>
+        ) : projectsLens ? (
           <>
             {/* One card per area, in the frame's order, exactly as the Goals
                 lens above does it. A project with no live area is not forced
@@ -524,16 +662,7 @@ export default function BiggerPicturePage({
             {/* The folded receipt was the only way to reach a done project;
                 the Done chip is that door now, so it belongs to the view
                 where it still is the only one. */}
-            {doneRows.length > 0 && view === "active" ? (
-              <div className="pad-x"><div className="card list-card-ruled list-tail">
-                <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
-                  <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
-                  <div className="chev" />
-                </button>
-                {doneOpen && doneRows.map(pieRow)}
-                <button className="row-create" onClick={onAddProject}>Add Project</button>
-              </div></div>
-            ) : addRow("Add Project", onAddProject)}
+            {projectTail}
           </>
         ) : (
           <>
@@ -554,16 +683,7 @@ export default function BiggerPicturePage({
                 -- byte for byte the receipt the Projects lens above already
                 uses, because a finished goal and a finished project should
                 not need two different mental models. */}
-            {doneGoals.length > 0 && view === "active" ? (
-              <div className="pad-x"><div className="card list-card-ruled list-tail">
-                <button className="receipt-line" onClick={() => setDoneGoalsOpen((v) => !v)}>
-                  <span className="rl-t">{capAfterNumber(`${doneGoals.length} Done ${doneGoals.length === 1 ? "goal" : "goals"}`)}</span>
-                  <div className="chev" />
-                </button>
-                {doneGoalsOpen && doneGoals.map(goalRowRuled)}
-                <button className="row-create" onClick={onAddGoal}>Add Goal</button>
-              </div></div>
-            ) : addRow("Add Goal", onAddGoal)}
+            {goalTail}
           </>
         )}
         <div className="screen-foot" />

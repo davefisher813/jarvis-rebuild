@@ -2215,3 +2215,127 @@
 .ruled .health-sections::-webkit-scrollbar { display: none; }
 .ruled .health-chip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 7px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--good) 22%, var(--good-tint)); color: var(--tx-1); font-size: calc(11.5px * var(--type-scale)); letter-spacing: -0.01em; font-weight: var(--w-semi); white-space: nowrap; flex: 1 1 auto; justify-content: center; min-width: 0; }
 .ruled .health-chip .ic { width: 13px; height: 13px; color: var(--good); flex-shrink: 0; }
+
+/* ==========================================================================
+   THE PROJECT / GOAL CARD (Dave 2026-09-18, approved mockup).
+
+   "Follow Apple Music's smaller square album tiles, not its large featured
+   cards or tall Replay cards... Keep cards square with consistent gaps and
+   padding. Do not stretch them vertically to fill the screen."
+
+   THE SQUARE, AND WHEN IT YIELDS. aspect-ratio makes the tile square from
+   its own column width, so two per row at any phone width stay square with
+   no arithmetic. min-height is the escape hatch the handoff asks for -- "at
+   larger accessibility sizes, allow the layout to adapt to preserve
+   readability" -- because it is expressed in --type-scale: at 1.0 it sits
+   under the square's height and the aspect-ratio governs, and as the reader
+   turns text up it overtakes it and the card grows taller than square rather
+   than clipping the words. One declaration, no media query, and the
+   adaptation is the one the handoff names.
+
+   Dave approved a type exception here: "We can scale the font specifically
+   for these cards it's fine." The title is the only place in the app that
+   takes it, and it still comes off --t-name so the type law's one definition
+   is what it scales FROM.
+   ========================================================================== */
+.ruled .bp-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3);
+  align-items: start;
+}
+.ruled .bp-card {
+  /* max-width is load-bearing, not belt-and-braces. With aspect-ratio set,
+     a min-height that exceeds the square recomputes the WIDTH from it, so at
+     1.4 text scale the cards grew to 184.8px inside a 174.5px grid track and
+     overlapped their neighbours (measured). Pinning the width to the track
+     leaves min-height free to do its job: the card stops being square and
+     grows DOWN, which is the adaptation the handoff asks for. */
+  position: relative; aspect-ratio: 1; max-width: 100%;
+  min-height: calc(132px * var(--type-scale));
+  display: flex; flex-direction: column;
+  padding: var(--s-3h); border-radius: 18px; overflow: hidden;
+  color: #FFFFFF; cursor: pointer;
+  /* The card is its own surface: no card rim or shadow on top of a fill. */
+  border: 0;
+}
+/* THE GRADIENT, FROM THE AREA AND NOTHING ELSE. Two stops mixed from the one
+   category token, so every colour slot gets a card and a slot added later
+   gets one without another rule. Deepened because the flat category colours
+   carry BLACK text by definition (.cat-bg-* sets --on-fill-dark); white on
+   them raw would not clear the contrast floor. */
+.ruled .bp-card::before {
+  content: ""; position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(145deg,
+    color-mix(in oklab, var(--bp-hue) 82%, #1A1A1F) 0%,
+    color-mix(in oklab, var(--bp-hue) 42%, #101015) 100%);
+}
+.ruled .bp-card > * { position: relative; z-index: 1; }
+.ruled .bp-card:active { opacity: 0.85; }
+
+.ruled .bp-card-red { --bp-hue: var(--cat-red); }
+.ruled .bp-card-orange { --bp-hue: var(--cat-orange); }
+.ruled .bp-card-sky { --bp-hue: var(--cat-sky); }
+.ruled .bp-card-pink { --bp-hue: var(--cat-pink); }
+.ruled .bp-card-yellow { --bp-hue: var(--cat-yellow); }
+.ruled .bp-card-green { --bp-hue: var(--cat-green); }
+.ruled .bp-card-blue { --bp-hue: var(--cat-blue); }
+.ruled .bp-card-teal { --bp-hue: var(--cat-teal); }
+.ruled .bp-card-graphite { --bp-hue: var(--cat-graphite); }
+.ruled .bp-card-purple { --bp-hue: var(--cat-purple); }
+.ruled .bp-card-indigo { --bp-hue: var(--cat-indigo); }
+.ruled .bp-card-magenta { --bp-hue: var(--cat-magenta); }
+.ruled .bp-card-lime { --bp-hue: var(--cat-lime); }
+
+/* Top row: the mark, the area, the overflow. One line, never wrapping. */
+.ruled .bp-card-top { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.ruled .bp-card-ic { display: inline-flex; flex-shrink: 0; }
+.ruled .bp-card-ic .ic, .ruled .bp-card-ic svg { width: 17px; height: 17px; color: #FFFFFF; }
+.ruled .bp-card-area {
+  flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: calc(13px * var(--type-scale)); font-weight: var(--w-medium);
+  color: rgba(255, 255, 255, 0.92);
+}
+.ruled .bp-card-more {
+  flex-shrink: 0; width: 28px; height: 22px; margin: -4px -4px -4px 0; padding: 0;
+  border: 0; background: transparent; color: rgba(255, 255, 255, 0.92);
+  font-size: calc(15px * var(--type-scale)); line-height: 1; cursor: pointer;
+}
+
+/* The title takes the middle and clamps, so a long name spends its own room
+   and never the count and bar underneath it. */
+.ruled .bp-card-title {
+  flex: 1 1 auto; min-height: 0; margin-top: var(--s-2);
+  font-size: calc(21px * var(--type-scale));
+  font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.12;
+  color: #FFFFFF;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* The gap a clamped title cannot eat. With the title on flex: 1 it pushes
+   the foot to the bottom, which is where the counts and bars are meant to
+   anchor -- but a title long enough to fill three lines then sat straight on
+   top of "Next:" with nothing between them. The margin is the foot's, so it
+   survives whatever the title does (measured against the two worst names in
+   the bench: "Reynolds & Rowella General Manager..." and the 34-letter one). */
+.ruled .bp-card-foot { flex-shrink: 0; display: flex; flex-direction: column; gap: 3px; margin-top: var(--s-2); }
+.ruled .bp-card-lead, .ruled .bp-card-n {
+  font-size: calc(13px * var(--type-scale)); font-weight: var(--w-sub);
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* A thin bar, and only where it is earned: a project's real task count, or a
+   goal's Measure. Never a goal's task completion (see ItemCard). */
+.ruled .bp-card-bar {
+  height: 4px; border-radius: 2px; margin-top: 3px;
+  background: rgba(255, 255, 255, 0.28); overflow: hidden;
+}
+.ruled .bp-card-bar > i { display: block; height: 100%; background: #FFFFFF; border-radius: 2px; }
+
+/* The control that chooses between the cards and the ruled list. */
+.ruled .bp-viewtog {
+  flex-shrink: 0; width: 34px; height: 34px; margin-left: auto; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--r-md); background: var(--press-3); color: var(--tx-1);
+  cursor: pointer;
+}
+.ruled .bp-viewtog .ic { width: 17px; height: 17px; }
