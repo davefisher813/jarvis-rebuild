@@ -10,6 +10,7 @@ import { AreaService } from "../life/AreaService";
 import { GoalService } from "../life/GoalService";
 import { ProjectsService } from "../projects/ProjectsService";
 import { MoneyService } from "../money/MoneyService";
+import { TrackerService } from "../money/TrackerService";
 import { BackupService } from "../backup/BackupService";
 import { RoutineService } from "../routine/RoutineService";
 import { GymService } from "../gym/GymService";
@@ -45,6 +46,10 @@ const AreaContext = createContext<AreaService | null>(null);
 const GoalContext = createContext<GoalService | null>(null);
 const ProjectContext = createContext<ProjectsService | null>(null);
 const MoneyContext = createContext<MoneyService | null>(null);
+// The Money page's Tracker screen (PASSOFF 2026-09-19): its own service
+// because its records are its own entity types, and its own context because
+// every other service in this file has one.
+const TrackerContext = createContext<TrackerService | null>(null);
 const GymContext = createContext<GymService | null>(null);
 const MetricsContext = createContext<MetricsService | null>(null);
 // S5-Q29 (2026-09-04): the Health module's service, real and fully tested
@@ -86,7 +91,7 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { store, notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, metrics, health, rules, chat, decisions, strands, seal, files, fileStore } = useMemo(() => {
+  const { store, notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, tracker, backup, routine, gym, metrics, health, rules, chat, decisions, strands, seal, files, fileStore } = useMemo(() => {
     const store = makeStore(accessToken, userId);
     return {
       store,
@@ -105,6 +110,7 @@ export function NotesProvider({
       goals: new GoalService(store, userId, (e) => emit(e)),
       projects: new ProjectsService(store, userId, (e) => emit(e)),
       money: new MoneyService(store, userId, (e) => emit(e)),
+      tracker: new TrackerService(store, userId, (e) => emit(e)),
       backup: new BackupService(store, userId),
       routine: new RoutineService(store, userId),
       gym: new GymService(store, userId, (e) => emit(e)),
@@ -150,6 +156,7 @@ export function NotesProvider({
                     <GoalContext.Provider value={goals}>
                       <ProjectContext.Provider value={projects}>
                       <MoneyContext.Provider value={money}>
+                      <TrackerContext.Provider value={tracker}>
                       <BackupContext.Provider value={backup}>
                       <RoutineContext.Provider value={routine}>
                       <GymContext.Provider value={gym}>
@@ -169,6 +176,7 @@ export function NotesProvider({
                       </GymContext.Provider>
                       </RoutineContext.Provider>
                       </BackupContext.Provider>
+                      </TrackerContext.Provider>
                       </MoneyContext.Provider>
                     </ProjectContext.Provider>
                     </GoalContext.Provider>
@@ -229,6 +237,11 @@ export function useOptionalRoutine(): RoutineService | null { return useContext(
 export function useOptionalGoals(): GoalService | null { return useContext(GoalContext) ?? null; }
 export function useOptionalProjects(): ProjectsService | null { return useContext(ProjectContext) ?? null; }
 export function useOptionalMoney(): MoneyService | null { return useContext(MoneyContext) ?? null; }
+export function useTracker(): TrackerService {
+  const s = useContext(TrackerContext);
+  if (!s) throw new Error("useTracker must be used inside NotesProvider");
+  return s;
+}
 
 export function useSchedule(): ScheduleService {
   const s = useContext(ScheduleContext);

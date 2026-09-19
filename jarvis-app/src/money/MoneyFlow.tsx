@@ -11,6 +11,7 @@ import {
 } from "./budget";
 import { activeBills, billSubline, paydayLine, paydayNext, monthDay, paidThisMonth, type PaydayInfo, type PaydayFreq } from "./bills";
 import BillSheet, { type BillDraft } from "./BillSheet";
+import TrackerScreen from "./screens/TrackerScreen";
 import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
@@ -614,8 +615,32 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   //   "hero-accts": the balance card holds its accounts (recommended)
   //   "bills-lead": bills first, the balance as one line under the title
   //   "before":     the old order on the ruled cards, accounts last
+  // THE TRACKER (PASSOFF 2026-09-19). Its own screen rather than a section
+  // in this scroll: it is four tabs over a month of transactions, which is a
+  // place you go rather than something you glance at on the way past. This
+  // page keeps every section it already had.
+  const [tracker, setTracker] = useState(false);
   const MONEY_TOP = "hero-accts" as "hero-accts" | "bills-lead" | "before";
   const balanceLine = `As you last entered it${balanceAsOf ? ` \u00b7 ${monthDay(balanceAsOf)}` : ""}`;
+
+  if (tracker) return <TrackerScreen onBack={() => setTracker(false)} />;
+
+  // WHERE IT WENT. The hero answers what is left; this is the door to the
+  // other half. It is rendered in both branches below on purpose: a page
+  // with no accounts yet is precisely where someone arrives to import a
+  // month of transactions, and hiding the way in until they have typed a
+  // balance would be the wrong way round.
+  const trackerRow = (
+    <div className="pad-x"><div className="card list-card-ruled">
+      <div className="row" {...pressable(() => setTracker(true))}>
+        <div className="row-grow">
+          <div className="conn-name">Tracker</div>
+          <div className="conn-meta">Spending, Budgets and Subscriptions</div>
+        </div>
+        {CHEV}
+      </div>
+    </div></div>
+  );
 
   return (
     <div className="screen ruled">
@@ -625,9 +650,12 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
       </>} />
       {picker.input}
       {accounts.length === 0 && bills.length === 0 && tagged.length === 0 ? (
+        <>
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>
           <button className="btn btn-primary" onClick={() => setSheet({ kind: "new" })}>Add an Account</button>
           <button className="btn btn-secondary" onClick={() => setBillSheet({ kind: "new" })}>Add a Bill</button></div>
+          {trackerRow}
+        </>
       ) : (
         <>
           {/* THE NUMBER. One line answers "what is actually mine right now".
@@ -728,6 +756,8 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
               <div className="money-hero-label">{balanceLine}</div>
             </div></div>
           )}
+
+          {trackerRow}
 
           <div className="sh2 sh2-quiet"><span className="t">Bills</span>{bills.length > 0 && <span className="n">{bills.length}</span>}</div>
           <div className="pad-x"><div className="card list-card-ruled">{billRows}</div></div>
