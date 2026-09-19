@@ -375,3 +375,57 @@ describe("TodayFlow: the meeting link and notes survive an edit", () => {
     vi.useRealTimers();
   });
 });
+
+// B1-4, THE SECOND TIME (2026-09-19, found by a sweep for the meeting-fields
+// bug's shape). The comment above onOpenTask records that this sheet once
+// "used to load and save a strict subset of the same TaskSheet the Tasks tab
+// opens", and ends "Same sheet, same fields, both ends." That fix listed the
+// fields TaskSheet had in September; `notes` arrived afterwards and was never
+// added here, so the subset quietly opened up again -- the notes box showed
+// empty on a task that had notes, and anything typed in it was dropped.
+//
+// Same defect the meeting link had on this very tab this morning, in a
+// different sheet: not loaded in one direction, not saved in the other.
+describe("TodayFlow: a task's notes survive being edited from home", () => {
+  it("shows what is stored and saves what is typed", async () => {
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_TASK } = await import("../notes/types");
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(todayISO() + "T09:00:00"));
+    let svc: import("../tasks/TasksService").TasksService | null = null;
+    function Grab() { svc = useTasks(); return null; }
+    render(
+      <NotesProvider userId="today-task-notes">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+          <Grab />
+          <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    await waitFor(() => expect(svc).toBeTruthy());
+    const id = (await svc!.createTask("Call the referee assignor", {
+      category: "c1", due: todayISO(), notes: "Ask about the Saturday double-header.",
+    }))!;
+    notifyFreshLists(ENTITY_TASK);
+
+    await waitFor(() => expect(screen.getByText("Call the referee assignor")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Call the referee assignor"));
+    await screen.findByText("Edit Task");
+
+    // What is stored is what the box shows.
+    const notes = await screen.findByLabelText("Task notes");
+    await waitFor(() => expect(notes.textContent).toContain("Saturday double-header"));
+
+    // And what is typed is what comes back.
+    // The notes box is the shared Markdown editor, so it is driven the way
+    // TaskSheet.test.tsx drives it: write into the paragraph, not the host.
+    await act(async () => { notes.querySelector("p")!.textContent = "He wants the roster by Thursday."; });
+    await waitFor(() => expect(notes.textContent).toContain("Thursday"));
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => {
+      const back = await svc!.task(id);
+      expect(back?.notes).toContain("Thursday");
+    });
+    vi.useRealTimers();
+  });
+});
