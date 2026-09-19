@@ -35,6 +35,21 @@ export interface Rule { weekday: number; startTime: string; endTime: string; tim
 export interface Override { date: string; blocked: boolean; startTime?: string; endTime?: string }
 
 /** Something already on the owner's calendar, as instants. */
+/** Postgres renders a tstzrange as ["lower","upper") and the bound style is
+ *  part of the value, so it is parsed rather than assumed. An unparseable
+ *  range yields NaN, which every caller filters rather than rendering.
+ *
+ *  It lives here, in the pure module, because three callers need it now and a
+ *  second copy of a parser is how two copies drift. It is also the reason it
+ *  is not in api/_track3.ts: api/book.ts is the one endpoint with no auth in
+ *  front of it and names no live-project credential, and importing a module
+ *  that does would put those names in its bundle for the sake of four lines.
+ */
+export function parseRange(raw: string): { startMs: number; endMs: number } {
+  const m = /^[[(]"?([^",]+)"?,"?([^",)\]]+)"?[)\]]$/.exec(raw.trim());
+  return m ? { startMs: Date.parse(m[1]!), endMs: Date.parse(m[2]!) } : { startMs: NaN, endMs: NaN };
+}
+
 export interface Busy { startMs: number; endMs: number }
 
 export interface Slot { date: string; startMs: number; endMs: number }

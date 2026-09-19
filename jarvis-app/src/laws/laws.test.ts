@@ -922,7 +922,15 @@ describe("LAW: one filled red per screen", () => {
       // kind of control: the row is the stream's uniform row, and this is the
       // one capsule in the card that spends real minutes rather than deferring
       // something. The rows under it keep the tinted .pill-act they had.
-      ".ruled .stream-card .pill-act.pill-go",
+      //
+      // Widened from .stream-card to .card (2026-09-19, Dave on the live
+      // workout: "have it render at the top with a red button like start
+      // now"). A session in progress wears the same Resume in Your Move and
+      // in Now, and Now is its own card rather than the stream's. The claim
+      // is unchanged and the shape is still a .pill-act: pill-go is opt-in
+      // per action, so only a producer that asks for the fill gets it, and
+      // the law still catches any PANEL that tries to wear it.
+      ".ruled .card .pill-act.pill-go",
       // The Tasks list's door to Focus (Dave 2026-09-18: "that focus button
       // should be Jarvis red"), which is the same ruling he gave Today's
       // Start pill two days earlier. It replaced Pick One, a full-width red
@@ -1892,6 +1900,7 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // what it is.
     "book.ts",
     "booking-link.ts",
+    "bookings.ts",
   ];
 
   // Written, tested, and NOT reachable from the running app. Each line is a
@@ -4891,12 +4900,19 @@ describe("LAW: a live gym session is visible and reachable from Today", () => {
       .not.toMatch(/gymCatId/);
   });
 
-  it("the card renders the plan, not just a bookmark", () => {
+  // 2026-09-19 (Dave, off a rendered comparison: the plan on the home page
+  // was "way too much"; "a resume button up top with the time left in the
+  // workout if there's a timer set"; "It should go in the now section"). The
+  // row still reads the session through the live card, so nothing is
+  // invented; what it SAYS is the day and the clock, and the plan stays in
+  // the session. Now carries the same session as the thing he is inside of.
+  it("the row reads the session through the live card, says the clock, and Now carries it", () => {
     const today = read(SRC + "/today/TodayFlow.tsx");
     expect(today, "Today must read the session through the live card").toMatch(/liveCard\(liveGym\)/);
-    expect(today, "and lead with the exercise it is on, with its numbers").toMatch(/currentLine\(card\)/);
-    // The plan itself, exercise by exercise.
-    expect(today, "the card must list the drawn-up exercises").toMatch(/card\.lines\.map/);
+    expect(today, "the row says time left when a timer was set, else time in").toMatch(/card\.left \?\? card\.elapsed/);
+    expect(today, "the plan stays in the session, not on the home page").not.toMatch(/card\.lines\.map/);
+    expect(today, "Now carries the session").toMatch(/In: \{liveNow\.dayName\}/);
+    expect(today, "and the session leads Your Move, outside the ranked stream").toMatch(/liveGym=\{liveGymHead\}/);
     const card = read(SRC + "/gym/liveCard.ts");
     expect(card, "the plan line comes from the shared formatter, not a second one")
       .toMatch(/targetLine\(/);

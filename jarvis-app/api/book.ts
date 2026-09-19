@@ -1,19 +1,24 @@
-import { openSlots, type Busy, type Override, type Rule } from "../src/booking/slots";
+import { openSlots, parseRange, type Busy, type Override, type Rule } from "../src/booking/slots";
+import { sendBookingReceipt } from "./_receipt";
 
 // PUBLIC BOOKING (Track 3, 2026-09-19).
 //
 //   GET  /api/book?slug=<slug>            the open slots on a link, for a
 //                                         stranger with no account.
-//   POST /api/book {slug, startMs, name, email}
+//   POST /api/book {slug, startMs, name, email, timezone}
 //                                         takes one of them.
 //
 // NO AUTH, on purpose: the whole point of a booking link is that the person
 // holding it does not have an account here. That makes this the most exposed
 // surface in the app, so it is written the way an exposed surface has to be.
 //
-//   - It runs against the Track 3 project through its OWN env vars. The live
-//     project's keys are not reachable from this file, so a mistake here
-//     cannot touch the app's real data.
+//   - It runs against the Track 3 project through its OWN env vars, and this
+//     file names no live-project credential anywhere. That is a discipline
+//     about what the public endpoint does, not a wall: every function in a
+//     deployment can read every variable. The confirmation needs the host's
+//     mail grant, which lives in the live project, and that one exception is
+//     quarantined in api/_receipt.ts, where its whole surface is one function
+//     that reads one row and sends one message.
 //   - It fails CLOSED. With the env unset it answers 503 and writes nothing,
 //     rather than falling back to some other project.
 //   - It never trusts the client's arithmetic. The client sends a start; the
@@ -111,12 +116,9 @@ async function grid(c: Ctx, slug: string, nowMs: number) {
     ...(o.override_start ? { startTime: o.override_start.slice(0, 5) } : {}),
     ...(o.override_end ? { endTime: o.override_end.slice(0, 5) } : {}),
   }));
-  // postgres renders a tstzrange as ["lower","upper") and the bound style is
-  // part of the value, so it is parsed rather than assumed.
-  const busy: Busy[] = busyRows.map((b) => {
-    const m = /^[[(]"?([^",]+)"?,"?([^",)\]]+)"?[)\]]$/.exec(b.time_range.trim());
-    return m ? { startMs: Date.parse(m[1]!), endMs: Date.parse(m[2]!) } : { startMs: NaN, endMs: NaN };
-  }).filter((b) => Number.isFinite(b.startMs) && Number.isFinite(b.endMs));
+  const busy: Busy[] = busyRows
+    .map((b) => parseRange(b.time_range))
+    .filter((b) => Number.isFinite(b.startMs) && Number.isFinite(b.endMs));
 
   const zone = rules[0]?.timezone ?? "UTC";
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(nowMs));
@@ -160,11 +162,14 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (req.method === "POST") {
       const body = (await req.json().catch(() => null)) as
-        { slug?: string; startMs?: number; name?: string; email?: string } | null;
+        { slug?: string; startMs?: number; name?: string; email?: string; timezone?: string } | null;
       const slug = (body?.slug || "").trim();
       const startMs = Number(body?.startMs);
       const name = (body?.name || "").trim().slice(0, 120);
       const email = (body?.email || "").trim().slice(0, 200);
+      // The visitor's own clock, for the receipt. Untrusted and length-capped
+      // here, then checked against the runtime before anything formats with it.
+      const guestZone = (body?.timezone || "").trim().slice(0, 60);
       if (!slug || !Number.isFinite(startMs)) return json({ error: "Pick a time" }, 400);
       if (!name) return json({ error: "Add your name" }, 400);
       if (!EMAIL_RE.test(email)) return json({ error: "Add an email we can confirm to" }, 400);
@@ -195,7 +200,28 @@ export default async function handler(req: Request): Promise<Response> {
       if (res.status === 409) return json({ error: "Someone just took that time" }, 409);
       if (!res.ok) return json({ error: "Could not book that" }, 502);
       const made = (await res.json()) as { id: string }[];
-      return json({ id: made[0]?.id ?? null, startMs: slot.startMs, endMs: slot.endMs, timezone: g.zone, name: g.type.name });
+      const id = made[0]?.id ?? null;
+
+      // THE RECEIPT, AFTER THE FACT. The slot is taken; this is a courtesy on
+      // top of work that has already succeeded, so it is allowed to fail and
+      // the answer says whether it did. The page then tells the visitor what
+      // actually happened rather than promising an email nobody sent.
+      let confirmationSent = false;
+      if (id) {
+        confirmationSent = await sendBookingReceipt({
+          ownerId: g.link.owner_id,
+          bookingId: id,
+          typeName: g.type.name,
+          startMs: slot.startMs,
+          endMs: slot.endMs,
+          guestName: name,
+          guestEmail: email,
+          ...(guestZone ? { guestZone } : {}),
+          hostZone: g.zone,
+        }).catch(() => false);
+      }
+
+      return json({ id, startMs: slot.startMs, endMs: slot.endMs, timezone: g.zone, name: g.type.name, confirmationSent });
     }
 
     return json({ error: "Method not allowed" }, 405);

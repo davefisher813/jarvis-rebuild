@@ -247,6 +247,7 @@ export default function TodayPage({
   blendMap,
   gymDoorFor,
   nowCard,
+  liveGym,
   notices = [],
   reminders,
   offersQuiet,
@@ -403,6 +404,9 @@ export default function TodayPage({
   // The Now card (what is happening this minute) rides at the very top:
   // the page reads in the order the day happens (Dave 2026-08-19).
   nowCard?: ReactNode;
+  // A workout in progress (2026-09-19). One row at the head of the Your Move
+  // card, above the dealt task; never ranked, never folded.
+  liveGym?: ReactNode;
   // Every notice JARVIS has for him, in priority order, rendered under the
   // one Heads Up head instead of floating loose down the page.
   notices?: ReactNode[];
@@ -863,7 +867,7 @@ export default function TodayPage({
           row (the headliner is retired, see stream.ts); the deck behind
           the dealt task folds to the waiting receipt. Evening has no dealt
           card, so the stream stays what it always was there: Heads Up. */}
-      {(headsUp.length > 0 || headliner) && (() => {
+      {(headsUp.length > 0 || headliner || liveGym) && (() => {
         // FORM FOLLOWS DECISION (Law 3E). The stream ranks its members;
         // the producers only declare weight, form is decided here, in one
         // place, so no card can promote itself.
@@ -900,8 +904,9 @@ export default function TodayPage({
                   harness draws this band without a card at all, but every
                   band on the real page has one and Push A did not change
                   that; the anatomy inside it is the harness's. */}
-              {(shownRows.length > 0 || headliner) && (
+              {(shownRows.length > 0 || headliner || liveGym) && (
                 <div className="card stream-card">
+                  {liveGym}
                   {headliner}
                   {/* THE PINNED CARD IS REPEALED, IN THE STREAM (Dave
                       2026-08-26, picking Option 1 with the tradeoff stated:

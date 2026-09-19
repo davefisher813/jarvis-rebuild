@@ -1,3 +1,5 @@
+import { IOS_TAG, encrypt, decrypt, refreshAccessToken } from "./_google";
+
 // Persistent Google sign-in (2026-08-04). The ONLY place refresh tokens live.
 //
 //   POST {code}            authed. Exchanges a one-time auth code (from the
@@ -18,15 +20,11 @@ export const config = { runtime: "edge" };
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
-// WHICH CLIENT A TOKEN BELONGS TO (2026-09-11). Google refreshes a token only
-// with the client that issued it, and the refresh path below always sent the
-// web client and its secret. A token from the iPhone's native connect was
-// issued to the iOS client, so every silent refresh on the phone failed and
-// "stays signed in" never held there. The client is recorded INSIDE the
-// encrypted value (no schema change): native tokens are stored as
-// "ios:" + token. Google refresh tokens begin "1//", so the tag cannot
-// collide with one.
-const IOS_TAG = "ios:";
+// MOVED, NOT COPIED (2026-09-19). The cipher, the iOS client tag and the
+// refresh itself live in api/_google.ts now, because the booking confirmation
+// needs to send from the host's mailbox with no session on the request. This
+// file still owns everything about SIGNING IN: the code exchange, which
+// account a token belongs to, and forgetting a grant Google has revoked.
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -40,26 +38,6 @@ async function authedUserId(req: Request, supaUrl: string, supaAnon: string): Pr
   if (!who.ok) return null;
   const me = (await who.json()) as { id?: string };
   return me.id || null;
-}
-
-// --- AES-GCM around the refresh token ---
-async function cipherKey(secretB64: string): Promise<CryptoKey> {
-  const raw = Uint8Array.from(atob(secretB64), (c) => c.charCodeAt(0));
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
-}
-async function encrypt(plain: string, secretB64: string): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await cipherKey(secretB64);
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plain)));
-  const packed = new Uint8Array(iv.length + ct.length);
-  packed.set(iv); packed.set(ct, iv.length);
-  return btoa(String.fromCharCode(...packed));
-}
-async function decrypt(packedB64: string, secretB64: string): Promise<string> {
-  const packed = Uint8Array.from(atob(packedB64), (c) => c.charCodeAt(0));
-  const key = await cipherKey(secretB64);
-  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: packed.slice(0, 12) }, key, packed.slice(12));
-  return new TextDecoder().decode(plain);
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -167,40 +145,19 @@ export default async function handler(req: Request): Promise<Response> {
     } catch {
       return json({ error: "Stored sign-in unreadable" }, 410);
     }
-    const tagged = stored.startsWith(IOS_TAG);
-    const refreshToken = tagged ? stored.slice(IOS_TAG.length) : stored;
-    type Tok = { access_token?: string; expires_in?: number; error?: string };
-    const refreshWith = async (params: Record<string, string>): Promise<{ ok: boolean; tok: Tok }> => {
-      const r = await fetch(TOKEN_URL, {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ refresh_token: refreshToken, grant_type: "refresh_token", ...params }),
-      });
-      return { ok: r.ok, tok: (await r.json()) as Tok };
-    };
-    const viaWeb = () => refreshWith({ client_id: clientId, client_secret: clientSecret });
-    // The iOS client has no secret; the token alone proves it (see IOS_TAG).
-    const viaIos = () => refreshWith({ client_id: iosClientId });
-    // A tagged token goes straight to the iOS client. An untagged one is web,
-    // or a native token stored before the tag existed: try web, then iOS, and
-    // only treat the grant as revoked if every client it could belong to
-    // refuses it, so a phone's token is never deleted for being tried against
-    // the wrong client first.
-    let res = tagged && iosClientId ? await viaIos() : await viaWeb();
-    if ((!res.ok || !res.tok.access_token) && !tagged && iosClientId) {
-      const second = await viaIos();
-      if (second.ok && second.tok.access_token) res = second;
-    }
-    const tok = res.tok;
-    if (!res.ok || !tok.access_token) {
-      if (tok.error === "invalid_grant") {
+    // The client fallback lives in _google.ts; what belongs HERE is what to do
+    // when every client refuses the token, because only the sign-in path can
+    // forget a grant and ask the person for a new one.
+    const got = await refreshAccessToken(stored, { clientId, clientSecret, iosClientId });
+    if (!got.ok) {
+      if (got.error === "invalid_grant") {
         // Revoked at Google: forget it so the app re-asks interactively once.
         await fetch(rest + "?user_id=eq." + userId + "&email=eq." + encodeURIComponent(email), { method: "DELETE", headers: svc });
         return json({ error: "Sign-in revoked" }, 410);
       }
-      return json({ error: tok.error || "Refresh failed" }, 502);
+      return json({ error: got.error }, 502);
     }
-    return json({ accessToken: tok.access_token, email, expiresIn: tok.expires_in ?? 3600 });
+    return json({ accessToken: got.got.accessToken, email, expiresIn: got.got.expiresIn });
   }
 
   if (typeof body.forget === "string" && body.forget) {

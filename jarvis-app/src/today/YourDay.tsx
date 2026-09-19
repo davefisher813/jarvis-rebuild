@@ -181,6 +181,12 @@ function DaySet({
   shown.forEach((en, i) => {
     if (!nowPlaced && en.s >= nowMin) { out.push(<NowLine key="now" label={nowLabel} />); nowPlaced = true; }
     if (en.kind === "event") {
+      // A BLOCK WITH A SESSION RUNNING BEHIND IT IS NOT PAST (Dave
+      // 2026-09-19: the workout "should show in the schedule automatically
+      // once I start"). isPast greys any block that has begun, which is right
+      // for a meeting and wrong for the one block he is inside of: the door
+      // says Resume, so the row stays lit while it does.
+      const door = gymDoorFor?.(en.ev) ?? null;
       out.push(
         <DayRow
           key={en.ev.id}
@@ -189,7 +195,7 @@ function DaySet({
           attach={attachMap?.[en.ev.id]}
           firstMove={firstMoveMap?.[en.ev.id]}
           isNext={en.ev.id === nextId}
-          isPast={isPast(en.ev, now)}
+          isPast={isPast(en.ev, now) && !door?.onResume}
           now={now}
           {...(stateWords ? { state: stateForEvent(en.ev.data, { today: todayISODate(), nowMin }) } : {})}
           onOpen={onOpenEvent ? () => onOpenEvent(en.ev.id) : undefined}
@@ -198,7 +204,7 @@ function DaySet({
           onSetEnd={onSetEnd ? (end) => onSetEnd(en.ev.id, end) : undefined}
           onSkipToday={onSkipToday ? () => onSkipToday(en.ev.id) : undefined}
           onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.ev.id) : undefined}
-          gymDoor={gymDoorFor?.(en.ev) ?? null}
+          gymDoor={door}
           weatherDateIso={todayISODate()}
         />,
       );

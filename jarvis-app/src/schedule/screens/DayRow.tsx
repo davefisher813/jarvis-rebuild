@@ -38,6 +38,9 @@ export interface GymDoorView {
   meta?: string;
   /** Present only when starting makes sense (today). Opens the gym. */
   onStart?: () => void;
+  /** A session is running behind this block (2026-09-19). The door reads
+   *  Resume and lands in the session; Start stands down. */
+  onResume?: () => void;
 }
 
 export default function DayRow({
@@ -378,7 +381,11 @@ export default function DayRow({
                 <>
                   {gymDoor.dayName && <div className="sched-gym-name">{gymDoor.dayName}</div>}
                   {gymDoor.meta && <div className="sched-cat">{gymDoor.meta}</div>}
-                  {gymDoor.onStart && (
+                  {gymDoor.onResume ? (
+                    <button type="button" className="pill-act sched-gym-start" onClick={gymDoor.onResume}>
+                      {gymDoor.dayName ? `Resume ${gymDoor.dayName}` : "Resume"}
+                    </button>
+                  ) : gymDoor.onStart && (
                     <button type="button" className="pill-act sched-gym-start" onClick={gymDoor.onStart}>
                       {gymDoor.dayName ? `Start ${gymDoor.dayName}` : "Start Training"}
                     </button>

@@ -50,6 +50,16 @@ export interface EventData {
   interval?: 1 | 2;
   exdates?: string[]; // occurrence dates removed/overridden from the series
   gcalId?: string; // Google Calendar event id, when imported (dedupe key)
+  // TRACK 3 (2026-09-19): the Track 3 booking a stranger made through the
+  // public link, when this event came from one. The dedupe key, exactly the
+  // way gcalId is, and for the same reason: an import runs again and must
+  // recognise its own work rather than making a second copy. On the event
+  // rather than in a second store, which is the standing rule here.
+  //
+  // Its presence also means "this hour was taken by somebody else", which is
+  // not the same as an hour he filled in himself, and nothing here edits a
+  // booking: it is the visitor's, and the app reads it.
+  bookingId?: string;
   // PLUMB-F-07 (2026-09-05): WHAT GOOGLE LAST SAID, on the day this event was
   // imported or last refreshed. Not a digest despite the name: the five
   // Google-owned values themselves, JSON-encoded in the order title, date,

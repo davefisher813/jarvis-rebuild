@@ -52,16 +52,44 @@ describe("PublicBookingPage", () => {
     expect((f as unknown as ReturnType<typeof vi.fn>).mock.calls.filter((c) => (c[1] as RequestInit | undefined)?.method === "POST")).toHaveLength(0);
   });
 
-  it("books, and the receipt names the time rather than saying it worked", async () => {
-    const made = { startMs: SLOTS[0]!.startMs, endMs: SLOTS[0]!.endMs, timezone: "America/New_York", name: "Intro Call" };
-    render(<PublicBookingPage slug="intro" fetchImpl={fetcher(LINK, { body: made, status: 200 })} />);
+  const book = async (f: typeof fetch) => {
+    render(<PublicBookingPage slug="intro" fetchImpl={f} />);
     await screen.findByText("Intro Call");
     fireEvent.click(document.querySelectorAll(".chip-row .chip")[0]!);
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Alberto" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.click(screen.getByRole("button", { name: /^Book / }));
+  };
+  const MADE = { startMs: SLOTS[0]!.startMs, endMs: SLOTS[0]!.endMs, timezone: "America/New_York", name: "Intro Call" };
+
+  it("books, and the receipt names the time rather than saying it worked", async () => {
+    await book(fetcher(LINK, { body: { ...MADE, confirmationSent: true }, status: 200 }));
     expect(await screen.findByText("You Are Booked")).toBeInTheDocument();
     expect(screen.getByText(/a@b\.com/)).toBeInTheDocument();
+  });
+
+  // THE PROMISE HAS TO BE TRUE (2026-09-19). This line used to say a
+  // confirmation was on its way whether or not one had been sent. Telling
+  // somebody to watch an inbox for an email that does not exist is how a
+  // booking becomes a no-show, so the page now says what the server did.
+  it("when no confirmation went out, it says so instead of promising one", async () => {
+    await book(fetcher(LINK, { body: { ...MADE, confirmationSent: false }, status: 200 }));
+    expect(await screen.findByText("You Are Booked")).toBeInTheDocument();
+    expect(screen.getByText(/No email went out/)).toBeInTheDocument();
+    expect(screen.queryByText(/on its way/)).toBeNull();
+  });
+
+  // The receipt is written on the VISITOR's clock, and only their browser
+  // knows which one that is, so it has to travel with the booking.
+  it("sends the visitor's own time zone with the booking", async () => {
+    const f = fetcher(LINK, { body: { ...MADE, confirmationSent: true }, status: 200 });
+    await book(f);
+    await screen.findByText("You Are Booked");
+    const post = (f as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .find((c) => (c[1] as RequestInit | undefined)?.method === "POST")!;
+    const sent = JSON.parse((post[1] as RequestInit).body as string) as { timezone?: string };
+    expect(typeof sent.timezone).toBe("string");
+    expect(sent.timezone!.length).toBeGreaterThan(0);
   });
 
   // THE SERVER DECIDES. Someone else can take the slot between the grid

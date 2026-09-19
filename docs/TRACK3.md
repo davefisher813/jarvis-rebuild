@@ -51,7 +51,41 @@ This document said four times that there is no server. That was wrong from the d
 - **The form arrives with the choice.** Asking for an email before a time is picked is asking someone to pay before they know what for.
 - **The server decides, and the page says so.** If the slot goes while they are typing, the message says that and the grid reloads. The reason is drawn ABOVE the grid rather than inside the form, because dropping the choice unmounts the form: the first version erased its own explanation in the same tick that made it true, which its test caught.
 
-Still to build here: the confirmation email (nothing sends one yet; the receipt says one is coming, which is the one line in this feature that is currently a promise rather than a fact), and the calendar write-through, which needs a Tier 1 connection.
+Still to build here: nothing on the visitor's side. What the host sees is below.
+
+## The confirmation, which was the one promise (2026-09-19)
+
+The receipt screen told every visitor a confirmation was on its way, and nothing sent one. That was the single line in this feature that was a promise rather than a fact, and it is now a fact.
+
+**It sends from the host's own mailbox, not from a service.** The alternative was a transactional mail vendor, which means a new account, a new secret, a from-address that is not the host's, and a much better chance of landing in spam. The app already stores a Google grant for the host and already knows how to send with it. So the confirmation comes from the address the visitor just agreed to meet, lands in the host's own Sent, and a reply reaches a real person. It needs no new environment variable at all.
+
+**The seam, stated plainly.** `api/book.ts` is the only endpoint here with no auth in front of it, and it was written to name no live-project credential anywhere. The grant lives in the live project, so that discipline has to bend exactly once. It bends in `api/_receipt.ts`, whose whole surface is one function, and the honest version of what that discipline is: every function in a deployment can read every variable, so it was never a wall, it is a rule about what the public endpoint does, kept small enough to read in one sitting. What the seam may do with the live project is read ONE row and send ONE message. Its tests assert that every live-project request it makes is a GET.
+
+**It never fails a booking.** The slot is already taken by the time the receipt runs. A host who has not connected Google, a revoked grant, Gmail refusing the message: each means no receipt and none of them means no booking. The endpoint answers with `confirmationSent`, and the page now says either that an email is on its way or that the time is held and nothing went out. Promising an inbox an email that does not exist is how a booking becomes a no-show.
+
+**The clock the email is on is the visitor's.** Their browser sends its zone with the booking, because only it knows. A receipt written in the host's zone asks a stranger to do arithmetic about a meeting they have already agreed to, which is exactly when somebody misses one. The host's zone is stated once underneath, and only when the two differ. A zone name from a stranger's browser is not trusted: it is tried against the runtime first and falls back to the host's, because a bad zone name makes `Intl` throw.
+
+**An .ics, not an invitation.** A real invitation (`METHOD:REQUEST`) makes a mail client offer Yes, No and Maybe, and those answers go to an organizer address with nothing listening. A button that does nothing is worse than no button, so the attachment is a `METHOD:PUBLISH` calendar file and the client offers the one thing it can do, which is add it.
+
+`src/booking/receipt.ts` is the words and the calendar file, pure and tested, including the two details that are quiet bugs otherwise: an unescaped comma or semicolon in a meeting name ends a calendar property early and the event loses its title, and RFC 5545 folds lines at 75 OCTETS, so a name with an accent in it arrives as mojibake if the fold is measured in characters.
+
+`api/_google.ts` is the cipher, the two OAuth clients and the refresh, MOVED out of `api/google.ts` rather than copied. Two copies of AES-GCM code is how one of them stops decrypting what the other wrote. Sign-in still owns the code exchange and forgetting a revoked grant, which is the part only it can do, because only it can ask the person for a new one. Twenty tests now cover what was previously untested because it was private.
+
+## The host finds out (2026-09-19)
+
+A booking had been landing in Track 3 since the public page shipped and the host had no way to find out. The visitor got a receipt; the person whose day it was did not. That is worse than having no booking system, because he fills the hour himself and only one of the two people turns up expecting company.
+
+**It lands in JARVIS's own schedule, not in Google, and that is a rule rather than a shortcut.** The stored Google grant is `calendar.readonly` on purpose, under a standing decision written into `connections/google/config.ts`: JARVIS writes schedules to its own store and never to Google. Widening that scope to write events is Dave's call, not a side effect of this feature, and it is not free: a scope change forces every already-connected account through one interactive reconnect. **That is the one open question left in booking.** Everything else about it works without it.
+
+`api/bookings.ts` is a GET and nothing else. Cancelling a booking is a different decision with a different consequence, which is that somebody is told their meeting is off, and it is absent from this endpoint deliberately rather than by omission.
+
+The import follows the Google one's shape and inherits its two expensive lessons. It never makes a second copy, because the booking id is the key and the store is read before anything is written, which is what makes running it on every app open safe. And it never deletes on an absence alone: an event is removed only when the server was actually asked about its day, because outside that window an absence means "not asked", and deleting on it would delete a real meeting over a query's limits. It is much simpler than the Google import in one respect that matters: a booking cannot be edited, so there is no field-by-field merge and no hash. An id either has an event or it does not.
+
+It runs from `BookingImportPump`, mounted in AppShell beside the mail pumps rather than inside a tab, because a tab switch unmounts a tab and the point is that the schedule is right whether or not he opened the right screen. Once per app open: a booking is a meeting some days out, not a live feed.
+
+Settings > Booking now also lists who has booked, which answers the question everybody asks straight after publishing a link. Nobody having booked and not being able to ask are shown as the different facts they are, because reading the second as the first tells him his link is dead when it is not.
+
+`api/_track3.ts` is the shared floor under both signed-in endpoints, lifted out of `booking-link.ts` rather than copied, because the interesting part of it is a security check and a second copy of a security check is a second thing to get wrong. `parseRange` went the other way, into `src/booking/slots.ts`: three callers need it, and `api/book.ts` is the one endpoint with no auth in front of it that names no live-project credential, so it must not import a module that does.
 
 ## The bridge past Clerk (2026-09-19)
 
@@ -73,7 +107,9 @@ Settings > Booking now has a Publish button and shows the address, which is the 
 |---|---|
 | Public Link (the slot grid, name and email, Confirm) | BUILT 2026-09-19: `api/book.ts`. Waiting only on the two env vars below |
 | The booking page itself (the grid, the form, the confirmation) | BUILT 2026-09-19: `/book/<slug>`, the one path that renders above the auth gate |
-| The calendar write-through | a Tier 1 `user_connections` row |
+| The confirmation email and its calendar file | BUILT 2026-09-19: sends from the host's own Gmail, needs no new env var |
+| A booking showing up for the host | BUILT 2026-09-19: `api/bookings.ts` and the import into JARVIS's own schedule |
+| Writing a booking into GOOGLE Calendar | Dave's ruling on widening the Google scope past `calendar.readonly`, which forces one interactive reconnect. Not needed for the host to see a booking |
 | Connections (request, accept, decline, scope toggles) | Clerk wired as the project's third-party auth provider. Booking no longer waits on it: see the bridge below |
 | Shared Project (view and edit badges, assignee avatars) | connections above (0005's policies are tested at the database, see the track3 README) |
 | Tier 1 and Tier 2 connectors | `api/ai.ts` calling `mcp_take_token` (0007) before each Anthropic call. The server exists; the call is not wired |
