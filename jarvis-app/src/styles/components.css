@@ -5880,3 +5880,15 @@ span.row-star { cursor: default; }
 
 .mt-limit-edit { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1h); }
 .mt-limit-edit .mt-inline { flex: 1; text-align: left; }
+
+/* THE PUBLIC BOOKING PAGE (Track 3, 2026-09-19). The one screen a stranger
+   sees, so it wears the app's own chrome and adds only what a page with no
+   session of its own needs: a quiet line for the facts about time zones and
+   confirmations, and the two lines of the receipt. */
+.bk-page .pagehead { padding-bottom: var(--s-2); }
+.bk-note { font-size: var(--t-caption); color: var(--tx-2); padding: var(--s-2) 0; line-height: var(--lh-relaxed); }
+.bk-when { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-1); }
+.bk-time { font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.01em; color: var(--tx-1); margin-top: var(--s-1); }
+.bk-form { display: flex; flex-direction: column; gap: var(--s-2); }
+.bk-form .input-label { margin-bottom: 0; }
+.bk-form .btn { margin-top: var(--s-2); }

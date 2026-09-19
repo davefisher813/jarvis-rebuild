@@ -41,12 +41,24 @@ This document said four times that there is no server. That was wrong from the d
 
 **What Dave has to do, once:** add those two variables to the Vercel project. The URL is the Track 3 project's API URL; the service key is on the same settings page. Until then the endpoint answers 503, which is the correct behaviour and not a bug.
 
+## The page a stranger sees (2026-09-19)
+
+`/book/<slug>` is the only address in this app that renders before the auth gate, because a booking link is worthless if the person holding it needs an account. `src/booking/publicRoute.ts` decides what counts as one, strictly: a slug that is not a slug is a URL the app does not answer, rather than a query passed along to be refused later.
+
+`PublicBookingPage.tsx` carries no provider and no store. It talks to `/api/book` and to nothing else, so a visitor standing on it has no route to the app's data at all. Three decisions worth keeping:
+
+- **The times are the visitor's.** A grid drawn in the owner's zone asks a stranger to do arithmetic before they can pick a meeting, and they will get it wrong. Every time is in the browser's own zone, grouped into the visitor's days (a slot can be Tuesday for the owner and Wednesday for them), with the owner's zone stated once.
+- **The form arrives with the choice.** Asking for an email before a time is picked is asking someone to pay before they know what for.
+- **The server decides, and the page says so.** If the slot goes while they are typing, the message says that and the grid reloads. The reason is drawn ABOVE the grid rather than inside the form, because dropping the choice unmounts the form: the first version erased its own explanation in the same tick that made it true, which its test caught.
+
+Still to build here: the confirmation email (nothing sends one yet; the receipt says one is coming, which is the one line in this feature that is currently a promise rather than a fact), and the calendar write-through, which needs a Tier 1 connection.
+
 ## Waits, and on what
 
 | screen or piece | blocked on |
 |---|---|
 | Public Link (the slot grid, name and email, Confirm) | BUILT 2026-09-19: `api/book.ts`. Waiting only on the two env vars below |
-| The booking page itself (the grid, the form, the confirmation) | nothing: next push. The server it calls is built |
+| The booking page itself (the grid, the form, the confirmation) | BUILT 2026-09-19: `/book/<slug>`, the one path that renders above the auth gate |
 | The calendar write-through | a Tier 1 `user_connections` row |
 | Connections (request, accept, decline, scope toggles) | Clerk wired as the project's third-party auth provider (two real user ids) |
 | Shared Project (view and edit badges, assignee avatars) | connections above (0005's policies are tested at the database, see the track3 README) |

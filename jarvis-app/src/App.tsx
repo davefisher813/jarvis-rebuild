@@ -11,10 +11,12 @@ import { FailedCard } from "./monitoring/ErrorBoundary";
 import { captureError } from "./monitoring/monitor";
 import { dismissSplash } from "./shared/splash";
 import { useSheetEscape } from "./shared/useSheetEscape";
+import { bookingSlugOf } from "./booking/publicRoute";
 
 // Onboarding is a one-time surface; keep it out of the startup bundle that
 // every returning user pays for.
 const OnboardingFlow = lazyWithRecovery(() => import("./onboarding/OnboardingFlow"));
+const PublicBookingPage = lazyWithRecovery(() => import("./booking/PublicBookingPage"));
 
 // First-run gate (inside the provider so it can read the profile): show the
 // conversational onboarding until there is an onboarded profile, then the app.
@@ -93,10 +95,23 @@ export function AppGate({ seedDemo = false }: { seedDemo?: boolean }) {
 //  - signed in: gated app on the Supabase store
 export default function App() {
   const { session, ready, recovery } = useAuth();
+  // THE ONE PUBLIC ADDRESS (Track 3, 2026-09-19). A booking link is opened by
+  // somebody who has never signed in and never will, so /book/<slug> renders
+  // above the auth gate. It is the only path that does. The page carries no
+  // provider and no store: it talks to /api/book and nothing else, so a
+  // visitor standing on it has no route to the app's data at all.
+  const bookingSlug = typeof window === "undefined" ? null : bookingSlugOf(window.location.pathname);
   // BROWSER-F-15 (2026-09-05): Escape closes the top sheet, from here, so all
   // 34 sheet call sites get it and the next one does too. Mounted above the
   // auth gate on purpose: onboarding has sheets as well.
   useSheetEscape();
+  if (bookingSlug) {
+    return (
+      <Suspense fallback={null}>
+        <PublicBookingPage slug={bookingSlug} />
+      </Suspense>
+    );
+  }
   if (!ready) return null;
 
   if (!backendConfigured) {
