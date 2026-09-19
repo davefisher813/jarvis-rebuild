@@ -651,6 +651,76 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+  // THE CORNER MAP IS THE ONLY MAP (Catalog V5, 2026-09-18). The audit that
+  // produced V5 found twenty-nine distinct corner radii against a map of
+  // seven, because each component picked its own 3, 5, 6, 7, 9 or 12. The
+  // sweep put them on the map; this keeps them there, and it is the same
+  // argument as the font-size law above: a literal is a value that will not
+  // move when the map does.
+  it("no border-radius in a stylesheet is a bare pixel value", () => {
+    const files = ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css", "mail-rows.css", "editor.css"];
+    const bad: string[] = [];
+    for (const f of files) {
+      const css = read(SRC + "/styles/" + f);
+      for (const [i, line] of css.split("\n").entries()) {
+        for (const m of line.matchAll(/border-radius:\s*([^;}]+)/g)) {
+          const value = (m[1] ?? "").trim();
+          if (/^var\(--r-/.test(value)) continue;
+          // Every part of a multi-corner radius is a stop, or a flat 0.
+          if (value.split(/\s+/).every((p) => /^var\(--r-/.test(p) || p === "0")) continue;
+          if (value === "0" || value === "inherit") continue;
+          // A percentage, which is a shape rather than a corner: an ellipse
+          // drawn by its own geometry, not by the map.
+          if (/%/.test(value)) continue;
+          // And a 1px rounding on a hairline-scale mark (a 2px bar's ends),
+          // which is the pen's own width and not a container's corner.
+          if (value === "1px") continue;
+          bad.push(`${f}:${i + 1} ${value}`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  // ONE RHYTHM (Catalog V5, 2026-09-18). 487 padding, margin and gap
+  // literals lived in the sheets; 340 were a scale stop written the long
+  // way and 147 were off the grid entirely. What is left is deliberate and
+  // is named here, so the next off-grid number has to argue for itself.
+  it("no padding, margin or gap is an unexplained pixel value", () => {
+    const files = ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css", "mail-rows.css", "editor.css"];
+    // Each of these is a measured value rather than rhythm, and each has its
+    // reason written beside it in the stylesheet:
+    //   3, 7   the state chip's own padding, which the one-line clamp above
+    //          does arithmetic on;
+    //   13     the header control line, measured from the Unified Headers
+    //          mockups rather than derived from the scale;
+    //   44     the tap minimum, which is a target and not a gap;
+    //   68, 84, 96  three fixed rails and a ring, measured against artwork.
+    const MEASURED = new Set(["3px", "7px", "13px", "44px", "68px", "84px", "96px"]);
+    const PROPS = /(padding|margin|gap|row-gap|column-gap|padding-(top|bottom|left|right|inline|block)|margin-(top|bottom|left|right|inline|block))\s*:\s*([^;}]+)/g;
+    const bad: string[] = [];
+    for (const f of files) {
+      const css = read(SRC + "/styles/" + f);
+      for (const [i, line] of css.split("\n").entries()) {
+        for (const m of line.matchAll(PROPS)) {
+          const value = (m[4] ?? "").trim();
+          if (/var\(|calc\(|auto|inherit|%|env\(|em\b|rem\b|vh|vw/.test(value)) continue;
+          for (const part of value.split(/\s+/)) {
+            if (!/^-?[\d.]+px$/.test(part) || part === "0px") continue;
+            // A negative is always compensation arithmetic, paid back against
+            // a transparent tap border; browserWalk pins those to the pixel.
+            if (part.startsWith("-")) continue;
+            // A hairline's own width is not spacing.
+            if (part === "1px") continue;
+            if (MEASURED.has(part)) continue;
+            bad.push(`${f}:${i + 1} ${part}`);
+          }
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
   // And the seven tier tokens are the scale's own definition, so a change to
   // --type-scale really does reach every one of them rather than most.
   it("every tier token multiplies by the text scale", () => {

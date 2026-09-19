@@ -41,7 +41,7 @@
 .doc-pm ul[data-type="taskList"] > li[data-task-id] > div::after { content: " · Task"; font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--hl-cyan); letter-spacing: 0.02em; }
 .doc-pm blockquote { margin: 0; padding: var(--s-0h) 0 var(--s-0h) var(--s-3h); border-left: 3px solid var(--tx-4); color: var(--tx-1); }
 .doc-pm .doc-callout { display: flex; gap: var(--s-2h); padding: var(--s-3) var(--s-3h); border-radius: var(--r-md); background: var(--surface-2); }
-.doc-pm .doc-callout::before { content: ""; flex-shrink: 0; width: 4px; border-radius: 2px; background: var(--accent); }
+.doc-pm .doc-callout::before { content: ""; flex-shrink: 0; width: 4px; border-radius: var(--r-xxs); background: var(--accent); }
 .doc-pm .doc-callout > * { flex: 1; min-width: 0; }
 .doc-pm .doc-callout > * + * { margin-top: var(--s-2); }
 .doc-pm pre { margin: 0; padding: var(--s-3); border-radius: var(--r-md); background: var(--surface-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: calc(14px * var(--type-scale)); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -49,7 +49,7 @@
 .doc-pm pre code { background: none; padding: 0; font-size: inherit; }
 .doc-pm hr { border: 0; border-top: 0.5px solid var(--divider); margin: var(--s-3) 0; }
 .doc-pm a { color: var(--tint); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
-.doc-pm mark { background: var(--hl-amber-tint); color: inherit; border-radius: 2px; padding: 0 1px; }
+.doc-pm mark { background: var(--hl-amber-tint); color: inherit; border-radius: var(--r-xxs); padding: 0 1px; }
 .doc-pm s { color: var(--tx-2); }
 .doc-pm table { border-collapse: collapse; width: 100%; table-layout: fixed; border: 0.5px solid var(--divider); border-radius: var(--r-md); overflow: hidden; font-size: calc(15px * var(--type-scale)); }
 .doc-pm th, .doc-pm td { border: 0.5px solid var(--divider); padding: var(--s-2) var(--s-2h); vertical-align: top; text-align: left; min-width: 60px; }
@@ -188,7 +188,7 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
 .doc-write .doc-editor { padding-left: 0; }
 
 /* FIND IN NOTE (wave 3): every match on a tint, the current one stronger. */
-.doc-pm .doc-match { background: var(--hl-amber-tint); border-radius: 2px; }
+.doc-pm .doc-match { background: var(--hl-amber-tint); border-radius: var(--r-xxs); }
 .doc-pm .doc-match.current { background: var(--hl-amber); color: #000; }
 .doc-find { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: var(--s-2) 0; display: grid; gap: var(--s-2); border-bottom: 0.5px solid var(--divider); margin-bottom: var(--s-2); }
 .doc-find-row { display: flex; align-items: center; gap: var(--s-2); }

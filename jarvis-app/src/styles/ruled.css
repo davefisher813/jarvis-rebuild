@@ -150,7 +150,7 @@
 .ruled .stat-tiles { display: flex; gap: var(--s-2); margin-top: var(--s-2h); flex-wrap: wrap; }
 .ruled .stat-tile {
   display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
-  border-radius: 13px; padding: var(--s-2) var(--s-3) var(--s-2); position: relative; cursor: pointer;
+  border-radius: var(--r-md); padding: var(--s-2) var(--s-3) var(--s-2); position: relative; cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
 .ruled .stat-tile::after { content: ""; position: absolute; inset: -6px 0; } /* 44pt reach */
@@ -289,7 +289,7 @@
   font-size: var(--t-caption); font-weight: var(--w-medium);
   color: var(--tx-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ruled .task-row > .tr-steps b { font-weight: var(--w-semi); color: var(--tx-1); }
-.ruled .r-bar { width: 4px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+.ruled .r-bar { width: 4px; height: 11px; border-radius: var(--r-xxs); flex-shrink: 0; }
 .ruled .r-goal { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* THE GOAL LINE (Dave 2026-09-01: "Goals can't render like typical
@@ -658,7 +658,7 @@
 .ruled .sched-row:has(> .row-star) { --sched-lead: calc(var(--s-2) + 16px + var(--s-1) + 11px); }
 /* .sched-sel: 22 wide, 4 right margin, then the gap. No left margin. */
 .ruled .sched-row:has(> .sched-sel) { --sched-lead: calc(22px + var(--s-1) + 11px); }
-.ruled .sched-bar { width: 3px; border-radius: 2px; left: calc(var(--s-4) + var(--sched-lead, 0px) + 62px + 4px); top: 7px; bottom: 7px; }
+.ruled .sched-bar { width: 3px; border-radius: var(--r-xxs); left: calc(var(--s-4) + var(--sched-lead, 0px) + 62px + 4px); top: 7px; bottom: 7px; }
 .ruled .sched-body { padding-left: var(--s-1); }
 .ruled .sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: var(--s-1); }
 .ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: var(--t-caption); }
@@ -1773,7 +1773,7 @@
    tile's Log it wears the hue too: grey read as switched off. The name is a
    name, in full ink and sentence case, not a caps label shouting its hue. */
 .ruled.health-ruled .h-tiles { gap: var(--s-2h); }
-.ruled.health-ruled .h-tile { padding: var(--s-3) var(--s-3) var(--s-3); min-height: 104px; border-radius: 16px; }
+.ruled.health-ruled .h-tile { padding: var(--s-3) var(--s-3) var(--s-3); min-height: 104px; border-radius: var(--r-lg); }
 .ruled.health-ruled .h-tile[data-hue] { background-image: none; box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0,0,0,0.55); }
 [data-theme="light"] .ruled.health-ruled .h-tile[data-hue] { box-shadow: var(--shadow-card); }
 .ruled.health-ruled .ht-top { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
@@ -1809,7 +1809,7 @@
    Everything here is an override of the tall tile above, not a second
    anatomy: the same .h-tile markup renders either way. */
 .ruled.health-ruled .h-tiles-c { gap: var(--s-2); }
-.ruled.health-ruled .h-tiles-c .h-tile { min-height: 0; padding: var(--s-2h) var(--s-2h) var(--s-2h) var(--s-3); border-radius: 13px;
+.ruled.health-ruled .h-tiles-c .h-tile { min-height: 0; padding: var(--s-2h) var(--s-2h) var(--s-2h) var(--s-3); border-radius: var(--r-md);
   display: flex; align-items: center; gap: var(--s-2h); }
 .ruled.health-ruled .h-tiles-c .ht-top { flex: 1; min-width: 0; gap: var(--s-2); }
 .ruled.health-ruled .h-tiles-c .ht-ico { width: 24px; height: 24px; border-radius: var(--r-sm); }
@@ -2441,10 +2441,10 @@
 /* A thin bar, and only where it is earned: a project's real task count, or a
    goal's Measure. Never a goal's task completion (see ItemCard). */
 .ruled .bp-card-bar {
-  height: 4px; border-radius: 2px; margin-top: var(--s-1);
+  height: 4px; border-radius: var(--r-xxs); margin-top: var(--s-1);
   background: rgba(255, 255, 255, 0.28); overflow: hidden;
 }
-.ruled .bp-card-bar > i { display: block; height: 100%; background: #FFFFFF; border-radius: 2px; }
+.ruled .bp-card-bar > i { display: block; height: 100%; background: #FFFFFF; border-radius: var(--r-xxs); }
 
 /* The control that chooses between the cards and the ruled list. */
 .ruled .bp-viewtog {

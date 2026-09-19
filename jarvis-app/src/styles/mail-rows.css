@@ -27,7 +27,7 @@
   font-size: var(--t-caption); font-weight: var(--w-bold); }
 /* A machine's mark: the 3px rail, quiet by default, warn when the sender
    stated a deadline. Never lit for unreadness (8A). */
-.mrail { width: 3px; height: 26px; border-radius: 2px; background: var(--tx-4); }
+.mrail { width: 3px; height: 26px; border-radius: var(--r-xxs); background: var(--tx-4); }
 .mrail.due { background: var(--warn-fill); }
 
 .ms { flex: 1; min-width: 0; }
