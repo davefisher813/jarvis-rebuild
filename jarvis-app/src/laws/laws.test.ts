@@ -4891,12 +4891,19 @@ describe("LAW: a live gym session is visible and reachable from Today", () => {
       .not.toMatch(/gymCatId/);
   });
 
-  it("the card renders the plan, not just a bookmark", () => {
+  // 2026-09-19 (Dave, off a rendered comparison: the plan on the home page
+  // was "way too much"; "a resume button up top with the time left in the
+  // workout if there's a timer set"; "It should go in the now section"). The
+  // row still reads the session through the live card, so nothing is
+  // invented; what it SAYS is the day and the clock, and the plan stays in
+  // the session. Now carries the same session as the thing he is inside of.
+  it("the row reads the session through the live card, says the clock, and Now carries it", () => {
     const today = read(SRC + "/today/TodayFlow.tsx");
     expect(today, "Today must read the session through the live card").toMatch(/liveCard\(liveGym\)/);
-    expect(today, "and lead with the exercise it is on, with its numbers").toMatch(/currentLine\(card\)/);
-    // The plan itself, exercise by exercise.
-    expect(today, "the card must list the drawn-up exercises").toMatch(/card\.lines\.map/);
+    expect(today, "the row says time left when a timer was set, else time in").toMatch(/card\.left \?\? card\.elapsed/);
+    expect(today, "the plan stays in the session, not on the home page").not.toMatch(/card\.lines\.map/);
+    expect(today, "Now carries the session").toMatch(/In: \{liveNow\.dayName\}/);
+    expect(today, "and the session leads Your Move, outside the ranked stream").toMatch(/liveGym=\{liveGymHead\}/);
     const card = read(SRC + "/gym/liveCard.ts");
     expect(card, "the plan line comes from the shared formatter, not a second one")
       .toMatch(/targetLine\(/);

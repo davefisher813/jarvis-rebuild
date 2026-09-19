@@ -110,7 +110,7 @@ import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
 import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
-import { liveCard, currentLine } from "../gym/liveCard";
+import { liveCard } from "../gym/liveCard";
 import { readFifteen, writeFifteen, clearFifteen, isStillLive, fifteenFace, extended, type LiveFifteen } from "./liveFifteen";
 import { sourceOpener } from "../shared/openSource";
 import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
@@ -2269,10 +2269,24 @@ export default function TodayFlow({
     if (h === 0) return `${m}m`;
     return m === 0 ? `${h}h` : `${h}h ${m}m`;
   };
+  // NOW, WHILE A SESSION RUNS (Dave 2026-09-19: "It should go in the now
+  // section"). Now says what he is inside of, and a workout in progress is
+  // that, before any gap or block: the day, the time left or the time in, what
+  // is logged, and Resume as its one door. Same read as the Your Move row.
+  const liveNow = liveGym && !gymDismissed && tuned("live-gym") ? liveCard(liveGym) : null;
   const nowSection = !evening && (
     <>
       <div className="pad-x"><div className="card">
-        {nowCtx.gapMin !== null && nowCtx.nextStart ? (
+        {liveNow ? (
+          <div className="row" {...rowDoor(() => onRestoreSpot?.("gym", gymCatId ?? ""))}>
+            <RowIcon kind="gym" />
+            <div className="row-stack">
+              <div className="conn-name truncate">In: {liveNow.dayName}</div>
+              <div className="conn-meta truncate">{[liveNow.left ?? liveNow.elapsed, liveNow.progress].filter(Boolean).join(" · ")}</div>
+            </div>
+            <button className="pill-act" onClick={own(() => onRestoreSpot?.("gym", gymCatId ?? ""))}>Resume</button>
+          </div>
+        ) : nowCtx.gapMin !== null && nowCtx.nextStart ? (
           // THE RAIL (Dave's pick C, 2026-08-22, replacing the green ring:
           // "doesn't look good"). Now and the next fixed thing, joined by the
           // same left-rail language the Schedule speaks; the gap is the space
@@ -2694,6 +2708,41 @@ export default function TodayFlow({
   // one, the card still says a session is running and opens the Brain.
   const liveGymShown = !!(liveGym && !gymDismissed && tuned("live-gym"));
   const spotAlreadyShown = spotIsDuplicate(spot, { dealtTaskId, slideTaskId, liveGymShown });
+  // THE SESSION LEADS YOUR MOVE, AS ONE ROW (Dave 2026-09-19: "I want the Home
+  // Screen to render something whenever the user starts a workout ... a resume
+  // button up top with the time left in the workout if there's a timer set").
+  // The card built on 2026-09-14 rode the ranked stream, where it rowed down
+  // to one line under the dealt task. It leaves the stream and takes the head
+  // of the Your Move card: the day, the time left (or the time in), Resume.
+  // The plan itself was too much for the home page (his words, off a rendered
+  // comparison) and stays in the session. Same weight declared, same tuning,
+  // same dismiss; only where it stands and how much it says changed. Now
+  // carries the same session below (see nowSection).
+  const liveGymHead = liveGymShown ? (() => {
+      // WHAT HE DREW UP, ON TODAY (2026-09-14). The card used to say the day
+      // and the name of the exercise on screen -- a bookmark. The plan has
+      // been sitting on the live session the whole time (copied in at start),
+      // so the card reads it: the day, how long it has been going, how much
+      // is logged, the exercise it is on WITH its numbers, and the rest of
+      // the plan under it.
+      const card = liveCard(liveGym);
+      return (
+        <NoticeCard
+          key="live-gym"
+          {...tuneProps("live-gym", "Back to " + card.dayName)}
+          weight={tuningWeight(tunings, "live-gym", LIVE)}
+          icon={<BarbellGlyph />}
+          tone="cat-fg-orange"
+          title={card.fresh ? `${card.dayName} is ready` : `Back to ${card.dayName}`}
+          sub={card.left ?? card.elapsed ?? card.progress}
+          action={{ label: card.fresh ? "Start" : "Resume", onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
+          // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
+          // opens the session, like the pill.
+          onOpen={() => onRestoreSpot?.("gym", gymCatId ?? "")}
+          onDismiss={() => setGymDismissed(true)}
+        />
+      );
+  })() : null;
   const alertCards = [
     // The welcome-back recap is a RECEIPT: it reports, it does not ask.
     // One quiet line; tapping it opens the pile it describes.
@@ -2890,47 +2939,6 @@ export default function TodayFlow({
     // gap to clear, no hiding itself once he is "active" elsewhere. It is
     // just true or not true, read straight off the live session, and gone
     // on its own the moment the session ends or goes stale.
-    liveGymShown ? (() => {
-      // WHAT HE DREW UP, ON TODAY (2026-09-14). The card used to say the day
-      // and the name of the exercise on screen -- a bookmark. The plan has
-      // been sitting on the live session the whole time (copied in at start),
-      // so the card reads it: the day, how long it has been going, how much
-      // is logged, the exercise it is on WITH its numbers, and the rest of
-      // the plan under it.
-      const card = liveCard(liveGym);
-      return (
-        <NoticeCard
-          key="live-gym"
-          {...tuneProps("live-gym", "Back to " + card.dayName)}
-          weight={tuningWeight(tunings, "live-gym", LIVE)}
-          icon={<BarbellGlyph />}
-          tone="cat-fg-orange"
-          title={card.fresh ? `${card.dayName} is ready` : `Back to ${card.dayName}`}
-          sub={currentLine(card)}
-          foot={
-            <div className="lg-plan">
-              <div className="facts">
-                <span className="fact">{card.progress}</span>
-                {card.elapsed && <span className="fact">{card.elapsed}</span>}
-              </div>
-              {card.lines.map((l, i) => (
-                <div className={"lg-row" + (l.current ? " on" : "")} key={l.name + i}>
-                  <span className="lg-n">{l.name}</span>
-                  {/* Zero is a verdict: an exercise with nothing logged shows
-                      its plan, not a "0 sets" that reads as a failure. */}
-                  <span className="lg-v">{l.logged > 0 ? `${l.logged} logged` : l.plan ?? ""}</span>
-                </div>
-              ))}
-            </div>
-          }
-          action={{ label: card.fresh ? "Start" : "Resume", onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
-          // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
-          // opens the session, like the pill.
-          onOpen={() => onRestoreSpot?.("gym", gymCatId ?? "")}
-          onDismiss={() => setGymDismissed(true)}
-        />
-      );
-    })() : null,
     // PICK 2: A FINISHED THING SURFACES WHERE HE IS (Dave 2026-08-22). Wave 1
     // taught the Bigger Picture to offer Close It on a project whose work is
     // done. That only helps on a page he has no reason to open, and the whole
@@ -3705,7 +3713,12 @@ export default function TodayFlow({
       onFifteenAgain={() => void fifteenAgain()}
       onFifteenStop={() => void fifteenStop()}
       blendMap={blendMap}
-      gymDoorFor={gymDoor.doorFor}
+      // THE DOOR HE WALKED IN THROUGH READS RESUME (2026-09-19): the block
+      // that started this session offers the way back, not a second Start.
+      gymDoorFor={(e) => {
+        const d = gymDoor.doorFor(e);
+        return d && liveNow && liveGym?.doorEventId === e.id ? { ...d, onResume: () => onRestoreSpot?.("gym", gymCatId ?? "") } : d;
+      }}
       onStartTask={onStartNow}
       onSeeAllMail={!mailEmpty && !mailResidual && onGoEmail ? () => onGoEmail() : undefined}
       mailEmpty={mailEmpty}
@@ -3761,6 +3774,7 @@ export default function TodayFlow({
       onResizeBlock={onResizeBlock}
       today={today}
       nowCard={nowSection}
+      liveGym={liveGymHead}
       proposedDay={proposedDay}
       dayFooter={draftFooter ?? draftReceipt}
       dayPrimary={draftPrimary}
