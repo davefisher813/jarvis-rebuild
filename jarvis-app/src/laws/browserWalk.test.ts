@@ -372,11 +372,16 @@ describe("BROWSER-F-08: chips, values, steppers and swatches reach 44", () => {
   it("stacked chip rows and the swatch grid tile at 44 instead of overlapping", () => {
     const gap = ruleBody(css(), ".convo-chips, .chip-wrap, .chip-wrap-row, .chip-picker-open");
     expect(gap, "wrapping chip containers must set a row gap").toBeTruthy();
-    const px = Number(/row-gap:\s*(\d+)px/.exec(gap!)?.[1]);
+    // AMENDED 2026-09-18 (Catalog V5): the gap is a scale stop now, so the
+    // arithmetic resolves the token rather than reading a literal that would
+    // have to be edited here every time the rhythm moved.
+    const stop = /row-gap:\s*var\(--s-([\w-]+)\)/.exec(gap!)?.[1];
+    const px = Number(new RegExp("--s-" + stop + ":\\s*([\\d.]+)px").exec(tokens())![1]);
     expect(px + 32, "a 32px chip plus the row gap must reach the tap minimum").toBeGreaterThanOrEqual(44);
     // The swatch is 24px of paint (uniformity.css), so its grid needs 20.
     expect(ruleBody(css(), ".swatch-pick")).toMatch(/gap:\s*var\(--s-6\)/);
-    expect(ruleBody(ruled(), ".ruled .sc-steps")).toMatch(/gap:\s*10px/);
+    // AMENDED 2026-09-18 (Catalog V5): the gap is the --s-2h stop now.
+    expect(ruleBody(ruled(), ".ruled .sc-steps")).toMatch(/gap:\s*var\(--s-2h\)/);
   });
 });
 

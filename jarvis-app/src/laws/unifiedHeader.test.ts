@@ -411,7 +411,9 @@ describe("the control line owns its own gap", () => {
   });
 
   it("still gives the content below it 24px", () => {
-    expect(css).toContain(".life-hdr { padding-bottom: 24px; }");
+    // AMENDED 2026-09-18 (Catalog V5): 24 is --s-7, and the header reads the
+    // stop rather than restating the number.
+    expect(css).toContain(".life-hdr { padding-bottom: var(--s-7); }");
   });
 });
 

@@ -26,26 +26,26 @@
 .doc-pm h2 { font-size: var(--t-h2); font-weight: var(--w-semi); letter-spacing: -0.01em; line-height: 1.25; margin-top: var(--s-4); }
 .doc-pm h3 { font-size: var(--t-h3); font-weight: var(--w-semi); line-height: 1.3; margin-top: var(--s-3); }
 .doc-pm h1:first-child, .doc-pm h2:first-child, .doc-pm h3:first-child { margin-top: 0; }
-.doc-pm ul, .doc-pm ol { padding-left: 24px; margin: 0; }
+.doc-pm ul, .doc-pm ol { padding-left: var(--s-7); margin: 0; }
 .doc-pm li { margin: 0; }
-.doc-pm li + li { margin-top: 6px; }
-.doc-pm li > ul, .doc-pm li > ol { margin-top: 6px; }
+.doc-pm li + li { margin-top: var(--s-1h); }
+.doc-pm li > ul, .doc-pm li > ol { margin-top: var(--s-1h); }
 .doc-pm ul[data-type="taskList"] { list-style: none; padding-left: 0; }
 .doc-pm ul[data-type="taskList"] > li { display: flex; align-items: flex-start; gap: var(--s-2h); min-height: 44px; }
 .doc-pm ul[data-type="taskList"] > li > label { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; cursor: pointer; }
 .doc-pm ul[data-type="taskList"] > li > label input { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; margin: 0; border-radius: var(--r-circle); border: 1.5px solid var(--tx-4); background: transparent; display: grid; place-items: center; }
 .doc-pm ul[data-type="taskList"] > li > label input:checked { background: var(--accent); border-color: var(--accent); }
 .doc-pm ul[data-type="taskList"] > li > label input:checked::after { content: ""; width: 6px; height: 11px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg) translateY(-1px); }
-.doc-pm ul[data-type="taskList"] > li > div { flex: 1; min-width: 0; padding-top: 10px; }
+.doc-pm ul[data-type="taskList"] > li > div { flex: 1; min-width: 0; padding-top: var(--s-2h); }
 .doc-pm ul[data-type="taskList"] > li[data-checked="true"] > div { text-decoration: line-through; color: var(--tx-2); }
 .doc-pm ul[data-type="taskList"] > li[data-task-id] > div::after { content: " · Task"; font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--hl-cyan); letter-spacing: 0.02em; }
-.doc-pm blockquote { margin: 0; padding: 2px 0 2px 14px; border-left: 3px solid var(--tx-4); color: var(--tx-1); }
+.doc-pm blockquote { margin: 0; padding: var(--s-0h) 0 var(--s-0h) var(--s-3h); border-left: 3px solid var(--tx-4); color: var(--tx-1); }
 .doc-pm .doc-callout { display: flex; gap: var(--s-2h); padding: var(--s-3) var(--s-3h); border-radius: var(--r-md); background: var(--surface-2); }
 .doc-pm .doc-callout::before { content: ""; flex-shrink: 0; width: 4px; border-radius: 2px; background: var(--accent); }
 .doc-pm .doc-callout > * { flex: 1; min-width: 0; }
 .doc-pm .doc-callout > * + * { margin-top: var(--s-2); }
 .doc-pm pre { margin: 0; padding: var(--s-3); border-radius: var(--r-md); background: var(--surface-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: calc(14px * var(--type-scale)); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
-.doc-pm code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; background: var(--surface-2); border-radius: var(--r-sm); padding: 1px 5px; }
+.doc-pm code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; background: var(--surface-2); border-radius: var(--r-sm); padding: 1px var(--s-1h); }
 .doc-pm pre code { background: none; padding: 0; font-size: inherit; }
 .doc-pm hr { border: 0; border-top: 0.5px solid var(--divider); margin: var(--s-3) 0; }
 .doc-pm a { color: var(--tint); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
@@ -99,7 +99,7 @@
 .doc-kgrow { flex: 1; }
 .doc-kmenu { display: flex; gap: var(--s-2); padding: var(--s-2) var(--s-3); overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none; border-bottom: 0.5px solid var(--divider); }
 .doc-kmenu::-webkit-scrollbar { display: none; }
-.doc-kmenu .chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
+.doc-kmenu .chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: var(--s-1h); min-height: 40px; }
 .doc-kmenu .chip .ic { width: 16px; height: 16px; }
 
 /* While a document has the keyboard, the tab bar and the composer step
@@ -166,7 +166,7 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
 .exp-more { margin-top: var(--s-2); }
 .exp-more summary { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); cursor: pointer; padding: var(--s-2) 0; list-style: none; min-height: 44px; display: flex; align-items: center; }
 .exp-more summary::-webkit-details-marker { display: none; }
-.exp-more summary::before { content: ""; display: inline-block; width: 7px; height: 7px; border-right: 1.5px solid var(--tx-4); border-bottom: 1.5px solid var(--tx-4); transform: rotate(-45deg); margin: 0 10px 2px 2px; transition: transform var(--dur-fast) var(--ease-out); }
+.exp-more summary::before { content: ""; display: inline-block; width: 7px; height: 7px; border-right: 1.5px solid var(--tx-4); border-bottom: 1.5px solid var(--tx-4); transform: rotate(-45deg); margin: 0 var(--s-2h) var(--s-0h) var(--s-0h); transition: transform var(--dur-fast) var(--ease-out); }
 .exp-more[open] summary::before { transform: rotate(45deg); }
 .exp-preview { max-height: 30vh; overflow: auto; overscroll-behavior: contain; padding: var(--s-3); border-radius: var(--r-md); background: var(--surface-2); font-size: var(--t-caption); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--tx-1); margin: 0; }
 .exp-acts { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
@@ -198,8 +198,8 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
 
 /* THE OUTLINE (wave 3): headings as rows, indented by level. */
 .doc-outline .row { min-height: 44px; }
-.doc-outline .lv-2 .conn-name { padding-left: 16px; }
-.doc-outline .lv-3 .conn-name { padding-left: 32px; }
+.doc-outline .lv-2 .conn-name { padding-left: var(--s-4); }
+.doc-outline .lv-3 .conn-name { padding-left: var(--s-8); }
 
 /* QUICK APPEND (wave 3): the third swipe slot on a note row, in the tint. */
 .task-snooze.note-append { right: 176px; background: var(--tint); color: #fff; }

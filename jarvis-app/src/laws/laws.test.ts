@@ -5443,7 +5443,9 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     // chip -- because --t-sub raised that line from 12.5px to 14px and the
     // old 0.8125em stopped covering it above 1.15x text scale. Still a
     // height and not a max-height, which is what this law is really about.
-    expect(b, "one line box tall").toMatch(/height:\s*max\(calc\(var\(--t-sub\) \* 1\.3\), calc\(10px \* var\(--type-scale\) \* 1\.3 \+ 6px\)\)/);
+    // AMENDED 2026-09-18 (Catalog V5): the chip's arm of the max names the
+    // chip's own token and a scale stop, rather than restating either.
+    expect(b, "one line box tall").toMatch(/height:\s*max\(calc\(var\(--t-sub\) \* 1\.3\), calc\(var\(--t-micro\) \* 1\.3 \+ var\(--s-1h\)\)\)/);
     expect(b, "a second flex line is clipped, never shown").toMatch(/overflow:\s*hidden/);
     expect(b, "and the first line is packed to the top, never centred over two")
       .toMatch(/align-content:\s*flex-start/);
@@ -5533,12 +5535,18 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     // chip -- and takes the taller. They cross at 1.15x text scale, which is
     // why the single number it replaced could not hold both ends once the
     // subtext token moved that line from 12.5px to 14px.
-    const clamp = /\.ruled \.r-k-one \{\s*height: max\(calc\(var\(--t-sub\) \* ([\d.]+)\), calc\(([\d.]+)px \* var\(--type-scale\) \* ([\d.]+) \+ ([\d.]+)px\)\)/.exec(RULED)!;
-    const subLh = Number(clamp[1]), cFs = Number(clamp[2]), cLh = Number(clamp[3]), cPad = Number(clamp[4]);
-    const rowGap = Number(/\.ruled \.r-k \{[^}]*gap: ([\d.]+)px/.exec(RULED)![1]);
+    // AMENDED 2026-09-18 (Catalog V5, the spacing sweep): the clamp names
+    // the chip's own token rather than restating its size, so the two cannot
+    // drift again -- which they had, by a pixel, the moment the chip moved
+    // to --t-micro. The padding it adds is a scale stop, read the same way.
+    const space = (n) => Number(new RegExp("--s-" + n + ":\\s*([\\d.]+)px").exec(tokens)![1]);
+    const clamp = /\.ruled \.r-k-one \{\s*height: max\(calc\(var\(--t-sub\) \* ([\d.]+)\), calc\(var\(--t-micro\) \* ([\d.]+) \+ var\(--s-([\w-]+)\)\)\)/.exec(RULED)!;
+    const subLh = Number(clamp[1]), cLh = Number(clamp[2]);
+    const cFs = chipFs, cPad = space(clamp[3]);
+    const rowGap = space(/\.ruled \.r-k \{[^}]*gap: var\(--s-([\w-]+)\)/.exec(RULED)![1]);
     void rowFs;
     for (const scale of [1, 1.1, 1.2, 1.3, 1.4]) {
-      const box = Math.max(metaFs * scale * subLh, cFs * scale * cLh + cPad * 2);
+      const box = Math.max(metaFs * scale * subLh, cFs * scale * cLh + cPad);
       const chipH = chipFs * scale * lh + chipPadY * 2;
       const textH = metaFs * scale * lh;
       expect(box, `the chip fits at ${scale}x`).toBeGreaterThanOrEqual(chipH - 0.001);

@@ -579,7 +579,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
    still names the fact (warn = due today, red = overdue), the tint only
    makes it findable. Text-tint pairs stay same-hue, so no new colour
    enters the row. */
-.urgency-chip { padding: 2px 6.5px; border-radius: var(--r-pill); }
+.urgency-chip { padding: var(--s-0h) 6.5px; border-radius: var(--r-pill); }
 .urgency-chip.urgency-warn { background: color-mix(in srgb, var(--warn-fill) 14%, transparent); }
 .urgency-chip.urgency-red { background: color-mix(in srgb, var(--sys-red) 14%, transparent); }
 
@@ -680,7 +680,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .stepper .val { padding: 0 var(--s-3); display: flex; align-items: center; font-size: var(--t-h3); min-width: 32px; justify-content: center; }
 
 /* SEGMENTED */
-.segmented { display: flex; background: var(--press-3); border-radius: var(--r-md); padding: 2px; }
+.segmented { display: flex; background: var(--press-3); border-radius: var(--r-md); padding: var(--s-0h); }
 .segmented .seg { flex: 1; text-align: center; min-height: 34px; display: flex; align-items: center; justify-content: center; padding: 0 var(--s-3); font-size: var(--t-meta); font-weight: var(--w-medium); color: var(--tx-1); border-radius: var(--r-sm); }
 /* Selected segment uses the app-wide selection fill. It was brand red, which
    read as "do this" rather than "this one is picked" (the original surface-3
@@ -712,7 +712,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .ic { width: 20px; height: 20px; flex-shrink: 0; }
 /* Buttons carry a slightly smaller glyph with a gap, which is what
    `.btn-danger .ic` used to say for exactly one kind of button. */
-.btn .ic { width: 18px; height: 18px; margin-right: 6px; }
+.btn .ic { width: 18px; height: 18px; margin-right: var(--s-1h); }
 
 /* RADIO / CHECKBOX */
 .radio, .cb { width: 22px; height: 22px; flex-shrink: 0; border: 2px solid var(--tx-4); display: flex; align-items: center; justify-content: center; }
@@ -738,7 +738,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    the app's primary navigation at half of the 4.5:1 Apple itself asks for
    in the App Store accessibility criteria. systemGray takes them to 6.44:1
    on the dark bar. */
-.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: var(--s-1) 0; color: var(--sys-gray); font-size: var(--t-micro); font-weight: var(--w-medium); position: relative; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-1) 0; color: var(--sys-gray); font-size: var(--t-micro); font-weight: var(--w-medium); position: relative; }
 .tab.active { color: var(--accent-chrome); }
 
 /* NAV BAR */
@@ -830,10 +830,10 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 
 .msg-row { align-items: flex-start; }
 .msg-body { flex: 1; min-width: 0; }
-.msg-head { display: flex; align-items: center; gap: var(--s-2); margin-bottom: 2px; }
+.msg-head { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-0h); }
 .msg-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .msg-time { font-size: var(--t-meta); color: var(--tx-3); margin-left: auto; }
-.msg-subject { font-size: var(--t-body); font-weight: var(--w-semi); margin-bottom: 2px; }
+.msg-subject { font-size: var(--t-body); font-weight: var(--w-semi); margin-bottom: var(--s-0h); }
 .msg-preview { font-size: var(--t-meta); color: var(--tx-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .sched-row { align-items: flex-start; }
@@ -844,14 +844,14 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    same shape of bug as the military-time one: a shared span whose styling
    only existed under one parent. It is now the class's own rule, so a new
    surface that prints a time gets it for free. */
-.ampm { font-size: calc(11px * var(--type-scale)); color: var(--tx-3); font-weight: var(--w-regular); margin-left: 3px; letter-spacing: 0.3px; }
+.ampm { font-size: calc(11px * var(--type-scale)); color: var(--tx-3); font-weight: var(--w-regular); margin-left: var(--s-1); letter-spacing: 0.3px; }
 /* min-width:0 is load-bearing, not tidiness (2026-08-21). A flex item will
    not shrink below its content's min-content width without it, so a long
    title or a nested row pushed .sched-body past the card and everything
    inside it was silently clipped off the right edge. Measured at 303px in a
    250px slot. This also makes the .truncate on sched titles actually work. */
 .sched-body { flex: 1; min-width: 0; }
-.sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: 2px; }
+.sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: var(--s-0h); }
 .sched-loc { font-size: var(--t-meta); color: var(--tx-3); }
 
 .proj-icon { width: 32px; height: 32px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; font-size: var(--t-meta); font-weight: var(--w-bold); color: #fff; flex-shrink: 0; }

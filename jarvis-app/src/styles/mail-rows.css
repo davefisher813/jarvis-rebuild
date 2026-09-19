@@ -43,7 +43,7 @@
 .mwhen { margin-left: auto; flex: 0 0 auto; font-size: var(--t-caption); color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
 .mdue { margin-left: auto; flex: 0 0 auto; font-size: var(--t-micro); font-weight: var(--w-bold);
-  padding: 2px 7px; border-radius: var(--r-pill); background: var(--warn-tint); color: var(--warn); white-space: nowrap; }
+  padding: var(--s-0h) var(--s-2); border-radius: var(--r-pill); background: var(--warn-tint); color: var(--warn); white-space: nowrap; }
 /* byRank >= 900 ("no rush"): a deadline that is not pressing is quiet. */
 .mdue.soft { background: var(--press-3); color: var(--tx-3); }
 /* EM2: the subject or the gist. Quiet when read, the page's ink when not. */

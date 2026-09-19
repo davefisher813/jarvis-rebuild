@@ -137,11 +137,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cal-step .ic { width: 16px; height: 16px; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--s-1); padding: 0 var(--s-4) var(--s-2); }
 .cal-wd { text-align: center; font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: var(--track-caps); text-transform: uppercase; padding: var(--s-2) 0; }
-.cal-cell { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: var(--r-md); font-size: var(--t-meta); font-weight: var(--w-semi); font-feature-settings: 'tnum'; color: var(--tx-1); }
+.cal-cell { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-0h); border-radius: var(--r-md); font-size: var(--t-meta); font-weight: var(--w-semi); font-feature-settings: 'tnum'; color: var(--tx-1); }
 .cal-cell.out { color: var(--tx-2); }
 .cal-cell.today { color: var(--accent-chrome); font-weight: var(--w-bold); }
 .cal-cell.sel { background: var(--sel-bg); color: var(--sel-fg); }
-.cal-dots { display: flex; gap: 2px; height: 5px; }
+.cal-dots { display: flex; gap: var(--s-0h); height: 5px; }
 .cal-dot { width: 5px; height: 5px; border-radius: var(--r-circle); }
 .sched-cat { display: flex; align-items: center; gap: var(--s-1h); font-size: var(--t-meta); color: var(--tx-3); }
 .sched-cat .cat-dot { width: 8px; height: 8px; }
@@ -657,7 +657,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .icpick { width: 44px; height: 44px; border-radius: var(--r-md); background: var(--surface-3); color: var(--tx-2); display: flex; align-items: center; justify-content: center; border: 0; }
 .icpick .ic { width: 20px; height: 20px; }
 .icpick.sel { background: var(--sel-bg); color: var(--sel-fg); }
-.btn-danger .ic { width: 18px; height: 18px; margin-right: 6px; }
+.btn-danger .ic { width: 18px; height: 18px; margin-right: var(--s-1h); }
 .input-static { display: flex; align-items: center; color: var(--tx-2); }
 .switch-locked { opacity: 0.4; }
 .row-signout { justify-content: center; width: 100%; background: transparent; border: 0; color: var(--red); font-weight: var(--w-semi); font-size: var(--t-body); }
@@ -870,7 +870,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* Reach rows on the person card: anchors that dress as rows (tel/sms/mailto). */
 a.row.person-reach { color: inherit; text-decoration: none; }
 .strip-pick { opacity: 0.92; }
-.plan-strip-scale { display: flex; justify-content: space-between; font-size: var(--t-micro, 11px); color: var(--tx-3); padding-top: 2px; }
+.plan-strip-scale { display: flex; justify-content: space-between; font-size: var(--t-micro, 11px); color: var(--tx-3); padding-top: var(--s-0h); }
 /* Tap-to-place: the armed chip and the live strip both say "I'm listening". */
 .p3-time-btn { background: 0; border: 0; font: inherit; color: inherit; padding: 0; }
 .p3-time-btn.placing { color: var(--tint); font-weight: var(--w-semi); }
@@ -1049,7 +1049,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    punch a page-coloured hole in a white card. */
 .card .dring > div { background: var(--surface-1); }
 .dring b { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
-.dring span { font-size: calc(8px * var(--type-scale)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: 2px; }
+.dring span { font-size: calc(8px * var(--type-scale)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-0h); }
 .dring.done { animation: ringPop 480ms var(--ease-spring); }
 @keyframes ringPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
 
@@ -1259,7 +1259,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* A head inside a card is a label, not a section: the dotted rule .sh2 draws
    was wider than the words it introduced. */
 .msg-stands-head { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-3);
-  text-transform: uppercase; letter-spacing: .06em; padding-top: var(--s-2); padding-bottom: 2px; }
+  text-transform: uppercase; letter-spacing: .06em; padding-top: var(--s-2); padding-bottom: var(--s-0h); }
 .msg-stands-fix { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
   flex-wrap: wrap; border-top: 0.5px solid var(--divider); padding-top: var(--s-2); margin-top: var(--s-1); }
 .msg-stands-fix .msg-override { margin-top: 0; margin-bottom: 0; }
@@ -1390,7 +1390,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* Multi-account (2026-08-04): the account tag is quiet metadata, never a
    second subject line; account chips in Connections sit inside the row. */
-.msg-acct { display: inline-block; font-size: var(--t-micro); font-weight: var(--w-semi); letter-spacing: 0.04em; text-transform: uppercase; border: 0.5px solid var(--card-bd); border-radius: var(--r-xs); padding: 1px 5px; color: var(--tx-3); margin-left: var(--s-2); vertical-align: 1px; }
+.msg-acct { display: inline-block; font-size: var(--t-micro); font-weight: var(--w-semi); letter-spacing: 0.04em; text-transform: uppercase; border: 0.5px solid var(--card-bd); border-radius: var(--r-xs); padding: 1px var(--s-1h); color: var(--tx-3); margin-left: var(--s-2); vertical-align: 1px; }
 .conn-acct-chips { margin: var(--s-1h) 0 0; }
 
 /* RULE-9: Tasks - large completion target + swipe-to-delete. */
@@ -1408,7 +1408,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    finger is moving, because the action fires and the row snaps back. */
 .task-done-rail { position: absolute; top: 0; left: 0; bottom: 0; width: 88px; border: 0;
   background: var(--good-fill); color: var(--on-fill-dark);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 0 var(--s-1); }
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-1h); padding: 0 var(--s-1); }
 .task-done-rail .ic { width: 20px; height: 20px; }
 
 /* B13 (2026-08-23): SWIPE ACTIONS SAY THEIR NAMES.
@@ -1425,7 +1425,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    Stacking, not shrinking: the icon keeps its meaning at 20px and the word
    goes under it. */
 .task-del, .task-snooze, .mail-arch, .mail-letgo, .mail-later {
-  flex-direction: column; gap: 5px; padding: 0 var(--s-1); }
+  flex-direction: column; gap: var(--s-1h); padding: 0 var(--s-1); }
 .task-del .ic, .task-snooze .ic, .mail-arch .ic, .mail-letgo .ic, .mail-later .ic { width: 20px; height: 20px; }
 /* E-28 (Push H): Later on a Needs You row, in the defer amber (black text,
    10.2:1), the third slot of the reveal. */
@@ -1463,7 +1463,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
   flex-shrink: 0; margin: -8px 0; cursor: pointer; }
 
 /* RULE-9: Onboarding inline-edit for category names. */
-.ob-rename { font: inherit; background: transparent; border: 0; padding: 6px 0; width: 100%; color: inherit; }
+.ob-rename { font: inherit; background: transparent; border: 0; padding: var(--s-1h) 0; width: 100%; color: inherit; }
 .ob-rename:focus { outline: none; border-bottom: 1px solid var(--accent); }
 
 .toast-dock { padding: 0 var(--s-3) var(--s-2); }
@@ -1518,7 +1518,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-row .rem-unsch { color: var(--tx-2); font-variant-numeric: normal; }
 /* THE REMINDERS PAGE (the reminders rebuild push E, 2026-09-15, Dave's
    interactive preview on the app's own chrome). */
-.rem-hero { display: flex; flex-direction: column; gap: 2px; }
+.rem-hero { display: flex; flex-direction: column; gap: var(--s-0h); }
 .rem-hero-dot { color: var(--tint); }
 .rem-toolbar { display: flex; gap: var(--s-2); margin: var(--s-3) 0; }
 .rem-toolbar .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h); }
@@ -1548,8 +1548,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    case and the one wide clock takes the few pixels it needs instead of
    losing them. Tabular figures keep the digits themselves aligned. */
 .rem-time-gutter { flex-shrink: 0; min-width: 56px; white-space: nowrap; font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
-.rem-time-gutter .ampm { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-2); margin-left: 2px; }
-.rem-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rem-time-gutter .ampm { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-2); margin-left: var(--s-0h); }
+.rem-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-0h); }
 /* The task row's type, exactly (Dave 2026-09-15: "the font is too big").
    .ruled .task-row .task-title is 16px at --w-regular with -0.01em; this row
    was 17px at --w-semi, which read a size bigger AND a weight heavier than
@@ -1597,7 +1597,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-prompt-line { padding: var(--s-1) var(--s-4) var(--s-2); font-size: var(--t-meta); color: var(--tx-2); }
 .rem-summary { margin: var(--s-2) var(--s-4); padding: var(--s-2h) var(--s-3); border-radius: var(--r-md); background: var(--good-tint); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--divider)); }
 .rem-summary-head { color: var(--good); font-weight: var(--w-semi); font-size: var(--t-body); }
-.rem-summary-line { color: var(--tx-2); font-size: var(--t-meta); margin-top: 2px; }
+.rem-summary-line { color: var(--tx-2); font-size: var(--t-meta); margin-top: var(--s-0h); }
 .link-sheet .sub-bar { padding-inline: var(--s-3); }
 .link-sheet-list { max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .link-sheet-kind { padding: var(--s-2) var(--s-4) var(--s-1); }
@@ -1629,10 +1629,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .plan-timeline { display: flex; flex-direction: column; gap: var(--s-2); max-height: 46vh; overflow-y: auto; overscroll-behavior: contain; }
 .plan-row { display: flex; gap: var(--s-3); padding: var(--s-2) var(--s-3); background: var(--surface-3); border-radius: var(--r-md); }
 .plan-row-fixed { background: transparent; opacity: .55; }
-.plan-time { flex-shrink: 0; width: 66px; font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-2); padding-top: 2px; }
+.plan-time { flex-shrink: 0; width: 66px; font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-2); padding-top: var(--s-0h); }
 .plan-body { flex: 1; min-width: 0; }
 .plan-title { font-size: var(--t-body); color: var(--tx-1); }
-.plan-tag { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; }
+.plan-tag { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-0h); }
 .plan-controls { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1h); padding-left: 44px; }
 .plan-step { width: 30px; height: 30px; border-radius: var(--r-pill); border: 0.5px solid var(--divider); background: var(--surface-2); color: var(--tx-1); font-size: calc(17px * var(--type-scale)); line-height: 1; flex-shrink: 0; }
 .plan-dur { font-size: var(--t-meta); color: var(--tx-2); min-width: 38px; text-align: center; }
@@ -1738,7 +1738,7 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
 .week-recap b { font-weight: var(--w-semi); }
 
 /* === Roadmap v2 Session 6: Bigger Picture (goals + projects, derived) === */
-.bp-sub { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); margin-top: 2px; }
+.bp-sub { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); margin-top: var(--s-0h); }
 .bp-stalled { color: var(--warn); }
 .bp-bar { height: 4px; background: var(--press-3); border-radius: 2px; overflow: hidden; margin-top: var(--s-1h); }
 .bp-bar-fill { height: 100%; border-radius: 2px; background: var(--good-fill); }
@@ -1987,7 +1987,7 @@ button {
    bottom edge. A target you cannot reach because your neighbour got there
    first is not a target. 12px of ROW gap is the smallest number where 32 and
    44 tile exactly; the column gap is untouched, so nothing moves sideways. */
-.convo-chips, .chip-wrap, .chip-wrap-row, .chip-picker-open { row-gap: 12px; }
+.convo-chips, .chip-wrap, .chip-wrap-row, .chip-picker-open { row-gap: var(--s-3); }
 
 /* The swatch is 24px of paint with no hit area at all, in a grid whose pitch
    (24 + 12) was smaller than the target it needs. Both halves have to move or
@@ -2036,9 +2036,9 @@ button {
 /* Person pass: chip rows inside sheets wrap instead of scrolling (a sheet has
    no horizontal-scroll affordance, and label/category picks must all be
    visible at once). The base .chip-row mask/scroll behavior stays for pages. */
-.chip-wrap-row { flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none; mask-image: none; margin-bottom: 8px; }
-.input-stack { margin-bottom: 8px; }
-.list-search { padding-bottom: 8px; }
+.chip-wrap-row { flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none; mask-image: none; margin-bottom: var(--s-2); }
+.input-stack { margin-bottom: var(--s-2); }
+.list-search { padding-bottom: var(--s-2); }
 .search-bar .search-ic { width: 18px; height: 18px; opacity: 0.6; flex-shrink: 0; }
 
 /* The answer-by the sender actually stated. Amber because it is a real
@@ -2049,7 +2049,7 @@ button {
 /* UP-MIND-12: a claim that can show the sentence it came from. The chip is
    the claim, not a second control beside it, so the only visible difference
    is the quote mark and the fact that it takes a tap. */
-.ev-chip { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 2px; }
+.ev-chip { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: var(--s-0h); }
 .ev-mark { opacity: 0.55; font-size: 1.05em; line-height: 1; }
 /* The sender's own sentence, unaltered. Quoted so it reads as theirs. */
 .ev-span { font-size: var(--t-body); color: var(--tx-1); line-height: 1.45; padding: var(--s-2) 0; }
@@ -2154,7 +2154,7 @@ button {
    single row; window rows stack their controls so four length chips never
    fight a time input for 390px. */
 .win-days { flex-wrap: nowrap; gap: var(--s-1); }
-.win-day { min-width: 38px; padding: 4px 0; text-align: center; justify-content: center; }
+.win-day { min-width: 38px; padding: var(--s-1) 0; text-align: center; justify-content: center; }
 /* E-12 (Push G): the sheet is a list now. Each window is one row, "9 AM ·
    45m", with a chevron into a single-window editor; the days row is seven
    two-letter chips, inverted when on (the same .chip.on the account chips
@@ -2182,11 +2182,11 @@ button {
    Replaced the green TimeArc ring, which was a foreign color and, at 9h 26m
    of a 9h 30m gap, a full circle saying nothing. */
 .now-rail { display: flex; gap: var(--s-3); align-items: stretch; padding: var(--s-4) var(--s-4) var(--s-3); }
-.rail-line { display: flex; flex-direction: column; align-items: center; padding-top: 5px; }
+.rail-line { display: flex; flex-direction: column; align-items: center; padding-top: var(--s-1h); }
 .rail-dot { width: 9px; height: 9px; border-radius: var(--r-circle); flex-shrink: 0; }
 .rail-now { background: var(--accent); }
 .rail-next { border: 1.5px solid var(--tx-3); }
-.rail-stem { width: 1.5px; flex: 1; min-height: 22px; background: var(--divider); margin: 3px 0; }
+.rail-stem { width: 1.5px; flex: 1; min-height: 22px; background: var(--divider); margin: var(--s-1) 0; }
 .rail-stops { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; flex: 1; }
 .rail-stop .conn-meta { margin-top: 1px; }
 
@@ -2226,7 +2226,7 @@ button {
   overflow: hidden; text-overflow: ellipsis; }
 /* Verb rows: one line, fact plus capsule. The card slims down so a stack of
    rows reads as a list, not a pile of cards. */
-.notice-card-row { padding-top: 2px; padding-bottom: 2px; }
+.notice-card-row { padding-top: var(--s-0h); padding-bottom: var(--s-0h); }
 .notice-vrow { min-height: 44px; }
 .vrow-line { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
 /* The FACT owns the line. The sub yields first (4x the shrink), floors at a
@@ -2462,7 +2462,7 @@ button {
 .banner-line { display: flex; align-items: center; gap: var(--s-2h); }
 .banner-line .row-stack { flex: 1; min-width: 0; }
 .count-pill { display: inline-block; background: var(--warn-fill); color: #000; font-weight: var(--w-bold);
-  font-size: var(--t-caption); line-height: 18px; border-radius: var(--r-pill); padding: 0 8px; margin-left: var(--s-1h);
+  font-size: var(--t-caption); line-height: 18px; border-radius: var(--r-pill); padding: 0 var(--s-2); margin-left: var(--s-1h);
   vertical-align: middle; }
 .slip-warn { color: var(--warn); font-weight: var(--w-semi); }
 /* The Now card's stat strip: same tiles as everywhere, padded for card top. */
@@ -2470,7 +2470,7 @@ button {
 /* Stepper value taps open the keypad (approved preview 2026-08-15). */
 .stepper .stepper-tap { cursor: pointer; }
 .stepper .stepper-edit { width: 56px; background: var(--accent-chip); border: 0; color: var(--accent-chip-tx);
-  font: inherit; font-weight: var(--w-bold); text-align: center; border-radius: var(--r-sm); padding: 2px 0; }
+  font: inherit; font-weight: var(--w-bold); text-align: center; border-radius: var(--r-sm); padding: var(--s-0h) 0; }
 
 /* V2 INFORMATION ANATOMY (approved 2026-08-15, LOCKED-CSS CHANGE FLAGGED).
    Dave: lists must read at a glance. Numbers become tinted stat tiles, rows
@@ -2613,7 +2613,7 @@ button {
 .tip-ico .ic { width: 26px; height: 26px; }
 .tip-body { flex: 1; min-width: 0; }
 .tip-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
-.tip-sub { margin-top: 2px; font-size: var(--t-body); color: var(--tx-3); line-height: var(--lh-default); }
+.tip-sub { margin-top: var(--s-0h); font-size: var(--t-body); color: var(--tx-3); line-height: var(--lh-default); }
 .tip-acts { display: flex; gap: var(--s-2); margin-top: var(--s-2h); }
 .tip-x { width: 30px; height: 30px; border-radius: var(--r-circle); background: var(--press-3);
   border: 0; color: var(--tx-3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -2747,7 +2747,7 @@ button {
    section head in the app is the writing canvas's head: red mini-caps,
    dotted leader to the margin, count quiet at the right. One law, no
    per-page variants. The leader rides ::after between title and count. */
-.sh2 { display: flex; align-items: baseline; gap: 9px;
+.sh2 { display: flex; align-items: baseline; gap: var(--s-2h);
   padding: var(--s-4h, 18px) var(--s-4) var(--s-1h); }
 .sh2 .t { order: 0; font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: var(--track-head, 0.14em);
   text-transform: uppercase; color: var(--accent-chrome); }
@@ -2801,7 +2801,7 @@ button {
    that clips is a headline that has to be tapped to be read. */
 .promo-title { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1);
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.promo-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; line-height: 1.4;
+.promo-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-0h); line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .promo-acts { display: flex; gap: var(--s-2h); margin-top: var(--s-3h); }
 .promo-pill { flex: 1; height: 44px; border-radius: var(--r-xl); border: 0; background: rgba(255,255,255,0.08);
@@ -3218,7 +3218,7 @@ button {
   display: inline-flex; align-items: center; flex-shrink: 0; }
 /* Detail-page group labels ride the same steel: Decided, Because, Details,
    Ruled Out. Scoped to .grp so category kicker eyebrows keep their colors. */
-.grp .eyebrow { display: flex; align-items: baseline; gap: 9px; color: var(--accent-chrome); letter-spacing: 0.14em; }
+.grp .eyebrow { display: flex; align-items: baseline; gap: var(--s-2h); color: var(--accent-chrome); letter-spacing: 0.14em; }
 .grp .eyebrow::after { content: ""; flex: 1; border-top: 1px dotted rgba(255, 43, 60, 0.35); align-self: center; }
 /* SCHEDULE AUDIT 2026-08-29: the rule above is for detail-page group labels
    (Decided, Because, Details...) and its own comment says it is "scoped to
@@ -3337,11 +3337,11 @@ button {
 /* E-22 (Push D): Read It to Me wears up to three pills (Next, Stop, and the
    Play/Pause the row itself answers to). Same anatomy as the gym library's
    row actions, on the plain skin. */
-.mail-read-acts { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.mail-read-acts { display: flex; gap: var(--s-1h); align-items: center; flex-shrink: 0; }
 /* While the voice is going the row wraps and the three pills take their own
    line, right-aligned, instead of crushing the row's name to "Read I…". */
 .row.mail-read-live { flex-wrap: wrap; }
-.mail-read-live .mail-read-acts { flex-basis: 100%; justify-content: flex-end; padding-top: 2px; }
+.mail-read-live .mail-read-acts { flex-basis: 100%; justify-content: flex-end; padding-top: var(--s-0h); }
 .pill-act { position: relative; flex-shrink: 0; align-self: center; background: var(--press-3); border: 0; border-radius: var(--r-pill);
   color: var(--tint); font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi);
   min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--s-3); }
@@ -3350,7 +3350,7 @@ button {
    existed and no keyboard or VoiceOver user could reach it at all. The pill is
    quiet on purpose: it is a way in, not an action, so it never wears the tint
    .pill-act does (RED IS A VERB). Same 44px hit area expanded past the paint. */
-.row-menu-btn { position: relative; flex-shrink: 0; align-self: center; background: none; border: 0; padding: 4px 2px;
+.row-menu-btn { position: relative; flex-shrink: 0; align-self: center; background: none; border: 0; padding: var(--s-1) var(--s-0h);
   color: var(--tx-2); display: inline-flex; align-items: center; cursor: pointer; }
 .row-menu-btn::after { content: ""; position: absolute; inset: -11px -8px; }
 .row-menu-btn:active { color: var(--tx-2); }
@@ -3412,7 +3412,7 @@ button {
 .doc > * + * { margin-top: var(--s-2h); }
 .doc-title { font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.015em; line-height: var(--lh-snug);
   color: var(--tx-1); margin-top: var(--s-2); }
-.doc .t-body { font-size: calc(17px * var(--type-scale)); line-height: 1.6; color: var(--tx-1); padding: 2px 0; min-height: 27px; }
+.doc .t-body { font-size: calc(17px * var(--type-scale)); line-height: 1.6; color: var(--tx-1); padding: var(--s-0h) 0; min-height: 27px; }
 /* List lines hang their marker: the words own the left edge, wrapped lines
    align under words, and the marker column stays even (visual pass
    2026-08-22). Non-interactive typography, both layouts. */
@@ -3453,7 +3453,7 @@ button {
 /* Decision list styling pass (Dave 2026-08-18): the linked home renders as a
    colored fact inside the sub; the recorded date is the quiet right column. */
 .fact-link { font-weight: var(--w-semi); }
-.dec-when { font-size: var(--t-caption); color: var(--tx-2); flex-shrink: 0; align-self: flex-start; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.dec-when { font-size: var(--t-caption); color: var(--tx-2); flex-shrink: 0; align-self: flex-start; margin-top: var(--s-1); font-variant-numeric: tabular-nums; }
 /* Decisions are sentences; two lines beats an ellipsis (Dave critique fix). */
 .dec-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* The writing toolbar: chips row pinned to the bottom of the screen. It
@@ -3489,7 +3489,7 @@ button {
    Notes and Command Deck -- it is the writing canvas, not either skin. */
 .doc { padding-top: var(--s-3); }
 .doc > * + * { margin-top: var(--s-1h); }
-.doc .doc-title { font-size: var(--t-title); letter-spacing: -0.01em; margin-bottom: 2px; }
+.doc .doc-title { font-size: var(--t-title); letter-spacing: -0.01em; margin-bottom: var(--s-0h); }
 /* The meta line (the mock's grey context row, now a real block type). */
 .doc .block-meta { font-size: var(--t-sub); line-height: 1.5; color: var(--tx-3); min-height: 22px; }
 .doc .t-body { font-size: calc(16.5px * var(--type-scale)); line-height: 1.6; min-height: 24px; }
@@ -3498,7 +3498,7 @@ button {
    a heading out as a .cd-head instead. Base rule stays unscoped since
    nothing but editorial mode renders the class; the dot color and the
    removed dotted leader live under .doc-editorial below. */
-.hwrap { display: flex; align-items: center; gap: 8px; margin-top: var(--s-6); margin-bottom: 2px; }
+.hwrap { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-6); margin-bottom: var(--s-0h); }
 .doc .hwrap .block-h { margin-top: 0; flex: 1 1 auto; min-width: 0; max-width: 76%; font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: 0.14em; text-transform: uppercase; }
 
 /* The Tracker's living table (deep template pass): cells edit in place,
@@ -3588,7 +3588,7 @@ button {
 /* One icon COLUMN for the whole group: the 30px disc rides centered in the
    same 44px slot the task check-tap owns, so every fact starts at the same
    x whether its row is a task or a notice. */
-.stream-grouped .notice-vrow .notice-disc { margin: 0 7px; }
+.stream-grouped .notice-vrow .notice-disc { margin: 0 var(--s-2); }
 /* TASK OR NOTICE, BY SHAPE (Dave 2026-08-26, task-vs-notice catalog: "Option
    1 works"). The dealt task's check is a circle everywhere the app shows
    one; the notice disc was ALSO a circle, so in a stream that mixes both
@@ -3734,7 +3734,7 @@ button {
 /* N4 (2026-08-20): a VIP is marked where he READS, not buried in a setting.
    The star sits with the name because that is where the question "does this
    person always get through" actually gets asked. */
-.msg-vip { color: var(--yellow, #FFD60A); font-size: var(--t-caption); line-height: 1; flex-shrink: 0; margin-left: 2px; }
+.msg-vip { color: var(--yellow, #FFD60A); font-size: var(--t-caption); line-height: 1; flex-shrink: 0; margin-left: var(--s-0h); }
 
 /* THE ESCALATED BURST (dopamine layer, 2026-08-20). The evidence says the
    reward has to land ON the action and has to scale with what the action
@@ -3848,7 +3848,7 @@ button {
 .cd-h3 { font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-2); }
 .cd-count {
   flex-shrink: 0; font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2);
-  font-variant-numeric: tabular-nums; background: var(--press-3); border-radius: var(--r-pill); padding: 1px 8px;
+  font-variant-numeric: tabular-nums; background: var(--press-3); border-radius: var(--r-pill); padding: 1px var(--s-2);
 }
 
 /* ============================================================
@@ -3862,8 +3862,8 @@ button {
 .note-conns { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1h); }
 .doc > .note-conns { margin-top: var(--s-1); }
 .note-conn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 6px 3px 3px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; gap: var(--s-1h);
+  padding: var(--s-1) var(--s-1h) var(--s-1) var(--s-1); border-radius: var(--r-pill);
   background: var(--surface-2); max-width: 100%;
 }
 .note-conn .proj-icon { width: 18px; height: 18px; border-radius: var(--r-circle); flex-shrink: 0; }
@@ -3882,7 +3882,7 @@ button {
 /* With nothing linked yet the same control says what it is (Dave
    2026-09-12: a bare dashed circle under the title read as a stray). Once
    a chip exists the circle is enough, it sits after the chips. */
-.note-conn-add.note-conn-first { width: auto; border-radius: var(--r-pill); padding: 0 10px 0 8px; gap: 5px;
+.note-conn-add.note-conn-first { width: auto; border-radius: var(--r-pill); padding: 0 var(--s-2h) 0 var(--s-2); gap: var(--s-1h);
   font-family: var(--f); font-size: var(--t-caption); font-weight: var(--w-medium); }
 
 /* A checklist item already promoted to a real task (Dave 2026-08-28): a
@@ -4106,7 +4106,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    color-mix keeps every chip on its own text colour with no second token. */
 [data-theme="light"] .eyebrow[class*="cat-fg-"] {
   display: inline-flex; align-items: center; width: fit-content;
-  padding: 2px 7px; border-radius: var(--r-sm); margin-top: 2px;
+  padding: var(--s-0h) var(--s-2); border-radius: var(--r-sm); margin-top: var(--s-0h);
   /* The wash itself is per-slot (it mixes the FILL, not the ink) and lives
      with the palette above. Geometry only here. */
 }
@@ -4549,7 +4549,7 @@ body.selecting .voice-dock { display: none; }
 .stat-tile.stat-blue { background: rgba(10, 132, 255, 0.14); }
 .stat-tile.stat-blue .stat-num { color: var(--blue); }
 [data-theme="light"] .stat-tile.stat-blue .stat-num { color: #0A5FD0; }
-.week-dots { display: inline-flex; gap: 4px; margin-right: var(--s-2); flex-shrink: 0; align-self: center; }
+.week-dots { display: inline-flex; gap: var(--s-1); margin-right: var(--s-2); flex-shrink: 0; align-self: center; }
 .week-dots i { width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--surface-3); }
 .week-dots i.on { background: var(--blue); }
 [data-theme="light"] .week-dots i { background: rgba(18, 18, 32, 0.14); }
@@ -4560,50 +4560,50 @@ body.selecting .voice-dock { display: none; }
    Title Case law scans conn-name, and these are not labels). Numbers and
    color carry the page; bars grow once on open and reduced motion gets the
    finished frame. Down-deltas are muted facts, never red ones. */
-.rep-hero { padding: 12px 16px 0; }
+.rep-hero { padding: var(--s-3) var(--s-4) 0; }
 .rep-eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 2px; text-transform: uppercase; color: var(--accent-tx); }
 .rep-quiet { color: var(--tx-3); }
-.rep-quiet2 { color: var(--tx-2); margin-top: 4px; }
-.rep-big { font-size: calc(64px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1; letter-spacing: -2px; color: var(--tx-1); margin-top: 6px; }
-.rep-big-label { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-2); margin-top: 2px; }
-.rep-anchor { display: inline-block; font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--good); background: var(--good-tint); border-radius: var(--r-pill); padding: 3px 10px; margin-left: 10px; vertical-align: middle; }
-.rep-hint { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-quiet); margin-top: 12px; }
+.rep-quiet2 { color: var(--tx-2); margin-top: var(--s-1); }
+.rep-big { font-size: calc(64px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1; letter-spacing: -2px; color: var(--tx-1); margin-top: var(--s-1h); }
+.rep-big-label { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-2); margin-top: var(--s-0h); }
+.rep-anchor { display: inline-block; font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--good); background: var(--good-tint); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); margin-left: var(--s-2h); vertical-align: middle; }
+.rep-hint { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-quiet); margin-top: var(--s-3); }
 .rep-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); line-height: var(--lh-default); }
-.rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
-.rep-win { border-radius: var(--r-md); padding: 12px 14px; }
+.rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-3h); }
+.rep-win { border-radius: var(--r-md); padding: var(--s-3) var(--s-3h); }
 .rep-win-name { font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--tx-2); }
-.rep-win-val { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); margin-top: 2px; }
+.rep-win-val { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); margin-top: var(--s-0h); }
 .rep-win-good { background: var(--good-tint); } .rep-win-good .rep-win-val { color: var(--good); }
 .rep-win-blue { background: rgba(10, 132, 255, 0.14); } .rep-win-blue .rep-win-val { color: var(--blue); }
 .rep-win-purple { background: rgba(191, 90, 242, 0.14); } .rep-win-purple .rep-win-val { color: var(--cat-purple); }
 .rep-win-warn { background: var(--warn-tint); } .rep-win-warn .rep-win-val { color: var(--warn); }
 [data-theme="light"] .rep-win-blue .rep-win-val { color: #0A5FD0; }
 [data-theme="light"] .rep-win-purple .rep-win-val { color: #7A2F9E; }
-.rep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.rep-grid .stat-tile { border-radius: var(--r-md); padding: 14px 8px 12px; text-align: center; }
-.rep-delta { font-size: calc(11px * var(--type-scale)); font-weight: var(--w-bold); margin-top: 2px; font-variant-numeric: tabular-nums; color: var(--tx-2); }
+.rep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+.rep-grid .stat-tile { border-radius: var(--r-md); padding: var(--s-3h) var(--s-2) var(--s-3); text-align: center; }
+.rep-delta { font-size: calc(11px * var(--type-scale)); font-weight: var(--w-bold); margin-top: var(--s-0h); font-variant-numeric: tabular-nums; color: var(--tx-2); }
 .rep-delta-up { color: var(--good); }
-.rep-gap { margin-top: 10px; }
+.rep-gap { margin-top: var(--s-2h); }
 .rep-split { display: flex; align-items: baseline; justify-content: space-between; }
 .rep-split b { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--accent-tx); }
-.rep-hours { display: flex; gap: 3px; align-items: flex-end; height: 30px; margin-top: 10px; }
+.rep-hours { display: flex; gap: var(--s-1); align-items: flex-end; height: 30px; margin-top: var(--s-2h); }
 .rep-hours i { flex: 1; background: var(--surface-3); border-radius: 2px; display: block; transition: height 0.45s var(--ease-out); }
 .rep-hours i.hot { background: var(--accent); }
-.rep-stack { display: flex; height: 14px; border-radius: var(--r-sm); overflow: hidden; margin-top: 10px; }
+.rep-stack { display: flex; height: 14px; border-radius: var(--r-sm); overflow: hidden; margin-top: var(--s-2h); }
 .rep-stack i { display: block; transition: width 0.45s var(--ease-out); }
-.rep-leg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.rep-leg span { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2); background: var(--surface-2); border-radius: var(--r-pill); padding: 3px 9px; }
+.rep-leg { display: flex; flex-wrap: wrap; gap: var(--s-1h); margin-top: var(--s-2h); }
+.rep-leg span { display: inline-flex; align-items: center; gap: var(--s-1h); font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2); background: var(--surface-2); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); }
 .rep-leg i { width: 8px; height: 8px; border-radius: var(--r-circle); display: inline-block; }
-.rep-chip { font-size: var(--t-caption); font-weight: var(--w-bold); border-radius: var(--r-pill); padding: 4px 10px; white-space: nowrap; flex-shrink: 0; }
+.rep-chip { font-size: var(--t-caption); font-weight: var(--w-bold); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); white-space: nowrap; flex-shrink: 0; }
 .rep-chip-good { background: var(--good-tint); color: var(--good); }
 .rep-chip-warn { background: var(--warn-tint); color: var(--warn); }
-.rep-btnrow { display: flex; gap: 8px; padding: 2px 16px 14px; }
+.rep-btnrow { display: flex; gap: var(--s-2); padding: var(--s-0h) var(--s-4) var(--s-3h); }
 .rep-good-glyph { color: var(--good); }
 .rep-one { border: 1px solid var(--accent); }
-.rep-question { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); margin-top: 6px; }
-.rep-one-acts { display: flex; gap: 10px; margin-top: 14px; }
+.rep-question { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); margin-top: var(--s-1h); }
+.rep-one-acts { display: flex; gap: var(--s-2h); margin-top: var(--s-3h); }
 .rep-one-acts .btn { flex: 1; }
-.rep-one-foot { margin-top: 10px; }
+.rep-one-foot { margin-top: var(--s-2h); }
 @media (prefers-reduced-motion: reduce) {
   .rep-hours i, .rep-stack i { transition: none; }
 }
@@ -4615,7 +4615,7 @@ body.selecting .voice-dock { display: none; }
    nudge, not a verdict). */
 .life-head { display: flex; align-items: center; justify-content: space-between; }
 .life-head .day-divide { flex: 1 1 auto; min-width: 0; }
-.life-word { font-size: var(--t-caption); font-weight: var(--w-bold); border: 0; border-radius: var(--r-pill); padding: 3px 10px; white-space: nowrap; flex-shrink: 0; }
+.life-word { font-size: var(--t-caption); font-weight: var(--w-bold); border: 0; border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); white-space: nowrap; flex-shrink: 0; }
 .life-fed { background: var(--good-tint); color: var(--good); }
 .life-rest { background: var(--press-3); color: var(--tx-3); cursor: pointer; }
 .life-quiet { background: var(--warn-tint); color: var(--warn); }
@@ -4626,7 +4626,7 @@ body.selecting .voice-dock { display: none; }
    "People wouldn't think those render into unique major features." The deck
    makes the two flagships the biggest objects on the tab; the launcher rows
    below give every other mode a full-width target with a reason to tap. */
-.mode-deck { display: flex; gap: 10px; margin-bottom: var(--s-2); }
+.mode-deck { display: flex; gap: var(--s-2h); margin-bottom: var(--s-2); }
 .mode-card { flex: 1; min-width: 0; border-radius: var(--r-lg, 18px);
   background: var(--surface-1); padding: var(--s-4) var(--s-3h) var(--s-3h); cursor: pointer; }
 /* THE RECOMMENDED ACTION WEARS THE ACCENT; THE PANEL AROUND IT DOES NOT
@@ -4880,7 +4880,7 @@ body.selecting .voice-dock { display: none; }
 .sched-gym { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1); margin-top: var(--s-1); }
 .sched-gym-name { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
 .sched-gym-line { display: flex; align-items: center; gap: var(--s-2); }
-.sched-gym-start { margin-top: 2px; }
+.sched-gym-start { margin-top: var(--s-0h); }
 
 /* ==========================================================================
    THE PREVIEW IS THE SPEC (2026-09-01, Dave's three editor screenshots:
@@ -4935,7 +4935,7 @@ body.selecting .voice-dock { display: none; }
    amber, Filler stays quiet. 10.5/800 caps chips, tinted grounds. */
 .xtag { display: inline-block; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.04em; text-transform: uppercase; border-radius: var(--r-pill);
-  padding: 2px 7px; margin-right: var(--s-1h); vertical-align: 2px; }
+  padding: var(--s-0h) var(--s-2); margin-right: var(--s-1h); vertical-align: 2px; }
 .xtag-blue { background: var(--blue-tint); color: var(--blue); }
 .xtag-warn { background: var(--warn-tint); color: var(--warn); }
 .xtag-dim { background: var(--press-3); color: var(--tx-3); }
@@ -4988,7 +4988,7 @@ body.selecting .voice-dock { display: none; }
 .list-card .reorder-live .day-pin { display: none; }
 /* The row's own note echo (preview .ghost: a fact, quoted, above meta
    legibility). */
-.row-ghost { font-size: var(--t-meta); color: var(--tx-2); margin-top: 2px;
+.row-ghost { font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-0h);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A neutral in-row pill (preview's white "Edit All Sets"). */
 .pill-act.pill-neutral { color: var(--tx-1); }
@@ -5007,7 +5007,7 @@ body.selecting .voice-dock { display: none; }
    control worn as a row's trailing value on a grouped table (the exercise
    sheet): no capsule, the value in the row's ink, the chevron in the quiet
    ink, so a row that opens a menu reads like one. */
-.dd { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 11px; border: 0;
+.dd { display: inline-flex; align-items: center; gap: var(--s-1h); min-height: 30px; padding: 0 var(--s-3); border: 0;
   border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); font-family: var(--f);
   font-size: var(--t-caption); font-weight: var(--w-semi); letter-spacing: 0.1em; text-transform: uppercase;
   white-space: nowrap; position: relative; cursor: pointer; }
@@ -5029,7 +5029,7 @@ body.selecting .voice-dock { display: none; }
 .dd.dd-value { background: transparent; padding: 0; min-height: 0; color: var(--tx-1); font-size: var(--t-body);
   font-weight: var(--w-regular); letter-spacing: 0; text-transform: none; }
 .dd.dd-value.dd-off { color: var(--tx-3); }
-.dd.dd-value .dd-cv { color: var(--tx-2); opacity: 1; width: 7px; height: 7px; margin-left: 4px; }
+.dd.dd-value .dd-cv { color: var(--tx-2); opacity: 1; width: 7px; height: 7px; margin-left: var(--s-1); }
 .dd.dd-value .dd-w { max-width: 52vw; }
 .dd.dd-value.dd-open { background: transparent; opacity: 0.6; }
 /* A ROW'S VALUE WITH NO MENU BEHIND IT (2026-09-09): the Goal row on the task
@@ -5050,7 +5050,7 @@ body.selecting .voice-dock { display: none; }
    The scrim is invisible: the page stays readable while the menu is up,
    and any tap outside closes it unchanged. */
 .hmenu-scrim { position: fixed; inset: 0; z-index: 300; }   /* above sheets (200): a sheet's rows open menus too */
-.hmenu { position: fixed; min-width: 200px; max-width: calc(100vw - 32px); padding: 6px 0;
+.hmenu { position: fixed; min-width: 200px; max-width: calc(100vw - 32px); padding: var(--s-1h) 0;
   border-radius: var(--r-md); background: rgba(44, 44, 46, 0.96);   /* iOS's thick menu material: the list must not read through */
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   box-shadow: inset 0 0.5px 0 var(--rim-card), 0 12px 32px rgba(0, 0, 0, 0.55);
@@ -5062,7 +5062,7 @@ body.selecting .voice-dock { display: none; }
 [data-theme="light"] .hmenu { background: rgba(255, 255, 255, 0.96); box-shadow: var(--shadow-card), 0 12px 32px rgba(0, 0, 0, 0.14); }
 @keyframes hmenuIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .hmenu { animation: none; } }
-.hmenu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 16px 0 12px;
+.hmenu-item { display: flex; align-items: center; gap: var(--s-2h); width: 100%; min-height: 44px; padding: 0 var(--s-4) 0 var(--s-3);
   border: 0; background: transparent; color: var(--tx-1); font-family: var(--f); font-size: calc(16px * var(--type-scale)); text-align: left;
   cursor: pointer; position: relative; }
 .hmenu-item + .hmenu-item::before { content: ""; position: absolute; left: 42px; right: 0; top: 0; height: 0.5px; background: var(--divider); }
@@ -5108,7 +5108,7 @@ body.selecting .voice-dock { display: none; }
 .xs .card.xs-group { margin-bottom: 0; }
 .xs .row.xs-row { min-height: 48px; padding-top: var(--s-2); padding-bottom: var(--s-2); }
 .xs .row.xs-row > .conn-name { flex: 1; min-width: 0; }
-.xs .row.xs-row .row-grow .conn-meta { margin-top: 2px; }
+.xs .row.xs-row .row-grow .conn-meta { margin-top: var(--s-0h); }
 /* The row that IS an input: no box inside a box, the field is the row. */
 .xs .xs-input { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none;
   font-family: var(--f); font-size: calc(16px * var(--type-scale)); color: var(--tx-1); }
@@ -5221,7 +5221,7 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .xs-del:active { background: var(--press-1); }
 .form-sheet .xs-group .proj-icon { width: 28px; height: 28px; border-radius: var(--r-sm); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
 .form-sheet .xs-group .proj-icon .ic { width: 16px; height: 16px; }
-.form-sheet .row-grow .conn-meta { margin-top: 2px; }
+.form-sheet .row-grow .conn-meta { margin-top: var(--s-0h); }
 /* A chip strip as a row of the group (the event's Move and Length, the
    loose tasks): one step up from the group's ground, wrapping. */
 .form-sheet .row.xs-strip { display: block; padding: var(--s-2) var(--s-3) var(--s-2h); }
@@ -5276,39 +5276,39 @@ body.selecting .voice-dock { display: none; }
   position: fixed; inset: 0; z-index: 400; background: #000; color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: max(20px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
-  gap: 6px; -webkit-user-select: none; user-select: none; touch-action: none;
+  gap: var(--s-1h); -webkit-user-select: none; user-select: none; touch-action: none;
 }
 .cf-top { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  display: flex; flex-direction: column; align-items: center; gap: var(--s-1); }
 .cf-cancel { position: absolute; left: 14px; top: 0; border: 0; background: none; color: var(--tx-3);
-  font: inherit; font-size: calc(15px * var(--type-scale)); font-weight: 600; padding: 8px 6px; cursor: pointer; }
+  font: inherit; font-size: calc(15px * var(--type-scale)); font-weight: 600; padding: var(--s-2) var(--s-1h); cursor: pointer; }
 .cf-fmt { font-size: var(--t-caption); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue);
-  background: var(--blue-tint); padding: 4px 9px; border-radius: var(--r-sm); }
+  background: var(--blue-tint); padding: var(--s-1) var(--s-2h); border-radius: var(--r-sm); }
 .cf-name { font-size: var(--t-caption); color: var(--tx-3); max-width: 70vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .cf-ring { position: relative; width: min(78vw, 300px); height: min(78vw, 300px); display: grid; place-items: center;
-  margin-top: 8px; cursor: pointer; }
+  margin-top: var(--s-2); cursor: pointer; }
 .cf-ring .cf-svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
 .cf-track { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 8; }
 .cf-arc { fill: none; stroke: var(--blue); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 120ms linear; }
 .cond-face.rest .cf-arc { stroke: var(--good-fill); }
 .cond-face.lead .cf-arc { stroke: var(--tx-3); }
-.cf-mid { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cf-mid { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--s-0h); }
 .cf-num { font-size: clamp(56px, 19vw, 84px); font-weight: 800; letter-spacing: -0.045em; line-height: 1;
   font-variant-numeric: tabular-nums; }
 .cf-num.pulse { animation: cf-pulse 260ms ease-out; }
 .cf-lead { font-size: clamp(80px, 30vw, 120px); animation: cf-pulse 300ms ease-out; }
 @keyframes cf-pulse { 0% { transform: scale(1.14); } 100% { transform: scale(1); } }
-.cf-round { font-size: calc(15px * var(--type-scale)); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: 4px; }
+.cf-round { font-size: calc(15px * var(--type-scale)); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-1); }
 .cf-last { font-size: var(--t-caption); color: var(--tx-2); font-variant-numeric: tabular-nums; min-height: 18px; }
 
-.cf-roundbtn { margin-top: 22px; border: 0; border-radius: var(--r-pill); background: #fff; color: #000; font: inherit;
-  font-size: var(--t-h2); font-weight: 700; padding: 16px 0; width: min(64vw, 240px); cursor: pointer; }
+.cf-roundbtn { margin-top: var(--s-6h); border: 0; border-radius: var(--r-pill); background: #fff; color: #000; font: inherit;
+  font-size: var(--t-h2); font-weight: 700; padding: var(--s-4) 0; width: min(64vw, 240px); cursor: pointer; }
 .cf-roundbtn:active { transform: scale(0.97); }
 
-.cf-slide { position: relative; margin-top: 14px; width: min(64vw, 240px); height: 50px; border-radius: var(--r-pill);
+.cf-slide { position: relative; margin-top: var(--s-3h); width: min(64vw, 240px); height: 50px; border-radius: var(--r-pill);
   background: var(--press-3); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.cf-slide-t { color: var(--tx-3); font-size: var(--t-caption); font-weight: 600; letter-spacing: 0.02em; padding-left: 26px; }
+.cf-slide-t { color: var(--tx-3); font-size: var(--t-caption); font-weight: 600; letter-spacing: 0.02em; padding-left: var(--s-7); }
 .cf-knob { position: absolute; left: 5px; top: 5px; width: 40px; height: 40px; border-radius: var(--r-circle); background: var(--sys-red);
   display: grid; place-items: center; touch-action: none; cursor: grab; transition: transform 180ms ease; }
 .cf-knob.dragging { transition: none; cursor: grabbing; }
@@ -5320,7 +5320,7 @@ body.selecting .voice-dock { display: none; }
 /* ---------- LANDSCAPE (ruled: the number fills the width, everything
    else in the corners) ------------------------------------------------- */
 @media (orientation: landscape) and (max-height: 500px) {
-  .cond-face { padding: 12px 18px; justify-content: center; }
+  .cond-face { padding: var(--s-3) var(--s-5); justify-content: center; }
   .cf-top { display: none; }
   .cf-ring { width: auto; height: auto; margin: 0; }
   .cf-ring .cf-svg { display: none; }
@@ -5333,7 +5333,7 @@ body.selecting .voice-dock { display: none; }
   .cf-tr { top: 14px; right: 18px; }
   .cf-bl { bottom: 14px; left: 18px; color: var(--tx-2); text-transform: none; letter-spacing: 0; font-weight: 600;
     font-variant-numeric: tabular-nums; }
-  .cf-roundbtn { position: absolute; right: 18px; bottom: 12px; margin: 0; width: auto; padding: 12px 26px; font-size: calc(16px * var(--type-scale)); }
+  .cf-roundbtn { position: absolute; right: 18px; bottom: 12px; margin: 0; width: auto; padding: var(--s-3) var(--s-7); font-size: calc(16px * var(--type-scale)); }
   .cf-slide { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); margin: 0; width: 200px; height: 42px; }
   .cf-knob { width: 32px; height: 32px; }
   .cf-slide-t { font-size: var(--t-caption); }
@@ -5345,37 +5345,37 @@ body.selecting .voice-dock { display: none; }
 }
 
 /* ---------- THE RECEIPT ------------------------------------------------- */
-.cond-receipt { padding: 12px 16px 10px; }
-.cr-head { display: flex; align-items: center; gap: 9px; }
+.cond-receipt { padding: var(--s-3) var(--s-4) var(--s-2h); }
+.cr-head { display: flex; align-items: center; gap: var(--s-2h); }
 .cr-fmt { font-size: calc(11px * var(--type-scale)); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--blue);
-  background: var(--blue-tint); padding: 3px 8px; border-radius: var(--r-sm); flex-shrink: 0; }
+  background: var(--blue-tint); padding: var(--s-1) var(--s-2); border-radius: var(--r-sm); flex-shrink: 0; }
 .cr-name { flex: 1; min-width: 0; font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cr-cap { font-size: var(--t-caption); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.cr-empty { font-size: var(--t-caption); color: var(--tx-2); margin-top: 10px; }
-.cr-attempt { margin-top: 8px; }
+.cr-empty { font-size: var(--t-caption); color: var(--tx-2); margin-top: var(--s-2h); }
+.cr-attempt { margin-top: var(--s-2); }
 /* GYM-F-10 (2026-09-05): the attempt title row now carries the delete a
    misfired run needs, so it is a row rather than a lone label. */
-.cr-attempt-t { display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  font-size: calc(11px * var(--type-scale)); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-2); margin: 8px 0 2px; }
-.cr-del { background: none; border: 0; padding: 2px; color: var(--tx-2); display: inline-flex; cursor: pointer; }
+.cr-attempt-t { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
+  font-size: calc(11px * var(--type-scale)); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-2); margin: var(--s-2) 0 var(--s-0h); }
+.cr-del { background: none; border: 0; padding: var(--s-0h); color: var(--tx-2); display: inline-flex; cursor: pointer; }
 .cr-del:active { color: var(--red); }
 .cr-del .ic { width: 16px; height: 16px; }
-.cr-table { width: 100%; border-collapse: collapse; font-size: var(--t-caption); font-variant-numeric: tabular-nums; margin-top: 4px; }
-.cr-table td { padding: 6px 4px; border-top: 0.5px solid var(--divider); color: var(--tx-2); }
+.cr-table { width: 100%; border-collapse: collapse; font-size: var(--t-caption); font-variant-numeric: tabular-nums; margin-top: var(--s-1); }
+.cr-table td { padding: var(--s-1h) var(--s-1); border-top: 0.5px solid var(--divider); color: var(--tx-2); }
 .cr-n { color: var(--tx-2); width: 36px; }
 .cr-t { color: var(--tx-1); font-weight: 600; }
 .cr-score-l { min-width: 0; }
 .cr-d { text-align: right; color: var(--tx-2); width: 60px; }
 .cr-d.up { color: var(--warn); }
 .cr-d.dn { color: var(--good); }
-.cr-score { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px;
-  padding-top: 8px; border-top: 0.5px solid var(--divider); font-size: var(--t-caption); color: var(--tx-3); }
-.cr-score-v { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-h2); font-weight: 800; color: var(--tx-1);
+.cr-score { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2h); margin-top: var(--s-2h);
+  padding-top: var(--s-2); border-top: 0.5px solid var(--divider); font-size: var(--t-caption); color: var(--tx-3); }
+.cr-score-v { display: inline-flex; align-items: center; gap: var(--s-1h); font-size: var(--t-h2); font-weight: 800; color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
 .cr-score-v b { font-weight: 800; }
 .cr-plus { font-size: calc(15px * var(--type-scale)); color: var(--tx-3); font-weight: 600; }
 .cr-extra { width: 56px; border: 0; border-radius: var(--r-sm); background: var(--press-3); color: var(--tx-1); font: inherit;
-  font-size: var(--t-h2); font-weight: 800; text-align: center; padding: 4px 6px; font-variant-numeric: tabular-nums; }
+  font-size: var(--t-h2); font-weight: 800; text-align: center; padding: var(--s-1) var(--s-1h); font-variant-numeric: tabular-nums; }
 .cr-extra:focus { outline: 2px solid var(--blue); }
 .cr-extra::placeholder { color: var(--tx-2); font-weight: 600; }
 
@@ -5416,7 +5416,7 @@ body.selecting .voice-dock { display: none; }
    bolding the title would have flattened the hierarchy instead of building
    it -- the exact thing Dave has been photographing, made worse by the fix
    for it. The ladder only exists if both rungs are nailed down. */
-.facts { display: flex; flex-wrap: nowrap; align-items: center; gap: 1px 0; margin-top: 2px;
+.facts { display: flex; flex-wrap: nowrap; align-items: center; gap: 1px 0; margin-top: var(--s-0h);
   font-size: var(--t-sub); font-weight: var(--w-sub);
   color: var(--tx-3); line-height: 1.35; overflow: hidden; }
 /* ONE LINE, AND THE LAST FACT GIVES WAY (2026-09-18, the approved rule: "three
@@ -5444,7 +5444,7 @@ body.selecting .voice-dock { display: none; }
    that are genuinely capsules (an urgency uchip, a classification on the
    Exercises page) are capsules because of WHAT THEY ARE, which does not
    change between screens. */
-.fact + .fact::before { content: "\00B7"; color: var(--tx-4); margin: 0 6px; }
+.fact + .fact::before { content: "\00B7"; color: var(--tx-4); margin: 0 var(--s-1h); }
 /* A fact that carries meaning takes its intent COLOUR, and only its colour.
    At most one of these per .facts line (K.3, extended by the law in
    laws/astra.test.ts); .fact.st and .fact.cat do not count toward it.
@@ -5461,7 +5461,7 @@ body.selecting .voice-dock { display: none; }
 .fact.red { color: var(--accent-tx); }
 /* Category is a 7px dot in the category colour plus plain text, never
    coloured text (G4). The dot wears .cat-bg-<slot>. */
-.fact.cat { color: var(--tx-3); display: inline-flex; align-items: center; gap: 5px; }
+.fact.cat { color: var(--tx-3); display: inline-flex; align-items: center; gap: var(--s-1h); }
 .fact.cat .cd { width: 7px; height: 7px; border-radius: var(--r-circle); display: inline-block; flex-shrink: 0; }
 /* The state word (G5): coloured small caps, never a filled pill. Colour from
    the variant beside it; gray is the quiet one. The words themselves are a
@@ -5577,7 +5577,7 @@ span.row-star { cursor: default; }
 .doc .t-quote { border-left: 3px solid var(--tx-4); padding: 2px 0 2px var(--s-3); font-style: italic; color: var(--tx-2); font-size: calc(17px * var(--type-scale)); line-height: 1.6; min-height: 27px; }
 .doc .doc-hr { border: 0; border-top: 0.5px solid var(--divider); margin: var(--s-3) 0; }
 .doc .t-callout { display: flex; gap: var(--s-2); align-items: flex-start; padding: var(--s-2h) var(--s-3); border-radius: var(--r-md, 12px); background: color-mix(in srgb, var(--warn-fill) 14%, transparent); }
-.doc .t-callout > .ic { width: 18px; height: 18px; flex-shrink: 0; margin-top: 4px; color: var(--warn); }
+.doc .t-callout > .ic { width: 18px; height: 18px; flex-shrink: 0; margin-top: var(--s-1); color: var(--warn); }
 .doc .t-callout-text { flex: 1; min-width: 0; font-size: calc(17px * var(--type-scale)); line-height: 1.6; color: var(--tx-1); min-height: 27px; }
 .notes-filters { padding-top: 0; }
 .note-menu { right: var(--s-4); }
@@ -5591,7 +5591,7 @@ span.row-star { cursor: default; }
 .tiles { display: flex; gap: var(--s-1h); margin: 0 0 var(--s-2h); }
 .itile { flex: 1; border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); min-width: 0; }
 .itile b { display: block; font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
-.itile span { display: block; margin-top: 4px; font-size: calc(11px * var(--type-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.itile span { display: block; margin-top: var(--s-1); font-size: calc(11px * var(--type-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .itile-good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
 .itile-purp { background: color-mix(in srgb, var(--cat-purple) 14%, transparent); color: var(--cat-purple); }
 .itile-sky { background: color-mix(in srgb, var(--cat-sky) 14%, transparent); color: var(--cat-sky); }
@@ -5599,7 +5599,7 @@ span.row-star { cursor: default; }
 .stack > i { display: block; height: 100%; }
 .stack > i.stack-open { background: var(--divider); }
 .week-card .tiles { margin-top: 0; }
-.week-eyebrow { margin-bottom: 2px; }
+.week-eyebrow { margin-bottom: var(--s-0h); }
 .week-legend { margin-bottom: var(--s-2h); }
 .eq { display: flex; align-items: baseline; gap: var(--s-2h); padding: var(--s-1h) 0; }
 .eq-k { flex: 0 0 64px; font-size: calc(11px * var(--type-scale)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -5611,7 +5611,7 @@ span.row-star { cursor: default; }
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
    mail EvidenceChip: a surface hands that component this class rather than
    forking it, and the sheet it opens is the Why sheet (C-25). */
-.why { display: inline-flex; align-items: center; gap: 4px; min-height: 34px; padding: 5px 10px; border: 0; border-radius: var(--r-pill);
+.why { display: inline-flex; align-items: center; gap: var(--s-1); min-height: 34px; padding: var(--s-1h) var(--s-2h); border: 0; border-radius: var(--r-pill);
   font-family: var(--f); font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--accent-tx); background: var(--red-tint); cursor: pointer; }
 
 /* ==========================================================================
@@ -5667,7 +5667,7 @@ span.row-star { cursor: default; }
 .pagehead-row > .pagehead-acts { flex-shrink: 0; display: flex; align-items: center; gap: var(--s-2); align-self: center; }
 
 /* 46px row, and its two children share it. */
-.hdr-find { display: flex; align-items: stretch; gap: 9px; padding: 0 var(--s-4); margin-top: var(--s-2); }
+.hdr-find { display: flex; align-items: stretch; gap: var(--s-2h); padding: 0 var(--s-4); margin-top: var(--s-2); }
 
 .hdr-search {
   flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--s-2);
@@ -5734,6 +5734,7 @@ span.row-star { cursor: default; }
    rather than clipping a control. At every ordinary size it fits. */
 .hdr-controls {
   display: flex; align-items: center; gap: var(--s-2);
+  /* 13, not 12: measured from the Unified Headers mockups, not rhythm. */
   padding: 0 var(--s-4); margin-top: 13px;
   overflow-x: auto; scrollbar-width: none;
 }
@@ -5744,7 +5745,7 @@ span.row-star { cursor: default; }
    ellipses, rather than the line scrolling and resting on a half-drawn
    capsule, which is the thing this whole design is here to avoid. */
 .hdr-controls > *:last-child { flex: 0 1 auto; min-width: 0; }
-.life-hdr { padding-bottom: 24px; }
+.life-hdr { padding-bottom: var(--s-7); }
 /* Words, not the uppercase eyebrow .dd draws by default: five of these sit
    where a sentence used to, and an all-caps line of five reads as shouting.
    The view leads in the page's own ink; a cut that is not set is quiet, so
@@ -5797,7 +5798,7 @@ span.row-star { cursor: default; }
    bolt the capture bar already uses for the same screen. */
 .hdr-controls .tasks-focus {
   flex: 0 0 auto; margin-left: auto;
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: var(--s-1);
   min-height: 34px; padding: 0 var(--s-3);
   border: 0; border-radius: var(--r-pill);
   /* JARVIS RED, FILLED (Dave 2026-09-18: "that focus button should be Jarvis
@@ -5834,12 +5835,12 @@ span.row-star { cursor: default; }
   text-transform: uppercase; color: var(--tx-3); margin-bottom: var(--s-1); }
 .mt-acct-bal { font-size: calc(19px * var(--type-scale)); font-weight: var(--w-bold); color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
-.mt-acct-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; }
+.mt-acct-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-0h); }
 
 .mt-sums { display: flex; gap: var(--s-2h); }
 .mt-sum { flex: 1; padding: var(--s-3); min-width: 0; }
 .mt-sum-label { font-size: var(--t-meta); color: var(--tx-3); }
-.mt-sum-value { margin-top: 2px; font-size: calc(18px * var(--type-scale)); font-weight: var(--w-semi);
+.mt-sum-value { margin-top: var(--s-0h); font-size: calc(18px * var(--type-scale)); font-weight: var(--w-semi);
   color: var(--tx-1); font-variant-numeric: tabular-nums; }
 .mt-sum-value.good { color: var(--good); }
 .mt-sum-value.warn { color: var(--warn); }

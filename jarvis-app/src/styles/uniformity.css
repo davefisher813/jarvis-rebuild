@@ -290,7 +290,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 [contenteditable][data-placeholder]:empty::after { content: ""; display: inline-block; width: 0; }
 /* stacked title + description (template rows) */
-.row-stack { display:flex; flex-direction:column; flex:1; min-width:0; gap:2px; }
+.row-stack { display:flex; flex-direction:column; flex:1; min-width:0; gap: var(--s-0h); }
 .row-stack .conn-name { flex:none; }
 /* v2.6b de-blue: non-category menu/list glyphs (block types, templates) wear the
    label color, not the accent. iOS renders insert/format menu icons this way;
