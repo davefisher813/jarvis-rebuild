@@ -901,7 +901,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   const [taskSheet, setTaskSheet] = useState<{ id: string; initial: TaskDraft } | null>(null);
   const onOpenTask = async (id: string) => {
     const t = await tasksSvc.task(id);
-    if (t) setTaskSheet({ id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin } });
+    if (t) setTaskSheet({ id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId } });
   };
   const onSaveTask = async (draft: TaskDraft) => {
     if (taskSheet) {
@@ -916,7 +916,9 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
         await tasksSvc.setRecurrence(id, rec || null);
         await tasksSvc.setPlan(id, draft.plan ?? null);
         await tasksSvc.setSteps(id, draft.steps ?? []);
+        await tasksSvc.setNotes(id, draft.notes ?? null);
         await tasksSvc.setEstimate(id, draft.estimateMin ?? null);
+        await tasksSvc.setPerson(id, draft.personId ?? null);
         if (draft.closeNow) await tasksSvc.toggleDone(id);
       });
     }
