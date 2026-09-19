@@ -2284,7 +2284,7 @@ export default function TodayFlow({
               <div className="conn-name truncate">In: {liveNow.dayName}</div>
               <div className="conn-meta truncate">{[liveNow.left ?? liveNow.elapsed, liveNow.progress].filter(Boolean).join(" · ")}</div>
             </div>
-            <button className="pill-act" onClick={own(() => onRestoreSpot?.("gym", gymCatId ?? ""))}>Resume</button>
+            <button className="pill-act pill-go" onClick={own(() => onRestoreSpot?.("gym", gymCatId ?? ""))}>Resume</button>
           </div>
         ) : nowCtx.gapMin !== null && nowCtx.nextStart ? (
           // THE RAIL (Dave's pick C, 2026-08-22, replacing the green ring:
@@ -2735,7 +2735,7 @@ export default function TodayFlow({
           tone="cat-fg-orange"
           title={card.fresh ? `${card.dayName} is ready` : `Back to ${card.dayName}`}
           sub={card.left ?? card.elapsed ?? card.progress}
-          action={{ label: card.fresh ? "Start" : "Resume", onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
+          action={{ label: card.fresh ? "Start" : "Resume", go: true, onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
           // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
           // opens the session, like the pill.
           onOpen={() => onRestoreSpot?.("gym", gymCatId ?? "")}

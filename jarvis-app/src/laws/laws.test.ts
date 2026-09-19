@@ -922,7 +922,15 @@ describe("LAW: one filled red per screen", () => {
       // kind of control: the row is the stream's uniform row, and this is the
       // one capsule in the card that spends real minutes rather than deferring
       // something. The rows under it keep the tinted .pill-act they had.
-      ".ruled .stream-card .pill-act.pill-go",
+      //
+      // Widened from .stream-card to .card (2026-09-19, Dave on the live
+      // workout: "have it render at the top with a red button like start
+      // now"). A session in progress wears the same Resume in Your Move and
+      // in Now, and Now is its own card rather than the stream's. The claim
+      // is unchanged and the shape is still a .pill-act: pill-go is opt-in
+      // per action, so only a producer that asks for the fill gets it, and
+      // the law still catches any PANEL that tries to wear it.
+      ".ruled .card .pill-act.pill-go",
       // The Tasks list's door to Focus (Dave 2026-09-18: "that focus button
       // should be Jarvis red"), which is the same ruling he gave Today's
       // Start pill two days earlier. It replaced Pick One, a full-width red
