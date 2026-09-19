@@ -1885,6 +1885,12 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "healthBench.tsx",                     // bench harness, run by hand
     "score.ts",                            // golden-set scorer, run by hand
     "rowTap.scan.ts",                      // the row-tap law's scanner, run by laws/rowTap.test.ts
+    // A serverless route is an entry point: Vercel reaches api/book.ts by
+    // URL, exactly the way the browser reaches main.tsx, and nothing imports
+    // either. The other api routes pass this law only because a comment
+    // somewhere names them, which is luck rather than a rule; this one says
+    // what it is.
+    "book.ts",
   ];
 
   // Written, tested, and NOT reachable from the running app. Each line is a
