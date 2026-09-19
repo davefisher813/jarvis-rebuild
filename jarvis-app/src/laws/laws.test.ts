@@ -5539,11 +5539,11 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     // the chip's own token rather than restating its size, so the two cannot
     // drift again -- which they had, by a pixel, the moment the chip moved
     // to --t-micro. The padding it adds is a scale stop, read the same way.
-    const space = (n) => Number(new RegExp("--s-" + n + ":\\s*([\\d.]+)px").exec(tokens)![1]);
+    const space = (n: string) => Number(new RegExp("--s-" + n + ":\\s*([\\d.]+)px").exec(tokens)![1]);
     const clamp = /\.ruled \.r-k-one \{\s*height: max\(calc\(var\(--t-sub\) \* ([\d.]+)\), calc\(var\(--t-micro\) \* ([\d.]+) \+ var\(--s-([\w-]+)\)\)\)/.exec(RULED)!;
     const subLh = Number(clamp[1]), cLh = Number(clamp[2]);
-    const cFs = chipFs, cPad = space(clamp[3]);
-    const rowGap = space(/\.ruled \.r-k \{[^}]*gap: var\(--s-([\w-]+)\)/.exec(RULED)![1]);
+    const cFs = chipFs, cPad = space(clamp[3]!);
+    const rowGap = space(/\.ruled \.r-k \{[^}]*gap: var\(--s-([\w-]+)\)/.exec(RULED)![1]!);
     void rowFs;
     for (const scale of [1, 1.1, 1.2, 1.3, 1.4]) {
       const box = Math.max(metaFs * scale * subLh, cFs * scale * cLh + cPad);
