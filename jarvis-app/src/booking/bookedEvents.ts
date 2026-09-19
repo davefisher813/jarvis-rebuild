@@ -81,6 +81,21 @@ export function mapBooking(b: BookingFace): BookedEvent | null {
   };
 }
 
+/** What to say out loud after an import, or nothing.
+ *
+ *  A visitor can cancel from the link in their own email, so an hour can leave
+ *  his schedule while he is not looking, and an event that quietly vanishes is
+ *  worse than no booking system: he plans around an hour that is free, or he
+ *  notices the gap and cannot tell why.
+ *
+ *  Arrivals stay silent on purpose. A booking is a thing somebody else did
+ *  deliberately, and the hour appearing on the schedule IS the news; a toast on
+ *  every app open for a meeting he already knows about is noise. */
+export function cancelledToast(removed: number): string | null {
+  if (removed < 1) return null;
+  return removed === 1 ? "A Booking Was Cancelled" : `${removed} Bookings Were Cancelled`;
+}
+
 /** Whether a stored event came from a booking that this fetch can vouch for.
  *
  *  The same timidity the Google import learned the hard way: a booking event

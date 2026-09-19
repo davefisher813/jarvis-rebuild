@@ -191,3 +191,31 @@ describe("buildCancellation", () => {
     expect(c.to).toBe("ada@example.com");
   });
 });
+
+describe("the way out of a receipt", () => {
+  it("gives them one address to tap, rather than asking them to write", () => {
+    const { body } = receiptWords({ ...input, cancelUrl: "https://j.example/book/w?cancel=b-1" });
+    expect(body).toContain("Cannot make it? Cancel it here: https://j.example/book/w?cancel=b-1");
+  });
+  it("still says to reply, which was true before there was a link and still is", () => {
+    const { body } = receiptWords({ ...input, cancelUrl: "https://j.example/book/w?cancel=b-1" });
+    expect(body).toContain("reply to this email");
+  });
+  // The server can only build the link when it knows its own address. Behind a
+  // proxy that strips the origin the receipt is still a receipt.
+  it("leaves the line out entirely when there is no link to give", () => {
+    expect(receiptWords(input).body).not.toContain("Cancel it here");
+    expect(receiptWords(input).body).toContain("reply to this email");
+  });
+  it("carries it through the whole message, not just the words", () => {
+    const r = buildReceipt({ ...input, cancelUrl: "https://j.example/book/w?cancel=b-1" });
+    expect(r.body).toContain("Cancel it here");
+    // And into the calendar entry's own description, which is where somebody
+    // looking at the event later will go.
+    expect(r.attachment.content).toContain("Cancel it here");
+  });
+  // A cancellation does not need a way out of itself.
+  it("a cancellation carries no cancel link", () => {
+    expect(buildCancellation({ ...input, cancelUrl: "https://j.example/x" }).body).not.toContain("Cancel it here");
+  });
+});

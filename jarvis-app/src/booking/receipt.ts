@@ -142,6 +142,11 @@ export interface ReceiptInput {
   guestZone: string;
   hostZone: string;
   hostEmail: string;
+  /** Where they go if they cannot make it. Optional because the server can
+   *  only build it when it knows its own address, and a receipt with no way
+   *  out is still a receipt: the reply line below is the fallback, and it has
+   *  always been true. */
+  cancelUrl?: string;
 }
 
 /** The subject and the words. Short on purpose: a receipt has one job, which
@@ -162,7 +167,11 @@ export function receiptWords(i: ReceiptInput): { subject: string; body: string }
     "",
     "The calendar file attached will add it to your calendar.",
     "",
-    `If you need to move it or cancel, reply to this email and it reaches ${i.hostEmail} directly.`,
+    // A LINK, NOT A REQUEST (2026-09-19). "Reply and ask" puts the work on the
+    // host and leaves the visitor unsure whether anything happened, which is
+    // how a cancellation becomes a no-show. One address, one tap, done.
+    ...(i.cancelUrl ? [`Cannot make it? Cancel it here: ${i.cancelUrl}`, ""] : []),
+    `To move it, or for anything else, reply to this email and it reaches ${i.hostEmail} directly.`,
   ];
   return { subject, body: lines.join("\n") };
 }
