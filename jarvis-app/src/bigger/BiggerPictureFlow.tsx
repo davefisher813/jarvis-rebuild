@@ -825,6 +825,12 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                 steps: t.data.steps,
                 // 2026-09-11: Length read None here and an edit to it was dropped.
                 estimateMin: t.data.estimateMin,
+                // 2026-09-19: and notes were WORSE than dropped. The save
+                // below has always called setNotes, so a box that opened
+                // empty (because this literal never read them) wrote that
+                // emptiness over whatever the task actually had, on any save
+                // of a step opened from its project. Silent, and no undo.
+                notes: t.data.notes,
               }}
               onSave={async (d: TaskDraft) => {
                 const id = sheet.id;
