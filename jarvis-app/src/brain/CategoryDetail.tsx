@@ -2182,10 +2182,21 @@ export default function CategoryDetail({
           categories={sheetCats}
           initial={{ date: today, category: categoryId }}
           onSave={async (d) => {
-            const ok = await attemptWrite(() => schedule.createEvent(d.title, {
-              date: d.date, start: d.start, end: d.end || undefined, category: d.category,
-              location: d.location || undefined, recurrence: d.recurrence === "none" ? undefined : d.recurrence,
-            }));
+            // Field for field with ScheduleFlow's own createEvent. This call
+            // used to pass seven of EventSheet's eighteen, so an event made
+            // from an area could be given a meeting link, a weekday set,
+            // travel time or the Training Door and lose every one on Save.
+            let made: string | null = null;
+            const ok = await attemptWrite(async () => {
+              made = await schedule.createEvent(d.title, {
+                date: d.date, start: d.start, end: d.end || undefined, category: d.category,
+                location: d.location || undefined, recurrence: d.recurrence === "none" ? undefined : d.recurrence,
+                until: d.until || undefined, days: d.days, interval: d.interval,
+                travelMin: d.travelMin ?? undefined, bufferMin: d.bufferMin ?? undefined,
+                url: d.url, notes: d.notes,
+              });
+              if (made && d.gym) await schedule.editGymDoor(made, true);
+            });
             if (!ok) return false;
             setSheet({ kind: "closed" });
             await reload();
