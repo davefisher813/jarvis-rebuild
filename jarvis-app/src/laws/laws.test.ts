@@ -3251,6 +3251,15 @@ describe("LAW 10: one taxonomy -- the category is the area", () => {
     expect(page, "goal-less, area-less projects float in More Work").toMatch(/More Work/);
   });
 
+  // THE TRACKER'S "CATEGORY" IS NOT THIS CONCEPT (2026-09-19, the Money
+  // Tracker passoff). This law is about the app's OWN taxonomy: the thing
+  // that used to be a Category and is now an Area, one word for one concept.
+  // money/screens/TrackerScreen.tsx says "Spending by Category" about a
+  // different taxonomy entirely -- Restaurants, Golf, Overdraft -- which a
+  // bank assigns and a statement arrives carrying. Calling those Areas would
+  // be the error this law exists to prevent, in reverse. The scan below
+  // reaches visible strings that open on the word, and the Tracker's do not;
+  // that is the ruling, not an oversight.
   it("the UI says Area; no screen labels the concept Category any more", () => {
     const bad: string[] = [];
     // Visible strings only: JSX text nodes and the label-ish props people

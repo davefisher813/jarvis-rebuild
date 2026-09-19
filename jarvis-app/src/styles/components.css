@@ -5521,3 +5521,72 @@ span.row-star { cursor: default; }
 /* The nested row's title stops being a plain span the moment it is a door,
    so it gets the door's affordance without growing a second one. */
 .block-held-prop .block-held-t[role="button"] { cursor: pointer; }
+
+/* THE TRACKER (PASSOFF 2026-09-19, money/screens/TrackerScreen.tsx).
+   The handoff shipped its own stylesheet of hard-coded greys; those are
+   tokens here so the screen follows the theme like everything else. What is
+   deliberately NOT tokenised is the category hue, which arrives per row as
+   --cat: those are saturated on purpose (his explicit preference) and their
+   whole job is telling neighbouring bars apart. */
+
+/* Four labels, one of them "Subscriptions", do not share a 390px row four
+   ways. The control keeps its own look and scrolls instead of clipping. */
+.mt-tabrow { margin-bottom: var(--s-2); }
+.mt-tabrow .segmented { overflow-x: auto; scrollbar-width: none; }
+.mt-tabrow .segmented::-webkit-scrollbar { display: none; }
+.mt-tabrow .segmented .seg { flex: 0 0 auto; white-space: nowrap; }
+
+.mt-monthnav { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
+.mt-monthname { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
+
+.mt-accts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2h); }
+.mt-acct { padding: var(--s-3); }
+.mt-acct-name { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
+  text-transform: uppercase; color: var(--tx-3); margin-bottom: var(--s-1); }
+.mt-acct-bal { font-size: calc(19px * var(--type-scale)); font-weight: var(--w-bold); color: var(--tx-1);
+  font-variant-numeric: tabular-nums; }
+.mt-acct-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; }
+
+.mt-sums { display: flex; gap: var(--s-2h); }
+.mt-sum { flex: 1; padding: var(--s-3); min-width: 0; }
+.mt-sum-label { font-size: var(--t-meta); color: var(--tx-3); }
+.mt-sum-value { margin-top: 2px; font-size: calc(18px * var(--type-scale)); font-weight: var(--w-semi);
+  color: var(--tx-1); font-variant-numeric: tabular-nums; }
+.mt-sum-value.good { color: var(--good); }
+.mt-sum-value.warn { color: var(--warn); }
+
+.mt-note { font-size: var(--t-meta); color: var(--tx-3); margin-bottom: var(--s-2); }
+
+.mt-cat { margin-bottom: var(--s-3); }
+.mt-cat-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2);
+  margin-bottom: var(--s-1h); }
+.mt-cat-name { display: flex; align-items: center; gap: var(--s-2); min-width: 0; font-size: var(--t-h3);
+  color: var(--tx-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-cat-amt { flex-shrink: 0; font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1);
+  font-variant-numeric: tabular-nums; }
+/* Over its limit is the one red on this screen, and it exists only once it
+   has actually happened (law L1: red is a verb, never a standing status). */
+.mt-cat-amt.mt-over { color: var(--sys-red); }
+
+.mt-dot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: var(--r-circle);
+  background: var(--cat, var(--tx-3)); }
+
+.mt-bar { height: 10px; border-radius: 6px; background: var(--press-3); overflow: hidden; }
+.mt-bar-fill { height: 100%; border-radius: 6px; background: var(--cat, var(--tx-3)); }
+.mt-bar-over { background: var(--sys-red); }
+
+.mt-amt { flex-shrink: 0; font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1);
+  font-variant-numeric: tabular-nums; }
+.mt-amt.good { color: var(--good); }
+
+.mt-tools { display: flex; flex-direction: column; gap: var(--s-2); margin-bottom: var(--s-2); }
+.mt-filters { display: flex; gap: var(--s-2); }
+.mt-filters .input { flex: 1; min-width: 0; }
+
+/* A field that sits at the right of a row it shares with its own label.
+   Sized to the widest amount anyone types rather than to half the screen,
+   which was eating "Expected Income" down to "Expected Inc...". */
+.mt-inline { width: 8em; max-width: 42vw; flex: 0 0 auto; text-align: right; }
+
+.mt-limit-edit { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1h); }
+.mt-limit-edit .mt-inline { flex: 1; text-align: left; }
