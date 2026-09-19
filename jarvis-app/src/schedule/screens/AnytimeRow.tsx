@@ -1,6 +1,7 @@
 import { useState, type PointerEvent as RPointerEvent } from "react";
 import { onPressKey } from "../../shared/pressable";
 import type { TaskItem } from "../../tasks/TasksService";
+import { originLabel } from "../../tasks/origin";
 import { ParentLineGlyph } from "../../shared/glyphs";
 import type { ParentLine } from "../../life/parent";
 
@@ -101,7 +102,9 @@ export default function AnytimeRow({
                   <div className="r-k">
                     {parent
                       ? <ParentLineGlyph p={parent} />
-                      : <span className="r-goal r-cat">No category</span>}
+                      : originLabel(it.data)
+                        ? <span className="r-goal r-cat">{originLabel(it.data)}</span>
+                        : null}
                   </div>
                 </div>
                 <button className="pill-act" onClick={(e) => { e.stopPropagation(); onSchedule?.(it.id); }} aria-label={"Give " + it.data.text + " a time"}>Drop</button>

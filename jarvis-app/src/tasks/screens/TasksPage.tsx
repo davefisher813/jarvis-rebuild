@@ -30,6 +30,7 @@ import { ParentLineGlyph } from "../../shared/glyphs";
 import StepCount, { stepsOf, hasUnfinishedSteps } from "../../shared/StepCount";
 import { Nums } from "../../bigger/GoalRowRuled";
 import type { ParentLine } from "../../life/parent";
+import { originLabel } from "../origin";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
 // and swipe-left-to-delete, so completing or removing a task is one easy action.
@@ -408,9 +409,11 @@ export function TaskRow({
                 </>
               : parent
               ? <ParentLineGlyph p={parent} />
-              : <span className="r-goal r-cat">
-                  {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || "No category"}
-                </span>}
+              : (categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || originLabel(t))
+              ? <span className="r-goal r-cat">
+                  {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || originLabel(t)}
+                </span>
+              : null}
             {/* A1: the cue, where he will see it while scanning. The whole
                 sentence is on the sheet; the row carries the trigger, which
                 is the half that has to be recognisable in the moment.

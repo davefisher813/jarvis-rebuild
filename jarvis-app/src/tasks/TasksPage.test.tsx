@@ -186,9 +186,11 @@ describe("TasksPage", () => {
     expect(lines[0]!.querySelector(".r-pg.cat-fg-yellow .r-gm")).toBeTruthy();
     expect(lines[1]).toHaveTextContent("Kitchen remodel");
     expect(lines[1]!.querySelector(".r-pg.cat-fg-sky .pp")).toBeTruthy();
-    // No parent at all: the plain words, no glyph.
-    expect(container.querySelectorAll(".r-goal.r-cat")).toHaveLength(1);
-    expect(container.querySelector(".r-goal.r-cat")).toHaveTextContent("No category");
+    // AMENDED 2026-09-19 (Dave, on five Anytime rows all reading "No
+    // category"): a row states facts, and an absent area is not one. With no
+    // parent, no area and no origin there is nothing true to put here, so
+    // the line is empty rather than narrating the emptiness.
+    expect(container.querySelectorAll(".r-goal.r-cat")).toHaveLength(0);
   });
 
   it("rows ride inside one card, under a head whose menus name the cut and carry group-by", () => {

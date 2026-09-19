@@ -158,6 +158,7 @@ import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedu
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import { Clock, CircleSlash, BellRing } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
+import { isFromEmail } from "../tasks/origin";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
 // overlays, not tabs, and stay out of the boot bundle.
@@ -297,7 +298,7 @@ export default function TodayFlow({
   // NOT THE EMAILS (Dave 2026-09-17: "they must go to the email section").
   // A task born from a thread is the Ready to Send band's: it never leads
   // Your Move, never rides the momentum chain, never sits in the slid card.
-  const isMailTask = (t: TaskItem): boolean => !!(t.data.fromThread || t.data.source?.type === "email" || /^get back to /i.test(t.data.text));
+  const isMailTask = (t: TaskItem): boolean => isFromEmail(t.data);
   const notMail = (t: TaskItem): boolean => !isMailTask(t);
   const [prevMood, setPrevMood] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -2513,8 +2514,13 @@ export default function TodayFlow({
           refine down while a draft is standing, on purpose ("the card already
           showed him a plan; re-plan must not silently renumber it"). Same
           .receipt-line every quiet secondary in this app wears. */}
+      {/* IT SAYS WHAT IT DECLINES (Dave 2026-09-19, on the homepage: two
+          grey lines at the foot of the day, the second of them two words
+          that name no object). "Not Today" answers a question the page
+          stopped asking three sections ago; what the tap actually does is
+          clear the plan standing above it. */}
       <button className="receipt-line" onClick={dismissDraft}>
-        <span className="rl-t">Not Today</span>
+        <span className="rl-t">Clear This Plan</span>
       </button>
     </>
   ) : null;

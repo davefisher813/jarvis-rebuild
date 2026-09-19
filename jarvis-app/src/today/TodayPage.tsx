@@ -27,6 +27,7 @@ import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
 import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph, BullseyeGlyph } from "../shared/glyphs";
 import StepCount, { stepsOf } from "../shared/StepCount";
 import type { ParentLine } from "../life/parent";
+import { originLabel } from "../tasks/origin";
 
 const localISODate = () => {
   const d = new Date();
@@ -126,7 +127,9 @@ function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOp
             ? <span className="r-goal r-why">{reason.charAt(0).toUpperCase() + reason.slice(1)}</span>
             : parent
               ? <ParentLineGlyph p={parent} />
-              : <span className="r-goal r-cat">No category</span>}
+              : originLabel(t.data)
+                ? <span className="r-goal r-cat">{originLabel(t.data)}</span>
+                : null}
         </div>
       </div>
       {/* THE RIGHT SLOT SAYS THE CHECKLIST IS THERE (TRACE-02, 2026-09-07).

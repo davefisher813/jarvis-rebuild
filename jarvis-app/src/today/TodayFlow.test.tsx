@@ -280,7 +280,7 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
   // with nothing having changed; it reproduces on an untouched checkout).
   // Today shifts into its EVENING posture at the later of 6 PM and the end of
   // work hours (today/evening.ts, isEvening), and in that posture there is no
-  // day-draft card, so there is no "Not Today" to tap and this test could not
+  // day-draft card, so there is no "Clear This Plan" to tap and this test could not
   // reach the refine path it exists to prove. The clock is pinned to a morning
   // so the posture is the one the test is written for, at every hour anyone
   // runs it. shouldAdvanceTime keeps real time moving underneath, which is
@@ -304,11 +304,11 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
     // showed him a plan; re-plan must not silently renumber it"), and a
     // sheet seeded from a draft stands its AI refine down -- also on
     // purpose, per its own comment. Dismissing the card first, the same tap
-    // a real person has ("Not Today"), is what actually reaches the
+    // a real person has ("Clear This Plan"), is what actually reaches the
     // AI-refine path this test means to prove; opening the sheet against a
     // live draft proves nothing here, because the refine is SUPPOSED to
     // stand down in that case.
-    fireEvent.click(screen.getByRole("button", { name: "Not Today" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" }));
     fireEvent.click(screen.getByRole("button", { name: /Plan My Day/ }));
     await waitFor(() => expect(aiPlanOpts.length).toBeGreaterThan(0));
     const opts = aiPlanOpts[0]!;
