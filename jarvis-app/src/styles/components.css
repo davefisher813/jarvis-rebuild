@@ -5892,3 +5892,6 @@ span.row-star { cursor: default; }
 .bk-form { display: flex; flex-direction: column; gap: var(--s-2); }
 .bk-form .input-label { margin-bottom: 0; }
 .bk-form .btn { margin-top: var(--s-2); }
+/* The publish block on Booking settings: one full-width button inside a
+   card, which is not a row and must not pretend to be one. */
+.set-publish { padding: var(--s-3) var(--s-4); }

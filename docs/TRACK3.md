@@ -53,6 +53,20 @@ This document said four times that there is no server. That was wrong from the d
 
 Still to build here: the confirmation email (nothing sends one yet; the receipt says one is coming, which is the one line in this feature that is currently a promise rather than a fact), and the calendar write-through, which needs a Tier 1 connection.
 
+## The bridge past Clerk (2026-09-19)
+
+Track 3's policies expect Clerk, Clerk is not wired, and that was read as blocking everything. It does not block booking, and the reason is worth writing down: **the session can come from the live project while the storage is Track 3.**
+
+`api/booking-link.ts` verifies the caller against the LIVE project, exactly the way the admin endpoints already do, and then writes Track 3 with the service role using the caller's live user id as `owner_id`. That column is a bare uuid with no foreign key behind it, which is what makes this legal rather than a trick. Booking therefore works today, for the one user this app has.
+
+What still needs Clerk is what actually needs it: connections and shared projects need TWO real user ids that can see each other under RLS. One person's own calendar never did.
+
+The endpoint is idempotent by construction. PUT writes the org (made once, personal), the bookable type (updated, never duplicated, so changing the slot length changes what the public page offers), the availability rules (replaced wholesale, so the table means exactly what the screen shows) and the link (its slug made once and then kept, because an address that changes every time you save is an address nobody can give out). DELETE clears the hours and the link and leaves existing bookings alone, because cancelling somebody's meeting is a different decision from closing your calendar and must never be a side effect of it.
+
+`src/booking/linkPayload.ts` is the translation, pure and tested, because the screen's words and the database's words disagree in three places that would each be a quiet, plausible bug: the screen stores a Monday-first week and both Postgres and JavaScript count from Sunday; "link" is `link_only` and who may book is a row rather than a column; and a day is not a window, so the working hours come from one default stated in one place.
+
+Settings > Booking now has a Publish button and shows the address, which is the first time Your Times has had anywhere to go.
+
 ## Waits, and on what
 
 | screen or piece | blocked on |
@@ -60,7 +74,7 @@ Still to build here: the confirmation email (nothing sends one yet; the receipt 
 | Public Link (the slot grid, name and email, Confirm) | BUILT 2026-09-19: `api/book.ts`. Waiting only on the two env vars below |
 | The booking page itself (the grid, the form, the confirmation) | BUILT 2026-09-19: `/book/<slug>`, the one path that renders above the auth gate |
 | The calendar write-through | a Tier 1 `user_connections` row |
-| Connections (request, accept, decline, scope toggles) | Clerk wired as the project's third-party auth provider (two real user ids) |
+| Connections (request, accept, decline, scope toggles) | Clerk wired as the project's third-party auth provider. Booking no longer waits on it: see the bridge below |
 | Shared Project (view and edit badges, assignee avatars) | connections above (0005's policies are tested at the database, see the track3 README) |
 | Tier 1 and Tier 2 connectors | `api/ai.ts` calling `mcp_take_token` (0007) before each Anthropic call. The server exists; the call is not wired |
 | Business round-robin booking | not designed (changes `booking_links.owner_id`); the master's section 7 |
