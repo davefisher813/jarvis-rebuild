@@ -657,7 +657,11 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
         // duplicate lands on some other day.
         await attemptWrite(async () => {
           await svc.addExdate(id, sheet.occurrence);
-          const splitId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined });
+          // TODAY-F-19 (2026-09-19): and the meeting rides along. Splitting
+          // one occurrence off a recurring Zoom used to stand it up with no
+          // link and no notes, so the call he was about to join lost the way
+          // in at the moment he edited it.
+          const splitId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes });
           if (splitId && draft.gym) await svc.editGymDoor(splitId, true);
         });
       } else {

@@ -284,3 +284,22 @@ describe("EventSheet: weekly on chosen days", () => {
     expect(onSave.mock.calls[0]![0]).toMatchObject({ recurrence: "weekly", days: [1], interval: 2 });
   });
 });
+
+// Dave 2026-09-19: "the Meeting Notes control is a single-line input, so it
+// can't hold multi-line text even if saving worked."
+describe("EventSheet: the meeting notes are a paragraph", () => {
+  it("is a textarea, and carries newlines through to the draft", () => {
+    const onSave = vi.fn();
+    render(<EventSheet mode="new" initial={{ date: "2026-05-20", start: "09:00" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    const notes = screen.getByLabelText("Meeting Notes");
+    expect(notes.tagName).toBe("TEXTAREA");
+    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Bridge Foundation Zoom" } });
+    fireEvent.change(screen.getByLabelText("Meeting Link"), { target: { value: "https://zoom.us/j/123" } });
+    fireEvent.change(notes, { target: { value: "Dial in early.\nPasscode 4821." } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({
+      url: "https://zoom.us/j/123",
+      notes: "Dial in early.\nPasscode 4821.",
+    });
+  });
+});

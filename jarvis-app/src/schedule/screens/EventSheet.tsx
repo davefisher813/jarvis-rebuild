@@ -593,10 +593,17 @@ export default function EventSheet({
               <div className="conn-name">Link</div>
               <input className="xs-input xs-field" placeholder="Optional" aria-label="Meeting Link" value={url} onChange={(e) => setUrl(e.target.value)} />
             </div>
-            <div onClick={tapField} className="row xs-row">
+            {/* A PARAGRAPH, NOT A VALUE (Dave 2026-09-19: the Notes control
+                "is a single-line input, so it can\'t hold multi-line text").
+                A dial-in and a passcode are two lines, and an agenda is
+                several. So this row is the sheet\'s own .xs-textarea, and it
+                drops .xs-field with it: that class right-aligns a value
+                against its label, which is right for a number and wrong for
+                something you write, for the reason .xs-row-write states. */}
+            <div onClick={tapField} className="row xs-row xs-textrow">
               <Tile tone="yellow"><FileText className="ic" /></Tile>
               <div className="conn-name">Notes</div>
-              <input className="xs-input xs-field" placeholder="Optional" aria-label="Meeting Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+              <textarea className="xs-input xs-textarea" rows={3} placeholder="Optional" aria-label="Meeting Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
             {/* WHO IS IN THE ROOM. Google's list, read-only because nothing
                 here writes it back (the coverage map forbids write-back).

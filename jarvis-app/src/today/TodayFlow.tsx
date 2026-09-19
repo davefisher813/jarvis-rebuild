@@ -846,7 +846,15 @@ export default function TodayFlow({
     const e = await schedule.event(id);
     if (!e) return;
     const occurrence = (e.recurrence ?? "none") !== "none" ? nextOccurrence(e, todayISO()) ?? e.date : e.date;
-    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+    // TODAY-F-19 (Dave 2026-09-19: "Meeting Link and Meeting Notes don't
+    // save"). This literal was a partial copy of ScheduleFlow.openEdit's,
+    // and the comment above is the rule it broke: the sheet "has to load and
+    // save the same fields or those controls lie". A stored Zoom link opened
+    // as an empty field here, so his own link looked lost, and the meeting
+    // section of the sheet was unusable from the tab today's events live on.
+    // Travel, the weekday set and the guest list were missing for the same
+    // reason and told the same lie. One literal now, matching openEdit's.
+    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1 } });
   };
   // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07; built
   // 2026-09-09). Tapping an event opens its PAGE, here as well as on Schedule.
@@ -1085,7 +1093,10 @@ export default function TodayFlow({
       const occurrence = eventSheet.occurrence;
       await attemptWrite(async () => {
         await schedule.addExdate(id, occurrence);
-        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined });
+        // The split copy carries the meeting and the travel too: "This
+        // Event" on a recurring Zoom used to stand the occurrence up without
+        // its link, which is the same disappearance by another route.
+        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes });
         if (splitId && draft.gym) await schedule.editGymDoor(splitId, true);
       });
     } else {
@@ -1102,9 +1113,14 @@ export default function TodayFlow({
         await schedule.editTime(id, draft.start);
         await schedule.editEnd(id, draft.end);
         await schedule.editRecurrence(id, draft.recurrence);
+        // After editRecurrence, which clears the weekday set for anything
+        // that is not weekly. Same order ScheduleFlow.onSave uses.
+        if (draft.recurrence === "weekly") await schedule.editWeekdays(id, draft.days ?? [], draft.interval ?? 1);
         await schedule.editUntil(id, draft.until || null);
         await schedule.editCategory(id, draft.category);
         await schedule.editLocation(id, draft.location);
+        await schedule.editTravel(id, draft.travelMin ?? null, draft.bufferMin ?? null);
+        await schedule.editMeeting(id, { url: draft.url ?? "", notes: draft.notes ?? "" });
         await schedule.editTaskIds(id, draft.taskIds ?? []);
         await schedule.editGymDoor(id, !!draft.gym);
       });

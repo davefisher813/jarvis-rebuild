@@ -319,3 +319,52 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
     expect(Array.isArray(opts.strands)).toBe(true);
   });
 });
+
+// MEETING FIELDS, EDITED FROM TODAY (Dave 2026-09-19: "Meeting Link and
+// Meeting Notes don't save"). His "Bridge Foundation Zoom" event is today's,
+// so the sheet he opened was Today's, and Today's copy of the event editor
+// was missing the meeting on both sides: openEventSheet never READ url and
+// notes into the draft, so a stored Zoom link showed as an empty field, and
+// onSaveEvent never called editMeeting, so anything typed there went nowhere.
+// ScheduleFlow's copy of the same sheet does both, which is why the bug
+// looked field-specific rather than screen-specific.
+describe("TodayFlow: the meeting link and notes survive an edit", () => {
+  it("loads what is stored and saves what is typed", async () => {
+    const { useSchedule } = await import("../data/NotesProvider");
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_EVENT } = await import("../schedule/types");
+    let sched: ScheduleService | null = null;
+    function Grab() { sched = useSchedule(); return null; }
+    render(
+      <NotesProvider userId="today-meeting-fields">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+          <Grab />
+          <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    const id = (await sched!.createEvent("Bridge Foundation Zoom", {
+      date: todayISO(), start: "17:30", end: "18:30",
+      url: "https://zoom.us/j/old", notes: "Old line",
+    }))!;
+    notifyFreshLists(ENTITY_EVENT);
+    await waitFor(() => expect(screen.getByText("Bridge Foundation Zoom")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Bridge Foundation Zoom"));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    await screen.findByText("Edit Event");
+
+    // What is already stored is what the field shows.
+    const link = screen.getByLabelText("Meeting Link") as HTMLInputElement;
+    expect(link.value).toBe("https://zoom.us/j/old");
+
+    // And what is typed is what comes back, newlines included.
+    fireEvent.change(link, { target: { value: "https://zoom.us/j/new" } });
+    fireEvent.change(screen.getByLabelText("Meeting Notes"), { target: { value: "Dial in early.\nPasscode 4821." } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => {
+      const e = await sched!.event(id);
+      expect(e?.url).toBe("https://zoom.us/j/new");
+    });
+    expect((await sched!.event(id))?.notes).toBe("Dial in early.\nPasscode 4821.");
+  });
+});
