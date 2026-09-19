@@ -330,6 +330,12 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
 // looked field-specific rather than screen-specific.
 describe("TodayFlow: the meeting link and notes survive an edit", () => {
   it("loads what is stored and saves what is typed", async () => {
+    // THE CLOCK IS PART OF THE FIXTURE. Today lists the day's events relative
+    // to now, so a 17:30 event is on the page in the morning and gone by the
+    // evening. Written at 03:00 UTC this passed; the same code failed at
+    // 18:55 the same day. Freeze the morning so the row is always there.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(todayISO() + "T09:00:00"));
     const { useSchedule } = await import("../data/NotesProvider");
     const { notifyFreshLists } = await import("../data/store");
     const { ENTITY_EVENT } = await import("../schedule/types");
@@ -366,5 +372,6 @@ describe("TodayFlow: the meeting link and notes survive an edit", () => {
       expect(e?.url).toBe("https://zoom.us/j/new");
     });
     expect((await sched!.event(id))?.notes).toBe("Dial in early.\nPasscode 4821.");
+    vi.useRealTimers();
   });
 });
