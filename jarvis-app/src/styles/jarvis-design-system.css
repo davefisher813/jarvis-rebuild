@@ -742,7 +742,9 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .tab.active { color: var(--accent-chrome); }
 
 /* NAV BAR */
-.nav-bar { display: flex; align-items: center; justify-content: space-between; padding: var(--s-3) var(--s-4); min-height: 44px; }
+/* The side padding is the shared bar's (Catalog V5): 12, not 16, so a
+   44px back target sits the same distance from the edge on every screen. */
+.nav-bar { display: flex; align-items: center; justify-content: space-between; padding: var(--s-3) var(--s-3); min-height: 44px; }
 .nav-back, .nav-action { font-size: var(--t-h3); color: var(--tint); background: 0; border: 0; font-family: var(--f); min-width: 44px; min-height: 44px; display: flex; align-items: center; }
 .nav-action { font-weight: var(--w-semi); justify-content: flex-end; }
 .nav-title { font-size: var(--t-h3); font-weight: var(--w-semi); }
