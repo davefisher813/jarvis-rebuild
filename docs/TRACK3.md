@@ -51,7 +51,25 @@ This document said four times that there is no server. That was wrong from the d
 - **The form arrives with the choice.** Asking for an email before a time is picked is asking someone to pay before they know what for.
 - **The server decides, and the page says so.** If the slot goes while they are typing, the message says that and the grid reloads. The reason is drawn ABOVE the grid rather than inside the form, because dropping the choice unmounts the form: the first version erased its own explanation in the same tick that made it true, which its test caught.
 
-Still to build here: the confirmation email (nothing sends one yet; the receipt says one is coming, which is the one line in this feature that is currently a promise rather than a fact), and the calendar write-through, which needs a Tier 1 connection.
+Still to build here: the calendar write-through, which needs a Tier 1 connection. The host also does not learn about a booking until the app next syncs, and that write-through is the real answer to it.
+
+## The confirmation, which was the one promise (2026-09-19)
+
+The receipt screen told every visitor a confirmation was on its way, and nothing sent one. That was the single line in this feature that was a promise rather than a fact, and it is now a fact.
+
+**It sends from the host's own mailbox, not from a service.** The alternative was a transactional mail vendor, which means a new account, a new secret, a from-address that is not the host's, and a much better chance of landing in spam. The app already stores a Google grant for the host and already knows how to send with it. So the confirmation comes from the address the visitor just agreed to meet, lands in the host's own Sent, and a reply reaches a real person. It needs no new environment variable at all.
+
+**The seam, stated plainly.** `api/book.ts` is the only endpoint here with no auth in front of it, and it was written to name no live-project credential anywhere. The grant lives in the live project, so that discipline has to bend exactly once. It bends in `api/_receipt.ts`, whose whole surface is one function, and the honest version of what that discipline is: every function in a deployment can read every variable, so it was never a wall, it is a rule about what the public endpoint does, kept small enough to read in one sitting. What the seam may do with the live project is read ONE row and send ONE message. Its tests assert that every live-project request it makes is a GET.
+
+**It never fails a booking.** The slot is already taken by the time the receipt runs. A host who has not connected Google, a revoked grant, Gmail refusing the message: each means no receipt and none of them means no booking. The endpoint answers with `confirmationSent`, and the page now says either that an email is on its way or that the time is held and nothing went out. Promising an inbox an email that does not exist is how a booking becomes a no-show.
+
+**The clock the email is on is the visitor's.** Their browser sends its zone with the booking, because only it knows. A receipt written in the host's zone asks a stranger to do arithmetic about a meeting they have already agreed to, which is exactly when somebody misses one. The host's zone is stated once underneath, and only when the two differ. A zone name from a stranger's browser is not trusted: it is tried against the runtime first and falls back to the host's, because a bad zone name makes `Intl` throw.
+
+**An .ics, not an invitation.** A real invitation (`METHOD:REQUEST`) makes a mail client offer Yes, No and Maybe, and those answers go to an organizer address with nothing listening. A button that does nothing is worse than no button, so the attachment is a `METHOD:PUBLISH` calendar file and the client offers the one thing it can do, which is add it.
+
+`src/booking/receipt.ts` is the words and the calendar file, pure and tested, including the two details that are quiet bugs otherwise: an unescaped comma or semicolon in a meeting name ends a calendar property early and the event loses its title, and RFC 5545 folds lines at 75 OCTETS, so a name with an accent in it arrives as mojibake if the fold is measured in characters.
+
+`api/_google.ts` is the cipher, the two OAuth clients and the refresh, MOVED out of `api/google.ts` rather than copied. Two copies of AES-GCM code is how one of them stops decrypting what the other wrote. Sign-in still owns the code exchange and forgetting a revoked grant, which is the part only it can do, because only it can ask the person for a new one. Twenty tests now cover what was previously untested because it was private.
 
 ## The bridge past Clerk (2026-09-19)
 
@@ -73,6 +91,7 @@ Settings > Booking now has a Publish button and shows the address, which is the 
 |---|---|
 | Public Link (the slot grid, name and email, Confirm) | BUILT 2026-09-19: `api/book.ts`. Waiting only on the two env vars below |
 | The booking page itself (the grid, the form, the confirmation) | BUILT 2026-09-19: `/book/<slug>`, the one path that renders above the auth gate |
+| The confirmation email and its calendar file | BUILT 2026-09-19: sends from the host's own Gmail, needs no new env var |
 | The calendar write-through | a Tier 1 `user_connections` row |
 | Connections (request, accept, decline, scope toggles) | Clerk wired as the project's third-party auth provider. Booking no longer waits on it: see the bridge below |
 | Shared Project (view and edit badges, assignee avatars) | connections above (0005's policies are tested at the database, see the track3 README) |
