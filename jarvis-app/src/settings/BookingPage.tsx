@@ -8,18 +8,38 @@ import {
   type BookingSettings, type BookingWho, type BookingVisibility, type BookingDuration,
 } from "../booking/settings";
 import { readLink, saveLink, removeLink, linkUrl, type LinkFace } from "../booking/link";
+import { readBookings } from "../booking/importBookings";
+import { mapBooking, type BookingFace } from "../booking/bookedEvents";
 import { showToast } from "../shared/toast";
 
 // YOUR TIMES (Track 3, 2026-09-14; the preview's Booking Settings screen:
 // "One screen. Day toggles and a duration list, no wizard"). Available or
 // not, the days, the slot length, who can book and how the link is found.
-// The links list is honest about what does not exist yet: a public booking
-// link needs the Track 3 server and its tables (jarvis-core/supabase/track3),
-// which have no project to run in, so there is no Share button to press.
+//
+// The link and the bookings on it are the SERVER's (Track 3, 2026-09-19), so
+// the screen asks for both rather than deciding either. What was once an
+// honest note about a server that did not exist is now a published address and
+// the list of people who have used it.
 const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const DAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-export default function BookingPage({ onBack }: { onBack: () => void }) {
+/** The day and time of a booking, on this device's clock, because that is the
+ *  clock the person reading this screen is standing on. */
+function when(b: BookingFace): string {
+  const d = new Date(b.startMs);
+  const day = d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return `${day} \u00b7 ${time}`;
+}
+
+// The two reads are injectable, the same way PublicBookingPage takes its
+// fetch: this screen's interesting states are the ones a running app cannot be
+// put into on demand, a published link and somebody having booked on it.
+export default function BookingPage({ onBack, readLinkImpl = readLink, readBookingsImpl = readBookings }: {
+  onBack: () => void;
+  readLinkImpl?: typeof readLink;
+  readBookingsImpl?: typeof readBookings;
+}) {
   const [s, setS] = useState<BookingSettings>(() => readBookingSettings());
   // THE LINK IS THE SERVER'S (Track 3, 2026-09-19). The settings stay on the
   // device, the way they always have; the LINK is a row in Track 3, so the
@@ -28,9 +48,16 @@ export default function BookingPage({ onBack }: { onBack: () => void }) {
   const [link, setLink] = useState<LinkFace | null>(null);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // WHO HAS ACTUALLY BOOKED. The schedule is where a booking belongs and it
+  // lands there on its own (see booking/BookingImportPump). This list answers
+  // a different question, the first one anybody asks after publishing a link:
+  // is the thing working, and has anyone used it. Null means it could not be
+  // asked, which is not the same as nobody having booked.
+  const [booked, setBooked] = useState<BookingFace[] | null>(null);
   const load = useCallback(() => {
-    readLink().then(setLink).catch(() => setLink(null));
-  }, []);
+    readLinkImpl().then(setLink).catch(() => setLink(null));
+    readBookingsImpl().then(setBooked).catch(() => setBooked(null));
+  }, [readLinkImpl, readBookingsImpl]);
   useEffect(() => { load(); }, [load]);
 
   const set = (patch: Partial<BookingSettings>) => { setS(updateBookingSettings(patch)); setDirty(true); };
@@ -130,6 +157,33 @@ export default function BookingPage({ onBack }: { onBack: () => void }) {
         )}
       </Card>
       <Foot>Your times stay on this device. Publishing writes them to the booking server so the address above can offer them; taking the link down clears the hours and never cancels a booking you already have.</Foot>
+      {link && (
+        <>
+          <Head label="Booked So Far" />
+          <Card>
+            {booked && booked.length > 0 ? booked.map((b) => {
+              const m = mapBooking(b);
+              if (!m) return null;
+              return (
+                <div className="row" key={b.id}>
+                  <div className="row-grow">
+                    <div className="conn-name">{m.title}</div>
+                    <div className="conn-meta">{when(b)}</div>
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="row">
+                <div className="row-grow">
+                  <div className="conn-name">Nobody Yet</div>
+                  <div className="conn-meta">{booked === null ? "Could not reach the booking server" : "Every booking also lands on your schedule"}</div>
+                </div>
+              </div>
+            )}
+          </Card>
+          <Foot>These are on your schedule too, so you do not have to come back here to find them.</Foot>
+        </>
+      )}
       <div className="screen-foot" />
     </div>
   );

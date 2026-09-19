@@ -32,6 +32,7 @@ import { useDayKey } from "./useDayKey";
 import { useAI } from "../ai/useAI";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import GoogleAutoImport from "../connections/google/AutoImport";
+import BookingImportPump from "../booking/BookingImportPump";
 import TodayOutboxPump from "../messages/TodayOutboxPump";
 import MailOutboxPump from "../messages/MailOutboxPump";
 import MailSnapshotPump from "../messages/MailSnapshotPump";
@@ -532,6 +533,11 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   return (
     <GoogleSessionProvider>
     <GoogleAutoImport />
+    {/* TRACK 3 (2026-09-19): a stranger books an hour through the public link
+        and until now the host had no way to find out. Here rather than in a
+        tab, so the schedule is right whether or not he opens the right
+        screen. */}
+    <BookingImportPump />
     <TodayOutboxPump />
     {/* EMAIL-F-01 (2026-09-05): the Email tab's own outbox (Send, Schedule
         Send, Send & Next) is pumped here, where nothing unmounts on a tab

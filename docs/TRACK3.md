@@ -51,7 +51,7 @@ This document said four times that there is no server. That was wrong from the d
 - **The form arrives with the choice.** Asking for an email before a time is picked is asking someone to pay before they know what for.
 - **The server decides, and the page says so.** If the slot goes while they are typing, the message says that and the grid reloads. The reason is drawn ABOVE the grid rather than inside the form, because dropping the choice unmounts the form: the first version erased its own explanation in the same tick that made it true, which its test caught.
 
-Still to build here: the calendar write-through, which needs a Tier 1 connection. The host also does not learn about a booking until the app next syncs, and that write-through is the real answer to it.
+Still to build here: nothing on the visitor's side. What the host sees is below.
 
 ## The confirmation, which was the one promise (2026-09-19)
 
@@ -70,6 +70,22 @@ The receipt screen told every visitor a confirmation was on its way, and nothing
 `src/booking/receipt.ts` is the words and the calendar file, pure and tested, including the two details that are quiet bugs otherwise: an unescaped comma or semicolon in a meeting name ends a calendar property early and the event loses its title, and RFC 5545 folds lines at 75 OCTETS, so a name with an accent in it arrives as mojibake if the fold is measured in characters.
 
 `api/_google.ts` is the cipher, the two OAuth clients and the refresh, MOVED out of `api/google.ts` rather than copied. Two copies of AES-GCM code is how one of them stops decrypting what the other wrote. Sign-in still owns the code exchange and forgetting a revoked grant, which is the part only it can do, because only it can ask the person for a new one. Twenty tests now cover what was previously untested because it was private.
+
+## The host finds out (2026-09-19)
+
+A booking had been landing in Track 3 since the public page shipped and the host had no way to find out. The visitor got a receipt; the person whose day it was did not. That is worse than having no booking system, because he fills the hour himself and only one of the two people turns up expecting company.
+
+**It lands in JARVIS's own schedule, not in Google, and that is a rule rather than a shortcut.** The stored Google grant is `calendar.readonly` on purpose, under a standing decision written into `connections/google/config.ts`: JARVIS writes schedules to its own store and never to Google. Widening that scope to write events is Dave's call, not a side effect of this feature, and it is not free: a scope change forces every already-connected account through one interactive reconnect. **That is the one open question left in booking.** Everything else about it works without it.
+
+`api/bookings.ts` is a GET and nothing else. Cancelling a booking is a different decision with a different consequence, which is that somebody is told their meeting is off, and it is absent from this endpoint deliberately rather than by omission.
+
+The import follows the Google one's shape and inherits its two expensive lessons. It never makes a second copy, because the booking id is the key and the store is read before anything is written, which is what makes running it on every app open safe. And it never deletes on an absence alone: an event is removed only when the server was actually asked about its day, because outside that window an absence means "not asked", and deleting on it would delete a real meeting over a query's limits. It is much simpler than the Google import in one respect that matters: a booking cannot be edited, so there is no field-by-field merge and no hash. An id either has an event or it does not.
+
+It runs from `BookingImportPump`, mounted in AppShell beside the mail pumps rather than inside a tab, because a tab switch unmounts a tab and the point is that the schedule is right whether or not he opened the right screen. Once per app open: a booking is a meeting some days out, not a live feed.
+
+Settings > Booking now also lists who has booked, which answers the question everybody asks straight after publishing a link. Nobody having booked and not being able to ask are shown as the different facts they are, because reading the second as the first tells him his link is dead when it is not.
+
+`api/_track3.ts` is the shared floor under both signed-in endpoints, lifted out of `booking-link.ts` rather than copied, because the interesting part of it is a security check and a second copy of a security check is a second thing to get wrong. `parseRange` went the other way, into `src/booking/slots.ts`: three callers need it, and `api/book.ts` is the one endpoint with no auth in front of it that names no live-project credential, so it must not import a module that does.
 
 ## The bridge past Clerk (2026-09-19)
 
@@ -92,7 +108,8 @@ Settings > Booking now has a Publish button and shows the address, which is the 
 | Public Link (the slot grid, name and email, Confirm) | BUILT 2026-09-19: `api/book.ts`. Waiting only on the two env vars below |
 | The booking page itself (the grid, the form, the confirmation) | BUILT 2026-09-19: `/book/<slug>`, the one path that renders above the auth gate |
 | The confirmation email and its calendar file | BUILT 2026-09-19: sends from the host's own Gmail, needs no new env var |
-| The calendar write-through | a Tier 1 `user_connections` row |
+| A booking showing up for the host | BUILT 2026-09-19: `api/bookings.ts` and the import into JARVIS's own schedule |
+| Writing a booking into GOOGLE Calendar | Dave's ruling on widening the Google scope past `calendar.readonly`, which forces one interactive reconnect. Not needed for the host to see a booking |
 | Connections (request, accept, decline, scope toggles) | Clerk wired as the project's third-party auth provider. Booking no longer waits on it: see the bridge below |
 | Shared Project (view and edit badges, assignee avatars) | connections above (0005's policies are tested at the database, see the track3 README) |
 | Tier 1 and Tier 2 connectors | `api/ai.ts` calling `mcp_take_token` (0007) before each Anthropic call. The server exists; the call is not wired |

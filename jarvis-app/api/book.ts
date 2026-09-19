@@ -1,4 +1,4 @@
-import { openSlots, type Busy, type Override, type Rule } from "../src/booking/slots";
+import { openSlots, parseRange, type Busy, type Override, type Rule } from "../src/booking/slots";
 import { sendBookingReceipt } from "./_receipt";
 
 // PUBLIC BOOKING (Track 3, 2026-09-19).
@@ -116,12 +116,9 @@ async function grid(c: Ctx, slug: string, nowMs: number) {
     ...(o.override_start ? { startTime: o.override_start.slice(0, 5) } : {}),
     ...(o.override_end ? { endTime: o.override_end.slice(0, 5) } : {}),
   }));
-  // postgres renders a tstzrange as ["lower","upper") and the bound style is
-  // part of the value, so it is parsed rather than assumed.
-  const busy: Busy[] = busyRows.map((b) => {
-    const m = /^[[(]"?([^",]+)"?,"?([^",)\]]+)"?[)\]]$/.exec(b.time_range.trim());
-    return m ? { startMs: Date.parse(m[1]!), endMs: Date.parse(m[2]!) } : { startMs: NaN, endMs: NaN };
-  }).filter((b) => Number.isFinite(b.startMs) && Number.isFinite(b.endMs));
+  const busy: Busy[] = busyRows
+    .map((b) => parseRange(b.time_range))
+    .filter((b) => Number.isFinite(b.startMs) && Number.isFinite(b.endMs));
 
   const zone = rules[0]?.timezone ?? "UTC";
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(nowMs));

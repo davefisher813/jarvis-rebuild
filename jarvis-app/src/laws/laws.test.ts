@@ -1900,6 +1900,7 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // what it is.
     "book.ts",
     "booking-link.ts",
+    "bookings.ts",
   ];
 
   // Written, tested, and NOT reachable from the running app. Each line is a
