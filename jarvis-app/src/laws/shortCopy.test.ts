@@ -89,6 +89,13 @@ const EXEMPT_FILES = new Set([
   // rendered string lives in MoneyFlow.tsx, which this law scans normally.
   "money/receiptExtract.ts",
   "brain/docs/BrainDocPage.tsx",
+  // TRACK 3 (2026-09-19): the booking confirmation and cancellation EMAILS.
+  // Not rendered anywhere: these strings are the body of a message that lands
+  // in a stranger's mail client, and this law is about UI copy, where a second
+  // sentence in one label is a paragraph pretending to be a button. An email
+  // that may not contain two sentences is not an email. Same principle as the
+  // prompt files above: the strings leave the app rather than appearing in it.
+  "booking/receipt.ts",
 ]);
 
 function walk(dir: string): string[] {

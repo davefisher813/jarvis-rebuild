@@ -77,7 +77,7 @@ A booking had been landing in Track 3 since the public page shipped and the host
 
 **It lands in JARVIS's own schedule, not in Google, and that is a rule rather than a shortcut.** The stored Google grant is `calendar.readonly` on purpose, under a standing decision written into `connections/google/config.ts`: JARVIS writes schedules to its own store and never to Google. Widening that scope to write events is Dave's call, not a side effect of this feature, and it is not free: a scope change forces every already-connected account through one interactive reconnect. **That is the one open question left in booking.** Everything else about it works without it.
 
-`api/bookings.ts` is a GET and nothing else. Cancelling a booking is a different decision with a different consequence, which is that somebody is told their meeting is off, and it is absent from this endpoint deliberately rather than by omission.
+`api/bookings.ts` began as a GET and nothing else, and cancelling was added to it deliberately rather than by drift. See below.
 
 The import follows the Google one's shape and inherits its two expensive lessons. It never makes a second copy, because the booking id is the key and the store is read before anything is written, which is what makes running it on every app open safe. And it never deletes on an absence alone: an event is removed only when the server was actually asked about its day, because outside that window an absence means "not asked", and deleting on it would delete a real meeting over a query's limits. It is much simpler than the Google import in one respect that matters: a booking cannot be edited, so there is no field-by-field merge and no hash. An id either has an event or it does not.
 
@@ -86,6 +86,20 @@ It runs from `BookingImportPump`, mounted in AppShell beside the mail pumps rath
 Settings > Booking now also lists who has booked, which answers the question everybody asks straight after publishing a link. Nobody having booked and not being able to ask are shown as the different facts they are, because reading the second as the first tells him his link is dead when it is not.
 
 `api/_track3.ts` is the shared floor under both signed-in endpoints, lifted out of `booking-link.ts` rather than copied, because the interesting part of it is a security check and a second copy of a security check is a second thing to get wrong. `parseRange` went the other way, into `src/booking/slots.ts`: three callers need it, and `api/book.ts` is the one endpoint with no auth in front of it that names no live-project credential, so it must not import a module that does.
+
+## Calling a meeting off (2026-09-19)
+
+A booking he could see but not cancel is half a feature: the only way out was to leave a stranger to turn up. `DELETE /api/bookings {id, reason?}` is the other half, and it is written as the different kind of decision it is.
+
+- **The row is marked cancelled, never deleted.** The history is worth keeping, and the hour frees itself, because every grid this app draws counts confirmed bookings only.
+- **The guest is told.** A cancellation nobody hears about is not a cancellation, it is a stranger standing somewhere on their own. The email carries a `METHOD:CANCEL` calendar file, which is the one case where a client should act on the attachment rather than offer a button, and every client does: it takes the event off their calendar. It works only against the same UID with a higher SEQUENCE, so the uid is built from the booking id in one function and never improvised.
+- **Cancelled and told are reported as two facts.** The endpoint answers `{cancelled, told}` and the toast says which happened, because "Cancelled" over an email that never sent leaves him believing a stranger knows not to turn up.
+- **The mail goes after the row, never before.** Telling somebody a meeting is off and then failing to cancel it is the one ordering that cannot be recovered from.
+- **It is idempotent, and its authorization is the same query.** The lookup is scoped to the caller and to `status=confirmed`, so somebody else's booking and an already-cancelled one are the same 404. Whether another person's booking exists is not this caller's business.
+- **Two taps to get there, and nothing happens on the way.** The row's own menu, then a sheet that says what the stranger will receive. The optional note is his own words; left empty the email says the meeting is off and the time is free again, which is the whole truth. The app has no business writing that line for him.
+- The list and the schedule both stop showing it at once rather than at the next app open. The import is the only thing that knows how to take the event off, so it is asked rather than second-guessed on the settings screen.
+
+`src/laws/shortCopy.test.ts` gained one exemption: `booking/receipt.ts`. Those strings are the body of an email that lands in a stranger's mail client, not UI copy, and the law is about a second sentence hiding inside a label. An email that may not contain two sentences is not an email.
 
 ## The bridge past Clerk (2026-09-19)
 
@@ -109,10 +123,11 @@ Settings > Booking now has a Publish button and shows the address, which is the 
 | The booking page itself (the grid, the form, the confirmation) | BUILT 2026-09-19: `/book/<slug>`, the one path that renders above the auth gate |
 | The confirmation email and its calendar file | BUILT 2026-09-19: sends from the host's own Gmail, needs no new env var |
 | A booking showing up for the host | BUILT 2026-09-19: `api/bookings.ts` and the import into JARVIS's own schedule |
+| Cancelling a booking, and telling the guest | BUILT 2026-09-19: `DELETE /api/bookings`, with a `METHOD:CANCEL` calendar file |
 | Writing a booking into GOOGLE Calendar | Dave's ruling on widening the Google scope past `calendar.readonly`, which forces one interactive reconnect. Not needed for the host to see a booking |
 | Connections (request, accept, decline, scope toggles) | Clerk wired as the project's third-party auth provider. Booking no longer waits on it: see the bridge below |
 | Shared Project (view and edit badges, assignee avatars) | connections above (0005's policies are tested at the database, see the track3 README) |
-| Tier 1 and Tier 2 connectors | `api/ai.ts` calling `mcp_take_token` (0007) before each Anthropic call. The server exists; the call is not wired |
+| Tier 1 and Tier 2 connectors | Vault enabled on the Track 3 project, and one real MCP server plus its token to point at. This line used to say the work was `api/ai.ts` calling `mcp_take_token`, which read as a one-line wiring job and is not: that function is the per-org budget the connectors will spend, a PREREQUISITE rather than the feature. `api/ai.ts` already enforces a per-user hourly cap and a global daily ceiling atomically against the live project, so adding a third limiter in a second database, for an org concept the app does not use yet, would buy a round trip per AI call and no protection. The feature itself is per-provider OAuth into `user_connections` and an `mcp_servers` list assembled per request, and it is blocked on Vault and on having a server to connect to |
 | Business round-robin booking | not designed (changes `booking_links.owner_id`); the master's section 7 |
 | Spine tree screen | the live app keeps categories, goals, projects and tasks in the item store; the Track 3 spine is the new project's schema, not a migration of this one, so a tree over it has no data until the app writes there |
 

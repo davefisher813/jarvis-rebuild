@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { sendBookingReceipt } from "./_receipt";
+import { sendBookingReceipt, sendBookingCancellation } from "./_receipt";
 import { encrypt } from "./_google";
 
 // THE SEAM (Track 3, 2026-09-19). The one place where the public booking
@@ -125,5 +125,33 @@ describe("sendBookingReceipt", () => {
       const method = ((call[1] as RequestInit | undefined)?.method || "GET").toUpperCase();
       if (url.includes("live.test")) expect(method).toBe("GET");
     }
+  });
+});
+
+describe("sendBookingCancellation", () => {
+  it("tells the guest, with a calendar file that removes the event", async () => {
+    const f = await wired();
+    expect(await sendBookingCancellation(JOB)).toBe(true);
+    const msg = sentMessage(f);
+    expect(msg).toContain("To: ada@example.com");
+    expect(msg).toContain("Subject: Cancelled: Intro Call");
+    expect(msg).toContain('filename="cancelled.ics"');
+    const b64 = /Content-Transfer-Encoding: base64\r\n\r\n([\s\S]+?)\r\n--/.exec(msg)![1]!;
+    const ics = Buffer.from(b64.replace(/\r\n/g, ""), "base64").toString("utf8");
+    expect(ics).toContain("METHOD:CANCEL");
+    expect(ics).toContain("UID:b-9@jarvis.booking");
+  });
+
+  it("passes the host's own line through to them", async () => {
+    const f = await wired();
+    await sendBookingCancellation({ ...JOB, reason: "Double booked myself" });
+    expect(sentMessage(f)).toContain("Double booked myself");
+  });
+
+  // The meeting is already off in the database by the time this runs, so a
+  // mail that cannot go must be reported rather than thrown.
+  it("is false, not an exception, when there is no mailbox to send from", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ok([])));
+    expect(await sendBookingCancellation(JOB)).toBe(false);
   });
 });

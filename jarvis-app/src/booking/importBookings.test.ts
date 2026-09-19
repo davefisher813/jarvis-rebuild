@@ -1,7 +1,7 @@
 import { Store, InMemoryAdapter } from "@core";
 import { describe, it, expect, vi } from "vitest";
 import { ScheduleService } from "../schedule/ScheduleService";
-import { importBookings, readBookings } from "./importBookings";
+import { importBookings, readBookings, cancelBooking } from "./importBookings";
 import type { BookingFace } from "./bookedEvents";
 
 // BRINGING BOOKINGS IN (Track 3, 2026-09-19). The two rules carried over from
@@ -112,5 +112,39 @@ describe("importBookings", () => {
     const broken = { ...B1, id: "bk-broken", endMs: B1.startMs };
     expect(await importBookings(schedule, server([broken, B2]), tok, NOW)).toEqual({ created: 1, removed: 0 });
     expect((await schedule.listEvents())[0]!.data.title).toBe("Intro Call with Grace");
+  });
+});
+
+describe("cancelBooking", () => {
+  const answering = (body: unknown, status = 200) =>
+    vi.fn(async () => ({ ok: status >= 200 && status < 300, status, json: async () => body })) as unknown as typeof fetch;
+
+  it("names the booking and carries the host's line", async () => {
+    const f = answering({ cancelled: true, told: true });
+    expect(await cancelBooking("bk-1", " Something came up ", f, tok)).toEqual({ told: true });
+    const init = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![1] as RequestInit;
+    expect(init.method).toBe("DELETE");
+    expect(JSON.parse(init.body as string)).toEqual({ id: "bk-1", reason: "Something came up" });
+  });
+
+  it("sends no reason at all rather than an empty one", async () => {
+    const f = answering({ cancelled: true, told: true });
+    await cancelBooking("bk-1", "   ", f, tok);
+    const init = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({ id: "bk-1" });
+  });
+
+  // Cancelled and the guest having been told are different facts, and the
+  // screen has to be able to say which one happened.
+  it("reports that nobody was emailed, without claiming the cancel failed", async () => {
+    expect(await cancelBooking("bk-1", "", answering({ cancelled: true, told: false }), tok)).toEqual({ told: false });
+  });
+
+  // The one outcome the person pressing the button must not be allowed to
+  // believe is that a meeting is off when it is not.
+  it("throws when the cancellation itself did not happen", async () => {
+    await expect(cancelBooking("bk-1", "", answering({ error: "No such booking" }, 404), tok)).rejects.toBeTruthy();
+    await expect(cancelBooking("bk-1", "", answering({}, 502), tok)).rejects.toBeTruthy();
+    await expect(cancelBooking("bk-1", "", answering({}), async () => null)).rejects.toBeTruthy();
   });
 });

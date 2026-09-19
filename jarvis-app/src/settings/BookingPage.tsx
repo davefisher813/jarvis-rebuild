@@ -8,8 +8,11 @@ import {
   type BookingSettings, type BookingWho, type BookingVisibility, type BookingDuration,
 } from "../booking/settings";
 import { readLink, saveLink, removeLink, linkUrl, type LinkFace } from "../booking/link";
-import { readBookings } from "../booking/importBookings";
+import { readBookings, cancelBooking, importBookings } from "../booking/importBookings";
 import { mapBooking, type BookingFace } from "../booking/bookedEvents";
+import RowActionSheet from "../shared/RowActionSheet";
+import CancelBookingSheet from "../booking/CancelBookingSheet";
+import { useOptionalSchedule } from "../data/NotesProvider";
 import { showToast } from "../shared/toast";
 
 // YOUR TIMES (Track 3, 2026-09-14; the preview's Booking Settings screen:
@@ -35,11 +38,23 @@ function when(b: BookingFace): string {
 // The two reads are injectable, the same way PublicBookingPage takes its
 // fetch: this screen's interesting states are the ones a running app cannot be
 // put into on demand, a published link and somebody having booked on it.
-export default function BookingPage({ onBack, readLinkImpl = readLink, readBookingsImpl = readBookings }: {
+export default function BookingPage({ onBack, readLinkImpl = readLink, readBookingsImpl = readBookings, cancelImpl = cancelBooking }: {
   onBack: () => void;
   readLinkImpl?: typeof readLink;
   readBookingsImpl?: typeof readBookings;
+  cancelImpl?: typeof cancelBooking;
 }) {
+  // OPTIONAL ON PURPOSE. This screen has no business requiring the schedule:
+  // it needs it only to take a cancelled hour off the calendar straight away,
+  // and without one the next app open does that anyway. It also lets the screen
+  // be rendered on its own, which is how its interesting states get tested.
+  const schedule = useOptionalSchedule();
+  // WHICH BOOKING THE SHEETS ARE ABOUT. Two steps to call a meeting off, which
+  // is proportionate: the row's own menu, then a sheet that says what the
+  // stranger will receive. Neither step touches anything until the last tap.
+  const [acting, setActing] = useState<BookingFace | null>(null);
+  const [cancelling, setCancelling] = useState<BookingFace | null>(null);
+  const [cancelErr, setCancelErr] = useState<string | null>(null);
   const [s, setS] = useState<BookingSettings>(() => readBookingSettings());
   // THE LINK IS THE SERVER'S (Track 3, 2026-09-19). The settings stay on the
   // device, the way they always have; the LINK is a row in Track 3, so the
@@ -61,6 +76,26 @@ export default function BookingPage({ onBack, readLinkImpl = readLink, readBooki
   useEffect(() => { load(); }, [load]);
 
   const set = (patch: Partial<BookingSettings>) => { setS(updateBookingSettings(patch)); setDirty(true); };
+
+  const doCancel = async (b: BookingFace, reason: string) => {
+    if (busy) return;
+    setBusy(true);
+    setCancelErr(null);
+    try {
+      const { told } = await cancelImpl(b.id, reason);
+      setCancelling(null);
+      // The list and the schedule both stop showing it now rather than at the
+      // next app open: the import is the one thing that knows how to take the
+      // event off, so it is asked rather than second-guessed here.
+      readBookingsImpl().then(setBooked).catch(() => { /* the list is stale, not wrong */ });
+      if (schedule) void importBookings(schedule).catch(() => { /* next open heals it */ });
+      // Two facts, said as two, because "Cancelled" over an email that never
+      // sent leaves him thinking a stranger knows not to turn up.
+      showToast({ message: told ? "Cancelled \u00b7 They Have Been Emailed" : "Cancelled \u00b7 We Could Not Email Them" });
+    } catch {
+      setCancelErr("Could not cancel that booking.");
+    } finally { setBusy(false); }
+  };
 
   const publish = async () => {
     if (busy) return;
@@ -165,7 +200,7 @@ export default function BookingPage({ onBack, readLinkImpl = readLink, readBooki
               const m = mapBooking(b);
               if (!m) return null;
               return (
-                <div className="row" key={b.id}>
+                <div className="row" key={b.id} {...pressable(() => setActing(b))}>
                   <div className="row-grow">
                     <div className="conn-name">{m.title}</div>
                     <div className="conn-meta">{when(b)}</div>
@@ -185,6 +220,39 @@ export default function BookingPage({ onBack, readLinkImpl = readLink, readBooki
         </>
       )}
       <div className="screen-foot" />
+      {acting && (
+        <RowActionSheet
+          title={mapBooking(acting)?.title}
+          actions={[
+            ...(acting.guestEmail ? [{
+              label: "Copy Their Email",
+              onPick: () => {
+                const email = acting.guestEmail;
+                setActing(null);
+                navigator.clipboard?.writeText(email).then(
+                  () => showToast({ message: "Email Copied" }),
+                  () => showToast({ message: email }),
+                );
+              },
+            }] : []),
+            {
+              label: "Cancel This Booking",
+              destructive: true,
+              onPick: () => { setCancelErr(null); setCancelling(acting); setActing(null); },
+            },
+          ]}
+          onCancel={() => setActing(null)}
+        />
+      )}
+      {cancelling && (
+        <CancelBookingSheet
+          booking={cancelling}
+          busy={busy}
+          error={cancelErr}
+          onCancel={() => setCancelling(null)}
+          onConfirm={(reason) => void doCancel(cancelling, reason)}
+        />
+      )}
     </div>
   );
 }

@@ -19,6 +19,12 @@
 // nothing is worse than not offering it, so this attaches a PUBLISH calendar
 // file: the visitor's client offers "add to calendar", which is the one thing
 // it can actually do.
+//
+// CANCELLING IS THE EXCEPTION (2026-09-19). METHOD:CANCEL is the one case
+// where a client should act on the file rather than offer a button, and every
+// client does: it takes the event off the calendar. It works only when the UID
+// matches the file that put it there and the SEQUENCE is higher, which is why
+// the uid is built from the booking id in one place and never improvised.
 
 /** A TEXT value inside a calendar file. The escapes are not optional: an
  *  unescaped comma or semicolon in a meeting name ends the property early and
@@ -71,6 +77,15 @@ export interface IcsInput {
   guestEmail: string;
   guestName: string;
   stampMs?: number;
+  /** PUBLISH by default. CANCEL takes the event back off the calendar, and
+   *  only works against the same uid with a higher sequence. */
+  cancel?: boolean;
+}
+
+/** The one place a booking's calendar uid is built. Two messages about the
+ *  same meeting have to agree on it or the cancellation removes nothing. */
+export function icsUid(bookingId: string): string {
+  return bookingId + "@jarvis.booking";
 }
 
 /** One event, in UTC, that any calendar can read. UTC rather than a named
@@ -82,9 +97,11 @@ export function buildIcs(i: IcsInput): string {
     "VERSION:2.0",
     "PRODID:-//JARVIS//Booking//EN",
     "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
+    i.cancel ? "METHOD:CANCEL" : "METHOD:PUBLISH",
     "BEGIN:VEVENT",
     "UID:" + i.uid,
+    // A client only replaces what it already holds when the sequence advances.
+    "SEQUENCE:" + (i.cancel ? "1" : "0"),
     "DTSTAMP:" + icsStamp(i.stampMs ?? Date.now()),
     "DTSTART:" + icsStamp(i.startMs),
     "DTEND:" + icsStamp(i.endMs),
@@ -92,7 +109,7 @@ export function buildIcs(i: IcsInput): string {
     ...(i.description ? ["DESCRIPTION:" + escapeIcsText(i.description)] : []),
     "ORGANIZER;CN=" + escapeIcsText(i.hostEmail) + ":mailto:" + i.hostEmail,
     "ATTENDEE;CN=" + escapeIcsText(i.guestName) + ";ROLE=REQ-PARTICIPANT:mailto:" + i.guestEmail,
-    "STATUS:CONFIRMED",
+    i.cancel ? "STATUS:CANCELLED" : "STATUS:CONFIRMED",
     "END:VEVENT",
     "END:VCALENDAR",
   ];
@@ -150,6 +167,26 @@ export function receiptWords(i: ReceiptInput): { subject: string; body: string }
   return { subject, body: lines.join("\n") };
 }
 
+/** The words for a meeting that is off. Short, and it leads with the fact
+ *  rather than with an apology: somebody skimming a subject line on a phone
+ *  needs to know whether to leave the house. The reason, if there is one, is
+ *  the host's own words and goes underneath. */
+export function cancelWords(i: ReceiptInput & { reason?: string }): { subject: string; body: string } {
+  const day = dayIn(i.startMs, i.guestZone);
+  const from = timeIn(i.startMs, i.guestZone);
+  const subject = `Cancelled: ${i.typeName}, ${day} at ${from}`;
+  const reason = (i.reason ?? "").trim();
+  const lines = [
+    `${i.guestName}, your ${i.typeName.toLowerCase()} on ${day} at ${from} has been cancelled.`,
+    ...(reason ? ["", reason] : []),
+    "",
+    "Nothing is expected of you. The time is free again, so you can book another if you still want one.",
+    "",
+    `If this is a mistake, reply to this email and it reaches ${i.hostEmail} directly.`,
+  ];
+  return { subject, body: lines.join("\n") };
+}
+
 /** The whole message, ready for the sender. Kept here rather than in the
  *  endpoint so the shape of a confirmation is one testable thing. */
 export interface Receipt { to: string; subject: string; body: string; attachment: { filename: string; mimeType: string; content: string } }
@@ -157,7 +194,7 @@ export interface Receipt { to: string; subject: string; body: string; attachment
 export function buildReceipt(i: ReceiptInput & { bookingId: string; guestEmail: string; stampMs?: number }): Receipt {
   const { subject, body } = receiptWords(i);
   const ics = buildIcs({
-    uid: i.bookingId + "@jarvis.booking",
+    uid: icsUid(i.bookingId),
     startMs: i.startMs,
     endMs: i.endMs,
     summary: `${i.typeName} with ${i.guestName}`,
@@ -174,5 +211,29 @@ export function buildReceipt(i: ReceiptInput & { bookingId: string; guestEmail: 
     // text/calendar rather than application/ics: it is what every client
     // recognises as something it can add, and the .ics name is the belt.
     attachment: { filename: "invite.ics", mimeType: "text/calendar; charset=UTF-8; method=PUBLISH", content: ics },
+  };
+}
+
+/** The cancellation, ready for the sender. The attached file carries the same
+ *  uid as the confirmation did and a higher sequence, which is what makes a
+ *  calendar remove the event rather than add a second one. */
+export function buildCancellation(i: ReceiptInput & { bookingId: string; guestEmail: string; reason?: string; stampMs?: number }): Receipt {
+  const { subject, body } = cancelWords(i);
+  const ics = buildIcs({
+    uid: icsUid(i.bookingId),
+    startMs: i.startMs,
+    endMs: i.endMs,
+    summary: `${i.typeName} with ${i.guestName}`,
+    hostEmail: i.hostEmail,
+    guestEmail: i.guestEmail,
+    guestName: i.guestName,
+    cancel: true,
+    ...(i.stampMs === undefined ? {} : { stampMs: i.stampMs }),
+  });
+  return {
+    to: i.guestEmail,
+    subject,
+    body,
+    attachment: { filename: "cancelled.ics", mimeType: "text/calendar; charset=UTF-8; method=CANCEL", content: ics },
   };
 }

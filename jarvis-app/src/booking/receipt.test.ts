@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { escapeIcsText, foldIcsLine, icsStamp, buildIcs, safeZone, receiptWords, buildReceipt } from "./receipt";
+import { escapeIcsText, foldIcsLine, icsStamp, buildIcs, safeZone, receiptWords, buildReceipt, cancelWords, buildCancellation, icsUid } from "./receipt";
 
 const START = Date.parse("2026-09-22T18:00:00.000Z"); // 2pm New York, 11am Los Angeles
 const END = Date.parse("2026-09-22T18:30:00.000Z");
@@ -146,5 +146,48 @@ describe("buildReceipt", () => {
   it("carries no unescaped line break into the calendar's description", () => {
     const desc = /DESCRIPTION:[\s\S]*?\r\n(?![ ])/.exec(r.attachment.content)![0];
     expect(desc).toContain("\\n");
+  });
+});
+
+describe("cancelWords", () => {
+  it("leads with the fact, because that is what a subject line has to carry", () => {
+    expect(cancelWords(input).subject).toBe("Cancelled: Meeting, Tuesday, September 22 at 11:00 AM");
+  });
+  it("names the day and time on the visitor's clock, not the host's", () => {
+    expect(cancelWords(input).body).toContain("Tuesday, September 22 at 11:00 AM");
+  });
+  it("carries the host's own line when they wrote one", () => {
+    expect(cancelWords({ ...input, reason: "Something came up, sorry." }).body).toContain("Something came up, sorry.");
+  });
+  it("says nothing extra when they did not, rather than inventing a reason", () => {
+    const body = cancelWords({ ...input, reason: "   " }).body;
+    expect(body).toContain("has been cancelled");
+    expect(body).not.toContain("undefined");
+  });
+  it("tells them the hour is free again, so the email is not a dead end", () => {
+    expect(cancelWords(input).body).toContain("free again");
+  });
+});
+
+describe("buildCancellation", () => {
+  const c = buildCancellation(input);
+
+  // THE WHOLE POINT. A client removes an event only when the uid matches what
+  // put it there and the sequence has advanced.
+  it("cancels the same event the confirmation created", () => {
+    expect(c.attachment.content).toContain("UID:" + icsUid("b-1"));
+    expect(buildReceipt(input).attachment.content).toContain("UID:" + icsUid("b-1"));
+  });
+  it("is a cancellation a calendar will act on", () => {
+    expect(c.attachment.content).toContain("METHOD:CANCEL");
+    expect(c.attachment.content).toContain("STATUS:CANCELLED");
+    expect(c.attachment.content).toContain("SEQUENCE:1");
+    expect(c.attachment.mimeType).toContain("method=CANCEL");
+  });
+  it("the confirmation it replaces is sequence zero, or nothing replaces anything", () => {
+    expect(buildReceipt(input).attachment.content).toContain("SEQUENCE:0");
+  });
+  it("goes to the guest and nobody else", () => {
+    expect(c.to).toBe("ada@example.com");
   });
 });

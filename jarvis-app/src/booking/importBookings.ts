@@ -58,6 +58,30 @@ export async function readBookings(
   }
 }
 
+/** Call a booking off. Resolves to whether the guest was actually told, which
+ *  is a different fact from whether the cancellation happened: the meeting is
+ *  off either way, and the screen has to be able to say which.
+ *
+ *  Throws when the cancellation itself did not happen, because that is the one
+ *  outcome the person pressing the button must not be allowed to believe. */
+export async function cancelBooking(
+  id: string,
+  reason = "",
+  fetchImpl: typeof fetch = fetch,
+  getToken: () => Promise<string | null> = token,
+): Promise<{ told: boolean }> {
+  const t = await getToken();
+  if (!t) throw new Error("no session");
+  const r = await fetchImpl("/api/bookings", {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${t}`, "content-type": "application/json" },
+    body: JSON.stringify({ id, ...(reason.trim() ? { reason: reason.trim() } : {}) }),
+  });
+  if (!r.ok) throw new Error(String(r.status));
+  const body = (await r.json()) as { told?: boolean };
+  return { told: body.told === true };
+}
+
 export async function importBookings(
   schedule: ScheduleService,
   fetchImpl: typeof fetch = fetch,

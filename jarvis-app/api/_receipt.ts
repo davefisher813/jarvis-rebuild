@@ -1,4 +1,4 @@
-import { buildReceipt, safeZone } from "../src/booking/receipt";
+import { buildReceipt, buildCancellation, safeZone, type Receipt } from "../src/booking/receipt";
 import { encodeEmail } from "../src/connections/google/map";
 import { ownerMailbox, sendRaw } from "./_google";
 
@@ -40,7 +40,22 @@ export interface ReceiptJob {
 }
 
 /** Try to send the confirmation. True only if Gmail accepted it. */
-export async function sendBookingReceipt(job: ReceiptJob): Promise<boolean> {
+export function sendBookingReceipt(job: ReceiptJob): Promise<boolean> {
+  return send(job, buildReceipt);
+}
+
+/** Tell the guest their meeting is off. Same path, same rules, and the same
+ *  answer shape: the cancellation has already happened in the database by the
+ *  time this runs, so a mail that cannot go out must not undo it. The guest
+ *  being told is the point, though, so the caller passes the answer on rather
+ *  than swallowing it. */
+export function sendBookingCancellation(job: ReceiptJob & { reason?: string }): Promise<boolean> {
+  return send(job, buildCancellation);
+}
+
+type Build = (i: Parameters<typeof buildReceipt>[0] & { reason?: string }) => Receipt;
+
+async function send(job: ReceiptJob & { reason?: string }, build: Build): Promise<boolean> {
   const mailbox = await ownerMailbox({
     supaUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "",
     service: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
@@ -54,7 +69,7 @@ export async function sendBookingReceipt(job: ReceiptJob): Promise<boolean> {
   });
   if (!mailbox) return false;
 
-  const receipt = buildReceipt({
+  const receipt = build({
     typeName: job.typeName,
     startMs: job.startMs,
     endMs: job.endMs,
@@ -64,6 +79,7 @@ export async function sendBookingReceipt(job: ReceiptJob): Promise<boolean> {
     hostZone: job.hostZone,
     hostEmail: mailbox.email,
     bookingId: job.bookingId,
+    ...(job.reason ? { reason: job.reason } : {}),
   });
 
   return sendRaw(mailbox.accessToken, encodeEmail({
