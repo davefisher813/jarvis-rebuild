@@ -73,6 +73,24 @@ export const TYPE_LABEL: Record<ExerciseType, string> = {
   other: "Other",
 };
 
+// THE ANSWERS THE APP ALREADY KNEW (2026-09-16, Dave on the classify sheet:
+// "there should be button selections or dropdowns for most of this").
+//
+// Grip, Stance, Angle and Variation were free-text rows whose PLACEHOLDERS
+// listed the common answers -- Neutral, Wide, Hook; Sumo, Staggered. The app
+// knew what people type and printed it as a hint instead of offering it, so
+// every one of them cost a keyboard, a right-aligned caret and a spelling
+// nobody else would match. These are the same words as buttons.
+//
+// Still free text underneath: the field is a string, anything already typed
+// survives, and a value that is not on a list shows as its own chip so it can
+// be read and cleared. A closed menu would have thrown away what people
+// already wrote, which is the one thing a polish pass may not do.
+export const GRIPS = ["Neutral", "Overhand", "Underhand", "Wide", "Close", "Mixed", "Hook"] as const;
+export const STANCES = ["Conventional", "Sumo", "Staggered", "Narrow", "Wide", "Split"] as const;
+export const ANGLES = ["Flat", "Incline", "Decline", "Low Pulley", "High Pulley", "Seated", "Standing"] as const;
+export const VARIATIONS = ["Paused", "Tempo", "Deficit", "Partial", "Cluster", "Drop Set", "Explosive"] as const;
+
 export const EXECUTIONS = ["bilateral", "unilateral", "alternating"] as const;
 export type Execution = (typeof EXECUTIONS)[number];
 

@@ -145,6 +145,14 @@ The sheets: `ReminderDetailSheet.tsx` (the words, area and state; When, Repeat, 
 
 Left out on purpose: the preview's sample template chips (Bridge planning, Medication, Decision review) and its in-sheet stand-ins for linked actions (a checklist, a dose logger); the app opens the real record. Emails are linked from the surface that owns them.
 
+## Catalog V5, the uniformity pass (2026-09-18)
+
+Dave asked for the whole visual catalog to be revisited and applied to every corner, with the back pages called out as neglected. The audit is in catalog section AJ; the artifact that carried the choices is at claude.ai/artifact/NKVwqKfXXZgeF5w8MsqaQg and renders every primitive from the live tokens. His picks: T1 (meta 14), R1 (0.5px hairlines), S1 (glass dark, flat light), C4 (chips 28 and filled), F1 (one focus ring), P1 (tokens first, then corners). Two questions collided into one group in the artifact's own picker, so the marked recommendations stand for them: C1 (one capsule, red when it acts and primary ink when it navigates) and F3 (errors in the system red). Either can be reversed in a line.
+
+Push 1, the token sweep, is scripted rather than hand-edited: 157 font sizes mapped onto named stops, 84 radii snapped to the map, 13 hairlines unified, 12 primitive rules rewritten, three laws repinned from literals to tokens. Every stylesheet moved at once, so no page is a step behind another.
+
+The corners follow, one push each: Settings and its subpages, Onboarding, Search and Quick Capture, Brain, Money, Insights and Review, Messages internals, Gym. Track 3 is what this clears the way for.
+
 ## How Cowork work lands
 
 Cowork cannot push to this repo (403). It hands over a `git format-patch` file in `Claude outputs/`; apply it with `git checkout -b claude/<name> <base>` and `git am <file>`, run the full gate, fast-forward main, push, poll CI. The 14 Sep patch applied clean on `b856c34`, gated green (5,551 tests) and CI green as `e900709`.

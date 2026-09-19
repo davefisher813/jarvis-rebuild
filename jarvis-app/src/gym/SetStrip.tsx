@@ -422,15 +422,32 @@ function GhostGrid({ entry, unit, step, setNo, onLog, onDraft }: {
   onLog: (patch: Partial<SetEntry>) => void;
   onDraft?: (patch: { w: number; r: number }) => void;
 }) {
-  const [w, setW] = useState(String(entry.w ?? 0));
-  const [r, setR] = useState(String(entry.r ?? 0));
+  // A ZERO IS NOT A NUMBER SOMEBODY TYPED (Dave 2026-09-17: "a new exercise
+  // renders a buggy and weird looking log box. The typing is all off too").
+  //
+  // An exercise created mid-session plans no weight, so `entry.w` is 0 or
+  // absent, and these fields opened reading "0". Tap one and iOS puts the
+  // caret AFTER the zero: typing 135 gives you 135 in the record and "0135"
+  // on the screen the whole way there. On a new lift, where every ghost row
+  // starts at zero, that is every field on the card.
+  //
+  // So an unplanned number shows as empty with the unit as its placeholder,
+  // which is also honest -- the app does not know what you are about to
+  // lift, and printing 0 says it does.
+  const [w, setW] = useState(entry.w ? String(entry.w) : "");
+  const [r, setR] = useState(entry.r ? String(entry.r) : "");
   const report = (nw: string, nr: string) => onDraft?.({ w: Number(nw) || 0, r: Number(nr) || 0 });
   const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
+  // AND A PLANNED ONE IS REPLACED, NOT APPENDED TO. The other half of the
+  // same complaint: a field already reading 135 put the caret at the end, so
+  // typing 145 gave 135145. Focus selects, so the first keystroke overwrites
+  // -- which is what tapping a number on a form has always meant.
+  const selectAll = (e: { currentTarget: HTMLInputElement }) => e.currentTarget.select();
   return (
     <div className="se-grid" onClick={stop} onPointerDown={stop}>
-      <input className="set-field" type="number" inputMode="decimal" min={0} step={step} value={w} aria-label={`Set ${setNo} weight`} onChange={(e) => { setW(e.target.value); report(e.target.value, r); }} />
+      <input className="set-field" type="number" inputMode="decimal" min={0} step={step} value={w} placeholder={unit ?? "0"} onFocus={selectAll} aria-label={`Set ${setNo} weight`} onChange={(e) => { setW(e.target.value); report(e.target.value, r); }} />
       <span className="se-grid-u">{unit ?? ""}</span>
-      <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} aria-label={`Set ${setNo} reps`} onChange={(e) => { setR(e.target.value); report(w, e.target.value); }} />
+      <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} placeholder="reps" onFocus={selectAll} aria-label={`Set ${setNo} reps`} onChange={(e) => { setR(e.target.value); report(w, e.target.value); }} />
       <span className="se-grid-u">reps</span>
       <button type="button" className="se-tick" aria-label={`Log set ${setNo}`} onClick={() => onLog({ w: Number(w) || 0, r: Number(r) || 0 })}><Check className="ic" /></button>
     </div>

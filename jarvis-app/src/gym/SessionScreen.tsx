@@ -3,7 +3,7 @@ import { loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, type Lo
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
 import { REST_FLOOR_SEC } from "./pacing";
 import { logButtonLabel, plannedEntryAt, entryNoun, formatSet } from "./measures";
 import { newSetId, blankEntry, duplicateEntry, entryFrom } from "./strip";
@@ -112,7 +112,8 @@ export default function SessionScreen({
    *  it is"). The equipment, the reading and the reps axis. Absent leaves the
    *  header chip a fact rather than a door, which is what it was. */
   onSetLoad?: (next: LoadStyle) => void;
-  onAddMidSession: (draft: Omit<Exercise, "id">) => void;
+  /** The draft, and whether it should also land on the program day. */
+  onAddMidSession: (draft: Omit<Exercise, "id">, alsoOnDay: boolean) => void;
   /** Part 3 wave 5 (Dave's 10a): a swapped or added exercise changes this
    *  session only; this is the one explicit way to carry it into the
    *  program. Absent on a planned exercise. */
@@ -189,6 +190,9 @@ export default function SessionScreen({
   const [keptPlan, setKeptPlan] = useState<string[]>([]);
   const [swapOpen, setSwapOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  // Default yes: a lift you bothered to name mid-workout is usually one
+  // you are doing again, and it is the answer that lets it be paired.
+  const [addToDay, setAddToDay] = useState(true);
   const [platesOpen, setPlatesOpen] = useState(false);
   /** What the open set's two fields say this moment, or null before a key is
    *  pressed (then the plan stands). Cleared on every write, and by the effect
@@ -286,6 +290,21 @@ export default function SessionScreen({
   // work in it, as one row under the strip. A group's own Next row wins.
   const upNextIdx = live.exercises.findIndex((e, i) => i > idx && !e.skipped && e.sets.filter((s) => !s.warmup && !s.drop && !s.skipped).length < Math.max(1, plannedFor(e)));
   const upNext = upNextIdx >= 0 ? live.exercises[upNextIdx] : undefined;
+  /** THIS EXERCISE HAS NOTHING LEFT IN IT (Dave 2026-09-17: "when logging
+   *  workouts there should be a done button for exercises right now it just
+   *  goes on forever til I switch to another exercise").
+   *
+   *  The log bar has always held one button that says Log, at every moment of
+   *  every exercise, so the plan running out looked exactly like the plan
+   *  having two sets left: the only way on was to notice a row further down
+   *  the screen and tap it. There was no way to SAY you were finished.
+   *
+   *  Finished means the planned working sets are logged -- or, for a lift with
+   *  no plan at all (added mid-session, or a scratch session), that at least
+   *  one set is. Warm-ups and drops are not the work and never have been. */
+  const planComplete = !current.skipped && (planEx.sets.length > 0
+    ? workLogged >= planEx.sets.length
+    : logged.length > 0);
   const nextPlannedWeight = (() => { const n = plannedEntryAt(planEx, workLogged); return n?.w ?? [...logged].reverse().find((x) => !x.warmup)?.w ?? 0; })();
 
   // D3-C in session: the day's own blocks, checked off as they happen.
@@ -473,7 +492,7 @@ export default function SessionScreen({
     <div className="screen ruled health-ruled screen-session">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title truncate">{live.dayName}</div>
+        <div className="nav-title truncate">{workoutTitle(live.dayName)}</div>
         {/* H-27: Pause beside Finish. Both quiet; the one filled control on
             this screen is the Log bar's. */}
         <div className="nav-actions">
@@ -530,7 +549,7 @@ export default function SessionScreen({
             <span className="se-chip se-chip-budget"><em>Budget</em>{clock(live.startedAt + (live.budgetMin ?? 0) * 60_000)}</span>
           </div>
         )}
-        <div className="p3-q">{exercise.name}</div>
+        <div className="p3-q">{liftTitle(exercise.name)}</div>
         {/* Part 3 wave 5: the equipment convention, on the session too. */}
         {/* 2026-09-14: the chip names the reading, not just the hardware, so
             mid-set there is no doubt whether the number on the button is one
@@ -819,12 +838,17 @@ export default function SessionScreen({
                   for -- seeing at a glance what is done -- took reading seven
                   lines of identical text. Done is lime, skipped is amber,
                   untouched is a hollow outline that says To Do. */}
-              <div className="r-k">
+              {/* ONE ROW ANATOMY (2026-09-16): the three states keep their
+                  three colours, which is the whole point of this list; what
+                  changes is that they are facts on the row's own second line
+                  like every other list in the app, not filled capsules this
+                  screen invented for itself. */}
+              <div className="facts">
                 {e.skipped
-                  ? <span className="se-chip se-chip-skip">Skipped</span>
+                  ? <span className="fact st amber">Skipped</span>
                   : e.sets.length > 0
-                    ? <span className="se-chip se-chip-done">{e.sets.length} {e.sets.length === 1 ? "Set" : "Sets"}</span>
-                    : <span className="se-chip se-chip-todo">To Do</span>}
+                    ? <span className="fact lime">{capAfterNumber(`${e.sets.length} ${e.sets.length === 1 ? "set" : "sets"}`)}</span>
+                    : <span className="fact st gray">To Do</span>}
               </div>
             </div>
             {/* NOW is the one row you are standing on. It was .pill-subdued,
@@ -844,13 +868,30 @@ export default function SessionScreen({
           the shell has stepped its tab bar and dock aside (gym/sessionChrome). */}
       {!current.skipped && (
         <div className="logbar">
-          {cond
-            ? <button className="btn btn-primary btn-launch btn-lg" onClick={() => setClockOpen(true)}>
-                {logged.length === 0 ? "Start the Clock" : "Run It Again"}
+          {/* THE SECOND HALF OF THE BAR (2026-09-17). Once the plan is done,
+              logging another set is the unusual move and moving on is the
+              common one, so they swap places: the extra set keeps a secondary
+              button (it is still one tap, nothing is taken away) and the
+              primary becomes what you actually meant. It says where it goes,
+              because "Done" alone on the last exercise of a session would be
+              a button that silently ends the workout. */}
+          {planComplete && (
+            cond
+              ? <button className="btn btn-secondary btn-lg" onClick={() => setClockOpen(true)}>Run It Again</button>
+              : <button className="btn btn-secondary btn-lg" onClick={log}>Log Another Set</button>
+          )}
+          {planComplete
+            ? <button className="btn btn-primary btn-launch btn-lg"
+                onClick={() => (upNextIdx >= 0 ? onMove(upNextIdx) : onFinish())}>
+                {upNextIdx >= 0 ? "Next Exercise" : "Finish Workout"}
               </button>
-            : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
-                {logButtonLabel(planEx, workLogged, draft ?? undefined)}
-              </button>}
+            : cond
+              ? <button className="btn btn-primary btn-launch btn-lg" onClick={() => setClockOpen(true)}>
+                  {logged.length === 0 ? "Start the Clock" : "Run It Again"}
+                </button>
+              : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
+                  {logButtonLabel(planEx, workLogged, draft ?? undefined)}
+                </button>}
         </div>
       )}
 
@@ -880,7 +921,8 @@ export default function SessionScreen({
           mode="new"
           library={library}
           history={history}
-          onSave={(draft) => { onAddMidSession(draft); setAddOpen(false); }}
+          alsoOnDay={programDay ? { dayName: programDay.name, value: addToDay, onChange: setAddToDay } : undefined}
+          onSave={(draft) => { onAddMidSession(draft, !!programDay && addToDay); setAddOpen(false); }}
           onCancel={() => setAddOpen(false)}
         />
       )}

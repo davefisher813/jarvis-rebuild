@@ -50,14 +50,77 @@ describe("InsightsPage", () => {
     render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={workouts} metricDefs={[sleep]} metricLogs={logs} logs={none} muscleMap={new Map([["k1", ["chest"]]])} cards={null}
       onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
     expect(screen.getByText("1 of 1 Working sets mapped")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("28 Days"));
+    fireEvent.click(screen.getByText("30 Days"));
     expect(screen.getByText("3 of 3 Working sets mapped")).toBeInTheDocument();
+    // AMENDED 2026-09-16: the basis is kept, not printed on the card's face
+    // (Dave: "this is not a manual"). <details> renders its content whether or
+    // not it is open, so the law still reads the words; what changed is that
+    // they are behind a summary that names the question.
+    expect(screen.getByText("What Is Being Compared")).toBeInTheDocument();
     expect(screen.getByText(/Spans the sessions, not only this period/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Strength" }));
     expect(screen.getByText("3 sessions in the period")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Rest and Readings" }));
-    expect(screen.getByText(/2 of 28 days logged · 26 without a log/)).toBeInTheDocument();
+    // AMENDED 2026-09-16 (Dave's Rest and Readings screenshot). The row said
+    // "Not logged · No log in 7 days" -- the same fact twice -- and the logged
+    // form ran to three clauses whose third was the second subtracted from the
+    // period. Two facts: when it last happened, and how much of the window is
+    // covered.
+    expect(screen.getByText(/2 of 30 days/)).toBeInTheDocument();
+    expect(screen.queryByText(/without a log/), "the subtraction is not printed").toBeNull();
   });
+  // THE OVERVIEW CARD IS A CHOICE (Dave 2026-09-18: "I have no way to select
+  // exercises"). It picked the biggest comparable change and showed it, full
+  // stop: the one exercise on the page you could not change. The pick is
+  // still the default, and it says on the card that it is one.
+  it("lets the overview card be pointed at any exercise, and back at the default", () => {
+    const two = [...workouts, w("d", "2026-09-08", 95, "k2", "Lat Pull Down"), w("e", "2026-09-12", 115, "k2", "Lat Pull Down")];
+    const onOpenLift = vi.fn();
+    render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={two} metricDefs={[sleep]} metricLogs={logs} logs={none} muscleMap={new Map()} cards={null}
+      onOpenLift={onOpenLift} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
+    // The default, and the card says it chose its own subject.
+    const head = () => document.querySelector(".ins-card .ins-head")!;
+    expect(head()).toHaveTextContent("Incline Bench");
+    expect(screen.getByText("Biggest gain")).toBeInTheDocument();
+
+    // Point it somewhere else: the head names it and the numbers follow.
+    fireEvent.click(screen.getAllByLabelText("Choose exercise")[0]!);
+    fireEvent.click(screen.getByText("Lat Pull Down"));
+    expect(head()).toHaveTextContent("Lat Pull Down");
+    expect(screen.getByText("+20 lb since Sep 8")).toBeInTheDocument();
+    // A chosen exercise is not the automatic pick, so it stops claiming to be.
+    expect(screen.queryByText("Biggest gain")).toBeNull();
+    // And View Sets still opens the exercise it is now about.
+    fireEvent.click(screen.getAllByText("View Sets")[0]!);
+    expect(onOpenLift).toHaveBeenCalledWith(expect.objectContaining({ name: "Lat Pull Down" }));
+
+    // Back to the default, which is one of the answers, not a Clear button.
+    fireEvent.click(screen.getAllByLabelText("Choose exercise")[0]!);
+    fireEvent.click(screen.getByText("Biggest Gain"));
+    expect(head()).toHaveTextContent("Incline Bench");
+    expect(screen.getByText("Biggest gain")).toBeInTheDocument();
+  });
+
+  // A lift you picked that has nothing to compare keeps its head, so the
+  // choice stays on screen and changeable. What it does NOT do is explain
+  // what a comparison would need (Dave 2026-09-18: "Instructional subtext.
+  // It shouldn't be anywhere") -- the missing chart already says that, and
+  // the counts it does have are facts.
+  it("keeps the card and its picker when the chosen lift has no comparison", () => {
+    const one = [...workouts, w("d", "2026-09-08", 95, "k2", "Lat Pull Down")];
+    render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={one} metricDefs={[sleep]} metricLogs={logs} logs={none} muscleMap={new Map()} cards={null}
+      onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
+    fireEvent.click(screen.getAllByLabelText("Choose exercise")[0]!);
+    fireEvent.click(screen.getByText("Lat Pull Down"));
+    expect(document.querySelector(".ins-card .ins-head")).toHaveTextContent("Lat Pull Down");
+    expect(screen.queryByText(/No two sessions at the same rep count/), "no manual").toBeNull();
+    expect(screen.queryByText(/are what it takes/), "nor the other wording of it").toBeNull();
+    // The counts it has, instead of a paragraph about the one it has not.
+    expect(screen.getByText("1 session in the period")).toBeInTheDocument();
+    expect(screen.getByText("1 Recorded in all")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Choose exercise").length, "still changeable").toBeGreaterThan(0);
+  });
+
   it("is honest when there is nothing", () => {
     render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={[]} metricDefs={[]} metricLogs={[]} logs={none} muscleMap={new Map()} cards={null}
       onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
@@ -75,7 +138,7 @@ describe("AllDataPage", () => {
   // still proves: the same onDelete, with the same record.
   it("filters by kind and day, opens a record, and offers Delete behind the row's options", () => {
     const onFilter = vi.fn(), onOpen = vi.fn(), onDelete = vi.fn();
-    const filter = { category: "all" as const, range: "28d" as const, period: periodFor("28d", today), date: null, query: "" };
+    const filter = { category: "all" as const, range: "30d" as const, period: periodFor("30d", today), date: null, query: "" };
     const { rerender } = render(<AllDataPage view="data" onView={() => {}} records={records} filter={filter} onFilter={onFilter} today={today} scrollRef={{ current: 0 }} onOpen={onOpen} onDelete={onDelete} onExport={() => {}} />);
     expect(screen.getByText("Push")).toBeInTheDocument();
     expect(screen.getByText("Oats")).toBeInTheDocument();

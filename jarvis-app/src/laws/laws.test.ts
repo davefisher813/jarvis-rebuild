@@ -853,6 +853,17 @@ describe("LAW: one filled red per screen", () => {
       // one capsule in the card that spends real minutes rather than deferring
       // something. The rows under it keep the tinted .pill-act they had.
       ".ruled .stream-card .pill-act.pill-go",
+      // The Tasks list's door to Focus (Dave 2026-09-18: "that focus button
+      // should be Jarvis red"), which is the same ruling he gave Today's
+      // Start pill two days earlier. It replaced Pick One, a full-width red
+      // FILL: the claim on the screen has not grown, it has shrunk to the
+      // size of a control, and it is still the one thing on the page that
+      // starts work rather than filtering it. The tinted version it shipped
+      // as read, on the dark theme, as dark red words inside a dark red
+      // capsule. The page's other primary is the empty state's New Task,
+      // which is gated on counts.all === 0 while this is gated on
+      // counts.all > 0, so the two can never paint at once.
+      ".hdr-controls .tasks-focus",
       ".bench-act.prim", ".chip.chip-on",
       // Small round controls whose whole body is the control.
       ".ob-check-row", ".convo-send", ".voice-mic", ".voice-orb",
@@ -895,7 +906,7 @@ describe("LAW: one filled red per screen", () => {
     const EXCLUSIVE: Record<string, string> = {
       "tasks/screens/ReminderDetailSheet.tsx": "the linked verb and Mark Done are the two arms of one ternary",
       "messages/MessagesFlow.tsx": "sweep / toss / autoOffer are one if-else chain; the rest are separate views",
-      "upnext/UpNextFlow.tsx": "three mutually exclusive branches of one switch",
+      "upnext/FocusScreen.tsx": "Start Now and Done are the two arms of one ternary; only one is ever mounted",
       "gym/GymFlow.tsx": "Create a Program and Start are gated on !program vs program",
       "brain/HealthBody.tsx": "Resume Workout renders only while a session is live, Start Workout only while none is; one ternary (2026-09-14, the approved Health design: no competing start beside Resume)",
       "notes/screens/AISheet.tsx": "Apply, Insert After the Caret and Retry are one slot on three exclusive branches: a reply that fits, a reply over words that changed, a failed call (2026-09-14, the writing system, wave 4)",
@@ -2815,7 +2826,7 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
     // hands the same What Now to LifeFlow, and LifeFlow passes it through.
     const shell = read(join(SRC, "shell/AppShell.tsx"));
     expect(shell, "and AppShell actually wires it to the same What Now the lightning bolt uses")
-      .toMatch(/<LifeFlow[^>]*onWhatNow=\{\(\) => void openWhatNow\(\)\}/);
+      .toMatch(/<LifeFlow[^>]*onWhatNow=\{openFocus\}/);
     const life = read(join(SRC, "life/LifeFlow.tsx"));
     expect(life, "LifeFlow passes it through untouched").toMatch(/<TasksFlow[^>]*onWhatNow=\{onWhatNow\}/);
   });
@@ -2874,12 +2885,67 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
   // portal fixed to its capsule, so nothing overflows sideways and nothing
   // needs a "more" mark. The counts the chips carried live inside the
   // view menu, one per option.
-  it("the Tasks head is three menus, not chip rows", () => {
+  // REVERSED 2026-09-17, BY THE SAME PERSON (Dave, the Unified Headers
+  // handoff: "unify the headers of Tasks, Reminders, Notes, Projects and
+  // Goals using the attached mockups", and its mockup of this exact page).
+  //
+  // The 2026-09-02 ruling above -- one line of dropdowns, no chip rows --
+  // was made about a page carrying two big buttons, six filter chips, a row
+  // of area chips AND a floating card: six things before the first task.
+  // The dropdown line fixed that, and then held every VIEW behind a menu on
+  // the one page in the app where the view is the thing you change most.
+  //
+  // What the handoff keeps from the old ruling is the part that mattered:
+  // ONE row, never wrapping, and nothing in it but workflow state. Area and
+  // Group are still menus and still one tap away, in the options sheet,
+  // which is now the same control on all five pages.
+  //
+  // AMENDED 2026-09-17, SAME DAY, BY MEASUREMENT (Dave, on a photograph of
+  // the row mid-drag: "Look at what happens to the chips when they slide.
+  // This is simply not going to work. Either trim the amount down, use a
+  // dropdown idk"), twice more that day, and SETTLED 2026-09-18: "All of
+  // these chips that are on the second row should be on the first row...
+  // It should be one line across on every single page. If you drop down,
+  // make the chips drop down so everything is on one row directly across."
+  //
+  // The chips were tried four ways in a day and every one of them ran into
+  // the same wall: a chip row has to fit its WHOLE list on the screen. Four
+  // chips with counts measure 458px of content in a 361px row. Without
+  // counts, 351. Add the Area control this page needs and it is 429, or 522
+  // once Group joins it. There is no arrangement of chips that holds seven
+  // views and two cuts at phone width, and there never was.
+  //
+  // A menu shows one answer and hands its list to a panel, so it costs the
+  // line one capsule whatever it holds. So the header is one line:
+  //
+  //     Today  |  Area  |  Group
+  //
+  // and the views got back everything the chips had taken off them: all
+  // seven, in the handoff's order, each with its count. Overdue, Daily and
+  // From Email are not in the options sheet any more, because they were
+  // never secondary tools -- they are views, and this is where views live.
+  //
+  // The options sheet keeps what it should have kept all along: Select
+  // Tasks and Upload a Syllabus. Things that do something.
+  it("the Tasks views are one menu on a one-line header, with the cuts beside them", () => {
     const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
-    expect(page, "no chip row survives on the page").not.toMatch(/ChipRow|chip-row/);
-    expect(page.match(/<HeadMenu/g)?.length, "three menus: view, area, group").toBe(3);
-    expect(page, "the view menu leads, with the list's count and every filter's count")
-      .toMatch(/lead\s+ariaLabel="Show"[\s\S]*?count=\{items\.length\}[\s\S]*?options=\{FILTERS\.map\(\(f\) => \(\{ value: f, label: FILTER_LABEL\[f\], count: counts\[f\] \}\)\)\}/);
+    expect(page, "the views are the shared header's menu").toMatch(/views=\{views\}/);
+    expect(page, "and every filter this page has is in it, with its count")
+      .toContain("const views: HeaderView[] = FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] || undefined }));");
+    expect(page, "no view was left behind in the options sheet")
+      .not.toMatch(/<OptionsSheet title="Tasks Options"[\s\S]*?FILTER_LABEL/);
+    expect(page, "and there is no chip row left to overflow").not.toMatch(/hdr-chips|LEAD_FILTERS|MORE_FILTERS/);
+    // TWO CUTS, ON THE SAME LINE. The same two HeadMenus this page has always
+    // had, after the view, left to right.
+    expect(page.match(/<HeadMenu/g)?.length, "two menus: Area and Group").toBe(2);
+    expect(page, "both are on the header's one control line")
+      .toMatch(/drops=\{[\s\S]*?ariaLabel="Area"[\s\S]*?ariaLabel="Group by"[\s\S]*?\)\}/);
+    expect(page, "and neither is a sheet row")
+      .not.toMatch(/<OptionsSheet title="Tasks Options"[\s\S]*?<HeadMenu/);
+    expect(page, "nothing is pinned beside anything").not.toMatch(/\bmenu=\{/);
+    // The header spends one line and the page does not add a second.
+    const hdr = read(join(SRC, "shared/LifeHeader.tsx"));
+    expect(hdr).toMatch(/<div className="hdr-controls">[\s\S]{0,240}?ariaLabel="View"[\s\S]{0,300}?\{drops\}\s*<\/div>/);
     const menu = read(join(SRC, "shared/HeadMenu.tsx"));
     expect(menu, "the panel is a portal fixed to the capsule, never clipped by a card")
       .toMatch(/createPortal\(/);
@@ -2912,39 +2978,66 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
   // to. Pick One survives underneath as the fallback for a caller that
   // mounts this page without a start card, exactly the way it already
   // survives without onWhatNow, so the law still has a fill to point at.
-  it("the Tasks page carries one decision killer, full width", () => {
+  // ONE DECISION KILLER, AND IT IS NOT A SLAB ANY MORE (Dave 2026-09-18:
+  // "that massive pick one chip looks terrible... combine focus and pick one
+  // and roll it all under focus"). Pick One was a full-width red fill under
+  // the header that named nothing and opened a sheet to explain itself. The
+  // sheet is gone into Focus, so what is left on this page is a door: one
+  // control on the line the cuts already own, and no red fill at all.
+  it("the Tasks page's door to Focus is a control, not a fill", () => {
     const src = page();
     expect(src, "the pair is gone").not.toMatch(/cta-pair|onOverwhelmed/);
-    // Anchored on the fallback branch itself: the overwhelmed exit wears
-    // .pick-one too, and it is the first one in the file.
-    const row = src.slice(src.indexOf("onPickOne && counts.all > 0"));
-    const body = row.slice(0, row.indexOf("</div>"));
-    expect(body, "the fallback fill is still the fill, and it has the row").toMatch(/btn btn-primary btn-lg btn-block/);
-    expect(body, "nothing sits beside it").not.toMatch(/OVERWHELM_ENTER/);
+    expect(src, "and the slab is gone with it").not.toMatch(/btn btn-primary btn-lg btn-block/);
+    expect(src, "the door sits on the control line").toMatch(/className="tasks-focus"/);
+    expect(src, "and it is the only thing that opens Focus from here")
+      .toBe(src.replace(/onPickOne/g, "onPickOne"));
+    expect(src.match(/onClick=\{onPickOne\}/g)?.length, "one door").toBe(1);
     // And the card that stands in front of it carries exactly one primary.
     const card = read(join(SRC, "tasks/screens/StartCard.tsx"));
     expect(card.match(/btn-primary/g)?.length, "one primary on the card").toBe(1);
     expect(card, "which names what it picked").toMatch(/\{pick\.task\.data\.text\}/);
-    expect(card, "and says what is ready on it").toMatch(/\{action\.ready\}/);
-    expect(card, "and can be asked why").toMatch(/Why This/);
+    expect(card, "and says what is ready on it").toMatch(/action\.ready/);
+    // IT SAYS WHY ON ITS FACE (2026-09-18). It used to be asked, through a
+    // Why This link into a sheet -- two taps for one line, and the line was
+    // sometimes "nothing else is closer to due", which was the tell that the
+    // pick had no reason. startPick makes no such pick now, so the reason is
+    // printed on the card. Anchored on the JSX, not the file: the note above
+    // this component still uses the old words to say what it replaced.
+    expect(card, "the reason is printed, not hidden behind a link")
+      .toMatch(/<span className="fact">\{line\}<\/span>/);
+    expect(card, "and the reason leads the line")
+      .toMatch(/const line = \[reason, action\.ready\]\.filter\(Boolean\)/);
+    expect(card, "and no sheet opens off this card at all").not.toMatch(/createPortal|useState/);
   });
 
-  it("Just This One is an action on the What Now sheet, wired to the same flag", () => {
-    const sheet = read(join(SRC, "tasks/screens/RightNowSheet.tsx"));
-    expect(sheet, "the sheet offers it under the same vocabulary").toMatch(/onJustThisOne && <button className="btn btn-secondary btn-block" onClick=\{onJustThisOne\}>\{OVERWHELM_ENTER\}<\/button>/);
-    const shell = read(join(SRC, "shell/AppShell.tsx"));
-    expect(shell, "the shell sets the day-keyed flag and goes to the list")
-      .toMatch(/onJustThisOne=\{\(\) => \{ setWhatNow\(null\); setOverwhelmed\(true, todayISO\(\)\); goLife\("tasks"\); \}\}/);
+  // JUST THIS ONE MOVED HOME (2026-09-18). It was an action on the What Now
+  // sheet, which Focus replaced. It is a mode of the Tasks LIST, not of the
+  // screen that proposes a task, so it belongs to that list's own options --
+  // and it is still one flag, still day-keyed, still heard by the page.
+  it("Just This One is an action in the Tasks options, wired to the same flag", () => {
+    const src = page();
+    expect(src, "offered under the same vocabulary, in the options sheet")
+      .toMatch(/key: "one", label: OVERWHELM_ENTER/);
+    expect(src, "and never while it is already on").toMatch(/onJustThisOne && !overwhelmed/);
     const flow = read(join(SRC, "tasks/TasksFlow.tsx"));
+    expect(flow, "the flow sets the day-keyed flag")
+      .toMatch(/onJustThisOne=\{\(\) => \{ haptics\.selection\(\); setOverwhelmed\(setOverwhelmedFlag\(true, today\)\); \}\}/);
     expect(flow, "a mounted Tasks page hears the write").toMatch(/subscribeOverwhelmed\(\(\) => setOverwhelmed\(loadOverwhelmed\(todayISO\(\)\)\)\)/);
+    expect(existsSync(join(SRC, "tasks/screens/RightNowSheet.tsx")), "the sheet it left is gone").toBe(false);
   });
 
   // Two reds of equal weight side by side is exactly what Law 4 rations.
-  // Bare `.btn` is press-3 with `color: var(--tint)` -- red text -- so the
-  // secondary beside the sheet's red fill must name a neutral variant.
+  // Bare `.btn` is press-3 with `color: var(--tint)` -- red text -- so every
+  // quiet action beside a red fill has to name a neutral variant. The sheet
+  // this was written against is gone (2026-09-18); the screen that replaced
+  // it, Focus, is where the rule now has to hold: one fill, and everything
+  // beside it secondary.
   it("the quiet CTA is neutral, not accent-coloured text beside a red fill", () => {
-    const sheet = read(join(SRC, "tasks/screens/RightNowSheet.tsx"));
-    expect(sheet, "the alternative uses the neutral variant").toMatch(/btn btn-secondary btn-block" onClick=\{onJustThisOne\}/);
+    const focus = read(join(SRC, "upnext/FocusScreen.tsx"));
+    for (const m of focus.matchAll(/className="btn ([a-z- ]*)"/g)) {
+      const cls = m[1] ?? "";
+      expect(/btn-primary|btn-secondary/.test(cls), "bare .btn beside a fill: " + cls).toBe(true);
+    }
     // The CSS this relies on: bare .btn really is accent text, so if that
     // ever changes this law should be revisited rather than silently kept.
     expect(CSS, "bare .btn is still accent text, which is why secondary is required")
@@ -3277,12 +3370,18 @@ describe("LAW 10: one taxonomy -- the category is the area", () => {
 
   it("the section head count is a count, never a score", () => {
     const page = read(join(SRC, "bigger/BiggerPicturePage.tsx"));
-    const heads = page.slice(page.indexOf("sections.map"));
-    const section = heads.slice(0, heads.indexOf("Working Toward"));
-    // The single frame counts goals plus loose projects; the ruled lenses
-    // (2026-09-02) count through catHead(c, n), one kind of thing per lens.
-    expect(section, "items shown, not percent done").toMatch(/\{mine\.length \+ loose\.length\}|catHead\(c, (?:mine|loose)\.length\)/);
-    expect(section).not.toMatch(/pct|%/);
+    // TWO HEAD SHAPES, ONE RULE (2026-09-18). The ruled lenses still count
+    // through catHead(c, n) -- items shown, never percent done.
+    const cat = page.slice(page.indexOf("const catHead ="));
+    expect(page, "items shown, not percent done").toMatch(/\{mine\.length \+ loose\.length\}|catHead\(c, (?:mine|loose)\.length\)/);
+    expect(cat.slice(0, cat.indexOf("</div>")), "and the head itself does no arithmetic").not.toMatch(/pct|%/);
+    // The card view's shelf head carries NO number, which is Apple Music's
+    // own shape (Dave: "Reference the formatting of Apple Music it's
+    // perfect") and satisfies this law the short way: a head with nothing to
+    // read cannot be read as a score. What it may never grow is one.
+    const shelves = [...page.matchAll(/<CardShelf[^>]*>/g)].map((m) => m[0]);
+    expect(shelves.length, "the card view heads its shelves").toBeGreaterThan(0);
+    for (const h of shelves) expect(h, "no number on a shelf head").not.toMatch(/pct|%|length/);
   });
 });
 
@@ -3724,7 +3823,11 @@ describe("LAW 15: the gym speaks one grammar", () => {
     // A set's numbers stay at the grouped-row 16px without the skin.
     // UP-PLAT-09 (2026-09-06): still 16px, now times the text scale like
     // every other font-size in the app.
-    expect(css).toMatch(/\.set-chip \.conn-name\s*\{\s*font-size:\s*calc\(16px \* var\(--type-scale\)\)/);
+    // AMENDED 2026-09-18: the chip stopped restating that 16px and takes it
+    // from --t-name, the one place the name treatment is defined. Same
+    // number, one owner -- which is the whole point of the type law.
+    expect(read(SRC + "/styles/jarvis-design-system.css"))
+      .toMatch(/--t-name:\s*calc\(16px \* var\(--type-scale\)\)/);
     // No radius, no gap, no elevation escalation inside a sheet: a set row
     // reads exactly like its neighbouring .xs-row grouped-table rows.
     expect(chip).not.toMatch(/border-radius/);
@@ -4605,7 +4708,7 @@ describe("LAW: the headliner offers no button that only rearranges the app", () 
     // whether a block is running (see the comment at hl-acts). Either way it
     // renders only when the flow handed over something for it to do.
     expect(head, "the primary verb renders only when it can be honoured").toMatch(/\{primary && \(/);
-    expect(head, "Start is that verb until a block runs").toContain('{ label: "Start", run: onStart }');
+    expect(head, "Start Now is that verb until a block runs (Dave 2026-09-17: the countdown moved to Focus)").toContain('{ label: "Start Now", run: onStart }');
     expect(head, "Tomorrow renders only when it can be honoured").toMatch(/\{onTomorrow && </);
   });
 
@@ -4639,7 +4742,7 @@ describe("LAW: the open deck is not offered three times over", () => {
     const src = read(join(SRC, "today/TodayFlow.tsx"));
     const hits = (src.match(/>Pick Something</g) ?? []).length;
     // One: the open-gap row, where picking something IS the answer.
-    expect(hits, "only the open-gap row may offer Pick Something").toBe(1);
+    expect(hits, "the open-gap row calls its door Focus now (Dave 2026-09-17); nothing else may say Pick Something").toBe(0);
   });
 
   it("only one control states how deep the deck is", () => {
@@ -5234,6 +5337,58 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     for (const u of uses) expect(u[2], `var(--vv-${u[1]}) with no fallback`).toBeTruthy();
   });
 
+  // A ROW TITLE OUTWEIGHS ITS OWN SUBTEXT (Dave 2026-09-16, the Push Day 1
+  // screenshot: "the titles of stuff, like the titles of exercise, it looks
+  // the same as what's under it. So it just all blends together and you can't
+  // read anything. So there's no hierarchy. Why not use bolding").
+  //
+  // He was right by arithmetic. .conn-name was 17px at --w-normal in --tx-1
+  // and .conn-meta is 15px at the same weight in --tx-3 -- two pixels and,
+  // since the two-tier ink ramp collapsed --tx-2 and --tx-3 on 2026-09-14,
+  // one step of grey. Nothing else separated them.
+  //
+  // The fix has to be WEIGHT and not a quieter grey, because the quieter grey
+  // is already ruled out for contrast and browserWalk measures it. This law
+  // is that the ladder exists, stated as the comparison rather than as two
+  // numbers, so a future type pass has to keep the relationship and not just
+  // the values.
+  it("a row title is heavier than the line under it", () => {
+    const ds = read(join(SRC, "styles/jarvis-design-system.css"));
+    // AMENDED 2026-09-18: the name treatment is a token now (--t-name,
+    // --w-name, --track-name), so a weight is read through one hop of
+    // indirection -- --w-name resolves to --w-semi resolves to 700. The
+    // relationship this law is about is unchanged; what changed is that
+    // there is one place to state it instead of twelve.
+    const weight = (n: string): number => {
+      const v = new RegExp(`--${n}:\\s*([^;]+);`).exec(ds)?.[1]?.trim() ?? "";
+      const ref = /^var\(--([a-z-]+)\)$/.exec(v);
+      if (ref) return weight(ref[1]!);
+      return Number(/^\d+$/.exec(v)?.[0] ?? "0");
+    };
+    const nameRule = /\.conn-name \{[^{}]*\}/.exec(ds)?.[0] ?? "";
+    const metaRule = /\.conn-meta \{[^{}]*\}/.exec(ds)?.[0] ?? "";
+    const nameW = weight(/font-weight:\s*var\(--([a-z-]+)\)/.exec(nameRule)?.[1] ?? "");
+    const metaW = weight(/font-weight:\s*var\(--([a-z-]+)\)/.exec(metaRule)?.[1] ?? "");
+    expect(nameW, "the row title states a weight at all").toBeGreaterThan(0);
+    expect(metaW, "and so does its subtext").toBeGreaterThan(0);
+    expect(nameW, "the title has to outweigh the line under it").toBeGreaterThan(metaW);
+    // AND IT MATCHES THE SCREEN DAVE APPROVED. .ex-name is the Exercises
+    // page's row title and has been --w-semi all along, which is why that one
+    // page read right to him while the rest looked flat. The first attempt
+    // shipped --w-medium and he could not see it on SF; a Linux preview had
+    // made it look dramatic because the fallback font has only two weights.
+    // Pinning them together is what stops that being re-derived downward.
+    const exW = weight(/\.ruled \.ex-name \{[^{}]*font-weight:\s*var\(--([a-z-]+)\)/.exec(RULED)?.[1] ?? "");
+    expect(exW, "the approved page's row title states a weight").toBeGreaterThan(0);
+    expect(nameW, "and every other row title matches it").toBe(exW);
+    // They match because they are now the SAME DECLARATION, not two that
+    // happen to agree (2026-09-18). That is the part that kept drifting.
+    expect(nameW, "the approved page's weight is what the token holds").toBe(700);
+    // And the ink ramp it cannot lean on instead is still two-tier, so this
+    // law is the only thing holding the hierarchy up.
+    expect(ds).toMatch(/--tx-2: #D2D2D6; --tx-3: #D2D2D6;/);
+  });
+
   it("the bar itself still meets the tap minimum", () => {
     // The other half of the same contract rule: reachable AND 44pt.
     expect(CSS).toMatch(/\.sheet-bar-cancel,\s*\.sheet-bar-save\s*\{[^{}]*min-height:\s*44px/);
@@ -5283,7 +5438,12 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     // A height, not a max-height: every task row is then the same height
     // whether or not it carries a chip and whether or not the line ran out
     // of room. 57.05 / 59.80 before, 59.80 for all of them after.
-    expect(b, "one line box tall").toMatch(/height:\s*calc\(0\.8125em \+ 6px\)/);
+    // AMENDED 2026-09-18: the height is no longer a hand-fitted constant. It
+    // is stated as the two things it must cover -- one line of subtext, one
+    // chip -- because --t-sub raised that line from 12.5px to 14px and the
+    // old 0.8125em stopped covering it above 1.15x text scale. Still a
+    // height and not a max-height, which is what this law is really about.
+    expect(b, "one line box tall").toMatch(/height:\s*max\(calc\(var\(--t-sub\) \* 1\.3\), calc\(10px \* var\(--type-scale\) \* 1\.3 \+ 6px\)\)/);
     expect(b, "a second flex line is clipped, never shown").toMatch(/overflow:\s*hidden/);
     expect(b, "and the first line is packed to the top, never centred over two")
       .toMatch(/align-content:\s*flex-start/);
@@ -5323,8 +5483,10 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     expect(PAGE, "the row asks for the label without the timestamp").toMatch(/<Provenance compact/);
     const r = ruleOf(RULED, ".ruled .r-k-one > .prov-line");
     expect(r, "provenance is sized for the line it now shares").toBeTruthy();
-    // 15px meta type is taller than the 19px clamp: it would be sliced.
-    expect(r).toMatch(/font-size:\s*calc\(12\.5px/);
+    // Meta type is taller than the 19px clamp: it would be sliced. AMENDED
+    // 2026-09-18 (Catalog V5): the size is --t-caption now, the one stop the
+    // whole small end reads from, rather than a 12.5 written here alone.
+    expect(r).toMatch(/font-size:\s*var\(--t-caption\)/);
     // The 44px expansion is 13px of transparent border top and bottom, which
     // inside a clipped 19px line is cut off, and uncut would reach into the
     // title's own tap target. The full target lives on the sheet.
@@ -5353,16 +5515,30 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
   it("the clamp fits the chip and excludes a second line at every text scale", () => {
     const tokens = read(SRC + "/styles/jarvis-design-system.css");
     const lh = Number(/--lh-default:\s*([\d.]+)/.exec(tokens)![1]);
-    const rowFs = Number(/\.ruled \.task-row \.task-title \{[^}]*font-size: calc\(([\d.]+)px/.exec(RULED)![1]);
-    const metaFs = Number(/\.ruled \.r-goal \{[^}]*font-size: calc\(([\d.]+)px/.exec(RULED)![1]);
-    const chip = /\.ruled \.uchip \{[^}]*font-size: calc\(([\d.]+)px[^}]*padding:\s*([\d.]+)px/.exec(RULED)!;
-    const chipFs = Number(chip[1]), chipPadY = Number(chip[2]);
-    const clamp = /\.ruled \.r-k-one \{[^}]*height: calc\(([\d.]+)em \+ ([\d.]+)px\)/.exec(RULED)!;
-    const em = Number(clamp[1]), extra = Number(clamp[2]);
+    // AMENDED 2026-09-18: the row title's size is --t-name now, so it is read
+    // from the token rather than from the rule. The arithmetic below is
+    // unchanged -- and this is precisely why the token is worth having: the
+    // clamp is derived from the row's font size, so one definition means one
+    // thing to keep in step instead of twelve.
+    const rowFs = Number(/--t-name:\s*calc\(([\d.]+)px/.exec(tokens)![1]);
+    // The second line's size is --t-sub now, the one place it is defined.
+    const metaFs = Number(/--t-sub:\s*calc\(([\d.]+)px/.exec(tokens)![1]);
+    // AMENDED 2026-09-18 (Catalog V5): the chip reads --t-micro, so its size
+    // comes from the token the same way the row title and the subtext do.
+    const chip = /\.ruled \.uchip \{[^}]*font-size: var\(--t-micro\)[^}]*padding:\s*([\d.]+)px/.exec(RULED)!;
+    const chipFs = Number(/--t-micro:\s*calc\(([\d.]+)px/.exec(tokens)![1]);
+    const chipPadY = Number(chip[1]);
+    // AMENDED 2026-09-18: the clamp is no longer a hand-fitted constant. It
+    // states the two things it has to cover -- one line of subtext, and one
+    // chip -- and takes the taller. They cross at 1.15x text scale, which is
+    // why the single number it replaced could not hold both ends once the
+    // subtext token moved that line from 12.5px to 14px.
+    const clamp = /\.ruled \.r-k-one \{\s*height: max\(calc\(var\(--t-sub\) \* ([\d.]+)\), calc\(([\d.]+)px \* var\(--type-scale\) \* ([\d.]+) \+ ([\d.]+)px\)\)/.exec(RULED)!;
+    const subLh = Number(clamp[1]), cFs = Number(clamp[2]), cLh = Number(clamp[3]), cPad = Number(clamp[4]);
     const rowGap = Number(/\.ruled \.r-k \{[^}]*gap: ([\d.]+)px/.exec(RULED)![1]);
+    void rowFs;
     for (const scale of [1, 1.1, 1.2, 1.3, 1.4]) {
-      // The em resolves against the row's own font size, so the clamp scales.
-      const box = em * rowFs * scale + extra;
+      const box = Math.max(metaFs * scale * subLh, cFs * scale * cLh + cPad * 2);
       const chipH = chipFs * scale * lh + chipPadY * 2;
       const textH = metaFs * scale * lh;
       expect(box, `the chip fits at ${scale}x`).toBeGreaterThanOrEqual(chipH - 0.001);
@@ -6124,7 +6300,9 @@ describe("a block made from a task links back to it (TRACE-01, 2026-09-07)", () 
     expect(bad).toEqual([]);
     // A floor, so a rename of the field cannot pass this law by matching
     // nothing at all.
-    expect(seen).toBeGreaterThanOrEqual(5);
+    // Was 5 until 2026-09-18, when the What Now sheet and the one
+    // createEvent inside it were deleted with the Focus merge.
+    expect(seen).toBeGreaterThanOrEqual(4);
   });
 });
 

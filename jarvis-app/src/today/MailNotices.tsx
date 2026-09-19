@@ -379,7 +379,7 @@ export default function MailNotices({
             action={{
               label: loading
                 ? (n.kind === "meeting" ? "Booking…" : "Writing…")
-                : writable(n) && !draft ? (n.kind === "reply" ? "Draft" : n.action) : n.action,
+                : writable(n) && !draft ? (n.kind === "reply" ? "Write Back" : n.action) : n.action,
               onClick: () => act(n),
             }}
             // U4: "not right now" is not "not today". A snooze names a time

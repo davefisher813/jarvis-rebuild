@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import EntityStar from "../../shared/EntityStar";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
+import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
+import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
-import { Plus, Trash2, Clock, ListChecks, Check, Camera } from "../../shared/icons";
+import { Plus, Trash2, Clock, ListChecks, Check, Camera, Zap } from "../../shared/icons";
 import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
 import type { BurstSize } from "../../shared/completion";
@@ -614,6 +616,7 @@ export default function TasksPage({
   stalled = null,
   momentum,
   onPickOne,
+  onJustThisOne,
   onCalm,
   overwhelmed = false,
   onMoveAllToToday,
@@ -628,6 +631,8 @@ export default function TasksPage({
   personFor,
   title = "Tasks",
   segments,
+  query = "",
+  onQuery,
 }: {
   filter: TaskFilter;
   counts: Record<TaskFilter, number>;
@@ -689,10 +694,19 @@ export default function TasksPage({
   // when this page is the Tasks lens of the Life tab.
   title?: string;
   segments?: React.ReactNode;
+  /** THE SHARED HEADER'S SEARCH (Dave 2026-09-17, Unified Headers). Tasks had
+   *  no search at all: the only way to find a task by name was to read the
+   *  list. The query is the caller's state so it survives opening a task and
+   *  coming back (handoff rule 4), and the page filters what it was given
+   *  rather than asking the service for a second list. */
+  query?: string;
+  onQuery?: (q: string) => void;
   // THE DECISION KILLERS (Dave 2026-08-19, ADHD round). Pick One opens the
   // single best task for right now so the list never has to be read; Move
   // All resets an overdue pile in one tap instead of one tap per shame.
   onPickOne?: () => void;
+  /** Collapses the list to the one task, from this list's own options. */
+  onJustThisOne?: () => void;
   // F1: hide everything but the one smallest thing. A view, never a write.
   // The door in is on the What Now sheet (Fewer Buttons, 2026-09-02); the
   // page carries only the door out.
@@ -715,22 +729,44 @@ export default function TasksPage({
 }) {
   // Select mode owns the ids currently ON SCREEN, so a filter change or a
   // reload can never leave a selection pointing at rows that are gone.
-  const sel = useSelection(items.map((i) => i.id));
+  // WHAT THE HEADER'S SEARCH LEAVES (handoff rule 4: "Search supported
+  // title/body fields. If attachment content is not indexed, do not imply it
+  // was searched"). A task's text is what a task has, so that is what this
+  // searches, and the scope line below says so rather than implying more.
+  const q = query.trim().toLowerCase();
+  const shown = q ? items.filter((it) => it.data.text.toLowerCase().includes(q)) : items;
+  const sel = useSelection(shown.map((i) => i.id));
+  /** EVERY VIEW, IN ONE MENU, WITH ITS COUNT (Dave 2026-09-18: "If you drop
+   *  down, make the chips drop down so everything is on one row directly
+   *  across").
+   *
+   *  The handoff's four led a chip row; Overdue, Daily and From Email lived
+   *  in the options sheet because the row could not hold seven, and Done
+   *  came off it too when the Area control needed the line. A menu has no
+   *  such budget: it shows one answer and hands the list to a panel. So all
+   *  seven are back, in the handoff's order, each saying how many it holds --
+   *  which the chips never did.
+   *
+   *  Rule 2 of the same handoff: "Preserve the existing definitions and do
+   *  not reclassify data for visual consistency". Nothing here is redefined;
+   *  they are the FILTERS this page has always had. */
+  const views: HeaderView[] = FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] || undefined }));
+  const [optsOpen, setOptsOpen] = useState(false);
   // GROUP BY (ruled 2026-09-01: "a group-by dropdown"). Remembered within
   // the session, reset on launch, like the segment.
   const [groupBy, setGroupBy] = useState<GroupBy>(lastGroupBy);
   const setGroup = (g: GroupBy) => { lastGroupBy = g; setGroupBy(g); };
   // The stalled task's own row leads the first card; in select mode it
   // stays where it sorts, a plain row like the rest.
-  const stalledItem = stalled && !sel.active ? items.find((it) => it.id === stalled.id) ?? null : null;
-  const groups = groupItems(stalledItem ? items.filter((it) => it.id !== stalledItem.id) : items, groupBy, goalOf, today);
+  const stalledItem = stalled && !sel.active ? shown.find((it) => it.id === stalled.id) ?? null : null;
+  const groups = groupItems(stalledItem ? shown.filter((it) => it.id !== stalledItem.id) : shown, groupBy, goalOf, today);
   // LIFE-F-09 (2026-09-05): the Keep Going slot was keyed to the row that was
   // just completed, and completing a task is exactly what takes that row out
   // of the list being looked at (filters.ts:37: a done task lives only in
   // parts.done). Off the Done filter the suggestion therefore never reached
   // the screen at all. When its row is gone it takes the first seat in the
   // first card, the one the stalled row already uses, so it cannot miss.
-  const momentumHome = momentum && !items.some((it) => it.id === momentum.afterId) ? momentum.el : null;
+  const momentumHome = momentum && !shown.some((it) => it.id === momentum.afterId) ? momentum.el : null;
   const stalledRow = stalled && stalledItem ? (
     <TaskRow
       item={stalledItem} today={today} onToggle={onToggle} onOpen={onOpenTask}
@@ -748,33 +784,92 @@ export default function TasksPage({
           because the way out is the one control that must never move. */}
       <PageHeader
         title={title}
-        actions={
-          sel.active ? (
-            <BarText label="Done" strong onClick={sel.exit} />
-          ) : (
+        actions={sel.active ? <BarText label="Done" strong onClick={sel.exit} /> : undefined}
+        // THE SECONDARY TOOLS, IN ONE PLACE (handoff rule 7). Select, Upload
+        // a Syllabus, Area and Group were two glyphs in the bar and three
+        // capsules on a line; they are one control now, beside the title,
+        // the same control on all five pages.
+        headActions={sel.active ? undefined : <OptionsButton onClick={() => setOptsOpen(true)} label="Tasks Options" />}
+      >
+        {/* ONE HEADER, FIVE PAGES (Dave 2026-09-17). The tabs, then search
+            and a compact Add on one row, then one scrolling row of views.
+            What was here: the tabs, and a line of three dropdown capsules
+            whose first one hid every view behind a menu. */}
+        <LifeHeader
+          query={query}
+          onQuery={(v) => onQuery?.(v)}
+          placeholder="Search Tasks"
+          addLabel="New Task"
+          onAdd={() => onNew?.()}
+          views={views}
+          view={filter}
+          onView={(k) => onFilter?.(k as TaskFilter)}
+          scope={q ? {
+            count: shown.length,
+            where: `${FILTER_LABEL[filter]} tasks`,
+            ...(filter !== "all" ? { onAll: () => onFilter?.("all"), allLabel: "Search all tasks" } : {}),
+          } : undefined}
+          // WHY THE ROWS YOU EXPECTED ARE NOT THERE (handoff rule 7). With no
+          // control on the chip line, this line is what keeps an Area cut and
+          // an off-row view from being invisible: it names them and clears
+          // them in one tap. Nothing shows when nothing is filtering.
+          // AREA AND GROUP, ON THE SAME LINE AS THE VIEW (Dave 2026-09-18:
+          // "everything is on one row directly across"). The same two
+          // HeadMenus the page has always had; each names its axis while
+          // nothing is picked and states the answer once something is, so
+          // the line itself says what is narrowing the list and no second
+          // line has to.
+          drops={(
             <>
-              {onDeleteMany && items.length > 0 && (
-                <BarText label="Select" onClick={() => sel.enter()} />
+              {categories && categories.length > 0 && (
+                <HeadMenu
+                  ariaLabel="Area"
+                  value={!catFilter || catFilter === "all" ? "all" : catFilter}
+                  label={!catFilter || catFilter === "all" ? "Area" : undefined}
+                  options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
+                  onPick={(v) => onCatFilter?.(v)}
+                />
               )}
-              {onUpload && <BarAction label="Upload a Syllabus" onClick={onUpload}><Camera className="ic" /></BarAction>}
-              <BarAction label="New Task" onClick={onNew}><Plus className="ic" /></BarAction>
+              <HeadMenu
+                ariaLabel="Group by"
+                value={groupBy}
+                label={groupBy === "none" ? "Group" : "By " + GROUP_LABEL[groupBy]}
+                options={(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => ({ value: g, label: GROUP_LABEL[g] }))}
+                onPick={(g) => setGroup(g as GroupBy)}
+              />
+              {/* THE DOOR TO FOCUS (Dave 2026-09-18: "that massive pick one
+                  chip looks terrible... combine focus and pick one and roll
+                  it all under focus"). It was a full-width red slab under
+                  the header that named nothing. Focus is where the proposal
+                  lives, so what is left here is the door: one control, the
+                  height of the cuts beside it, wearing the bolt the capture
+                  bar already uses for the same screen. */}
+              {onPickOne && counts.all > 0 && !overwhelmed && (
+                <button type="button" className="tasks-focus" onClick={onPickOne}>
+                  <Zap className="ic" />Focus
+                </button>
+              )}
             </>
-          )
-        }
-      />
-      {segments}
+          )}
+        >
+          {segments}
+        </LifeHeader>
+      </PageHeader>
 
-      {/* ONE DECISION KILLER (Fewer Buttons, Dave 2026-09-02, picked "Pick
-          One alone; Just This One lives inside it"). The row above the
-          head carries one red button. Just This One is an action on the
-          What Now sheet that button opens (the shell's RightNowSheet), so
-          the same ranking has one door. While the mode is on, the page IS
-          the one thing and this row is the way back out. */}
+      {/* THE WAY BACK OUT, and nothing else (2026-09-18). This row used to
+          carry Pick One, a full-width red fill that named nothing and opened
+          a sheet Focus has now absorbed. While Just This One is on, the page
+          IS the one thing, and this row is how you leave. */}
       {overwhelmed ? (
         <div className="pad-x pick-one">
           <button className="btn btn-block" onClick={onCalm}>{OVERWHELM_EXIT}</button>
         </div>
-      ) : startCard ? (
+      ) : startCard && !q && filter !== "done" ? (
+        // HIDDEN WHILE SEARCHING, AND IN DONE (handoff rule 6: "Hide the
+        // suggestion card during local search and in Done so it does not
+        // distract from browsing"). A card proposing what to start next, on
+        // top of the three results you went looking for, is the reason you
+        // cannot see them.
         // START NOW (2026-09-16, Dave: "No unexplained huge Pick One
         // button"). The red button that named nothing is a card that names
         // the task, says what is ready on it, and can be asked why. Pick
@@ -783,64 +878,15 @@ export default function TasksPage({
         // decision killer is never a dead button, only the weaker of the
         // two shapes.
         startCard
-      ) : onPickOne && counts.all > 0 && (
-        <div className="pad-x pick-one">
-          <button className="btn btn-primary btn-lg btn-block" onClick={onPickOne}>Pick One</button>
-        </div>
-      )}
+      ) : null}
 
-      {/* THE HEAD IS THE CONTROLS (Fewer Buttons, Dave 2026-09-02: "I don't
-          like all those floating buttons. There's way too many."; picked
-          "One line of dropdowns on the list head"). Counted from his
-          screenshot: two big buttons, a row of six filter chips, a row of
-          area chips, a floating card, then the head with its Group by
-          pill; six things before the first task. This line is the head
-          now, and it is the controls: the view on the left, the head's
-          own word with the list's count, opening every filter with its
-          count; the area and the grouping on the right. Every count the
-          chips carried is still one tap away, inside its menu. In the Just
-          This One mode the head states the mode and carries no menu, since
-          the list is one thing whatever the view says. */}
-      <div className="dd-line">
-        {overwhelmed ? (
-          <span className="dd dd-lead dd-static">{OVERWHELM_ENTER}</span>
-        ) : (
-          <>
-            <HeadMenu
-              lead
-              ariaLabel="Show"
-              value={filter}
-              label={FILTER_LABEL[filter]}
-              count={items.length}
-              options={FILTERS.map((f) => ({ value: f, label: FILTER_LABEL[f], count: counts[f] }))}
-              onPick={(v) => onFilter?.(v as TaskFilter)}
-            />
-            <span className="dd-sp" />
-            {categories && categories.length > 0 && (
-              <HeadMenu
-                ariaLabel="Area"
-                value={!catFilter || catFilter === "all" ? "all" : catFilter}
-                // The capsule names the control, like Group beside it (Dave
-                // 2026-09-02: "All areas should read Area to match Group");
-                // the menu's first option still says All Areas.
-                label={!catFilter || catFilter === "all" ? "Area" : undefined}
-                options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
-                onPick={(v) => onCatFilter?.(v)}
-              />
-            )}
-            {/* GROUP BY (ruled 2026-09-01: "a group-by dropdown"). Off by
-                default: the view already cuts the list, and heads on top
-                of a cut are a second cut nobody asked for. */}
-            <HeadMenu
-              ariaLabel="Group by"
-              value={groupBy}
-              label={groupBy === "none" ? "Group" : "By " + GROUP_LABEL[groupBy]}
-              options={(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => ({ value: g, label: GROUP_LABEL[g] }))}
-              onPick={(g) => setGroup(g as GroupBy)}
-            />
-          </>
-        )}
-      </div>
+      {/* THE MODE STILL STATES ITSELF. Just This One replaces the list with
+          one task, so it says so where the controls were. Everything else
+          that lived on this line -- the view, the Area, the Group -- is in
+          the chip row above or in the options sheet below. */}
+      {overwhelmed && (
+        <div className="dd-line"><span className="dd dd-lead dd-static">{OVERWHELM_ENTER}</span></div>
+      )}
 
       {/* THE DUPLICATE ADD BOX IS GONE (2026-08-21, Dave: "Add task type box
           makes no sense"). It was a plain text field that parsed dates and
@@ -851,7 +897,7 @@ export default function TasksPage({
       {/* The two bulk verbs a view can carry, both the neutral pill, both
           in the same seat under the head: an overdue pile resets in one
           tap instead of one tap per shame; a done list clears. */}
-      {filter === "overdue" && items.length > 0 && onMoveAllToToday && (
+      {filter === "overdue" && shown.length > 0 && onMoveAllToToday && (
         <div className="pad-x clear-done">
           <button className="btn btn-secondary" onClick={onMoveAllToToday}>Move All to Today</button>
         </div>
@@ -865,7 +911,7 @@ export default function TasksPage({
 
       {loading ? (
         <SkeletonRows />
-      ) : items.length === 0 ? (
+      ) : shown.length === 0 ? (
         <>
         {(momentumHome || notice) && <div className="card list-card-ruled">{momentumHome}{notice}</div>}
         <div className="empty-state">
@@ -892,7 +938,13 @@ export default function TasksPage({
         </div>
         </>
       ) : (
-        <div>
+        // THE LIST IS A BLOCK, WITH THE PAGE'S OWN GAP ABOVE IT (Dave
+        // 2026-09-17: "there's containers on the task page vertically don't
+        // follow spacing/border rules (way too close together)"). Measured at
+        // phone width: zero. The ruled list card carries its own page margin
+        // rather than a .pad-x wrapper, so it fell outside the rule that
+        // spaces two card blocks, and sat flush against the card above it.
+        <div className="task-list-block">
           {/* ONE CARD (Dave 2026-09-01: "Go with pic 1. Apply that
               everywhere"). The 08-18 library form put bare rows on the
               page ground; every other list on Today wears a card, and this
@@ -947,7 +999,7 @@ export default function TasksPage({
               Not shown on the done list, where "add a completed task" is not
               a thing anyone wants, and not shown while the overwhelmed view
               is deliberately collapsing the page to one thing. */}
-          {onNew && filter !== "done" && !overwhelmed && items.length > 0 && (
+          {onNew && filter !== "done" && !overwhelmed && shown.length > 0 && (
             // .row-act centres itself with `margin: auto`, which works in the
             // flex-column CARD its other 26 call sites live in and does
             // nothing in a plain block parent like this full-bleed list. The
@@ -962,6 +1014,30 @@ export default function TasksPage({
           found Add a Task permanently covered). Every other scrolling screen
           in the app already ends with one. */}
       <div className="screen-foot" />
+      {/* EVERY SECONDARY TOOL, ONE PLACE (handoff rule 7). Nothing here is
+          new: Area and Group are the SAME HeadMenu components that stood on
+          the line under the head, handed the same props in a row; Select and
+          Upload a Syllabus are the bar controls they replaced. Moving a
+          control is not rebuilding it. */}
+      {optsOpen && (
+        <OptionsSheet title="Tasks Options" rows={([
+          // JUST THIS ONE LIVES HERE NOW (2026-09-18). It was an action on
+          // the What Now sheet, which Focus replaced; it is a mode of THIS
+          // list, not of that screen, so it belongs to this list's options.
+          ...(onJustThisOne && !overwhelmed && counts.all > 1 ? [{
+            key: "one", label: OVERWHELM_ENTER,
+            onClick: () => { setOptsOpen(false); onJustThisOne(); },
+          }] : []),
+          ...(onDeleteMany && shown.length > 0 ? [{
+            key: "select", label: "Select Tasks",
+            onClick: () => { setOptsOpen(false); sel.enter(); },
+          }] : []),
+          ...(onUpload ? [{
+            key: "upload", label: "Upload a Syllabus",
+            onClick: () => { setOptsOpen(false); onUpload(); },
+          }] : []),
+        ] as OptionRow[])} onClose={() => setOptsOpen(false)} />
+      )}
       {onDeleteMany && (
         <SelectBar
           sel={sel}

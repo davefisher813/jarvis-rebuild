@@ -11,7 +11,7 @@ import { liftMeasureState, type LiftMeasure } from "./goalMeasures";
 import { activeMetrics, numericValue, type MetricDef, type MetricLog } from "./metrics";
 import { MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 import { identityLine, valueLine, type Chip, type Classification } from "./classify";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, liftTitle } from "../shared/casing";
 import { agoPhrase, agoPhraseLower } from "./summary";
 import { todayISO } from "../tasks/grouping";
 import { shortDate } from "../shared/dateFormat";
@@ -226,7 +226,7 @@ export default function LiftDetailScreen({
     <div className="screen ruled health-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">{name}</div>
+        <div className="nav-title">{liftTitle(name)}</div>
         <span className="nav-action"></span>
       </div>
 
@@ -327,7 +327,14 @@ export default function LiftDetailScreen({
               </svg>
               {sel != null && sessions[sel] && (
                 <div className="facts">
-                  <span className="fact cyan">{shortDate(sessions[sel]!.date)} · {formatSet({ kind, unit, timeUnit }, shownTop(sessions[sel]!))} · {kind === "weight_reps" ? "Est" : "Best"} {chartVals[sel]}{unit ? " " + unit : ""}</span>
+                  {/* THREE FACTS, THREE SPANS (2026-09-16). One span carrying
+                      two middots of its own is a sentence with punctuation in
+                      it; components.css draws the separator so no string has
+                      to. The hue stays on the date, which is the datum the
+                      tapped point is about. */}
+                  <span className="fact cyan">{shortDate(sessions[sel]!.date)}</span>
+                  <span className="fact">{formatSet({ kind, unit, timeUnit }, shownTop(sessions[sel]!))}</span>
+                  <span className="fact">{`${kind === "weight_reps" ? "Est" : "Best"} ${chartVals[sel]}${unit ? " " + unit : ""}`}</span>
                 </div>
               )}
               {/* Three facts in one grey run-on, and the two that matter --

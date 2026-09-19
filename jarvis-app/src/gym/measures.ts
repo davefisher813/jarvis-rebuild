@@ -1,5 +1,6 @@
 import type { Exercise, MeasureKind, SetEntry, SetLog } from "./types";
 import { comparable, loadStyleOf, lowerIsStronger, repLabel, sideSuffix, volumeFactor, weightLabel, weightStep, type LoadStyle } from "./equipment";
+import { capAfterNumber } from "../shared/casing";
 
 // Per-kind behavior in ONE place: what a set reads like, what the big in-gym
 // button says, which direction wins a PR, and whether volume means anything.
@@ -161,6 +162,56 @@ export function targetLine(ex: Exercise): string {
   if (!hasTarget({ kind: ex.kind, sets })) return `${n} ${entryNoun(ex.kind, n !== 1).toLowerCase()}`;
   if (isUniformStrip(ex.kind, sets)) return `${n} × ${formatSet(ex, sets[0]!)}`;
   return sets.map((s) => formatSet(ex, s)).join(", ");
+}
+
+/** THE PLAN AS A ROW'S VALUE, not as a sentence under its title (2026-09-16,
+ *  Dave's Push Day 1 screenshot: "the titles of exercise, it looks the same as
+ *  what's under it, so it all blends together").
+ *
+ *  targetLine() is the full reading and stays what it is -- the editor and the
+ *  session both want every number. A ROW wants a bounded value it can put in
+ *  its right slot beside the title, which is what every other list in this app
+ *  already does with its counts. So a uniform strip reads "3 × 275 lb × 5",
+ *  and a pyramid, whose full listing is three clauses long and the reason that
+ *  line wrapped in the first place, reads its count and leaves the numbers to
+ *  the editor the row opens.
+ *
+ *  Nothing is hidden that the row could honestly have held. */
+export interface PlanChip {
+  /** How many of them. */
+  count: number;
+  /** What they are: Sets, Rounds, Attempts, Times. */
+  noun: string;
+  /** What each one asks for, or null when the strip varies or has no target
+   *  and the honest answer is the count alone. */
+  target: string | null;
+}
+
+/** THE COUNT LEADS (2026-09-16, Dave: "should say sets to start it off, so:
+ *  3 sets 8x5 for example. Can use faded bold grey font for sets").
+ *
+ *  It read "3 × 275 lb × 5", which is two multiplication signs doing two
+ *  different jobs on one line: the first is "three of these" and the second
+ *  is "this weight for this many". Saying the first one in words separates
+ *  them, and puts the number a person scans for -- how many sets -- at the
+ *  front where the eye lands. Parts, not a string, so the noun can wear the
+ *  quiet ink and the numbers can keep the hue. */
+export function planChip(ex: Exercise): PlanChip {
+  const work = ex.sets.filter((s) => !s.warmup);
+  const n = work.length;
+  if (n === 0) return { count: ex.sets.length, noun: entryNoun(ex.kind, ex.sets.length !== 1), target: null };
+  if (ex.kind === "done") return { count: n, noun: n === 1 ? "Time" : "Times", target: null };
+  if (!hasTarget({ kind: ex.kind, sets: work }) || !isUniformStrip(ex.kind, work)) {
+    return { count: n, noun: entryNoun(ex.kind, n !== 1), target: null };
+  }
+  return { count: n, noun: entryNoun(ex.kind, n !== 1), target: formatSet(ex, work[0]!) };
+}
+
+/** The same chip as one string, for a label a screen reader speaks and for
+ *  anywhere a row cannot draw the parts. */
+export function planChipText(ex: Exercise): string {
+  const c = planChip(ex);
+  return `${c.count} ${c.noun}${c.target ? " " + c.target : ""}`;
 }
 
 // isCompactPlan lived here until 2026-09-16. It answered one question -- may

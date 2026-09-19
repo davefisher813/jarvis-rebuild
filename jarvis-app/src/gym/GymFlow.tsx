@@ -1,3 +1,4 @@
+import { NAME_FIELD } from "../shared/nameField";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics } from "../data/NotesProvider";
@@ -10,7 +11,7 @@ import { readHealthSettings } from "../health/settings";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
-import { targetLine, formatSet } from "./measures";
+import { targetLine, formatSet, planChip, planChipText } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
 import { receiptFor, type Receipt } from "./prs";
 import { effectiveKind } from "../categories/kinds";
@@ -21,12 +22,12 @@ import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
 import { bumpStrip, uniformStrip } from "./strip";
-import { buildLibrary, newExerciseKey, withAliases, withFavorites, type LibraryEntry } from "./library";
+import { buildLibrary, newExerciseKey, withAliases, withCreated, withFavorites, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
-import { dayWithSessionEntry } from "./edit";
+import { dayWithSessionEntry, movedToDay } from "./edit";
 import { defaultUnit, equipmentOf } from "./types";
-import { loadStyleOf, type LoadStyle } from "./equipment";
+import { loadFields, loadStyleOf, type LoadStyle } from "./equipment";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
@@ -38,7 +39,7 @@ import { muscleMapFrom } from "./insights";
 import type { MuscleGroup } from "./muscles";
 import { sameLiftAnyKind } from "./identity";
 import { estimateDay, type FitPlan } from "./fit";
-import { readGymSettings, writeGymSettings, rackFrom } from "./settings";
+import { readGymSettings, writeGymSettings, rackFrom, type CreatedLift } from "./settings";
 import FitSheet from "./FitSheet";
 import ExerciseSheet from "./ExerciseSheet";
 import SessionScreen from "./SessionScreen";
@@ -47,7 +48,7 @@ import UploadFlow from "./UploadFlow";
 import HistoryScreen from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
 import { libraryRows, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, type LibraryRow, type AliasMap } from "./libraryEdit";
-import { classOf, isBlank, mergeClass, muscleListOf, needsMuscles, readClassStore, type Chip, type ClassConflict, type ClassStore } from "./classify";
+import { classOf, EMPTY_CLASS, isBlank, mergeClass, muscleListOf, needsMuscles, readClassStore, type Chip, type ClassConflict, type ClassStore } from "./classify";
 import ClassifySheet from "./ClassifySheet";
 import { expectedSignature, patchSignature, planMerge, repointGoal, undoSafe, type MergePlan, type MergeState } from "./merge";
 import { MergeReviewSheet } from "./DuplicateReview";
@@ -66,7 +67,7 @@ import { useLongPress } from "../shared/useLongPress";
 import { showToast } from "../shared/toast";
 import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { useAI } from "../ai/useAI";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
 import { BarbellGlyph } from "../shared/glyphs";
 import { Ellipsis } from "../shared/icons";
 import Stepper from "../shared/Stepper";
@@ -143,7 +144,7 @@ function NameSheet({ title, initial, placeholder, backOff, season, gameCategory,
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Name</div>
-            <input className="input" placeholder={placeholder} value={v} onChange={(e) => setV(e.target.value)} />
+            <input className="input" {...NAME_FIELD} placeholder={placeholder} value={v} onChange={(e) => setV(e.target.value)} />
           </div>
           {backOff && (
             <div className="field">
@@ -187,7 +188,7 @@ function NameSheet({ title, initial, placeholder, backOff, season, gameCategory,
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-launch btn-block" disabled={busy}
-            onClick={() => { if (v.trim()) { setBusy(true); onSave(v.trim()); } }}>{busy ? "Saving..." : "Save"}</button>
+            onClick={() => { if (v.trim()) { setBusy(true); onSave(workoutTitle(v.trim())); } }}>{busy ? "Saving..." : "Save"}</button>
           {onDelete && (
             <button className={"btn btn-block " + (armed ? "btn-danger" : "btn-secondary btn-danger-text")}
               onClick={() => (armed ? onDelete() : setArmed(true))}>
@@ -274,6 +275,50 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
   );
 }
 
+/** WHAT THE SESSION ITSELF IS (Dave 2026-09-17: "should be able to fully edit
+ *  completed workouts").
+ *
+ *  A finished workout could have its sets corrected and its end time
+ *  corrected, and that was all. Its NAME and its DATE -- the two things the
+ *  history list is read by, and the two most likely to be wrong on a session
+ *  logged from memory the next morning -- were fixed forever. Same shape as
+ *  BackdateSheet above, which is the other place a date is picked for a
+ *  session that already happened. */
+function WorkoutMetaSheet({ initialName, initialDate, onSave, onCancel }: {
+  initialName: string; initialDate: string;
+  onSave: (next: { dayName: string; date: string }) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(workoutTitle(initialName));
+  const [date, setDate] = useState(initialDate);
+  return createPortal(
+    <div className="sheet-scrim" onClick={onCancel}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="grp"><div className="eyebrow">This Session</div></div>
+        <div className="pad-x sheet-form">
+          <div className="field">
+            <div className="input-label">Name</div>
+            <input className="input" {...NAME_FIELD} value={name} aria-label="Session Name" onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="field">
+            <div className="input-label">Date</div>
+            {/* No future date: this is a session that already happened, the
+                same rule backdating keeps. */}
+            <input className="input" type="date" max={todayISO()} value={date} aria-label="Session Date" onChange={(e) => setDate(e.target.value)} />
+          </div>
+        </div>
+        <div className="pad-x sheet-actions">
+          <button className="btn btn-primary btn-launch btn-block" disabled={!name.trim()}
+            onClick={() => onSave({ dayName: workoutTitle(name.trim()), date: date || initialDate })}>Save</button>
+          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 // LONG-PRESS = THE WHOLE MENU (catalog §3.12). Each row is its own small
 // component so useLongPress's hooks attach to a stable per-row instance --
 // calling a hook from inside a plain renderRow callback (invoked directly by
@@ -296,6 +341,39 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
  * door: the same trailing pill on every row, opening the same ActionSheet.
  * A real button, so Enter and Space are free and the label is announced.
  */
+/** YOUR LIFTS, AS A ROW AND NOT A CARD (Dave 2026-09-17: "Your lifts / all
+ *  programs breaks the rule of stand alone small pill. Combine them into a
+ *  nice clean container that matches other containers in the health
+ *  section").
+ *
+ *  Two one-row cards, half a screen apart, each holding a single navigational
+ *  door, is the floating-pill shape this app spent the 2026-08-31 count-pill
+ *  wave getting rid of. They are the same KIND of thing -- a door to a list
+ *  you keep, with its count on it -- so they belong in one grouped card, which
+ *  is the Apple Health language every other shelf on these screens already
+ *  speaks. Extracted so the program branch can put it under All Programs and
+ *  the no-program branch can still show it on its own. */
+function LiftsRow({ count, onOpen }: { count: number; onOpen: () => void }) {
+  return (
+    <div {...pressable(onOpen)} className="row">
+      <div className="row-grow">
+        <div className="conn-name">Your Lifts</div>
+      </div>
+      {/* A CHIP ON THE ROW, NOT A LINE UNDER IT (Dave 2026-09-18: "your lifts
+          subtext should be a chip"; health polish 2026-09-16 before it: "Your
+          Lifts: trailing 24 exercises").
+
+          It was a clause explaining what the door leads to, which is what the
+          door is for, and it made this row two lines tall while All Programs
+          beside it was one. The count is the only thing it ever said, so it
+          says it in the trailing slot, in the capsule the ruled skin already
+          draws for a small fact on a row. */}
+      <span className="ex-chip">{capAfterNumber(count + (count === 1 ? " exercise" : " exercises"))}</span>
+      {CHEV}
+    </div>
+  );
+}
+
 function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day: ProgramDay; onOpen: () => void; onPin?: () => void; onMenu: () => void;
   /** 2026-09-14 (the reference's "Completed Monday"): the weekday of this
    *  day's last session when it was inside the last week. */
@@ -307,18 +385,31 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
-        <div className="conn-name truncate">{day.name}</div>
+        <div className="conn-name truncate">{workoutTitle(day.name)}</div>
         {/* KILL THE GREY SUBTEXT (Dave 2026-09-10). "6 exercises" under every
             day in the same grey turned the one number that distinguishes them
             into wallpaper. It is a chip, and an empty day says so in amber
             rather than reading as a day with work in it. */}
-        <div className="r-k">
-          <span className={"se-chip " + (day.exercises.length === 0 ? "se-chip-todo" : "se-chip-last")}>
-            {day.exercises.length === 0 ? "Empty" : <>{day.exercises.length}<em>{day.exercises.length === 1 ? "Lift" : "Lifts"}</em></>}
-          </span>
-          {current && <span className="se-chip se-chip-time">Current Session</span>}
-          {!current && doneWord && <span className="se-chip se-chip-done"><em>Done</em>{doneWord}</span>}
-        </div>
+      {/* ONE ROW ANATOMY (Dave 2026-09-16, on the Exercises page: "This looks
+          good. But it's not consistent throughout. Uniform everything so it
+          looks like a real app. Everything should follow rules").
+
+          The rule was already written: .facts is "the row's second line as
+          facts, not a sentence" (G3, G6), the CSS draws the middot so no
+          string carries one, and K.3 governs the hues. Every other list in
+          this app obeys it -- All Data, Insights, the Exercises page he
+          approved. The gym invented a second answer for the same job, filled
+          .se-chip capsules in a .r-k slot, so two lists a scroll apart said
+          the same kind of thing in two different shapes.
+
+          Capsules are not gone; they keep the job they are actually for, on
+          the Exercises page (a classification you can tap) and on a card's
+          face. What they stop doing is standing in for a row's values. */}
+      <div className="facts">
+        <span className="fact">{day.exercises.length === 0 ? "Empty" : capAfterNumber(`${day.exercises.length} ${day.exercises.length === 1 ? "lift" : "lifts"}`)}</span>
+        {current && <span className="fact st cyan">Live</span>}
+        {!current && doneWord && <span className="fact lime">{doneWord}</span>}
+      </div>
       </div>
       {/* PINS, D4: the weekday claim is a FACT on this row, not a verb.
           (2026-09-16, the polish handoff: "Move Pin Days into day options;
@@ -362,11 +453,14 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
  *  Nothing is capped or rewritten. The chip says the same number in the ink a
  *  warning wears, with the word on it, and the row it sits in already opens
  *  the sheet that fixes it. */
-function minutesChip(w: WorkoutData) {
+function minutesFact(w: WorkoutData) {
   const d = durationOf(w);
+  // TWO FACTS, NOT ONE STRING WITH A MIDDOT IN IT. components.css: "Adjacent
+  // facts are separated by a middle dot the CSS draws, so no string ever
+  // carries one." A fact that punctuates itself is a sentence again.
   return d.flagged
-    ? <span className="se-chip se-chip-over" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}><em>Review</em>{d.activeMin} Min</span>
-    : <span className="se-chip se-chip-budget">{workoutMinutes(w)}<em>Min</em></span>;
+    ? <><span className="fact amber" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}>{capAfterNumber(`${d.activeMin} min`)}</span><span className="fact">Worth Reviewing</span></>
+    : <span className="fact">{capAfterNumber(`${workoutMinutes(w)} min`)}</span>;
 }
 
 function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
@@ -376,6 +470,7 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
   onMenu: () => void;
 }) {
   const hold = useLongPress({ onLongPress: onMenu });
+  const plan = planChip(exercise);
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
@@ -384,28 +479,46 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
             colored facts, not more prose in the name. */}
         <div className="conn-name truncate">
           {pairLabel && <span className="xtag xtag-blue">{pairLabel}</span>}
-          {exercise.name}
+          {liftTitle(exercise.name)}
           {exercise.ramp && <span className="xtag xtag-warn xtag-after">Ramp</span>}
           {exercise.filler && <span className="xtag xtag-dim xtag-after">Filler</span>}
         </div>
-        {/* THE ROW IS A RECEIPT, NOT A LEDGER (2026-09 sweep, Dave's Pull day
-            2 screenshot: a real pyramid set wrapped two lines of dense grey
-            numbers).
-            AND LAST TIME IS NOT ON IT (2026-09-16, the polish handoff: "take
-            the trailing Last: 185 lb x 3 off the exercise row"; Dave: "grey
-            subtext all over the place"). The line was the plan, then the rest,
-            then last time, three clauses joined by middots in one grey -- and
-            the first of them is the row's own value, which the other two were
-            burying. Last time has two homes that are about last time: the
-            lift's own page, and the session header the moment this lift comes
-            up, where it is a chip and not a clause. */}
-        <div className="conn-meta">{targetLine(exercise)}{exercise.restSec ? ` · ${mmss(exercise.restSec)} rest` : ""}</div>
+        {/* THE PLAN IS THE ROW'S VALUE, NOT A SENTENCE UNDER ITS NAME
+            (2026-09-16, Dave's Push Day 1 screenshot: "the titles of exercise,
+            it looks the same as what's under it. So it just all blends
+            together and you can't read anything. There's no hierarchy").
+
+            He is right by arithmetic: this line was .conn-meta, 15px at the
+            body weight in the secondary ink, sitting under a .conn-name that
+            was 17px at the SAME weight in white. Two pixels and one step of
+            grey apart, so a name and its numbers read as one block of text.
+            The title took its weight (jarvis-design-system.css); the numbers
+            take the bounded value slot every other list in this app already
+            puts its counts in -- the day row, the session list, the recent
+            row. A chip has an edge, so the eye lands on the name first and
+            finds the number second, which is the order they matter in.
+
+            Rest rides beside it as its own fact rather than a clause glued on
+            with a middot, and only when there is one. */}
+        {/* THE COUNT LEADS, AND THE NOUN IS QUIET (2026-09-16, Dave asked for
+            the sets to start the line, with a faded bold grey for the word).
+            The line used to carry two multiplication signs doing two
+            different jobs: the first meant three of these, the second meant
+            this weight for this many. The first is a word now, in the ink a
+            label wears, so the two numbers a person scans for are the two
+            things in colour. */}
+        <div className="facts">
+          <span className="fact cyan" aria-label={planChipText(exercise)}>
+            {plan.count}<em className="fw">{plan.noun}</em>{plan.target}
+          </span>
+          {exercise.restSec ? <span className="fact">{`${mmss(exercise.restSec)} rest`}</span> : null}
+        </div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
         {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}
       </div>
       {/* One trailing control, same as the day row above. */}
-      <RowMenuButton onMenu={onMenu} what={exercise.name} />
+      <RowMenuButton onMenu={onMenu} what={liftTitle(exercise.name)} />
     </div>
   );
 }
@@ -415,7 +528,7 @@ function ProgramRow({ program, active, onSwitch, onMenu }: { program: Program; a
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onSwitch} {...hold}>
       <div className="row-grow">
-        <div className="conn-name truncate">{program.data.name}</div>
+        <div className="conn-name truncate">{workoutTitle(program.data.name)}</div>
         {program.data.archived && !active && <div className="conn-meta">Archived</div>}
       </div>
       {active && <span className="pill pill-good">Active</span>}
@@ -703,6 +816,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const finishing = useRef<{ data: WorkoutData; door: { id: string; date: string } | null } | null>(null);
   const [viewWorkout, setViewWorkout] = useState<Workout | null>(null);
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutExercise[] | null>(null);
+  // FULLY EDITABLE (Dave 2026-09-17). The finished session's own name and
+  // date, one exercise's overflow menu, its rename, and the door to adding a
+  // lift somebody forgot to log. All four were missing.
+  const [workoutMetaOpen, setWorkoutMetaOpen] = useState(false);
+  const [workoutExMenu, setWorkoutExMenu] = useState<number | null>(null);
+  const [workoutExRename, setWorkoutExRename] = useState<number | null>(null);
+  const [workoutAddOpen, setWorkoutAddOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [uploadOpen, setUploadOpen] = useState(false);
   // MANAGE (2026-09-16, the polish handoff: "Move Upload a Program and Add a
@@ -733,6 +853,30 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     () => (readGymSettings().muscleByKey ?? {}) as Record<string, MuscleGroup[]>,
   );
   const [dismissedDupes, setDismissedDupes] = useState<string[]>(() => readGymSettings().dismissedDupes ?? []);
+  // CREATED BY HAND (Dave 2026-09-17: "I should be able to create exercises
+  // here"). Seeds for the derived library; see settings.createdLifts and
+  // library.withCreated. Same read-once, write-on-change shape as the lists
+  // above it, for the same reason: they are facts about a library that has no
+  // document of its own to hang them on.
+  const [createdLifts, setCreatedLifts] = useState<CreatedLift[]>(() => readGymSettings().createdLifts ?? []);
+  const saveCreatedLifts = (next: CreatedLift[]) => { setCreatedLifts(next); writeGymSettings({ ...readGymSettings(), createdLifts: next }); };
+  /** PUT IT IN THE LIBRARY NOW (Dave 2026-09-17: a lift added mid-workout
+   *  "doesn't add to my exercise list").
+   *
+   *  buildLibrary derives from programs and finished workouts, so a lift
+   *  added to a session in progress was in neither: you could not classify
+   *  it, set a goal on it, or even see it, until the workout was saved --
+   *  and not at all if the session was abandoned. A seed costs nothing and
+   *  withCreated drops it the moment a real sighting of the same name at the
+   *  same measurement exists, so this never doubles a row. */
+  const seedLibrary = (draft: { name: string; kind: MeasureKind; unit?: string; exerciseKey?: string }) => {
+    const name = draft.name.trim();
+    if (!name) return;
+    const known = library.some((e) => e.name.trim().toLowerCase() === name.toLowerCase() && e.kind === draft.kind)
+      || createdLifts.some((c) => c.name.trim().toLowerCase() === name.toLowerCase() && c.kind === draft.kind);
+    if (known) return;
+    saveCreatedLifts([...createdLifts, { key: draft.exerciseKey ?? newExerciseKey(), name, kind: draft.kind, ...(draft.unit ? { unit: draft.unit } : {}) }]);
+  };
   // WHAT EACH EXERCISE IS (2026-09-14, second pass). The whole classification
   // by library key, read once through classify.readClassStore -- which also
   // carries the older flat muscleByKey forward, so nothing set this morning
@@ -821,7 +965,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // every program (archived ones included -- real history) and every
   // workout, recomputed only when the underlying data actually changes.
   recordsRef.current = { workouts, programs: allPrograms };
-  const library = useMemo(() => withFavorites(withAliases(buildLibrary(allPrograms, workouts), aliasMap), favoriteKeys), [allPrograms, workouts, aliasMap, favoriteKeys]);
+  const library = useMemo(
+    () => withFavorites(withAliases(withCreated(buildLibrary(allPrograms, workouts), createdLifts), aliasMap), favoriteKeys),
+    [allPrograms, workouts, aliasMap, favoriteKeys, createdLifts],
+  );
 
   // UP-ATH-02 (2026-09-06), THE SEASON LINK's other half. The program row has
   // said "Next Game: Sep 12" since the link shipped, and the two screens an
@@ -1174,7 +1321,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       // Part 3 wave 5 (O3a): the plan is copied in at start, so a program
       // edit made mid-session reaches the next session, never this one; and
       // the equipment convention rides with every set logged from here.
-      : day.exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [], plan: e.sets, ...(loadStyleOf(e).equipment ? { equipment: loadStyleOf(e).equipment } : {}), ...(loadStyleOf(e).counted ? { counted: loadStyleOf(e).counted } : {}) }));
+      : day.exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [], plan: e.sets, ...loadFields(e) }));
     const startedAt = Date.now();
     const s: LiveSession = {
       programId: program.id, dayId: day.id, dayName: day.name, date,
@@ -1763,6 +1910,34 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           store={classStore}
           todayIso={todayISO()}
           onOpen={(r) => setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) })}
+          // CREATE ONE HERE (Dave 2026-09-17). The name is taken as typed --
+          // an exercise is not a workout title, and LAW 18 says the app never
+          // rewrites what the athlete called a lift. A name already in the
+          // library at the same measurement is not created twice; the row is
+          // already there, so saying so beats quietly minting a duplicate for
+          // the merge review to find next week.
+          onCreate={(draft) => {
+            const name = draft.name.trim();
+            const twin = library.find((e) => e.name.trim().toLowerCase() === name.toLowerCase() && e.kind === draft.kind);
+            if (twin) { showToast({ message: `${twin.name} is already here` }); return; }
+            const cased = liftTitle(name);
+            const key = draft.exerciseKey ?? newExerciseKey();
+            // The sheet is the whole editor now, so whatever it was told
+            // travels with the seed rather than being asked for again the
+            // first time the lift is used.
+            saveCreatedLifts([...createdLifts, {
+              key, name: cased, kind: draft.kind,
+              ...(draft.unit ? { unit: draft.unit } : {}),
+              ...loadFields(draft),
+            }]);
+            // A muscle is a CLASSIFICATION, not a property of the entry, so it
+            // goes where every other muscle assignment goes -- which is also
+            // what takes the amber Assign Muscles chip off the new row.
+            if (draft.muscleGroup) {
+              saveClassStore({ ...classStore, [key]: { ...EMPTY_CLASS, primary: [draft.muscleGroup], measure: draft.kind, ...loadFields(draft) } });
+            }
+            showToast({ message: `${cased} added` });
+          }}
           // THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list
           // of exercises there's a goal option"). Walks into the exercise it is
           // about and opens the same LiftGoalSheet its own page opens, rather
@@ -1866,20 +2041,42 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   if (viewWorkout && workoutDraft) {
     const w = viewWorkout;
     const dirty = JSON.stringify(workoutDraft) !== JSON.stringify(w.data.exercises);
-    const closeWorkout = () => { setViewWorkout(null); setWorkoutDraft(null); };
+    const closeWorkout = () => {
+      setViewWorkout(null); setWorkoutDraft(null);
+      setWorkoutMetaOpen(false); setWorkoutExMenu(null); setWorkoutExRename(null); setWorkoutAddOpen(false);
+    };
+    const patchDraft = (fn: (d: WorkoutExercise[]) => WorkoutExercise[]) => setWorkoutDraft((d) => (d ? fn(d) : d));
+    /** The session's own two facts, written straight through rather than held
+     *  in the exercise draft: they are not sets, and DurationCard next to them
+     *  has corrected the end time this way since it shipped. */
+    const saveWorkoutMeta = async (next: { dayName: string; date: string }) => {
+      setWorkoutMetaOpen(false);
+      // The clock stamps travel with the day, so a session moved to Tuesday
+      // still says it happened at six in the evening. See edit.movedToDay.
+      const moved = movedToDay(w.data, next.date);
+      const patch = { dayName: next.dayName, ...(moved ?? {}) };
+      if (patch.dayName === w.data.dayName && !moved) return;
+      const ok = await attemptWrite(() => svc.updateWorkout(w.id, patch));
+      await reload();
+      if (!ok) return;
+      setViewWorkout({ ...w, data: { ...w.data, ...patch } });
+      showToast({ message: "Session updated" });
+    };
     return (
       <div className="screen ruled health-ruled">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={closeWorkout}></button>
-          <div className="nav-title">{w.data.dayName}</div>
-          <span className="nav-action"></span>
+          <div className="nav-title">{workoutTitle(w.data.dayName)}</div>
+          {/* The name and the date are what history is read by, and a session
+              logged from memory the next morning gets both wrong. */}
+          <button className="nav-action-text" onClick={() => setWorkoutMetaOpen(true)}>Edit</button>
         </div>
         {/* Meta, not a kicker: inside .grp a bare eyebrow inherits the
             accent-chrome kicker red, and this line is information (RED IS A
             VERB). Quiet sentence-case meta like every other date line. */}
         <div className="pad-x"><div className="se-chips">
           <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
-          {minutesChip(w.data)}
+          {minutesFact(w.data)}
           {w.data.backdated && <span className="se-chip se-chip-skip">Logged Later</span>}
         </div></div>
         {/* THE DURATION, SHOWN AND CORRECTABLE (2026-09-14, item 9). The
@@ -1905,19 +2102,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             <div className="sh2 sh2-quiet"><span className="t">How It Went</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {onRateSession && (
-                <div {...pressable(onRateSession)} className="task-row p2">
-                  <div className="task-title">
-                    <span className="task-name">How Hard It Was</span>
-                    <div className="r-k"><span className="r-goal r-cat">Rate the session, 1 to 10</span></div>
+                <div {...pressable(onRateSession)} className="row">
+                  <div className="row-grow">
+                    <div className="conn-name">How Hard It Was</div>
                   </div>
                   {CHEV}
                 </div>
               )}
               {onLogSoreSpot && (
-                <div {...pressable(onLogSoreSpot)} className="task-row p2">
-                  <div className="task-title">
-                    <span className="task-name">Where It Hurts</span>
-                    <div className="r-k"><span className="r-goal r-cat">Tap the spot on a body map</span></div>
+                <div {...pressable(onLogSoreSpot)} className="row">
+                  <div className="row-grow">
+                    <div className="conn-name">Where It Hurts</div>
                   </div>
                   {CHEV}
                 </div>
@@ -1930,11 +2125,24 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             that planned and logged it. PRs and the receipt are both derived
             from the workout list at render time, so saving here recomputes
             every number downstream for free. */}
-        {w.data.exercises.map((e, ei) => (
+        {/* THE DRAFT IS THE LIST (2026-09-17). This used to map the SAVED
+            exercises and read each strip's entries out of the draft by index,
+            which was fine while the only edit was to a set -- and is a
+            mismatched pair of lists the moment an exercise can be added or
+            removed. One list now, so a rename shows as you type it and a
+            removed lift leaves rather than leaving a hole behind. */}
+        {workoutDraft.map((e, ei) => (
           <div key={e.exerciseId + ei}>
             {/* The one head grammar of the gym pages (reformat 2026-08-31):
-                quiet sh2, same as Days / Recent / Exercises. */}
-            <div className="sh2 sh2-quiet"><span className="t">{e.name}</span></div>
+                quiet sh2, same as Days / Recent / Exercises. Its overflow is
+                the same one every other gym row wears. */}
+            <div className="sh2 sh2-quiet">
+              <span className="t">{liftTitle(e.name)}</span>
+              <button type="button" className="ex-more" aria-label={`More for ${liftTitle(e.name)}`}
+                onClick={() => setWorkoutExMenu(ei)}>
+                <span aria-hidden="true">···</span>
+              </button>
+            </div>
             <div className="pad-x">
               <SetStrip
                 kind={e.kind}
@@ -1945,13 +2153,18 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 // editor that stepped a stack by 5 and called its number
                 // "Weight" was correcting history in the wrong language.
                 style={loadStyleOf(e)}
-                entries={workoutDraft[ei]?.sets ?? []}
-                onChange={(sets) => setWorkoutDraft((d) => d && d.map((x, i) => (i === ei ? { ...x, sets } : x)))}
+                entries={e.sets}
+                onChange={(sets) => patchDraft((d) => d.map((x, i) => (i === ei ? { ...x, sets } : x)))}
                 moveTracking
               />
             </div>
           </div>
         ))}
+        {/* A LIFT YOU FORGOT TO LOG (Dave 2026-09-17). Same .row-create the
+            program day and the live session spend on their own adds. */}
+        <div className="pad-x"><div className="card list-card-ruled">
+          <button className="row-create" onClick={() => setWorkoutAddOpen(true)}>Add Exercise</button>
+        </div></div>
         <div className="pad-x sheet-actions">
           {dirty && (
             <button className="btn btn-primary btn-launch btn-block" onClick={async () => {
@@ -1985,6 +2198,79 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           }}>Delete Workout</button>
         </div>
         <div className="screen-foot" />
+
+        {workoutMetaOpen && (
+          <WorkoutMetaSheet initialName={w.data.dayName} initialDate={w.data.date}
+            onSave={(next) => void saveWorkoutMeta(next)} onCancel={() => setWorkoutMetaOpen(false)} />
+        )}
+
+        {/* ONE EXERCISE'S OWN MENU. Both moves land in the draft, so Save
+            Changes is still the one write and Cancel is still backing out of
+            the screen -- a removal that wrote straight through would be the
+            only destructive edit here with no way back. */}
+        {workoutExMenu !== null && workoutDraft[workoutExMenu] && (
+          <ActionSheet
+            title={liftTitle(workoutDraft[workoutExMenu]!.name)}
+            actions={[
+              { label: "Rename", onClick: () => { setWorkoutExRename(workoutExMenu); setWorkoutExMenu(null); } },
+              {
+                // Not "Delete...": it lands in the draft, so backing out of
+                // the screen without saving is the way out. The armed confirm
+                // belongs to writes that land immediately.
+                label: "Remove From This Workout",
+                onClick: () => {
+                  const i = workoutExMenu;
+                  patchDraft((d) => d.filter((_, x) => x !== i));
+                  setWorkoutExMenu(null);
+                },
+              },
+            ]}
+            onClose={() => setWorkoutExMenu(null)}
+          />
+        )}
+
+        {workoutExRename !== null && workoutDraft[workoutExRename] && (
+          <NameSheet
+            title="Rename in This Workout"
+            initial={liftTitle(workoutDraft[workoutExRename]!.name)}
+            placeholder="Exercise Name"
+            onSave={(v) => {
+              const i = workoutExRename;
+              // liftTitle, not workoutTitle: this is a lift's name, and the
+              // rule about never casing one into a comparison still holds --
+              // nothing here compares it, the draft is written whole.
+              patchDraft((d) => d.map((x, k) => (k === i ? { ...x, name: liftTitle(v) } : x)));
+              setWorkoutExRename(null);
+            }}
+            onCancel={() => setWorkoutExRename(null)}
+          />
+        )}
+
+        {/* A LIFT SOMEBODY FORGOT TO LOG. It arrives with no sets, which is
+            the honest state: the sheet plans, and the strip below records
+            what was actually done. Its plan rides along as the ghost targets
+            the strip offers, exactly as a mid-session add does. */}
+        {workoutAddOpen && (
+          <ExerciseSheet
+            mode="new"
+            library={library}
+            history={workouts}
+            onSave={(draft) => {
+              patchDraft((d) => [...d, {
+                exerciseId: `add${Date.now().toString(36)}`,
+                name: draft.name, kind: draft.kind,
+                ...(draft.unit ? { unit: draft.unit } : {}),
+                ...(draft.timeUnit ? { timeUnit: draft.timeUnit } : {}),
+                ...(draft.exerciseKey ? { exerciseKey: draft.exerciseKey } : {}),
+                ...loadFields(draft),
+                sets: draft.sets, custom: true, plan: draft.sets,
+              }]);
+              seedLibrary(draft);
+              setWorkoutAddOpen(false);
+            }}
+            onCancel={() => setWorkoutAddOpen(false)}
+          />
+        )}
       </div>
     );
   }
@@ -2008,7 +2294,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           library={library}
           history={workouts}
           onSave={(draft) => {
-            patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note }));
+            // ...loadFields (2026-09-17): this path was missing it while the
+            // other mid-session add had it, so a lift that opened an empty
+            // session arrived with no equipment and no counting. The strip
+            // then stepped it by 5 for everything in the gym and the live
+            // card read "Equipment Not Set" on a lift that had just been
+            // told what it loads with, two screens earlier.
+            patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, ...loadFields(draft), plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note }));
+            seedLibrary(draft);
           }}
           onCancel={() => { clearLive(); enterSession(null); }}
         />
@@ -2077,9 +2370,30 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         onSetLogged={(sets: SetEntry[], at?: number) => patchLive((l) => setLoggedSets(l, at ?? l.idx, sets))}
         onSkip={() => patchLive((l) => ({ ...skipExercise(l, l.idx), idx: Math.min(l.idx + 1, l.exercises.length - 1) }))}
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
-        onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); showToast({ message: `Swapped in ${sub.name}` }); }}
+        // A free-text swap mints a lift the library has never seen, same as
+        // an add does, so it is seeded the same way.
+        onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); seedLibrary(sub); showToast({ message: `Swapped in ${sub.name}` }); }}
         onSetLoad={(next) => { void setLoadStyle(exercise, next); }}
-        onAddMidSession={(draft) => { patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note })); showToast({ message: `Added ${draft.name}` }); }}
+        // THREE PLACES, NOT ONE (Dave 2026-09-17: "it doesn't save... doesn't
+        // allow me to pair... doesn't add to my exercise list").
+        //
+        // The live session, always -- that is the set you are about to do.
+        // The program day, when the sheet's switch says so, because a pair is
+        // a program construct the live screen reads off the day, so a lift
+        // that is not on the day can never be paired with anything.
+        // And the library, always, so the exercise is there to classify and
+        // set a goal on before the workout is even finished.
+        onAddMidSession={(draft, alsoOnDay) => {
+          patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, ...loadFields(draft), plan: draft.sets, cond: draft.cond, restSec: draft.restSec, ramp: draft.ramp, muscleGroup: draft.muscleGroup, note: draft.note }));
+          seedLibrary(draft);
+          const week = alsoOnDay && day ? program?.data.weeks.find((w) => w.days.some((d) => d.id === day.id)) : undefined;
+          if (week && day) {
+            void saveDays(week.id, week.days.map((d) => (d.id === day.id ? { ...d, exercises: [...d.exercises, { ...draft, id: nid("e") }] } : d)))
+              .then((ok) => showToast({ message: ok ? `${draft.name} added to ${workoutTitle(day.name)}` : `Added ${draft.name} for this session` }));
+          } else {
+            showToast({ message: `Added ${draft.name}` });
+          }
+        }}
         onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
         // Part 3 wave 5 (Dave's 10a): only a swapped or added entry offers it.
         onUpdateProgram={liveEx?.custom && !live.sameAsLastTime && day ? () => {
@@ -2409,7 +2723,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         }
       }
       actions.push({ label: "Delete...", onClick: () => setSheet({ kind: "exercise", weekId, dayId, exId: exercise.id }) });
-      return <ActionSheet title={exercise.name} actions={actions} onClose={() => setRowMenu(null)} />;
+      return <ActionSheet title={liftTitle(exercise.name)} actions={actions} onClose={() => setRowMenu(null)} />;
     }
     if (rowMenu.kind === "program") {
       const p = rowMenu.program;
@@ -2815,7 +3129,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           <div className="pad-x"><div className="card list-card-ruled">
             <div className="row" role="button" tabIndex={0} onClick={() => enterSession(readLive() ?? parkedLive)}>
               <div className="row-grow">
-                <div className="conn-name truncate">Resume {parkedLive.dayName}</div>
+                <div className="conn-name truncate">Resume {workoutTitle(parkedLive.dayName)}</div>
                 <div className="conn-meta">{(() => {
                   const n = parkedLive.exercises.reduce((c, e) => c + e.sets.filter((x) => !x.skipped).length, 0);
                   return n > 0 ? `${n} ${n === 1 ? "set" : "sets"} logged` : "Nothing logged yet";
@@ -2875,21 +3189,21 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 the only thing repeated on this screen is nothing. The row
                 itself stays, per catalog §3.11: the switcher and the
                 Archived shelf are always reachable. */}
+            {/* ONE SHELF, TWO DOORS (Dave 2026-09-17). See LiftsRow. */}
             <div className="pad-x"><div className="card list-card-ruled">
               <div className="row" role="button" tabIndex={0} onClick={() => setSwitcherOpen(true)}>
                 <div className="row-grow">
                   <div className="conn-name truncate">All Programs</div>
                   {(programs.length > 1 || program.data.inSeason) && (
-                    <div className="conn-meta">
-                      {[
-                        programs.length > 1 ? `${programs.length} Active` : null,
-                        program.data.inSeason ? (nextGame ? `Next Game: ${monthDay(nextGame.date)}` : "In-Season") : null,
-                      ].filter(Boolean).join(" · ")}
+                    <div className="facts">
+                      {programs.length > 1 && <span className="fact">{`${programs.length} Active`}</span>}
+                      {program.data.inSeason && <span className="fact">{nextGame ? `Next Game ${monthDay(nextGame.date)}` : "In-Season"}</span>}
                     </div>
                   )}
                 </div>
                 {CHEV}
               </div>
+              {library.length > 0 && <LiftsRow count={library.length} onOpen={() => setLibraryOpen(true)} />}
             </div></div>
 
             {nextDay && nextDay.exercises.length > 0 && (
@@ -2931,7 +3245,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                       ? "Today"
                       : upcomingPin!.inDays === 1 ? "Tomorrow" : WEEKDAY_ABBR[(todayDow() + upcomingPin!.inDays) % 7]}</span>
                   )}
-                  {lastNextDay && <span className="se-chip se-chip-when"><em>Last</em>{agoPhrase(lastNextDay.data.date, todayISO())}</span>}
+                  {/* Lime, like the weekday on the day rows below it: this is
+                      the same fact, so it wears the same colour (2026-09-18). */}
+                  {lastNextDay && <span className="se-chip se-chip-done"><em>Last</em>{agoPhrase(lastNextDay.data.date, todayISO())}</span>}
                 </div>
                 {/* row-tap: the launch card's verb line, filled edge to edge by its one Start button */}
                 <div className="offer-row">
@@ -3018,20 +3334,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             nothing rendered it outside an autocomplete, so there was no way
             to see the list, rename one, or fold the duplicates a free-text
             library grows. Offered whenever there is a library to look at. */}
-        {library.length > 0 && (
+        {/* With a program, this row rides the shelf under All Programs. With
+            no program there is no shelf to ride, and a library is still worth
+            reaching, so it keeps its own card down here. */}
+        {!program && library.length > 0 && (
           <div className="pad-x"><div className="card list-card-ruled">
-            <div {...pressable(() => setLibraryOpen(true))} className="task-row p2">
-              <div className="task-title">
-                <span className="task-name">Your Lifts</span>
-                {/* A COUNT, NOT A SENTENCE (health polish 2026-09-16: "Your
-                    Lifts: trailing 24 exercises; remove each with its
-                    history"). The right slot of a task row holds a value;
-                    it held a clause explaining what the door leads to,
-                    which is what the door is for. */}
-                <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(library.length + (library.length === 1 ? " exercise" : " exercises"))}</span></div>
-              </div>
-              {CHEV}
-            </div>
+            <LiftsRow count={library.length} onOpen={() => setLibraryOpen(true)} />
           </div></div>
         )}
         {recent.length > 0 && (
@@ -3058,18 +3366,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                   <SwipeDelete key={w.id} label={w.data.dayName} onDelete={() => void removeWorkoutNow(w.id, w.data.dayName)}>
                     <div className="row" role="button" tabIndex={0} onClick={() => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}>
                       <div className="row-grow">
-                        <div className="conn-name truncate">{w.data.dayName}</div>
+                        <div className="conn-name truncate">{workoutTitle(w.data.dayName)}</div>
                         {/* Partial work is stated as the fact it is: never a
                             percentage, never a shortfall. */}
                         {/* Three facts, three chips, aligned -- the date, the
                             minutes, and how much of the plan was actually
                             logged. It was one grey sentence joined by middots
                             and the completeness fact was the last thing on it. */}
-                        <div className="r-k">
-                          <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
-                          {minutesChip(w.data)}
-                          <span className={"se-chip " + (logged === total ? "se-chip-done" : "se-chip-skip")}>
-                            {logged === total ? <>{total}<em>{total === 1 ? "Lift" : "Lifts"}</em></> : <>{logged}<em>of {total}</em></>}
+                        <div className="facts">
+                          <span className="fact cyan">{monthDay(w.data.date)}</span>
+                          {minutesFact(w.data)}
+                          <span className={"fact" + (logged === total ? " lime" : "")}>
+                            {logged === total
+                              ? capAfterNumber(`${total} ${total === 1 ? "lift" : "lifts"}`)
+                              : `${logged} of ${total}`}
                           </span>
                         </div>
                       </div>

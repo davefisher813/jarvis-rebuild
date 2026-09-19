@@ -56,13 +56,29 @@ describe("LibraryPage: the row's anatomy", () => {
     expect(screen.getByRole("button", { name: "Assign Muscles" })).toHaveClass("ex-chip", "amber");
     rerender(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["chest"] } }} rows={[row()]} />);
     expect(screen.queryByRole("button", { name: "Assign Muscles" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Chest, edit" })).toHaveClass("ex-chip", "on");
+    // AMENDED 2026-09-16 (Dave: "too much of the same color"). A muscle is
+    // what the lift TRAINS and takes the lime this app spends on work done;
+    // cyan goes back to meaning one thing on this row, which is when it last
+    // happened.
+    expect(screen.getByRole("button", { name: "Chest, edit" })).toHaveClass("ex-chip", "lime");
   });
 
   it("marks a secondary muscle differently from a primary one", () => {
     render(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["chest"], secondary: ["triceps"] } }} rows={[row()]} />);
-    expect(screen.getByRole("button", { name: "Chest, edit" })).toHaveClass("on");
-    expect(screen.getByRole("button", { name: "Triceps, edit" })).toHaveClass("sec");
+    // Same hue, half the weight -- which is exactly what a secondary counts
+    // for in this app's own convention.
+    expect(screen.getByRole("button", { name: "Chest, edit" })).toHaveClass("lime");
+    expect(screen.getByRole("button", { name: "Triceps, edit" })).toHaveClass("lime", "sec");
+  });
+
+  // ONE MEANING PER HUE, so a row of chips reads by colour before it reads by
+  // word. Cyan was saying three unrelated things at once.
+  it("gives each axis its own colour", () => {
+    render(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["chest"], equipment: "barbell", movement: "push_h" } }} rows={[row()]} />);
+    expect(screen.getByRole("button", { name: "Chest, edit" })).toHaveClass("lime");
+    expect(screen.getByRole("button", { name: "Barbell, edit" })).toHaveClass("violet");
+    const move = screen.getByRole("button", { name: "Horizontal Push, edit" });
+    expect(move.className.trim(), "the least load-bearing axis stays quiet").toBe("ex-chip");
   });
 
   it("opens the exercise from its name and the editor from a chip", () => {
@@ -72,8 +88,14 @@ describe("LibraryPage: the row's anatomy", () => {
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ key: "bench" }));
     fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
     // The sheet lands on the muscle question, over the page.
+    //
+    // 2026-09-16: this used to look for a "Muscles Worked" title the card
+    // printed under an eyebrow that already said Muscles. The duplicate
+    // title is gone, so the assertion now reads the thing the test was
+    // actually about -- the muscle chips are on screen, unfolded, without
+    // anyone tapping More Details.
     expect(document.body.querySelector(".sheet-scrim")).not.toBeNull();
-    expect(screen.getByText("Muscles Worked")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Forearms" })).toBeInTheDocument();
     // The chip kept its own verb: the exercise opened once, from the name.
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
@@ -101,11 +123,18 @@ describe("LibraryPage: the row's anatomy", () => {
   });
 });
 
-// H-23, still true: the old names read on the row.
-describe("LibraryPage's alias line", () => {
-  it("lists what the exercise used to be called, only when there is one", () => {
+// H-23 IS RETIRED (Dave 2026-09-18: "also (other title) needs to be deleted
+// and never render"). The old names read on the row from H-23 until now. A
+// merged-away name is history, not an attribute of the exercise, and on a row
+// whose whole job is to carry one name it read as a second one.
+//
+// The names are not lost: a merge keeps them on the record, and the search
+// still matches them, so typing an old name still finds the exercise. What
+// went is the line that printed them at you.
+describe("LibraryPage does not print an exercise's old names", () => {
+  it("draws no alias line, with aliases or without", () => {
     const { rerender } = render(<LibraryPage {...base} rows={[row({ aliases: ["Flat Bench", "Bench"] })]} />);
-    expect(screen.getByText("Also Flat Bench, Bench")).toHaveClass("ex-chip", "quiet");
+    expect(screen.queryByText(/^Also /), "not on the row").toBeNull();
     rerender(<LibraryPage {...base} rows={[row()]} />);
     expect(screen.queryByText(/^Also /)).toBeNull();
   });

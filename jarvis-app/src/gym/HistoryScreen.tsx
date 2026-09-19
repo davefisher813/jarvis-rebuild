@@ -4,7 +4,7 @@ import { exerciseHistory, trendLine, doneCount, sessionGroups } from "./history"
 import { liftSessions, chartValue } from "./chartData";
 import { sameLiftAnyKind } from "./identity";
 import { monthDay } from "../money/bills";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
 import { todayISO } from "../tasks/grouping";
 
 const CHEV = <div className="chev" />;
@@ -101,11 +101,11 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
               <div className="sh2 sh2-quiet"><span className="t">{g.label}</span><span className="n">{g.rows.length}</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
                 {g.rows.map((r) => (
-                  <div className="row" role="button" tabIndex={0} key={r.workout.id} aria-label={"Open " + r.workout.data.dayName + " " + monthDay(r.date)}
+                  <div className="row" role="button" tabIndex={0} key={r.workout.id} aria-label={"Open " + workoutTitle(r.workout.data.dayName) + " " + monthDay(r.date)}
                     onClick={() => onOpenWorkout?.(r.workout)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenWorkout?.(r.workout); } }}>
                     <div className="row-grow">
-                      <div className="conn-name truncate">{r.workout.data.dayName}</div>
+                      <div className="conn-name truncate">{workoutTitle(r.workout.data.dayName)}</div>
                       {/* Three facts: the date, the minutes in the time hue, the
                           working sets in the logged-work hue. */}
                       <div className="facts">
@@ -138,14 +138,14 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
             <div className="row" role="button" tabIndex={0} key={(r.exerciseKey ?? r.name) + r.kind}
               onClick={() => onOpenLift({ name: r.name, exerciseKey: r.exerciseKey, kind: r.kind, unit: r.unit, timeUnit: r.timeUnit })}>
               <div className="row-grow">
-                <div className="conn-name truncate">{r.name}</div>
+                <div className="conn-name truncate">{liftTitle(r.name)}</div>
                 {/* Row meta is quiet sentence case app-wide (gym
                     reformat 2026-08-31); eyebrows are kickers, not
                     sublines. */}
                 {/* KILL THE GREY SUBTEXT (Dave 2026-09-10): the trend is the
                     whole reason this row exists, so it wears the reading hue
                     rather than the same grey as the name above it. */}
-                <div className="r-k"><span className="se-chip se-chip-last">{trendLine(r)}</span></div>
+                <div className="facts"><span className="fact cyan">{trendLine(r)}</span></div>
               </div>
               <Sparkline workouts={workouts} name={r.name} exerciseKey={r.exerciseKey} kind={r.kind} />
               {/* V2 anatomy: the session count is a pill, not prose. */}
@@ -164,8 +164,8 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
             {doneRows.map((d) => (
               <div className="row" key={d.key}>
                 <div className="row-grow">
-                  <div className="conn-name truncate">{d.name}</div>
-                  <div className="r-k"><span className="se-chip se-chip-done">{d.n > 1 ? <>{d.n}<em>Times</em></> : "Done"}</span></div>
+                  <div className="conn-name truncate">{liftTitle(d.name)}</div>
+                  <div className="facts"><span className="fact lime">{d.n > 1 ? capAfterNumber(`${d.n} times`) : "Done"}</span></div>
                 </div>
               </div>
             ))}

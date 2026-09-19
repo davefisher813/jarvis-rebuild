@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useEffect, useState } from "react";
 import { NotesProvider, useProjects, useGoals, useTasks, useCategories } from "../data/NotesProvider";
@@ -50,8 +50,12 @@ describe("LifeFlow", () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
     await screen.findByText("No areas yet · Add one in Settings > Categories", {}, { timeout: 3000 });
     fireEvent.click(screen.getByRole("tab", { name: "Projects" }));
-    // The one ask names the project too (it has no next move), so scope to the row.
+    // AMENDED 2026-09-18 (the approved card mockup). Projects and Goals open
+    // on the CARDS now; this test is about the ruled ROW anatomy, which is
+    // the other view, so it asks for that view first. Everything it checks
+    // below is unchanged, and the toggle is how a person reaches it too.
     await screen.findByText("Add Project");
+    fireEvent.click(screen.getByLabelText("Show as a list"));
     const row = screen.getAllByText("Kitchen remodel").map((e) => e.closest(".task-row")).find(Boolean) as HTMLElement;
     expect(row).toBeTruthy();
     // THE CATEGORY IS THE ORGANIZER (Dave 2026-09-09: "projects should be
@@ -74,6 +78,7 @@ describe("LifeFlow", () => {
     expect(screen.queryByText("Add Goal")).toBeNull();
 
     fireEvent.click(screen.getByRole("tab", { name: "Goals" }));
+    fireEvent.click(await screen.findByLabelText("Show as a list"));
     const goal = await screen.findByText("Build a six-month runway");
     expect(goal.closest(".task-row.goal-row-ruled")).toBeTruthy();
     expect(document.querySelector(".task-row .pp")).toBeNull();
@@ -218,8 +223,12 @@ describe("a task link is spent once (SHELL-F-12)", () => {
     await waitFor(() => expect(rows().length).toBeGreaterThan(0), { timeout: 3000 });
     fireEvent.click(screen.getByText("Link Task"));
     await waitFor(() => expect(screen.getByText("Edit Task")).toBeInTheDocument());
-    // The filter the link asked for is showing (the Show menu names it).
-    expect(screen.getByLabelText("Show")).toHaveTextContent("Overdue");
+    // AMENDED 2026-09-17 (Unified Headers), then 2026-09-18 when the views
+    // became one menu on the header's single control line. The capsule
+    // states the view, so it is what names the filter a link asked for. What
+    // this test is about -- a link is spent once -- is unchanged.
+    const view = () => screen.getByLabelText("View");
+    expect(view(), "the header says it is on Overdue").toHaveTextContent("Overdue");
 
     fireEvent.click(screen.getByText("Cancel"));
     await waitFor(() => expect(screen.queryByText("Edit Task")).not.toBeInTheDocument());
@@ -232,7 +241,7 @@ describe("a task link is spent once (SHELL-F-12)", () => {
 
     expect(screen.queryByText("Edit Task")).not.toBeInTheDocument();
     // And the filter is the list's own default, not the one that link carried.
-    expect(screen.getByLabelText("Show")).toHaveTextContent("Today");
+    expect(view()).toHaveTextContent("Today");
   });
 });
 

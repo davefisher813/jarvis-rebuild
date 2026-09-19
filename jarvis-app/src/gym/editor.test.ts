@@ -138,7 +138,11 @@ describe("GYM-F-14: a parked session stays parked", () => {
 
   it("the parked session is one tap away on the program page", () => {
     expect(flow).toMatch(/\{parkedLive && \(/);
-    expect(flow).toContain("Resume {parkedLive.dayName}");
+    // AMENDED 2026-09-17: the day's name now goes through workoutTitle on
+    // the way to the screen (Dave: "all workout titles should be title cased
+    // as well"). What this test is about -- that the parked session names
+    // itself on the program page -- is unchanged.
+    expect(flow).toContain("Resume {workoutTitle(parkedLive.dayName)}");
   });
 });
 
@@ -291,13 +295,34 @@ describe("GYM-F-26: every row menu has a visible door", () => {
   // joined by middots, and the first of them is the row's own value. Last
   // time keeps the two homes that are about last time: the lift's own page,
   // and the session header the moment the lift comes up, where it is a chip.
-  it("and the exercise row's meta line is the plan and its rest, nothing else", () => {
+  // AMENDED 2026-09-16 (Dave: "the titles of exercise, it looks the same as
+  // what's under it. So it just all blends together and you can't read
+  // anything. There's no hierarchy"). The line was .conn-meta -- 15px at the
+  // body weight in the secondary ink -- under a .conn-name that was 17px at
+  // the SAME weight. Two pixels and one step of grey apart. The law's job is
+  // unchanged (nothing but the plan and its rest belongs on this row); what
+  // moved is WHERE: into the bounded value slot every other list in this app
+  // puts its counts in, so the eye lands on the name first.
+  it("and the exercise row carries the plan as a value, not as a line under its name", () => {
     const body = /function ExerciseRow\(([\s\S]*?)\n\}\n/.exec(flow)![1]!;
-    // Comments out: this row's own note quotes the line it stopped rendering,
-    // which is the point of the note and would fail the blanket check below.
     const rendered = body.replace(/\/\*[\s\S]*?\*\//g, "");
-    expect(rendered).not.toMatch(/Last:/);
-    expect(body).toMatch(/<div className="conn-meta">\{targetLine\(exercise\)\}\{exercise\.restSec \? ` · \$\{mmss\(exercise\.restSec\)\} rest` : ""\}<\/div>/);
+    expect(rendered, "last time stays off this row").not.toMatch(/Last:/);
+    expect(rendered, "and so does any grey line under the title").not.toMatch(/className="conn-meta"/);
+    // AMENDED hours later the same day (Dave, on the Exercises page: "This
+    // looks good. But it's not consistent throughout"). The plan is still the
+    // row's value in its own slot; what changed is the slot -- .facts, which
+    // is the house contract every other list already obeyed, instead of the
+    // filled capsule the gym had invented for the same job.
+    expect(rendered).toMatch(/<div className="facts">/);
+    // AMENDED 2026-09-16: the count leads the line and the noun wears the
+    // quiet ink, so the chip is drawn from parts instead of one string. The
+    // string survives as the label a screen reader speaks.
+    expect(rendered).toMatch(/<span className="fact cyan" aria-label=\{planChipText\(exercise\)\}>/);
+    expect(rendered).toMatch(/\{plan\.count\}<em className="fw">\{plan\.noun\}<\/em>\{plan\.target\}/);
+    expect(rendered, "rest is its own fact, only when there is one")
+      .toMatch(/exercise\.restSec \? <span className="fact">\{`\$\{mmss\(exercise\.restSec\)\} rest`\}<\/span> : null/);
+    expect(rendered, "and no capsule stands in for a value here")
+      .not.toMatch(/se-chip/);
     // The Settings toggle keeps every home that is about last time.
     expect(src("SessionScreen.tsx"), "the session header still obeys it")
       .toMatch(/const showLast = readGymSettings\(\)\.showLast/);

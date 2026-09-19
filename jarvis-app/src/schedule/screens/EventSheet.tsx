@@ -327,7 +327,7 @@ export default function EventSheet({
             {/* Memory: past events offered whole while typing, as rows under
                 the name, the exercise sheet's library form. */}
             {titleSugs.map((s) => (
-              <div key={s.title} className="row xs-row xs-suggest" role="button" tabIndex={0} onClick={() => applySug(s)}>
+              <div key={s.title} className="row xs-row" role="button" tabIndex={0} onClick={() => applySug(s)}>
                 <span className={"cat-dot cat-bg-" + catColor(s.category)} />
                 <div className="row-grow"><div className="conn-name">{s.title}</div><div className="conn-meta">{sugLabel(s)}</div></div>
               </div>
@@ -574,7 +574,7 @@ export default function EventSheet({
               </div>
             )}
             {locSugs.map((l) => (
-              <div key={l} className="row xs-row xs-suggest" role="button" tabIndex={0} onClick={() => setLocation(l)}>
+              <div key={l} className="row xs-row" role="button" tabIndex={0} onClick={() => setLocation(l)}>
                 <div className="conn-name">{l}</div>
               </div>
             ))}
@@ -692,7 +692,7 @@ export default function EventSheet({
               <Tile tone="orange"><BarbellGlyph /></Tile>
               <div className="row-grow">
                 <div className="conn-name">{gym ? "This Block Opens the Gym" : "Training Door"}</div>
-                <div className="conn-meta">{gym ? "Names the day's lift, starts the session, stamps the real minutes" : "Make this block the door to your training"}</div>
+                <div className="conn-meta">{gym ? "On" : "Off"}</div>
               </div>
               <div className={"switch" + (gym ? "" : " off")} role="switch" aria-checked={gym} aria-label="Training door" tabIndex={0}
                 onClick={() => setGym((g) => !g)} />

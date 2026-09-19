@@ -154,7 +154,7 @@ export default function WindowsSheet({
           <div className="row" {...rowDoor(() => setMirrorDraft((v) => !v))}>
             <div className="row-grow">
               <div className="conn-name">Same on Every Device</div>
-              <div className="conn-meta">{mirrorDraft ? "On · Rides the mail mirror" : "Off · These windows stay on this device"}</div>
+              <div className="conn-meta">{mirrorDraft ? "On" : "Off"}</div>
             </div>
             <button type="button" className="pill-act" aria-pressed={mirrorDraft} onClick={(e) => { e.stopPropagation(); setMirrorDraft((v) => !v); }}>
               {mirrorDraft ? "Turn Off" : "Turn On"}

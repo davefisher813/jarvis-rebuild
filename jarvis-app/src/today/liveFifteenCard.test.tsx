@@ -55,7 +55,7 @@ describe("the running fifteen", () => {
         onStartTask={() => {}} onTomorrowMove={() => {}} fifteen={running}
         onFifteenDone={done} onFifteenStop={stop} onFifteenAgain={() => {}} />,
     );
-    expect(screen.queryByRole("button", { name: "Start" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start Now" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Tomorrow" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Another 15" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Stop" }));
@@ -91,7 +91,7 @@ describe("the running fifteen", () => {
 
   it("is absent entirely when nothing is running", () => {
     render(<TodayPage {...base} upNext={[tk("Call the bank", "2026-05-20")]} onUpNext={() => {}} onStartTask={() => {}} />);
-    expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Now" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Done" })).not.toBeInTheDocument();
   });
 });

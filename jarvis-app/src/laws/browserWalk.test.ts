@@ -233,7 +233,7 @@ describe("BROWSER-F-07: the bare-text buttons reach the tap minimum", () => {
     }
     // .toast-action is SHARED-F-10's own item; .sched-until-btn refused this
     // on 2026-08-24 because it sits inside a row that is itself role=button.
-    for (const cls of [".p3-time-btn", ".upnext-skip", ".search-cancel", ".ob-x", ".note-conn-add", ".note-fix"]) {
+    for (const cls of [".p3-time-btn", ".focus-skip", ".search-cancel", ".ob-x", ".note-conn-add", ".note-fix"]) {
       expect(wearing.has(cls), `${cls} measured under 24px of hit and must wear tap44`).toBe(true);
     }
   });
@@ -553,7 +553,7 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   it("live metadata takes the quiet token, not the dim one", () => {
     const all = (css() + read("styles/ruled.css")).replace(/\/\*[\s\S]*?\*\//g, "");
     const rules = [...all.matchAll(/([^{}]+)\{([^}]*)\}/g)];
-    const LIVE = [".prop-tag", ".sched-sep", ".upnext-skip", ".rep-hint", ".doc-count",
+    const LIVE = [".prop-tag", ".sched-sep", ".focus-skip", ".rep-hint", ".doc-count",
       ".receipt-line", ".ruled .sched-time .ampm", ".ruled .r-next", ".ruled .wk-w", ".ruled .sched-now .t"];
     for (const sel of LIVE) {
       const body = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === sel)?.[2];

@@ -143,6 +143,10 @@ describe("TasksFlow area filter (LIFE-F-11)", () => {
     render(<NotesProvider userId="area-life-11"><SeededAreas /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Work done one")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Clear 5 Completed" })).toBeInTheDocument();
+    // AMENDED 2026-09-17 (Unified Headers): Area moved from a capsule under
+    // the head into the options sheet, the one place all five pages keep
+    // their Area, Sort, Group and secondary tools. Same control, same menu.
+    fireEvent.click(screen.getByLabelText("Tasks Options"));
     fireEvent.click(screen.getByRole("button", { name: "Area" }));
     fireEvent.click(await screen.findByRole("menuitemradio", { name: "Work" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Clear 2 Completed" })).toBeInTheDocument());
@@ -225,5 +229,99 @@ describe("TasksFlow: the task's Text door hands the sheet a real voice (UP-MIND-
     // gatherContext + voiceToText resolve to at least the identity line
     // every real context carries.
     await waitFor(() => expect(draftProps.at(-1)!.voice).toMatch(/^User: /));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DAVE, 2026-09-17: "the huge start now container is the same for all of the
+// pages. Like setting up Jarvis has NOTHING to do with emails."
+//
+// A Place to Begin read `parts.all` on every view, so the card sitting on top
+// of seven email tasks proposed a task from somewhere else entirely -- the
+// same card, the same suggestion, whichever chip was chosen.
+// ---------------------------------------------------------------------------
+let twoSvc: TasksService | null = null;
+
+function TwoViews() {
+  const tasks = useTasks();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const soon = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+      const later = new Date(Date.now() + 9 * 86400000).toISOString().slice(0, 10);
+      await tasks.createTask("Set up everything on jarvis", { due: todayISO() });
+      await tasks.createTask("Book the Bridge venue", { due: soon });
+      await tasks.createTask("Water the plants", { due: later });
+      // isFromEmail reads `source.type`, not `source.kind` -- an open task
+      // with this stamp lands in From Email whatever the email-home setting
+      // says (filters.partition), which is the view Dave was looking at.
+      await tasks.createTask("Get back to Google: Security alert", { due: todayISO(), source: { type: "email", ref: "m1", ts: Date.now() } });
+      // A second email task, a few days behind the first, so From Email has a
+      // lead rather than a tie: topPick makes no pick among equals
+      // (2026-09-18, "the logic better be flawless").
+      await tasks.createTask("Reply to Stripe about the dispute", { due: soon, source: { type: "email", ref: "m2", ts: Date.now() } });
+      twoSvc = tasks;
+      setReady(true);
+    })();
+  }, []);
+  return ready ? <TasksFlow /> : null;
+}
+
+/** The views are one menu now (2026-09-18): open it, pick the option. */
+const pickView = (name: RegExp) => {
+  fireEvent.click(screen.getByLabelText("View"));
+  fireEvent.click(screen.getByRole("menuitemradio", { name }));
+};
+
+describe("A Place to Begin picks out of the view you are looking at", () => {
+  // THE CARD ONLY APPEARS WHERE ONE TASK IS ACTUALLY AHEAD (2026-09-18). Two
+  // tasks due the same day are not separated by anything he set, so there is
+  // no pick and no card -- which is why these views are the ones with real
+  // date spread in them.
+  const cardName = () => document.querySelector(".start-top-name")?.textContent ?? "";
+
+  it("proposes a task from the chosen view, not one from somewhere else", async () => {
+    twoSvc = null;
+    render(<NotesProvider userId="start-per-view"><TwoViews /></NotesProvider>);
+    await waitFor(() => expect(screen.getByLabelText("View")).toBeInTheDocument(), { timeout: 4000 });
+    // Upcoming holds two, six and nine days out. The nearer one leads.
+    pickView(/Upcoming/);
+    await waitFor(() => expect(cardName()).toContain("Book the Bridge venue"), { timeout: 4000 });
+    expect(cardName(), "the card is about the list it is sitting on").not.toContain("jarvis");
+    void twoSvc;
+  });
+
+  // The exact view in Dave's screenshot: email tasks with a card on top
+  // proposing something from somewhere else.
+  it("proposes an email task on From Email, never one from somewhere else", async () => {
+    render(<NotesProvider userId="start-per-view-3"><TwoViews /></NotesProvider>);
+    await waitFor(() => expect(screen.getByLabelText("View")).toBeInTheDocument(), { timeout: 4000 });
+    // The views are one menu as of 2026-09-18, so From Email is back beside
+    // the rest instead of living in the options sheet.
+    pickView(/From Email/);
+    await waitFor(() => expect(cardName()).toContain("Get back to Google"), { timeout: 4000 });
+    expect(cardName(), "setting up Jarvis has nothing to do with emails").not.toContain("jarvis");
+  });
+
+  // Done has no open task in it, so topPick returns null and the card is
+  // simply gone -- the page does not have to remember to hide it.
+  it("says nothing on a view with nothing startable in it", async () => {
+    render(<NotesProvider userId="start-per-view-2"><TwoViews /></NotesProvider>);
+    await waitFor(() => expect(screen.getByLabelText("View")).toBeInTheDocument(), { timeout: 4000 });
+    pickView(/Upcoming/);
+    await waitFor(() => expect(screen.getByText("A Place to Begin")).toBeInTheDocument(), { timeout: 4000 });
+    pickView(/^Done/);
+    await waitFor(() => expect(screen.queryByText("A Place to Begin")).toBeNull(), { timeout: 4000 });
+  });
+
+  // "It's beyond overkill." One task on the list is not a choice between
+  // anything, and the row underneath already carries its own Start.
+  it("does not highlight the only task on the list", async () => {
+    render(<NotesProvider userId="start-per-view-4"><TwoViews /></NotesProvider>);
+    await waitFor(() => expect(screen.getByLabelText("View")).toBeInTheDocument(), { timeout: 4000 });
+    // Today holds exactly one (the email task partitions out of it).
+    pickView(/^Today/);
+    await waitFor(() => expect(screen.getAllByText("Set up everything on jarvis").length).toBeGreaterThan(0), { timeout: 4000 });
+    expect(screen.queryByText("A Place to Begin")).toBeNull();
   });
 });

@@ -161,3 +161,45 @@ describe("parseMeeting", () => {
     expect(p).toMatch(/Leave it out entirely if the time is only PROPOSED/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// THE MEETING THAT NEVER APPEARED EAST OF GREENWICH (2026-09-18).
+//
+// parseMeeting validated the day by parsing it at LOCAL midnight and
+// comparing against toISOString(), which is UTC. Anywhere with a positive
+// offset, local midnight is the PREVIOUS day in UTC, the round trip fails,
+// and every confirmed meeting was dropped -- no card, no Add to Calendar, no
+// error. Measured before the fix: America/New_York round-trips "2026-09-22"
+// to itself; Europe/Berlin and Asia/Tokyo both return "2026-09-21".
+//
+// The check has no zone in it now. It still has to reject a well-shaped
+// string that is not a day, which is the reason it existed.
+describe("a confirmed meeting survives the reader's timezone", () => {
+  const withTZ = (tz: string, run: () => void) => {
+    const prev = process.env.TZ;
+    process.env.TZ = tz;
+    try { run(); } finally { process.env.TZ = prev; }
+  };
+  const meeting = (date: string) => parseMeeting({ title: "Interview", date, start: "15:00", durationMin: 30 });
+
+  it("accepts a real day whatever the offset", () => {
+    for (const tz of ["America/New_York", "UTC", "Europe/Berlin", "Asia/Tokyo", "Pacific/Kiritimati"]) {
+      withTZ(tz, () => {
+        const m = meeting("2026-09-22");
+        expect(m, tz + " dropped a real meeting").not.toBeNull();
+        expect(m!.date, tz + " moved the day").toBe("2026-09-22");
+        expect(m!.start).toBe("15:00");
+        expect(m!.end).toBe("15:30");
+      });
+    }
+  });
+
+  it("still rejects a well-shaped string that is not a day", () => {
+    for (const tz of ["America/New_York", "Asia/Tokyo"]) {
+      withTZ(tz, () => {
+        expect(meeting("2026-02-31"), "Feb 31 is not a date").toBeNull();
+        expect(meeting("2026-13-01"), "there is no month 13").toBeNull();
+      });
+    }
+  });
+});

@@ -1,5 +1,7 @@
+import { liftTitle } from "../shared/casing";
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import SheetBar from "../shared/SheetBar";
 import { searchLibrary, searchLibraryByKind, newExerciseKey, type LibraryEntry } from "./library";
 import { readGymSettings } from "./settings";
 import { MEASURE_LABEL, type MeasureKind } from "./types";
@@ -53,20 +55,46 @@ export default function LibraryPickSheet({
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{title}</div></div>
-        <div className="pad-x sheet-form">
+        {/* THE WAY OUT IS AT THE TOP (2026-09-16, Dave: "the modal doesn't
+            scroll. Can't get out of it. Freezes the whole app").
+
+            THE FREEZE: .sheet-scrim > .card is a flex column capped at 92% of
+            the visible band, and every child of it declared how it behaves in
+            that column except this list, which was a bare <div>. A flex item
+            defaults to min-height: auto, so it could not shrink below its own
+            content: with two dozen lifts in it the list grew past the cap,
+            pushed Add and Cancel off the bottom of the screen, and nothing
+            scrolled because nothing had been told it was the scroller. Every
+            exit was below the fold.
+
+            Two fixes, because one is not enough: the list is the scroll
+            region now (.sheet-list, the rules .sheet-form has always had),
+            and Cancel moved to a bar at the top where it cannot be pushed
+            anywhere. The count rides the same bar, so what you are about to
+            add is visible while you pick instead of only after you scroll. */}
+        <SheetBar
+          title={title}
+          onCancel={onCancel}
+          saveLabel={multi ? (picked.length === 0 ? "Add" : `Add ${picked.length}`) : "Done"}
+          saveDisabled={multi ? picked.length === 0 : false}
+          onSave={() => (multi && picked.length > 0 ? onPickMany!(picked) : onCancel())}
+        />
+        {/* The search field the Exercises page uses, not a bare bordered
+            input: same control, same shape, one search bar in the app. */}
+        <div className="pad-x ex-search">
           <input
-            className="input" autoFocus placeholder="Search Exercises"
+            className="xs-input" type="search" autoFocus placeholder="Search Exercises"
+            aria-label="Search Exercises"
             value={q} onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <div><div className="list-flat">
+        <div className="sheet-list"><div className="list-flat">
           {results.map((entry) => (
             <div className="row" role="button" tabIndex={0} key={entry.key}
               aria-pressed={multi ? isPicked(entry.key) : undefined}
               onClick={() => (multi ? toggle(entry) : onPick(entry))}>
               <div className="row-grow">
-                <div className="conn-name truncate">{entry.name}</div>
+                <div className="conn-name truncate">{liftTitle(entry.name)}</div>
                 {/* ONLY WHEN IT IS NEWS (2026-09-16, the polish handoff: "drop
                     the repeated Weight x Reps from the add-from-your-lifts
                     list"). Nearly every lift in a gym is weight and reps, so
@@ -88,20 +116,15 @@ export default function LibraryPickSheet({
             <div className="pad-x"><div className="bp-sub">Nothing found yet · Keep typing or add it new</div></div>
           )}
         </div></div>
-        <div className="pad-x sheet-actions">
-          {multi && (
-            <button className="btn btn-primary btn-block" disabled={picked.length === 0}
-              onClick={() => { onPickMany!(picked); }}>
-              {picked.length === 0 ? "Pick Some Lifts" : `Add ${picked.length} to the Day`}
-            </button>
-          )}
-          {onFreeText && q.trim() && (
-            <button className="btn btn-secondary btn-block" onClick={() => onFreeText(q.trim())}>
+        {/* The one action the bar cannot carry: it appears only when what was
+            typed matches nothing, and it names what it would create. */}
+        {onFreeText && q.trim() && (
+          <div className="pad-x sheet-actions">
+            <button className="btn btn-secondary btn-block" onClick={() => onFreeText(liftTitle(q.trim()))}>
               Use &ldquo;{q.trim()}&rdquo; Anyway
             </button>
-          )}
-          <button className="btn btn-tertiary btn-block" onClick={onCancel}>Cancel</button>
-        </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body,

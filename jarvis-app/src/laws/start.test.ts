@@ -213,11 +213,17 @@ describe("START law 5: one workspace per thing, and it is never an event", () =>
 });
 
 describe("START law 6: one start door per screen", () => {
-  it("the task page never shows the start card and Pick One at once", () => {
+  it("the task page shows the start card, and no fill beside it", () => {
     const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
-    // One if-else chain: overwhelmed exit, else the card, else the fallback.
-    expect(page).toMatch(/\) : startCard \? \(/);
-    expect(page).toMatch(/\) : onPickOne && counts\.all > 0 && \(/);
+    // One if-else chain: the overwhelmed exit, else the card, else nothing.
+    // AMENDED 2026-09-17 (rule 6: "Hide the suggestion card during local
+    // search and in Done"), and again 2026-09-18, when Pick One stopped
+    // being the third arm: the slab is gone entirely and the door to Focus
+    // is a control on the header line, which cannot collide with the card
+    // because it is not in this chain at all.
+    expect(page).toMatch(/\) : startCard && !q && filter !== "done" \? \(/);
+    expect(page, "and no fill anywhere on the page").not.toMatch(/btn btn-primary btn-lg btn-block/);
+    expect(page, "the door is a control").toMatch(/className="tasks-focus"/);
   });
 
   it("the card's own primary is the only fill on it", () => {

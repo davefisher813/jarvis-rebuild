@@ -7,7 +7,7 @@ import { pairId, type DuplicatePair } from "./duplicates";
 import { classConflicts, identityLine, valueLine, type Classification } from "./classify";
 import { movesLine, remainingLine, type MergeState } from "./merge";
 import type { LibraryRow } from "./libraryEdit";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, liftTitle } from "../shared/casing";
 
 // DUPLICATE REVIEW, OFF THE LIST AND INTO ITS OWN ROOM (handoff §6).
 //
@@ -33,7 +33,7 @@ function Side({ row, c, today }: { row: LibraryRow; c: Classification; today: st
       {/* The name wraps. It is the one thing on this sheet that must never be
           clipped, since clipping it is how two different exercises look
           identical (acceptance criterion 12). */}
-      <div className="dup-name">{row.name}</div>
+      <div className="dup-name">{liftTitle(row.name)}</div>
       <div className="facts">
         <span className="fact">{row.sessions > 0 ? `${row.sessions} ${row.sessions === 1 ? "session" : "sessions"}` : "Never done"}</span>
         {row.sets > 0 && <span className="fact">{`${row.sets} ${row.sets === 1 ? "set" : "sets"}`}</span>}
@@ -45,7 +45,10 @@ function Side({ row, c, today }: { row: LibraryRow; c: Classification; today: st
         {ident && <span className="fact">{ident}</span>}
       </div>
       {valueLine(c, "muscles") && <div className="facts"><span className="fact">{valueLine(c, "muscles")}</span></div>}
-      {row.aliases && row.aliases.length > 0 && <div className="facts"><span className="fact cyan">{`Also ${row.aliases.join(", ")}`}</span></div>}
+      {/* The merged-away names came off every surface on 2026-09-18 (Dave:
+          "also (other title) needs to be deleted and never render"). What
+          separates two exercises is still all here: the name, the sessions,
+          the sets, the dates, the equipment and the machine's identity. */}
       <div className="conn-meta">{today}</div>
     </div>
   );
@@ -204,8 +207,8 @@ export function DuplicatesSheet({ pairs, sideOf, onReview, onKeepSeparate, onClo
                   // Keep Separate stays button-only.
                   <div className="row dup-row" key={id} {...rowDoor(() => onReview(d))}>
                     <div className="row-grow">
-                      <div className="dup-name">{d.fold.name}</div>
-                      <div className="dup-name">{d.keep.name}</div>
+                      <div className="dup-name">{liftTitle(d.fold.name)}</div>
+                      <div className="dup-name">{liftTitle(d.keep.name)}</div>
                       <div className="facts">
                         <span className="fact">{d.why}</span>
                         {differs && <span className="fact amber">{`${ea} and ${eb}`}</span>}

@@ -1,3 +1,5 @@
+import { NAME_FIELD } from "../shared/nameField";
+import { liftTitle } from "../shared/casing";
 import { createPortal } from "react-dom";
 import { Fragment, useRef, useState, type ReactNode } from "react";
 import { own } from "../shared/rowDoor";
@@ -74,7 +76,7 @@ function Tile({ tone, children }: { tone: string; children: ReactNode }) {
 // In the Session (Rest Timer, Warm-Up Ramp, Filler), Note. The header is
 // the ruled sheet bar (Cancel, the name, Save); Delete sits alone at the
 // very bottom. The set strip keeps its chips, which he approved.
-export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel, partner, onPairWith }: {
+export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel, partner, onPairWith, alsoOnDay }: {
   mode: "new" | "edit";
   initial?: Exercise;
   /** THE EXERCISE LIBRARY (catalog §3.5): every exercise name ever used,
@@ -93,6 +95,18 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
    *  absent on a new exercise and on a day with nothing else to pair. */
   partner?: string | null;
   onPairWith?: () => void;
+  /** WHERE A MID-SESSION ADD LANDS (Dave 2026-09-17: "when I add a new
+   *  exercise during a workout it doesn't save. It also doesn't allow me to
+   *  pair with another one").
+   *
+   *  Catalog §3.10 says an add mid-session does not touch the program, and
+   *  that is still a real thing to want -- one-off accessory work you are
+   *  never doing again. But it was the ONLY thing on offer, so the lift lived
+   *  inside one session and nowhere else: it could not be paired (a pair is a
+   *  program construct the live screen reads off the day) and it was not in
+   *  the library until the workout was finished. Now the sheet asks, with the
+   *  common answer already chosen. Absent when there is no day to add to. */
+  alsoOnDay?: { dayName: string; value: boolean; onChange: (v: boolean) => void };
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [kind, setKind] = useState<MeasureKind>(initial?.kind ?? "weight_reps");
@@ -117,6 +131,13 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   // opens with the right answer already in both rows.
   const [equipment, setEquipment] = useState<Equipment | "">(initial ? (loadStyleOf(initial).equipment ?? "") : "");
   const [counted, setCounted] = useState<Counted | undefined>(initial ? loadStyleOf(initial).counted : undefined);
+  // THE REPS AXIS (2026-09-16, Dave: "you cannot tell me the module that
+  // renders when you click on an exercise has everything you need... I still
+  // don't see enough options with various weight loading"). He is right: the
+  // live session's own sheet has asked this since this morning and the sheet
+  // that PLANS the exercise never did, so a lift could be set up here and
+  // still be wrong about its reps until it was corrected at the rack.
+  const [sided, setSided] = useState<boolean>(initial ? !!loadStyleOf(initial).sided : false);
   const loadStyle: LoadStyle = {
     ...(equipment ? { equipment } : {}),
     ...(counted ? { counted } : {}),
@@ -223,7 +244,11 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   const save = () => {
     if (!valid) { setTouched(true); return; }
     onSave({
-      name: name.trim(), kind, sets: condBlock ? [] : sets,
+      // CASED ON THE WAY IN (Dave 2026-09-17: "Case those too"). This is
+      // where a name is minted or rewritten outright, so the record set
+      // converges on the spelling the app draws rather than the app
+      // redrawing a spelling the record set never agrees with.
+      name: liftTitle(name.trim()), kind, sets: condBlock ? [] : sets,
       ...(unit ? { unit } : {}),
       ...(kind === "distance_time" ? { timeUnit } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
@@ -240,6 +265,10 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
       // that equipment's default: a set logged today has to keep meaning
       // what it meant if the defaults are ever revised.
       ...(kind === "weight_reps" && counted ? { counted } : {}),
+      // Not gated on weight_reps: a bodyweight lift measured in reps alone is
+      // exactly the case where per-side matters most (a pistol squat, a
+      // single-arm row on a band).
+      ...(sided ? { sided: true as const } : {}),
       ...(partner && roundRestSec > 0 ? { roundRestSec } : {}),
       ...(condBlock ? { cond: condBlock } : {}),
     });
@@ -263,6 +292,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <input
                 ref={nameRef}
                 className={"xs-input" + (touched && !name.trim() ? " input-error" : "")}
+                {...NAME_FIELD}
                 placeholder="Exercise Name"
                 aria-label="Exercise name"
                 value={name}
@@ -285,7 +315,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               // not click. But it announced itself as a button with no key
               // path at all, so a keyboard or VoiceOver user could not pick a
               // suggestion. Enter and Space now do what the tap does.
-              <div className="row xs-row xs-suggest" role="button" tabIndex={0} key={s.key}
+              <div className="row xs-row" role="button" tabIndex={0} key={s.key}
                 onMouseDown={() => pickSuggestion(s)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickSuggestion(s); } }}>
                 <div className="row-grow">
@@ -349,6 +379,22 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                               onPick={(v) => setCounted(v as Counted)} />
                           </div>
                         )}
+                        {/* AND WHAT THE REPS MEAN, which is the other half and
+                            has never been askable here. Counted As says what
+                            the WEIGHT is; this says whether 8 is 8 or 8 a
+                            side.
+                            A VALUE, NOT A SWITCH: every other row in this
+                            group states its answer in the right slot
+                            (Dumbbells, Each Hand, lb), and a bare toggle
+                            would need a grey line under it explaining which
+                            way is on -- which is the exact sentence this pass
+                            is removing everywhere else. */}
+                        <div className="row xs-row">
+                          <div className="conn-name">Reps Count</div>
+                          <HeadMenu variant="value" ariaLabel="Reps count" value={sided ? "side" : "both"}
+                            options={[{ value: "both", label: "Both Sides" }, { value: "side", label: "Per Side" }]}
+                            onPick={(v) => setSided(v === "side")} />
+                        </div>
                       </>
                     )}
                     {/* SAY THE UNIT ONCE (2026-09-16, the polish handoff:
@@ -559,6 +605,26 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 onClick={own(() => setFiller((f) => !f))} />
             </div>
           </div></div>
+
+          {alsoOnDay && (
+            <>
+              <div className="grp xs-grp"><div className="eyebrow">Where It Lands</div></div>
+              <div className="pad-x"><div className="card xs-group">
+                <div className="row xs-row" onClick={() => alsoOnDay.onChange(!alsoOnDay.value)}>
+                  <Tile tone="blue"><Dumbbell className="ic" /></Tile>
+                  <div className="row-grow">
+                    <div className="conn-name">{`Add to ${alsoOnDay.dayName}`}</div>
+                    <div className="facts">
+                      <span className="fact">{alsoOnDay.value ? "Kept for next time" : "This session only"}</span>
+                      {alsoOnDay.value && <span className="fact">Can be paired</span>}
+                    </div>
+                  </div>
+                  <div className={"switch" + (alsoOnDay.value ? "" : " off")} role="switch" aria-checked={alsoOnDay.value}
+                    aria-label="Add to the day" tabIndex={0} onClick={own(() => alsoOnDay.onChange(!alsoOnDay.value))} />
+                </div>
+              </div></div>
+            </>
+          )}
 
           <div className="grp xs-grp"><div className="eyebrow">Note</div></div>
           <div className="pad-x"><div className="card xs-group">

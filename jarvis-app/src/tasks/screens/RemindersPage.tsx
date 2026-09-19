@@ -4,6 +4,9 @@ import { PAGE_TABS, type PageTab, type PageSection, type PageRow, whenWords, dat
 import { actionLabelFor } from "../reminderHistory";
 import { catName, catColor } from "../../shared/categories";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
+import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
+import HeadMenu from "../../shared/HeadMenu";
+import OptionsSheet from "../../shared/OptionsSheet";
 import { rowDoor } from "../../shared/rowDoor";
 import { Burst } from "../../shared/Burst";
 import { Check, Search, Plus, Gauge } from "../../shared/icons";
@@ -19,9 +22,10 @@ import { fmtTime } from "../../schedule/calendar";
 // THE VIEWS ARE CHIPS, NOT A SECOND TAB BAR (Dave 2026-09-15: "we can't have
 // two tab bars on one page"). Life already spends the page's one segmented
 // control on Tasks / Reminders / Projects / Goals, so Today / Upcoming /
-// Routines / Done take the chip row Notes uses for its own filters: same
-// .chip-row .chip-wrap-row, same filled-when-chosen chip, wrapping rather
-// than scrolling. Chips choose, which is what these do.
+// Routines / Done take a chip row. They SCROLL rather than wrap as of
+// 2026-09-17 (Unified Headers, rule 2: "Use one horizontally scrollable chip
+// row without wrapping"), and they are the shared header's row now, the same
+// one the other four pages spend. Chips choose, which is what these do.
 //
 // The "On Your Radar" hero card is gone (Dave 2026-09-15: it matched no
 // other component in the app). Now / Later Today carry the same info the
@@ -79,6 +83,13 @@ export default function RemindersPage({
   onResume: (id: string) => void;
   onRestore: (id: string, date: string) => void;
 }) {
+  const [optsOpen, setOptsOpen] = useState(false);
+  /** THE AREA CUT (Dave 2026-09-17: "Put it back and make it fit. That needs
+   *  to be on all pages"). Every reminder row already carries its area and
+   *  already prints its name; this is the same cut the other four pages have
+   *  always had, composed with whichever view is chosen rather than being a
+   *  view of its own. */
+  const [area, setArea] = useState<string | null>(null);
   const [burstId, setBurstId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const celebrate = (id: string) => {
@@ -187,43 +198,68 @@ export default function RemindersPage({
     );
   };
 
-  const gear = <BarAction label="Reminder Settings" onClick={onSettings}><Gauge className="ic" /></BarAction>;
+  // ONE HEADER, FIVE PAGES (Dave 2026-09-17, Unified Headers handoff). What
+  // this replaces is the handoff's own named example: "Replace the large red
+  // New Reminder button and separate Search button with a visible search
+  // field and a compact, labeled Add control." A full-width red primary on
+  // every visit, a Search button that revealed a field, and a chip row that
+  // WRAPPED. The views, their meanings and their order are untouched --
+  // Today, Upcoming, Routines and Done are exactly the PAGE_TABS they were.
+  // Done came off the chip row on 2026-09-17 ("Get rid of done") and is back
+  // on 2026-09-18, because the views are a menu now: a menu shows one answer
+  // and hands the list to a panel, so the view you open least costs the line
+  // nothing at all.
+  const views: HeaderView[] = PAGE_TABS.map((t) => ({ key: t.key, label: t.label }));
+  const areaIds = [...new Set(sections.flatMap((s) => s.rows.map((r) => r.category)).filter((c): c is string => !!c))];
+  // The area composes with the view: it cuts the rows the view already chose,
+  // and a section left with none of them is not drawn at all.
+  const shownSections = area
+    ? sections.map((sec) => ({ ...sec, rows: sec.rows.filter((r) => r.category === area) })).filter((sec) => sec.rows.length > 0)
+    : sections;
+  const header = (
+    <LifeHeader
+      query={query}
+      onQuery={onQuery}
+      placeholder="Search Reminders"
+      addLabel="New Reminder"
+      onAdd={onNew}
+      views={views}
+      view={tab}
+      onView={(k) => onTab(k as PageTab)}
+      scope={query.trim() ? {
+        count: shownSections.reduce((n, sec) => n + sec.rows.length, 0),
+        where: `${PAGE_TABS.find((t) => t.key === tab)?.label ?? tab} reminders`,
+        ...(tab !== "done" ? { onAll: () => onTab("done"), allLabel: "Search Done too" } : {}),
+      } : undefined}
+      drops={areaIds.length > 0 ? (
+        <HeadMenu
+          ariaLabel="Area"
+          value={area ?? "all"}
+          label={area ? undefined : "Area"}
+          options={[{ value: "all", label: "All Areas" }, ...areaIds.map((id) => ({ value: id, label: catName(id) || "Area", dot: catColor(id) }))]}
+          onPick={(v) => setArea(v === "all" ? null : v)}
+        />
+      ) : undefined}
+    >
+      {chrome.segments}
+    </LifeHeader>
+  );
+  const opts = <OptionsButton onClick={() => setOptsOpen(true)} label="Reminders Options" />;
   return (
     <div className="screen ruled rem-page">
       {chrome.segments
-        ? <PageHeader title="Life" actions={gear}>{chrome.segments}</PageHeader>
-        : <PageHeader title="Reminders" back={chrome.back} onBack={chrome.onBack} actions={gear}
-            hero={<div className="rem-hero"><div className="eyebrow">{dateWord}</div><div className="pagehead-title">Reminders<span className="rem-hero-dot">.</span></div></div>} />}
+        ? <PageHeader title="Life" headActions={opts}>{header}</PageHeader>
+        : <PageHeader title="Reminders" back={chrome.back} onBack={chrome.onBack} headActions={opts}
+            hero={<div className="rem-hero"><div className="eyebrow">{dateWord}</div><div className="pagehead-title">Reminders<span className="rem-hero-dot">.</span></div></div>}>{header}</PageHeader>}
 
-      <div className="pad-x">
-        <div className="rem-toolbar">
-          <button type="button" className="btn btn-primary" onClick={onNew}><Plus className="ic" />New Reminder</button>
-          <button type="button" className={"btn btn-secondary" + (searchOpen ? " on" : "")} aria-pressed={searchOpen} onClick={onSearchToggle}><Search className="ic" />Search</button>
-        </div>
-      </div>
-      <div className="chip-row chip-wrap-row rem-views">
-        {PAGE_TABS.map((t) => (
-          <button key={t.key} type="button" className={"chip" + (t.key === tab ? " active" : "")}
-            aria-pressed={t.key === tab} onClick={() => onTab(t.key)}>{t.label}</button>
-        ))}
-      </div>
-      {searchOpen && (
-        <div className="sub-bar">
-          <div className="search-bar">
-            <Search className="ic search-ic" />
-            <input placeholder="Search" aria-label="Find a reminder" value={query} onChange={(e) => onQuery(e.target.value)} />
-          </div>
-        </div>
-      )}
-
-      {sections.length === 0 && (
+      {shownSections.length === 0 && (
         <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
           <div className="empty-title">Nothing Here Right Now</div>
           <div className="empty-sub">{query ? "Nothing matches that." : "Reminders appear here when they match this view."}</div>
           <button className="row row-act" onClick={onNew}><Plus className="ic" />Add a Reminder</button>
         </div></div></div>
       )}
-      {sections.map((s) => (
+      {shownSections.map((s) => (
         <div key={s.label}>
           <div className={"sh2" + (s.label === "Now" ? "" : " sh2-quiet")}>
             {s.label === "Now" && <span className="rem-now-dot" aria-hidden="true" />}
@@ -244,6 +280,13 @@ export default function RemindersPage({
         </div>
       ))}
       <div className="screen-foot" />
+      {/* Reminder Settings was a gear in the bar; it is a row in the one
+          options sheet all five pages share (handoff rule 7). */}
+      {optsOpen && (
+        <OptionsSheet title="Reminders Options" rows={[
+          { key: "settings", label: "Reminder Settings", onClick: () => { setOptsOpen(false); onSettings(); } },
+        ]} onClose={() => setOptsOpen(false)} />
+      )}
     </div>
   );
 }

@@ -17,7 +17,7 @@ import { comparableGain, type LiftId, type RepGain } from "./findings";
 import type { DataCategory } from "./records";
 
 // INSIGHTS (the approved Health design, 2026-09-14, items 3 to 7). A real
-// page: the period (7, 28, 90 days or two dates) drives every card that
+// page: the period (7, 30, 90 days or two dates) drives every card that
 // reads the period; a card that reads a different span says so on its
 // face. Overview leads with the best comparable change, where the sets
 // went (with the unassigned sets shown, never dropped) and sleep over the
@@ -137,18 +137,28 @@ export default function InsightsPage({
   onExport: (period: Period) => void;
 }) {
   const [range, setRange] = useState<RangeKey>("7d");
-  const [custom, setCustom] = useState({ from: periodFor("28d", today).from, to: today });
+  const [custom, setCustom] = useState({ from: periodFor("30d", today).from, to: today });
   const [section, setSection] = useState<InsightsSection>("overview");
   const period = periodFor(range, today, custom);
   const sleepDef = metricDefs.find((d) => d.data.presetKey === "sleep" && !d.data.hidden) ?? null;
   const overview = useMemo(() => periodOverview(workouts, sleepDef, metricLogs, period), [workouts, sleepDef, metricLogs, period]);
   const breakdown = useMemo(() => muscleBreakdown(workouts, muscleMap, period), [workouts, muscleMap, period]);
   const lifts = useMemo(() => chartableExercises(workouts), [workouts]);
-  const [pickLift, setPickLift] = useState(false);
+  /** Which picker is open, or none. Two cards on this page choose a lift and
+   *  they choose independently, so the flag says which one asked. */
+  const [picking, setPicking] = useState<"overview" | "strength" | null>(null);
   const [liftIdx, setLiftIdx] = useState(0);
   const lift = lifts[liftIdx] ?? null;
+  /** THE OVERVIEW CARD IS A CHOICE, NOT ONLY A VERDICT (Dave 2026-09-18: "I
+   *  have no way to select exercises").
+   *
+   *  It picked the biggest comparable change and showed it, full stop: the
+   *  one exercise on the page you could not change. The pick is still the
+   *  default -- it is a good answer to "what is changing" and it is what the
+   *  card is for -- but it is a default now, and null means it. */
+  const [ovIdx, setOvIdx] = useState<number | null>(null);
   // The headline: the best comparable change on a lift trained in the period.
-  const headline = useMemo(() => {
+  const autoHeadline = useMemo(() => {
     let best: RepGain | null = null;
     for (const ex of lifts) {
       if (ex.kind !== "weight_reps") continue;
@@ -158,7 +168,27 @@ export default function InsightsPage({
     }
     return best;
   }, [lifts, workouts, period]);
+  /** The lift the overview card is about: the chosen one, or the auto pick.
+   *  A chosen lift is NOT gated on the period the way the auto pick is --
+   *  you asked for that exercise, so the card spans its sessions and says so
+   *  on its face, exactly as it already did for the automatic one. */
+  const ovLift = ovIdx != null ? lifts[ovIdx] ?? null : autoHeadline?.lift ?? null;
+  const headline = useMemo(() => {
+    if (ovIdx == null) return autoHeadline;
+    const ex = lifts[ovIdx];
+    return ex && ex.kind === "weight_reps" ? comparableGain(workouts, ex) : null;
+  }, [ovIdx, lifts, workouts, autoHeadline]);
   const series = useMemo(() => (headline ? gainSeries(workouts, headline) : []), [workouts, headline]);
+  /** The overview picker's options: the default first, then every chartable
+   *  lift. "Biggest Gain" is a real row rather than a Clear button, because
+   *  it is one of the answers, not the absence of one. */
+  const ovPickItems = [{ id: "auto", label: "Biggest Gain" }, ...lifts.map((l, i) => ({ id: String(i), label: l.name }))];
+  const ovPick = (ids: string[]) => {
+    const id = ids[0];
+    if (id === "auto") setOvIdx(null);
+    else { const i = Number(id); if (Number.isFinite(i)) setOvIdx(i); }
+    setPicking(null);
+  };
   const empty = workouts.length === 0 && metricLogs.length === 0 && logs.callIt.length + logs.pointAtIt.length + logs.meals.length + logs.tookIt.length + logs.checkins.length === 0;
   const rangeLabel = `${monthDay(period.from)} to ${monthDay(period.to)}`;
   const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "-" : "") + Math.abs(n);
@@ -195,9 +225,9 @@ export default function InsightsPage({
   const rangeChips = (
     <div className="pad-x">
       <div className="chip-row chip-wrap-row" role="group" aria-label="Period">
-        {(["7d", "28d", "90d", "custom"] as RangeKey[]).map((k) => (
+        {(["7d", "30d", "90d", "custom"] as RangeKey[]).map((k) => (
           <div key={k} {...pressable(() => setRange(k))} className={"chip" + (range === k ? " active" : "")} aria-pressed={range === k}>
-            {k === "7d" ? "7 Days" : k === "28d" ? "28 Days" : k === "90d" ? "90 Days" : "Custom"}
+            {k === "7d" ? "7 Days" : k === "30d" ? "30 Days" : k === "90d" ? "90 Days" : "Custom"}
           </div>
         ))}
         <span className="fact ins-range">{rangeLabel}</span>
@@ -230,7 +260,7 @@ export default function InsightsPage({
         <>
           <div className="ins-big violet">{hoursLabel(overview.sleep.avgHours!)}</div>
           <div className="facts"><span className="fact">{`Average across ${overview.sleep.nights} logged ${overview.sleep.nights === 1 ? "night" : "nights"} of ${period.days}`}</span></div>
-          {period.days <= 28 && (
+          {period.days <= 31 && (
             <div className="ins-nights" role="img" aria-label={`${overview.sleep.nights} of ${period.days} nights logged`}>
               {overview.sleep.byDay.map((d) => (
                 <div key={d.date} className={"ins-night" + (d.hours != null ? " on" : "")} title={d.hours != null ? `${monthDay(d.date)} · ${hoursLabel(d.hours)}` : `${monthDay(d.date)} · Not logged`}>
@@ -301,10 +331,10 @@ const musclesCard = (
           <details className="ins-table">
             <summary>How Sets Are Counted</summary>
             <div className="facts">
-              <span className="fact">First muscle whole, the rest half {"\u00b7"} The app's convention</span>
+              <span className="fact">First muscle whole, the rest half</span><span className="fact">The app's convention</span>
             </div>
             <div className="facts">
-              <span className="fact">Working sets only {"\u00b7"} Warm-ups are not counted</span>
+              <span className="fact">Working sets only</span><span className="fact">Warm-ups are not counted</span>
             </div>
           </details>
           <div className="ins-acts">
@@ -316,14 +346,28 @@ const musclesCard = (
     </div></div>
   );
 
+  /** THE CARD, AND THE ONE CONTROL IT WAS MISSING. The head row chooses the
+   *  exercise; "View Sets" at the foot is still the way into its page, so
+   *  nothing that used to be one tap away is two now. */
+  const ovHead = (
+    <div {...pressable(() => setPicking("overview"))} className="ins-head" aria-label="Choose exercise">
+      <span className="ins-dot hue-hl-lime" />
+      <span className="ins-t">{ovLift ? ovLift.name : "Choose an Exercise"}</span>
+      {CHEV}
+    </div>
+  );
+  const ovSheet = picking === "overview" ? (
+    <PickSheet title="Exercise" searchLabel="Search Exercises" items={ovPickItems} onPick={ovPick} onCancel={() => setPicking(null)} />
+  ) : null;
+
   const headlineCard = headline ? (
     <div className="pad-x"><div className="card ins-card">
-      <div {...pressable(() => onOpenLift(headline.lift))} className="ins-head">
-        <span className="ins-dot hue-hl-lime" />
-        <span className="ins-t">{headline.lift.name}</span>
-        {CHEV}
-      </div>
+      {ovHead}
       <div className="facts">
+        {/* WHY THIS ONE, WHEN NOBODY PICKED IT. The default is the biggest
+            comparable change, and a card that chose its own subject has to
+            say so or it reads as the only exercise you have. */}
+        {ovIdx == null && <span className="fact">Biggest gain</span>}
         <span className="fact">{`Best set at ${headline.reps} reps`}</span>
         {/* THE ONE CARD THAT IS NOT THE PAGE'S PERIOD (polish: "Trend period
             clearly 'All history'... Do not imply every card follows the same
@@ -346,10 +390,45 @@ const musclesCard = (
           <tbody>{series.map((p) => <tr key={p.workoutId}><td>{monthDay(p.date)}</td><td>{`${p.w} ${headline.lift.unit ?? "lb"}`}</td></tr>)}</tbody>
         </table>
       </details>
-      <div className="facts"><span className="fact">Same exercise, same equipment, same unit, same rep count · Spans the sessions, not only this period</span></div>
+      {/* THE BASIS IS KEPT, NOT PRINTED (2026-09-16, Dave: "this is not a
+          manual, we don't need instructions everywhere"; polish rule 3:
+          "Methodology... remains available in labeled disclosures"). Two
+          clauses of grey under the chart, on every visit, saying what the
+          comparison holds constant. It is the answer to one question asked
+          once, so it sits behind the question. */}
+      <details className="ins-table">
+        <summary>What Is Being Compared</summary>
+        <div className="facts"><span className="fact">Same exercise, same equipment, same unit, same rep count</span></div>
+        <div className="facts"><span className="fact">Spans the sessions, not only this period</span></div>
+      </details>
       <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(headline.lift)}>View Sets</button></div>
     </div></div>
-  ) : null;
+  ) : (
+    /* A LIFT YOU PICKED THAT HAS NO COMPARISON YET IS NOT AN EMPTY PAGE
+       (2026-09-18). It keeps its head, so the choice you made is on screen
+       and changeable, and it says what is missing rather than what is
+       wrong. Nothing is claimed from one session. */
+    <div className="pad-x"><div className="card ins-card">
+      {ovHead}
+      {/* NO INSTRUCTIONS (Dave 2026-09-18: "Instructional subtext. It
+          shouldn't be anywhere"). The card used to explain what a comparison
+          needs -- two sessions at the same rep count, equipment and unit --
+          every time it could not make one. That is a manual, and the absence
+          of a chart already says there is nothing to compare. What is left is
+          what the card knows: how many sessions it has. */}
+      {ovLift && (() => {
+        const t = liftTable(workouts, ovLift);
+        const n = t.filter((r) => inPeriod(r.date, period)).length;
+        return (
+          <div className="facts">
+            <span className="fact lime">{`${n} ${n === 1 ? "session" : "sessions"} in the period`}</span>
+            <span className="fact">{capAfterNumber(`${t.length} recorded in all`)}</span>
+          </div>
+        );
+      })()}
+      {ovLift && <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(ovLift)}>View Sets</button></div>}
+    </div></div>
+  );
 
   const strength = (
     <>
@@ -372,18 +451,19 @@ const musclesCard = (
               however many lifts you have. */}
           <div className="sh2 sh2-quiet"><span className="t">Exercise</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
-            <div {...pressable(() => setPickLift(true))} className="row" aria-label="Choose exercise">
+            <div {...pressable(() => setPicking("strength"))} className="row" aria-label="Choose exercise">
               <div className="row-grow"><div className="conn-name">{lift ? lift.name : "Choose an Exercise"}</div></div>
               {lifts.length > 1 && <span className="row-value">{capAfterNumber(`${lifts.length} logged`)}</span>}
               {CHEV}
             </div>
           </div></div>
-          {pickLift && (
+          {picking === "strength" && (
             <PickSheet
               title="Exercise"
+              searchLabel="Search Exercises"
               items={lifts.map((l, i) => ({ id: String(i), label: l.name }))}
-              onPick={(ids) => { const i = Number(ids[0]); if (Number.isFinite(i)) setLiftIdx(i); setPickLift(false); }}
-              onCancel={() => setPickLift(false)}
+              onPick={(ids) => { const i = Number(ids[0]); if (Number.isFinite(i)) setLiftIdx(i); setPicking(null); }}
+              onCancel={() => setPicking(null)}
             />
           )}
           {lift && (() => {
@@ -403,13 +483,14 @@ const musclesCard = (
                     <>
                       <div className="facts">
                         <span className="fact lime">{`${sign(g.delta)} ${lift.unit ?? "lb"} at ${g.reps} reps`}</span>
-                        <span className="fact">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)} · ${g.sessions} comparable sessions`}</span>
+                        <span className="fact">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)}`}</span>
+                        <span className="fact">{`${g.sessions} comparable sessions`}</span>
                       </div>
                       {chart(pts, lift.unit ?? "lb")}
                     </>
-                  ) : (
-                    <div className="facts"><span className="fact">No two sessions at the same rep count, equipment and unit yet, so no comparison is claimed</span></div>
-                  )}
+                  ) : null /* No instructions (2026-09-18). The counts above
+                      are the facts; a missing chart is not a thing to
+                      apologise for in a sentence. */}
                   <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(lift)}>Open Exercise Page</button></div>
                 </div></div>
                 <div className="sh2 sh2-quiet"><span className="t">Sessions</span><span className="n">{table.length}</span></div>
@@ -418,10 +499,19 @@ const musclesCard = (
                     <div {...pressable(() => onOpenWorkout(r.workoutId))} className="row" key={r.workoutId}>
                       <div className="row-grow">
                         <div className="conn-name">{monthDay(r.date)}</div>
-                        <div className="facts">
-                          <span className="fact lime">{`${r.working} working`}</span>
-                          <span className="fact">{r.sets.join(", ")}</span>
-                        </div>
+                        {/* The count is the fact; the sets are a table behind
+                            it, the same answer All Data took (2026-09-16).
+                            "120 lb × 6, 130 lb × 8, 140 lb × 6, 150 lb × 6"
+                            wrapped two grey lines on every row of this list. */}
+                        <div className="facts"><span className="fact lime">{capAfterNumber(`${r.working} working`)}</span></div>
+                        <details className="exp-more ad-sets" onClick={(e) => e.stopPropagation()}>
+                          <summary>{`The ${r.sets.length === 1 ? "Set" : "Sets"}`}</summary>
+                          <div className="ins-rows">
+                            {r.sets.map((x, i) => (
+                              <div className="ins-row" key={x + i}><span className="ins-k">{`Set ${i + 1}`}</span><span className="ins-sub">{x}</span></div>
+                            ))}
+                          </div>
+                        </details>
                       </div>
                       {CHEV}
                     </div>
@@ -445,7 +535,13 @@ const musclesCard = (
       const days = daysIn(mine.map((l) => l.data.date));
       const value = !latest ? "Not logged" : def.data.type === "yesno" ? (latest.data.yes ? "Yes" : "No") : `${latest.data.value}${def.data.type === "scale5" ? "/5" : def.data.unit ? " " + def.data.unit : ""}`;
       const isSleep = def.data.presetKey === "sleep";
-      rows.push({ key: def.id, title: def.data.name, hue: isSleep ? "violet" : "cyan", value, context: latest ? `Latest ${monthDay(latest.data.date)} · ${days} of ${period.days} days logged · ${period.days - days} without a log` : `No log in ${period.days} days`, category: isSleep ? "sleep" : def.data.presetKey === "bodyweight" ? "body" : "other" });
+      // SAY IT ONCE, AND DO NOT PRINT ARITHMETIC (2026-09-16, Dave's Rest and
+      // Readings screenshot: "Not logged · No log in 7 days"). The value
+      // already says Not logged; the context said it again in other words.
+      // And the logged version ran to three clauses, the third of which was
+      // the second subtracted from the period -- a number the reader can do
+      // and did not ask for.
+      rows.push({ key: def.id, title: def.data.name, hue: isSleep ? "violet" : "cyan", value, context: latest ? `Latest ${monthDay(latest.data.date)} · ${days} of ${period.days} days` : "", category: isSleep ? "sleep" : def.data.presetKey === "bodyweight" ? "body" : "other" });
     }
     const effort = logs.callIt.filter((e) => inPeriod(localDay(e.data.at), period));
     if (effort.length) rows.push({ key: "effort", title: "Session Effort", hue: "cyan", value: `${effort[effort.length - 1]!.data.rpe}/10 latest`, context: capAfterNumber(`${effort.length} rated ${effort.length === 1 ? "session" : "sessions"} · ${daysIn(effort.map((e) => localDay(e.data.at)))} days`), category: "effort" });
@@ -470,14 +566,14 @@ const musclesCard = (
             <div {...pressable(() => onOpenAllData(r.category, period))} className="row" key={r.key}>
               <div className="row-grow">
                 <div className="conn-name">{r.title}</div>
-                <div className="facts"><span className={"fact " + r.hue}>{r.value}</span><span className="fact">{r.context}</span></div>
+                <div className="facts"><span className={"fact " + r.hue}>{r.value}</span>{r.context && <span className="fact">{r.context}</span>}</div>
               </div>
               {CHEV}
             </div>
           ))}
         </div></div>
       )}
-      <div className="pad-x"><div className="facts"><span className="fact">Records, dates and counts only · Nothing here reads a cause into a coincidence</span></div></div>
+      <div className="pad-x"><div className="facts"><span className="fact">Records, dates and counts only</span><span className="fact">Nothing here reads a cause into a coincidence</span></div></div>
     </>
   );
 
@@ -499,12 +595,8 @@ const musclesCard = (
         <div className="empty-state"><div className="empty-title">Nothing Logged Yet</div><div className="empty-sub">Finish a workout or log a night of sleep and the numbers start here</div></div>
       ) : section === "overview" ? (
         <>
-          {headlineCard ?? (
-            <div className="pad-x"><div className="card ins-card">
-              <div className="ins-head"><span className="ins-dot hue-hl-lime" /><span className="ins-t">Strength</span></div>
-              <div className="facts"><span className="fact">No comparable change to show: two sessions at the same rep count, equipment and unit are what it takes</span></div>
-            </div></div>
-          )}
+          {headlineCard}
+          {ovSheet}
           {musclesCard}
           {sleepCard}
           {cards}

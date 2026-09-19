@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SheetBar from "../shared/SheetBar";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, liftTitle } from "../shared/casing";
 import { MUSCLE_GROUPS, MUSCLE_LABEL } from "./muscles";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL } from "./equipment";
 import type { LibraryRow } from "./libraryEdit";
@@ -103,7 +103,7 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
                 {plan.changes.map((ch) => (
                   <div className="row" key={ch.key}>
                     <div className="row-grow">
-                      <div className="conn-name">{ch.name}</div>
+                      <div className="conn-name">{liftTitle(ch.name)}</div>
                       <div className="facts">
                         <span className="fact">{ch.before}</span>
                         <span className="fact lime">{ch.after}</span>
@@ -112,9 +112,7 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
                   </div>
                 ))}
                 {plan.changes.length === 0 && (
-                  <div className="row"><div className="row-grow"><div className="conn-meta">
-                    Every selected exercise already says this, so there is nothing to write
-                  </div></div></div>
+                  <div className="row"><div className="row-grow"><div className="conn-meta">Nothing to write</div></div></div>
                 )}
               </div></div>
               <div className="pad-x"><div className="bp-sub">

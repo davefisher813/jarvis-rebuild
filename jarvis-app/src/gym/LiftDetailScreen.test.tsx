@@ -122,13 +122,24 @@ describe("LiftDetailScreen: the chart says what it is, and answers a tap", () =>
     expect(screen.getByText("Est 1RM · Epley · not a tested max · lb")).toBeInTheDocument();
   });
 
-  it("tapping a point reads its date, set, and estimate in the reading hue", () => {
+  // AMENDED 2026-09-16 (Dave: "uniform everything"). The three readings were
+  // one span carrying two middots of its own, which is a sentence with
+  // punctuation in it -- components.css draws the separator so no string has
+  // to. Three spans now, and the hue stays on the date, which is the datum
+  // the tapped point is about.
+  it("tapping a point reads its date, set, and estimate as three facts", () => {
     render(<LiftDetailScreen {...base} workouts={two} />);
-    expect(screen.queryByText(/Est \d+ lb$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Est \d+ lb$/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Session 1 of 2" }));
-    const fact = screen.getByText(/· Est \d+ lb$/);
-    expect(fact).toHaveClass("fact", "cyan");
-    expect(fact.textContent).toMatch(/^Aug 26/);
+    // The date appears in the session list too, so read the one in the chart's
+    // own facts line.
+    const date = screen.getAllByText(/^Aug 26$/).find((e) => e.classList.contains("cyan"))!;
+    expect(date, "the hue lands on the date").toHaveClass("fact", "cyan");
+    const est = screen.getByText(/^Est \d+ lb$/);
+    expect(est).toHaveClass("fact");
+    expect(est.className, "and not on a second reading beside it").not.toMatch(/cyan/);
+    // The separator is the CSS's, never the string's.
+    expect(date.textContent).not.toMatch(/\u00b7/);
   });
 });
 

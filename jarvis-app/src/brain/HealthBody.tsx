@@ -124,7 +124,12 @@ export default function HealthBody({
         </div>
         <div className="h-week-main">
           <button type="button" className="h-week-count" aria-label={`${overview.workouts} workouts, open the workouts`} onClick={() => onOpenRecords({ kind: "workouts" })}>
-            <b>{overview.workouts}</b><span>{overview.workouts === 1 ? "workout" : "workouts"}</span>
+            {/* TITLE CASE, LIKE EVERY OTHER LABEL ON THIS CARD (Dave
+                2026-09-17: "workouts doesn't follow title case rules").
+                Working Sets and Training Time sit two rows below in the same
+                type at the same size; this one word was lowercase, which read
+                as a typo rather than as a different kind of thing. */}
+            <b>{overview.workouts}</b><span>{overview.workouts === 1 ? "Workout" : "Workouts"}</span>
           </button>
           <div className="h-bars" role="group" aria-label="Workouts by day">
             {overview.days.map((d) => (
@@ -294,11 +299,17 @@ export default function HealthBody({
             <span className="h-log-ico" data-hue={f.hue} aria-hidden="true">{findGlyph(f)}</span>
             <div className="task-title">
               <span className="task-name">{f.title}</span>
+              {/* ONE SPAN PER FACT (2026-09-16, Dave's Health screenshot:
+                  "· +140 lb at 2 reps since 2026-08-24 · 6 compa…"). The
+                  context was one long string with its own middots in it, so
+                  it could not wrap the way a row of facts does: it either ran
+                  off the end of the row or wrapped and left the separator
+                  leading the new line. components.css draws the separator
+                  between facts; the finding hands over facts now. */}
               <div className="facts">
                 <span className={"fact " + f.hue}>{f.value}</span>
-                <span className="fact">{f.context}</span>
+                {f.context.map((c) => <span className="fact" key={c}>{c}</span>)}
               </div>
-              {f.action && <div className="facts"><span className="fact cyan">{f.action}</span></div>}
             </div>
             {CHEV}
           </div>

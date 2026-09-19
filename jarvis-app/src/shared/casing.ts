@@ -72,3 +72,51 @@ export function titleCase(text: string): string {
     })
     .join(" ");
 }
+
+// A WORKOUT'S OWN NAME, AS THE APP PRINTS IT (Dave 2026-09-17, photographing
+// a program whose days read "Push Day 1", "Leg Day", "Pull day 2": "all
+// workout titles should be title cased as well").
+//
+// These names are typed by hand, in a hurry, usually on a phone at the gym,
+// so they arrive in whatever case the keyboard felt like. The app's own
+// labels have been Title Case since catalog V3.1, which meant one row in a
+// list of six looked like a mistake next to its neighbours.
+//
+// It runs in TWO places on purpose:
+//
+//   - at the WRITE DOOR, so the store converges on the cased spelling and
+//     anything reading the raw name later agrees with the screen;
+//   - at the READ, so a name typed months before this shipped reads right
+//     today instead of waiting to be edited.
+//
+// titleCase is idempotent, so running both is not a bug, and it keeps
+// capitals that are already inside a word (RDLs stays RDLs, AMRAP stays
+// AMRAP) rather than flattening an acronym on the way past.
+export function workoutTitle(name: string): string {
+  return titleCase(name);
+}
+
+// AN EXERCISE'S OWN NAME, AS THE APP PRINTS IT (Dave 2026-09-17, on a library
+// reading "Bulgarian split squats / Calf raise machine / Glute kickbacks":
+// "Case those too").
+//
+// This one is deliberately separate from workoutTitle, because it carries a
+// risk that one does not. An exercise's name is its IDENTITY: a lift with no
+// exerciseKey is matched by `fallbackKey(name, kind)`, the plan/log pairing in
+// identity.ts compares two names, and the lift detail screen finds its record
+// by name. All of those lowercase or compare record-to-record, so casing what
+// is DRAWN is safe -- but casing a name on its way INTO a comparison is not,
+// and it would fail silently, as a screen that simply never finds its match.
+//
+// So this runs in exactly two kinds of place:
+//
+//   - on rendered text and aria labels, never on a value handed to a handler,
+//     to state, or to a lookup;
+//   - at the write doors that mint or rewrite a name (the create sheet, the
+//     rename sheet, the exercise editor), where the whole record set is being
+//     rewritten anyway and the store converges on the cased spelling.
+//
+// Capitals already inside a word survive, so RDLs stays RDLs.
+export function liftTitle(name: string): string {
+  return titleCase(name);
+}

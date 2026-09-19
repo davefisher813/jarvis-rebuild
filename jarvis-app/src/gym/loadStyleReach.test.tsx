@@ -117,7 +117,11 @@ describe("LoadSheet", () => {
     const onSave = vi.fn();
     render(<LoadSheet name="Bulgarian Split Squat" initial={{}} onSave={onSave} onCancel={() => {}} />);
     fireEvent.click(screen.getByLabelText("Equipment Dumbbells"));
-    fireEvent.click(screen.getByLabelText("Worked One Side at a Time"));
+    // AMENDED 2026-09-16: the toggle became a value row, because a toggle
+    // needs a sentence under it to say which way is on and that sentence is
+    // exactly what Dave asked to be gone.
+    fireEvent.click(screen.getByLabelText("Reps count"));
+    fireEvent.click(screen.getByText("Per Side"));
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith({ equipment: "dumbbell", counted: undefined, sided: true });
   });

@@ -6,6 +6,7 @@ import { loadStyleOf, comparable, type LoadStyle } from "../gym/equipment";
 import { coverageGap, type MuscleMap } from "../gym/insights";
 import { capAfterNumber } from "../shared/casing";
 import { isWorkingSet, periodOverview, previousPeriod, hoursLabel, type Period } from "./analytics";
+import { monthDay } from "../money/bills";
 
 // YOUR PROGRESS (the approved Health design, 2026-09-14, "Your progress":
 // up to three useful, clickable findings, in this order: a meaningful change
@@ -95,10 +96,17 @@ export interface Finding {
   title: string;
   /** The reading, in the finding's hue. */
   value: string;
-  /** Dates, sample size, coverage: the context line. */
-  context: string;
-  /** The action's label when there is a next step. */
-  action?: string;
+  /** Dates, sample size, coverage: the row's own facts, ONE PER ENTRY.
+   *
+   *  2026-09-16 (Dave's Health screenshot). This was a single string with
+   *  middots baked into it, which broke the same contract twice over.
+   *  components.css: "Adjacent facts are separated by a middle dot the CSS
+   *  draws, so no string ever carries one" -- and one long string cannot
+   *  wrap the way a row of facts does, so on his phone it either ran off the
+   *  end ("6 compa...") or wrapped and left the dot leading the new line
+   *  ("· 3 exercises"), which is what he photographed. An array is the shape
+   *  the .facts line was always asking for. */
+  context: string[];
   open: FindingOpen;
 }
 
@@ -113,6 +121,20 @@ export interface FindingsInput {
 
 const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "-" : "") + Math.abs(n);
 
+// TWO LINES, WHICH IS WHAT A ROW GETS (2026-09-16, Dave on the Health
+// overview: "too much grey subtext. Looks extremely cluttered and breaks 4
+// lines rule"). Each of these ran to four: the name, the reading and a fact,
+// a second fact wrapped onto its own line, and then an action label under
+// that. Contract 4.1 gives a row two lines and no third.
+//
+// So the context is ONE fact, and the one kept is the one the finding is
+// ABOUT -- the change, the coverage, the date. What went is sample size
+// (comparable sessions, workouts, "Last 7 days"), which is not lost: it is on
+// the page this row opens, stated in full and with room to read it.
+//
+// The action label went with them. Every one of these rows is already a door
+// with a chevron on it, so a cyan "View Sets" under the facts was a second
+// way to say the same thing, taking a whole line to say it.
 export function findings(inp: FindingsInput): Finding[] {
   const out: Finding[] = [];
   const now = inp.now ?? Date.now();
@@ -134,8 +156,7 @@ export function findings(inp: FindingsInput): Finding[] {
       kind: "change", hue: "lime",
       title: bestGain.lift.name,
       value: `${bestGain.to.w} ${u} × ${bestGain.reps}`,
-      context: `${sign(bestGain.delta)} ${u} at ${bestGain.reps} reps since ${bestGain.from.date} · ${bestGain.sessions} comparable sessions`,
-      action: "View Sets",
+      context: [`${sign(bestGain.delta)} ${u} since ${monthDay(bestGain.from.date)}`],
       open: { kind: "lift", lift: bestGain.lift },
     });
   }
@@ -147,8 +168,7 @@ export function findings(inp: FindingsInput): Finding[] {
       id: "sleep", kind: "observation", hue: "violet",
       title: "Sleep",
       value: hoursLabel(overview.sleep.avgHours),
-      context: `Average across ${overview.sleep.nights} logged nights · ${overview.period.days} days`,
-      action: "View Sleep Logs",
+      context: [capAfterNumber(`${overview.sleep.nights} of ${overview.period.days} nights logged`)],
       open: { kind: "sleep" },
     });
   } else if (overview.workingSets > 0) {
@@ -159,9 +179,8 @@ export function findings(inp: FindingsInput): Finding[] {
       title: "Working Sets",
       value: String(overview.workingSets),
       context: prev.workouts > 0
-        ? `${sign(diff)} against the ${overview.period.days} days before · ${overview.workouts} ${overview.workouts === 1 ? "workout" : "workouts"}`
-        : `${overview.workouts} ${overview.workouts === 1 ? "workout" : "workouts"} in ${overview.period.days} days · Nothing logged in the ${overview.period.days} before`,
-      action: "View Sets",
+        ? [`${sign(diff)} on the ${overview.period.days} before`]
+        : [capAfterNumber(`${overview.workouts} ${overview.workouts === 1 ? "workout" : "workouts"}`)],
       open: { kind: "sets" },
     });
   }
@@ -173,8 +192,7 @@ export function findings(inp: FindingsInput): Finding[] {
       id: "coverage", kind: "issue", hue: "amber",
       title: "Complete Your Muscle Breakdown",
       value: capAfterNumber(`${gap.hiddenSets} ${gap.hiddenSets === 1 ? "set needs" : "sets need"} a muscle assigned`),
-      context: `${gap.untagged.length} ${gap.untagged.length === 1 ? "exercise" : "exercises"} · Last 7 days`,
-      action: "Review Exercises",
+      context: [capAfterNumber(`${gap.untagged.length} ${gap.untagged.length === 1 ? "exercise" : "exercises"}`)],
       open: { kind: "assign" },
     });
   } else if (overview.flagged.length > 0) {
@@ -182,9 +200,10 @@ export function findings(inp: FindingsInput): Finding[] {
     out.push({
       id: "duration-" + w.id, kind: "issue", hue: "amber",
       title: "A Session Duration Needs Review",
-      value: `${w.data.dayName} · ${w.data.date}`,
-      context: overview.flagged.length === 1 ? "The recorded time runs far past the last logged set" : `${overview.flagged.length} sessions run far past their last logged set`,
-      action: "Review Session",
+      value: w.data.dayName,
+      context: overview.flagged.length === 1
+        ? [monthDay(w.data.date)]
+        : [capAfterNumber(`${overview.flagged.length} sessions`)],
       open: { kind: "duration", workoutId: w.id },
     });
   }

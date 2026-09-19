@@ -18,8 +18,10 @@ import AreasTab from "./tabs/AreasTab";
 let lastSegment: LifeSegment = "areas";
 
 export default function LifeFlow({
-  segment, segmentNav, taskOpenId, taskNonce, onTaskOpened, taskFilter, filterNonce, onFilterApplied, projectOpenId, projectNonce, onProjectOpened, goalOpenId, goalNonce, onGoalOpened, onOpenNote, onWhatNow, onOpenDecision, onGoEmail, onOpenEntity, onOpenCategory,
+  segment, segmentNav, taskOpenId, taskNonce, onTaskOpened, taskFilter, filterNonce, onFilterApplied, projectOpenId, projectNonce, onProjectOpened, goalOpenId, goalNonce, onGoalOpened, onOpenNote, onWhatNow, onOpenDecision, onGoEmail, onOpenEntity, onOpenCategory, startOpenId, startNonce, onStartConsumed,
 }: {
+  /** Start Now from Today: open this task's Start screen on arrival. */
+  startOpenId?: string; startNonce?: number; onStartConsumed?: () => void;
   /** Push E: the Reminders segment's door to any linked record. */
   onOpenEntity?: (kind: string, id: string) => void;
   /** Areas tab: opens a category's own detail page (Brain's CategoryDetail,
@@ -61,7 +63,7 @@ export default function LifeFlow({
     return <RemindersFlow chrome={{ segments }} onOpenEntity={onOpenEntity} />;
   }
   if (seg === "tasks") {
-    return <TasksFlow title="Life" segments={segments} openId={taskOpenId} openNonce={taskNonce} onOpenConsumed={onTaskOpened} openFilter={taskFilter} filterNonce={filterNonce} onFilterApplied={onFilterApplied} onOpenNote={onOpenNote} onGoEmail={onGoEmail} onWhatNow={onWhatNow} />;
+    return <TasksFlow title="Life" segments={segments} openId={taskOpenId} openNonce={taskNonce} onOpenConsumed={onTaskOpened} startId={startOpenId} startNonce={startNonce} onStartConsumed={onStartConsumed} openFilter={taskFilter} filterNonce={filterNonce} onFilterApplied={onFilterApplied} onOpenNote={onOpenNote} onGoEmail={onGoEmail} onWhatNow={onWhatNow} />;
   }
   return (
     <BiggerPictureFlow

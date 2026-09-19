@@ -45,6 +45,13 @@ export function isHealthSurface(f: string): boolean {
 export const STATE_WORDS = [
   "FIXED", "FOCUS", "PROTECTED", "FLEXIBLE", "PROPOSED", "LIVE", "COMPLETED",
   "KNOWN", "LEARNED", "WATCHING", "NEEDS CONFIRMATION", "FADING", "RULE",
+  // 2026-09-16, when the gym's rows came onto the house anatomy (Dave: "it's
+  // not consistent throughout. Uniform everything"). Both were already drawn
+  // as states -- a skipped lift in amber, an untouched one in a hollow ring
+  // (his 2026-09-10 ruling) -- in capsules this one screen invented. They are
+  // states by any reading: what the row IS, not what it measured. Healthskin
+  // law 2 was right to refuse them as data hues, which is how they got here.
+  "SKIPPED", "TO DO",
 ];
 
 describe("ASTRA: the primitives exist under the harness's own names", () => {

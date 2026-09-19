@@ -1,3 +1,4 @@
+import { NAME_FIELD } from "../shared/nameField";
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LibraryRow } from "./libraryEdit";
@@ -7,11 +8,13 @@ import { shortDate } from "../shared/dateFormat";
 import SheetBar from "../shared/SheetBar";
 import ActionSheet, { PickSheet, type PickItem, type SheetAction } from "./ActionSheet";
 import ClassifySheet from "./ClassifySheet";
+import ExerciseSheet from "./ExerciseSheet";
 import BatchSheet from "./BatchSheet";
 import { DuplicateBar, DuplicatesSheet } from "./DuplicateReview";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, liftTitle } from "../shared/casing";
 import { findDuplicates, pairId, type DuplicatePair } from "./duplicates";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
+import type { Exercise } from "./types";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, loadStyleOf, type Equipment } from "./equipment";
 import {
   classOf, needsMuscles, rowChips, valueLine, type Chip, type ClassStore, type Classification,
@@ -42,9 +45,17 @@ import { filterCount, floorLine, NO_FILTER, SORT_LABEL, viewRows, type LibraryFi
 
 const CHEV = <div className="chev" />;
 
+/** The colour an axis speaks in. One meaning per hue, so a row of chips can
+ *  be read by colour before it is read by word. */
+function chipTone(ch: Chip): string {
+  if (ch.field === "muscles") return ch.tone === "primary" ? " lime" : " lime sec";
+  if (ch.field === "equipment") return " violet";
+  return "";
+}
+
 export default function LibraryPage({
   rows, store, todayIso, onOpen, onRename, onSetClass, onBatch, onMerge, onToggleHidden,
-  onToggleFavorite, onSetGoal, dismissedDupes, onDismissDuplicate, onBack,
+  onToggleFavorite, onSetGoal, onCreate, dismissedDupes, onDismissDuplicate, onBack,
 }: {
   rows: LibraryRow[];
   /** Every exercise's classification, by library key. */
@@ -62,6 +73,15 @@ export default function LibraryPage({
   onToggleHidden: (row: LibraryRow) => void;
   onToggleFavorite?: (row: LibraryRow) => void;
   onSetGoal?: (row: LibraryRow) => void;
+  /** CREATE ONE HERE (Dave 2026-09-17: "I should be able to create exercises
+   *  here", then: "the modal should be a full add exercise modal").
+   *
+   *  It takes the WHOLE draft, because the sheet is now the same exercise
+   *  editor the program day and the live session open -- name, measurement,
+   *  equipment, counting, muscle, rest, ramp, note, and a planned strip. The
+   *  first version asked two questions and left the other nine to a second
+   *  sheet, which is two forms to fill for one lift. */
+  onCreate?: (draft: Omit<Exercise, "id">) => void;
   dismissedDupes?: string[];
   onDismissDuplicate?: (id: string) => void;
   onBack: () => void;
@@ -95,6 +115,22 @@ export default function LibraryPage({
   // is real and the filter is honest again the moment it is re-applied.
   const [justSaved, setJustSaved] = useState<string[]>([]);
 
+  /** The create sheet, which is the full exercise editor. */
+  const [creating, setCreating] = useState(false);
+  const openCreate = () => setCreating(true);
+  /** The rows as the exercise sheet's autocomplete reads them. No history
+   *  attached: this list exists to stop a duplicate being typed, not to
+   *  prefill last week's numbers. */
+  const pickables = useMemo(
+    () => rows.map((r) => ({
+      key: r.key, name: r.name, kind: r.kind,
+      ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}),
+      ...(r.unit ? { unit: r.unit } : {}),
+      lastUsed: 0, lastSets: [],
+    })),
+    [rows],
+  );
+
   // A classification nobody has written yet still shows what the athlete told
   // the exercise sheet: the equipment on its most recent sighting, read
   // through the same migration everything else reads it through.
@@ -126,14 +162,14 @@ export default function LibraryPage({
   const mergeItems: PickItem[] = merging
     ? rows
       .filter((r) => r.key !== merging.key && r.kind === merging.kind)
-      .map((r) => ({ id: r.key, label: r.name, sub: r.sessions > 0 ? capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) : "Never done" }))
+      .map((r) => ({ id: r.key, label: liftTitle(r.name), sub: r.sessions > 0 ? capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) : "Never done" }))
     : [];
 
   const setF = (patch: Partial<LibraryFilter>) => { setJustSaved([]); setFilter((f) => ({ ...f, ...patch })); };
 
   const menuActions = (r: LibraryRow): SheetAction[] => [
     { label: "Edit Details", onClick: () => setClassing({ row: r, open: "muscles" }) },
-    { label: "Rename", onClick: () => { setRenaming(r); setDraft(r.name); } },
+    { label: "Rename", onClick: () => { setRenaming(r); setDraft(liftTitle(r.name)); } },
     ...(onSetGoal ? [{ label: "Set Goal", onClick: () => onSetGoal(r) }] : []),
     { label: "Merge Into Another Exercise", onClick: () => setMerging(r) },
     ...(onToggleFavorite ? [{ label: r.favorite ? "Remove From Favorites" : "Add to Favorites", onClick: () => onToggleFavorite(r) }] : []),
@@ -160,6 +196,7 @@ export default function LibraryPage({
         <div className="empty-state">
           <div className="empty-title">No Exercises Yet</div>
           <div className="empty-sub">Every exercise you add to a program or log in a session lands here</div>
+          {onCreate && <button className="btn btn-primary btn-launch" onClick={openCreate}>Add Exercise</button>}
         </div>
       ) : (
         <>
@@ -254,9 +291,12 @@ export default function LibraryPage({
           {selecting && (
             <div className="pad-x"><div className="card pad">
               <div className="row">
+                {/* The count is the fact. "Tap exercises to select, then
+                    classify them together" was an instruction for a mode you
+                    are standing in, printed above the two buttons that do it
+                    (2026-09-16, Dave: "this is not a manual"). */}
                 <div className="row-grow">
                   <div className="conn-name">{`${picked.length} Selected`}</div>
-                  <div className="conn-meta">Tap exercises to select, then classify them together</div>
                 </div>
               </div>
               <div className="btn-row">
@@ -267,6 +307,15 @@ export default function LibraryPage({
           )}
 
           <div className="pad-x"><div className="card list-card-ruled">
+            {/* AT THE TOP (Dave 2026-09-17: "the add exercise option should be
+                at the top of the page not the bottom"). It was the last row of
+                the list, on the reasoning that you arrive there having failed
+                to find what you were looking for -- which is true of a search
+                and false of a library you already know is missing something.
+                Thirty-two rows is a long way to scroll to reach a verb. It is
+                still .row-create, the same in-list create Add Day and Add Week
+                wear; it just leads. */}
+            {onCreate && !selecting && <button className="row-create" onClick={openCreate}>Add Exercise</button>}
             {shown.map((r) => {
               const c = classFor(r);
               const chips = rowChips(c);
@@ -282,7 +331,7 @@ export default function LibraryPage({
                     : () => onOpen(r))}>
                   <div className="row-grow">
                     {/* The name wraps rather than clipping. */}
-                    <div className="ex-name">{r.name}</div>
+                    <div className="ex-name">{liftTitle(r.name)}</div>
                     {/* §7: "2 sessions · Last yesterday" was one grey line
                         doing two jobs. Two compact fields. */}
                     <div className="facts">
@@ -303,7 +352,19 @@ export default function LibraryPage({
                         <button
                           key={ch.label + i}
                           type="button"
-                          className={"ex-chip" + (ch.tone === "primary" ? " on" : ch.tone === "secondary" ? " sec" : "")}
+                          // EACH AXIS ITS OWN COLOUR (2026-09-16, Dave: "too
+                          // much of the same color"). Every chip that meant
+                          // anything was cyan, and so was the date beside
+                          // them, so one row said cyan three times about
+                          // three unrelated things and the eye had nothing to
+                          // sort by. A muscle is what the lift trains and
+                          // takes the lime the app already spends on work
+                          // done; equipment takes the violet the session
+                          // header's own equipment chip has always worn; the
+                          // movement pattern is the least load-bearing axis
+                          // and stays quiet. Cyan goes back to meaning one
+                          // thing on this row: when it last happened.
+                          className={"ex-chip" + chipTone(ch)}
                           aria-label={`${ch.label}, edit`}
                           disabled={selecting}
                           onClick={(e) => { e.stopPropagation(); setClassing({ row: r, open: ch.field }); }}
@@ -318,13 +379,17 @@ export default function LibraryPage({
                           Assign Muscles
                         </button>
                       )}
-                      {r.aliases && r.aliases.length > 0 && <span className="ex-chip quiet">{`Also ${r.aliases.join(", ")}`}</span>}
+                      {/* NO OTHER TITLE ON THE ROW (Dave 2026-09-18: "also
+                          (other title) needs to be deleted and never
+                          render"). A merged-away name is history, not an
+                          attribute of the exercise, and it read as a second
+                          name for a row whose whole job is to carry one. */}
                     </div>
                   </div>
                   {selecting
                     ? <span className={"ex-check" + (on ? " on" : "")} aria-hidden="true" />
                     : (
-                      <button type="button" className="ex-more" aria-label={`More for ${r.name}`}
+                      <button type="button" className="ex-more" aria-label={`More for ${liftTitle(r.name)}`}
                         onClick={(e) => { e.stopPropagation(); setMenu(r); }}>
                         <span aria-hidden="true">···</span>
                       </button>
@@ -341,6 +406,28 @@ export default function LibraryPage({
         </>
       )}
 
+      {/* CREATE, and it is the whole editor (Dave 2026-09-17: "the modal
+          should be a full add exercise modal").
+
+          The first version asked a name and a measurement and left the other
+          nine axes to the classification sheet -- two forms to fill for one
+          lift, and the second one easy to never open. This is the same
+          ExerciseSheet the program day and the live session open, so a lift
+          created here can carry its equipment, its counting, its muscle, its
+          rest and its ramp the moment it exists. Nothing on it is required
+          beyond the name, which is the rule every other exercise form keeps. */}
+      {creating && onCreate && (
+        <ExerciseSheet
+          mode="new"
+          // The page IS the library, so the sheet's autocomplete offers what
+          // is already here: typing a name that exists lands you on that row
+          // rather than minting a second one for the merge review to find.
+          library={pickables}
+          onSave={(draft) => { setCreating(false); onCreate(draft); }}
+          onCancel={() => setCreating(false)}
+        />
+      )}
+
       {/* RENAME, its own small sheet: it is the one edit that rewrites every
           record this exercise has, so it does not share a form with the
           classification, which rewrites none of them. */}
@@ -349,25 +436,27 @@ export default function LibraryPage({
           <div className="card xs" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
             <SheetBar
-              title={renaming.name}
+              title={liftTitle(renaming.name)}
               onCancel={() => setRenaming(null)}
               saveLabel="Done"
               onSave={() => {
                 const r = renaming;
                 setRenaming(null);
-                if (draft.trim() && draft.trim() !== r.name) onRename(r, draft);
+                if (draft.trim() && draft.trim() !== r.name) onRename(r, liftTitle(draft.trim()));
               }}
             />
             <div className="sheet-form">
               <div className="grp xs-grp"><div className="eyebrow">Name</div></div>
               <div className="pad-x"><div className="card xs-group">
                 <div className="row xs-row" onClick={() => renameRef.current?.focus()}>
-                  <input ref={renameRef} className="xs-input" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Exercise Name" />
+                  <input ref={renameRef} className="xs-input" {...NAME_FIELD} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Exercise Name" />
                 </div>
               </div></div>
-              <div className="pad-x"><div className="bp-sub">
+              {/* The same reading: a real consequence, behind the question
+                  it answers rather than under the field on every visit. */}
+              <div className="pad-x"><details className="exp-more"><summary>About Renaming</summary><div className="bp-sub">
                 Renaming keeps every session this exercise already has, and the old name stays searchable.
-              </div></div>
+              </div></details></div>
               <div className="xs-foot" />
             </div>
           </div>
@@ -401,6 +490,7 @@ export default function LibraryPage({
       {merging && (
         <PickSheet
           title={"Merge " + merging.name + " Into"}
+          searchLabel="Search Exercises"
           items={mergeItems}
           emptyText="No other exercise logs the same way, so there is nothing to merge into."
           onPick={(ids) => {

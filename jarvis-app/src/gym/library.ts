@@ -1,4 +1,5 @@
 import type { Exercise, MeasureKind, Program, SetEntry, Workout } from "./types";
+import type { CreatedLift } from "./settings";
 import { entryFrom } from "./strip";
 
 // THE EXERCISE LIBRARY (catalog §3.5). Every exercise name ever used, offered
@@ -103,6 +104,45 @@ export function buildLibrary(programs: Program[], workouts: Workout[]): LibraryE
     }
   }
   return [...map.values()].sort((a, b) => b.lastUsed - a.lastUsed || a.name.localeCompare(b.name));
+}
+
+/** SEEDS FOR THE DERIVATION (Dave 2026-09-17: "I should be able to create
+ *  exercises here").
+ *
+ *  buildLibrary reads programs and workouts, so an exercise had to be USED
+ *  before it could be organized -- which is the wrong way round for a page
+ *  whose job is classifying, goal-setting and merging. A created lift joins
+ *  the list with lastUsed 0 and no sets, exactly like a program-only entry
+ *  that has never been logged.
+ *
+ *  A SIGHTING ALWAYS WINS. If the derivation already knows this key, or
+ *  already knows this name at this measurement, the seed is dropped rather
+ *  than appended: the real entry carries history, aliases, the equipment its
+ *  last session was done on, and the seed carries none of that. So using a
+ *  created lift for the first time quietly promotes it instead of doubling
+ *  it, and the list never shows the same exercise twice. */
+export function withCreated(library: LibraryEntry[], created: CreatedLift[]): LibraryEntry[] {
+  if (created.length === 0) return library;
+  const seen = new Set<string>();
+  for (const e of library) { seen.add(e.key); seen.add(fallbackKey(e.name, e.kind)); }
+  const extra: LibraryEntry[] = [];
+  for (const c of created) {
+    const fb = fallbackKey(c.name, c.kind);
+    if (seen.has(c.key) || seen.has(fb)) continue;
+    seen.add(c.key);
+    seen.add(fb);
+    extra.push({
+      key: c.key, exerciseKey: c.key, name: c.name, kind: c.kind,
+      ...(c.unit ? { unit: c.unit } : {}),
+      // The convention the create sheet was told, in the same two fields a
+      // sighting would have carried it in.
+      ...(c.equipment ? { equipment: c.equipment } : {}),
+      ...(c.counted ? { counted: c.counted } : {}),
+      lastUsed: 0, lastSets: [],
+    });
+  }
+  if (extra.length === 0) return library;
+  return [...library, ...extra].sort((a, b) => b.lastUsed - a.lastUsed || a.name.localeCompare(b.name));
 }
 
 /** Case-insensitive substring match on the typed text, most recent first.

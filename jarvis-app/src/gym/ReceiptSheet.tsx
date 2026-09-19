@@ -1,3 +1,4 @@
+import { liftTitle, workoutTitle } from "../shared/casing";
 import { useState } from "react";
 import MarkdownField from "../shared/MarkdownField";
 import { createPortal } from "react-dom";
@@ -55,7 +56,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Session Done</div></div>
         <div className="pad-x sheet-form">
-          <div className="p3-q">{dayName}</div>
+          <div className="p3-q">{workoutTitle(dayName)}</div>
           <div className="stat-row">
             {tiles.slice(0, 2).map((t) => (
               <div className="stat-tile" key={t.label}><div className="stat-num">{t.num}</div><div className="stat-label">{t.label}</div></div>
@@ -144,7 +145,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
                 {receipt.prs.map((p) => (
                   <div className="row" key={p.name}>
                     <div className="row-grow">
-                      <div className="conn-name truncate">{p.name}</div>
+                      <div className="conn-name truncate">{liftTitle(p.name)}</div>
                       <div className="conn-meta">{p.text}{p.from ? ` · Up from ${p.from}` : " · First time"}</div>
                     </div>
                     <span className="pill pill-good">PR</span>

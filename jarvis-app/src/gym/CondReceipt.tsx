@@ -1,3 +1,4 @@
+import { liftTitle } from "../shared/casing";
 import type { Exercise, SetEntry } from "./types";
 import { COND_LABEL } from "./types";
 import { condScore, condScoreLabel, condSummary, elapsedOf, mmss, perRound } from "./conditioning";
@@ -43,7 +44,7 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
     <div className="card cond-receipt">
       <div className="cr-head">
         <span className="cr-fmt">{COND_LABEL[cond.format]}</span>
-        <span className="cr-name">{exercise.note ?? exercise.name}</span>
+        <span className="cr-name">{exercise.note ?? liftTitle(exercise.name)}</span>
         <span className="cr-cap">{condSummary(cond).replace(COND_LABEL[cond.format] + " · ", "")}</span>
       </div>
       {entries.length === 0 && (

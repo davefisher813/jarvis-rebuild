@@ -30,7 +30,7 @@ import { daysBetween } from "../upnext/upnext";
 //   A PERIOD is inclusive of both its local ISO days.
 //   NO RECORDS is null, never zero. A count of zero is a count of zero.
 
-export type RangeKey = "7d" | "28d" | "90d" | "custom";
+export type RangeKey = "7d" | "30d" | "90d" | "custom";
 export interface Period { key: RangeKey; from: string; to: string; days: number }
 
 function shiftDay(iso: string, by: number): string {
@@ -45,7 +45,7 @@ export function periodFor(key: RangeKey, today: string, custom?: { from: string;
   if (key === "custom" && custom && /^\d{4}-\d{2}-\d{2}$/.test(custom.from) && /^\d{4}-\d{2}-\d{2}$/.test(custom.to) && custom.from <= custom.to) {
     return { key, from: custom.from, to: custom.to, days: daysBetween(custom.from, custom.to) + 1 };
   }
-  const days = key === "28d" ? 28 : key === "90d" ? 90 : 7;
+  const days = key === "30d" ? 30 : key === "90d" ? 90 : 7;
   return { key: key === "custom" ? "7d" : key, from: shiftDay(today, -(days - 1)), to: today, days };
 }
 

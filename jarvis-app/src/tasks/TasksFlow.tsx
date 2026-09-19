@@ -11,7 +11,7 @@ import StartScreen from "./screens/StartScreen";
 import { startAction, shapeOf, blockerOf, type StartAction, type StartTarget, type InTheWay } from "./startAction";
 import { contextFor, type StartRecords } from "./startGround";
 import { loadSession, saveSession, clearSession, sessionHasWork, loadSessions } from "./startStore";
-import { topPick, otherPicks } from "./startPick";
+import { topPick, startReason } from "./startPick";
 import StartCard from "./screens/StartCard";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { useProjects, useGoals } from "../data/NotesProvider";
@@ -52,7 +52,7 @@ import { ENTITY_TASK } from "../notes/types";
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], email: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onGoEmail, onWhatNow, title, segments }: {
+export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, startNonce, onStartConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onGoEmail, onWhatNow, title, segments }: {
   openId?: string; openFilter?: string; onOpenNote?: (id: string) => void;
   // SHARED-F-17 (2026-09-05): the mail route, so a task made from an email
   // can open the thread it came from.
@@ -64,6 +64,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // sheet popped open by itself. Arriving through Today's Overdue link, every
   // return to Tasks snapped the filter back to Overdue.
   openNonce?: number; onOpenConsumed?: () => void;
+  /** Start Now from Today (2026-09-17): the Start screen for this task, on arrival. */
+  startId?: string; startNonce?: number; onStartConsumed?: () => void;
   filterNonce?: number; onFilterApplied?: () => void;
   // LIFE (2026-09-01): when this list is the Tasks segment of the Life tab,
   // the head says Life and carries the segment control. Alone, it is Tasks.
@@ -72,7 +74,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // landing on the full metadata form -- title, category, due date, project,
   // recurrence, plan -- for a button whose whole job was to remove a
   // decision. AppShell already has the right primitive one tap over on the
-  // capture bar's lightning bolt: openWhatNow -> RightNowSheet, one task,
+  // capture bar's lightning bolt: openFocus -> Focus, one task,
   // Start or Something Else, no form. Two "give me one task" buttons a few
   // hundred pixels apart doing different things was the bug the 2026-08-21
   // ADHD audit named and it was only ever fixed at the shell level. This
@@ -148,6 +150,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // The door in is on the What Now sheet now (Fewer Buttons, 2026-09-02),
   // which lives in the shell; when it writes the flag, this page re-reads it.
   useEffect(() => subscribeOverwhelmed(() => setOverwhelmed(loadOverwhelmed(todayISO()))), []);
+  const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<TaskFilter>(
     openFilter && (FILTERS as string[]).includes(openFilter) ? (openFilter as TaskFilter) : "today",
   );
@@ -501,6 +504,11 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     onOpenConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId, openNonce]);
+  useEffect(() => {
+    if (!startId) return;
+    void openStart(startId);
+    onStartConsumed?.();
+  }, [startId, startNonce]);
 
   // SHELL-F-12: the same for the filter a link asks for (Today's Overdue and
   // See All). Applied when it arrives, then spent.
@@ -850,11 +858,23 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // reading on the tap. The two never disagree about the launch label,
   // which is the only thing both of them claim.
   const sessions = loadSessions();
-  const pick = topPick(parts.all, today, sessions, { skip: skippedStarts });
-  const readyFor = useCallback((t: TaskItem): string => {
-    const target: StartTarget = { kind: "task", id: t.id, title: t.data.text, data: t.data };
-    return startAction(target, { saved: loadSession(t.id) }).ready;
-  }, []);
+  /** THE CARD PICKS OUT OF WHAT YOU ARE LOOKING AT (Dave 2026-09-17: "the huge
+   *  start now container is the same for all of the pages. Like setting up
+   *  Jarvis has NOTHING to do with emails").
+   *
+   *  It read `parts.all` on every view, so the card sitting on top of seven
+   *  email tasks proposed a task from somewhere else entirely -- the same
+   *  card, the same suggestion, whichever chip was chosen. A card that
+   *  answers "what should I start" has to answer it about the list it is
+   *  sitting on, or it is answering a question nobody asked.
+   *
+   *  It reads the SELECTED view, through the same Area cut the list below it
+   *  is under. Two things follow for free: Done has no open task in it, so
+   *  topPick returns null and the card is simply gone there; and a view with
+   *  nothing startable in it shows no card rather than a card about
+   *  somewhere else. */
+  const startFrom = visible(filter);
+  const pick = topPick(startFrom, today, sessions, { skip: skippedStarts });
   const startCard = pick ? (
     <StartCard
       pick={pick}
@@ -862,10 +882,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         { kind: "task", id: pick.task.id, title: pick.task.data.text, data: pick.task.data },
         { saved: loadSession(pick.task.id) },
       )}
-      others={otherPicks(parts.all, today, pick.task.id)}
-      readyFor={readyFor}
+      reason={startReason(pick, today)}
       onStart={(id) => void openStart(id)}
-      onToggle={(id) => void onToggle(id)}
     />
   ) : null;
 
@@ -1028,7 +1046,14 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
       <TasksPage
         title={title}
         segments={segments}
+        // THE HEADER'S SEARCH (2026-09-17, Unified Headers). Held by the flow
+        // rather than the page so it survives opening a task and coming back,
+        // which is rule 4's "Preserve query, selected chip, Area and scroll
+        // position when returning from details".
+        query={query}
+        onQuery={setQuery}
         onPickOne={pickOne}
+        onJustThisOne={() => { haptics.selection(); setOverwhelmed(setOverwhelmedFlag(true, today)); }}
         startLabel={startLabelFor}
         startCard={startCard}
         overwhelmed={overwhelmed}

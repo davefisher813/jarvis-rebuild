@@ -103,9 +103,11 @@ describe("the windows editor", () => {
   it("[E-14] Same on Every Device is off by default and rides out with Save", () => {
     const onSave = vi.fn();
     render(<WindowsSheet initial={{ ...DEFAULT_WINDOWS, on: true }} onSave={onSave} onClose={() => {}} />);
-    expect(screen.getByText(/stay on this device/)).toBeInTheDocument();
+    // AMENDED 2026-09-18 (the type law): a setting row's second line states
+    // its VALUE. The explanation of what the switch does came off it.
+    expect(screen.getByText("Off")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Turn On"));
-    expect(screen.getByText(/Rides the mail mirror/)).toBeInTheDocument();
+    expect(screen.getByText("On")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![1]).toBe(true);
   });
@@ -114,8 +116,8 @@ describe("the windows editor", () => {
     const onSave = vi.fn();
     render(<WindowsSheet initial={DEFAULT_WINDOWS} onSave={onSave} onClose={() => {}} />);
     fireEvent.click(screen.getByText("Same on Every Device"));
-    expect(screen.getByText("On · Rides the mail mirror")).toBeInTheDocument();
+    expect(screen.getByText("On")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Turn Off"));
-    expect(screen.getByText("Off · These windows stay on this device")).toBeInTheDocument();
+    expect(screen.getByText("Off")).toBeInTheDocument();
   });
 });

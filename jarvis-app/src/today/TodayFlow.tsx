@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { focusStarted } from "../events/focus";
 import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules, useBrainDocs, useOptionalStrands } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
 import { goalTone, catName, catColor as catColorOf } from "../shared/categories";
@@ -94,6 +95,8 @@ import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
 import RemindersFlow from "../tasks/screens/RemindersFlow";
+import SnoozeSheet from "../tasks/screens/SnoozeSheet";
+import RowActionSheet from "../shared/RowActionSheet";
 import type { LinkCandidate } from "../tasks/screens/LinkedItemSheet";
 import { displayTitle } from "../notes/docModel";
 import type { LinkedItem, ContextTriggerConfig } from "../notes/types";
@@ -201,6 +204,7 @@ export default function TodayFlow({
   onGoTasksAll,
   onGoTasksOverdue,
   onGoEmail,
+  onStartNow,
   onSearch,
   onProfile,
   onEditRoutine,
@@ -214,7 +218,15 @@ export default function TodayFlow({
   reminderNonce,
   onReminderOpened,
   onOpenEntity,
+  focusNonce,
+  onFocusOpened,
 }: {
+  /** FOCUS IS GLOBAL, AND IT LIVES HERE (2026-09-18). Every door to it -- the
+   *  capture bar's bolt, the Tasks list's own control -- fires an intent on
+   *  the shell, which lands on Today and opens this. One mount, one deck,
+   *  one clock. */
+  focusNonce?: number;
+  onFocusOpened?: () => void;
   /** The reminders rebuild (push C): a banner's Open, and the door to any linked record. */
   reminderOpenId?: string;
   reminderNonce?: number;
@@ -232,6 +244,8 @@ export default function TodayFlow({
   // opens that goal; without one it lands on the Bigger Picture itself.
   onGoBigger?: (goalId?: string) => void;
   onGoEmail?: (threadId?: string, draftId?: string) => void;
+  /** Start Now (Dave 2026-09-17): the Start screen for a task, on the Tasks tab. */
+  onStartNow?: (id: string) => void;
   onSearch?: () => void;
   onProfile?: () => void;
   onEditRoutine?: (blockId?: string) => void;
@@ -280,6 +294,11 @@ export default function TodayFlow({
   const [tomorrowEvents, setTomorrowEvents] = useState<EventItem[]>([]);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
+  // NOT THE EMAILS (Dave 2026-09-17: "they must go to the email section").
+  // A task born from a thread is the Ready to Send band's: it never leads
+  // Your Move, never rides the momentum chain, never sits in the slid card.
+  const isMailTask = (t: TaskItem): boolean => !!(t.data.fromThread || t.data.source?.type === "email" || /^get back to /i.test(t.data.text));
+  const notMail = (t: TaskItem): boolean => !isMailTask(t);
   const [prevMood, setPrevMood] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   // Group C (item 14): the Day Loop's draft for today.
@@ -610,6 +629,15 @@ export default function TodayFlow({
   const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
+  const focusSeen = useRef(0);
+  useEffect(() => {
+    if (!focusNonce || focusNonce === focusSeen.current) return;
+    focusSeen.current = focusNonce;
+    setUpNextOpen(true);
+    onFocusOpened?.();
+  }, [focusNonce, onFocusOpened]);
+  const [remAdjust, setRemAdjust] = useState<{ id: string; text: string } | null>(null);
+  const [wrapUp, setWrapUp] = useState<string | null>(null);
   // THE MONTHLY REPORT (2026-08-25). Arrives as one row in the notice
   // stream, unannounced, when the previous month is sealed and this device
   // has not read it. No countdown, no teaser: anticipating a landmark
@@ -755,7 +783,7 @@ export default function TodayFlow({
       // The season pause candidatesFor applies, at the other door a task
       // becomes work. nextBest already refuses bills and reminders.
       const fresh = (await tasks.listTasks()).filter((t) => !pausedCats.has(t.data.category ?? ""));
-      setMomentum(nextBest(fresh, id, before.category ?? ""));
+      setMomentum(nextBest(fresh.filter(notMail), id, before.category ?? ""));
     }
     const advanced = before && !before.done ? movedByTask(before, id) : null;
     if (comeback) {
@@ -1525,7 +1553,7 @@ export default function TodayFlow({
   // behind it is a count on a receipt line that opens the Focus deck. One
   // target on screen, because choosing among three is a decision tax the
   // page was charging before work could start.
-  const upNextAll = rankOpen(taskItems, today);
+  const upNextAll = rankOpen(taskItems.filter(notMail), today);
   const upNextRows = upNextAll.slice(0, 1);
   const inPeakNow = !!energy && nowMin >= energy.peakStartMin && nowMin < energy.peakEndMin;
 
@@ -1675,7 +1703,12 @@ export default function TodayFlow({
   // deleted, or has moved on. See autoSweep.ts for the full reasoning.
   void sweepDismissTick; // re-derive after a sweep-card dismissal
   const movedNow = liveMoved(sweepReceipt, taskItems, today);
-  const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(movedNow, today) : null;
+  // NOT THE EMAILS (Dave 2026-09-17: "they have their own section on the
+  // home page; there is no need to have repetitiveness"). A task that was
+  // born from a thread is the email band's to surface, with its verb; the
+  // slid-task card only ever names a task that is nothing but a task.
+  const mailBorn = (id: string): boolean => { const t = taskItems.find((x) => x.id === id); return !!t && isMailTask(t); };
+  const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(movedNow.filter((m) => !mailBorn(m.id)), today) : null;
   // THE DAY LOOP (Group C item 14). Draft at first open, deterministic and
   // instant; Accept stays the one honest commit moment.
   const todayDow = new Date().getDay();
@@ -2287,7 +2320,7 @@ export default function TodayFlow({
                   day's own button row a few hundred pixels below, which is
                   the same verb twice in one section. This card is about the
                   next few minutes; planning the day belongs to the day. */}
-              <button className="pill-act" onClick={own(() => setUpNextOpen(true))}>Pick Something</button>
+              <button className="pill-act" onClick={own(() => setUpNextOpen(true))}>Focus</button>
             </div>
           )}
           </>
@@ -2347,10 +2380,6 @@ export default function TodayFlow({
                 neither, the row states the fact and stops. */}
             {insideEvent?.data.url ? (
               <a className="pill-act" href={insideEvent.data.url} target="_blank" rel="noreferrer" onClick={own()}>Join</a>
-            ) : insideEvent && onOpenNote ? (
-              <button className="pill-act" onClick={own(() => void openEventNote(insideEvent))}>
-                {notedEvents.has(insideEvent.id) ? "Notes" : "Take Notes"}
-              </button>
             ) : null}
           </div>
         )}
@@ -2701,7 +2730,6 @@ export default function TodayFlow({
         // plan card above already holds the rest, and "5 Moved to Today"
         // beside a card that has timed four of them is a false alarm.
         title={unplannedMoved.length === 1 ? "1 Moved to Today" : `${unplannedMoved.length} Moved to Today`}
-        sub={unplannedMoved.length > 1 ? "No times yet" : undefined}
         // 2026-09-15: THE SECOND PLANNING DOOR IS GONE (Dave: "do the buttons
         // really have any value to the user"). This pill and Plan My Day at
         // the foot of the day were the identical call -- openPlan("today") --
@@ -2790,7 +2818,8 @@ export default function TodayFlow({
         // needs the AI and cannot have it is the exact shape this pass is
         // removing everywhere else. Without one the row still opens the task,
         // which is what it has always done.
-        {...(ai.available ? { action: { label: "Break It Down", onClick: () => { markOffered(sweepCand.id, today); void breakDownTask(sweepCand.id); } } } : {})}
+        // 2026-09-17 (Dave): no Break It Down, and no verb at all: the row
+        // opens the task, and the email band owns anything that came from mail.
         onOpen={() => { markOffered(sweepCand.id, today); void onOpenTask(sweepCand.id); }}
         // Quiet for DISMISS_DAYS, not forever: the old markOffered list had
         // no expiry, so one dismissal meant this task could never be flagged
@@ -2895,7 +2924,9 @@ export default function TodayFlow({
         tone="cat-fg-green"
         title={finishedProject.project.data.title}
         sub={capAfterNumber(`All ${finishedProject.progress?.total ?? 0} done`)}
-        action={{ label: "Close", onClick: () => void closeProject(finishedProject.project.id) }}
+        // 2026-09-17 (Dave): every task done is a question, not a verdict.
+        // Wrap Up asks: add more tasks, or finish the project.
+        action={{ label: "Wrap Up", onClick: () => setWrapUp(finishedProject.project.id) }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
         // opens the project; closing it stays on the pill.
         onOpen={onOpenProject ? () => onOpenProject(finishedProject.project.id) : undefined}
@@ -2945,7 +2976,7 @@ export default function TodayFlow({
         tone="cat-fg-blue"
         title={momentum.data.text}
         sub={momentumSub(momentum)}
-        action={{ label: "Start", onClick: () => { const t = momentum; setMomentum(null); void startFifteen(t); } }}
+        action={{ label: "Start Now", onClick: () => { const t = momentum; setMomentum(null); if (onStartNow) onStartNow(t.id); else void startFifteen(t); } }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
         // opens the task.
         onOpen={() => void onOpenTask(momentum.id)}
@@ -2999,14 +3030,14 @@ export default function TodayFlow({
            report); this card is about a GOAL, so it wears the goal's color. */
         tone={goalTone(untouched.data.tags)}
         title={untouched.data.title}
-        sub={untouchedLine(openWorkOf(goalReach(untouched.id)))}
+        sub={untouchedLine(openWorkOf(goalReach(untouched.id))) + " · Pick a project to move it"}
         // "Pick One", not "Pick Something" (2026-08-25). Measured on the
         // uniform card: the longer label took 139px of a 358px row and left
         // the goal's own name 133px when it needed 202, so a two-word button
         // was eating the sentence it was attached to. Same verb, same
         // meaning, and it matches Pick One on Tasks (which took this
         // shorter name itself on 2026-08-26, so the two are now identical).
-        action={{ label: "Pick One", onClick: () => onGoBigger?.(untouched.id) }}
+        action={{ label: "Resume", onClick: () => onGoBigger?.(untouched.id) }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
         // opens the goal.
         onOpen={() => onGoBigger?.(untouched.id)}
@@ -3030,17 +3061,18 @@ export default function TodayFlow({
     await attemptWrite(() => (done ? tasks.tickReminder(id, today) : tasks.untickReminder(id)));
     await reload();
   };
+  // ADJUST, NOT A FIXED TEN MINUTES (Dave 2026-09-17): the strip's pill
+  // opens Choose a Better Time, and the move is the same one occurrence
+  // move the Reminders page makes.
   const onSnoozeReminder = async (id: string) => {
     const v = reminders.find((r) => r.id === id);
-    if (!v) return;
-    // TODAY-F-04 (2026-09-05): counted from the clock when the reminder has
-    // already passed, so a missed 8 AM snoozed at 2 PM lands at 2:10 PM and
-    // the phone actually rings again. See snoozeFrom in tasks/reminders.ts.
-    const to = snoozeTime(snoozeFrom(v.time, nhm), 10);
-    const ok = await attemptWrite(() => tasks.snoozeReminder(id, to, today));
+    if (v) setRemAdjust({ id, text: v.text });
+  };
+  const moveReminder = async (id: string, toDate: string, time: string) => {
+    setRemAdjust(null);
+    const ok = await attemptWrite(() => tasks.moveOccurrence(id, today, toDate, time));
     await reload();
-    if (!ok) return;
-    showToast({ message: "Snoozed to " + fmtTime(to).time + " " + fmtTime(to).ap });
+    if (ok) showToast({ message: "Moved · " + (toDate === today ? "Today" : toDate) + ", " + fmtTime(time).time + " " + fmtTime(time).ap });
   };
   // A DAY AND AN AREA, NOT JUST A CLOCK (Dave 2026-09-11: "I can't even
   // select a date for a reminder. Expand the booking options"). A reminder has
@@ -3413,6 +3445,9 @@ export default function TodayFlow({
     };
     writeFifteen(live);
     setFifteen(live);
+    // THE ONE TAP WHERE A BLOCK TRULY BEGINS NOW (moved here 2026-09-18 with
+    // the What Now sheet's deletion, which used to be the only emitter).
+    focusStarted(t.id, FIFTEEN, "fifteen");
     showToast({ message: `Fifteen minutes on ${t.data.text}` });
   };
 
@@ -3649,10 +3684,7 @@ export default function TodayFlow({
       onFifteenStop={() => void fifteenStop()}
       blendMap={blendMap}
       gymDoorFor={gymDoor.doorFor}
-      onStartTask={(id) => {
-        const t = taskItems.find((x) => x.id === id);
-        if (t) void startFifteen(t);
-      }}
+      onStartTask={onStartNow}
       onSeeAllMail={!mailEmpty && !mailResidual && onGoEmail ? () => onGoEmail() : undefined}
       mailEmpty={mailEmpty}
       mail={
@@ -3865,7 +3897,15 @@ export default function TodayFlow({
     )}
     {upNextOpen && (
       <Suspense fallback={null}>
-        <UpNextFlow onClose={() => { setUpNextOpen(false); void reload(); }} />
+        <UpNextFlow
+          onClose={() => { setUpNextOpen(false); void reload(); }}
+          onStartNow={onStartNow ? (id) => { setUpNextOpen(false); onStartNow(id); } : undefined}
+          onFifteen={(t) => { setUpNextOpen(false); void startFifteen(t); }}
+          fifteen={liveFifteenFace}
+          onFifteenDone={() => void fifteenDone()}
+          onFifteenAgain={() => void fifteenAgain()}
+          onFifteenStop={() => void fifteenStop()}
+        />
       </Suspense>
     )}
     {freshOpen && (
@@ -3922,6 +3962,15 @@ export default function TodayFlow({
       />
     )}
     {remSheetNode}
+    {remAdjust && (
+      <SnoozeSheet title={remAdjust.text} fromDate={today} today={today} onPick={(d, t) => void moveReminder(remAdjust.id, d, t)} onCancel={() => setRemAdjust(null)} />
+    )}
+    {wrapUp && (
+      <RowActionSheet title="Every task in it is done" onCancel={() => setWrapUp(null)} actions={[
+        { label: "Add More Tasks", onPick: () => { const id = wrapUp; setWrapUp(null); onOpenProject?.(id); } },
+        { label: "Finish Project", onPick: () => { const id = wrapUp; setWrapUp(null); void closeProject(id); } },
+      ]} />
+    )}
     {!remHome && remFlowMounted && (
       <RemindersFlow
         pageless

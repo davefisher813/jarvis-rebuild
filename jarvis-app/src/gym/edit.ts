@@ -1,6 +1,7 @@
 import type { Exercise, ProgramData, ProgramDay, ProgramWeek, SetEntry } from "./types";
 import { newSetId } from "./strip";
 import { newExerciseKey } from "./library";
+import { loadFields, type Counted } from "./equipment";
 
 // DUPLICATE, MOVE & COPY (catalog §3.2-3.4). Pure array surgery: GymFlow
 // calls these and hands the result straight to updateProgram. Every copy
@@ -248,14 +249,21 @@ export function applyExerciseEdit(existing: Exercise, draft: Omit<Exercise, "id"
 // settings the session gave it.
 export function dayWithSessionEntry(
   day: ProgramDay,
-  entry: { exerciseId: string; name: string; kind: Exercise["kind"]; unit?: string; timeUnit?: string; exerciseKey?: string; plan?: SetEntry[]; program?: Partial<Pick<Exercise, "cond" | "restSec" | "ramp" | "muscleGroup" | "note">> },
+  entry: { exerciseId: string; name: string; kind: Exercise["kind"]; unit?: string; timeUnit?: string; exerciseKey?: string; equipment?: string; counted?: Counted; sided?: boolean; plan?: SetEntry[]; program?: Partial<Pick<Exercise, "cond" | "restSec" | "ramp" | "muscleGroup" | "note">> },
   newId: () => string,
 ): ProgramDay {
+  // THE CONVENTION COMES WITH IT (2026-09-16). "Also Update the Program"
+  // carried a lift's name, kind and units into the program and left its
+  // equipment, its reading and its reps axis behind -- so a dumbbell press
+  // swapped in mid-session and kept landed in the plan as an unclassified
+  // lift, and the next session started it stepping by 5 and calling its
+  // number "Weight". loadFields is the one spelling of this copy.
   const identity = {
     name: entry.name, kind: entry.kind,
     ...(entry.unit ? { unit: entry.unit } : {}),
     ...(entry.timeUnit ? { timeUnit: entry.timeUnit } : {}),
     ...(entry.exerciseKey ? { exerciseKey: entry.exerciseKey } : {}),
+    ...loadFields(entry),
   };
   const idx = day.exercises.findIndex((e) => e.id === entry.exerciseId);
   if (idx >= 0) {
@@ -263,4 +271,37 @@ export function dayWithSessionEntry(
   }
   const added: Exercise = { id: newId(), ...identity, sets: (entry.plan ?? []).map((s) => ({ ...s, id: newSetId() })), ...(entry.program ?? {}) };
   return { ...day, exercises: [...day.exercises, added] };
+}
+
+/** MOVING A FINISHED SESSION TO ANOTHER DAY (Dave 2026-09-17: "should be able
+ *  to fully edit completed workouts").
+ *
+ *  `date` is the local ISO day every chart, streak and weekly total reads,
+ *  and `startedAt` / `endedAt` are the real clock stamps the duration is
+ *  measured between. Rewriting the day without the stamps leaves a session
+ *  dated Sep 14 that started at 6pm on Sep 17 -- the duration stays right and
+ *  everything that prints a time is wrong.
+ *
+ *  So both stamps shift by the same whole number of days. The duration is
+ *  untouched by construction (both ends move together), and the time of day
+ *  the session was done is kept, which is the only honest reading of "this
+ *  happened on Tuesday instead".
+ *
+ *  A patch, not a record: it returns only what changed, and nothing at all
+ *  when the day is the same or either side is not a date.
+ */
+export function movedToDay(
+  data: { date: string; startedAt?: number; endedAt?: number },
+  nextDate: string,
+): { date: string; startedAt?: number; endedAt?: number } | null {
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  if (!ISO.test(nextDate) || !ISO.test(data.date) || nextDate === data.date) return null;
+  const at = (iso: string) => new Date(iso + "T12:00:00").getTime();
+  const days = Math.round((at(nextDate) - at(data.date)) / 86_400_000);
+  const by = days * 86_400_000;
+  return {
+    date: nextDate,
+    ...(typeof data.startedAt === "number" ? { startedAt: data.startedAt + by } : {}),
+    ...(typeof data.endedAt === "number" ? { endedAt: data.endedAt + by } : {}),
+  };
 }

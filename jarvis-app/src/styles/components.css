@@ -106,7 +106,7 @@ html.overlay-open { overflow: hidden; }
 .app-scroll { overscroll-behavior: contain; }
 
 /* Inline editing: clean caret, no default focus box. */
-[contenteditable] { outline: none; caret-color: var(--tint); }
+[contenteditable] { outline: none; caret-color: var(--accent); }
 
 /* Voice-bar mic glyph size (canonical export omits icon context). */
 .voice-mic .ic { width: 20px; height: 20px; }
@@ -596,7 +596,6 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .ob-templates { display: flex; flex-direction: column; gap: var(--s-3); padding-bottom: var(--s-5); }
 .ob-tpl { cursor: pointer; }
 .ob-tpl:active { transform: scale(0.99); }
-.ob-tpl .conn-name { font-size: calc(16px * var(--type-scale)); }
 .ob-tagline-1 { margin-top: var(--s-3); font-size: var(--t-h3); }
 .ob-host { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--tx-1); }
 
@@ -634,6 +633,17 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    scroll (2026-09-06, "the pages behind them end up scrolling instead"). */
 .sheet-scrim .sheet-form { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .sheet-scrim .sheet-actions { flex-shrink: 0; }
+/* A SHEET'S OWN LIST IS ITS SCROLLER (2026-09-16, Dave: "the modal doesn't
+   scroll. Can't get out of it. Freezes the whole app").
+
+   The card is a flex column capped at 92% of the visible band. Every child
+   above declares how it behaves in that column; a list rendered as a bare
+   <div> did not, and a flex item defaults to min-height: auto -- it cannot
+   shrink below its own content. So a long list grew past the cap and pushed
+   the actions off the bottom of the screen, with nothing scrollable because
+   nothing had been told it was the scroller. Same three rules .sheet-form has
+   always carried, on the element that actually holds the rows. */
+.sheet-scrim .sheet-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
 /* Category color + icon pickers (Category sheet). Tokens only. */
 /* BROWSER-F-08 (2026-09-05): --s-6, not --s-3. The swatch paints 24px, so a
@@ -711,14 +721,42 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* ===== Up Next / Quick Wins / Fresh Start (ADHD strategy Phase 1). One card,
    never a list. Tokens only; reuses .card/.btn/.chip/.conn-*; the overlay
    itself is .search-overlay (same rules, same z). ===== */
-.upnext-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--s-3); padding-bottom: var(--s-8); }
-.upnext-card { text-align: center; padding: var(--s-6) var(--s-5); }
-.upnext-cat { justify-content: center; display: flex; align-items: center; gap: var(--s-1h); margin-bottom: var(--s-3h); }
-.upnext-task { font-size: calc(26px * var(--type-scale)); font-weight: var(--w-bold); line-height: var(--lh-default); margin-bottom: var(--s-2h); }
-.upnext-done-wrap { position: relative; margin-top: var(--s-5); }
-.upnext-skip { background: 0; border: 0; color: var(--tx-quiet); font-size: var(--t-body); font-weight: var(--w-medium); font-family: var(--f); margin-top: var(--s-3h); }
-.upnext-pill-row { display: flex; justify-content: center; padding: var(--s-2) var(--s-4) 0; }
-.qw-pill { background: var(--red-tint); color: var(--accent-tx); font-weight: var(--w-bold); font-size: var(--t-meta); padding: var(--s-1h) var(--s-3h); border-radius: var(--r-pill); }
+/* FOCUS (rebuilt 2026-09-18: "roll it all under focus... which needs a major
+   facelift as well"). The body used to be `justify-content: center`, which is
+   why one card sat two thirds of the way down an otherwise black screen. It
+   starts at the top now. */
+/* The screen itself: the overlay's own column, so the body can start at the
+   top instead of centring one card in a black page. */
+.focus-screen { display: flex; flex-direction: column; }
+.focus-controls { display: flex; align-items: center; gap: var(--s-2); padding-top: var(--s-1); }
+.focus-controls .segmented { flex: 1 1 auto; min-width: 0; }
+.focus-controls .chip-row { flex: 0 0 auto; }
+.focus-run-line { padding: var(--s-2h) var(--s-4) 0; font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
+.focus-body { flex: 1; display: flex; flex-direction: column; gap: var(--s-2); padding-top: var(--s-3); }
+.focus-card { padding: var(--s-4); }
+.focus-task {
+  font-size: var(--t-h2); font-weight: var(--w-bold);
+  letter-spacing: -0.02em; line-height: 1.2; color: var(--tx-1); margin-top: var(--s-1h);
+}
+.focus-go { margin-top: var(--s-4); }
+.focus-acts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-2); }
+.focus-acts.three { grid-template-columns: 1fr 1fr 1fr; padding: 0 var(--s-3) var(--s-3); margin-top: 0; }
+.focus-acts .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h);
+  /* Two capsules of the SAME height: "15 Minutes" wrapped to two lines and
+     grew its half of the row taller than Done's. */
+  white-space: nowrap; padding-inline: var(--s-2); font-size: calc(15px * var(--type-scale));
+}
+.focus-acts .btn .ic { width: 16px; height: 16px; }
+.focus-skip {
+  display: block; width: 100%; background: 0; border: 0; font-family: var(--f);
+  margin-top: var(--s-3); padding: 0;
+  color: var(--tx-quiet); font-size: var(--t-sub); font-weight: var(--w-medium);
+}
+/* What is behind this card, so one card is not the whole screen's evidence. */
+.focus-rest { padding: 0 var(--s-4); font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
+.focus-live { margin-top: var(--s-3); }
+.focus-live .conn-meta.warn { color: var(--warn); }
 .fresh-faded { color: var(--tx-3); }
 /* Focus + Plan My Day as a pair: Focus keeps the accent (one red action per
    screen), Plan My Day drops to the quiet fill. */
@@ -761,7 +799,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    The spine carries the identity, the wash only groups. */
 .sched-holds { background: rgba(255, 43, 60, 0.055); box-shadow: inset 3px 0 0 var(--accent-glyph); border-radius: var(--r-md); }
 [data-theme="light"] .sched-holds { background: rgba(204, 5, 27, 0.045); }
-.sched-holds .sched-title { color: var(--tx-1); font-weight: var(--w-semi); }
+.sched-holds .sched-title { color: var(--tx-1); }
 .block-nest { margin: var(--s-2) 0 0; padding-left: var(--s-3); border-left: 2px dotted var(--accent-chip-bd); display: flex; flex-direction: column; }
 .block-held { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1h) 0; background: 0; border: 0; width: 100%; text-align: left; font-family: var(--f); }
 .block-held-t { color: var(--tx-1); font-size: var(--t-body); flex: 1; min-width: 0; }
@@ -822,13 +860,13 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    dashed), picks wear their category color. Gaps are just the track showing
    through, which is the point. */
 .plan-strip { padding: var(--s-2) 0 var(--s-1); }
-.plan-strip-bar { position: relative; height: 22px; border-radius: 6px; background: var(--press-3); overflow: hidden; }
-.plan-strip-seg { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+.plan-strip-bar { position: relative; height: 22px; border-radius: var(--r-sm); background: var(--press-3); overflow: hidden; }
+.plan-strip-seg { position: absolute; top: 0; bottom: 0; border-radius: var(--r-xs); }
 .strip-event { background: var(--press-6, rgba(255,255,255,0.28)); }
 .strip-protected { background: var(--press-5); }
 .strip-protected.strip-soft { opacity: 0.45; border: 1px dashed var(--tx-3); }
 /* Focus time: an outlined invitation, not a wall; picks render over it. */
-.strip-focus { background: transparent; border: 1px solid var(--tint); opacity: 0.5; border-radius: 3px; }
+.strip-focus { background: transparent; border: 1px solid var(--tint); opacity: 0.5; border-radius: var(--r-xs); }
 /* Reach rows on the person card: anchors that dress as rows (tel/sms/mailto). */
 a.row.person-reach { color: inherit; text-decoration: none; }
 .strip-pick { opacity: 0.92; }
@@ -868,7 +906,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .msg-seg { padding: var(--s-1) var(--s-4) var(--s-3); }
 .msg-lead { width: 8px; flex-shrink: 0; margin-top: var(--s-1h); display: flex; justify-content: center; }
 .msg-sends { font-size: var(--t-meta); color: var(--tint); font-weight: var(--w-medium); }
-.empty-sub { font-size: var(--t-meta); color: var(--tx-3); text-align: center; max-width: 280px; }
+.empty-sub { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); text-align: center; max-width: 280px; }
 .money-hero { padding: var(--s-5) var(--s-4); }
 .money-hero-label { font-size: var(--t-meta); color: var(--tx-3); font-weight: var(--w-medium); margin-bottom: var(--s-1); }
 .money-hero-total { font-size: var(--t-h1); font-weight: var(--w-bold); color: var(--tx-1); }
@@ -891,7 +929,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .account-name { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
 .account-sub { font-size: var(--t-meta); color: var(--tx-3); }
 .about-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-6) var(--s-4); }
-.row-value { font-size: var(--t-body); color: var(--tx-3); }
+.row-value { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .proj-detail-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); padding: var(--s-6) var(--s-4); }
 .proj-detail-hero .proj-icon { width: 56px; height: 56px; border-radius: var(--r-lg); }
 .proj-detail-hero .proj-icon .ic { width: 26px; height: 26px; }
@@ -1163,7 +1201,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    wide. Found by screenshot, not by any test. */
 .msg-headline { font-size: var(--t-body); color: var(--tx-1); overflow: hidden;
   text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.msg-from { font-size: var(--t-meta); color: var(--tx-3); }
 .msg-line .msg-from { flex: 1; min-width: 0; }
 
 /* E5: the count on a band head, quieter than the section count above it. */
@@ -1204,7 +1241,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    order became: one facts line for what is true, full-width rows for what
    to do, one row that owns the More control, and the correction last. */
 .msg-stands-facts { margin-top: var(--s-1h); margin-bottom: var(--s-1); }
-.msg-stands-facts .fact.strong { color: var(--tx-1); font-weight: var(--w-semi); }
+.msg-stands-facts .fact.strong { color: var(--tx-1); }
 .msg-stands-by { color: inherit; font-size: inherit; }
 /* An offer inside the card: a hairline above it so it reads as a separate
    thing to do rather than more of the sentence above. */
@@ -1302,7 +1339,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 }
 .blend-tuck:active { opacity: 0.6; }
 .blend-plus {
-  flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
+  flex-shrink: 0; width: 20px; height: 20px; border-radius: var(--r-circle);
   display: inline-flex; align-items: center; justify-content: center;
   border: 1px dashed var(--tx-3); color: var(--tx-3);
   font-size: calc(14px * var(--type-scale)); line-height: 1;
@@ -1330,7 +1367,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .wait-why { margin: calc(var(--s-2) * -1) 0 var(--s-2); color: var(--tx-3); }
 
 .msg-fold { margin-top: var(--s-3); }
-.msg-fold .conn-name { color: var(--tx-2); font-weight: var(--w-regular); }
+.msg-fold .conn-name { color: var(--tx-2); }
 .msg-fold-head {
   display: flex; align-items: baseline; justify-content: space-between;
   padding: var(--s-3) 0 var(--s-1);
@@ -1353,7 +1390,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* Multi-account (2026-08-04): the account tag is quiet metadata, never a
    second subject line; account chips in Connections sit inside the row. */
-.msg-acct { display: inline-block; font-size: calc(10px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.04em; text-transform: uppercase; border: 0.5px solid var(--card-bd); border-radius: 5px; padding: 1px 5px; color: var(--tx-3); margin-left: var(--s-2); vertical-align: 1px; }
+.msg-acct { display: inline-block; font-size: var(--t-micro); font-weight: var(--w-semi); letter-spacing: 0.04em; text-transform: uppercase; border: 0.5px solid var(--card-bd); border-radius: var(--r-xs); padding: 1px 5px; color: var(--tx-3); margin-left: var(--s-2); vertical-align: 1px; }
 .conn-acct-chips { margin: var(--s-1h) 0 0; }
 
 /* RULE-9: Tasks - large completion target + swipe-to-delete. */
@@ -1518,14 +1555,13 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    was 17px at --w-semi, which read a size bigger AND a weight heavier than
    the three lenses beside it in Life. Same numbers now, one place to change
    if that row ever moves. */
-.rem-card-title { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rem-card-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* ONE FACTS LINE, ALWAYS (Dave 2026-09-15, v3). The shared .facts wraps by
    design; on this row a wrap is what turned a reminder into a three-line
    card, so here the line stays on one line. The facts are ordered so the
    ones that earn the space come first, and the LAST one gives way in an
    ellipsis rather than the line hard-clipping mid-word and leaving its
    separator dangling over the edge. */
-.rem-card .facts { flex-wrap: nowrap; overflow: hidden; }
 .rem-card .facts > .fact { flex-shrink: 0; }
 /* THE LAST ONE GIVES WAY, not whichever one happens to carry .cat (Dave
    2026-09-16: a reminder with a category AND a rhythm -- "Transfer funds for
@@ -1538,8 +1574,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    is), it just is not forced to every time. */
 .rem-card .facts > .fact:last-child { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rem-card .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rem-card .facts .fact.when { color: var(--warn); font-weight: var(--w-semi); }
-.rem-card .facts .fact.later { color: var(--tx-2); font-weight: var(--w-semi); }
+.rem-card .facts .fact.when { color: var(--warn); }
+.rem-card .facts .fact.later { color: var(--tx-2); }
 /* The four views, as chips rather than a second segmented control (Dave
    2026-09-15: "we can't have two tab bars on one page"). Same row Notes'
    filters wear; it only has to close the gap the toolbar above already left. */
@@ -1549,7 +1585,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-now-dot { width: 6px; height: 6px; border-radius: var(--r-circle); background: var(--accent-chrome); flex-shrink: 0; }
 .rem-detail .sheet-form { padding-top: var(--s-1); }
 .rem-detail-head { padding: var(--s-2) var(--s-4) var(--s-3); display: flex; flex-direction: column; gap: var(--s-1h); }
-.rem-detail-title { font-size: calc(26px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.01em; line-height: 1.2; }
+.rem-detail-title { font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.01em; line-height: 1.2; }
 .rem-detail-acts { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-2) var(--s-4); }
 .rem-detail-acts .btn { width: 100%; }
 .rem-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
@@ -1565,11 +1601,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .link-sheet .sub-bar { padding-inline: var(--s-3); }
 .link-sheet-list { max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .link-sheet-kind { padding: var(--s-2) var(--s-4) var(--s-1); }
-.link-sheet .row.on .conn-name { color: var(--tint); font-weight: var(--w-semi); }
+.link-sheet .row.on .conn-name { color: var(--tint); }
 /* The primary marker inside a picked category chip (2026-08-21). Uppercase
    micro-label, not a colour: the chip is already carrying a colour that means
    the category, and a second meaning on the same paint is how palettes rot. */
-.cat-main { margin-left: var(--s-1h); font-size: calc(9px * var(--type-scale)); font-weight: var(--w-bold);
+.cat-main { margin-left: var(--s-1h); font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
 .rem-time-row { display: flex; align-items: center; gap: var(--s-2h); flex-wrap: wrap; }
 .rem-time-row .input-compact { flex: 0 0 auto; width: auto; }
@@ -1598,7 +1634,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .plan-title { font-size: var(--t-body); color: var(--tx-1); }
 .plan-tag { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; }
 .plan-controls { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1h); padding-left: 44px; }
-.plan-step { width: 30px; height: 30px; border-radius: var(--r-pill); border: 1px solid var(--divider); background: var(--surface-2); color: var(--tx-1); font-size: calc(17px * var(--type-scale)); line-height: 1; flex-shrink: 0; }
+.plan-step { width: 30px; height: 30px; border-radius: var(--r-pill); border: 0.5px solid var(--divider); background: var(--surface-2); color: var(--tx-1); font-size: calc(17px * var(--type-scale)); line-height: 1; flex-shrink: 0; }
 .plan-dur { font-size: var(--t-meta); color: var(--tx-2); min-width: 38px; text-align: center; }
 .plan-drop { margin-left: auto; background: 0; border: 0; color: var(--accent-tx); font-size: var(--t-meta); font-weight: var(--w-semi); flex-shrink: 0; }
 /* Compact time field for a per-pick placement override (Plan My Day, 2026-08-06):
@@ -1702,7 +1738,7 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
 .week-recap b { font-weight: var(--w-semi); }
 
 /* === Roadmap v2 Session 6: Bigger Picture (goals + projects, derived) === */
-.bp-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; }
+.bp-sub { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); margin-top: 2px; }
 .bp-stalled { color: var(--warn); }
 .bp-bar { height: 4px; background: var(--press-3); border-radius: 2px; overflow: hidden; margin-top: var(--s-1h); }
 .bp-bar-fill { height: 100%; border-radius: 2px; background: var(--good-fill); }
@@ -1840,9 +1876,9 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    tapping an event open the length editor instead of the event. Its comment
    at :2535 argues the case; it keeps its 26px. A control inside a tappable
    row expands only into free space. */
-.tap44, .p3-time-btn, .upnext-skip, .search-cancel, .ob-x, .note-conn-add, .note-fix,
+.tap44, .p3-time-btn, .focus-skip, .search-cancel, .ob-x, .note-conn-add, .note-fix,
 .toast-action { position: relative; }
-.tap44::after, .p3-time-btn::after, .upnext-skip::after, .search-cancel::after,
+.tap44::after, .p3-time-btn::after, .focus-skip::after, .search-cancel::after,
 .ob-x::after, .note-conn-add::after, .note-fix::after, .toast-action::after {
   content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   min-width: var(--tap-min); min-height: var(--tap-min);
@@ -2043,7 +2079,7 @@ button {
    body size at semibold, so it outweighed the rows it sits above and read as
    a second heading under NEEDS YOU. */
 .drain-line .quiet-action { background: transparent; padding: var(--s-1) 0;
-  color: var(--tx-3); font-size: calc(13px * var(--type-scale)); font-weight: var(--w-medium);
+  color: var(--tx-3); font-size: var(--t-caption); font-weight: var(--w-medium);
   min-height: 0; position: relative; }
 /* Stripping the chip took the padding that made it 44px. The hit box stays,
    the same way .pill-act keeps its own. */
@@ -2070,9 +2106,9 @@ button {
 /* E13 (2026-08-23): the sort has a finish line now. Same green and the same
    3px as the deck, because they mean the same thing in two places. */
 .sort-strip { padding-top: var(--s-1); padding-bottom: var(--s-2h); }
-.sort-bar { height: 3px; border-radius: 999px; background: var(--press-3);
+.sort-bar { height: 3px; border-radius: var(--r-pill); background: var(--press-3);
   overflow: hidden; margin-top: var(--s-1h); width: 100%; }
-.sort-bar-fill { display: block; height: 100%; border-radius: 999px;
+.sort-bar-fill { display: block; height: 100%; border-radius: var(--r-pill);
   background: var(--good-fill); transition: width var(--dur-normal) var(--ease-out); }
 .empty-state .sort-bar { max-width: 180px; margin: var(--s-2) auto 0; }
 
@@ -2109,7 +2145,7 @@ button {
 .mail-letgo { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0;
   background: var(--surface-3, #2c2c2e); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
 .mail-letgo .ic { width: 22px; height: 22px; }
-.mail-arch + .mail-letgo { border-left: 1px solid var(--card-bd); }
+.mail-arch + .mail-letgo { border-left: 0.5px solid var(--card-bd); }
 
 /* Who the sheet is about, said once at the top instead of down every row. */
 .more-head { padding-bottom: var(--s-2); }
@@ -2426,7 +2462,7 @@ button {
 .banner-line { display: flex; align-items: center; gap: var(--s-2h); }
 .banner-line .row-stack { flex: 1; min-width: 0; }
 .count-pill { display: inline-block; background: var(--warn-fill); color: #000; font-weight: var(--w-bold);
-  font-size: calc(12px * var(--type-scale)); line-height: 18px; border-radius: var(--r-pill); padding: 0 8px; margin-left: var(--s-1h);
+  font-size: var(--t-caption); line-height: 18px; border-radius: var(--r-pill); padding: 0 8px; margin-left: var(--s-1h);
   vertical-align: middle; }
 .slip-warn { color: var(--warn); font-weight: var(--w-semi); }
 /* The Now card's stat strip: same tiles as everywhere, padded for card top. */
@@ -2434,7 +2470,7 @@ button {
 /* Stepper value taps open the keypad (approved preview 2026-08-15). */
 .stepper .stepper-tap { cursor: pointer; }
 .stepper .stepper-edit { width: 56px; background: var(--accent-chip); border: 0; color: var(--accent-chip-tx);
-  font: inherit; font-weight: var(--w-bold); text-align: center; border-radius: 6px; padding: 2px 0; }
+  font: inherit; font-weight: var(--w-bold); text-align: center; border-radius: var(--r-sm); padding: 2px 0; }
 
 /* V2 INFORMATION ANATOMY (approved 2026-08-15, LOCKED-CSS CHANGE FLAGGED).
    Dave: lists must read at a glance. Numbers become tinted stat tiles, rows
@@ -2449,7 +2485,7 @@ button {
 .stat-tile.stat-warn { background: var(--warn-tint); }
 .stat-tile.stat-warn .stat-num { color: var(--warn); }
 .stat-tile.stat-plain .stat-num { color: var(--tx-1); }
-.row-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
+.row-ico { width: 28px; height: 28px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
 .row-ico .ic { width: 15px; height: 15px; }
 .day-divide { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-2); padding: var(--s-2h) var(--s-1) var(--s-1); }
 
@@ -2458,7 +2494,7 @@ button {
    the accent, chat-jarvis rides press-3, iOS Messages corner treatment, and
    the provenance line is eyebrow-size uppercase. */
 .chat-thread { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3) var(--s-4); }
-.chat-bubble { max-width: 78%; padding: var(--s-2h) var(--s-3h); border-radius: 18px; }
+.chat-bubble { max-width: 78%; padding: var(--s-2h) var(--s-3h); border-radius: var(--r-lg); }
 .chat-user { align-self: flex-end; background: var(--accent-fill); color: #fff; border-bottom-right-radius: 6px; }
 .chat-jarvis { align-self: flex-start; background: var(--press-3); color: var(--tx-1); border-bottom-left-radius: 6px; }
 .chat-text { font-size: var(--t-body); line-height: var(--lh-relaxed); white-space: pre-wrap; }
@@ -2697,7 +2733,7 @@ button {
    column of bare strokes reads as a rendering fault, and every other colour
    gets the same legibility back. --on-fill-dark is already held to 4.5:1 on
    every category fill by a law test. */
-.notice-disc { width: 30px; height: 30px; border-radius: 50%;
+.notice-disc { width: 30px; height: 30px; border-radius: var(--r-circle);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .notice-disc .ic { width: 17px; height: 17px; }
 
@@ -2713,10 +2749,10 @@ button {
    per-page variants. The leader rides ::after between title and count. */
 .sh2 { display: flex; align-items: baseline; gap: 9px;
   padding: var(--s-4h, 18px) var(--s-4) var(--s-1h); }
-.sh2 .t { order: 0; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.14em;
+.sh2 .t { order: 0; font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: var(--track-head, 0.14em);
   text-transform: uppercase; color: var(--accent-chrome); }
 .sh2::after { content: ""; order: 1; flex: 1; border-top: 1px dotted rgba(250, 35, 59, 0.35); align-self: center; }
-.sh2 .n { order: 2; font-size: var(--t-eyebrow); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
+.sh2 .n { order: 2; font-size: var(--t-micro); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
 /* I3 (2026-08-24, Dave's screenshot): SIX identical red heads down one
    screen. When every head shouts, none of them does, and the accent stops
    meaning "look here" exactly the way a second filled red does. Same
@@ -2768,7 +2804,7 @@ button {
 .promo-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .promo-acts { display: flex; gap: var(--s-2h); margin-top: var(--s-3h); }
-.promo-pill { flex: 1; height: 44px; border-radius: 22px; border: 0; background: rgba(255,255,255,0.08);
+.promo-pill { flex: 1; height: 44px; border-radius: var(--r-xl); border: 0; background: rgba(255,255,255,0.08);
   font-family: var(--f); font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi); color: var(--accent-tx); }
 [data-theme="light"] .promo-pill { background: rgba(0,0,0,0.05); }
 .promo-pill.quiet { color: var(--tx-2); }
@@ -2964,7 +3000,7 @@ button {
 .focus-row .row-act .ic { width: 17px; height: 17px; flex-shrink: 0; }
 .focus-row .row-act .fc-t { font-weight: var(--w-semi); }
 .focus-row .row-act .fc-n { font-size: var(--t-eyebrow); font-weight: var(--w-medium); letter-spacing: 0.02em;
-  color: var(--tx-2); padding-left: var(--s-2); border-left: 1px solid var(--card-bd);
+  color: var(--tx-2); padding-left: var(--s-2); border-left: 0.5px solid var(--card-bd);
   font-variant-numeric: tabular-nums; margin-left: var(--s-1); }
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
@@ -3004,7 +3040,7 @@ button {
    wore for a day was a colour with no word to read it by; this is the same
    .fact.cat the page row carries, so the two read as one component. One line
    here too: the name gives way in an ellipsis rather than wrapping the row. */
-.rem-row .facts { flex-wrap: nowrap; overflow: hidden; margin-top: 1px; }
+.rem-row .facts { margin-top: 1px; }
 .rem-row .facts > .fact { flex-shrink: 0; }
 .rem-row .facts > .fact.cat { min-width: 0; flex-shrink: 1; }
 .rem-row .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -3028,7 +3064,7 @@ button {
    so the bar stretches via absolute positioning rather than fighting that. */
 .sched-row { position: relative; }
 .sched-bar { position: absolute; left: var(--s-1h); top: var(--s-2); bottom: var(--s-2);
-  width: 4px; border-radius: 3px; }
+  width: 4px; border-radius: var(--r-xs); }
 .sched-row.past .sched-bar { opacity: 0.4; }
 
 /* Tapping the time is its own action, so it needs its own hit area and needs
@@ -3047,7 +3083,7 @@ button {
    task under it. It hangs below now, and DayRow flips it above only when below
    would run off the screen. */
 .time-pop { position: absolute; left: var(--s-4); top: calc(100% + 6px);
-  z-index: 61; background: var(--surface-3); border: 1px solid var(--card-bd);
+  z-index: 61; background: var(--surface-3); border: 0.5px solid var(--card-bd);
   border-radius: var(--r-md); padding: var(--s-2); box-shadow: 0 10px 34px rgba(0,0,0,0.6); }
 .time-pop.time-pop-up { top: auto; bottom: calc(100% + 6px); }
 .time-pop-input { width: 150px; height: 40px; }
@@ -3106,7 +3142,6 @@ button {
 /* THE DECISION KILLERS (Dave 2026-08-19, ADHD round): Pick One is the Tasks
    page's one primary and sits above the filters, because reading the filters
    is already the work it exists to skip. */
-.pick-one { padding-top: var(--s-2); padding-bottom: var(--s-1); }
 
 /* TASKS AUDIT 2026-08-29 (findings A and B): Pick One and Just This One were
    two full-width buttons stacked, 106px of chrome answering one question
@@ -3136,7 +3171,7 @@ button {
    (.pill-act) · small pill (.btn-sm) · head action (.see-all in .sh2).
    A bare <button> with none of these classes is a design bug. */
 /* Head action: accent text at the head's far right, after the leader. */
-.see-all { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-semi); color: var(--accent-chrome);
+.see-all { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1);
   background: 0; border: 0; font-family: var(--f); letter-spacing: 0.02em;
   min-height: var(--tap-min); display: inline-flex; align-items: center; }
 .sh2 .see-all { order: 2; margin: -13px 0; flex-shrink: 0; }
@@ -3234,13 +3269,22 @@ button {
    says what is ready on it, and carries one primary. The two questions
    about the choice sit under it, quiet, side by side. */
 .start-top-wrap { padding-top: var(--s-2); }
-.start-top { display: flex; flex-direction: column; gap: var(--s-1h); }
-.start-top-name { font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1);
-  line-height: var(--lh-tight); letter-spacing: -0.01em; overflow-wrap: break-word; }
-.start-top-ready { font-size: var(--t-body); color: var(--tx-2); margin-bottom: var(--s-1h); }
-.start-top-quiet { display: flex; justify-content: space-between; gap: var(--s-3); padding-top: var(--s-1); }
-.start-top-quiet .quiet-action { background: none; padding: 0; min-height: 44px; color: var(--tx-2); white-space: nowrap; }
-.start-top-promise { font-size: var(--t-meta); color: var(--tx-3); padding-top: var(--s-2); }
+/* ONE ROW, NOT A SLAB (2026-09-18, Dave: "let's clean up this massive card
+   for one simple action. It's beyond overkill"). It was a column with an h2
+   name, a body line, a full-bleed primary and two quiet links: ~480px for one
+   tap, above a list whose first row offered the same task. It is a row now,
+   and the name takes the app's one name treatment rather than a heading size
+   of its own. */
+.start-top { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-3h); }
+.start-top .row-grow { flex: 1 1 auto; min-width: 0; }
+.start-top-name {
+  font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
+  color: var(--tx-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.start-top-go {
+  flex-shrink: 0; min-height: 34px; height: 34px; padding: 0 var(--s-3h);
+  font-size: calc(15px * var(--type-scale));
+}
 
 /* THE WORKING SURFACE (Start Now, 2026-09-16). One card, one loud button,
    and everything else quieter than it. The screen reuses the ruled anatomy
@@ -3285,7 +3329,8 @@ button {
 .row.mail-read-live { flex-wrap: wrap; }
 .mail-read-live .mail-read-acts { flex-basis: 100%; justify-content: flex-end; padding-top: 2px; }
 .pill-act { position: relative; flex-shrink: 0; align-self: center; background: var(--press-3); border: 0; border-radius: var(--r-pill);
-  color: var(--tint); font-family: var(--f); font-size: calc(13px * var(--type-scale)); font-weight: var(--w-semi); padding: 6px 12.5px; }
+  color: var(--tint); font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi);
+  min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--s-3); }
 /* GYM-F-26 (2026-09-05): ONE VISIBLE DOOR TO A ROW'S MENU. Catalog §3.12 made
    long-press the whole menu, so nothing on a gym row hinted that a menu
    existed and no keyboard or VoiceOver user could reach it at all. The pill is
@@ -3351,7 +3396,7 @@ button {
    and block chrome that stays invisible until the block is yours. */
 .doc { padding: var(--s-5) var(--s-6) var(--s-8); }
 .doc > * + * { margin-top: var(--s-2h); }
-.doc-title { font-size: calc(27px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.015em; line-height: var(--lh-snug);
+.doc-title { font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.015em; line-height: var(--lh-snug);
   color: var(--tx-1); margin-top: var(--s-2); }
 .doc .t-body { font-size: calc(17px * var(--type-scale)); line-height: 1.6; color: var(--tx-1); padding: 2px 0; min-height: 27px; }
 /* List lines hang their marker: the words own the left edge, wrapped lines
@@ -3364,7 +3409,7 @@ button {
    letter per line (Dave's Key Dates screenshot). Flex hangs the marker the
    same way and gives the words the whole line, empty or not. */
 .doc .li-line > [contenteditable] { flex: 1; min-width: 0; }
-.doc .block-h { font-size: calc(21px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.01em; margin-top: var(--s-4); }
+.doc .block-h { font-size: var(--t-h2); font-weight: var(--w-semi); letter-spacing: -0.01em; margin-top: var(--s-4); }
 .doc [contenteditable] { caret-color: var(--accent); outline: none; }
 /* AND YOU CAN SEE WHICH LINE YOU ARE ON (Dave 2026-09-09, the same report as
    the caret: "nothing showing that you are ready to type on a line").
@@ -3394,7 +3439,7 @@ button {
 /* Decision list styling pass (Dave 2026-08-18): the linked home renders as a
    colored fact inside the sub; the recorded date is the quiet right column. */
 .fact-link { font-weight: var(--w-semi); }
-.dec-when { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); flex-shrink: 0; align-self: flex-start; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.dec-when { font-size: var(--t-caption); color: var(--tx-2); flex-shrink: 0; align-self: flex-start; margin-top: 4px; font-variant-numeric: tabular-nums; }
 /* Decisions are sentences; two lines beats an ellipsis (Dave critique fix). */
 .dec-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* The writing toolbar: chips row pinned to the bottom of the screen. It
@@ -3412,9 +3457,9 @@ button {
 .t-b { font-weight: var(--w-bold); }
 .t-i { font-style: italic; }
 .t-strike { text-decoration: line-through; color: var(--tx-3); }
-.t-hl { background: rgba(255, 214, 10, 0.28); border-radius: 3px; padding: 0 1px; }
+.t-hl { background: rgba(255, 214, 10, 0.28); border-radius: var(--r-xs); padding: 0 1px; }
 [data-theme="light"] .t-hl { background: rgba(255, 214, 10, 0.45); }
-.sel-bar { position: fixed; z-index: 60; display: flex; background: var(--surface-3); border: 1px solid var(--card-bd); border-radius: var(--r-md); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); overflow: hidden; }
+.sel-bar { position: fixed; z-index: 60; display: flex; background: var(--surface-3); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); overflow: hidden; }
 .selbar-btn { display: flex; align-items: center; justify-content: center; width: 48px; height: 44px; background: transparent; border: 0; color: var(--tx-1); }
 .selbar-btn:active { background: var(--surface-2); }
 .selbar-btn .ic { width: 18px; height: 18px; }
@@ -3430,9 +3475,9 @@ button {
    Notes and Command Deck -- it is the writing canvas, not either skin. */
 .doc { padding-top: var(--s-3); }
 .doc > * + * { margin-top: var(--s-1h); }
-.doc .doc-title { font-size: calc(26px * var(--type-scale)); letter-spacing: -0.01em; margin-bottom: 2px; }
+.doc .doc-title { font-size: var(--t-title); letter-spacing: -0.01em; margin-bottom: 2px; }
 /* The meta line (the mock's grey context row, now a real block type). */
-.doc .block-meta { font-size: calc(14.5px * var(--type-scale)); line-height: 1.5; color: var(--tx-3); min-height: 22px; }
+.doc .block-meta { font-size: var(--t-sub); line-height: 1.5; color: var(--tx-3); min-height: 22px; }
 .doc .t-body { font-size: calc(16.5px * var(--type-scale)); line-height: 1.6; min-height: 24px; }
 .screen-editor .doc { padding-bottom: 84px; }
 /* .hwrap is FIELD NOTES ONLY now (Dave 2026-08-28) -- Command Deck lays
@@ -3440,7 +3485,7 @@ button {
    nothing but editorial mode renders the class; the dot color and the
    removed dotted leader live under .doc-editorial below. */
 .hwrap { display: flex; align-items: center; gap: 8px; margin-top: var(--s-6); margin-bottom: 2px; }
-.doc .hwrap .block-h { margin-top: 0; flex: 1 1 auto; min-width: 0; max-width: 76%; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.14em; text-transform: uppercase; }
+.doc .hwrap .block-h { margin-top: 0; flex: 1 1 auto; min-width: 0; max-width: 76%; font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: 0.14em; text-transform: uppercase; }
 
 /* The Tracker's living table (deep template pass): cells edit in place,
    Add Row grows it, the header + adds a column, numeric columns sum.
@@ -3538,7 +3583,7 @@ button {
    mail notices, Fresh Start, and every other notice-disc elsewhere in the
    app keep their familiar circle. This is the one stream that mixes a task
    with notices; nowhere else needs the distinction. */
-.stream-grouped .notice-vrow .notice-disc { border-radius: 9px; }
+.stream-grouped .notice-vrow .notice-disc { border-radius: var(--r-sm); }
 /* Inset hairlines between rows, to the shared text edge, like every other
    grouped list in the app. Receipts live under the card, quiet as ever. */
 .stream-card > .pad-x { position: relative; }
@@ -3599,6 +3644,26 @@ button {
    something else. */
 .chip.chip-half { background: var(--press-3); color: var(--tx-1);
   box-shadow: inset 0 0 0 1.5px var(--sel-bg); }
+/* A SELECTION IN THE COLOUR OF ITS QUESTION (2026-09-16, Dave on the classify
+   sheet: "it's ugly, has no color").
+
+   .chip.active is the app's white pill and stays that everywhere else: where
+   a selection is just a selection, white is right. On a form where seven
+   different questions are answered the same way down one scroll, it is not --
+   nothing tells you which answer belongs to which question without reading
+   the heading above it again. The hue does that at a glance: lime for what
+   the body does, violet for what the hardware is, cyan for how the lift is
+   described. Same three meanings the library row's chips now use, so the
+   sheet and the list it was opened from agree.
+
+   Tinted fill plus a full-strength ring: a selected chip has to beat an
+   unselected one at arm's length in a gym, and a tint alone does not. */
+.chip.active.chip-lime { background: var(--hl-lime-tint); color: var(--hl-lime); box-shadow: inset 0 0 0 1.5px var(--hl-lime); }
+.chip.active.chip-violet { background: var(--hl-violet-tint); color: var(--hl-violet); box-shadow: inset 0 0 0 1.5px var(--hl-violet); }
+.chip.active.chip-cyan { background: var(--hl-cyan-tint); color: var(--hl-cyan); box-shadow: inset 0 0 0 1.5px var(--hl-cyan); }
+/* A secondary muscle is the same fact at half weight, which is exactly what
+   this app counts it as. Same hue, ring only. */
+.chip.chip-half.chip-lime { background: none; color: var(--hl-lime); box-shadow: inset 0 0 0 1.5px var(--hl-lime-tint); }
 .chip-act { color: var(--accent-tx); }
 /* The load line under the strip. Amber only when the day says no; a neutral
    day must never look like a warning. */
@@ -3655,7 +3720,7 @@ button {
 /* N4 (2026-08-20): a VIP is marked where he READS, not buried in a setting.
    The star sits with the name because that is where the question "does this
    person always get through" actually gets asked. */
-.msg-vip { color: var(--yellow, #FFD60A); font-size: calc(12px * var(--type-scale)); line-height: 1; flex-shrink: 0; margin-left: 2px; }
+.msg-vip { color: var(--yellow, #FFD60A); font-size: var(--t-caption); line-height: 1; flex-shrink: 0; margin-left: 2px; }
 
 /* THE ESCALATED BURST (dopamine layer, 2026-08-20). The evidence says the
    reward has to land ON the action and has to scale with what the action
@@ -3689,7 +3754,7 @@ button {
    typeface bolted on. */
 .doc-editorial .doc-title {
   font-family: "Newsreader", Georgia, "Times New Roman", serif;
-  font-size: calc(29px * var(--type-scale));
+  font-size: var(--t-title);
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.01em;
@@ -3702,9 +3767,9 @@ button {
    consecutive sections read apart without inventing what they mean. */
 .doc-editorial .hwrap::after { content: none; }
 .doc-editorial .hwrap .hnum {
-  flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; opacity: 1; font-size: 0;
+  flex-shrink: 0; width: 7px; height: 7px; border-radius: var(--r-circle); opacity: 1; font-size: 0;
 }
-.doc-editorial .hwrap .hnum::before { content: ""; display: block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.doc-editorial .hwrap .hnum::before { content: ""; display: block; width: 7px; height: 7px; border-radius: var(--r-circle); background: currentColor; }
 .doc-editorial .hwrap.hd-0 .hnum, .doc-editorial .hwrap.hd-0 .block-h { color: var(--cat-blue); }
 .doc-editorial .hwrap.hd-1 .hnum, .doc-editorial .hwrap.hd-1 .block-h { color: var(--cat-green); }
 .doc-editorial .hwrap.hd-2 .hnum, .doc-editorial .hwrap.hd-2 .block-h { color: var(--cat-amber); }
@@ -3766,9 +3831,9 @@ button {
 .cd-inner > * + * { margin-top: var(--s-2h); }
 .cd-head { display: flex; align-items: center; gap: var(--s-2); }
 .cd-head > .block-row { flex: 1; min-width: 0; }
-.cd-h3 { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-2); }
+.cd-h3 { font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-2); }
 .cd-count {
-  flex-shrink: 0; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2);
+  flex-shrink: 0; font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2);
   font-variant-numeric: tabular-nums; background: var(--press-3); border-radius: var(--r-pill); padding: 1px 8px;
 }
 
@@ -3787,14 +3852,14 @@ button {
   padding: 3px 6px 3px 3px; border-radius: var(--r-pill);
   background: var(--surface-2); max-width: 100%;
 }
-.note-conn .proj-icon { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
+.note-conn .proj-icon { width: 18px; height: 18px; border-radius: var(--r-circle); flex-shrink: 0; }
 .note-conn .proj-icon .ic { width: 10px; height: 10px; }
-.note-conn-label { font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-medium); color: var(--tx-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+.note-conn-label { font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--tx-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
 .note-conn-x { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; background: 0; border: 0; color: var(--tx-2); }
 .note-conn-x .ic { width: 10px; height: 10px; }
 .note-conn-x:active { color: var(--tx-2); }
 .note-conn-add {
-  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: var(--r-circle);
   border: 1px dashed var(--tx-4); background: 0; color: var(--tx-3);
   display: flex; align-items: center; justify-content: center;
 }
@@ -3804,14 +3869,14 @@ button {
    2026-09-12: a bare dashed circle under the title read as a stray). Once
    a chip exists the circle is enough, it sits after the chips. */
 .note-conn-add.note-conn-first { width: auto; border-radius: var(--r-pill); padding: 0 10px 0 8px; gap: 5px;
-  font-family: var(--f); font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-medium); }
+  font-family: var(--f); font-size: var(--t-caption); font-weight: var(--w-medium); }
 
 /* A checklist item already promoted to a real task (Dave 2026-08-28): a
    quiet badge instead of an item that looks plain but is secretly synced.
    Tappable when a destination exists, so the connection goes both ways --
    open the task from the note, not just watch its done-state echo back. */
 .check-linked {
-  flex-shrink: 0; margin-left: auto; width: 22px; height: 22px; border-radius: 50%;
+  flex-shrink: 0; margin-left: auto; width: 22px; height: 22px; border-radius: var(--r-circle);
   display: flex; align-items: center; justify-content: center;
   background: 0; border: 0; color: var(--cat-red); opacity: 0.55;
 }
@@ -3840,8 +3905,8 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    automatic, not a streak: it has no cliff, so there is nothing to lose by
    missing a day. Deliberately calm; a reward bar that shouts is a streak. */
 .auto-line { padding: var(--s-3) 0 var(--s-1); }
-.auto-bar { height: 4px; border-radius: 999px; background: var(--press-3); overflow: hidden; }
-.auto-bar span { display: block; height: 100%; border-radius: 999px; background: var(--good-fill);
+.auto-bar { height: 4px; border-radius: var(--r-pill); background: var(--press-3); overflow: hidden; }
+.auto-bar span { display: block; height: 100%; border-radius: var(--r-pill); background: var(--good-fill);
   transition: width var(--dur-normal) var(--ease-out); }
 .auto-text { margin-top: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); }
 
@@ -3890,11 +3955,11 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 /* W2 · THE STANDING MARK. A day that carries a repeating event gets a small
    bar under its dots. It says "there is a fixture here" and deliberately not
    how many: a count would be one more number to read on a glanceable strip. */
-.wk-rep { width: 14px; height: 2px; border-radius: 999px; background: var(--tx-4); margin: 3px auto 0; }
+.wk-rep { width: 14px; height: 2px; border-radius: var(--r-pill); background: var(--tx-4); margin: 3px auto 0; }
 .wk-cell.sel .wk-rep { background: var(--accent); }
 
 /* WHAT NOW. The one thing, large enough to be the only thing on the sheet. */
-.rn-title { font-size: calc(21px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.01em; line-height: var(--lh-snug); }
+.rn-title { font-size: var(--t-h2); font-weight: var(--w-semi); letter-spacing: -0.01em; line-height: var(--lh-snug); }
 .rn-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); }
 /* The bolt sits beside search in the one bar that is on every tab. */
 .voice-now { color: var(--accent-tx); }
@@ -3918,7 +3983,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 }
 .strand-row.paused { opacity: 0.45; }
 .strand-head { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: var(--track-h2); margin-bottom: var(--s-1); }
-.strand-receipt { display: flex; gap: var(--s-3); padding: var(--s-2h) 0; border-bottom: 1px solid var(--divider); }
+.strand-receipt { display: flex; gap: var(--s-3); padding: var(--s-2h) 0; border-bottom: 0.5px solid var(--divider); }
 .strand-receipt:last-child { border-bottom: 0; }
 .strand-receipt .r-what { flex: 1; min-width: 0; }
 /* Destructive verb on a neutral button: the shape says "secondary", the
@@ -4027,7 +4092,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    color-mix keeps every chip on its own text colour with no second token. */
 [data-theme="light"] .eyebrow[class*="cat-fg-"] {
   display: inline-flex; align-items: center; width: fit-content;
-  padding: 2px 7px; border-radius: 6px; margin-top: 2px;
+  padding: 2px 7px; border-radius: var(--r-sm); margin-top: 2px;
   /* The wash itself is per-slot (it mixes the FILL, not the ink) and lives
      with the palette above. Geometry only here. */
 }
@@ -4074,7 +4139,7 @@ body.selecting .voice-dock { display: none; }
 .select-bar {
   display: flex; align-items: center; gap: var(--s-2);
   padding: var(--s-2h) var(--s-4) calc(var(--s-2h) + env(safe-area-inset-bottom, 0px));
-  background: var(--surface-2); border-top: 1px solid var(--card-bd);
+  background: var(--surface-2); border-top: 0.5px solid var(--card-bd);
 }
 /* Select All holds the left, the actions hold the right, and the gap between
    them is what flexes. Nothing here may shrink into anything else: the first
@@ -4243,10 +4308,10 @@ body.selecting .voice-dock { display: none; }
 /* 2A: the ring. Painted with a conic gradient set inline (the fraction is
    state); this is the shell that makes it a ring and not a pie. */
 .sweep-ring-slot { display: flex; justify-content: flex-end; }
-.sweep-ring { width: 30px; height: 30px; border-radius: 50%;
+.sweep-ring { width: 30px; height: 30px; border-radius: var(--r-circle);
   display: flex; align-items: center; justify-content: center;
   background: conic-gradient(var(--accent) 0 var(--sweep-arc, 0deg), var(--press-5) var(--sweep-arc, 0deg) 360deg); }
-.sweep-ring-n { width: 22px; height: 22px; border-radius: 50%; background: var(--bg);
+.sweep-ring-n { width: 22px; height: 22px; border-radius: var(--r-circle); background: var(--bg);
   display: flex; align-items: center; justify-content: center;
   font-size: var(--t-meta); font-weight: var(--w-bold); color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
@@ -4280,7 +4345,7 @@ body.selecting .voice-dock { display: none; }
    come from the category fills, whose on-color contrast is already law-held. */
 .sweep-evidence { display: flex; align-items: center; gap: var(--s-3);
   margin-top: var(--s-3); padding-top: var(--s-3); border-top: 0.5px solid var(--divider); }
-.sweep-disc { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+.sweep-disc { width: 30px; height: 30px; border-radius: var(--r-circle); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--t-meta); font-weight: var(--w-bold); }
 .sweep-ev-text { min-width: 0; display: flex; flex-direction: column; }
@@ -4327,8 +4392,8 @@ body.selecting .voice-dock { display: none; }
    finish screen six of seven squares vanished into the ground, so the one
    red square floated alone and read as misalignment, not as 1-of-7). The
    streak only means anything if the misses are as legible as the hits. */
-.sweep-sq { width: 14px; height: 14px; border-radius: 4px; background: var(--press-3);
-  border: 1px solid var(--divider); }
+.sweep-sq { width: 14px; height: 14px; border-radius: var(--r-xs); background: var(--press-3);
+  border: 0.5px solid var(--divider); }
 .sweep-sq.on { background: var(--accent); border-color: var(--accent); }
 .sweep-streak-line { font-size: var(--t-meta); color: var(--tx-3); }
 
@@ -4351,7 +4416,7 @@ body.selecting .voice-dock { display: none; }
 /* The human's mark. Colors come from the category fills, whose on-color
    contrast is already held at 4.5:1 by a law test. Red is excluded from the
    slot list in code: red is a verb (L1). */
-.msg-face { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+.msg-face { width: 34px; height: 34px; border-radius: var(--r-circle); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--t-body); font-weight: var(--w-bold); }
 /* The rail's reserved column, sized to match .msg-face exactly so a machine
@@ -4359,7 +4424,7 @@ body.selecting .voice-dock { display: none; }
 .msg-lead { width: 34px; height: 34px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; }
 .msg-row-human { display: flex; align-items: center; gap: var(--s-3); }
-.msg-row-human .msg-from { font-weight: var(--w-semi); font-size: var(--t-h3); }
+.msg-row-human .msg-from { color: var(--tx-1); }
 
 /* The machine's line. One row for all of them, grey, with the count as a
    fact rather than an alarm and one action that ends the lot. */
@@ -4437,7 +4502,7 @@ body.selecting .voice-dock { display: none; }
 
 /* The seal. Big and calm and teal: this screen is a state, not an error, and
    it must never wear the color of a problem. */
-.mail-door-seal { width: 64px; height: 64px; border-radius: 50%;
+.mail-door-seal { width: 64px; height: 64px; border-radius: var(--r-circle);
   display: flex; align-items: center; justify-content: center;
   background: var(--press-1); margin-bottom: var(--s-3); }
 .mail-door-seal .ic { width: 28px; height: 28px; }
@@ -4471,7 +4536,7 @@ body.selecting .voice-dock { display: none; }
 .stat-tile.stat-blue .stat-num { color: var(--blue); }
 [data-theme="light"] .stat-tile.stat-blue .stat-num { color: #0A5FD0; }
 .week-dots { display: inline-flex; gap: 4px; margin-right: var(--s-2); flex-shrink: 0; align-self: center; }
-.week-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--surface-3); }
+.week-dots i { width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--surface-3); }
 .week-dots i.on { background: var(--blue); }
 [data-theme="light"] .week-dots i { background: rgba(18, 18, 32, 0.14); }
 [data-theme="light"] .week-dots i.on { background: #0A5FD0; }
@@ -4487,12 +4552,12 @@ body.selecting .voice-dock { display: none; }
 .rep-quiet2 { color: var(--tx-2); margin-top: 4px; }
 .rep-big { font-size: calc(64px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1; letter-spacing: -2px; color: var(--tx-1); margin-top: 6px; }
 .rep-big-label { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-2); margin-top: 2px; }
-.rep-anchor { display: inline-block; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold); color: var(--good); background: var(--good-tint); border-radius: var(--r-pill); padding: 3px 10px; margin-left: 10px; vertical-align: middle; }
+.rep-anchor { display: inline-block; font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--good); background: var(--good-tint); border-radius: var(--r-pill); padding: 3px 10px; margin-left: 10px; vertical-align: middle; }
 .rep-hint { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-quiet); margin-top: 12px; }
 .rep-title { font-size: var(--t-h3); font-weight: var(--w-medium); color: var(--tx-1); line-height: var(--lh-default); }
 .rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
 .rep-win { border-radius: var(--r-md); padding: 12px 14px; }
-.rep-win-name { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-medium); color: var(--tx-2); }
+.rep-win-name { font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--tx-2); }
 .rep-win-val { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); margin-top: 2px; }
 .rep-win-good { background: var(--good-tint); } .rep-win-good .rep-win-val { color: var(--good); }
 .rep-win-blue { background: rgba(10, 132, 255, 0.14); } .rep-win-blue .rep-win-val { color: var(--blue); }
@@ -4510,12 +4575,12 @@ body.selecting .voice-dock { display: none; }
 .rep-hours { display: flex; gap: 3px; align-items: flex-end; height: 30px; margin-top: 10px; }
 .rep-hours i { flex: 1; background: var(--surface-3); border-radius: 2px; display: block; transition: height 0.45s var(--ease-out); }
 .rep-hours i.hot { background: var(--accent); }
-.rep-stack { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin-top: 10px; }
+.rep-stack { display: flex; height: 14px; border-radius: var(--r-sm); overflow: hidden; margin-top: 10px; }
 .rep-stack i { display: block; transition: width 0.45s var(--ease-out); }
 .rep-leg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.rep-leg span { display: inline-flex; align-items: center; gap: 6px; font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); background: var(--surface-2); border-radius: var(--r-pill); padding: 3px 9px; }
-.rep-leg i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.rep-chip { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-bold); border-radius: var(--r-pill); padding: 4px 10px; white-space: nowrap; flex-shrink: 0; }
+.rep-leg span { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2); background: var(--surface-2); border-radius: var(--r-pill); padding: 3px 9px; }
+.rep-leg i { width: 8px; height: 8px; border-radius: var(--r-circle); display: inline-block; }
+.rep-chip { font-size: var(--t-caption); font-weight: var(--w-bold); border-radius: var(--r-pill); padding: 4px 10px; white-space: nowrap; flex-shrink: 0; }
 .rep-chip-good { background: var(--good-tint); color: var(--good); }
 .rep-chip-warn { background: var(--warn-tint); color: var(--warn); }
 .rep-btnrow { display: flex; gap: 8px; padding: 2px 16px 14px; }
@@ -4536,7 +4601,7 @@ body.selecting .voice-dock { display: none; }
    nudge, not a verdict). */
 .life-head { display: flex; align-items: center; justify-content: space-between; }
 .life-head .day-divide { flex: 1 1 auto; min-width: 0; }
-.life-word { font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold); border: 0; border-radius: var(--r-pill); padding: 3px 10px; white-space: nowrap; flex-shrink: 0; }
+.life-word { font-size: var(--t-caption); font-weight: var(--w-bold); border: 0; border-radius: var(--r-pill); padding: 3px 10px; white-space: nowrap; flex-shrink: 0; }
 .life-fed { background: var(--good-tint); color: var(--good); }
 .life-rest { background: var(--press-3); color: var(--tx-3); cursor: pointer; }
 .life-quiet { background: var(--warn-tint); color: var(--warn); }
@@ -4599,7 +4664,7 @@ body.selecting .voice-dock { display: none; }
 .launch-ic .ic { width: 20px; height: 20px; }
 .launch-tt { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
 .launch-ss { font-size: var(--t-meta); color: var(--tx-3); margin-top: 1px; }
-.launch-chev { color: var(--tx-2); font-size: calc(22px * var(--type-scale)); line-height: 1; flex-shrink: 0; }
+.launch-chev { color: var(--tx-2); font-size: var(--t-h2); line-height: 1; flex-shrink: 0; }
 [data-theme="light"] .launch-row { background: #FFFFFF; box-shadow: var(--shadow-card); }
 
 /* THE SET STRIP (gym catalog §3.1). One row per set: tap to edit, hold to
@@ -4679,8 +4744,6 @@ body.selecting .voice-dock { display: none; }
 .row-pair { display: flex; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
 .row-pair .pill-act { align-self: auto; max-width: none; }
 .pill-act.pill-quiet { color: var(--tx-2); }
-.set-chip-warm .conn-name { font-weight: var(--w-medium); }
-.set-chip-drop .conn-name { font-weight: var(--w-medium); }
 /* TAP-TO-MATCH, D2 (Training Catalog V2, 2026-08-31). On a ghost chip the
    faint "Last: 250 × 2" line is itself the door to logging those numbers.
    The reference text stays quiet meta; the one-word verb wears the accent,
@@ -4856,7 +4919,7 @@ body.selecting .voice-dock { display: none; }
 
 /* Row tags (preview .tag): A1/A2 pairing wears data blue, Ramp wears prep
    amber, Filler stays quiet. 10.5/800 caps chips, tinted grounds. */
-.xtag { display: inline-block; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+.xtag { display: inline-block; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.04em; text-transform: uppercase; border-radius: var(--r-pill);
   padding: 2px 7px; margin-right: var(--s-1h); vertical-align: 2px; }
 .xtag-blue { background: var(--blue-tint); color: var(--blue); }
@@ -4904,7 +4967,6 @@ body.selecting .voice-dock { display: none; }
 /* A set's numbers read at the same 16px every other grouped-row value uses
    (2026-09-02); the set strip is a gym-only control, so the scope is the
    chip itself. */
-.set-chip .conn-name { font-size: calc(16px * var(--type-scale)); }
 /* The day-row pin pill (preview: "Pin Days" red verb until a pin exists,
    then the weekday claim as a quiet fact). Steps aside in reorder mode
    with the chevron. */
@@ -4933,14 +4995,14 @@ body.selecting .voice-dock { display: none; }
    ink, so a row that opens a menu reads like one. */
 .dd { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 11px; border: 0;
   border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); font-family: var(--f);
-  font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.1em; text-transform: uppercase;
+  font-size: var(--t-caption); font-weight: var(--w-semi); letter-spacing: 0.1em; text-transform: uppercase;
   white-space: nowrap; position: relative; cursor: pointer; }
 .dd::after { content: ""; position: absolute; inset: -7px 0; }   /* the 44px rule */
 .dd .dd-w { min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
 /* Every capsule speaks in the same ink (Dave 2026-09-02: "area and group
    drop downs should have white font to match today not grey"); the lead one
    is only a touch larger. The chevron stays quiet. */
-.dd.dd-lead { font-size: calc(13px * var(--type-scale)); }
+.dd.dd-lead { font-size: var(--t-caption); }
 .dd .dd-cv { color: var(--tx-3); }
 .dd.dd-open { background: var(--press-5); }
 .dd .dd-n { color: var(--tx-2); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
@@ -4950,7 +5012,7 @@ body.selecting .voice-dock { display: none; }
 /* The mode with no menus (Just This One): the head states the mode, that is all. */
 .dd.dd-static { pointer-events: none; }
 /* As a row's value. */
-.dd.dd-value { background: transparent; padding: 0; min-height: 0; color: var(--tx-1); font-size: calc(15.5px * var(--type-scale));
+.dd.dd-value { background: transparent; padding: 0; min-height: 0; color: var(--tx-1); font-size: var(--t-body);
   font-weight: var(--w-regular); letter-spacing: 0; text-transform: none; }
 .dd.dd-value.dd-off { color: var(--tx-3); }
 .dd.dd-value .dd-cv { color: var(--tx-2); opacity: 1; width: 7px; height: 7px; margin-left: 4px; }
@@ -4962,7 +5024,7 @@ body.selecting .voice-dock { display: none; }
    every picker beside it, and --tx-3 so it reads as an answer the sheet is
    giving rather than a control that would do nothing if tapped. */
 .xs-group .row-val { margin-left: auto; max-width: 52vw; color: var(--tx-3);
-  font-size: calc(15.5px * var(--type-scale)); text-align: right;
+  font-size: var(--t-body); text-align: right;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ==========================================================================
@@ -4975,7 +5037,7 @@ body.selecting .voice-dock { display: none; }
    and any tap outside closes it unchanged. */
 .hmenu-scrim { position: fixed; inset: 0; z-index: 300; }   /* above sheets (200): a sheet's rows open menus too */
 .hmenu { position: fixed; min-width: 200px; max-width: calc(100vw - 32px); padding: 6px 0;
-  border-radius: 14px; background: rgba(44, 44, 46, 0.96);   /* iOS's thick menu material: the list must not read through */
+  border-radius: var(--r-md); background: rgba(44, 44, 46, 0.96);   /* iOS's thick menu material: the list must not read through */
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   box-shadow: inset 0 0.5px 0 var(--rim-card), 0 12px 32px rgba(0, 0, 0, 0.55);
   transform-origin: top left; animation: hmenuIn var(--dur-fast) var(--ease-out); }
@@ -5027,12 +5089,11 @@ body.selecting .voice-dock { display: none; }
    the Sets group, one elevation step above the group. */
 .xs .sheet-form { padding-left: 0; padding-right: 0; padding-top: 0; }
 .xs .grp.xs-grp { display: flex; align-items: center; justify-content: space-between; padding-top: var(--s-5); padding-bottom: var(--s-1h); }
-.xs .grp.xs-grp .eyebrow { font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.1em; }
+.xs .grp.xs-grp .eyebrow { font-size: var(--t-caption); font-weight: var(--w-semi); letter-spacing: 0.1em; }
 .xs .sheet-form > .grp.xs-grp:first-child { padding-top: var(--s-1); }
 .xs .card.xs-group { margin-bottom: 0; }
 .xs .row.xs-row { min-height: 48px; padding-top: var(--s-2); padding-bottom: var(--s-2); }
 .xs .row.xs-row > .conn-name { flex: 1; min-width: 0; }
-.xs .row.xs-row .row-grow .conn-name { font-size: calc(16px * var(--type-scale)); }
 .xs .row.xs-row .row-grow .conn-meta { margin-top: 2px; }
 /* The row that IS an input: no box inside a box, the field is the row. */
 .xs .xs-input { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none;
@@ -5040,7 +5101,6 @@ body.selecting .voice-dock { display: none; }
 .xs .xs-input::placeholder { color: var(--tx-2); }
 .xs .xs-error { padding: var(--s-1h) var(--s-4) 0 calc(var(--s-4) + 28px + var(--s-3)); }
 /* Suggestions from the library ride as rows under the name. */
-.xs .xs-suggest .conn-name { font-size: calc(16px * var(--type-scale)); }
 /* The strip inside the group: chips one step up from the group's ground. */
 /* No inset of its own: a set's own row padding (var(--s-4)) is what lines
    its edge up with every other row in the card, the same way .xs-row never
@@ -5056,7 +5116,7 @@ body.selecting .voice-dock { display: none; }
    A sandboxed frame that grows to its content; the page scrolls, never the
    frame. Rounded like a card so a white-ground newsletter sits in the dark
    page as a sheet of paper would. */
-.mail-html { display: block; width: 100%; border: 0; border-radius: 12px; background: transparent; min-height: 40px;
+.mail-html { display: block; width: 100%; border: 0; border-radius: var(--r-md); background: transparent; min-height: 40px;
   margin: var(--s-2) 0; }
 
 /* A PHOTO IN A NOTE (2026-09-02, "fully wired"): the picture itself on the
@@ -5118,6 +5178,16 @@ body.selecting .voice-dock { display: none; }
    none of those rows carries a label to sit against, because the input IS
    the row, the same as .task-name and .conn-name always read left. */
 .sheet-form .xs-row:has(> .xs-label) .xs-input { text-align: right; }
+/* EXCEPT WHERE YOU ARE WRITING A PHRASE (2026-09-16, Dave on the classify
+   sheet: "typing cursor is all the way to the right and makes editing
+   messy"). Right-aligning a VALUE is correct -- lb, 3, Barbell, and every
+   HeadMenu value in this file sits there. It is wrong for a field you type a
+   name into: the caret starts at the right edge, the text grows leftward away
+   from it, and the beginning of what you wrote is the first thing to go out
+   of view. A gym's name and a machine's name are that kind of field. The
+   four that were not -- grip, stance, angle, variation -- stopped being text
+   fields at all today and are chips now. */
+.sheet-form .xs-row.xs-row-write .xs-input { text-align: left; }
 
 .form-sheet .xs-field { text-align: right; color: var(--tx-2); font-size: calc(16px * var(--type-scale)); }
 .form-sheet .xs-field::placeholder { color: var(--tx-2); }
@@ -5135,7 +5205,7 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .xs-del { width: 100%; justify-content: center; border: 0; background: transparent; font-family: var(--f);
   font-size: calc(16px * var(--type-scale)); font-weight: var(--w-medium); color: var(--danger-tx); cursor: pointer; }
 .form-sheet .xs-del:active { background: var(--press-1); }
-.form-sheet .xs-group .proj-icon { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
+.form-sheet .xs-group .proj-icon { width: 28px; height: 28px; border-radius: var(--r-sm); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
 .form-sheet .xs-group .proj-icon .ic { width: 16px; height: 16px; }
 .form-sheet .row-grow .conn-meta { margin-top: 2px; }
 /* A chip strip as a row of the group (the event's Move and Length, the
@@ -5145,7 +5215,7 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .row.xs-strip .chip { background: var(--press-3); }
 /* A note under a group (an overlap, a hint), in the quiet ink. */
 .form-sheet .xs-note { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
-  padding: var(--s-1h) var(--s-4) 0; font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); }
+  padding: var(--s-1h) var(--s-4) 0; font-size: var(--t-caption); color: var(--tx-3); }
 .form-sheet .xs-note .note-fix { flex-shrink: 0; }
 /* A photo-only note: the canvas keeps no room for words it does not have. */
 .screen-editor .doc.doc-lean, .doc.doc-lean { padding-top: 0; padding-bottom: var(--s-2); }
@@ -5198,9 +5268,9 @@ body.selecting .voice-dock { display: none; }
   display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .cf-cancel { position: absolute; left: 14px; top: 0; border: 0; background: none; color: var(--tx-3);
   font: inherit; font-size: calc(15px * var(--type-scale)); font-weight: 600; padding: 8px 6px; cursor: pointer; }
-.cf-fmt { font-size: calc(12px * var(--type-scale)); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue);
-  background: var(--blue-tint); padding: 4px 9px; border-radius: 7px; }
-.cf-name { font-size: calc(13px * var(--type-scale)); color: var(--tx-3); max-width: 70vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-fmt { font-size: var(--t-caption); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue);
+  background: var(--blue-tint); padding: 4px 9px; border-radius: var(--r-sm); }
+.cf-name { font-size: var(--t-caption); color: var(--tx-3); max-width: 70vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .cf-ring { position: relative; width: min(78vw, 300px); height: min(78vw, 300px); display: grid; place-items: center;
   margin-top: 8px; cursor: pointer; }
@@ -5216,16 +5286,16 @@ body.selecting .voice-dock { display: none; }
 .cf-lead { font-size: clamp(80px, 30vw, 120px); animation: cf-pulse 300ms ease-out; }
 @keyframes cf-pulse { 0% { transform: scale(1.14); } 100% { transform: scale(1); } }
 .cf-round { font-size: calc(15px * var(--type-scale)); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: 4px; }
-.cf-last { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); font-variant-numeric: tabular-nums; min-height: 18px; }
+.cf-last { font-size: var(--t-caption); color: var(--tx-2); font-variant-numeric: tabular-nums; min-height: 18px; }
 
-.cf-roundbtn { margin-top: 22px; border: 0; border-radius: 999px; background: #fff; color: #000; font: inherit;
-  font-size: calc(19px * var(--type-scale)); font-weight: 700; padding: 16px 0; width: min(64vw, 240px); cursor: pointer; }
+.cf-roundbtn { margin-top: 22px; border: 0; border-radius: var(--r-pill); background: #fff; color: #000; font: inherit;
+  font-size: var(--t-h2); font-weight: 700; padding: 16px 0; width: min(64vw, 240px); cursor: pointer; }
 .cf-roundbtn:active { transform: scale(0.97); }
 
-.cf-slide { position: relative; margin-top: 14px; width: min(64vw, 240px); height: 50px; border-radius: 999px;
+.cf-slide { position: relative; margin-top: 14px; width: min(64vw, 240px); height: 50px; border-radius: var(--r-pill);
   background: var(--press-3); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.cf-slide-t { color: var(--tx-3); font-size: calc(13.5px * var(--type-scale)); font-weight: 600; letter-spacing: 0.02em; padding-left: 26px; }
-.cf-knob { position: absolute; left: 5px; top: 5px; width: 40px; height: 40px; border-radius: 50%; background: var(--sys-red);
+.cf-slide-t { color: var(--tx-3); font-size: var(--t-caption); font-weight: 600; letter-spacing: 0.02em; padding-left: 26px; }
+.cf-knob { position: absolute; left: 5px; top: 5px; width: 40px; height: 40px; border-radius: var(--r-circle); background: var(--sys-red);
   display: grid; place-items: center; touch-action: none; cursor: grab; transition: transform 180ms ease; }
 .cf-knob.dragging { transition: none; cursor: grabbing; }
 .cf-knob::after { content: ""; width: 12px; height: 12px; background: #fff; border-radius: 2px; }
@@ -5243,7 +5313,7 @@ body.selecting .voice-dock { display: none; }
   .cf-num { font-size: clamp(120px, 34vw, 190px); }
   .cf-lead { font-size: clamp(120px, 34vw, 190px); }
   .cf-round, .cf-last { display: none; }
-  .cf-corner { display: block; position: absolute; font-size: calc(13px * var(--type-scale)); font-weight: 800; letter-spacing: 0.12em;
+  .cf-corner { display: block; position: absolute; font-size: var(--t-caption); font-weight: 800; letter-spacing: 0.12em;
     text-transform: uppercase; color: var(--tx-3); }
   .cf-tl { top: 14px; left: 18px; color: var(--blue); }
   .cf-tr { top: 14px; right: 18px; }
@@ -5252,7 +5322,7 @@ body.selecting .voice-dock { display: none; }
   .cf-roundbtn { position: absolute; right: 18px; bottom: 12px; margin: 0; width: auto; padding: 12px 26px; font-size: calc(16px * var(--type-scale)); }
   .cf-slide { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); margin: 0; width: 200px; height: 42px; }
   .cf-knob { width: 32px; height: 32px; }
-  .cf-slide-t { font-size: calc(12px * var(--type-scale)); }
+  .cf-slide-t { font-size: var(--t-caption); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -5264,10 +5334,10 @@ body.selecting .voice-dock { display: none; }
 .cond-receipt { padding: 12px 16px 10px; }
 .cr-head { display: flex; align-items: center; gap: 9px; }
 .cr-fmt { font-size: calc(11px * var(--type-scale)); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--blue);
-  background: var(--blue-tint); padding: 3px 8px; border-radius: 6px; flex-shrink: 0; }
-.cr-name { flex: 1; min-width: 0; font-size: calc(16px * var(--type-scale)); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cr-cap { font-size: calc(13px * var(--type-scale)); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.cr-empty { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); margin-top: 10px; }
+  background: var(--blue-tint); padding: 3px 8px; border-radius: var(--r-sm); flex-shrink: 0; }
+.cr-name { flex: 1; min-width: 0; font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cr-cap { font-size: var(--t-caption); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.cr-empty { font-size: var(--t-caption); color: var(--tx-2); margin-top: 10px; }
 .cr-attempt { margin-top: 8px; }
 /* GYM-F-10 (2026-09-05): the attempt title row now carries the delete a
    misfired run needs, so it is a row rather than a lone label. */
@@ -5276,7 +5346,7 @@ body.selecting .voice-dock { display: none; }
 .cr-del { background: none; border: 0; padding: 2px; color: var(--tx-2); display: inline-flex; cursor: pointer; }
 .cr-del:active { color: var(--red); }
 .cr-del .ic { width: 16px; height: 16px; }
-.cr-table { width: 100%; border-collapse: collapse; font-size: calc(13.5px * var(--type-scale)); font-variant-numeric: tabular-nums; margin-top: 4px; }
+.cr-table { width: 100%; border-collapse: collapse; font-size: var(--t-caption); font-variant-numeric: tabular-nums; margin-top: 4px; }
 .cr-table td { padding: 6px 4px; border-top: 0.5px solid var(--divider); color: var(--tx-2); }
 .cr-n { color: var(--tx-2); width: 36px; }
 .cr-t { color: var(--tx-1); font-weight: 600; }
@@ -5285,13 +5355,13 @@ body.selecting .voice-dock { display: none; }
 .cr-d.up { color: var(--warn); }
 .cr-d.dn { color: var(--good); }
 .cr-score { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px;
-  padding-top: 8px; border-top: 0.5px solid var(--divider); font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); }
-.cr-score-v { display: inline-flex; align-items: center; gap: 6px; font-size: calc(21px * var(--type-scale)); font-weight: 800; color: var(--tx-1);
+  padding-top: 8px; border-top: 0.5px solid var(--divider); font-size: var(--t-caption); color: var(--tx-3); }
+.cr-score-v { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-h2); font-weight: 800; color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
 .cr-score-v b { font-weight: 800; }
 .cr-plus { font-size: calc(15px * var(--type-scale)); color: var(--tx-3); font-weight: 600; }
-.cr-extra { width: 56px; border: 0; border-radius: 9px; background: var(--press-3); color: var(--tx-1); font: inherit;
-  font-size: calc(19px * var(--type-scale)); font-weight: 800; text-align: center; padding: 4px 6px; font-variant-numeric: tabular-nums; }
+.cr-extra { width: 56px; border: 0; border-radius: var(--r-sm); background: var(--press-3); color: var(--tx-1); font: inherit;
+  font-size: var(--t-h2); font-weight: 800; text-align: center; padding: 4px 6px; font-variant-numeric: tabular-nums; }
 .cr-extra:focus { outline: 2px solid var(--blue); }
 .cr-extra::placeholder { color: var(--tx-2); font-weight: 600; }
 
@@ -5307,7 +5377,7 @@ body.selecting .voice-dock { display: none; }
    same reading BROWSER-F-06 gave .pagehead-title): it wraps here instead of
    ellipsing there. The url is a machine string nobody reads to the end, so it
    takes one line and stops. */
-.ev-title { font-size: calc(24px * var(--type-scale)); font-weight: var(--w-bold);
+.ev-title { font-size: var(--t-title); font-weight: var(--w-bold);
   letter-spacing: var(--track-h2); line-height: var(--lh-snug); }
 .ev-url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -5323,20 +5393,61 @@ body.selecting .voice-dock { display: none; }
 /* .facts: the row's second line as facts, not a sentence (G3, G6). Flex,
    wraps, quiet ink. Adjacent facts are separated by a middle dot the CSS
    draws, so no string ever carries one. */
-.facts { display: flex; flex-wrap: wrap; align-items: center; gap: 1px 0; margin-top: 2px;
-  font-size: calc(14px * var(--type-scale)); color: var(--tx-3); line-height: 1.35; }
+/* THE SECOND LINE STATES ITS OWN WEIGHT (2026-09-18, caught in a render while
+   bolding the names).
+
+   .facts set a size and a colour but never a weight, so it INHERITED one from
+   whatever drew the name above it. That was survivable while names were 500;
+   the moment every name became 700 the facts under them went 700 too, and
+   bolding the title would have flattened the hierarchy instead of building
+   it -- the exact thing Dave has been photographing, made worse by the fix
+   for it. The ladder only exists if both rungs are nailed down. */
+.facts { display: flex; flex-wrap: nowrap; align-items: center; gap: 1px 0; margin-top: 2px;
+  font-size: var(--t-sub); font-weight: var(--w-sub);
+  color: var(--tx-3); line-height: 1.35; overflow: hidden; }
+/* ONE LINE, AND THE LAST FACT GIVES WAY (2026-09-18, the approved rule: "three
+   facts, one line. If it would wrap to a second line, a fact comes off").
+
+   It wrapped before, so a busy row grew a third line of grey and the list
+   went ragged -- and three components had already been patched to nowrap
+   one at a time, which is the drift this pass exists to end. The facts are
+   ordered most-important-first everywhere, so the one that gives way is the
+   one at the end. It ellipses rather than clipping: cut text is a bug. */
+.facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facts > .fact { flex-shrink: 0; }
+.facts > .fact:last-child { flex-shrink: 1; }
+
+/* THE LEAD CHIP IS REVERTED (2026-09-18, same day, on Dave's screenshots).
+   "I would prefer one chip if there's two facts" was implemented as: the
+   first of two or more facts draws as a capsule. That is a rule about the
+   NUMBER of facts, and the number of facts changes from screen to screen for
+   the same record -- so "Bridge" drew as a chip on Life, where the row also
+   carries a TODAY mark, and as plain text on Today, where it does not. One
+   reminder, two appearances, on two screens he can see at once.
+
+   A rule that makes the same fact look different depending on its neighbours
+   cannot be the answer to "I want this uniform". Facts are plain; the things
+   that are genuinely capsules (an urgency uchip, a classification on the
+   Exercises page) are capsules because of WHAT THEY ARE, which does not
+   change between screens. */
 .fact + .fact::before { content: "\00B7"; color: var(--tx-4); margin: 0 6px; }
-/* A fact that carries meaning takes its intent colour, semibold. At most one
-   of these per .facts line (K.3, extended by the law in laws/astra.test.ts);
-   .fact.st and .fact.cat do not count toward it. */
-.fact.warn { color: var(--warn); font-weight: var(--w-semi); }
-.fact.good { color: var(--good); font-weight: var(--w-semi); }
-.fact.sky { color: var(--cat-sky); font-weight: var(--w-semi); }
-.fact.purp { color: var(--cat-purple); font-weight: var(--w-semi); }
-.fact.red { color: var(--accent-tx); font-weight: var(--w-semi); }
+/* A fact that carries meaning takes its intent COLOUR, and only its colour.
+   At most one of these per .facts line (K.3, extended by the law in
+   laws/astra.test.ts); .fact.st and .fact.cat do not count toward it.
+
+   AMENDED 2026-09-18. All five of these were also semibold, and .fact.cat
+   was too -- so six of the commonest facts in the app sat at 700 while the
+   line they live on is 400 and the name above it is 700. That is why the
+   area on a reminder read as loud as the reminder's own name. Colour is the
+   signal; weight is the ladder, and the ladder has two rungs, not three. */
+.fact.warn { color: var(--warn); }
+.fact.good { color: var(--good); }
+.fact.sky { color: var(--cat-sky); }
+.fact.purp { color: var(--cat-purple); }
+.fact.red { color: var(--accent-tx); }
 /* Category is a 7px dot in the category colour plus plain text, never
    coloured text (G4). The dot wears .cat-bg-<slot>. */
-.fact.cat { font-weight: var(--w-semi); color: var(--tx-2); display: inline-flex; align-items: center; gap: 5px; }
+.fact.cat { color: var(--tx-3); display: inline-flex; align-items: center; gap: 5px; }
 .fact.cat .cd { width: 7px; height: 7px; border-radius: var(--r-circle); display: inline-block; flex-shrink: 0; }
 /* The state word (G5): coloured small caps, never a filled pill. Colour from
    the variant beside it; gray is the quiet one. The words themselves are a
@@ -5382,7 +5493,6 @@ body.selecting .voice-dock { display: none; }
    own. The line is the flex row .facts means it to be, and it clips nothing
    itself -- the LAST fact does, and says so. */
 .hl .conn-meta { display: flex; align-items: center; text-overflow: clip; }
-.hl .facts { flex-wrap: nowrap; overflow: hidden; margin-top: 1px; }
 .hl .facts > .fact { flex-shrink: 0; }
 .hl .facts > .fact:last-child { flex-shrink: 1; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -5451,7 +5561,7 @@ span.row-star { cursor: default; }
    (warn tint, rounded, a leading glyph), the filter chips on the list, the
    note menu, and the found rows. */
 .doc .t-quote { border-left: 3px solid var(--tx-4); padding: 2px 0 2px var(--s-3); font-style: italic; color: var(--tx-2); font-size: calc(17px * var(--type-scale)); line-height: 1.6; min-height: 27px; }
-.doc .doc-hr { border: 0; border-top: 1px solid var(--divider); margin: var(--s-3) 0; }
+.doc .doc-hr { border: 0; border-top: 0.5px solid var(--divider); margin: var(--s-3) 0; }
 .doc .t-callout { display: flex; gap: var(--s-2); align-items: flex-start; padding: var(--s-2h) var(--s-3); border-radius: var(--r-md, 12px); background: color-mix(in srgb, var(--warn-fill) 14%, transparent); }
 .doc .t-callout > .ic { width: 18px; height: 18px; flex-shrink: 0; margin-top: 4px; color: var(--warn); }
 .doc .t-callout-text { flex: 1; min-width: 0; font-size: calc(17px * var(--type-scale)); line-height: 1.6; color: var(--tx-1); min-height: 27px; }
@@ -5465,13 +5575,13 @@ span.row-star { cursor: default; }
    the stacked hours bar (category-coloured segments, 10px, rounded), and
    the week's keyed lines. */
 .tiles { display: flex; gap: var(--s-1h); margin: 0 0 var(--s-2h); }
-.itile { flex: 1; border-radius: 12px; padding: var(--s-2h) var(--s-3); min-width: 0; }
-.itile b { display: block; font-size: calc(24px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.itile { flex: 1; border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); min-width: 0; }
+.itile b { display: block; font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .itile span { display: block; margin-top: 4px; font-size: calc(11px * var(--type-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .itile-good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
 .itile-purp { background: color-mix(in srgb, var(--cat-purple) 14%, transparent); color: var(--cat-purple); }
 .itile-sky { background: color-mix(in srgb, var(--cat-sky) 14%, transparent); color: var(--cat-sky); }
-.stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin: var(--s-1h) 0 var(--s-2); background: var(--press-3); }
+.stack { display: flex; height: 10px; border-radius: var(--r-xs); overflow: hidden; margin: var(--s-1h) 0 var(--s-2); background: var(--press-3); }
 .stack > i { display: block; height: 100%; }
 .stack > i.stack-open { background: var(--divider); }
 .week-card .tiles { margin-top: 0; }
@@ -5488,7 +5598,7 @@ span.row-star { cursor: default; }
    mail EvidenceChip: a surface hands that component this class rather than
    forking it, and the sheet it opens is the Why sheet (C-25). */
 .why { display: inline-flex; align-items: center; gap: 4px; min-height: 34px; padding: 5px 10px; border: 0; border-radius: var(--r-pill);
-  font-family: var(--f); font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold); color: var(--accent-tx); background: var(--red-tint); cursor: pointer; }
+  font-family: var(--f); font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--accent-tx); background: var(--red-tint); cursor: pointer; }
 
 /* ==========================================================================
    THE HEALTH PASS (V4.24, Dave's picks 2026-09-12). HUE BY MEANING, R4.
@@ -5521,6 +5631,171 @@ span.row-star { cursor: default; }
 /* The nested row's title stops being a plain span the moment it is a door,
    so it gets the door's affordance without growing a second one. */
 .block-held-prop .block-held-t[role="button"] { cursor: pointer; }
+
+/* ============================================================
+   ONE HEADER, FIVE PAGES (Dave 2026-09-17, Unified Headers handoff)
+   Tasks, Reminders, Notes, Projects and Goals share this block: a search
+   field and a compact Add on one row, then one scrolling row of view chips.
+   The handoff's reference sizes -- 46px row, 9px gap, 12px radius, 13px
+   before the chips, 24px into content, Add about 77px -- are named there as
+   "visual baselines, not replacements for catalog tokens", so a token wins
+   wherever one lands on the number.
+   ============================================================ */
+.life-hdr { display: flex; flex-direction: column; }
+
+/* THE TITLE ROW (2026-09-17). The mockups put the options control on the same
+   line as the large page title, not up in the condensed bar where .pagebar's
+   actions live: at rest the bar is empty and a control floating alone up
+   there reads as belonging to nothing. The row keeps the title's own left
+   inset and the stroke under it, because .pagehead-title carries both. */
+.pagehead-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); padding-right: var(--s-4); }
+.pagehead-row > .pagehead-titlebox { flex: 1 1 auto; min-width: 0; }
+.pagehead-row > .pagehead-acts { flex-shrink: 0; display: flex; align-items: center; gap: var(--s-2); align-self: center; }
+
+/* 46px row, and its two children share it. */
+.hdr-find { display: flex; align-items: stretch; gap: 9px; padding: 0 var(--s-4); margin-top: var(--s-2); }
+
+.hdr-search {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--s-2);
+  height: 46px; padding: 0 var(--s-3h); border-radius: var(--r-md);
+  background: var(--surface-2); color: var(--tx-3);
+}
+.hdr-search-ic { width: 20px; height: 20px; flex-shrink: 0; color: var(--tx-3); }
+.hdr-search-in {
+  flex: 1 1 auto; min-width: 0; background: none; border: 0; outline: none; padding: 0;
+  font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-regular); color: var(--tx-1);
+  /* A search field types in whatever case you feel like; see shared/nameField. */
+}
+.hdr-search-in::placeholder { color: var(--tx-3); font-weight: var(--w-regular); }
+.hdr-search-in::-webkit-search-cancel-button { display: none; }
+/* The clear control is the handoff's own X in the mockup's search state. A
+   44px target on a 20px glyph, by inset rather than by size. */
+.hdr-search-x {
+  position: relative; flex-shrink: 0; background: none; border: 0; padding: 0;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; color: var(--tx-3);
+}
+.hdr-search-x::after { content: ""; position: absolute; inset: -11px; }
+.hdr-search-x .ic { width: 18px; height: 18px; }
+
+/* ADD IS NOT A SECOND PRIMARY (handoff rule 1). Dark surface, red glyph,
+   white word: the page's real primary stays the one red block on screen. */
+.hdr-add {
+  flex: 0 0 auto; min-width: 77px; height: 46px; padding: 0 var(--s-3);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h);
+  border-radius: var(--r-md); border: 0.5px solid var(--divider); background: var(--surface-2);
+  font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1);
+}
+/* THE RED IS THE GLYPH AND NOTHING ELSE, AND IT IS --tint.
+   The handoff asks for "a red plus", and the two obvious tokens are both
+   wrong: --accent-tx is WHITE in dark theme (it is the ink for text ON accent
+   chrome), and --accent is the brand red, which LAW "the brand red is never
+   used for a job it cannot do" bans as glyph ink because it does not clear
+   the contrast floor. --tint is the measured one, 5.49:1 on black, and its
+   own definition names this exact job: "the colour of things that are
+   tappable but are not buttons: the nav '+', back chevrons, links". */
+.hdr-add .ic { width: 20px; height: 20px; color: var(--tint); }
+
+/* ONE LINE ACROSS (Dave 2026-09-18: "All of these chips that are on the
+   second row should be on the first row. There is a ton of space... It should
+   be one line across on every single page. If you drop down, make the chips
+   drop down so everything is on one row directly across").
+
+   Each row DID look half empty, and they still could not be joined: three
+   view chips (275px with their margins) and the two capsules beside them
+   (271px) are 522px of content in a 361px row. A chip has to fit its whole
+   list on the screen; a menu only has to fit its answer. So the view became
+   a menu too, and the whole header is one line of capsules:
+
+     Today  |  Area  |  Group          Tasks
+     Today  |  Area                    Reminders
+     All    |  Area  |  Tag            Notes
+     Active |  Area                    Projects and Goals
+
+   Which gives the views back what the chips cost them: every one of them is
+   in the menu, with its count, instead of four on the row and three in the
+   options sheet.
+
+   13px above, 24px into the content below. overflow-x stays auto as a floor,
+   not a plan: at a large Dynamic Type size the line can still be dragged
+   rather than clipping a control. At every ordinary size it fits. */
+.hdr-controls {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 0 var(--s-4); margin-top: 13px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.hdr-controls::-webkit-scrollbar { display: none; }
+.hdr-controls > * { flex: 0 0 auto; }
+/* AND THE LINE HOLDS. If a page ever does put more on it than fits -- a long
+   area name at a large Dynamic Type size -- the LAST control gives way and
+   ellipses, rather than the line scrolling and resting on a half-drawn
+   capsule, which is the thing this whole design is here to avoid. */
+.hdr-controls > *:last-child { flex: 0 1 auto; min-width: 0; }
+.life-hdr { padding-bottom: 24px; }
+/* Words, not the uppercase eyebrow .dd draws by default: five of these sit
+   where a sentence used to, and an all-caps line of five reads as shouting.
+   The view leads in the page's own ink; a cut that is not set is quiet, so
+   the line says at a glance whether anything is narrowing the list. */
+.hdr-controls .dd {
+  text-transform: none; letter-spacing: -0.01em;
+  font-size: var(--t-caption); font-weight: var(--w-medium);
+  color: var(--tx-2); min-height: 34px;
+}
+.hdr-controls .dd.dd-lead { font-weight: var(--w-semi); color: var(--tx-1); }
+.hdr-controls .dd .dd-w { max-width: 40vw; }
+
+/* WHAT THE SEARCH IS ACTUALLY SEARCHING (handoff rule 4). A count, where it
+   looked, and one control that widens it -- never a silent widening. */
+.hdr-scope {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3);
+  padding: 0 var(--s-4); margin-top: var(--s-3h);
+}
+.hdr-scope-n { font-size: var(--t-meta); font-weight: var(--w-regular); color: var(--tx-3); }
+.hdr-scope-all {
+  flex-shrink: 0; background: none; border: 0; padding: 0;
+  font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--hl-cyan);
+}
+
+/* THE OPTIONS CONTROL, in the title bar: Area, Sort, Group and the page's
+   secondary tools, in one place on all five pages (handoff rule 7). */
+.hdr-opts {
+  width: 44px; height: 44px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--r-md); background: var(--surface-2); color: var(--tx-1);
+}
+.hdr-opts .ic { width: 20px; height: 20px; }
+
+/* The options sheet's own head: the page's name and Done, nothing to save. */
+.opt-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-4) var(--s-3); }
+.opt-title { font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1); letter-spacing: -0.01em; }
+.opt-done { background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tint-on-sheet); }
+.opt-val { flex-shrink: 0; font-size: var(--t-body); font-weight: var(--w-regular); color: var(--tx-2); }
+/* FOCUS, remodelled (2026-09-17): the facts line on the card, the verb grid
+   under the one filled action, and the running block's own card. */
+
+/* The row that carries the way out of Just This One. It used to carry Pick
+   One as well; that is a control on the header line now. */
+.pick-one { padding-top: var(--s-2); padding-bottom: var(--s-1); }
+
+/* FOCUS, ON THE CONTROL LINE (2026-09-18, Dave: "that massive pick one chip
+   looks terrible"). Pick One was a full-width red fill under the header, the
+   only red on the page, and it named nothing: it opened a sheet to find out
+   what it meant. Focus is where the proposal lives now, so this is only the
+   door -- the height of the cuts beside it, in the tinted red, wearing the
+   bolt the capture bar already uses for the same screen. */
+.hdr-controls .tasks-focus {
+  flex: 0 0 auto; margin-left: auto;
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 34px; padding: 0 var(--s-3);
+  border: 0; border-radius: var(--r-pill);
+  /* JARVIS RED, FILLED (Dave 2026-09-18: "that focus button should be Jarvis
+     red"). It was the tinted ground with accent text, which on the dark theme
+     reads as a dark red capsule with dark red words in it. --accent-fill is
+     the one red in the palette that carries WHITE, which is why every primary
+     in the app uses it and why this one does too. */
+  background: var(--accent-fill); color: #FFFFFF;
+  font-family: var(--f); font-size: var(--t-caption);
+  font-weight: var(--w-semi); letter-spacing: -0.01em; cursor: pointer;
+}
+.hdr-controls .tasks-focus .ic { width: 15px; height: 15px; }
 
 /* THE TRACKER (PASSOFF 2026-09-19, money/screens/TrackerScreen.tsx).
    The handoff shipped its own stylesheet of hard-coded greys; those are

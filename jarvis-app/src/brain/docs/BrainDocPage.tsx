@@ -236,7 +236,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
           <div className="card list-card-ruled">
             <div className="sh2 sh2-quiet"><span className="t">Hard Lines</span>{lines.length > 0 && <span className="n">{lines.length}</span>}</div>
             {lines.length === 0 && (
-              <div className="pad-x"><div className="conn-meta">Nothing is off limits to the automation yet.</div></div>
+              <div className="pad-x"><div className="conn-meta">None yet</div></div>
             )}
             {lines.map((l, i) => (
               // row-tap: hard-line rows are two words shown whole with nothing to open, and the only verb is Remove, which a row tap must never do
@@ -295,7 +295,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                       concatenation under a title, which the subtext law
                       forbids outright, and the capital L mid-line was the
                       casing it made him look at. One sentence says both. */}
-                  <div className="conn-meta">{reading ? "A few seconds." : "JARVIS reads it and learns from it"}</div>
+                  {reading && <div className="conn-meta">Reading</div>}
                 </div>
               </div>
             </div>

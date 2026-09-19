@@ -10,6 +10,7 @@ import ErrorBoundary from "./monitoring/ErrorBoundary";
 import { initMonitoring } from "./monitoring/monitor";
 import { startAppUrlListener } from "./native/appUrl";
 import { trackVisualViewport } from "./shared/viewport";
+import { checkBuild } from "./shared/buildCheck";
 
 import "./styles/jarvis-design-system.css";
 import "./styles/uniformity.css";
@@ -65,11 +66,52 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     reloadedForUpdate = true;
     window.location.reload();
   });
+  // AND IT ASKS AGAIN EVERY TIME THE APP COMES BACK TO THE FRONT
+  // (2026-09-16, Dave: "I don't see any difference... it's been the same push
+  // forever").
+  //
+  // This is the bug that made a whole day of shipped work invisible. The
+  // registration asked for an update on `load` and nowhere else -- and a
+  // home-screen app on iOS is SUSPENDED AND RESUMED, not closed and loaded.
+  // Tapping its icon restores the process: no `load`, no navigation, so the
+  // network-first HTML handler in sw.js never runs either. Both of the paths
+  // that could notice a deploy are navigation-shaped, and resuming is not a
+  // navigation. Short of force-quitting the app, nothing ever checked, and
+  // the person is looking at whatever bundle was current the last time they
+  // cold-started it.
+  //
+  // visibilitychange is the moment that actually matters: it is the instant
+  // before somebody looks at the screen. pageshow covers the bfcache restore
+  // Safari does on a back-swipe, which is the same shape of problem.
+  // Throttled, because foregrounding is common and a version check is a
+  // network round trip; 60s is far below how often a deploy can land and far
+  // above how often an app is flicked in and out of.
+  // reg.update() is kept, but it is NOT the fix and cannot be: the browser
+  // installs a new worker only when /sw.js differs byte for byte, and sw.js is
+  // a static file that is identical across every deploy that does not edit it.
+  // The real check is shared/buildCheck.ts, which compares the bundle this
+  // code is running from against the one the deployed HTML names.
+  const UPDATE_EVERY_MS = 60_000;
+  let lastCheck = 0;
+  const check = (reg: ServiceWorkerRegistration | null) => {
+    const now = Date.now();
+    if (now - lastCheck < UPDATE_EVERY_MS) return;
+    lastCheck = now;
+    void reg?.update().catch(() => { /* offline: the next foreground retries */ });
+    void checkBuild({ fetchImpl: fetch.bind(window), reload: () => window.location.reload(), moduleUrl: import.meta.url });
+  };
+  const watch = (reg: ServiceWorkerRegistration | null) => {
+    check(reg);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") check(reg);
+    });
+    window.addEventListener("pageshow", () => check(reg));
+  };
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").then((reg) => {
-      reg.update();
-    }).catch(() => {
-      /* offline shell is best-effort */
+    navigator.serviceWorker.register("/sw.js").then(watch).catch(() => {
+      // The offline shell is best-effort, but the build check is not: a
+      // worker that failed to register is the case MOST likely to be stuck.
+      watch(null);
     });
   });
 }
