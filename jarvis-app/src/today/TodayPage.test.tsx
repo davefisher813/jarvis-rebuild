@@ -366,3 +366,30 @@ describe("TodayPage", () => {
     expect(screen.getByText("t3").closest(".sched-row")!.querySelector(".sched-cat")).toHaveTextContent("Money");
   });
 });
+
+describe("a workout in progress", () => {
+  // Dave 2026-09-19: "I want the Home Screen to render something whenever
+  // the user starts a workout ... a resume button up top". The session is
+  // handed in as its own slot and leads the Your Move card, above the dealt
+  // task, whatever the stream ranks.
+  it("leads the Your Move card above the dealt task, and is never folded", () => {
+    const live = <NoticeCard key="live-gym" icon={<span />} tone="cat-fg-orange" title="Back to Push Day 1" sub="46 min left" action={{ label: "Resume", onClick: () => {} }} />;
+    const notices = [
+      <NoticeCard key="a" weight={FAILING} icon={<span />} tone="cat-fg-red" title="Sliding A" action={{ label: "Fix", onClick: () => {} }} />,
+      <NoticeCard key="b" weight={WAITING} icon={<span />} tone="cat-fg-yellow" title="Waiting B" action={{ label: "Open", onClick: () => {} }} />,
+      <NoticeCard key="c" weight={NEW} icon={<span />} tone="cat-fg-teal" title="New C" action={{ label: "Open", onClick: () => {} }} />,
+      <NoticeCard key="d" weight={RESUME} icon={<span />} tone="cat-fg-blue" title="Resume D" action={{ label: "Open", onClick: () => {} }} />,
+    ];
+    const { container } = render(
+      <TodayPage {...base} liveGym={live} notices={notices} upNext={[tk("over", "2026-05-18")]} upNextWaiting={2} upNextReason="Waiting 2 days" onUpNext={() => {}} />,
+    );
+    const card = container.querySelector(".stream-card")!;
+    const names = [...card.querySelectorAll(".conn-name")].map((n) => n.textContent);
+    expect(names[0]).toBe("Back to Push Day 1");
+    expect(screen.getByText("Resume")).toBeInTheDocument();
+    // Four notices fold to three; the session is not one of them and stays.
+    expect(screen.getByText("See All")).toBeInTheDocument();
+    expect(screen.queryByText("Resume D")).toBeNull();
+    expect(screen.getByText("Back to Push Day 1")).toBeInTheDocument();
+  });
+});

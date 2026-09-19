@@ -46,6 +46,11 @@ export interface LiveCard {
   /** "12 min in", or null before a minute has passed -- a session that says
    *  "0 min in" reads as broken rather than as new. */
   elapsed: string | null;
+  /** "23 min left" against the budget the fit set, "Time's up" once it is
+   *  gone, null when no budget was set (Dave 2026-09-19: "the time left in
+   *  the workout if there's a timer set"). Read off budgetMin and the
+   *  session's own clock, so a parked session holds its number. */
+  left: string | null;
   /** "2 of 6 logged", always true, never a countdown of what is owed. */
   progress: string;
   /** The whole plan, in order. */
@@ -81,10 +86,13 @@ export function liveCard(s: LiveSession, now: number = Date.now()): LiveCard {
     skipped: !!ex.skipped,
   }));
   const done = lines.filter((l) => l.logged > 0).length;
-  const mins = Math.floor(elapsedMs(s, now) / 60_000);
+  const ms = elapsedMs(s, now);
+  const mins = Math.floor(ms / 60_000);
+  const leftMs = s.budgetMin ? s.budgetMin * 60_000 - ms : null;
   return {
     dayName: s.dayName,
     elapsed: mins >= 1 ? capAfterNumber(`${mins} min in`) : null,
+    left: leftMs === null ? null : leftMs >= 60_000 ? capAfterNumber(`${Math.ceil(leftMs / 60_000)} min left`) : "Time's up",
     progress: capAfterNumber(`${done} of ${lines.length} logged`),
     lines,
     current: lines.find((l) => l.current) ?? null,

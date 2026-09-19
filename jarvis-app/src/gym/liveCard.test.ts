@@ -101,3 +101,21 @@ describe("elapsed time is a fact or it is absent", () => {
     expect(liveCard(s, NOW).elapsed).toBe("5 Min in");
   });
 });
+
+describe("time left, when a timer was set", () => {
+  // Dave 2026-09-19: "a resume button up top with the time left in the
+  // workout if there's a timer set". The fit's budget is the timer.
+  it("counts down the budget on the session's own clock", () => {
+    expect(liveCard(session({ budgetMin: 45 }), NOW).left).toBe("33 Min left");
+  });
+  it("says nothing about time left when no budget was set", () => {
+    expect(liveCard(session(), NOW).left).toBeNull();
+  });
+  it("says so once the budget is gone, rather than counting into the negative", () => {
+    expect(liveCard(session({ budgetMin: 10 }), NOW).left).toBe("Time's up");
+  });
+  it("holds its number while the session is parked", () => {
+    const parked = session({ budgetMin: 45, pausedAt: NOW });
+    expect(liveCard(parked, NOW + 20 * 60_000).left).toBe("33 Min left");
+  });
+});
