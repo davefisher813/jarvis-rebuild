@@ -5474,8 +5474,10 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     expect(PAGE, "the row asks for the label without the timestamp").toMatch(/<Provenance compact/);
     const r = ruleOf(RULED, ".ruled .r-k-one > .prov-line");
     expect(r, "provenance is sized for the line it now shares").toBeTruthy();
-    // 15px meta type is taller than the 19px clamp: it would be sliced.
-    expect(r).toMatch(/font-size:\s*calc\(12\.5px/);
+    // Meta type is taller than the 19px clamp: it would be sliced. AMENDED
+    // 2026-09-18 (Catalog V5): the size is --t-caption now, the one stop the
+    // whole small end reads from, rather than a 12.5 written here alone.
+    expect(r).toMatch(/font-size:\s*var\(--t-caption\)/);
     // The 44px expansion is 13px of transparent border top and bottom, which
     // inside a clipped 19px line is cut off, and uncut would reach into the
     // title's own tap target. The full target lives on the sheet.
@@ -5512,8 +5514,11 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     const rowFs = Number(/--t-name:\s*calc\(([\d.]+)px/.exec(tokens)![1]);
     // The second line's size is --t-sub now, the one place it is defined.
     const metaFs = Number(/--t-sub:\s*calc\(([\d.]+)px/.exec(tokens)![1]);
-    const chip = /\.ruled \.uchip \{[^}]*font-size: calc\(([\d.]+)px[^}]*padding:\s*([\d.]+)px/.exec(RULED)!;
-    const chipFs = Number(chip[1]), chipPadY = Number(chip[2]);
+    // AMENDED 2026-09-18 (Catalog V5): the chip reads --t-micro, so its size
+    // comes from the token the same way the row title and the subtext do.
+    const chip = /\.ruled \.uchip \{[^}]*font-size: var\(--t-micro\)[^}]*padding:\s*([\d.]+)px/.exec(RULED)!;
+    const chipFs = Number(/--t-micro:\s*calc\(([\d.]+)px/.exec(tokens)![1]);
+    const chipPadY = Number(chip[1]);
     // AMENDED 2026-09-18: the clamp is no longer a hand-fitted constant. It
     // states the two things it has to cover -- one line of subtext, and one
     // chip -- and takes the taller. They cross at 1.15x text scale, which is

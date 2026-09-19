@@ -744,6 +744,34 @@ Four complaints in one message, about the same screen: the **Where This Stands**
 
 **CACHED IS NOT SORTED (2026-09-16).** Rows that came back without a request say nothing about whether they have been triaged. The cache path hands that question to `runTriage` and never answers it itself; asserting it put unsorted mail under **For You** the first time anything re-ran the load.
 
+## §AJ. Catalog V5, the uniformity pass (Dave 2026-09-18: "every single thing that visuals cover needs to be readdressed"; picks T1, R1, S1, C1, C4, F1, F3, P1)
+
+The audit that produced this section, measured on the live sheets: 3,434 rules, 45 distinct font sizes in components.css alone against a scale of 8, about 110 uses of off-scale sizes, 29 distinct corner radii against a map of 7, 173 hex colours written outside the token file, two hairline weights for one divider, seven control heights. The catalog artifact rendered every primitive from the live values, and these are the rulings.
+
+**THE TYPE SCALE, WITH ITS SMALL END NAMED (T0, T1).** Two stops join the ramp: `--t-caption` (13) for facts lines, captions, notes under a field, error lines and section-head words, and `--t-micro` (11) for state words, counts and micro labels. `--t-title` (26) is a sheet's own title, between the card title and the screen title. `--t-meta` drops from 15 to 14 so a row's second line separates from its first (T1). 157 literal sizes across the five sheets now read a stop; `--t-eyebrow` keeps its name at the same size as micro because it is a ROLE (uppercase, letterspaced), not a size.
+
+**THE RADIUS MAP IS THE ONLY MAP (R0).** 84 literal radii snapped to xs 4, sm 8, md 14, lg 18, xl 22, pill and circle. The 3, 5, 6, 7, 9 and 12 that components had each picked for themselves are gone.
+
+**ONE HAIRLINE (R1).** Every divider and card edge is 0.5px, which is what a separator is on a Retina screen. The thirteen rules drawing 1px joined them.
+
+**THE TAP LADDER (H0).** Chips 28, capsules 34, fields and rows and bar actions 44, buttons 50. The segmented control's segment joins the capsule at 34 and its inner corner joins the map at sm 8 (X0).
+
+**ONE CAPSULE, TWO INKS (C1).** 34 tall, `--t-meta`, semibold, on press-3. Red (`--tint`) when it acts on something: Snooze, Adjust, Resume, Write Back. The app's own primary ink when it only goes somewhere: See All, Open Inbox, Schedule, Add. A verb and a door no longer look the same, and neither is a different size from the other.
+
+**CHIPS (C4).** 28 tall, `--t-meta`, filled with the selection colour when chosen. Down from 15px so four views fit a phone row.
+
+**ONE FOCUS RING, ONE CARET, ONE PLACEHOLDER (F1, I0).** Every field shape wears the same 2px accent ring: the boxed input already did, the search bar does now through `:focus-within` on a transparent border it always carries, so nothing moves when it focuses. The caret is `--accent` in every editor, field and cell. The placeholder is `--tx-2` everywhere, per the ink ruling.
+
+**AN ERROR IS NOT AN INVITATION (F3).** The error ring and the line under it are `--sys-red`, the destructive token both themes carry. The accent means tap this; it cannot also mean something is wrong.
+
+**SECTION HEADS (G0).** The head word is `--t-caption` at 800 with 0.14em tracking, the count `--t-micro`. Only Now wears the accent.
+
+**CARDS (S1).** The glass treatment stays in dark (top sheen, translucent ground, two inset rims, the deep shadow) and flat white with elevation stays in light. Cards still drawing their own hairline and flat fill join it.
+
+**ORDER (P1).** This push lands the tokens across every stylesheet at once, so every page moves together. The corners follow one push each, in the order the catalog names: Settings and its subpages, Onboarding, Search and Quick Capture, Brain, Money, Insights and Review, Messages internals, Gym. The front pages take the token sweep only; their layouts were settled the week before.
+
+Three laws were repinned to the tokens rather than to the literals they used to name: the shelf head reads `--t-h2`, the ruled row's provenance reads `--t-caption`, and the one-line clamp derives the chip's height from `--t-micro`. That is the point of the pass: a law that names a number has to be edited every time the number moves, and a law that names a token never does.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

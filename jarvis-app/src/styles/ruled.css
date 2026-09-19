@@ -41,7 +41,7 @@
    the ruled system adds only the 14pt corner, the rim and the shadow, no
    hairline. The grouping is the ruling; the flat ground was never it. */
 .ruled .card {
-  border-radius: 14px;
+  border-radius: var(--r-md);
   border: 0;
   box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0, 0, 0, 0.55);
 }
@@ -132,13 +132,13 @@
    --type-scale. Whatever the server said, he can read all of it.
    The ink and the 12.5/1.45 are the readiness panel's reading line, which is
    the app's existing answer to "a sentence a phone must not cut in half". */
-.ruled .notice-card .notice-why { font-size: calc(12.5px * var(--type-scale));
+.ruled .notice-card .notice-why { font-size: var(--t-caption);
   color: var(--tx-3); line-height: 1.45; white-space: normal; overflow-wrap: anywhere;
   padding-bottom: var(--s-2); }
 
 /* ---------- SECTION HEADS: 12.5 / 700 / 0.1em caps, leader stays ---------
    Q-02, ruled at phone size against the 11 and the 12. */
-.ruled .sh2 .t { font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.1em; }
+.ruled .sh2 .t { font-size: var(--t-caption); font-weight: var(--w-semi); letter-spacing: 0.1em; }
 
 /* ---------- STAT TILES under the greeting -------------------------------
    "Tinted, coloured by what it counts" (time blue, goal green, owed neutral)
@@ -155,8 +155,8 @@
 }
 .ruled .stat-tile::after { content: ""; position: absolute; inset: -6px 0; } /* 44pt reach */
 .ruled .stat-tile:active { opacity: 0.7; }
-.ruled .stat-tile .st-n { font-size: calc(19px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.05; }
-.ruled .stat-tile .st-w { font-size: calc(9.5px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.09em;
+.ruled .stat-tile .st-n { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.05; }
+.ruled .stat-tile .st-w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.09em;
   text-transform: uppercase; opacity: 0.72; }
 /* kinds. Blue is the app's data/time colour, green is completion and goal
    movement, amber and red are the two urgency steps. Neutral is the raised
@@ -270,7 +270,7 @@
    full target on the sheet, which is where a source is actually opened from
    with a thumb. On the row it stays a tap, just a row-sized one, exactly as
    the person beside it already is. */
-.ruled .r-k-one > .prov-line { flex: 0 0 auto; font-size: calc(12.5px * var(--type-scale));
+.ruled .r-k-one > .prov-line { flex: 0 0 auto; font-size: var(--t-caption);
   color: var(--tx-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border-top: 0; border-bottom: 0; margin-block: 0; line-height: inherit; }
 /* THE STEP COUNT IN THE RIGHT SLOT (TRACE-02, 2026-09-07). Dave: "there is
@@ -286,7 +286,7 @@
    readiness panel's fraction wears), because "2 of 5" read as one flat grey
    run is exactly the undifferentiated meta line that ruling exists to end. */
 .ruled .task-row > .tr-steps { flex-shrink: 0; align-self: center;
-  font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-medium);
+  font-size: var(--t-caption); font-weight: var(--w-medium);
   color: var(--tx-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ruled .task-row > .tr-steps b { font-weight: var(--w-semi); color: var(--tx-1); }
 .ruled .r-bar { width: 4px; height: 11px; border-radius: 2px; flex-shrink: 0; }
@@ -334,7 +334,7 @@
 .ruled .r-pg { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 13px; height: 13px; }
 .ruled .r-pg .r-gm { width: 13px; height: 13px; color: currentColor; }
 .ruled .r-pg .pp-sm { width: 13px; height: 13px; }
-.ruled .r-pdot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: block; }
+.ruled .r-pdot { width: 8px; height: 8px; border-radius: var(--r-circle); background: currentColor; display: block; }
 
 /* ---------- FOUR KINDS OF FACT, FOUR TREATMENTS (DEFECT 6, Dave 2026-09-06:
    "tasks have too much grey when you add info like time and people. Think of
@@ -400,7 +400,7 @@
    project can close (Dave 2026-09-13). The name keeps the task-name clamp. */
 .ruled .proj-row-ruled .proj-line1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ruled .proj-row-ruled .proj-line1 > .task-name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ruled .proj-row-ruled .proj-close { flex-shrink: 0; align-self: center; margin: -4px 0; padding: 4px 12px; font-size: calc(12.5px * var(--type-scale)); }
+.ruled .proj-row-ruled .proj-close { flex-shrink: 0; align-self: center; margin: -4px 0; padding: 4px 12px; font-size: var(--t-caption); }
 /* A goal row (Dave 2026-09-13): what moves it on line two, the count the bar
    draws on the line over the bar with the status at its right edge. */
 .ruled .goal-row-ruled .goal-sub { margin-top: 3px; }
@@ -411,7 +411,7 @@
 .ruled .goal-row-ruled .goal-meter { display: flex; align-items: center; gap: 8px; margin-top: 6px; min-width: 0; }
 .ruled .goal-row-ruled .goal-meter > .r-goal { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tx-3); }
 .ruled .task-row .goal-meter > .r-goal b { color: var(--tx-1); font-weight: var(--w-semi); }
-.ruled .r-next { font-size: calc(12.5px * var(--type-scale)); color: var(--tx-quiet); margin-top: 3px;
+.ruled .r-next { font-size: var(--t-caption); color: var(--tx-quiet); margin-top: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* THE NEXT MOVE LEADS, SO IT HAS TO READ LIKE IT (Dave 2026-09-09: the Next
    line "should either be color coded or a white/grey contrast like the lines
@@ -453,10 +453,10 @@
    then the action in full ink, the one thing on the line allowed to ellipse;
    the status chip beside it keeps its width. */
 .ruled .r-next-in { display: inline-flex; align-items: baseline; gap: 6px; flex: 1 1 auto; min-width: 0;
-  font-size: calc(13px * var(--type-scale)); }
+  font-size: var(--t-caption); }
 /* NEXT is orange (Dave 2026-09-13: "next should be yellow in my opinion or
    orange"), on a project row and on a goal row's next milestone alike. */
-.ruled .r-next-k { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled .r-next-k { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--warn); }
 .ruled .r-next-v { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   color: var(--tx-1); font-weight: var(--w-medium); }
@@ -467,7 +467,7 @@
    before it reads a single number. Sits ahead of the measure line and the
    status capsule keeps the far right, which is where status lives everywhere
    in this app. */
-.ruled .gkind { flex-shrink: 0; font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled .gkind { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 6px; border-radius: var(--r-pill);
   color: var(--h-hue); background: var(--h-tint); white-space: nowrap; }
 /* A second create row under the first is a SECOND door, not a second primary:
@@ -487,11 +487,11 @@
    own divider, so three of them read as three separate decisions rather than
    one wall. The two buttons sit on one line: the destructive-ish one (a merge
    rewrites history) is the secondary, and dismissing is the quiet tertiary. */
-.ruled .lib-dupe { padding: 10px 0; border-bottom: 1px solid var(--divider); }
+.ruled .lib-dupe { padding: 10px 0; border-bottom: 0.5px solid var(--divider); }
 .ruled .lib-dupe:last-child { border-bottom: none; padding-bottom: 0; }
 .ruled .lib-dupe .btn-row { display: flex; gap: 8px; margin-top: 8px; }
-.ruled .lib-dupe .btn-row .btn { flex: 1; margin: 0; padding: 9px 10px; font-size: calc(13px * var(--type-scale)); min-width: 0; }
-.ruled .gstat { margin-left: auto; flex-shrink: 0; font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.06em;
+.ruled .lib-dupe .btn-row .btn { flex: 1; margin: 0; padding: 9px 10px; font-size: var(--t-caption); min-width: 0; }
+.ruled .gstat { margin-left: auto; flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em;
   text-transform: uppercase; padding: 3px 7px; border-radius: var(--r-pill); white-space: nowrap; }
 .ruled .gstat-good { color: var(--good); background: var(--good-tint); }
 .ruled .gstat-warn { color: var(--warn); background: var(--warn-tint); }
@@ -520,7 +520,7 @@
 /* the dealt row's reason line keeps its place as the optional third line */
 .ruled .task-row .task-title > .eyebrow { margin-top: 3px; }
 /* The urgency chip: 10/800, 0.06em, 3x7, capsule, 16% tint. Distance words. */
-.ruled .uchip { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.06em; padding: 3px 7px;
+.ruled .uchip { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em; padding: 3px 7px;
   border-radius: var(--r-pill); flex-shrink: 0; white-space: nowrap; text-transform: uppercase; }
 .ruled .uchip.u-today { color: var(--warn); background: var(--warn-tint); }
 .ruled .uchip.u-late  { color: var(--sys-red); background: var(--red-tint); }
@@ -575,7 +575,7 @@
 .ruled .list-card-ruled > .pad-x { padding: 0; }
 .ruled .list-card-ruled > .pad-x .notice-swipe { border-radius: 0; }
 .ruled .list-card-ruled .notice-card { min-height: 56px; }
-.ruled .list-card-ruled .notice-card .notice-disc { margin: 0 7px; border-radius: 9px; }
+.ruled .list-card-ruled .notice-card .notice-disc { margin: 0 7px; border-radius: var(--r-sm); }
 .ruled .list-card-ruled .notice-card .conn-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .ruled .list-card-ruled > .pad-x + .task-swipe { position: relative; }
 .ruled .list-card-ruled > .pad-x + .task-swipe::before {
@@ -601,7 +601,7 @@
 /* Group heads: dot and caps, the same head the Goals view wears. */
 /* Group heads: dot and caps, the same head the Goals view wears. */
 .ruled .grp-head { display: flex; align-items: center; gap: 8px; padding: 18px var(--s-4) 6px;
-  font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tx-3); }
+  font-size: var(--t-caption); font-weight: var(--w-semi); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tx-3); }
 .ruled .grp-head .cat-dot { width: 8px; height: 8px; }
 .ruled .grp-head .n { font-weight: var(--w-medium); letter-spacing: 0.06em; color: var(--tx-2); }
 
@@ -637,9 +637,9 @@
 .ruled .sched-card { padding: 0; overflow: hidden; }
 .ruled .sched-card .sched-list { padding: var(--s-1) 0; }
 .ruled .sched-row { padding: 9px var(--s-4) 9px var(--s-4); gap: 11px; }
-.ruled .sched-time { width: 62px; font-size: calc(14.5px * var(--type-scale)); font-weight: 650; color: var(--tx-2); letter-spacing: -0.01em;
+.ruled .sched-time { width: 62px; font-size: var(--t-sub); font-weight: 650; color: var(--tx-2); letter-spacing: -0.01em;
   padding-top: 2px; text-align: right; }
-.ruled .sched-time .ampm { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-quiet); letter-spacing: 0.02em; margin-left: 2px; }
+.ruled .sched-time .ampm { font-size: var(--t-micro); font-weight: var(--w-semi); color: var(--tx-quiet); letter-spacing: 0.02em; margin-left: 2px; }
 /* THE RAIL SITS AFTER THE TIME GUTTER, WHATEVER LEADS THE ROW (Dave
    2026-09-16, photographed: a teal line drawn straight through "7:59 PM").
    The rail is absolutely positioned while everything else in the row is laid
@@ -661,7 +661,7 @@
 .ruled .sched-bar { width: 3px; border-radius: 2px; left: calc(var(--s-4) + var(--sched-lead, 0px) + 62px + 4px); top: 7px; bottom: 7px; }
 .ruled .sched-body { padding-left: 3px; }
 .ruled .sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: 3px; }
-.ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: calc(12.5px * var(--type-scale)); }
+.ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: var(--t-caption); }
 .ruled .sched-cat .cat-dot { width: 7px; height: 7px; }
 .ruled .sched-rep, .ruled .sched-until { white-space: nowrap; } /* an item wraps whole or not at all */
 .ruled .sched-row + .sched-row::before, .ruled .sched-swipe-wrap + .sched-swipe-wrap .sched-row::before {
@@ -690,7 +690,7 @@
 .ruled .sched-gap { background: transparent; margin: 6px var(--s-4); padding: 8px var(--s-3); gap: 11px; }
 .ruled .sched-gap .sched-time { width: 62px; }
 .ruled .sched-gap .sched-gap-title { font-size: calc(14px * var(--type-scale)); }
-.ruled .sched-gap-win { font-size: calc(12.5px * var(--type-scale)); }
+.ruled .sched-gap-win { font-size: var(--t-caption); }
 /* The count line: numbers bold in --tx-1, the words quiet (contract: inline
    number emphasis). */
 .ruled .count-line { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
@@ -751,11 +751,11 @@
    takes the ramp's lime, which is the hue Fitness gives to exercise, and the
    card behind it gets a lime rim and a lime bloom so the section that IS the
    page reads as lit rather than as another grey slab. */
-.ruled .h-hero-ico { width: 40px; height: 40px; border-radius: 12px; background: var(--hl-lime-tint); color: var(--hl-lime);
+.ruled .h-hero-ico { width: 40px; height: 40px; border-radius: var(--r-md); background: var(--hl-lime-tint); color: var(--hl-lime);
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .ruled .h-hero-ico .ic { width: 22px; height: 22px; }
 .ruled .h-hero-b { flex: 1; min-width: 0; }
-.ruled .h-hero-t { font-size: calc(19px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .h-hero-t { font-size: var(--t-h2); font-weight: var(--w-semi); letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .h-hero-s { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* PICK THE SESSION, DO NOT BE HANDED ONE (Dave 2026-09-10: the hero "should
    encourage the user to select a workout for the day or begin one from
@@ -774,7 +774,7 @@
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent); }
 .ruled .h-pick::-webkit-scrollbar { display: none; }
-.ruled .h-pick-c { flex-shrink: 0; font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-medium); color: var(--tx-2);
+.ruled .h-pick-c { flex-shrink: 0; font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--tx-2);
   background: var(--press-3); border: none; border-radius: var(--r-pill); padding: 7px 12px; white-space: nowrap;
   max-width: 46vw; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .ruled .h-pick-c:active { opacity: 0.6; }
@@ -804,18 +804,18 @@
    offer. */
 .ruled .ins-card { padding: 14px 16px 12px; }
 .ruled .ins-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.ruled .ins-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+.ruled .ins-dot { width: 9px; height: 9px; border-radius: var(--r-circle); flex-shrink: 0;
   background: var(--h-hue); box-shadow: 0 0 7px var(--h-tint); }
 .ruled .ins-t { flex: 1; min-width: 0; font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
   color: var(--tx-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ruled .ins-chip { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled .ins-chip { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: var(--r-pill);
   color: var(--h-hue); background: var(--h-tint); white-space: nowrap; }
 /* Two numbers, side by side, so the comparison is the layout. */
 .ruled .ins-pair { display: flex; gap: 10px; margin-top: 12px; }
 .ruled .ins-cell { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
-  padding: 9px 11px; border-radius: 12px; background: var(--press-3); }
-.ruled .ins-k { font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.08em;
+  padding: 9px 11px; border-radius: var(--r-md); background: var(--press-3); }
+.ruled .ins-k { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--tx-3); }
 .ruled .ins-v { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums; color: var(--tx-1); }
@@ -830,7 +830,7 @@
 .ruled .ins-acts .see-all { min-height: var(--tap-min); display: inline-flex; align-items: center;
   margin-block: -13px; padding: 0; }
 .ruled .ins-ev { margin-top: 8px; }
-.ruled .ins-sub { font-size: calc(11.5px * var(--type-scale)); color: var(--tx-2); }
+.ruled .ins-sub { font-size: var(--t-micro); color: var(--tx-2); }
 /* What changed: label left, the move right, in one aligned column. */
 .ruled .ins-rows { margin-top: 10px; }
 /* The set table inside an All Data row. The disclosure keeps its 44px
@@ -845,33 +845,33 @@
 .ruled .ins-row + .ins-row { border-top: 0.5px solid var(--divider); }
 .ruled .ins-row .ins-k { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .ins-move { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0;
-  font-size: calc(13px * var(--type-scale)); color: var(--tx-3); font-variant-numeric: tabular-nums; }
+  font-size: var(--t-caption); color: var(--tx-3); font-variant-numeric: tabular-nums; }
 .ruled .ins-move b { font-weight: var(--w-semi); color: var(--tx-2); }
 .ruled .ins-arrow { width: 14px; height: 1.5px; background: var(--tx-4); position: relative; display: inline-block; }
 .ruled .ins-arrow::after { content: ""; position: absolute; right: 0; top: -2.5px; width: 6px; height: 6px;
   border-top: 1.5px solid var(--tx-4); border-right: 1.5px solid var(--tx-4); transform: rotate(45deg); }
-.ruled .ins-line { margin-top: 8px; font-size: calc(13.5px * var(--type-scale)); color: var(--tx-2); }
+.ruled .ins-line { margin-top: 8px; font-size: var(--t-caption); color: var(--tx-2); }
 /* The source and the caveat: shaded, italic, and last. Present, never loud. */
-.ruled .ins-cite { margin-top: 10px; font-size: calc(11.5px * var(--type-scale)); font-style: italic;
+.ruled .ins-cite { margin-top: 10px; font-size: var(--t-micro); font-style: italic;
   color: var(--tx-quiet); }
 .ruled .vol-card { padding: 14px 16px 6px; }
 .ruled .vol-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
 .ruled .ins-card .vol-row:first-of-type { margin-top: 8px; }
-.ruled .vol-name { width: 33%; flex-shrink: 0; font-size: calc(13px * var(--type-scale)); color: var(--tx-2);
+.ruled .vol-name { width: 33%; flex-shrink: 0; font-size: var(--t-caption); color: var(--tx-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ruled .vol-track { position: relative; flex: 1; min-width: 0; height: 6px; border-radius: 3px; background: var(--press-3); }
-.ruled .vol-band { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--hl-lime-tint); }
-.ruled .vol-dot { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; }
+.ruled .vol-track { position: relative; flex: 1; min-width: 0; height: 6px; border-radius: var(--r-xs); background: var(--press-3); }
+.ruled .vol-band { position: absolute; top: 0; bottom: 0; border-radius: var(--r-xs); background: var(--hl-lime-tint); }
+.ruled .vol-dot { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: var(--r-circle); }
 .ruled .vol-dot.vol-in { background: var(--hl-lime); box-shadow: 0 0 6px var(--hl-lime-tint); }
 .ruled .vol-dot.vol-under, .ruled .vol-dot.vol-over { background: var(--warn); }
-.ruled .vol-n { width: 26px; flex-shrink: 0; text-align: right; font-size: calc(13px * var(--type-scale));
+.ruled .vol-n { width: 26px; flex-shrink: 0; text-align: right; font-size: var(--t-caption);
   font-weight: var(--w-semi); font-variant-numeric: tabular-nums; }
 .ruled .vol-n.vol-in { color: var(--hl-lime); }
 .ruled .vol-n.vol-under, .ruled .vol-n.vol-over { color: var(--warn); }
 .ruled .h-week { display: flex; justify-content: space-between; padding: 2px 18px 14px; }
-.ruled .h-day { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled .h-day { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.06em; color: var(--tx-2); }
-.ruled .h-day i { width: 10px; height: 10px; border-radius: 50%; background: var(--press-3); display: block; }
+.ruled .h-day i { width: 10px; height: 10px; border-radius: var(--r-circle); background: var(--press-3); display: block; }
 /* A trained day is lime and TODAY is a cyan ring; neither glows (Health R5,
    2026-09-12). The 8px bloom went with the hero's. */
 .ruled .h-day.on i { background: var(--hl-lime); }
@@ -879,7 +879,7 @@
 .ruled .h-day.today.on i { box-shadow: 0 0 0 2px var(--hl-cyan); }
 .ruled .h-day.today { color: var(--tx-1); }
 .ruled .h-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.ruled .h-tile { position: relative; overflow: hidden; border-radius: 14px; padding: 12px 13px 11px; cursor: pointer;
+.ruled .h-tile { position: relative; overflow: hidden; border-radius: var(--r-md); padding: 12px 13px 11px; cursor: pointer;
   background: var(--glass-bg, var(--surface-1)); box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0,0,0,0.55);
   -webkit-backdrop-filter: blur(40px) saturate(1.8); backdrop-filter: blur(40px) saturate(1.8); }
 [data-theme="light"] .ruled .h-tile { background: var(--surface-1); box-shadow: var(--shadow-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -889,7 +889,7 @@
    and 10.5/26 is a dashboard's proportion, not a fitness app's. The token
    scale is untouched -- these are the two values the approved harness draws
    and nothing else moves with them. */
-.ruled .ht-w { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3);
+.ruled .ht-w { font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .ht-n { font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.03em; line-height: 1.05; margin-top: 4px;
   font-variant-numeric: tabular-nums; display: flex; gap: 6px; align-items: baseline; }
@@ -898,7 +898,7 @@
    the quiet grey and shrinks back to label size (R2 names it the one --tx-4
    survivor in Health). */
 .ruled .ht-none { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); }
-.ruled .ht-m { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); margin-top: 3px; }
+.ruled .ht-m { font-size: var(--t-caption); color: var(--tx-2); margin-top: 3px; }
 .ruled .ht-spark { position: absolute; right: 10px; bottom: 10px; width: 64px; height: 22px; color: var(--hl-blue); }
 
 /* ---------- THE LOG GRID'S HUES: BY MEANING (Health R4 / H-04, Dave's picks
@@ -966,25 +966,25 @@
 .ruled .wk-row:active { background: var(--press-3); }
 .ruled .wk-row.past { opacity: 0.62; }
 .ruled .wk-d { width: 34px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.ruled .wk-w { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.08em; color: var(--tx-quiet); text-transform: uppercase; }
-.ruled .wk-n { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+.ruled .wk-w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.08em; color: var(--tx-quiet); text-transform: uppercase; }
+.ruled .wk-n { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); width: 28px; height: 28px; border-radius: var(--r-circle); display: grid; place-items: center;
   font-variant-numeric: tabular-nums; color: var(--tx-1); }
 .ruled .wk-row.today .wk-n { background: var(--tx-1); color: var(--bg, #000); }
 .ruled .wk-b { flex: 1; min-width: 0; }
-.ruled .wk-bar { position: relative; height: 10px; border-radius: 5px; background: var(--press-3); overflow: hidden; }
-.ruled .wk-seg { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.ruled .wk-bar { position: relative; height: 10px; border-radius: var(--r-xs); background: var(--press-3); overflow: hidden; }
+.ruled .wk-seg { position: absolute; top: 0; bottom: 0; border-radius: var(--r-xs); }
 .ruled .wk-seg.hollow { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; opacity: 0.9; }
 .ruled .wk-now { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--tx-1); border-radius: 1px; }
-.ruled .wk-open { font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 52px; text-align: right; }
+.ruled .wk-open { font-size: var(--t-caption); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 52px; text-align: right; }
 .ruled .wk-open b { color: var(--tx-1); font-weight: var(--w-semi); }
 .ruled .wk-open.wk-full { color: var(--warn); font-weight: var(--w-semi); }
 /* The clock the bars are drawn on, and the one line of advice under it. */
 .ruled .wk-ticks { position: relative; height: 16px; margin: 6px calc(var(--s-4) + 64px) 0 calc(var(--s-4) + 46px);
-  font-size: calc(9.5px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.06em; color: var(--tx-quiet); text-transform: uppercase; }
+  font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em; color: var(--tx-quiet); text-transform: uppercase; }
 .ruled .wk-ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
 .ruled .wk-ticks span.first { transform: none; }
 .ruled .wk-ticks span.last { transform: translateX(-100%); }
-.ruled .wk-note { padding: 10px var(--s-4) 0; font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); }
+.ruled .wk-note { padding: 10px var(--s-4) 0; font-size: var(--t-caption); color: var(--tx-3); }
 .ruled .wk-note b { color: var(--tx-1); font-weight: var(--w-semi); }
 
 
@@ -996,7 +996,7 @@
    in the head-action pill. The caps count eyebrow, the circular steppers
    and the floating button row are all gone. --------------------------- */
 .ruled .sc-head { display: flex; align-items: center; gap: 10px; padding: var(--s-4) var(--s-4) 0; }
-.ruled .sc-date { font-size: calc(22px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.1; }
+.ruled .sc-date { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.1; }
 .ruled .sc-date .yr { color: var(--tx-3); font-weight: var(--w-semi); margin-left: 7px; }
 .ruled .sc-sp { flex: 1; }
 /* BROWSER-F-08 (2026-09-05): 2px of gap between two 34px arrows meant the
@@ -1024,7 +1024,7 @@
    here with a tail worth losing, so it takes all of the shortfall and says so
    with an ellipsis instead of spilling. */
 .ruled .sc-dayhead .t { flex-shrink: 0; }
-.ruled .sc-dayhead .sc-fact { font-weight: var(--w-regular); font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); min-width: 0;
+.ruled .sc-dayhead .sc-fact { font-weight: var(--w-regular); font-size: var(--t-caption); color: var(--tx-3); min-width: 0;
   white-space: nowrap; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
 .ruled .sc-fact b { color: var(--tx-2); font-weight: var(--w-semi); }
 .ruled .sc-fact .sched-sep { margin: 0 5px; opacity: 0.55; }
@@ -1033,7 +1033,7 @@
    you folds to one line, and the day starts at Now"). The day used to open
    on a dashed box offering to fill an hour that ended before breakfast. */
 .ruled .sched-earlier { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 44px;
-  padding: 0 var(--s-4); background: none; border: 0; font-family: var(--f); font-size: calc(13px * var(--type-scale));
+  padding: 0 var(--s-4); background: none; border: 0; font-family: var(--f); font-size: var(--t-caption);
   color: var(--tx-3); text-align: left; }
 .ruled .sched-earlier .n { color: var(--tx-2); }
 .ruled .sched-earlier .chev { margin-left: auto; }
@@ -1042,14 +1042,14 @@
    is a fact about the minute rather than an action, so it is a hairline and
    a word, never a fill. */
 .ruled .sched-now { display: flex; align-items: center; gap: 9px; padding: 9px var(--s-4) 7px; }
-.ruled .sched-now .w { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.1em;
+.ruled .sched-now .w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--sys-red); flex-shrink: 0; }
 .ruled .sched-now .l { flex: 1; height: 1px; background: var(--sys-red); opacity: 0.4; }
 .ruled .sched-now .t { font-size: calc(11px * var(--type-scale)); color: var(--tx-quiet); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 /* Running Late? rides the rule it is about. Neutral capsule: the rule's own
    red is the signal, and two reds on one line is the thing being fixed. */
 .ruled .sched-late { flex-shrink: 0; background: var(--press-3); color: var(--tx-1); border: 0;
-  border-radius: var(--r-pill); font-family: var(--f); font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi);
+  border-radius: var(--r-pill); font-family: var(--f); font-size: var(--t-caption); font-weight: var(--w-semi);
   padding: var(--s-1) var(--s-2h); position: relative; }
 .ruled .sched-late::after { content: ""; position: absolute; inset: -9px -4px; }
 .ruled .sched-late.on { background: var(--press-5); }
@@ -1071,11 +1071,11 @@
 .ruled .money-hero-card > .money-hero + .task-row { position: relative; border-top: 0; }
 .ruled .money-hero-card > .money-hero + .task-row::before { content: ""; position: absolute; left: var(--s-4); right: 0; top: 0;
   height: 0.5px; background: var(--divider); pointer-events: none; }
-.ruled .money-hero-label { font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); font-weight: var(--w-regular); }
+.ruled .money-hero-label { font-size: var(--t-caption); color: var(--tx-3); font-weight: var(--w-regular); }
 .ruled .money-hero-total { font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.1;
   font-variant-numeric: tabular-nums; margin: 2px 0 4px; }
 .ruled .money-hero-total + .money-hero-label { margin: 0; }
-.ruled .money-line { padding: 0 var(--s-4) var(--s-2); font-size: calc(13px * var(--type-scale)); color: var(--tx-3); }
+.ruled .money-line { padding: 0 var(--s-4) var(--s-2); font-size: var(--t-caption); color: var(--tx-3); }
 .ruled .money-line b { color: var(--tx-1); font-weight: var(--w-semi); font-variant-numeric: tabular-nums; }
 .ruled .task-row .money-amt { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-regular); color: var(--tx-2); flex-shrink: 0;
   font-variant-numeric: tabular-nums; }
@@ -1137,7 +1137,7 @@
 /* The week's count on a project row: done is good, not urgent. */
 .ruled .uchip.u-done { color: var(--good); background: var(--good-tint); }
 /* A person's row: the avatar takes the check column at the row's size. */
-.ruled .person-row-ruled .task-check-tap .av { width: 30px; height: 30px; font-size: calc(12px * var(--type-scale)); }
+.ruled .person-row-ruled .task-check-tap .av { width: 30px; height: 30px; font-size: var(--t-caption); }
 /* A nudge on Notifications (2026-09-02): the type glyph in the check column. */
 .ruled .notif-row .task-check-tap .row-glyph { width: auto; height: auto; }
 .ruled .notif-row .task-check-tap .row-glyph .ic { width: 22px; height: 22px; }
@@ -1162,13 +1162,13 @@
   font-family: var(--f); font-size: calc(16px * var(--type-scale)); color: var(--tx-2); text-align: right; }
 .ruled .set-field::placeholder { color: var(--tx-2); }
 .ruled .set-gap { margin-top: var(--s-5); }
-.ruled .set-foot { padding-top: var(--s-2); font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); line-height: 1.45; }
+.ruled .set-foot { padding-top: var(--s-2); font-size: var(--t-caption); color: var(--tx-3); line-height: 1.45; }
 .ruled .set-card > .set-act .conn-name { color: var(--tint); }
 .ruled .set-card > .set-quiet .conn-name { color: var(--tx-3); }
 .ruled .set-card > .set-sub .conn-name { font-size: calc(14px * var(--type-scale)); color: var(--tx-3); }
 .ruled .set-card > .row-act { margin: var(--s-1) auto; }
 .ruled .set-card > .row-act:disabled { opacity: 0.4; }
-.ruled .row-act-pill { font-size: calc(13px * var(--type-scale)); }
+.ruled .row-act-pill { font-size: var(--t-caption); }
 .ruled .legal-card { padding: var(--s-2) var(--s-4); }
 .ruled .legal-card .legal-body { padding-bottom: var(--s-2); }
 .ruled .set-card.about-hero, .ruled .set-card.account-hero { padding: var(--s-6) var(--s-4); }
@@ -1216,7 +1216,7 @@
 /* Chat (2026-09-02): the Try head is the quiet caps head; the provenance
    line under a bubble is the ruled row's quiet grey, not a caps eyebrow. */
 .ruled.chat-ruled .chat-starter-head { padding-left: 0; padding-right: 0; }
-.ruled.chat-ruled .chat-prov { text-transform: none; letter-spacing: 0; font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-regular); color: var(--tx-3); }
+.ruled.chat-ruled .chat-prov { text-transform: none; letter-spacing: 0; font-size: var(--t-caption); font-weight: var(--w-regular); color: var(--tx-3); }
 .ruled.chat-ruled .chat-jarvis { background: var(--press-3); }
 /* Search (2026-09-02): every result list is a card, every head the quiet
    caps head, same as the screens the results open. */
@@ -1381,7 +1381,7 @@
 .ruled .rdy-why { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); line-height: 1.45; margin-top: 3px; }
 .ruled .rdy-why b { font-weight: var(--w-medium); color: var(--tx-2); }
 .ruled .rdy-n { flex-shrink: 0; align-self: flex-start; margin-top: 1px;
-  font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-medium);
+  font-size: var(--t-caption); font-weight: var(--w-medium);
   color: var(--tx-3); font-variant-numeric: tabular-nums; text-align: right; }
 /* The have, against the gate behind it. Quiet ink is the resting state: a
    detector that is simply waiting is not a warning. */
@@ -1491,10 +1491,10 @@
    the Last chip lost its gap and the plates ran together. Every rule a set
    row needs now also names the sheet card. Same tokens, same sizes. */
 .ruled.health-ruled .se-chip, .sheet-scrim > .card .se-chip { display: inline-flex; align-items: baseline; gap: 5px; flex-shrink: 0;
-  font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi); font-variant-numeric: tabular-nums;
+  font-size: var(--t-caption); font-weight: var(--w-semi); font-variant-numeric: tabular-nums;
   padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap;
   color: var(--hl-cyan); background: var(--hl-cyan-tint); }
-.ruled.health-ruled .se-chip em, .sheet-scrim > .card .se-chip em { font-style: normal; font-size: calc(9.5px * var(--type-scale));
+.ruled.health-ruled .se-chip em, .sheet-scrim > .card .se-chip em { font-style: normal; font-size: var(--t-micro);
   font-weight: var(--w-bold); letter-spacing: 0.07em; text-transform: uppercase; color: var(--tx-2); }
 .ruled.health-ruled .se-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 /* On the hero the chips sit under a 19px title, so they take a tighter top. */
@@ -1551,22 +1551,22 @@
    read in a glance and a caps sentence is not. */
 .ruled.health-ruled .se-prog { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ruled.health-ruled .se-dots { display: inline-flex; align-items: center; gap: 5px; }
-.ruled.health-ruled .se-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--press-3); display: block; }
+.ruled.health-ruled .se-dot { width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--press-3); display: block; }
 .ruled.health-ruled .se-dot.done { background: var(--hl-lime); }
 .ruled.health-ruled .se-dot.skip { background: var(--hl-amber); }
 /* The ring around NOW stays; the 8px bloom behind it does not (R5). */
 .ruled.health-ruled .se-dot.on { background: var(--hl-cyan); box-shadow: 0 0 0 2px var(--hl-cyan-tint); }
-.ruled.health-ruled .se-count { font-size: calc(12px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled.health-ruled .se-count { font-size: var(--t-caption); font-weight: var(--w-bold);
   color: var(--hl-cyan); font-variant-numeric: tabular-nums; }
 .ruled.health-ruled .se-count em { font-style: normal; color: var(--tx-3); font-weight: var(--w-medium); }
 
 /* NOW is a position, so it is lit rather than subdued. */
-.ruled.health-ruled .se-now { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled.health-ruled .se-now { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.07em; text-transform: uppercase; padding: 4px 9px; border-radius: var(--r-pill);
   color: var(--on-fill-dark); background: var(--hl-cyan); }
 
 /* The set kicker. SET 1 was the same grey as everything under it. */
-.ruled.health-ruled .se-kick, .sheet-scrim > .card .se-kick { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled.health-ruled .se-kick, .sheet-scrim > .card .se-kick { font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--hl-cyan); margin-bottom: 2px;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* TWO LINES, NOT THREE (Dave's row rule, and his 2026-09-14 screenshot: Set 1
@@ -1610,7 +1610,7 @@
    the reading's hue -- it is the label that tells the two numbers apart. Same
    treatment the day row's chip label already used: small, bold, uppercase,
    the quiet ink, so the numbers either side of it carry the line. */
-.ruled.health-ruled .fact em.fw { font-style: normal; font-size: calc(10.5px * var(--type-scale));
+.ruled.health-ruled .fact em.fw { font-style: normal; font-size: var(--t-micro);
   font-weight: var(--w-bold); letter-spacing: 0.07em; text-transform: uppercase;
   color: var(--tx-3); margin: 0 5px; }
 
@@ -1701,21 +1701,21 @@
 .ruled.health-ruled .logbar .btn.btn-launch:not(:only-child) { flex: 1.35 1 0; }
 /* The PR mark, the loudest good thing a session can say. Lime fill, no bloom
    behind it (R5): the hue is already the loudest thing on the screen. */
-.ruled.health-ruled .se-pr { flex-shrink: 0; font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled.health-ruled .se-pr { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.07em; text-transform: uppercase; padding: 4px 9px; border-radius: var(--r-pill);
   color: var(--on-fill-dark); background: var(--hl-lime); }
 
 /* The plates, as plates. */
 .ruled.health-ruled .se-plates, .sheet-scrim > .card .se-plates { display: flex; flex-wrap: wrap; gap: 6px; }
-.ruled.health-ruled .se-plate, .sheet-scrim > .card .se-plate { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled.health-ruled .se-plate, .sheet-scrim > .card .se-plate { font-size: var(--t-caption); font-weight: var(--w-bold);
   font-variant-numeric: tabular-nums; color: var(--hl-amber); background: var(--hl-amber-tint);
   padding: 3px 10px; border-radius: var(--r-pill); }
-.ruled.health-ruled .se-plate-k, .sheet-scrim > .card .se-plate-k { font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled.health-ruled .se-plate-k, .sheet-scrim > .card .se-plate-k { font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-2); margin-top: 5px; }
 
 /* An exercise note is the athlete's own words, so it is italic and shaded
    rather than another grey fact line. */
-.ruled.health-ruled .se-note { font-size: calc(13px * var(--type-scale)); font-style: italic;
+.ruled.health-ruled .se-note { font-size: var(--t-caption); font-style: italic;
   color: var(--tx-quiet); margin-top: 8px; }
 
 /* HOW IT MOVED: three meanings, three colours, at rest AND when picked. A
@@ -1723,7 +1723,7 @@
    before anything is chosen. */
 .ruled.health-ruled .chip.mv { position: relative; padding-left: 26px; }
 .ruled.health-ruled .chip.mv::before { content: ""; position: absolute; left: 11px; top: 50%; margin-top: -3.5px;
-  width: 7px; height: 7px; border-radius: 50%; background: var(--mv-hue); }
+  width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--mv-hue); }
 .ruled.health-ruled .chip.mv.mv-clean { --mv-hue: var(--hl-lime); }
 .ruled.health-ruled .chip.mv.mv-grind { --mv-hue: var(--hl-amber); }
 .ruled.health-ruled .chip.mv.mv-missed { --mv-hue: var(--hl-pink); }
@@ -1777,17 +1777,17 @@
 .ruled.health-ruled .h-tile[data-hue] { background-image: none; box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0,0,0,0.55); }
 [data-theme="light"] .ruled.health-ruled .h-tile[data-hue] { box-shadow: var(--shadow-card); }
 .ruled.health-ruled .ht-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.ruled.health-ruled .ht-ico { width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+.ruled.health-ruled .ht-ico { width: 28px; height: 28px; border-radius: var(--r-sm); flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: var(--h-tint); color: var(--h-hue); }
 .ruled.health-ruled .ht-ico .ic { width: 16px; height: 16px; }
 .ruled.health-ruled .h-tile .ht-w, .ruled.health-ruled .h-tile[data-hue] .ht-w { flex: 1; min-width: 0; font-size: calc(15px * var(--type-scale));
   font-weight: var(--w-semi); letter-spacing: -0.01em; text-transform: none; color: var(--tx-1); }
-.ruled.health-ruled .ht-plus { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+.ruled.health-ruled .ht-plus { width: 26px; height: 26px; border-radius: var(--r-circle); flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: var(--h-hue); color: var(--on-fill-dark); }
 .ruled.health-ruled .ht-plus .ic { width: 15px; height: 15px; stroke-width: 2.6; }
-.ruled.health-ruled .h-tile .ht-n { margin-top: 12px; font-size: calc(30px * var(--type-scale)); }
+.ruled.health-ruled .h-tile .ht-n { margin-top: 12px; font-size: var(--t-title); }
 .ruled.health-ruled .h-tile[data-hue] .ht-none { color: var(--h-hue); font-size: calc(17px * var(--type-scale)); }
-.ruled.health-ruled .h-tile .ht-m { margin-top: 2px; font-size: calc(13px * var(--type-scale)); color: var(--tx-2); }
+.ruled.health-ruled .h-tile .ht-m { margin-top: 2px; font-size: var(--t-caption); color: var(--tx-2); }
 /* Add a Metric is a door, not a reading: a dashed edge and the app's verb red. */
 .ruled.health-ruled .h-tile-add { background: transparent; box-shadow: none; border: 1.5px dashed var(--tx-4);
   -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -1812,7 +1812,7 @@
 .ruled.health-ruled .h-tiles-c .h-tile { min-height: 0; padding: 9px 10px 9px 11px; border-radius: 13px;
   display: flex; align-items: center; gap: 9px; }
 .ruled.health-ruled .h-tiles-c .ht-top { flex: 1; min-width: 0; gap: 8px; }
-.ruled.health-ruled .h-tiles-c .ht-ico { width: 24px; height: 24px; border-radius: 7px; }
+.ruled.health-ruled .h-tiles-c .ht-ico { width: 24px; height: 24px; border-radius: var(--r-sm); }
 .ruled.health-ruled .h-tiles-c .ht-ico .ic { width: 14px; height: 14px; }
 .ruled.health-ruled .h-tiles-c .h-tile .ht-w,
 .ruled.health-ruled .h-tiles-c .h-tile[data-hue] .ht-w { font-size: calc(14px * var(--type-scale));
@@ -1841,7 +1841,7 @@
 .ruled.health-ruled .h-hero-facts { margin-top: 3px; }
 .ruled.health-ruled .h-pick-wrap { padding: 0 16px 14px; gap: 8px; }
 .ruled.health-ruled .h-pick { gap: 8px; }
-.ruled.health-ruled .h-pick-c { min-height: 34px; padding: 0 14px; font-size: calc(13.5px * var(--type-scale)); font-weight: var(--w-semi);
+.ruled.health-ruled .h-pick-c { min-height: 34px; padding: 0 14px; font-size: var(--t-caption); font-weight: var(--w-semi);
   color: var(--tx-1); background: transparent; box-shadow: inset 0 0 0 1px var(--tx-4); }
 .ruled.health-ruled .h-pick-c.h-pick-new { display: inline-flex; align-items: center; gap: 5px; color: var(--tx-1);
   background: var(--press-3); box-shadow: none; }
@@ -1856,7 +1856,7 @@
 /* A DOOR SAYS ONE THING, IN ITS HUE. */
 .ruled.health-ruled .h-door-v { flex-shrink: 0; margin-right: 6px; font-size: calc(14px * var(--type-scale));
   font-weight: var(--w-semi); color: var(--hl-blue); }
-.ruled.health-ruled .h-when { flex-shrink: 0; margin-left: 8px; font-size: calc(13px * var(--type-scale));
+.ruled.health-ruled .h-when { flex-shrink: 0; margin-left: 8px; font-size: var(--t-caption);
   font-weight: var(--w-semi); color: var(--tx-2); font-variant-numeric: tabular-nums; }
 
 /* A FINDING'S KIND IS A WORD, NOT A PILL, and nothing glows (R5). */
@@ -1872,16 +1872,16 @@
 .ruled.health-ruled .h-adds { display: flex; flex-wrap: nowrap; justify-content: center; gap: 8px; margin-top: var(--s-6); margin-bottom: var(--s-4); }
 .ruled.health-ruled .h-add { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; padding: 0 14px; white-space: nowrap;
   border: 0; border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); font-family: var(--f);
-  font-size: calc(13.5px * var(--type-scale)); font-weight: var(--w-semi); cursor: pointer; }
+  font-size: var(--t-caption); font-weight: var(--w-semi); cursor: pointer; }
 .ruled.health-ruled .h-add .ic { width: 14px; height: 14px; color: var(--tint); stroke-width: 2.6; }
 /* THE LOG (H-48, Health Push C, 2026-09-12): today's entries, the glyph in
    the entry's hue on its tint, the time in the same hue, one fact beside it. */
 .ruled.health-ruled .h-log-row { gap: 10px; }
-.ruled.health-ruled .h-log-ico { width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+.ruled.health-ruled .h-log-ico { width: 28px; height: 28px; border-radius: var(--r-sm); flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: var(--h-tint); color: var(--h-hue); }
 .ruled.health-ruled .h-log-ico .ic { width: 15px; height: 15px; }
 /* One quiet receipt under the log (H-53): what is still waiting to sync. */
-.ruled.health-ruled .h-sync { margin-top: var(--s-2); font-size: calc(13px * var(--type-scale)); color: var(--tx-2); }
+.ruled.health-ruled .h-sync { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--tx-2); }
 
 /* HEALTH PUSH D (2026-09-12 picks; built 2026-09-13). The Refill Runway's two
    tiles wear medication blue, which is what blue means in Health; the effort
@@ -1889,7 +1889,7 @@
    under them sits at the right, a way out and not the move. */
 .ruled.health-ruled .stat-row.stat-hblue .stat-tile .stat-num { color: var(--hl-blue); }
 .ruled.health-ruled .rpe-ends { display: flex; justify-content: space-between; margin-top: 6px;
-  font-size: calc(12px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); }
+  font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2); }
 .ruled.health-ruled .rpe-foot { display: flex; justify-content: flex-end; margin-top: 10px; }
 
 /* THE VERDICT IS A CHIP, THE EVIDENCE IS A LINE (Dave 2026-09-11: "Keep
@@ -1908,7 +1908,7 @@
    nothing: not the amber to its left, not the red of First Step to its right,
    not the green of a good status. The ramp ships AA-safe values for both
    themes, so this needs no colour of its own. */
-.ruled .slide-tag { flex-shrink: 0; font-size: calc(10px * var(--type-scale)); font-weight: var(--w-bold);
+.ruled .slide-tag { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.07em; text-transform: uppercase; padding: 2px 7px; border-radius: var(--r-pill);
   color: var(--hl-violet); background: var(--hl-violet-tint); white-space: nowrap; }
 
@@ -1928,8 +1928,8 @@
 .ruled.health-ruled .h-week-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 16px 6px; }
 .ruled.health-ruled .h-week-n { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
 /* The dated circle: the day of the month, or a check on a trained day. */
-.ruled.health-ruled .h-week.h-week-dates .h-day i { width: 28px; height: 28px; border-radius: 50%; display: inline-flex;
-  align-items: center; justify-content: center; font-style: normal; font-size: calc(12px * var(--type-scale));
+.ruled.health-ruled .h-week.h-week-dates .h-day i { width: 28px; height: 28px; border-radius: var(--r-circle); display: inline-flex;
+  align-items: center; justify-content: center; font-style: normal; font-size: var(--t-caption);
   font-weight: var(--w-semi); letter-spacing: 0; color: var(--tx-2); background: var(--press-3); }
 .ruled.health-ruled .h-week.h-week-dates .h-day.on i { background: var(--hl-lime); color: var(--on-fill-dark); }
 .ruled.health-ruled .h-week.h-week-dates .h-day i .ic { width: 14px; height: 14px; stroke-width: 3; }
@@ -1937,7 +1937,7 @@
 /* 2026-09-14: a stat tile that can be tapped is a button and says so; only
    the ones with nowhere to go keep the default cursor. */
 .ruled.health-ruled .h-tile-stat.h-tile-inert { cursor: default; }
-.ruled.health-ruled .h-timeline-date { font-size: calc(13px * var(--type-scale)); color: var(--tx-2); padding: 0 0 8px; }
+.ruled.health-ruled .h-timeline-date { font-size: var(--t-caption); color: var(--tx-2); padding: 0 0 8px; }
 .ruled.health-ruled .h-next { color: var(--tx-1); font-weight: var(--w-semi); }
 .ruled.health-ruled .h-tab-foot { display: flex; flex-direction: column; gap: 4px; margin-top: var(--s-4); }
 
@@ -1946,12 +1946,12 @@
    the header facts. Same fields, same ramp, same tokens. */
 .ruled.health-ruled .se-grid { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
 .ruled.health-ruled .se-grid .set-field { width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
-.ruled.health-ruled .se-grid-u { font-size: calc(12px * var(--type-scale)); color: var(--tx-3); }
-.ruled.health-ruled .se-tick { margin-left: auto; width: 36px; height: 36px; border-radius: 50%; border: 0; flex-shrink: 0;
+.ruled.health-ruled .se-grid-u { font-size: var(--t-caption); color: var(--tx-3); }
+.ruled.health-ruled .se-tick { margin-left: auto; width: 36px; height: 36px; border-radius: var(--r-circle); border: 0; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: var(--hl-lime); color: var(--on-fill-dark); cursor: pointer; }
 .ruled.health-ruled .se-tick .ic { width: 18px; height: 18px; stroke-width: 2.6; }
-.ruled.health-ruled .se-meter { height: 4px; border-radius: 999px; background: var(--press-3); overflow: hidden; margin: 8px 0 2px; }
-.ruled.health-ruled .se-meter span { display: block; height: 100%; border-radius: 999px; background: var(--hl-lime); }
+.ruled.health-ruled .se-meter { height: 4px; border-radius: var(--r-pill); background: var(--press-3); overflow: hidden; margin: 8px 0 2px; }
+.ruled.health-ruled .se-meter span { display: block; height: 100%; border-radius: var(--r-pill); background: var(--hl-lime); }
 
 /* ---------- THE HEALTH LANDING PAGE, TO THE APPROVED DESIGN (2026-09-14) ---
    The week as one card: the range, the count at 44px in lime, seven bars on
@@ -1968,22 +1968,22 @@
 .ruled.health-ruled .h-week-count span { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
 .ruled.health-ruled .h-bars { flex: 1; display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; min-width: 0; }
 .ruled.health-ruled .h-bar { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px;
-  background: none; border: 0; padding: 0; font-family: var(--f); font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold);
+  background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.04em; color: var(--tx-2); cursor: pointer; }
-.ruled.health-ruled .h-bar i { display: block; width: 10px; height: 8px; border-radius: 5px; background: var(--press-3); }
+.ruled.health-ruled .h-bar i { display: block; width: 10px; height: 8px; border-radius: var(--r-xs); background: var(--press-3); }
 .ruled.health-ruled .h-bar.on i { background: var(--hl-lime); }
 .ruled.health-ruled .h-bar.today { color: var(--tx-1); }
 .ruled.health-ruled .h-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 14px; }
-.ruled.health-ruled .h-stat { background: none; border: 0; border-left: 1px solid var(--divider); padding: 2px 10px; text-align: left;
+.ruled.health-ruled .h-stat { background: none; border: 0; border-left: 0.5px solid var(--divider); padding: 2px 10px; text-align: left;
   font-family: var(--f); color: var(--tx-1); cursor: pointer; min-width: 0; }
 .ruled.health-ruled .h-stat:first-child { border-left: 0; padding-left: 0; }
-.ruled.health-ruled .h-stat b { display: block; font-size: calc(19px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em;
+.ruled.health-ruled .h-stat b { display: block; font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ruled.health-ruled .h-stat b small { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-semi); }
+.ruled.health-ruled .h-stat b small { font-size: var(--t-caption); font-weight: var(--w-semi); }
 .ruled.health-ruled .h-stat.lime b { color: var(--hl-lime); }
 .ruled.health-ruled .h-stat.amber b { color: var(--hl-amber); }
 .ruled.health-ruled .h-stat.violet b { color: var(--hl-violet); }
-.ruled.health-ruled .h-stat span { display: block; font-size: calc(12.5px * var(--type-scale)); color: var(--tx-2); margin-top: 2px; }
+.ruled.health-ruled .h-stat span { display: block; font-size: var(--t-caption); color: var(--tx-2); margin-top: 2px; }
 .ruled.health-ruled .h-next-acts { display: flex; gap: 8px; padding: 0 16px 12px; }
 .ruled.health-ruled .h-next-acts .pill-act { flex: 1; justify-content: center; max-width: none; }
 .ruled.health-ruled .h-find { gap: 10px; }
@@ -2004,23 +2004,23 @@
 .ruled.health-ruled .ins-big.lime { color: var(--hl-lime); }
 .ruled.health-ruled .ins-big.violet { color: var(--hl-violet); }
 .ruled.health-ruled .ins-chart { display: block; width: 100%; height: auto; margin: 10px 0 2px; color: var(--tx-1); }
-.ruled.health-ruled .ins-axis { font-size: calc(10px * var(--type-scale)); fill: var(--tx-2); font-family: var(--f); }
-.ruled.health-ruled .ins-table summary { font-size: calc(13px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); cursor: pointer; padding: 6px 0; }
-.ruled.health-ruled .ins-table table { width: 100%; border-collapse: collapse; font-size: calc(13px * var(--type-scale)); font-variant-numeric: tabular-nums; }
+.ruled.health-ruled .ins-axis { font-size: var(--t-micro); fill: var(--tx-2); font-family: var(--f); }
+.ruled.health-ruled .ins-table summary { font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2); cursor: pointer; padding: 6px 0; }
+.ruled.health-ruled .ins-table table { width: 100%; border-collapse: collapse; font-size: var(--t-caption); font-variant-numeric: tabular-nums; }
 .ruled.health-ruled .ins-table th { text-align: left; font-weight: var(--w-semi); color: var(--tx-2); padding: 4px 0; }
 .ruled.health-ruled .ins-table td { padding: 4px 0; border-top: 0.5px solid var(--divider); }
 .ruled.health-ruled .ins-bar { display: flex; align-items: center; gap: 10px; min-height: 30px; }
 .ruled.health-ruled .ins-bar-k { width: 92px; flex-shrink: 0; font-size: calc(14px * var(--type-scale)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ruled.health-ruled .ins-bar-track { flex: 1; height: 8px; border-radius: 999px; background: var(--press-3); overflow: hidden; }
-.ruled.health-ruled .ins-bar-track i { display: block; height: 100%; border-radius: 999px; }
+.ruled.health-ruled .ins-bar-track { flex: 1; height: 8px; border-radius: var(--r-pill); background: var(--press-3); overflow: hidden; }
+.ruled.health-ruled .ins-bar-track i { display: block; height: 100%; border-radius: var(--r-pill); }
 .ruled.health-ruled .ins-bar-track i.lime { background: var(--hl-lime); }
 .ruled.health-ruled .ins-bar-track i.amber { background: var(--hl-amber); }
 .ruled.health-ruled .ins-nights { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .ruled.health-ruled .ins-night { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 34px;
-  font-size: calc(10.5px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.04em; color: var(--tx-2); }
-.ruled.health-ruled .ins-night i { display: block; width: 18px; height: 6px; border-radius: 3px; background: var(--press-3); }
+  font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.04em; color: var(--tx-2); }
+.ruled.health-ruled .ins-night i { display: block; width: 18px; height: 6px; border-radius: var(--r-xs); background: var(--press-3); }
 .ruled.health-ruled .ins-night.on i { height: 18px; background: var(--hl-violet); }
-.ruled.health-ruled .ad-dot i { display: block; width: 10px; height: 10px; border-radius: 50%; background: var(--h-hue); }
+.ruled.health-ruled .ad-dot i { display: block; width: 10px; height: 10px; border-radius: var(--r-circle); background: var(--h-hue); }
 /* ===========================================================================
    EXERCISES: THE LIBRARY AS A WORKBENCH (2026-09-14, the Exercise Library
    handoff).
@@ -2105,7 +2105,7 @@
 .ruled .dup-name { color: var(--tx-1); font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
   line-height: 1.25; overflow-wrap: anywhere; }
 .ruled .dup-row .btn-row { display: flex; gap: var(--s-2); margin-top: var(--s-2h); }
-.ruled .dup-row .btn-row .btn { flex: 1; margin: 0; padding: 9px 10px; font-size: calc(13px * var(--type-scale)); min-width: 0; }
+.ruled .dup-row .btn-row .btn { flex: 1; margin: 0; padding: 9px 10px; font-size: var(--t-caption); min-width: 0; }
 
 /* THE THREE DOORS under the week on Health (§1). They stay where Dave put
    them on 2026-09-14, immediately below the week card; HealthDoors.test.tsx
@@ -2160,9 +2160,9 @@
 .lg-plan { margin-top: var(--s-2); }
 .lg-row { display: flex; align-items: baseline; gap: var(--s-2); padding: 3px 0; }
 .lg-row + .lg-row { border-top: 0.5px solid var(--divider); }
-.lg-row .lg-n { flex: 1; min-width: 0; color: var(--tx-2); font-size: calc(13px * var(--type-scale));
+.lg-row .lg-n { flex: 1; min-width: 0; color: var(--tx-2); font-size: var(--t-caption);
   overflow-wrap: anywhere; }
-.lg-row .lg-v { flex-shrink: 0; color: var(--tx-3); font-size: calc(12px * var(--type-scale));
+.lg-row .lg-v { flex-shrink: 0; color: var(--tx-3); font-size: var(--t-caption);
   font-variant-numeric: tabular-nums; }
 /* Where he is. Not red: red is a verb on this page, never a position. */
 .lg-row.on .lg-n { color: var(--tx-1); font-weight: var(--w-semi); }
@@ -2203,7 +2203,7 @@
 .ruled .area-card:active { opacity: 0.85; }
 .ruled .area-card-top { display: flex; align-items: center; gap: var(--s-3); width: 100%; }
 .ruled .area-card-health { flex-direction: column; align-items: stretch; gap: var(--s-3); background: var(--good-tint); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--divider)); }
-.ruled .area-tile { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+.ruled .area-tile { width: 44px; height: 44px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
 .ruled .area-tile .ic { width: 22px; height: 22px; }
 .ruled .area-stack { flex: 1; min-width: 0; }
 .ruled .area-name { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2213,7 +2213,7 @@
 .ruled .area-chev .chev { margin-right: 3px; border-color: var(--tx-2); }
 .ruled .health-sections { display: flex; flex-wrap: nowrap; gap: 5px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
 .ruled .health-sections::-webkit-scrollbar { display: none; }
-.ruled .health-chip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 7px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--good) 22%, var(--good-tint)); color: var(--tx-1); font-size: calc(11.5px * var(--type-scale)); letter-spacing: -0.01em; font-weight: var(--w-semi); white-space: nowrap; flex: 1 1 auto; justify-content: center; min-width: 0; }
+.ruled .health-chip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 7px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--good) 22%, var(--good-tint)); color: var(--tx-1); font-size: var(--t-micro); letter-spacing: -0.01em; font-weight: var(--w-semi); white-space: nowrap; flex: 1 1 auto; justify-content: center; min-width: 0; }
 .ruled .health-chip .ic { width: 13px; height: 13px; color: var(--good); flex-shrink: 0; }
 
 /* ==========================================================================
@@ -2263,7 +2263,7 @@
 }
 .ruled .bp-shelf-head .t {
   min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-size: calc(22px * var(--type-scale)); font-weight: var(--w-bold);
+  font-size: var(--t-h2); font-weight: var(--w-bold);
   letter-spacing: -0.02em; color: var(--tx-1);
 }
 .ruled .bp-shelf-head .ic { width: 18px; height: 18px; color: var(--tx-1); flex-shrink: 0; }
@@ -2301,7 +2301,7 @@
   flex: 0 0 auto; width: calc(160px * var(--type-scale)); max-width: 76%;
   position: relative;
   display: flex; flex-direction: column;
-  padding: var(--s-3h); border-radius: 18px; overflow: hidden;
+  padding: var(--s-3h); border-radius: var(--r-lg); overflow: hidden;
   color: #FFFFFF; cursor: pointer;
   /* The card is its own surface: no card rim or shadow on top of a fill. */
   border: 0;
@@ -2380,7 +2380,7 @@
   position: absolute; top: 50%; transform: translateY(-50%);
   width: 30px; height: 30px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  border: 0; border-radius: 999px;
+  border: 0; border-radius: var(--r-pill);
   background: var(--surface-2); color: var(--tx-1);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.38);
   cursor: pointer; z-index: 2;
@@ -2426,7 +2426,7 @@
    the bench: "Reynolds & Rowella General Manager..." and the 34-letter one). */
 .ruled .bp-card-foot { flex-shrink: 0; display: flex; flex-direction: column; gap: 3px; margin-top: auto; padding-top: var(--s-2); }
 .ruled .bp-card-lead, .ruled .bp-card-n {
-  font-size: calc(13px * var(--type-scale)); font-weight: var(--w-sub);
+  font-size: var(--t-caption); font-weight: var(--w-sub);
   color: rgba(255, 255, 255, 0.92);
 }
 /* THE NEXT ACTION WRAPS (2026-09-18). It was one line with an ellipsis, so

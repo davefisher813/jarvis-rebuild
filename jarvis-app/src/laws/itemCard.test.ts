@@ -85,7 +85,7 @@ describe("the card is square, and the shelf runs sideways", () => {
   // a promise, so the head is a button that cuts the page to that area, and
   // a shelf with no area to open carries no chevron rather than a dead one.
   it("heads each shelf the way Apple Music does", () => {
-    expect(CSS).toMatch(/\.ruled \.bp-shelf-head \.t \{[\s\S]{0,200}?font-size: calc\(22px \* var\(--type-scale\)\)/);
+    expect(CSS).toMatch(/\.ruled \.bp-shelf-head \.t \{[\s\S]{0,200}?font-size: var\(--t-h2\)/);
     expect(CSS).toMatch(/\.ruled \.bp-shelf-head \.t \{[\s\S]{0,240}?font-weight: var\(--w-bold\)/);
     expect(CARD, "a chevron only where there is somewhere to go")
       .toMatch(/onOpen \? \(\s*<button type="button" className="bp-shelf-head"/);
