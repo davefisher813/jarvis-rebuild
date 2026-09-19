@@ -2320,7 +2320,30 @@
    derivation could not have produced them. */
 .ruled .bp-card::before {
   content: ""; position: absolute; inset: 0; z-index: 0;
-  background: linear-gradient(153deg, var(--bp-a) 0%, var(--bp-b) 100%);
+  /* THE SHEEN (Dave 2026-09-19: "are you able to make the background of the
+     cards identical to these? It's a really nice aesthetic", on a zoomed crop
+     of his own mockup).
+     His tiles are NOT a plain linear gradient. Measured: fit a plane to the
+     card's luminance and the residual is not noise -- a scanline across the
+     top reads 137, dips to 128, climbs back to 135, then falls to 111. Both
+     sampled cards carry the same shape, within about +/-10 of 130, so a soft
+     undulation of roughly 8% over the linear base: a light bloom off the top
+     right, a second off the bottom left, and a darker band through the middle
+     where the two fall away. Three radial stops reconstruct it. They are
+     colourless -- white and black over whatever --bp-a and --bp-b are -- so
+     every slot gets the same finish without another pair of hand-picked
+     values. The three stops were then FITTED: a coordinate sweep against his
+     two sampled cards, scoring only the cells with no text in them (a cell is
+     dropped when its 97th percentile sits more than 22 above its 20th, which
+     is what a white glyph does to a cell and a gradient never does). Against
+     that target a plain linear gradient scores rms 4.22; this scores 2.44, on
+     a signal whose own amplitude is about 12. It is a reconstruction of the
+     measurement, not a pixel copy of a JPEG. */
+  background:
+    radial-gradient(60% 95% at 62% -15%, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0) 60%),
+    radial-gradient(75% 80% at -8% 65%, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 75%),
+    radial-gradient(88% 60% at 35% 50%, rgba(0, 0, 0, 0.09), rgba(0, 0, 0, 0) 72%),
+    linear-gradient(153deg, var(--bp-a) 0%, var(--bp-b) 100%);
 }
 .ruled .bp-card > * { position: relative; z-index: 1; }
 .ruled .bp-card:active { opacity: 0.85; }
