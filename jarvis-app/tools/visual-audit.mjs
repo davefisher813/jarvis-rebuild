@@ -51,7 +51,36 @@ const AUDIT = () => {
     }
     return r;
   };
-  const all = [...document.querySelectorAll("body *")].filter(vis).filter((e) => clipped(e));
+  // WHEN A LAYER IS UP, THE PAGE UNDER IT IS NOT THE SUBJECT (2026-09-20).
+  // Auditing inside sheets immediately produced 63 "overlap" findings that
+  // were not overlaps at all: What Now paints over Today, so its "Back to
+  // Today" button sat on top of Today's weather notice and the detector
+  // compared the two as if a thumb could reach both. The same contamination
+  // inflated every other check -- Today's avatar was being measured as a
+  // small target "inside" five different sheets.
+  //
+  // A modal layer is the whole subject while it is up: the page beneath
+  // cannot be tapped, read or truncated by the user. So the audit scopes to
+  // it, and the page underneath is measured when it is the thing on screen,
+  // which it is on its own pass.
+  const modalRoot = (() => {
+    const area = window.innerWidth * window.innerHeight;
+    const named = document.querySelector(".sheet, [role=dialog], .modal");
+    if (named) { const r = named.getBoundingClientRect(); if (r.width >= 40 && r.height >= 40) return named; }
+    for (const e of document.querySelectorAll("body *")) {
+      const cs = getComputedStyle(e);
+      if (cs.position !== "fixed" && cs.position !== "absolute") continue;
+      if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) < 0.2) continue;
+      if (e.closest(".tab-bar, .voice-dock")) continue;
+      const r = e.getBoundingClientRect();
+      if (r.width * r.height < area * 0.33) continue;
+      if (r.top > window.innerHeight * 0.8) continue;
+      return e;
+    }
+    return null;
+  })();
+  const ROOT = modalRoot || document.body;
+  const all = [...ROOT.querySelectorAll("*")].filter(vis).filter((e) => clipped(e));
 
   // 1. HORIZONTAL OVERFLOW. The page must never scroll sideways.
   for (const e of all) {
@@ -304,7 +333,7 @@ const AUDIT = () => {
   }
 
   // 6. STACKED SIBLINGS WITH NO GAP. The bug Dave found in Heads Up.
-  const cards = [...document.querySelectorAll(".card, .notice-swipe, .promo-card")].filter(vis);
+  const cards = [...ROOT.querySelectorAll(".card, .notice-swipe, .promo-card")].filter(vis);
   for (let i = 1; i < cards.length; i++) {
     const a = cards[i-1].getBoundingClientRect(), c = cards[i].getBoundingClientRect();
     if (cards[i-1].contains(cards[i]) || cards[i].contains(cards[i-1])) continue;
