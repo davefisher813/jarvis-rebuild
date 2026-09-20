@@ -1,0 +1,27 @@
+{
+  "note": "Known rule debt, flat and shrink only. emDash: a touched file must reach zero whether or not it is listed; an untouched listed file must match exactly. skips: tests skipped by design, per file, exact; a skip not listed here is a test that stopped running.",
+  "emDash": {
+    "docs/audit-page.html": 49,
+    "docs/ADHD_VISUAL_AUDIT_2026_08_21.md": 49,
+    "docs/VISUAL_DESIGN_AUDIT_2026_08_21.md": 36,
+    "jarvis-app/src/messages/cleanup.test.ts": 14,
+    "docs/AUDIT_2026_09_11_REMAINING.md": 9,
+    "jarvis-app/vite.config.ts": 2,
+    "jarvis-app/src/laws/laws.test.ts": 2,
+    "jarvis-app/src/connections/google/decode.test.ts": 2,
+    "docs/WORKFLOW_AND_GATE.md": 2,
+    "jarvis-app/src/tasks/screens/RemindersPage.test.tsx": 1,
+    "jarvis-app/src/laws/README.md": 1,
+    "jarvis-app/src/events/completions.test.ts": 1,
+    "jarvis-app/src/decisions/decisions.test.ts": 1,
+    "Claude outputs/JARVIS_HANDOFF_2026_09_08.md": 127,
+    "jarvis-core/supabase/migrations/0017_email_opens.sql": 1
+  },
+  "skips": {
+    "jarvis-app/tools/ai-harness.test.ts": 5
+  },
+  "why": {
+    "emDash": "297 across 15 files on 2026-09-20, measured by the gate itself on its first run (a hand grep had missed a tracked handoff note with a space in its folder name, 127, and one SQL migration comment, 1). The three August audit docs and that handoff note hold 261 between them; the test files name the character to forbid it or to feed it to a cleaner. Nothing under jarvis-app/src that ships to a phone carries one: the law in src/laws/laws.test.ts already forbids it there. Any of these files cleans to zero the moment it is edited for another reason.",
+    "skips": "tools/ai-harness.test.ts is describe.skipIf(!LIVE): the live golden set runs only with AI_HARNESS=1 and a real ANTHROPIC_API_KEY, which the gate never has. Five cases, skipped by design, counted so a sixth is visible."
+  }
+}

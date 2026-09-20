@@ -24,3 +24,8 @@ dist/
 # truth is the component it was rendered from, so the file is transport, not
 # source, the same way the tarballs above are.
 *-preview.html
+
+# QA reports are published to basecode-qa by qa/publish.js, not committed.
+qa/reports/
+# Local only: names that must never appear in a published artifact.
+qa/publish-deny.txt
