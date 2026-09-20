@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "../../shared/PageHeader";
 import { useTracker } from "../../data/NotesProvider";
-import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine, tapField } from "../../shared/FormSheet";
+import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, tapField } from "../../shared/FormSheet";
 import { Calendar, FolderKanban, Tag } from "../../shared/icons";
 import { DollarGlyph, WalletGlyph, RepeatGlyph } from "../../shared/glyphs";
 import { pressable } from "../../shared/pressable";
@@ -11,7 +11,7 @@ import {
   EMPTY_TRACKER, byCategory, categoryColor, dollarsToCents, fmtCents, fmtDay, inMonth,
   incomeCents, knownCategories, monthLabel, monthlySubTotal, monthOf, shiftMonth, spentCents,
   thisMonth, topMerchants,
-  type SubFrequency, type TrackerBudgetData, type TrackerData, type TrackerSub, type TrackerTx, type TrackerTxData,
+  type SubFrequency, type TrackerAccount, type TrackerAccountData, type TrackerAccountType, type TrackerBudgetData, type TrackerData, type TrackerSub, type TrackerSubData, type TrackerTx, type TrackerTxData,
 } from "../tracker";
 
 // THE TRACKER (PASSOFF 2026-09-19, built by Alfred, integrated here).
@@ -108,7 +108,7 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
         </div>
       </div>
       {tab === "dashboard" && (
-        <Dashboard month={month} onMonth={setMonth} txs={monthTxs} data={data} />
+        <Dashboard month={month} onMonth={setMonth} txs={monthTxs} data={data} onSaved={reload} />
       )}
       {tab === "transactions" && (
         <Transactions data={data} month={month} onSaved={reload} />
@@ -147,9 +147,32 @@ function SectionHead({ label, count }: { label: string; count?: number }) {
 
 /* -------------------------------- Dashboard ------------------------------- */
 
-function Dashboard({ month, onMonth, txs, data }: {
+function Dashboard({ month, onMonth, txs, data, onSaved }: {
   month: string; onMonth: (m: string) => void; txs: TrackerTx[]; data: TrackerData;
+  onSaved: () => Promise<void>;
 }) {
+  const svc = useTracker();
+  // ACCOUNTS COULD NOT BE MADE AT ALL (Dave 2026-09-20). saveAccount shipped
+  // with the service and was wired to nothing, so the only accounts that
+  // could ever exist were the four the September import writes. Anyone who
+  // did not import had an account list they could look at and never fill.
+  const [acct, setAcct] = useState<TrackerAccount | "new" | null>(null);
+  const saveAcct = async (d: TrackerAccountData) => {
+    const id = acct === "new" || !acct ? null : acct.id;
+    if (!(await attemptWrite(() => svc.saveAccount(id, d)))) return;
+    setAcct(null);
+    await onSaved();
+  };
+  const removeAcct = async (a: TrackerAccount) => {
+    if (!(await attemptWrite(() => svc.removeAccount(a.id)))) return;
+    setAcct(null);
+    await onSaved();
+    showToast({
+      message: "Account deleted",
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => svc.saveAccount(null, a.data)); await onSaved(); },
+    });
+  };
   const spent = spentCents(txs);
   const income = incomeCents(txs);
   const net = income - spent;
@@ -162,21 +185,39 @@ function Dashboard({ month, onMonth, txs, data }: {
     <>
       <MonthNav month={month} onMonth={onMonth} />
 
+      <SectionHead label="Accounts" count={data.accounts.length} />
       {data.accounts.length > 0 && (
-        <>
-          <SectionHead label="Accounts" count={data.accounts.length} />
-          <div className="pad-x mt-accts">
-            {data.accounts.map((a) => (
-              <div className="card mt-acct" key={a.id}>
-                <div className="mt-acct-name">{a.data.name}</div>
-                <div className="mt-acct-bal">{fmtCents(a.data.currentBalanceCents)}</div>
-                {a.data.type === "credit card" && (
-                  <div className="mt-acct-sub">Available credit {fmtCents(a.data.availableBalanceCents)}</div>
-                )}
-              </div>
-            ))}
+        <div className="pad-x mt-accts">
+          {data.accounts.map((a) => (
+            // A card is a door to its own editor, the way a row is elsewhere.
+            <div className="card mt-acct" key={a.id} {...pressable(() => setAcct(a))}>
+              <div className="mt-acct-name">{a.data.name}</div>
+              <div className="mt-acct-bal">{fmtCents(a.data.currentBalanceCents)}</div>
+              {a.data.type === "credit card" && (
+                <div className="mt-acct-sub">Available credit {fmtCents(a.data.availableBalanceCents)}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="pad-x"><div className="card list-card-ruled">
+        <div className="row" {...pressable(() => setAcct("new"))}>
+          <div className="row-grow">
+            <div className="conn-name">Add an Account</div>
+            {data.accounts.length === 0 && (
+              <div className="conn-meta">Nothing here yet</div>
+            )}
           </div>
-        </>
+          <button className="pill-act" onClick={(e) => { e.stopPropagation(); setAcct("new"); }}>Add</button>
+        </div>
+      </div></div>
+      {acct && (
+        <AccountEditor
+          initial={acct === "new" ? null : acct.data}
+          onSave={saveAcct}
+          onDelete={acct === "new" ? undefined : () => void removeAcct(acct)}
+          onCancel={() => setAcct(null)}
+        />
       )}
 
       <SectionHead label="This Month" />
@@ -591,6 +632,31 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
     await onSaved();
   };
 
+  // EDITING AND DELETING, WHICH THIS TAB HAD NEITHER OF (Dave 2026-09-20:
+  // "just put the proper buttons in for users to manage stuff like this").
+  // Cancel was the only thing a subscription could ever be told, so a typo in
+  // the name or a wrong amount was permanent, and a duplicate could only be
+  // hidden, never removed. removeSub existed in the service from day one and
+  // was wired to nothing.
+  const [editing, setEditing] = useState<TrackerSub | null>(null);
+  const saveEdit = async (d: TrackerSubData) => {
+    if (!editing) return;
+    if (!(await attemptWrite(() => svc.saveSub(editing.id, d)))) return;
+    setEditing(null);
+    await onSaved();
+  };
+  const removeOne = async (sub: TrackerSub) => {
+    if (!(await attemptWrite(() => svc.removeSub(sub.id)))) return;
+    setEditing(null);
+    await onSaved();
+    // The way back, the same shape every other delete in the app offers.
+    showToast({
+      message: "Subscription deleted",
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => svc.saveSub(null, sub.data)); await onSaved(); },
+    });
+  };
+
   return (
     <>
       <SectionHead label="Every Month" />
@@ -608,9 +674,10 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
       <SectionHead label="Subscriptions" count={data.subs.length} />
       <div className="pad-x"><div className="card list-card-ruled">
         {data.subs.map((s) => (
-          // row-tap: the only action here stops or restarts a real charge,
-          // so it stays on its own button rather than under the whole row.
-          <div className="row" key={s.id}>
+          // The row is a door to the editor now; Cancel stays on its own
+          // button beside it, because stopping a real charge should not need
+          // a trip through a sheet.
+          <div className="row" key={s.id} {...pressable(() => setEditing(s))}>
             <div className="row-grow">
               <div className="conn-name">{s.data.merchantName}</div>
               <div className="conn-meta">
@@ -620,7 +687,7 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
             <div className="mt-amt">{fmtCents(s.data.amountCents)}</div>
             {/* Quiet: a list of subscriptions is a list of these, and three
                 red pills down one card reads as three alarms. */}
-            <button className="quiet-action" onClick={() => void flip(s)}>
+            <button className="quiet-action" onClick={(e) => { e.stopPropagation(); void flip(s); }}>
               {s.data.status === "active" ? "Cancel" : "Restart"}
             </button>
           </div>
@@ -634,12 +701,12 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
       <div className="pad-x"><div className="card list-card-ruled">
         <div className="row" onClick={tapField}>
           <div className="row-grow"><div className="conn-name">Name</div></div>
-          <input className="input mt-inline" aria-label="Subscription name" placeholder="Netflix"
+          <input className="input mt-inline" aria-label="New subscription name" placeholder="Netflix"
             value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="row" onClick={tapField}>
           <div className="row-grow"><div className="conn-name">Amount</div></div>
-          <input className="input mt-inline" inputMode="decimal" aria-label="Subscription amount"
+          <input className="input mt-inline" inputMode="decimal" aria-label="New subscription amount"
             placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </div>
         <div className="row" onClick={tapField}>
@@ -657,6 +724,110 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
             onClick={(e) => { e.stopPropagation(); void add(); }}>{busy ? "Adding" : "Add"}</button>
         </div>
       </div></div>
+
+      {editing && (
+        <SubEditor
+          initial={editing.data}
+          onSave={saveEdit}
+          onDelete={() => void removeOne(editing)}
+          onCancel={() => setEditing(null)}
+        />
+      )}
     </>
+  );
+}
+
+/** One account: what it is called, what kind it is, and what is in it. */
+function AccountEditor({ initial, onSave, onDelete, onCancel }: {
+  initial: TrackerAccountData | null;
+  onSave: (d: TrackerAccountData) => void;
+  onDelete?: () => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [type, setType] = useState<TrackerAccountType>(initial?.type ?? "checking");
+  const [balance, setBalance] = useState(initial ? (initial.currentBalanceCents / 100).toFixed(2) : "");
+  const [avail, setAvail] = useState(initial ? (initial.availableBalanceCents / 100).toFixed(2) : "");
+  const [touched, setTouched] = useState(false);
+  const valid = !!name.trim();
+  const submit = () => {
+    setTouched(true);
+    if (!valid) return;
+    onSave({
+      name: name.trim(), type,
+      currentBalanceCents: dollarsToCents(balance),
+      // Only a card carries this, and it is the credit still available rather
+      // than a second balance (tracker.ts says so on the field itself).
+      availableBalanceCents: type === "credit card" ? dollarsToCents(avail) : 0,
+    });
+  };
+  return (
+    <FormSheet title={initial ? "Edit Account" : "New Account"} onCancel={onCancel} onSave={submit} saveDisabled={!valid}>
+      <Group label="Account">
+        <FieldRow tone="red" glyph={<Tag className="ic" />} label="Name" ariaLabel="Account name"
+          value={name} onChange={setName} placeholder="Checking" error={touched && !name.trim()} />
+        <MenuRow tone="blue" glyph={<WalletGlyph />} label="Kind" ariaLabel="Account kind"
+          value={type} word={type === "credit card" ? "Credit Card" : type === "savings" ? "Savings" : "Checking"}
+          options={[
+            { value: "checking", label: "Checking" },
+            { value: "savings", label: "Savings" },
+            { value: "credit card", label: "Credit Card" },
+          ]}
+          onPick={(v) => setType(v as TrackerAccountType)} />
+        <FieldRow tone="green" glyph={<DollarGlyph />} label="Balance" ariaLabel="Account balance"
+          value={balance} onChange={setBalance} placeholder="0.00" inputMode="decimal" />
+        {type === "credit card" && (
+          <FieldRow tone="orange" glyph={<DollarGlyph />} label="Available Credit" ariaLabel="Available credit"
+            value={avail} onChange={setAvail} placeholder="0.00" inputMode="decimal" />
+        )}
+      </Group>
+      <ErrorLine text={touched && !valid ? "A name" : null} />
+      {onDelete && <DeleteRow label="Delete Account" onClick={onDelete} />}
+    </FormSheet>
+  );
+}
+
+/** One subscription, editable down to the last character, and removable. */
+function SubEditor({ initial, onSave, onDelete, onCancel }: {
+  initial: TrackerSubData;
+  onSave: (d: TrackerSubData) => void;
+  onDelete: () => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(initial.merchantName);
+  const [amount, setAmount] = useState((initial.amountCents / 100).toFixed(2));
+  const [freq, setFreq] = useState<SubFrequency>(initial.frequency);
+  const [active, setActive] = useState(initial.status === "active");
+  const [touched, setTouched] = useState(false);
+  const cents = dollarsToCents(amount);
+  const valid = !!name.trim() && cents > 0;
+  const submit = () => {
+    setTouched(true);
+    if (!valid) return;
+    onSave({ merchantName: name.trim(), amountCents: cents, frequency: freq, status: active ? "active" : "cancelled" });
+  };
+  return (
+    <FormSheet title="Edit Subscription" onCancel={onCancel} onSave={submit} saveDisabled={!valid}>
+      <Group label="Subscription">
+        <FieldRow tone="red" glyph={<Tag className="ic" />} label="Name" ariaLabel="Subscription name"
+          value={name} onChange={setName} placeholder="Netflix" error={touched && !name.trim()} />
+        <FieldRow tone="green" glyph={<DollarGlyph />} label="Amount" ariaLabel="Subscription amount"
+          value={amount} onChange={setAmount} placeholder="0.00" inputMode="decimal"
+          error={touched && cents <= 0} />
+        <MenuRow tone="orange" glyph={<RepeatGlyph />} label="Every" ariaLabel="Frequency"
+          value={freq} word={freq}
+          options={[{ value: "Weekly", label: "Weekly" }, { value: "Monthly", label: "Monthly" }, { value: "Yearly", label: "Yearly" }]}
+          onPick={(v) => setFreq(v as SubFrequency)} />
+      </Group>
+      <ErrorLine text={touched && !valid ? "A name and an amount" : null} />
+      <Group label="Status">
+        {/* Cancelled keeps the row and its history; it just stops counting
+            toward the monthly total. Deleting is the other thing, below. */}
+        <SwitchRow tone="blue" glyph={<WalletGlyph />} label="Still Paying" ariaLabel="Still paying"
+          meta={active ? "Counts toward the monthly total" : "Kept, but not counted"}
+          on={active} onToggle={() => setActive((v) => !v)} />
+      </Group>
+      <DeleteRow label="Delete Subscription" onClick={onDelete} />
+    </FormSheet>
   );
 }
