@@ -122,3 +122,24 @@ describe("BRAIN-F-01: Wake Up and Paused off clear season on the row", () => {
     expect(d.icon).toBe("briefcase");
   });
 });
+
+// TWO BOOTS AT ONCE SEED ONE SET (2026-09-19, seen in the running app: the
+// capture sheet offered Work, Work, Family, Family, Health, Health ... twelve
+// chips from a six-name template).
+//
+// The guard is `list()` then `create()`, with an await in between, so two
+// callers that arrive together both read zero and both seed. React's
+// StrictMode double-invokes the boot effect, which is how it showed up, but
+// the race is not a StrictMode artefact: any two concurrent boots do it --
+// two tabs opened at once on a new account, or a remount mid-flight. It does
+// not self-heal either, because AppShell writes areasSeeded straight after,
+// so the duplicates are permanent and every area picker is twice as long.
+describe("CategoriesService.seedDefaults: concurrent boots", () => {
+  it("seeds one set, not two, when called twice at once", async () => {
+    const svc = new CategoriesService(new Store(new InMemoryAdapter()), "u-race");
+    await Promise.all([svc.seedDefaults("personal"), svc.seedDefaults("personal")]);
+    const names = (await svc.list()).map((c) => c.data.name);
+    expect(names).toHaveLength(DEFAULT_CATEGORIES.personal.length);
+    expect(new Set(names).size).toBe(names.length);
+  });
+});

@@ -87,7 +87,22 @@ export class CategoriesService {
 
   // Seed a template's defaults, but only if the user has no categories yet.
   // Returns the categories after seeding (or the existing ones, untouched).
-  async seedDefaults(template: TemplateKey): Promise<Category[]> {
+  //
+  // ONE SEED PER SERVICE, EVEN WHEN TWO BOOTS RACE (2026-09-19). The guard
+  // below is a read, an await, then a write, so two callers arriving together
+  // both saw zero and both seeded: twelve areas from a six-name template,
+  // every picker in the app twice as long, and permanent, because AppShell
+  // writes areasSeeded immediately after. Found in the running app, where
+  // StrictMode double-invokes the boot effect -- but the race is the bug, not
+  // StrictMode: two tabs opened at once on a new account do the same.
+  // Callers share the first run rather than starting a second.
+  private seeding: Promise<Category[]> | null = null;
+  seedDefaults(template: TemplateKey): Promise<Category[]> {
+    if (!this.seeding) this.seeding = this.seedOnce(template).finally(() => { this.seeding = null; });
+    return this.seeding;
+  }
+
+  private async seedOnce(template: TemplateKey): Promise<Category[]> {
     const existing = await this.list();
     if (existing.length > 0) return existing;
     const seeds = DEFAULT_CATEGORIES[template];
