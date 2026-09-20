@@ -101,6 +101,20 @@ A booking he could see but not cancel is half a feature: the only way out was to
 
 `src/laws/shortCopy.test.ts` gained one exemption: `booking/receipt.ts`. Those strings are the body of an email that lands in a stranger's mail client, not UI copy, and the law is about a second sentence hiding inside a label. An email that may not contain two sentences is not an email.
 
+## The visitor gets out too (2026-09-19)
+
+The receipt used to say "reply to this email" and nothing more. That puts the work on the host and leaves the visitor with no idea whether anything happened, which is exactly how a cancellation becomes a no-show: the person decides they cannot make it, sends a message into a mailbox, hears nothing, and the hour stays blocked for a meeting neither of them is going to.
+
+The confirmation now carries one address to tap: `/book/<slug>?cancel=<booking id>`.
+
+**Why an id is enough authorization, and when it would not be.** A booking id is a random v4 uuid, 122 bits nobody walks, disclosed to exactly two people: the visitor, in their own receipt and in the answer to their own booking, and the host, who owns it. The link is therefore a capability held by the one person entitled to use it, with no new column and no migration. What it must never do is hand back anything the link does not already imply, so `GET /api/book?cancel=<id>` answers with the meeting's name, its times and whether it still stands, and stops there. Somebody holding a forwarded email learns the meeting that email already describes: no address, no other booking, and no way to ask about one.
+
+**An already-cancelled booking is a success, not an error.** Somebody who taps the link in an old email is told the meeting is off, which it is. "No such booking" reads as a broken link and sends them to write that email after all.
+
+**A cancellation is never silent on the host's side.** An hour can now leave his schedule while he is not looking, and an event that quietly vanishes is worse than no booking system: he plans around an hour that is actually free, or notices the gap and cannot tell why. The import's own count drives a toast, and only on a removal. Arrivals stay silent, because a booking is a thing somebody else did deliberately and the hour appearing IS the news.
+
+The host is not emailed when a visitor cancels. A message from his own mailbox to his own mailbox is not a reliable notification, and the toast is, so the toast is the answer rather than a mail that might be filed anywhere.
+
 ## The bridge past Clerk (2026-09-19)
 
 Track 3's policies expect Clerk, Clerk is not wired, and that was read as blocking everything. It does not block booking, and the reason is worth writing down: **the session can come from the live project while the storage is Track 3.**
@@ -124,6 +138,7 @@ Settings > Booking now has a Publish button and shows the address, which is the 
 | The confirmation email and its calendar file | BUILT 2026-09-19: sends from the host's own Gmail, needs no new env var |
 | A booking showing up for the host | BUILT 2026-09-19: `api/bookings.ts` and the import into JARVIS's own schedule |
 | Cancelling a booking, and telling the guest | BUILT 2026-09-19: `DELETE /api/bookings`, with a `METHOD:CANCEL` calendar file |
+| The VISITOR cancelling, from the link in their receipt | BUILT 2026-09-19: `/book/<slug>?cancel=<id>`, the booking id as the capability |
 | Writing a booking into GOOGLE Calendar | Dave's ruling on widening the Google scope past `calendar.readonly`, which forces one interactive reconnect. Not needed for the host to see a booking |
 | Connections (request, accept, decline, scope toggles) | Clerk wired as the project's third-party auth provider. Booking no longer waits on it: see the bridge below |
 | Shared Project (view and edit badges, assignee avatars) | connections above (0005's policies are tested at the database, see the track3 README) |

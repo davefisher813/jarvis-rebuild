@@ -37,6 +37,9 @@ export interface ReceiptJob {
   guestZone?: string;
   /** The host's zone, which the booking grid was built in. */
   hostZone: string;
+  /** Where the visitor goes if they cannot make it, when the server knows its
+   *  own address. Absent on a cancellation, which needs no way out. */
+  cancelUrl?: string;
 }
 
 /** Try to send the confirmation. True only if Gmail accepted it. */
@@ -80,6 +83,7 @@ async function send(job: ReceiptJob & { reason?: string }, build: Build): Promis
     hostEmail: mailbox.email,
     bookingId: job.bookingId,
     ...(job.reason ? { reason: job.reason } : {}),
+    ...(job.cancelUrl ? { cancelUrl: job.cancelUrl } : {}),
   });
 
   return sendRaw(mailbox.accessToken, encodeEmail({

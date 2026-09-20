@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapBooking, localDate, localTime, insideWindow } from "./bookedEvents";
+import { mapBooking, localDate, localTime, insideWindow, cancelledToast } from "./bookedEvents";
 
 // A BOOKING BECOMES AN EVENT (Track 3, 2026-09-19). The conversion is where
 // the bugs live: an absolute instant has to become a local day and a wall
@@ -89,5 +89,20 @@ describe("insideWindow", () => {
   });
   it("treats a missing date as outside, so nothing is deleted on a blank", () => {
     expect(insideWindow("", "2026-09-18", "2026-12-17")).toBe(false);
+  });
+});
+
+describe("cancelledToast", () => {
+  // A visitor can cancel from their own email, so an hour can leave the
+  // schedule while he is not looking. Silence there is worse than a toast.
+  it("says an hour went, in the singular and the plural", () => {
+    expect(cancelledToast(1)).toBe("A Booking Was Cancelled");
+    expect(cancelledToast(3)).toBe("3 Bookings Were Cancelled");
+  });
+  // Arrivals are not news he needs told: the hour appearing IS the news, and a
+  // toast on every app open for a meeting he knows about is noise.
+  it("says nothing when nothing went, which is almost every app open", () => {
+    expect(cancelledToast(0)).toBeNull();
+    expect(cancelledToast(-1)).toBeNull();
   });
 });
