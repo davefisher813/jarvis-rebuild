@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { fmtTime, minToHHMM } from "../calendar";
 import { useSwipe } from "../../shared/useSwipe";
+import { SCHED_ACT_W } from "./schedRail";
 import { useChipInView } from "../../shared/useChipInView";
 import { DUR_CHOICES, durLabel } from "../durations";
 import { LockGlyph } from "../../shared/glyphs";
@@ -45,7 +46,7 @@ export interface LockedRowRange {
 }
 
 export default function LockedRow({
-  l, past, onOpen, onShift, onRetime, onResize, heldCount, onFillBlock, children, state = null,
+  l, past, onOpen, onShift, onRetime, onResize, onDelete, heldCount, onFillBlock, children, state = null,
 }: {
   l: LockedRowRange;
   past: boolean;
@@ -56,6 +57,8 @@ export default function LockedRow({
   onShift?: (mins: number) => void;
   onRetime?: (startMin: number) => void;
   onResize?: (endMin: number) => void;
+  /** Swipe left, Delete. The block is a routine record; the caller owns Undo. */
+  onDelete?: () => void;
   // "Focus time - N tasks" only makes sense once something is counted; the
   // caller (who already builds the held-tasks list for `children`) counts.
   heldCount?: number;
@@ -71,8 +74,12 @@ export default function LockedRow({
     : m === "blends" ? "Can blend · " + freeOf(l).join(" and ") + " free"
     : "Protected";
 
-  const swipeable = !past && !!onShift;
-  const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: 232, enabled: swipeable });
+  const swipeable = !past && (!!onShift || !!onDelete);
+  // Counted, not hard-coded: 232 was three 88px buttons' worth of reveal for a
+  // 264px rail, so -15m was painted 32px outside the reveal and could not be
+  // tapped. Same bug as DayRow's, same fix. See schedRail.ts.
+  const acts = [!!onShift, !!onShift, !!onDelete].filter(Boolean).length;
+  const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: acts * SCHED_ACT_W, enabled: swipeable });
   const [picking, setPicking] = useState(false);
   const [sizing, setSizing] = useState(false);
   const durs = useRef<HTMLDivElement>(null);
@@ -84,9 +91,14 @@ export default function LockedRow({
       <div className="sched-strip">
         {swipeable && (
           <div className="sched-actions" aria-hidden={!open}>
+            {/* Three at 88 is 264, the rail's ceiling (schedRail.ts). A block
+                has no Tomorrow, so it keeps both nudges and takes Delete as
+                its third. +1h is what went: the time is a button that opens a
+                real picker and the length chips, so the big jump is one tap
+                away and always was. */}
             {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(-15))}>&minus;15m</button>}
             {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(15))}>+15m</button>}
-            {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(60))}>+1h</button>}
+            {onDelete && <button className="sched-act sched-act-danger" tabIndex={open ? 0 : -1} onClick={() => closeThen(onDelete)}>Delete</button>}
           </div>
         )}
         <div

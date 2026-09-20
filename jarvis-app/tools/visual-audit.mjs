@@ -132,8 +132,30 @@ const AUDIT = () => {
   // the report and the 44s are countable underneath instead of invisible.
   //   small-target  under 24: genuinely broken, a thumb misses it
   //   small-44      under 44: under the HIG minimum Apple checks at review
+  //
+  // THE LADDER, NOT THE FLAT 44 (Dave 2026-09-20, settling the catalog's own
+  // contradiction: H0 says chips 28 and capsules 34, and a line in H1 said
+  // "44pt minimum hit targets"). small-44 was reporting 77 controls and 56 of
+  // them were sitting at exactly the height the catalog specifies, so the one
+  // number that mattered was buried under the app working as designed.
+  //
+  // A control is now measured against ITS OWN RUNG. Under 44 by the ladder is
+  // a decision, not a defect, and the room is bought back with an expanded hit
+  // area. Under its rung is the app disagreeing with its own catalog, which is
+  // exactly what an auditor is for. A control with no rung yet keeps the old
+  // small-44 line, so nothing goes quiet by being unrecognised.
   const MIN = 24;
   const HIG = 44;
+  // Catalog H0: chips 28, capsules 34, fields and rows and bar actions 44,
+  // buttons 50. First match wins, so the narrower class is listed first.
+  const RUNGS = [
+    [/(^| )(chip|uchip)( |$)/, 28, "chip"],
+    // C1 names these as capsules by name: the row-action pill, the head
+    // action (See All, Open Inbox, Schedule, Add), the small pill, the
+    // segmented control's segment (34 by X0), and the dropdown value.
+    [/(^| )(pill-act|pill-action|see-all|btn-sm|seg|dd-lead)( |$)/, 34, "capsule"],
+  ];
+  const rungOf = (cls) => RUNGS.find(([re]) => re.test(" " + cls + " "));
   for (const e of tappable) {
     // The NATURAL height, not the clipped one. A 46px row scrolled so that
     // 5px of it shows is not a small target, it is a scrolled row.
@@ -151,8 +173,19 @@ const AUDIT = () => {
       return hits(r.top - need + 1) && hits(r.bottom + need - 1);
     };
     const size = `${Math.round(r.width)}x${Math.round(r.height)}`;
-    if (!reaches(MIN)) add("small-target", `"${txt.slice(0,24)}" hit ${size}, needs ${MIN}`, e);
-    else if (!reaches(HIG)) add("small-44", `"${txt.slice(0,24)}" hit ${size}, needs ${HIG}`, e);
+    if (!reaches(MIN)) { add("small-target", `"${txt.slice(0,24)}" hit ${size}, needs ${MIN}`, e); continue; }
+    const rung = rungOf(typeof e.className === "string" ? e.className : "");
+    if (rung) {
+      // The rung is a PAINT spec (a chip is 28 tall), so it is checked against
+      // the painted box. The hit is the ladder's own business: a rung under 44
+      // is signed off precisely because the touch area is expanded past it.
+      const [, tall, name] = rung;
+      if (r.height + 0.5 < tall) {
+        add("below-rung", `"${txt.slice(0,24)}" is ${size}, the ${name} rung is ${tall}`, e);
+      }
+      continue;
+    }
+    if (!reaches(HIG)) add("small-44", `"${txt.slice(0,24)}" hit ${size}, needs ${HIG} (no rung assigned)`, e);
   }
 
   // 5. INVISIBLE TEXT. Same colour as what is behind it. This is the class

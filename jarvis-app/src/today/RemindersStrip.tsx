@@ -1,4 +1,4 @@
-import { Check, Plus, CalendarPlus } from "../shared/icons";
+import { Check, Plus, CalendarPlus, Trash2 } from "../shared/icons";
 import { Burst } from "../shared/Burst";
 import React, { useRef, useState } from "react";
 import { useSwipe } from "../shared/useSwipe";
@@ -27,16 +27,22 @@ const area = (r: { category: string }) => (r.category ? catName(r.category) : ""
 // same one a task and a bill answer to: the whole row is the target, which
 // is what a thumb on a moving bus actually hits. Extracted from the map so
 // the row can own a hook; a reminder already ticked has nothing to take.
-function ReminderRow({ r, bursting, onTickRow, children }: {
+function ReminderRow({ r, bursting, onTickRow, onDeleteRow, children }: {
   r: ReminderView;
   bursting: boolean;
   onTickRow: () => void;
+  onDeleteRow?: () => void;
   children: React.ReactNode;
 }) {
   const completable = !r.done;
-  // No left reveal on this strip: a reminder's other actions are its own
-  // pill and its sheet, and revealW 0 keeps the gesture one-directional.
-  const swipe = useSwipe({ revealW: 0, rightW: completable ? 88 : 0, ...(completable ? { onRightCommit: onTickRow } : {}) });
+  // DELETE IS ON THE SWIPE (Dave 2026-09-20: "should be able to delete
+  // always"). The comment here used to read "No left reveal on this strip: a
+  // reminder's other actions are its own pill and its sheet", which was true
+  // and was the problem: a reminder added by mistake could be ticked from the
+  // row and removed from nowhere, on the one screen he actually reads. Left is
+  // the delete side on Tasks, Notes, Mail and the gym set; this strip was
+  // answering to exactly one gesture out of the two every other list offers.
+  const swipe = useSwipe({ revealW: onDeleteRow ? 88 : 0, rightW: completable ? 88 : 0, ...(completable ? { onRightCommit: onTickRow } : {}) });
   return (
     <div className="task-swipe">
       {completable && (
@@ -44,6 +50,12 @@ function ReminderRow({ r, bursting, onTickRow, children }: {
           <Check className="ic" />
           <span className="swipe-label">Done</span>
         </div>
+      )}
+      {onDeleteRow && (
+        <button className="task-del" onClick={() => swipe.closeThen(onDeleteRow)} aria-label={"Delete " + r.text}>
+          <Trash2 className="ic" />
+          <span className="swipe-label">Delete</span>
+        </button>
       )}
       <div
         className={"rem-row" + (r.done ? " done" : "") + (r.missed && !r.letGo ? " missed" : "") + (r.letGo ? " let-go" : "") + (swipe.dragging ? " swiping" : "")}
@@ -62,6 +74,7 @@ export default function RemindersStrip({
   onSnooze,
   onAdd,
   onOpen,
+  onDelete,
   onAddAllToCalendar,
   onSeeAll,
 }: {
@@ -72,6 +85,8 @@ export default function RemindersStrip({
   onSnooze?: (id: string) => void;
   onAdd?: () => void;
   onOpen?: (id: string) => void;
+  /** Swipe left, Delete. Undo is the caller's, in the toast. */
+  onDelete?: (id: string) => void;
   onAddAllToCalendar?: () => void;
 }) {
   const [burstId, setBurstId] = useState<string | null>(null);
@@ -105,7 +120,8 @@ export default function RemindersStrip({
       <div className="pad-x"><div className="card">
         {items.map((r) => (
           <ReminderRow key={r.id} r={r} bursting={burstId === r.id}
-            onTickRow={() => { if (!r.done) celebrate(r.id); onTick?.(r.id, !r.done); }}>
+            onTickRow={() => { if (!r.done) celebrate(r.id); onTick?.(r.id, !r.done); }}
+            {...(onDelete ? { onDeleteRow: () => onDelete(r.id) } : {})}>
             <div
               className={"cb" + (r.done ? " on" : "") + (burstId === r.id ? " just-checked" : "")}
               role="button"

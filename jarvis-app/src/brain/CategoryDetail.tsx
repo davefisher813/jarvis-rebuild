@@ -38,6 +38,7 @@ import { fmtTime, addMinutes, addDays, eventsForDate } from "../schedule/calenda
 import { comingUpFor, gymDoorOn, type UpcomingRow } from "./comingUp";
 import { FIFTEEN } from "../tasks/rightNow";
 import { attemptWrite } from "../shared/guard";
+import { unfileArea, refileArea, type Unfiled } from "../categories/unfile";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import { sheetEvents } from "../schedule/sheetEvents";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
@@ -2235,7 +2236,14 @@ export default function CategoryDetail({
           deleteCost={deleteCost}
           onDelete={async () => {
             const gone = cat ? { ...cat.data } : null;
-            const ok = await attemptWrite(() => catsSvc.remove(categoryId));
+            // The cost line above says "Untags N Tasks". Until today nothing
+            // untagged them: the area row went and every task and event kept
+            // pointing at an id that no longer resolves.
+            let prior: Unfiled = { tasks: [], events: [] };
+            const ok = await attemptWrite(async () => {
+              prior = await unfileArea(categoryId, tasksSvc, schedule);
+              await catsSvc.remove(categoryId);
+            });
             if (!ok) return;
             onChanged?.();
             onBack();
@@ -2243,7 +2251,10 @@ export default function CategoryDetail({
               message: "Area deleted",
               actionLabel: "Undo",
               onAction: async () => {
+                // The area returns under its own id, so the rows go back
+                // exactly where they were rather than approximately.
                 if (gone) await attemptWrite(() => catsSvc.restore(categoryId, gone));
+                await attemptWrite(() => refileArea(prior, tasksSvc, schedule));
                 onChanged?.();
               },
             });

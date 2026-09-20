@@ -24,12 +24,13 @@ const render1 = (over: Partial<EventItem["data"]> = {}, props: Record<string, un
   const onSkipToday = vi.fn();
   const onPushTomorrow = vi.fn();
   const onOpen = vi.fn();
+  const onDelete = vi.fn();
   render(
     <DayRow e={ev(over)} conflict={false} isNext={false} isPast={false} now={null}
       onOpen={onOpen} onShift={onShift} onMoveTo={onMoveTo} onSkipToday={onSkipToday}
-      onPushTomorrow={onPushTomorrow} {...props} />,
+      onPushTomorrow={onPushTomorrow} onDelete={onDelete} {...props} />,
   );
-  return { onShift, onMoveTo, onSkipToday, onPushTomorrow, onOpen };
+  return { onShift, onMoveTo, onSkipToday, onPushTomorrow, onOpen, onDelete };
 };
 
 describe("DayRow quick actions", () => {
@@ -48,11 +49,41 @@ describe("DayRow quick actions", () => {
     expect(onShift).toHaveBeenCalledWith(15);
   });
 
-  it("can move an event EARLIER, which nothing in the app could do before", () => {
-    const { onShift } = render1();
+  // -15m AND +1h LEFT THE RAIL (2026-09-20), and this test is the record of
+  // why, because it used to assert the opposite.
+  //
+  // It read "can move an event EARLIER, which nothing in the app could do
+  // before" and it passed for two years while -15m was, on a real screen,
+  // unreachable. .sched-act is a fixed 88px and .sched-strip clips, so four
+  // buttons is 352px of rail behind a revealW of 232: -15m was painted
+  // entirely outside the reveal, and the grip opens that same reveal, so
+  // neither door reached it. jsdom has no layout, so clicking it here worked
+  // and said nothing about the phone. Dave's screenshot of 2026-09-20 is the
+  // picture: a clipped "15m", "+1h", "Tomorrow", and no first button.
+  //
+  // The rail is counted now and capped at three (schedRail.ts), and Delete
+  // takes one of them. What is gone is one-TAP -15m and +1h; what is not gone
+  // is moving an event earlier or an hour later, which the time button's
+  // picker has always done and still does.
+  it("no longer carries the nudges that never fitted", () => {
+    render1();
     fireEvent.click(screen.getByLabelText("Quick actions"));
-    fireEvent.click(screen.getByText("−15m"));
-    expect(onShift).toHaveBeenCalledWith(-15);
+    expect(screen.queryByText("−15m")).not.toBeInTheDocument();
+    expect(screen.queryByText("+1h")).not.toBeInTheDocument();
+  });
+
+  it("deletes from the rail, which is the point of the change", () => {
+    const { onDelete } = render1();
+    fireEvent.click(screen.getByLabelText("Quick actions"));
+    fireEvent.click(screen.getByText("Delete"));
+    expect(onDelete).toHaveBeenCalled();
+  });
+
+  it("keeps the time picker, which is where earlier still lives", () => {
+    const { onMoveTo } = render1();
+    fireEvent.click(screen.getByLabelText(/Change time or length/));
+    fireEvent.change(screen.getByLabelText("New time"), { target: { value: "09:45" } });
+    expect(onMoveTo).toHaveBeenCalledWith("09:45");
   });
 
   it("reaches Tomorrow the same way", () => {

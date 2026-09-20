@@ -90,7 +90,7 @@ export default function SchedulePage({
   mode = "month", onMode, weekCells = [], weekRows = [], loading, loadFailed, onRetryLoad, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay,
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate, openSourceFor, notedEvents, onNotes,
-  onShiftBlock, onRetimeBlock, onResizeBlock,
+  onShiftBlock, onRetimeBlock, onResizeBlock, onDeleteBlock, onDeleteEvent,
   proposed, dayFooter,
   anytimeItems = [], onToggleTask, onScheduleTask, onOpenTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
   windowStartMin, windowEndMin,
@@ -167,6 +167,9 @@ export default function SchedulePage({
   onShiftBlock?: (id: string, mins: number) => void;
   onRetimeBlock?: (id: string, startMin: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
+  onDeleteBlock?: (id: string) => void;
+  /** Swipe left, Delete. The flow owns the write and the Undo toast. */
+  onDeleteEvent?: (id: string) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string, startHHMM?: string) => void;
   /** Open an Anytime task in the TaskSheet (the whole row is the door). */
   onOpenTask?: (id: string) => void;
@@ -805,6 +808,7 @@ export default function SchedulePage({
                 onShift={onShiftBlock && id ? (m) => onShiftBlock(id, m) : undefined}
                 onRetime={onRetimeBlock && id ? (s) => onRetimeBlock(id, s) : undefined}
                 onResize={onResizeBlock && id ? (e) => onResizeBlock(id, e) : undefined}
+                onDelete={onDeleteBlock && id ? () => onDeleteBlock(id) : undefined}
               >
                 {/* The work this block is holding, at its own times. */}
                 {(held.length > 0 || heldProps.length > 0) && (
@@ -873,6 +877,7 @@ export default function SchedulePage({
                   onPick={() => sel.toggle(en.e.id)}
                   onSkipToday={onSkipToday ? () => onSkipToday(en.e.id) : undefined}
                   onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.e.id) : undefined}
+                  onDelete={onDeleteEvent ? () => onDeleteEvent(en.e.id) : undefined}
                   gymDoor={gymDoorFor?.(en.e) ?? null}
                   weatherDateIso={weatherDateIso}
                   openSourceFor={openSourceFor}

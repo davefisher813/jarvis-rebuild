@@ -87,7 +87,7 @@ const todayISODate = () => {
 function DaySet({
   events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, onOpenBlock, blendMap = {}, proposed, fromMin, expandHeld = false,
   conflicts, attachMap, firstMoveMap, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow,
-  onShiftBlock, onRetimeBlock, onResizeBlock, gymDoorFor, stateWords = false,
+  onShiftBlock, onRetimeBlock, onResizeBlock, onDeleteEvent, onDeleteBlock, gymDoorFor, stateWords = false,
 }: {
   // C-28 (Astra, 2026-09-12): draw the state word on every row of this set.
   // Today asks for it; the Schedule tab takes it in Push C, which is why it
@@ -116,6 +116,11 @@ function DaySet({
   onShiftBlock?: (id: string, mins: number) => void;
   onRetimeBlock?: (id: string, startMin: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
+  // SWIPE LEFT, DELETE (Dave 2026-09-20). This page is a pure renderer, so
+  // the confirmation, the write and the Undo toast all belong to the flow;
+  // the row only reports which one the finger landed on.
+  onDeleteEvent?: (id: string) => void;
+  onDeleteBlock?: (id: string) => void;
   // UP-ATH-02 (2026-09-06): the Training Door, the same one Schedule renders
   // off the same DayRow. Absent means no door, which is what every caller
   // that is not the real Today wants.
@@ -204,6 +209,7 @@ function DaySet({
           onSetEnd={onSetEnd ? (end) => onSetEnd(en.ev.id, end) : undefined}
           onSkipToday={onSkipToday ? () => onSkipToday(en.ev.id) : undefined}
           onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.ev.id) : undefined}
+          onDelete={onDeleteEvent ? () => onDeleteEvent(en.ev.id) : undefined}
           gymDoor={door}
           weatherDateIso={todayISODate()}
         />,
@@ -254,6 +260,7 @@ function DaySet({
           onShift={onShiftBlock && blockId ? (m) => onShiftBlock(blockId, m) : undefined}
           onRetime={onRetimeBlock && blockId ? (s) => onRetimeBlock(blockId, s) : undefined}
           onResize={onResizeBlock && blockId ? (e) => onResizeBlock(blockId, e) : undefined}
+          onDelete={onDeleteBlock && blockId ? () => onDeleteBlock(blockId) : undefined}
         >
           {(evs.length > 0 || props.length > 0) && (
             <HeldTasks count={evs.length + props.length} alwaysOpen={expandHeld}>
@@ -366,6 +373,8 @@ export default function YourDay({
   onShiftBlock,
   onRetimeBlock,
   onResizeBlock,
+  onDeleteEvent,
+  onDeleteBlock,
   gymDoorFor,
 }: {
   events: EventItem[];
@@ -415,6 +424,9 @@ export default function YourDay({
   onShiftBlock?: (id: string, mins: number) => void;
   onRetimeBlock?: (id: string, startMin: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
+  /** Swipe left on a schedule row, Delete. DaySet's pass-through. */
+  onDeleteEvent?: (id: string) => void;
+  onDeleteBlock?: (id: string) => void;
   // UP-ATH-02 (2026-09-06): forwarded straight to DaySet, see there.
   gymDoorFor?: (e: EventItem) => import("../schedule/screens/DayRow").GymDoorView | null;
   // Accept / Not Today, owned by the flow and drawn under the day.
@@ -652,7 +664,7 @@ export default function YourDay({
               expanded, which is the ticker's own content. Deciding whether a
               thing should scroll by measuring something other than that thing
               is how the feature switched itself off. */}
-          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} firstMoveMap={firstMoveMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} gymDoorFor={gymDoorFor} stateWords /></div>
+          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} firstMoveMap={firstMoveMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} onDeleteEvent={onDeleteEvent} onDeleteBlock={onDeleteBlock} gymDoorFor={gymDoorFor} stateWords /></div>
           {measuring && (
             <div ref={measureRef} className="day-measure" aria-hidden="true">
               <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />

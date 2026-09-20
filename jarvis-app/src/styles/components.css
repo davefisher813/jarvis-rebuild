@@ -839,6 +839,14 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    carries black text at 10.2:1 where it only manages 2.1:1 with white. */
 .sched-act { width: 88px; border: 0; background: var(--warn-fill); color: var(--on-fill-dark); font-size: var(--t-meta); font-weight: var(--w-semi); font-family: var(--f); }
 .sched-act-quiet { background: var(--press-5); color: var(--tx-1); }
+/* DELETE ON THE SCHEDULE RAIL (Dave 2026-09-20: "should be able to delete
+   always"). The note above is about DEFER actions and still stands: amber is
+   the defer colour and a row of identical red panels is how someone deletes
+   what they meant to push. The one genuinely destructive button is the one
+   exception, and it wears the same --red and white the .task-del on every
+   other list wears, so Delete looks like Delete wherever it is reached from.
+   It is also last in the rail, so it is the furthest thing from the thumb. */
+.sched-act-danger { background: var(--red); color: #fff; }
 .sched-swipe-wrap .sched-row { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
 /* Announces the swipe actions, and is the ONLY way to reach them without a
    touchscreen: the gesture is bound to touch events only. Quiet enough not to

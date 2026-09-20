@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import EntityStar from "../../shared/EntityStar";
 import type { EventItem } from "../types";
 import { useSwipe } from "../../shared/useSwipe";
+import { SCHED_ACT_W } from "./schedRail";
 import { useChipInView } from "../../shared/useChipInView";
 import { fmtTime, fmtDistance } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
@@ -56,6 +57,7 @@ export default function DayRow({
   onMoveTo,
   onSkipToday,
   onPushTomorrow,
+  onDelete,
   onSetEnd,
   selecting = false,
   picked = false,
@@ -82,6 +84,8 @@ export default function DayRow({
   onMoveTo?: (start: string) => void;
   onSkipToday?: () => void;
   onPushTomorrow?: () => void;
+  /** Swipe left, Delete. Confirmation and Undo belong to the caller. */
+  onDelete?: () => void;
   // B3/B5 (2026-08-23): change how LONG this is, without the full editor.
   onSetEnd?: (end: string) => void;
   // UP-CORE-05 (2026-09-05): the way to open this event's source, when the
@@ -129,8 +133,17 @@ export default function DayRow({
   // entirely, which is exactly why they felt welded to the calendar. What is
   // dangerous is moving a SERIES by accident, and the flow handles that by
   // moving one day only and saying so in the toast.
-  const swipeable = !selecting && !isPast && (onShift || onPushTomorrow || onSkipToday);
-  const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: rep ? 268 : 232, enabled: !!swipeable });
+  const swipeable = !selecting && !isPast && (onShift || onPushTomorrow || onSkipToday || onDelete);
+  // THE RAIL IS AS WIDE AS THE BUTTONS IN IT, and it was not (swipe audit,
+  // 2026-09-20). .sched-act is a fixed 88 and .sched-strip clips, so a hard
+  // revealW that disagrees with the button count hides whatever does not fit.
+  // It disagreed: four buttons is 352px of rail behind a revealW of 232, so
+  // -15m has been completely unreachable by swipe since the day it was added
+  // and +15m was cut in half. Dave's screenshot of 2026-09-20 shows exactly
+  // that: a clipped "15m", "+1h", "Tomorrow", and no way to reach the first.
+  // Counting the rendered actions means the rail can never lie again.
+  const acts = [!!onShift, rep ? !!onSkipToday : !!onPushTomorrow, !!onDelete].filter(Boolean).length;
+  const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: acts * SCHED_ACT_W, enabled: !!swipeable });
   const [picking, setPicking] = useState(false);
   const [sizing, setSizing] = useState(false);
   const durs = useRef<HTMLDivElement>(null);
@@ -177,14 +190,24 @@ export default function DayRow({
         // still-focusable children is an ARIA violation, and it let keyboard
         // users tab into buttons that were visually absent.
         <div className="sched-actions" aria-hidden={!open}>
-          {/* Back 15 exists because until now nothing in the app could move
-              an event EARLIER: every control only ever pushed later. */}
-          {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(-15))}>&minus;15m</button>}
+          {/* FOUR BUTTONS AT 88 IS 352px OF RAIL ON A 358px ROW, which hides
+              the event being acted on behind the actions acting on it. Three
+              is the ceiling (264, the width Mail's rail already proved), so
+              the rail carries one small nudge, one big one, and the way out:
+              +15m, Tomorrow, Delete.
+              -15m and +1h are what went, and neither loses a capability. The
+              time itself is a button that opens a real time picker and the
+              length chips, so anything precise was always one tap away and is
+              still there. -15m in particular was never reachable by swipe at
+              all (see the rail note above), so retiring it costs nothing that
+              was working. */}
           {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(15))}>+15m</button>}
-          {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(60))}>+1h</button>}
           {rep
             ? onSkipToday && <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onSkipToday)}>Skip Today</button>
             : onPushTomorrow && <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onPushTomorrow)}>Tomorrow</button>}
+          {/* Delete is last, so it is the furthest from where the finger
+              starts and the last thing a long swipe reaches. */}
+          {onDelete && <button className="sched-act sched-act-danger" tabIndex={open ? 0 : -1} onClick={() => closeThen(onDelete)}>Delete</button>}
         </div>
       )}
       <div
