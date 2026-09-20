@@ -12,7 +12,9 @@ const BOOKED: BookingFace[] = [{
   id: "bk-1", title: "Intro Call", guestName: "Ada Lovelace", guestEmail: "ada@example.com",
   startMs: Date.parse("2026-09-22T18:00:00Z"), endMs: Date.parse("2026-09-22T18:30:00Z"),
 }];
+const noDays = { readDaysOffImpl: async () => [] as string[], saveDaysOffImpl: async (d: string[]) => d };
 const published = (booked: BookingFace[] | null) => ({
+  ...noDays,
   readLinkImpl: async () => LINK,
   readBookingsImpl: async () => booked,
 });
@@ -114,6 +116,80 @@ describe("BookingPage", () => {
     fireEvent.click(await openCancel());
     expect(await screen.findByText("Could not cancel that booking.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel It" })).toBeInTheDocument();
+  });
+
+  // DAYS OFF (Track 3, 2026-09-19). The grid honoured a blocked day from the
+  // start and nothing ever wrote one, so a holiday could not be said: he sets
+  // Monday to Friday, goes away for a week, and the link hands that week out.
+  it("lists the days he has marked off, in words rather than digits", async () => {
+    render(<BookingPage onBack={() => {}} {...noDays} readDaysOffImpl={async () => ["2026-12-25"]} />);
+    expect(await screen.findByText(/December 25/)).toBeInTheDocument();
+    expect(screen.getByText("Off for the whole day")).toBeInTheDocument();
+  });
+
+  it("says so plainly when he has none, rather than showing an empty card", async () => {
+    render(<BookingPage onBack={() => {}} {...noDays} />);
+    expect(await screen.findByText("No Days Off")).toBeInTheDocument();
+  });
+
+  it("marks a day off, reading it back in words before it saves", async () => {
+    const saveDaysOffImpl = vi.fn(async (d: string[]) => d);
+    render(<BookingPage onBack={() => {}} {...noDays} saveDaysOffImpl={saveDaysOffImpl} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add a Day Off" }));
+    // A SHEET'S SAVE IS DIMMED BUT TAPPABLE in this app (shared/SheetBar): the
+    // tap is what surfaces the missing thing. So an empty field saves nothing
+    // and says why, rather than being a button that does nothing at all.
+    fireEvent.click(screen.getByRole("button", { name: "Mark It Off" }));
+    expect(screen.getByText("Pick a day first.")).toBeInTheDocument();
+    expect(saveDaysOffImpl).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("The day"), { target: { value: "2026-12-25" } });
+    expect(screen.getByText("Friday, December 25")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mark It Off" }));
+    await waitFor(() => expect(saveDaysOffImpl).toHaveBeenCalledWith(["2026-12-25"]));
+  });
+
+  // A DAY THAT DOES NOT EXIST never reaches the screen: a native date input
+  // refuses to hold the 30th of February, so the field comes back empty and the
+  // screen says what is missing. The guard against Date.parse rolling such a day
+  // forward to March 2 lives where a value could still arrive from elsewhere,
+  // and is pinned there: isDate in booking/daysOff and daysOffFrom on the server.
+  it("cannot be talked into a day that does not exist", async () => {
+    const saveDaysOffImpl = vi.fn(async (d: string[]) => d);
+    render(<BookingPage onBack={() => {}} {...noDays} saveDaysOffImpl={saveDaysOffImpl} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add a Day Off" }));
+    fireEvent.change(screen.getByLabelText("The day"), { target: { value: "2026-02-30" } });
+    fireEvent.click(screen.getByRole("button", { name: "Mark It Off" }));
+    expect(screen.getByText(/Pick a day first|not a day on the calendar/)).toBeInTheDocument();
+    expect(saveDaysOffImpl).not.toHaveBeenCalled();
+  });
+
+  it("will not add the same day twice, and says why before he taps anything", async () => {
+    const saveDaysOffImpl = vi.fn(async (d: string[]) => d);
+    render(<BookingPage onBack={() => {}} {...noDays}
+      readDaysOffImpl={async () => ["2026-12-25"]} saveDaysOffImpl={saveDaysOffImpl} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add a Day Off" }));
+    fireEvent.change(screen.getByLabelText("The day"), { target: { value: "2026-12-25" } });
+    expect(screen.getByText("That day is already off.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mark It Off" }));
+    expect(saveDaysOffImpl).not.toHaveBeenCalled();
+  });
+
+  it("takes a day back through the row's own menu, because the whole row is the door", async () => {
+    const saveDaysOffImpl = vi.fn(async (d: string[]) => d);
+    render(<BookingPage onBack={() => {}} {...noDays}
+      readDaysOffImpl={async () => ["2026-12-25", "2027-01-04"]} saveDaysOffImpl={saveDaysOffImpl} />);
+    fireEvent.click(await screen.findByText(/December 25/));
+    fireEvent.click(await screen.findByRole("button", { name: "Take This Day Back" }));
+    await waitFor(() => expect(saveDaysOffImpl).toHaveBeenCalledWith(["2027-01-04"]));
+  });
+
+  it("says so when the day could not be saved, and keeps the sheet open", async () => {
+    render(<BookingPage onBack={() => {}} {...noDays} saveDaysOffImpl={async () => { throw new Error("502"); }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add a Day Off" }));
+    fireEvent.change(screen.getByLabelText("The day"), { target: { value: "2026-12-25" } });
+    fireEvent.click(screen.getByRole("button", { name: "Mark It Off" }));
+    expect(await screen.findByText("Could not save that.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mark It Off" })).toBeInTheDocument();
   });
 
   it("offers the guest's address, because writing to them is the other thing he might want", async () => {

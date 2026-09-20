@@ -12,6 +12,8 @@ import { readBookings, cancelBooking, importBookings } from "../booking/importBo
 import { mapBooking, type BookingFace } from "../booking/bookedEvents";
 import RowActionSheet from "../shared/RowActionSheet";
 import CancelBookingSheet from "../booking/CancelBookingSheet";
+import DayOffSheet from "../booking/DayOffSheet";
+import { readDaysOff, saveDaysOff, dayOffLabel } from "../booking/daysOff";
 import { useOptionalSchedule } from "../data/NotesProvider";
 import { showToast } from "../shared/toast";
 
@@ -38,11 +40,20 @@ function when(b: BookingFace): string {
 // The two reads are injectable, the same way PublicBookingPage takes its
 // fetch: this screen's interesting states are the ones a running app cannot be
 // put into on demand, a published link and somebody having booked on it.
-export default function BookingPage({ onBack, readLinkImpl = readLink, readBookingsImpl = readBookings, cancelImpl = cancelBooking }: {
+export default function BookingPage({
+  onBack,
+  readLinkImpl = readLink,
+  readBookingsImpl = readBookings,
+  cancelImpl = cancelBooking,
+  readDaysOffImpl = readDaysOff,
+  saveDaysOffImpl = saveDaysOff,
+}: {
   onBack: () => void;
   readLinkImpl?: typeof readLink;
   readBookingsImpl?: typeof readBookings;
   cancelImpl?: typeof cancelBooking;
+  readDaysOffImpl?: typeof readDaysOff;
+  saveDaysOffImpl?: typeof saveDaysOff;
 }) {
   // OPTIONAL ON PURPOSE. This screen has no business requiring the schedule:
   // it needs it only to take a cancelled hour off the calendar straight away,
@@ -55,6 +66,13 @@ export default function BookingPage({ onBack, readLinkImpl = readLink, readBooki
   const [acting, setActing] = useState<BookingFace | null>(null);
   const [cancelling, setCancelling] = useState<BookingFace | null>(null);
   const [cancelErr, setCancelErr] = useState<string | null>(null);
+  // DAYS OFF. The grid has honoured a blocked day since the arithmetic was
+  // written and nothing ever wrote one, so a holiday could not be said: he sets
+  // Monday to Friday, goes away for a week, and the link hands that week out.
+  const [daysOff, setDaysOff] = useState<string[]>([]);
+  const [addingDay, setAddingDay] = useState(false);
+  const [actingDay, setActingDay] = useState<string | null>(null);
+  const [dayErr, setDayErr] = useState<string | null>(null);
   const [s, setS] = useState<BookingSettings>(() => readBookingSettings());
   // THE LINK IS THE SERVER'S (Track 3, 2026-09-19). The settings stay on the
   // device, the way they always have; the LINK is a row in Track 3, so the
@@ -72,10 +90,25 @@ export default function BookingPage({ onBack, readLinkImpl = readLink, readBooki
   const load = useCallback(() => {
     readLinkImpl().then(setLink).catch(() => setLink(null));
     readBookingsImpl().then(setBooked).catch(() => setBooked(null));
-  }, [readLinkImpl, readBookingsImpl]);
+    readDaysOffImpl().then((d) => setDaysOff(d ?? [])).catch(() => setDaysOff([]));
+  }, [readLinkImpl, readBookingsImpl, readDaysOffImpl]);
   useEffect(() => { load(); }, [load]);
 
   const set = (patch: Partial<BookingSettings>) => { setS(updateBookingSettings(patch)); setDirty(true); };
+
+  // Both directions are one write of the whole list, because the table means
+  // exactly what this screen shows and nothing else.
+  const writeDays = async (next: string[], onDone?: () => void) => {
+    if (busy) return;
+    setBusy(true);
+    setDayErr(null);
+    try {
+      setDaysOff(await saveDaysOffImpl(next));
+      onDone?.();
+    } catch {
+      setDayErr("Could not save that.");
+    } finally { setBusy(false); }
+  };
 
   const doCancel = async (b: BookingFace, reason: string) => {
     if (busy) return;
@@ -192,6 +225,28 @@ export default function BookingPage({ onBack, readLinkImpl = readLink, readBooki
         )}
       </Card>
       <Foot>Your times stay on this device. Publishing writes them to the booking server so the address above can offer them; taking the link down clears the hours and never cancels a booking you already have.</Foot>
+      <Head label="Days Off" />
+      <Card>
+        {daysOff.length > 0 ? daysOff.map((d) => (
+          <div className="row" key={d} {...pressable(() => setActingDay(d))}>
+            <div className="row-grow">
+              <div className="conn-name">{dayOffLabel(d)}</div>
+              <div className="conn-meta">Off for the whole day</div>
+            </div>
+          </div>
+        )) : (
+          <div className="row">
+            <div className="row-grow">
+              <div className="conn-name">No Days Off</div>
+              <div className="conn-meta">Your hours run every week you set them</div>
+            </div>
+          </div>
+        )}
+        <div className="set-publish">
+          <button type="button" className="btn btn-block" onClick={() => { setDayErr(null); setAddingDay(true); }} disabled={busy}>Add a Day Off</button>
+        </div>
+      </Card>
+      <Foot>A day off beats your hours for that day, and it never touches a booking you already have.</Foot>
       {link && (
         <>
           <Head label="Booked So Far" />
@@ -242,6 +297,29 @@ export default function BookingPage({ onBack, readLinkImpl = readLink, readBooki
             },
           ]}
           onCancel={() => setActing(null)}
+        />
+      )}
+      {actingDay && (
+        <RowActionSheet
+          title={dayOffLabel(actingDay)}
+          actions={[{
+            label: "Take This Day Back",
+            onPick: () => {
+              const day = actingDay;
+              setActingDay(null);
+              void writeDays(daysOff.filter((x) => x !== day));
+            },
+          }]}
+          onCancel={() => setActingDay(null)}
+        />
+      )}
+      {addingDay && (
+        <DayOffSheet
+          taken={daysOff}
+          busy={busy}
+          error={dayErr}
+          onCancel={() => setAddingDay(false)}
+          onAdd={(date) => void writeDays([...daysOff, date], () => setAddingDay(false))}
         />
       )}
       {cancelling && (

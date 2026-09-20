@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rowsFrom } from "./booking-busy";
+import { rowsFrom, daysOffFrom } from "./booking-busy";
 
 // THE HOURS THE OWNER HAS SPOKEN FOR (Track 3, 2026-09-19).
 //
@@ -76,5 +76,47 @@ describe("rowsFrom", () => {
   it("never writes an unblocked row, which would mean the opposite", () => {
     const rows = rowsFrom([{ date: "2026-09-22", startTime: "14:00", endTime: "15:00" }], OWNER);
     expect(rows.every((r) => r.is_blocked === true)).toBe(true);
+  });
+});
+
+describe("daysOffFrom", () => {
+  it("sorts and dedupes, because the screen shows them in order", () => {
+    expect(daysOffFrom(["2026-12-25", "2026-01-02", "2026-12-25"]))
+      .toEqual(["2026-01-02", "2026-12-25"]);
+  });
+
+  // THE ROUND TRIP IS THE CHECK. Date.parse accepts the 30th of February and
+  // rolls it to March 2, so a day that is not a day would take the WRONG day out
+  // of his calendar with nothing looking wrong.
+  it("refuses a day that does not exist, rather than rolling it forward", () => {
+    expect(daysOffFrom(["2026-02-30"])).toEqual([]);
+    expect(daysOffFrom(["2026-13-01"])).toEqual([]);
+    expect(daysOffFrom(["2026-04-31"])).toEqual([]);
+  });
+  it("accepts a leap day in a leap year and refuses it in an ordinary one", () => {
+    expect(daysOffFrom(["2028-02-29"])).toEqual(["2028-02-29"]);
+    expect(daysOffFrom(["2026-02-29"])).toEqual([]);
+  });
+
+  it("is empty for anything that is not a list of days", () => {
+    expect(daysOffFrom(undefined)).toEqual([]);
+    expect(daysOffFrom("2026-12-25")).toEqual([]);
+    expect(daysOffFrom([20261225, null, { date: "2026-12-25" }])).toEqual([]);
+  });
+
+  it("refuses to write an unbounded number of rows", () => {
+    const many = Array.from({ length: 900 }, (_, i) => new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10));
+    expect(daysOffFrom(many).length).toBeLessThanOrEqual(400);
+  });
+});
+
+describe("the two kinds of row stay apart", () => {
+  // They share a table and the one difference between them is the window. A busy
+  // push that cleared his holidays, or a holiday that dropped his hours, would
+  // both be silent.
+  it("a busy row always names a window and a day off never does", () => {
+    const busy = rowsFrom([{ date: "2026-12-25", startTime: "09:00", endTime: "10:00" }], OWNER);
+    expect(busy[0]!.override_start).toBe("09:00");
+    expect(daysOffFrom(["2026-12-25"])).toEqual(["2026-12-25"]);
   });
 });

@@ -137,6 +137,18 @@ The grid subtracted bookings other people had made and nothing else. A link publ
 
 `src/booking/committed.ts` is the arithmetic, pure and tested, because the failures are all quiet ones: an event with a start and no end is an ordinary thing in this app and blocking nothing for it offers a stranger the hour he is sitting in; travel and buffer are time he is not free; an end before its start is a bad row rather than a 23 hour meeting; and two meetings that merely touch are one busy stretch, because there is no gap between them to book into.
 
+## A day off can be said (2026-09-19)
+
+The grid has honoured a blocked day since the arithmetic was written, and nothing ever wrote one. So a holiday could not be said: he sets Monday to Friday, goes away for a week, and the link hands that week out.
+
+Settings > Booking now has a Days Off section. `GET` and `POST /api/booking-busy` read and replace the list, on the same endpoint as the busy hours, **because it is the same table and the two kinds of row are kept apart by the one difference between them**: a busy hour names a window, a day off does not. Every write is filtered on that, so the app pushing his calendar twelve times a day can never clear a holiday he typed in, and typing in a holiday can never drop the hours his calendar is holding. Its own test pins both directions.
+
+**The round trip is how a day is checked, not the parse.** `Date.parse("2026-02-30")` succeeds and rolls forward to March 2, so a day that is not a day would be stored as a different day and take the wrong one out of his calendar with nothing looking wrong. Both the client and the server now check that the parsed day reads back as the day that went in. A native date input will not hold such a value in the first place, so the guard is for everywhere else a value can arrive.
+
+**The sheet reads the day back in words** the moment the field holds one, because a date field shows digits and a mistyped month is a week gone before he notices.
+
+**A dimmed save is still tappable, which is this app's own convention** (`shared/SheetBar`: "the tap is what surfaces the missing thing"). The first version of this sheet did nothing on that tap, which is a dead button wearing a dim class. It now says what is missing.
+
 ## The bridge past Clerk (2026-09-19)
 
 Track 3's policies expect Clerk, Clerk is not wired, and that was read as blocking everything. It does not block booking, and the reason is worth writing down: **the session can come from the live project while the storage is Track 3.**
@@ -162,7 +174,7 @@ Settings > Booking now has a Publish button and shows the address, which is the 
 | Cancelling a booking, and telling the guest | BUILT 2026-09-19: `DELETE /api/bookings`, with a `METHOD:CANCEL` calendar file |
 | The VISITOR cancelling, from the link in their receipt | BUILT 2026-09-19: `/book/<slug>?cancel=<id>`, the booking id as the capability |
 | The link not offering an hour he is already in | BUILT 2026-09-19: `PUT /api/booking-busy`, pushed by the app on every open |
-| Marking a whole day off by hand | the rows and the grid already honour it (blocked, no window); nothing writes one yet, so it needs a screen |
+| Marking a whole day off by hand | BUILT 2026-09-19: Settings > Booking, Days Off |
 | Writing a booking into GOOGLE Calendar | Dave's ruling on widening the Google scope past `calendar.readonly`, which forces one interactive reconnect. Not needed for the host to see a booking |
 | Connections (request, accept, decline, scope toggles) | Clerk wired as the project's third-party auth provider. Booking no longer waits on it: see the bridge below |
 | Shared Project (view and edit badges, assignee avatars) | connections above (0005's policies are tested at the database, see the track3 README) |
