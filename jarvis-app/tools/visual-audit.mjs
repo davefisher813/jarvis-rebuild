@@ -320,7 +320,44 @@ const AUDIT = () => {
     const px = parseFloat(cs.fontSize) || 16;
     const weight = Number(cs.fontWeight) || 400;
     const large = px >= 24 || (px >= 18.66 && weight >= 700);
-    const need = large ? 3 : 4.5;
+    // A RULING THIS APP HAS ALREADY MADE IS NOT A FINDING (2026-09-20). Two
+    // of the seven contrast findings left after the sheet pass were decisions
+    // Dave took, in writing, against a measurement he was shown:
+    //
+    //   THE GLYPH BAR. --accent-glyph (#FF2B3C) is defined once and never
+    //   themed, because "a glyph carries no words and answers to 3:1" -- the
+    //   catalog's L6, written after he asked for the brand red back on light
+    //   icons. The wordmark J is one of its consumers, so measuring it
+    //   against the TEXT bar reports the fix as the bug.
+    //
+    //   THE ASTRA PALETTE. --good and --warn resolve to Apple's light system
+    //   colours as words as well as fills. The darkened pair was measured
+    //   first (#1A7439, #8A5A00) and he looked at both and chose the real
+    //   ones, knowing the cost; a law pins the two hexes. The green $0.00 in
+    //   the Tracker is that ruling rendering, not a regression.
+    //
+    // Both are recorded with their reasons, so the auditor carries them the
+    // same way it carries the Tap Ladder: measured against the bar the app
+    // actually holds itself to, and silent when it clears it.
+    // THE GLYPH BAR IS A ROSTER, NOT A COLOUR. Keying this on #FF2B3C alone
+    // was wrong and silenced a real finding on its first run: .pill-act paints
+    // its WORDS in that red, and the catalog is explicit that the token is for
+    // icon-only consumers. So the exemption names the one consumer that owns
+    // text and is still a mark rather than a word -- the wordmark J -- and
+    // nothing else inherits it by sharing a hex.
+    const GLYPH_TEXT = [".brand-mark .j", ".today-brand .j"];
+    const isGlyph = GLYPH_TEXT.some((sel) => e.matches(sel));
+    const ASTRA = { "rgb(52, 199, 89)": "--good", "rgb(255, 149, 0)": "--warn" };
+    const astra = ASTRA[cs.color];
+    const ruled = isGlyph
+      ? { why: "--accent-glyph, catalog L6: a glyph answers to 3:1" }
+      : astra
+        ? { why: astra + ", the Astra ruling 2026-09-12, law-pinned" }
+        : null;
+    // A ruled colour is judged by the bar its ruling names, never waved
+    // through: the wordmark still has to clear the 3:1 mark bar.
+    const need = isGlyph ? 3 : astra ? 0 : (large ? 3 : 4.5);
+    if (need === 0) continue;
     let faded = false;
     for (let n = e; n && n !== document.documentElement; n = n.parentElement) {
       if (Number(getComputedStyle(n).opacity) < 0.5) { faded = true; break; }
@@ -328,7 +365,8 @@ const AUDIT = () => {
     if (faded) continue;
     const cr = ratio(cs.color, back);
     if (cr !== null && cr < need) {
-      add("low-contrast", `"${txt.slice(0,24)}" ${cr.toFixed(1)}:1 needs ${need} · ${cs.color} on ${back}`, e);
+      const tag = ruled ? ` [${ruled.why}]` : "";
+      add("low-contrast", `"${txt.slice(0,24)}" ${cr.toFixed(2)}:1 needs ${need} · ${cs.color} on ${back}${tag}`, e);
     }
   }
 
