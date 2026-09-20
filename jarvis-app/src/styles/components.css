@@ -3205,10 +3205,22 @@ button {
    Anytime strip's count-toggle sits in a .plan-head, not an .sh2, and one
    pill grammar should not fork per head type. plan-head's space-between
    seats it; only sh2 needs the order/margin trick. */
+/* THE HEAD ACTION IS A CAPSULE, AND A CAPSULE IS 34 (Dave, 2026-09-20, from
+   a rendered before-and-after at 390).
+   This rule carried `min-height: 0`, so the one control the catalog names by
+   name in C1 -- "See All, Open Inbox, Schedule, Add" -- painted at 28 while
+   every other capsule in the app sat at 34. Twenty-one buttons, on the head
+   of nearly every section, off the ladder. It went unreported for months
+   because the auditor measured everything against a flat 44, where a
+   deliberate 28 and a wrong 28 look identical; the moment it learned the
+   ladder these were the only capsules it flagged.
+   Measured: the head row goes 52 to 58, and three heads cost 18px of page.
+   The ::after below still expands the hit past the paint, and now clears 44
+   rather than stopping at 42. */
 .sh2 .see-all.pill-action, .plan-head .see-all.pill-action {
   background: var(--press-3); color: var(--tx-1); border-radius: var(--r-pill);
   padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); letter-spacing: normal;
-  min-height: 0; margin: 0; position: relative;
+  min-height: 34px; margin: 0; position: relative;
 }
 .sh2 .see-all.pill-action::after, .plan-head .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
 /* Small pill: the one small doing-button (Add to Today, Link, Not Now).
@@ -5789,7 +5801,17 @@ span.row-star { cursor: default; }
 /* The options sheet's own head: the page's name and Done, nothing to save. */
 .opt-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-4) var(--s-3); }
 .opt-title { font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1); letter-spacing: -0.01em; }
-.opt-done { background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tint-on-sheet); }
+/* THE 44px RULE, ON THE ONE CONTROL THAT CLOSES THIS SHEET. Measured 44x18
+   by the first sheet-aware audit (2026-09-20): under 24, which is the tier
+   this tool calls genuinely broken rather than merely under the HIG. It is
+   the only way out of an Options sheet besides the scrim, and it was the
+   smallest target in the app.
+   Same trade .pill-act makes (BROWSER-F-03): a TRANSPARENT BORDER, which is
+   part of the border box, rather than an ::after that a future overflow rule
+   could clip. 18 + 13 + 13 is 44, and the negative block margin pulls the
+   extra back out of the flex row so the bar does not grow. */
+.opt-done { background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tint-on-sheet);
+  border-top: 13px solid transparent; border-bottom: 13px solid transparent; margin-block: -13px; }
 .opt-val { flex-shrink: 0; font-size: var(--t-body); font-weight: var(--w-regular); color: var(--tx-2); }
 /* FOCUS, remodelled (2026-09-17): the facts line on the card, the verb grid
    under the one filled action, and the running block's own card. */

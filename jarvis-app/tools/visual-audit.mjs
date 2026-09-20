@@ -592,13 +592,22 @@ const MATRIX = process.env.VW
   // An explicit VW/VH/THEME still runs exactly one pass, for chasing one
   // finding without waiting for the whole sweep.
   ? [{ w: Number(process.env.VW), h: Number(process.env.VH || 844), theme: process.env.THEME || "dark" }]
+  // 320 IS NOT A SUPPORTED WIDTH (Dave, 2026-09-20, asked directly and
+  // answered directly). The sheet-aware run found 18 distinct findings in the
+  // whole app and SEVEN of them existed only at 320 and nowhere else: every
+  // truncation the app has, plus a Search Cancel painting past the screen
+  // edge and a 63x20 tap target. Supporting a phone nobody here uses was
+  // costing 39 percent of the report.
+  //
+  // This is a decision, not an oversight, so the passes go rather than the
+  // findings being triaged away one at a time for ever. 390 is the phone he
+  // holds; 430 and 834 keep the app honest as a web app at other sizes.
   : [
-    { w: 320, h: 568, theme: "dark" },   // the smallest phone still in use
     { w: 390, h: 844, theme: "dark" },   // the phone Dave holds
     { w: 430, h: 932, theme: "dark" },   // Pro Max
     { w: 834, h: 1112, theme: "dark" },  // tablet / a desktop browser window
-    { w: 320, h: 568, theme: "light" },
     { w: 390, h: 844, theme: "light" },
+    { w: 430, h: 932, theme: "light" },
     { w: 834, h: 1112, theme: "light" },
   ];
 
