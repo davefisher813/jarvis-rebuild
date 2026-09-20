@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "../../shared/PageHeader";
 import { useTracker } from "../../data/NotesProvider";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine, tapField } from "../../shared/FormSheet";
@@ -263,10 +263,21 @@ function Transactions({ data, month, onSaved }: {
       .sort((a, b) => b.data.date.localeCompare(a.data.date) || a.data.merchant.localeCompare(b.data.merchant));
   }, [data.txs, q, cat, acct]);
 
+  // The same latch the subscription add carries, for the same reason: with a
+  // null id this CREATES, so a second Save landing before the first returns
+  // writes a second transaction. A ref, because state has not re-rendered
+  // yet when the second tap arrives.
+  const savingRef = useRef(false);
   const save = async (id: string | null, d: TrackerTxData) => {
-    if (!(await attemptWrite(() => svc.saveTx(id, d)))) return;
-    setEditing(null);
-    await onSaved();
+    if (savingRef.current) return;
+    savingRef.current = true;
+    try {
+      if (!(await attemptWrite(() => svc.saveTx(id, d)))) return;
+      setEditing(null);
+      await onSaved();
+    } finally {
+      savingRef.current = false;
+    }
   };
   const remove = async (tx: TrackerTx) => {
     if (!(await attemptWrite(() => svc.removeTx(tx.id)))) return;
@@ -545,14 +556,34 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
   const active = data.subs.filter((s) => s.data.status === "active");
   const monthly = monthlySubTotal(data.subs);
 
+  // ONE TAP, ONE SUBSCRIPTION (Dave's live data, 2026-09-20: Apple Bill three
+  // times, seven seconds apart). This validated, awaited the write, and only
+  // cleared the fields once the write came back -- so against a real backend
+  // on a phone the values sat there looking untouched, the button never
+  // disabled and never changed its word, and a second tap wrote a second row.
+  // Same guard the Import button above has carried since it shipped.
+  //
+  // The latch is a REF, not the state below it. State is what the button
+  // reads to grey itself out and say "Adding", but it does not change until
+  // React re-renders, so two taps inside one tick both still see false. The
+  // ref flips on the first line of the first call and stops the second dead.
+  const busyRef = useRef(false);
+  const [busy, setBusy] = useState(false);
   const add = async () => {
     const cents = dollarsToCents(amount);
-    if (!name.trim() || cents <= 0) return;
-    if (!(await attemptWrite(() => svc.saveSub(null, {
-      merchantName: name.trim(), amountCents: cents, frequency: freq, status: "active",
-    })))) return;
-    setName(""); setAmount(""); setFreq("Monthly");
-    await onSaved();
+    if (busyRef.current || !name.trim() || cents <= 0) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      if (!(await attemptWrite(() => svc.saveSub(null, {
+        merchantName: name.trim(), amountCents: cents, frequency: freq, status: "active",
+      })))) return;
+      setName(""); setAmount(""); setFreq("Monthly");
+      await onSaved();
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   };
   const flip = async (s: TrackerSub) => {
     const next = s.data.status === "active" ? "cancelled" : "active";
@@ -622,7 +653,8 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
         </div>
         <div className="row" {...pressable(() => void add())}>
           <div className="row-grow"><div className="conn-name">Add It</div></div>
-          <button className="pill-act" onClick={(e) => { e.stopPropagation(); void add(); }}>Add</button>
+          <button className="pill-act" disabled={busy}
+            onClick={(e) => { e.stopPropagation(); void add(); }}>{busy ? "Adding" : "Add"}</button>
         </div>
       </div></div>
     </>
