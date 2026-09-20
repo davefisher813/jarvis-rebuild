@@ -76,7 +76,17 @@ before this phase was a screens-only number.
       screen and needs a callback plumbed (AreasTab, LiftDetail, InsightsPage,
       WhatTheySee, NightBefore, AllData, HealthFlow). The law holds the count
       at 7 so it can only go down.
-- [ ] **Error states** · every write, failed deliberately.
+- [~] **Error states** · partly done. The health screen had SEVENTEEN writes
+      running as `void healthSvc.x().then(bumpHealth)`: `void` discards the
+      promise, so a rejection went nowhere. Fourteen were UNDO handlers, the
+      worst place for it. All seventeen now route through a healthWrite guard
+      shaped like the metricWrite that has had it right all along.
+      **Remaining: ~24 mutations across 10 files with no visible failure
+      path**, and the count is HEURISTIC, not verified. A grep for this gave
+      223, then 97, then 140, then 39 before the method was right (character
+      ranges, not line windows), and sampling showed the first three were
+      mostly wrong. No law is written on this number until each of the 24 is
+      read. Files: GymFlow 5, HealthFlow 4, ChatFlow 3, and seven others.
 - [ ] **Loading and skeletons** · every screen, caught mid-load. Two fake
       ones found and fixed via the empty-state law; the other 16 real
       skeletons are unreviewed.
