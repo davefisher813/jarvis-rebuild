@@ -115,6 +115,40 @@ The confirmation now carries one address to tap: `/book/<slug>?cancel=<booking i
 
 The host is not emailed when a visitor cancels. A message from his own mailbox to his own mailbox is not a reliable notification, and the toast is, so the toast is the answer rather than a mail that might be filed anywhere.
 
+## The link stops double-booking him (2026-09-19)
+
+The grid subtracted bookings other people had made and nothing else. A link published for Tuesday afternoons cheerfully offered the hour he already had a meeting in, which makes it worse than no booking link at all: two people turn up expecting him and he is in neither place.
+
+**The app works it out and hands it over; the server never reads his calendar.** `api/book.ts` has no auth in front of it and names no live-project credential, which is exactly why a mistake in it cannot reach the app's real data. Teaching it to read a calendar would end that. So the app, which already holds the calendar, computes the hours that are taken and puts them where the public endpoint can see them: rows he owns in Track 3.
+
+**It needed no migration, because `availability_overrides` already had the columns.** `is_blocked` sits alongside an optional `override_start` and `override_end`, and a blocked row's times were simply ignored. They now mean what they say, which is three readings of two columns and none of them contradict:
+
+| row | meaning |
+|---|---|
+| blocked, no window | the whole day is off, which is what it already meant |
+| blocked, with a window | that window is taken, the rest of the day stands |
+| not blocked, with a window | the day runs to THAT window instead of the usual one |
+
+**His own hours are a separate list from bookings, and they have to be.** Both block a slot, but only bookings count toward `max_per_day`: that cap is how many BOOKINGS he will take in a day, not how many things are on his calendar. Folded into one list, a cap of two plus two of his own meetings would close a day nobody had booked him into. `openSlots` therefore takes `committed` beside `busy`.
+
+**It replaces, never merges.** A meeting he moved or deleted has to stop blocking the hour it used to be in, so the rows mean exactly what his calendar means right now, and an empty calendar sends an empty list rather than skipping the call. Every delete is filtered to rows that name a window, so a day he marked off is never cleared by a busy push.
+
+**A booking is never pushed back as an hour of his own.** It came from the link, the link already knows about it, and sending it back would have the grid subtract the same hour twice. The push runs after the import for the same reason, so a booking that just arrived is already an event.
+
+`src/booking/committed.ts` is the arithmetic, pure and tested, because the failures are all quiet ones: an event with a start and no end is an ordinary thing in this app and blocking nothing for it offers a stranger the hour he is sitting in; travel and buffer are time he is not free; an end before its start is a bad row rather than a 23 hour meeting; and two meetings that merely touch are one busy stretch, because there is no gap between them to book into.
+
+## A day off can be said (2026-09-19)
+
+The grid has honoured a blocked day since the arithmetic was written, and nothing ever wrote one. So a holiday could not be said: he sets Monday to Friday, goes away for a week, and the link hands that week out.
+
+Settings > Booking now has a Days Off section. `GET` and `POST /api/booking-busy` read and replace the list, on the same endpoint as the busy hours, **because it is the same table and the two kinds of row are kept apart by the one difference between them**: a busy hour names a window, a day off does not. Every write is filtered on that, so the app pushing his calendar twelve times a day can never clear a holiday he typed in, and typing in a holiday can never drop the hours his calendar is holding. Its own test pins both directions.
+
+**The round trip is how a day is checked, not the parse.** `Date.parse("2026-02-30")` succeeds and rolls forward to March 2, so a day that is not a day would be stored as a different day and take the wrong one out of his calendar with nothing looking wrong. Both the client and the server now check that the parsed day reads back as the day that went in. A native date input will not hold such a value in the first place, so the guard is for everywhere else a value can arrive.
+
+**The sheet reads the day back in words** the moment the field holds one, because a date field shows digits and a mistyped month is a week gone before he notices.
+
+**A dimmed save is still tappable, which is this app's own convention** (`shared/SheetBar`: "the tap is what surfaces the missing thing"). The first version of this sheet did nothing on that tap, which is a dead button wearing a dim class. It now says what is missing.
+
 ## The bridge past Clerk (2026-09-19)
 
 Track 3's policies expect Clerk, Clerk is not wired, and that was read as blocking everything. It does not block booking, and the reason is worth writing down: **the session can come from the live project while the storage is Track 3.**
@@ -139,6 +173,8 @@ Settings > Booking now has a Publish button and shows the address, which is the 
 | A booking showing up for the host | BUILT 2026-09-19: `api/bookings.ts` and the import into JARVIS's own schedule |
 | Cancelling a booking, and telling the guest | BUILT 2026-09-19: `DELETE /api/bookings`, with a `METHOD:CANCEL` calendar file |
 | The VISITOR cancelling, from the link in their receipt | BUILT 2026-09-19: `/book/<slug>?cancel=<id>`, the booking id as the capability |
+| The link not offering an hour he is already in | BUILT 2026-09-19: `PUT /api/booking-busy`, pushed by the app on every open |
+| Marking a whole day off by hand | BUILT 2026-09-19: Settings > Booking, Days Off |
 | Writing a booking into GOOGLE Calendar | Dave's ruling on widening the Google scope past `calendar.readonly`, which forces one interactive reconnect. Not needed for the host to see a booking |
 | Connections (request, accept, decline, scope toggles) | Clerk wired as the project's third-party auth provider. Booking no longer waits on it: see the bridge below |
 | Shared Project (view and edit badges, assignee avatars) | connections above (0005's policies are tested at the database, see the track3 README) |

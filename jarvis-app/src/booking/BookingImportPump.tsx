@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useSchedule } from "../data/NotesProvider";
 import { importBookings } from "./importBookings";
+import { pushCommitted } from "./pushCommitted";
 import { cancelledToast } from "./bookedEvents";
 import { showToast } from "../shared/toast";
 
@@ -25,6 +26,11 @@ import { showToast } from "../shared/toast";
 // never learns it is free, or worse, notices the gap and does not know why. So a
 // removal says so. Arrivals stay silent, because a booking is a thing somebody
 // else did on purpose and the hour showing up IS the news.
+//
+// IT ALSO GOES THE OTHER WAY (2026-09-19). The same open hands Track 3 the hours
+// he has already spoken for, so the link stops offering an hour he is in. That
+// direction is silent whatever happens: it is housekeeping he never asked for,
+// and a toast about it would be a toast on every app open.
 export default function BookingImportPump() {
   const schedule = useSchedule();
   const done = useRef(false);
@@ -36,6 +42,9 @@ export default function BookingImportPump() {
       .then(({ removed }) => {
         const message = cancelledToast(removed);
         if (message) showToast({ message });
+        // After the import, so a booking that just arrived is already an event
+        // and is not pushed back as an hour of his own.
+        return pushCommitted(schedule);
       })
       .catch(() => { done.current = false; });
   }, [schedule]);
