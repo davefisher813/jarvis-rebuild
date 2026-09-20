@@ -775,6 +775,25 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     await reload();
   };
 
+  // THE ROW'S OWN DELETE (Dave 2026-09-20: "should be able to delete always").
+  // onDelete above answers the SHEET, which knows the Apply To scope and the
+  // occurrence that was opened. A rail has neither, so a repeating row skips
+  // the day and never touches the series: a gesture must not remove something
+  // the finger cannot see. offerUndoEvent is the same Undo the sheet gets.
+  const onDeleteEventRow = async (id: string) => {
+    const e = await svc.event(id);
+    if (!e) return;
+    if ((e.recurrence ?? "none") !== "none") {
+      const ok = await attemptWrite(() => svc.addExdate(id, e.date));
+      await reload();
+      if (ok) showToast({ message: "Skipped that day · The series stays" });
+      return;
+    }
+    const ok = await attemptWrite(() => svc.deleteEvent(id));
+    await reload();
+    if (ok) offerUndoEvent(e, id);
+  };
+
   const onPickSlot = (start: string) => { setNewStart(start); setSheet({ mode: "new" }); };
 
   // --- Session 4 connections: attachments + the event-end follow-up ---
@@ -1244,12 +1263,13 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     const ok = await attemptWrite(() => routine.save(after));
     if (ok) setRoutineData(after);
   };
-  const onDeleteBlock = async () => {
-    if (!blockSheet) return;
+  // Written once, reached from two doors: the block sheet's Delete Block and
+  // the row's swipe rail (2026-09-20). The sheet closes itself first because
+  // it is the thing being left; the rail has nothing to close.
+  const deleteBlockById = async (id: string) => {
     const before = routineData;
-    const removed = (before.protectedBlocks ?? []).find((b) => b.id === blockSheet.id);
-    const after = removeBlockAdjust(before, blockSheet.id);
-    setBlockSheet(null);
+    const removed = (before.protectedBlocks ?? []).find((b) => b.id === id);
+    const after = removeBlockAdjust(before, id);
     if (!after) return;
     const ok = await attemptWrite(() => routine.save(after));
     if (!ok) return;
@@ -1259,6 +1279,12 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
       actionLabel: "Undo",
       onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
     });
+  };
+  const onDeleteBlock = async () => {
+    if (!blockSheet) return;
+    const id = blockSheet.id;
+    setBlockSheet(null);
+    await deleteBlockById(id);
   };
   const onEditBlockFull = () => {
     if (!blockSheet) return;
@@ -1465,6 +1491,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
         onSetEnd={onSetEnd}
         onSkipToday={onSkipToday}
         onPushTomorrow={onPushTomorrow}
+        onDeleteEvent={(id) => void onDeleteEventRow(id)}
+        onDeleteBlock={(id) => void deleteBlockById(id)}
         onShiftBlock={onShiftBlock}
         onRetimeBlock={onRetimeBlock}
         onResizeBlock={onResizeBlock}

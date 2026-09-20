@@ -277,6 +277,8 @@ export default function TodayPage({
   onSkipToday,
   onPushTomorrow,
   onShiftBlock,
+  onDeleteEvent,
+  onDeleteBlock,
   onRetimeBlock,
   onResizeBlock,
   parentOf,
@@ -373,6 +375,9 @@ export default function TodayPage({
   // Same three moves, for a protected block (2026-08-28, Dave: "edit ALL
   // schedule items THE FUCKING SAME").
   onShiftBlock?: (id: string, mins: number) => void;
+  /** Swipe left on a schedule row, Delete. The flow owns write and Undo. */
+  onDeleteEvent?: (id: string) => void;
+  onDeleteBlock?: (id: string) => void;
   onRetimeBlock?: (id: string, startMin: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
   onSeeAllTasks: () => void;
@@ -988,6 +993,8 @@ export default function TodayPage({
         onSetEnd={onSetEnd}
         onSkipToday={onSkipToday}
         onPushTomorrow={onPushTomorrow}
+        onDeleteEvent={onDeleteEvent}
+        onDeleteBlock={onDeleteBlock}
         onShiftBlock={onShiftBlock}
         onRetimeBlock={onRetimeBlock}
         onResizeBlock={onResizeBlock}

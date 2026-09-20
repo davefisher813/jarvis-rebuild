@@ -157,7 +157,6 @@ import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import { Clock, CircleSlash, BellRing } from "../shared/icons";
-import { useSwipe } from "../shared/useSwipe";
 import { isFromEmail } from "../tasks/origin";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
@@ -1166,6 +1165,48 @@ export default function TodayFlow({
     }
   };
 
+  // THE SWIPE'S DELETE (Dave 2026-09-20). onDeleteEvent above answers the
+  // SHEET, so it reads eventSheet for the id and the Apply To scope. The rail
+  // has neither: it is acting on a row, and a repeating row's rail deletes the
+  // occurrence, never the series, because a gesture must not be able to remove
+  // something the finger cannot see. Same snapshot-then-write-then-Undo shape
+  // as the sheet's, so the two doors restore the same thing.
+  const onDeleteEventRow = async (id: string) => {
+    const e = await schedule.event(id);
+    if (!e) return;
+    if ((e.recurrence ?? "none") !== "none") {
+      const ok = await attemptWrite(() => schedule.addExdate(id, today));
+      await reload();
+      if (ok) showToast({ message: "Skipped today · The series stays" });
+      return;
+    }
+    const ok = await attemptWrite(() => schedule.deleteEvent(id));
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: "Event deleted",
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => schedule.recreateFrom(e, id)); await reload(); },
+    });
+  };
+  // The block's twin. A protected block lives inside the routine record, so
+  // "delete" is a save of the routine without it and Undo is a save of the
+  // routine as it was: blockAdjust.removeBlock returns null when the id is not
+  // there, which is the only refusal this can meet.
+  const onDeleteBlockRow = async (id: string) => {
+    const before = routineData;
+    const removed = (before.protectedBlocks ?? []).find((b) => b.id === id);
+    const after = removeBlockAdjust(before, id);
+    if (!after) return;
+    if (!(await attemptWrite(() => routine.save(after)))) return;
+    setRoutineData(after);
+    showToast({
+      message: (removed?.label ?? "Block") + " deleted",
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
+  };
+
   // THE SAME SHEET, THE SAME MOVES (2026-08-24). Editing a task from Today
   // offered neither Add to Schedule nor Break It Down, because TaskSheet
   // renders each only when its callback is passed and this flow passed
@@ -2102,10 +2143,11 @@ export default function TodayFlow({
   // The list is derived with the SAME mailNotices() call MailNotices renders
   // from, so the drafts that get warmed are the cards he can actually see. A
   // separate ranking here would warm the wrong five.
-  // The Now suggestion's swipe (2026-08-25, pick 5A). Same controller every
-  // other swipe row uses, so the gesture and its distances match the rest of
-  // the app rather than being a second implementation on the home page.
-  const nowSwipe = useSwipe({ revealW: 176 });
+  // (The Now suggestion's swipe controller stood here. 55d2b15 took the dealt
+  // task off the Now card -- "two surfaces on one screen each offering the
+  // thing to do next" -- which took the markup that used it, and the hook call
+  // was left behind running a gesture for a row that no longer exists. Found
+  // by the swipe audit of 2026-09-20: one grep hit for the whole app.)
 
   const pregenRan = useRef(false);
   useEffect(() => {
@@ -3100,6 +3142,28 @@ export default function TodayFlow({
     const v = reminders.find((r) => r.id === id);
     if (v) setRemAdjust({ id, text: v.text });
   };
+  // SWIPE LEFT, DELETE (Dave 2026-09-20). A reminder IS a task carrying a
+  // ReminderInfo, which is why this deletes a task and recreates a reminder:
+  // the snapshot is taken before the write so Undo puts back the schedule and
+  // the area, not a bare line of text. Same shape as RemindersFlow's own
+  // remove, because the row is the same row on a different screen and an Undo
+  // that restores less on Today than on Reminders is a trap.
+  const onDeleteReminder = async (id: string) => {
+    const t = await tasks.task(id);
+    if (!t?.reminder) return;
+    const kept = { text: t.text, reminder: t.reminder, category: t.category ?? "", due: t.due ?? null };
+    const ok = await attemptWrite(() => tasks.deleteTask(id));
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: "Reminder Deleted",
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(() => tasks.createReminder(kept.text, kept.reminder, kept.category, kept.due));
+        await reload();
+      },
+    });
+  };
   const moveReminder = async (id: string, toDate: string, time: string) => {
     setRemAdjust(null);
     const ok = await attemptWrite(() => tasks.moveOccurrence(id, today, toDate, time));
@@ -3771,6 +3835,8 @@ export default function TodayFlow({
       onSetEnd={onSetEnd}
       onSkipToday={onSkipToday}
       onPushTomorrow={onPushTomorrow}
+      onDeleteEvent={(id: string) => void onDeleteEventRow(id)}
+      onDeleteBlock={(id: string) => void onDeleteBlockRow(id)}
       onShiftBlock={onShiftBlock}
       onRetimeBlock={onRetimeBlock}
       onResizeBlock={onResizeBlock}
@@ -3787,6 +3853,7 @@ export default function TodayFlow({
           onSnooze={(id) => void onSnoozeReminder(id)}
           onAdd={() => setRemSheet({ mode: "new" })}
           onOpen={openReminder}
+          onDelete={(id) => void onDeleteReminder(id)}
           onAddAllToCalendar={() => void addRemindersToCalendar()}
           onSeeAll={() => setRemHome(true)}
         />

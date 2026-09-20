@@ -275,6 +275,10 @@
   --tx-quiet: rgba(235,235,245,0.55);
   /* iOS system colors, DARK variants, exactly as the HIG defines them. */
   --sys-gray: #8E8E93;   /* iOS systemGray, identical in both themes */
+  /* THE IDLE TAB LABEL, its own token so the tab bar can be readable in
+     daylight without --sys-gray having to stop meaning systemGray. On dark
+     it IS systemGray, which measures fine on the nav ground. */
+  --tab-idle: var(--sys-gray);
   --red: #FF453A; --sys-red: #FF453A; --warn: #FF9F0A; --good: #30D158; --blue: #0A84FF;
   /* BROWSER-F-04 (2026-09-05). --good and --warn now mean "this colour is
      going to be READ": the light block below takes them down to the values
@@ -404,6 +408,18 @@
   --tx-quiet: rgba(60,60,67,0.72);
   /* iOS system colors, LIGHT variants, exactly as the HIG defines them. */
   --sys-gray: #8E8E93;
+  /* AND THE ONE PLACE systemGray IS NOT READABLE (visual audit 2026-09-20:
+     99 findings, every one of them a tab label). #8E8E93 on the light nav
+     ground measures 3.1:1 against a 4.5 bar, on the one control that is on
+     screen on EVERY screen, which is why one token was a hundred findings.
+
+     --tx-quiet is the value this theme already proved for exactly this job:
+     the smallest that clears 4.5:1 on the grounds a sub actually lands on
+     (see its note above). Measured as a blend over the nav ground it reads
+     4.62:1, so the fix is a token this app already owns rather than a new
+     hex nobody has checked. The active tab is untouched: it wears the
+     accent, and contrast was never its problem. */
+  --tab-idle: var(--tx-quiet);
   --red: #FF3B30; --sys-red: #FF3B30; --blue: #007AFF;
   /* BROWSER-F-04 (2026-09-05). These two were the iOS system green and orange,
      which are tuned to be read on BLACK. In light they sat on a pastel of
@@ -738,7 +754,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    the app's primary navigation at half of the 4.5:1 Apple itself asks for
    in the App Store accessibility criteria. systemGray takes them to 6.44:1
    on the dark bar. */
-.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-1) 0; color: var(--sys-gray); font-size: var(--t-micro); font-weight: var(--w-medium); position: relative; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-1) 0; color: var(--tab-idle); font-size: var(--t-micro); font-weight: var(--w-medium); position: relative; }
 .tab.active { color: var(--accent-chrome); }
 
 /* NAV BAR */

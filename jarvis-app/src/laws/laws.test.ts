@@ -5160,9 +5160,17 @@ describe("swipe reveals are hidden at rest (2026-09-06)", () => {
   ];
   // Decoration INSIDE a reveal, not a reveal itself: these are children of an
   // element the roster already hides, so hiding them again would say nothing.
-  const INNER = new Set(["ic", "swipe-label", "cb", "sched-act", "sched-act-quiet"]);
+  const INNER = new Set(["ic", "swipe-label", "cb", "sched-act", "sched-act-quiet", "sched-act-danger"]);
 
-  function revealsIn(jsx: string): string[] {
+  function revealsIn(source: string): string[] {
+    // COMMENTS ARE NOT MARKUP (2026-09-20). The scan locates a container by
+    // searching for its class name as plain text, and this codebase names its
+    // classes in prose constantly: a note in DayRow.tsx explaining that
+    // ".sched-strip clips" made the scan start slicing from the middle of a
+    // sentence and report .sched-swipe-wrap as an unhidden reveal. Stripping
+    // comments first costs nothing and removes a whole category of finding
+    // that was never about the rendered page.
+    const jsx = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     const found: string[] = [];
     for (const [container, movers] of CONTAINERS) {
       let from = 0;
