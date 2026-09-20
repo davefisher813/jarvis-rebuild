@@ -45,17 +45,20 @@ before this phase was a screens-only number.
       the broken floor, the only way out of an Options sheet.
 - [x] **Swipe rails** · `db8cb16` · Delete on every row that owns a record;
       the schedule rail counted its buttons instead of hiding them.
-- [ ] **Red on a press fill** · the one open finding, below.
+- [x] **Red on a press fill** · accepted and recorded, see OPEN DECISIONS 1.
 - [x] **Light tab bar** · `db8cb16` · 99 findings, one token.
 
 ## PHASE 2 · WORDS  ·  next
 
-- [ ] **Subtext sweep** · 253 static sub strings; the shipping law sees 118.
-      Blind to the prop route (`sub=`, `hint=`, `why=`, `meta=`) and to most
-      of the class census. Instructional copy is shipping past it today.
-      Then widen the law so it cannot come back.
-- [ ] **Settings switch descriptions** · a separate class from a row's fact
-      line. Decide whether the no-manual rule reaches them.
+- [x] **Subtext sweep** · all 253 read in context against the empty-database
+      test. The app's subtext was in good shape: ONE manual in the whole app,
+      the weather offer's "One line each morning, only when it matters", which
+      also never rendered. The COVERAGE was the real gap and is closed: the
+      law watches the prop route and the full class census now, and is proven
+      to bite on the line it was widened for.
+- [ ] **Settings switch descriptions** · 8 of them, a separate class from a
+      row's fact line: a toggle has to say what it does. Deliberately left out
+      of the no-manual law; decide whether they get a rule of their own.
 - [ ] **Empty-state copy** · exempt from the no-manual law by design; never
       reviewed on its own terms.
 - [ ] **Error and toast copy** · never reviewed. Does each one say what
