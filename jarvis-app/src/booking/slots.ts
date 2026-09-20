@@ -58,6 +58,14 @@ export interface SlotQuery {
   rules: Rule[];
   overrides?: Override[];
   busy?: Busy[];
+  /** Hours the owner has already committed to something of their own.
+   *
+   *  A SEPARATE LIST FROM busy, and it has to be. Both block a slot, but only
+   *  busy counts toward maxPerDay: that cap is how many BOOKINGS he will take
+   *  in a day, not how many things are on his calendar. Folded into one list, a
+   *  cap of two plus two of his own meetings would close a day he had not been
+   *  booked into at all. */
+  committed?: Busy[];
   /** The first date to offer, ISO, in the owner's zone. */
   fromDate: string;
   /** How many days forward to offer, including fromDate. */
@@ -99,13 +107,60 @@ function weekdayOf(iso: string): number {
  *  rules rather than adding to them. */
 export function windowsFor(date: string, rules: Rule[], overrides: Override[] = []): Rule[] {
   const over = overrides.filter((o) => o.date === date);
-  if (over.some((o) => o.blocked)) return [];
+  // A whole day off. A blocked row that names a WINDOW is not that: it is an
+  // hour inside the day that is already spoken for, and it is subtracted from
+  // the slots rather than taking the day out. See busyFromOverrides.
+  if (over.some((o) => o.blocked && !(o.startTime && o.endTime))) return [];
   const zone = rules[0]?.timezone ?? "UTC";
   const replaced = over.filter((o) => !o.blocked && o.startTime && o.endTime);
   if (replaced.length > 0) {
     return replaced.map((o) => ({ weekday: weekdayOf(date), startTime: o.startTime!, endTime: o.endTime!, timezone: zone }));
   }
   return rules.filter((r) => r.weekday === weekdayOf(date) && toMin(r.endTime) > toMin(r.startTime));
+}
+
+// HIS OWN HOURS COUNT AS TAKEN (2026-09-19).
+//
+// THE BUG THIS CLOSES. The grid subtracted bookings other people had made and
+// nothing else, so a link published on a Tuesday afternoon cheerfully offered
+// the hour he already had a meeting in. A booking link that double-books its
+// owner is worse than no booking link: two people turn up expecting him and he
+// is in neither place.
+//
+// WHERE THE HOURS COME FROM. The app pushes them, because the public endpoint
+// cannot read his calendar and must not learn how: it names no live-project
+// credential, which is the whole reason a mistake in it cannot reach the app's
+// data. So his committed hours arrive as rows he owns in Track 3.
+//
+// THE ROW SHAPE, AND WHY IT NEEDED NO MIGRATION. availability_overrides has
+// is_blocked alongside an optional override_start and override_end, and a
+// blocked row's times were simply ignored. They now mean what they say:
+//
+//   blocked, no window     the whole day is off (a holiday, and what the
+//                          column already meant)
+//   blocked, with a window that window is taken, the rest of the day stands
+//   not blocked, a window  the day runs to THAT window instead of the usual
+//                          one (what an override always was)
+//
+// Three readings of two columns, none of them contradicting each other, and no
+// new table to migrate into a live project.
+
+/** The hours inside a day that are already spoken for, as absolute instants.
+ *
+ *  The times are wall-clock in the owner's own zone, which is the zone their
+ *  availability rules are set in: the app that pushed them and the rules it
+ *  published were both stamped from the same device, so they agree by
+ *  construction rather than by luck. */
+export function busyFromOverrides(overrides: Override[], zone: string): Busy[] {
+  const out: Busy[] = [];
+  for (const o of overrides) {
+    if (!o.blocked || !o.startTime || !o.endTime) continue;
+    const startMs = fireAt(o.date, o.startTime, zone).getTime();
+    const endMs = fireAt(o.date, o.endTime, zone).getTime();
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) continue;
+    out.push({ startMs, endMs });
+  }
+  return out;
 }
 
 /** Does a slot, once its buffers are added, run into anything already
@@ -118,9 +173,11 @@ function clashes(startMs: number, endMs: number, busy: Busy[], beforeMin: number
 
 export function openSlots(q: SlotQuery): Slot[] {
   const {
-    rules, overrides = [], busy = [], fromDate, days, durationMin,
+    rules, overrides = [], busy = [], committed = [], fromDate, days, durationMin,
     bufferBeforeMin = 0, bufferAfterMin = 0, minNoticeHours = 0, maxPerDay = null, nowMs,
   } = q;
+  // One list for "is this hour free", two for everything else.
+  const taken = committed.length > 0 ? [...busy, ...committed] : busy;
   if (durationMin <= 0 || days <= 0 || rules.length === 0) return [];
   const earliest = nowMs + minNoticeHours * 60 * MIN;
   const out: Slot[] = [];
@@ -151,7 +208,7 @@ export function openSlots(q: SlotQuery): Slot[] {
         const endMs = startMs + durationMin * MIN;
         if (!Number.isFinite(startMs)) continue;
         if (startMs < earliest) continue;
-        if (clashes(startMs, endMs, busy, bufferBeforeMin, bufferAfterMin)) continue;
+        if (clashes(startMs, endMs, taken, bufferBeforeMin, bufferAfterMin)) continue;
         out.push({ date, startMs, endMs });
       }
     }

@@ -1,4 +1,4 @@
-import { openSlots, parseRange, type Busy, type Override, type Rule } from "../src/booking/slots";
+import { openSlots, parseRange, busyFromOverrides, type Busy, type Override, type Rule } from "../src/booking/slots";
 import { cancelUrl } from "../src/booking/publicRoute";
 import { sendBookingReceipt } from "./_receipt";
 
@@ -137,12 +137,17 @@ async function grid(c: Ctx, slug: string, nowMs: number) {
     .filter((b) => Number.isFinite(b.startMs) && Number.isFinite(b.endMs));
 
   const zone = rules[0]?.timezone ?? "UTC";
+  // HIS OWN HOURS. A blocked override that names a window is an hour he has
+  // already spoken for, not a day off, so it blocks a slot without taking the
+  // day out and without counting toward how many bookings he will take that
+  // day. See busyFromOverrides and the committed list in slots.ts.
+  const committed = busyFromOverrides(overrides, zone);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(nowMs));
 
   return {
     link, type, zone,
     slots: openSlots({
-      rules, overrides, busy, fromDate: today, days: MAX_DAYS,
+      rules, overrides, busy, committed, fromDate: today, days: MAX_DAYS,
       durationMin: type.duration_min,
       bufferBeforeMin: type.buffer_before_min,
       bufferAfterMin: type.buffer_after_min,
