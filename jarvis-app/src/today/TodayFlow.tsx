@@ -1177,7 +1177,17 @@ export default function TodayFlow({
     if ((e.recurrence ?? "none") !== "none") {
       const ok = await attemptWrite(() => schedule.addExdate(id, today));
       await reload();
-      if (ok) showToast({ message: "Skipped today · The series stays" });
+      // UNDO, WHICH THIS SHIPPED WITHOUT (toast sweep, same day). A skip is a
+      // write: it puts the date in the event's exdates and the occurrence
+      // leaves the calendar. Fifty-two of the app's sixty destructive toasts
+      // offer a way back and this one did not, so the only route out of a
+      // mis-swipe was opening the series and editing it by hand.
+      // removeExdate is the exact inverse and was already on the service.
+      if (ok) showToast({
+        message: "Skipped today · The series stays",
+        actionLabel: "Undo",
+        onAction: async () => { await attemptWrite(() => schedule.removeExdate(id, today)); await reload(); },
+      });
       return;
     }
     const ok = await attemptWrite(() => schedule.deleteEvent(id));

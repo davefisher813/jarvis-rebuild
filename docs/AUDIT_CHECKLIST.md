@@ -80,7 +80,12 @@ before this phase was a screens-only number.
 - [ ] **Loading and skeletons** · every screen, caught mid-load. Two fake
       ones found and fixed via the empty-state law; the other 16 real
       skeletons are unreviewed.
-- [ ] **Toasts** · including the Undo path on every destructive action.
+- [x] **Toasts** · 60 report a removal; 52 already carried Undo, which is why
+      the eight that did not were invisible. Two of the eight were shipped by
+      the swipe work the same morning: a swipe on a repeating row wrote an
+      exdate and offered no way back. Both now call removeExdate, the exact
+      inverse. The other six are correct and rostered with reasons. Law with
+      an exact roster, and it checks the handler, not just the word "Undo".
 - [ ] **Offline** · what the app says when the backend is unreachable.
 
 ## PHASE 4 · REACH AND INPUT
