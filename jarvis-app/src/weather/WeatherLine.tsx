@@ -137,7 +137,28 @@ export function WeatherOfferRow({ form = "card", weight }: { form?: "card" | "ro
         <CloudGlyph />
       }
       tone="cat-fg-sky"
-      title="Add Weather to Your Day"
+      // THE TITLE FITS THE ROOM THE ROW ACTUALLY HAS (measured 2026-09-20 at
+      // 390x844, Dave's own width: "Add Weather to Y\u2026"). This offer renders
+      // in the grouped Heads Up band, which is one line by his own pick
+      // (TodayPage: "long titles truncate to one line, tap opens the full
+      // thing"), and that line is 156px after the row spends 194 of its 358
+      // on the 30px disc, the 100px action column and the padding. The old
+      // title asked 197 and lost 21% of itself; the sub is dropped by the
+      // shredded-sub latch before it ever shows here, so the title is the
+      // whole offer and half of it was missing.
+      //
+      // Nothing structural was available to buy the room back. The 100px
+      // floor on the pill is the action COLUMN (ruled.css: verbs of different
+      // lengths used to leave the buttons ragged, which he reported), and the
+      // second line is the band's stood-down two-line box. So the copy is
+      // what gives: "Daily" carries the one fact the dropped sub was there to
+      // say. Measured at 146 of 156 on Linux, which renders WIDER than the
+      // phone's SF, so it clears on the device by more than that.
+      //
+      // Anything written here again gets measured first. There is no law
+      // holding this width, because a character budget would have to guess
+      // the font -- the same reason the latch in NoticeCard measures.
+      title="Add Daily Weather"
       sub="One line each morning, only when it matters"
       action={{ label: "Allow", onClick: grant }}
       // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): nothing to

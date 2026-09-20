@@ -69,7 +69,13 @@ export default function PeopleListPage({
       <div className="task-check-tap gm-slot"><span className="row-glyph cat-fg-blue">{UPLOAD}</span></div>
       <div className="task-title">
         <span className="task-name">Import from File</span>
-        <div className="r-k"><span className="r-goal r-cat">.vcf from your phone · .csv with a Name column</span></div>
+        {/* MEASURED, NOT GUESSED (2026-09-20, 390x844): the old line asked
+            329px of the 292 this row leaves under its title and shipped
+            "...with a Name col", which cut the one word that says what the
+            csv must contain. "From your phone" was where to find a .vcf;
+            the Name column is the thing that makes an import work, so the
+            decoration goes and the requirement stays. 220 of 292 now. */}
+        <div className="r-k"><span className="r-goal r-cat">.vcf or .csv with a Name column</span></div>
       </div>
     </div>
   );
