@@ -357,13 +357,23 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
         <div className="sh2 sh2-quiet"><span className="t">What It Knows</span><span className="n">{visible.length}</span></div>
       )}
 
+      {/* RAW JSX TEXT IS INVISIBLE TO THE SHORT-COPY LAW (states sweep,
+          2026-09-20). That law reads string LITERALS, and these two wrote
+          their copy as bare text between tags, so a three-sentence paragraph
+          shipped on the one screen about what JARVIS has noticed: "Nothing
+          yet. JARVIS only writes here what it has watched you do, or what you
+          tell it. Add one thing below, or just live in the app and let it
+          notice." It also pointed at a control -- "add one thing below" --
+          that is already on screen and says so itself.
+          Title and sub, as fragments, like every other empty state. */}
       {strands.length === 0 && filter !== "watching" && (
         <div className="empty-state">
-          Nothing yet. JARVIS only writes here what it has watched you do, or what you tell it. Add one thing below, or just live in the app and let it notice.
+          <div className="empty-title">Nothing Noticed Yet</div>
+          <div className="empty-sub">What JARVIS watches you do lands here, and so does anything you tell it</div>
         </div>
       )}
       {strands.length > 0 && filter !== "all" && filter !== "watching" && visible.length === 0 && (
-        <div className="empty-state">Nothing under this one yet.</div>
+        <div className="empty-state"><div className="empty-title">Nothing Under This One</div></div>
       )}
 
       {/* THE STRAND ROW (C-40, C-41, C-43, C-47, C-50; Astra, 2026-09-12).

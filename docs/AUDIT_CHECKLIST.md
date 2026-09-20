@@ -66,9 +66,20 @@ before this phase was a screens-only number.
 
 ## PHASE 3 · THE STATES NOTHING HAS LOOKED AT
 
-- [ ] **Empty states** · every list, emptied deliberately.
+- [x] **Empty states** · 65 of them, read. L7 ("an empty state always carries
+      its action") is stated three times in the catalog and was enforced
+      nowhere; 26 were dead ends. Now a law with an EXACT roster, so a new
+      dead end fails and fixing one fails too. Fixed: No Projects Here and No
+      Goals Here got their buttons, two "Loading..." empty states became
+      skeletons, and the Strands paragraph became a title and a sub.
+      **Debt, named, 7 left:** empty states whose action lives on another
+      screen and needs a callback plumbed (AreasTab, LiftDetail, InsightsPage,
+      WhatTheySee, NightBefore, AllData, HealthFlow). The law holds the count
+      at 7 so it can only go down.
 - [ ] **Error states** · every write, failed deliberately.
-- [ ] **Loading and skeletons** · every screen, caught mid-load.
+- [ ] **Loading and skeletons** · every screen, caught mid-load. Two fake
+      ones found and fixed via the empty-state law; the other 16 real
+      skeletons are unreviewed.
 - [ ] **Toasts** · including the Undo path on every destructive action.
 - [ ] **Offline** · what the app says when the backend is unreachable.
 
