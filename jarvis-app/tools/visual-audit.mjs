@@ -341,6 +341,210 @@ async function auditScreen(page, name) {
 }
 
 // ---------------------------------------------------------------------------
+// THE SHEETS (2026-09-20). Every number this tool has ever printed was a
+// SCREEN number. It visits four tabs, the More rows and three detail rows
+// each -- eleven screens a pass -- and never deliberately opened a sheet, so
+// "the app has 48 findings" has always meant "the app has 48 findings on the
+// parts of it that are not a sheet". A sheet is where the app asks for
+// something: New Event, Edit Task, the block editor, every picker. It is
+// exactly where a cramped target or an unreadable grey costs the most, and it
+// was outside the audit.
+//
+// The mechanism is screen-crawl.mjs's, which has done this correctly all
+// along: tap a control, ask whether a sheet actually appeared, and only then
+// call it a screen. Text selectors are not used, because on these screens the
+// first thing that says the words is usually a heading.
+const SHEET_SEL = ".sheet, [role=dialog], .modal, .block-menu, .time-pop";
+const SHEET_CAP = Number(process.env.SHEET_CAP || 6);
+
+// WHAT OPENED IS A LAYER, NOT A CLASS NAME. The first version of this asked
+// `document.querySelector(".sheet, [role=dialog], ...)` and called anything
+// else "not a sheet door". Today's magnifier opens a full-screen SEARCH that
+// carries none of those classes and leaves the tab bar and title alone, so
+// the detector saw nothing, the screen check saw no move, and the overlay
+// stayed up: every tab click for the rest of the pass landed on the search
+// panel and was swallowed. The run then reported ONE screen and no error.
+//
+// So the question is the honest one -- is something covering the screen that
+// was not covering it before -- and it is asked of the rendered page: a
+// fixed or absolute layer taking a third of the viewport, or one of the
+// known sheet classes. Anything that traps the pass now gets noticed.
+const layerOf = (page) => page.evaluate((sel) => {
+  const named = document.querySelector(sel);
+  if (named) {
+    const r = named.getBoundingClientRect();
+    if (r.width >= 40 && r.height >= 40) {
+      const h = named.querySelector("h1, h2, .sheet-title, .nav-title, .pagehead-title");
+      return (h?.textContent || named.textContent || "sheet").trim().slice(0, 34) || "sheet";
+    }
+  }
+  const area = window.innerWidth * window.innerHeight;
+  for (const e of document.querySelectorAll("body *")) {
+    const cs = getComputedStyle(e);
+    if (cs.position !== "fixed" && cs.position !== "absolute") continue;
+    if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) < 0.2) continue;
+    const r = e.getBoundingClientRect();
+    if (r.width * r.height < area * 0.33) continue;
+    if (r.top > window.innerHeight * 0.8) continue;        // a docked bar, not a layer
+    if (e.closest(".tab-bar, .voice-dock")) continue;      // permanent chrome
+    const h = e.querySelector("h1, h2, .sheet-title, .nav-title, .pagehead-title, input[placeholder]");
+    const t = (h?.getAttribute?.("placeholder") || h?.textContent || e.textContent || "").trim();
+    return (t || "overlay").slice(0, 34);
+  }
+  return "";
+}, SHEET_SEL);
+
+const sheetOpen = layerOf;
+
+/** Everything on this screen that might open a sheet, as stable descriptors. */
+const sheetCandidates = (page) => page.evaluate(() => {
+  const SEL = "button, [role=button], .lib-row, .row-tap, .chip, [data-tap]";
+  // Anything that leaves the screen or destroys a record is not a sheet door.
+  const NO = /^(back|cancel|close|done|save|delete|remove|sign out|log out|clear all|reset|today|tasks|schedule|brain|notes|email|money|chat|more|life)$/i;
+  const out = [], seen = new Map();
+  for (const el of document.querySelectorAll(SEL)) {
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") continue;
+    if (r.top < 0 || r.bottom > window.innerHeight) continue;
+    const text = (el.innerText || el.getAttribute("aria-label") || "").trim().replace(/\s+/g, " ").slice(0, 40);
+    if (!text || NO.test(text)) continue;
+    const cls = (typeof el.className === "string" ? el.className : "").split(/\s+/).filter(Boolean).slice(0, 2).join(".");
+    const key = text + "|" + cls;
+    const n = seen.get(key) || 0;
+    seen.set(key, n + 1);
+    out.push({ text, cls, nth: n });
+  }
+  return out;
+});
+
+const tapCandidate = (page, d) => page.evaluate(({ d }) => {
+  const SEL = "button, [role=button], .lib-row, .row-tap, .chip, [data-tap]";
+  let n = 0;
+  for (const el of document.querySelectorAll(SEL)) {
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") continue;
+    if (r.top < 0 || r.bottom > window.innerHeight) continue;
+    const text = (el.innerText || el.getAttribute("aria-label") || "").trim().replace(/\s+/g, " ").slice(0, 40);
+    if (!text) continue;
+    const cls = (typeof el.className === "string" ? el.className : "").split(/\s+/).filter(Boolean).slice(0, 2).join(".");
+    if (text === d.text && cls === d.cls) {
+      if (n === d.nth) { el.click(); return true; }
+      n++;
+    }
+  }
+  return false;
+}, { d });
+
+/**
+ * Open every sheet this screen can reach, audit inside each, close it.
+ * Returns one result per sheet that actually appeared. `reopen` puts the page
+ * back on this screen, because a sheet that refuses to close must not poison
+ * the rest of the pass.
+ */
+async function auditSheets(page, screenName, reopen, skipped, seenTitles) {
+  const out = [];
+  if (await sheetOpen(page)) return out; // already inside one
+  let home = await screenSig(page);
+  const cands = await sheetCandidates(page);
+  let opened = 0;
+  for (const d of cands) {
+    if (opened >= SHEET_CAP) { skipped.push(`${screenName}: stopped at SHEET_CAP ${SHEET_CAP}, ${cands.length} candidates`); break; }
+    let ok = false;
+    try { ok = await tapCandidate(page, d); } catch { ok = false; }
+    if (!ok) continue;
+    await page.waitForTimeout(700);
+    const title = await sheetOpen(page);
+    if (!title) {
+      // A TAP THAT NAVIGATES STILL HAPPENED. The first version of this said
+      // "not a sheet door; nothing to undo" and moved on, so the first row
+      // that opened a PAGE left the pass standing on that page: Today was
+      // audited, every tab click after it missed, and the run reported one
+      // screen with a straight face. If the screen moved, put it back.
+      if (await screenSig(page) !== home) { await reopen(); home = await screenSig(page); }
+      continue;
+    }
+    // ONE SHEET, ONCE PER PASS. The capture bar and What Now live in the
+    // dock, so they are reachable from every screen in the app; auditing them
+    // from each one padded the report with six identical copies of the same
+    // findings and spent the runtime to produce them. The set is the pass's,
+    // not the screen's.
+    if (seenTitles.has(title)) {
+      await closeSheet(page, reopen);
+      if (await screenSig(page) !== home) { await reopen(); home = await screenSig(page); }
+      continue;
+    }
+    seenTitles.add(title);
+    opened++;
+    out.push(await auditScreen(page, `${screenName} » ${d.text} [${title}]`));
+    await closeSheet(page, reopen);
+    // Closing can also land somewhere else (a sheet whose Cancel goes back a
+    // level). Same rule: the next candidate is measured from this screen or
+    // it is not measured at all.
+    if (await screenSig(page) !== home) { await reopen(); home = await screenSig(page); }
+  }
+  return out;
+}
+
+/** What screen are we on? Enough to notice a move, cheap enough to ask often. */
+const screenSig = (page) => page.evaluate(() => {
+  const t = document.querySelector(".nav-title, .pagebar-title, .pagehead-title, h1, .page-title")?.textContent || "";
+  const tab = document.querySelector(".tab.active")?.textContent || "";
+  return (tab + "|" + t).trim().slice(0, 60);
+});
+
+/**
+ * Get back to bare screen, whatever is on top of it. Every navigation click in
+ * a pass goes through this: a layer left standing swallows the next tab click
+ * silently, and the pass then reports fewer screens with no error at all,
+ * which is how the More section went missing on the first working run.
+ */
+async function clearLayers(page) {
+  for (let i = 0; i < 4; i++) {
+    if (!(await layerOf(page))) return true;
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForTimeout(280);
+    if (!(await layerOf(page))) return true;
+    for (const sel of [".sheet-cancel", ".block-menu-scrim", ".time-pop-scrim", ".sheet-scrim", ".nav-back", ".pagebar-back"]) {
+      await page.click(sel, { timeout: 500 }).catch(() => {});
+    }
+    await page.waitForTimeout(280);
+    if (!(await layerOf(page))) return true;
+    // By their own words, and only the words that LEAVE. Never "Done" or
+    // "Save": this is a way out of a screen, not a decision on its behalf.
+    // ".search-overlay.focus-screen" (What Now) is the reason "Close" and
+    // "Back to Today" are here -- it ignores Escape, so the pass sat behind
+    // it and lost the whole More section.
+    for (const word of ["Cancel", "Close", "Back to Today"]) {
+      await page.getByText(word, { exact: true }).first().click({ timeout: 500 }).catch(() => {});
+      await page.waitForTimeout(240);
+      if (!(await layerOf(page))) return true;
+    }
+  }
+  return !(await layerOf(page));
+}
+
+async function closeSheet(page, reopen) {
+  for (const how of [
+    () => page.keyboard.press("Escape"),
+    () => page.keyboard.press("Escape"),
+    () => page.click(".sheet-cancel, .nav-back, .pagebar-back", { timeout: 800 }),
+    () => page.click("text=\"Cancel\"", { timeout: 800 }),
+    () => page.click(".sheet-scrim, .block-menu-scrim, .time-pop-scrim", { timeout: 800 }),
+  ]) {
+    try { await how(); } catch { /* try the next door */ }
+    await page.waitForTimeout(450);
+    if (!(await sheetOpen(page))) return;
+  }
+  // Nothing closed it. Rebuild the screen from scratch rather than auditing
+  // the next thing through a sheet that is still on top of it.
+  try { await reopen(); } catch { /* the caller's pass will report the gap */ }
+}
+
+// ---------------------------------------------------------------------------
 // THE MATRIX (2026-08-21). Until now this ran one width in one theme, which
 // meant "the app has no visual bugs" actually meant "the app has no visual
 // bugs at 390 wide in the dark". Dave reads it on a phone, but the same build
@@ -349,6 +553,11 @@ async function auditScreen(page, name) {
 //
 // Passes run CONCURRENTLY in their own browser contexts. Each context has its
 // own storage, so the demo seed and the onboarding skip do not interfere.
+
+// Sheets are ON unless switched off. They roughly double the wall clock, so
+// SHEETS=0 is there for chasing one screen finding; a REPORT without them is
+// a screens-only report and says so at the bottom.
+const SHEETS = process.env.SHEETS !== "0";
 
 const MATRIX = process.env.VW
   // An explicit VW/VH/THEME still runs exactly one pass, for chasing one
@@ -368,7 +577,14 @@ const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-119
 
 async function runPass({ w, h, theme }) {
   const label = `${w}x${h} ${theme}`;
-  const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
+  const ctx = await b.newContext({
+    viewport: { width: w, height: h },
+    deviceScaleFactor: 2,
+    // The weather offer's Allow asks for a position. Headless with no answer
+    // parks on its own 10s timeout, once per pass, for nothing.
+    permissions: ["geolocation"],
+    geolocation: { latitude: 40.71, longitude: -74.01 },
+  });
   await ctx.addInitScript(() => {
     const f = new Date(); f.setHours(11, 30, 0, 0);
     const o = f.getTime() - Date.now(); const R = Date;
@@ -379,6 +595,8 @@ async function runPass({ w, h, theme }) {
   const consoleErrs = [];
   page.on("pageerror", (e) => consoleErrs.push(String(e).slice(0, 140)));
   const results = [];
+  const sheetSkips = [];
+  const sheetsSeen = new Set();
   try {
     await page.goto("http://localhost:4173/", { waitUntil: "networkidle" });
     try { await page.click('text="Skip for now"', { timeout: 8000 }); } catch { /* already past it */ }
@@ -391,19 +609,39 @@ async function runPass({ w, h, theme }) {
 
     const TABS = ["Today", "Tasks", "Schedule", "More"];
     for (const t of TABS) {
+      if (!(await clearLayers(page))) sheetSkips.push(`before Tab ${t}: a layer would not close`);
       try { await page.click(`text="${t}"`, { timeout: 3000 }); } catch { continue; }
       results.push(await auditScreen(page, "Tab: " + t));
+      if (SHEETS) {
+        const back = async () => { await clearLayers(page); await page.click(`text="${t}"`, { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(700); };
+        results.push(...await auditSheets(page, "Tab: " + t, back, sheetSkips, sheetsSeen));
+        await back();
+      }
     }
 
     // Every row inside More
+    await clearLayers(page);
     await page.click('text="More"').catch(() => {});
     await page.waitForTimeout(1000);
     const rows = await page.evaluate(() => [...document.querySelectorAll(".lib-name")].map((e) => e.textContent));
+    if (!rows.length) sheetSkips.push("More: no rows found, the whole section was skipped");
     for (const r of rows) {
+      await clearLayers(page);
       await page.click('text="More"').catch(() => {});
       await page.waitForTimeout(700);
       try { await page.click(`text="${r}"`, { timeout: 2500 }); } catch { continue; }
       results.push(await auditScreen(page, "More > " + r));
+      if (SHEETS) {
+        const back = async () => {
+          await clearLayers(page);
+          await page.click('text="More"').catch(() => {});
+          await page.waitForTimeout(600);
+          await page.click(`text="${r}"`, { timeout: 2500 }).catch(() => {});
+          await page.waitForTimeout(700);
+        };
+        results.push(...await auditSheets(page, "More > " + r, back, sheetSkips, sheetsSeen));
+        await back();
+      }
       // DETAIL DIVE (2026-08-21). Every audit before this one stopped at the
       // top of each section, which meant the pages where the app actually
       // holds its content -- a project, a goal, a person, a category -- were
@@ -417,6 +655,7 @@ async function runPass({ w, h, theme }) {
       const count = Math.min(3, await page.locator(SEL).count());
       for (let i = 0; i < count; i++) {
         const title = () => page.evaluate(() => document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "");
+        await clearLayers(page);
         const before = page.url() + "|" + await title();
         const row = page.locator(SEL).nth(i);
         let name = "";
@@ -438,7 +677,7 @@ async function runPass({ w, h, theme }) {
   } finally {
     await ctx.close();
   }
-  return { label, w, h, theme, results, consoleErrs };
+  return { label, w, h, theme, results, consoleErrs, sheetSkips };
 }
 
 // Three at a time: enough to cut the wall clock, few enough that a starved
@@ -470,4 +709,13 @@ for (const p of passes) {
   grand += total;
   console.log(`\n[${p.label}] ${total} findings | ${p.results.length} screens${p.consoleErrs.length ? " | ERRORS: " + JSON.stringify(p.consoleErrs.slice(0, 3)) : ""}`);
 }
+const sheetScreens = passes.reduce((a, p) => a + p.results.filter((r) => r.name.includes(" » ")).length, 0);
+const allSkips = passes.flatMap((p) => p.sheetSkips || []);
 console.log(`\n=== TOTAL ACROSS ${passes.length} PASSES: ${grand} findings ===`);
+console.log(SHEETS
+  ? `SHEETS ON: ${sheetScreens} sheet screens audited across all passes (cap ${SHEET_CAP} per screen)`
+  : "SHEETS OFF: this is a screens-only report, not a whole-app one");
+if (allSkips.length) {
+  console.log(`SHEETS NOT REACHED (${allSkips.length}), named so the gap is countable:`);
+  for (const sk of [...new Set(allSkips)].slice(0, 12)) console.log("  - " + sk);
+}
