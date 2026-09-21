@@ -64,6 +64,23 @@ before this phase was a screens-only number.
 - [x] **320px retired** · `305e6c9` · Dave's call. Seven of the eighteen
       findings lived only there, including every truncation in the app.
 - [x] **Truncation** · 2 fixed (`b84c911`), 0 remain at 390/430/834.
+- [x] **The Schedule row is two lines now** · Dave's pick 2026-09-21, from
+      four layouts rendered in the real app on his own day at both text
+      sizes. The row was five columns -- rail, star, a 62px time gutter, the
+      body, a 44px chevron -- and the body got **152px of a 358px row**. Two
+      of four titles cut at the default size; at 1.4 the meta took three
+      lines under a title cut to "Drive to...". Reclaiming the chevron and
+      the gaps bought 24 pixels and did not fix it, which is what the
+      comparison was for: B looked plausible and was not enough.
+      The time, the star and the chevron take one line; the title and its
+      facts take the next at the row's full width. Every title on his day is
+      whole at both sizes and the meta is one line at both. It costs about
+      30% of the row's height.
+      The rail leads the row now, so the `--sched-lead` machinery goes with
+      the bug it existed for: it was there because the rail sat PAST the time
+      gutter and a Remember star pushed the gutter right and left the rail
+      inside the digits. There is no gutter to sit past. The law kept its job
+      and changed its sentence.
 - [x] **The Schedule row at 1.4** · 2026-09-21, three separate failures of
       "everything should auto scale", all of them a number measured once at
       the default text size and written into the stylesheet.

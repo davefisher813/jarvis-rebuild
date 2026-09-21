@@ -667,19 +667,46 @@
    and a proposed row have none, and each rail belongs beside its own time.
    A leading control nobody adds here degrades to no lead, which is exactly
    where the rail sits today, so a miss is the old look and never a scramble. */
-.ruled .sched-row { --sched-lead: 0px; }
-/* .row-star: 8 left margin, 16 wide, 4 right margin, then the row's 11 gap. */
-.ruled .sched-row:has(> .row-star) { --sched-lead: calc(var(--s-2) + 16px + var(--s-1) + 11px); }
-/* .sched-sel: 22 wide, 4 right margin, then the gap. No left margin. */
-.ruled .sched-row:has(> .sched-sel) { --sched-lead: calc(22px + var(--s-1) + 11px); }
-.ruled .sched-bar { width: 3px; border-radius: var(--r-xxs); left: calc(var(--s-4) + var(--sched-lead, 0px) + 62px + 4px); top: 7px; bottom: 7px; }
-.ruled .sched-body { padding-left: var(--s-1); }
+/* D · THE TIME SITS ABOVE THE TITLE (Dave's pick 2026-09-21, from four
+   layouts rendered in the real app on his own day at both text sizes).
+
+   The row was five columns -- rail, star, a 62px time gutter, the body, a
+   44px chevron -- and the body got 152px of a 358px row. Two of four titles
+   on his day cut at the default size ("Drive to Ridgel...", "Fall Clinic
+   Walk..."), and at --type-scale 1.4 the meta line took three lines under a
+   title cut to "Drive to...". Reclaiming the chevron and the gaps bought 24
+   pixels and did not fix it, which is why the row stopped being five
+   columns.
+
+   The time, the star and the chevron take one line; the title and its facts
+   take the next, at the row's full width. Every title on his day is whole at
+   both sizes and the meta is one line at both. It costs about 30% of the
+   row's height: three rows where four used to show.
+
+   THE RAIL LEADS THE ROW NOW. It used to sit just past the time gutter,
+   which is why it needed to know what led the row (--sched-lead, and the
+   law that pinned that shape after a Remember star pushed the gutter right
+   and left the rail inside the digits). There is no gutter to sit past any
+   more: it is the row's left edge, ahead of everything, so nothing can get
+   in front of it and the lead machinery goes with the bug it existed for. */
+.ruled .sched-row { flex-wrap: wrap; row-gap: var(--s-0h); padding-left: calc(var(--s-4) + var(--s-3)); }
+.ruled .sched-bar { width: 3px; border-radius: var(--r-xxs); left: var(--s-4); top: 7px; bottom: 7px; }
+.ruled .sched-row > .sched-time { width: auto; }
+/* The chevron rides the end of the first line. Its paint is the line's
+   height; its touch stays 44 the way every other small control in this app
+   keeps one, with an expander that costs no layout. */
+.ruled .sched-row > .sched-grip { margin-left: auto; order: 0; min-height: 0; position: relative; }
+.ruled .sched-row > .sched-grip::after { content: ""; position: absolute; inset: -12px -8px; }
+.ruled .sched-row > .sched-body { order: 1; flex: 1 0 100%; }
+.ruled .sched-body { padding-left: 0; }
 .ruled .sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: var(--s-1); }
 .ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: var(--t-caption); }
 .ruled .sched-cat .cat-dot { width: 7px; height: 7px; }
 .ruled .sched-rep, .ruled .sched-until { white-space: nowrap; } /* an item wraps whole or not at all */
+/* The divider starts where the row's content starts, which is the rail's
+   own inset now rather than the far side of a gutter that is gone. */
 .ruled .sched-row + .sched-row::before, .ruled .sched-swipe-wrap + .sched-swipe-wrap .sched-row::before {
-  left: calc(var(--s-4) + 62px + 11px); }
+  left: calc(var(--s-4) + var(--s-3)); }
 /* Locked (protected) rows dim as they did; the lock rides at 11px in --tx-4. */
 .ruled .sched-locked .sched-title { color: var(--tx-3); }
 /* THE ROW SPENDS NO RED (A Cleaner Top, Dave 2026-09-02). "Set Length" was

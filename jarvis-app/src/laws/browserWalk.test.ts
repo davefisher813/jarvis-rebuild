@@ -692,52 +692,57 @@ describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
 // terms of the per-row lead, and every control that can take the leading
 // slot must declare one. A new leading control with no declaration is the
 // same bug again.
-describe("LAW: the schedule rail is positioned past whatever leads the row", () => {
+describe("LAW: the schedule rail leads the row, so nothing can get in front of it", () => {
   const ruled = () => readFileSync(join(SRC, "styles/ruled.css"), "utf8");
 
-  it("the rail's left reads the row's own lead instead of a fixed gutter", () => {
+  // WHAT THIS LAW USED TO SAY, AND WHY IT SAYS SOMETHING ELSE (2026-09-21).
+  // The rail used to sit just PAST the time gutter, so its left was written
+  // as "row padding + 62px" -- and when the Remember star was added ahead of
+  // the time, the gutter moved right, the rail did not, and the rail landed
+  // inside the digits. The law that followed pinned the SHAPE: the rail's
+  // left must read a per-row --sched-lead, and every control that can take
+  // the leading slot must declare the room it takes.
+  //
+  // Dave's row layout of 2026-09-21 (the time above the title, picked from
+  // four rendered options) removes the gutter entirely. The rail is the
+  // row's left edge now, ahead of the star and everything else, so there is
+  // nothing to sit past and no lead to read. The bug the old law existed for
+  // cannot happen: a new leading control lands AFTER the rail by
+  // construction.
+  //
+  // So the law keeps its job and changes its sentence. The rail is pinned to
+  // the row's own inset, and --sched-lead must not come back into it, which
+  // is what a half-revert of the layout would look like.
+  it("the rail is pinned to the row's own inset, not to a gutter", () => {
     const bare = ruled().replace(/\/\*[\s\S]*?\*\//g, "");
     const bar = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
       .filter((m) => m[1]!.split(",").some((s) => s.trim() === ".ruled .sched-bar"))
       .map((m) => m[2]!).join(" ");
     expect(bar, ".ruled .sched-bar still has its own rule").toBeTruthy();
-    expect(bar, "the rail's left must include the row's lead").toMatch(/left:[^;]*var\(--sched-lead/);
+    expect(bar, "the rail sits at the row's inset").toMatch(/left:\s*var\(--s-4\)/);
+    expect(bar, "and never behind a gutter measurement again").not.toMatch(/var\(--sched-lead|62px/);
   });
 
-  it("every control that can lead a schedule row declares its lead", () => {
-    const bare = ruled().replace(/\/\*[\s\S]*?\*\//g, "");
-    // The default, so a row with nothing in front is exactly where it was.
-    expect(bare).toMatch(/\.ruled \.sched-row \{[^}]*--sched-lead:\s*0px/);
-    for (const lead of ["row-star", "sched-sel"]) {
-      expect(bare, lead + " must declare the room it takes")
-        .toMatch(new RegExp("\\.ruled \\.sched-row:has\\(> \\." + lead + "\\)[^{]*\\{[^}]*--sched-lead:"));
-    }
-  });
-
-  // The two leading controls, as the row markup actually carries them. The
-  // leading slot is the source between the rail and the time; anything that
-  // lands there and is not one of the declared pair is the bug again.
-  it("nothing undeclared sits between the rail and the time", () => {
+  it("the rail is the first thing in the row", () => {
     for (const f of ["schedule/screens/DayRow.tsx", "schedule/screens/ProposedRow.tsx"]) {
       const src = readFileSync(join(SRC, f), "utf8");
       const from = src.indexOf("sched-bar");
       const to = src.indexOf("sched-time");
       expect(from, f + " draws the rail").toBeGreaterThan(-1);
       expect(to, f + " draws the time").toBeGreaterThan(from);
-      const lead = src.slice(from, to);
-      const classes = [...lead.matchAll(/className=\{?"([^"]+)"/g)].flatMap((m) => m[1]!.split(/\s+/));
-      for (const c of classes) {
-        // "ic" is the glyph INSIDE the select box, not a sibling of it.
-        expect(["sel-box", "sched-sel", "cat-bg-", "sched-bar", "ic"].some((ok) => c.startsWith(ok)),
-          `${f}: "${c}" leads the row with no --sched-lead declared for it`).toBe(true);
-      }
-      // A component in the leading slot hides its own class, so the ones
-      // allowed there are named outright.
-      const comps = [...lead.matchAll(/<([A-Z]\w+)/g)].map((m) => m[1]!);
-      for (const c of comps) {
-        expect(["EntityStar", "CheckGlyph"], `${f}: <${c}> leads the row with no --sched-lead declared for it`).toContain(c);
-      }
+      // Whatever leads the row now leads it AFTER the rail, which is the
+      // whole point: the rail cannot be pushed off its own edge.
+      const rowOpen = src.lastIndexOf("<", from);
+      expect(src.slice(0, from).lastIndexOf("sched-row"), f + " the rail sits inside the row element")
+        .toBeLessThan(rowOpen);
     }
+  });
+
+  it("the body takes the row's full width under the time", () => {
+    const bare = ruled().replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(bare, "the row wraps").toMatch(/\.ruled \.sched-row \{[^}]*flex-wrap: wrap/);
+    expect(bare, "and the body is the thing that takes the second line")
+      .toMatch(/\.ruled \.sched-row > \.sched-body \{[^}]*flex: 1 0 100%/);
   });
 });
 
