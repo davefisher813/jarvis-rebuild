@@ -563,6 +563,13 @@ type Picker =
    *  "ask me each time"). The same picker as Group With, and then a choice
    *  the program editor never has to make: this workout only, or every one. */
   | { kind: "supersetWith"; weekId: string; dayId: string; exId: string }
+  /** SUPERSET, FROM THE DAY ITSELF (Dave, 2026-09-21: "There's also no
+   *  superset buttons anywhere in the workout pages"). He was right, and the
+   *  reason is that the only way in was a LONG-PRESS menu item called "Group
+   *  With..." -- a hidden gesture, under a word he does not use. This is the
+   *  visible one, beside Reorder, and it needs no anchor exercise because it
+   *  starts from the day: pick two or more, they are a superset. */
+  | { kind: "supersetDay"; weekId: string; dayId: string }
   | { kind: "moveDayProgram"; weekId: string; day: ProgramDay }
   | { kind: "moveDayWeek"; targetProgramId: string; day: ProgramDay }
   | { kind: "pinDays"; weekId: string; day: ProgramDay };
@@ -2770,7 +2777,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         if (groupOf(exercise, dayExercises).length > 1) {
           actions.push({ label: "Ungroup", onClick: () => void ungroupAction(weekId, dayId, exercise.id) });
         } else {
-          actions.push({ label: "Group With...", onClick: () => setPicker({ kind: "groupWith", weekId, dayId, exId: exercise.id }) });
+          // SAME WORD IN BOTH PLACES (2026-09-21). The live session has said
+          // "Superset With..." since it was built; the program editor said
+          // "Group With...", which is the data model's word and not the
+          // athlete's. One name, in the one vocabulary the athlete uses.
+          actions.push({ label: "Superset With...", onClick: () => setPicker({ kind: "groupWith", weekId, dayId, exId: exercise.id }) });
         }
       }
       actions.push({ label: "Delete...", onClick: () => setSheet({ kind: "exercise", weekId, dayId, exId: exercise.id }) });
@@ -2888,11 +2899,32 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       const items: PickItem[] = (day?.exercises ?? []).filter((e) => e.id !== picker.exId).map((e) => ({ id: e.id, label: e.name }));
       return (
         <PickSheet
-          title="Group With"
+          title="Superset With"
           items={items}
           multi
           confirmLabel={(n) => (n === 0 ? "Pick at Least One" : n === 1 ? "Make a Pair" : capAfterNumber("Group These " + (n + 1)))}
           onPick={(ids) => { setPicker(null); void groupAction(picker.weekId, picker.dayId, picker.exId, ids); }}
+          onCancel={() => setPicker(null)}
+        />
+      );
+    }
+    if (picker.kind === "supersetDay") {
+      const week = program?.data.weeks.find((w) => w.id === picker.weekId);
+      const day = week?.days.find((d) => d.id === picker.dayId);
+      const items: PickItem[] = (day?.exercises ?? []).map((e) => ({ id: e.id, label: e.name }));
+      return (
+        <PickSheet
+          title="Superset"
+          items={items}
+          multi
+          // Two is the smallest superset there is, so one pick is not an
+          // answer and the button says which half is missing.
+          confirmLabel={(n) => (n < 2 ? "Pick Two" : n === 2 ? "Superset These Two" : capAfterNumber("Superset These " + n))}
+          onPick={(ids) => {
+            if (ids.length < 2) return;
+            setPicker(null);
+            void groupAction(picker.weekId, picker.dayId, ids[0]!, ids.slice(1));
+          }}
           onCancel={() => setPicker(null)}
         />
       );
@@ -3058,9 +3090,23 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             />
             <div className="sh2 sh2-quiet"><span className="t">Exercises</span>
               {openDay.exercises.length > 1 && (
-                <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "exercises" ? null : "exercises"))}>
-                  {reorderTarget === "exercises" ? "Done" : "Reorder"}
-                </button>
+                <span className="sec-left">
+                  {/* A SUPERSET IS A THING YOU DO, SO IT IS A BUTTON YOU CAN
+                      SEE (Dave, 2026-09-21). It was a long-press menu item
+                      called "Group With...", which is a hidden gesture under
+                      a word he does not use, and he could not find it: "no
+                      superset buttons anywhere in the workout pages". It
+                      sits beside Reorder because they are the same kind of
+                      move -- both rearrange the day rather than change a
+                      lift -- and it is hidden for a day with one exercise
+                      in it, which has nothing to pair. */}
+                  <button className="see-all pill-action" onClick={() => setPicker({ kind: "supersetDay", weekId: activeWeek.id, dayId: openDay.id })}>
+                    Superset
+                  </button>
+                  <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "exercises" ? null : "exercises"))}>
+                    {reorderTarget === "exercises" ? "Done" : "Reorder"}
+                  </button>
+                </span>
               )}
             </div>
             <div className="pad-x list-card"><div className="card list-card-ruled">

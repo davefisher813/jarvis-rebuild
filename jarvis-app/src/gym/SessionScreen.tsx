@@ -599,6 +599,21 @@ export default function SessionScreen({
               {style.equipment ? styleSummary(style) : "Not Set"}
             </button>
             {style.sided && <span className="se-chip se-chip-pair"><em>Reps</em>Per Side</span>}
+            {/* SUPERSET, WHERE THE LIFT IS (Dave, 2026-09-21: "There's also
+                no superset buttons anywhere in the workout pages"). There
+                was one in this session, and it was 1.3 screens down, under
+                the whole set strip, in a list with Swap and Skip -- so
+                while you are logging, which is exactly when he asked to be
+                able to make one, it is not on the screen. It rides beside
+                Equipment now: the row of things about THIS lift you can
+                change. The row below keeps it too, because that list is the
+                complete set of moves on an exercise and losing one from it
+                would make the list lie. */}
+            {onSuperset && dayExercises.length > 1 && (
+              <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={onSuperset}>
+                <em>Superset</em>{pairLabel ? "Paired" : "Add"}
+              </button>
+            )}
           </div>
         ) : style.equipment && (
           <div className="se-chips"><span className="se-chip se-chip-pair"><em>{weightLabel(style)}</em>{styleSummary(style)}</span></div>
