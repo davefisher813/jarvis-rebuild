@@ -5899,10 +5899,26 @@ span.row-star { cursor: default; }
 
 /* Four labels, one of them "Subscriptions", do not share a 390px row four
    ways. The control keeps its own look and scrolls instead of clipping. */
+/* AND A ROW THAT SCROLLS HAS TO SAY SO (2026-09-21, focus audit). It did not.
+   It shipped as "Dashboard | Transactions | Budgets | Su", the fourth label
+   cut mid-word at the screen edge with nothing saying more existed -- which
+   is word for word the bug the chip rows were fixed for on 2026-08-02, in a
+   control that was never given the fix. The rule was written once and applied
+   once.
+   The mask reads HERE where the 2026-08-02 note says it did not read on a
+   chip row, and for the reason that note gives: a chip's fill is six percent
+   white on a black page, so fading it toward the page fades it toward what it
+   already looked like. This control has a solid --press-3 track and white
+   labels on it, both plainly lighter than the page, so the fade has something
+   to fade. Rendered in Chromium before it was kept, as that note requires.
+   Snap so a segment does not park half-visible. */
 .mt-tabrow { margin-bottom: var(--s-2); }
-.mt-tabrow .segmented { overflow-x: auto; scrollbar-width: none; }
+.mt-tabrow .segmented { overflow-x: auto; scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%); }
 .mt-tabrow .segmented::-webkit-scrollbar { display: none; }
-.mt-tabrow .segmented .seg { flex: 0 0 auto; white-space: nowrap; }
+.mt-tabrow .segmented .seg { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
 
 .mt-monthnav { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
 .mt-monthname { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }

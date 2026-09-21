@@ -901,3 +901,74 @@ describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", 
     expect(read("appearance/textZoom.ts")).toMatch(/MAX_TYPE_SCALE\s*=\s*1\.4/);
   });
 });
+
+// THE FOCUS AUDIT (2026-09-21). The last question the DOM audit could not
+// answer, because it is about a SEQUENCE and not a frame: where does the
+// keyboard go, and can you see it when it gets there. FOCUS=1 in
+// tools/visual-audit.mjs tabs every screen and reports four kinds.
+//
+// The starting suspicion was WRONG and is recorded so nobody re-runs it. The
+// computed outline on a focused control reads `auto 1px rgb(16,16,16)`, which
+// looks like a near-black ring on a near-black app. It is not: Chromium's
+// `outline: auto` is drawn specially and inverts per backdrop, and
+// screenshotted on this app it is a white ring in dark and a black one in
+// light. The ring is fine. What was not fine was everything around it.
+describe("FOCUS-AUDIT: the keyboard can be followed, and what it lands on can be seen", () => {
+  const tool = () => readFileSync(join(SRC, "..", "tools", "visual-audit.mjs"), "utf8");
+
+  it("the auditor has a focus mode, and it starts at the top of the document", () => {
+    expect(tool()).toMatch(/const FOCUS = process\.env\.FOCUS === "1"/);
+    // blur() alone does NOT reset the sequential focus navigation starting
+    // point, so Tab carried on from wherever the crawl's last click left it
+    // and the order recorded was a partial one. A verification run caught it.
+    expect(tool(), "focusing <body> is what moves the starting point").toMatch(/document\.body\.focus\(\)/);
+  });
+
+  it("the order check compares document position, within one scroller, ignoring fixed", () => {
+    // Three false positives, all from this one arithmetic, all chased down
+    // rather than triaged away: viewport y is not position (tabbing scrolls);
+    // adding the scroll back puts an element in ITS OWN scroller's frame; and
+    // a toast or a sheet footer does not scroll at all.
+    const t = tool();
+    expect(t).toMatch(/docY:/);
+    expect(t).toMatch(/scroller:/);
+    expect(t).toMatch(/!s\.fixed && !prev\.fixed && s\.scroller === prev\.scroller/);
+  });
+
+  it("a ring cut by overflow:hidden is a different finding from a row that did not scroll", () => {
+    const t = tool();
+    expect(t).toMatch(/add\(s\.scrolled \? "focus-unscrolled" : "ring-clipped"/);
+    expect(t, "a field's caret is its indicator, so only a field is exempt from no-ring").toMatch(/add\("no-ring"/);
+  });
+
+  it("a scrolling row follows the keyboard, in one place for every row", () => {
+    const hook = read("shared/useFocusReveal.ts");
+    expect(hook, "the keyboard test, so a tap does not snap a chip about").toMatch(/matches\(":focus-visible"\)/);
+    // "nearest" is the polite option and it did nothing on a snapping row, so
+    // the hook measures first and centres. Both halves or neither.
+    expect(hook).toMatch(/inline: "center"/);
+    expect(hook, "measuring first is what buys back the no-op").toMatch(/!outOfView\(el\)/);
+    // Mounted once, beside the other two document-level hooks.
+    const app = read("App.tsx");
+    expect(app).toMatch(/useFocusReveal\(\);/);
+    expect(app, "it sits with useSheetEscape and useLayerFocus, not somewhere new").toMatch(/useLayerFocus\(\);\s*\n\s*useFocusReveal\(\);/);
+  });
+
+  it("the segmented control that scrolls says that it scrolls", () => {
+    // It shipped as "Dashboard | Transactions | Budgets | Su", the fourth
+    // label cut mid-word at the screen edge with nothing saying more existed
+    // -- word for word the bug the chip rows were fixed for on 2026-08-02, in
+    // a control that was never given the fix.
+    const seg = ruleBody(css(), ".mt-tabrow .segmented")!;
+    expect(seg, "the scroller is still a scroller").toMatch(/overflow-x:\s*auto/);
+    expect(seg, "and now it fades at the edge, as .chip-row does").toMatch(/mask-image:\s*linear-gradient/);
+    expect(seg).toMatch(/scroll-snap-type:\s*x/);
+    expect(ruleBody(css(), ".mt-tabrow .segmented .seg")).toMatch(/scroll-snap-align:\s*start/);
+    // The pattern it was copied from, so deleting one orphans the other.
+    // .chip-row is declared twice (the base row at :117, the fade at :1909),
+    // so take every rule whose selector IS that, not the first one.
+    const chipRow = rulesOf("styles/components.css")
+      .filter(([sel]) => sel === ".chip-row").map(([, body]) => body).join(" ");
+    expect(chipRow).toMatch(/mask-image:\s*linear-gradient/);
+  });
+});

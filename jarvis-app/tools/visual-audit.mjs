@@ -441,9 +441,189 @@ const AUDIT = () => {
   return out;
 };
 
+// ---------------------------------------------------------------------------
+// FOCUS (FOCUS=1, 2026-09-21). The last question the DOM audit cannot answer,
+// because it is about a SEQUENCE and not a frame: where does the keyboard go,
+// and can you see it when it gets there.
+//
+// The starting suspicion was wrong and is recorded so nobody re-runs it: the
+// computed outline on a focused control reads `auto 1px rgb(16,16,16)`, which
+// looks like a near-black ring on a near-black app. It is not. Chromium's
+// `outline: auto` is drawn specially and inverts per backdrop; screenshotted
+// on this app it is a white ring in dark and a black one in light. The ring
+// is fine. What is not automatic is everything around it:
+//
+//   no-ring      the app said `outline: none` and gave nothing back. 18 rules
+//                do this, all of them on text fields, where the caret is the
+//                indicator -- but a field is only exempt if it HAS a caret.
+//   ring-clipped BROWSER-F-03's bug, one layer out. A ring is painted OUTSIDE
+//                the box, so an `overflow: hidden` ancestor cuts it exactly
+//                the way it cut the 44px ::after expanders. A focused control
+//                with an invisible ring is a keyboard user lost on the page.
+//   off-screen   focus landed somewhere the viewport does not show, and the
+//                browser's scroll-into-view did not fix it.
+//   backwards    the tab order went UP the page. DOM order is tab order, so
+//                this means the DOM disagrees with the layout.
+//
+// Its own run, not part of the matrix: 30 tab presses a screen would double
+// the sweep, and this question does not change with width or type scale.
+const FOCUS = process.env.FOCUS === "1";
+const FOCUS_STOPS = Number(process.env.FOCUS_STOPS || 40);
+
+async function focusScreen(page, name) {
+  const out = [];
+  const seen = new Set();
+  const add = (kind, detail) => {
+    const k = kind + "|" + detail;
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push({ kind, detail, cls: "" });
+  };
+  // START AT THE TOP OF THE DOCUMENT. blur() alone does NOT do this, which a
+  // verification run caught: it clears activeElement but leaves the sequential
+  // focus navigation starting point where it was, so Tab carried on from
+  // wherever the crawl's last click left it and the order recorded was a
+  // partial one. Focusing <body> moves the starting point, so the next Tab is
+  // genuinely the first tabbable thing on the page.
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    document.body.setAttribute("tabindex", "-1");
+    document.body.focus();
+    document.body.removeAttribute("tabindex");
+  });
+  let prev = null;
+  const first = [];
+  for (let i = 0; i < FOCUS_STOPS; i++) {
+    await page.keyboard.press("Tab");
+    // Focusing a control inside a scroller makes the browser scroll it into
+    // view, and that is not instant. Measuring in the same tick reported
+    // controls as clipped that the browser was in the middle of revealing.
+    await page.waitForTimeout(80);
+    const s = await page.evaluate(() => {
+      const e = document.activeElement;
+      if (!e || e === document.body || !(e instanceof HTMLElement)) return null;
+      const cs = getComputedStyle(e);
+      const r = e.getBoundingClientRect();
+      // A ring is painted outside the box. Clip it against every scrolling or
+      // hidden ancestor, exactly as the main audit clips a rect.
+      const ow = parseFloat(cs.outlineWidth) || 0;
+      const off = parseFloat(cs.outlineOffset) || 0;
+      const pad = cs.outlineStyle === "none" ? 0 : ow + Math.max(0, off) + 1;
+      let clip = { top: r.top - pad, bottom: r.bottom + pad, left: r.left - pad, right: r.right + pad };
+      const want = { ...clip };
+      let n = e.parentElement;
+      // HIDDEN AND SCROLLABLE ARE NOT THE SAME BUG. An `overflow: hidden` box
+      // cuts a ring with no way to ever see it, which is BROWSER-F-03 one
+      // layer out. A SCROLLER is meant to have content outside it, and the
+      // browser scrolls a focused control into view, so anything still cut
+      // after that is the scroller failing to follow the keyboard. Measured
+      // separately or the second drowns the first.
+      let scrolled = false;
+      while (n && n !== document.documentElement) {
+        const ps = getComputedStyle(n);
+        const vals = [ps.overflow, ps.overflowX, ps.overflowY];
+        if (vals.some((v) => ["hidden", "auto", "scroll", "clip"].includes(v))) {
+          if (vals.some((v) => ["auto", "scroll"].includes(v))) scrolled = true;
+          const pr = n.getBoundingClientRect();
+          clip = {
+            top: Math.max(clip.top, pr.top), bottom: Math.min(clip.bottom, pr.bottom),
+            left: Math.max(clip.left, pr.left), right: Math.min(clip.right, pr.right),
+          };
+        }
+        n = n.parentElement;
+      }
+      return {
+        tag: e.tagName.toLowerCase(),
+        id: (e.tagName + "." + (e.className || "").toString().split(" ")[0] + "|" + (e.textContent || "").trim().slice(0, 20)),
+        txt: (e.textContent || "").trim().slice(0, 24) || (e.getAttribute("aria-label") || "").slice(0, 24),
+        outlineNone: cs.outlineStyle === "none" || ow === 0,
+        // A FIXED CONTROL IS NOT IN THE READING ORDER (2026-09-21, second
+        // false positive from this check). A sheet's Cancel and a toast's
+        // Undo sit at the foot of the VIEWPORT and do not scroll, so their
+        // place on the page is not comparable with a row's at all; the
+        // "backwards" jumps this reported were entirely that arithmetic.
+        // Same helper the main audit uses, same reason.
+        fixed: (() => { let n = e; while (n && n !== document.body) { if (getComputedStyle(n).position === "fixed") return true; n = n.parentElement; } return false; })(),
+        // A field's caret IS its focus indicator, which is why 18 rules turn
+        // the ring off. Only a field gets that exemption.
+        caret: e.tagName === "INPUT" || e.tagName === "TEXTAREA" || e.isContentEditable,
+        shadow: cs.boxShadow !== "none",
+        // How much of the ring survives the clipping, per edge.
+        lostTop: Math.round(clip.top - want.top), lostLeft: Math.round(clip.left - want.left),
+        lostBottom: Math.round(want.bottom - clip.bottom), lostRight: Math.round(want.right - clip.right),
+        scrolled,
+        rect: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)],
+        // THE ORDER QUESTION IS A DOCUMENT QUESTION, NOT A VIEWPORT ONE, AND
+        // ONLY WITHIN ONE SCROLLER. Two corrections, both of which this check
+        // reported as findings before they were chased down:
+        //
+        // 1. Viewport y is not position. Tabbing to a control below the fold
+        //    SCROLLS, so the next control -- genuinely lower -- reads a
+        //    SMALLER viewport y than the one before it. getBoundingClientRect
+        //    has the scroll already subtracted, so adding every ancestor's
+        //    scroll back gives the unscrolled place on the page.
+        //
+        // 2. Adding it back puts the element in ITS OWN scroller's frame, and
+        //    two scrollers are two different frames. .app-scroll holds the
+        //    page; the toast dock and the tab bar are its SIBLINGS in the
+        //    shell's footer stack. Comparing a row at 852 in the scroller
+        //    with a toast at 664 in the viewport is comparing nothing, and it
+        //    is what "About then Undo" was. Stops are only compared when they
+        //    share a scroller.
+        docY: (() => {
+          let y = r.top + window.scrollY;
+          let n = e.parentElement;
+          while (n && n !== document.documentElement) { y += n.scrollTop; n = n.parentElement; }
+          return Math.round(y);
+        })(),
+        scroller: (() => {
+          let n = e.parentElement;
+          while (n && n !== document.documentElement) {
+            const ps = getComputedStyle(n);
+            if ([ps.overflow, ps.overflowY].some((v) => ["auto", "scroll"].includes(v)) && n.scrollHeight > n.clientHeight + 1) {
+              return n.tagName + "." + (n.className || "").toString().split(" ")[0];
+            }
+            n = n.parentElement;
+          }
+          return "@page";
+        })(),
+        vh: window.innerHeight, vw: window.innerWidth,
+      };
+    });
+    if (!s) break;
+    // A full cycle: Tab has wrapped back to where it started.
+    if (first.length && s.id === first[0]) break;
+    first.push(s.id);
+
+    if (s.outlineNone && !s.shadow && !s.caret) {
+      add("no-ring", `"${s.txt}" (${s.tag}) has no focus ring and no caret`);
+    }
+    // 2px of a ring is a rounded corner meeting a clip; half of one edge is
+    // the ring being eaten.
+    const lost = Math.max(s.lostTop, s.lostLeft, s.lostBottom, s.lostRight);
+    if (!s.outlineNone && lost > 2) {
+      add(s.scrolled ? "focus-unscrolled" : "ring-clipped",
+        s.scrolled
+          ? `"${s.txt}" is still ${lost}px outside its scroller after focus`
+          : `"${s.txt}" loses ${lost}px of its focus ring to an overflow:hidden ancestor`);
+    }
+    const [x, y, w, h] = s.rect;
+    if (y + h < 0 || y > s.vh || x + w < 0 || x > s.vw) {
+      add("focus-offscreen", `"${s.txt}" focused at ${x},${y} outside ${s.vw}x${s.vh}`);
+    } else if (prev && !s.fixed && !prev.fixed && s.scroller === prev.scroller && s.docY + 24 < prev.docY) {
+      // Going back UP the page. Tolerant of a row of controls on one line and
+      // of the small rises inside a card.
+      add("focus-backwards", `"${prev.txt}" (y=${prev.docY}) then "${s.txt}" (y=${s.docY})`);
+    }
+    prev = { docY: s.docY, txt: s.txt, fixed: s.fixed, scroller: s.scroller };
+  }
+  return { name, findings: out, errs: [], stops: first.length };
+}
+
 const SHOTS = [];
 async function auditScreen(page, name) {
   await page.waitForTimeout(900);
+  if (FOCUS) return focusScreen(page, name);
   const findings = await page.evaluate(AUDIT);
   const errs = [];
   return { name, findings, errs };

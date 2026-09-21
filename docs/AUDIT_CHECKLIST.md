@@ -127,7 +127,43 @@ before this phase was a screens-only number.
       Twelve controls passed the record's name and five did not. The task row,
       both note rails and all three mail rail actions now name their record;
       three single-record screens keep the bare verb and say why.
-- [ ] **Focus order and visible focus** · never audited.
+- [x] **Focus order and visible focus** · the auditor grew a `FOCUS=1` mode
+      that tabs every screen and reports four kinds: `no-ring`,
+      `ring-clipped`, `focus-unscrolled`, `focus-backwards`. Verified before
+      it was believed, the way the `no-name` check was: a ringless control and
+      a control inside `overflow: hidden` injected into the page are both
+      caught, and a clean one beside them stays clean.
+      **The starting suspicion was wrong and is written down so nobody
+      re-runs it.** The computed outline on a focused control reads
+      `auto 1px rgb(16,16,16)`, which looks like a near-black ring on a
+      near-black app. It is not: Chromium's `outline: auto` is drawn specially
+      and inverts per backdrop. Screenshotted, it is a WHITE ring in dark and
+      a black one in light. The ring is fine, and `:focus-visible` appears
+      nowhere in the app because it does not need to.
+      **Three of the first four findings were the tool's own arithmetic**, and
+      each was chased rather than triaged: viewport y is not position (tabbing
+      below the fold SCROLLS, so the next control reads a smaller y); adding
+      the scroll back puts an element in its own scroller's frame, and
+      `.app-scroll` and the toast dock are two different frames; and a fixed
+      control does not scroll at all. A fourth was mine: `blur()` does not
+      reset the sequential focus starting point, so the audit had been
+      starting mid-page. All four fixed, and each is pinned by a law.
+      **Two real findings, one cause.** The Tracker's "Subscriptions" segment
+      sat 98px outside its segmented control and Chat's "Complete..." starter
+      75px outside its `.chip-row`, both AFTER the browser focused them: the
+      browser's scroll-on-focus does not reach a horizontal scroller nested in
+      the page scroller. One document-level hook, `useFocusReveal`, mounted
+      beside `useSheetEscape` and `useLayerFocus`, fixes every scrolling row
+      the app has or grows. It measures first and centres, because `inline:
+      "nearest"` is a no-op on a row carrying `scroll-snap-type: x` (verified:
+      scrollLeft 0 before, 0 after).
+      **And a third thing fell out of it.** That segmented control shipped as
+      `Dashboard | Transactions | Budgets | Su`, cut mid-word at the screen
+      edge with nothing saying more existed, which is word for word the bug
+      the chip rows were fixed for on 2026-08-02 in a control that was never
+      given the fix. It now wears the same edge fade, rendered in Chromium
+      before it was kept as that note requires. Clean at 390 dark, 390 light,
+      430 and 834.
 - [x] **Dynamic Type** · and the line that used to sit here ("the app pins
       nothing") was wrong. `appearance/textZoom.ts` clamps `--type-scale` to
       1.0-1.4, reads the phone's own text size, offers an override in
