@@ -15,6 +15,7 @@ import { rampFor } from "./ramp";
 import { suggestFor, type Suggestion } from "./progression";
 import { groupLabels, fillerFor, nextInGroup, groupOf, roundRestFor } from "./groups";
 import { withLiveGroups } from "./liveGroups";
+import { useBarClearance } from "../shared/useBarClearance";
 import type { LibraryEntry } from "./library";
 import { newExerciseKey } from "./library";
 import SetStrip from "./SetStrip";
@@ -327,6 +328,11 @@ export default function SessionScreen({
     ? workLogged >= planEx.sets.length
     : logged.length > 0);
   const nextPlannedWeight = (() => { const n = plannedEntryAt(planEx, workLogged); return n?.w ?? [...logged].reverse().find((x) => !x.warmup)?.w ?? 0; })();
+  // The bar tells the foot below how much room it is taking. Its height moves
+  // with the text scale, with how many buttons it is carrying, and with the
+  // keyboard eating into the home-indicator inset, so it is measured rather
+  // than written down. See shared/useBarClearance.ts.
+  const logbarRef = useBarClearance("logbar", [planComplete, current.skipped, cond]);
 
   // D3-C in session: the day's own blocks, checked off as they happen.
   const warmBlocks = programDay?.warmUp ?? [];
@@ -680,13 +686,17 @@ export default function SessionScreen({
               startRest();
             }}>Log {formatSet(exercise, suggestion.next)}</button>
             <button className="pill-act pill-quiet" onClick={() => setKeptPlan((k) => (k.includes(exercise.id) ? k : [...k, exercise.id]))}>Keep {formatSet(exercise, suggestion.from)}</button>
-          </div>
-          {/* Part 3 wave 5: every suggestion shows its basis on tap. */}
-          {suggestion.basis && (
-            <div className="ins-acts">
+            {/* Part 3 wave 5: every suggestion shows its basis on tap.
+                IN THE SAME ROW AS THE OTHER TWO (2026-09-21, the first audit
+                ever run inside a session). It had its own .ins-acts below,
+                whose 8px margin put its hit box 10px inside the Log pill's --
+                the bottom of "Log 275 lb x 5" opened Basis. Three pills are
+                one row of actions anyway; a third container under two was
+                only ever an accident of the order they were built in. */}
+            {suggestion.basis && (
               <button type="button" className="pill-act pill-quiet" aria-expanded={basisOpen} onClick={() => setBasisOpen((o) => !o)}>{basisOpen ? "Hide Basis" : "Basis"}</button>
-            </div>
-          )}
+            )}
+          </div>
           {basisOpen && suggestion.basis && (
             <div className="ins-rows ins-ev">
               <div className="ins-row"><span className="ins-k">Lift</span><span className="ins-sub">{suggestion.basis.variant}</span></div>
@@ -889,13 +899,20 @@ export default function SessionScreen({
             the plan, without editing the program. */}
         <button className="row-create" onClick={() => setAddOpen(true)}>Add Exercise</button>
       </div></div>
-      <div className="screen-foot" />
+      {/* THE FOOT IS THE LOG BAR'S OWN HEIGHT (2026-09-21, the first audit
+          ever run inside a session). .screen-foot is 32px and the log bar is
+          nearer 90 -- a 56px button, its padding, and whatever the home
+          indicator is still asking for -- so the last set row and the Add
+          Exercise button sat permanently behind it. No number typed here
+          could be right for every text size and every phone, so the bar
+          measures itself and this reads what it found. */}
+      <div className="screen-foot se-foot" />
 
       {/* THE LOG BAR (H-11 / R8, Health Push B, 2026-09-12): one bar owning
           the bottom edge with the one primary, the note editor's geometry;
           the shell has stepped its tab bar and dock aside (gym/sessionChrome). */}
       {!current.skipped && (
-        <div className="logbar">
+        <div className="logbar" ref={logbarRef}>
           {/* THE SECOND HALF OF THE BAR (2026-09-17). Once the plan is done,
               logging another set is the unusual move and moving on is the
               common one, so they swap places: the extra set keeps a secondary

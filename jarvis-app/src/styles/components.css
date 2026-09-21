@@ -1481,7 +1481,22 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .ob-rename { font: inherit; background: transparent; border: 0; padding: var(--s-1h) 0; width: 100%; color: inherit; }
 .ob-rename:focus { outline: none; border-bottom: 1px solid var(--accent); }
 
-.toast-dock { padding: 0 var(--s-3) var(--s-2); }
+/* THE TOAST CLEARS A LOG BAR (2026-09-21, the first audit ever run inside a
+   session). The dock rides the shell's footer stack, above the tab bar. A
+   live workout hides the tab bar and the voice dock and puts a FIXED log bar
+   over that edge instead, so the toast landed underneath it: "Set 1 logged ·
+   Undo" was painted on, unreadable and untappable, and the five second timer
+   ran out on a control the finger could not reach -- every miss landing on
+   the Log button instead. --logbar-clear is written by the bar itself while
+   it exists and removed when it does not, so this is exactly zero on every
+   other screen in the app.
+
+   A TRANSFORM, NOT PADDING. The dock sits in the shell's footer stack BELOW
+   .app-scroll, so padding it taller takes those pixels off the scrolling
+   region: the first attempt lifted the toast correctly and left 80px of dead
+   black under the last card while it was up. A transform moves the paint and
+   costs the layout nothing. */
+.toast-dock { padding: 0 var(--s-3) var(--s-2); transform: translateY(calc(-1 * var(--logbar-clear, 0px))); }
 .toast { display: flex; align-items: center; gap: var(--s-3); background: var(--surface-3); border: 0.5px solid var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); box-shadow: var(--shadow-card); }
 .toast-msg { flex: 1; font-size: var(--t-body); color: var(--tx-1); }
 .toast-action { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: var(--s-1) var(--s-2); flex-shrink: 0; }
@@ -3203,7 +3218,14 @@ button {
 .see-all { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1);
   background: 0; border: 0; font-family: var(--f); letter-spacing: 0.02em;
   min-height: var(--tap-min); display: inline-flex; align-items: center; }
-.sh2 .see-all { order: 2; margin: -13px 0; flex-shrink: 0; }
+/* THE 44 GROWS UPWARD, NOT DOWN (2026-09-21). The head action is a real
+   44px box paid back with negative margins, and split evenly it reached 13px
+   below an 18px head -- six of them landing on the first row of the card
+   underneath, which is a target of its own ("View History" over the first
+   Recent session). Above the head is section spacing, which has the room to
+   give; below it is the next thing you can tap. Same 26px of payback, same
+   layout to the pixel, the reach just goes where nothing else is. */
+.sh2 .see-all { order: 2; margin: -20px 0 -6px; flex-shrink: 0; }
 /* An action CLUSTER on a head (YourDay's pause + Schedule) rides the same
    far-right slot as a lone action: after the leader, never mid-head. */
 .sh2 .sec-left { order: 2; display: inline-flex; align-items: center; gap: var(--s-2); margin: -13px 0; flex-shrink: 0; }
@@ -4135,6 +4157,31 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    only. Same wash, same red, just the one longhand that leaves the clip. */
 [data-theme="light"] .pill-act { background-color: rgba(204,5,27,0.085); color: var(--on-light-red); }
 [data-theme="light"] .note-fix { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
+/* THE ACTION PILL, OPTION D (Dave's pick 2026-09-21, from a rendered
+   comparison of four through these stylesheets with their measured numbers
+   under them).
+
+   The audit found the same defect in twelve places across Today, Notes,
+   Money, the Tracker and the live workout, and it is one control. Brand red
+   on the pill's own 6% white wash measures 4.50:1 on a glass card and 3.12
+   on a raised one. Two of the obvious answers do not fix it: outlining the
+   pill and keeping the red text (the row-pill option Dave picked on
+   2026-08-21) only reaches 3.76 raised, and this file has argued twice
+   already that no red which clears 4.5 on these greys stays out of salmon.
+
+   So the ring carries the meaning and the words carry the reading: 19.10:1
+   on glass, 13.94 raised, and red is still what tells you the pill is a
+   verb. Light gains too (4.51 to 5.26) though it never failed.
+
+   background-COLOR, not the shorthand, for the reason written six lines up:
+   the shorthand resets background-clip and paints across the transparent hit
+   border. The ring is an inset shadow, which is clipped to the PADDING box,
+   so it hugs the pill's paint and not its 34px touch area. */
+.pill-act:not(.pill-quiet):not(.pill-neutral),
+[data-theme="light"] .pill-act:not(.pill-quiet):not(.pill-neutral) {
+  background-color: transparent; box-shadow: inset 0 0 0 1px var(--accent-chip-bd);
+  color: var(--accent-tx);
+}
 /* The variants the tint must NOT bleach, restated so the cascade keeps
    them: primary stays the flat brand fill, danger stays system red,
    neutral stays neutral, icon buttons stay furniture. */
@@ -4805,7 +4852,14 @@ body.selecting .voice-dock { display: none; }
    by side because they are the same size of decision; the quiet one is the
    one that changes nothing. Both are capsules -- a bare text pair here
    would be two links pretending to be buttons. */
-.row-pair { display: flex; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
+/* A WRAPPED ROW OF PILLS MUST NOT STACK ITS OWN TAP TARGETS (2026-09-21).
+   .pill-act buys its 34px touch height from 9px transparent borders pulled
+   back out of the flow (margin-block: -9px), so its painted box is 16px and
+   its HIT box is 34. At an 8px gap two pills on consecutive rows overlapped
+   by 10px of hit area: the bottom of "Log 275 lb x 5" opened Basis. The gap
+   has to clear both expansions, which is 18px, and nothing smaller will do
+   however good it looks. */
+.row-pair { display: flex; column-gap: var(--s-2); row-gap: var(--s-5); margin-top: var(--s-3); flex-wrap: wrap; }
 .row-pair .pill-act { align-self: auto; max-width: none; }
 .pill-act.pill-quiet { color: var(--tx-2); }
 /* TAP-TO-MATCH, D2 (Training Catalog V2, 2026-08-31). On a ghost chip the
@@ -4814,6 +4868,15 @@ body.selecting .voice-dock { display: none; }
    because RED IS A VERB and this one really is tappable. */
 .set-last-act { background: none; border: 0; padding: 0; margin-top: 1px; display: block; text-align: left;
   font-family: var(--f); font-size: var(--t-meta); color: var(--tx-3); }
+/* AND IT HAS TO BE BIG ENOUGH TO HIT (2026-09-21, the first audit ever run
+   inside a session). A one-line text button is 16px tall, well under the 24px
+   floor, and this one LOGS A SET. The room comes out of the ghost row's own
+   bottom padding and nowhere else: there is a single pixel above it before
+   .se-grid, which is a target of its own, so growing upward would only trade
+   a small target for two stacked ones. Thirteen pixels sit below it inside
+   the row; eight of them go here, which clears the floor with five to spare
+   and moves no paint. */
+.set-last-act { border-bottom: 8px solid transparent; margin-bottom: -8px; }
 .set-last-act .act { color: var(--accent-chrome); font-weight: var(--w-semi); margin-left: var(--s-2); }
 /* The gym feature cards open with a kicker (Up Next; Exercise N of M). Give
    the kicker its breathing room once, here -- the only .card.pad > .eyebrow
@@ -4834,7 +4897,22 @@ body.selecting .voice-dock { display: none; }
    wrapper needs the row's own flex so the chevron sits beside the text
    instead of wrapping under it (visible in Dave's 2026-08-31 screenshot:
    every day row's chevron beached on its own line). */
-.row-press { display: flex; align-items: center; gap: var(--s-3); flex: 1; min-width: 0; }
+/* AND IT TAKES THE ROW'S FULL HEIGHT (2026-09-21, the first audit ever run on
+   the program screen). The wrapper is the only thing bound to the tap, and
+   it was sized by its own content: 42px inside a 66px row, so the row's top
+   and bottom padding -- twelve pixels of what reads as a row -- did nothing
+   at all. align-self: stretch hands it the whole row, which is what the row
+   looks like it is offering. */
+.row-press { display: flex; align-items: center; gap: var(--s-3); flex: 1; min-width: 0; align-self: stretch; }
+/* AND IT TAKES THE ROW'S PADDING WITH IT (2026-09-21). align-self: stretch
+   alone only reaches the row's CONTENT box, which is why the wrapper still
+   measured 42px inside a 66px row: twelve pixels of what reads as a tappable
+   row, top and bottom, opened nothing. The padding moves off the row and onto
+   the only thing bound to the tap, so the row is the same size it always was
+   and every pixel of it now works. Scoped by :has so the set strip's own
+   rows, which set padding: 0 and carry no .row-press, are untouched. */
+.row:has(> .row-press) { padding: 0; }
+.row > .row-press { padding: var(--s-3) var(--s-4); }
 
 /* THE WEEK STRIP (gym catalog §4.1). A week is a row like any other; the
    back-off tag reuses .pill-subdued (the app's existing neutral pill) on

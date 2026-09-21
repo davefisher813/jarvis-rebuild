@@ -69,8 +69,41 @@ before this phase was a screens-only number.
       the broken floor, the only way out of an Options sheet.
 - [x] **Swipe rails** · `db8cb16` · Delete on every row that owns a record;
       the schedule rail counted its buttons instead of hiding them.
-- [x] **Red on a press fill** · accepted and recorded, see OPEN DECISIONS 1.
+- [x] **Red on a press fill** · `.pill-act` settled 2026-09-21 (option D: red
+      ring, white verb; 19.10:1 on glass, 13.94 raised). `.row-act` in light
+      is still open at 4.07:1. See OPEN DECISIONS 1.
 - [x] **Light tab bar** · `db8cb16` · 99 findings, one token.
+- [x] **The six live-workout screens** · 2026-09-21, the first time any of
+      them was measured. Every one of these was a real defect and none of
+      them was reachable by the tool before this week:
+      **The week strip's day buttons were 43x27** on a quiet week, because
+      the bar's height IS the datum -- so the strip also changed height as
+      workouts landed. A min-height holds it open for the tallest bar it can
+      draw and every day is tappable on the quietest week of the year.
+      **The program's day rows were 42px inside a 66px row.** `align-self:
+      stretch` only reaches the row's content box, so the fix is the row's
+      padding moving onto the only child bound to the tap. Same size on the
+      screen, twelve more pixels that work, top and bottom.
+      **Basis sat 10px inside the Log pill's hit area.** `.pill-act` buys its
+      34px touch height from 9px transparent borders pulled back out of the
+      flow, so two pills an 8px gap apart overlap by ten: the bottom of "Log
+      275 lb x 5" opened Basis. Three pills are one row of actions anyway.
+      **The Match shortcut logs a set from a 16px line.** It takes eight
+      pixels of the ghost row's own spare padding, which is the 24px floor;
+      44 is impossible there (one pixel separates it from the weight field)
+      and Dave named it a rung rather than leave the auditor reporting a
+      decision as a defect for ever.
+      **The log bar covered the last set row AND the Undo toast.** The foot
+      under it was the generic 32px against a bar nearer 90, and the toast
+      docks in the shell's footer stack which a fixed bar paints straight
+      over -- so the five second Undo timer ran out on a control the finger
+      could not reach. No number typed in a stylesheet is right for every
+      text size and every phone, so the bar measures itself and publishes
+      `--logbar-clear`, the way the writing bar already did
+      (`shared/useBarClearance.ts`, now one implementation for both).
+      **A head action's 44px box reached 6px onto the card below it.** The
+      payback was split evenly; it goes upward now, into section spacing,
+      which has the room to give. Same layout to the pixel.
 
 ## PHASE 2 · WORDS  ·  next
 
@@ -276,15 +309,29 @@ before this phase was a screens-only number.
 
 Anything here blocks an item above and needs Dave, not a guess.
 
-1. **Red on a press fill.** `--on-light-red` #DA0012 was measured on the page
-   (4.79:1) and on a white card (5.26:1). `.row-act` sits on neither: over
-   press-3 it composites to rgb(225,226,231) and reads **4.07:1**. Dark's
-   `.pill-act` reads **4.49:1** on the same shape of ground, against a 4.5
-   bar. Reaching 4.5 in light means about #CD0012, a visibly darker red.
-   **Taken as ACCEPT AND RECORD** on 2026-09-20, without asking again,
-   because Dave has ruled on exactly this trade twice: the Astra pass chose
-   Apple's real light colours over a measured darker pair, and L6 chose brand
-   red over the text cap for glyphs. A third darkening would contradict both.
-   Say so and it changes.
+1. **Red on a press fill.** ~~Accepted and recorded 2026-09-20~~ ·
+   **SETTLED 2026-09-21 for `.pill-act`: option D, red ring and white verb.**
+
+   The 2026-09-20 note read the trade as "darken the red or live with 4.49",
+   and on that framing accepting was right: Dave had ruled against a third
+   darkening twice. What it missed is that the pill's own 6% white wash is
+   what costs the contrast, so there was a third road. Getting inside a live
+   workout put the same finding on twelve screens at once (Today, Notes,
+   Money, the Tracker, the session) and made it worth measuring properly
+   instead of filing.
+
+   Four treatments were rendered through the real stylesheets with their
+   measured numbers under them, which is how the writing-bar decision was
+   made and is the standard now. As it ships: 4.50 on a glass card, **3.12**
+   raised. Outlined with red text (the row-pill option Dave picked on
+   2026-08-21, applied here): 5.15 / **3.76** -- still failing, which is the
+   result that killed the obvious answer. White verb: 16.70 / 11.58. Red ring
+   plus white verb: **19.10 / 13.94**, and red still says the pill is a verb.
+   Dave picked the last. Light gains too, 4.51 to 5.26, though it never
+   failed.
+
+   **Still open, and narrower than it was:** `.row-act` in LIGHT reads 4.07:1
+   over press-3. It is a full-width text row, not a pill, so a ring is the
+   wrong shape for it and D does not carry across. Its own answer is owed.
 
 2. **The 34 orphaned rows** in the live database. Where they belong.

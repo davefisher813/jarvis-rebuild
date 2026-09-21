@@ -700,7 +700,14 @@ describe("LAW: Apple HIG casing", () => {
     const PROPS = /(padding|margin|gap|row-gap|column-gap|padding-(top|bottom|left|right|inline|block)|margin-(top|bottom|left|right|inline|block))\s*:\s*([^;}]+)/g;
     const bad: string[] = [];
     for (const f of files) {
-      const css = read(SRC + "/styles/" + f);
+      // A COMMENT IS NOT A DECLARATION (2026-09-21). This read raw text, and
+      // the regex runs to the next `;` or `}` -- neither of which a comment
+      // has -- so a line of prose explaining `margin-block: -9px` swallowed
+      // the rest of the sentence and reported the 16px in it as an off-grid
+      // margin. Comment bodies are blanked with their newlines kept, so the
+      // line numbers this reports stay true.
+      const css = read(SRC + "/styles/" + f)
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "));
       for (const [i, line] of css.split("\n").entries()) {
         for (const m of line.matchAll(PROPS)) {
           const value = (m[4] ?? "").trim();

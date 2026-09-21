@@ -29,6 +29,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useBarClearance } from "./useBarClearance";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { Node } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
@@ -304,48 +305,10 @@ const DocEditor = forwardRef<DocEditorHandle, DocEditorProps>(function DocEditor
   // whatever else the platform parks down there, without this file having to
   // know what any of them are. --doc-kbar-h stays as the bar's own height for
   // anything that wants just that.
-  const barRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = barRef.current;
-    const root = document.documentElement;
-    const clearAll = () => { root.style.removeProperty("--doc-kbar-h"); root.style.removeProperty("--doc-kbar-clear"); };
-    if (!el) { clearAll(); return; }
-    const measure = () => {
-      const box = el.getBoundingClientRect();
-      root.style.setProperty("--doc-kbar-h", Math.ceil(box.height) + "px");
-      root.style.setProperty("--doc-kbar-clear", Math.max(0, Math.ceil(window.innerHeight - box.top)) + "px");
-    };
-    measure();
-    // The keyboard and its pill arrive by animation, and the visual viewport
-    // is what reports them. shared/viewport.ts answers the same two events by
-    // writing --vv-top and --vv-h on the next frame, and the bar's own top is
-    // those two values; measuring synchronously here would read the position
-    // it had BEFORE that write. So take the frame after, which is the frame
-    // the bar has actually moved in.
-    const vv = window.visualViewport;
-    let queued = false;
-    const afterFrame = () => {
-      if (queued) return;
-      queued = true;
-      const run = () => { queued = false; measure(); };
-      if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => requestAnimationFrame(run));
-      else run();
-    };
-    vv?.addEventListener("resize", afterFrame);
-    vv?.addEventListener("scroll", afterFrame);
-    // The effect already re-runs when the bar appears and when a menu opens a
-    // row. The observer is the belt on top of those braces, for a height
-    // nothing here asked for (a rotation, a dynamic-type change), and jsdom
-    // has no ResizeObserver to give.
-    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    ro?.observe(el);
-    return () => {
-      ro?.disconnect();
-      vv?.removeEventListener("resize", afterFrame);
-      vv?.removeEventListener("scroll", afterFrame);
-      clearAll();
-    };
-  }, [focused, menu]);
+  // The measurement itself lives in shared/useBarClearance.ts now: the live
+  // workout's log bar needed the identical two properties and the identical
+  // frame-after timing, and two copies of that is how one of them goes stale.
+  const barRef = useBarClearance("doc-kbar", [focused, menu]);
 
   const swallow = (e: React.SyntheticEvent) => e.preventDefault();
   const run = (fn: (ed: Editor) => void) => () => { if (!editor) return; fn(editor); setMenu(null); };

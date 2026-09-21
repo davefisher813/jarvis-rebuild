@@ -285,6 +285,16 @@ const AUDIT = () => {
     // action (See All, Open Inbox, Schedule, Add), the small pill, the
     // segmented control's segment (34 by X0), and the dropdown value.
     [/(^| )(pill-act|pill-action|see-all|btn-sm|seg|dd-lead)( |$)/, 34, "capsule"],
+    // INLINE ACTION, 24 (Dave's call 2026-09-21, the ladder's fourth rung).
+    // The Match shortcut under a set chip ("Last: 275 lb x 5  Match") is a
+    // line of text that logs a set, and a line of text is 16px tall. It
+    // cannot be 44: one pixel separates it from the weight and reps fields
+    // above, which are targets of their own, so reaching for 44 would trade
+    // one small target for two stacked ones. It takes eight pixels of the
+    // ghost row's own spare padding instead, which is the 24px floor with
+    // five to spare, and the rung says that is the answer rather than
+    // leaving the auditor to report a decision as a defect for ever.
+    [/(^| )(set-last-act)( |$)/, 24, "inline action"],
   ];
   const rungOf = (cls) => RUNGS.find(([re]) => re.test(" " + cls + " "));
   // A CONTROL A ROW FORWARDS TO IS AS BIG AS THE ROW (2026-09-21). Eleven

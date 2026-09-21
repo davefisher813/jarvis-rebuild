@@ -1733,6 +1733,14 @@
   gap: var(--s-2); }
 [data-theme="light"] .ruled.health-ruled .logbar { background: linear-gradient(180deg, rgba(242,242,247,0), var(--bg) 38%); }
 .ruled.health-ruled .logbar .btn { width: 100%; }
+/* THE FOOT UNDER A LOG BAR IS THE BAR (2026-09-21). --logbar-clear is written
+   by the bar itself (shared/useBarClearance.ts): the distance from its top to
+   the foot of the layout viewport, so it counts the bar, the home-indicator
+   inset and anything the keyboard parks in between. The generic 32px foot
+   left the last set row and Add Exercise permanently underneath it. The
+   fallback is what the bar measures at the default text size on a phone with
+   an indicator, for the one frame before the measurement lands. */
+.ruled.health-ruled .se-foot { height: var(--logbar-clear, 92px); }
 /* TWO BUTTONS, ONCE THE PLAN IS DONE (2026-09-17). Both shrink to share the
    bar; the primary keeps the larger share because moving on is the common
    move at that point and the extra set is the exception. */
@@ -2013,7 +2021,14 @@
   letter-spacing: -0.03em; color: var(--hl-lime); font-variant-numeric: tabular-nums; }
 .ruled.health-ruled .h-week-count span { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
 .ruled.health-ruled .h-bars { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-1); min-width: 0; }
-.ruled.health-ruled .h-bar { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--s-1h);
+/* ONE HEIGHT, WHATEVER THE WEEK DID (2026-09-21, the first audit ever run on
+   this screen). The bar's height is the datum, so on a quiet week all seven
+   buttons collapsed to 43x27 and the whole strip changed height as the data
+   changed. Two problems in one: a target 17px under the row rung, and a card
+   that jumps when a workout lands. min-height holds the row open for the
+   tallest bar the strip can draw (36px) plus its label, so the strip is a
+   fixed shape and every day is tappable on the quietest week of the year. */
+.ruled.health-ruled .h-bar { flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--s-1h);
   background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.04em; color: var(--tx-2); cursor: pointer; }
 .ruled.health-ruled .h-bar i { display: block; width: 10px; height: 8px; border-radius: var(--r-xs); background: var(--press-3); }
