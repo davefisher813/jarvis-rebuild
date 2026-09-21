@@ -1,6 +1,6 @@
 # Manual check: web push in the PWA
 
-Commit: 190be7b (the commit this change is built on; the change itself is the next commit)
+Commit: f3fde6e (the change, merged with main at ba8fa4d and gated on that tree; this checklist update is the next commit)
 Date: 2026-09-21
 Checked by: Claude Code, in the repo; the device rows are Dave's
 QA report: published to basecode-qa
@@ -23,7 +23,7 @@ by Clemenza with six conditions on 2026-09-20.
 | 7 | Every screen state has a sentence | ten input shapes map to eight states; each non native state has copy; off and on say all or nothing | webPush.test.ts | yes |
 | 8 | Re-subscribe on open | once per session, stops after a failure, nothing when the switch was never on or in a Safari tab | webPush.test.ts, four cases | yes |
 | 9 | The tap asks first | `Notification.requestPermission` runs before any await; a dismissed dialog is not a denial; no key means no subscribe | webPush.test.ts, three cases | yes |
-| 10 | The laws | short copy, em dash, env documented, versioned storage keys, the page's own tests | all pass after the copy was reworded to the repo's dot separator | yes |
+| 10 | The laws | short copy, em dash, env documented, versioned storage keys, the page's own tests, and the five laws main gained while this was built | all pass after the copy was reworded to the repo's dot separator; the merged tree at f3fde6e ran all eight stages green, 6531 app tests | yes |
 | 11 | On Dave's phone, from the Home Screen: Settings, Notifications, Alerts on this phone | iOS asks, Allow, foot reads "Alerts arrive on this phone" | Dave | device |
 | 12 | Send a Test Alert | a banner within seconds | Dave | device |
 | 13 | Switch off, then on again | no second dialog, foot back to on | Dave | device |
