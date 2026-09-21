@@ -66,31 +66,23 @@ before this phase was a screens-only number.
 
 ## PHASE 3 · THE STATES NOTHING HAS LOOKED AT
 
-- [x] **Empty states** · 65 of them, read. L7 ("an empty state always carries
-      its action") is stated three times in the catalog and was enforced
-      nowhere; 26 were dead ends. Now a law with an EXACT roster, so a new
-      dead end fails and fixing one fails too. Fixed: No Projects Here and No
-      Goals Here got their buttons, two "Loading..." empty states became
-      skeletons, and the Strands paragraph became a title and a sub.
-      **Debt, named, 7 left:** empty states whose action lives on another
-      screen and needs a callback plumbed (AreasTab, LiftDetail, InsightsPage,
-      WhatTheySee, NightBefore, AllData, HealthFlow). The law holds the count
-      at 7 so it can only go down.
-- [x] **Error states** · all 39 unguarded mutations read one by one, not
-      sampled. 31 were real and are guarded; 5 are correct and rostered with
-      the reason (an offline queue that catches inside its own drain, a
-      best-effort blob cleanup after the record is already gone, a callback
-      whose outcome the caller reads, a precondition that throws on purpose).
-      One came OFF the list mid-sweep: it was guarded all along and the
-      scratch script's 220-character lookahead was too short to see it.
-      Worst finds: 17 health writes running as `void svc.x().then(reload)`,
-      14 of them Undo handlers; the same `onUndoCall` unguarded in four
-      files; both bulk-import rollbacks; and the capture-note handler writing
-      three records while reporting none. Law with an exhaustive roster.
-
-- [ ] **Loading and skeletons** · every screen, caught mid-load. Two fake
-      ones found and fixed via the empty-state law; the other 16 real
-      skeletons are unreviewed.
+- [x] **Empty states** · L7 ("an empty state always carries its action") is
+      stated three times in the catalog and was enforced nowhere.
+      **Corrected 2026-09-21: the first version of this law under-counted by
+      almost half.** It took a 1400-character slice per empty state, which ran
+      past short ones into whatever followed, so a dead end sitting above a
+      list of tappable rows scored as having an action. Counting div depth
+      finds 41, not 22. Fixed: New Project, New Goal, two fake "Loading..."
+      states turned into skeletons, and TWO raw-JSX paragraphs on Strands (the
+      second missed first time because it had no .empty-title).
+      **Debt, named, 14 left:** empty states whose action lives on another
+      screen and needs a callback plumbed. The law pins the count.
+- [x] **Loading and skeletons** · every empty state checked for whether it
+      can paint while a load is in flight. Two fakes found and fixed (titled
+      with the literal word "Loading..."). "Reading Your Inbox" looks like a
+      third and is not: a deliberate progress screen carrying a live
+      "N of M sorted" count, built after an open-ended wait felt broken. The
+      16 real SkeletonRows uses are correct.
 - [x] **Toasts** · 60 report a removal; 52 already carried Undo, which is why
       the eight that did not were invisible. Two of the eight were shipped by
       the swipe work the same morning: a swipe on a repeating row wrote an
