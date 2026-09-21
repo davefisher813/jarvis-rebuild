@@ -88,7 +88,7 @@ export default function FocusScreen({
     <div className="search-overlay ruled focus-screen">
       <div className="nav-bar">
         <div className="nav-large">Focus</div>
-        <button className="nav-action-text" onClick={onClose}>Close</button>
+        <button className="nav-action-text" data-layer-close onClick={onClose}>Close</button>
       </div>
 
       {/* ONE LINE: the two ways to work, and the music. It was two rows,

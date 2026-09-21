@@ -159,7 +159,16 @@ export function WeatherOfferRow({ form = "card", weight }: { form?: "card" | "ro
       // holding this width, because a character budget would have to guess
       // the font -- the same reason the latch in NoticeCard measures.
       title="Add Daily Weather"
-      sub="One line each morning, only when it matters"
+      // THE SUB IS GONE, and it was two problems in one line (subtext sweep,
+      // 2026-09-20). "One line each morning, only when it matters" describes
+      // the FEATURE: it is true on an empty database, which is the test this
+      // app uses for a manual, and the no-manual law could not see it because
+      // the law reads literals beside a className and this one arrives as a
+      // prop. It also never rendered. The grouped Heads Up band is one line,
+      // the shredded-sub latch drops a sub that cannot finish, and measured
+      // on the built app the row ships as "Add Daily Weather · Allow" with no
+      // .vrow-sub in it at all. "Daily" in the title carries the one fact the
+      // sentence was there to say.
       action={{ label: "Allow", onClick: grant }}
       // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): nothing to
       // open, so the body asks for location, the same safe verb as the pill.

@@ -239,6 +239,18 @@ export default function HealthFlow({
   // one toast: the celebration would have been replaced before it was read.
   // The receipt carries the comeback line when there is one.
   const celebrateOnLog = (marksBefore: { at: number }[]): string | null => healthComebackMessage(marksBefore, localDay());
+  // THE TWIN OF CategoryDetail's healthWrite, and it needed it for the same
+  // reason (states sweep, 2026-09-20). Four writes here ran as
+  // `void svc.x().then(reload)`, which discards the promise, and two of the
+  // four were UNDO handlers. Line 320 in this same file already did it right
+  // with a `.catch(WRITE_FAILED_MESSAGE)`, which is what made the other four
+  // invisible: the pattern was present, just not everywhere.
+  const healthWrite = (write: () => Promise<unknown>) => {
+    void write()
+      .then(() => reload())
+      .catch(() => showToast({ message: WRITE_FAILED_MESSAGE }));
+  };
+
   const receipt = (cheer: string | null, said: string, undo: () => void) =>
     showToast({ message: cheer ?? said, actionLabel: "Undo", onAction: undo });
 
@@ -314,7 +326,7 @@ export default function HealthFlow({
           onLog={() => {
             const cheer = celebrateOnLog(lightsOut.map((e) => ({ at: e.data.at })));
             const d = svc.logLightsOut();
-            receipt(cheer, "Bedtime logged", () => { void svc.removeLightsOut(d.at).then(() => reload()); });
+            receipt(cheer, "Bedtime logged", () => { healthWrite(() => svc.removeLightsOut(d.at)); });
             void reload();
           }}
           onEditTime={(id, at) => { void svc.updateLightsOut(id, at).then(() => reload()).catch(() => showToast({ message: WRITE_FAILED_MESSAGE })); }}
@@ -346,10 +358,10 @@ export default function HealthFlow({
           onLog={(med) => {
             const cheer = celebrateOnLog(tookIt.map((e) => ({ at: e.data.at })));
             const d = svc.logTookIt(undefined, undefined, med ? { medId: med.id, amount: med.data.amount } : undefined);
-            receipt(cheer, doseToast(med?.data.amount), () => { void svc.removeTookIt(d.at).then(() => reload()); });
+            receipt(cheer, doseToast(med?.data.amount), () => { healthWrite(() => svc.removeTookIt(d.at)); });
             void reload();
           }}
-          onUndo={(row) => { void svc.removeTookIt(row.at).then(() => reload()); }}
+          onUndo={(row) => { healthWrite(() => svc.removeTookIt(row.at)); }}
           onBack={onExit}
         />
       );
@@ -376,7 +388,9 @@ export default function HealthFlow({
           // is what the catalog says gets handed over.
           summaries={summaries}
           onLog={(x, y, side, region) => { lastTap.current = svc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) }).at; void reload(); }}
-          onDetail={(detail) => { if (lastTap.current != null) void svc.updatePointAtIt(lastTap.current, detail).then(() => reload()); }}
+          // The ref is read ONCE into a const: narrowing a .current does not
+          // survive into a closure, because nothing stops it changing first.
+          onDetail={(detail) => { const at = lastTap.current; if (at != null) healthWrite(() => svc.updatePointAtIt(at, detail)); }}
           // UP-ATH-05 (2026-09-06): the summary travels with the tap. Before
           // this the button walked to Say It to Someone empty-handed, so the
           // athlete had to remember and retype the dates the screen had just
@@ -395,7 +409,7 @@ export default function HealthFlow({
           // the receipt carries Undo.
           onLogFill={(dosesInFill, filledAt) => {
             const d = svc.logMedRefill({ filledAt, dosesInFill });
-            showToast({ message: "Fill logged", actionLabel: "Undo", onAction: () => { void svc.removeMedRefill(d.at).then(() => reload()); } });
+            showToast({ message: "Fill logged", actionLabel: "Undo", onAction: () => { healthWrite(() => svc.removeMedRefill(d.at)); } });
             void reload();
           }}
           // HMN-F-22 (2026-09-05): this toast used to fire whether or not

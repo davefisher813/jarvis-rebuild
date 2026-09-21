@@ -1222,15 +1222,24 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
               setPeopleTick((n) => n + 1);
               return out;
             }}
-            onUndoCall={async (prior) => { await peopleSvc.restoreCallAttempt(personSheet.personId, prior); setPeopleTick((n) => n + 1); }}
+            onUndoCall={async (prior) => { await attemptWrite(async () => { await peopleSvc.restoreCallAttempt(personSheet.personId, prior); setPeopleTick((n) => n + 1); }); }}
             onCaptureNote={async (text) => {
               const person = people.find((p) => p.id === personSheet.personId);
               if (!person) return false;
-              const noteId = await notesSvc.createNote("Call with " + person.data.name, "");
-              if (!noteId) return false;
-              await notesSvc.addBlock(noteId, { type: "text", text });
-              await notesSvc.addConnection(noteId, "person", person.data.name, person.id);
-              return true;
+          /* THE CAPTURE WRITES THREE RECORDS AND REPORTED NONE OF THEM
+             (states sweep, 2026-09-20). A note, its first block and its link
+             back to the person: if the second or third threw, the sheet had
+             already been told true and a half-built note stayed behind.
+             attemptWrite gives the standard failure toast AND the boolean
+             this handler's contract already returns. */
+              let noteId: string | null = null;
+              const ok = await attemptWrite(async () => {
+                noteId = await notesSvc.createNote("Call with " + person.data.name, "");
+                if (!noteId) throw new Error("no note");
+                await notesSvc.addBlock(noteId, { type: "text", text });
+                await notesSvc.addConnection(noteId, "person", person.data.name, person.id);
+              });
+              return ok;
             }}
             onClose={() => setPersonSheet(null)}
           />

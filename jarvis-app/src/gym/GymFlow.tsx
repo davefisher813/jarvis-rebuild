@@ -1896,7 +1896,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             writeGymSettings({ ...readGymSettings(), dismissedDupes: dismissedBefore });
           });
           if (goalsSvc) {
-            for (const g of plan.goals) await goalsSvc.update(g.id, g.data);
+            // The last unguarded write in the app after the states sweep of
+            // 2026-09-20: a restore loop inside a void async, so a rejection
+            // had nowhere to go and the goals would silently stay changed.
+            await attemptWrite(async () => {
+              for (const g of plan.goals) await goalsSvc.update(g.id, g.data);
+            });
             setGoals(await goalsSvc.list());
           }
         })(),

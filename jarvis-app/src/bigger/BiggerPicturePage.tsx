@@ -628,7 +628,15 @@ export default function BiggerPicturePage({
               <CardShelf title="More Work">{lensOrphans.map(projCard)}</CardShelf>
             )}
             {lensRows.length === 0 && (
-              <div className="empty-state"><div className="empty-title">No Projects Here</div></div>
+              /* L7, the app's own flow law, finally enforced (2026-09-20):
+                 "an empty state always carries its action". This one stated a
+                 fact and gave him nowhere to go, on the card view of the page
+                 whose whole job is starting work. onAddProject was already a
+                 prop on this component. */
+              <div className="empty-state">
+                <div className="empty-title">No Projects Here</div>
+                <button className="btn btn-secondary" onClick={onAddProject}>New Project</button>
+              </div>
             )}
             {projectTail}
           </>
@@ -643,7 +651,10 @@ export default function BiggerPicturePage({
               <CardShelf title="Working Toward">{unhomed.map(goalCard)}</CardShelf>
             )}
             {viewGoals.length === 0 && (
-              <div className="empty-state"><div className="empty-title">No Goals Here</div></div>
+              <div className="empty-state">
+                <div className="empty-title">No Goals Here</div>
+                <button className="btn btn-secondary" onClick={onAddGoal}>New Goal</button>
+              </div>
             )}
             {goalTail}
           </>

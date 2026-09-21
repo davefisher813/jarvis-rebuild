@@ -6,7 +6,7 @@ import { buildVisionMessage } from "../ai/AIService";
 import { JARVIS_VOICE } from "../ai/voice";
 import { encodeImageForVision } from "../shared/imageEncode";
 import { showToast } from "../shared/toast";
-import { WRITE_FAILED_MESSAGE } from "../shared/guard";
+import { WRITE_FAILED_MESSAGE, attemptWrite } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import { weekdayShortDate } from "../shared/dateFormat";
 import { madeBy } from "../shared/provenance";
@@ -138,9 +138,15 @@ export default function SyllabusUploadFlow({
     } finally {
       setSaving(false);
     }
+    // A ROLLBACK THAT FAILS SILENTLY LEAVES THE IMPORT HALF IN (states sweep,
+    // 2026-09-20). This is the Undo on a bulk import receipt: it deletes what
+    // the run created. Every call inside was unguarded, so a failure partway
+    // through left rows behind with the toast already gone and nothing said.
     const undo = async () => {
-      for (const id of madeTasks) await tasks.deleteTask(id);
-      for (const id of madeEvents) await schedule.deleteEvent(id);
+      await attemptWrite(async () => {
+        for (const id of madeTasks) await tasks.deleteTask(id);
+        for (const id of madeEvents) await schedule.deleteEvent(id);
+      });
     };
     if (failed) {
       const done = madeTasks.length + madeEvents.length;

@@ -251,19 +251,47 @@ describe("THE SECOND LINE IS NEVER A MANUAL", () => {
 
   // The shapes a sentence uses to explain a mechanism. A fact needs none of
   // them: "Today", "6 Lifts", "Sep 12", "On Hold", "3 sessions".
-  const EXPLAINING = /\b(so no|because|which means|when you|if you|are what it takes|it takes|will still|would be|rather than|instead of|in order to|make sure|so that|nothing has to|goes? nowhere|stays? on this)\b/i;
+  //
+  // "only when" and "each morning" joined on 2026-09-20, off the one manual
+  // the sweep found: the weather offer's "One line each morning, only when it
+  // matters". A cadence and a condition are how a feature describes ITSELF; a
+  // record has a date, not a habit.
+  const EXPLAINING = /\b(so no|because|which means|when you|if you|are what it takes|it takes|will still|would be|rather than|instead of|in order to|make sure|so that|nothing has to|goes? nowhere|stays? on this|only when|each (morning|day|time)|every (morning|day|time))\b/i;
+
+  // THE DOORS A SUBTEXT ARRIVES THROUGH (2026-09-20). The first version of
+  // this law read literals that sat on the same line as a className, and knew
+  // six class names. Swept properly, the app has 253 static subtext strings
+  // and this law could see 118 of them: 99 arrive as a PROP, which it never
+  // looked at, and the rest wear classes it had never been told about. The
+  // one manual in the whole app was in the blind spot, as a `sub=` prop, and
+  // had been shipping on Today since the offer was written.
+  //
+  // The content was in good shape; the COVERAGE was not, and a law that only
+  // watches one door teaches everyone to use the other one.
+  const SUB_CLASS = /className="[^"]*\b(conn-meta|vrow-sub|facts|fact|bp-sub|r-goal|r-cat|area-fact|rdy-why|se-kick|task-goal)\b/;
+  const SUB_PROP = /\b(sub|subtitle|subLabel|why|note|hint|meta|kicker)\s*[=:]\s*["`]/;
+
+  // Copy that is deliberately not a fact, each for a stated reason.
+  const EXEMPT = [
+    // The empty state's whole job is to say what WOULD be here; deleting its
+    // copy leaves a blank screen. Exempt since this law was written.
+    /empty-sub|empty-state|empty-title/,
+    // Simulated inbox content for previews, the same class as seedNotes.ts:
+    // it is a fake USER's mail, not this app talking.
+    /DemoMail/,
+  ];
 
   it("carries no explanation on any line under a name", () => {
     const offenders: string[] = [];
     for (const f of walk(SRC)) {
       const r = f.slice(SRC.length + 1);
       if (r.startsWith("bench/") || r.startsWith("testpanel/") || r.startsWith("laws/")) continue;
+      if (EXEMPT.some((x) => x.test(r))) continue;
       readFileSync(f, "utf8").split("\n").forEach((line, i) => {
         const t = line.trim();
         if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*")) return;
-        // Only the subtext components, and never the empty state.
-        if (!/className="[^"]*\b(conn-meta|facts|fact|bp-sub|r-goal|area-fact|rdy-why)\b/.test(line)) return;
-        if (/empty-sub|empty-state/.test(line)) return;
+        if (!SUB_CLASS.test(line) && !SUB_PROP.test(line)) return;
+        if (EXEMPT.some((x) => x.test(line))) return;
         for (const m of line.matchAll(/["`]([^"`{}\\]{10,})["`]/g)) {
           const lit = m[1]!;
           if (EXPLAINING.test(lit)) offenders.push(`${r}:${i + 1} :: ${lit.slice(0, 68)}`);
@@ -271,5 +299,17 @@ describe("THE SECOND LINE IS NEVER A MANUAL", () => {
       });
     }
     expect(offenders, "a line that explains the app is a manual, not a fact").toEqual([]);
+  });
+
+  it("watches both doors, not just the one it was written for", () => {
+    // The law above is only as good as its reach, and its reach silently
+    // halved once subtext started arriving as props. This pins the roster so
+    // a future narrowing fails here instead of going quiet.
+    expect(SUB_PROP.test('sub="something"'), "the prop route").toBe(true);
+    expect(SUB_PROP.test("why: \"something\""), "the why route").toBe(true);
+    expect(SUB_CLASS.test('className="conn-meta"'), "the class route").toBe(true);
+    expect(SUB_CLASS.test('className="row-grow vrow-sub"'), "the verb row's sub").toBe(true);
+    // And it has to still bite the line it was widened for.
+    expect(EXPLAINING.test("One line each morning, only when it matters")).toBe(true);
   });
 });

@@ -7,6 +7,7 @@ import { Facts, waitingFor, ruleAccountFact } from "./factsLine";
 import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
 import type { TaskItem } from "../tasks/TasksService";
 import { attemptWrite } from "../shared/guard";
+import SkeletonRows from "../shared/SkeletonRows";
 import NoticeCard from "../today/NoticeCard";
 import "../styles/mail-rows.css";
 import EntityStar from "../shared/EntityStar";
@@ -4276,7 +4277,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
       {filter === "drafts" ? (
         draftsBusy && !draftsLoaded ? (
-          <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">Loading...</div></div></div></div>
+          /* A LOAD IS NOT AN EMPTY STATE (2026-09-20, the states sweep). Both
+             of these were an .empty-state whose title was the literal word
+             "Loading...", which is the one thing an empty state must never
+             say: it reports that there is nothing here, on a screen that does
+             not know yet. The app has had SkeletonRows for this since the
+             first iOS pass and sixteen other lists use it. The file knew the
+             law too -- the B14 note about the empty state carrying its action
+             is four lines below this one. */
+          <SkeletonRows />
         ) : drafts.length === 0 ? (
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
@@ -4300,7 +4309,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           </div></div>
         )
       ) : loading && rows.length === 0 ? (
-        <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">Loading...</div></div></div></div>
+        <SkeletonRows />
       ) : (error || mailDown) && rows.length === 0 && results === null ? (
         // EMAIL-F-04 (2026-09-05): a load that FAILED with nothing in hand is
         // an error state, never "Inbox Is Quiet" or "Inbox Empty" (For You
