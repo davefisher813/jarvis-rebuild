@@ -862,14 +862,16 @@ async function diveInto(page, label, sheetSkips, sheetsSeen) {
 // audit has ever measured: Health, the program, the time sheet, the session,
 // the session one set in (the rest clock, the Done chip, the drop action), and
 // the finish receipt.
-async function liveWorkout(page, sheetSkips) {
+async function liveWorkout(page, sheetSkips, openTab) {
   const out = [];
   const step = async (what, fn) => {
     try { await fn(); await page.waitForTimeout(900); return true; }
     catch { sheetSkips.push("live workout: " + what); return false; }
   };
   await clearLayers(page);
-  if (!await step("could not reach the Life tab", () => page.click('text="Life"', { timeout: 3000 }))) return out;
+  // By element, like every other navigation here: "Life" is a word Today
+  // also uses.
+  if (!await step("could not reach the Life tab", () => openTab("Life"))) return out;
   if (!await step("no Health card on Life", () => page.click(".area-card-health", { timeout: 3000 }))) return out;
   out.push(await auditScreen(page, "Live: Health"));
   // The hero is the day's door: "Pull Day / Today / 4 Exercises". With no
@@ -892,7 +894,7 @@ async function liveWorkout(page, sheetSkips) {
     await page.waitForTimeout(700);
     out.push(await auditScreen(page, "Live: Workout, One Set In"));
   }
-  if (await step("Finish did not open the receipt", () => page.click('text="Finish"', { timeout: 3000 }))) {
+  if (await step("Finish did not open the receipt", () => page.click('.nav-bar >> text="Finish"', { timeout: 3000 }))) {
     out.push(await auditScreen(page, "Live: Finish"));
   }
   return out;
@@ -1273,35 +1275,46 @@ async function runPass({ w, h, theme, scale = 1 }) {
     const TABS = await page.evaluate(() =>
       [...document.querySelectorAll(".tab-bar .tab")].map((e) => (e.textContent || "").trim()).filter(Boolean));
     if (TABS.length === 0) sheetSkips.push("the tab bar named no tabs, so only More was crawled");
+    // AND THE TAB IS CLICKED BY ELEMENT, NOT BY ITS WORDS (2026-09-21). This
+    // file already says, twice, that a text selector matches the first thing
+    // on the page saying those words -- and then clicked the tabs by text
+    // anyway. On Today the first "Schedule" is a Ready to Send action pill,
+    // so `text="Schedule"` scheduled a dental cleaning and audited whatever
+    // that opened. Verified by reading the active tab after the click: still
+    // Today. Every "Tab: Schedule" this tool has ever printed was that.
+    // The names are read off .tab-bar .tab in order, so the index is exact.
+    const openTab = (t) => page.locator(".tab-bar .tab").nth(TABS.indexOf(t)).click({ timeout: 3000 });
     for (const t of TABS) {
       if (!(await clearLayers(page))) sheetSkips.push(`before Tab ${t}: a layer would not close`);
-      try { await page.click(`text="${t}"`, { timeout: 3000 }); } catch { continue; }
+      try { await openTab(t); } catch { continue; }
       results.push(await auditScreen(page, "Tab: " + t));
       if (SHEETS) {
-        const back = async () => { await clearLayers(page); await page.click(`text="${t}"`, { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(700); };
+        const back = async () => { await clearLayers(page); await openTab(t).catch(() => {}); await page.waitForTimeout(700); };
         results.push(...await auditSheets(page, "Tab: " + t, back, sheetSkips, sheetsSeen));
         await back();
       }
     }
 
-    // Every row inside More
+    // Every row inside More. Same rule as the tabs: by element and by index,
+    // because "Notes" and "Money" are words that appear elsewhere too.
     await clearLayers(page);
-    await page.click('text="More"').catch(() => {});
+    await openTab("More").catch(() => {});
     await page.waitForTimeout(1000);
-    const rows = await page.evaluate(() => [...document.querySelectorAll(".lib-name")].map((e) => e.textContent));
+    const rows = await page.evaluate(() => [...document.querySelectorAll(".lib-row .lib-name")].map((e) => (e.textContent || "").trim()));
     if (!rows.length) sheetSkips.push("More: no rows found, the whole section was skipped");
-    for (const r of rows) {
+    const openMoreRow = (i) => page.locator(".lib-row").nth(i).click({ timeout: 2500 });
+    for (const [ri, r] of rows.entries()) {
       await clearLayers(page);
-      await page.click('text="More"').catch(() => {});
+      await openTab("More").catch(() => {});
       await page.waitForTimeout(700);
-      try { await page.click(`text="${r}"`, { timeout: 2500 }); } catch { continue; }
+      try { await openMoreRow(ri); } catch { continue; }
       results.push(await auditScreen(page, "More > " + r));
       if (SHEETS) {
         const back = async () => {
           await clearLayers(page);
-          await page.click('text="More"').catch(() => {});
+          await openTab("More").catch(() => {});
           await page.waitForTimeout(600);
-          await page.click(`text="${r}"`, { timeout: 2500 }).catch(() => {});
+          await openMoreRow(ri).catch(() => {});
           await page.waitForTimeout(700);
         };
         results.push(...await auditSheets(page, "More > " + r, back, sheetSkips, sheetsSeen));
@@ -1326,18 +1339,18 @@ async function runPass({ w, h, theme, scale = 1 }) {
     for (const t of TABS) {
       if (t === "More") continue;   // its rows are crawled above, in full
       await clearLayers(page);
-      try { await page.click(`text="${t}"`, { timeout: 3000 }); } catch { continue; }
+      try { await openTab(t); } catch { continue; }
       await page.waitForTimeout(700);
       results.push(...await diveInto(page, "Tab: " + t, sheetSkips, sheetsSeen));
       // And every lens the tab holds behind its segmented control.
       await clearLayers(page);
-      await page.click(`text="${t}"`, { timeout: 3000 }).catch(() => {});
+      await openTab(t).catch(() => {});
       await page.waitForTimeout(700);
       results.push(...await segmentsOf(page, "Tab: " + t));
     }
 
     // LAST, because it leaves a workout running. See liveWorkout above.
-    results.push(...await liveWorkout(page, sheetSkips));
+    results.push(...await liveWorkout(page, sheetSkips, openTab));
   } catch (e) {
     consoleErrs.push("PASS FAILED: " + String(e).slice(0, 160));
   } finally {

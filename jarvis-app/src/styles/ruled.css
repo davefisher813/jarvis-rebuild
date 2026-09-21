@@ -645,7 +645,13 @@
 .ruled .sched-card { padding: 0; overflow: hidden; }
 .ruled .sched-card .sched-list { padding: var(--s-1) 0; }
 .ruled .sched-row { padding: 9px var(--s-4) 9px var(--s-4); gap: var(--s-3); }
-.ruled .sched-time { width: 62px; font-size: var(--t-sub); font-weight: 650; color: var(--tx-2); letter-spacing: -0.01em;
+/* THE TIME COLUMN SCALES WITH THE TIME IN IT (2026-09-21). 62px was measured
+   at the default text size and written down, so at --type-scale 1.4 "11:30 AM"
+   wanted 77 and painted 15px of itself into the title beside it: the auditor
+   read it as text outside its card, and on the screen the PM ran into the
+   first letter of the event. A column sized for type has to be sized IN type.
+   The same arithmetic every named size in this file already uses. */
+.ruled .sched-time { width: calc(62px * var(--type-scale)); font-size: var(--t-sub); font-weight: 650; color: var(--tx-2); letter-spacing: -0.01em;
   padding-top: var(--s-0h); text-align: right; }
 .ruled .sched-time .ampm { font-size: var(--t-micro); font-weight: var(--w-semi); color: var(--tx-quiet); letter-spacing: 0.02em; margin-left: var(--s-0h); }
 /* THE RAIL SITS AFTER THE TIME GUTTER, WHATEVER LEADS THE ROW (Dave
@@ -682,10 +688,16 @@
    The length is a quiet fact on the meta line now, the place is a quiet
    link on the same line, and a block with no length says nothing at all
    (the time popover sets it). The capsule rule is retired with it. */
-.ruled .sched-cat { flex-wrap: nowrap; min-width: 0; }
-/* The place is the one item on the line with no ceiling on its length, so
-   it is the one that gives: everything else keeps its width and the address
-   ellipsizes into whatever is left. */
+/* THE PLACE GIVES, BUT NOT ALL OF ITSELF (2026-09-21). "everything else keeps
+   its width and the address ellipsizes into whatever is left" is the right
+   rule right up to the moment nothing is left: at --type-scale 1.4 the meta
+   line read "FIXED · Family ·" with a separator, a space and no address at
+   all -- 99% of "Ridgeline Fields" gone, and a dangling middot pointing at
+   nothing. 68% was gone at the default size too.
+   The line wraps now. A place that does not fit beside the facts takes the
+   line under them and ellipsizes into THAT, which is a whole line rather
+   than a remainder, and a separator can never be the last thing on a row. */
+.ruled .sched-cat { flex-wrap: wrap; min-width: 0; row-gap: 0; }
 /* margin-top -12px, not 0: BROWSER-F-03 (2026-09-05) gave .sched-loc a 12px
    transparent border top and bottom so its hit area clears 44 without the
    ellipsis clipping the expander, and the negative margin is what keeps that
@@ -696,7 +708,7 @@
 .ruled .sched-cat .sched-until-btn { color: var(--tx-3); }
 /* The gap: dashed --tx-4, no fill, the plus is the row's one verb mark. */
 .ruled .sched-gap { background: transparent; margin: 6px var(--s-4); padding: 8px var(--s-3); gap: var(--s-3); }
-.ruled .sched-gap .sched-time { width: 62px; }
+.ruled .sched-gap .sched-time { width: calc(62px * var(--type-scale)); }
 .ruled .sched-gap .sched-gap-title { font-size: calc(14px * var(--type-scale)); }
 .ruled .sched-gap-win { font-size: var(--t-caption); }
 /* The count line: numbers bold in --tx-1, the words quiet (contract: inline
@@ -1049,10 +1061,19 @@
 /* The rule: the one place on this page the system red says "here", and it
    is a fact about the minute rather than an action, so it is a hairline and
    a word, never a fill. */
-.ruled .sched-now { display: flex; align-items: center; gap: var(--s-2h); padding: 9px var(--s-4) 7px; }
+/* THE RULE LINE KEEPS ITS RULE (2026-09-21). NOW, Live, the hairline, Running
+   Late? and the clock all sat on one nowrap row, so at --type-scale 1.4 the
+   fixed items alone were wider than the phone: the hairline collapsed to
+   nothing and "11:30 AM" painted 11px past the right edge of the screen.
+   The row wraps now, and the action is ordered last so the thing that drops
+   to the second line is the BUTTON -- the rule, the word and the clock stay
+   together, which is the whole point of a now line. The hairline keeps a
+   floor so it is still a rule and not a dash. */
+.ruled .sched-now { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2h); padding: 9px var(--s-4) 7px; }
+.ruled .sched-now .sched-late { order: 1; }
 .ruled .sched-now .w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--sys-red); flex-shrink: 0; }
-.ruled .sched-now .l { flex: 1; height: 1px; background: var(--sys-red); opacity: 0.4; }
+.ruled .sched-now .l { flex: 1 1 24px; min-width: 24px; height: 1px; background: var(--sys-red); opacity: 0.4; }
 .ruled .sched-now .t { font-size: calc(11px * var(--type-scale)); color: var(--tx-quiet); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 /* Running Late? rides the rule it is about. Neutral capsule: the rule's own
    red is the signal, and two reds on one line is the thing being fixed. */

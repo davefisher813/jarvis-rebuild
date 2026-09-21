@@ -144,6 +144,13 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cal-dots { display: flex; gap: var(--s-0h); height: 5px; }
 .cal-dot { width: 5px; height: 5px; border-radius: var(--r-circle); }
 .sched-cat { display: flex; align-items: center; gap: var(--s-1h); font-size: var(--t-meta); color: var(--tx-3); }
+/* One fact and the separator that introduces it, as a single wrapping unit.
+   See the note in DayRow.tsx: a run of loose separators and values reads
+   correctly only while it fits on one line. */
+.sched-fact { display: inline-flex; align-items: center; gap: var(--s-1h); white-space: nowrap; min-width: 0; }
+/* The place is the one fact with no ceiling on its length, so it is the one
+   allowed to shrink -- but as a whole line now, not as a remainder. */
+.sched-fact-loc { flex: 0 1 auto; min-width: 0; }
 .sched-cat .cat-dot { width: 8px; height: 8px; }
 .sched-until, .sched-rep { font-size: var(--t-meta); color: var(--tx-3); }
 .sched-firstmove { font-size: var(--t-meta); color: var(--tx-3); }

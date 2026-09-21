@@ -4333,8 +4333,17 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
   });
 
   it("the Now rule is a hairline and a word, never a fill", () => {
+    // The flex shorthand is no longer pinned here (2026-09-21). It was
+    // `flex: 1` and is `flex: 1 1 24px` with a matching min-width, because at
+    // --type-scale 1.4 the fixed items on this row were wider than the phone:
+    // the rule collapsed to nothing and the clock painted past the right
+    // edge. What this law is about is that the rule is a HAIRLINE IN THE
+    // SYSTEM RED and never a fill, and that is what it still checks, to the
+    // pixel and to the token. How much room the hairline asks for is layout.
     expect(CSS, "the rule paints a 1px line in the system red")
-      .toMatch(/\.ruled \.sched-now \.l \{ flex: 1; height: 1px; background: var\(--sys-red\)/);
+      .toMatch(/\.ruled \.sched-now \.l \{[^}]*height: 1px; background: var\(--sys-red\)/);
+    expect(CSS, "and it keeps a floor, so it stays a rule and not a dash")
+      .toMatch(/\.ruled \.sched-now \.l \{[^}]*min-width: 24px/);
     expect(CSS, "and Running Late? beside it stays neutral")
       .toMatch(/\.ruled \.sched-late \{[^}]*background: var\(--press-3\); color: var\(--tx-1\)/);
   });

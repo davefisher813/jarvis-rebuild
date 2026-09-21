@@ -64,6 +64,24 @@ before this phase was a screens-only number.
 - [x] **320px retired** · `305e6c9` · Dave's call. Seven of the eighteen
       findings lived only there, including every truncation in the app.
 - [x] **Truncation** · 2 fixed (`b84c911`), 0 remain at 390/430/834.
+- [x] **The Schedule row at 1.4** · 2026-09-21, three separate failures of
+      "everything should auto scale", all of them a number measured once at
+      the default text size and written into the stylesheet.
+      `.sched-time` was `width: 62px`, so at 1.4 an 11:30 AM wanted 77 and
+      painted fifteen pixels of itself into the title beside it. It is
+      `calc(62px * var(--type-scale))` now, like every other size in that
+      file.
+      The meta line was `flex-wrap: nowrap` with the place "ellipsizing into
+      whatever is left", which is right until nothing is left: the row read
+      "FIXED · Family ·" with a separator, a space and no address, 99% of
+      "Ridgeline Fields" gone at 1.4 and 68% gone at the default size. Each
+      fact carries its own separator now (`.sched-fact`), so the line wraps
+      BETWEEN facts and a separator can never be the last thing on a row.
+      And the Now rule put NOW, Live, the hairline, Running Late? and the
+      clock on one nowrap row, so at 1.4 the clock painted past the right
+      edge of the screen. It wraps, with the button ordered last: the rule,
+      the word and the clock stay together and the action takes the second
+      line.
 - [x] **Tap targets under their rung** · `305e6c9`
       21 head capsules at 28 where C1 says 34; `.opt-done` at 44x18, under
       the broken floor, the only way out of an Options sheet.

@@ -853,7 +853,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .msg-preview { font-size: var(--t-meta); color: var(--tx-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .sched-row { align-items: flex-start; }
-.sched-time { font-size: var(--t-body); color: var(--tx-2); width: 64px; flex-shrink: 0; padding-top: 1px; font-weight: var(--w-regular); font-variant-numeric: tabular-nums; }
+.sched-time { font-size: var(--t-body); color: var(--tx-2); width: calc(64px * var(--type-scale)); flex-shrink: 0; padding-top: 1px; font-weight: var(--w-regular); font-variant-numeric: tabular-nums; }
 /* THE MERIDIEM, WHEREVER A TIME IS PRINTED (2026-08-24).
    This was scoped to `.sched-time`, so the reminders strip, which uses
    `.rem-time`, rendered "10:00AM" at full weight with no gap. Exactly the

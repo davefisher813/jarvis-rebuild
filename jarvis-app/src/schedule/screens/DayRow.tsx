@@ -296,10 +296,19 @@ export default function DayRow({
             {/* C-28: the state word leads the facts line, in the closed
                 vocabulary every day surface now speaks. */}
             {state && <span className={"fact st " + toneFor(state)}>{state}</span>}
-            <span className={"cat-dot cat-bg-" + catColor(e.data.category)} />
-            {/* No area: say so, don't leave a dot hanging before the first
-                separator (Dave 2026-09-04; same words the task rows use). */}
-            {catName(e.data.category) || "No category"}
+            {/* A FACT IS ONE UNIT, SEPARATOR AND ALL (2026-09-21). The line
+                used to be a flat run of separators and values, which is fine
+                while it fits on one line and nonsense the moment it does not:
+                wrapping it broke "Health" off its dot and left a middot
+                alone at the end of a line, pointing at nothing. Each fact
+                carries its own separator now, so a wrap happens BETWEEN
+                facts and a separator can never be the last thing on a row. */}
+            <span className="sched-fact">
+              <span className={"cat-dot cat-bg-" + catColor(e.data.category)} />
+              {/* No area: say so, don't leave a dot hanging before the first
+                  separator (Dave 2026-09-04; same words the task rows use). */}
+              {catName(e.data.category) || "No category"}
+            </span>
             {/* B3/B5 (2026-08-23): "until 10:00 AM" was the last piece of
                 dead text on this row, and it names the one thing about an
                 event that nothing here could change: its LENGTH. Tap the
@@ -327,7 +336,7 @@ export default function DayRow({
                 are deciding when you pick a duration chip, and "Until 9:00
                 AM" made every row do arithmetic to answer "how long". */}
             {mins != null && (
-              <>
+              <span className="sched-fact">
                 <span className="sched-sep">&middot;</span>
                 {onSetEnd && !selecting ? (
                   <button
@@ -340,13 +349,13 @@ export default function DayRow({
                 ) : (
                   <span className="sched-until">{durLabel(mins)}</span>
                 )}
-              </>
+              </span>
             )}
-            {rep && <><span className="sched-sep">&middot;</span><span className="sched-rep">{rep.charAt(0).toUpperCase() + rep.slice(1)}</span></>}
+            {rep && <span className="sched-fact"><span className="sched-sep">&middot;</span><span className="sched-rep">{rep.charAt(0).toUpperCase() + rep.slice(1)}</span></span>}
             {/* The place joins the line instead of taking one of its own in
                 accent red. It is still the link it was. */}
             {e.data.location && (
-              <>
+              <span className="sched-fact sched-fact-loc">
                 <span className="sched-sep">&middot;</span>
                 <a
                   className="sched-loc truncate"
@@ -355,17 +364,17 @@ export default function DayRow({
                   rel="noreferrer"
                   onClick={(ev) => ev.stopPropagation()}
                 >{e.data.location}</a>
-              </>
+              </span>
             )}
             {/* LEAVE BY (UP-CORE-07, 2026-09-05): the one number time-blind
                 people cannot compute, on the row where the place already
                 is. A fact, in the same grey line; absent until the travel
                 minutes have been typed once. */}
             {leaveBy && (
-              <>
+              <span className="sched-fact">
                 <span className="sched-sep">&middot;</span>
                 <span className="sched-until">Leave by {fmtTime(leaveBy).time} {fmtTime(leaveBy).ap}</span>
-              </>
+              </span>
             )}
             {weatherDateIso && !isPast && e.data.location && <EventWeatherLine dateIso={weatherDateIso} start={e.data.start} />}
             {/* S6-Q36: the row's own start time is already this event's cue;
