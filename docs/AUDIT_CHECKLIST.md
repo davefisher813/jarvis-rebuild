@@ -34,6 +34,30 @@ before this phase was a screens-only number.
       This is how the missing More section was found.
 - [ ] **Drive empty, error and loading states** · the auditor cannot reach
       them by walking. Needs deliberate seeding. (Phase 3)
+- [x] **The auditor gets inside a live workout** · 6 screens nothing had ever
+      measured: Health, the program, the time sheet, the session, the session
+      one set in, the finish receipt. 25 findings on those six alone.
+      **Three separate reasons it had never got there, each one enough on its
+      own.** (1) `DIVE_SEL` matched ZERO elements on the Life tab, because an
+      area is a `.area-card`, not a `.row` — so the tab dive added the day
+      before walked straight past the one tab that is a hub. (2) A live
+      session is four taps deep through four different kinds of control, and
+      starting one MUTATES state, so it needs its own hand-driven walk that
+      runs last in the pass rather than a generic dive. (3) The demo seed had
+      no program at all: it wrote fourteen finished sessions with
+      `exercises: []` against a program id no program had, so Health read
+      "Set Up a Program / 0 Days" and **Start was not on the screen**.
+- [x] **Say whether the build under the tool had any data in it** · a plain
+      `npm run build` drops every seed (`__DEMO_SEED__`, on purpose, so demo
+      names can never ship), and the auditor had no idea. Every report it has
+      ever printed may have been an audit of empty states. It now checks for
+      the `DEMO_BUILD` marker on :4173 and says which kind of run it was, at
+      the top and the bottom. `npm run audit:build` produces the right one.
+- [x] **The under-bar check honours the modal root** · it was the last check
+      still reading the whole document, so with a sheet up it measured the
+      sheet's own buttons against the page's fixed bars under the scrim. The
+      finish receipt's "Done" and "Keep Training" both came back as hidden
+      behind the log bar they sit on top of.
 
 ## PHASE 1 · GEOMETRY AND COLOUR  ·  18 distinct findings to 2
 

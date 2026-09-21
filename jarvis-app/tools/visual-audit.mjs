@@ -546,7 +546,17 @@ const AUDIT = () => {
   }
 
   // 7. CONTENT UNDER THE FIXED BARS. A row you can see but never tap.
-  const bars = [...document.querySelectorAll("*")].filter((e) => getComputedStyle(e).position === "fixed" && vis(e));
+  //
+  // THE BARS COME FROM ROOT TOO (2026-09-21, found the first time a finish
+  // receipt was ever audited). This search was the one check still reading
+  // the whole document while everything else honoured the modal root, so
+  // with a sheet up it measured the sheet's own buttons against the PAGE's
+  // fixed bars -- the ones lying under the scrim, unreachable and covering
+  // nothing. "Done" and "Keep Training", the two biggest buttons on the
+  // receipt, both came back as hidden behind the log bar they sit on top of.
+  // Same rule as the rest of the file: when a layer is up, the page under it
+  // is not the subject.
+  const bars = [...ROOT.querySelectorAll("*")].filter((e) => getComputedStyle(e).position === "fixed" && vis(e));
   for (const bar of bars) {
     const rb = bar.getBoundingClientRect();
     if (rb.height > window.innerHeight * 0.5) continue;
@@ -747,7 +757,14 @@ async function focusScreen(page, name) {
 // actually holds its content were never looked at. Click by ELEMENT, not by
 // text: a text selector matches the first thing on the page that says those
 // words, which on these screens is usually a heading rather than the row.
-const DIVE_SEL = '.row[role="button"], .proj-row, .lm-row, .cat-row, .settings-row, .conn-row, .person-row, .lib-row';
+//
+// AND LIFE'S ROWS ARE CARDS (2026-09-21). Probed rather than assumed: on the
+// Life tab this selector matched ZERO elements, because an area is a
+// .area-card, not a .row. So the dive that was added "for the tabs" walked
+// straight past the one tab that is a hub, and Health -- the door to every
+// screen Dave has been reporting bugs on -- stayed unvisited even after the
+// tab dive existed. Count what a selector matches before trusting it.
+const DIVE_SEL = '.row[role="button"], .proj-row, .lm-row, .cat-row, .settings-row, .conn-row, .person-row, .lib-row, .area-card';
 async function diveInto(page, label, sheetSkips, sheetsSeen) {
   const out = [];
   const title = () => page.evaluate(() => document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "");
@@ -773,6 +790,63 @@ async function diveInto(page, label, sheetSkips, sheetsSeen) {
     }
     await page.click(".nav-back, .pagebar-back").catch(() => {});
     await page.waitForTimeout(600);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// THE LIVE WORKOUT (2026-09-21). Dave, on a round of health bugs the audit had
+// never seen: "You are not proofing work". He was right, and the reason was
+// structural rather than careless -- a live session cannot be crawled the way
+// a screen is crawled:
+//
+//   1. It is four taps deep (Life > Health > the program > Start), and every
+//      one of them is a different kind of control.
+//   2. Starting one MUTATES state. The generic dive clicks three rows on every
+//      screen it reaches; if one of those rows opens a workout, every screen
+//      audited afterwards is a screen with a session running on it.
+//   3. It needs a PROGRAM to exist. The demo seed wrote finished sessions with
+//      no exercises against a program id that no program had, so Health read
+//      "Set Up a Program" and Start was not on the screen at all (fixed in
+//      src/data/seed.ts the same day).
+//
+// So it gets its own walk, driven by hand, and it runs LAST in the pass so the
+// session it leaves behind cannot contaminate anything. Six screens that no
+// audit has ever measured: Health, the program, the time sheet, the session,
+// the session one set in (the rest clock, the Done chip, the drop action), and
+// the finish receipt.
+async function liveWorkout(page, sheetSkips) {
+  const out = [];
+  const step = async (what, fn) => {
+    try { await fn(); await page.waitForTimeout(900); return true; }
+    catch { sheetSkips.push("live workout: " + what); return false; }
+  };
+  await clearLayers(page);
+  if (!await step("could not reach the Life tab", () => page.click('text="Life"', { timeout: 3000 }))) return out;
+  if (!await step("no Health card on Life", () => page.click(".area-card-health", { timeout: 3000 }))) return out;
+  out.push(await auditScreen(page, "Live: Health"));
+  // The hero is the day's door: "Pull Day / Today / 4 Exercises". With no
+  // program it says "Set Up a Program" instead and the walk stops here, which
+  // is the honest outcome rather than a silent pass.
+  if (!await step("no program (the hero was a setup prompt)", () => page.click(".h-hero", { timeout: 3000 }))) return out;
+  out.push(await auditScreen(page, "Live: Program"));
+  if (!await step("no Start button on the program", () => page.click('text=/^Start /', { timeout: 3000 }))) return out;
+  // The fit sheet ("How Long Do You Have") stands between Start and the
+  // session, and it is a screen in its own right.
+  out.push(await auditScreen(page, "Live: Time Check"));
+  if (!await step("the time sheet would not confirm", () => page.click('text=/^Start · /', { timeout: 3000 }))) return out;
+  await page.waitForTimeout(800);
+  out.push(await auditScreen(page, "Live: Workout"));
+  // One set logged, because the session one set in is a DIFFERENT screen: the
+  // rest clock is up, the first chip is a Done row, Log a Drop appears, and
+  // the bottom bar has to re-aim at set 2. Three of the five bugs Dave
+  // reported on 2026-09-21 were only visible in this state.
+  if (await step("the Log button would not log", () => page.click(".logbar button", { timeout: 3000 }))) {
+    await page.waitForTimeout(700);
+    out.push(await auditScreen(page, "Live: Workout, One Set In"));
+  }
+  if (await step("Finish did not open the receipt", () => page.click('text="Finish"', { timeout: 3000 }))) {
+    out.push(await auditScreen(page, "Live: Finish"));
   }
   return out;
 }
@@ -1046,6 +1120,28 @@ const MATRIX = process.env.VW
     { w: 834, h: 1112, theme: "light", scale },
   ]);
 
+// IS THERE ANYTHING IN THE APP? (2026-09-21). Every number this tool had ever
+// printed was measured against whatever happened to be on port 4173, and a
+// plain `npm run build` produces an app with NO demo data -- the seeds live
+// behind __DEMO_SEED__ and Rollup drops them, on purpose, so demo names can
+// never ship. An audit of that build is an audit of empty states: no program,
+// no sessions, no projects, no mail. It finds very little and says nothing
+// about the app Dave uses.
+//
+// A demo build emits a DEMO_BUILD marker into dist (see vite.config.ts), so
+// asking for it is an exact question with an exact answer. This does not
+// refuse to run -- a deliberate empty-state pass is a real thing to want --
+// it says which one this was, at the top and at the bottom, so no report can
+// be mistaken for the other kind again.
+//   DEMO=1 npm run build && npx vite preview --port 4173
+const DEMO_BUILD = await fetch("http://localhost:4173/DEMO_BUILD")
+  .then((r) => r.ok).catch(() => false);
+const SEED_LINE = DEMO_BUILD
+  ? "SEEDED BUILD: demo data is present, so this measures full screens."
+  : "EMPTY BUILD: no DEMO_BUILD marker on :4173, so this measured EMPTY STATES.\n" +
+    "  Rebuild with: DEMO=1 npm run build && npx vite preview --port 4173";
+console.log(SEED_LINE + "\n");
+
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 
 async function runPass({ w, h, theme, scale = 1 }) {
@@ -1161,6 +1257,9 @@ async function runPass({ w, h, theme, scale = 1 }) {
       await page.waitForTimeout(700);
       results.push(...await diveInto(page, "Tab: " + t, sheetSkips, sheetsSeen));
     }
+
+    // LAST, because it leaves a workout running. See liveWorkout above.
+    results.push(...await liveWorkout(page, sheetSkips));
   } catch (e) {
     consoleErrs.push("PASS FAILED: " + String(e).slice(0, 160));
   } finally {
@@ -1200,6 +1299,7 @@ for (const p of passes) {
 }
 const sheetScreens = passes.reduce((a, p) => a + p.results.filter((r) => r.name.includes(" » ")).length, 0);
 const allSkips = passes.flatMap((p) => p.sheetSkips || []);
+console.log("\n" + SEED_LINE);
 console.log("SCREENS VISITED:\n" + [...new Set(VISITED)].map((n) => "  - " + n).join("\n"));
 console.log(`\n=== TOTAL ACROSS ${passes.length} PASSES: ${grand} findings ===`);
 console.log(SHEETS
