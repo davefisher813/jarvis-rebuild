@@ -34,7 +34,7 @@ describe("WeatherOfferRow", () => {
       render(<WeatherOfferRow />);
       fireEvent.click(screen.getByText("Allow"));
       await waitFor(() => expect(seen).toContain("Couldn't get your location · The offer stays"));
-      expect(screen.getByText("Add Weather to Your Day")).toBeInTheDocument();
+      expect(screen.getByText("Add Daily Weather")).toBeInTheDocument();
       expect(localStorage.getItem(OFFER_KEY)).toBeNull();
     } finally {
       stop();
@@ -45,7 +45,7 @@ describe("WeatherOfferRow", () => {
     stubGeo({ code: 1 }); // PERMISSION_DENIED
     render(<WeatherOfferRow />);
     fireEvent.click(screen.getByText("Allow"));
-    await waitFor(() => expect(screen.queryByText("Add Weather to Your Day")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Add Daily Weather")).not.toBeInTheDocument());
     expect(localStorage.getItem(OFFER_KEY)).toBe("declined");
   });
 
@@ -54,6 +54,6 @@ describe("WeatherOfferRow", () => {
     render(<WeatherOfferRow />);
     fireEvent.click(screen.getByText("Allow"));
     await waitFor(() => expect(localStorage.getItem(OFFER_KEY)).toBe("granted"));
-    expect(screen.queryByText("Add Weather to Your Day")).not.toBeInTheDocument();
+    expect(screen.queryByText("Add Daily Weather")).not.toBeInTheDocument();
   });
 });

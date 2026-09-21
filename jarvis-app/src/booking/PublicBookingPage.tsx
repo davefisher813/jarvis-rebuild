@@ -23,7 +23,7 @@ export interface BookingLink {
   timezone: string;
   slots: { startMs: number; endMs: number; date: string }[];
 }
-export interface Booked { startMs: number; endMs: number; timezone: string; name: string }
+export interface Booked { startMs: number; endMs: number; timezone: string; name: string; confirmationSent?: boolean }
 
 type Phase =
   | { k: "loading" }
@@ -83,7 +83,11 @@ export default function PublicBookingPage({ slug, fetchImpl = fetch }: { slug: s
       const r = await fetchImpl("/api/book", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug, startMs: picked, name: name.trim(), email: email.trim() }),
+        // The zone goes with the booking so the confirmation email states the
+        // time on the VISITOR's clock. A receipt in the host's zone asks a
+        // stranger to do arithmetic about a meeting they have already agreed
+        // to, which is exactly when somebody misses one.
+        body: JSON.stringify({ slug, startMs: picked, name: name.trim(), email: email.trim(), timezone: localZone() }),
       });
       const body = (await r.json().catch(() => ({}))) as { error?: string } & Partial<Booked>;
       if (!r.ok) {
@@ -123,7 +127,15 @@ export default function PublicBookingPage({ slug, fetchImpl = fetch }: { slug: s
           <div className="bk-when">{dayLabel(m.startMs)}</div>
           <div className="bk-time">{timeLabel(m.startMs)} to {timeLabel(m.endMs)}</div>
           <div className="facts"><span className="fact">{m.name}</span><span className="fact">{localZone() || m.timezone}</span></div>
-          <div className="bk-note">A confirmation is on its way to {email}.</div>
+          {/* WHAT ACTUALLY HAPPENED (2026-09-19). This line used to promise a
+              confirmation whether or not one was sent. The server now says,
+              and when nothing went out the page says the one thing that is
+              still true: the time is held. Telling somebody to watch their
+              inbox for an email that does not exist is how a booking turns
+              into a no-show. */}
+          {m.confirmationSent
+            ? <div className="bk-note">A confirmation is on its way to {email}, with a calendar file attached.</div>
+            : <div className="bk-note">Your time is held. No email went out, so take a note of it.</div>}
         </div></div>
       </div>
     );

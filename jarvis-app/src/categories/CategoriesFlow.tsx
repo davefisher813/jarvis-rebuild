@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
-import { useCategories } from "../data/NotesProvider";
+import { useCategories, useTasks, useSchedule } from "../data/NotesProvider";
 import type { Category } from "./types";
 import CategoriesPage from "./screens/CategoriesPage";
 import CategorySheet, { type CategoryDraft } from "./screens/CategorySheet";
 import { attemptWrite } from "../shared/guard";
+import { unfileArea, refileArea, type Unfiled } from "./unfile";
 import { showToast } from "../shared/toast";
 
 type SheetState = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
 export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
   const categories = useCategories();
+  const tasks = useTasks();
+  const schedule = useSchedule();
   const [list, setList] = useState<Category[]>([]);
   const [sheet, setSheet] = useState<SheetState>({ kind: "closed" });
 
@@ -53,12 +56,28 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
   // close the sheet silently, which reads as success) and the receipt.
   const onDelete = async () => {
     if (sheet.kind !== "edit") return;
-    const name = list.find((c) => c.id === sheet.id)?.data.name;
-    const ok = await attemptWrite(() => categories.remove(sheet.id));
+    const id = sheet.id;
+    const name = list.find((c) => c.id === id)?.data.name;
+    const gone = list.find((c) => c.id === id)?.data;
+    // The same unfiling the area page does. This door never even showed the
+    // cost, so a delete from here stranded its tasks silently.
+    let prior: Unfiled = { tasks: [], events: [] };
+    const ok = await attemptWrite(async () => {
+      prior = await unfileArea(id, tasks, schedule);
+      await categories.remove(id);
+    });
     if (!ok) return;
     setSheet({ kind: "closed" });
     await reload();
-    showToast({ message: name ? name + " deleted" : "Area deleted" });
+    showToast({
+      message: name ? name + " deleted" : "Area deleted",
+      actionLabel: "Undo",
+      onAction: async () => {
+        if (gone) await attemptWrite(() => categories.restore(id, gone));
+        await attemptWrite(() => refileArea(prior, tasks, schedule));
+        await reload();
+      },
+    });
   };
 
   return (

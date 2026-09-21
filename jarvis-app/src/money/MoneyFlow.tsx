@@ -31,7 +31,7 @@ import { JARVIS_VOICE } from "../ai/voice";
 import { encodeImageForVision } from "../shared/imageEncode";
 import { madeBy } from "../shared/provenance";
 import { RECEIPT_EXTRACT_PROMPT, parseReceiptExtract } from "./receiptExtract";
-import { Paperclip, Image as ImageGlyph, FileText, Calendar, FolderKanban, Check as CheckGlyph } from "../shared/icons";
+import { Paperclip, Image as ImageGlyph, FileText, Calendar, FolderKanban, Check as CheckGlyph, Trash2 } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
 import { pressable, onPressKey } from "../shared/pressable";
@@ -150,14 +150,22 @@ type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string }
 // Autopay is exempt by the money law: the app cannot know a payment cleared,
 // so there is nothing here for a gesture to claim. A bill already paid has
 // nothing to mark.
-function BillRow({ paid, autopay, onPay, children }: {
+function BillRow({ paid, autopay, label, onPay, onDelete, children }: {
   paid: boolean;
   autopay: boolean;
+  /** The bill's name, for the delete button's accessible name. */
+  label: string;
   onPay: () => void;
+  onDelete?: () => void;
   children: React.ReactNode;
 }) {
   const completable = !paid && !autopay;
-  const swipe = useSwipe({ revealW: 0, rightW: completable ? 88 : 0, ...(completable ? { onRightCommit: onPay } : {}) });
+  // DELETE IS ON THE SWIPE (Dave 2026-09-20: "should be able to delete
+  // always"). This row had revealW 0 and a right-swipe only, so the single
+  // gesture it answered to was Paid: getting rid of a bill meant opening its
+  // sheet, and a bill added by mistake had no quick way out at all. Left is
+  // the app's delete side on every other list; this row was the odd one.
+  const swipe = useSwipe({ revealW: onDelete ? 88 : 0, rightW: completable ? 88 : 0, ...(completable ? { onRightCommit: onPay } : {}) });
   return (
     <div className="task-swipe">
       {completable && (
@@ -165,6 +173,12 @@ function BillRow({ paid, autopay, onPay, children }: {
           <CheckGlyph className="ic" />
           <span className="swipe-label">Paid</span>
         </div>
+      )}
+      {onDelete && (
+        <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label={"Delete " + label}>
+          <Trash2 className="ic" />
+          <span className="swipe-label">Delete</span>
+        </button>
       )}
       <div
         className={"task-row p2" + (swipe.dragging ? " swiping" : "")}
@@ -497,6 +511,27 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     await reload();
   };
 
+  // The same delete the bill sheet performs, reachable from the row's swipe
+  // (Dave 2026-09-20: "should be able to delete always"). Written once here
+  // and once in the sheet's onDelete rather than shared, because the sheet
+  // also has to close itself and only after the write lands (HMN-F-09); what
+  // both owe the user is identical and is the part that matters: a snapshot
+  // taken BEFORE the write, so Undo restores the bill's recurrence and
+  // amount, not just its name.
+  const deleteBill = async (b: TaskItem) => {
+    const gone = { ...b.data };
+    if (!(await attemptWrite(() => tasksSvc.deleteTask(b.id)))) return;
+    await reload();
+    showToast({
+      message: "Bill deleted",
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(() => tasksSvc.createTask(gone.text, { due: gone.due ?? null, recurrence: gone.recurrence ?? undefined, bill: gone.bill }));
+        await reload();
+      },
+    });
+  };
+
   const anchor = payday && payHalfOn && bills.length > 0 ? paydayLine(payday, bills, today) : null;
 
   // What is actually his. Derived from the paycheck he entered, the bills he
@@ -558,7 +593,8 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         // "Due in 2 days" said one thing twice (caught on the port).
         const subText = chip && b.data.due ? "Due " + monthDay(b.data.due) : sub.text;
         return (
-          <BillRow key={b.id} paid={paid} autopay={!!info.autopay} onPay={() => void markPaid(b)}>
+          <BillRow key={b.id} paid={paid} autopay={!!info.autopay} label={b.data.text}
+            onPay={() => void markPaid(b)} onDelete={() => void deleteBill(b)}>
             {info.autopay ? (
               <div className="task-check-tap"><span className="gm-slot cat-fg-blue">{REPEAT}</span></div>
             ) : (

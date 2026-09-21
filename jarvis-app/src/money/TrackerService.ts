@@ -96,6 +96,7 @@ export class TrackerService {
     if (!clean.name) return null;
     return this.write(ENTITY_MONEY_ACCOUNT, id, clean);
   }
+  removeAccount(id: string): Promise<void> { return this.drop(ENTITY_MONEY_ACCOUNT, id); }
 
   /**
    * Write September once.

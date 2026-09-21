@@ -38,6 +38,7 @@ import { fmtTime, addMinutes, addDays, eventsForDate } from "../schedule/calenda
 import { comingUpFor, gymDoorOn, type UpcomingRow } from "./comingUp";
 import { FIFTEEN } from "../tasks/rightNow";
 import { attemptWrite } from "../shared/guard";
+import { unfileArea, refileArea, type Unfiled } from "../categories/unfile";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import { sheetEvents } from "../schedule/sheetEvents";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
@@ -441,6 +442,21 @@ export default function CategoryDetail({
   // database (the entity types were never registered, migration 0029) and
   // the sheet swallowed it, so a dead button was all he could see. Same
   // rule the Routine save learned on 2026-07-30: try, catch, toast.
+  // EVERY HEALTH WRITE REPORTS ITS FAILURE (states sweep, 2026-09-20).
+  // Seventeen health writes on this screen ran as `void healthSvc.x().then(
+  // bumpHealth)`: `void` discards the promise, so a rejection went nowhere.
+  // Fourteen of them were UNDO handlers, which is the worst place for it --
+  // the toast says Undo, the tap does nothing, and the app says nothing
+  // either. Two sites already carried `.catch(WRITE_FAILED_MESSAGE)` and
+  // fifteen did not, which is the same drift the toast sweep found the same
+  // day: a convention followed most of the time behaves like a coin toss.
+  // Shaped like metricWrite below, which has had this right all along.
+  const healthWrite = (write: () => Promise<unknown>, then?: () => void) => {
+    void write()
+      .then(() => { bumpHealth(); then?.(); })
+      .catch(() => showToast({ message: WRITE_FAILED_MESSAGE }));
+  };
+
   const metricWrite = async (write: () => Promise<unknown>, then?: () => void) => {
     try {
       await write();
@@ -646,7 +662,7 @@ export default function CategoryDetail({
   const logDose = (med?: MedDefEntry) => {
     const cheer = celebrateHealthLog(tookIt.map((e) => ({ at: e.data.at })));
     const d = healthSvc.logTookIt(undefined, undefined, med ? { medId: med.id, amount: med.data.amount } : undefined);
-    healthReceipt(cheer, doseToast(med?.data.amount), () => { void healthSvc.removeTookIt(d.at).then(bumpHealth); });
+    healthReceipt(cheer, doseToast(med?.data.amount), () => { healthWrite(() => healthSvc.removeTookIt(d.at)); });
     bumpHealth();
   };
   if (healthScreen === "lightsOut") {
@@ -657,10 +673,10 @@ export default function CategoryDetail({
         onLog={() => {
           const cheer = celebrateHealthLog(lightsOut.map((e) => ({ at: e.data.at })));
           const d = healthSvc.logLightsOut();
-          healthReceipt(cheer, "Bedtime logged", () => { void healthSvc.removeLightsOut(d.at).then(bumpHealth); });
+          healthReceipt(cheer, "Bedtime logged", () => { healthWrite(() => healthSvc.removeLightsOut(d.at)); });
           bumpHealth();
         }}
-        onEditTime={(id, at) => { void healthSvc.updateLightsOut(id, at).then(bumpHealth).catch(() => showToast({ message: WRITE_FAILED_MESSAGE })); }}
+        onEditTime={(id, at) => { healthWrite(() => healthSvc.updateLightsOut(id, at)); }}
         onLogSleep={(hours, night) => void logSleepHours(hours, night)}
         recentSleep={recentSleep}
         onBack={() => setHealthScreen(null)}
@@ -675,10 +691,10 @@ export default function CategoryDetail({
         onLog={(med, at) => {
           const cheer = celebrateHealthLog(tookIt.map((e) => ({ at: e.data.at })));
           const d = healthSvc.logTookIt(at, undefined, med ? { medId: med.id, amount: med.data.amount } : undefined);
-          healthReceipt(cheer, doseToast(med?.data.amount), () => { void healthSvc.removeTookIt(d.at).then(bumpHealth); });
+          healthReceipt(cheer, doseToast(med?.data.amount), () => { healthWrite(() => healthSvc.removeTookIt(d.at)); });
           bumpHealth();
         }}
-        onUndo={(row) => { void healthSvc.removeTookIt(row.at).then(bumpHealth); }}
+        onUndo={(row) => { healthWrite(() => healthSvc.removeTookIt(row.at)); }}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -690,10 +706,10 @@ export default function CategoryDetail({
         recent={[...new Set([...meals].sort((a, b) => b.data.at - a.data.at).map((m) => m.data.text))]}
         onLog={(text, at) => {
           const d = healthSvc.logMeal(text, at);
-          showToast({ message: "Meal logged", actionLabel: "Undo", onAction: () => { void healthSvc.removeMeal(d.at).then(bumpHealth); } });
+          showToast({ message: "Meal logged", actionLabel: "Undo", onAction: () => { healthWrite(() => healthSvc.removeMeal(d.at)); } });
           bumpHealth();
         }}
-        onUndo={(m) => { void healthSvc.removeMeal(m.data.at).then(bumpHealth); }}
+        onUndo={(m) => { healthWrite(() => healthSvc.removeMeal(m.data.at)); }}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -704,10 +720,10 @@ export default function CategoryDetail({
         today={checkins.filter((c) => localDayParts(c.data.at).day === today)}
         onLog={(d) => {
           const w = healthSvc.logCheckIn(d);
-          showToast({ message: "Check in saved", actionLabel: "Undo", onAction: () => { void healthSvc.removeCheckIn(w.at).then(bumpHealth); } });
+          showToast({ message: "Check in saved", actionLabel: "Undo", onAction: () => { healthWrite(() => healthSvc.removeCheckIn(w.at)); } });
           bumpHealth();
         }}
-        onUndo={(c) => { void healthSvc.removeCheckIn(c.data.at).then(bumpHealth); }}
+        onUndo={(c) => { healthWrite(() => healthSvc.removeCheckIn(c.data.at)); }}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -733,7 +749,7 @@ export default function CategoryDetail({
         // in it. The dates are on the screen, and they travel with the tap.
         summaries={summaries}
         onLog={(x, y, side, region) => { lastDiscomfortAt.current = healthSvc.logPointAtIt({ x, y, side, ...(region ? { region } : {}) }).at; }}
-        onDetail={(detail) => { const at = lastDiscomfortAt.current; if (at != null) void healthSvc.updatePointAtIt(at, detail).then(bumpHealth).catch(() => showToast({ message: WRITE_FAILED_MESSAGE })); }}
+        onDetail={(detail) => { const at = lastDiscomfortAt.current; if (at != null) healthWrite(() => healthSvc.updatePointAtIt(at, detail)); }}
         onHandToSomeone={() => {
           setHandOff(stillThereMessage(patterns, summaries));
           setHealthScreen(null);
@@ -1020,7 +1036,7 @@ export default function CategoryDetail({
         tracks={healthMoreRows.filter((r) => r.group === "Medication").map((r) => ({ key: r.key, label: r.label, sub: r.sub }))}
         onTook={logDose}
         onLogDose={() => setHealthScreen("tookIt")}
-        onUndo={(row) => { void healthSvc.removeTookIt(row.at).then(bumpHealth); }}
+        onUndo={(row) => { healthWrite(() => healthSvc.removeTookIt(row.at)); }}
         onAddMed={(name, amount) => medWrite(() => healthSvc.addMedDef({ name, amount }))}
         onEditMed={(id, name, amount) => medWrite(() => healthSvc.updateMedDef(id, { name, amount }))}
         onRemoveMed={(id) => medWrite(() => healthSvc.removeMedDef(id))}
@@ -1346,7 +1362,7 @@ export default function CategoryDetail({
   // the write actually landed.
   const saveTask = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
-    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, eventId: draft.eventId, steps: draft.steps, notes: draft.notes }));
+    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin }));
     if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();
@@ -1631,12 +1647,12 @@ export default function CategoryDetail({
   const deleteRecord = (r: DataRecord) => {
     const o = r.open;
     const done = (undo: () => void) => { bumpHealth(); showToast({ message: `${r.title} deleted`, actionLabel: "Undo", onAction: () => { undo(); bumpHealth(); } }); };
-    if (o.kind === "lightsOut") { void healthSvc.removeLightsOut(o.at).then(() => done(() => { healthSvc.logLightsOut(o.at); })); return; }
-    if (o.kind === "meal") { const e = meals.find((m) => m.data.at === o.at); void healthSvc.removeMeal(o.at).then(() => done(() => { if (e) healthSvc.logMeal(e.data.text, e.data.at); })); return; }
-    if (o.kind === "checkin") { const e = checkins.find((c) => c.data.at === o.at); void healthSvc.removeCheckIn(o.at).then(() => done(() => { if (e) healthSvc.logCheckIn(e.data, e.data.at); })); return; }
-    if (o.kind === "tookIt") { const e = tookIt.find((t) => t.data.at === o.at); void healthSvc.removeTookIt(o.at).then(() => done(() => { if (e) healthSvc.logTookIt(e.data.at, undefined, { medId: e.data.medId, amount: e.data.amount }); })); return; }
-    if (o.kind === "callIt") { const e = callIt.find((c) => c.data.at === o.at); void healthSvc.removeCallIt(o.at).then(() => done(() => { if (e) healthSvc.logCallIt({ rpe: e.data.rpe, ...(e.data.durationMin != null ? { durationMin: e.data.durationMin } : {}), ...(e.data.eventId ? { eventId: e.data.eventId } : {}) }, e.data.at); })); return; }
-    if (o.kind === "pointAtIt") { const e = pointAtIt.find((p) => p.data.at === o.at); void healthSvc.removePointAtIt(o.at).then(() => done(() => { if (e) { const d = healthSvc.logPointAtIt({ x: e.data.x, y: e.data.y, side: e.data.side, ...(e.data.region ? { region: e.data.region } : {}) }, e.data.at); void healthSvc.updatePointAtIt(d.at, { feel: e.data.feel, level: e.data.level, note: e.data.note }); } })); return; }
+    if (o.kind === "lightsOut") { healthWrite(() => healthSvc.removeLightsOut(o.at), () => done(() => { healthSvc.logLightsOut(o.at); })); return; }
+    if (o.kind === "meal") { const e = meals.find((m) => m.data.at === o.at); healthWrite(() => healthSvc.removeMeal(o.at), () => done(() => { if (e) healthSvc.logMeal(e.data.text, e.data.at); })); return; }
+    if (o.kind === "checkin") { const e = checkins.find((c) => c.data.at === o.at); healthWrite(() => healthSvc.removeCheckIn(o.at), () => done(() => { if (e) healthSvc.logCheckIn(e.data, e.data.at); })); return; }
+    if (o.kind === "tookIt") { const e = tookIt.find((t) => t.data.at === o.at); healthWrite(() => healthSvc.removeTookIt(o.at), () => done(() => { if (e) healthSvc.logTookIt(e.data.at, undefined, { medId: e.data.medId, amount: e.data.amount }); })); return; }
+    if (o.kind === "callIt") { const e = callIt.find((c) => c.data.at === o.at); healthWrite(() => healthSvc.removeCallIt(o.at), () => done(() => { if (e) healthSvc.logCallIt({ rpe: e.data.rpe, ...(e.data.durationMin != null ? { durationMin: e.data.durationMin } : {}), ...(e.data.eventId ? { eventId: e.data.eventId } : {}) }, e.data.at); })); return; }
+    if (o.kind === "pointAtIt") { const e = pointAtIt.find((p) => p.data.at === o.at); healthWrite(() => healthSvc.removePointAtIt(o.at), () => done(() => { if (e) { const d = healthSvc.logPointAtIt({ x: e.data.x, y: e.data.y, side: e.data.side, ...(e.data.region ? { region: e.data.region } : {}) }, e.data.at); healthWrite(() => healthSvc.updatePointAtIt(d.at, { feel: e.data.feel, level: e.data.level, note: e.data.note })); } })); return; }
   };
   // ASSIGN MUSCLES (item 6): saved as one write to the per-lift map, with
   // the map it replaced on the Undo.
@@ -2182,10 +2198,21 @@ export default function CategoryDetail({
           categories={sheetCats}
           initial={{ date: today, category: categoryId }}
           onSave={async (d) => {
-            const ok = await attemptWrite(() => schedule.createEvent(d.title, {
-              date: d.date, start: d.start, end: d.end || undefined, category: d.category,
-              location: d.location || undefined, recurrence: d.recurrence === "none" ? undefined : d.recurrence,
-            }));
+            // Field for field with ScheduleFlow's own createEvent. This call
+            // used to pass seven of EventSheet's eighteen, so an event made
+            // from an area could be given a meeting link, a weekday set,
+            // travel time or the Training Door and lose every one on Save.
+            let made: string | null = null;
+            const ok = await attemptWrite(async () => {
+              made = await schedule.createEvent(d.title, {
+                date: d.date, start: d.start, end: d.end || undefined, category: d.category,
+                location: d.location || undefined, recurrence: d.recurrence === "none" ? undefined : d.recurrence,
+                until: d.until || undefined, days: d.days, interval: d.interval,
+                travelMin: d.travelMin ?? undefined, bufferMin: d.bufferMin ?? undefined,
+                url: d.url, notes: d.notes,
+              });
+              if (made && d.gym) await schedule.editGymDoor(made, true);
+            });
             if (!ok) return false;
             setSheet({ kind: "closed" });
             await reload();
@@ -2224,7 +2251,14 @@ export default function CategoryDetail({
           deleteCost={deleteCost}
           onDelete={async () => {
             const gone = cat ? { ...cat.data } : null;
-            const ok = await attemptWrite(() => catsSvc.remove(categoryId));
+            // The cost line above says "Untags N Tasks". Until today nothing
+            // untagged them: the area row went and every task and event kept
+            // pointing at an id that no longer resolves.
+            let prior: Unfiled = { tasks: [], events: [] };
+            const ok = await attemptWrite(async () => {
+              prior = await unfileArea(categoryId, tasksSvc, schedule);
+              await catsSvc.remove(categoryId);
+            });
             if (!ok) return;
             onChanged?.();
             onBack();
@@ -2232,7 +2266,10 @@ export default function CategoryDetail({
               message: "Area deleted",
               actionLabel: "Undo",
               onAction: async () => {
+                // The area returns under its own id, so the rows go back
+                // exactly where they were rather than approximately.
                 if (gone) await attemptWrite(() => catsSvc.restore(categoryId, gone));
+                await attemptWrite(() => refileArea(prior, tasksSvc, schedule));
                 onChanged?.();
               },
             });

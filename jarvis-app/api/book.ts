@@ -1,19 +1,39 @@
-import { openSlots, type Busy, type Override, type Rule } from "../src/booking/slots";
+import { openSlots, parseRange, busyFromOverrides, type Busy, type Override, type Rule } from "../src/booking/slots";
+import { cancelUrl } from "../src/booking/publicRoute";
+import { sendBookingReceipt } from "./_receipt";
 
 // PUBLIC BOOKING (Track 3, 2026-09-19).
 //
-//   GET  /api/book?slug=<slug>            the open slots on a link, for a
+//   GET    /api/book?slug=<slug>          the open slots on a link, for a
 //                                         stranger with no account.
-//   POST /api/book {slug, startMs, name, email}
+//   GET    /api/book?cancel=<id>          the one booking that id names.
+//   POST   /api/book {slug, startMs, name, email, timezone}
 //                                         takes one of them.
+//   DELETE /api/book {cancel: <id>}       gives one back.
+//
+// THE CANCEL ID IS THE AUTHORIZATION, and it is enough. A booking id is a
+// random v4 uuid, 122 bits nobody walks, disclosed to exactly two people: the
+// visitor, in their own receipt and in the answer to their own booking, and the
+// host, who owns it. That makes the link in the email a capability held by the
+// one person entitled to use it, with no new column and no migration.
+//
+// What it must therefore never do is hand back anything the link does not
+// already imply. Somebody holding a forwarded email learns the meeting that
+// email already describes, and nothing else: no address, no other booking, and
+// no way to ask about one. That is why the shape below carries the type name
+// and the times and stops there.
 //
 // NO AUTH, on purpose: the whole point of a booking link is that the person
 // holding it does not have an account here. That makes this the most exposed
 // surface in the app, so it is written the way an exposed surface has to be.
 //
-//   - It runs against the Track 3 project through its OWN env vars. The live
-//     project's keys are not reachable from this file, so a mistake here
-//     cannot touch the app's real data.
+//   - It runs against the Track 3 project through its OWN env vars, and this
+//     file names no live-project credential anywhere. That is a discipline
+//     about what the public endpoint does, not a wall: every function in a
+//     deployment can read every variable. The confirmation needs the host's
+//     mail grant, which lives in the live project, and that one exception is
+//     quarantined in api/_receipt.ts, where its whole surface is one function
+//     that reads one row and sends one message.
 //   - It fails CLOSED. With the env unset it answers 503 and writes nothing,
 //     rather than falling back to some other project.
 //   - It never trusts the client's arithmetic. The client sends a start; the
@@ -29,6 +49,7 @@ export const config = { runtime: "edge" };
 
 const MAX_DAYS = 30;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {
@@ -111,20 +132,22 @@ async function grid(c: Ctx, slug: string, nowMs: number) {
     ...(o.override_start ? { startTime: o.override_start.slice(0, 5) } : {}),
     ...(o.override_end ? { endTime: o.override_end.slice(0, 5) } : {}),
   }));
-  // postgres renders a tstzrange as ["lower","upper") and the bound style is
-  // part of the value, so it is parsed rather than assumed.
-  const busy: Busy[] = busyRows.map((b) => {
-    const m = /^[[(]"?([^",]+)"?,"?([^",)\]]+)"?[)\]]$/.exec(b.time_range.trim());
-    return m ? { startMs: Date.parse(m[1]!), endMs: Date.parse(m[2]!) } : { startMs: NaN, endMs: NaN };
-  }).filter((b) => Number.isFinite(b.startMs) && Number.isFinite(b.endMs));
+  const busy: Busy[] = busyRows
+    .map((b) => parseRange(b.time_range))
+    .filter((b) => Number.isFinite(b.startMs) && Number.isFinite(b.endMs));
 
   const zone = rules[0]?.timezone ?? "UTC";
+  // HIS OWN HOURS. A blocked override that names a window is an hour he has
+  // already spoken for, not a day off, so it blocks a slot without taking the
+  // day out and without counting toward how many bookings he will take that
+  // day. See busyFromOverrides and the committed list in slots.ts.
+  const committed = busyFromOverrides(overrides, zone);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(nowMs));
 
   return {
     link, type, zone,
     slots: openSlots({
-      rules, overrides, busy, fromDate: today, days: MAX_DAYS,
+      rules, overrides, busy, committed, fromDate: today, days: MAX_DAYS,
       durationMin: type.duration_min,
       bufferBeforeMin: type.buffer_before_min,
       bufferAfterMin: type.buffer_after_min,
@@ -132,6 +155,38 @@ async function grid(c: Ctx, slug: string, nowMs: number) {
       maxPerDay: type.max_per_day,
       nowMs,
     }),
+  };
+}
+
+interface OwnBooking {
+  id: string; status: string; time_range: string; owner_id: string;
+  booking_links: { slug: string } | null;
+  bookable_types: { name: string } | null;
+}
+
+/** The booking a cancel id names, or null. Never filtered by status: a visitor
+ *  who opens their link twice has to be told it is already cancelled rather
+ *  than shown "no such booking", which reads as the link being broken. */
+async function ownBooking(c: Ctx, id: string): Promise<OwnBooking | null> {
+  if (!UUID_RE.test(id)) return null;
+  const found = await rows<OwnBooking>(
+    c,
+    `bookings?id=eq.${encodeURIComponent(id)}` +
+    `&select=id,status,time_range,owner_id,booking_links(slug),bookable_types(name)&limit=1`,
+  );
+  return found[0] ?? null;
+}
+
+/** What the visitor is allowed to see about their own booking. The times and
+ *  the name of the meeting, which their email already told them, and whether it
+ *  still stands. Nothing else. */
+function visitorFace(b: OwnBooking): Record<string, unknown> {
+  const { startMs, endMs } = parseRange(b.time_range);
+  return {
+    name: b.bookable_types?.name || "Meeting",
+    status: b.status,
+    startMs: Number.isFinite(startMs) ? startMs : null,
+    endMs: Number.isFinite(endMs) ? endMs : null,
   };
 }
 
@@ -146,6 +201,12 @@ export default async function handler(req: Request): Promise<Response> {
 
   try {
     if (req.method === "GET") {
+      const wants = u.searchParams.get("cancel");
+      if (wants) {
+        const b = await ownBooking(c, wants);
+        if (!b) return json({ error: "No such booking" }, 404);
+        return json({ booking: visitorFace(b) });
+      }
       const slug = u.searchParams.get("slug") || "";
       if (!slug) return json({ error: "No link" }, 400);
       const g = await grid(c, slug, nowMs);
@@ -160,11 +221,14 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (req.method === "POST") {
       const body = (await req.json().catch(() => null)) as
-        { slug?: string; startMs?: number; name?: string; email?: string } | null;
+        { slug?: string; startMs?: number; name?: string; email?: string; timezone?: string } | null;
       const slug = (body?.slug || "").trim();
       const startMs = Number(body?.startMs);
       const name = (body?.name || "").trim().slice(0, 120);
       const email = (body?.email || "").trim().slice(0, 200);
+      // The visitor's own clock, for the receipt. Untrusted and length-capped
+      // here, then checked against the runtime before anything formats with it.
+      const guestZone = (body?.timezone || "").trim().slice(0, 60);
       if (!slug || !Number.isFinite(startMs)) return json({ error: "Pick a time" }, 400);
       if (!name) return json({ error: "Add your name" }, 400);
       if (!EMAIL_RE.test(email)) return json({ error: "Add an email we can confirm to" }, 400);
@@ -195,7 +259,57 @@ export default async function handler(req: Request): Promise<Response> {
       if (res.status === 409) return json({ error: "Someone just took that time" }, 409);
       if (!res.ok) return json({ error: "Could not book that" }, 502);
       const made = (await res.json()) as { id: string }[];
-      return json({ id: made[0]?.id ?? null, startMs: slot.startMs, endMs: slot.endMs, timezone: g.zone, name: g.type.name });
+      const id = made[0]?.id ?? null;
+
+      // THE RECEIPT, AFTER THE FACT. The slot is taken; this is a courtesy on
+      // top of work that has already succeeded, so it is allowed to fail and
+      // the answer says whether it did. The page then tells the visitor what
+      // actually happened rather than promising an email nobody sent.
+      let confirmationSent = false;
+      if (id) {
+        // The address this deployment answers on, from the request itself
+        // rather than from a variable somebody has to remember to set. Absent
+        // behind a proxy that strips it, in which case the receipt still says
+        // to reply, which has always been true.
+        const origin = u.origin || "";
+        confirmationSent = await sendBookingReceipt({
+          ownerId: g.link.owner_id,
+          bookingId: id,
+          typeName: g.type.name,
+          startMs: slot.startMs,
+          endMs: slot.endMs,
+          guestName: name,
+          guestEmail: email,
+          ...(guestZone ? { guestZone } : {}),
+          hostZone: g.zone,
+          ...(origin ? { cancelUrl: cancelUrl(origin, slug, id) } : {}),
+        }).catch(() => false);
+      }
+
+      return json({ id, startMs: slot.startMs, endMs: slot.endMs, timezone: g.zone, name: g.type.name, confirmationSent });
+    }
+
+    if (req.method === "DELETE") {
+      const body = (await req.json().catch(() => null)) as { cancel?: string } | null;
+      const id = (body?.cancel || "").trim();
+      if (!id) return json({ error: "Which booking" }, 400);
+      const b = await ownBooking(c, id);
+      if (!b) return json({ error: "No such booking" }, 404);
+      // Already cancelled is a success, not an error: somebody who taps the
+      // link in an old email should be told the meeting is off, which it is.
+      if (b.status !== "confirmed") return json({ cancelled: true, already: true });
+
+      const res = await fetch(`${c.url}/rest/v1/bookings?id=eq.${encodeURIComponent(id)}&status=eq.confirmed`, {
+        method: "PATCH",
+        headers: { ...headers(c), Prefer: "return=representation" },
+        body: JSON.stringify({ status: "cancelled" }),
+      });
+      if (!res.ok) return json({ error: "Could not cancel that" }, 502);
+      // The hour is free the moment the row changes, because every grid here
+      // counts confirmed bookings only. The host learns about it when the app
+      // next brings bookings in, which is the same way a meeting cancelled in
+      // Google leaves their schedule.
+      return json({ cancelled: true, already: false });
     }
 
     return json({ error: "Method not allowed" }, 405);

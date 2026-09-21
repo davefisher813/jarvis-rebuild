@@ -34,7 +34,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[]; days?: number[]; interval?: 1 | 2 },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; bookingId?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[]; days?: number[]; interval?: 1 | 2 },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -50,6 +50,8 @@ export class ScheduleService {
     if (data.recurrence && opts.until && opts.until >= opts.date) data.until = opts.until;
     if (opts.location && opts.location.trim()) data.location = opts.location.trim();
     if (opts.gcalId) data.gcalId = opts.gcalId;
+    // Track 3 (2026-09-19): set only by the booking import, never by a person.
+    if (opts.bookingId) data.bookingId = opts.bookingId;
     // PLUMB-F-07: what Google said at import time, so a later import can tell
     // its own change from one he made here. Only ever set by the importer.
     if (opts.gcalHash) data.gcalHash = opts.gcalHash;

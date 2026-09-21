@@ -152,11 +152,11 @@ describe("the stream ranks", () => {
   // accident, never above it.
   it("[edge] AMBIENT sinks below an unweighted (default-weight) member", () => {
     const r = rankStream([
-      card("weather", AMBIENT, "Add Weather to Your Day"),
+      card("weather", AMBIENT, "Add Daily Weather"),
       <NoticeCard key="mystery" icon={<span />} title="No Weight Declared" action={{ label: "Go", onClick: () => {} }} />,
     ]);
     expect(r.rows.map((x) => (x.props as { title?: string }).title)).toEqual([
-      "No Weight Declared", "Add Weather to Your Day",
+      "No Weight Declared", "Add Daily Weather",
     ]);
   });
 });

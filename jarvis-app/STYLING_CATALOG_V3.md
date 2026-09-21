@@ -155,7 +155,18 @@ Four locked columns on every screen: page margin at 16, leading tile at 16 (28pt
 5. Steppers share one fixed width so their values form a straight column across rows.
 6. Section heads sit at 16, flush with the card edge; a section's count pill right-aligns at -16.
 
-Plus the iOS baseline: 44pt minimum hit targets, 8/12/16 rhythm, 4pt grid, safe areas, cards elevated, both themes always. Tokens and classes only; no inline styles in app code; new CSS lands in the flagged sections of components.css.
+Plus the iOS baseline: 8/12/16 rhythm, 4pt grid, safe areas, cards elevated, both themes always.
+
+Hit targets are **the Tap Ladder (H0)**, not a flat 44. This line used to say
+"44pt minimum hit targets" and H0 says chips are 28 and capsules 34, so the
+catalog contradicted itself and every reader picked the half that suited them.
+Dave settled it on 2026-09-20: **the ladder wins.** A chip is 28 because four
+views have to fit a phone row, and Apple's own segmented control is 32. Where a
+control is deliberately under 44, the room is bought back with an expanded hit
+area rather than a fatter pill (the `::after` inset, or the transparent border
+`.pill-act` uses to escape its own overflow clip). tools/visual-audit.mjs knows
+the ladder and reports a control against ITS rung, so a 28px chip is silent and
+a 28px capsule is a finding. Tokens and classes only; no inline styles in app code; new CSS lands in the flagged sections of components.css.
 
 ## H2. Title Case, everywhere (law extended)
 

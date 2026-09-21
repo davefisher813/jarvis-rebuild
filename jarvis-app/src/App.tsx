@@ -11,12 +11,13 @@ import { FailedCard } from "./monitoring/ErrorBoundary";
 import { captureError } from "./monitoring/monitor";
 import { dismissSplash } from "./shared/splash";
 import { useSheetEscape } from "./shared/useSheetEscape";
-import { bookingSlugOf } from "./booking/publicRoute";
+import { bookingSlugOf, cancelIdOf } from "./booking/publicRoute";
 
 // Onboarding is a one-time surface; keep it out of the startup bundle that
 // every returning user pays for.
 const OnboardingFlow = lazyWithRecovery(() => import("./onboarding/OnboardingFlow"));
 const PublicBookingPage = lazyWithRecovery(() => import("./booking/PublicBookingPage"));
+const PublicCancelPage = lazyWithRecovery(() => import("./booking/PublicCancelPage"));
 
 // First-run gate (inside the provider so it can read the profile): show the
 // conversational onboarding until there is an onboarded profile, then the app.
@@ -101,6 +102,11 @@ export default function App() {
   // provider and no store: it talks to /api/book and nothing else, so a
   // visitor standing on it has no route to the app's data at all.
   const bookingSlug = typeof window === "undefined" ? null : bookingSlugOf(window.location.pathname);
+  // THE SAME ADDRESS, THE OTHER DIRECTION (2026-09-19). /book/<slug>?cancel=<id>
+  // is the link in a visitor's own confirmation email. The id is a random uuid
+  // disclosed only to them and to the host, which is what lets a page with no
+  // session act on one booking and no other.
+  const cancelId = typeof window === "undefined" ? null : cancelIdOf(window.location.search);
   // BROWSER-F-15 (2026-09-05): Escape closes the top sheet, from here, so all
   // 34 sheet call sites get it and the next one does too. Mounted above the
   // auth gate on purpose: onboarding has sheets as well.
@@ -108,7 +114,9 @@ export default function App() {
   if (bookingSlug) {
     return (
       <Suspense fallback={null}>
-        <PublicBookingPage slug={bookingSlug} />
+        {cancelId
+          ? <PublicCancelPage bookingId={cancelId} />
+          : <PublicBookingPage slug={bookingSlug} />}
       </Suspense>
     );
   }

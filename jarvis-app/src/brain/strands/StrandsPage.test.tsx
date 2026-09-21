@@ -88,8 +88,15 @@ describe("StrandsPage renders the genome", () => {
   });
 
   it("says something honest when there is nothing yet, and never fakes a fact", async () => {
+    // The wording changed on 2026-09-20 and the intent did not. This used to
+    // match /Nothing yet/, which was the opening of a three-sentence paragraph
+    // written as raw JSX text -- invisible to the short-copy law, which reads
+    // string literals -- and it also told him to use a control that is already
+    // on the screen and says so itself. Title and sub now, as fragments.
+    // What the test is for is unchanged: the screen admits it knows nothing,
+    // and the way to teach it one thing is right there.
     render(<StrandsPage onBack={() => {}} />);
-    await screen.findByText(/Nothing yet/);
+    await screen.findByText("Nothing Noticed Yet");
     expect(screen.getByText("Add One Thing")).toBeInTheDocument();
   });
 

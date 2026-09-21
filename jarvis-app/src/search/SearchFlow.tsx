@@ -88,7 +88,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
     <div className="search-overlay ruled">
       <div className="search-top">
         <div className="search-bar">{MAG}<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Everything" autoFocus /></div>
-        <button className="search-cancel" onClick={close}>Cancel</button>
+        <button className="search-cancel" data-layer-close onClick={close}>Cancel</button>
       </div>
 
       {completions.length > 0 && (

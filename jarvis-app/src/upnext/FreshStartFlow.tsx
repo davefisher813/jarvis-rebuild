@@ -77,7 +77,7 @@ export default function FreshStartFlow({ onClose, onDone }: { onClose: () => voi
     <div className="search-overlay ruled">
       <div className="nav-bar">
         <div className="nav-large">Fresh Start</div>
-        <button className="nav-action-text" onClick={onClose}>Cancel</button>
+        <button className="nav-action-text" data-layer-close onClick={onClose}>Cancel</button>
       </div>
       <div className="sub-bar"><div className="eyebrow">A day you can still win</div></div>
       {loaded && (

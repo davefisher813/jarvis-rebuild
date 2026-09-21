@@ -331,7 +331,19 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       {filter === "watching" && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Watching</span><span className="n">{watching.length}</span></div>
-          {watching.length === 0 && <div className="empty-state">Nothing is close to its gate yet. The Learning Lab under Settings shows every count.</div>}
+          {/* THE TWIN OF THE ONE FIXED YESTERDAY, and it was missed because the
+              empty-state scan keyed on .empty-title and this had none: two
+              sentences of raw JSX text, invisible to the short-copy law, and
+              it pointed at the Learning Lab instead of going there. Title and
+              sub, as fragments. The Learning Lab door is real debt and is on
+              the law's ACTION_ELSEWHERE list rather than written into the
+              copy as directions. */}
+          {watching.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-title">Nothing Close Yet</div>
+              <div className="empty-sub">A detector lands here as it nears its gate</div>
+            </div>
+          )}
           {watching.length > 0 && (
             <div className="pad-x"><div className="card list-card-ruled">
               {watching.map((r) => (
@@ -357,13 +369,23 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
         <div className="sh2 sh2-quiet"><span className="t">What It Knows</span><span className="n">{visible.length}</span></div>
       )}
 
+      {/* RAW JSX TEXT IS INVISIBLE TO THE SHORT-COPY LAW (states sweep,
+          2026-09-20). That law reads string LITERALS, and these two wrote
+          their copy as bare text between tags, so a three-sentence paragraph
+          shipped on the one screen about what JARVIS has noticed: "Nothing
+          yet. JARVIS only writes here what it has watched you do, or what you
+          tell it. Add one thing below, or just live in the app and let it
+          notice." It also pointed at a control -- "add one thing below" --
+          that is already on screen and says so itself.
+          Title and sub, as fragments, like every other empty state. */}
       {strands.length === 0 && filter !== "watching" && (
         <div className="empty-state">
-          Nothing yet. JARVIS only writes here what it has watched you do, or what you tell it. Add one thing below, or just live in the app and let it notice.
+          <div className="empty-title">Nothing Noticed Yet</div>
+          <div className="empty-sub">What JARVIS watches you do lands here, and so does anything you tell it</div>
         </div>
       )}
       {strands.length > 0 && filter !== "all" && filter !== "watching" && visible.length === 0 && (
-        <div className="empty-state">Nothing under this one yet.</div>
+        <div className="empty-state"><div className="empty-title">Nothing Under This One</div></div>
       )}
 
       {/* THE STRAND ROW (C-40, C-41, C-43, C-47, C-50; Astra, 2026-09-12).

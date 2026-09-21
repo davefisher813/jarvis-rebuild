@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { openSlots, windowsFor, type Rule } from "./slots";
+import { openSlots, windowsFor, type Rule, busyFromOverrides } from "./slots";
 
 // OPEN SLOTS (Track 3, 2026-09-19). Booking is the one place in the app
 // where being wrong has a stranger sitting on a call nobody is on, so the
@@ -103,5 +103,88 @@ describe("windowsFor", () => {
   });
   it("an override on another date leaves this one alone", () => {
     expect(windowsFor(MON, [rule(1)], [{ date: SAT, blocked: true }])).toHaveLength(1);
+  });
+});
+
+describe("his own hours count as taken", () => {
+  // A blocked row that names a window is an hour he already has a meeting in,
+  // not a day off. The three readings of two columns are what let this exist
+  // without a migration into a live project.
+  const ZONE = "America/New_York";
+
+  it("turns a blocked window into an interval, in the owner's own clock", () => {
+    const busy = busyFromOverrides([{ date: "2026-06-15", blocked: true, startTime: "14:00", endTime: "15:00" }], ZONE);
+    expect(busy).toHaveLength(1);
+    expect(new Date(busy[0]!.startMs).toISOString()).toBe("2026-06-15T18:00:00.000Z");
+    expect(new Date(busy[0]!.endMs).toISOString()).toBe("2026-06-15T19:00:00.000Z");
+  });
+
+  // Same wall clock, different instant in December. A zone is not an offset,
+  // which is the rule the rest of this file already lives by.
+  it("resolves the same wall clock to a different instant across the year", () => {
+    const june = busyFromOverrides([{ date: "2026-06-15", blocked: true, startTime: "09:00", endTime: "10:00" }], ZONE);
+    const dec = busyFromOverrides([{ date: "2026-12-15", blocked: true, startTime: "09:00", endTime: "10:00" }], ZONE);
+    expect(new Date(june[0]!.startMs).toISOString()).toBe("2026-06-15T13:00:00.000Z");
+    expect(new Date(dec[0]!.startMs).toISOString()).toBe("2026-12-15T14:00:00.000Z");
+  });
+
+  it("ignores a row that is a day off rather than an hour", () => {
+    expect(busyFromOverrides([{ date: "2026-06-15", blocked: true }], ZONE)).toEqual([]);
+  });
+  it("ignores a row that narrows the day instead of blocking part of it", () => {
+    expect(busyFromOverrides([{ date: "2026-06-15", blocked: false, startTime: "09:00", endTime: "12:00" }], ZONE)).toEqual([]);
+  });
+  it("ignores a window that is not a window", () => {
+    expect(busyFromOverrides([{ date: "2026-06-15", blocked: true, startTime: "15:00", endTime: "14:00" }], ZONE)).toEqual([]);
+    expect(busyFromOverrides([{ date: "2026-06-15", blocked: true, startTime: "14:00", endTime: "14:00" }], ZONE)).toEqual([]);
+  });
+
+  // THE BUG THIS ALL CLOSES. Before this, the grid offered the hour he was
+  // already sitting in a meeting for.
+  it("stops the grid offering an hour he has already spoken for", () => {
+    const rules = [{ weekday: 1, startTime: "09:00", endTime: "12:00", timezone: "UTC" }];
+    const q = {
+      rules, fromDate: "2026-06-15", days: 1, durationMin: 60,
+      nowMs: Date.parse("2026-06-01T00:00:00Z"),
+    };
+    const open = openSlots(q);
+    expect(open.map((s) => new Date(s.startMs).toISOString())).toEqual([
+      "2026-06-15T09:00:00.000Z", "2026-06-15T10:00:00.000Z", "2026-06-15T11:00:00.000Z",
+    ]);
+    const withHis = openSlots({
+      ...q,
+      committed: busyFromOverrides([{ date: "2026-06-15", blocked: true, startTime: "10:00", endTime: "11:00" }], "UTC"),
+    });
+    expect(withHis.map((s) => new Date(s.startMs).toISOString())).toEqual([
+      "2026-06-15T09:00:00.000Z", "2026-06-15T11:00:00.000Z",
+    ]);
+  });
+
+  it("a blocked window leaves the rest of the day open, unlike a day off", () => {
+    const rules = [{ weekday: 1, startTime: "09:00", endTime: "12:00", timezone: "UTC" }];
+    const q = { rules, fromDate: "2026-06-15", days: 1, durationMin: 60, nowMs: Date.parse("2026-06-01T00:00:00Z") };
+    const over = [{ date: "2026-06-15", blocked: true, startTime: "10:00", endTime: "11:00" }];
+    expect(openSlots({ ...q, overrides: over, committed: busyFromOverrides(over, "UTC") })).toHaveLength(2);
+    // The same row without a window is the whole day gone.
+    expect(openSlots({ ...q, overrides: [{ date: "2026-06-15", blocked: true }] })).toHaveLength(0);
+  });
+
+  // HIS OWN MEETINGS ARE NOT BOOKINGS. maxPerDay is how many bookings he will
+  // take in a day; folded into one list, a cap of one plus one of his own
+  // meetings would close a day nobody had booked.
+  it("does not let his own hours eat the daily booking cap", () => {
+    const rules = [{ weekday: 1, startTime: "09:00", endTime: "12:00", timezone: "UTC" }];
+    const q = {
+      rules, fromDate: "2026-06-15", days: 1, durationMin: 60, maxPerDay: 1,
+      nowMs: Date.parse("2026-06-01T00:00:00Z"),
+      committed: busyFromOverrides([{ date: "2026-06-15", blocked: true, startTime: "10:00", endTime: "11:00" }], "UTC"),
+    };
+    // One of his own meetings, no bookings yet: the day is still open.
+    expect(openSlots(q).length).toBeGreaterThan(0);
+    // One real booking, and the cap closes it.
+    expect(openSlots({
+      ...q,
+      busy: [{ startMs: Date.parse("2026-06-15T09:00:00Z"), endMs: Date.parse("2026-06-15T10:00:00Z") }],
+    })).toHaveLength(0);
   });
 });

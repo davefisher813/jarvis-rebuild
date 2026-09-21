@@ -1,14 +1,21 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
 import { CategoriesService } from "./CategoriesService";
-import { subscribeToast } from "../shared/toast";
+import { subscribeToast, hideToast } from "../shared/toast";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import CategoriesFlow from "./CategoriesFlow";
 
 describe("CategoriesFlow", () => {
+  // A toast outlives the test that raised it: it clears on a 5s timer, and a
+  // new subscriber is handed whatever is on screen right now. Deleting an
+  // area got slower once it started unfiling what was filed under it, which
+  // pushed its "deleted" toast past the end of its own test and into the
+  // next one's subscription. The bleed was always possible; the delay is
+  // what made it happen.
+  beforeEach(() => hideToast());
   it("adds a category end to end", async () => {
     render(
       <NotesProvider userId="u1">
