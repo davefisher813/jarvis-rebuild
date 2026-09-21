@@ -8,7 +8,7 @@ import { encodeImageForVision } from "../../shared/imageEncode";
 import { SCHEDULE_EXTRACT_PROMPT, parseScheduleExtract, buildScheduleRows, type ExtractedEvent, type ScheduleRow } from "../scheduleExtract";
 import { fmtRange } from "../calendar";
 import { showToast } from "../../shared/toast";
-import { WRITE_FAILED_MESSAGE } from "../../shared/guard";
+import { WRITE_FAILED_MESSAGE, attemptWrite } from "../../shared/guard";
 import { capAfterNumber } from "../../shared/casing";
 import EventSheet, { type SheetCategory, type EventDraft } from "./EventSheet";
 import type { EventItem, EventData, EventRecurrence } from "../types";
@@ -185,16 +185,22 @@ export default function ScheduleUploadFlow({
     } finally {
       setSaving(false);
     }
+    // A ROLLBACK THAT FAILS SILENTLY LEAVES THE IMPORT HALF IN (states sweep,
+    // 2026-09-20). This is the Undo on a bulk import receipt: it deletes what
+    // the run created. Every call inside was unguarded, so a failure partway
+    // through left rows behind with the toast already gone and nothing said.
     const undo = async () => {
-      for (const id of created) await svc.deleteEvent(id);
-      for (const u of updated) {
-        await svc.editTitle(u.id, u.prev.title);
-        await svc.editTime(u.id, u.prev.start);
-        await svc.editEnd(u.id, u.prev.end ?? "");
-        await svc.editRecurrence(u.id, u.prev.recurrence ?? "none");
-        await svc.editLocation(u.id, u.prev.location ?? "");
-        await svc.editCategory(u.id, u.prev.category ?? "");
-      }
+      await attemptWrite(async () => {
+        for (const id of created) await svc.deleteEvent(id);
+        for (const u of updated) {
+          await svc.editTitle(u.id, u.prev.title);
+          await svc.editTime(u.id, u.prev.start);
+          await svc.editEnd(u.id, u.prev.end ?? "");
+          await svc.editRecurrence(u.id, u.prev.recurrence ?? "none");
+          await svc.editLocation(u.id, u.prev.location ?? "");
+          await svc.editCategory(u.id, u.prev.category ?? "");
+        }
+      });
     };
     if (failed) {
       const done = created.length + updated.length;

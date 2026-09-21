@@ -3962,15 +3962,27 @@ export default function TodayFlow({
           await reloadPeople();
           return out;
         }}
-        onUndoCall={async (prior) => { await peopleSvc.restoreCallAttempt(callPerson, prior); await reloadPeople(); }}
+        onUndoCall={async (prior) => { /* An Undo that fails silently is worse than no Undo (states sweep,
+             2026-09-20): the sheet says the call attempt is back and the
+             record still says otherwise. Same handler in four files, and
+             unguarded in all four. */ await attemptWrite(async () => { await peopleSvc.restoreCallAttempt(callPerson, prior); await reloadPeople(); }); }}
         onCaptureNote={async (text) => {
           const person = peopleList.find((p) => p.id === callPerson);
           if (!person) return false;
-          const noteId = await notesSvc.createNote("Call with " + person.data.name, "");
-          if (!noteId) return false;
-          await notesSvc.addBlock(noteId, { type: "text", text });
-          await notesSvc.addConnection(noteId, "person", person.data.name, person.id);
-          return true;
+          /* THE CAPTURE WRITES THREE RECORDS AND REPORTED NONE OF THEM
+             (states sweep, 2026-09-20). A note, its first block and its link
+             back to the person: if the second or third threw, the sheet had
+             already been told true and a half-built note stayed behind.
+             attemptWrite gives the standard failure toast AND the boolean
+             this handler's contract already returns. */
+          let noteId: string | null = null;
+          const ok = await attemptWrite(async () => {
+            noteId = await notesSvc.createNote("Call with " + person.data.name, "");
+            if (!noteId) throw new Error("no note");
+            await notesSvc.addBlock(noteId, { type: "text", text });
+            await notesSvc.addConnection(noteId, "person", person.data.name, person.id);
+          });
+          return ok;
         }}
         onClose={() => setCallPerson(null)}
       />

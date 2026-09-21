@@ -1659,7 +1659,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
             setPeopleTick((n) => n + 1);
             return out;
           }}
-          onUndoCall={async (prior) => { await peopleSvc.restoreCallAttempt(prepPerson.id, prior); setPeopleTick((n) => n + 1); }}
+          onUndoCall={async (prior) => { await attemptWrite(async () => { await peopleSvc.restoreCallAttempt(prepPerson.id, prior); setPeopleTick((n) => n + 1); }); }}
           onClose={() => setPrepPerson(null)}
         />
       )}

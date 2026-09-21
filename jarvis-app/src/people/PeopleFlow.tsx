@@ -744,13 +744,22 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
               await reload();
               return out;
             }}
-            onUndoCall={async (prior) => { await people.restoreCallAttempt(current.id, prior); await reload(); }}
+            onUndoCall={async (prior) => { await attemptWrite(async () => { await people.restoreCallAttempt(current.id, prior); await reload(); }); }}
             onCaptureNote={async (text) => {
-              const noteId = await notesSvc.createNote("Call with " + current.data.name, "");
-              if (!noteId) return false;
-              await notesSvc.addBlock(noteId, { type: "text", text });
-              await notesSvc.addConnection(noteId, "person", current.data.name, current.id);
-              return true;
+          /* THE CAPTURE WRITES THREE RECORDS AND REPORTED NONE OF THEM
+             (states sweep, 2026-09-20). A note, its first block and its link
+             back to the person: if the second or third threw, the sheet had
+             already been told true and a half-built note stayed behind.
+             attemptWrite gives the standard failure toast AND the boolean
+             this handler's contract already returns. */
+              let noteId: string | null = null;
+              const ok = await attemptWrite(async () => {
+                noteId = await notesSvc.createNote("Call with " + current.data.name, "");
+                if (!noteId) throw new Error("no note");
+                await notesSvc.addBlock(noteId, { type: "text", text });
+                await notesSvc.addConnection(noteId, "person", current.data.name, current.id);
+              });
+              return ok;
             }}
             onClose={() => setPrepOpen(false)}
           />

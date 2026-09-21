@@ -76,17 +76,18 @@ before this phase was a screens-only number.
       screen and needs a callback plumbed (AreasTab, LiftDetail, InsightsPage,
       WhatTheySee, NightBefore, AllData, HealthFlow). The law holds the count
       at 7 so it can only go down.
-- [~] **Error states** · partly done. The health screen had SEVENTEEN writes
-      running as `void healthSvc.x().then(bumpHealth)`: `void` discards the
-      promise, so a rejection went nowhere. Fourteen were UNDO handlers, the
-      worst place for it. All seventeen now route through a healthWrite guard
-      shaped like the metricWrite that has had it right all along.
-      **Remaining: ~24 mutations across 10 files with no visible failure
-      path**, and the count is HEURISTIC, not verified. A grep for this gave
-      223, then 97, then 140, then 39 before the method was right (character
-      ranges, not line windows), and sampling showed the first three were
-      mostly wrong. No law is written on this number until each of the 24 is
-      read. Files: GymFlow 5, HealthFlow 4, ChatFlow 3, and seven others.
+- [x] **Error states** · all 39 unguarded mutations read one by one, not
+      sampled. 31 were real and are guarded; 5 are correct and rostered with
+      the reason (an offline queue that catches inside its own drain, a
+      best-effort blob cleanup after the record is already gone, a callback
+      whose outcome the caller reads, a precondition that throws on purpose).
+      One came OFF the list mid-sweep: it was guarded all along and the
+      scratch script's 220-character lookahead was too short to see it.
+      Worst finds: 17 health writes running as `void svc.x().then(reload)`,
+      14 of them Undo handlers; the same `onUndoCall` unguarded in four
+      files; both bulk-import rollbacks; and the capture-note handler writing
+      three records while reporting none. Law with an exhaustive roster.
+
 - [ ] **Loading and skeletons** · every screen, caught mid-load. Two fake
       ones found and fixed via the empty-state law; the other 16 real
       skeletons are unreviewed.
