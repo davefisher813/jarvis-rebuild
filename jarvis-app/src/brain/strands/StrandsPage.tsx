@@ -331,7 +331,19 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       {filter === "watching" && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Watching</span><span className="n">{watching.length}</span></div>
-          {watching.length === 0 && <div className="empty-state">Nothing is close to its gate yet. The Learning Lab under Settings shows every count.</div>}
+          {/* THE TWIN OF THE ONE FIXED YESTERDAY, and it was missed because the
+              empty-state scan keyed on .empty-title and this had none: two
+              sentences of raw JSX text, invisible to the short-copy law, and
+              it pointed at the Learning Lab instead of going there. Title and
+              sub, as fragments. The Learning Lab door is real debt and is on
+              the law's ACTION_ELSEWHERE list rather than written into the
+              copy as directions. */}
+          {watching.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-title">Nothing Close Yet</div>
+              <div className="empty-sub">A detector lands here as it nears its gate</div>
+            </div>
+          )}
           {watching.length > 0 && (
             <div className="pad-x"><div className="card list-card-ruled">
               {watching.map((r) => (

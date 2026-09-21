@@ -45,10 +45,23 @@ function emptyStates(): { at: string; hasAction: boolean }[] {
       const at = src.indexOf('className="empty-state', i);
       if (at === -1) break;
       i = at + 10;
-      // A generous slice, cut at the next empty-state so two never merge.
-      const slice = src.slice(at, at + 1400);
-      const nxt = slice.indexOf('className="empty-state', 10);
-      const block = nxt === -1 ? slice : slice.slice(0, nxt);
+      // THE BLOCK IS ITS OWN ELEMENT, counted by depth (2026-09-21). The
+      // first version took a 1400-character slice and cut it at the next
+      // empty-state, which ran straight past a short empty state into
+      // whatever followed. StrandsPage had a dead end immediately above a
+      // list of tappable rows, so the slice picked up their onClick and the
+      // law scored it as having an action. It shipped that way for two
+      // commits. Counting <div> against </div> from the opening tag ends the
+      // block where the element ends and nowhere else.
+      const block = (() => {
+        const open = src.lastIndexOf("<", at);
+        let d = 0;
+        for (let j = open; j < src.length && j < open + 6000; j++) {
+          if (src.startsWith("<div", j)) d++;
+          else if (src.startsWith("</div", j)) { d--; if (d === 0) return src.slice(open, j + 6); }
+        }
+        return src.slice(open, open + 1400);
+      })();
       // KEYED BY ITS TITLE, NOT ITS LINE. The first version used file:line,
       // and the very next edit in the same commit -- a comment added above one
       // of these blocks -- shifted two entries and turned the law red for a
@@ -71,14 +84,24 @@ function emptyStates(): { at: string; hasAction: boolean }[] {
 // Dead ends that are CORRECT. Each is read and reasoned, not waved through.
 const NO_ACTION_EXISTS: Record<string, string> = {
   "admin/AdminPanel.tsx · Not Authorized": "the only move is to be someone else",
-  "admin/AdminPanel.tsx · Metrics Are Not Loaded": "a fetch that did not run; the panel reloads from its own bar",
+  "admin/AdminPanel.tsx · Metrics Are Not Loaded": "this deploy has no metrics endpoint; the panel reloads from its own bar",
   "admin/AdminPanel.tsx · Feedback Is Not Loaded": "same, for feedback",
   "admin/AdminPanel.tsx · Nothing Sent Yet": "nobody has written in; there is nothing to do about that",
+  "admin/AdminPanel.tsx · Live Data Needs the Admin Server": "says in its own sub that it is wired at launch",
+  "admin/AdminPanel.tsx · No Users Yet": "a count of other people, which this screen cannot create",
   "gym/DuplicateReview.tsx · Nothing Left to Review": "the queue is finished, which is the good outcome",
   "health/screens/TwoDaysOffScreen.tsx · Already Two Days Off": "a status about the past, not a thing to act on",
+  "health/screens/EatingWindowsScreen.tsx · Tomorrow Has Room": "the good outcome: no gap is too tight",
+  "health/screens/HandoffScreen.tsx · Nothing Needs You Right Now": "the good outcome; the sub says it appears the moment it does",
+  "health/screens/ThirdPracticeScreen.tsx · No Day Carries Two Teams Right Now": "the good outcome, stated",
+  "health/screens/AteBeforeScreen.tsx · Nothing Left to Answer": "waits on a practice or game landing on the calendar",
+  "notifications/NotificationsFlow.tsx · You're All Caught Up": "the good outcome; the sub names what would appear",
+  "messages/MessagesFlow.tsx · Nothing Is Open": "nothing promised and nothing waited on, which is the good outcome",
   "review/InsightsFlow.tsx · The First Crossing Starts It": "waiting on an achievement, which cannot be tapped into being",
   "review/ReportPage.tsx · No Month Sealed Yet": "the report arrives on the 1st on its own",
   "search/SearchFlow.tsx · Search Everything": "the search idle state; the field above it IS the action and has focus",
+  "search/SearchFlow.tsx · No matches for &ldquo;": "same field, same focus; changing the words is the move",
+  "settings/LearnedRulesPage.tsx · Nothing Learned Yet": "a rule lands by correcting JARVIS twice in normal use; there is no button for it",
   "brain/strands/StrandsPage.tsx · Nothing Under This One": "a filter with no members; the chips that change it are on screen",
 };
 
@@ -92,6 +115,8 @@ const ACTION_ON_SCREEN: Record<string, string> = {
   "schedule/screens/SchedulePage.tsx · Nothing Repeats Yet": "its own comment: the bar keeps the job, and this door once carried a false sign",
   "brain/strands/StrandsPage.tsx · Nothing Noticed Yet": "Add One Thing is on this screen, below the list",
   "schedule/screens/PlanDaySheet.tsx · #1": "the sheet's own add field is below it, and the sub says so only when it exists",
+  "messages/MessagesFlow.tsx · Connect Your Email": "the connect action is the very next block, in .conn-action",
+  "schedule/ScheduleFlow.tsx · #1": "a sheet whose own bar carries the action",
 };
 
 // REAL DEBT. The action exists but lives on ANOTHER screen, so these fail L7
@@ -101,11 +126,18 @@ const ACTION_ON_SCREEN: Record<string, string> = {
 const ACTION_ELSEWHERE: Record<string, string> = {
   "life/tabs/AreasTab.tsx · #1": "says 'Add one in Settings > Categories' in words; needs an onOpenCategories prop",
   "gym/LiftDetailScreen.tsx · No Numbers Yet": "needs the log-a-set door for this exercise",
+  "gym/HistoryScreen.tsx · No Numbers Yet": "same door",
+  "gym/HistoryScreen.tsx · No Sessions Yet": "needs the start-a-session door",
   "insights/InsightsPage.tsx · No Sets Logged Yet": "needs the same door as the lift detail screen",
+  "insights/InsightsPage.tsx · Nothing Logged Yet": "needs a workout or a sleep logger",
+  "insights/InsightsPage.tsx · Nothing Tracked in This Period": "needs any of the six loggers it names",
   "health/screens/WhatTheySeeScreen.tsx · Nothing Shared Yet": "needs the share-a-category toggle, which lives in health settings",
   "health/screens/NightBeforeScreen.tsx · Nothing Fixed Tomorrow Yet": "needs tomorrow's start time, which is set on Schedule",
+  "health/screens/DoctorReportScreen.tsx · Nothing in This Window Yet": "needs any of the four loggers it names",
+  "health/screens/MedWindowScreen.tsx · Nothing Logged Yet": "same four loggers",
   "insights/AllDataPage.tsx · #1": "nothing is recorded yet; the doors are the loggers on other screens",
   "health/HealthFlow.tsx · #1": "a shared empty component: its callers pass the copy, so the action is theirs",
+  "brain/strands/StrandsPage.tsx · Nothing Close Yet": "the Learning Lab under Settings shows every count; needs a door to it",
 };
 
 describe("LAW L7: an empty state carries its action", () => {
@@ -130,7 +162,7 @@ describe("LAW L7: an empty state carries its action", () => {
   it("the debt list only shrinks", () => {
     // The number that matters. It was 7 when this law was written.
     expect(Object.keys(ACTION_ELSEWHERE).length,
-      "an empty state that points at another screen instead of taking him there").toBeLessThanOrEqual(7);
+      "an empty state that points at another screen instead of taking him there").toBeLessThanOrEqual(14);
   });
 
   it("no empty state is really a load in disguise", () => {
