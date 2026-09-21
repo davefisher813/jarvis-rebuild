@@ -127,3 +127,46 @@ self.addEventListener("fetch", (e) => {
     }),
   );
 });
+
+// ---- Web push (2026-09-20, Dave's go through Clemenza) ----------------------
+//
+// A push that arrives and shows nothing is the quietest failure there is, and
+// iOS makes it worse: after a few silent pushes it revokes the subscription.
+// So EVERY push shows a notification. A payload the server built (see
+// pushService.sendToAll in the backend: title, body, tag, url, icon, badge,
+// actions) is shown as sent; a payload that cannot be parsed still shows a
+// generic JARVIS alert rather than being dropped.
+self.addEventListener("push", (e) => {
+  let data = null;
+  try { data = e.data ? e.data.json() : null; } catch (_) { data = null; }
+  const str = (v, fallback) => (typeof v === "string" && v ? v : fallback);
+  const title = str(data && data.title, "JARVIS");
+  const body = data ? str(data.body, "") : "You have a new alert";
+  const opts = {
+    body,
+    tag: str(data && data.tag, "jarvis"),
+    icon: str(data && data.icon, "/icon-192.png"),
+    badge: str(data && data.badge, "/icon-192.png"),
+    data: { url: str(data && data.url, "/") },
+    actions: Array.isArray(data && data.actions) ? data.actions : [],
+  };
+  e.waitUntil(self.registration.showNotification(title, opts));
+});
+
+// A tap lands somewhere: the open app, told where to go, or a new window at
+// the url the payload named. Never nowhere.
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if ("focus" in c) {
+          c.postMessage({ type: "jarvis:open", url });
+          return c.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});

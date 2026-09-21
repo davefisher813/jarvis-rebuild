@@ -28,11 +28,15 @@ tests stub the client. Sign in, sync, the AI proxy, account deletion, booking
 links: none of it runs end to end in the gate. Vercel's own deploy of `main`
 is the first place a broken edge function is visible.
 
-**Web push, once it exists.** The plan approved 2026-09-20 puts web push in
-this app through a JWT gated Vercel proxy to the Railway backend. The gate
-will prove the state machine, the key decoder and the worker's push handler
-in isolation. It cannot prove a notification arrives; only Dave's phone can,
-and the definition of done says so.
+**Web push arriving on a phone.** Shipped 2026-09-21 through a JWT gated
+Vercel proxy (`api/push.ts`, logic in `src/push/proxy.ts`) to the Railway
+backend. The gate proves the state machine, the key decoder, the proxy's
+rules and the worker's push handler in isolation (35 tests). It cannot prove
+a notification arrives; only Dave's phone can, and the checklist's rows 11
+to 14 stay open until it does. Also unprovable here: that `JARVIS_SECRET`
+and `JARVIS_BACKEND_URL` are set in the Vercel project (this session's
+Vercel token answers 403). If they are not, the proxy answers 503 naming the
+missing one and the Notifications page says the server is not configured.
 
 ## Medium
 

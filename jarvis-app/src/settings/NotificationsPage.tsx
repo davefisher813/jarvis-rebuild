@@ -9,6 +9,8 @@ import { morningTime, setMorningTime } from "../tasks/quickReminder";
 import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
+import { useAccessToken } from "../data/NotesProvider";
+import { currentStatus, enableWebPush, disableWebPush, sendTestAlert, resubscribeIfNeeded, footFor, switchLocked, type WebPushStatus } from "../shared/webPush";
 
 type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean; rest: boolean };
 const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true, rest: true };
@@ -47,6 +49,46 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   };
   const native = Capacitor.isNativePlatform();
   const denied = perm === "denied";
+  // WEB PUSH (2026-09-20, Dave's go through Clemenza). The web half of this
+  // page: one master switch behind a real tap, gated on a Home Screen launch
+  // and iOS 16.4, with a sentence for every state, and a test row. It is all
+  // or nothing: the server sends every alert to every device and the four
+  // switches below only shape the in-app screen. The copy says so.
+  const accessToken = useAccessToken();
+  const deps = { getToken: () => accessToken };
+  const [web, setWeb] = useState<WebPushStatus | null>(null);
+  const [webBusy, setWebBusy] = useState(false);
+  const readWeb = useCallback(() => { if (!native) void currentStatus({ getToken: () => accessToken }).then(setWeb); }, [native, accessToken]);
+  useEffect(() => { readWeb(); }, [readWeb]);
+  useEffect(() => {
+    if (native || !accessToken) return;
+    void resubscribeIfNeeded({ getToken: () => accessToken }).then((r) => { if (r === "resubscribed" || r === "failed") readWeb(); });
+  }, [native, accessToken, readWeb]);
+  const toggleWeb = () => {
+    if (webBusy || !web) return;
+    setWebBusy(true);
+    // enableWebPush calls Notification.requestPermission before its first
+    // await, so this synchronous call from the tap is what keeps the dialog
+    // legal on iOS. Nothing may be awaited before it.
+    const p: Promise<string> = web === "on" ? disableWebPush(deps).then((ok) => (ok ? "off" : "failed")) : enableWebPush(deps);
+    void p.then((r) => {
+      setWebBusy(false);
+      if (r === "denied") showToast({ message: "Notifications are off for JARVIS in iOS Settings" });
+      else if (r === "dismissed") showToast({ message: "Not allowed yet · Turn it on whenever you are ready" });
+      else if (r === "no-key") showToast({ message: "The server has no push key yet" });
+      else if (r === "failed") showToast({ message: "Could not change alerts on this phone · Try again" });
+      else if (r === "unauthenticated") showToast({ message: "Sign in again to set up alerts" });
+      readWeb();
+    });
+  };
+  const [webTesting, setWebTesting] = useState(false);
+  const sendWebTest = async () => {
+    if (webTesting) return;
+    setWebTesting(true);
+    const r = await sendTestAlert(deps);
+    setWebTesting(false);
+    showToast({ message: r === "sent" ? "Test alert sent · Lock the phone to see it" : r === "unauthenticated" ? "Sign in again to send a test" : "The server could not send a test alert" });
+  };
   // THE REMINDERS REBUILD (push D): "morning" is one setting for the whole
   // app (every Tomorrow Morning shortcut means it), and a test send shows
   // what a reminder looks like on this phone.
@@ -63,6 +105,15 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Notifications" back="Settings" onBack={onBack} />
+      {!native && (
+        <>
+          <Head label="This Phone" />
+          <Card>
+            <Switch label="Alerts on this phone" meta={web === null ? "Checking" : undefined} on={web === "on"} locked={web === null || webBusy || switchLocked(web)} onToggle={toggleWeb} ariaLabel="Alerts on this phone" />
+            {web === "on" && <Row label={webTesting ? "Sending" : "Send a Test Alert"} meta="Arrives in a few seconds" onClick={() => void sendWebTest()} disabled={webTesting} chev />}
+          </Card>
+        </>
+      )}
       <Head label="Tell Me About" />
       <Card>
         {/* Denied at the OS level: the switches are shown, and locked. They
@@ -98,7 +149,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
       </Card>
       <Foot>
         {!native
-          ? "On the web these only decide what shows on the Notifications screen."
+          ? (web === null ? "Checking whether this phone can get alerts" : footFor(web))
           : denied
             ? "Notifications are off for JARVIS in iOS Settings · Turn them on there and nothing here has to change"
             : perm === "prompt"
