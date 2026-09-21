@@ -63,10 +63,34 @@ describe("the live log box does not print a zero nobody typed", () => {
     cleanup();
   });
 
-  it("says what the empty field wants, in its placeholder", () => {
+  // SAYS WHAT THE EMPTY FIELD WANTS -- ONCE (2026-09-21, found by looking at
+  // a real session rather than by any test).
+  //
+  // The rule is right and is unchanged: an empty field has to say what goes
+  // in it. What was wrong was WHERE. The placeholder was the unit, and the
+  // row prints that same unit in a .se-grid-u span immediately to its right,
+  // so an unset weight on a fresh lift rendered:
+  //
+  //     lb    lb    8    reps
+  //
+  // Two "lb" in a row, one a ghost and one real, which reads as a rendering
+  // fault rather than as a prompt. Reps had the identical duplication and hid
+  // it only by usually having a number in it.
+  //
+  // The span is the better half of the pair: it is always there, it does not
+  // vanish the moment you type, and it is what the row is laid out around.
+  // So the field is named exactly once, beside itself, and empty is allowed
+  // to look empty -- which is what "not set yet" looks like.
+  it("names each field exactly once, beside it, never twice", () => {
     strip(ghost({ r: 8 }));
-    expect(screen.getByLabelText("Set 1 weight")).toHaveAttribute("placeholder", "lb");
-    expect(screen.getByLabelText("Set 1 reps")).toHaveAttribute("placeholder", "reps");
+    const w = screen.getByLabelText("Set 1 weight");
+    expect(w, "no ghost copy of the word inside the box").not.toHaveAttribute("placeholder");
+    expect(screen.getByLabelText("Set 1 reps")).not.toHaveAttribute("placeholder");
+    // The unit is still stated, in the span the row is built around.
+    expect(screen.getByText("lb")).toBeInTheDocument();
+    expect(screen.getByText("reps")).toBeInTheDocument();
+    // And a screen reader still gets a name for each box.
+    expect(w).toHaveAttribute("aria-label", "Set 1 weight");
     cleanup();
   });
 

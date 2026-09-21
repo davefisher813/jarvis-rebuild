@@ -597,7 +597,7 @@ export default function SessionScreen({
             definition not looking at their calendar. A fact, in the same
             line the Up Next card has carried since Group B item 12; never a
             modal, and it never stops the session. */}
-        <HyperfocusLine guard={guard} />
+        <HyperfocusLine guard={guard} variant="chip" />
         {/* THE HISTORY, AS FACTS RATHER THAN A PARAGRAPH. This was one grey
             run-on: every set from last time, then the date, then the best,
             all joined by middots and wrapping to three lines. Best is the

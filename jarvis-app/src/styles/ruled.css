@@ -1527,6 +1527,37 @@
 .ruled.health-ruled .se-chip-over { color: var(--hl-amber); background: var(--hl-amber-tint); }
 .ruled.health-ruled .se-chip-when, .ruled.health-ruled .se-chip-game { color: var(--tx-3); background: var(--press-3); }
 
+/* THE HYPERFOCUS GUARD, IN THE ROOM'S OWN LANGUAGE (2026-09-21, Dave on a
+   live Push Day: "the notification that I have an interview looks awful").
+
+   It rendered as one sentence in .conn-meta, the app's quiet furniture ink,
+   in a header where every other fact is a coloured chip. So a job interview
+   ninety minutes away was drawn quieter than his best set of chest flys --
+   on the screen the guard exists precisely because you are not looking at
+   your calendar from.
+
+   AMBER, not red, outside the warn window: it is a deadline you should know
+   about, not one you are late for, and red here would be the modal this
+   thing has always refused to be. Inside ten minutes it takes the accent,
+   which is the one escalation the guard has.
+
+   It shrinks and wraps, unlike every other chip here: those carry numbers of
+   known width and this carries a calendar title -- "General Manager
+   (Operations) interview" is 37 characters and nowrap would have run it off
+   the screen. */
+.ruled.health-ruled .se-guard { color: var(--hl-amber); background: var(--hl-amber-tint);
+  flex-shrink: 1; min-width: 0; white-space: normal; line-height: 1.35; }
+/* The label is a clock reading and never breaks: white-space: normal on the
+   chip is for the TITLE, and it was wrapping "3 PM" onto two lines.
+   NO OPACITY (HEALTH law 4, which caught the first version of this rule): a
+   health row that carries text never fades outside a press state, because a
+   faded colour is an unmeasurable colour. The label is already separated
+   from the title by being smaller, bolder and upper case, the way every
+   other .se-chip em is, so it does not need to be dimmer as well. */
+.ruled.health-ruled .se-guard em { color: var(--hl-amber); white-space: nowrap; flex-shrink: 0; }
+.ruled.health-ruled .se-guard-warn { color: var(--accent-tx); background: var(--red-tint); }
+.ruled.health-ruled .se-guard-warn em { color: var(--accent-tx); }
+
 /* THE PIN IS A CLAIM, NOT A VERB (2026-09-16). "Pin Days" was a red capsule on
    every unpinned day, so a five-day program showed five red verbs down one
    edge and none of them was the thing you came to do; setting a pin lives in
