@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path/posix";
-import { withLiveGroups, groupForToday, ungroupToday } from "./liveGroups";
+import { withLiveGroups, groupForToday, ungroupToday, isLiveGroup } from "./liveGroups";
 import type { Exercise } from "./types";
 
 const ex = (id: string, groupId?: string): Exercise =>
@@ -117,5 +117,52 @@ describe("ask me each time", () => {
     const sessionBranch = flow.slice(flow.indexOf("onClose={() => setAdjustOpen(false)}"));
     expect(sessionBranch.slice(0, 900)).toContain("{pickerEl()}");
     expect(sessionBranch.slice(0, 900)).toContain("{supersetChoiceEl()}");
+  });
+});
+
+// THE WAY BACK OUT (2026-09-21). ungroupToday existed, was tested, and was
+// wired to nothing: a superset made from a live session could only be taken
+// back inside the five seconds its toast was up. These cover the half that
+// was missing -- breaking a pair the PROGRAM owns, for today only.
+describe("ungroupToday: a program pair, broken for today only", () => {
+  const day: Exercise[] = [
+    { id: "a", name: "Bench", kind: "weight_reps", sets: [], groupId: "gp" },
+    { id: "b", name: "Row", kind: "weight_reps", sets: [], groupId: "gp" },
+    { id: "c", name: "Curl", kind: "weight_reps", sets: [] },
+  ];
+
+  it("marks every member of the program's group as ungrouped today", () => {
+    const next = ungroupToday(undefined, "a", day);
+    expect(next).toEqual({ a: "", b: "" });
+    // And the day the session reads is genuinely unpaired.
+    const laid = withLiveGroups(day, next);
+    expect(laid.map((e) => e.groupId)).toEqual([undefined, undefined, undefined]);
+  });
+
+  it("leaves the program itself untouched", () => {
+    ungroupToday(undefined, "a", day);
+    expect(day.map((e) => e.groupId)).toEqual(["gp", "gp", undefined]);
+  });
+
+  it("still releases a pair made today, without needing the day", () => {
+    const made = groupForToday(undefined, ["a", "c"], () => "gt");
+    expect(ungroupToday(made, "a")).toEqual({});
+  });
+
+  it("re-pairing after breaking a program pair overwrites the mark", () => {
+    const broken = ungroupToday(undefined, "a", day);
+    const repaired = groupForToday(broken, ["a", "c"], () => "gt");
+    expect(repaired.a).toBe("gt");
+    expect(repaired.c).toBe("gt");
+    // b stays explicitly unpaired for today: it was not in the new pick.
+    expect(repaired.b).toBe("");
+    expect(withLiveGroups(day, repaired).find((e) => e.id === "b")?.groupId).toBeUndefined();
+  });
+
+  it("isLiveGroup tells the two cases apart, which is what the receipt says", () => {
+    const made = groupForToday(undefined, ["a", "c"], () => "gt");
+    expect(isLiveGroup(made, "a")).toBe(true);
+    expect(isLiveGroup(undefined, "a")).toBe(false);
+    expect(isLiveGroup(ungroupToday(undefined, "a", day), "a")).toBe(false);
   });
 });

@@ -70,6 +70,7 @@ export default function SessionScreen({
   onSkip,
   onMove,
   onSuperset,
+  onUngroup,
   onSwap,
   onSetLoad,
   onAddMidSession,
@@ -118,6 +119,13 @@ export default function SessionScreen({
    *  anything (the same reason Add Exercise carries its "also on the day"
    *  switch). */
   onSuperset?: () => void;
+  /** BREAK IT UP (2026-09-21). The exact inverse, and it was missing: you
+   *  could make a superset from this screen and the only way out was a five
+   *  second Undo toast. ungroupToday had been written and TESTED and was
+   *  wired to nothing, which is the same drift as the missing button one
+   *  layer down. Mirrors the program editor, which offers Ungroup in the
+   *  place Superset With... would otherwise be. */
+  onUngroup?: () => void;
   onSwap: (sub: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string }) => void;
   /** HOW THIS LIFT LOADS, SET FROM IN HERE (2026-09-16, Dave: "I don't even
    *  have the option while I'm logging to select what type of weight system
@@ -609,9 +617,9 @@ export default function SessionScreen({
                 change. The row below keeps it too, because that list is the
                 complete set of moves on an exercise and losing one from it
                 would make the list lie. */}
-            {onSuperset && dayExercises.length > 1 && (
-              <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={onSuperset}>
-                <em>Superset</em>{pairLabel ? "Paired" : "Add"}
+            {(pairLabel ? onUngroup : onSuperset) && dayExercises.length > 1 && (
+              <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={pairLabel ? onUngroup : onSuperset}>
+                <em>Superset</em>{pairLabel ? "Break Up" : "Add"}
               </button>
             )}
           </div>
@@ -844,8 +852,14 @@ export default function SessionScreen({
               <button className="row-create" role="button" tabIndex={0} onClick={onAdjustTime}>Adjust Time</button>
             )}
             <button className="row-create" role="button" tabIndex={0} onClick={() => setSwapOpen(true)}>Swap</button>
-            {onSuperset && dayExercises.length > 1 && (
+            {/* Either/or, exactly as the program editor reads: a lift that is
+                already in a superset offers the way out where the way in
+                would be, instead of two controls about the same pair. */}
+            {onSuperset && !pairLabel && dayExercises.length > 1 && (
               <button className="row-create" role="button" tabIndex={0} onClick={onSuperset}>Superset With…</button>
+            )}
+            {onUngroup && pairLabel && (
+              <button className="row-create" role="button" tabIndex={0} onClick={onUngroup}>Break Up the Superset</button>
             )}
             {onUpdateProgram && (
               <button className="row-create" role="button" tabIndex={0} onClick={onUpdateProgram}>Also Update the Program</button>

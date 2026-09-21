@@ -6,7 +6,7 @@ import { todayISO } from "../tasks/grouping";
 import { monthDay, dayPhrase } from "../money/bills";
 import { agoPhrase, agoPhraseLower, workoutMinutes } from "./summary";
 import { durationOf } from "../insights/analytics";
-import { groupForToday } from "./liveGroups";
+import { groupForToday, ungroupToday, isLiveGroup } from "./liveGroups";
 import { setSessionOpen } from "./sessionChrome";
 import { readHealthSettings } from "../health/settings";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
@@ -2423,6 +2423,28 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           if (!w || !day) return {};
           return {
             onSuperset: () => setPicker({ kind: "supersetWith", weekId: w.id, dayId: day.id, exId: exercise.id }),
+            // AND THE WAY BACK OUT (2026-09-21). ungroupToday had been
+            // written and tested and was wired to nothing: a superset made
+            // from this screen could only be taken back inside the five
+            // seconds its toast was up. Today's own pair is simply released;
+            // a pair that came from the PROGRAM is broken for today only and
+            // the toast says which of the two happened, because one of them
+            // is still there next week and the other never was.
+            onUngroup: () => {
+              const before = liveRef.current?.groups;
+              const wasTodays = isLiveGroup(before, exercise.id);
+              patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id, day.exercises) }));
+              showToast({
+                // A pair made today and a pair the program owns are two
+                // different facts after this tap, and the difference is what
+                // you will find next week, so the receipt says which one.
+                message: wasTodays
+                  ? "Broken up for today"
+                  : capAfterNumber(`Broken up for today \u00b7 ${workoutTitle(day.name)} keeps the pair`),
+                actionLabel: "Undo",
+                onAction: () => patchLive((l) => ({ ...l, groups: before })),
+              });
+            },
           };
         })()}
         // THREE PLACES, NOT ONE (Dave 2026-09-17: "it doesn't save... doesn't

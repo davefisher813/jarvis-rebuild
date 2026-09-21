@@ -367,6 +367,43 @@ before this phase was a screens-only number.
       the tool's blind spots, not the app's.
 - [ ] **Anything else the crawler names as unreachable** on its next run.
 
+## PHASE 7 · DRIFT
+
+Dave, 2026-09-21, after finding the superset buttons missing: "We cannot
+have drifts." A rule applied by name in one place, or a capability built on
+one surface, is a rule and a capability that is wrong everywhere else.
+
+- [x] **Superset, on both surfaces and in one vocabulary** · the page where
+      you build a day had NO superset control (only a long-press item called
+      "Group With..."), and the live session's sat 1.3 screens down. Both
+      have a visible one now and both say the athlete's word.
+- [x] **A function that is written, tested, and wired to nothing** · fixing
+      the buttons found the same defect one layer down: `ungroupToday` had
+      been written, documented and unit tested, and was imported by nothing.
+      You could make a superset for today; the only way out was a five second
+      toast. Every guard the repo had said that was fine -- the MODULE was
+      reachable, the export had tests, the tests passed. **A unit test is a
+      caller**, so a function can be perfectly tested and attached to
+      nothing, and the suite is the last place that will say so.
+      `src/laws/noDeadExport.test.ts` counts callers that are not tests.
+- [x] **The live card's lead line** · the same class again, found by the new
+      law. `currentLine` ("Bench Press · 3 × 225 lb × 5") was computed,
+      documented as "the one line the card leads with", tested, and rendered
+      by NEITHER of Today's two live-workout surfaces -- while the comment
+      above one of them said the card reads "the exercise it is on WITH its
+      numbers". Mid-workout, Today told you the day, the minutes and the set
+      count, and never the lift. Both surfaces lead with it now.
+- [ ] **The other ~60 exports the law finds app-wide** · scoped to `gym/`
+      for now, at zero roster entries, because the sixty are not one thing.
+      Some are test utilities by their own name (`resetOutboxForTest`). A
+      whole layer is waiting on a build that has not happened: `native/`
+      carries `workoutFromHealth`, `dedupeHealthWorkouts` and `enrichPeople`,
+      all written, all tested, all called by nothing, and CLAUDE.md says why
+      (the iOS half is deferred until there is a native build to put it in).
+      That is a roster entry with a real reason, not a bug. The rest can only
+      be judged one at a time. Named here so the number is countable rather
+      than quietly left out of a report.
+
 ## PHASE 6 · BEHAVIOUR, NOT PIXELS
 
 - [ ] **Every destructive action has an Undo** · spot-checked, never swept.

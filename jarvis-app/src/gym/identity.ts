@@ -64,7 +64,3 @@ export function sameLiftAnyKind(a: LiftLike, b: { name: string; exerciseKey?: st
   return name === b.name;
 }
 
-/** The name to show for a lift, given what the caller was handed. */
-export function liftName(lift: LiftLike): string {
-  return typeof lift === "string" ? lift : lift.name;
-}

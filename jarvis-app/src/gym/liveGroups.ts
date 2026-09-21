@@ -13,7 +13,16 @@ import type { Exercise } from "./types";
  */
 export function withLiveGroups(day: Exercise[], groups?: Record<string, string>): Exercise[] {
   if (!groups || Object.keys(groups).length === 0) return day;
-  return day.map((e) => (groups[e.id] ? { ...e, groupId: groups[e.id] } : e));
+  return day.map((e) => {
+    const g = groups[e.id];
+    if (g === undefined) return e;
+    // THE EMPTY STRING IS A STATEMENT, NOT AN ABSENCE (2026-09-21). A pair
+    // that came from the PROGRAM has no entry here to delete, so breaking it
+    // for today has to be SAID rather than un-said: "" means "explicitly not
+    // grouped today", and it is the only thing that lets today-only pairing
+    // and today-only un-pairing be the same shape.
+    return g === "" ? { ...e, groupId: undefined } : { ...e, groupId: g };
+  });
 }
 
 /** The session-only pairing for `ids`, merged onto whatever is already there.
@@ -33,15 +42,35 @@ export function groupForToday(
   return next;
 }
 
-/** Undo a session-only pairing: every id that shares this lift's group today
- *  is released, which is the exact inverse of groupForToday. */
+/** Undo a pairing for today: every lift that shares this one's group is
+ *  released. The exact inverse of groupForToday for a pair made today, and
+ *  for a pair that came from the program it says so for today only, leaving
+ *  the program exactly where it was.
+ *
+ *  `day` is what makes the second case possible: a program pair has nothing
+ *  in this map to remove, so its members have to be read off the day and
+ *  marked. Called without it, only today's own pairs can be broken. */
 export function ungroupToday(
   current: Record<string, string> | undefined,
   id: string,
+  day?: Exercise[],
 ): Record<string, string> {
   const next = { ...(current ?? {}) };
   const gid = next[id];
-  if (!gid) return next;
-  for (const k of Object.keys(next)) if (next[k] === gid) delete next[k];
+  if (gid) {
+    for (const k of Object.keys(next)) if (next[k] === gid) delete next[k];
+    return next;
+  }
+  const fromProgram = day?.find((e) => e.id === id)?.groupId;
+  if (!day || !fromProgram) return next;
+  for (const e of day) if (e.groupId === fromProgram) next[e.id] = "";
   return next;
+}
+
+/** Is this lift in a group that exists only for this session? The two cases
+ *  read differently to the athlete -- breaking today's own pair changes
+ *  nothing beyond today either way, but breaking the program's is a thing
+ *  the screen has to say out loud. */
+export function isLiveGroup(groups: Record<string, string> | undefined, id: string): boolean {
+  return !!groups?.[id];
 }
