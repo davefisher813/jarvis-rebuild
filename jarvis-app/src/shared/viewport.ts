@@ -41,8 +41,38 @@ export function trackVisualViewport(): () => void {
   if (!vv) return () => {};
   const root = document.documentElement;
   let queued = false;
+  // NOTHING FOCUSED MEANS NO KEYBOARD (2026-09-21, Dave on a live Push Day:
+  // "The log another set and next exercise buttons are in the middle of the
+  // screen"). They were, and this is why.
+  //
+  // The band was written from visualViewport alone, on its resize and scroll
+  // events. Those are the right events and they are not a guarantee: iOS does
+  // not always fire a resize when the keys go away -- a dismiss by scroll, a
+  // background and restore, a webview handing focus back -- and there is no
+  // event at all for "the keyboard you measured is gone now". So the last
+  // write stood, --vv-h stayed at the keyboard-up height, and the Log bar,
+  // which is built to sit at the foot of the VISIBLE band, sat at the foot of
+  // a band that had not existed for minutes. On his screen that put the two
+  // buttons across the middle of the page, over the row behind them.
+  //
+  // A stale band can only persist while nothing is focused, and while nothing
+  // is focused the keyboard cannot be up. That is not a heuristic, it is the
+  // one thing about this that is certain, so it is what gets trusted: with no
+  // field focused the band IS the layout viewport, whatever visualViewport
+  // still remembers. Focused, it is measured exactly as before.
+  const typing = (): boolean => {
+    const el = document.activeElement;
+    if (!el || !(el instanceof HTMLElement)) return false;
+    return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable;
+  };
   const write = () => {
     queued = false;
+    if (!typing()) {
+      root.style.setProperty("--vv-h", window.innerHeight + "px");
+      root.style.setProperty("--vv-top", "0px");
+      root.style.setProperty("--vv-bot", "0px");
+      return;
+    }
     root.style.setProperty("--vv-h", vv.height + "px");
     root.style.setProperty("--vv-top", vv.offsetTop + "px");
     root.style.setProperty("--vv-bot", Math.max(0, window.innerHeight - vv.offsetTop - vv.height) + "px");
@@ -58,9 +88,28 @@ export function trackVisualViewport(): () => void {
   };
   vv.addEventListener("resize", sync);
   vv.addEventListener("scroll", sync);
+  // THE MOMENTS visualViewport DOES NOT SPEAK FOR. focusout is the blur that
+  // dismisses the keys; the keys then animate away over roughly a third of a
+  // second, so it is read again after they have gone rather than while they
+  // are moving. pageshow covers a bfcache restore and visibilitychange covers
+  // the home-screen app being resumed, which is the case that fires no
+  // navigation at all (see main.tsx's note on the same problem).
+  const settle = () => { sync(); setTimeout(sync, 350); };
+  document.addEventListener("focusout", settle);
+  document.addEventListener("focusin", sync);
+  window.addEventListener("resize", sync);
+  window.addEventListener("pageshow", settle);
+  window.addEventListener("orientationchange", settle);
+  document.addEventListener("visibilitychange", settle);
   write();
   return () => {
     vv.removeEventListener("resize", sync);
     vv.removeEventListener("scroll", sync);
+    document.removeEventListener("focusout", settle);
+    document.removeEventListener("focusin", sync);
+    window.removeEventListener("resize", sync);
+    window.removeEventListener("pageshow", settle);
+    window.removeEventListener("orientationchange", settle);
+    document.removeEventListener("visibilitychange", settle);
   };
 }

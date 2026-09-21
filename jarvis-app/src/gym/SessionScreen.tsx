@@ -6,6 +6,7 @@ import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan
 import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
 import { REST_FLOOR_SEC } from "./pacing";
 import { logButtonLabel, plannedEntryAt, entryNoun, formatSet } from "./measures";
+import { nextSetEntry } from "./nextSet";
 import { newSetId, blankEntry, duplicateEntry, entryFrom } from "./strip";
 import { isSessionPR, lastHeader, lastSessionFor } from "./prs";
 import { readGymSettings, rackFrom } from "./settings";
@@ -183,7 +184,17 @@ export default function SessionScreen({
   // the athlete's place in the plan.
   const workLogged = logged.filter((s) => !s.warmup && !s.drop).length;
   const rampLeft = ramp.slice(rampLogged);
-  const ghost = [...rampLeft, ...planEx.sets.slice(workLogged)];
+  // THE NOW CARD SHOWS WHAT WILL ACTUALLY BE LOGGED (2026-09-21). It used to
+  // show planEx.sets[workLogged] -- the template -- while the big red button
+  // named plannedEntryAt() merged with a draft that every write cleared. Two
+  // sources, one screen, and they drifted: his card read 225 lb x 2 while the
+  // button read "Log 275 lb x 5". Both read nextSetEntry now, so the number
+  // under your thumb is the number in the fields.
+  const nextUp = nextSetEntry({ plan: planEx, logged, lastSession: lastHit?.sets ?? null });
+  const planGhosts = planEx.sets.slice(workLogged);
+  const ghost = [...rampLeft, ...(nextUp && planGhosts.length > 0
+    ? [{ ...nextUp, id: planGhosts[0]!.id }, ...planGhosts.slice(1)]
+    : planGhosts)];
   // 2026-09-11: kept per exercise. This screen stays mounted as the athlete
   // moves through the session, so one flag meant Keep on Bench also dismissed
   // Squat's suggestion, and every lift after it, for the rest of the session.
@@ -462,13 +473,13 @@ export default function SessionScreen({
     if (exercise.kind === "done") { const e = { id: newSetId(), done: true }; onLog(e); receiptForLog(e); return; }
     // The plan is the WORK, so it is indexed by working sets logged. Warm-ups
     // sit in the same strip and must never advance the athlete's place in it.
-    const next = plannedEntryAt(planEx, workLogged);
-    if (next) {
-      const e = { ...duplicateEntry(next), ...(draft ?? {}) };
+    // The SAME answer the card is showing and the button is naming.
+    const resolved = nextSetEntry({ plan: planEx, logged, lastSession: lastHit?.sets ?? null, draft });
+    if (resolved) {
+      const e = { ...resolved, id: newSetId() };
       onLog(e); setDraft(null); startRest(); receiptForLog(e); return;
     }
-    const lastWork = [...logged].reverse().find((x) => !x.warmup && !x.drop);
-    const e = { ...(lastWork ? duplicateEntry(lastWork) : blankEntry()), ...(draft ?? {}) };
+    const e = { ...blankEntry(), ...(draft ?? {}) };
     onLog(e);
     setDraft(null);
     startRest();
@@ -880,6 +891,24 @@ export default function SessionScreen({
               ? <button className="btn btn-secondary btn-lg" onClick={() => setClockOpen(true)}>Run It Again</button>
               : <button className="btn btn-secondary btn-lg" onClick={log}>Log Another Set</button>
           )}
+          {/* DONE IS NOT THE SAME AS FINISHING THE PLAN (Dave, 2026-09-21: "I
+              still can't make an exercise as done during a workout").
+              The way on only appeared once every planned set was logged. Stop
+              at two of three because that is genuinely all you have in you,
+              and the only exit was Skip This Exercise -- a row far down the
+              screen, and the wrong word: skipped means you did none of it,
+              and it would have thrown away the two sets you did do.
+              So the way on is always there once there is anything to keep.
+              It stays SECONDARY until the plan is complete, because until
+              then logging is still the common move and moving on is the
+              exception; after it they swap, which is the 2026-09-17 ruling
+              and is unchanged. */}
+          {!planComplete && logged.length > 0 && !cond && (
+            <button className="btn btn-secondary btn-lg"
+              onClick={() => (upNextIdx >= 0 ? onMove(upNextIdx) : onFinish())}>
+              {upNextIdx >= 0 ? "Next Exercise" : "Finish Workout"}
+            </button>
+          )}
           {planComplete
             ? <button className="btn btn-primary btn-launch btn-lg"
                 onClick={() => (upNextIdx >= 0 ? onMove(upNextIdx) : onFinish())}>
@@ -890,7 +919,7 @@ export default function SessionScreen({
                   {logged.length === 0 ? "Start the Clock" : "Run It Again"}
                 </button>
               : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
-                  {logButtonLabel(planEx, workLogged, draft ?? undefined)}
+                  {logButtonLabel(planEx, workLogged, { ...(nextUp ?? {}), ...(draft ?? {}) })}
                 </button>}
         </div>
       )}
