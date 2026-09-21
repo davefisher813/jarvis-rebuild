@@ -8,10 +8,21 @@
 // writes ages (59d, never "59 days"); producers write the fused form and
 // this component only ever emphasizes, never rewords.
 //
-// Heat is the third voice and the rarest: amber for warming, red for hot,
-// applied to the DATA ONLY, and only when the producer says so -- thresholds
-// belong to domain code (the mail rungs, the slip counts), never to a
-// presentation regex.
+// HEAT IS A COUNT OF DAYS, AND IT IS RED (Dave 2026-09-21, on two rows of
+// one card: "One is red. The other isn't. They should both be red and all
+// instances. We need everything uniform without drifting").
+//
+// It used to be the producer's call, on the producer's own thresholds: the
+// mail nudge lit its age amber at seven days and red at twenty-one, and a
+// notice that was not a nudge got nothing at all. So "Invoice · 84 Days" was
+// red while "Mailchimp trial ends, 3 days left" -- the same datum, in the
+// same card, one row apart -- was not, and a third rung made the same kind of
+// number amber somewhere else. Three appearances of one thing.
+//
+// A day count is now hot wherever it appears, and nothing else is. It is a
+// rule about the SHAPE of the datum, which is the only kind of rule that can
+// hold across a producer that writes its own sentence (a reply's gist is
+// model-written; no threshold in domain code can reach inside it).
 
 // A datum, and the characters allowed to touch it.
 //
@@ -29,12 +40,17 @@
 const DATA = /(\d+\/\d+|\d+:\d+|\d+(?:\.\d+)?(?:[dhm]|min|%)?)/g;
 const WORDY = /[A-Za-z0-9#]/;
 
-export type Heat = "warm" | "hot" | null;
+/** A number that counts days: the fused form (3d) or a figure with the word
+ *  after it (84 Days, 3 days left). Never 20m, 9h, 8/10 or a clock. */
+function isDayCount(token: string, after: string): boolean {
+  if (/^\d+d$/i.test(token)) return true;
+  return /^\d+$/.test(token) && /^\s*days?\b/i.test(after);
+}
 
-export function Quiet({ s, heat = null }: { s: string; heat?: Heat }) {
+export function Quiet({ s }: { s: string }) {
   // Walked rather than split, so each candidate can be judged against the
   // characters around it. Every character of `s` is emitted exactly once.
-  const out: { text: string; data: boolean }[] = [];
+  const out: { text: string; data: boolean; hot?: boolean }[] = [];
   let last = 0;
   DATA.lastIndex = 0;
   for (let m = DATA.exec(s); m; m = DATA.exec(s)) {
@@ -45,7 +61,7 @@ export function Quiet({ s, heat = null }: { s: string; heat?: Heat }) {
     // Inside an identifier, or carrying a suffix the pattern did not claim.
     if ((before && WORDY.test(before)) || (after && /[A-Za-z]/.test(after))) continue;
     if (start > last) out.push({ text: s.slice(last, start), data: false });
-    out.push({ text: m[0], data: true });
+    out.push({ text: m[0], data: true, hot: isDayCount(m[0], s.slice(end)) });
     last = end;
   }
   if (!out.length) return <>{s}</>;
@@ -54,7 +70,7 @@ export function Quiet({ s, heat = null }: { s: string; heat?: Heat }) {
     <>
       {out.map((p, i) =>
         p.data
-          ? <span key={i} className={"qd" + (heat ? " qd-" + heat : "")}>{p.text}</span>
+          ? <span key={i} className={"qd" + (p.hot ? " qd-hot" : "")}>{p.text}</span>
           : <span key={i}>{p.text}</span>,
       )}
     </>

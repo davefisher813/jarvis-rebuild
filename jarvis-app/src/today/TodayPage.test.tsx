@@ -120,9 +120,11 @@ describe("TodayPage", () => {
     expect(facts).not.toHaveTextContent("Personal");
     expect(facts).not.toHaveTextContent("20 min");
     expect(facts.querySelectorAll(".fact").length).toBe(2);
-    // The chip is not a fact, so the placement keeps the sky it was always
-    // given and the line still carries exactly one coloured fact.
-    expect(facts.querySelectorAll(".fact.warn, .fact.good, .fact.sky, .fact.purp, .fact.red").length).toBe(1);
+    // NOTHING ON THIS LINE IS COLOURED (Dave 2026-09-21: "get rid of the blue
+    // subtext"). The placement used to wear .fact.sky, the last sky fact in
+    // the app; the chip carries the only tint on the row now, and it is not a
+    // fact.
+    expect(facts.querySelectorAll(".fact.warn, .fact.good, .fact.sky, .fact.purp, .fact.red").length).toBe(0);
     // BOTH FALLBACKS. Nothing due tomorrow or later gets a chip at all
     // (distanceFor's own rule, which is what keeps the chip loud), so the
     // area takes the first slot; with no placement the length takes the

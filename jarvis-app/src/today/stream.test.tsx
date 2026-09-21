@@ -207,8 +207,8 @@ describe("the quiet line", () => {
     expect(bright).toEqual(["3d", "6/17"]);
   });
 
-  it("heat lands on the data only, and only when the producer says so", () => {
-    render(<div><Quiet s="59d waiting" heat="hot" /></div>);
+  it("heat lands on the data only, and a day count is what earns it", () => {
+    render(<div><Quiet s="59d waiting" /></div>);
     expect(document.querySelector(".qd-hot")!.textContent).toBe("59d");
     expect(document.body.textContent).toContain("waiting");
   });

@@ -345,9 +345,6 @@ export default function MailNotices({
         // reply; nothing here is a fragment he has to finish.
         const thread = snap.threads.find((t) => t.id === n.threadId);
         const chips = n.kind === "reply" && canWrite ? quickAnswers(thread?.replies) : [];
-        // The wait's own thresholds put heat on the age: the same rungs the
-        // Email tab's ladder always used.
-        const days = snap.waiting.find((w) => w.threadId === n.threadId)?.days ?? 0;
         return (
           <NoticeCard
             key={n.key}
@@ -370,7 +367,6 @@ export default function MailNotices({
             tone={n.tone}
             title={n.title}
             sub={draft ? undefined : n.sub}
-            heat={n.kind === "nudge" ? (days >= 21 ? "hot" : days >= 7 ? "warm" : null) : null}
             // ONE-WORD VERBS (ruled 2026-09-01, "the email row": one fixed
             // action column, one-word verbs, so the column aligns with or
             // without a chip). "Draft It" is "Draft"; Reply stays Reply.

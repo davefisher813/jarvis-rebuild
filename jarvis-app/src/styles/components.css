@@ -2306,7 +2306,6 @@ button {
    face; heat only where a producer's own thresholds say so. */
 .qd { font-variant-numeric: tabular-nums;
   color: var(--tx-1); font-weight: var(--w-medium); }
-.qd-warm { color: var(--warn); }
 .qd-hot { color: var(--sys-red); }
 
 /* Undo lives in the toast, because the moment right after the action is the
@@ -5476,7 +5475,6 @@ body.selecting .voice-dock { display: none; }
    signal; weight is the ladder, and the ladder has two rungs, not three. */
 .fact.warn { color: var(--warn); }
 .fact.good { color: var(--good); }
-.fact.sky { color: var(--cat-sky); }
 .fact.purp { color: var(--cat-purple); }
 .fact.red { color: var(--accent-tx); }
 /* Category is a 7px dot in the category colour plus plain text, never

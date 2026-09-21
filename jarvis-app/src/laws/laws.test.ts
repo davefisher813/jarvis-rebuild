@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { posix } from "node:path";
 import { reachOf } from "../bigger/reach";
-import { movesLine } from "../today/goalPulse";
 import { healthOf, measureState } from "../bigger/measure";
 import { repetitionsLine, countEnactment, MIN_TO_SHOW } from "../tasks/automaticity";
 import { readiness } from "../brain/readiness";
@@ -1728,17 +1727,6 @@ describe("LAW: stored shapes are versioned", () => {
     expect(drop.indexOf("decisionsSvc.create")).toBeLessThan(drop.indexOf("dropped: {"));
   });
 
-  // PICK 31, LINEAGE ONLY WHEN IT MATTERS (Dave 2026-08-22). "Moves Ship the
-  // App Store Launch" under a task called "Ship the App Store Launch" is
-  // furniture: it costs a line on a 390px phone, it survives truncation
-  // better than the task title does, and it says nothing the reader did not
-  // just read. Behavioural, because the property is about two strings.
-  it("a lineage line never repeats the task it sits under", () => {
-    expect(movesLine("Ship the App Store Launch", "Ship the App Store Launch today")).toBeNull();
-    expect(movesLine("Ship the App Store Launch", "Draft the Coach Onboarding Email"))
-      .toBe("Moves Ship the App Store Launch");
-  });
-
   // PICK 29 (Dave 2026-08-22, filed under "Remove: pays for the rest"). The
   // Noticed whisper is off Today for good. It was not deleted: the same offer
   // lives on What JARVIS Knows, which is the page about what JARVIS noticed.
@@ -1767,21 +1755,25 @@ describe("LAW: stored shapes are versioned", () => {
   // once. It has already survived one rebase; this is so the next one is not
   // a matter of luck. Verified end to end against the demo on 2026-08-24:
   // "About 45 min · Moves Weekly date night".
-  // AMENDED (C-24, Astra, 2026-09-12). The Now card no longer deals a task
-  // at all: two surfaces on one screen each offering "the thing to do next",
-  // chosen by different derivations, was the repetition this page keeps
-  // having to remove. The RULING survives and moves with the offer, which is
-  // the only reason this amendment is allowed: the surface that offers a
-  // task still has to say what the task is for. That is the headliner now,
-  // and the same movesLine derivation feeds it.
-  it("the offer still says what its task moves", () => {
+  // AMENDED (C-24, Astra, 2026-09-12): the offer moved from the Now card to
+  // the headliner, and the ruling moved with it.
+  //
+  // REPEALED ON THE HEADLINER (Dave 2026-09-21, on a photograph of it: "get
+  // rid of the blue subtext in pic 1 idk what that is or why it's there").
+  // The line was "Moves <goal>" in .fact.sky, the only sky-coloured fact left
+  // in the app, on the one row whose job is to say what to do NEXT. He could
+  // not read it and did not want it. What survives is the half of the ruling
+  // that was never about that row: a surface that LISTS tasks to plan a day
+  // still says what each one is for, in plain ink, which is PlanDaySheet.
+  it("the planner still says what a task moves, and the headliner does not", () => {
+    const sheet = read(SRC + "/schedule/screens/PlanDaySheet.tsx");
+    expect(sheet, "the planner keeps the lineage line").toMatch(/movesLine\(t\.goal, t\.text\)/);
     const src = read(SRC + "/today/TodayFlow.tsx");
-    expect(src, "movesLine must be derived for the headliner").toMatch(/movesLine\(goalTitleForTask\(goalIdx, moveTask\)/);
     expect(src, "and the Now card must not deal a second task").not.toMatch(/\{gapMoves \?\? "Fits this gap"\}/);
-    // It reaches him on the card's own facts line now. The Why sheet that
-    // used to hold the whole list is gone (2026-09-16), so this is the only
-    // place the goal a task moves is said, and it must not go quiet.
-    expect(src, "the line must reach the headliner").toMatch(/moveReason=\{movePlacement \?\? moveMoves\}/);
+    expect(src, "the headliner's reason slot is the placement alone").toMatch(/moveReason=\{movePlacement\}/);
+    expect(src, "and nothing derives a lineage line for it any more").not.toMatch(/movesLine\(goalTitleForTask/);
+    const hl = read(SRC + "/today/MoveHeadliner.tsx");
+    expect(hl, "no sky ink on the headliner").not.toMatch(/fact sky/);
   });
 
   // A GOAL'S LINE IS DERIVED ONCE. Two passes over the same data drift: the

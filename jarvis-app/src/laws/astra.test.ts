@@ -56,9 +56,13 @@ export const STATE_WORDS = [
 
 describe("ASTRA: the primitives exist under the harness's own names", () => {
   it("components.css draws .facts, .fact variants, .row-star, .why and .dring", () => {
-    for (const sel of [".facts {", ".fact + .fact::before", ".fact.warn", ".fact.good", ".fact.sky", ".fact.purp", ".fact.red", ".fact.cat", ".fact.st", ".row-star {", ".row-star.on", ".why {", ".dring {"]) {
+    // .fact.sky went on 2026-09-21 with the headliner's lineage line, its
+    // only user (Dave: "get rid of the blue subtext"). A variant nothing
+    // renders is a colour waiting to be reached for by accident.
+    for (const sel of [".facts {", ".fact + .fact::before", ".fact.warn", ".fact.good", ".fact.purp", ".fact.red", ".fact.cat", ".fact.st", ".row-star {", ".row-star.on", ".why {", ".dring {"]) {
       expect(CSS, sel + " is missing").toContain(sel);
     }
+    expect(CSS, "and the one that lost its last user is gone").not.toContain(".fact.sky");
   });
 
   it("the state word is small caps from CSS, never a filled pill", () => {

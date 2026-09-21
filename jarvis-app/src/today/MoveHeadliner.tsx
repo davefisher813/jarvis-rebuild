@@ -44,7 +44,7 @@ export interface MoveFacts {
   category?: { name: string; slot: string } | null;
   /** "20m", from the task's own estimate or its area's usual. */
   estimate?: string | null;
-  /** One reason fragment, sky: why THIS one, now. "Fits before Deep Work". */
+  /** One reason fragment: why THIS one, now. "Fits before Deep Work". */
   reason?: string | null;
   /** The state of the block it would land in, when it has a home. */
   state?: StateWord | null;
@@ -184,8 +184,8 @@ export default function MoveHeadliner({
               <div className="conn-meta facts">
                 {/* At most one coloured FACT per line is the law (K.3,
                     extended in laws/astra.test.ts). The chip is not a fact and
-                    carries its own tint by rule, so the reason keeps the sky
-                    it was always given. */}
+                    carries its own tint by rule; nothing else on this line is
+                    coloured at all. */}
                 {facts.urgency ? (
                   <span className="fact">
                     <span className={"uchip " + (facts.urgency.kind === "late" ? "u-late" : "u-today")}>{facts.urgency.label}</span>
@@ -193,8 +193,16 @@ export default function MoveHeadliner({
                 ) : facts.category ? (
                   <span className="fact cat"><span className={"cd cat-bg-" + facts.category.slot} />{facts.category.name}</span>
                 ) : null}
+                {/* NO SECOND COLOUR ON THIS LINE (Dave 2026-09-21: "get rid
+                    of the blue subtext in pic 1 idk what that is or why it's
+                    there"). It was .fact.sky -- the only sky-coloured fact
+                    left in the app -- and what it printed was usually "Moves
+                    <goal>", lineage the title cannot say and the reader
+                    cannot use. The placement fact ("Fits before Deep Work")
+                    is real and stays, in the same ink as every other fact on
+                    every other row. */}
                 {facts.reason
-                  ? <span className="fact sky">{facts.reason}</span>
+                  ? <span className="fact">{facts.reason}</span>
                   : facts.estimate ? <span className="fact">{facts.estimate}</span> : null}
               </div>
             </div>

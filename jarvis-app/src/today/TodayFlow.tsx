@@ -56,7 +56,7 @@ import { inheritFromThread } from "../messages/threadTasks";
 import { endOfAct, type MailAct } from "../messages/mailAct";
 import { dayPhrase } from "../money/bills";
 import { rankProjects, closable, projectPace, projectProgress } from "../bigger/progress";
-import { movesCount, movesLine, goalsMovedToday, movedLine, untouchedGoal, untouchedLine, openWorkOf, dismissGoalNudge } from "./goalPulse";
+import { movesCount, goalsMovedToday, movedLine, untouchedGoal, untouchedLine, openWorkOf, dismissGoalNudge } from "./goalPulse";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
@@ -2304,15 +2304,12 @@ export default function TodayFlow({
   const movePlacement = moveTask && gapPick?.id === moveTask.id && nowCtx.nextTitle
     ? `Fits before ${nowCtx.nextTitle}`
     : null;
-  // WHAT IT MOVES, ON THE CARD (2026-09-16). This line used to reach him only
-  // by opening the Why sheet, so when the sheet went it would have gone with
-  // it. It is not an explanation of the ranking, which is what the sheet was
-  // and why the sheet is gone: it is a fact about his own goals, and the one
-  // fact the title cannot say. It takes the reason slot when the placement
-  // has nothing to claim, so the line never carries two.
-  const moveMoves = moveTask
-    ? movesLine(goalTitleForTask(goalIdx, moveTask), moveTask.data.text)
-    : null;
+  // WHAT IT MOVES CAME OFF THE CARD (Dave 2026-09-21: "get rid of the blue
+  // subtext in pic 1 idk what that is or why it's there"). It was "Moves
+  // <goal>" in the reason slot, in sky, and it was the thing he photographed.
+  // It is lineage: true, derived, and unreadable on a row whose job is to say
+  // what to do next. The slot now carries the placement when there is one and
+  // the estimate when there is not, both in the row's own ink.
 
   // Approved V2 anatomy (preview 2026-08-15): the free window reads as two
   // stat tiles (sky until, green open); inside an event the event tile leads;
@@ -2926,7 +2923,6 @@ export default function TodayFlow({
         tone="cat-fg-orange"
         title={sweepCand.text}
         sub={`Slid ${sweepCand.slips}d`}
-        heat="warm"
         // 2026-09-15: THE DIAGNOSIS CARRIES ITS OWN REMEDY (Dave: "if they're
         // not going to give real, real value, then we have to adjust them or
         // get rid of some of them").
@@ -3782,7 +3778,7 @@ export default function TodayFlow({
       upNextReason={upNextAll[0] ? reasonFor(upNextAll[0], today, inPeakNow) : null}
       moveCategory={moveCategory}
       moveEstimate={moveEstimate}
-      moveReason={movePlacement ?? moveMoves}
+      moveReason={movePlacement}
       onTomorrowMove={moveTask ? () => void moveToTomorrow(moveTask) : undefined}
       fifteen={liveFifteenFace}
       onFifteenDone={() => void fifteenDone()}

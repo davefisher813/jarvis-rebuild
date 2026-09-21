@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSwipe } from "../shared/useSwipe";
 import { useLongPress } from "../shared/useLongPress";
 import { haptics } from "../shared/haptics";
-import { Quiet, type Heat } from "./quiet";
+import { Quiet } from "./quiet";
 
 // THE NOTICE LAW (A1, 2026-08-20), extended by FORM FOLLOWS DECISION
 // (Law 3E, approved 2026-08-22).
@@ -58,7 +58,6 @@ export default function NoticeCard({
   tone,
   title,
   sub,
-  heat = null,
   action,
   alt,
   onDismiss,
@@ -88,8 +87,6 @@ export default function NoticeCard({
   tone?: string;
   title: ReactNode;
   sub?: ReactNode;
-  // Heat on the sub's data, when the producer's own thresholds say so.
-  heat?: Heat;
   // The one visible control. Omit it and the row opens (chevron) instead.
   action?: NoticeAction;
   // The second path: a capsule beside the primary on a headliner, on the
@@ -259,7 +256,7 @@ export default function NoticeCard({
   const [tuneOpen, setTuneOpen] = useState(false);
   const hold = useLongPress({ onLongPress: () => { haptics.selection(); setTuneOpen(true); }, enabled: !!onTune && !!automation });
 
-  const subNode = sub != null && (typeof sub === "string" ? <Quiet s={sub} heat={heat} /> : sub);
+  const subNode = sub != null && (typeof sub === "string" ? <Quiet s={sub} /> : sub);
 
   // TWO VERBS, ONE LINE (2026-09-12): an expanded row with an alt puts both
   // its verbs on the line under the text, and the trailing slot goes empty.
