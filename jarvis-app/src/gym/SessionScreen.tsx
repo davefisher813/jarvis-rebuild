@@ -14,6 +14,7 @@ import { readHealthSettings } from "../health/settings";
 import { rampFor } from "./ramp";
 import { suggestFor, type Suggestion } from "./progression";
 import { groupLabels, fillerFor, nextInGroup, groupOf, roundRestFor } from "./groups";
+import { withLiveGroups } from "./liveGroups";
 import type { LibraryEntry } from "./library";
 import { newExerciseKey } from "./library";
 import SetStrip from "./SetStrip";
@@ -368,14 +369,18 @@ export default function SessionScreen({
   // UP-ATH-17 (2026-09-06): a group, not a pair. Two members behave exactly
   // as they did; three or more finally can exist. `partner` is the next
   // member in day order, which for a pair is the same exercise it always was.
-  const labels = groupLabels(dayExercises);
+  // TODAY'S OWN PAIRS, LAID OVER THE DAY (2026-09-21). Every group question
+  // below is asked of the day's exercises, so a superset made for this
+  // session only has to change exactly one thing: the list they are asked of.
+  const dayEx = withLiveGroups(dayExercises, live.groups);
+  const labels = groupLabels(dayEx);
   const pairLabel = labels.get(exercise.id);
-  const members = groupOf(exercise, dayExercises).filter((e) => !e.filler);
+  const members = groupOf(exercise, dayEx).filter((e) => !e.filler);
   const here = members.findIndex((e) => e.id === exercise.id);
   const partner = members.length > 1 && here >= 0 ? members[(here + 1) % members.length] : undefined;
   const partnerLabel = partner ? labels.get(partner.id) : undefined;
   const partnerLiveIdx = partner ? live.exercises.findIndex((e) => e.exerciseId === partner.id) : -1;
-  const filler = fillerFor(exercise, dayExercises);
+  const filler = fillerFor(exercise, dayEx);
   const fillerLiveIdx = filler ? live.exercises.findIndex((e) => e.exerciseId === filler.id) : -1;
 
   // D5-C: the rest-cut lever shortens every stated rest toward the floor,
@@ -393,10 +398,10 @@ export default function SessionScreen({
   // resting after every set, exactly as before.
   const startRest = () => {
     if (exercise.kind === "done") return;
-    const roundRest = roundRestFor(exercise, dayExercises);
+    const roundRest = roundRestFor(exercise, dayEx);
     if (roundRest > 0) {
       const after = { ...loggedByExerciseId, [exercise.id]: (loggedByExerciseId[exercise.id] ?? 0) + 1 };
-      if (nextInGroup(exercise, dayExercises, after)) return;
+      if (nextInGroup(exercise, dayEx, after)) return;
       const eff = live.restCut ? Math.max(REST_FLOOR_SEC, roundRest - 30) : roundRest;
       onFit({ restEndsAt: Date.now() + eff * 1000 });
       return;
@@ -442,7 +447,7 @@ export default function SessionScreen({
   for (const e of live.exercises) {
     loggedByExerciseId[e.exerciseId] = e.sets.filter((x) => !x.warmup && !x.skipped && !x.drop).length;
   }
-  const pairNextId = nextInGroup(exercise, dayExercises, loggedByExerciseId);
+  const pairNextId = nextInGroup(exercise, dayEx, loggedByExerciseId);
   const pairNext = pairNextId ? dayExercises.find((e) => e.id === pairNextId) : undefined;
   const pairNextLiveIdx = pairNext ? live.exercises.findIndex((e) => e.exerciseId === pairNext.id) : -1;
 

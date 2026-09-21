@@ -6,6 +6,7 @@ import { todayISO } from "../tasks/grouping";
 import { monthDay, dayPhrase } from "../money/bills";
 import { agoPhrase, agoPhraseLower, workoutMinutes } from "./summary";
 import { durationOf } from "../insights/analytics";
+import { groupForToday } from "./liveGroups";
 import { setSessionOpen } from "./sessionChrome";
 import { readHealthSettings } from "../health/settings";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
@@ -558,6 +559,10 @@ type Picker =
   | { kind: "moveExerciseToDay"; weekId: string; dayId: string; exId: string }
   | { kind: "copyExerciseToDays"; weekId: string; dayId: string; exId: string }
   | { kind: "groupWith"; weekId: string; dayId: string; exId: string }
+  /** SUPERSET WITH..., from inside a live session (Dave, 2026-09-21, picking
+   *  "ask me each time"). The same picker as Group With, and then a choice
+   *  the program editor never has to make: this workout only, or every one. */
+  | { kind: "supersetWith"; weekId: string; dayId: string; exId: string }
   | { kind: "moveDayProgram"; weekId: string; day: ProgramDay }
   | { kind: "moveDayWeek"; targetProgramId: string; day: ProgramDay }
   | { kind: "pinDays"; weekId: string; day: ProgramDay };
@@ -917,6 +922,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<RowMenu | null>(null);
   const [picker, setPicker] = useState<Picker | null>(null);
+  /** Partners chosen for a superset, waiting on the one question the program
+   *  editor never has to answer: this workout, or every one. */
+  const [supersetPick, setSupersetPick] = useState<{ weekId: string; dayId: string; exId: string; ids: string[] } | null>(null);
   const [backdateDay, setBackdateDay] = useState<ProgramDay | null>(null);
   // UP-ATH-02 (2026-09-06): the start time rides along now, so the fact can
   // be stated the way an athlete says it ("Game Saturday 6 PM") instead of as
@@ -2407,7 +2415,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           const w = day ? program?.data.weeks.find((x) => x.days.some((d) => d.id === day.id)) : undefined;
           if (!w || !day) return {};
           return {
-            onSuperset: () => setPicker({ kind: "groupWith", weekId: w.id, dayId: day.id, exId: exercise.id }),
+            onSuperset: () => setPicker({ kind: "supersetWith", weekId: w.id, dayId: day.id, exId: exercise.id }),
           };
         })()}
         // THREE PLACES, NOT ONE (Dave 2026-09-17: "it doesn't save... doesn't
@@ -2462,6 +2470,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           onClose={() => setAdjustOpen(false)}
         />
       )}
+      {/* THE SESSION RENDERS ITS OWN PICKERS (2026-09-21). This branch
+          returns early, before the shell that carries pickerEl() everywhere
+          else, so Superset With... opened a picker that had nowhere to be
+          drawn -- the button worked, the state was set, and nothing appeared.
+          Caught by driving it, not by a type or a test. */}
+      {pickerEl()}
+      {supersetChoiceEl()}
       </>
     );
   }
@@ -2807,6 +2822,45 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     );
   }
 
+  /** THE ONE QUESTION THE PROGRAM EDITOR NEVER HAS TO ANSWER (Dave,
+   *  2026-09-21, picking "ask me each time"): a superset made at the rack is
+   *  sometimes the way you train this lift and sometimes the way you got
+   *  round a busy machine. Both answers are real now -- the program keeps
+   *  pairs for every session, live.groups keeps one for this one -- so the
+   *  choice is asked rather than assumed, which is what the Add Exercise
+   *  sheet's "also on the day" switch has always done for the same reason. */
+  function supersetChoiceEl() {
+    if (!supersetPick) return null;
+    const pick = supersetPick;
+    const day = program?.data.weeks.find((w) => w.id === pick.weekId)?.days.find((d) => d.id === pick.dayId);
+    const names = (day?.exercises ?? []).filter((e) => pick.ids.includes(e.id) || e.id === pick.exId).map((e) => e.name);
+    return (
+      <ActionSheet
+        title={names.join(" + ")}
+        onClose={() => setSupersetPick(null)}
+        actions={[
+          {
+            label: "Just This Workout",
+            onClick: () => {
+              setSupersetPick(null);
+              const before = readLive()?.groups;
+              patchLive((l) => ({ ...l, groups: groupForToday(l.groups, [pick.exId, ...pick.ids], () => nid("g")) }));
+              showToast({
+                message: "Supersetted for today",
+                actionLabel: "Undo",
+                onAction: () => patchLive((l) => ({ ...l, groups: before })),
+              });
+            },
+          },
+          {
+            label: "Every " + workoutTitle(day?.name ?? "Session"),
+            onClick: () => { setSupersetPick(null); void groupAction(pick.weekId, pick.dayId, pick.exId, pick.ids); },
+          },
+        ]}
+      />
+    );
+  }
+
   function pickerEl() {
     if (!picker) return null;
     if (picker.kind === "moveExerciseToDay" || picker.kind === "copyExerciseToDays") {
@@ -2839,6 +2893,22 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           multi
           confirmLabel={(n) => (n === 0 ? "Pick at Least One" : n === 1 ? "Make a Pair" : capAfterNumber("Group These " + (n + 1)))}
           onPick={(ids) => { setPicker(null); void groupAction(picker.weekId, picker.dayId, picker.exId, ids); }}
+          onCancel={() => setPicker(null)}
+        />
+      );
+    }
+    if (picker.kind === "supersetWith") {
+      // The same list the program editor offers, off the same day.
+      const week = program?.data.weeks.find((w) => w.id === picker.weekId);
+      const day = week?.days.find((d) => d.id === picker.dayId);
+      const items: PickItem[] = (day?.exercises ?? []).filter((e) => e.id !== picker.exId).map((e) => ({ id: e.id, label: e.name }));
+      return (
+        <PickSheet
+          title="Superset With"
+          items={items}
+          multi
+          confirmLabel={(n) => (n === 0 ? "Pick at Least One" : n === 1 ? "Superset These Two" : capAfterNumber("Superset These " + (n + 1)))}
+          onPick={(ids) => { setPicker(null); if (ids.length) setSupersetPick({ ...picker, ids }); }}
           onCancel={() => setPicker(null)}
         />
       );
@@ -3088,6 +3158,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           {sheetEl()}
           {rowMenuEl()}
           {pickerEl()}
+          {supersetChoiceEl()}
           {fitEl()}
           {backdateEl}
           {receiptEl}
@@ -3153,6 +3224,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         {sheetEl()}
         {rowMenuEl()}
         {pickerEl()}
+        {supersetChoiceEl()}
         {fitEl()}
         {receiptEl}
       </>
@@ -3457,6 +3529,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       {sheetEl()}
       {rowMenuEl()}
       {pickerEl()}
+      {supersetChoiceEl()}
       {fitEl()}
       {doorPickEl()}
       {switcherEl}
