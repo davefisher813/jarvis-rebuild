@@ -954,16 +954,24 @@ describe("FOCUS-AUDIT: the keyboard can be followed, and what it lands on can be
     expect(app, "it sits with useSheetEscape and useLayerFocus, not somewhere new").toMatch(/useLayerFocus\(\);\s*\n\s*useFocusReveal\(\);/);
   });
 
-  it("the segmented control that scrolls says that it scrolls", () => {
-    // It shipped as "Dashboard | Transactions | Budgets | Su", the fourth
-    // label cut mid-word at the screen edge with nothing saying more existed
-    // -- word for word the bug the chip rows were fixed for on 2026-08-02, in
-    // a control that was never given the fix.
-    const seg = ruleBody(css(), ".mt-tabrow .segmented")!;
+  it("every segmented control that scrolls says so, from ONE declaration", () => {
+    // The Tracker's shipped as "Dashboard | Transactions | Budgets | Su", the
+    // fourth label cut mid-word at the screen edge with nothing saying more
+    // existed -- word for word the bug the chip rows were fixed for on
+    // 2026-08-02, in a control that was never given the fix.
+    //
+    // Then Life's did the same thing ("Areas Tasks Reminders Projects Goa")
+    // because the Tracker had been fixed BY NAME. Two scrollers, one rule:
+    // a third joins by being added to this selector, and cannot be forgotten
+    // the way Life's was.
+    const seg = ruleBody(css(), ".mt-tabrow .segmented, .life-seg .segmented")!;
+    expect(seg, "one declaration covering both").toBeTruthy();
     expect(seg, "the scroller is still a scroller").toMatch(/overflow-x:\s*auto/);
-    expect(seg, "and now it fades at the edge, as .chip-row does").toMatch(/mask-image:\s*linear-gradient/);
+    expect(seg, "and it fades at the edge, as .chip-row does").toMatch(/mask-image:\s*linear-gradient/);
     expect(seg).toMatch(/scroll-snap-type:\s*x/);
-    expect(ruleBody(css(), ".mt-tabrow .segmented .seg")).toMatch(/scroll-snap-align:\s*start/);
+    expect(ruleBody(css(), ".mt-tabrow .segmented .seg, .life-seg .segmented .seg")).toMatch(/scroll-snap-align:\s*start/);
+    // Neither may quietly grow a private copy of the rule again.
+    expect(ruleBody(css(), ".life-seg .segmented"), "no second Life-only copy").toBeNull();
     // The pattern it was copied from, so deleting one orphans the other.
     // .chip-row is declared twice (the base row at :117, the fade at :1909),
     // so take every rule whose selector IS that, not the first one.
@@ -1131,5 +1139,34 @@ describe("AUDIT COVERAGE: the crawl does not choose what counts", () => {
     const t = tool();
     expect(t).toMatch(/SCREENS VISITED/);
     expect(t).toMatch(/VISITED\.push\(name\)/);
+  });
+});
+
+// A NEW SCREEN STARTS AT ITS TOP (2026-09-21).
+//
+// Dave: "You need to VIEW the visual edits. Stop going off of code." Driving
+// the real app to a real workout is what found this, and reading the code
+// would not have: .app-scroll is ONE scroller for the whole app and it keeps
+// its scrollTop when the thing inside it is replaced. Walking down a program
+// day to reach Start left the scroller 34px down, so the live session opened
+// with its exercise dots and "1 of 7" under the sticky nav bar, half drawn,
+// on the first frame of a workout.
+//
+// Measured before and after rather than argued: .se-prog sat at y 43 with the
+// nav occupying 0 to 61; it sits at 77 now.
+describe("SCROLL RESET: a screen does not inherit the last one's position", () => {
+  it("the shell brings its scroller back to the top when the screen changes", () => {
+    const shell = read("shell/AppShell.tsx");
+    expect(shell, "the scroller is held, not queried for by class").toMatch(/const scroller = useRef<HTMLDivElement>\(null\)/);
+    expect(shell).toMatch(/<div className="app-scroll" ref=\{scroller\}>/);
+    expect(shell).toMatch(/scroller\.current\?\.scrollTo\(\{ top: 0/);
+    // The two screen changes this component can see. A live session is one of
+    // them because the gym sits four components below the shell and swaps the
+    // whole surface without the tab ever changing.
+    expect(shell).toMatch(/\}, \[active, sessionOpen\]\);/);
+  });
+
+  it("does not animate a move the person did not make", () => {
+    expect(read("shell/AppShell.tsx")).toMatch(/behavior: "instant"/);
   });
 });

@@ -5935,12 +5935,27 @@ span.row-star { cursor: default; }
    to fade. Rendered in Chromium before it was kept, as that note requires.
    Snap so a segment does not park half-visible. */
 .mt-tabrow { margin-bottom: var(--s-2); }
-.mt-tabrow .segmented { overflow-x: auto; scrollbar-width: none;
+/* EVERY SEGMENTED CONTROL THAT SCROLLS SAYS SO -- ONE RULE, NOT ONE PER PAGE
+   (2026-09-21). The Tracker's got the fade on 2026-09-21 and Life's did not,
+   and Life's is the one on a tab: "Areas Tasks Reminders Projects Goa", the
+   fifth lens hard-clipped at the screen edge with nothing saying it was
+   there. Fixing it by name would have been the third copy of a rule that has
+   already drifted twice, so the two scrollers share one declaration and a
+   third joins by being named here.
+   The reasoning is the chip rows' from 2026-08-02: a scrolling row that does
+   not admit it is a row whose last item is cut mid-word for no reason. The
+   mask reads on these because the track is solid --press-3 with white labels,
+   both plainly lighter than the page; on a chip row it did not, and that note
+   says why. */
+.mt-tabrow .segmented,
+.life-seg .segmented { overflow-x: auto; scrollbar-width: none;
   scroll-snap-type: x proximity;
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
   mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%); }
-.mt-tabrow .segmented::-webkit-scrollbar { display: none; }
-.mt-tabrow .segmented .seg { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
+.mt-tabrow .segmented::-webkit-scrollbar,
+.life-seg .segmented::-webkit-scrollbar { display: none; }
+.mt-tabrow .segmented .seg,
+.life-seg .segmented .seg { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
 
 .mt-monthnav { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
 .mt-monthname { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }

@@ -1999,13 +1999,20 @@
    glyph on its tint. Tokens and the ramp only. */
 .ruled.health-ruled .h-week-card { padding: var(--s-3h) var(--s-4) var(--s-3); }
 .ruled.health-ruled .h-week-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
-.ruled.health-ruled .h-week-main { display: flex; align-items: flex-end; gap: var(--s-4); margin-top: var(--s-2h); }
+/* THE WEEK STRIP GETS ITS OWN ROW (2026-09-21, seen on a real render).
+   It sat beside the big workout count, so seven weekdays shared about 120px
+   of a 358px card -- seventeen a day, where "Wed" needs thirty-four. The
+   labels overflowed their own columns and collided: "TueWedThu" with a gap
+   before Fri, under dots that were still evenly spaced, so no dot sat above
+   its own day. Full width, seven columns of fifty, nothing touches. */
+.ruled.health-ruled .h-week-main { display: flex; flex-direction: column; align-items: stretch;
+  gap: var(--s-3); margin-top: var(--s-2h); }
 .ruled.health-ruled .h-week-count { display: flex; align-items: baseline; gap: var(--s-2); background: none; border: 0; padding: 0;
   font-family: var(--f); color: var(--tx-1); cursor: pointer; text-align: left; }
 .ruled.health-ruled .h-week-count b { font-size: calc(44px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1;
   letter-spacing: -0.03em; color: var(--hl-lime); font-variant-numeric: tabular-nums; }
 .ruled.health-ruled .h-week-count span { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
-.ruled.health-ruled .h-bars { flex: 1; display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-1); min-width: 0; }
+.ruled.health-ruled .h-bars { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-1); min-width: 0; }
 .ruled.health-ruled .h-bar { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--s-1h);
   background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.04em; color: var(--tx-2); cursor: pointer; }
@@ -2013,6 +2020,15 @@
 .ruled.health-ruled .h-bar.on i { background: var(--hl-lime); }
 .ruled.health-ruled .h-bar.today { color: var(--tx-1); }
 .ruled.health-ruled .h-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: var(--s-3h); }
+/* THE TILES ARE THE SAME HEIGHT WHATEVER THEIR LABELS DO (2026-09-21, seen
+   on a render, after a wider third column made it worse rather than better).
+   "Sleep Not Logged" cannot fit one caption line in a third of 358px, and
+   the words are a ruling ("show a dash with Sleep not logged; never zero or
+   the large purple word None"), so the wrap is a given. What was ragged was
+   one two-line tile beside two one-line ones, with the divider rules running
+   past the short ones. Two lines of room for every label reads as a table;
+   widening one column just moved the wrap to Training Time. */
+.ruled.health-ruled .h-stat span { min-height: calc(var(--t-caption) * 2.7); }
 .ruled.health-ruled .h-stat { background: none; border: 0; border-left: 0.5px solid var(--divider); padding: var(--s-0h) var(--s-2h); text-align: left;
   font-family: var(--f); color: var(--tx-1); cursor: pointer; min-width: 0; }
 .ruled.health-ruled .h-stat:first-child { border-left: 0; padding-left: 0; }
