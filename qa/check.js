@@ -42,7 +42,11 @@ function changedFiles() {
   const out = new Set();
   const hasBase = sh('git', ['rev-parse', '--verify', '--quiet', 'origin/main']).status === 0;
   if (hasBase) {
-    for (const f of (git('diff', '--name-only', 'origin/main', '--') || '').split('\n')) if (f.trim()) out.add(f.trim());
+    // Three dots: files changed on THIS side since the branch left main.
+    // Two dots also listed files main changed that this branch lacks, and
+    // that made an untouched baselined file lose its grandfathering the
+    // moment somebody else pushed to main (found 2026-09-21).
+    for (const f of (git('diff', '--name-only', 'origin/main...HEAD', '--') || '').split('\n')) if (f.trim()) out.add(f.trim());
   }
   for (const f of (git('ls-files', '--others', '--exclude-standard') || '').split('\n')) if (f.trim()) out.add(f.trim());
   return out;
