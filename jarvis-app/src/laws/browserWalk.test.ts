@@ -1042,3 +1042,49 @@ describe("OUTSIDE-BOX: text that escapes its box is a finding, not a blind spot"
     expect(ruleBody(css(), ".dd.dd-value .dd-w")).toMatch(/max-width:\s*52vw/);
   });
 });
+
+// NOTHING HIDES A COMMITTED EVENT (Dave, 2026-09-21, on a screenshot of his
+// own Today: "I also have a job interview at 3 today and Jarvis is aware. How
+// is that not in the schedule?").
+//
+// It WAS in the schedule. It was inside "Deep Work 3:00 PM - 7:00 PM", behind
+// a collapsed disclosure that called it one of "5 tasks". Both day lists
+// nested any event wholly contained by a holding block and then filtered it
+// out of the top level, so the one appointment that could not be moved was
+// the one thing the day did not show.
+//
+// The August request that built the nesting said TASKS, on a screenshot of a
+// PROPOSAL drawn beside the block it had been planned into. Proposals still
+// nest. Events never did belong in that rule, and planDay.ts had already
+// written the opposite for the planner it feeds: "Zones are preferences, not
+// walls: events and hard blocks inside a zone still win."
+describe("NESTING: a block may hold work, never a commitment", () => {
+  it("the ruling is written once, where both surfaces read it", () => {
+    const n = read("schedule/nesting.ts");
+    expect(n).toMatch(/export const NESTABLE = \{ proposal: true, event: false \}/);
+    // The geometry stays: a proposal still has to be WHOLLY inside to nest.
+    expect(n).toMatch(/export function holderFor/);
+  });
+
+  it("neither day list nests a committed event", () => {
+    // Today and the Schedule tab had separate copies of this, which is how it
+    // came to be wrong on both. Each is checked, so fixing one and forgetting
+    // the other fails here.
+    const today = read("today/YourDay.tsx");
+    expect(today, "Today builds no held-event map").not.toMatch(/heldEv/);
+    expect(today, "and filters no event out of its own day").not.toMatch(/nested\.has\("e:"/);
+    const sched = read("schedule/screens/SchedulePage.tsx");
+    expect(sched, "the Schedule tab builds none either").not.toMatch(/heldBy/);
+    expect(sched).not.toMatch(/nestedIds/);
+    // Both still nest proposals, which is the half that was always right.
+    expect(today).toMatch(/heldProp/);
+    expect(sched).toMatch(/heldPropBy/);
+  });
+
+  it("the held count counts only what the word says", () => {
+    // The disclosure is labelled "task", so counting committed events into it
+    // is how a job interview came to be described as one of "5 tasks".
+    expect(read("today/YourDay.tsx")).toMatch(/heldCount=\{props\.length\}/);
+    expect(read("schedule/screens/SchedulePage.tsx")).toMatch(/heldCount=\{heldProps\.length\}/);
+  });
+});

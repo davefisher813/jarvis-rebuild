@@ -282,11 +282,26 @@ describe("the nesting bug", () => {
     expect(screen.getByText("Finish Jarvis Visuals")).toBeInTheDocument();
   });
 
-  it("puts a committed event placed into a focus block INSIDE it", () => {
+  // THE OTHER HALF OF THE SAME RULE, AND IT USED TO SAY THE OPPOSITE (Dave,
+  // 2026-09-21, on a screenshot of his own Today: "I also have a job
+  // interview at 3 today and Jarvis is aware. How is that not in the
+  // schedule?"). It WAS in the schedule -- inside "Deep Work 3:00 PM - 7:00
+  // PM", behind a collapsed disclosure that called it one of "5 tasks".
+  //
+  // A proposal is inside the block BECAUSE of the block: the planner put it
+  // there, and drawing it as a sibling reads as a clash that does not exist.
+  // A committed event is inside it DESPITE the block: nothing consulted the
+  // block, and drawing it inside hides a commitment behind a count. The test
+  // above still pins the first; this one now pins the second.
+  it("leaves a committed event inside a focus block as its own row, never hidden in the count", () => {
     const { container } = render(
-      <YourDay events={[ev("Standup", "13:30")]} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
+      <YourDay events={[ev("Job Interview", "15:00")]} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
     );
-    expect(container.querySelector(".block-nest")).toBeTruthy();
+    expect(screen.getByText("Job Interview")).toBeInTheDocument();
+    // Its own row in the day, not a child of the block.
+    expect(container.querySelector(".block-nest"), "an event is never nested").toBeNull();
+    expect(container.querySelector(".block-held"), "and never drawn as held work").toBeNull();
+    // The block is still there; the event did not replace it.
     expect(container.querySelectorAll(".sched-row.sched-locked").length).toBe(1);
   });
 

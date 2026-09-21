@@ -44,6 +44,37 @@ export interface HoldRange {
 
 export const holdersIn = (locked: HoldRange[]): HoldRange[] => locked.filter(isFocusRange);
 
+/** A COMMITTED EVENT IS A WALL, NOT WORK THE BLOCK PULLED IN (Dave,
+ *  2026-09-21, on a screenshot of his own Today: "I also have a job interview
+ *  at 3 today and Jarvis is aware. How is that not in the schedule?").
+ *
+ *  It was in the schedule. It was INSIDE "Deep Work 3:00 PM - 7:00 PM",
+ *  behind a collapsed disclosure that called it one of "5 tasks", because
+ *  this module nested any event wholly contained by a holding block and both
+ *  day lists then filtered it out of the top level. A job interview is not
+ *  work Deep Work pulled in. It is the reason Deep Work is not happening.
+ *
+ *  The August request that built the nesting said TASKS, on a screenshot of a
+ *  PROPOSAL drawn beside the block it had been planned into: "the tasks
+ *  should be inside deep work". That reading is still right and proposals
+ *  still nest. Applying it to committed events was the overreach, and
+ *  planDay.ts had already written the opposite rule for the planner it feeds:
+ *  "Zones are preferences, not walls: events and hard blocks inside a zone
+ *  still win."
+ *
+ *  So the two kinds of child are not the same kind of thing:
+ *
+ *    a PROPOSAL is there BECAUSE of the block -- the planner put it there,
+ *      and drawing it as a sibling reads as a clash that does not exist.
+ *    an EVENT is there DESPITE the block -- nothing consulted the block, and
+ *      drawing it inside hides a commitment behind a count.
+ *
+ *  Nothing may hide a committed event. Both day lists ask this before they
+ *  nest, so the rule cannot be true on one surface and not the other, which
+ *  is exactly how it came to be wrong on both.
+ */
+export const NESTABLE = { proposal: true, event: false } as const;
+
 // Stable within a day: two blocks cannot share a label AND a start minute.
 export const holderKey = (l: HoldRange): string => l.label + "@" + l.s;
 

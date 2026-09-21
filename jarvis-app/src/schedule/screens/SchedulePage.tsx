@@ -326,23 +326,15 @@ export default function SchedulePage({
   // O.11 extended: the top level stays in time order; a holder shows its own
   // work nested at its own times.
   const holders = locked.filter((l) => isFocusRange(l));
-  const heldBy = new Map<string, EventItem[]>();
   // C-32 (Astra, 2026-09-12): proposals nest by the same test. Today has done
   // this since 2026-08-24; the Schedule tab drew the same pick as an
   // unrelated row beside the block it was planned INTO.
   const heldPropBy = new Map<string, import("../planDay").PlanBlock[]>();
-  const nestedIds = new Set<string>();
   const nestedProps = new Set<string>();
+  // COMMITTED EVENTS DO NOT NEST (NESTABLE.event, 2026-09-21). This surface
+  // nested them first and Today copied it, so Dave's 3pm job interview was
+  // hidden inside a Deep Work block on BOTH. See the ruling in nesting.ts.
   if (mode === "day") {
-    for (const e of dayEvents) {
-      const s0 = toMin(e.data.start);
-      const e0 = e.data.end ? toMin(e.data.end) : s0 + 60;
-      const h = holders.find((l) => s0 >= l.s && e0 <= l.e);
-      if (!h) continue;
-      const key = h.label + "@" + h.s;
-      heldBy.set(key, [...(heldBy.get(key) ?? []), e]);
-      nestedIds.add(e.id);
-    }
     for (const b of proposed?.blocks ?? []) {
       const s0 = toMin(b.start);
       const e0 = toMin(b.end);
@@ -354,7 +346,7 @@ export default function SchedulePage({
     }
   }
   const entries: Entry[] = [
-    ...dayEvents.filter((e) => !nestedIds.has(e.id)).map((e): Entry => ({ kind: "event", e, s: toMin(e.data.start) })),
+    ...dayEvents.map((e): Entry => ({ kind: "event", e, s: toMin(e.data.start) })),
     ...locked.map((l): Entry => ({ kind: "locked", l, s: l.s })),
     // B4 (2026-08-23): NOT mode-gated, for the same reason the proposals
     // above it are not. This day list renders under the week and month grids
@@ -377,7 +369,6 @@ export default function SchedulePage({
   const nextRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (mode === "day" && isToday && entries.length > 5) nextRef.current?.scrollIntoView({ block: "center" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, selected, loading]);
 
   // THE COUNT LINE (Schedule handoff §4.3, ruled 2026-09-01): what is on
@@ -793,7 +784,6 @@ export default function SchedulePage({
                 onDrop={() => proposed!.onDrop(en.b.taskId)}
               />
             ) : en.kind === "locked" ? (() => {
-              const held = heldBy.get(en.l.label + "@" + en.l.s) ?? [];
               const heldProps = heldPropBy.get(en.l.label + "@" + en.l.s) ?? [];
               const id = en.l.id;
               return (
@@ -803,7 +793,7 @@ export default function SchedulePage({
                 past={isToday && en.l.e <= nowMin}
                 state={stateForBlock(en.l)}
                 onOpen={id && onOpenBlock ? () => onOpenBlock(id) : () => onEditRoutine?.(id)}
-                heldCount={held.length + heldProps.length}
+                heldCount={heldProps.length}
                 onFillBlock={onFillBlock ? () => onFillBlock(en.l.s, en.l.e) : undefined}
                 onShift={onShiftBlock && id ? (m) => onShiftBlock(id, m) : undefined}
                 onRetime={onRetimeBlock && id ? (s) => onRetimeBlock(id, s) : undefined}
@@ -811,22 +801,8 @@ export default function SchedulePage({
                 onDelete={onDeleteBlock && id ? () => onDeleteBlock(id) : undefined}
               >
                 {/* The work this block is holding, at its own times. */}
-                {(held.length > 0 || heldProps.length > 0) && (
+                {heldProps.length > 0 && (
                   <div className="block-nest">
-                    {held.map((h) => (
-                      <div
-                        className="block-held"
-                        key={h.id}
-                        {...pressable(() => onOpenEvent?.(h.id, h.data.date))}
-                        /* the pointer path keeps its own stopPropagation: this
-                           block sits inside a row that opens the routine. */
-                        onClick={(ev) => { ev.stopPropagation(); onOpenEvent?.(h.id, h.data.date); }}
-                      >
-                        <span className={"cat-dot cat-bg-" + catColor(h.data.category)} />
-                        <span className="block-held-t truncate">{h.data.title}</span>
-                        <span className="block-held-u">{fmtTime(h.data.start).time}{h.data.end ? "\u2013" + fmtTime(h.data.end).time : ""}</span>
-                      </div>
-                    ))}
                     {/* C-32 (Astra, 2026-09-12): a proposed pick that lands
                         inside a holder nests here, the way it already does on
                         Today, with its own Accept. The hollow dot is the
