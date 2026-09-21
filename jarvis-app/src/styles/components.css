@@ -891,7 +891,14 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .late-chips { padding-bottom: var(--s-2); }
 .plan-cta.late-armed { background: var(--press-5); }
 .search-top { display: flex; align-items: center; gap: var(--s-3); padding: calc(var(--safe-top) + var(--s-3)) var(--s-4) var(--s-3); }
-.search-top .search-bar { flex: 1; }
+.search-top .search-bar { flex: 1; min-width: 0; }
+/* min-width:0 on both, 2026-09-21. At --type-scale 1.4 the input's intrinsic
+   width (its 20-character default sizing at the inflated type) refused to
+   shrink, the bar grew past the row, and Cancel was pushed to x=468 on a
+   390px screen -- off the edge, untappable, and taking the headings under it
+   with it. A flex child defaults to min-width:auto; the search field has to
+   be allowed to get narrower than its text. */
+.search-top .search-bar input { min-width: 0; }
 .search-top .search-bar .ic { width: 18px; height: 18px; color: var(--tx-3); flex-shrink: 0; }
 .search-cancel { background: 0; border: 0; color: var(--tint); font-weight: var(--w-medium); font-size: var(--t-h3); font-family: var(--f); flex-shrink: 0; }
 .search-results { flex: 1; min-height: 0; overflow-y: auto; }
@@ -2599,8 +2606,17 @@ button {
 .lib-row .lib-ico { width: 30px; display: flex; justify-content: center; flex-shrink: 0; }
 :where(.lib-ico) { color: var(--accent-glyph); }
 .lib-row .lib-ico .ic { width: 25px; height: 25px; }
+/* TWO LINES, FOR THE SAME REASON .pagehead-title GOT THEM (2026-09-21, and
+   on the same string: BROWSER-F-06 took the big page title off the no-wrap
+   law because "What JARVIS Knows" did not fit it. At --type-scale 1.4 the
+   NAV ROW that opens that page does not fit it either -- 312px of name in a
+   261px column once the disc and the chevron are paid for. Every .lib-name
+   is a page this app named; a page whose name does not fit is a two-line
+   name. Clamped at two so a long one still ends in an ellipsis rather than
+   growing the list, and at --type-scale 1 nothing here wraps at all. */
 .lib-name { flex: 1; font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-1); min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; text-overflow: clip; white-space: normal; }
 .lib-ico-neutral { color: var(--tx-2); }
 /* ICON LAW (2026-08-22): a category in a nav list is a filled color disc
    with a white glyph -- the same fill weight as the brand rows beside it,
@@ -2820,7 +2836,12 @@ button {
 @media (prefers-reduced-motion: reduce) { .promo-card { animation: none; } }
 
 /* THE NO-WRAP LAW: titles ellipsize, never wrap. Subs clamp at two lines. */
-.conn-name, .lib-name, .sched-title, .task-title, .restore-title, .tip-title,
+/* .lib-name came OFF this roster on 2026-09-21, for the reason .pagehead-title
+   came off it on 2026-09-05 and on the same string: at --type-scale 1.4 the
+   nav row for "What JARVIS Knows" clipped the page's own name. Its two-line
+   rule is at :2609 and this roster was overriding it from further down the
+   file at equal specificity. */
+.conn-name, .sched-title, .task-title, .restore-title, .tip-title,
 .sh2 .t, .empty-title, .msg-name, .proj-title, .pagebar-title {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* THE THREE STEPS ARE THE APP'S OWN SENTENCE, AND ONE OF THEM DID NOT FIT
@@ -3603,8 +3624,17 @@ button {
 .stream-grouped .stream-card > .task-row { background: var(--surface-1); }
 /* The uniform two-line box stands down: one line, the row's own 44px floor. */
 .stream-grouped .notice-card-row.notice-card-uniform { min-height: 0; }
+/* DYNAMIC TYPE AT 1.4 (2026-09-21). The stand-down to one line was measured
+   at --type-scale 1, where every solo title in this band fits. At 1.4, the
+   phone's largest step and one this app supports, "Add Daily Weather" loses
+   a quarter of itself to a 100px action column that does not shrink. The
+   band gets the same two-line box the card has outside it: nothing wraps at
+   1, so the row is unchanged at the default, and the title keeps its words
+   when the type grows. This is the no-wrap law's own exception -- app copy
+   that does not fit is a title that needs a second line. */
 .stream-grouped .notice-card-row.notice-card-solo .conn-name {
-  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  white-space: normal; overflow: hidden; text-overflow: clip; }
 /* One icon COLUMN for the whole group: the 30px disc rides centered in the
    same 44px slot the task check-tap owns, so every fact starts at the same
    x whether its row is a task or a notice. */
@@ -5127,7 +5157,15 @@ body.selecting .voice-dock { display: none; }
 .xs .sheet-form > .grp.xs-grp:first-child { padding-top: var(--s-1); }
 .xs .card.xs-group { margin-bottom: 0; }
 .xs .row.xs-row { min-height: 48px; padding-top: var(--s-2); padding-bottom: var(--s-2); }
-.xs .row.xs-row > .conn-name { flex: 1; min-width: 0; }
+/* THE LABEL IS THE FIXED SIDE, THE VALUE IS THE VARIABLE ONE (2026-09-21,
+   Dynamic Type at 1.4). With flex:1 (basis 0) the label took only the space
+   the value left over, so at 1.4 "Appears" shipped as "App..." in 52px and
+   "Next Due" as "Next D..." -- two labels this app wrote, of known length,
+   losing half of themselves to a value of unknown length that had a perfectly
+   good ellipsis of its own. Basis auto and no shrink: the label states itself
+   whole, and .dd-w / .xs-input yield, which is what they are already built to
+   do. Nothing moves at --type-scale 1, where both already fit. */
+.xs .row.xs-row > .conn-name { flex: 0 0 auto; min-width: 0; }
 .xs .row.xs-row .row-grow .conn-meta { margin-top: var(--s-0h); }
 /* The row that IS an input: no box inside a box, the field is the row. */
 .xs .xs-input { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none;
@@ -5450,6 +5488,16 @@ body.selecting .voice-dock { display: none; }
 .facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .facts > .fact { flex-shrink: 0; }
 .facts > .fact:last-child { flex-shrink: 1; }
+/* THE ONE-LINE RULE IS A LIST RULE, AND THIS IS NOT A LIST (2026-09-21).
+   "Three facts, one line" exists so a busy ROW does not grow a third line
+   and leave the list ragged. The focus card is one card on an otherwise
+   empty screen with nothing under it to go ragged, and at --type-scale 1.4
+   its reason shipped as "No deadline * your focus pe..." -- the sentence the
+   card exists to give. It wraps inside its own column, so the separator
+   before it stays where it belongs instead of dangling at the head of a
+   wrapped line. At --type-scale 1 it is one line, as before. */
+.focus-card .facts { align-items: flex-start; }
+.focus-card .facts > .fact:last-child { white-space: normal; overflow: visible; text-overflow: clip; }
 
 /* THE LEAD CHIP IS REVERTED (2026-09-18, same day, on Dave's screenshots).
    "I would prefer one chip if there's two facts" was implemented as: the

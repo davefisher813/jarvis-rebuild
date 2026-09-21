@@ -667,11 +667,14 @@ async function closeSheet(page, reopen) {
 // SHEETS=0 is there for chasing one screen finding; a REPORT without them is
 // a screens-only report and says so at the bottom.
 const SHEETS = process.env.SHEETS !== "0";
+// The phone's text size as a multiplier; 1.4 is the top of this app's clamp.
+const TYPE_SCALE = Number(process.env.TYPE_SCALE || 1);
 
 const MATRIX = process.env.VW
   // An explicit VW/VH/THEME still runs exactly one pass, for chasing one
   // finding without waiting for the whole sweep.
-  ? [{ w: Number(process.env.VW), h: Number(process.env.VH || 844), theme: process.env.THEME || "dark" }]
+  ? [{ w: Number(process.env.VW), h: Number(process.env.VH || 844), theme: process.env.THEME || "dark",
+       scale: TYPE_SCALE }]
   // 320 IS NOT A SUPPORTED WIDTH (Dave, 2026-09-20, asked directly and
   // answered directly). The sheet-aware run found 18 distinct findings in the
   // whole app and SEVEN of them existed only at 320 and nowhere else: every
@@ -682,19 +685,32 @@ const MATRIX = process.env.VW
   // This is a decision, not an oversight, so the passes go rather than the
   // findings being triaged away one at a time for ever. 390 is the phone he
   // holds; 430 and 834 keep the app honest as a web app at other sizes.
-  : [
-    { w: 390, h: 844, theme: "dark" },   // the phone Dave holds
-    { w: 430, h: 932, theme: "dark" },   // Pro Max
-    { w: 834, h: 1112, theme: "dark" },  // tablet / a desktop browser window
-    { w: 390, h: 844, theme: "light" },
-    { w: 430, h: 932, theme: "light" },
-    { w: 834, h: 1112, theme: "light" },
-  ];
+  //
+  // AND EVERY SIZE RUNS TWICE (2026-09-21). Dropping 320 was right and it also
+  // hid something: larger text in a fixed width is the same arithmetic as
+  // fixed text in a narrower one, so SIX of the seven findings that "only
+  // existed at 320" came straight back the first time the app was measured at
+  // --type-scale 1.4. That is not a phone nobody here uses. It is Dave's own
+  // phone with its text size turned up, the app reads it (appearance/
+  // textZoom.ts clamps 1.0 to 1.4) and Settings offers it, so 1.4 is a
+  // SUPPORTED configuration in a way 320 never was.
+  //
+  // 834 at 1.4 found nothing on the run that added it, and it stays anyway:
+  // "this pass is unlikely to find anything" is the exact reasoning that kept
+  // those six findings invisible for a month.
+  : [1, 1.4].flatMap((scale) => [
+    { w: 390, h: 844, theme: "dark", scale },   // the phone Dave holds
+    { w: 430, h: 932, theme: "dark", scale },   // Pro Max
+    { w: 834, h: 1112, theme: "dark", scale },  // tablet / a desktop browser window
+    { w: 390, h: 844, theme: "light", scale },
+    { w: 430, h: 932, theme: "light", scale },
+    { w: 834, h: 1112, theme: "light", scale },
+  ]);
 
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 
-async function runPass({ w, h, theme }) {
-  const label = `${w}x${h} ${theme}`;
+async function runPass({ w, h, theme, scale = 1 }) {
+  const label = `${w}x${h} ${theme}` + (scale === 1 ? "" : ` @${scale}x type`);
   const ctx = await b.newContext({
     viewport: { width: w, height: h },
     deviceScaleFactor: 2,
@@ -724,6 +740,16 @@ async function runPass({ w, h, theme }) {
     // happens to be", which is not a thing to build a report on.
     await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
     await page.waitForTimeout(600);
+    // DYNAMIC TYPE (2026-09-21). This app has a real one: --type-scale is
+    // clamped 1.0 to 1.4, read from the phone's own text size, and every
+    // named type token multiplies by it. What it has never had is a pass at
+    // the top of that range, so nothing knew what 1.4 breaks. Every size in
+    // the matrix now runs twice, at 1 and at 1.4; TYPE_SCALE=1.4 alongside an
+    // explicit VW pins the scale for a single chase pass.
+    if (scale !== 1) {
+      await page.evaluate((n) => document.documentElement.style.setProperty("--type-scale", String(n)), scale);
+      await page.waitForTimeout(500);
+    }
 
     const TABS = ["Today", "Tasks", "Schedule", "More"];
     for (const t of TABS) {

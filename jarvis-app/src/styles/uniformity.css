@@ -55,12 +55,24 @@
 
 /* G8.  Voice affordance bar (added v1.3). Placement on Today is PROVISIONAL
    pending Dave (open item G2, RULE 17). Tokens only; no new token. */
-.voice-bar { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3) var(--s-2) var(--s-2);
+.voice-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3);
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-2);
   background: var(--surface-3); border-radius: var(--r-pill); }
 .voice-mic { width: 36px; height: 36px; border-radius: var(--r-circle); background: var(--accent-fill);
   color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.voice-name { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1); }
-.voice-hint { font-size: var(--t-meta); color: var(--tx-3); margin-left: auto; }
+.voice-name { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1); flex-shrink: 0; }
+/* THE HINT TAKES A SECOND LINE RATHER THAN LOSING HALF ITS WORDS (2026-09-21,
+   Dynamic Type at 1.4). It had no min-width and no nowrap, so it wrapped to
+   two lines AND painted past the pill's right edge, across the wordmark, on
+   the one piece of chrome that is on every tab.
+   An ellipsis was tried first and was worse, measurably: the auditor read
+   "Add anything" losing 48 percent on ten screens, which is a two-word
+   sentence shipping as "Add ...". The pill wraps instead. Neither the mark
+   nor the hint gives up a character; the bar is a row taller at 1.4 and
+   IDENTICAL at --type-scale 1, where both fit on one line and nothing
+   wraps at all. The row gap is --s-1 so the wrapped line sits tight. */
+.voice-hint { font-size: var(--t-meta); color: var(--tx-3); margin-left: auto;
+  min-width: 0; white-space: nowrap; }
 
 /* DEFERRED (intentionally not added):
    G4 modal/sheet backdrop scrim needs a --scrim token (none exists). RULE 14

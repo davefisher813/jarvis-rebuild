@@ -128,7 +128,45 @@ before this phase was a screens-only number.
       both note rails and all three mail rail actions now name their record;
       three single-record screens keep the bare verb and say why.
 - [ ] **Focus order and visible focus** · never audited.
-- [ ] **Dynamic Type** · the app pins nothing; what breaks at the large sizes.
+- [x] **Dynamic Type** · and the line that used to sit here ("the app pins
+      nothing") was wrong. `appearance/textZoom.ts` clamps `--type-scale` to
+      1.0-1.4, reads the phone's own text size, offers an override in
+      Settings, and every named type token multiplies by it. What had never
+      happened was LOOKING at the top of that range.
+      The auditor grew a `scale` per pass and 1.4 found **8 findings on
+      Dave's own 390px width**, six of which were the same elements that
+      "only existed at 320" - the width retired the day before because nobody
+      uses it. Larger text in a fixed width is the same arithmetic as fixed
+      text in a narrower one, so dropping 320 had hidden those six rather
+      than removed them.
+      All 8 fixed, and every one by letting the layout give rather than by
+      pinning a size, per Dave: "everything should auto scale". The search
+      field may shrink (Cancel was painting to x=468, off a 390px screen);
+      a form row's label states itself whole and the VALUE yields, which is
+      the control already built to; and four titles that are copy this app
+      wrote take a second line instead of a clip - which is the no-wrap law's
+      own stated exception, already written twice in components.css.
+      **Nothing moves at scale 1**: the whole matrix is unchanged there.
+      1.4 is now a standing part of the matrix, so all six sizes run twice.
+      834 at 1.4 found nothing and stays anyway; "this pass is unlikely to
+      find anything" is the exact reasoning that hid the other six. Nine
+      laws in `browserWalk.test.ts` hold the fixes and the matrix itself.
+      **A ninth finding, found by LOOKING**, after twelve clean passes: the
+      capture bar. `.voice-hint` had no `min-width` and no `nowrap`, so at 1.4
+      "Add anything" wrapped to two lines and painted across the JARVIS
+      wordmark and past the pill's right edge, on the one piece of chrome
+      that is on every tab. An ellipsis was tried first and was measurably
+      worse: the auditor then read "Add anything" losing 48% on ten screens,
+      which is a two-word sentence shipping as "Add ...". The pill wraps
+      instead, so the bar is one row taller at 1.4, keeps every word, and is
+      identical at scale 1.
+- [ ] **The auditor cannot see text that escapes its box by WRAPPING** ·
+      what let the capture bar ship broken past twelve passes. `truncated`
+      needs `overflow: hidden` or an ellipsis to fire and the hint had
+      neither; `overlap` only compares tappable pairs. The check to write: a
+      text leaf whose rect is not contained by its nearest ancestor with a
+      painted background. New finding kind, unknown noise, so it is its own
+      piece of work rather than a rider on the fix.
 
 ## PHASE 5 · THE SCREENS NOTHING HAS REACHED
 

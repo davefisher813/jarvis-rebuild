@@ -795,3 +795,109 @@ describe("BROWSER-F: a task's Notes field keeps its text clear of the card's rou
     expect(padRule, ".card.pad's own padding is the reason its editor needs none").toMatch(/padding:\s*var\(--s-4\)/);
   });
 });
+
+// DYNAMIC TYPE AT THE TOP OF ITS OWN RANGE (2026-09-21).
+//
+// appearance/textZoom.ts has always clamped --type-scale to 1.0-1.4, read it
+// from the phone and offered an override in Settings, and every named type
+// token multiplies by it. What nothing had ever done was LOOK at 1.4. The
+// first pass that did found eight findings on Dave's own width, and six of
+// them were the same elements that "only existed at 320" -- the width dropped
+// the day before on the grounds that nobody uses it. Larger text in a fixed
+// width is the same arithmetic as fixed text in a narrower one, so retiring
+// 320 had hidden those findings rather than removed them.
+//
+// Each check here pins one of the eight. The ruling behind all of them is the
+// no-wrap law's own stated exception, already written twice in components.css:
+// an ellipsis is the honest answer to a string the WORLD writes and whose
+// length is unknown; copy this app wrote that does not fit is a title that
+// needs a second line.
+describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", () => {
+  const bare = () => css().replace(/\/\*[\s\S]*?\*\//g, "");
+
+  it("the visual auditor runs every size at 1.4 as well as 1", () => {
+    const tool = readFileSync(join(SRC, "..", "tools", "visual-audit.mjs"), "utf8");
+    // The scale list, not just the string "1.4" somewhere in a comment.
+    expect(tool, "the matrix fans out over a scale list").toMatch(/\[1,\s*1\.4\]\.flatMap/);
+    expect(tool, "a pass applies its own scale, not a global").toMatch(/setProperty\("--type-scale", String\(n\)\), scale\)/);
+    expect(tool, "runPass takes the scale and defaults to 1").toMatch(/async function runPass\(\{ w, h, theme, scale = 1 \}\)/);
+  });
+
+  it("the search field may shrink, so Cancel stays on the screen", () => {
+    // At 1.4 the input's intrinsic width refused to give, the bar grew past
+    // the row, and Cancel painted to x=468 on a 390px screen: off the edge,
+    // untappable, and taking the headings under it with it.
+    expect(ruleBody(css(), ".search-top .search-bar")).toMatch(/min-width:\s*0/);
+    expect(ruleBody(css(), ".search-top .search-bar input"), "a flex child defaults to min-width:auto").toMatch(/min-width:\s*0/);
+  });
+
+  it("a form row's label states itself whole and the value is what yields", () => {
+    // "Appears" shipped in 52px and "Next Due" in 78px, both losing half of
+    // themselves to a value that had a perfectly good ellipsis of its own.
+    const label = ruleBody(css(), ".xs .row.xs-row > .conn-name");
+    expect(label, "the label row rule still exists").toBeTruthy();
+    expect(label, "basis auto, no shrink").toMatch(/flex:\s*0\s+0\s+auto/);
+    // The two controls that take the other side are both built to give way.
+    expect(ruleBody(css(), ".dd .dd-w")).toMatch(/text-overflow:\s*ellipsis/);
+    expect(ruleBody(css(), ".xs .xs-input")).toMatch(/min-width:\s*0/);
+  });
+
+  it("a nav row's page name is off the no-wrap law, like the big title above it", () => {
+    const law = [...bare().matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .find((m) => /white-space:\s*nowrap/.test(m[2]!) && m[1]!.includes(".pagebar-title"));
+    expect(law, "the no-wrap law still exists").toBeTruthy();
+    expect(law![1], ".lib-name is off the no-wrap law").not.toMatch(/\.lib-name\b/);
+    const own = ruleBody(css(), ".lib-name")!;
+    expect(own, "it wraps").toMatch(/white-space:\s*normal/);
+    expect(own, "clamped at two, so a long one still ends in an ellipsis").toMatch(/-webkit-line-clamp:\s*2/);
+  });
+
+  it("a solo notice in the grouped band takes its second line", () => {
+    const solo = ruleBody(css(), ".stream-grouped .notice-card-row.notice-card-solo .conn-name")!;
+    expect(solo, "the band's stand-down rule still exists").toBeTruthy();
+    expect(solo, "it no longer forces one line").not.toMatch(/white-space:\s*nowrap/);
+    expect(solo).toMatch(/-webkit-line-clamp:\s*2/);
+    // It is the same box the card wears outside the band.
+    expect(ruleBody(css(), ".notice-card .conn-name")).toMatch(/-webkit-line-clamp:\s*2/);
+  });
+
+  it("the Tracker's import row wears the two-line class at its call site", () => {
+    expect(read("money/screens/TrackerScreen.tsx")).toMatch(/className="conn-name truncate">Import September Data</);
+    // .truncate is what that class means here, despite the name.
+    expect(ruleBody(css(), ".task-row .conn-name.truncate, .row .conn-name.truncate")).toMatch(/-webkit-line-clamp:\s*2/);
+  });
+
+  it("the focus card's reason wraps, because one card is not a list", () => {
+    // "Three facts, one line" is a LIST rule: it exists so a busy row does
+    // not leave the list ragged. The focus card is one card on an otherwise
+    // empty screen, and the reason is the sentence it exists to give.
+    expect(ruleBody(css(), ".facts"), "the list rule is untouched").toMatch(/flex-wrap:\s*nowrap/);
+    expect(ruleBody(css(), ".facts > .fact:last-child")).toMatch(/white-space:\s*nowrap/);
+    const card = ruleBody(css(), ".focus-card .facts > .fact:last-child")!;
+    expect(card, "the card's own exception exists").toBeTruthy();
+    expect(card).toMatch(/white-space:\s*normal/);
+    expect(ruleBody(css(), ".focus-card .facts")).toMatch(/align-items:\s*flex-start/);
+  });
+
+  it("the capture bar takes a second line rather than losing half a sentence", () => {
+    // The ninth finding, and the auditor could not see it: the hint did not
+    // CLIP, it wrapped to two lines and painted past the pill's right edge
+    // across the wordmark, on the one piece of chrome that is on every tab.
+    // A screenshot found it. The gap is named in docs/AUDIT_CHECKLIST.md.
+    // An ellipsis was tried first and the auditor then read "Add anything"
+    // losing 48% on ten screens, so the pill wraps and keeps every word.
+    const u = read("styles/uniformity.css");
+    const bar = ruleBody(u, ".voice-bar")!;
+    expect(bar, "the pill is what grows").toMatch(/flex-wrap:\s*wrap/);
+    expect(ruleBody(u, ".voice-name"), "the mark does not give up a character").toMatch(/flex-shrink:\s*0/);
+    const hint = ruleBody(u, ".voice-hint")!;
+    expect(hint, "it moves to the next line whole, it does not clip").not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(hint, "and it does not break mid-sentence on that line either").toMatch(/white-space:\s*nowrap/);
+    expect(hint).toMatch(/min-width:\s*0/);
+  });
+
+  it("the scale the auditor tops out at is the scale the app clamps to", () => {
+    // If MAX_TYPE_SCALE ever moves, the matrix is measuring the wrong ceiling.
+    expect(read("appearance/textZoom.ts")).toMatch(/MAX_TYPE_SCALE\s*=\s*1\.4/);
+  });
+});
