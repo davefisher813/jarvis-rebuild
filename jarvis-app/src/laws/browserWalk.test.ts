@@ -972,3 +972,73 @@ describe("FOCUS-AUDIT: the keyboard can be followed, and what it lands on can be
     expect(chipRow).toMatch(/mask-image:\s*linear-gradient/);
   });
 });
+
+// THE GAP THAT LET TWO REAL BUGS SHIP PAST TWELVE CLEAN PASSES (2026-09-21).
+//
+// `truncated` measures scrollWidth against clientWidth, and those are EQUAL
+// on a box that does not clip. So a string that simply grows past the box it
+// sits in -- no overflow, no ellipsis, just painting on top of whatever is
+// there -- was invisible to the tool by construction. Both of the day's bugs
+// were exactly that: the capture bar's hint wrapping across the JARVIS
+// wordmark and out past the pill, and "Subscriptions" running off the end of
+// a segmented control. Both were found by LOOKING at a screenshot.
+describe("OUTSIDE-BOX: text that escapes its box is a finding, not a blind spot", () => {
+  const tool = () => readFileSync(join(SRC, "..", "tools", "visual-audit.mjs"), "utf8");
+
+  it("the auditor reports text painting outside its nearest painted ancestor", () => {
+    const t = tool();
+    expect(t).toMatch(/add\("outside-box"/);
+    // The box has to be the one a reader SEES. Half the spans in this app sit
+    // in a bare div with no background, and escaping one of those is what
+    // normal text flow looks like.
+    expect(t, "the painted ancestor is the box").toMatch(/const painted = \(cs\) =>/);
+    // Content outside a SCROLLER is the entire point of a scroller.
+    expect(t, "the walk stops at the first scrollable ancestor")
+      .toMatch(/if \(\[cs\.overflow, cs\.overflowX, cs\.overflowY\]\.some\(\(v\) => v === "auto" \|\| v === "scroll"\)\) break;/);
+  });
+
+  it("truncation is measured against the width the label WANTED", () => {
+    // scrollWidth is blind to a flex item that lost a shrink fight: its
+    // content box is smaller, so the text lays out at THAT width and
+    // scrollWidth comes back equal to clientWidth. Measured on the New
+    // Reminder sheet at 1.4 -- the bar title paints "New Remind..." and
+    // reports 196 against 195. A Range over the text node agrees with
+    // scrollWidth exactly, because both describe the post-ellipsis layout.
+    const t = tool();
+    expect(t, "an off-screen ruler at max-content").toMatch(/const natural = \(e, cs\) =>/);
+    expect(t, "asked only when scrollWidth has nothing to say").toMatch(/if \(want <= e\.clientWidth \+ 1 && cs\.whiteSpace\.startsWith\("nowrap"\)\)/);
+    // getComputedStyle().font is an empty string in Chromium for most
+    // elements, which silently left the ruler measuring at the default 16px.
+    expect(t, "the longhands, never the shorthand").toMatch(/ruler\.style\.fontFamily = cs\.fontFamily/);
+    expect(t).not.toMatch(/ruler\.style\.font = cs\.font/);
+  });
+
+  it("a control its row forwards to is measured as big as the row", () => {
+    // forwardTo is a React prop, so the auditor measured a 220x24 dropdown
+    // value, found a thumb 9px below it landing on .row, and called the
+    // target too small. It was right about the pixels and wrong about the
+    // app. The selector is now in the DOM, and it is the SAME string the
+    // pointer handler uses, so the two cannot drift.
+    expect(read("shared/FormSheet.tsx")).toMatch(/data-forwards=\{forwardTo \|\| undefined\}/);
+    const t = tool();
+    expect(t).toMatch(/const forwarder = \(e\) =>/);
+    expect(t, "resolved the way the row resolves it").toMatch(/n\.querySelector\(sel\) === e/);
+  });
+
+  it("a form row's value can shrink, and the row wraps before it loses a word", () => {
+    // Holding the label without letting the value shrink just moved the
+    // overflow: "At a Date and Time" ran 17px past the card and off the
+    // screen, chevron and all, because .dd.dd-value .dd-w capped itself at
+    // 52vw -- a viewport number doing a flexbox job.
+    expect(ruleBody(css(), ".xs .row.xs-row > .dd")).toMatch(/min-width:\s*0/);
+    expect(ruleBody(css(), ".xs .row.xs-row > .dd .dd-w"), "the row decides, not the viewport").toMatch(/max-width:\s*none/);
+    // .xs .row.xs-row is declared twice (the 48px floor at :5137, the wrap
+    // beside the .dd rules), so take every rule whose selector IS that.
+    const xsRow = rulesOf("styles/components.css")
+      .filter(([sel]) => sel === ".xs .row.xs-row").map(([, body]) => body).join(" ");
+    expect(xsRow, "and it wraps before it clips").toMatch(/flex-wrap:\s*wrap/);
+    // The vw cap stays for the capsule worn on a header, where there is no
+    // row to bound it.
+    expect(ruleBody(css(), ".dd.dd-value .dd-w")).toMatch(/max-width:\s*52vw/);
+  });
+});

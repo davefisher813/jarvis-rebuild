@@ -196,13 +196,39 @@ before this phase was a screens-only number.
       which is a two-word sentence shipping as "Add ...". The pill wraps
       instead, so the bar is one row taller at 1.4, keeps every word, and is
       identical at scale 1.
-- [ ] **The auditor cannot see text that escapes its box by WRAPPING** ·
-      what let the capture bar ship broken past twelve passes. `truncated`
-      needs `overflow: hidden` or an ellipsis to fire and the hint had
-      neither; `overlap` only compares tappable pairs. The check to write: a
-      text leaf whose rect is not contained by its nearest ancestor with a
-      painted background. New finding kind, unknown noise, so it is its own
-      piece of work rather than a rider on the fix.
+- [x] **The auditor cannot see text that escapes its box** · closed, and it
+      paid for itself the same day. `outside-box` reports a text leaf painting
+      outside its nearest ancestor with a PAINTED background, because "its
+      box" cannot mean its parent (half the spans here sit in a bare div, and
+      escaping one of those is what normal text flow looks like). The walk
+      stops at the first scrollable ancestor, since content outside a scroller
+      is the whole point of a scroller.
+      Verified rather than believed: the capture-bar fix was reverted and the
+      check reported it on all 11 screens it appears on, then restored.
+      **Zero noise at scale 1** across the whole app.
+      **It immediately caught a regression I had introduced** in the Dynamic
+      Type pass: holding the form label at `flex: 0 0 auto` without letting
+      the value shrink just moved the overflow, and at 1.4 "At a Date and
+      Time" ran 17px past the card and off the screen, chevron and all,
+      because `.dd.dd-value .dd-w` capped itself at `52vw` -- a viewport
+      number doing a flexbox job. The row bounds it now, and wraps to a second
+      line rather than losing a quarter of the answer.
+      **Two more instrument fixes fell out of it.** `truncated` was blind to a
+      flex item that lost a shrink fight: its content box is smaller, so the
+      text lays out at THAT width and `scrollWidth` comes back equal to
+      `clientWidth`. It now measures against an off-screen ruler at
+      `max-content` when scrollWidth has nothing to say. (`getComputedStyle().
+      font` is an empty string in Chromium for most elements, which silently
+      left the first ruler measuring at 16px; the longhands are used instead.)
+      And `small-44` was calling a 220x24 dropdown value too small when its
+      ROW forwards taps to it -- right about the pixels, wrong about the app.
+      `forwardTo` was a React prop with no DOM trace; `Row` writes it as
+      `data-forwards` now, the same string the pointer handler uses, so the
+      tool resolves the real target the way the row does.
+      Known and NOT fixed, Dave's call: at 1.4 the New Reminder sheet title
+      reads "New Remind...". The ruler says the string wants 196px in a 195px
+      box, so it loses two characters to the width of the ellipsis glyph
+      itself, not to a missing word. Below the 15% bar and left alone.
 
 ## PHASE 5 · THE SCREENS NOTHING HAS REACHED
 

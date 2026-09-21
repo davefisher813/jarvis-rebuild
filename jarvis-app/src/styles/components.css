@@ -5166,6 +5166,28 @@ body.selecting .voice-dock { display: none; }
    whole, and .dd-w / .xs-input yield, which is what they are already built to
    do. Nothing moves at --type-scale 1, where both already fit. */
 .xs .row.xs-row > .conn-name { flex: 0 0 auto; min-width: 0; }
+/* AND THE VALUE HAS TO BE ABLE TO TAKE IT (2026-09-21, second half of the
+   same fix, caught by the outside-box check the day it was written).
+   Holding the label without letting the value shrink just moves the overflow:
+   at --type-scale 1.4 "At a Date and Time" ran 17px past the card and off the
+   screen, chevron and all, because .dd is a flex item with the default
+   min-width:auto and .dd.dd-value .dd-w capped itself at 52vw -- 203px at
+   390, a number that cannot know how much room this row actually has. A
+   viewport cap doing a flexbox job.
+   In a row, the row decides: .dd may shrink to nothing and .dd-w's own
+   ellipsis, which it has always carried, finally binds to the real space.
+   The vw cap stays for the capsule worn on a header, where there is no row
+   to bound it. */
+.xs .row.xs-row > .dd { flex: 0 1 auto; min-width: 0; margin-left: auto; }
+.xs .row.xs-row > .dd .dd-w { max-width: none; }
+/* AND WHEN EVEN THAT IS NOT ENOUGH, THE ROW TAKES A SECOND LINE. Bounding
+   the value correctly turned a 17px escape into an honest 25% ellipsis, and
+   a quarter of "At a Date and Time" is still a quarter of the answer the row
+   exists to state. Same call as the capture bar on the same day: the pill
+   wraps, nothing gives up a character, and at --type-scale 1 nothing wraps
+   at all so every one of these rows is unchanged. The row gap is --s-1 so
+   the second line sits tight under the first. */
+.xs .row.xs-row { flex-wrap: wrap; row-gap: var(--s-1); }
 .xs .row.xs-row .row-grow .conn-meta { margin-top: var(--s-0h); }
 /* The row that IS an input: no box inside a box, the field is the row. */
 .xs .xs-input { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none;

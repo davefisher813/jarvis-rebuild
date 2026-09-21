@@ -102,16 +102,118 @@ const AUDIT = () => {
   }
 
   // 2. TRUNCATED TEXT. A label clipped mid-word is information thrown away.
+  //
+  // scrollWidth IS BLIND TO A FLEX ITEM THAT SHRANK (2026-09-21). A block of
+  // a fixed width lays its text out at the text's natural width and overflows,
+  // so scrollWidth exceeds clientWidth and this check sees it. A FLEX ITEM
+  // that lost a shrink fight has a smaller content box, and the text is laid
+  // out at THAT width, so scrollWidth comes back equal to clientWidth and the
+  // check sees nothing. Measured on the New Reminder sheet at --type-scale
+  // 1.4: the bar title paints "New Remind..." and reports scrollWidth 196
+  // against clientWidth 195. A Range over the text node agrees with
+  // scrollWidth exactly, because both describe the post-ellipsis layout.
+  // Neither instrument can see the string that was thrown away.
+  //
+  // So measure the string on its own. A clone, off-screen, at max-content,
+  // carrying only the properties that decide how wide text is, gives the
+  // width the label WANTED. One shared host, removed at the end, and only for
+  // the nowrap elements scrollWidth already gave up on.
+  const ruler = document.createElement("div");
+  ruler.style.cssText = "position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;width:max-content";
+  document.body.appendChild(ruler);
+  const natural = (e, cs) => {
+    ruler.textContent = e.textContent || "";
+    // The `font` SHORTHAND comes back as an empty string from
+    // getComputedStyle in Chromium for most elements, which silently left the
+    // ruler measuring at the default 16px and reporting nothing. The
+    // longhands are always populated.
+    ruler.style.fontFamily = cs.fontFamily;
+    ruler.style.fontSize = cs.fontSize;
+    ruler.style.fontWeight = cs.fontWeight;
+    ruler.style.fontStyle = cs.fontStyle;
+    ruler.style.fontStretch = cs.fontStretch;
+    ruler.style.letterSpacing = cs.letterSpacing;
+    ruler.style.wordSpacing = cs.wordSpacing;
+    ruler.style.textTransform = cs.textTransform;
+    ruler.style.fontVariantNumeric = cs.fontVariantNumeric;
+    return ruler.getBoundingClientRect().width;
+  };
   for (const e of all) {
     if (e.children.length > 0) continue;
+    const txt = (e.textContent || "").trim();
+    if (!txt) continue;
     const cs = getComputedStyle(e);
     if (cs.textOverflow !== "ellipsis" && cs.overflow !== "hidden") continue;
+    let want = e.scrollWidth;
+    // Only ask the ruler when scrollWidth has nothing to say AND the text is
+    // on one line, which is the shape the blind spot has.
+    if (want <= e.clientWidth + 1 && cs.whiteSpace.startsWith("nowrap")) want = natural(e, cs);
     // Ellipsis is a legitimate pattern; losing a quarter of the string is
     // not. Flag by how much is actually hidden, so a secondary hint clipping
     // two characters does not bury a task name clipping a third of itself.
-    const lost = (e.scrollWidth - e.clientWidth) / Math.max(1, e.scrollWidth);
-    if (lost > 0.15 && (e.textContent || "").trim().length > 0) {
-      add("truncated", `"${(e.textContent||"").trim().slice(0,34)}" loses ${Math.round(lost*100)}%`, e);
+    const lost = (want - e.clientWidth) / Math.max(1, want);
+    if (lost > 0.15) {
+      add("truncated", `"${txt.slice(0,34)}" loses ${Math.round(lost*100)}%`, e);
+    }
+  }
+  ruler.remove();
+
+  // 2b. TEXT THAT ESCAPES ITS OWN BOX (2026-09-21). The gap that let two real
+  // bugs ship past twelve clean passes on the same day.
+  //
+  // `truncated` above needs `overflow: hidden` or an ellipsis before it will
+  // look at anything, because it measures scrollWidth against clientWidth and
+  // those are equal on a box that does not clip. So a string with NEITHER --
+  // one that simply grows past the box it sits in and paints on top of
+  // whatever is there -- was invisible to this tool by construction. Both of
+  // the day's bugs were exactly that:
+  //
+  //   the capture bar   "Add anything" had no min-width and no nowrap, so at
+  //                     --type-scale 1.4 it wrapped to two lines and painted
+  //                     across the JARVIS wordmark and out past the pill.
+  //   the Tracker tabs  "Subscriptions" ran off the right of a segmented
+  //                     control with nothing saying more existed.
+  //
+  // THE BOX IS THE PAINTED ONE. "Its box" cannot mean its parent -- half the
+  // spans in this app sit in a bare <div> with no background, and escaping
+  // one of those is what normal text flow looks like. The box a reader SEES
+  // is the nearest ancestor that paints a background, which is the pill, the
+  // card, the track. Text outside that is text outside the thing it belongs
+  // to, and it is a bug every time.
+  //
+  // A SCROLLER IS NOT A BOX THAT WAS ESCAPED. Content outside a scroller is
+  // the entire point of a scroller, so the walk stops at the first scrollable
+  // ancestor and reports nothing. Whether a scrolling row SAYS it scrolls is
+  // a different question, answered by the edge fade, and whether the keyboard
+  // can reach into one is answered by FOCUS=1's focus-unscrolled.
+  const painted = (cs) => {
+    const bg = cs.backgroundColor;
+    if (!bg || bg === "transparent") return false;
+    const m = bg.match(/rgba?\(([^)]+)\)/);
+    if (!m) return false;
+    const parts = m[1].split(",").map((n) => parseFloat(n));
+    return parts.length < 4 || parts[3] > 0.02;
+  };
+  for (const e of all) {
+    if (e.children.length > 0) continue;
+    const txt = (e.textContent || "").trim();
+    if (!txt) continue;
+    if (!vis(e)) continue;
+    const r = e.getBoundingClientRect();
+    let n = e.parentElement;
+    while (n && n !== document.body) {
+      const cs = getComputedStyle(n);
+      if ([cs.overflow, cs.overflowX, cs.overflowY].some((v) => v === "auto" || v === "scroll")) break;
+      if (painted(cs)) {
+        const p = n.getBoundingClientRect();
+        // Sub-pixel and the odd descender are not an escape; a character is.
+        const out = Math.max(p.left - r.left, r.right - p.right, p.top - r.top, r.bottom - p.bottom);
+        if (out > 4) {
+          add("outside-box", `"${txt.slice(0,30)}" paints ${Math.round(out)}px outside .${(n.className||"").toString().split(" ")[0] || n.tagName.toLowerCase()}`, e);
+        }
+        break;
+      }
+      n = n.parentElement;
     }
   }
 
@@ -185,15 +287,35 @@ const AUDIT = () => {
     [/(^| )(pill-act|pill-action|see-all|btn-sm|seg|dd-lead)( |$)/, 34, "capsule"],
   ];
   const rungOf = (cls) => RUNGS.find(([re]) => re.test(" " + cls + " "));
+  // A CONTROL A ROW FORWARDS TO IS AS BIG AS THE ROW (2026-09-21). Eleven
+  // sheets use FormSheet's Row, which passes its own taps to the control it
+  // names so that the label, the tile and the empty space between them all
+  // open the menu or flip the switch -- iOS's grouped table, and the thing
+  // every sheet in this app failed to do until SHARED-F-11. The auditor could
+  // not see it, because forwardTo is a React prop: it measured a 220x24
+  // dropdown value, found a thumb 9px below it landing on .row, and called
+  // the target too small. It was right about the pixels and wrong about the
+  // app. Row now writes the selector into data-forwards, so the real target
+  // resolves here the same way the pointer handler resolves it.
+  const forwarder = (e) => {
+    let n = e.parentElement;
+    while (n && n !== document.body) {
+      const sel = n.getAttribute && n.getAttribute("data-forwards");
+      if (sel) { try { if (n.querySelector(sel) === e) return n; } catch { /* bad selector */ } }
+      n = n.parentElement;
+    }
+    return null;
+  };
   for (const e of tappable) {
     // The NATURAL height, not the clipped one. A 46px row scrolled so that
     // 5px of it shows is not a small target, it is a scrolled row.
-    const r = e.getBoundingClientRect();
+    const r = (forwarder(e) || e).getBoundingClientRect();
     const txt = (e.textContent || "").trim();
     if (!txt || r.height >= HIG) continue;
     if (r.top < 0 || r.bottom > window.innerHeight) continue; // off-screen: cannot hit-test
     const cx = r.left + r.width / 2;
-    const hits = (y) => { const t = document.elementFromPoint(cx, y); return t === e || e.contains(t); };
+    const own = forwarder(e) || e;
+    const hits = (y) => { const t = document.elementFromPoint(cx, y); return t === own || own.contains(t); };
     // Measure the HIT, once, at the widest bar, then report it against
     // whichever bar it actually fails.
     const reaches = (min) => {
