@@ -153,7 +153,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       setDocKey((k) => k + 1);
       setDirty(true);
     } catch {
-      showToast({ message: "Couldn't read that photo · Try clearer" });
+      showToast({ message: "Couldn't read that · Try a clearer photo" });
     } finally {
       setReading(false);
     }

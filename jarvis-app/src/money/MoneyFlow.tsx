@@ -351,7 +351,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   }, [fileStore, receipts]);
   const openReceipt = (r: UserFile) => {
     const url = receiptUrls[r.id];
-    if (!url) { showToast({ message: "Couldn't open that file." }); return; }
+    if (!url) { showToast({ message: "Couldn't open that file \u00b7 Try again in a moment" }); return; }
     window.open(url, "_blank", "noopener");
   };
   const removeReceipt = async (r: UserFile) => {
@@ -450,7 +450,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         { kind: "receipt", pin: "pasteFallback" },
       );
       const read = parseReceiptExtract(out);
-      if (!read) { showToast({ message: "Couldn't read that receipt" }); return; }
+      if (!read) { showToast({ message: "Couldn't read that \u00b7 Try a clearer photo" }); return; }
       setBillSheet({
         kind: "paid",
         // The date it was paid: the receipt's own, or the day the file was
@@ -466,7 +466,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         },
       });
     } catch {
-      showToast({ message: "Couldn't read that receipt" });
+      showToast({ message: "Couldn't read that receipt \u00b7 Try again" });
     } finally {
       setReading(null);
     }

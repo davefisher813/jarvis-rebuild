@@ -45,7 +45,7 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
       const img = await encodeImageForVision(file);
       await extract(buildVisionMessage(SEASON_EXTRACT_PROMPT, img.data, img.mediaType));
     } catch {
-      showToast({ message: "Couldn't read that image" });
+      showToast({ message: "Couldn't open that image \u00b7 Try another file" });
     }
   };
 

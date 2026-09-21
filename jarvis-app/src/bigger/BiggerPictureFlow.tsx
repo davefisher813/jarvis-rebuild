@@ -251,7 +251,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       if (!step) throw new Error("empty");
       setProjStep({ projectId: stalled.id, step });
     } catch {
-      showToast({ message: "Couldn't reach JARVIS" });
+      showToast({ message: "Couldn't reach JARVIS \u00b7 Try again" });
     } finally {
       setProjStepBusy(false);
     }
@@ -295,7 +295,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       if (!step) throw new Error("empty");
       setOpenStep({ projectId: proj.id, step });
     } catch {
-      showToast({ message: "Couldn't reach JARVIS" });
+      showToast({ message: "Couldn't reach JARVIS \u00b7 Try again" });
     } finally {
       setOpenStepBusy(false);
     }

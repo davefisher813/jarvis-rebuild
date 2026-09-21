@@ -103,7 +103,7 @@ export default function ScheduleUploadFlow({
       setThumb(`data:${img.mediaType};base64,${img.data}`);
       await runExtract(buildVisionMessage(SCHEDULE_EXTRACT_PROMPT, img.data, img.mediaType));
     } catch {
-      showToast({ message: "Couldn't read that image." });
+      showToast({ message: "Couldn't open that image \u00b7 Try another file" });
     }
   };
 

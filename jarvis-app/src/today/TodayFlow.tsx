@@ -1462,7 +1462,7 @@ export default function TodayFlow({
     await reload();
     if (!ok || !res) return;
     const r = res as BreakdownResult;
-    if (r.reason === "no-ai") { showToast({ message: "Couldn't reach JARVIS" }); return; }
+    if (r.reason === "no-ai") { showToast({ message: "Couldn't reach JARVIS · Try again" }); return; }
     showToast({
       message: splitLine(r.made.length),
       actionLabel: "Undo",

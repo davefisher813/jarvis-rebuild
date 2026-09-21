@@ -407,7 +407,13 @@ describe("LAW: Apple HIG casing", () => {
   // nature (only pure literals are scanned).
   it("line starts and dot-break segments start capital", () => {
     const segsOk = (raw: string) =>
-      raw.replace(/&middot;/g, "·").split("·").every((seg) => {
+      // AN ESCAPED DOT IS STILL A DOT (2026-09-21). This read the SOURCE
+      // text, so a string written "Marked blocked \\u00b7 " carried no
+      // literal middot to split on and the whole line was judged as one
+      // segment -- which meant the capital after the break was never
+      // checked in any of the eighty places the app writes the escape
+      // instead of the character. Both spellings normalise here.
+      raw.replace(/&middot;|\\u00b7/g, "·").split("·").every((seg) => {
         // Apple's own brand casing is not a violation: iCloud, iPhone, iOS.
         if (/^i[A-Z]/.test(seg.trim())) return true;
         const first = seg.trim().match(/[A-Za-z]/)?.[0];

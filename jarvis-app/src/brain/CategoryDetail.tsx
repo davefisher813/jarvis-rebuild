@@ -463,7 +463,7 @@ export default function CategoryDetail({
       then?.();
       await reloadMetrics();
     } catch (e) {
-      showToast({ message: "Couldn't save that metric. " + (e instanceof Error && e.message ? e.message : "Check your connection and try again.") });
+      showToast({ message: "Couldn't save that metric · Check your connection" });
     }
   };
   const reloadMetrics = async () => {

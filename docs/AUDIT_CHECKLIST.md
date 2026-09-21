@@ -153,8 +153,33 @@ before this phase was a screens-only number.
       of the no-manual law; decide whether they get a rule of their own.
 - [ ] **Empty-state copy** · exempt from the no-manual law by design; never
       reviewed on its own terms.
-- [ ] **Error and toast copy** · never reviewed. Does each one say what
-      happened and what to do next.
+- [x] **Error and toast copy** · 2026-09-21. All 142 distinct toasts read.
+      **Every failure toast now names what happened AND what to do next**;
+      the one without a dot-break carries a Retry button instead, which is
+      the same promise made with a control.
+      The sweep found one failure with FIVE spellings across six files: a
+      photo the app could not read was "Couldn't read that · Try a clearer
+      photo", "Couldn't read that image", "Couldn't read that image.",
+      "Couldn't read that photo · Try clearer" and "Couldn't read that
+      receipt", depending on which upload flow you were standing in. Two of
+      those are genuinely different failures -- the model read it and found
+      nothing, versus the FILE could not be opened at all -- and they now say
+      so in the same words everywhere. Three toasts ended in a full stop
+      where the other 139 do not, and one concatenated a raw `Error.message`
+      into a sentence the app was supposed to have written.
+      **And the law that watches this copy had a hole.** It split on the
+      literal middot, so a string written `"Marked blocked \u00b7 "` carried
+      no character to split on and the whole line was judged as one segment:
+      the capital after the break went unchecked in all EIGHTY places the app
+      writes the escape instead of the character. Both spellings normalise
+      now, and the check was proved to bite on the escaped form before being
+      called done. Nothing had actually fallen through the hole, which is
+      worth saying plainly rather than claiming eighty finds.
+      A second law caught the sweep itself: "Couldn't find that task · It
+      may have been deleted" tripped the one that says a toast announcing a
+      removal must offer Undo. It was right to: the word promises something
+      the message could not deliver. The line says what actually happened
+      instead ("Nothing was changed").
 
 ## PHASE 3 · THE STATES NOTHING HAS LOOKED AT
 
