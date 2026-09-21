@@ -742,8 +742,45 @@ async function focusScreen(page, name) {
   return { name, findings: out, errs: [], stops: first.length };
 }
 
+// ONE TAP FURTHER IN (2026-08-21, extended to tabs 2026-09-21). Every audit
+// before this stopped at the top of each section, so the pages where the app
+// actually holds its content were never looked at. Click by ELEMENT, not by
+// text: a text selector matches the first thing on the page that says those
+// words, which on these screens is usually a heading rather than the row.
+const DIVE_SEL = '.row[role="button"], .proj-row, .lm-row, .cat-row, .settings-row, .conn-row, .person-row, .lib-row';
+async function diveInto(page, label, sheetSkips, sheetsSeen) {
+  const out = [];
+  const title = () => page.evaluate(() => document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "");
+  const count = Math.min(3, await page.locator(DIVE_SEL).count());
+  for (let i = 0; i < count; i++) {
+    await clearLayers(page);
+    const before = page.url() + "|" + await title();
+    const row = page.locator(DIVE_SEL).nth(i);
+    let name = "";
+    try {
+      name = ((await row.textContent()) || "").trim().split("\n")[0].slice(0, 34);
+      await row.click({ timeout: 2000 });
+    } catch { continue; }
+    await page.waitForTimeout(800);
+    // A row that opened nothing is not a screen; auditing the same screen
+    // three times is how a report gets padded instead of thorough.
+    if (page.url() + "|" + await title() === before) continue;
+    const name2 = label + " > " + name;
+    out.push(await auditScreen(page, name2));
+    if (SHEETS) {
+      const back = async () => { await clearLayers(page); await page.waitForTimeout(300); };
+      out.push(...await auditSheets(page, name2, back, sheetSkips, sheetsSeen));
+    }
+    await page.click(".nav-back, .pagebar-back").catch(() => {});
+    await page.waitForTimeout(600);
+  }
+  return out;
+}
+
 const SHOTS = [];
+const VISITED = [];
 async function auditScreen(page, name) {
+  VISITED.push(name);
   await page.waitForTimeout(900);
   if (FOCUS) return focusScreen(page, name);
   const findings = await page.evaluate(AUDIT);
@@ -1053,7 +1090,20 @@ async function runPass({ w, h, theme, scale = 1 }) {
       await page.waitForTimeout(500);
     }
 
-    const TABS = ["Today", "Tasks", "Schedule", "More"];
+    // THE TABS ARE WHATEVER THE TAB BAR SAYS (2026-09-21). This was hardcoded
+    // to ["Today", "Tasks", "Schedule", "More"], which was the tab bar the day
+    // it was written. The bar is CONFIGURABLE -- Settings reorders and toggles
+    // it -- and Dave's reads Today / Life / Schedule / Brain / Email / More.
+    // So "Tasks" matched nothing and was silently skipped (the click is in a
+    // try/continue), and Life, Brain and Email were never visited at all.
+    //
+    // That is how every screen he reported bugs on came to be a screen this
+    // tool had never once opened: the live workout lives behind Life, and no
+    // audit has ever been inside one. A tool that decides for itself which
+    // parts of the app count is not an audit, it is a sample.
+    const TABS = await page.evaluate(() =>
+      [...document.querySelectorAll(".tab-bar .tab")].map((e) => (e.textContent || "").trim()).filter(Boolean));
+    if (TABS.length === 0) sheetSkips.push("the tab bar named no tabs, so only More was crawled");
     for (const t of TABS) {
       if (!(await clearLayers(page))) sheetSkips.push(`before Tab ${t}: a layer would not close`);
       try { await page.click(`text="${t}"`, { timeout: 3000 }); } catch { continue; }
@@ -1097,26 +1147,19 @@ async function runPass({ w, h, theme, scale = 1 }) {
       // Click by ELEMENT, not by text. Text selectors match the first thing
       // on the page that happens to say the same words, which on these
       // screens is usually a heading rather than the row.
-      const SEL = '.row[role="button"], .proj-row, .lm-row, .cat-row, .settings-row, .conn-row, .person-row';
-      const count = Math.min(3, await page.locator(SEL).count());
-      for (let i = 0; i < count; i++) {
-        const title = () => page.evaluate(() => document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "");
-        await clearLayers(page);
-        const before = page.url() + "|" + await title();
-        const row = page.locator(SEL).nth(i);
-        let name = "";
-        try {
-          name = ((await row.textContent()) || "").trim().split("\n")[0].slice(0, 34);
-          await row.click({ timeout: 2000 });
-        } catch { continue; }
-        await page.waitForTimeout(800);
-        // A row that opened nothing is not a screen; auditing the same
-        // screen three times is how a report gets padded instead of thorough.
-        if (page.url() + "|" + await title() === before) continue;
-        results.push(await auditScreen(page, "More > " + r + " > " + name));
-        await page.click(".nav-back, .pagebar-back").catch(() => {});
-        await page.waitForTimeout(600);
-      }
+      results.push(...await diveInto(page, "More > " + r, sheetSkips, sheetsSeen));
+    }
+
+    // AND THE TABS GET THE SAME DIVE (2026-09-21). The dive ran on More's
+    // rows only, so a tab that is a HUB -- Life, which is where Health and
+    // the live workout live -- was audited as one screen and never entered.
+    // Every bug Dave reported on 2026-09-21 was on a screen behind that door.
+    for (const t of TABS) {
+      if (t === "More") continue;   // its rows are crawled above, in full
+      await clearLayers(page);
+      try { await page.click(`text="${t}"`, { timeout: 3000 }); } catch { continue; }
+      await page.waitForTimeout(700);
+      results.push(...await diveInto(page, "Tab: " + t, sheetSkips, sheetsSeen));
     }
   } catch (e) {
     consoleErrs.push("PASS FAILED: " + String(e).slice(0, 160));
@@ -1157,6 +1200,7 @@ for (const p of passes) {
 }
 const sheetScreens = passes.reduce((a, p) => a + p.results.filter((r) => r.name.includes(" » ")).length, 0);
 const allSkips = passes.flatMap((p) => p.sheetSkips || []);
+console.log("SCREENS VISITED:\n" + [...new Set(VISITED)].map((n) => "  - " + n).join("\n"));
 console.log(`\n=== TOTAL ACROSS ${passes.length} PASSES: ${grand} findings ===`);
 console.log(SHEETS
   ? `SHEETS ON: ${sheetScreens} sheet screens audited across all passes (cap ${SHEET_CAP} per screen)`

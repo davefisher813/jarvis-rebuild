@@ -1088,3 +1088,48 @@ describe("NESTING: a block may hold work, never a commitment", () => {
     expect(read("schedule/screens/SchedulePage.tsx")).toMatch(/heldCount=\{heldProps\.length\}/);
   });
 });
+
+// WHAT THE AUDIT ACTUALLY LOOKED AT (2026-09-21).
+//
+// Dave, after reporting four bugs on a live workout screen: "You are not
+// proofing work." He was right, and the reason was measurable. The crawl's
+// tab list was a hardcoded ["Today", "Tasks", "Schedule", "More"] -- the tab
+// bar on the day it was written. The bar is CONFIGURABLE, his reads Today /
+// Life / Schedule / Brain / Email / More, so "Tasks" matched nothing and was
+// silently skipped by the click's own try/continue, and Life, Brain and Email
+// were never opened at all.
+//
+// So a tool that reported "0 findings across 22 screens" had never once
+// opened the screen every one of his bugs was on. A tool that decides for
+// itself which parts of the app count is not an audit, it is a sample.
+describe("AUDIT COVERAGE: the crawl does not choose what counts", () => {
+  const tool = () => readFileSync(join(SRC, "..", "tools", "visual-audit.mjs"), "utf8");
+
+  it("takes its tabs from the rendered tab bar, never from a list in the tool", () => {
+    const t = tool();
+    expect(t).toMatch(/const TABS = await page\.evaluate\(/);
+    expect(t).toMatch(/querySelectorAll\("\.tab-bar \.tab"\)/);
+    expect(t, "the hardcoded four are gone").not.toMatch(/const TABS = \["Today", "Tasks", "Schedule", "More"\]/);
+    // A bar that names nothing is a gap, and a gap is reported, not assumed
+    // away -- the same rule the sheet skips already follow.
+    expect(t).toMatch(/the tab bar named no tabs/);
+  });
+
+  it("dives into a TAB as well as a More row", () => {
+    // Life is a hub. Audited as one screen it looked fine, and everything
+    // behind it was invisible.
+    const t = tool();
+    expect(t).toMatch(/async function diveInto\(page, label, sheetSkips, sheetsSeen\)/);
+    expect(t, "More still dives").toMatch(/diveInto\(page, "More > " \+ r/);
+    expect(t, "and now so does every other tab").toMatch(/diveInto\(page, "Tab: " \+ t/);
+    // More's own rows are crawled in full above, so it is not dived twice.
+    expect(t).toMatch(/if \(t === "More"\) continue;/);
+  });
+
+  it("prints every screen it visited, so coverage is never invisible again", () => {
+    // The gap was findable the whole time; nothing ever printed the list.
+    const t = tool();
+    expect(t).toMatch(/SCREENS VISITED/);
+    expect(t).toMatch(/VISITED\.push\(name\)/);
+  });
+});
