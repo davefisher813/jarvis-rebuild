@@ -276,18 +276,43 @@ function checklistFor(head) {
   return covering.length ? covering[covering.length - 1] : newestChecklist();
 }
 
+// Rows of the Steps table whose Pass cell is not a yes: "device", "pending",
+// "no", empty. A checklist that says pass at the bottom while a row is still
+// owed to a phone is OPEN, not passed (Clemenza, 2026-09-21). The bottom line
+// is what the author believed; the rows are what was actually done.
+function openRows(body) {
+  const out = [];
+  for (const line of body.split('\n')) {
+    const m = /^\|\s*(\d+[a-z]?)\s*\|(.*)\|\s*$/.exec(line.trim());
+    if (!m) continue;
+    const cells = m[2].split('|').map((c) => c.trim());
+    const pass = (cells[cells.length - 1] || '').toLowerCase();
+    if (!/^(yes\b|pass\b|n\/a\b|not applicable\b)/.test(pass)) out.push({ row: m[1], pass: pass || '(empty)' });
+  }
+  return out;
+}
+
 function manualVerdict(head) {
   const file = checklistFor(head);
-  if (!file) return { checklist: null, result: 'provisional', reason: 'no filled checklist in qa/checklists' };
+  const others = checklists().filter((f) => f !== file);
+  // Open rows on every OTHER checklist too, so a device test still owed on
+  // an earlier change stays visible in every later report until it is done.
+  const openElsewhere = others
+    .map((f) => ({ checklist: 'qa/checklists/' + f, rows: openRows(read(path.join(__dirname, 'checklists', f))) }))
+    .filter((x) => x.rows.length);
+  if (!file) return { checklist: null, result: 'provisional', reason: 'no filled checklist in qa/checklists', openElsewhere };
+  const body = read(path.join(__dirname, 'checklists', file));
   const { commit, stated } = checklistCommit(file);
+  const open = openRows(body);
   const parent = git('rev-parse', '--short', 'HEAD~1');
   const covers = commit && (head.startsWith(commit) || (parent && parent.startsWith(commit)));
   let result, reason;
   if (!covers) { result = 'provisional'; reason = `${file} is for commit ${commit || 'unknown'}, not this one`; }
-  else if (stated === 'pass') { result = 'pass'; reason = `${file} covers this commit and says pass`; }
   else if (stated === 'fail') { result = 'fail'; reason = `${file} covers this commit and says FAIL`; }
+  else if (open.length) { result = 'open'; reason = `${file} covers this commit but row${open.length > 1 ? 's' : ''} ${open.map((r) => r.row).join(', ')} ${open.length > 1 ? 'are' : 'is'} still open (${open.map((r) => r.pass).join('; ')})`; }
+  else if (stated === 'pass') { result = 'pass'; reason = `${file} covers this commit, every row is closed, and it says pass`; }
   else { result = 'provisional'; reason = `${file} covers this commit but its Result line says ${stated}`; }
-  return { checklist: 'qa/checklists/' + file, checklistCommit: commit, checklistSays: stated, result, reason };
+  return { checklist: 'qa/checklists/' + file, checklistCommit: commit, checklistSays: stated, openRows: open, result, reason, openElsewhere };
 }
 
 // A screen change is a component or a stylesheet under jarvis-app/src. Shots
