@@ -25,17 +25,43 @@ import { useEffect } from "react";
 // so its presence is the check.
 const CANCEL = ".sheet-bar-cancel, .action-sheet .cancel, [data-sheet-cancel]";
 
+// A SHEET IS NOT THE ONLY THING THAT COVERS THE SCREEN (states sweep,
+// 2026-09-21). This hook keyed on .sheet-scrim alone, which is 66 of the
+// app's layers and not all of them. Six were not scrims and so ignored
+// Escape entirely: Search, Fresh Start, What Now (.search-overlay), the
+// schedule's guard (.ag-scrim), and the two menu scrims. What Now is the one
+// that proved it -- the sheet-aware audit crawler sat behind it unable to
+// get out, which is exactly what a keyboard or switch-control user does.
+//
+// Every layer is listed here, and the TOPMOST in document order wins, so a
+// sheet opened over the search overlay closes first and the overlay stays.
+// Each kind says how it is dismissed:
+//   menu scrims   click the scrim; that is their own dismiss
+//   sheet scrims  press Cancel where there is one, else the scrim
+//   full layers   press the control marked data-layer-close
+const LAYERS = ".hmenu-scrim, .block-menu-scrim, .time-pop-scrim, .sheet-scrim, .ag-scrim, .search-overlay";
+const LAYER_CLOSE = "[data-layer-close]";
+
 export function useSheetEscape(): void {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
-      if (document.querySelector(".hmenu-scrim")) return; // the menu takes it
-      const scrims = document.querySelectorAll<HTMLElement>(".sheet-scrim");
-      const top = scrims[scrims.length - 1];
+      const all = document.querySelectorAll<HTMLElement>(LAYERS);
+      const top = all[all.length - 1];
       if (!top) return;
+      // HeadMenu has closed itself on Escape since it was written, and
+      // closing the menu AND whatever is under it with one key would be a
+      // surprise. Its presence on top still means "handled".
+      if (top.classList.contains("hmenu-scrim")) return;
       e.preventDefault();
-      (top.querySelector<HTMLElement>(CANCEL) ?? top).click();
+      if (top.classList.contains("sheet-scrim")) {
+        (top.querySelector<HTMLElement>(CANCEL) ?? top).click();
+        return;
+      }
+      // A full-screen layer has no scrim to tap, so it names its own way out.
+      const close = top.querySelector<HTMLElement>(LAYER_CLOSE);
+      (close ?? top).click();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

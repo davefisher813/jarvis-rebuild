@@ -89,13 +89,26 @@ before this phase was a screens-only number.
       exdate and offered no way back. Both now call removeExdate, the exact
       inverse. The other six are correct and rostered with reasons. Law with
       an exact roster, and it checks the handler, not just the word "Undo".
-- [ ] **Offline** · what the app says when the backend is unreachable.
+- [x] **Offline** · no findings, and it is one of the better-built parts:
+      data/offlineSync.ts queues on a network-class failure the browser does
+      not report (iOS onLine only flips when no interface is up at all),
+      retries on a backoff, drains the separate health queue on the same
+      events, drains a queue restored from a killed session, and names a
+      conflict in a toast rather than silently keeping one side.
 
 ## PHASE 4 · REACH AND INPUT
 
-- [ ] **Keyboard and switch control** · known gap: `.search-overlay.focus-screen`
-      (What Now) ignores Escape, so it cannot be dismissed without a pointer.
-      Found by the crawler sitting behind it.
+- [x] **Keyboard: Escape closes the top layer** · useSheetEscape keyed on
+      .sheet-scrim, which is 66 layers and not all of them. SIX were not
+      scrims and ignored Escape entirely: Search, Fresh Start, What Now, the
+      schedule guard, and the two menu scrims. One listener now takes the
+      TOPMOST layer in document order, so a sheet over an overlay closes
+      first, and each full-screen layer marks its exit with data-layer-close.
+      Verified in the built app: What Now and Search both close on Escape and
+      demonstrably did not before. Law holds the roster both ways.
+- [ ] **Keyboard: tab order and focus trapping** · not audited. Escape is one
+      key; whether focus is trapped inside a layer, and where it lands after
+      a close, is untested.
 - [ ] **VoiceOver names** · every control's accessible name, against what it
       does. The button audit checked labels, not names.
 - [ ] **Focus order and visible focus** · never audited.
