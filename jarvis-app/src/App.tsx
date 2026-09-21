@@ -11,6 +11,7 @@ import { FailedCard } from "./monitoring/ErrorBoundary";
 import { captureError } from "./monitoring/monitor";
 import { dismissSplash } from "./shared/splash";
 import { useSheetEscape } from "./shared/useSheetEscape";
+import { useLayerFocus } from "./shared/useLayerFocus";
 import { bookingSlugOf, cancelIdOf } from "./booking/publicRoute";
 
 // Onboarding is a one-time surface; keep it out of the startup bundle that
@@ -111,6 +112,7 @@ export default function App() {
   // 34 sheet call sites get it and the next one does too. Mounted above the
   // auth gate on purpose: onboarding has sheets as well.
   useSheetEscape();
+  useLayerFocus();
   if (bookingSlug) {
     return (
       <Suspense fallback={null}>

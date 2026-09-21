@@ -106,9 +106,15 @@ before this phase was a screens-only number.
       first, and each full-screen layer marks its exit with data-layer-close.
       Verified in the built app: What Now and Search both close on Escape and
       demonstrably did not before. Law holds the roster both ways.
-- [ ] **Keyboard: tab order and focus trapping** · not audited. Escape is one
-      key; whether focus is trapped inside a layer, and where it lands after
-      a close, is untested.
+- [x] **Keyboard: focus enters, stays, and comes back** · measured by driving
+      the built app, not by reading it. Before: focus never entered a layer,
+      10 of 14 tabs escaped the New Event sheet into the Day/Week/Month
+      control behind it, 13 of 14 escaped What Now into the tab bar, and
+      closing left focus on the body or somewhere arbitrary. A keyboard user
+      was pressing things they could not see. After: focus lands on Cancel
+      and on Close, 0 of 14 tabs escape either, and Escape puts focus back on
+      the exact control that opened the layer. One hook beside the Escape
+      one, reading the same exported roster so the two cannot drift.
 - [ ] **VoiceOver names** · every control's accessible name, against what it
       does. The button audit checked labels, not names.
 - [ ] **Focus order and visible focus** · never audited.
