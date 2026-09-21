@@ -1,6 +1,6 @@
 # Manual check: an open row means an open verdict
 
-Commit: 34ad546 (the commit this change is built on)
+Commit: 1e0cf92 (the rule itself; this commit fills the row the first run left empty)
 Date: 2026-09-21
 Checked by: Claude Code, in the repo
 QA report: published to basecode-qa
@@ -16,7 +16,7 @@ provisional while any checklist row is open, in all three repos."
 | 1 | Read every Steps row of the covering checklist | a Pass cell that is not a yes makes the verdict `open`, naming the rows | `openRows` parses the table; `device`, `pending`, `no`, empty all count as open | yes |
 | 2 | Dry run against this repo's checklists | web-push rows 11 to 14 open, qa-layer closed | exactly that | yes |
 | 3 | Open rows on OTHER checklists | still visible in every later report | `manual.openElsewhere` lists them by file and row; this run names web-push rows 11 to 14 | yes |
-| 4 | Gate on the clean commit | green, manual pass for this checklist, openElsewhere names web-push | filled after the run | |
+| 4 | Gate on the clean commit | green, manual pass for this checklist, openElsewhere names web-push | 1e0cf92: eight stages green, and the new rule read this very row, then empty, as open, so the verdict was `open`; the rule bit on its own checklist first. openElsewhere named web-push rows 11 to 14 | yes |
 
 ## The standing rules
 
