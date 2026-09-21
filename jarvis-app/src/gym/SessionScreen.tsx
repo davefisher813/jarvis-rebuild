@@ -67,6 +67,7 @@ export default function SessionScreen({
   onSetLogged,
   onSkip,
   onMove,
+  onSuperset,
   onSwap,
   onSetLoad,
   onAddMidSession,
@@ -107,6 +108,14 @@ export default function SessionScreen({
   onSetLogged: (sets: SetEntry[], at?: number) => void;
   onSkip: () => void;
   onMove: (idx: number) => void;
+  /** SUPERSET WHILE LOGGING (Dave, 2026-09-21: "I can't easily create a
+   *  superset as I'm logging"). Opens the day's own Group With picker, which
+   *  GymFlow already owns -- the live screen reads pairings OFF the program
+   *  day, so grouping has to be written there for the pair to exist at all.
+   *  Absent for a lift the day does not have, which cannot be paired with
+   *  anything (the same reason Add Exercise carries its "also on the day"
+   *  switch). */
+  onSuperset?: () => void;
   onSwap: (sub: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string }) => void;
   /** HOW THIS LIFT LOADS, SET FROM IN HERE (2026-09-16, Dave: "I don't even
    *  have the option while I'm logging to select what type of weight system
@@ -805,6 +814,9 @@ export default function SessionScreen({
               <button className="row-create" role="button" tabIndex={0} onClick={onAdjustTime}>Adjust Time</button>
             )}
             <button className="row-create" role="button" tabIndex={0} onClick={() => setSwapOpen(true)}>Swap</button>
+            {onSuperset && dayExercises.length > 1 && (
+              <button className="row-create" role="button" tabIndex={0} onClick={onSuperset}>Superset With…</button>
+            )}
             {onUpdateProgram && (
               <button className="row-create" role="button" tabIndex={0} onClick={onUpdateProgram}>Also Update the Program</button>
             )}

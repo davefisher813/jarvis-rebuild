@@ -1223,7 +1223,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     const next = groupExercises(day.exercises, aId, ids, () => nid("g"));
     if (await saveDays(weekId, week.days.map((d) => (d.id === dayId ? { ...d, exercises: next } : d)))) {
       const n = ids.length + 1;
-      showToast({ message: n === 2 ? "Paired" : capAfterNumber(n + " grouped") });
+      // IT SAYS WHERE IT LANDED, AND IT IS TAKE-BACK-ABLE (2026-09-21). This
+      // is reachable from a LIVE session now ("Superset With..."), and a pair
+      // is a program construct: it holds for every session after this one,
+      // not just the workout you are standing in. A toast that says only
+      // "Paired" would leave you to discover that next week. ungroupExercise
+      // is the exact inverse and already existed for the program editor.
+      showToast({
+        message: n === 2 ? `Paired in ${workoutTitle(day.name)}` : capAfterNumber(`${n} grouped in ${workoutTitle(day.name)}`),
+        actionLabel: "Undo",
+        onAction: () => { void ungroupAction(weekId, dayId, aId); },
+      });
     }
   };
   const ungroupAction = async (weekId: string, dayId: string, exId: string) => {
@@ -2379,6 +2389,23 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         // an add does, so it is seeded the same way.
         onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); seedLibrary(sub); showToast({ message: `Swapped in ${sub.name}` }); }}
         onSetLoad={(next) => { void setLoadStyle(exercise, next); }}
+        {...(() => {
+          // SUPERSET WHILE LOGGING (Dave, 2026-09-21: "I can't easily create
+          // a superset as I'm logging"). It opens the day's OWN Group With
+          // picker -- the same sheet, the same groupAction, the same write --
+          // because a pair is a program construct the live screen reads off
+          // the day, and the note on onAddMidSession below says why: a lift
+          // that is not on the day can never be paired with anything. So the
+          // pair lands in the program and holds for every session after this
+          // one, which is what a superset is. The toast says so plainly and
+          // carries the Undo, because editing a program from a workout screen
+          // should never be a thing you discover later.
+          const w = day ? program?.data.weeks.find((x) => x.days.some((d) => d.id === day.id)) : undefined;
+          if (!w || !day) return {};
+          return {
+            onSuperset: () => setPicker({ kind: "groupWith", weekId: w.id, dayId: day.id, exId: exercise.id }),
+          };
+        })()}
         // THREE PLACES, NOT ONE (Dave 2026-09-17: "it doesn't save... doesn't
         // allow me to pair... doesn't add to my exercise list").
         //
