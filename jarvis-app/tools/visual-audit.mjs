@@ -370,6 +370,48 @@ const AUDIT = () => {
     }
   }
 
+  // 5c. WHAT A SCREEN READER WOULD SAY (2026-09-21). The button audit read
+  //     LABELS out of the source and found 208 "nameless" controls that were
+  //     all false: the label was conditional, or interpolated, or looked up.
+  //     The only honest version of this question is asked of the rendered
+  //     page, where the name is whatever the accessibility tree computes.
+  //
+  //     A control with no name announces as "button" and nothing else. An
+  //     icon-only control is where this happens, which in this app means the
+  //     back chevron, the swipe rail, the row menu and the capture bar.
+  const accName = (e) => {
+    const aria = e.getAttribute("aria-label");
+    if (aria && aria.trim()) return aria.trim();
+    const by = e.getAttribute("aria-labelledby");
+    if (by) {
+      const t = by.split(/\s+/).map((id) => document.getElementById(id)?.textContent || "").join(" ").trim();
+      if (t) return t;
+    }
+    const text = (e.innerText || e.textContent || "").trim();
+    if (text) return text;
+    const title = e.getAttribute("title");
+    if (title && title.trim()) return title.trim();
+    const alt = e.querySelector("img[alt]")?.getAttribute("alt");
+    if (alt && alt.trim()) return alt.trim();
+    if (e.id) {
+      const lab = document.querySelector(`label[for="${CSS.escape(e.id)}"]`);
+      if (lab?.textContent?.trim()) return lab.textContent.trim();
+    }
+    const wrap = e.closest("label");
+    if (wrap?.textContent?.trim()) return wrap.textContent.trim();
+    const ph = e.getAttribute("placeholder");
+    if (ph && ph.trim()) return ph.trim();
+    return "";
+  };
+  for (const e of tappable) {
+    // Something purely decorative can opt out, and a few things do.
+    if (e.getAttribute("aria-hidden") === "true" || e.closest("[aria-hidden='true']")) continue;
+    if (accName(e)) continue;
+    const cls = (typeof e.className === "string" ? e.className : "").split(/\s+/).filter(Boolean).slice(0, 2).join(".");
+    const r = e.getBoundingClientRect();
+    add("no-name", `${e.tagName.toLowerCase()}${cls ? "." + cls : ""} ${Math.round(r.width)}x${Math.round(r.height)} announces nothing`, e);
+  }
+
   // 6. STACKED SIBLINGS WITH NO GAP. The bug Dave found in Heads Up.
   const cards = [...ROOT.querySelectorAll(".card, .notice-swipe, .promo-card")].filter(vis);
   for (let i = 1; i < cards.length; i++) {

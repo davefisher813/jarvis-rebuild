@@ -115,8 +115,18 @@ before this phase was a screens-only number.
       and on Close, 0 of 14 tabs escape either, and Escape puts focus back on
       the exact control that opened the layer. One hook beside the Escape
       one, reading the same exported roster so the two cannot drift.
-- [ ] **VoiceOver names** · every control's accessible name, against what it
-      does. The button audit checked labels, not names.
+- [x] **VoiceOver names** · asked of the RENDERED page, in the auditor, not
+      of the source. The static version of this question in the button audit
+      reported 208 nameless controls and every one was false. The runtime
+      check found ZERO across 22 screens and their sheets, and that result was
+      verified rather than believed: a nameless icon button injected into the
+      page is caught and nothing else is.
+      The second half is the one that had findings. "Delete" is a name but not
+      an ANSWER on a list: on the web build a rail's buttons are siblings of
+      the row, so a screen reader hears "Delete" with nothing saying which.
+      Twelve controls passed the record's name and five did not. The task row,
+      both note rails and all three mail rail actions now name their record;
+      three single-record screens keep the bare verb and say why.
 - [ ] **Focus order and visible focus** · never audited.
 - [ ] **Dynamic Type** · the app pins nothing; what breaks at the large sizes.
 

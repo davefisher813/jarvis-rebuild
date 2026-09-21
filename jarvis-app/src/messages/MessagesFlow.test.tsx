@@ -377,7 +377,7 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.keyDown(screen.getByPlaceholderText("Search All Mail"), { key: "Enter" });
     fireEvent.click(await screen.findByText("Sarah"));
     expect(await screen.findByText("Operating agreement attached")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Archive"));
+    fireEvent.click(screen.getAllByLabelText(/^Archive/)[0]!);
     await waitFor(() => expect(calls).toContain("archive:t9"));
     expect(await screen.findByText("Archived")).toBeInTheDocument();
     // Gone from the results list, and Undo puts it back in Gmail.
@@ -477,8 +477,11 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     await screen.findByText("Ridgeley");
     // Two rows, each with its own pair of actions.
-    expect(screen.getAllByLabelText("Archive")).toHaveLength(2);
-    expect(screen.getAllByLabelText("Delete")).toHaveLength(2);
+    // The rail's actions name their sender now (VoiceOver sweep, 2026-09-21):
+    // "Archive Marcus Delaney", not "Archive". These match by VERB so a
+    // change to how a sender is displayed does not break a test about swipes.
+    expect(screen.getAllByLabelText(/^Archive /)).toHaveLength(2);
+    expect(screen.getAllByLabelText(/^Delete /)).toHaveLength(2);
   });
 
   it("archiving from the list needs no thread open", async () => {
@@ -487,7 +490,7 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
     await screen.findByText("Ridgeley");
-    fireEvent.click(screen.getAllByLabelText("Archive")[0]!);
+    fireEvent.click(screen.getAllByLabelText(/^Archive /)[0]!);
     await waitFor(() => expect(archived).toEqual(["t1"]));
     expect(screen.queryByText("Ridgeley")).toBeNull();
   });
@@ -522,7 +525,7 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
     await screen.findByText("Ridgeley");
-    fireEvent.click(screen.getAllByLabelText("Archive")[0]!);
+    fireEvent.click(screen.getAllByLabelText(/^Archive /)[0]!);
     await waitFor(() => expect(calls).toContain("archive:t1"));
     expect(screen.queryByText("Ridgeley")).toBeNull();
     fireEvent.click(screen.getByText("Undo"));
@@ -890,7 +893,7 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("DoorDash wants an answer."));
     // Wait for the detail view before reaching for its nav actions.
     await screen.findByText("Mute This Thread");
-    fireEvent.click(screen.getByLabelText("Archive"));
+    fireEvent.click(screen.getAllByLabelText(/^Archive/)[0]!);
     // The archive's own toast: reversible, so it offers the way back.
     expect(await screen.findByText("Archived")).toBeInTheDocument();
     expect(screen.getByText("Undo")).toBeInTheDocument();

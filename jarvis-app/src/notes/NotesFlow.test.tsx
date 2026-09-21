@@ -345,7 +345,10 @@ describe("NotesFlow: Recently Deleted", () => {
     await act(async () => { id = (await svc.createNote("Roster", ""))!; await svc.createNote("Kept", ""); });
     view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
     await screen.findByText("Roster", {}, { timeout: 4000 });
-    fireEvent.click(screen.getAllByLabelText("Delete note")[0]!);
+    // The rail names the note now (VoiceOver sweep, 2026-09-21): "Delete
+    // Groceries", not "Delete note". Matched by VERB so a change to a note's
+    // title does not break a test about the swipe.
+    fireEvent.click(screen.getAllByLabelText(/^Delete /)[0]!);
     await waitFor(() => expect(screen.queryByText("Roster")).toBeNull(), { timeout: 4000 });
     expect((await svc.note(id))!.deletedAt).toBeTruthy();
     // AMENDED 2026-09-17 (Unified Headers, rule 2: "Do not mix area names,
@@ -374,9 +377,9 @@ describe("NotesFlow: Recently Deleted", () => {
     }, { timeout: 4000 });
     fireEvent.click(document.querySelector(".hmenu-scrim")!);
     // Delete again, then for good.
-    fireEvent.click(screen.getAllByLabelText("Delete note")[0]!);
+    fireEvent.click(screen.getAllByLabelText(/^Delete /)[0]!);
     await waitFor(async () => { await openDeleted(); }, { timeout: 4000 });
-    fireEvent.click(await screen.findByLabelText("Delete forever"));
+    fireEvent.click(await screen.findByLabelText(/^Delete forever/));
     await waitFor(async () => expect(await svc.note(id)).toBeNull(), { timeout: 4000 });
   });
 });
