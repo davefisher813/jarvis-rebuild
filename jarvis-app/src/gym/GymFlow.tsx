@@ -38,7 +38,7 @@ import { nextDayFor, SCRATCH_DAY_ID, SCRATCH_DAY_NAME } from "./nextDay";
 import { muscleMapFrom } from "./insights";
 import type { MuscleGroup } from "./muscles";
 import { sameLiftAnyKind } from "./identity";
-import { estimateDay, type FitPlan } from "./fit";
+import { estimateDay, type FitPlan, dayUnderPlan } from "./fit";
 import { readGymSettings, writeGymSettings, rackFrom, type CreatedLift } from "./settings";
 import FitSheet from "./FitSheet";
 import ExerciseSheet from "./ExerciseSheet";
@@ -1331,7 +1331,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       // Part 3 wave 5 (O3a): the plan is copied in at start, so a program
       // edit made mid-session reaches the next session, never this one; and
       // the equipment convention rides with every set logged from here.
-      : day.exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [], plan: e.sets, ...loadFields(e) }));
+      // DOING TODAY (2026-09-21). The fit sheet's picks decide which of the
+      // day's exercises this session is made of, and the same list priced the
+      // minutes on that sheet, so what it said and what starts cannot drift.
+      // No picks means the whole day, which is every caller that never asks.
+      : dayUnderPlan(day, opts.fit ?? {}).exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [], plan: e.sets, ...loadFields(e) }));
     const startedAt = Date.now();
     const s: LiveSession = {
       programId: program.id, dayId: day.id, dayName: day.name, date,
@@ -3007,16 +3011,26 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                   );
                 }}
               />
-              {/* TWO DOORS (2026-09-14). "Add Exercise" is still the full
-                  sheet for something new; "Add From Your Lifts" is the fast
-                  one, and it is the one that matters once the library has
-                  anything in it -- six lifts in six taps instead of six
-                  sheets. It hides itself on an empty library, where it would
-                  open onto nothing. */}
-              <button className="row-create" onClick={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id })}>Add Exercise</button>
+              {/* TWO DOORS (2026-09-14), IN THE OTHER ORDER (Dave, 2026-09-21:
+                  "the user should be able to essentially just populate
+                  workout days with workout options... It's kind of that way
+                  on accident right now").
+                  Both doors were already here and the fast one was second, so
+                  building a day meant meeting an eleven-field authoring sheet
+                  -- name, sets, reps, equipment, reps count, weight, unit,
+                  customize, measure, clock, muscle -- once per exercise.
+                  Picking from lifts you already have is the common move by a
+                  long way, and it is six taps for six lifts, so it leads.
+                  Authoring is the escape hatch for something genuinely new,
+                  and says so: "New Exercise" rather than "Add Exercise",
+                  because next to a picker "Add" described them both.
+                  It still hides itself on an empty library, where it would
+                  open onto nothing -- and then the authoring door is the only
+                  one, which is correct, because there is nothing to pick. */}
               {library.length > 0 && (
                 <button className="row-create" onClick={() => setSheet({ kind: "fillDay", weekId: activeWeek.id, dayId: openDay.id })}>Add from Your Lifts</button>
               )}
+              <button className="row-create" onClick={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id })}>New Exercise</button>
             </div></div>
             {/* 2026-09-14 (the reference's day plan): an edit here reaches the
                 next session; a logged session keeps the numbers it logged.

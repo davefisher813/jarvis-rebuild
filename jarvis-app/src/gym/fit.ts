@@ -31,6 +31,31 @@ export interface FitPlan {
   superset?: boolean;
   skipCool?: boolean;
   trims?: Record<string, number>;
+  /** THE DAY IS A MENU, NOT A SCRIPT (Dave, 2026-09-21: "the user should be
+   *  able to essentially just populate workout days with workout options then
+   *  select what they want to do that day. It's kind of that way on accident
+   *  right now").
+   *
+   *  It was on accident: the start sheet asked how long you had and offered
+   *  to trim accessory sets, but never asked WHICH lifts -- you got the whole
+   *  day in order, and the only way to choose was to Skip or Swap once you
+   *  were already standing at the rack with the session running.
+   *
+   *  Exercise ids the athlete is NOT doing this session. Skips rather than
+   *  picks, deliberately: absent means the whole day, so every existing
+   *  caller, every saved plan and every door that never asks keeps exactly
+   *  the behaviour it has. Like every other lever here it is a stance for ONE
+   *  session and never edits the program (LAW 17). */
+  skip?: string[];
+}
+
+/** The day as this plan will actually run it. Every estimator reads the day
+ *  through here, so the minutes on the sheet and the exercises in the session
+ *  can never disagree. */
+export function dayUnderPlan(day: ProgramDay, plan: FitPlan = {}): ProgramDay {
+  if (!plan.skip?.length) return day;
+  const out = new Set(plan.skip);
+  return { ...day, exercises: day.exercises.filter((e) => !out.has(e.id)) };
 }
 
 export const REST_CUT_SEC = 30;
@@ -110,6 +135,7 @@ export interface DayEstimate {
  * without minutes contribute zero rather than an invented number.
  */
 export function estimateDaySec(day: ProgramDay, history: Workout[], rack: RackConfig, plan: FitPlan = {}): number {
+  day = dayUnderPlan(day, plan);
   let sec = 0;
   for (const ex of day.exercises) {
     if (ex.filler) continue;
@@ -140,6 +166,7 @@ export function estimateDaySec(day: ProgramDay, history: Workout[], rack: RackCo
 }
 
 export function estimateDay(day: ProgramDay, history: Workout[], rack: RackConfig, plan: FitPlan = {}): DayEstimate {
+  day = dayUnderPlan(day, plan);
   const sec = estimateDaySec(day, history, rack, plan);
   let learnedCount = 0;
   let liftCount = 0;
@@ -174,6 +201,7 @@ export interface LeverOffer {
  * as currently set, so the numbers stay true as switches flip.
  */
 export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfig, plan: FitPlan): LeverOffer[] {
+  day = dayUnderPlan(day, plan);
   const offers: LeverOffer[] = [];
   const saveOf = (on: FitPlan, off: FitPlan) =>
     Math.max(0, Math.round((estimateDaySec(day, history, rack, off) - estimateDaySec(day, history, rack, on)) / 60));

@@ -42,6 +42,17 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
     chips.sort((a, b) => a - b);
   }
 
+  // A filler rides inside its partner's rest and is not a thing you choose
+  // separately, so it is not offered as one.
+  const doable = day.exercises.filter((e) => !e.filler);
+  const toggleEx = (id: string) => setPlan((p) => {
+    const skip = new Set(p.skip ?? []);
+    if (skip.has(id)) skip.delete(id);
+    // NEVER ALL OF THEM. Unticking the last lift would start an empty
+    // session, which is a workout you did not do; the last one on stays on.
+    else if (doable.some((e) => e.id !== id && !skip.has(e.id))) skip.add(id);
+    return { ...p, skip: [...skip] };
+  });
   const toggle = (key: LeverKey) => setPlan((p) => {
     if (key === "restCut") return { ...p, restCut: !p.restCut };
     if (key === "superset") return { ...p, superset: !p.superset };
@@ -52,6 +63,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
   const start = () => {
     const trims = plan.trims && Object.keys(plan.trims).length ? plan.trims : undefined;
     onStart({
+      ...(plan.skip?.length ? { skip: plan.skip } : {}),
       ...(budget > 0 ? { budgetMin: budget } : {}),
       ...(plan.restCut ? { restCut: true } : {}),
       ...(plan.superset ? { superset: true } : {}),
@@ -65,6 +77,40 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{day.name} · Plan {planMin} Min{gameLine ? " · " + gameLine : ""}</div></div>
+
+        {/* WHAT, BEFORE HOW LONG (2026-09-21). The sheet asked how long you
+            had and offered to trim accessory sets, and never asked which
+            lifts -- so a day was a script you ran, and choosing meant Skip or
+            Swap once the session was already going.
+            Everything is on when the sheet opens, so doing nothing here is
+            exactly the behaviour that shipped. Untick two and the session is
+            the rest -- and the estimate below moves as you tick, which makes
+            the time cap and the choice one decision instead of two. The
+            program is untouched either way: this is a stance for one session,
+            the same as every lever under it. */}
+        {doable.length > 1 && (
+          <>
+            <div className="pad-x"><div className="input-label">Doing Today</div></div>
+            <div><div className="list-flat">
+              {doable.map((e) => {
+                const on = !(plan.skip ?? []).includes(e.id);
+                return (
+                  <div className="row" key={e.id} onClick={() => toggleEx(e.id)}>
+                    <div className="task-check-tap" role="checkbox" aria-checked={on}
+                      aria-label={`${liftTitle(e.name)}, ${on ? "doing today" : "not today"}`}
+                      onClick={own(() => toggleEx(e.id))}>
+                      <div className={"task-check" + (on ? " done" : "")} />
+                    </div>
+                    <div className="row-grow">
+                      <div className={"conn-name truncate" + (on ? "" : " fit-off")}>{liftTitle(e.name)}</div>
+                    </div>
+                    <span className="conn-meta">{e.cond ? "Clock" : `${e.sets.length} \u00d7 ${e.sets[0]?.r ?? ""}`}</span>
+                  </div>
+                );
+              })}
+            </div></div>
+          </>
+        )}
 
         <div className="pad-x">
           <div className="field">
