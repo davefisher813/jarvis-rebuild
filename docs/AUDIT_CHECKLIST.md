@@ -289,8 +289,22 @@ before this phase was a screens-only number.
 
 ## PHASE 5 · THE SCREENS NOTHING HAS REACHED
 
-- [ ] **Bigger Picture** · in neither More nor Life. Renamed, moved or gone.
-- [ ] **Settings > Categories** · same.
+- [x] **Bigger Picture** · it was in Life the whole time. Not renamed, not
+      moved, not gone: it is Life's Projects and Goals lenses, behind a
+      SEGMENTED CONTROL, and the crawler did not know a segmented control was
+      a control. One tab, five screens, and it audited one of them. It walks
+      every segment of every tab now (`segmentsOf`), which also picked up
+      Life's Tasks and Reminders and Schedule's Week and Month.
+- [x] **Settings > Categories** · never missing, never looked at. The dive
+      took the first THREE rows of every screen, silently, and Categories is
+      the fourth row of Settings. The cap is named, tunable (`DIVE_CAP`,
+      default 6) and reported: every row it skips now prints in the gap list
+      at the foot of the run, the way every other gap does. A `DIVE_CAP=30`
+      pass covers Settings' eighteen sub-pages when the long tail is wanted.
+- [x] **The count, before and after** · 11 screens a pass when this phase was
+      written, 28 once the live workout was reachable, **43** once segments
+      and the dive cap were fixed. The screens that were "unreachable" were
+      the tool's blind spots, not the app's.
 - [ ] **Anything else the crawler names as unreachable** on its next run.
 
 ## PHASE 6 · BEHAVIOUR, NOT PIXELS

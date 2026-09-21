@@ -234,7 +234,14 @@ const AUDIT = () => {
       // App chrome sits in normal flow at the edges of the shell and content
       // scrolls behind it BY DESIGN. Content passing under the capture bar is
       // not a stacked tap target; that is what the under-bar check is for.
-      const CHROME = ".voice-dock, .tab-bar, .pagebar, .nav-bar, .sheet-scrim";
+      // .toast-dock joined the list 2026-09-21. A toast is a LAYER: it lands
+      // over whatever is under it, says one thing, and leaves after five
+      // seconds. Pairing its Undo with the row it happens to cover reports
+      // the pattern working as designed -- and it reported a different row on
+      // every screen a toast could appear on, which is noise with no fix
+      // behind it. Whether the toast is reachable is the under-bar check's
+      // question, and it answers it.
+      const CHROME = ".voice-dock, .tab-bar, .pagebar, .nav-bar, .sheet-scrim, .toast-dock";
       if (!!a.closest(CHROME) !== !!c.closest(CHROME)) continue;
       if (inFixed(a) || inFixed(c)) continue;
       const ra = clipped(a), rc = clipped(c);
@@ -567,6 +574,25 @@ const AUDIT = () => {
   // Same rule as the rest of the file: when a layer is up, the page under it
   // is not the subject.
   const bars = [...ROOT.querySelectorAll("*")].filter((e) => getComputedStyle(e).position === "fixed" && vis(e));
+  // A ROW YOU CAN SCROLL OUT IS NOT TRAPPED (2026-09-21). Every screen in
+  // this app that has a fixed bottom bar also has content passing under it
+  // at some scroll position, and reporting that is reporting scrolling. The
+  // defect is content that can NEVER be moved out: the page is already at the
+  // bottom and the bar is still on top of it, which is what a foot spacer
+  // exists to prevent and what its absence looks like. So the question is
+  // asked of the SCROLLER, once: is there anywhere left to go.
+  const canScrollPast = (e) => {
+    let n = e.parentElement;
+    while (n && n !== document.documentElement) {
+      const cs = getComputedStyle(n);
+      if (["auto", "scroll"].includes(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) {
+        return n.scrollTop + n.clientHeight < n.scrollHeight - 1;
+      }
+      n = n.parentElement;
+    }
+    const d = document.scrollingElement;
+    return !!d && d.scrollTop + d.clientHeight < d.scrollHeight - 1;
+  };
   for (const bar of bars) {
     const rb = bar.getBoundingClientRect();
     if (rb.height > window.innerHeight * 0.5) continue;
@@ -576,7 +602,8 @@ const AUDIT = () => {
       if (r.top >= 0 && r.bottom <= window.innerHeight &&
           r.bottom > rb.top + 4 && r.top < rb.bottom - 4 &&
           r.right > rb.left && r.left < rb.right) {
-        add("under-bar", `"${(e.textContent||"").trim().slice(0,22)}" behind fixed bar`, e);
+        if (canScrollPast(e)) continue;
+        add("under-bar", `"${(e.textContent||"").trim().slice(0,22)}" behind fixed bar, page already at the bottom`, e);
       }
     }
   }
@@ -775,10 +802,20 @@ async function focusScreen(page, name) {
 // screen Dave has been reporting bugs on -- stayed unvisited even after the
 // tab dive existed. Count what a selector matches before trusting it.
 const DIVE_SEL = '.row[role="button"], .proj-row, .lm-row, .cat-row, .settings-row, .conn-row, .person-row, .lib-row, .area-card';
+// THREE WAS A NUMBER, NOT A LIMIT (2026-09-21). The dive took the first
+// three rows of every screen, silently, and the audit checklist has carried
+// "Settings > Categories · unreachable" for two days because of it: Categories
+// is the FOURTH row of Settings. It was never missing, it was never looked at.
+// The cap stays, because an unbounded dive on a list screen is a different
+// tool, but it is named, tunable, and every row it skips is reported the way
+// every other gap in this report is.
+const DIVE_CAP = Number(process.env.DIVE_CAP || 6);
 async function diveInto(page, label, sheetSkips, sheetsSeen) {
   const out = [];
   const title = () => page.evaluate(() => document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "");
-  const count = Math.min(3, await page.locator(DIVE_SEL).count());
+  const found = await page.locator(DIVE_SEL).count();
+  const count = Math.min(DIVE_CAP, found);
+  if (found > count) sheetSkips.push(`${label}: ${found - count} rows past the first ${count} were not opened (DIVE_CAP)`);
   for (let i = 0; i < count; i++) {
     await clearLayers(page);
     const before = page.url() + "|" + await title();
@@ -858,6 +895,32 @@ async function liveWorkout(page, sheetSkips) {
   if (await step("Finish did not open the receipt", () => page.click('text="Finish"', { timeout: 3000 }))) {
     out.push(await auditScreen(page, "Live: Finish"));
   }
+  return out;
+}
+
+// A SEGMENTED CONTROL IS A SET OF SCREENS (2026-09-21). The other half of the
+// same blind spot: Life's five lenses (Areas, Tasks, Reminders, Projects,
+// Goals) are one tab to this crawler, so Projects and Goals -- which is where
+// Bigger Picture lives, the whole roadmap layer -- were never drawn once, and
+// the checklist has been carrying them as "in neither More nor Life. Renamed,
+// moved or gone." They were in Life the whole time, behind a control the tool
+// did not know was a control.
+//
+// Segment 1 is the screen just audited, so it is skipped; the walk returns to
+// it afterwards, because a segment is a state the screen holds and the caller
+// expects to find the screen where it left it.
+async function segmentsOf(page, label) {
+  const out = [];
+  const segs = await page.evaluate(() =>
+    [...document.querySelectorAll(".segmented .seg")].map((e) => (e.textContent || "").trim()).filter(Boolean));
+  if (segs.length < 2) return out;
+  for (const t of segs.slice(1)) {
+    try { await page.click(`.segmented .seg:text-is("${t}")`, { timeout: 2500 }); } catch { continue; }
+    await page.waitForTimeout(800);
+    out.push(await auditScreen(page, label + " · " + t));
+  }
+  await page.click(`.segmented .seg:text-is("${segs[0]}")`, { timeout: 2500 }).catch(() => {});
+  await page.waitForTimeout(600);
   return out;
 }
 
@@ -1266,6 +1329,11 @@ async function runPass({ w, h, theme, scale = 1 }) {
       try { await page.click(`text="${t}"`, { timeout: 3000 }); } catch { continue; }
       await page.waitForTimeout(700);
       results.push(...await diveInto(page, "Tab: " + t, sheetSkips, sheetsSeen));
+      // And every lens the tab holds behind its segmented control.
+      await clearLayers(page);
+      await page.click(`text="${t}"`, { timeout: 3000 }).catch(() => {});
+      await page.waitForTimeout(700);
+      results.push(...await segmentsOf(page, "Tab: " + t));
     }
 
     // LAST, because it leaves a workout running. See liveWorkout above.
