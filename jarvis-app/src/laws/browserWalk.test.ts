@@ -1138,7 +1138,13 @@ describe("AUDIT COVERAGE: the crawl does not choose what counts", () => {
     // Life is a hub. Audited as one screen it looked fine, and everything
     // behind it was invisible.
     const t = tool();
-    expect(t).toMatch(/async function diveInto\(page, label, sheetSkips, sheetsSeen\)/);
+    // AMENDED 2026-09-22: the dive now takes a `reach` that navigates to its
+    // section fresh before every row and reports whether it got there. Trusting
+    // "back" left the Settings dive running on Edit Tabs, so none of its
+    // thirteen screens were ever audited.
+    expect(t).toMatch(/async function diveInto\(page, label, reach, sheetSkips, sheetsSeen\)/);
+    expect(t, "each row is reached from a known place").toMatch(/if \(i > 0 && !\(await reach\(\)\)\)/);
+    expect(t, "and a section that cannot be reached is named, not skipped").toMatch(/could not be reached for the dive, NOT AUDITED/);
     expect(t, "More still dives").toMatch(/diveInto\(page, "More > " \+ r/);
     expect(t, "and now so does every other tab").toMatch(/diveInto\(page, "Tab: " \+ t/);
     // More's own rows are crawled in full above, so it is not dived twice.

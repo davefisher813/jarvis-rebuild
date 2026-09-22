@@ -1233,16 +1233,35 @@ const DIVE_SEL = '.row[role="button"], .proj-row, .lm-row, .cat-row, .settings-r
 // The cap stays, because an unbounded dive on a list screen is a different
 // tool, but it is named, tunable, and every row it skips is reported the way
 // every other gap in this report is.
-const DIVE_CAP = Number(process.env.DIVE_CAP || 6);
-async function diveInto(page, label, sheetSkips, sheetsSeen) {
+const DIVE_CAP = Number(process.env.DIVE_CAP || 16);
+async function diveInto(page, label, reach, sheetSkips, sheetsSeen) {
+  // EVERY ROW FROM A KNOWN PLACE (2026-09-22). This used to find the rows
+  // once and then trust "back" to return it to the same screen between them.
+  // It often did not: the sheet pass on Settings left it on Edit Tabs, so the
+  // dive ran on the wrong page and none of Settings' thirteen screens were
+  // ever audited; the Today and Life dives started on "Schedule" and "More".
+  // So each row is reached fresh -- `reach` navigates to the section and
+  // reports whether it really got there -- and a row that cannot be reached
+  // is recorded as a gap, by name.
+  //
+  // AND A NEW SCREEN IS KNOWN BY WHAT IT SHOWS, NOT BY ITS TITLE. The
+  // comparison was url + page title. This app does not route, and an email
+  // thread opens in place under the same "Email" title, so every thread was
+  // dismissed as "opened nothing" and never looked at. The signature now
+  // includes the first 400 characters of the scrolling content.
   const out = [];
-  const title = () => page.evaluate(() => document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "");
+  const sig = () => page.evaluate(() => {
+    const t = document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "";
+    const main = document.querySelector(".app-scroll") || document.body;
+    return t + "|" + ((main.innerText || "").replace(/\s+/g, " ").slice(0, 400));
+  });
+  if (!(await reach())) { sheetSkips.push(`${label}: could not be reached for the dive, NOT AUDITED`); return out; }
   const found = await page.locator(DIVE_SEL).count();
   const count = Math.min(DIVE_CAP, found);
   if (found > count) sheetSkips.push(`${label}: ${found - count} rows past the first ${count} were not opened (DIVE_CAP)`);
   for (let i = 0; i < count; i++) {
-    await clearLayers(page);
-    const before = page.url() + "|" + await title();
+    if (i > 0 && !(await reach())) { sheetSkips.push(`${label}: lost the section before row ${i + 1}, rest NOT AUDITED`); break; }
+    const before = await sig();
     const row = page.locator(DIVE_SEL).nth(i);
     let name = "";
     try {
@@ -1251,16 +1270,18 @@ async function diveInto(page, label, sheetSkips, sheetsSeen) {
     } catch { continue; }
     await page.waitForTimeout(800);
     // A row that opened nothing is not a screen; auditing the same screen
-    // three times is how a report gets padded instead of thorough.
-    if (page.url() + "|" + await title() === before) continue;
+    // twice is how a report gets padded instead of thorough.
+    if (await sig() === before) continue;
     const name2 = label + " > " + name;
     out.push(await auditScreen(page, name2));
     if (SHEETS) {
-      const back = async () => { await clearLayers(page); await page.waitForTimeout(300); };
+      const back = async () => {
+        if (!(await reach())) return;
+        await page.locator(DIVE_SEL).nth(i).click({ timeout: 2000 }).catch(() => {});
+        await page.waitForTimeout(800);
+      };
       out.push(...await auditSheets(page, name2, back, sheetSkips, sheetsSeen));
     }
-    await page.click(".nav-back, .pagebar-back").catch(() => {});
-    await page.waitForTimeout(600);
   }
   return out;
 }
@@ -1707,10 +1728,32 @@ async function runPass({ w, h, theme, scale = 1 }) {
     // that opened. Verified by reading the active tab after the click: still
     // Today. Every "Tab: Schedule" this tool has ever printed was that.
     // The names are read off .tab-bar .tab in order, so the index is exact.
-    const openTab = (t) => page.locator(".tab-bar .tab").nth(TABS.indexOf(t)).click({ timeout: 3000 });
+    // A WAY BACK THAT ALWAYS WORKS (2026-09-22). The tab click used to be one
+    // attempt with a silent `continue` on failure. Notes' sheets leave the
+    // list in select mode, which swaps the tab bar for a selection bar, so
+    // every click on More after Notes timed out -- and Email, Notifications,
+    // Money, Chat and Settings were skipped on EVERY pass of EVERY full run,
+    // with nothing in the report to say so. A pass that cannot reach a tab
+    // now reloads the app, puts its theme and type scale back, and tries
+    // again; only a second failure is recorded, by name, as a gap.
+    const resetApp = async () => {
+      await page.goto("http://localhost:4173/", { waitUntil: "networkidle" }).catch(() => {});
+      try { await page.click('text="Skip for now"', { timeout: 2500 }); } catch { /* already past it */ }
+      await page.waitForTimeout(1500);
+      await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+      if (scale !== 1) await page.evaluate((n) => document.documentElement.style.setProperty("--type-scale", String(n)), scale);
+      await page.waitForTimeout(500);
+    };
+    const openTab = async (t) => {
+      const tab = () => page.locator(".tab-bar .tab").nth(TABS.indexOf(t)).click({ timeout: 3000 });
+      try { await tab(); } catch {
+        await resetApp();
+        await tab();
+      }
+    };
     for (const t of TABS) {
       if (!(await clearLayers(page))) sheetSkips.push(`before Tab ${t}: a layer would not close`);
-      try { await openTab(t); } catch { continue; }
+      try { await openTab(t); } catch { sheetSkips.push(`Tab ${t}: could not be opened, NOT AUDITED`); continue; }
       results.push(await auditScreen(page, "Tab: " + t));
       if (SHEETS) {
         const back = async () => { await clearLayers(page); await openTab(t).catch(() => {}); await page.waitForTimeout(700); };
@@ -1731,7 +1774,11 @@ async function runPass({ w, h, theme, scale = 1 }) {
       await clearLayers(page);
       await openTab("More").catch(() => {});
       await page.waitForTimeout(700);
-      try { await openMoreRow(ri); } catch { continue; }
+      try { await openMoreRow(ri); } catch {
+        // Same recovery as the tabs, then say so if it still fails.
+        await resetApp(); await openTab("More").catch(() => {}); await page.waitForTimeout(700);
+        try { await openMoreRow(ri); } catch { sheetSkips.push(`More > ${r}: could not be opened, NOT AUDITED`); continue; }
+      }
       results.push(await auditScreen(page, "More > " + r));
       if (SHEETS) {
         const back = async () => {
@@ -1753,7 +1800,22 @@ async function runPass({ w, h, theme, scale = 1 }) {
       // Click by ELEMENT, not by text. Text selectors match the first thing
       // on the page that happens to say the same words, which on these
       // screens is usually a heading rather than the row.
-      results.push(...await diveInto(page, "More > " + r, sheetSkips, sheetsSeen));
+      const reachRow = async () => {
+        const at = async () => page.evaluate((name) =>
+          (document.querySelector(".tab-bar .tab.active")?.textContent || "").trim() === "More"
+          && (document.querySelector(".pagebar-title, .pagehead-title, .nav-title")?.textContent || "").trim() === name, r);
+        for (let attempt = 0; attempt < 2; attempt++) {
+          if (attempt) await resetApp();
+          await clearLayers(page);
+          await openTab("More").catch(() => {});
+          await page.waitForTimeout(600);
+          await openMoreRow(ri).catch(() => {});
+          await page.waitForTimeout(700);
+          if (await at()) return true;
+        }
+        return false;
+      };
+      results.push(...await diveInto(page, "More > " + r, reachRow, sheetSkips, sheetsSeen));
     }
 
     // AND THE TABS GET THE SAME DIVE (2026-09-21). The dive ran on More's
@@ -1762,10 +1824,19 @@ async function runPass({ w, h, theme, scale = 1 }) {
     // Every bug Dave reported on 2026-09-21 was on a screen behind that door.
     for (const t of TABS) {
       if (t === "More") continue;   // its rows are crawled above, in full
-      await clearLayers(page);
-      try { await openTab(t); } catch { continue; }
-      await page.waitForTimeout(700);
-      results.push(...await diveInto(page, "Tab: " + t, sheetSkips, sheetsSeen));
+      const reachTab = async () => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          if (attempt) await resetApp();
+          await clearLayers(page);
+          await openTab(t).catch(() => {});
+          await page.waitForTimeout(700);
+          const ok = await page.evaluate((name) =>
+            (document.querySelector(".tab-bar .tab.active")?.textContent || "").trim() === name, t);
+          if (ok) return true;
+        }
+        return false;
+      };
+      results.push(...await diveInto(page, "Tab: " + t, reachTab, sheetSkips, sheetsSeen));
       // And every lens the tab holds behind its segmented control.
       await clearLayers(page);
       await openTab(t).catch(() => {});
