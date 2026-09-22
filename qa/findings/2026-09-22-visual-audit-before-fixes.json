@@ -1,0 +1,1986 @@
+[
+ {
+  "label": "390x844 dark",
+  "w": 390,
+  "h": 844,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 23%",
+      "cls": "conn-name hl-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Complete Your Enrollment\" loses 27%",
+      "cls": "conn-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"From App Store Team · Looks like t\" loses 39%",
+      "cls": "conn-meta"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 16%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 30%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 39%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 47%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open until 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "430x932 dark",
+  "w": 430,
+  "h": 932,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"From App Store Team · Looks like t\" loses 24%",
+      "cls": "conn-meta"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 24%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 34%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open until 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "834x1112 dark",
+  "w": 834,
+  "h": 1112,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Delete Task\" 3.33:1 needs 4.5 · rgb(255, 69, 58) on rgb(58, 58, 60)",
+      "cls": "row xs-row xs-del"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "390x844 light",
+  "w": 390,
+  "h": 844,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 23%",
+      "cls": "conn-name hl-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Complete Your Enrollment\" loses 27%",
+      "cls": "conn-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"From App Store Team · Looks like t\" loses 39%",
+      "cls": "conn-meta"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 16%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 30%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 39%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 47%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open until 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "430x932 light",
+  "w": 430,
+  "h": 932,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"From App Store Team · Looks like t\" loses 24%",
+      "cls": "conn-meta"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 24%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 34%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open until 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "834x1112 light",
+  "w": 834,
+  "h": 1112,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "390x844 dark @1.4x type",
+  "w": 390,
+  "h": 844,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 57%",
+      "cls": "conn-name hl-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"45 min\" loses 55%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 46%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 55%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 61%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 66%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 40%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 26%",
+      "cls": "sched-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 17%",
+      "cls": "blend-text truncate"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open until 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"7 of 10 completions\" loses 23%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached · Net 15 starts M\" loses 36%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached · Net 15 starts M\" loses 36%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "430x932 dark @1.4x type",
+  "w": 430,
+  "h": 932,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 42%",
+      "cls": "conn-name hl-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 31%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 43%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 50%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 57%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 21%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 17%",
+      "cls": "sched-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open until 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached · Net 15 starts M\" loses 27%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached · Net 15 starts M\" loses 27%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "834x1112 dark @1.4x type",
+  "w": 834,
+  "h": 1112,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Delete Task\" 3.33:1 needs 4.5 · rgb(255, 69, 58) on rgb(58, 58, 60)",
+      "cls": "row xs-row xs-del"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open until 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "390x844 light @1.4x type",
+  "w": 390,
+  "h": 844,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 57%",
+      "cls": "conn-name hl-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"45 min\" loses 55%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 46%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 55%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 61%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 66%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 40%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 26%",
+      "cls": "sched-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 17%",
+      "cls": "blend-text truncate"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open until 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"7 of 10 completions\" loses 23%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached · Net 15 starts M\" loses 36%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached · Net 15 starts M\" loses 36%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "430x932 light @1.4x type",
+  "w": 430,
+  "h": 932,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 42%",
+      "cls": "conn-name hl-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 31%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 43%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 50%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 57%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 21%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 17%",
+      "cls": "sched-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open until 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached · Net 15 starts M\" loses 27%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached · Net 15 starts M\" loses 27%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ },
+ {
+  "label": "834x1112 light @1.4x type",
+  "w": 834,
+  "h": 1112,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open until 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Complete Your EnrollmentFrom App S",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Send Rob the DeckYou said you woul",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "More > Brain: 4 rows past the first 6 were not opened (DIVE_CAP)",
+   "live workout: could not reach the Life tab"
+  ]
+ }
+]
