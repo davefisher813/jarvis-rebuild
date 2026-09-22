@@ -207,8 +207,11 @@ export default function GoalDetailPage({
             updated it. This reads the same evidence the rest of the page
             reads, at render time, and is never written back. */}
         {health && <div className={"eyebrow " + HEALTH_CLASS[health]}>{HEALTH_LABEL[health]}</div>}
-        {/* C-35: the projects moving it, as a sky fact. Counts only. */}
-        {moving > 0 && goal.data.measure?.kind !== "projects" && <div className="facts"><span className="fact sky">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span></div>}
+        {/* C-35: the projects moving it. Counts only. It asked for a sky
+            fact until 2026-09-22; .fact.sky had been deleted with the blue
+            subtext and the class had been painting nothing since. It is
+            alone on its line, so plain grey is the line's one grey. */}
+        {moving > 0 && goal.data.measure?.kind !== "projects" && <div className="facts"><span className="fact">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span></div>}
         {/* The ONLY place counts appear on this page. Honest null: a goal
             with no tasks under it yet says so instead of claiming 0%. A
             dollar target replaces the counts line with the DERIVED savings
@@ -268,7 +271,7 @@ export default function GoalDetailPage({
                   onClick={() => tick(next.id, true)} onKeyDown={rowKey(() => tick(next.id, true))}>
                   <div className="row-grow">
                     <div className="conn-name">{next.text}</div>
-                    <div className="facts"><span className="fact sky">Up Next</span></div>
+                    <div className="facts"><span className="fact">Up Next</span></div>
                   </div>
                   {onMilestoneDone && <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onMilestoneDone(next.id, true); }}>Done</button>}
                 </div>

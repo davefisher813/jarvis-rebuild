@@ -707,7 +707,7 @@ export default function PlanDaySheet({
                   silent when neither half is known. */}
               {(energy || ranges.focus.length > 0) && (
                 <div className="pad-x"><div className="facts plan-facts">
-                  {energy && <span className="fact sky">Peak {label(fromMin(energy.peakStartMin)).replace(/:00/, "")} to {label(fromMin(energy.peakEndMin)).replace(/:00/, "")}</span>}
+                  {energy && <span className="fact">Peak {label(fromMin(energy.peakStartMin)).replace(/:00/, "")} to {label(fromMin(energy.peakEndMin)).replace(/:00/, "")}</span>}
                   {ranges.focus[0] && <span className="fact">Picks land in {ranges.focus[0].label}</span>}
                 </div></div>
               )}

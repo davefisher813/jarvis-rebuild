@@ -422,8 +422,6 @@
 .ruled .goal-row-ruled .goal-meter { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1h); min-width: 0; }
 .ruled .goal-row-ruled .goal-meter > .r-goal { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tx-3); }
 .ruled .task-row .goal-meter > .r-goal b { color: var(--tx-1); font-weight: var(--w-semi); }
-.ruled .r-next { font-size: var(--t-caption); color: var(--tx-quiet); margin-top: var(--s-1);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* THE NEXT MOVE LEADS, SO IT HAS TO READ LIKE IT (Dave 2026-09-09: the Next
    line "should either be color coded or a white/grey contrast like the lines
    above it. It doesn't stand out at all and should"). It was the quietest
@@ -432,7 +430,6 @@
    action takes --tx-2, one step brighter than the --tx-3 progress line
    above, so the row's brightest ink after the title is the actual move. Same
    device as `.r-goal b`, which already brightens the fact inside a line. */
-.ruled .r-next b { font-weight: var(--w-medium); color: var(--tx-2); }
 .ruled .task-row .r-goal b { font-weight: var(--w-semi); color: var(--tx-2); }
 /* (The goal as a head over its projects, .sh2.gh-goal, is retired. The
    Projects lens groups by area like the Goals lens does, so the head is the
@@ -773,8 +770,6 @@
 .ruled .outcome-head { margin-top: var(--s-2); }
 .ruled .list-card-ruled > .task-swipe + .task-swipe .row::before { display: none; }
 .ruled .msg-from { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
-.ruled .msg-headline { font-size: calc(15px * var(--type-scale)); }
-.ruled .msg-headline.msg-strong { font-weight: var(--w-medium); }
 .ruled .msg-line .conn-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .ruled .msg-gist { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .ruled .mail-arch[aria-label="Archive"] { background: #0A84FF; color: #fff; } /* More moves keeps the neutral fill */
@@ -817,7 +812,6 @@
 .ruled .h-hero-ico .ic { width: 22px; height: 22px; }
 .ruled .h-hero-b { flex: 1; min-width: 0; }
 .ruled .h-hero-t { font-size: var(--t-h2); font-weight: var(--w-semi); letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ruled .h-hero-s { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); margin-top: var(--s-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* PICK THE SESSION, DO NOT BE HANDED ONE (Dave 2026-09-10: the hero "should
    encourage the user to select a workout for the day or begin one from
    scratch. It can suggest one based on that day that's fine but this is a
@@ -835,14 +829,8 @@
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent); }
 .ruled .h-pick::-webkit-scrollbar { display: none; }
-.ruled .h-pick-c { flex-shrink: 0; font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--tx-2);
-  background: var(--press-3); border: none; border-radius: var(--r-pill); padding: var(--s-2) var(--s-3); white-space: nowrap;
-  max-width: 46vw; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.ruled .h-pick-c:active { opacity: 0.6; }
 /* Pinned, and it wears the training accent so it reads as the one option on
    the row that does not come from the program. */
-.ruled .h-pick-c.h-pick-new { background: var(--hl-lime-tint); color: var(--hl-lime-ink);
-  font-weight: var(--w-semi); max-width: none; }
 /* WEEKLY VOLUME, ONE CARD (Dave 2026-09-10: "insights are weak and random it
    seems. Make them of actual use to the user and render it an appealing
    way"). A row per muscle: the name, a track with the studied band tinted and
@@ -936,15 +924,8 @@
 .ruled .vol-n.vol-in { color: var(--hl-lime-ink); }
 .ruled .vol-n.vol-under, .ruled .vol-n.vol-over { color: var(--warn); }
 .ruled .h-week { display: flex; justify-content: space-between; padding: var(--s-0h) var(--s-5) var(--s-3h); }
-.ruled .h-day { display: flex; flex-direction: column; align-items: center; gap: var(--s-1h); font-size: var(--t-micro); font-weight: var(--w-bold);
-  letter-spacing: 0.06em; color: var(--tx-2); }
-.ruled .h-day i { width: 10px; height: 10px; border-radius: var(--r-circle); background: var(--press-3); display: block; }
 /* A trained day is lime and TODAY is a cyan ring; neither glows (Health R5,
    2026-09-12). The 8px bloom went with the hero's. */
-.ruled .h-day.on i { background: var(--hl-lime); }
-.ruled .h-day.today i { box-shadow: 0 0 0 2px var(--hl-cyan); }
-.ruled .h-day.today.on i { box-shadow: 0 0 0 2px var(--hl-cyan); }
-.ruled .h-day.today { color: var(--tx-1); }
 .ruled .h-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2h); }
 .ruled .h-tile { position: relative; overflow: hidden; border-radius: var(--r-md); padding: var(--s-3) var(--s-3) var(--s-3); cursor: pointer;
   background: var(--glass-bg, var(--surface-1)); box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0,0,0,0.55);
@@ -956,16 +937,9 @@
    and 10.5/26 is a dashboard's proportion, not a fitness app's. The token
    scale is untouched -- these are the two values the approved harness draws
    and nothing else moves with them. */
-.ruled .ht-w { font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ruled .ht-n { font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.03em; line-height: 1.05; margin-top: var(--s-1);
-  font-variant-numeric: tabular-nums; display: flex; gap: var(--s-1h); align-items: baseline; }
-.ruled .ht-n small { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: 0; margin-left: var(--s-1); }
 /* An absence is the one thing on the tile that is not a reading, so it keeps
    the quiet grey and shrinks back to label size (R2 names it the one --tx-4
    survivor in Health). */
-.ruled .ht-none { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); }
-.ruled .ht-m { font-size: var(--t-caption); color: var(--tx-2); margin-top: var(--s-1); }
 .ruled .ht-spark { position: absolute; right: 10px; bottom: 10px; width: 64px; height: 22px; color: var(--hl-blue); }
 
 /* ---------- THE LOG GRID'S HUES: BY MEANING (Health R4 / H-04, Dave's picks
@@ -998,12 +972,9 @@
 /* R2: no opacity on anything in Health that carries text. The label was
    dimmed to 0.9 to sit under its number; it sits under its number because it
    is 13px against 34px, which is the hierarchy doing the work. */
-.ruled .h-tile[data-hue] .ht-w { color: var(--h-hue); }
-.ruled .h-tile[data-hue] .ht-n { color: var(--h-hue); }
 .ruled .h-tile[data-hue] .ht-spark { color: var(--h-hue); }
 /* An empty tile does not shout: Log it stays on the grey ramp, so a lit tile
    means something was actually logged. */
-.ruled .h-tile[data-hue] .ht-none { color: var(--tx-2); }
 /* The class form stays for the insight dot and chip, which take the same pair
    and are not tiles. */
 .ruled .hue-hl-lime   { --h-hue: var(--hl-lime);   --h-tint: var(--hl-lime-tint); }
@@ -1015,7 +986,6 @@
 /* The add-a-metric tile is a door, not a reading, so it wears the dashed
    outline every empty create surface in the app wears and no hue at all. */
 .ruled .h-tile-add { box-shadow: inset 0 0 0 1px var(--rim-card); }
-.ruled .h-tile-add .ht-m { color: var(--tx-2); }
 /* The two doors under the grid (Medication, More) get the breath the grid
    above them would otherwise eat. */
 .ruled .h-doors { margin-top: var(--s-2h); }
@@ -1796,16 +1766,25 @@
    Styles only in this push: no health surface has adopted .facts yet, and
    each takes it when its own push lands (Session in B, the Health page in C).
    Same discipline Astra Push A shipped its primitives under. */
-.ruled.health-ruled .fact.lime   { color: var(--hl-lime-ink); }
-.ruled.health-ruled .fact.cyan   { color: var(--hl-cyan-ink); }
-.ruled.health-ruled .fact.amber  { color: var(--hl-amber-ink); }
-.ruled.health-ruled .fact.violet { color: var(--hl-violet-ink); }
-.ruled.health-ruled .fact.hblue  { color: var(--hl-blue-ink); }
-.ruled.health-ruled .fact.pink   { color: var(--hl-pink-ink); }
+/* A SHEET HAS NO ANCESTOR (2026-09-22). Every one of these was scoped to
+   .ruled.health-ruled, and a sheet does not render inside it: PlateSheet,
+   BatchSheet, ClassifySheet, DuplicateReview and the two insights sheets
+   all go through createPortal to document.body, so their only wrapper is
+   .sheet-scrim > .card. Nothing failed, because falling out of a colour
+   rule leaves legible grey -- "Not buildable at 225", "Secondary Triceps",
+   "From Aug 12" were all drawn as a SECOND plain grey on a line that had
+   already spent its one (§AK). The fix is the scope .se-kick already used
+   a few rules down, applied to the colours it was reaching past. */
+.ruled.health-ruled .fact.lime,   .sheet-scrim > .card .fact.lime   { color: var(--hl-lime-ink); }
+.ruled.health-ruled .fact.cyan,   .sheet-scrim > .card .fact.cyan   { color: var(--hl-cyan-ink); }
+.ruled.health-ruled .fact.amber,  .sheet-scrim > .card .fact.amber  { color: var(--hl-amber-ink); }
+.ruled.health-ruled .fact.violet, .sheet-scrim > .card .fact.violet { color: var(--hl-violet-ink); }
+.ruled.health-ruled .fact.hblue,  .sheet-scrim > .card .fact.hblue  { color: var(--hl-blue-ink); }
+.ruled.health-ruled .fact.pink,   .sheet-scrim > .card .fact.pink   { color: var(--hl-pink-ink); }
 /* A state word takes the ramp too, and stays small caps rather than a pill. */
-.ruled.health-ruled .fact.st.lime  { color: var(--hl-lime-ink); }
-.ruled.health-ruled .fact.st.cyan  { color: var(--hl-cyan-ink); }
-.ruled.health-ruled .fact.st.amber { color: var(--hl-amber-ink); }
+.ruled.health-ruled .fact.st.lime,  .sheet-scrim > .card .fact.st.lime  { color: var(--hl-lime-ink); }
+.ruled.health-ruled .fact.st.cyan,  .sheet-scrim > .card .fact.st.cyan  { color: var(--hl-cyan-ink); }
+.ruled.health-ruled .fact.st.amber, .sheet-scrim > .card .fact.st.amber { color: var(--hl-amber-ink); }
 /* R2: the facts line's own ink is --tx-2 in Health, one rung up from the
    app's --tx-3, because it is read between sets at arm's length. */
 .ruled.health-ruled .facts { color: var(--tx-3); }
@@ -1969,11 +1948,9 @@
    (2026-09-18). */
 .ruled.health-ruled .bp-sub, .ruled.health-ruled .r-goal.r-cat,
 .ruled.health-ruled .sched-cat { color: var(--tx-3); }
-.ruled.health-ruled .ht-m { color: var(--tx-2); }
 /* A tile with nothing in it yet is the ONE place the dim grey still belongs:
    it is an absence, not a reading, and lighting it would say something was
    logged when nothing was. */
-.ruled.health-ruled .ht-none { color: var(--tx-2); }
 
 /* ---------- THE HEALTH PAGE, SIMPLIFIED (Dave 2026-09-13) -----------------
    "This page would be intimidating overwhelming for me... it needs to be
@@ -1992,19 +1969,13 @@
 .ruled.health-ruled .ht-ico { width: 28px; height: 28px; border-radius: var(--r-sm); flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: var(--h-tint); color: var(--h-hue); }
 .ruled.health-ruled .ht-ico .ic { width: 16px; height: 16px; }
-.ruled.health-ruled .h-tile .ht-w, .ruled.health-ruled .h-tile[data-hue] .ht-w { flex: 1; min-width: 0; font-size: calc(15px * var(--type-scale));
-  font-weight: var(--w-semi); letter-spacing: -0.01em; text-transform: none; color: var(--tx-1); }
 .ruled.health-ruled .ht-plus { width: 26px; height: 26px; border-radius: var(--r-circle); flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: var(--h-hue); color: var(--on-fill-dark); }
 .ruled.health-ruled .ht-plus .ic { width: 15px; height: 15px; stroke-width: 2.6; }
-.ruled.health-ruled .h-tile .ht-n { margin-top: var(--s-3); font-size: var(--t-title); }
-.ruled.health-ruled .h-tile[data-hue] .ht-none { color: var(--h-hue); font-size: calc(17px * var(--type-scale)); }
-.ruled.health-ruled .h-tile .ht-m { margin-top: var(--s-0h); font-size: var(--t-caption); color: var(--tx-2); }
 /* Add a Metric is a door, not a reading: a dashed edge and the app's verb red. */
 .ruled.health-ruled .h-tile-add { background: transparent; box-shadow: none; border: 1.5px dashed var(--tx-4);
   -webkit-backdrop-filter: none; backdrop-filter: none; }
 .ruled.health-ruled .h-tile-add .ht-ico { background: var(--press-3); color: var(--tx-1); }
-.ruled.health-ruled .h-tile-add .ht-none { color: var(--tint); }
 
 /* ---------- QUICK LOG, COMPACT (Dave 2026-09-14) -------------------------
    "the quick log feature is taking up way too much space on the health home
@@ -2026,23 +1997,14 @@
 .ruled.health-ruled .h-tiles-c .ht-top { flex: 1; min-width: 0; gap: var(--s-2); }
 .ruled.health-ruled .h-tiles-c .ht-ico { width: 24px; height: 24px; border-radius: var(--r-sm); }
 .ruled.health-ruled .h-tiles-c .ht-ico .ic { width: 14px; height: 14px; }
-.ruled.health-ruled .h-tiles-c .h-tile .ht-w,
-.ruled.health-ruled .h-tiles-c .h-tile[data-hue] .ht-w { font-size: calc(14px * var(--type-scale));
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled.health-ruled .h-tiles-c .ht-plus { width: 22px; height: 22px; }
 .ruled.health-ruled .h-tiles-c .ht-plus .ic { width: 13px; height: 13px; }
 /* The value sits at the end of the row, not under the name. */
-.ruled.health-ruled .h-tiles-c .h-tile .ht-n { margin-top: 0; flex-shrink: 0; order: 2;
-  font-size: calc(17px * var(--type-scale)); }
-.ruled.health-ruled .h-tiles-c .h-tile .ht-n small { font-size: calc(11px * var(--type-scale)); }
 /* An empty tile says nothing at all rather than shouting "Log it": the + IS
    the invitation, and it is already right there. */
-.ruled.health-ruled .h-tiles-c .h-tile-empty .ht-n { display: none; }
 /* The when-line has nowhere to go on one line, and "Today" beside a number
    you just logged was never news. */
-.ruled.health-ruled .h-tiles-c .h-tile .ht-m { display: none; }
 .ruled.health-ruled .h-tiles-c .h-tile-add { grid-column: 1 / -1; justify-content: center; }
-.ruled.health-ruled .h-tiles-c .h-tile-add .ht-n { display: none; }
 
 /* THE TRAINING CARD IS CALM. The name, one facts line, a filled red Start
    (the one filled primary on this page); the other sessions are outlined
@@ -2053,15 +2015,9 @@
 .ruled.health-ruled .h-hero-facts { margin-top: var(--s-1); }
 .ruled.health-ruled .h-pick-wrap { padding: 0 var(--s-4) var(--s-3h); gap: var(--s-2); }
 .ruled.health-ruled .h-pick { gap: var(--s-2); }
-.ruled.health-ruled .h-pick-c { min-height: 34px; padding: 0 var(--s-3h); font-size: var(--t-caption); font-weight: var(--w-semi);
-  color: var(--tx-1); background: transparent; box-shadow: inset 0 0 0 1px var(--tx-4); }
-.ruled.health-ruled .h-pick-c.h-pick-new { display: inline-flex; align-items: center; gap: var(--s-1h); color: var(--tx-1);
-  background: var(--press-3); box-shadow: none; }
 .ruled.health-ruled .h-pick-new .ic { width: 14px; height: 14px; color: var(--hl-lime-ink); stroke-width: 2.6; }
 .ruled.health-ruled .h-week { padding: var(--s-0h) var(--s-5) var(--s-3h); }
 .ruled.health-ruled .h-last { padding-top: var(--s-2h); padding-bottom: var(--s-2h); }
-.ruled.health-ruled .h-last-k { display: block; font-size: calc(11px * var(--type-scale)); font-weight: var(--w-bold);
-  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-2); }
 .ruled.health-ruled .h-last .facts { margin-top: var(--s-1); }
 .ruled.health-ruled .h-last-day { color: var(--tx-1); font-weight: var(--w-semi); }
 
@@ -2140,16 +2096,10 @@
 .ruled.health-ruled .h-week-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); padding: var(--s-3) var(--s-4) var(--s-1h); }
 .ruled.health-ruled .h-week-n { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
 /* The dated circle: the day of the month, or a check on a trained day. */
-.ruled.health-ruled .h-week.h-week-dates .h-day i { width: 28px; height: 28px; border-radius: var(--r-circle); display: inline-flex;
-  align-items: center; justify-content: center; font-style: normal; font-size: var(--t-caption);
-  font-weight: var(--w-semi); letter-spacing: 0; color: var(--tx-2); background: var(--press-3); }
-.ruled.health-ruled .h-week.h-week-dates .h-day.on i { background: var(--hl-lime); color: var(--on-fill-dark); }
-.ruled.health-ruled .h-week.h-week-dates .h-day i .ic { width: 14px; height: 14px; stroke-width: 3; }
 /* A stat tile reads; it is not a door. */
 /* 2026-09-14: a stat tile that can be tapped is a button and says so; only
    the ones with nowhere to go keep the default cursor. */
 .ruled.health-ruled .h-tile-stat.h-tile-inert { cursor: default; }
-.ruled.health-ruled .h-timeline-date { font-size: var(--t-caption); color: var(--tx-2); padding: 0 0 var(--s-2); }
 .ruled.health-ruled .h-next { color: var(--tx-1); font-weight: var(--w-semi); }
 .ruled.health-ruled .h-tab-foot { display: flex; flex-direction: column; gap: var(--s-1); margin-top: var(--s-4); }
 
@@ -2408,13 +2358,7 @@
 .lg-plan { margin-top: var(--s-2); }
 .lg-row { display: flex; align-items: baseline; gap: var(--s-2); padding: var(--s-1) 0; }
 .lg-row + .lg-row { border-top: 0.5px solid var(--divider); }
-.lg-row .lg-n { flex: 1; min-width: 0; color: var(--tx-2); font-size: var(--t-caption);
-  overflow-wrap: anywhere; }
-.lg-row .lg-v { flex-shrink: 0; color: var(--tx-3); font-size: var(--t-caption);
-  font-variant-numeric: tabular-nums; }
 /* Where he is. Not red: red is a verb on this page, never a position. */
-.lg-row.on .lg-n { color: var(--tx-1); font-weight: var(--w-semi); }
-.lg-row.on .lg-v { color: var(--tx-2); }
 
 /* AREAS TAB (LIFE_AREAS_TAB_HANDOFF, 2026-09-16; corrected TWICE the same
    day). First pass built the row on the Brain nav-row language (.lib-row/

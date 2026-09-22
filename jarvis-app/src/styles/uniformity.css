@@ -94,7 +94,6 @@
 /* v2.0 GATE declutter: stop message rows wrapping. msg-name takes the row width
    and truncates; time stays on one line. Token-clean (layout only). */
 .msg-name { flex: 1; min-width: 0; }
-.msg-time { white-space: nowrap; flex-shrink: 0; }
 
 /* ============================================================
    v2.1  GATE rebuild: R2 (Notes / Media / Search). The improvised
@@ -102,7 +101,8 @@
    topbar-*, grp-head, upload-*, recent-*, nav-compose, ph, pv-*) are
    REMOVED. Screens now compose from canonical components: .row,
    .conn-name, .conn-meta, .cat-dot, .chev, .empty-state, .empty-icon,
-   .empty-msg, .action-sheet button(.cancel/.destructive), .sheet-handle,
+   .empty-msg (retired 2026-09-22; .empty-sub is the line that shipped),
+   .action-sheet button(.cancel/.destructive), .sheet-handle,
    .eyebrow, .nav-bar, .nav-back, .nav-action, .nav-large, .search-bar.
    Only genuinely-new pieces (no canonical equivalent) remain below.
    Tokens only; black viewer surface is theme-invariant (DS uses #000/#fff
@@ -170,8 +170,6 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .hero-num { font-size:var(--t-display); font-weight:var(--w-bold); line-height:1; letter-spacing:var(--track-display); font-feature-settings:"tnum"; }
 .delta-up { color: var(--good); font-weight: var(--w-semi); }
 .delta-down { color: var(--red); font-weight: var(--w-semi); }
-.day-axis { display:flex; margin-top:var(--s-2); }
-.day-axis span { flex:1; text-align:center; font-size:var(--t-eyebrow); color:var(--tx-3); }
 
 /* ============================================================
    v2.4  R4: Projects + detail/settings screens. Settings rows compose
@@ -181,7 +179,6 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .profile { padding: var(--s-6) var(--s-4) var(--s-4); text-align:center; }
 .profile .av { margin: 0 auto var(--s-3); }
 .profile-name { font-size: var(--t-h2); font-weight: var(--w-semi); }
-.profile-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
 .app-icon { width:64px; height:64px; border-radius:var(--r-lg); margin:0 auto var(--s-3);
   display:flex; align-items:center; justify-content:center; background:var(--accent-fill); color:#fff;
   font-size:var(--t-h1); font-weight:var(--w-bold); }
@@ -203,7 +200,6 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .voice-orb.listening { box-shadow: 0 0 0 8px var(--red-tint), 0 0 0 20px var(--press-3); }
 .voice-prompt { font-size:var(--t-h2); font-weight:var(--w-semi); }
 .voice-transcript { font-size:var(--t-h2); font-weight:var(--w-medium); line-height:var(--lh-snug); }
-.voice-hint2 { font-size:var(--t-meta); color:var(--tx-3); }
 .chip-wrap { display:flex; flex-wrap:wrap; gap:var(--s-2); justify-content:center; }
 .convo { display:flex; flex-direction:column; gap:var(--s-3); padding:var(--s-4) var(--s-5); }
 .bubble { padding:var(--s-3) var(--s-3h); border-radius:var(--r-lg); font-size:var(--t-body); max-width:82%; line-height:var(--lh-relaxed); }
@@ -238,19 +234,11 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .check-line.done span { text-decoration:line-through; color:var(--tx-2); }
 .check-line .cb .ic { width:13px; height:13px; }
 /* light table block (rows, columns, simple sums) */
-.ntable { width:100%; border-collapse:collapse; border:0.5px solid var(--divider); border-radius:var(--r-md); overflow:hidden; }
-.ntable th, .ntable td { padding:var(--s-2) var(--s-3); text-align:left; font-size:var(--t-body); border-top:0.5px solid var(--divider); }
-.ntable th { font-size:var(--t-eyebrow); text-transform:uppercase; letter-spacing:var(--track-eyebrow); color:var(--tx-3); font-weight:var(--w-semi); border-top:0; }
-.ntable .num { text-align:right; font-feature-settings:"tnum"; }
-.ntable tr.sum td { font-weight:var(--w-semi); background:var(--press-1); }
 /* add-block affordance at the end of a note */
 .add-block { display:flex; align-items:center; gap:var(--s-2); color:var(--tint); font-size:var(--t-h3); font-weight:var(--w-semi); padding:var(--s-3) 0; min-height:var(--tap-min); background:0; border:0; font-family:var(--f); width:100%; }
 .add-block .ic { width:18px; height:18px; }
 /* "Add item" row inside a checklist: quieter than Add block, aligned to items */
-.check-add { display:flex; align-items:center; gap:var(--s-2h); color:var(--tx-2); font-size:var(--t-body); padding:var(--s-1h) 0; min-height:var(--tap-min); background:0; border:0; font-family:var(--f); width:100%; }
-.check-add .ic { width:16px; height:16px; }
 /* empty-note cue so a blank note is inviting, not a void */
-.note-empty { color:var(--tx-2); font-size:var(--t-body); padding:var(--s-3) 0; }
 /* block row: content plus a quiet options button revealed on the right */
 .block-row { position:relative; display:flex; align-items:flex-start; gap:var(--s-2); }
 .block-body { flex:1; min-width:0; }
@@ -332,11 +320,8 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .np-head { display:flex; align-items:flex-start; gap:var(--s-3); padding:var(--s-5) var(--s-5) var(--s-2); }
 .np-head .msg-body { min-width:0; }
 .np-track { font-size:var(--t-h2); font-weight:var(--w-bold); line-height:var(--lh-snug); }
-.np-artist { font-size:var(--t-body); color:var(--tx-3); margin-top:var(--s-0h); }
 .np-more { width:30px; height:30px; border-radius:var(--r-circle); background:var(--press-3); color:var(--tx-1); display:flex; align-items:center; justify-content:center; flex-shrink:0; border:0; }
 .np-more .ic { width:17px; height:17px; }
-.scrub-times { display:flex; justify-content:space-between; margin-top:var(--s-1h); }
-.scrub-times span { font-size:var(--t-eyebrow); color:var(--tx-3); font-feature-settings:"tnum"; }
 .xport { display:flex; align-items:center; justify-content:center; gap:var(--s-8); padding:var(--s-3) 0 var(--s-2); }
 .xport button { background:0; border:0; color:var(--tx-1); display:flex; align-items:center; justify-content:center; min-width:var(--tap-min); min-height:var(--tap-min); font-family:var(--f); }
 .xport .ic { width:30px; height:30px; }
@@ -354,7 +339,6 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .lockin { text-align:center; padding:var(--s-7) var(--s-5) var(--s-4); }
 .lockin .inline-dot { justify-content:center; }
 .lockin .hero-num { display:block; margin-top:var(--s-2); }
-.lockin-sub { font-size:var(--t-body); color:var(--tx-3); margin-top:var(--s-2); }
 .np-meta { text-align:center; padding:var(--s-3) var(--s-5) var(--s-2); }
 .np-tools button { background:0; border:0; color:inherit; display:flex; align-items:center; justify-content:center; min-width:var(--tap-min); min-height:var(--tap-min); }
 /* custom-cover upload affordance on a large album-art box (service art is the default; tap to set your own image) */

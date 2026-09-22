@@ -904,9 +904,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .msg-body { flex: 1; min-width: 0; }
 .msg-head { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-0h); }
 .msg-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
-.msg-time { font-size: var(--t-meta); color: var(--tx-3); margin-left: auto; }
 .msg-subject { font-size: var(--t-body); font-weight: var(--w-semi); margin-bottom: var(--s-0h); }
-.msg-preview { font-size: var(--t-meta); color: var(--tx-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .sched-row { align-items: flex-start; }
 .sched-time { font-size: var(--t-body); color: var(--tx-2); width: calc(64px * var(--type-scale)); flex-shrink: 0; padding-top: 1px; font-weight: var(--w-regular); font-variant-numeric: tabular-nums; }
@@ -932,7 +930,6 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    disclosure chevron beside it was pushed 8px off the screen. Every other
    flex:1 text container in the app already carries this; this one did not. */
 .proj-meta { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.proj-tag { font-size: var(--t-eyebrow); color: var(--tx-3); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); }
 .proj-title { font-size: var(--t-h3); }
 
 .lifemap-row { padding: var(--s-3h) var(--s-4); }
@@ -954,14 +951,12 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .brain-row { padding: var(--s-4); }
 .brain-kicker { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-eyebrow); color: var(--cat-blue); margin-bottom: var(--s-2); }
 .brain-quote { font-size: var(--t-body); line-height: var(--lh-relaxed); margin-bottom: var(--s-2); }
-.brain-saved { font-size: var(--t-eyebrow); color: var(--tx-2); }
 
 /* STATES */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--s-3); min-height: 65vh; padding: var(--s-6) var(--s-5); }
 .empty-icon { width: 56px; height: 56px; border-radius: var(--r-lg); background: var(--press-3); }
 .empty-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-2); }
 .empty-state .btn { margin-top: var(--s-2); }
-.empty-msg { font-size: var(--t-body); color: var(--tx-3); margin-bottom: var(--s-3); }
 
 .skel-row { padding: var(--s-3h) var(--s-4); display: flex; gap: var(--s-3); align-items: center; }
 .skel-row + .skel-row { border-top: 0.5px solid var(--divider); }
@@ -987,7 +982,6 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 /* MODAL / SHEET / ACTION SHEET */
 .modal { background: var(--surface-2); border-radius: var(--r-xl); padding: var(--s-5); box-shadow: 0 8px 24px rgba(0,0,0,0.20); }
 .modal-title { font-size: var(--t-h3); font-weight: var(--w-semi); margin-bottom: var(--s-2); text-align: center; }
-.modal-body { font-size: var(--t-body); color: var(--tx-3); margin-bottom: var(--s-4); text-align: center; }
 .modal-actions { display: flex; gap: var(--s-2); }
 .modal-actions .btn { flex: 1; min-height: 44px; }
 .sheet-handle { width: 36px; height: 5px; background: var(--tx-4); border-radius: var(--r-pill); margin: var(--s-2) auto var(--s-4); }
@@ -1013,7 +1007,6 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .swipe-archive { background: var(--warn-fill); } .swipe-delete { background: var(--red); }
 
 /* SYNC */
-.sync-banner { padding: var(--s-2) var(--s-4); display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); border-radius: var(--r-md); background: var(--press-3); }
 .sync-dot { width: 8px; height: 8px; border-radius: var(--r-circle); }
 .sync-online .sync-dot { background: var(--good-fill); }
 .sync-offline .sync-dot { background: var(--tx-4); }

@@ -544,14 +544,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .ob-dot { width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--press-3); }
 .ob-dot.active { background: var(--sel-bg); }
 .ob-brand { font-size: calc(44px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: var(--track-caps); }
-.ob-tagline { font-size: var(--t-h3); color: var(--tx-3); }
 .ob-title { font-size: var(--t-h1); font-weight: var(--w-bold); margin-bottom: var(--s-2); }
 .ob-sub { font-size: var(--t-body); color: var(--tx-3); margin-bottom: var(--s-6); }
 .ob-input { margin-top: var(--s-2); }
 .ob-card { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4); background: var(--surface-2); border: 1.5px solid var(--card-bd); border-radius: var(--r-md); margin-bottom: var(--s-3); }
 .ob-card.sel { border-color: var(--accent); }
 .ob-card-title { font-size: var(--t-h3); font-weight: var(--w-semi); }
-.ob-card-desc { font-size: var(--t-meta); color: var(--tx-3); }
 .ob-check-row { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: var(--r-circle); background: var(--accent-fill); color: #fff; flex-shrink: 0; }
 .ob-swatch { width: 16px; height: 16px; border-radius: var(--r-xs); flex-shrink: 0; }
 .ob-x { background: 0; border: 0; color: var(--tx-3); padding: var(--s-1); display: flex; }
@@ -709,7 +707,6 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .capture-preview { padding: var(--s-3) 0 var(--s-2); }
 .capture-kind { display: inline-block; font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--tint); }
 .capture-title { font-size: var(--t-h3); font-weight: var(--w-semi); margin-top: var(--s-1h); }
-.capture-meta { font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-1); }
 .sug-dim { color: var(--tx-3); }
 .test-summary { font-size: var(--t-h3); font-weight: var(--w-semi); padding: 0 var(--s-4) var(--s-3); }
 .test-ico { width: 18px; height: 18px; flex-shrink: 0; }
@@ -787,7 +784,6 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    beside it. Not .field-row, which stretches its children to fill. */
 .offer-row { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
 .offer-row .btn { padding-left: var(--s-7); padding-right: var(--s-7); }
-.sec-question { font-size: var(--t-meta); color: var(--tx-3); padding-bottom: var(--s-2); }
 
 /* ===== Roadmap v2 schedule basics: protected blocks visible, swipe actions,
    Running Late, time-as-distance. Mirrors the task swipe pattern exactly so
@@ -947,7 +943,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .today-bar-search { justify-content: space-between; }
 .today-search { background: var(--press-3); border: 0; width: 36px; height: 36px; border-radius: var(--r-circle); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
 .today-search .ic { width: 18px; height: 18px; }
-.page-explainer { padding: 0 var(--s-4) var(--s-3); color: var(--tx-2); font-size: var(--t-body); line-height: var(--lh-relaxed); }
 .lm-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); }
 .lm-row + .lm-row { border-top: 0.5px solid var(--divider); }
 .lm-main { flex: 1; min-width: 0; }
@@ -1015,11 +1010,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .brand-mark .j { color: var(--accent-glyph); }
 .chart-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-4); }
 .chart-row + .chart-row { border-top: 0.5px solid var(--divider); }
-.chart-label { width: 76px; flex-shrink: 0; font-size: var(--t-meta); color: var(--tx-2); }
 .chart-track { flex: 1; height: 10px; background: var(--press-3); border-radius: var(--r-pill); overflow: hidden; }
 .chart-fill { height: 100%; border-radius: var(--r-pill); }
-.chart-val { min-width: 64px; flex-shrink: 0; text-align: right; font-size: var(--t-meta); color: var(--tx-3); font-weight: var(--w-medium); }
-.chart-cap { font-size: var(--t-meta); color: var(--tx-3); }
 .today-bar { justify-content: space-between; }
 .today-av { background: 0; border: 0; padding: 0; display: flex; align-items: center; width: 36px; height: 36px; justify-content: center; }
 .today-brand { flex: 1; text-align: center; font-size: var(--t-h3); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
@@ -1027,7 +1019,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .sched-seg { padding: var(--s-1) var(--s-4) var(--s-2); }
 .week-strip { display: flex; gap: var(--s-1); padding: 0 var(--s-4) var(--s-2); }
 .wk-cell { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-2) 0; border-radius: var(--r-md); cursor: pointer; }
-.wk-wd { font-size: var(--t-eyebrow); color: var(--tx-3); text-transform: uppercase; letter-spacing: var(--track-caps); }
 .wk-day { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-circle); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
 .wk-cell.sel .wk-day { background: var(--sel-bg); color: var(--sel-fg); }
 .wk-cell.today .wk-day { color: var(--accent-chrome); font-weight: var(--w-bold); }
@@ -1036,7 +1027,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .reorder-row { transition: background var(--dur-fast, 0.12s); }
 .reorder-row.dragging { background: var(--press-3); }
 .reorder-list.dragging-active { -webkit-user-select: none; user-select: none; }
-.legal-note { background: var(--press-3); color: var(--tx-2); border-left: 3px solid var(--yellow); border-radius: var(--r-sm); padding: var(--s-2h) var(--s-3); font-size: var(--t-meta); margin-bottom: var(--s-3); }
 .legal-updated { font-size: var(--t-meta); color: var(--tx-3); margin-bottom: var(--s-2); }
 .legal-body { padding-bottom: var(--s-8); }
 .legal-h { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); margin: var(--s-4) 0 var(--s-1); }
@@ -1250,14 +1240,15 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .msg-rail.hot { box-shadow: inset 0 0 0 1px var(--cat-rust); }
 .msg-rail.on.hot { background: var(--cat-rust); box-shadow: none; }
 
-/* E11: gist first. The headline is the row's one sentence; the sender rides
-   the eyebrow line above it in metadata type. Same two-line clamp the gist
-   always had, because a three-line row is a paragraph.
-   NOT .msg-lead: that name was already taken by the thread view's 8px
-   leader column, and the collision rendered every headline one character
-   wide. Found by screenshot, not by any test. */
-.msg-headline { font-size: var(--t-body); color: var(--tx-1); overflow: hidden;
-  text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* E11: gist first. The sender rides the eyebrow line above the row's one
+   sentence, in metadata type.
+   .msg-headline itself is RETIRED (2026-09-22): the row draws its sentence
+   through .msg-gist now, and the headline class had been carrying E11's
+   two-line clamp with nothing rendering it. The warning it left behind is
+   worth keeping -- it was NOT called .msg-lead, because that name was
+   already taken by the thread view's 8px leader column, and the collision
+   rendered every headline one character wide. Found by screenshot, not by
+   any test. */
 .msg-line .msg-from { flex: 1; min-width: 0; }
 
 /* E5: the count on a band head, quieter than the section count above it. */
@@ -1351,11 +1342,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* No bottom padding here: the row's own padding spaces rows, and padding
    INSIDE a line-clamped box is where the clipped third line peeks through
    (the half-cut "this week" on the Bowery row, 2026-08-26). */
-.msg-headline { font-size: var(--t-body); color: var(--tx-2); }
-.msg-headline::first-letter { text-transform: uppercase; }
 .msg-line { display: flex; align-items: baseline; gap: var(--s-2); }
 .msg-line .conn-name { flex: 1; min-width: 0; }
-.msg-when { font-size: var(--t-meta); color: var(--tx-3); flex-shrink: 0; }
 .msg-gist { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .msg-turn { padding: var(--s-3) 0; border-bottom: 0.5px solid var(--card-bd); }
 .msg-turn:last-of-type { border-bottom: 0; }
@@ -1447,7 +1435,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* Multi-account (2026-08-04): the account tag is quiet metadata, never a
    second subject line; account chips in Connections sit inside the row. */
-.msg-acct { display: inline-block; font-size: var(--t-micro); font-weight: var(--w-semi); letter-spacing: 0.04em; text-transform: uppercase; border: 0.5px solid var(--card-bd); border-radius: var(--r-xs); padding: 1px var(--s-1h); color: var(--tx-3); margin-left: var(--s-2); vertical-align: 1px; }
 .conn-acct-chips { margin: var(--s-1h) 0 0; }
 
 /* RULE-9: Tasks - large completion target + swipe-to-delete. */
@@ -1682,9 +1669,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-time-row { display: flex; align-items: center; gap: var(--s-2h); flex-wrap: wrap; }
 .rem-time-row .input-compact { flex: 0 0 auto; width: auto; }
 .rem-quick { flex: 1; min-width: 0; padding-top: 0; }
-.mail-age { flex-shrink: 0; font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; }
-.mail-age.warm { color: var(--warn); }
-.mail-age.hot { color: var(--cat-rust); font-weight: var(--w-semi); }
 .pick-fam { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase;
   letter-spacing: var(--track-eyebrow); color: var(--tx-3); padding: var(--s-2) 0 var(--s-1h); }
 .sched-open .sched-fix { margin-left: auto; color: var(--tint); font-weight: var(--w-semi); }
@@ -1701,10 +1685,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .plan-timeline { display: flex; flex-direction: column; gap: var(--s-2); max-height: 46vh; overflow-y: auto; overscroll-behavior: contain; }
 .plan-row { display: flex; gap: var(--s-3); padding: var(--s-2) var(--s-3); background: var(--surface-3); border-radius: var(--r-md); }
 .plan-row-fixed { background: transparent; opacity: .55; }
-.plan-time { flex-shrink: 0; width: 66px; font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-2); padding-top: var(--s-0h); }
 .plan-body { flex: 1; min-width: 0; }
 .plan-title { font-size: var(--t-body); color: var(--tx-1); }
-.plan-tag { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-0h); }
 .plan-controls { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1h); padding-left: 44px; }
 .plan-step { width: 30px; height: 30px; border-radius: var(--r-pill); border: 0.5px solid var(--divider); background: var(--surface-2); color: var(--tx-1); font-size: calc(17px * var(--type-scale)); line-height: 1; flex-shrink: 0; }
 .plan-dur { font-size: var(--t-meta); color: var(--tx-2); min-width: 38px; text-align: center; }
@@ -1732,7 +1714,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .plan-cta-block { width: 100%; justify-content: center; padding: var(--s-3h) var(--s-4); font-size: var(--t-body); }
 /* The label is two or three short words; never let it stack into a column. */
 .plan-cta { white-space: nowrap; }
-.plan-divider { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-3); padding: var(--s-2) 0 var(--s-1); }
 .plan-overdue { margin-left: var(--s-2); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--red); flex-shrink: 0; }
 
 /* === Roadmap v2: Anytime strip (Schedule day view) ===
@@ -1757,8 +1738,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .fs-card .eyebrow { display: block; margin-bottom: var(--s-1h); }
 .fs-title { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1);
   line-height: var(--lh-snug); overflow-wrap: anywhere; }
-.fs-for { margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tx-3);
-  overflow-wrap: anywhere; }
 
 /* === Roadmap v2: Plan My Day, pick your three === */
 .p3-q { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: var(--track-h1); line-height: var(--lh-snug); margin-bottom: var(--s-2); }
@@ -2149,17 +2128,11 @@ button {
    For You / All / Drafts row wearing .quiet-action's pressed background, and
    it looked like a fourth filter. Stripped back to a line and pushed right,
    it reads as what it is: the smaller of two ways into the same deck. */
-.drain-line { display: flex; justify-content: flex-end;
-  padding-top: 0; padding-bottom: var(--s-2); }
 /* Measured, not guessed: it inherited 15px/600 from .quiet-action, which is
    body size at semibold, so it outweighed the rows it sits above and read as
    a second heading under NEEDS YOU. */
-.drain-line .quiet-action { background: transparent; padding: var(--s-1) 0;
-  color: var(--tx-3); font-size: var(--t-caption); font-weight: var(--w-medium);
-  min-height: 0; position: relative; }
 /* Stripping the chip took the padding that made it 44px. The hit box stays,
    the same way .pill-act keeps its own. */
-.drain-line .quiet-action::after { content: ""; position: absolute; inset: -13px -10px; }
 
 /* E7 (2026-08-23): the deck's finish line. Flush under the nav bar with no
    card and no padding, so it reads as an edge of the screen rather than one
@@ -2484,7 +2457,6 @@ button {
   border-left: 3px solid var(--tint); cursor: pointer; animation: restoreIn var(--dur-normal) var(--ease-out); }
 .restore-banner:active { opacity: 0.7; }
 .restore-title { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
-.restore-meta { font-size: var(--t-meta); color: var(--tx-3); }
 
 /* Momentum Chain: the next-best thing SLIDES INTO the finished slot, riding
    the same spring as the rest of the app's completion moment. Green-tinted
@@ -2697,7 +2669,6 @@ button {
 .tip-ico .ic { width: 26px; height: 26px; }
 .tip-body { flex: 1; min-width: 0; }
 .tip-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
-.tip-sub { margin-top: var(--s-0h); font-size: var(--t-body); color: var(--tx-3); line-height: var(--lh-default); }
 .tip-acts { display: flex; gap: var(--s-2); margin-top: var(--s-2h); }
 .tip-x { width: 30px; height: 30px; border-radius: var(--r-circle); background: var(--press-3);
   border: 0; color: var(--tx-3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -2924,7 +2895,7 @@ button {
    is what iOS largeTitle does. .pagebar-title, the 44px bar's centred twin,
    stays on the list: that one really does have one line. */
 .pagehead-title { white-space: normal; overflow: visible; text-overflow: clip; }
-.conn-meta, .lib-sub, .msg-preview {
+.conn-meta, .lib-sub{
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* THE ONE EXCEPTION, AND ONLY AT THE NARROWEST WIDTH (sweep 2026-08-21).
    The law is right: a row of wrapped titles loses its rhythm, and at every
@@ -3279,10 +3250,6 @@ button {
    own kicker instead of a page-level head, and any card can host a corner
    dismiss. .card is the positioning context for it. */
 .card { position: relative; }
-.draft-kick { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2h) var(--s-3h) 0;
-  font-size: var(--t-eyebrow); font-weight: var(--w-bold); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--tx-3); }
-.draft-kick .ic { width: 15px; height: 15px; }
 
 /* THE BUTTON LAW (Dave 2026-08-19: "buttons are not rendering as buttons").
    Every button in the app is one of these, styled by its slot:
@@ -3671,7 +3638,6 @@ button {
 .doc > * + * { margin-top: var(--s-1h); }
 .doc .doc-title { font-size: var(--t-title); letter-spacing: -0.01em; margin-bottom: var(--s-0h); }
 /* The meta line (the mock's grey context row, now a real block type). */
-.doc .block-meta { font-size: var(--t-sub); line-height: 1.5; color: var(--tx-3); min-height: 22px; }
 .doc .t-body { font-size: calc(16.5px * var(--type-scale)); line-height: 1.6; min-height: 24px; }
 .screen-editor .doc { padding-bottom: 84px; }
 /* .hwrap is FIELD NOTES ONLY now (Dave 2026-08-28) -- Command Deck lays
@@ -3686,14 +3652,8 @@ button {
    Steel treatment from the 4/5 blend: surfaced card, quiet header band,
    red-washed Total row. */
 .ntable-wrap { margin: var(--s-2) 0; }
-.ntable { background: var(--surface-1); border: 0; border-radius: var(--r-md); overflow: hidden; }
-.ntable th { background: var(--surface-2); color: var(--tx-2); border-top: 0; }
-.ntable td { border-top: 1px solid rgba(255, 255, 255, 0.06); }
-[data-theme="light"] .ntable td { border-top: 1px solid rgba(0, 0, 0, 0.07); }
-.ntable tr.sum td { color: var(--accent-tx); background: rgba(255, 43, 60, 0.07); font-weight: var(--w-bold); }
 .tcell { display: block; min-width: 40px; min-height: 22px; outline: none; caret-color: var(--accent); }
 .tcell[data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-2); text-transform: none; letter-spacing: normal; }
-.ntable .tcol-add { width: 40px; border-top: 0; padding: 0; text-align: center; }
 .tcol-add-btn { background: transparent; border: 0; color: var(--tx-2); width: 40px; height: 34px; display: inline-flex; align-items: center; justify-content: center; }
 .tcol-add-btn .ic { width: 16px; height: 16px; }
 .trow-add { display: block; width: 100%; background: transparent; border: 0; color: var(--accent-tx); font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); padding: var(--s-2h) 0; text-align: center; }
@@ -3908,7 +3868,6 @@ button {
 /* EMAIL THAT FINISHES ON THE HOME PAGE (U1/U2/U3/U5, Dave 2026-08-20).
    The card stopped being a signpost and started being the desk. */
 /* The morning sentence: what the whole inbox is, before a card is read. */
-.mail-sentence { font-size: var(--t-meta); color: var(--tx-3); padding: 0 var(--s-1) var(--s-2); }
 /* Quick answers ride the card's own second line. Each chip is a WHOLE reply,
    so they sit apart from the row's one control rather than beside it. */
 .mail-chips { gap: var(--s-2); flex-wrap: wrap; padding-top: 0; }
@@ -3981,38 +3940,16 @@ button {
 /* Body copy: plain sans, no forced serif, no ruled baseline behind it --
    the page is not paper, it is a page. */
 .doc-editorial .t-body,
-.doc-editorial .block-meta,
 .doc-editorial .doc-textarea { font-family: var(--f); }
-.doc-editorial [contenteditable][data-placeholder]:empty::before,
-.doc-editorial .note-empty { font-style: italic; }
+.doc-editorial [contenteditable][data-placeholder]:empty::before{ font-style: italic; }
 
 /* The Add Item row: a dashed tap target you reach for, not a ghost button
    sitting at 30% opacity until you hover it (Dave: "I want people to
    PREFER to type in here"). */
-.doc-editorial .check-add {
-  border: 1px dashed var(--tx-4);
-  border-radius: var(--r-md);
-  padding: var(--s-2) var(--s-2h);
-  color: var(--tx-3);
-  margin-top: var(--s-1h);
-}
-.doc-editorial .check-add:active { background: var(--press-3); }
 
 /* The running foot: title on the left, count on the right, a hairline
    above. Shared with Command Deck's plain word count -- only editorial
    dresses it up as a colophon. */
-.doc-colophon {
-  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3);
-  margin: var(--s-5) var(--s-4) 0;
-  padding-top: var(--s-2);
-  border-top: 0.5px solid var(--divider);
-  font-family: var(--f);
-  font-size: var(--t-meta);
-  color: var(--tx-2);
-}
-.doc-colophon .ed-name { font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: 0.02em; }
-.doc-colophon .ed-count { font-variant-numeric: tabular-nums; }
-.screen-editor .doc-colophon { margin-bottom: 96px; }
 
 /* ============================================================
    COMMAND DECK (Dave 2026-08-28: the default, non-editorial layout).
@@ -4034,11 +3971,6 @@ button {
 .cd-inner > * + * { margin-top: var(--s-2h); }
 .cd-head { display: flex; align-items: center; gap: var(--s-2); }
 .cd-head > .block-row { flex: 1; min-width: 0; }
-.cd-h3 { font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-2); }
-.cd-count {
-  flex-shrink: 0; font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2);
-  font-variant-numeric: tabular-nums; background: var(--press-3); border-radius: var(--r-pill); padding: 1px var(--s-2);
-}
 
 /* ============================================================
    THE CONNECTION STRIP (Dave 2026-08-28: "very very easy to connect
@@ -4111,12 +4043,9 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 .auto-bar { height: 4px; border-radius: var(--r-pill); background: var(--press-3); overflow: hidden; }
 .auto-bar span { display: block; height: 100%; border-radius: var(--r-pill); background: var(--good-fill);
   transition: width var(--dur-normal) var(--ease-out); }
-.auto-text { margin-top: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); }
 
 /* B3 · WHERE THE ESTIMATE CAME FROM. A padded guess and a measured median
    must never look alike, or the pad quietly becomes a fact. */
-.plan-est-note { font-size: var(--t-eyebrow); letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--tx-2); margin-top: var(--s-2); }
 
 /* The check-in's three moods are ANSWERS, not competing actions, so they sit
    on the card's foot rather than fighting the dismiss for the visible line. */
@@ -4168,7 +4097,6 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 
 /* WHAT NOW. The one thing, large enough to be the only thing on the sheet. */
 .rn-title { font-size: var(--t-h2); font-weight: var(--w-semi); letter-spacing: -0.01em; line-height: var(--lh-snug); }
-.rn-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); }
 /* The bolt sits beside search in the one bar that is on every tab. */
 .voice-now { color: var(--accent-tx); }
 /* GLYPH SWEEP, light (Dave 2026-08-24: "make sure all red icons in light
@@ -4185,10 +4113,6 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    strand, its origin in the eyebrow, its receipts in the sheet. A paused
    strand dims rather than hides, because a fact you switched off is still a
    fact you should be able to find. */
-.strand-eyebrow {
-  font-size: var(--t-eyebrow); font-weight: var(--w-semi);
-  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
-}
 .strand-row.paused { opacity: 0.45; }
 .strand-head { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: var(--track-h2); margin-bottom: var(--s-1); }
 .strand-receipt { display: flex; gap: var(--s-3); padding: var(--s-2h) 0; border-bottom: 0.5px solid var(--divider); }
@@ -4506,8 +4430,6 @@ body.selecting .voice-dock { display: none; }
      clipped against the edge. */
   padding: var(--s-3) var(--s-4) var(--s-2); flex-wrap: nowrap; min-width: 0; }
 .now-gap { font-weight: var(--w-semi); color: var(--accent-tx); white-space: nowrap; flex-shrink: 0; }
-.now-until { font-size: var(--t-meta); color: var(--tx-3); min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The suggestion row's swipe. The reveal holds two labelled actions, which
    is the same anatomy the task rows use. */
 .now-swipe .now-row { background: var(--surface-1); display: flex; align-items: center; gap: var(--s-2h); }
@@ -4952,8 +4874,6 @@ body.selecting .voice-dock { display: none; }
    wrap. Dave: "they also text wrap and don't have to be that vertical."
    A single, truncated line makes the card's height fixed regardless of
    sender count or theme. */
-.mode-why { font-size: var(--t-meta); color: var(--tx-3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .mode-go { margin-top: var(--s-3); border-radius: var(--r-pill); text-align: center;
   padding: var(--s-2) 0; font-size: var(--t-body); font-weight: var(--w-bold);
@@ -4979,8 +4899,6 @@ body.selecting .voice-dock { display: none; }
   background: var(--red-tint); color: var(--accent-tx); }
 .launch-ic .ic { width: 20px; height: 20px; }
 .launch-tt { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
-.launch-ss { font-size: var(--t-meta); color: var(--tx-3); margin-top: 1px; }
-.launch-chev { color: var(--tx-2); font-size: var(--t-h2); line-height: 1; flex-shrink: 0; }
 [data-theme="light"] .launch-row { background: #FFFFFF; box-shadow: var(--shadow-card); }
 
 /* THE SET STRIP (gym catalog §3.1). One row per set: tap to edit, hold to
@@ -5629,7 +5547,6 @@ body.selecting .voice-dock { display: none; }
    already carries. 21:1 dark, 15.8:1 light. */
 .form-sheet .row.xs-strip .chip.active, .form-sheet .row.xs-strip .chip.on { background: var(--sel-bg); color: var(--sel-fg); }
 .form-sheet .row.xs-strip .auto-line { padding: 0; }
-.form-sheet .row.xs-strip .auto-text { margin-top: var(--s-1h); }
 .form-sheet .xs-days { flex: 1; min-width: 0; text-align: right; font-size: calc(15px * var(--type-scale)); color: var(--tx-2); }
 .form-sheet .xs-row > .row-ico .ic { width: 15px; height: 15px; }
 
@@ -5975,7 +5892,6 @@ span.row-star { cursor: default; }
    quote (a 3px rule in --tx-4, italic --tx-2), the hairline, the callout
    (warn tint, rounded, a leading glyph), the filter chips on the list, the
    note menu, and the found rows. */
-.doc .t-quote { border-left: 3px solid var(--tx-4); padding: 2px 0 2px var(--s-3); font-style: italic; color: var(--tx-2); font-size: calc(17px * var(--type-scale)); line-height: 1.6; min-height: 27px; }
 .doc .doc-hr { border: 0; border-top: 0.5px solid var(--divider); margin: var(--s-3) 0; }
 .doc .t-callout { display: flex; gap: var(--s-2); align-items: flex-start; padding: var(--s-2h) var(--s-3); border-radius: var(--r-md, 12px); background: color-mix(in srgb, var(--warn-fill) 14%, transparent); }
 .doc .t-callout > .ic { width: 18px; height: 18px; flex-shrink: 0; margin-top: var(--s-1); color: var(--warn); }

@@ -167,8 +167,11 @@ export default function PersonDetail({
       <div className="person-hero">
         <div className={"av av-72 " + avatarClass(color)}>{personInitials(name)}</div>
         <div className="person-name">{name}</div>
-        {/* C-59: the label facts. The relationship is the one coloured
-            fact; an area is a dot and plain text. */}
+        {/* C-59: the label facts. The relationship WAS the one coloured
+            fact, in sky, until that class went with the blue subtext; it had
+            been drawing plain grey ever since. It keeps the plain grey on
+            purpose now: every area beside it carries a dot, which is a mark
+            under §AK, so the relationship is the line's one grey. */}
         {(relationship || categoryColors.length > 0) && (
           <div className="facts person-facts">
             {/* NOT THE SAME WORD TWICE (Dave 2026-09-16, photographed:
@@ -177,7 +180,7 @@ export default function PersonDetail({
                 relationship next to the Family area chip. The area already
                 says it, in colour, so the relationship chip stands down
                 rather than repeating it. */}
-            {relationship && !areaEchoes && <span className="fact sky">{relationship}</span>}
+            {relationship && !areaEchoes && <span className="fact">{relationship}</span>}
             {/* A ROLE PER AREA (People handoff, 2026-09-16). Where a role
                 is set, the area says what they are IN it: "Family · Mother",
                 "Bridge · Board secretary". Both facts on one chip, because
@@ -376,7 +379,7 @@ export default function PersonDetail({
               <div className="row" key={p.id} {...(onOpenProject ? pressable(() => onOpenProject(p.id)) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.title}</div>
-                  {p.next && <div className="facts"><span className="fact sky">Next: {p.next}</span></div>}
+                  {p.next && <div className="facts"><span className="fact">Next: {p.next}</span></div>}
                 </div>
                 {onOpenProject && <div className="chev" />}
               </div>

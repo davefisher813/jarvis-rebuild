@@ -283,13 +283,17 @@ describe("editing from the card", () => {
       categoryColors={[{ name: "Family", color: "pink" }]} />);
     const facts = container.querySelector(".person-facts")!;
     expect(facts.querySelectorAll(".fact")).toHaveLength(1);
-    expect(facts.querySelector(".fact.sky")).toBeNull();
+    // The relationship used to be found by .fact.sky. That class was deleted
+    // with the blue subtext on 2026-09-21 and had painted nothing since, so the
+    // relationship is now the one fact on this line that is not an area (an
+    // area always carries .cat and its dot).
+    expect(facts.querySelector(".fact:not(.cat)")).toBeNull();
   });
 
   it("keeps a relationship that says something the areas do not", () => {
     const { container } = render(
       <PersonDetail person={{ ...mom, data: { ...mom.data, relationship: "Mother" } }}
         onEdit={() => {}} onBack={() => {}} categoryColors={[{ name: "Family", color: "pink" }]} />);
-    expect(container.querySelector(".person-facts .fact.sky")?.textContent).toBe("Mother");
+    expect(container.querySelector(".person-facts .fact:not(.cat)")?.textContent).toBe("Mother");
   });
 });

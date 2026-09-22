@@ -558,8 +558,14 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   it("live metadata takes the quiet token, not the dim one", () => {
     const all = (css() + read("styles/ruled.css")).replace(/\/\*[\s\S]*?\*\//g, "");
     const rules = [...all.matchAll(/([^{}]+)\{([^}]*)\}/g)];
+    // .ruled .r-next came off on 2026-09-22. It was the quiet one-line Next,
+    // and it was SUPERSEDED on 2026-09-13 by the .r-next-in / -k / -v trio
+    // ("next should be yellow in my opinion or orange"), which draws the key
+    // in --warn and the value in --tx-1. The old rule was never deleted, so
+    // for nine days this law measured the quiet ink of a line no screen drew.
+    // There is no successor to list here: nothing in that row is quiet now.
     const LIVE = [".prop-tag", ".sched-sep", ".focus-skip", ".rep-hint", ".doc-count",
-      ".receipt-line", ".ruled .sched-time .ampm", ".ruled .r-next", ".ruled .wk-w", ".ruled .sched-now .t"];
+      ".receipt-line", ".ruled .sched-time .ampm", ".ruled .wk-w", ".ruled .sched-now .t"];
     for (const sel of LIVE) {
       const body = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === sel)?.[2];
       expect(body, `${sel} is still in the sheet`).toBeTruthy();

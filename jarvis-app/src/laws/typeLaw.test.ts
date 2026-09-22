@@ -143,9 +143,12 @@ describe("THE LINE UNDER A NAME IS ONE TREATMENT", () => {
 
   // The roster of classes whose job is the quiet line under a name. Same
   // contract as the names: reference the tokens, state no numbers.
+  // h-hero-s came off on 2026-09-22 with the dead-class sweep: it had no
+  // rule and no call site, and a roster entry for a class that does not
+  // exist is a law that quietly protects nothing.
   const SUBS = [
     "conn-meta", "facts", "bp-sub", "empty-sub", "row-value",
-    "r-goal", "note-first", "area-fact", "h-hero-s", "rdy-why", "msg-gist",
+    "r-goal", "note-first", "area-fact", "rdy-why", "msg-gist",
   ];
 
   // THE HOLE THIS LAW HAD, found by Dave in a screenshot hours after it was
@@ -268,7 +271,8 @@ describe("THE SECOND LINE IS NEVER A MANUAL", () => {
   //
   // The content was in good shape; the COVERAGE was not, and a law that only
   // watches one door teaches everyone to use the other one.
-  const SUB_CLASS = /className="[^"]*\b(conn-meta|vrow-sub|facts|fact|bp-sub|r-goal|r-cat|area-fact|rdy-why|se-kick|task-goal)\b/;
+  // task-goal came off with the same sweep: no rule, no call site.
+  const SUB_CLASS = /className="[^"]*\b(conn-meta|vrow-sub|facts|fact|bp-sub|r-goal|r-cat|area-fact|rdy-why|se-kick)\b/;
   const SUB_PROP = /\b(sub|subtitle|subLabel|why|note|hint|meta|kicker)\s*[=:]\s*["`]/;
 
   // Copy that is deliberately not a fact, each for a stated reason.

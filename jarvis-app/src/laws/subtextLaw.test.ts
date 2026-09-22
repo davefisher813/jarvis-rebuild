@@ -66,3 +66,65 @@ describe("LAW: one grey, ever", () => {
     expect(notes).not.toMatch(/`\$\{title\} · \$\{shortDateFromMs/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// LAW: A SUBTEXT CLASS THAT NOTHING RENDERS IS DELETED (2026-09-22).
+//
+// A full inventory of the app's secondary text found SIXTY-SEVEN classes that
+// set a font-size and a secondary ink and had no call site anywhere: the whole
+// of a retired health tile (.ht-w, .ht-none, .ht-m, .h-tile), a mail row that
+// had been rebuilt twice (.msg-headline, .msg-when, .msg-time, .mail-age), two
+// duplicate empty states (.empty-msg beside the .empty-sub that shipped), a
+// second provenance line, .row-sub and .lib-meta which had no rule at all.
+//
+// They cost nothing to render and everything to reason about. Every pass that
+// tried to answer "how many ways does this app draw a quiet line" counted them
+// and got the wrong number, and §AJ T1 -- "seven sizes of the same grey is how
+// this got here" -- was decided against a count that included classes no screen
+// has drawn in months.
+//
+// So the roster is closed by measurement rather than by memory: any rule that
+// sets BOTH a size and a secondary ink must name a class something renders.
+// ---------------------------------------------------------------------------
+
+import { readdirSync, statSync } from "node:fs";
+
+describe("LAW: no subtext class survives without a call site", () => {
+  it("every class that sets a size and a secondary ink is rendered somewhere", () => {
+    const SHEETS = ["components.css", "ruled.css", "jarvis-design-system.css",
+      "uniformity.css", "editor.css", "mail-rows.css"];
+    const css = SHEETS.map((f) => read("src/styles/" + f)).join("\n")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+
+    const candidates = new Set<string>();
+    for (const m of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+      const [sel, body] = [m[1]!, m[2]!];
+      if (!body.includes("font-size")) continue;
+      if (!/color:\s*var\(--tx-(?:2|3|quiet)\)/.test(body)) continue;
+      for (const c of sel.matchAll(/\.([a-z][a-z0-9-]*)/g)) candidates.add(c[1]!);
+    }
+
+    // Everything the app could render from, read once. A class built by
+    // concatenation ("cat-bg-" + slot) still appears as its own token here,
+    // which is the direction a law may err in.
+    const walk = (dir: string, out: string[] = []): string[] => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) walk(p, out);
+        else out.push(p);
+      }
+      return out;
+    };
+    const SRC = join(ROOT, "src");
+    const source = walk(SRC)
+      .filter((f) => (f.endsWith(".tsx") || f.endsWith(".ts"))
+        && !/\.test\.tsx?$/.test(f) && !f.includes("/laws/") && !f.includes("/bench/"))
+      .map((f) => readFileSync(f, "utf8")).join("\n");
+
+    const dead = [...candidates].sort().filter((c) =>
+      !new RegExp("(?<![\\w-])" + c.replace(/-/g, "\\-") + "(?![\\w-])").test(source));
+
+    expect(dead, "a quiet line nothing draws is counted by every pass that tries to simplify this")
+      .toEqual([]);
+  });
+});

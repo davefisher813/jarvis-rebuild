@@ -65,6 +65,41 @@ describe("ASTRA: the primitives exist under the harness's own names", () => {
     expect(CSS, "and the one that lost its last user is gone").not.toContain(".fact.sky");
   });
 
+  // THE OTHER DIRECTION (2026-09-22). The law above checks that a retired
+  // variant leaves the STYLESHEET. Nothing checked that it left the MARKUP,
+  // and .fact.sky proved why that matters: the rule was deleted on
+  // 2026-09-21 with the blue subtext, and five call sites kept the class for
+  // a day. They did not break, they went GREY -- "3 projects", "Up Next",
+  // "Peak 9 to 11", the relationship on a person, "Next: ..." -- each one a
+  // second plain grey on a line that had already spent its one (§AK). A
+  // variant that paints nothing is the most expensive kind of dead code
+  // here, because the screen still looks finished.
+  it("every fact variant the app renders has a rule somewhere", () => {
+    const sheets = ["components.css", "ruled.css", "jarvis-design-system.css", "uniformity.css"]
+      .map((f) => read(join(SRC, "styles", f))).join("\n");
+    // The layout and wrapping helpers: real classes that ride on a .fact and
+    // are not colour variants, so they need no `.fact.<x>` rule of their own.
+    const STRUCTURAL = new Set(["st", "cd", "fw", "truncate", "grow", "shrink", "nowrap"]);
+    const missing: string[] = [];
+    for (const f of COMPONENTS) {
+      const src = read(f);
+      for (const m of src.matchAll(/className=(?:"|\{")fact((?: [a-z][a-z0-9-]*)+)"/g)) {
+        const vs = m[1]!.trim().split(/\s+/);
+        // A variant may be styled by the WHOLE chain rather than on its own:
+        // "fact st gray" is .fact.st.gray, and there is no .fact.gray.
+        if (sheets.includes(".fact" + vs.map((v) => "." + v).join(""))) continue;
+        for (const v of vs) {
+          if (STRUCTURAL.has(v)) continue;
+          // Either a colour variant (.fact.<v>) or a class that styles it on
+          // its own (.<v> as a rule of its own, like .dec-when).
+          if (sheets.includes(".fact." + v) || new RegExp("(^|[\\s,])\\." + v + "(?![\\w-])", "m").test(sheets)) continue;
+          missing.push(`${rel(f)}: "fact ${v}" has no rule`);
+        }
+      }
+    }
+    expect([...new Set(missing)], "a variant with no rule paints a second grey, silently").toEqual([]);
+  });
+
   it("the state word is small caps from CSS, never a filled pill", () => {
     const st = CSS.match(/\.fact\.st\s*\{([^}]*)\}/)?.[1] ?? "";
     expect(st).toMatch(/text-transform:\s*uppercase/);
