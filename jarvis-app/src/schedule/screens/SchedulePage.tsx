@@ -767,7 +767,13 @@ export default function SchedulePage({
                 <div className="sched-time">{fmtTime(en.start).time}<span className="ampm">{fmtTime(en.start).ap}</span></div>
                 <div className="sched-body">
                   <div className="sched-title sched-gap-title">
-                    <span className="sched-open-plus">+</span>
+                    {/* Wordless on purpose (2026-09-22): the glyph paints from
+                        CSS (.sched-open-plus::before), so it reads to the
+                        one-grey auditor as the mark ahead of the words that
+                        it visually always was, not as a fourth run of text.
+                        aria-hidden since an empty span has nothing to read
+                        and the slot's own words already say what it is. */}
+                    <span className="sched-open-plus" aria-hidden="true" />
                     {gapLabel(toMin(en.end) - toMin(en.start))} open
                     <span className="sched-gap-win">until {fmtTime(en.end).time} {fmtTime(en.end).ap}</span>
                   </div>

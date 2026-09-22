@@ -3013,7 +3013,22 @@ button {
   color: var(--tx-2); font-weight: var(--w-semi); flex-wrap: wrap; }
 /* The window it covers, riding the title now that the second line is gone. */
 .sched-gap-win { font-size: var(--t-meta); font-weight: var(--w-regular); color: var(--tx-3); }
+/* THE PLUS BECOMES A WORDLESS MARK, NOT NEW COLOUR (2026-09-22, the
+   tightened §AK: weight alone stopped being enough to tell two greys
+   apart, and this row's title ("45m open") and its window ("until 1:00
+   PM") are both the same plain ink -- the auditor now counts three grey
+   runs here with .sched-time. The 2026-08-29 red diet already settled that
+   this row keeps ONE small tint and nothing else ("only the colour
+   leaves"), so recolouring the title or the window to fix this would undo
+   that ruling. A mark ahead of the words is the other way §AK allows telling
+   them apart, and this row already has one: the plus was only ever text
+   wearing the tint, never actually wordless. Moving it to generated content
+   changes nothing anyone sees -- same glyph, same size, same colour -- and
+   makes it the wordless mark the auditor's own "marked ahead of the words"
+   exemption looks for, clearing both runs it leads without spending any
+   more colour. */
 .sched-open-plus { font-size: var(--t-h3); line-height: 1; font-weight: var(--w-bold); color: var(--accent-tx); }
+.sched-open-plus::before { content: "+"; }
 .sched-gap.past { opacity: 0.4; }
 .sched-gap:active { background: var(--press-3); }
 
