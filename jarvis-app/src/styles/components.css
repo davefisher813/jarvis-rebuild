@@ -3154,9 +3154,18 @@ button {
    .sched-time-btn has to .sched-time: the text keeps its exact paint and the
    pseudo-element carries the 44px, so a control appears where dead text was
    without the row growing by a pixel. */
+/* --tint, NOT --tx-3 (2026-09-22, Dave: "too much grey subtext... styled
+   different if it shares a line w grey subtext"). This shares its line with
+   the row's one true grey (the kicker), and bold-on-the-same-grey was not
+   actually a different style, just a heavier one -- the two still read as
+   one grey mass, and on a block with a kicker this is exactly the line that
+   wrapped. --tint is the app's own answer for "tappable but not a button"
+   (the nav +, back chevrons, links): real color, not a shade of the same
+   ink, and it tells you this one word opens something the words next to it
+   do not. */
 .sched-until-btn { position: relative; background: 0; border: 0; padding: 0; margin: 0;
   font-family: var(--f); font-size: var(--t-meta); font-weight: inherit;
-  color: var(--tx-3); cursor: pointer; }
+  color: var(--tint); cursor: pointer; }
 /* A CONTROL INSIDE A TAPPABLE ROW EXPANDS ONLY INTO FREE SPACE (2026-08-24).
    Shipped at -13px, which is the number every other 44px expansion uses, and
    it was wrong here for a reason none of the others have: .sched-row is

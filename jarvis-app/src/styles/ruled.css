@@ -741,7 +741,6 @@
    line and grew the row. Visually still "no top margin". */
 .ruled .sched-cat .sched-loc { color: var(--tx-3); font-weight: var(--w-regular); text-decoration: none;
   margin-top: -12px; min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-.ruled .sched-cat .sched-until-btn { color: var(--tx-3); }
 /* The gap: dashed --tx-4, no fill, the plus is the row's one verb mark. */
 .ruled .sched-gap { background: transparent; margin: 6px var(--s-4); padding: 8px var(--s-3); gap: var(--s-3); }
 .ruled .sched-gap .sched-time { width: calc(62px * var(--type-scale)); }

@@ -69,8 +69,17 @@ export default function LockedRow({
   const holds = m === "holds";
   const t = fmtTime(minToHHMM(l.s));
   const end = fmtTime(minToHHMM(l.e));
+  // THE COUNT SAID ONCE (2026-09-22, Dave: "too much grey subtext... it's
+  // wrapping"). "Focus time · 4 tasks" and, right under it, the held list's
+  // own "4 tasks" toggle said the identical fact twice on a row that was
+  // already fighting for width at 1.4x scale -- "Until 7:00 PM" lost the
+  // fight and wrapped alone, stranding a bare "." at the end of the line
+  // above it. The held section is the one place that owns the number now,
+  // whether it shows as a count (four or more, collapsed) or as the tasks
+  // themselves (three or fewer, always open); the kicker says only what
+  // kind of time this is.
   const kicker = holds
-    ? (heldCount === 1 ? "Focus time · 1 task" : heldCount ? `Focus time · ${heldCount} tasks` : "Focus time · Tasks land here")
+    ? (heldCount ? "Focus time" : "Focus time · Tasks land here")
     : m === "blends" ? "Can blend · " + freeOf(l).join(" and ") + " free"
     : "Protected";
 
@@ -129,18 +138,26 @@ export default function LockedRow({
                   kicker that describes the same block in a sentence. */}
               {state && <span className={"fact st " + toneFor(state)}>{state}</span>}
               {kicker}
-              <span className="sched-sep">&middot;</span>
-              {onResize ? (
-                <button
-                  type="button"
-                  className="sched-until sched-until-btn"
-                  aria-label={"Change length, currently " + mins + " minutes"}
-                  aria-expanded={sizing}
-                  onClick={(ev) => { ev.stopPropagation(); setSizing(!sizing); }}
-                >Until {end.time} {end.ap}</button>
-              ) : (
-                <span className="sched-until">Until {end.time} {end.ap}</span>
-              )}
+              {/* THE SEPARATOR TRAVELS WITH WHAT IT INTRODUCES (2026-09-22),
+                  the same .sched-fact wrap DayRow already uses for its own
+                  facts: a lone "." stranded at the end of a wrapped line,
+                  with "Until 7:00 PM" orphaned onto the next one, is what a
+                  bare sibling span does under flex-wrap. One unit, so the
+                  line wraps before the dot or not at all. */}
+              <span className="sched-fact">
+                <span className="sched-sep">&middot;</span>
+                {onResize ? (
+                  <button
+                    type="button"
+                    className="sched-until sched-until-btn"
+                    aria-label={"Change length, currently " + mins + " minutes"}
+                    aria-expanded={sizing}
+                    onClick={(ev) => { ev.stopPropagation(); setSizing(!sizing); }}
+                  >Until {end.time} {end.ap}</button>
+                ) : (
+                  <span className="sched-until">Until {end.time} {end.ap}</span>
+                )}
+              </span>
             </div>
             {children}
             {/* THE HALF THAT WAS UNREACHABLE: blending only ever attached to

@@ -317,8 +317,8 @@ describe("the nesting bug", () => {
   it("I2: the block says when it ends, alongside what it does", () => {
     // Superseded by the shared LockedRow (2026-08-28, Dave: "edit ALL
     // schedule items THE FUCKING SAME"): Today now renders the identical
-    // mode-aware kicker Schedule always has ("Protected", "Focus time · N
-    // tasks", "Can blend · ..."), not a stripped-down copy. The row still
+    // mode-aware kicker Schedule always has ("Protected", "Focus time",
+    // "Can blend · ..."), not a stripped-down copy. The row still
     // says when the block ends either way.
     render(
       <YourDay events={[ev("x", "18:00")]} locked={[{ s: 12 * 60, e: 13 * 60, label: "Lunch", kind: "meal" }]}

@@ -80,7 +80,7 @@ const todayISODate = () => {
 // component Schedule uses, for the identical reason DayRow became shared in
 // the wave before this one: an edit added there is never a second thing to
 // remember to add here. Today also picks up the mode-aware kicker text
-// ("Focus time · 2 tasks", "Can blend · ears free") that only Schedule had.
+// ("Focus time", "Can blend · ears free") that only Schedule had.
 
 // One full pass of the day: events + protected blocks in time order, with the
 // Now line inserted at the right spot and time-as-distance on the next event.
