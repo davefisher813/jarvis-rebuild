@@ -807,11 +807,18 @@ const AUDIT = () => {
   //    regular font one time. And then after that shit has to look different.
   //    If you want to bold something in gray, fine. Color coordinating,
   //    dots, chips, whatever. But I never want to speak about this again.")
+  //    TIGHTENED V5.2 (2026-09-22, a real block row crowding at Dynamic Type
+  //    1.4x: "TOO MUCH GREY SUBTEXT... styled different if it shares a line
+  //    w grey subtext"). Bold-on-the-same-grey was the V5.1 exemption and it
+  //    is gone: a heavier weight of the identical ink still reads as more
+  //    grey, not a different thing, and it was the exact pair that crowded
+  //    and wrapped. Weight may still reinforce a real distinction; it may no
+  //    longer BE one.
   //
   //    So under a row's title, at most ONE run of text may be secondary ink
   //    at regular weight. Everything else on the row has to be told apart by
-  //    something you can see without reading: weight, a colour, a dot, a
-  //    chip's own fill. This measures the COMPUTED colour and weight of every
+  //    something you can see without reading: a colour, a dot, a chip's own
+  //    fill, caps. This measures the COMPUTED colour and weight of every
   //    text-bearing leaf in the row, which is what he sees, rather than
   //    class names, which is what drifted. A separator glyph (a middot, a
   //    slash, a bare bullet) is structure and does not count, and a leaf
@@ -852,7 +859,13 @@ const AUDIT = () => {
       if (!vis(e)) continue;
       const cs = getComputedStyle(e);
       if (!isGrey(cs.color)) continue;
-      if (Number(cs.fontWeight) >= 600) continue;
+      // WEIGHT ALONE IS NO LONGER A WAY OUT (V5.2, 2026-09-22). The old exit
+      // here checked fontWeight against 600 and skipped on its own. A bolder
+      // run of the identical grey still reads as grey, just heavier of it -- it
+      // never cleared the room the way real colour, a mark, a fill or caps
+      // does, and it was the exact treatment that crowded and wrapped on a
+      // real block row. A bold grey run now has to also be caught by one of
+      // the checks below (a mark, a fill) or it counts as a second grey.
       if (cs.textTransform === "uppercase") continue;   // a state word or eyebrow is told apart by its caps
       if (onOwnFill(e, row)) continue;
       // A MARK AHEAD OF THE WORDS TELLS THEM APART (the ruling names "dots").
