@@ -6,6 +6,7 @@ import { importCalendar } from "./google/sync";
 import { Mail, CalendarDays, Link2, Plus } from "../shared/icons";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { pressable } from "../shared/pressable";
+import { leaveVia, useNavOrigin } from "../shell/navOrigin";
 
 // Settings -> Connections (multi-account, 2026-08-04). Each Google account is
 // its own row with its own feature toggles and its own disconnect. Adding an
@@ -117,9 +118,16 @@ export default function ConnectionsPage({
     return "Connected.";
   });
 
+  const leave = leaveVia(useNavOrigin(), "Settings", () => onBack?.());
+
   return (
     <div className="screen ruled">
-      <div className="nav-bar"><button className="nav-back" onClick={onBack}>Settings</button></div>
+      {/* BACK IS WHERE YOU CAME FROM (Dave 2026-09-21). This said "Settings"
+          and it is mounted by the Settings flow, so the label was true about
+          its parent and false about the journey: Email's own Connections row
+          jumps straight here, and the only button on the page then took him
+          to a screen he had not opened. */}
+      <div className="nav-bar"><button className="nav-back" onClick={leave.onBack}>{leave.label}</button></div>
       <div className="nav-large">Connections</div>
 
       {!configured && (

@@ -4,6 +4,7 @@ import { smallerAction, IN_THE_WAY } from "../startAction";
 import { suggestStopPoint } from "../startStore";
 import { createPortal } from "react-dom";
 import { pressable } from "../../shared/pressable";
+import { leaveVia, useNavOrigin } from "../../shell/navOrigin";
 
 // THE WORKING SURFACE (Start Now, 2026-09-16).
 //
@@ -93,10 +94,18 @@ export default function StartScreen({
     }
   })();
 
+  // BACK IS WHERE YOU CAME FROM (Dave 2026-09-21). This said "All Tasks" and
+  // meant it, which is right when you opened it from the Tasks list and wrong
+  // every other time: Start Now on Today's dealt row jumps into this flow, so
+  // the one button on the screen took you somewhere you had not been. Either
+  // way the work in progress is saved first -- the stop point is the point of
+  // this screen and it is written before anything navigates.
+  const leave = leaveVia(useNavOrigin(), "All Tasks", () => onBack(suggestStopPoint(text)));
+
   return (
     <div className="screen ruled start-ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={() => onBack(suggestStopPoint(text))}>All Tasks</button>
+        <button className="nav-back" onClick={leave.onBack}>{leave.label}</button>
         <div className="nav-title">Start</div>
         <span className="nav-action" />
       </div>
