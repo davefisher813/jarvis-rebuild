@@ -440,9 +440,21 @@ one surface, is a rule and a capability that is wrong everywhere else.
 
 ## PHASE 6 · BEHAVIOUR, NOT PIXELS
 
-- [ ] **Every destructive action has an Undo** · spot-checked, never swept.
-- [ ] **Every write has a failure path** · `attemptWrite` is the pattern;
-      confirm nothing bypasses it.
+- [x] **Every destructive action has an Undo** · `ba8fa4d`, corrected 2026-09-22:
+      this was still marked open here after the law that actually closes it
+      had already shipped. `src/laws/undoLaw.test.ts` walks every
+      `showToast(...)` call app-wide, finds every one whose message names a
+      removal (`deleted`, `removed`, `cleared`, `discarded`, ...), and fails
+      unless it carries an Undo or is named in an exact roster with the
+      reason it correctly has none (undoing an undo, a Delete Forever behind
+      its own confirm, an armed double-tap). Green on the current suite.
+- [x] **Every write has a failure path** · `ba8fa4d`, same correction.
+      `src/laws/writeGuard.test.ts` finds every service-mutation call site
+      app-wide and fails unless it sits inside `attemptWrite` (or a local
+      `*Write` helper) or a `try`, or is named in an exact roster with the
+      reason it does not need one (a best-effort cleanup after an already-
+      guarded call, a callback whose caller reads the outcome). Green on the
+      current suite.
 - [ ] **Orphan sweep** · deleting an area was leaving 34 rows pointing at
       nothing (`645c990` fixed the cause). Other parent/child pairs unchecked.
 - [ ] **The 34 rows already orphaned in the live database** · Dave's call on
@@ -455,7 +467,9 @@ one surface, is a rule and a capability that is wrong everywhere else.
 Anything here blocks an item above and needs Dave, not a guess.
 
 1. **Red on a press fill.** ~~Accepted and recorded 2026-09-20~~ ·
-   **SETTLED 2026-09-21 for `.pill-act`: option D, red ring and white verb.**
+   **SETTLED. `.pill-act`: option D, red ring and white verb (2026-09-21).
+   `.row-act`/`.quiet-action`: the same ring, no fill, in both themes
+   (2026-09-22).**
 
    The 2026-09-20 note read the trade as "darken the red or live with 4.49",
    and on that framing accepting was right: Dave had ruled against a third
@@ -475,8 +489,13 @@ Anything here blocks an item above and needs Dave, not a guess.
    Dave picked the last. Light gains too, 4.51 to 5.26, though it never
    failed.
 
-   **Still open, and narrower than it was:** `.row-act` in LIGHT reads 4.07:1
-   over press-3. It is a full-width text row, not a pill, so a ring is the
-   wrong shape for it and D does not carry across. Its own answer is owed.
+   **SETTLED 2026-09-22.** `.row-act`/`.quiet-action` now take the same
+   ring-not-fill shape as the pill, just without the pill's rounded fill:
+   `background: transparent; box-shadow: inset 0 0 0 1px var(--accent-chip-bd);
+   color: var(--on-light-red)` in light (`var(--accent-tx)` in dark, made
+   unconditional the same push, since the identical grey-fill defect turned
+   up there too). The 4.07:1 complaint was never the red itself, it was red
+   text on a press-3 grey fill -- with no more fill under it there is nothing
+   left to fail. `2be2a68`.
 
 2. **The 34 orphaned rows** in the live database. Where they belong.
