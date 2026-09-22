@@ -1250,11 +1250,22 @@ async function diveInto(page, label, reach, sheetSkips, sheetsSeen) {
   // dismissed as "opened nothing" and never looked at. The signature now
   // includes the first 400 characters of the scrolling content.
   const out = [];
-  const sig = () => page.evaluate(() => {
+  // ...and by any layer it opened. An email thread opens as an overlay ABOVE
+  // .app-scroll, so the scrolling content underneath does not change at all;
+  // the layer's own name is what says a new screen is up.
+  const sig = async () => (await page.evaluate(() => {
     const t = document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "";
-    const main = document.querySelector(".app-scroll") || document.body;
-    return t + "|" + ((main.innerText || "").replace(/\s+/g, " ").slice(0, 400));
-  });
+    // The whole document, not just .app-scroll: an email thread's curtain
+    // renders outside the scrolling area, so .app-scroll alone read the same
+    // before and after a thread was opened.
+    const main = document.body;
+    // The WHOLE content, hashed: an email thread expands in place (the
+    // curtain), below the first few hundred characters, so a prefix could
+    // not see it open.
+    const txt = (main.innerText || "").replace(/\s+/g, " ");
+    let h = 0; for (let k = 0; k < txt.length; k++) h = (h * 31 + txt.charCodeAt(k)) | 0;
+    return t + "|" + txt.length + "|" + h;
+  })) + "|" + ((await layerOf(page)) || "");
   if (!(await reach())) { sheetSkips.push(`${label}: could not be reached for the dive, NOT AUDITED`); return out; }
   const found = await page.locator(DIVE_SEL).count();
   const count = Math.min(DIVE_CAP, found);
@@ -1830,8 +1841,19 @@ async function runPass({ w, h, theme, scale = 1 }) {
           await clearLayers(page);
           await openTab(t).catch(() => {});
           await page.waitForTimeout(700);
+          // AT THE TAB'S ROOT, not merely under its highlight. A row on Today
+          // pushes a page ("August", the monthly receipts) and the Today tab
+          // stays active above it, so "the active tab is Today" was true while
+          // the dive walked the pushed page's rows instead of Today's.
+          for (let pop = 0; pop < 4; pop++) {
+            const backBtn = page.locator(".nav-back:visible, .pagebar-back:visible").first();
+            if (!(await backBtn.count())) break;
+            await backBtn.click({ timeout: 1500 }).catch(() => {});
+            await page.waitForTimeout(500);
+          }
           const ok = await page.evaluate((name) =>
-            (document.querySelector(".tab-bar .tab.active")?.textContent || "").trim() === name, t);
+            (document.querySelector(".tab-bar .tab.active")?.textContent || "").trim() === name
+            && !document.querySelector(".nav-back, .pagebar-back"), t);
           if (ok) return true;
         }
         return false;
