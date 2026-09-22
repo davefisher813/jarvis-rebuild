@@ -816,6 +816,28 @@ A separator (the middot, a slash) is structure and does not count. A row's title
 
 **ENFORCED BY MEASUREMENT, NOT BY CLASS NAME.** `tools/visual-audit.mjs` check 8 (`grey-twice`) walks every row on every screen it reaches and reads the COMPUTED colour and weight of each text-bearing leaf: achromatic ink between the two ends of the ramp, not uppercase, not on its own fill, not a separator glyph. As of V5.2, weight is not itself a way out -- a bold run in that same achromatic band is still counted. Two of those on one row is a finding, named with the runs it saw. A class rename cannot slip past it, because it never reads a class. `src/laws/subtextLaw.test.ts` pins this section and that check to each other, so neither can be removed without the other noticing.
 
+## §AL. The Capsule, Settled (V5.3, Dave 2026-09-22, chosen from the Control Catalog — every rung, capsule, unanimous)
+
+**THIS SECTION EXISTS BECAUSE THE LAST THREE RULINGS ON THIS CONTROL WERE NOT WRITTEN DOWN.** §O.5 said outlined (2026-08-21). §X2 superseded it with the capsule four days later. §AJ C1 restated the capsule on 2026-09-18 — "34 tall, `--t-meta`, semibold, on press-3. Red when it acts on something." Then, on 2026-09-21, a contrast fix called "Option D" replaced it with a 1px brand ring and was recorded **only in a CSS comment and an audit checklist**. For a day the catalog told every reader the control was a capsule while the app drew a ring. Dave, looking at the shipped app: *"I hate this... the shape sucks too."* and, of the Focus button, *"these were never supposed to change."* An unwritten ruling is not a ruling; it is a thing the next pass will overwrite.
+
+**THE LAW.** Every tappable control that is not the screen's one filled primary is a CAPSULE: a fill, a pill radius, and a label in the action red. It is never bare words (§X) and never an outline. The ring is retired.
+
+**THE FILL IS OPAQUE IN DARK, AND THAT IS THE RULING, NOT AN IMPLEMENTATION DETAIL.** Every `--press-*` token is an alpha, so a capsule's contrast depended on whatever sat behind it. Measured with `--tint` against `--press-3`: 5.16 on the page, 4.50 on a card, **3.12 on a raised surface, 2.55 on surface-3**. That is why this control kept coming back — each pass measured it somewhere different and drew a different conclusion. `--capsule-fill` is opaque in dark (`#17171A`) and reads **4.82 against every ground a pill actually sits on**. Light keeps the alpha, because there it never failed (5.08–5.67 with `--on-light-red`) and an opaque near-white capsule would vanish on a white card. **The two themes have different answers, and assuming they had the same one is what produced the wrong fix twice.**
+
+A 32% black sink also cleared contrast and was rejected: on the pure-black page it composites to black-on-black and the capsule disappears, which breaks §X.
+
+**THE CAPSULE PAINTS 34.** §AJ C1 said "34 tall" and the app painted **16**. `.pill-act` bought its tap target with 9px transparent borders off a 34px border box, leaving 16px of actual fill — which is what Dave saw as *"the words are way too close to the border."* It is 5px off a 44px box now: 34 painted, 44 tapped, the negative margin paying the difference back so no row reflows. A control's stated height is what it PAINTS.
+
+**AND THE RING BROKE A LAW OF ITS OWN.** §AJ R1: every control ring in this app is 0.5px. Option D's was 1px. It could not have been right in any theme.
+
+**WHAT IT BINDS.** `.pill-act` (151 sites), `.row-act` (44), `.chip` (410), `.btn-sm`, `.promo-pill`, `.barbtn` and the round-icon family, the segmented control, and `.quiet-action` — which was swept into the ring rule by selector proximity and never should have been: 43 call sites of a control whose entire job is to be the quiet option. It keeps a plain press fill and secondary ink.
+
+**WHAT IT DOES NOT BIND.** The head action (§O.7) stays bare text — the one sanctioned exception, confirmed three times. Status badges and state words (§AA G5) are not controls and must not start looking like ones; `astra.test.ts` fails the build if a state word ever takes a background or a radius.
+
+**EVERY RULE THAT FILLS A CAPSULE USES `background-color`, NEVER THE SHORTHAND.** The shorthand resets `background-clip` to `border-box`, so the fill paints across the transparent hit border while everything else stays on the padding box. Four rules did this, which is what put a ring inside a red slab on "Start Now" and made Health's hero Start paint ~50px of red, spilling out of its own row.
+
+**ENFORCED.** `src/laws/capsuleLaw.test.ts` pins this section to the CSS: the ring is gone, the fill token exists in both themes, the geometry paints 34, and no rule fills a `.pill-act` with the shorthand. The next pass that wants to change this control has to change the law and this section with it.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

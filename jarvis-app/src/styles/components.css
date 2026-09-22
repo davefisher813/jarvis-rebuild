@@ -3481,7 +3481,13 @@ button {
    line, right-aligned, instead of crushing the row's name to "Read I…". */
 .row.mail-read-live { flex-wrap: wrap; }
 .mail-read-live .mail-read-acts { flex-basis: 100%; justify-content: flex-end; padding-top: var(--s-0h); }
-.pill-act { position: relative; flex-shrink: 0; align-self: center; background: var(--press-3); border: 0; border-radius: var(--r-pill);
+/* background-COLOR even here, in the base rule (2026-09-22). It was harmless
+   only by accident -- the shorthand resets background-clip, and the clip is
+   re-declared a few rules down, so the ordering rescued it. §AL's law does
+   not want a rule that is correct by luck: every fill on this control is a
+   longhand, base included, so the next edit cannot reorder its way into the
+   bug that put a ring inside a red slab. */
+.pill-act { position: relative; flex-shrink: 0; align-self: center; background-color: var(--press-3); border: 0; border-radius: var(--r-pill);
   color: var(--tint); font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi);
   min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--s-3); }
 /* GYM-F-26 (2026-09-05): ONE VISIBLE DOOR TO A ROW'S MENU. Catalog §3.12 made
@@ -3513,9 +3519,20 @@ button {
    pulls the 17px back out of the flex row so no row grows. This is the same
    trade .sec-head .see-all already makes (a real 44pt box, the extra height
    pulled out of layout); it just has to route around a fill here. */
+/* AND THE CAPSULE HAS TO ACTUALLY PAINT 34 (2026-09-22, Dave's screenshot of
+   "Ask Again in 15m": "the words are way too close to the border").
+   He was looking at a real defect, not a preference. 9px of transparent
+   border off a 34px border box leaves SIXTEEN PIXELS of paint -- less than
+   half the 34 §AJ C1 specifies -- so the label sat hard against the top and
+   bottom of its own fill. The hit box was right and the pill was wrong.
+   5px off a 44px box paints the 34 the ruling asks for and still reaches
+   the tap minimum, and the negative margin pays the 10px back to the row
+   exactly as before, so nothing reflows. */
 .pill-act {
-  border-top: 9px solid transparent; border-bottom: 9px solid transparent;
-  background-clip: padding-box; margin-block: -9px;
+  min-height: var(--tap-min);
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  background-clip: padding-box; margin-block: -5px;
+  padding-left: var(--s-4); padding-right: var(--s-4);
 }
 /* A PILL MAY NEVER EAT ITS ROW (2026-08-24).
    flex-shrink:0 is right: a verb must not be squeezed into two lines by a
@@ -3523,8 +3540,14 @@ button {
    40-character label collapsed the title column to one letter per line on
    Dave's phone. The label producer was the real bug and is fixed, but a
    producer is a thing that changes, and the row should survive the next one.
-   9.5rem fits every sanctioned verb in the app with room to spare. */
-.pill-act { max-width: 9.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+   9.5rem fits every sanctioned verb in the app with room to spare.
+   MOVED TO 11rem (2026-09-22) because the cap and the padding are one
+   measurement, not two: widening the pill's sides to --s-4 so the label
+   clears its own edge spends 8px that used to belong to the words, and at
+   9.5rem the law's own worst case ("Ask Again in 15m", 152px) truncated to
+   "Ask Again in 1...". The cap moves with the padding or it is not a cap
+   on the label at all. */
+.pill-act { max-width: 11rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* AND THE ELLIPSIS HAS TO BE ABLE TO DRAW (2026-09-21, Dave's screenshot of
    the lift page: "·vidence and Calculatio", the first and last letters gone).
    text-overflow only works on a block container; .pill-act is inline-flex
@@ -4250,55 +4273,82 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 [data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   background: rgba(204,5,27,0.085); color: var(--on-light-red);
 }
-/* background-COLOR, not the shorthand: the shorthand resets background-clip to
-   border-box, which would paint this wash across the transparent hit border
-   BROWSER-F-03 (2026-09-05) gave the pill and make it look 44px tall in light
-   only. Same wash, same red, just the one longhand that leaves the clip. */
-[data-theme="light"] .pill-act { background-color: rgba(204,5,27,0.085); color: var(--on-light-red); }
+/* THE TWO THEMES USED TO DISAGREE ABOUT A QUIET PILL (fixed 2026-09-22).
+   This rule had no :not() chain, so .pill-quiet and .pill-neutral -- the
+   pills whose whole job is NOT to be a red verb -- took an 8.5% brand-red
+   wash with grey ink in light while the same pill was plain grey in dark.
+   The fill said "red action" and the ink said "not an action", in one
+   theme only. The capsule rule below now paints both themes from one
+   token, and the quiet variants keep their own fill in both. */
 [data-theme="light"] .note-fix { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
-/* THE ROW ACTION IN LIGHT TAKES OPTION D TOO (2026-09-22). "Add Account",
-   "Add Person", "Add Area", "Focus" and "Add a Task" were the light red on
-   a GREY press fill -- 4.07:1 on the page's press, 4.46 on a card's -- the
-   .row-act half of the decision the pill settled on 2026-09-21. The same
-   answer: no fill, the brand ring, the light red on the card or the page
-   itself (5.26:1 and 4.79:1). One treatment for every red action that is
-   not the screen's one filled primary. */
-/* AND IN DARK (2026-09-22). "Add Account" and "Add Person" measured 3.81:1:
-   the brand red on surface-2, which is the exact defect option D was picked
-   to answer on the pill. Same answer, same control: no fill, the brand ring,
-   the app's own accent text (white in dark, the light red in light). This is
-   the other half of OPEN DECISION 1 and closes it. */
-.row-act, .quiet-action, .ruled .card .row.row-act {
-  background: transparent; box-shadow: inset 0 0 0 1px var(--accent-chip-bd); color: var(--accent-tx);
+/* THE ROW ACTION TAKES THE CAPSULE TOO (Dave 2026-09-22, Control Catalog:
+   the in-list create rung, capsule).
+
+   It followed the pill into the ring on 2026-09-22 and it follows it back
+   out. Its contrast failure was the same shape as the pill's -- "Add
+   Account" and "Add Person" measured 3.81:1 red on surface-2, 4.07 on the
+   page's press in light -- and it takes the same answer: sink the fill so
+   the red reads against a deeper ground.
+
+   .quiet-action RIDES ALONG BY ACCIDENT NO LONGER. It was swept into the
+   ring rule with .row-act, which put a brand ring around 43 call sites of
+   a control whose entire job is to be the quiet option ("Not Now", a
+   dismiss, "1 Finished"). It is not a red verb and never was: it keeps the
+   plain press fill and secondary ink, restated here so no future sweep
+   picks it up again by selector proximity. */
+.row-act, .ruled .card .row.row-act {
+  background-color: var(--capsule-fill); box-shadow: none; color: var(--tint);
 }
-[data-theme="light"] .row-act, [data-theme="light"] .quiet-action,
-[data-theme="light"] .ruled .card .row.row-act {
-  background: transparent; box-shadow: inset 0 0 0 1px var(--accent-chip-bd); color: var(--on-light-red);
+[data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act {
+  color: var(--on-light-red);
 }
-/* THE ACTION PILL, OPTION D (Dave's pick 2026-09-21, from a rendered
-   comparison of four through these stylesheets with their measured numbers
-   under them).
+.quiet-action {
+  background-color: var(--press-1); box-shadow: none; color: var(--tx-2);
+}
+/* THE ACTION PILL IS A CAPSULE AGAIN (Dave 2026-09-22, picked from the
+   Control Catalog: every rung, capsule, unanimous).
 
-   The audit found the same defect in twelve places across Today, Notes,
-   Money, the Tracker and the live workout, and it is one control. Brand red
-   on the pill's own 6% white wash measures 4.50:1 on a glass card and 3.12
-   on a raised one. Two of the obvious answers do not fix it: outlining the
-   pill and keeping the red text (the row-pill option Dave picked on
-   2026-08-21) only reaches 3.76 raised, and this file has argued twice
-   already that no red which clears 4.5 on these greys stays out of salmon.
+   HISTORY, so the next pass can see all of it in one place. §O.5 made this
+   an OUTLINED pill (2026-08-21). §X2 superseded that with the capsule the
+   same week ("outlined pills beside filled capsules read as two systems").
+   §AJ C1 restated the capsule on 2026-09-18: "34 tall, --t-meta, semibold,
+   on press-3. Red when it acts on something." Then Option D (2026-09-21)
+   replaced it with a 1px brand ring to fix a real contrast failure -- and
+   was never written into this catalog, so the ruling everybody could read
+   still said capsule while the app drew a ring. Dave, looking at the ring
+   in the shipped app: "I hate this... the shape sucks too."
 
-   So the ring carries the meaning and the words carry the reading: 19.10:1
-   on glass, 13.94 raised, and red is still what tells you the pill is a
-   verb. Light gains too (4.51 to 5.26) though it never failed.
+   OPTION D'S PROBLEM WAS REAL AND IS SOLVED DIFFERENTLY. Brand red on the
+   pill's own 6% WHITE wash measured 4.50:1 on a glass card, 3.12 on a raised
+   one and 2.55 on surface-3 -- the fill is an ALPHA, so its contrast changed
+   with whatever sat behind it, and each pass that re-litigated this control
+   had measured it somewhere different. The answer is not to delete the fill:
+   it is to stop the ground being part of the question. --capsule-fill is
+   opaque in dark and reads 4.82 against --tint on every ground a pill
+   actually sits on. Same capsule, same red, contrast no longer a lottery.
 
-   background-COLOR, not the shorthand, for the reason written six lines up:
-   the shorthand resets background-clip and paints across the transparent hit
-   border. The ring is an inset shadow, which is clipped to the PADDING box,
-   so it hugs the pill's paint and not its 34px touch area. */
-.pill-act:not(.pill-quiet):not(.pill-neutral),
+   AND THE RING COULD NEVER HAVE BEEN RIGHT ANYWAY: §AJ R1 says every
+   control ring in this app is 0.5px. Option D's was 1px.
+
+   background-COLOR, not the shorthand: the shorthand resets background-clip
+   to border-box, which would paint the fill across the transparent hit
+   border and make the pill look 44 tall. Every rule that fills a .pill-act
+   must use the longhand for this reason -- four of them did not, which is
+   what put a ring inside the fill on Start Now. */
+.pill-act:not(.pill-quiet):not(.pill-neutral) {
+  background-color: var(--capsule-fill); box-shadow: none;
+  color: var(--tint);
+}
+/* SINKING CUTS BOTH WAYS, AND LIGHT NEEDS THE OTHER RED (measured
+   2026-09-22). Dark's red is bright, so a deeper ground pulls away from it
+   and the pair gains: 3.12 -> 5.32 on a card, 5.66 on the page. Light's red
+   is DARK, so the same sink moves the ground toward the ink and the pair
+   loses -- --tint measured 4.28 on a card and 3.91 on the page, under the
+   minimum. --on-light-red is the deeper red this theme already tuned for
+   red-on-a-light-ground, and it is what clears it here. */
 [data-theme="light"] .pill-act:not(.pill-quiet):not(.pill-neutral) {
-  background-color: transparent; box-shadow: inset 0 0 0 1px var(--accent-chip-bd);
-  color: var(--accent-tx);
+  background-color: var(--capsule-fill); box-shadow: none;
+  color: var(--on-light-red);
 }
 /* The variants the tint must NOT bleach, restated so the cascade keeps
    them: primary stays the flat brand fill, danger stays system red,
@@ -5864,7 +5914,12 @@ body.selecting .voice-dock { display: none; }
    app's own; --accent-fill (#E2051E) is the red that carries white text on
    every filled control in the app, Accept the Day included, and this is one
    of those. Same token .h-hero's pill already uses for the same reason. */
-.ruled .card .pill-act.pill-go { background: var(--accent-fill); color: #fff; }
+/* background-COLOR (2026-09-22). The shorthand here is what Dave
+   screenshotted: it resets background-clip to border-box, so the fill
+   painted the full border box while everything else on the pill stayed on
+   the padding box. Under Option D that showed as a ring floating inside a
+   red slab; it was always also a red slab overflowing its own row. */
+.ruled .card .pill-act.pill-go { background-color: var(--accent-fill); color: #fff; }
 
 /* THE SCHEDULE STATE WORDS (C-28, Push C). LIVE rides the Now rule on both
    day surfaces; a proposed pick nested in its holder carries its facts on
@@ -5897,7 +5952,7 @@ span.row-star { cursor: default; }
 .sched-row > .row-star { margin-left: var(--s-2); }
 .chat-prov .row-star { vertical-align: middle; margin-right: var(--s-1); }
 .dec-outcome-acts { display: flex; gap: var(--s-2); flex-wrap: wrap; }
-.dec-outcome-acts .pill-act.on { background: var(--sel-bg); color: var(--sel-fg); }
+.dec-outcome-acts .pill-act.on { background-color: var(--sel-bg); color: var(--sel-fg); }
 .notice-foot-acts { padding-top: var(--s-2); }
 .dec-row .lib-ico { flex-shrink: 0; }
 

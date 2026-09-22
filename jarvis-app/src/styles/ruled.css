@@ -798,7 +798,13 @@
    "go" is green in every training app; the ruling is that lime is DATA in
    Health and the app's one red is what a person taps. So the pill is the
    standard capsule primary and says nothing of its own about colour. */
-.ruled .h-hero .pill-act { font-weight: var(--w-bold); background: var(--accent-fill); color: #fff; padding: var(--s-2) var(--s-4); font-size: calc(14px * var(--type-scale)); }
+/* background-COLOR and no extra vertical padding (2026-09-22). This was the
+   worst instance of the shorthand bug: the shorthand reset the clip so the
+   fill painted the whole border box, and then --s-2 top and bottom grew that
+   box further, so Health's Start painted about 50px of red -- three times a
+   normal pill -- and spilled out of its own row. The pill's own geometry is
+   already 34 painted inside a 44 tap box; a hero does not need to restate it. */
+.ruled .h-hero .pill-act { font-weight: var(--w-bold); background-color: var(--accent-fill); color: #fff; padding-left: var(--s-4); padding-right: var(--s-4); font-size: calc(14px * var(--type-scale)); }
 .ruled .h-hero { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3h) var(--s-4) var(--s-2h); cursor: pointer; }
 /* THE ONE COLOURED THING ON THE PAGE WAS THIS SQUARE, AND IT WAS BLUE (Dave
    2026-09-10: "the lack of color is a major issue in the health pages... All
@@ -2294,7 +2300,7 @@
 .ruled .ex-bar { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-bottom: var(--s-2); }
 /* A control that is currently DOING something reads on, in the page's own
    reading hue. Not red: red is a verb here, never a state (LAW L1). */
-.ruled .ex-bar .pill-act.on { color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
+.ruled .ex-bar .pill-act.on { color: var(--hl-cyan-ink); background-color: var(--hl-cyan-tint); }
 
 .ruled .ex-row { align-items: flex-start; }
 .ruled .ex-row.on { background: var(--hl-cyan-tint); }

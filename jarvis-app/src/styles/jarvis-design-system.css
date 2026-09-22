@@ -242,6 +242,24 @@
   --surface-1: #1C1C1E; --surface-2: #2C2C2E; --surface-3: #3A3A3C;
   --card-bd: rgba(255,255,255,0.12); --divider: rgba(255,255,255,0.06);
   --press-1: rgba(255,255,255,0.04); --press-3: rgba(255,255,255,0.06); --press-5: rgba(255,255,255,0.14);
+  /* THE CAPSULE FILL IS OPAQUE IN DARK, AND THAT IS THE WHOLE POINT
+     (measured 2026-09-22, every ground a pill actually sits on).
+
+     Every press token is an ALPHA, so what a capsule ends up painting -- and
+     therefore its contrast with the red on it -- depends on whatever is
+     behind it. Measured with --tint: --press-3 gives 5.16 on the page, 4.50
+     on a card, 3.12 on a raised surface and 2.55 on surface-3. The same fill
+     passes in one place and fails in another, which is why this control has
+     been re-litigated three times: each pass measured it somewhere different.
+
+     An opaque fill takes the ground out of the question. #17171A reads 4.82
+     against --tint NO MATTER what is behind it, and it stays visible as a
+     shape on all of them (it lifts off the black page, sinks into a raised
+     card). A 32% black sink also passed on contrast and was rejected here for
+     a reason worth writing down: on the pure-black page it composites to
+     black-on-black and the capsule disappears, which breaks §X -- a button is
+     a shape, never bare words. */
+  --capsule-fill: #17171A;
   /* iOS label ramp (approved 2026-08-18): titles pure white, secondary at
      the system 60% (EBEBF5 like UIKit's secondaryLabel), tertiary at 30%.
      The old 0.76 white meta sat too close to titles and killed hierarchy;
@@ -395,6 +413,13 @@
      button unmistakably has a body on both the page and a card, and the
      red label still clears 4.5:1 on it (CC051B on #EBEBEE: 4.9:1). */
   --press-1: rgba(20,20,30,0.05); --press-3: rgba(20,20,30,0.08); --press-5: rgba(20,20,30,0.13);
+  /* Light keeps the alpha, because here it never fails: measured with
+     --on-light-red, --press-3 reads 5.67 on a card and 5.08 on the palest
+     ground in the theme, and it is also the most VISIBLE of the candidates
+     (an opaque near-white capsule all but vanishes on a white card). Dark
+     needed an opaque fill; light does not, and pretending both themes have
+     the same problem is what produced the wrong answer twice. */
+  --capsule-fill: var(--press-3);
   /* --tx-3 at 0.72 (Daylight, 2026-08-22). The Apple-exact 0.60 measured
      3.4:1 on Dave's phone and he named it: "hard to read." 0.72 is the
      smallest alpha that clears 4.5:1 on BOTH grounds subs actually live on

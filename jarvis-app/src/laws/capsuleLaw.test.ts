@@ -1,0 +1,126 @@
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { posix } from "node:path";
+
+const { join } = posix;
+const ROOT = process.cwd().replace(/\\/g, "/");
+const read = (f: string) => readFileSync(join(ROOT, f), "utf8");
+
+// ---------------------------------------------------------------------------
+// LAW: THE CAPSULE, SETTLED (§AL, Dave 2026-09-22, from the Control Catalog —
+// every rung, capsule, unanimous).
+//
+// THIS FILE EXISTS BECAUSE THE RULING BEFORE IT WAS NEVER WRITTEN DOWN. The
+// row pill went outlined (§O.5), then capsule (§X2), then capsule again
+// (§AJ C1, "34 tall... on press-3, red when it acts"), and then on 2026-09-21
+// a contrast fix replaced it with a 1px brand ring that was recorded ONLY in
+// a CSS comment. For a day the catalog said capsule and the app drew a ring,
+// and nothing failed. Dave, on the shipped app: "I hate this... the shape
+// sucks too", and of the Focus button, "these were never supposed to change."
+//
+// So the point of these assertions is not that a capsule is prettier than a
+// ring. It is that a control this app has re-litigated four times now has a
+// test standing next to its catalog section, and the next pass that wants to
+// change it has to change both on purpose.
+// ---------------------------------------------------------------------------
+
+const CSS = read("src/styles/components.css");
+const DS = read("src/styles/jarvis-design-system.css");
+const RULED = read("src/styles/ruled.css");
+const CATALOG = read("STYLING_CATALOG_V3.md");
+
+/** The body of the first rule whose selector list contains `sel`. */
+function ruleBody(css: string, sel: string): string {
+  const i = css.indexOf(sel);
+  if (i < 0) return "";
+  const open = css.indexOf("{", i);
+  const close = css.indexOf("}", open);
+  return open < 0 || close < 0 ? "" : css.slice(open + 1, close);
+}
+
+describe("LAW §AL: the capsule, settled", () => {
+  it("the catalog carries the ruling, and names what it supersedes", () => {
+    expect(CATALOG).toMatch(/## §AL\. The Capsule, Settled/);
+    expect(CATALOG, "the ring is named as retired, not quietly dropped")
+      .toMatch(/The ring is retired/);
+    expect(CATALOG, "and the reason this section exists at all is stated")
+      .toMatch(/NOT WRITTEN DOWN/);
+  });
+
+  it("the action pill carries a fill and no ring", () => {
+    const body = ruleBody(CSS, ".pill-act:not(.pill-quiet):not(.pill-neutral)");
+    expect(body, "the pill has a fill").toMatch(/background-color:\s*var\(--capsule-fill\)/);
+    expect(body, "and no ring: Option D's inset shadow is gone").toMatch(/box-shadow:\s*none/);
+    expect(body, "the label is the action red").toMatch(/color:\s*var\(--tint\)/);
+  });
+
+  it("the in-list create takes the same capsule, and the quiet action does NOT", () => {
+    const rowAct = ruleBody(CSS, ".row-act, .ruled .card .row.row-act");
+    expect(rowAct).toMatch(/background-color:\s*var\(--capsule-fill\)/);
+    expect(rowAct).toMatch(/box-shadow:\s*none/);
+    // .quiet-action was swept into the ring rule by selector proximity, which
+    // put a brand ring around 43 call sites of the QUIET option. It is not a
+    // red verb; it must never share a rule with one again.
+    expect(CSS, "the quiet action is not glued to the row action's rule")
+      .not.toMatch(/\.row-act,\s*\.quiet-action/);
+    const quiet = ruleBody(CSS, ".quiet-action {");
+    expect(quiet, "and it keeps secondary ink, not the action red")
+      .toMatch(/color:\s*var\(--tx-2\)/);
+  });
+
+  it("the capsule fill is opaque in dark, so contrast cannot depend on the ground", () => {
+    // Every --press-* token is an alpha, so the same capsule measured 5.16 on
+    // the page, 4.50 on a card, 3.12 raised and 2.55 on surface-3. Each pass
+    // that re-opened this control had measured it somewhere different.
+    expect(DS, "dark declares an opaque capsule fill").toMatch(/--capsule-fill:\s*#[0-9A-Fa-f]{6}\s*;/);
+    expect(DS, "and light declares its own").toMatch(/--capsule-fill:\s*var\(--press-3\)/);
+  });
+
+  it("the capsule PAINTS 34 inside a 44 tap box, which is what §AJ C1 meant", () => {
+    const body = ruleBody(CSS, ".pill-act {\n  min-height");
+    expect(body, "the tap box is the app's minimum").toMatch(/min-height:\s*var\(--tap-min\)/);
+    // 9px borders off a 34px box left SIXTEEN pixels of paint, which is what
+    // "the words are way too close to the border" actually was.
+    const border = /border-top:\s*(\d+)px solid transparent/.exec(body);
+    expect(border, "the transparent hit border is still how it reaches 44").toBeTruthy();
+    expect(Number(border![1]), "5px off 44 paints 34; 9px off 34 painted 16").toBe(5);
+    expect(body, "and the row is paid back so nothing reflows").toMatch(/margin-block:\s*-5px/);
+    expect(body, "the clip stays on the padding box (BROWSER-F-03)")
+      .toMatch(/background-clip:\s*padding-box/);
+  });
+
+  it("no rule fills a .pill-act with the background SHORTHAND", () => {
+    // The shorthand resets background-clip to border-box, so the fill paints
+    // across the 9px transparent hit border while the rest of the pill stays
+    // on the padding box. That is the "double edge" on Start Now, and the
+    // ~50px of red on Health's hero Start.
+    const offenders: string[] = [];
+    for (const [file, raw] of [["components.css", CSS], ["ruled.css", RULED]] as const) {
+      // Comments first: this file explains itself at length, and a comment
+      // that MENTIONS .pill-act would otherwise read as a selector for it.
+      const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const m of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+        const selector = m[1]!.trim();
+        const body = m[2]!;
+        // `.pill-act` as a WHOLE class: `.pill-action` is a different control
+        // (the head action's capsule form) and must not be caught here.
+        if (!/\.pill-act(?![\w-])/.test(selector)) continue;
+        if (/(^|[;\s])background:\s*(?!none\b)(?!0\b)/.test(body)) {
+          offenders.push(file + " — " + selector.split("\n").pop()!.trim());
+        }
+      }
+    }
+    expect(offenders, "each of these would paint its fill across the hit border").toEqual([]);
+  });
+
+  it("the head action and the state word are NOT swept in", () => {
+    // §O.7: the one sanctioned bare-text control. §AA G5 + astra.test.ts: a
+    // state word is small caps and never a filled pill. A sweep that gives
+    // every control a capsule must not reach these two.
+    const seeAll = ruleBody(CSS, ".see-all {");
+    expect(seeAll, "the head action stays bare text").toMatch(/background:\s*0|background:\s*none|background:\s*transparent/);
+    const st = /\.fact\.st\s*\{([^}]*)\}/.exec(CSS)?.[1] ?? "";
+    expect(st, "the state word takes no fill").not.toMatch(/background/);
+    expect(st, "and no radius").not.toMatch(/border-radius/);
+  });
+});
