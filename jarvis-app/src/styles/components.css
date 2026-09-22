@@ -799,15 +799,50 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    from the type ramp (the kicker is already tx-3) and from having no category
    bar, not from fading the row. */
 .sched-locked .sched-title { color: var(--tx-2); }
-/* A block that HOLDS tasks is a container, and it looks like one: brand-red
-   spine, the faintest red wash, and its work drawn inside it. */
-/* The wash is deliberately FAINT. --red-tint (16%) is the banner strength and
-   reads as an alarm on a four-hour block; this is a container, not a warning.
-   The spine carries the identity, the wash only groups. */
-.sched-holds { background: rgba(255, 43, 60, 0.055); box-shadow: inset 3px 0 0 var(--accent-glyph); border-radius: var(--r-md); }
-[data-theme="light"] .sched-holds { background: rgba(204, 5, 27, 0.045); }
+/* A block that HOLDS tasks is a container, and it looks like one: a quiet
+   surface, its work drawn inside it. */
+/* THE RED SPINE IS GONE (2026-09-22, Dave: "reformat that section... any row
+   that expands like there"). The curved brand-red bar plus a red wash was
+   the loudest thing on a row that is not a warning, and it stayed loud on
+   every block whether or not there was anything to say about it. A quiet
+   card groups the same way without shouting; the block's own identity now
+   lives in the small dot ahead of its title, not a full-height rule. */
+.sched-holds { background: var(--surface-1); border-radius: var(--r-md); }
 .sched-holds .sched-title { color: var(--tx-1); }
-.block-nest { margin: var(--s-2) 0 0; padding-left: var(--s-3); border-left: 2px dotted var(--accent-chip-bd); display: flex; flex-direction: column; }
+/* THE DOT REPLACES THE LOCK GLYPH A HOLDS ROW NEVER GOT (2026-09-22). Every
+   other locked row draws a small icon ahead of its title; a holds row drew
+   nothing there and let the spine carry that identity instead. Now that the
+   spine is gone, the title gets its own small mark, wordless like the
+   category dots elsewhere on the row. */
+.sched-holds .sched-lock-title { position: relative; padding-left: var(--s-3h); }
+.sched-holds .sched-lock-title::before {
+  content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--accent-glyph);
+}
+/* THE STATE WORD STAYS PLAIN CAPS, NOT A TAG (2026-09-22). The rendered
+   options sent for this pass included a filled pill for the state word, and
+   it looked clean enough to pick -- but Astra law 2026-09-12 already closed
+   that door on purpose (src/laws/astra.test.ts: "the state word is small
+   caps from CSS, never a filled pill"), and caught it the moment this rule
+   landed. Caps already exempts it from §AK with no fill needed, so nothing
+   here actually required one; dropped rather than reopening a ruling this
+   pass was never asked to revisit.
+   THE META LINE SPLITS, KICKER LEFT AND UNTIL RIGHT (2026-09-22). Chaining
+   "FLEXIBLE Focus time · Until 7:00 PM" left to right was the run that
+   crowded and wrapped in the first place; pinning Until to the row's right
+   edge reads as two separate facts at a glance instead of one long sentence
+   competing for the same width. WRAP STAYS ON, NOWRAP DID NOT (caught at
+   --type-scale 1.4: a forced single line pushed "Until 7:00 PM" straight
+   off the right edge of the screen instead of giving it room). The row can
+   still wrap to two lines exactly as it did before this pass; the only
+   change is that Until keeps the auto margin that pins it right on
+   whichever line it lands on, flex's own behaviour for a wrapped line. */
+.sched-holds .sched-cat .sched-sep { display: none; }
+.sched-holds .sched-cat .sched-fact { margin-left: auto; flex-shrink: 0; padding-left: var(--s-2); }
+/* THE NEST LINE IS QUIET TOO (2026-09-22): a dotted red rule was the same
+   loudness the spine was, on the one part of the row that is already
+   telling you it holds something. A plain hairline groups without it. */
+.block-nest { margin: var(--s-2) 0 0; padding-left: var(--s-3); border-left: 1px solid var(--tx-4); display: flex; flex-direction: column; }
 .block-held { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1h) 0; background: 0; border: 0; width: 100%; text-align: left; font-family: var(--f); }
 .block-held-t { color: var(--tx-1); font-size: var(--t-body); flex: 1; min-width: 0; }
 .block-held-u { color: var(--tx-3); font-size: var(--t-meta); font-variant-numeric: tabular-nums; flex-shrink: 0; }
