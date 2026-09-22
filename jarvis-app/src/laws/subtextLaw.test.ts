@@ -48,7 +48,13 @@ describe("LAW: one grey, ever", () => {
 
   it("the auditor measures it on every row, by computed colour, weight is no longer a way out on its own", () => {
     expect(auditor).toMatch(/add\("grey-twice"/);
-    expect(auditor, "the ink is read from the computed style, never a class name").toMatch(/isGrey\(cs\.color\)/);
+    // AMENDED 2026-09-22: still the computed style, never a class name -- and
+    // now composited over its ground first. Judged as declared, dark's
+    // --tx-quiet is rgba(235,235,245,0.55), whose 245 channel made isGrey
+    // call it "not grey", so in dark this check could not see the quiet grey
+    // at all. It lands as ~rgb(129,129,135), which is what the eye gets.
+    expect(auditor, "the ink is read from the computed style, as it lands on its ground")
+      .toMatch(/isGrey\(over\(norm\(cs\.color\), bgOf\(e\)\)\)/);
     expect(auditor, "V5.2: weight alone must not skip a grey run")
       .not.toMatch(/if \(Number\(cs\.fontWeight\) >= 600\) continue;/);
     expect(auditor, "a mark ahead of the words is still a way out").toMatch(/marked\(e\)/);

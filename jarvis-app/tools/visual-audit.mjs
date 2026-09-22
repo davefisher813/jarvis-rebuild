@@ -454,7 +454,50 @@ const AUDIT = () => {
   // Composite the real stack. A chip is rgba(255,255,255,0.06) over black,
   // which is nearly black; reading the raw declaration calls white text on it
   // invisible, which is how a detector invents 40 bugs that do not exist.
-  const parse = (c) => {
+  // ANY CSS COLOUR, READ THE WAY THE BROWSER PAINTS IT (2026-09-22). parse()
+  // below handled hex, rgb() and color(srgb) and, for anything else, took the
+  // first three numbers it found. Chromium serialises color-mix(in oklab ...)
+  // as oklab(L a b / alpha), so an oklab ground was measured as rgb(0.6, 0.2,
+  // 0.1), and out-of-gamut values produced grounds like rgb(527, 200, 251)
+  // that no screen can paint -- which is how "Select" on Schedule was
+  // reported at 1.59:1. The browser already knows how to turn every syntax
+  // into sRGB: paint it once over black and once over white on a 1px canvas,
+  // and solve for the colour and its alpha from the two pixels. Exact for
+  // opaque colours; within one 8-bit level for translucent ones, which is
+  // finer than any threshold this file tests against.
+  const __cv = document.createElement("canvas"); __cv.width = __cv.height = 1;
+  const __cx = __cv.getContext("2d", { willReadFrequently: true });
+  const __normCache = new Map();
+  const norm = (c) => {
+    if (!c) return c;
+    if (__normCache.has(c)) return __normCache.get(c);
+    let out = c;
+    const plain = c.match(/^rgba?\(\s*(-?[\d.]+)[,\s]+(-?[\d.]+)[,\s]+(-?[\d.]+)(?:[,\s/]+([\d.]+))?\s*\)$/);
+    if (plain) {
+      const [r, g, b] = [plain[1], plain[2], plain[3]].map((v) => Math.max(0, Math.min(255, +v)));
+      const a = plain[4] === undefined ? 1 : +plain[4];
+      out = a >= 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
+    } else if (/^#[0-9a-fA-F]{6}$/.test(c)) {
+      out = `rgb(${parseInt(c.slice(1, 3), 16)}, ${parseInt(c.slice(3, 5), 16)}, ${parseInt(c.slice(5, 7), 16)})`;
+    } else if (typeof CSS !== "undefined" && CSS.supports("color", c)) {
+      const px = (ground) => {
+        __cx.globalCompositeOperation = "copy"; __cx.fillStyle = ground; __cx.fillRect(0, 0, 1, 1);
+        __cx.globalCompositeOperation = "source-over"; __cx.fillStyle = c; __cx.fillRect(0, 0, 1, 1);
+        return __cx.getImageData(0, 0, 1, 1).data;
+      };
+      const k = px("#000"), w = px("#fff");
+      const a = Math.max(0, Math.min(1, 1 - ((w[0] - k[0]) + (w[1] - k[1]) + (w[2] - k[2])) / (3 * 255)));
+      if (a < 0.002) out = "rgba(0, 0, 0, 0)";
+      else {
+        const ch = (i) => Math.max(0, Math.min(255, Math.round(k[i] / a)));
+        out = a >= 0.999 ? `rgb(${ch(0)}, ${ch(1)}, ${ch(2)})` : `rgba(${ch(0)}, ${ch(1)}, ${ch(2)}, ${+a.toFixed(4)})`;
+      }
+    }
+    __normCache.set(c, out);
+    return out;
+  };
+  const parse = (c0) => {
+    const c = norm(c0);
     // color-mix() computes to color(srgb r g b / a) with the channels as
     // FRACTIONS (2026-09-22). Read as rgb() they came out as 0.86 0.86 0.86,
     // and every Insights tile measured as a grey nobody had painted.
@@ -563,6 +606,28 @@ const AUDIT = () => {
       for (const pseudo of ["::before", "::after"]) {
         const ps = getComputedStyle(n, pseudo);
         if (ps.content === "none" || ps.position !== "absolute") continue;
+        // A HAIRLINE IS NOT A GROUND (2026-09-22). This counted every painted
+        // absolute pseudo as a full layer under the text, and this app draws
+        // its row dividers exactly that way: a 0.5px ::before in
+        // rgba(60,60,67,0.14). So every capsule on a ruled list was measured
+        // over the divider as well as its own fill -- 211,211,213 where the
+        // page actually paints 236 -- and "Read", "Start", "Snooze" and a
+        // dozen more were reported at 4.47:1 when they sit at 5.67:1. A
+        // pseudo only counts if it is a real area AND the text sits inside it.
+        const pw = parseFloat(ps.width), ph = parseFloat(ps.height);
+        if (!(pw >= 2 && ph >= 2)) continue;
+        const hostCs = getComputedStyle(n);
+        const hr = n.getBoundingClientRect();
+        const tx = pointRect.left + pointRect.width / 2, ty = pointRect.top + pointRect.height / 2;
+        if (hostCs.position !== "static") {
+          const x0 = hr.left + (parseFloat(hostCs.borderLeftWidth) || 0) + (parseFloat(ps.left) || 0);
+          const y0 = hr.top + (parseFloat(hostCs.borderTopWidth) || 0) + (parseFloat(ps.top) || 0);
+          if (tx < x0 || tx > x0 + pw || ty < y0 || ty > y0 + ph) continue;
+        } else if (pw < hr.width * 0.9 || ph < hr.height * 0.5) {
+          // Containing block is further up and unknown; only a pseudo that
+          // plainly spans its host is safe to call a ground.
+          continue;
+        }
         const pgi = ps.backgroundImage || "";
         const pbase = gradientLayers(pgi).pop() || "";
         // ::before with inset: 0 shares its host's box exactly; anything
@@ -646,11 +711,13 @@ const AUDIT = () => {
     if (!own) continue;
     const txt = own;
     const cs = getComputedStyle(e);
+    // The text colour, in real sRGB whatever syntax computed it (see norm()).
+    const fgc = norm(cs.color);
     const back = bgOf(e);
-    const fg = lum(cs.color), bg = lum(back);
+    const fg = lum(fgc), bg = lum(back);
     if (fg === null || bg === null) continue;
     if (Math.abs(fg - bg) < 12) {
-      add("invisible-text", `"${txt.slice(0,28)}" fg=${cs.color} bg=${back}`, e);
+      add("invisible-text", `"${txt.slice(0,28)}" fg=${fgc} bg=${back}`, e);
       continue;
     }
     // 5b. UNREADABLE TEXT. Visible and still unreadable is the light-theme
@@ -703,7 +770,7 @@ const AUDIT = () => {
       "rgb(0, 122, 255)", "rgb(88, 86, 214)", "rgb(175, 82, 222)", "rgb(255, 45, 85)", "rgb(162, 132, 94)"]);
     const lightTheme = document.documentElement.getAttribute("data-theme") === "light";
     const ASTRA = { "rgb(52, 199, 89)": "--good", "rgb(255, 149, 0)": "--warn" };
-    const astra = ASTRA[cs.color] || (lightTheme && APPLE_LIGHT.has(cs.color) ? "an Apple light system colour" : undefined);
+    const astra = ASTRA[fgc] || (lightTheme && APPLE_LIGHT.has(fgc) ? "an Apple light system colour" : undefined);
     //   THE VIVID RAMP ON NUMERALS (added 2026-09-22). Health's six activity
     //   hues are byte-identical across themes by Dave's pick (§AB, law 3 in
     //   healthSkin.test.ts), and the token file says what that costs: "as
@@ -713,7 +780,7 @@ const AUDIT = () => {
     //   like any other colour. The numerals below are the ruling rendering.
     //   Named by class, not by hex, for the reason the glyph bar is.
     const VIVID_NUMERALS = [".stat-num", ".h-stat b", ".h-week-count b", ".ins-big", ".rest-clock"];
-    const vivid = /^rgb\((166, 255, 0|0, 229, 255|255, 159, 10|191, 90, 242|255, 55, 95|10, 132, 255)\)$/.test(cs.color)
+    const vivid = /^rgb\((166, 255, 0|0, 229, 255|255, 159, 10|191, 90, 242|255, 55, 95|10, 132, 255)\)$/.test(fgc)
       && VIVID_NUMERALS.some((sel) => e.matches(sel));
     const ruled = isGlyph
       ? { why: "--accent-glyph, catalog L6: a glyph answers to 3:1" }
@@ -731,10 +798,10 @@ const AUDIT = () => {
       if (Number(getComputedStyle(n).opacity) < 0.5) { faded = true; break; }
     }
     if (faded) continue;
-    const cr = ratio(cs.color, back);
+    const cr = ratio(fgc, back);
     if (cr !== null && cr < need) {
       const tag = ruled ? ` [${ruled.why}]` : "";
-      add("low-contrast", `"${txt.slice(0,24)}" ${cr.toFixed(2)}:1 needs ${need} · ${cs.color} on ${back}${tag}`, e);
+      add("low-contrast", `"${txt.slice(0,24)}" ${cr.toFixed(2)}:1 needs ${need} · ${fgc} on ${back}${tag}`, e);
     }
   }
 
@@ -858,7 +925,14 @@ const AUDIT = () => {
       if (!txt || /^[\u00b7\u2022\u2013\u2014\-\/|:,.\s]+$/.test(txt)) continue;
       if (!vis(e)) continue;
       const cs = getComputedStyle(e);
-      if (!isGrey(cs.color)) continue;
+      // AS IT LANDS, NOT AS IT IS DECLARED (2026-09-22). isGrey refuses any
+      // colour with a channel at 244 or more, so it can tell the white ink
+      // from the greys. Dark's --tx-quiet is rgba(235, 235, 245, 0.55):
+      // declared, its blue channel is 245, so in DARK every quiet run was
+      // waved through as "not grey" and check 8 could not see the one grey
+      // this app uses most for metadata. Composited over its ground it is
+      // ~rgb(129, 129, 135), which is exactly the grey it looks like.
+      if (!isGrey(over(norm(cs.color), bgOf(e)))) continue;
       // WEIGHT ALONE IS NO LONGER A WAY OUT (V5.2, 2026-09-22). The old exit
       // here checked fontWeight against 600 and skipped on its own. A bolder
       // run of the identical grey still reads as grey, just heavier of it -- it
