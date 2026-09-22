@@ -188,7 +188,6 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
   text-decoration: none; position: relative; }
 .sched-join::after { content: ""; position: absolute; inset: -4px -8px; }
 .sched-row-warn { box-shadow: inset 2px 0 0 var(--accent); }
-.input-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-1); }
 /* Capsule law: the inline fix offer wears the smallest capsule. */
 .note-fix { background: var(--press-3); border: 0; color: var(--tint); font-weight: var(--w-semi);
   font-size: var(--t-meta); padding: 0 var(--s-2h); min-height: 28px; border-radius: var(--r-pill);
@@ -2804,7 +2803,12 @@ button {
    per-page variants. The leader rides ::after between title and count. */
 .sh2 { display: flex; align-items: baseline; gap: var(--s-2h);
   padding: var(--s-4h, 18px) var(--s-4) var(--s-1h); }
-.sh2 .t { order: 0; font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: var(--track-head, 0.14em);
+/* ONE RULE, NOT TWO (§AM F7, Dave 2026-09-22, from the Subtext Catalog).
+   This said 800 at 0.14em and .ruled .sh2 .t said 700 at 0.1em, and since
+   nearly every screen in the app is .ruled, the 800 almost never painted.
+   Two rules for one element, and the catalog documented the one that lost.
+   He picked what actually ships, so it is stated once, here. */
+.sh2 .t { order: 0; font-size: var(--t-caption); font-weight: var(--w-semi); letter-spacing: var(--track-head, 0.1em);
   text-transform: uppercase; color: var(--accent-chrome); }
 .sh2::after { content: ""; order: 1; flex: 1; border-top: 1px dotted rgba(250, 35, 59, 0.35); align-self: center; }
 .sh2 .n { order: 2; font-size: var(--t-micro); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
@@ -3600,7 +3604,18 @@ button {
    22" losing up to 79%. This fact now gives way on its own instead of
    starving the one after it. */
 .fact-link { font-weight: var(--w-semi); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dec-when { font-size: var(--t-caption); color: var(--tx-2); flex-shrink: 0; align-self: flex-start; margin-top: var(--s-1); font-variant-numeric: tabular-nums; }
+/* A DATE IS SMALL CAPS (§AM F5, Dave 2026-09-22, from the Subtext Catalog).
+   The comment beside this row in DecisionsFlow said the date wears cyan.
+   It never did: .fact.cyan exists only under .ruled.health-ruled, and
+   Decisions renders on a plain .ruled screen, so the date fell through to
+   this rule's --tx-2 -- the same colour as --tx-3, beside a reason already
+   spending the row's one grey (§AK).
+   Caps is the way out he picked, and it is one the app already owns: the
+   same 11px uppercase letterform .urgency puts on a time. No new colour,
+   and it survives a row that has spent its grey. */
+.dec-when { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
+  text-transform: uppercase; color: var(--tx-3); flex-shrink: 0; align-self: flex-start;
+  margin-top: var(--s-1); font-variant-numeric: tabular-nums; }
 /* Decisions are sentences; two lines beats an ellipsis (Dave critique fix). */
 .dec-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* The writing toolbar: chips row pinned to the bottom of the screen. It
@@ -4034,7 +4049,15 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 .r-cue::before { content: "\2192\00a0"; color: var(--tx-4); }
 /* The whole if-then sentence, read back under the fields while he writes it,
    so he sees the plan he is actually making. */
-.input-hint { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); font-style: italic; }
+/* THE NOTE UNDER A FIELD (§AM F6, Dave 2026-09-22, from the Subtext Catalog).
+   Three classes said this three ways: .input-help at 13px, .input-note at
+   14px in a second ink with a flex row it never used (all four call sites
+   held one string), and .input-hint at 14px italic. He picked the italic,
+   and the other two names now resolve here rather than beside it.
+   Italic is not one of §AK's four ways out, and it does not need to be: a
+   field note is alone under its field, so there is no second grey to be
+   told apart from. */
+.input-hint, .input-help, .input-note { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); font-style: italic; }
 
 /* D1 · THE AUTOMATICITY LINE. A progress bar toward the thing being
    automatic, not a streak: it has no cliff, so there is nothing to lose by

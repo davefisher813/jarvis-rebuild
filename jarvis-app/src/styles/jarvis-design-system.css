@@ -713,7 +713,6 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 .input.disabled { background: var(--press-1); color: var(--tx-2); pointer-events: none; }
 .input-label { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1); margin-bottom: var(--s-1h); display: flex; gap: var(--s-1); }
 .input-req { color: var(--red); }
-.input-help { font-size: var(--t-caption); color: var(--tx-3); margin-top: var(--s-1); }
 .input-error { font-size: var(--t-caption); color: var(--sys-red); margin-top: var(--s-1); }
 .textarea { min-height: 80px; padding: var(--s-3); resize: vertical; }
 

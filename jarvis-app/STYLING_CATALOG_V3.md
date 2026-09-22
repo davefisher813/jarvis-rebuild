@@ -775,7 +775,7 @@ The audit that produced this section, measured on the live sheets: 3,434 rules, 
 
 **AN ERROR IS NOT AN INVITATION (F3).** The error ring and the line under it are `--sys-red`, the destructive token both themes carry. The accent means tap this; it cannot also mean something is wrong.
 
-**SECTION HEADS (G0).** The head word is `--t-caption` at 800 with 0.14em tracking, the count `--t-micro`. Only Now wears the accent.
+**SECTION HEADS (G0, amended 2026-09-22 by §AM F7).** The head word is `--t-caption` at **700 with 0.1em tracking**, the count `--t-micro`. Only Now wears the accent. (It read 800/0.14em until the Subtext Catalog: `.ruled .sh2 .t` had overridden that to 700/0.1em on every ruled screen, which is most of the app, so the catalog was describing the rule that lost. There is one rule now, in `components.css`, and the override is gone.)
 
 **CARDS (S1).** The glass treatment stays in dark (top sheen, translucent ground, two inset rims, the deep shadow) and flat white with elevation stays in light. Cards still drawing their own hairline and flat fill join it.
 

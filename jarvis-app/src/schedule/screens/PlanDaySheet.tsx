@@ -707,7 +707,13 @@ export default function PlanDaySheet({
                   silent when neither half is known. */}
               {(energy || ranges.focus.length > 0) && (
                 <div className="pad-x"><div className="facts plan-facts">
-                  {energy && <span className="fact">Peak {label(fromMin(energy.peakStartMin)).replace(/:00/, "")} to {label(fromMin(energy.peakEndMin)).replace(/:00/, "")}</span>}
+                  {/* A COLOUR, NOT A SECOND GREY (§AM F2, Dave 2026-09-22).
+                      This line carries two facts, and until today both were
+                      plain grey -- the peak asked for .fact.sky, which had
+                      been deleted with the blue subtext and painted nothing.
+                      §AK allows the line ONE regular grey; "Picks land in..."
+                      keeps it, and the peak window wears its intent instead. */}
+                  {energy && <span className="fact warn">Peak {label(fromMin(energy.peakStartMin)).replace(/:00/, "")} to {label(fromMin(energy.peakEndMin)).replace(/:00/, "")}</span>}
                   {ranges.focus[0] && <span className="fact">Picks land in {ranges.focus[0].label}</span>}
                 </div></div>
               )}

@@ -138,7 +138,6 @@
 
 /* ---------- SECTION HEADS: 12.5 / 700 / 0.1em caps, leader stays ---------
    Q-02, ruled at phone size against the 11 and the 12. */
-.ruled .sh2 .t { font-size: var(--t-caption); font-weight: var(--w-semi); letter-spacing: 0.1em; }
 
 /* ---------- STAT TILES under the greeting -------------------------------
    "Tinted, coloured by what it counts" (time blue, goal green, owed neutral)
@@ -2335,7 +2334,7 @@
 .ruled .h-door + .h-door::before { content: ""; position: absolute; left: var(--s-4); right: 0; top: 0;
   height: 0.5px; background: var(--divider); }
 .ruled .h-door-k { flex: 1; min-width: 0; color: var(--tx-1); font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
-.ruled .h-door-n { flex-shrink: 0; color: var(--tx-3); font-size: calc(14px * var(--type-scale));
+.ruled .h-door-n { flex-shrink: 0; color: var(--tx-3); font-size: var(--t-sub);
   font-variant-numeric: tabular-nums; }
 
 /* The classification editor's free-text rows: a label that does not shrink

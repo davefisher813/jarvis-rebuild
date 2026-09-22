@@ -538,10 +538,14 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
                   {r.data.source && <span className={"fact" + (r.data.source.kind === "manual" ? "" : " sky")}>{SOURCE_LABEL[r.data.source.kind]}</span>}
                   {linksOf(r.data).map((l) => <span className={"fact fact-link " + glyphClass(r, projCat)} key={l.id}>{l.label}</span>)}
                   {r.data.outcome && <span className="fact">{OUTCOME_LABEL[r.data.outcome.word]}</span>}
-                  {/* A date wears cyan (§AJ G4, §AK): the reason is the
-                      row's one regular grey, and the date beside it was a
-                      second one on every decision row. */}
-                  <span className="fact cyan dec-when">{r.data.revisitOn && (r.data.revisitState === "pending" || r.data.revisitState === "shown") ? "Revisit " + fmtShort(r.data.revisitOn) : fmtShort(r.data.createdAt)}</span>
+                  {/* A date is SMALL CAPS (§AM F5, 2026-09-22). This asked
+                      for cyan and never got it -- .fact.cyan is scoped to
+                      .ruled.health-ruled and this screen is plain .ruled --
+                      so the date drew as a second plain grey beside the
+                      reason on every decision row. Caps is told apart by its
+                      letterforms, so the row keeps its one grey for the
+                      words. The dead .cyan is gone with it. */}
+                  <span className="fact dec-when">{r.data.revisitOn && (r.data.revisitState === "pending" || r.data.revisitState === "shown") ? "Revisit " + fmtShort(r.data.revisitOn) : fmtShort(r.data.createdAt)}</span>
                 </div>
               </div>
               <Chev />
