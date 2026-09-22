@@ -6,7 +6,7 @@ import { importCalendar } from "./google/sync";
 import { Mail, CalendarDays, Link2, Plus } from "../shared/icons";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { pressable } from "../shared/pressable";
-import { leaveVia, useNavOrigin } from "../shell/navOrigin";
+import { useLeaveVia } from "../shell/navOrigin";
 
 // Settings -> Connections (multi-account, 2026-08-04). Each Google account is
 // its own row with its own feature toggles and its own disconnect. Adding an
@@ -118,7 +118,7 @@ export default function ConnectionsPage({
     return "Connected.";
   });
 
-  const leave = leaveVia(useNavOrigin(), "Settings", () => onBack?.());
+  const leave = useLeaveVia("Settings", () => onBack?.());
 
   return (
     <div className="screen ruled">

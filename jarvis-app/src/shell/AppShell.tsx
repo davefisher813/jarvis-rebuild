@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { lazyWithRecovery } from "./chunkRecovery";
 import TabBar from "./TabBar";
 import VoiceBar from "./VoiceBar";
@@ -21,6 +21,7 @@ import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, DESTINATIONS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
 import { NavOriginProvider, type NavOrigin } from "./navOrigin";
+import ReturnPill from "./ReturnPill";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym, useSettings } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { onNotificationTap, ensureTaskReminders, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW, ACTION_SNOOZE, BANNER_SNOOZE_MIN } from "../shared/notifications";
@@ -105,6 +106,16 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     run();
   };
   const clearAllRef = useRef<() => void>(() => {});
+  // How many mounted pages are offering the way home through their own back
+  // control. While one is, the shell's return pill stands down rather than
+  // drawing a second back beside it.
+  const [claims, setClaims] = useState(0);
+  // Stable by construction: useLeaveVia's effect depends on it, and a claim
+  // that changed identity every render would claim in a loop.
+  const claim = useCallback(() => {
+    setClaims((n) => n + 1);
+    return () => setClaims((n) => n - 1);
+  }, []);
   const navBack = (): boolean => {
     const o = origin;
     if (!o) return false;
@@ -560,7 +571,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   placeRef.current = { key: active, seg: lifeSegment };
 
   return (
-    <NavOriginProvider value={{ origin, back: navBack }}>
+    <NavOriginProvider value={{ origin, back: navBack, claim, claimed: claims > 0 }}>
     <GoogleSessionProvider>
     <GoogleAutoImport />
     {/* TRACK 3 (2026-09-19): a stranger books an hour through the public link
@@ -652,6 +663,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           it is content plus the safe-area inset, so any number here would be
           wrong on some device. */}
       <div id="select-bar-host" />
+      {/* The way home from anything a jump opened: see ReturnPill. */}
+      <ReturnPill />
       {showCapture && (
         <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={openFocus} />
       )}

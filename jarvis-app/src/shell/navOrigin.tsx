@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 // WHERE YOU CAME FROM (Dave 2026-09-21: "I need you to FULLY audit back
 // buttons on every single page and the logic. There are a bunch that take you
@@ -39,9 +39,15 @@ export interface NavOriginValue {
   origin: NavOrigin | null;
   /** Restore it, and clear. Returns false when there was nowhere to go. */
   back: () => boolean;
+  /** A page whose own back control offers the way home CLAIMS the origin
+   *  while it is mounted, so the shell does not draw a second one beside it.
+   *  Returns the release. */
+  claim: () => () => void;
+  /** True while some mounted page is claiming it. */
+  claimed: boolean;
 }
 
-const Ctx = createContext<NavOriginValue>({ origin: null, back: () => false });
+const Ctx = createContext<NavOriginValue>({ origin: null, back: () => false, claim: () => () => {}, claimed: false });
 
 export function NavOriginProvider({ value, children }: { value: NavOriginValue; children: ReactNode }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -64,11 +70,21 @@ export function useNavOrigin(): NavOriginValue {
  *
  * `label` is what the button says when nothing jumped into it.
  */
-export function leaveVia(
-  nav: NavOriginValue,
-  label: string,
-  own: () => void,
-): { label: string; onBack: () => void } {
+export function useLeaveVia(label: string, own: () => void): { label: string; onBack: () => void } {
+  const nav = useNavOrigin();
+  const live = !!nav.origin;
+  // While this page is on screen AND a jump is what opened it, the way home
+  // is this button, so the shell's own return pill stands down.
+  //
+  // `claim` is deliberately the only dependency besides `live`: the context
+  // VALUE is a fresh object on every shell render, so depending on it would
+  // release and re-claim forever -- and since claiming sets shell state, that
+  // is an infinite loop, not just churn. AppShell hands out a stable claim.
+  const { claim } = nav;
+  useEffect(() => {
+    if (!live) return;
+    return claim();
+  }, [live, claim]);
   return {
     label: nav.origin ? nav.origin.label : label,
     onBack: () => { own(); nav.back(); },

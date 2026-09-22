@@ -4,7 +4,7 @@ import { smallerAction, IN_THE_WAY } from "../startAction";
 import { suggestStopPoint } from "../startStore";
 import { createPortal } from "react-dom";
 import { pressable } from "../../shared/pressable";
-import { leaveVia, useNavOrigin } from "../../shell/navOrigin";
+import { useLeaveVia } from "../../shell/navOrigin";
 
 // THE WORKING SURFACE (Start Now, 2026-09-16).
 //
@@ -100,7 +100,7 @@ export default function StartScreen({
   // the one button on the screen took you somewhere you had not been. Either
   // way the work in progress is saved first -- the stop point is the point of
   // this screen and it is written before anything navigates.
-  const leave = leaveVia(useNavOrigin(), "All Tasks", () => onBack(suggestStopPoint(text)));
+  const leave = useLeaveVia("All Tasks", () => onBack(suggestStopPoint(text)));
 
   return (
     <div className="screen ruled start-ruled">
