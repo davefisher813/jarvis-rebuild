@@ -89,15 +89,20 @@ describe("YourDay", () => {
     // PAUSED IS THE EDITABLE VIEW (2026-08-25). Pausing used to freeze the
     // loop, which left two copies of every row on screen with nothing in
     // either safely reachable. It now renders the real single list.
-    it("scrolls as a ticker, and pausing swaps it for the real list", () => {
+    // AMENDED 2026-09-22 (Dave, photographing the plain list: "PUT BACK MY FUCKING TV
+    // GUIDE SCHEDULE ON THE TODAY PAGE THIS VERSION SUCKS"): paused is the CARD,
+    // held still -- never the plain list -- and a pause lasts for the visit.
+    it("scrolls as a ticker, and pausing holds the same card still", () => {
       const { container } = render(<YourDay events={many} now="13:00" nowLabel="1:00" onSeeAll={() => {}} />);
-      expect(container.querySelector(".sched-ticker")).toBeTruthy();
+      expect(container.querySelector(".sched-ticker")!.className).not.toContain("ticker-still");
+      expect(container.querySelectorAll(".ticker-track .sched-row").length, "two copies while it moves")
+        .toBeGreaterThan(many.length);
       const toggle = container.querySelector(".ticker-toggle") as HTMLElement;
       expect(toggle).toBeTruthy();
       fireEvent.click(toggle);
-      expect(container.querySelector(".sched-ticker")).toBeNull();
+      expect(container.querySelector(".sched-ticker")!.className, "paused is the card, still").toContain("ticker-still");
       fireEvent.click(container.querySelector(".ticker-toggle") as HTMLElement);
-      expect(container.querySelector(".sched-ticker")).toBeTruthy();
+      expect(container.querySelector(".sched-ticker")!.className).not.toContain("ticker-still");
     });
 
     // Dave 2026-08-25: "the home page one is supposed to be one that rotates
@@ -129,7 +134,8 @@ describe("YourDay", () => {
       expect(row).toBeTruthy();
       fireEvent.click(row);
       expect(onOpenEvent).not.toHaveBeenCalled();
-      expect(container.querySelector(".sched-ticker")).toBeNull();
+      // AMENDED 2026-09-22: it stops, and it stays the card.
+      expect(container.querySelector(".sched-ticker")!.className).toContain("ticker-still");
     });
 
     // B6-4 (2026-09-04): "Accept the Day disappears on a busy day." The
@@ -198,7 +204,13 @@ describe("YourDay evening and recovery actions", () => {
 // PAUSING IS A PREFERENCE, NOT A CHORE (Dave, 2026-08-21). Before this, pause
 // was component state: every return to Today started the day moving again and
 // he had to find the same small button and press it again.
-describe("the ticker remembers that it was turned off", () => {
+// AMENDED 2026-09-22 (Dave, photographing the plain list: "PUT BACK MY FUCKING TV
+// GUIDE SCHEDULE ON THE TODAY PAGE THIS VERSION SUCKS"): paused is the CARD,
+// held still -- never the plain list -- and a pause lasts for the visit.
+// This block was "the ticker remembers that it was turned off". Remembering
+// is what took the guide away: one stray tap wrote "off" and every visit
+// after it showed the plain list. It now asserts the opposite.
+describe("the ticker never remembers being turned off", () => {
   // Own the overflow mock rather than relying on an earlier describe's,
   // whose afterEach only restores when the descriptor existed on
   // HTMLElement.prototype (it lives on Element.prototype, so it does not).
@@ -207,20 +219,21 @@ describe("the ticker remembers that it was turned off", () => {
     Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get: () => 999 });
   });
 
-  it("starts paused when it was paused last time", () => {
+  it("a phone stuck on 'off' comes back moving, and the stale value is cleared", () => {
     localStorage.setItem("jarvis.today.ticker.v1", "off");
     const { container } = render(<YourDay events={many} locked={[]} now="09:00" nowLabel="Now" onSeeAll={() => {}} />);
-    // Paused means the real list, not a frozen loop.
-    expect(container.querySelector(".sched-ticker")).toBeNull();
-    expect(container.querySelector(".ticker-toggle")).toBeTruthy();
+    const card = container.querySelector(".sched-ticker");
+    expect(card, "the guide is there").not.toBeNull();
+    expect(card!.className, "and it is moving").not.toContain("ticker-still");
+    expect(localStorage.getItem("jarvis.today.ticker.v1"), "the old off is gone").toBeNull();
   });
 
-  it("writes the choice down when it is toggled", () => {
+  it("pausing is for this visit and writes nothing down", () => {
     const { container } = render(<YourDay events={many} locked={[]} now="09:00" nowLabel="Now" onSeeAll={() => {}} />);
     fireEvent.click(container.querySelector(".ticker-toggle") as HTMLElement);
-    expect(localStorage.getItem("jarvis.today.ticker.v1")).toBe("off");
+    expect(localStorage.getItem("jarvis.today.ticker.v1")).toBeNull();
     fireEvent.click(container.querySelector(".ticker-toggle") as HTMLElement);
-    expect(localStorage.getItem("jarvis.today.ticker.v1")).toBe("on");
+    expect(localStorage.getItem("jarvis.today.ticker.v1")).toBeNull();
   });
 });
 

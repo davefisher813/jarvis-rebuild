@@ -98,12 +98,17 @@ describe("the day that only fits because it is compressed", () => {
   it("the day you can touch is still collapsed", () => {
     // Fixing the scroll must not undo the pick that caused it. Paused is the
     // view you act in, so it stays compressed.
-    try { localStorage.setItem(TICKER_KEY, "off"); } catch { /* private mode */ }
+    // AMENDED 2026-09-22 (Dave, photographing the plain list: "PUT BACK MY FUCKING TV
+    // GUIDE SCHEDULE ON THE TODAY PAGE THIS VERSION SUCKS"): paused is the CARD,
+    // held still -- never the plain list -- and a pause lasts for the visit.
     const { container } = render(
       <YourDay events={[]} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}}
         proposed={proposedFive} />,
     );
-    expect(container.querySelector(".sched-ticker"), "paused means paused").toBeNull();
+    fireEvent.click(container.querySelector(".ticker-toggle") as HTMLElement);
+    const card = container.querySelector(".sched-ticker");
+    expect(card, "paused is still the card").not.toBeNull();
+    expect(card!.className, "and it is still").toContain("ticker-still");
     const toggle = container.querySelector(".held-toggle");
     expect(toggle, "the visible day keeps its toggle").toBeTruthy();
     expect(toggle!.textContent).toContain("5 tasks");
@@ -141,12 +146,18 @@ describe("the ticker holds still under a finger", () => {
     expect(ticker(container).className).not.toContain("holding");
   });
 
-  it("a tap still stops it for good, which is the sticky pause", () => {
+  it("a tap stops it for this visit only, and never writes it off", () => {
+    // AMENDED 2026-09-22 (Dave, photographing the plain list: "PUT BACK MY FUCKING TV
+    // GUIDE SCHEDULE ON THE TODAY PAGE THIS VERSION SUCKS"): paused is the CARD,
+    // held still -- never the plain list -- and a pause lasts for the visit.
+    // This was "a tap stops it for good": one stray touch wrote "off" to
+    // storage and the guide never came back. The tap still stops it, so a
+    // finger reaching for a sliding row does not open its neighbour.
     const { container } = render(
       <YourDay events={heldFive} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
     );
     fireEvent.click(ticker(container));
-    expect(container.querySelector(".sched-ticker")).toBeNull();
-    expect(localStorage.getItem(TICKER_KEY)).toBe("off");
+    expect(container.querySelector(".sched-ticker")!.className, "held still, still the card").toContain("ticker-still");
+    expect(localStorage.getItem(TICKER_KEY), "and nothing is written down").toBeNull();
   });
 });
