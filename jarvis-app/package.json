@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "preview": "vite preview",
+    "audit:build": "DEMO=1 vite build",
     "audit:visual": "node tools/visual-audit.mjs",
     "qa:check": "node ../qa/check.js",
     "qa:publish": "node ../qa/publish.js"

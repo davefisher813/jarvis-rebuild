@@ -44,6 +44,19 @@ beforeEach(() => {
 // the threshold and does not collapse at all.
 const heldFive = ["13:05", "13:35", "14:05", "14:35", "15:05"].map((t, i) => ev("e" + i, t));
 
+// THE HELD FIVE ARE PROPOSALS NOW (2026-09-21). This fixture used to be five
+// committed EVENTS inside Deep Work, which was the shape that hid Dave's 3pm
+// job interview; a committed event no longer nests (see nesting.ts). The
+// question these tests ask is about the TICKER, not about nesting, so the
+// fixture moves to the child that legitimately nests and the subject is
+// unchanged: a day that only fits because it is compressed still has to
+// scroll, and the paused view still collapses.
+const prop = (taskId: string, start: string, end: string) =>
+  ({ taskId, text: taskId, start, end, category: "orgB" });
+const propFive = ["13:05", "13:35", "14:05", "14:35", "15:05"].map((t, i) =>
+  prop("p" + i, t, t.replace(/^(\d\d):(\d\d)$/, (_m, h, mm) => `${h}:${String(Number(mm) + 20).padStart(2, "0")}`)));
+const proposedFive = { blocks: propFive, openId: null, onToggle: () => {}, onDuration: () => {}, onDrop: () => {} };
+
 describe("the day that only fits because it is compressed", () => {
   it("scrolls, because the held work counts toward the height", () => {
     const { container } = render(
@@ -79,12 +92,16 @@ describe("the day that only fits because it is compressed", () => {
     // view you act in, so it stays compressed.
     try { localStorage.setItem(TICKER_KEY, "off"); } catch { /* private mode */ }
     const { container } = render(
-      <YourDay events={heldFive} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
+      <YourDay events={[]} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}}
+        proposed={proposedFive} />,
     );
     expect(container.querySelector(".sched-ticker"), "paused means paused").toBeNull();
     const toggle = container.querySelector(".held-toggle");
     expect(toggle, "the visible day keeps its toggle").toBeTruthy();
     expect(toggle!.textContent).toContain("5 tasks");
+    // And the word is accurate now: every one of the five IS a task. It used
+    // to count committed events too, which is how a job interview came to be
+    // described as one of "5 tasks".
   });
 });
 

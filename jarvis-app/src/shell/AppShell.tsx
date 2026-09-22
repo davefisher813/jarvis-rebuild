@@ -546,6 +546,23 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // H-11 / R8 (Health Push B, 2026-09-12): a live gym session hides the tab
   // bar and the dock the way the note editor does; see gym/sessionChrome.ts.
   const sessionOpen = useSessionOpen();
+  // A NEW SCREEN STARTS AT ITS TOP (2026-09-21, measured on a real render).
+  //
+  // .app-scroll is ONE scroller for the whole app, and it keeps its
+  // scrollTop when the thing inside it is replaced. Walk down a program day
+  // to reach Start, and the live session opens with the scroller still 34px
+  // down -- which puts the exercise dots and the "1 of 7" under the sticky
+  // nav bar, half-drawn and unreadable, on the first frame of a workout.
+  //
+  // It is not specific to the gym: any screen swapped in under a scroller
+  // that has been scrolled inherits somebody else's position. The tab and
+  // the live session are the two changes this component can see, so they are
+  // the two it answers for. `instant` because this is not a movement the
+  // person made and animating it would look like a glitch.
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [active, sessionOpen]);
   const showTabBar = active === "notes" ? notesChrome : !sessionOpen;
   const showCapture = showTabBar && active !== "chat";
 
@@ -595,7 +612,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         pump is, for the same reason. */}
     <BrainPump dayKey={dayKey} />
     <div className="app-shell">
-      <div className="app-scroll">
+      <div className="app-scroll" ref={scroller}>
         {/* key remounts the flow per tab; no transition class: tab switches
             are instant, like native iOS (RDB, Dave 2026-07-29) */}
         {/* S3-Q19 (2026-09-04): ErrorBoundary here is keyed on `active`, same

@@ -88,10 +88,10 @@ describe("reachLine", () => {
   });
   it("says nothing is under a goal whose areas merely hold open tasks", () => {
     const tasks = [task("b", { category: "health" }), task("c", { category: "health", done: true })];
-    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("Nothing under it yet");
+    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("");
   });
   it("admits emptiness", () => {
-    expect(reachLine(reachOf([], projects, goal("g9")))).toBe("Nothing under it yet");
+    expect(reachLine(reachOf([], projects, goal("g9")))).toBe("");
   });
 });
 

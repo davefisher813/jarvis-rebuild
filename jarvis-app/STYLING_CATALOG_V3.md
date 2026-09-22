@@ -791,6 +791,31 @@ A structural audit of the corners looked for lists with no head, screens with no
 
 Three laws were repinned to the tokens rather than to the literals they used to name: the shelf head reads `--t-h2`, the ruled row's provenance reads `--t-caption`, and the one-line clamp derives the chip's height from `--t-micro`. That is the point of the pass: a law that names a number has to be edited every time the number moves, and a law that names a token never does.
 
+## §AK. One Grey, Ever (V5.2, Dave 2026-09-22: "TOO MUCH GREY SUBTEXT... styled different if it shares a line w grey subtext")
+
+The original ruling (V5.1, 2026-09-21, five screenshots), in his words: "it should say one thing up top or just say whatever it says up top. And if there's subtext, you can make it gray with regular font one time. And then after that shit has to look different. If you want to bold something in gray, fine. Color coordinating, dots, chips, whatever. But I never want to speak about this again."
+
+**V5.2 PULLS THE WEIGHT EXEMPTION.** A protected-time block row (`LockedRow.tsx`) said "Focus time" in grey, regular weight, and shared its line with "Until 7:00 PM" in the same grey, bolded -- exactly what V5.1 called out as fine. At Dynamic Type 1.4x, on a block holding four tasks, the two were still one grey mass fighting for the same width: "Until 7:00 PM" lost and wrapped alone, stranding a bare separator dot at the end of the line above it. Dave: "It's all of the verbiage as well. It looks awful and it's wrapping. TOO MUCH GREY SUBTEXT. I want a rule that only allows one grey subtext item per line. Everything else has to be styled different if it shares a line w grey subtext." Bold-on-the-same-grey is not a different style, it is a heavier shade of the one grey it was supposed to stand apart from. It is no longer sufficient on its own. (Fixed there by moving the until-control to `--tint`, the app's own colour for tappable-but-not-a-button.)
+
+**THE LAW.** On any row, under its title, at most ONE run of text is secondary ink at regular weight. Every other thing on the row is told apart by something you can see without reading it:
+
+- **colour** -- a fact wearing its intent (§AJ G4: a date in cyan, a count in the category's colour, a state word in its tone; `--tint` for a control that is tappable but not a button);
+- **a mark** -- the category dot, the event mark, the project pie, the goal ring, ahead of plain words;
+- **a fill** -- a chip or a pill, which carries its own ground;
+- **caps** -- a state word or an eyebrow, which is told apart by its letterforms.
+
+Weight may reinforce one of these; it may not be the whole of the distinction. A run that is only the row's one grey, made heavier, is still the row's one grey -- if the row already spent its one grey elsewhere, this run needs a real colour, a mark, a fill, or caps, not just more weight.
+
+A separator (the middot, a slash) is structure and does not count. A row's title is primary ink and does not count. Everything else does.
+
+**WHAT IT REPLACES.** V4.1 M.3 said "one colored fact inside a grey sub, no more". That was the right instinct pointed the wrong way: it capped the colour and let the grey run. Five screenshots on 2026-09-21 showed where that leads -- "KNOWN · Your Move · Plan My Day" with two grey facts after the state word; a Notes row reading "Javris · JARVIS found 6 · Sep 15" in one grey; "Nothing under it yet" under six goals in a row; "Email" in bare grey under one task and a dotted category under the next. M.3 is superseded: the cap is on the GREY now, and colour is what you reach for when a second fact needs saying.
+
+**WHAT IT MEANS FOR A PLACEHOLDER.** A line that says the row has nothing to say ("Nothing under it yet", "No category") is grey subtext with no information in it, repeated once per row. It is the exact thing the ruling is about. A row with nothing under it shows nothing under it.
+
+**WHAT IT MEANS FOR A DATE ON THE TITLE.** A note made from a meeting used to carry the date in its title AND on its meta line. Once. The meta line already has it.
+
+**ENFORCED BY MEASUREMENT, NOT BY CLASS NAME.** `tools/visual-audit.mjs` check 8 (`grey-twice`) walks every row on every screen it reaches and reads the COMPUTED colour and weight of each text-bearing leaf: achromatic ink between the two ends of the ramp, not uppercase, not on its own fill, not a separator glyph. As of V5.2, weight is not itself a way out -- a bold run in that same achromatic band is still counted. Two of those on one row is a finding, named with the runs it saw. A class rename cannot slip past it, because it never reads a class. `src/laws/subtextLaw.test.ts` pins this section and that check to each other, so neither can be removed without the other noticing.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

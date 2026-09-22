@@ -266,7 +266,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     if (!ok) return;
     // createTask answers null on empty text without throwing, so the id, not
     // the absence of a throw, is what says a task exists.
-    if (!added) { showToast({ message: "Couldn't add that" }); return; }
+    if (!added) { showToast({ message: "Couldn't add that \u00b7 Try again" }); return; }
     haptics.success();
     if (added === "created") showToast({ message: "Added to your tasks" });
     // Accepted vs dismissed is how the Brain learns what a "proper

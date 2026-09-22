@@ -248,7 +248,10 @@ describe("the day you last trained is lime wherever it appears", () => {
     expect(GYM_FLOW, "and the day row's weekday it matches is lime")
       .toContain('<span className="fact lime">{doneWord}</span>');
     const css = read("styles/ruled.css");
-    expect(css).toMatch(/\.ruled\.health-ruled \.se-chip-done \{ color: var\(--hl-lime\)/);
+    // The chip is WORDS, so it reads the ink twin (2026-09-22): the same
+    // lime in dark, a lime that clears AA on white in light. Still lime
+    // wherever it appears, which is what this law is about.
+    expect(css).toMatch(/\.ruled\.health-ruled \.se-chip-done \{ color: var\(--hl-lime-ink\)/);
     // .se-chip-when stays grey: it carries plain dates, and on the session
     // screen it sits beside .se-chip-best, which is already lime.
     expect(css).toMatch(/\.se-chip-when[^{]*\{ color: var\(--tx-3\)/);

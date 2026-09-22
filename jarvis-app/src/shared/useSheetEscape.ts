@@ -39,7 +39,10 @@ const CANCEL = ".sheet-bar-cancel, .action-sheet .cancel, [data-sheet-cancel]";
 //   menu scrims   click the scrim; that is their own dismiss
 //   sheet scrims  press Cancel where there is one, else the scrim
 //   full layers   press the control marked data-layer-close
-const LAYERS = ".hmenu-scrim, .block-menu-scrim, .time-pop-scrim, .sheet-scrim, .ag-scrim, .search-overlay";
+// Exported because useLayerFocus has to agree with this exactly: a layer
+// Escape closes but Tab can walk out of is the worse half of the same bug.
+export const LAYER_SELECTOR = ".hmenu-scrim, .block-menu-scrim, .time-pop-scrim, .sheet-scrim, .ag-scrim, .search-overlay";
+const LAYERS = LAYER_SELECTOR;
 const LAYER_CLOSE = "[data-layer-close]";
 
 export function useSheetEscape(): void {

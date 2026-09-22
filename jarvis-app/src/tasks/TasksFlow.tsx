@@ -421,7 +421,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       if (!step) throw new Error("empty");
       setFsStep({ taskId: fsCandidate.id, step });
     } catch {
-      showToast({ message: "Couldn't reach JARVIS" });
+      showToast({ message: "Couldn't reach JARVIS \u00b7 Try again" });
     } finally {
       setFsBusy(false);
     }
@@ -1001,16 +1001,16 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   const breakDown = async (text: string) => {
     const editingId = sheet?.mode === "edit" ? sheet.id : null;
     setSheet(null);
-    showToast({ message: "Breaking it down..." });
+    showToast({ message: "Breaking it down\u2026" });
     const original = editingId ? parts.all.find((t) => t.id === editingId) ?? null : null;
-    if (!original && editingId) { showToast({ message: "Couldn't find that task" }); return; }
+    if (!original && editingId) { showToast({ message: "Couldn't find that task \u00b7 Nothing was changed" }); return; }
     const identity = await gatherContext().then(identityToText).catch(() => "");
     let res: Awaited<ReturnType<typeof breakDownTask>> | null = null;
     const ok = await attemptWrite(async () => { res = await breakDownTask(text, original, today, ai, svc, identity); });
     await reload();
     if (!ok || !res) return;
     const r = res as BreakdownResult;
-    if (r.reason === "no-ai") { showToast({ message: "Couldn't reach JARVIS" }); return; }
+    if (r.reason === "no-ai") { showToast({ message: "Couldn't reach JARVIS \u00b7 Try again" }); return; }
     showToast({
       message: splitLine(r.made.length),
       actionLabel: "Undo",

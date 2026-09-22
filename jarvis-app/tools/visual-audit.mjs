@@ -51,6 +51,30 @@ const AUDIT = () => {
     }
     return r;
   };
+  // A ROW YOU CAN SCROLL OUT IS NOT TRAPPED, EVEN WHEN THE BAR HOLDING IT
+  // IS NOT position:fixed (2026-09-22, hardening the rule section 7's own
+  // under-bar check already lives by). This app's persistent footer -- the
+  // voice bar and the tab bar -- is pinned by the shell's flex layout
+  // (.app-scroll is the scrollable middle, the footer is a plain sibling
+  // after it), not by position:fixed, so section 7's canScrollPast below
+  // never gets asked about it. A reminder row or the Focus button that
+  // lands, by pure coincidence of page length, right at .app-scroll's clip
+  // boundary on first paint measured as a broken 41px or 40px target when
+  // one more line of scroll clears it completely ("Vitamin D" in the
+  // Reminders strip, "Focus" on Today). Lifted here, ahead of section 4, so
+  // the small-target/rung pass can ask the same question section 7 asks.
+  const canScrollFurther = (e) => {
+    let n = e.parentElement;
+    while (n && n !== document.documentElement) {
+      const cs = getComputedStyle(n);
+      if (["auto", "scroll"].includes(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) {
+        return n.scrollTop + n.clientHeight < n.scrollHeight - 1;
+      }
+      n = n.parentElement;
+    }
+    const d = document.scrollingElement;
+    return !!d && d.scrollTop + d.clientHeight < d.scrollHeight - 1;
+  };
   // WHEN A LAYER IS UP, THE PAGE UNDER IT IS NOT THE SUBJECT (2026-09-20).
   // Auditing inside sheets immediately produced 63 "overlap" findings that
   // were not overlaps at all: What Now paints over Today, so its "Back to
@@ -102,16 +126,118 @@ const AUDIT = () => {
   }
 
   // 2. TRUNCATED TEXT. A label clipped mid-word is information thrown away.
+  //
+  // scrollWidth IS BLIND TO A FLEX ITEM THAT SHRANK (2026-09-21). A block of
+  // a fixed width lays its text out at the text's natural width and overflows,
+  // so scrollWidth exceeds clientWidth and this check sees it. A FLEX ITEM
+  // that lost a shrink fight has a smaller content box, and the text is laid
+  // out at THAT width, so scrollWidth comes back equal to clientWidth and the
+  // check sees nothing. Measured on the New Reminder sheet at --type-scale
+  // 1.4: the bar title paints "New Remind..." and reports scrollWidth 196
+  // against clientWidth 195. A Range over the text node agrees with
+  // scrollWidth exactly, because both describe the post-ellipsis layout.
+  // Neither instrument can see the string that was thrown away.
+  //
+  // So measure the string on its own. A clone, off-screen, at max-content,
+  // carrying only the properties that decide how wide text is, gives the
+  // width the label WANTED. One shared host, removed at the end, and only for
+  // the nowrap elements scrollWidth already gave up on.
+  const ruler = document.createElement("div");
+  ruler.style.cssText = "position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;width:max-content";
+  document.body.appendChild(ruler);
+  const natural = (e, cs) => {
+    ruler.textContent = e.textContent || "";
+    // The `font` SHORTHAND comes back as an empty string from
+    // getComputedStyle in Chromium for most elements, which silently left the
+    // ruler measuring at the default 16px and reporting nothing. The
+    // longhands are always populated.
+    ruler.style.fontFamily = cs.fontFamily;
+    ruler.style.fontSize = cs.fontSize;
+    ruler.style.fontWeight = cs.fontWeight;
+    ruler.style.fontStyle = cs.fontStyle;
+    ruler.style.fontStretch = cs.fontStretch;
+    ruler.style.letterSpacing = cs.letterSpacing;
+    ruler.style.wordSpacing = cs.wordSpacing;
+    ruler.style.textTransform = cs.textTransform;
+    ruler.style.fontVariantNumeric = cs.fontVariantNumeric;
+    return ruler.getBoundingClientRect().width;
+  };
   for (const e of all) {
     if (e.children.length > 0) continue;
+    const txt = (e.textContent || "").trim();
+    if (!txt) continue;
     const cs = getComputedStyle(e);
     if (cs.textOverflow !== "ellipsis" && cs.overflow !== "hidden") continue;
+    let want = e.scrollWidth;
+    // Only ask the ruler when scrollWidth has nothing to say AND the text is
+    // on one line, which is the shape the blind spot has.
+    if (want <= e.clientWidth + 1 && cs.whiteSpace.startsWith("nowrap")) want = natural(e, cs);
     // Ellipsis is a legitimate pattern; losing a quarter of the string is
     // not. Flag by how much is actually hidden, so a secondary hint clipping
     // two characters does not bury a task name clipping a third of itself.
-    const lost = (e.scrollWidth - e.clientWidth) / Math.max(1, e.scrollWidth);
-    if (lost > 0.15 && (e.textContent || "").trim().length > 0) {
-      add("truncated", `"${(e.textContent||"").trim().slice(0,34)}" loses ${Math.round(lost*100)}%`, e);
+    const lost = (want - e.clientWidth) / Math.max(1, want);
+    if (lost > 0.15) {
+      add("truncated", `"${txt.slice(0,34)}" loses ${Math.round(lost*100)}%`, e);
+    }
+  }
+  ruler.remove();
+
+  // 2b. TEXT THAT ESCAPES ITS OWN BOX (2026-09-21). The gap that let two real
+  // bugs ship past twelve clean passes on the same day.
+  //
+  // `truncated` above needs `overflow: hidden` or an ellipsis before it will
+  // look at anything, because it measures scrollWidth against clientWidth and
+  // those are equal on a box that does not clip. So a string with NEITHER --
+  // one that simply grows past the box it sits in and paints on top of
+  // whatever is there -- was invisible to this tool by construction. Both of
+  // the day's bugs were exactly that:
+  //
+  //   the capture bar   "Add anything" had no min-width and no nowrap, so at
+  //                     --type-scale 1.4 it wrapped to two lines and painted
+  //                     across the JARVIS wordmark and out past the pill.
+  //   the Tracker tabs  "Subscriptions" ran off the right of a segmented
+  //                     control with nothing saying more existed.
+  //
+  // THE BOX IS THE PAINTED ONE. "Its box" cannot mean its parent -- half the
+  // spans in this app sit in a bare <div> with no background, and escaping
+  // one of those is what normal text flow looks like. The box a reader SEES
+  // is the nearest ancestor that paints a background, which is the pill, the
+  // card, the track. Text outside that is text outside the thing it belongs
+  // to, and it is a bug every time.
+  //
+  // A SCROLLER IS NOT A BOX THAT WAS ESCAPED. Content outside a scroller is
+  // the entire point of a scroller, so the walk stops at the first scrollable
+  // ancestor and reports nothing. Whether a scrolling row SAYS it scrolls is
+  // a different question, answered by the edge fade, and whether the keyboard
+  // can reach into one is answered by FOCUS=1's focus-unscrolled.
+  const painted = (cs) => {
+    const bg = cs.backgroundColor;
+    if (!bg || bg === "transparent") return false;
+    const m = bg.match(/rgba?\(([^)]+)\)/);
+    if (!m) return false;
+    const parts = m[1].split(",").map((n) => parseFloat(n));
+    return parts.length < 4 || parts[3] > 0.02;
+  };
+  for (const e of all) {
+    if (e.children.length > 0) continue;
+    const txt = (e.textContent || "").trim();
+    if (!txt) continue;
+    if (!vis(e)) continue;
+    const r = e.getBoundingClientRect();
+    let n = e.parentElement;
+    while (n && n !== document.body) {
+      const cs = getComputedStyle(n);
+      if ([cs.overflow, cs.overflowX, cs.overflowY].some((v) => v === "auto" || v === "scroll")) break;
+      if (painted(cs)) {
+        const p = n.getBoundingClientRect();
+        // Sub-pixel and the odd descender are not an escape; a character is.
+        const out = Math.max(p.left - r.left, r.right - p.right, p.top - r.top, r.bottom - p.bottom);
+        if (out > 4) {
+          add("outside-box", `"${txt.slice(0,30)}" paints ${Math.round(out)}px outside .${(n.className||"").toString().split(" ")[0] || n.tagName.toLowerCase()}`, e);
+        }
+        break;
+      }
+      n = n.parentElement;
     }
   }
 
@@ -127,12 +253,37 @@ const AUDIT = () => {
       if (a.contains(c) || c.contains(a)) continue;
       // A swipe rail sits deliberately behind its row. Same container, by
       // design, and not a stacked tap target.
-      const SWIPE = ".task-swipe, .notice-swipe, .sched-swipe-wrap";
+      // .bp-shelf joined the list 2026-09-22 (the 1.4x type-scale pass on
+      // Bigger Picture: "...Rebuild Calder " x "", "...Remodel Calder " x "",
+      // "...Calder Summer C" x ""). The second operand's empty text is not
+      // .bp-card-more (it prints the glyph "..." as real text) -- it is
+      // .bp-shelf-arrow, the shelf's own icon-only "Scroll for more" button,
+      // which ruled.css positions ON TOP of the shelf by design ("It sits
+      // over the shelf rather than beside it so it costs no width"). At
+      // --type-scale 1 the two-and-a-peek 160px cards fit these viewports
+      // with nothing to scroll, so the arrow never renders and nothing
+      // overlaps; at 1.4 the same cards are calc(160px * var(--type-scale))
+      // = 224px, the shelf overflows, and the always-latent arrow lands on
+      // the next card's face. Verified live (0 overlaps at scale 1, 1-2 at
+      // 1.4 across widths/themes, always this pairing) -- .bp-card-more's
+      // own ::after (widened the same day) never appears in either operand:
+      // it is a pseudo-element, invisible to querySelectorAll, and it never
+      // raised a below-rung/small-44/small-target finding either. Same shape
+      // as a swipe rail: one container, an overlay that IS the control's
+      // point, not a stacked tap target.
+      const SWIPE = ".task-swipe, .notice-swipe, .sched-swipe-wrap, .bp-shelf";
       if (a.closest(SWIPE) && a.closest(SWIPE) === c.closest(SWIPE)) continue;
       // App chrome sits in normal flow at the edges of the shell and content
       // scrolls behind it BY DESIGN. Content passing under the capture bar is
       // not a stacked tap target; that is what the under-bar check is for.
-      const CHROME = ".voice-dock, .tab-bar, .pagebar, .nav-bar, .sheet-scrim";
+      // .toast-dock joined the list 2026-09-21. A toast is a LAYER: it lands
+      // over whatever is under it, says one thing, and leaves after five
+      // seconds. Pairing its Undo with the row it happens to cover reports
+      // the pattern working as designed -- and it reported a different row on
+      // every screen a toast could appear on, which is noise with no fix
+      // behind it. Whether the toast is reachable is the under-bar check's
+      // question, and it answers it.
+      const CHROME = ".voice-dock, .tab-bar, .pagebar, .nav-bar, .sheet-scrim, .toast-dock";
       if (!!a.closest(CHROME) !== !!c.closest(CHROME)) continue;
       if (inFixed(a) || inFixed(c)) continue;
       const ra = clipped(a), rc = clipped(c);
@@ -182,18 +333,91 @@ const AUDIT = () => {
     // C1 names these as capsules by name: the row-action pill, the head
     // action (See All, Open Inbox, Schedule, Add), the small pill, the
     // segmented control's segment (34 by X0), and the dropdown value.
-    [/(^| )(pill-act|pill-action|see-all|btn-sm|seg|dd-lead)( |$)/, 34, "capsule"],
+    // THE LIFE HEADER'S OWN CAPSULES (2026-09-22): Area, Group by and the
+    // Focus door, on every hdr-controls line (Tasks, Reminders, Projects,
+    // Goals). components.css sets both .hdr-controls .dd and
+    // .hdr-controls .tasks-focus to min-height: 34px on purpose -- the
+    // capsule rung, raised there from .dd's own smaller default by the
+    // ancestor selector. tasks-focus is safe to match everywhere: it is
+    // the one control that wears the class. Bare "dd" is not -- HeadMenu's
+    // closed button carries that same plain class outside hdr-controls too
+    // (SelectBar's "Move to Project", at its own smaller default height),
+    // so matching it unconditionally would call THAT one broken instead.
+    // dd-hdr is a marker the loop below adds only when a bare "dd" really
+    // sits inside .hdr-controls, so this rung only ever claims the
+    // controls the CSS itself already raises to 34.
+    // .sched-late (Running Late?) joined this 2026-09-22: a real capsule --
+    // same pill radius, same press-3 fill, same semibold caption type as
+    // .pill-act -- that had never been given the CSS to reach 34, so it
+    // painted 23px and fell through to the flat 44 floor. Grown to a real
+    // 34px border-box (ruled.css, the same transparent-border trade
+    // .pill-act uses) using only .sched-now's own 9px/7px padding, which is
+    // all the free space next to it: the row right after it starts the
+    // instant that padding ends.
+    [/(^| )(pill-act|pill-action|see-all|btn-sm|seg|dd-lead|tasks-focus|dd-hdr|sched-late)( |$)/, 34, "capsule"],
+    // INLINE ACTION, 24 (Dave's call 2026-09-21, the ladder's fourth rung).
+    // The Match shortcut under a set chip ("Last: 275 lb x 5  Match") is a
+    // line of text that logs a set, and a line of text is 16px tall. It
+    // cannot be 44: one pixel separates it from the weight and reps fields
+    // above, which are targets of their own, so reaching for 44 would trade
+    // one small target for two stacked ones. It takes eight pixels of the
+    // ghost row's own spare padding instead, which is the 24px floor with
+    // five to spare, and the rung says that is the answer rather than
+    // leaving the auditor to report a decision as a defect for ever.
+    [/(^| )(set-last-act)( |$)/, 24, "inline action"],
+    // NESTED IN A ROW THAT IS ITSELF THE DOOR, 14 (2026-09-22). .sched-time-btn
+    // and .sched-until-btn sit mid-sentence inside .sched-row, which is
+    // role="button" end to end. laws.test.ts ("LAW: a row that is a button
+    // keeps its area") already caps how far each may expand into it --
+    // .sched-until-btn to 3px above/5px below since 2026-08-24, after a
+    // wider reach opened the length editor instead of the event; the same
+    // review now caps .sched-time-btn (6 above, clear of .sched-strip's own
+    // clip; 3 below, clear of .sched-notes). Neither can ever reach 44
+    // without taking area the row itself needs, so 14 -- under both of
+    // their measured heights (15 and 18) -- says that is a decision, not a
+    // defect still waiting for one.
+    [/(^| )(sched-until-btn|sched-time-btn)( |$)/, 14, "nested in a tappable row"],
   ];
   const rungOf = (cls) => RUNGS.find(([re]) => re.test(" " + cls + " "));
+  // A CONTROL A ROW FORWARDS TO IS AS BIG AS THE ROW (2026-09-21). Eleven
+  // sheets use FormSheet's Row, which passes its own taps to the control it
+  // names so that the label, the tile and the empty space between them all
+  // open the menu or flip the switch -- iOS's grouped table, and the thing
+  // every sheet in this app failed to do until SHARED-F-11. The auditor could
+  // not see it, because forwardTo is a React prop: it measured a 220x24
+  // dropdown value, found a thumb 9px below it landing on .row, and called
+  // the target too small. It was right about the pixels and wrong about the
+  // app. Row now writes the selector into data-forwards, so the real target
+  // resolves here the same way the pointer handler resolves it.
+  const forwarder = (e) => {
+    let n = e.parentElement;
+    while (n && n !== document.body) {
+      const sel = n.getAttribute && n.getAttribute("data-forwards");
+      if (sel) { try { if (n.querySelector(sel) === e) return n; } catch { /* bad selector */ } }
+      n = n.parentElement;
+    }
+    return null;
+  };
   for (const e of tappable) {
     // The NATURAL height, not the clipped one. A 46px row scrolled so that
     // 5px of it shows is not a small target, it is a scrolled row.
-    const r = e.getBoundingClientRect();
+    const r = (forwarder(e) || e).getBoundingClientRect();
     const txt = (e.textContent || "").trim();
     if (!txt || r.height >= HIG) continue;
     if (r.top < 0 || r.bottom > window.innerHeight) continue; // off-screen: cannot hit-test
+    // A ROW AT THE SCROLL FOLD IS NOT A SMALL TARGET (2026-09-22). "Vitamin
+    // D" in the Reminders strip and "Focus" on Today both reach the ladder
+    // everywhere except the one scroll position where their natural box
+    // ends right at .app-scroll's clip boundary, under the footer -- and
+    // that footer is not position:fixed, so section 7 below never excuses
+    // it. Same excuse, asked here: a target only failing because it is
+    // clipped by a scroller that can still move is not a defect, it is a
+    // frame.
+    const clipHere = clipped(forwarder(e) || e);
+    if (clipHere && clipHere.height + 0.5 < r.height && canScrollFurther(e)) continue;
     const cx = r.left + r.width / 2;
-    const hits = (y) => { const t = document.elementFromPoint(cx, y); return t === e || e.contains(t); };
+    const own = forwarder(e) || e;
+    const hits = (y) => { const t = document.elementFromPoint(cx, y); return t === own || own.contains(t); };
     // Measure the HIT, once, at the widest bar, then report it against
     // whichever bar it actually fails.
     const reaches = (min) => {
@@ -203,7 +427,15 @@ const AUDIT = () => {
     };
     const size = `${Math.round(r.width)}x${Math.round(r.height)}`;
     if (!reaches(MIN)) { add("small-target", `"${txt.slice(0,24)}" hit ${size}, needs ${MIN}`, e); continue; }
-    const rung = rungOf(typeof e.className === "string" ? e.className : "");
+    // dd-hdr: see the RUNGS comment above. Only a bare "dd" token picks it
+    // up (dd-value and dd-lead already read as their own tokens), and only
+    // when .hdr-controls is really an ancestor, so a dropdown wearing the
+    // same class anywhere else -- inside a sheet row, or SelectBar's own
+    // capsule -- is untouched.
+    const ownCls = typeof e.className === "string" ? e.className : "";
+    const isBareDd = /(^| )dd( |$)/.test(" " + ownCls + " ");
+    const inHdrControls = isBareDd && typeof e.closest === "function" && e.closest(".hdr-controls");
+    const rung = rungOf(ownCls + (inHdrControls ? " dd-hdr" : ""));
     if (rung) {
       // The rung is a PAINT spec (a chip is 28 tall), so it is checked against
       // the painted box. The hit is the ladder's own business: a rung under 44
@@ -223,16 +455,125 @@ const AUDIT = () => {
   // which is nearly black; reading the raw declaration calls white text on it
   // invisible, which is how a detector invents 40 bugs that do not exist.
   const parse = (c) => {
+    // color-mix() computes to color(srgb r g b / a) with the channels as
+    // FRACTIONS (2026-09-22). Read as rgb() they came out as 0.86 0.86 0.86,
+    // and every Insights tile measured as a grey nobody had painted.
+    const hex = (c || "").match(/^#([0-9a-fA-F]{6})$/);
+    if (hex) return { r: parseInt(hex[1].slice(0, 2), 16), g: parseInt(hex[1].slice(2, 4), 16), b: parseInt(hex[1].slice(4, 6), 16), a: 1 };
+    const srgb = (c || "").match(/color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\)/);
+    if (srgb) return { r: +srgb[1] * 255, g: +srgb[2] * 255, b: +srgb[3] * 255, a: srgb[4] === undefined ? 1 : +srgb[4] };
     const m = (c || "").match(/[\d.]+/g);
     if (!m) return null;
     return { r: +m[0], g: +m[1], b: +m[2], a: m.length > 3 ? +m[3] : 1 };
   };
+  // background-image is a comma-separated LIST of layers, and commas also
+  // live inside rgba() and gradient() -- so split only at depth zero.
+  const gradientLayers = (v) => {
+    const out = []; let depth = 0, cur = "";
+    for (const ch of v) {
+      if (ch === "(") depth++;
+      else if (ch === ")") depth--;
+      if (ch === "," && depth === 0) { out.push(cur); cur = ""; continue; }
+      cur += ch;
+    }
+    if (cur.trim()) out.push(cur);
+    return out.map((x) => x.trim()).filter((x) => x.includes("gradient("));
+  };
+  // WHERE ON THE GRADIENT THE WORDS ACTUALLY SIT (fourth pass, same day).
+  // A flat average of a two-stop gradient is the colour at its CENTRE, and
+  // text is not always centred: the goal card's foot is pinned to the
+  // bottom (margin-top: auto), which on a 153deg gradient sits close to the
+  // dark stop, not halfway to it. Averaged flat, six of the app's twenty-
+  // four card hues measured under 4.5 for white text EVEN AT FULL OPACITY,
+  // which would have meant darkening tiles that pass on the phone. The fix
+  // is the actual CSS gradient projection: given the angle and the two
+  // boxes (the gradient's own box, and the text's), find how far along the
+  // gradient axis the text's centre sits and interpolate the stops there.
+  // Multi-stop and radial gradients, which this app does not currently use
+  // for a ground under text, fall back to the flat average.
+  const gradientColorAt = (gi, box, point) => {
+    const m = gi.match(/^linear-gradient\((-?[\d.]+)deg\s*,\s*([\s\S]*)\)$/);
+    const stopsRaw = (m ? m[2] : gi).match(/(rgba?\([^)]*\)|color\(srgb[^)]*\)|#[0-9a-fA-F]{3,8})\s*(-?[\d.]+%)?/g) || [];
+    const stops = stopsRaw.map((raw, i) => {
+      const pm = raw.match(/(-?[\d.]+)%\s*$/);
+      const c = parse(raw);
+      return c && { c, pct: pm ? +pm[1] : (i === 0 ? 0 : i === stopsRaw.length - 1 ? 100 : null) };
+    }).filter(Boolean);
+    if (!m || stops.length < 2 || stops.some((s) => s.pct === null)) {
+      // Fallback: the flat average, weighted by each stop's own alpha.
+      const wsum = stops.reduce((t, s) => t + s.c.a, 0) || 1;
+      const g = { r: 0, g: 0, b: 0, a: 0 };
+      for (const s of stops) { g.r += s.c.r * s.c.a / wsum; g.g += s.c.g * s.c.a / wsum; g.b += s.c.b * s.c.a / wsum; g.a += s.c.a / stops.length; }
+      return stops.length ? g : null;
+    }
+    const theta = (+m[1] * Math.PI) / 180;
+    const dx = Math.sin(theta), dy = -Math.cos(theta);
+    const W = box.width, H = box.height;
+    const halfLen = (Math.abs(W * dx) + Math.abs(H * dy)) / 2 || 1;
+    const cx = box.left + W / 2, cy = box.top + H / 2;
+    const px = point.left + point.width / 2, py = point.top + point.height / 2;
+    const proj = (px - cx) * dx + (py - cy) * dy;
+    const t = Math.max(0, Math.min(1, 0.5 + proj / (2 * halfLen))) * 100;
+    let lo = stops[0], hi = stops[stops.length - 1];
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (t >= stops[i].pct && t <= stops[i + 1].pct) { lo = stops[i]; hi = stops[i + 1]; break; }
+    }
+    const span = hi.pct - lo.pct || 1;
+    const f = Math.max(0, Math.min(1, (t - lo.pct) / span));
+    return {
+      r: lo.c.r + (hi.c.r - lo.c.r) * f, g: lo.c.g + (hi.c.g - lo.c.g) * f, b: lo.c.b + (hi.c.b - lo.c.b) * f,
+      a: lo.c.a + (hi.c.a - lo.c.a) * f,
+    };
+  };
   const bgOf = (e) => {
     const layers = [];
+    const pointRect = e.getBoundingClientRect();
     let n = e;
     while (n && n !== document.documentElement) {
-      const c = parse(getComputedStyle(n).backgroundColor);
+      const cs = getComputedStyle(n);
+      // A GRADIENT IS A GROUND TOO (2026-09-22). This read background-color
+      // alone, so the goal and project cards on Life's grid -- drawn with a
+      // gradient and no colour behind it -- composited straight through to
+      // the page, and every white word on a blue card was reported as white
+      // on the light page's near-white. Chromium hands the computed gradient
+      // back with its stops already in rgb.
+      const gi = cs.backgroundImage || "";
+      if (gi.includes("gradient(")) {
+        // THE BASE LAYER, PROJECTED TO WHERE THE TEXT SITS. Two wrong
+        // answers preceded this and both are worth keeping. The first stop
+        // alone is the lightest pixel of a glass card's sheen, not the
+        // ground under words drawn halfway down. Averaging every rgba() in
+        // the property is worse: background-image stacks LAYERS, and a
+        // Bigger Picture card carries three white sheen radials over its
+        // colour, so averaging them all called a tile a pale lilac nobody
+        // painted. And even the base layer's flat average is wrong for text
+        // that is not centred on the card -- gradientColorAt reads the
+        // actual angle and the text's real position.
+        const base = gradientLayers(gi).pop() || "";
+        const g = gradientColorAt(base, n.getBoundingClientRect(), pointRect);
+        if (g && g.a > 0) { layers.push(g); if (g.a >= 0.999) break; }
+      }
+      const c = parse(cs.backgroundColor);
       if (c && c.a > 0) { layers.push(c); if (c.a === 1) break; }
+      // A GROUND DRAWN BY A PSEUDO-ELEMENT (2026-09-22). The goal and project
+      // cards paint their gradient on ::before, so the card itself is
+      // transparent and every white word on a blue card read as white on
+      // the light page. A generated box that is positioned and painted is a
+      // layer under everything the element holds.
+      for (const pseudo of ["::before", "::after"]) {
+        const ps = getComputedStyle(n, pseudo);
+        if (ps.content === "none" || ps.position !== "absolute") continue;
+        const pgi = ps.backgroundImage || "";
+        const pbase = gradientLayers(pgi).pop() || "";
+        // ::before with inset: 0 shares its host's box exactly; anything
+        // else is rare enough here to read the host's rect too rather than
+        // add a second geometry path for a case that does not occur.
+        const pg = pbase && gradientColorAt(pbase, n.getBoundingClientRect(), pointRect);
+        if (pg && pg.a > 0) layers.push(pg);
+        const pc = parse(ps.backgroundColor);
+        if (pc && pc.a > 0) layers.push(pc);
+      }
+      if (layers.length && layers[layers.length - 1].a >= 0.999) break;
       n = n.parentElement;
     }
     // The base is the DOCUMENT's own background, not black. Hardcoding black
@@ -347,16 +688,43 @@ const AUDIT = () => {
     // nothing else inherits it by sharing a hex.
     const GLYPH_TEXT = [".brand-mark .j", ".today-brand .j"];
     const isGlyph = GLYPH_TEXT.some((sel) => e.matches(sel));
+    //   THE ASTRA PALETTE, IN FULL (widened 2026-09-22). The roster carried
+    //   two of it, --good and --warn, and reported the other ten. The ruling
+    //   is broader than the pair: laws.test.ts holds that a category slot
+    //   whose light fill IS an Apple light system colour "wears that fill as
+    //   its ink and its glyph, NO RATIO ASKED", and fails the build if one is
+    //   darkened. So the auditor was reporting a law as a defect -- and I
+    //   darkened three of them (sky, blue, purple) before that law caught it,
+    //   which is the whole reason it exists. In LIGHT, the twelve are ruled.
+    //   In dark the app uses its own derived --cat-dtx-* inks, so nothing
+    //   here is waved through by sharing a hex across themes.
+    const APPLE_LIGHT = new Set(["rgb(255, 59, 48)", "rgb(255, 149, 0)", "rgb(255, 204, 0)",
+      "rgb(52, 199, 89)", "rgb(0, 199, 190)", "rgb(48, 176, 199)", "rgb(50, 173, 230)",
+      "rgb(0, 122, 255)", "rgb(88, 86, 214)", "rgb(175, 82, 222)", "rgb(255, 45, 85)", "rgb(162, 132, 94)"]);
+    const lightTheme = document.documentElement.getAttribute("data-theme") === "light";
     const ASTRA = { "rgb(52, 199, 89)": "--good", "rgb(255, 149, 0)": "--warn" };
-    const astra = ASTRA[cs.color];
+    const astra = ASTRA[cs.color] || (lightTheme && APPLE_LIGHT.has(cs.color) ? "an Apple light system colour" : undefined);
+    //   THE VIVID RAMP ON NUMERALS (added 2026-09-22). Health's six activity
+    //   hues are byte-identical across themes by Dave's pick (§AB, law 3 in
+    //   healthSkin.test.ts), and the token file says what that costs: "as
+    //   TEXT on the light page these miss AA, worst at lime". The ruling's own
+    //   boundary is that the ramp is data ink on NUMERALS, never words --
+    //   words read the ink twin now (--hl-*-ink), which this file measures
+    //   like any other colour. The numerals below are the ruling rendering.
+    //   Named by class, not by hex, for the reason the glyph bar is.
+    const VIVID_NUMERALS = [".stat-num", ".h-stat b", ".h-week-count b", ".ins-big", ".rest-clock"];
+    const vivid = /^rgb\((166, 255, 0|0, 229, 255|255, 159, 10|191, 90, 242|255, 55, 95|10, 132, 255)\)$/.test(cs.color)
+      && VIVID_NUMERALS.some((sel) => e.matches(sel));
     const ruled = isGlyph
       ? { why: "--accent-glyph, catalog L6: a glyph answers to 3:1" }
       : astra
         ? { why: astra + ", the Astra ruling 2026-09-12, law-pinned" }
-        : null;
+        : vivid
+          ? { why: "the vivid ramp on a numeral, §AB and law 3, Dave's pick" }
+          : null;
     // A ruled colour is judged by the bar its ruling names, never waved
     // through: the wordmark still has to clear the 3:1 mark bar.
-    const need = isGlyph ? 3 : astra ? 0 : (large ? 3 : 4.5);
+    const need = isGlyph ? 3 : (astra || vivid) ? 0 : (large ? 3 : 4.5);
     if (need === 0) continue;
     let faded = false;
     for (let n = e; n && n !== document.documentElement; n = n.parentElement) {
@@ -370,19 +738,211 @@ const AUDIT = () => {
     }
   }
 
+  // 5c. WHAT A SCREEN READER WOULD SAY (2026-09-21). The button audit read
+  //     LABELS out of the source and found 208 "nameless" controls that were
+  //     all false: the label was conditional, or interpolated, or looked up.
+  //     The only honest version of this question is asked of the rendered
+  //     page, where the name is whatever the accessibility tree computes.
+  //
+  //     A control with no name announces as "button" and nothing else. An
+  //     icon-only control is where this happens, which in this app means the
+  //     back chevron, the swipe rail, the row menu and the capture bar.
+  const accName = (e) => {
+    const aria = e.getAttribute("aria-label");
+    if (aria && aria.trim()) return aria.trim();
+    const by = e.getAttribute("aria-labelledby");
+    if (by) {
+      const t = by.split(/\s+/).map((id) => document.getElementById(id)?.textContent || "").join(" ").trim();
+      if (t) return t;
+    }
+    const text = (e.innerText || e.textContent || "").trim();
+    if (text) return text;
+    const title = e.getAttribute("title");
+    if (title && title.trim()) return title.trim();
+    const alt = e.querySelector("img[alt]")?.getAttribute("alt");
+    if (alt && alt.trim()) return alt.trim();
+    if (e.id) {
+      const lab = document.querySelector(`label[for="${CSS.escape(e.id)}"]`);
+      if (lab?.textContent?.trim()) return lab.textContent.trim();
+    }
+    const wrap = e.closest("label");
+    if (wrap?.textContent?.trim()) return wrap.textContent.trim();
+    const ph = e.getAttribute("placeholder");
+    if (ph && ph.trim()) return ph.trim();
+    return "";
+  };
+  for (const e of tappable) {
+    // Something purely decorative can opt out, and a few things do.
+    if (e.getAttribute("aria-hidden") === "true" || e.closest("[aria-hidden='true']")) continue;
+    if (accName(e)) continue;
+    const cls = (typeof e.className === "string" ? e.className : "").split(/\s+/).filter(Boolean).slice(0, 2).join(".");
+    const r = e.getBoundingClientRect();
+    add("no-name", `${e.tagName.toLowerCase()}${cls ? "." + cls : ""} ${Math.round(r.width)}x${Math.round(r.height)} announces nothing`, e);
+  }
+
   // 6. STACKED SIBLINGS WITH NO GAP. The bug Dave found in Heads Up.
   const cards = [...ROOT.querySelectorAll(".card, .notice-swipe, .promo-card")].filter(vis);
+  // ROWS OF ONE GROUPED CARD ARE MEANT TO BE FLUSH (catalog "ONE CARD",
+  // Dave 2026-08-26: "my issue with the glass is when it's stacked and not
+  // together"). .stream-grouped renders every member -- a row's own inner
+  // .card and the next row's .notice-swipe wrapper alike -- with zero gap
+  // and an inset hairline between them, on purpose (components.css: "Inset
+  // hairlines between rows... like every other grouped list in the app").
+  // Two of its own rows sharing that ancestor are not the bug this check
+  // exists to catch; only cards OUTSIDE a shared group are.
+  const groupOf = (e) => e.closest(".stream-grouped");
   for (let i = 1; i < cards.length; i++) {
     const a = cards[i-1].getBoundingClientRect(), c = cards[i].getBoundingClientRect();
     if (cards[i-1].contains(cards[i]) || cards[i].contains(cards[i-1])) continue;
+    const g = groupOf(cards[i-1]);
+    if (g && g === groupOf(cards[i])) continue;
     const gap = c.top - a.bottom;
     if (gap >= -1 && gap < 4 && Math.abs(a.left - c.left) < 3) {
       add("flush-stack", `gap=${Math.round(gap)}px between two cards`, cards[i]);
     }
   }
 
+  // 8. ONE GREY, EVER (Dave 2026-09-21, five screenshots: "There should not
+  //    be more than one gray subtext anywhere... you can make it gray with
+  //    regular font one time. And then after that shit has to look different.
+  //    If you want to bold something in gray, fine. Color coordinating,
+  //    dots, chips, whatever. But I never want to speak about this again.")
+  //    TIGHTENED V5.2 (2026-09-22, a real block row crowding at Dynamic Type
+  //    1.4x: "TOO MUCH GREY SUBTEXT... styled different if it shares a line
+  //    w grey subtext"). Bold-on-the-same-grey was the V5.1 exemption and it
+  //    is gone: a heavier weight of the identical ink still reads as more
+  //    grey, not a different thing, and it was the exact pair that crowded
+  //    and wrapped. Weight may still reinforce a real distinction; it may no
+  //    longer BE one.
+  //
+  //    So under a row's title, at most ONE run of text may be secondary ink
+  //    at regular weight. Everything else on the row has to be told apart by
+  //    something you can see without reading: a colour, a dot, a chip's own
+  //    fill, caps. This measures the COMPUTED colour and weight of every
+  //    text-bearing leaf in the row, which is what he sees, rather than
+  //    class names, which is what drifted. A separator glyph (a middot, a
+  //    slash, a bare bullet) is structure and does not count, and a leaf
+  //    sitting on its own fill (a chip, a pill) is already told apart.
+  // A CARD WITH A TITLE IS A ROW FOR THIS PURPOSE. The goal and project
+  // cards on Life's grid carry a title and lines under it exactly as a row
+  // does, and the first look at them showed two grey lines the row scan
+  // could not see ("0 of 1 Projects done" over "1 Linked project").
+  const ROWS = ".row, .task-row, .sched-row, .lib-row, .conn-row, .proj-row, .person-row, .lm-row, .rem-card, .area-card, .notice-card, .stream-card, .cat-row, .bp-card";
+  const isGrey = (rgb) => {
+    const m = rgb.match(/[\d.]+/g); if (!m) return false;
+    const [r, g, b] = m.map(Number);
+    const a = m[3] === undefined ? 1 : Number(m[3]);
+    if (a < 0.2) return false;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    // Achromatic, and not the primary ink at either end of the ramp.
+    return mx - mn < 18 && mx < 244 && mn > 12;
+  };
+  const onOwnFill = (e, stop) => {
+    let n = e;
+    while (n && n !== stop) {
+      const bg = getComputedStyle(n).backgroundColor;
+      const m = bg.match(/[\d.]+/g);
+      if (m && (m[3] === undefined || Number(m[3]) > 0.02)) return true;
+      n = n.parentElement;
+    }
+    return false;
+  };
+  for (const row of ROOT.querySelectorAll(ROWS)) {
+    if (!vis(row) || !clipped(row)) continue;
+    // Nested rows report themselves; a card that holds rows is not a row.
+    if (row.querySelector(ROWS)) continue;
+    const greys = [];
+    for (const e of row.querySelectorAll("*")) {
+      if (e.children.length > 0 && [...e.childNodes].every((c) => c.nodeType !== 3 || !c.textContent.trim())) continue;
+      const txt = [...e.childNodes].filter((c) => c.nodeType === 3).map((c) => c.textContent).join("").trim();
+      if (!txt || /^[\u00b7\u2022\u2013\u2014\-\/|:,.\s]+$/.test(txt)) continue;
+      if (!vis(e)) continue;
+      const cs = getComputedStyle(e);
+      if (!isGrey(cs.color)) continue;
+      // WEIGHT ALONE IS NO LONGER A WAY OUT (V5.2, 2026-09-22). The old exit
+      // here checked fontWeight against 600 and skipped on its own. A bolder
+      // run of the identical grey still reads as grey, just heavier of it -- it
+      // never cleared the room the way real colour, a mark, a fill or caps
+      // does, and it was the exact treatment that crowded and wrapped on a
+      // real block row. A bold grey run now has to also be caught by one of
+      // the checks below (a mark, a fill) or it counts as a second grey.
+      if (cs.textTransform === "uppercase") continue;   // a state word or eyebrow is told apart by its caps
+      if (onOwnFill(e, row)) continue;
+      // A MARK AHEAD OF THE WORDS TELLS THEM APART (the ruling names "dots").
+      // The category dot, the event mark, the project pie and the goal ring
+      // are all a wordless element drawn just before the text, so a leaf
+      // whose nearest inline group opens with one is marked, not grey.
+      const grp = e.parentElement;
+      const marked = (n) => {
+        let p = n.previousElementSibling;
+        while (p) {
+          if (vis(p) && !(p.textContent || "").trim()) return true;
+          if ((p.textContent || "").trim()) return false;
+          p = p.previousElementSibling;
+        }
+        return false;
+      };
+      // ...and a dot drawn INSIDE the leaf, ahead of its own text, is the
+      // same mark: the schedule's "· Family" is a wordless dot element and
+      // a text node in one span.
+      const leadsWithMark = (n) => {
+        for (const c of n.childNodes) {
+          if (c.nodeType === 3 && c.textContent.trim()) return false;
+          if (c.nodeType === 1) return vis(c) && !(c.textContent || "").trim();
+        }
+        return false;
+      };
+      if (leadsWithMark(e) || marked(e) || (grp && grp !== row && marked(grp))) continue;
+      // ONE SENTENCE IS ONE RUN. "Looks like Wednesday 2:30 PM · 30 Min" is
+      // a single grey line whose numbers happen to sit in their own spans;
+      // that is one run, not three. A run is the nearest ancestor that is a
+      // direct item of a flex or grid box (or of the row): everything in
+      // flowing text under it is the same run, and two items of a flex line
+      // (two facts on a meta line) are two.
+      let unit = e;
+      while (unit.parentElement && unit.parentElement !== row) {
+        const pd = getComputedStyle(unit.parentElement).display;
+        if (pd.includes("flex") || pd.includes("grid")) break;
+        unit = unit.parentElement;
+      }
+      if (!greys.some((g) => g.unit === unit)) greys.push({ unit, txt: txt.slice(0, 22) });
+    }
+    if (greys.length > 1) {
+      add("grey-twice", `${greys.length} grey runs on one row: ${greys.map((g) => '"' + g.txt + '"').join(", ")}`, row);
+    }
+  }
+
   // 7. CONTENT UNDER THE FIXED BARS. A row you can see but never tap.
-  const bars = [...document.querySelectorAll("*")].filter((e) => getComputedStyle(e).position === "fixed" && vis(e));
+  //
+  // THE BARS COME FROM ROOT TOO (2026-09-21, found the first time a finish
+  // receipt was ever audited). This search was the one check still reading
+  // the whole document while everything else honoured the modal root, so
+  // with a sheet up it measured the sheet's own buttons against the PAGE's
+  // fixed bars -- the ones lying under the scrim, unreachable and covering
+  // nothing. "Done" and "Keep Training", the two biggest buttons on the
+  // receipt, both came back as hidden behind the log bar they sit on top of.
+  // Same rule as the rest of the file: when a layer is up, the page under it
+  // is not the subject.
+  const bars = [...ROOT.querySelectorAll("*")].filter((e) => getComputedStyle(e).position === "fixed" && vis(e));
+  // A ROW YOU CAN SCROLL OUT IS NOT TRAPPED (2026-09-21). Every screen in
+  // this app that has a fixed bottom bar also has content passing under it
+  // at some scroll position, and reporting that is reporting scrolling. The
+  // defect is content that can NEVER be moved out: the page is already at the
+  // bottom and the bar is still on top of it, which is what a foot spacer
+  // exists to prevent and what its absence looks like. So the question is
+  // asked of the SCROLLER, once: is there anywhere left to go.
+  const canScrollPast = (e) => {
+    let n = e.parentElement;
+    while (n && n !== document.documentElement) {
+      const cs = getComputedStyle(n);
+      if (["auto", "scroll"].includes(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) {
+        return n.scrollTop + n.clientHeight < n.scrollHeight - 1;
+      }
+      n = n.parentElement;
+    }
+    const d = document.scrollingElement;
+    return !!d && d.scrollTop + d.clientHeight < d.scrollHeight - 1;
+  };
   for (const bar of bars) {
     const rb = bar.getBoundingClientRect();
     if (rb.height > window.innerHeight * 0.5) continue;
@@ -392,16 +952,336 @@ const AUDIT = () => {
       if (r.top >= 0 && r.bottom <= window.innerHeight &&
           r.bottom > rb.top + 4 && r.top < rb.bottom - 4 &&
           r.right > rb.left && r.left < rb.right) {
-        add("under-bar", `"${(e.textContent||"").trim().slice(0,22)}" behind fixed bar`, e);
+        if (canScrollPast(e)) continue;
+        add("under-bar", `"${(e.textContent||"").trim().slice(0,22)}" behind fixed bar, page already at the bottom`, e);
       }
     }
   }
   return out;
 };
 
+// ---------------------------------------------------------------------------
+// FOCUS (FOCUS=1, 2026-09-21). The last question the DOM audit cannot answer,
+// because it is about a SEQUENCE and not a frame: where does the keyboard go,
+// and can you see it when it gets there.
+//
+// The starting suspicion was wrong and is recorded so nobody re-runs it: the
+// computed outline on a focused control reads `auto 1px rgb(16,16,16)`, which
+// looks like a near-black ring on a near-black app. It is not. Chromium's
+// `outline: auto` is drawn specially and inverts per backdrop; screenshotted
+// on this app it is a white ring in dark and a black one in light. The ring
+// is fine. What is not automatic is everything around it:
+//
+//   no-ring      the app said `outline: none` and gave nothing back. 18 rules
+//                do this, all of them on text fields, where the caret is the
+//                indicator -- but a field is only exempt if it HAS a caret.
+//   ring-clipped BROWSER-F-03's bug, one layer out. A ring is painted OUTSIDE
+//                the box, so an `overflow: hidden` ancestor cuts it exactly
+//                the way it cut the 44px ::after expanders. A focused control
+//                with an invisible ring is a keyboard user lost on the page.
+//   off-screen   focus landed somewhere the viewport does not show, and the
+//                browser's scroll-into-view did not fix it.
+//   backwards    the tab order went UP the page. DOM order is tab order, so
+//                this means the DOM disagrees with the layout.
+//
+// Its own run, not part of the matrix: 30 tab presses a screen would double
+// the sweep, and this question does not change with width or type scale.
+const FOCUS = process.env.FOCUS === "1";
+const FOCUS_STOPS = Number(process.env.FOCUS_STOPS || 40);
+
+async function focusScreen(page, name) {
+  const out = [];
+  const seen = new Set();
+  const add = (kind, detail) => {
+    const k = kind + "|" + detail;
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push({ kind, detail, cls: "" });
+  };
+  // START AT THE TOP OF THE DOCUMENT. blur() alone does NOT do this, which a
+  // verification run caught: it clears activeElement but leaves the sequential
+  // focus navigation starting point where it was, so Tab carried on from
+  // wherever the crawl's last click left it and the order recorded was a
+  // partial one. Focusing <body> moves the starting point, so the next Tab is
+  // genuinely the first tabbable thing on the page.
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    document.body.setAttribute("tabindex", "-1");
+    document.body.focus();
+    document.body.removeAttribute("tabindex");
+  });
+  let prev = null;
+  const first = [];
+  for (let i = 0; i < FOCUS_STOPS; i++) {
+    await page.keyboard.press("Tab");
+    // Focusing a control inside a scroller makes the browser scroll it into
+    // view, and that is not instant. Measuring in the same tick reported
+    // controls as clipped that the browser was in the middle of revealing.
+    await page.waitForTimeout(80);
+    const s = await page.evaluate(() => {
+      const e = document.activeElement;
+      if (!e || e === document.body || !(e instanceof HTMLElement)) return null;
+      const cs = getComputedStyle(e);
+      const r = e.getBoundingClientRect();
+      // A ring is painted outside the box. Clip it against every scrolling or
+      // hidden ancestor, exactly as the main audit clips a rect.
+      const ow = parseFloat(cs.outlineWidth) || 0;
+      const off = parseFloat(cs.outlineOffset) || 0;
+      const pad = cs.outlineStyle === "none" ? 0 : ow + Math.max(0, off) + 1;
+      let clip = { top: r.top - pad, bottom: r.bottom + pad, left: r.left - pad, right: r.right + pad };
+      const want = { ...clip };
+      let n = e.parentElement;
+      // HIDDEN AND SCROLLABLE ARE NOT THE SAME BUG. An `overflow: hidden` box
+      // cuts a ring with no way to ever see it, which is BROWSER-F-03 one
+      // layer out. A SCROLLER is meant to have content outside it, and the
+      // browser scrolls a focused control into view, so anything still cut
+      // after that is the scroller failing to follow the keyboard. Measured
+      // separately or the second drowns the first.
+      let scrolled = false;
+      while (n && n !== document.documentElement) {
+        const ps = getComputedStyle(n);
+        const vals = [ps.overflow, ps.overflowX, ps.overflowY];
+        if (vals.some((v) => ["hidden", "auto", "scroll", "clip"].includes(v))) {
+          if (vals.some((v) => ["auto", "scroll"].includes(v))) scrolled = true;
+          const pr = n.getBoundingClientRect();
+          clip = {
+            top: Math.max(clip.top, pr.top), bottom: Math.min(clip.bottom, pr.bottom),
+            left: Math.max(clip.left, pr.left), right: Math.min(clip.right, pr.right),
+          };
+        }
+        n = n.parentElement;
+      }
+      return {
+        tag: e.tagName.toLowerCase(),
+        id: (e.tagName + "." + (e.className || "").toString().split(" ")[0] + "|" + (e.textContent || "").trim().slice(0, 20)),
+        txt: (e.textContent || "").trim().slice(0, 24) || (e.getAttribute("aria-label") || "").slice(0, 24),
+        outlineNone: cs.outlineStyle === "none" || ow === 0,
+        // A FIXED CONTROL IS NOT IN THE READING ORDER (2026-09-21, second
+        // false positive from this check). A sheet's Cancel and a toast's
+        // Undo sit at the foot of the VIEWPORT and do not scroll, so their
+        // place on the page is not comparable with a row's at all; the
+        // "backwards" jumps this reported were entirely that arithmetic.
+        // Same helper the main audit uses, same reason.
+        fixed: (() => { let n = e; while (n && n !== document.body) { if (getComputedStyle(n).position === "fixed") return true; n = n.parentElement; } return false; })(),
+        // A field's caret IS its focus indicator, which is why 18 rules turn
+        // the ring off. Only a field gets that exemption.
+        caret: e.tagName === "INPUT" || e.tagName === "TEXTAREA" || e.isContentEditable,
+        shadow: cs.boxShadow !== "none",
+        // How much of the ring survives the clipping, per edge.
+        lostTop: Math.round(clip.top - want.top), lostLeft: Math.round(clip.left - want.left),
+        lostBottom: Math.round(want.bottom - clip.bottom), lostRight: Math.round(want.right - clip.right),
+        scrolled,
+        rect: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)],
+        // THE ORDER QUESTION IS A DOCUMENT QUESTION, NOT A VIEWPORT ONE, AND
+        // ONLY WITHIN ONE SCROLLER. Two corrections, both of which this check
+        // reported as findings before they were chased down:
+        //
+        // 1. Viewport y is not position. Tabbing to a control below the fold
+        //    SCROLLS, so the next control -- genuinely lower -- reads a
+        //    SMALLER viewport y than the one before it. getBoundingClientRect
+        //    has the scroll already subtracted, so adding every ancestor's
+        //    scroll back gives the unscrolled place on the page.
+        //
+        // 2. Adding it back puts the element in ITS OWN scroller's frame, and
+        //    two scrollers are two different frames. .app-scroll holds the
+        //    page; the toast dock and the tab bar are its SIBLINGS in the
+        //    shell's footer stack. Comparing a row at 852 in the scroller
+        //    with a toast at 664 in the viewport is comparing nothing, and it
+        //    is what "About then Undo" was. Stops are only compared when they
+        //    share a scroller.
+        docY: (() => {
+          let y = r.top + window.scrollY;
+          let n = e.parentElement;
+          while (n && n !== document.documentElement) { y += n.scrollTop; n = n.parentElement; }
+          return Math.round(y);
+        })(),
+        scroller: (() => {
+          let n = e.parentElement;
+          while (n && n !== document.documentElement) {
+            const ps = getComputedStyle(n);
+            if ([ps.overflow, ps.overflowY].some((v) => ["auto", "scroll"].includes(v)) && n.scrollHeight > n.clientHeight + 1) {
+              return n.tagName + "." + (n.className || "").toString().split(" ")[0];
+            }
+            n = n.parentElement;
+          }
+          return "@page";
+        })(),
+        vh: window.innerHeight, vw: window.innerWidth,
+      };
+    });
+    if (!s) break;
+    // A full cycle: Tab has wrapped back to where it started.
+    if (first.length && s.id === first[0]) break;
+    first.push(s.id);
+
+    if (s.outlineNone && !s.shadow && !s.caret) {
+      add("no-ring", `"${s.txt}" (${s.tag}) has no focus ring and no caret`);
+    }
+    // 2px of a ring is a rounded corner meeting a clip; half of one edge is
+    // the ring being eaten.
+    const lost = Math.max(s.lostTop, s.lostLeft, s.lostBottom, s.lostRight);
+    if (!s.outlineNone && lost > 2) {
+      add(s.scrolled ? "focus-unscrolled" : "ring-clipped",
+        s.scrolled
+          ? `"${s.txt}" is still ${lost}px outside its scroller after focus`
+          : `"${s.txt}" loses ${lost}px of its focus ring to an overflow:hidden ancestor`);
+    }
+    const [x, y, w, h] = s.rect;
+    if (y + h < 0 || y > s.vh || x + w < 0 || x > s.vw) {
+      add("focus-offscreen", `"${s.txt}" focused at ${x},${y} outside ${s.vw}x${s.vh}`);
+    } else if (prev && !s.fixed && !prev.fixed && s.scroller === prev.scroller && s.docY + 24 < prev.docY) {
+      // Going back UP the page. Tolerant of a row of controls on one line and
+      // of the small rises inside a card.
+      add("focus-backwards", `"${prev.txt}" (y=${prev.docY}) then "${s.txt}" (y=${s.docY})`);
+    }
+    prev = { docY: s.docY, txt: s.txt, fixed: s.fixed, scroller: s.scroller };
+  }
+  return { name, findings: out, errs: [], stops: first.length };
+}
+
+// ONE TAP FURTHER IN (2026-08-21, extended to tabs 2026-09-21). Every audit
+// before this stopped at the top of each section, so the pages where the app
+// actually holds its content were never looked at. Click by ELEMENT, not by
+// text: a text selector matches the first thing on the page that says those
+// words, which on these screens is usually a heading rather than the row.
+//
+// AND LIFE'S ROWS ARE CARDS (2026-09-21). Probed rather than assumed: on the
+// Life tab this selector matched ZERO elements, because an area is a
+// .area-card, not a .row. So the dive that was added "for the tabs" walked
+// straight past the one tab that is a hub, and Health -- the door to every
+// screen Dave has been reporting bugs on -- stayed unvisited even after the
+// tab dive existed. Count what a selector matches before trusting it.
+const DIVE_SEL = '.row[role="button"], .proj-row, .lm-row, .cat-row, .settings-row, .conn-row, .person-row, .lib-row, .area-card';
+// THREE WAS A NUMBER, NOT A LIMIT (2026-09-21). The dive took the first
+// three rows of every screen, silently, and the audit checklist has carried
+// "Settings > Categories · unreachable" for two days because of it: Categories
+// is the FOURTH row of Settings. It was never missing, it was never looked at.
+// The cap stays, because an unbounded dive on a list screen is a different
+// tool, but it is named, tunable, and every row it skips is reported the way
+// every other gap in this report is.
+const DIVE_CAP = Number(process.env.DIVE_CAP || 6);
+async function diveInto(page, label, sheetSkips, sheetsSeen) {
+  const out = [];
+  const title = () => page.evaluate(() => document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "");
+  const found = await page.locator(DIVE_SEL).count();
+  const count = Math.min(DIVE_CAP, found);
+  if (found > count) sheetSkips.push(`${label}: ${found - count} rows past the first ${count} were not opened (DIVE_CAP)`);
+  for (let i = 0; i < count; i++) {
+    await clearLayers(page);
+    const before = page.url() + "|" + await title();
+    const row = page.locator(DIVE_SEL).nth(i);
+    let name = "";
+    try {
+      name = ((await row.textContent()) || "").trim().split("\n")[0].slice(0, 34);
+      await row.click({ timeout: 2000 });
+    } catch { continue; }
+    await page.waitForTimeout(800);
+    // A row that opened nothing is not a screen; auditing the same screen
+    // three times is how a report gets padded instead of thorough.
+    if (page.url() + "|" + await title() === before) continue;
+    const name2 = label + " > " + name;
+    out.push(await auditScreen(page, name2));
+    if (SHEETS) {
+      const back = async () => { await clearLayers(page); await page.waitForTimeout(300); };
+      out.push(...await auditSheets(page, name2, back, sheetSkips, sheetsSeen));
+    }
+    await page.click(".nav-back, .pagebar-back").catch(() => {});
+    await page.waitForTimeout(600);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// THE LIVE WORKOUT (2026-09-21). Dave, on a round of health bugs the audit had
+// never seen: "You are not proofing work". He was right, and the reason was
+// structural rather than careless -- a live session cannot be crawled the way
+// a screen is crawled:
+//
+//   1. It is four taps deep (Life > Health > the program > Start), and every
+//      one of them is a different kind of control.
+//   2. Starting one MUTATES state. The generic dive clicks three rows on every
+//      screen it reaches; if one of those rows opens a workout, every screen
+//      audited afterwards is a screen with a session running on it.
+//   3. It needs a PROGRAM to exist. The demo seed wrote finished sessions with
+//      no exercises against a program id that no program had, so Health read
+//      "Set Up a Program" and Start was not on the screen at all (fixed in
+//      src/data/seed.ts the same day).
+//
+// So it gets its own walk, driven by hand, and it runs LAST in the pass so the
+// session it leaves behind cannot contaminate anything. Six screens that no
+// audit has ever measured: Health, the program, the time sheet, the session,
+// the session one set in (the rest clock, the Done chip, the drop action), and
+// the finish receipt.
+async function liveWorkout(page, sheetSkips, openTab) {
+  const out = [];
+  const step = async (what, fn) => {
+    try { await fn(); await page.waitForTimeout(900); return true; }
+    catch { sheetSkips.push("live workout: " + what); return false; }
+  };
+  await clearLayers(page);
+  // By element, like every other navigation here: "Life" is a word Today
+  // also uses.
+  if (!await step("could not reach the Life tab", () => openTab("Life"))) return out;
+  if (!await step("no Health card on Life", () => page.click(".area-card-health", { timeout: 3000 }))) return out;
+  out.push(await auditScreen(page, "Live: Health"));
+  // The hero is the day's door: "Pull Day / Today / 4 Exercises". With no
+  // program it says "Set Up a Program" instead and the walk stops here, which
+  // is the honest outcome rather than a silent pass.
+  if (!await step("no program (the hero was a setup prompt)", () => page.click(".h-hero", { timeout: 3000 }))) return out;
+  out.push(await auditScreen(page, "Live: Program"));
+  if (!await step("no Start button on the program", () => page.click('text=/^Start /', { timeout: 3000 }))) return out;
+  // The fit sheet ("How Long Do You Have") stands between Start and the
+  // session, and it is a screen in its own right.
+  out.push(await auditScreen(page, "Live: Time Check"));
+  if (!await step("the time sheet would not confirm", () => page.click('text=/^Start · /', { timeout: 3000 }))) return out;
+  await page.waitForTimeout(800);
+  out.push(await auditScreen(page, "Live: Workout"));
+  // One set logged, because the session one set in is a DIFFERENT screen: the
+  // rest clock is up, the first chip is a Done row, Log a Drop appears, and
+  // the bottom bar has to re-aim at set 2. Three of the five bugs Dave
+  // reported on 2026-09-21 were only visible in this state.
+  if (await step("the Log button would not log", () => page.click(".logbar button", { timeout: 3000 }))) {
+    await page.waitForTimeout(700);
+    out.push(await auditScreen(page, "Live: Workout, One Set In"));
+  }
+  if (await step("Finish did not open the receipt", () => page.click('.nav-bar >> text="Finish"', { timeout: 3000 }))) {
+    out.push(await auditScreen(page, "Live: Finish"));
+  }
+  return out;
+}
+
+// A SEGMENTED CONTROL IS A SET OF SCREENS (2026-09-21). The other half of the
+// same blind spot: Life's five lenses (Areas, Tasks, Reminders, Projects,
+// Goals) are one tab to this crawler, so Projects and Goals -- which is where
+// Bigger Picture lives, the whole roadmap layer -- were never drawn once, and
+// the checklist has been carrying them as "in neither More nor Life. Renamed,
+// moved or gone." They were in Life the whole time, behind a control the tool
+// did not know was a control.
+//
+// Segment 1 is the screen just audited, so it is skipped; the walk returns to
+// it afterwards, because a segment is a state the screen holds and the caller
+// expects to find the screen where it left it.
+async function segmentsOf(page, label) {
+  const out = [];
+  const segs = await page.evaluate(() =>
+    [...document.querySelectorAll(".segmented .seg")].map((e) => (e.textContent || "").trim()).filter(Boolean));
+  if (segs.length < 2) return out;
+  for (const t of segs.slice(1)) {
+    try { await page.click(`.segmented .seg:text-is("${t}")`, { timeout: 2500 }); } catch { continue; }
+    await page.waitForTimeout(800);
+    out.push(await auditScreen(page, label + " · " + t));
+  }
+  await page.click(`.segmented .seg:text-is("${segs[0]}")`, { timeout: 2500 }).catch(() => {});
+  await page.waitForTimeout(600);
+  return out;
+}
+
 const SHOTS = [];
+const VISITED = [];
 async function auditScreen(page, name) {
+  VISITED.push(name);
   await page.waitForTimeout(900);
+  if (FOCUS) return focusScreen(page, name);
   const findings = await page.evaluate(AUDIT);
   const errs = [];
   return { name, findings, errs };
@@ -625,11 +1505,14 @@ async function closeSheet(page, reopen) {
 // SHEETS=0 is there for chasing one screen finding; a REPORT without them is
 // a screens-only report and says so at the bottom.
 const SHEETS = process.env.SHEETS !== "0";
+// The phone's text size as a multiplier; 1.4 is the top of this app's clamp.
+const TYPE_SCALE = Number(process.env.TYPE_SCALE || 1);
 
 const MATRIX = process.env.VW
   // An explicit VW/VH/THEME still runs exactly one pass, for chasing one
   // finding without waiting for the whole sweep.
-  ? [{ w: Number(process.env.VW), h: Number(process.env.VH || 844), theme: process.env.THEME || "dark" }]
+  ? [{ w: Number(process.env.VW), h: Number(process.env.VH || 844), theme: process.env.THEME || "dark",
+       scale: TYPE_SCALE }]
   // 320 IS NOT A SUPPORTED WIDTH (Dave, 2026-09-20, asked directly and
   // answered directly). The sheet-aware run found 18 distinct findings in the
   // whole app and SEVEN of them existed only at 320 and nowhere else: every
@@ -640,19 +1523,54 @@ const MATRIX = process.env.VW
   // This is a decision, not an oversight, so the passes go rather than the
   // findings being triaged away one at a time for ever. 390 is the phone he
   // holds; 430 and 834 keep the app honest as a web app at other sizes.
-  : [
-    { w: 390, h: 844, theme: "dark" },   // the phone Dave holds
-    { w: 430, h: 932, theme: "dark" },   // Pro Max
-    { w: 834, h: 1112, theme: "dark" },  // tablet / a desktop browser window
-    { w: 390, h: 844, theme: "light" },
-    { w: 430, h: 932, theme: "light" },
-    { w: 834, h: 1112, theme: "light" },
-  ];
+  //
+  // AND EVERY SIZE RUNS TWICE (2026-09-21). Dropping 320 was right and it also
+  // hid something: larger text in a fixed width is the same arithmetic as
+  // fixed text in a narrower one, so SIX of the seven findings that "only
+  // existed at 320" came straight back the first time the app was measured at
+  // --type-scale 1.4. That is not a phone nobody here uses. It is Dave's own
+  // phone with its text size turned up, the app reads it (appearance/
+  // textZoom.ts clamps 1.0 to 1.4) and Settings offers it, so 1.4 is a
+  // SUPPORTED configuration in a way 320 never was.
+  //
+  // 834 at 1.4 found nothing on the run that added it, and it stays anyway:
+  // "this pass is unlikely to find anything" is the exact reasoning that kept
+  // those six findings invisible for a month.
+  : [1, 1.4].flatMap((scale) => [
+    { w: 390, h: 844, theme: "dark", scale },   // the phone Dave holds
+    { w: 430, h: 932, theme: "dark", scale },   // Pro Max
+    { w: 834, h: 1112, theme: "dark", scale },  // tablet / a desktop browser window
+    { w: 390, h: 844, theme: "light", scale },
+    { w: 430, h: 932, theme: "light", scale },
+    { w: 834, h: 1112, theme: "light", scale },
+  ]);
+
+// IS THERE ANYTHING IN THE APP? (2026-09-21). Every number this tool had ever
+// printed was measured against whatever happened to be on port 4173, and a
+// plain `npm run build` produces an app with NO demo data -- the seeds live
+// behind __DEMO_SEED__ and Rollup drops them, on purpose, so demo names can
+// never ship. An audit of that build is an audit of empty states: no program,
+// no sessions, no projects, no mail. It finds very little and says nothing
+// about the app Dave uses.
+//
+// A demo build emits a DEMO_BUILD marker into dist (see vite.config.ts), so
+// asking for it is an exact question with an exact answer. This does not
+// refuse to run -- a deliberate empty-state pass is a real thing to want --
+// it says which one this was, at the top and at the bottom, so no report can
+// be mistaken for the other kind again.
+//   DEMO=1 npm run build && npx vite preview --port 4173
+const DEMO_BUILD = await fetch("http://localhost:4173/DEMO_BUILD")
+  .then((r) => r.ok).catch(() => false);
+const SEED_LINE = DEMO_BUILD
+  ? "SEEDED BUILD: demo data is present, so this measures full screens."
+  : "EMPTY BUILD: no DEMO_BUILD marker on :4173, so this measured EMPTY STATES.\n" +
+    "  Rebuild with: DEMO=1 npm run build && npx vite preview --port 4173";
+console.log(SEED_LINE + "\n");
 
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 
-async function runPass({ w, h, theme }) {
-  const label = `${w}x${h} ${theme}`;
+async function runPass({ w, h, theme, scale = 1 }) {
+  const label = `${w}x${h} ${theme}` + (scale === 1 ? "" : ` @${scale}x type`);
   const ctx = await b.newContext({
     viewport: { width: w, height: h },
     deviceScaleFactor: 2,
@@ -682,37 +1600,71 @@ async function runPass({ w, h, theme }) {
     // happens to be", which is not a thing to build a report on.
     await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
     await page.waitForTimeout(600);
+    // DYNAMIC TYPE (2026-09-21). This app has a real one: --type-scale is
+    // clamped 1.0 to 1.4, read from the phone's own text size, and every
+    // named type token multiplies by it. What it has never had is a pass at
+    // the top of that range, so nothing knew what 1.4 breaks. Every size in
+    // the matrix now runs twice, at 1 and at 1.4; TYPE_SCALE=1.4 alongside an
+    // explicit VW pins the scale for a single chase pass.
+    if (scale !== 1) {
+      await page.evaluate((n) => document.documentElement.style.setProperty("--type-scale", String(n)), scale);
+      await page.waitForTimeout(500);
+    }
 
-    const TABS = ["Today", "Tasks", "Schedule", "More"];
+    // THE TABS ARE WHATEVER THE TAB BAR SAYS (2026-09-21). This was hardcoded
+    // to ["Today", "Tasks", "Schedule", "More"], which was the tab bar the day
+    // it was written. The bar is CONFIGURABLE -- Settings reorders and toggles
+    // it -- and Dave's reads Today / Life / Schedule / Brain / Email / More.
+    // So "Tasks" matched nothing and was silently skipped (the click is in a
+    // try/continue), and Life, Brain and Email were never visited at all.
+    //
+    // That is how every screen he reported bugs on came to be a screen this
+    // tool had never once opened: the live workout lives behind Life, and no
+    // audit has ever been inside one. A tool that decides for itself which
+    // parts of the app count is not an audit, it is a sample.
+    const TABS = await page.evaluate(() =>
+      [...document.querySelectorAll(".tab-bar .tab")].map((e) => (e.textContent || "").trim()).filter(Boolean));
+    if (TABS.length === 0) sheetSkips.push("the tab bar named no tabs, so only More was crawled");
+    // AND THE TAB IS CLICKED BY ELEMENT, NOT BY ITS WORDS (2026-09-21). This
+    // file already says, twice, that a text selector matches the first thing
+    // on the page saying those words -- and then clicked the tabs by text
+    // anyway. On Today the first "Schedule" is a Ready to Send action pill,
+    // so `text="Schedule"` scheduled a dental cleaning and audited whatever
+    // that opened. Verified by reading the active tab after the click: still
+    // Today. Every "Tab: Schedule" this tool has ever printed was that.
+    // The names are read off .tab-bar .tab in order, so the index is exact.
+    const openTab = (t) => page.locator(".tab-bar .tab").nth(TABS.indexOf(t)).click({ timeout: 3000 });
     for (const t of TABS) {
       if (!(await clearLayers(page))) sheetSkips.push(`before Tab ${t}: a layer would not close`);
-      try { await page.click(`text="${t}"`, { timeout: 3000 }); } catch { continue; }
+      try { await openTab(t); } catch { continue; }
       results.push(await auditScreen(page, "Tab: " + t));
       if (SHEETS) {
-        const back = async () => { await clearLayers(page); await page.click(`text="${t}"`, { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(700); };
+        const back = async () => { await clearLayers(page); await openTab(t).catch(() => {}); await page.waitForTimeout(700); };
         results.push(...await auditSheets(page, "Tab: " + t, back, sheetSkips, sheetsSeen));
         await back();
       }
     }
 
-    // Every row inside More
+    // Every row inside More. Same rule as the tabs: by element and by index,
+    // because "Notes" and "Money" are words that appear elsewhere too.
     await clearLayers(page);
-    await page.click('text="More"').catch(() => {});
+    await openTab("More").catch(() => {});
     await page.waitForTimeout(1000);
-    const rows = await page.evaluate(() => [...document.querySelectorAll(".lib-name")].map((e) => e.textContent));
+    const rows = await page.evaluate(() => [...document.querySelectorAll(".lib-row .lib-name")].map((e) => (e.textContent || "").trim()));
     if (!rows.length) sheetSkips.push("More: no rows found, the whole section was skipped");
-    for (const r of rows) {
+    const openMoreRow = (i) => page.locator(".lib-row").nth(i).click({ timeout: 2500 });
+    for (const [ri, r] of rows.entries()) {
       await clearLayers(page);
-      await page.click('text="More"').catch(() => {});
+      await openTab("More").catch(() => {});
       await page.waitForTimeout(700);
-      try { await page.click(`text="${r}"`, { timeout: 2500 }); } catch { continue; }
+      try { await openMoreRow(ri); } catch { continue; }
       results.push(await auditScreen(page, "More > " + r));
       if (SHEETS) {
         const back = async () => {
           await clearLayers(page);
-          await page.click('text="More"').catch(() => {});
+          await openTab("More").catch(() => {});
           await page.waitForTimeout(600);
-          await page.click(`text="${r}"`, { timeout: 2500 }).catch(() => {});
+          await openMoreRow(ri).catch(() => {});
           await page.waitForTimeout(700);
         };
         results.push(...await auditSheets(page, "More > " + r, back, sheetSkips, sheetsSeen));
@@ -727,27 +1679,28 @@ async function runPass({ w, h, theme }) {
       // Click by ELEMENT, not by text. Text selectors match the first thing
       // on the page that happens to say the same words, which on these
       // screens is usually a heading rather than the row.
-      const SEL = '.row[role="button"], .proj-row, .lm-row, .cat-row, .settings-row, .conn-row, .person-row';
-      const count = Math.min(3, await page.locator(SEL).count());
-      for (let i = 0; i < count; i++) {
-        const title = () => page.evaluate(() => document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "");
-        await clearLayers(page);
-        const before = page.url() + "|" + await title();
-        const row = page.locator(SEL).nth(i);
-        let name = "";
-        try {
-          name = ((await row.textContent()) || "").trim().split("\n")[0].slice(0, 34);
-          await row.click({ timeout: 2000 });
-        } catch { continue; }
-        await page.waitForTimeout(800);
-        // A row that opened nothing is not a screen; auditing the same
-        // screen three times is how a report gets padded instead of thorough.
-        if (page.url() + "|" + await title() === before) continue;
-        results.push(await auditScreen(page, "More > " + r + " > " + name));
-        await page.click(".nav-back, .pagebar-back").catch(() => {});
-        await page.waitForTimeout(600);
-      }
+      results.push(...await diveInto(page, "More > " + r, sheetSkips, sheetsSeen));
     }
+
+    // AND THE TABS GET THE SAME DIVE (2026-09-21). The dive ran on More's
+    // rows only, so a tab that is a HUB -- Life, which is where Health and
+    // the live workout live -- was audited as one screen and never entered.
+    // Every bug Dave reported on 2026-09-21 was on a screen behind that door.
+    for (const t of TABS) {
+      if (t === "More") continue;   // its rows are crawled above, in full
+      await clearLayers(page);
+      try { await openTab(t); } catch { continue; }
+      await page.waitForTimeout(700);
+      results.push(...await diveInto(page, "Tab: " + t, sheetSkips, sheetsSeen));
+      // And every lens the tab holds behind its segmented control.
+      await clearLayers(page);
+      await openTab(t).catch(() => {});
+      await page.waitForTimeout(700);
+      results.push(...await segmentsOf(page, "Tab: " + t));
+    }
+
+    // LAST, because it leaves a workout running. See liveWorkout above.
+    results.push(...await liveWorkout(page, sheetSkips, openTab));
   } catch (e) {
     consoleErrs.push("PASS FAILED: " + String(e).slice(0, 160));
   } finally {
@@ -787,6 +1740,8 @@ for (const p of passes) {
 }
 const sheetScreens = passes.reduce((a, p) => a + p.results.filter((r) => r.name.includes(" » ")).length, 0);
 const allSkips = passes.flatMap((p) => p.sheetSkips || []);
+console.log("\n" + SEED_LINE);
+console.log("SCREENS VISITED:\n" + [...new Set(VISITED)].map((n) => "  - " + n).join("\n"));
 console.log(`\n=== TOTAL ACROSS ${passes.length} PASSES: ${grand} findings ===`);
 console.log(SHEETS
   ? `SHEETS ON: ${sheetScreens} sheet screens audited across all passes (cap ${SHEET_CAP} per screen)`

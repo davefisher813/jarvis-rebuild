@@ -6,6 +6,7 @@ import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan
 import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
 import { REST_FLOOR_SEC } from "./pacing";
 import { logButtonLabel, plannedEntryAt, entryNoun, formatSet } from "./measures";
+import { nextSetEntry } from "./nextSet";
 import { newSetId, blankEntry, duplicateEntry, entryFrom } from "./strip";
 import { isSessionPR, lastHeader, lastSessionFor } from "./prs";
 import { readGymSettings, rackFrom } from "./settings";
@@ -13,6 +14,8 @@ import { readHealthSettings } from "../health/settings";
 import { rampFor } from "./ramp";
 import { suggestFor, type Suggestion } from "./progression";
 import { groupLabels, fillerFor, nextInGroup, groupOf, roundRestFor } from "./groups";
+import { withLiveGroups } from "./liveGroups";
+import { useBarClearance } from "../shared/useBarClearance";
 import type { LibraryEntry } from "./library";
 import { newExerciseKey } from "./library";
 import SetStrip from "./SetStrip";
@@ -66,6 +69,8 @@ export default function SessionScreen({
   onSetLogged,
   onSkip,
   onMove,
+  onSuperset,
+  onUngroup,
   onSwap,
   onSetLoad,
   onAddMidSession,
@@ -106,6 +111,21 @@ export default function SessionScreen({
   onSetLogged: (sets: SetEntry[], at?: number) => void;
   onSkip: () => void;
   onMove: (idx: number) => void;
+  /** SUPERSET WHILE LOGGING (Dave, 2026-09-21: "I can't easily create a
+   *  superset as I'm logging"). Opens the day's own Group With picker, which
+   *  GymFlow already owns -- the live screen reads pairings OFF the program
+   *  day, so grouping has to be written there for the pair to exist at all.
+   *  Absent for a lift the day does not have, which cannot be paired with
+   *  anything (the same reason Add Exercise carries its "also on the day"
+   *  switch). */
+  onSuperset?: () => void;
+  /** BREAK IT UP (2026-09-21). The exact inverse, and it was missing: you
+   *  could make a superset from this screen and the only way out was a five
+   *  second Undo toast. ungroupToday had been written and TESTED and was
+   *  wired to nothing, which is the same drift as the missing button one
+   *  layer down. Mirrors the program editor, which offers Ungroup in the
+   *  place Superset With... would otherwise be. */
+  onUngroup?: () => void;
   onSwap: (sub: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string }) => void;
   /** HOW THIS LIFT LOADS, SET FROM IN HERE (2026-09-16, Dave: "I don't even
    *  have the option while I'm logging to select what type of weight system
@@ -183,7 +203,17 @@ export default function SessionScreen({
   // the athlete's place in the plan.
   const workLogged = logged.filter((s) => !s.warmup && !s.drop).length;
   const rampLeft = ramp.slice(rampLogged);
-  const ghost = [...rampLeft, ...planEx.sets.slice(workLogged)];
+  // THE NOW CARD SHOWS WHAT WILL ACTUALLY BE LOGGED (2026-09-21). It used to
+  // show planEx.sets[workLogged] -- the template -- while the big red button
+  // named plannedEntryAt() merged with a draft that every write cleared. Two
+  // sources, one screen, and they drifted: his card read 225 lb x 2 while the
+  // button read "Log 275 lb x 5". Both read nextSetEntry now, so the number
+  // under your thumb is the number in the fields.
+  const nextUp = nextSetEntry({ plan: planEx, logged, lastSession: lastHit?.sets ?? null });
+  const planGhosts = planEx.sets.slice(workLogged);
+  const ghost = [...rampLeft, ...(nextUp && planGhosts.length > 0
+    ? [{ ...nextUp, id: planGhosts[0]!.id }, ...planGhosts.slice(1)]
+    : planGhosts)];
   // 2026-09-11: kept per exercise. This screen stays mounted as the athlete
   // moves through the session, so one flag meant Keep on Bench also dismissed
   // Squat's suggestion, and every lift after it, for the rest of the session.
@@ -306,6 +336,11 @@ export default function SessionScreen({
     ? workLogged >= planEx.sets.length
     : logged.length > 0);
   const nextPlannedWeight = (() => { const n = plannedEntryAt(planEx, workLogged); return n?.w ?? [...logged].reverse().find((x) => !x.warmup)?.w ?? 0; })();
+  // The bar tells the foot below how much room it is taking. Its height moves
+  // with the text scale, with how many buttons it is carrying, and with the
+  // keyboard eating into the home-indicator inset, so it is measured rather
+  // than written down. See shared/useBarClearance.ts.
+  const logbarRef = useBarClearance("logbar", [planComplete, current.skipped, cond]);
 
   // D3-C in session: the day's own blocks, checked off as they happen.
   const warmBlocks = programDay?.warmUp ?? [];
@@ -348,14 +383,18 @@ export default function SessionScreen({
   // UP-ATH-17 (2026-09-06): a group, not a pair. Two members behave exactly
   // as they did; three or more finally can exist. `partner` is the next
   // member in day order, which for a pair is the same exercise it always was.
-  const labels = groupLabels(dayExercises);
+  // TODAY'S OWN PAIRS, LAID OVER THE DAY (2026-09-21). Every group question
+  // below is asked of the day's exercises, so a superset made for this
+  // session only has to change exactly one thing: the list they are asked of.
+  const dayEx = withLiveGroups(dayExercises, live.groups);
+  const labels = groupLabels(dayEx);
   const pairLabel = labels.get(exercise.id);
-  const members = groupOf(exercise, dayExercises).filter((e) => !e.filler);
+  const members = groupOf(exercise, dayEx).filter((e) => !e.filler);
   const here = members.findIndex((e) => e.id === exercise.id);
   const partner = members.length > 1 && here >= 0 ? members[(here + 1) % members.length] : undefined;
   const partnerLabel = partner ? labels.get(partner.id) : undefined;
   const partnerLiveIdx = partner ? live.exercises.findIndex((e) => e.exerciseId === partner.id) : -1;
-  const filler = fillerFor(exercise, dayExercises);
+  const filler = fillerFor(exercise, dayEx);
   const fillerLiveIdx = filler ? live.exercises.findIndex((e) => e.exerciseId === filler.id) : -1;
 
   // D5-C: the rest-cut lever shortens every stated rest toward the floor,
@@ -373,10 +412,10 @@ export default function SessionScreen({
   // resting after every set, exactly as before.
   const startRest = () => {
     if (exercise.kind === "done") return;
-    const roundRest = roundRestFor(exercise, dayExercises);
+    const roundRest = roundRestFor(exercise, dayEx);
     if (roundRest > 0) {
       const after = { ...loggedByExerciseId, [exercise.id]: (loggedByExerciseId[exercise.id] ?? 0) + 1 };
-      if (nextInGroup(exercise, dayExercises, after)) return;
+      if (nextInGroup(exercise, dayEx, after)) return;
       const eff = live.restCut ? Math.max(REST_FLOOR_SEC, roundRest - 30) : roundRest;
       onFit({ restEndsAt: Date.now() + eff * 1000 });
       return;
@@ -422,7 +461,7 @@ export default function SessionScreen({
   for (const e of live.exercises) {
     loggedByExerciseId[e.exerciseId] = e.sets.filter((x) => !x.warmup && !x.skipped && !x.drop).length;
   }
-  const pairNextId = nextInGroup(exercise, dayExercises, loggedByExerciseId);
+  const pairNextId = nextInGroup(exercise, dayEx, loggedByExerciseId);
   const pairNext = pairNextId ? dayExercises.find((e) => e.id === pairNextId) : undefined;
   const pairNextLiveIdx = pairNext ? live.exercises.findIndex((e) => e.exerciseId === pairNext.id) : -1;
 
@@ -462,13 +501,13 @@ export default function SessionScreen({
     if (exercise.kind === "done") { const e = { id: newSetId(), done: true }; onLog(e); receiptForLog(e); return; }
     // The plan is the WORK, so it is indexed by working sets logged. Warm-ups
     // sit in the same strip and must never advance the athlete's place in it.
-    const next = plannedEntryAt(planEx, workLogged);
-    if (next) {
-      const e = { ...duplicateEntry(next), ...(draft ?? {}) };
+    // The SAME answer the card is showing and the button is naming.
+    const resolved = nextSetEntry({ plan: planEx, logged, lastSession: lastHit?.sets ?? null, draft });
+    if (resolved) {
+      const e = { ...resolved, id: newSetId() };
       onLog(e); setDraft(null); startRest(); receiptForLog(e); return;
     }
-    const lastWork = [...logged].reverse().find((x) => !x.warmup && !x.drop);
-    const e = { ...(lastWork ? duplicateEntry(lastWork) : blankEntry()), ...(draft ?? {}) };
+    const e = { ...blankEntry(), ...(draft ?? {}) };
     onLog(e);
     setDraft(null);
     startRest();
@@ -568,6 +607,21 @@ export default function SessionScreen({
               {style.equipment ? styleSummary(style) : "Not Set"}
             </button>
             {style.sided && <span className="se-chip se-chip-pair"><em>Reps</em>Per Side</span>}
+            {/* SUPERSET, WHERE THE LIFT IS (Dave, 2026-09-21: "There's also
+                no superset buttons anywhere in the workout pages"). There
+                was one in this session, and it was 1.3 screens down, under
+                the whole set strip, in a list with Swap and Skip -- so
+                while you are logging, which is exactly when he asked to be
+                able to make one, it is not on the screen. It rides beside
+                Equipment now: the row of things about THIS lift you can
+                change. The row below keeps it too, because that list is the
+                complete set of moves on an exercise and losing one from it
+                would make the list lie. */}
+            {(pairLabel ? onUngroup : onSuperset) && dayExercises.length > 1 && (
+              <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={pairLabel ? onUngroup : onSuperset}>
+                <em>Superset</em>{pairLabel ? "Break Up" : "Add"}
+              </button>
+            )}
           </div>
         ) : style.equipment && (
           <div className="se-chips"><span className="se-chip se-chip-pair"><em>{weightLabel(style)}</em>{styleSummary(style)}</span></div>
@@ -577,7 +631,7 @@ export default function SessionScreen({
             definition not looking at their calendar. A fact, in the same
             line the Up Next card has carried since Group B item 12; never a
             modal, and it never stops the session. */}
-        <HyperfocusLine guard={guard} />
+        <HyperfocusLine guard={guard} variant="chip" />
         {/* THE HISTORY, AS FACTS RATHER THAN A PARAGRAPH. This was one grey
             run-on: every set from last time, then the date, then the best,
             all joined by middots and wrapping to three lines. Best is the
@@ -655,13 +709,17 @@ export default function SessionScreen({
               startRest();
             }}>Log {formatSet(exercise, suggestion.next)}</button>
             <button className="pill-act pill-quiet" onClick={() => setKeptPlan((k) => (k.includes(exercise.id) ? k : [...k, exercise.id]))}>Keep {formatSet(exercise, suggestion.from)}</button>
-          </div>
-          {/* Part 3 wave 5: every suggestion shows its basis on tap. */}
-          {suggestion.basis && (
-            <div className="ins-acts">
+            {/* Part 3 wave 5: every suggestion shows its basis on tap.
+                IN THE SAME ROW AS THE OTHER TWO (2026-09-21, the first audit
+                ever run inside a session). It had its own .ins-acts below,
+                whose 8px margin put its hit box 10px inside the Log pill's --
+                the bottom of "Log 275 lb x 5" opened Basis. Three pills are
+                one row of actions anyway; a third container under two was
+                only ever an accident of the order they were built in. */}
+            {suggestion.basis && (
               <button type="button" className="pill-act pill-quiet" aria-expanded={basisOpen} onClick={() => setBasisOpen((o) => !o)}>{basisOpen ? "Hide Basis" : "Basis"}</button>
-            </div>
-          )}
+            )}
+          </div>
           {basisOpen && suggestion.basis && (
             <div className="ins-rows ins-ev">
               <div className="ins-row"><span className="ins-k">Lift</span><span className="ins-sub">{suggestion.basis.variant}</span></div>
@@ -794,6 +852,15 @@ export default function SessionScreen({
               <button className="row-create" role="button" tabIndex={0} onClick={onAdjustTime}>Adjust Time</button>
             )}
             <button className="row-create" role="button" tabIndex={0} onClick={() => setSwapOpen(true)}>Swap</button>
+            {/* Either/or, exactly as the program editor reads: a lift that is
+                already in a superset offers the way out where the way in
+                would be, instead of two controls about the same pair. */}
+            {onSuperset && !pairLabel && dayExercises.length > 1 && (
+              <button className="row-create" role="button" tabIndex={0} onClick={onSuperset}>Superset With…</button>
+            )}
+            {onUngroup && pairLabel && (
+              <button className="row-create" role="button" tabIndex={0} onClick={onUngroup}>Break Up the Superset</button>
+            )}
             {onUpdateProgram && (
               <button className="row-create" role="button" tabIndex={0} onClick={onUpdateProgram}>Also Update the Program</button>
             )}
@@ -861,13 +928,20 @@ export default function SessionScreen({
             the plan, without editing the program. */}
         <button className="row-create" onClick={() => setAddOpen(true)}>Add Exercise</button>
       </div></div>
-      <div className="screen-foot" />
+      {/* THE FOOT IS THE LOG BAR'S OWN HEIGHT (2026-09-21, the first audit
+          ever run inside a session). .screen-foot is 32px and the log bar is
+          nearer 90 -- a 56px button, its padding, and whatever the home
+          indicator is still asking for -- so the last set row and the Add
+          Exercise button sat permanently behind it. No number typed here
+          could be right for every text size and every phone, so the bar
+          measures itself and this reads what it found. */}
+      <div className="screen-foot se-foot" />
 
       {/* THE LOG BAR (H-11 / R8, Health Push B, 2026-09-12): one bar owning
           the bottom edge with the one primary, the note editor's geometry;
           the shell has stepped its tab bar and dock aside (gym/sessionChrome). */}
       {!current.skipped && (
-        <div className="logbar">
+        <div className="logbar" ref={logbarRef}>
           {/* THE SECOND HALF OF THE BAR (2026-09-17). Once the plan is done,
               logging another set is the unusual move and moving on is the
               common one, so they swap places: the extra set keeps a secondary
@@ -880,6 +954,24 @@ export default function SessionScreen({
               ? <button className="btn btn-secondary btn-lg" onClick={() => setClockOpen(true)}>Run It Again</button>
               : <button className="btn btn-secondary btn-lg" onClick={log}>Log Another Set</button>
           )}
+          {/* DONE IS NOT THE SAME AS FINISHING THE PLAN (Dave, 2026-09-21: "I
+              still can't make an exercise as done during a workout").
+              The way on only appeared once every planned set was logged. Stop
+              at two of three because that is genuinely all you have in you,
+              and the only exit was Skip This Exercise -- a row far down the
+              screen, and the wrong word: skipped means you did none of it,
+              and it would have thrown away the two sets you did do.
+              So the way on is always there once there is anything to keep.
+              It stays SECONDARY until the plan is complete, because until
+              then logging is still the common move and moving on is the
+              exception; after it they swap, which is the 2026-09-17 ruling
+              and is unchanged. */}
+          {!planComplete && logged.length > 0 && !cond && (
+            <button className="btn btn-secondary btn-lg"
+              onClick={() => (upNextIdx >= 0 ? onMove(upNextIdx) : onFinish())}>
+              {upNextIdx >= 0 ? "Next Exercise" : "Finish Workout"}
+            </button>
+          )}
           {planComplete
             ? <button className="btn btn-primary btn-launch btn-lg"
                 onClick={() => (upNextIdx >= 0 ? onMove(upNextIdx) : onFinish())}>
@@ -890,7 +982,7 @@ export default function SessionScreen({
                   {logged.length === 0 ? "Start the Clock" : "Run It Again"}
                 </button>
               : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
-                  {logButtonLabel(planEx, workLogged, draft ?? undefined)}
+                  {logButtonLabel(planEx, workLogged, { ...(nextUp ?? {}), ...(draft ?? {}) })}
                 </button>}
         </div>
       )}

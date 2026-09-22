@@ -48,7 +48,15 @@ export default function CategoriesPage({
               return (
                 <>
                   <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
-                  <div className="row-grow" role="button" tabIndex={0} onClick={() => onEdit(c.id)}>
+                  {/* .row-grow row-press, not bare row-grow (2026-09-22): the
+                      SAME bug the program day rows had. The wrapper is the
+                      only thing bound to the tap, sized by its own content,
+                      so it measured 226x21 inside a much taller row -- the
+                      row's own top and bottom padding did nothing. .row-press
+                      already exists for exactly this and takes the row's
+                      padding with it via :has(); reusing it here rather than
+                      re-deriving the same fix a second time. */}
+                  <div className="row-grow row-press" role="button" tabIndex={0} onClick={() => onEdit(c.id)}>
                     <div className="conn-name">{c.data.name}</div>
                   </div>
                 </>

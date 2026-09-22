@@ -67,9 +67,9 @@ describe("Leave By in the Now line and the guard", () => {
 
   it("the guard warns about the leaving, inside ten minutes of it", () => {
     expect(hyperfocusGuard([withTravel("Practice", "18:00", 20)], "15:00"))
-      .toEqual({ text: "Leave for Practice at 5:40 PM", warn: false });
+      .toEqual({ text: "Leave for Practice at 5:40 PM", warn: false, title: "Leave for Practice", when: "5:40 PM" });
     expect(hyperfocusGuard([withTravel("Practice", "18:00", 20)], "17:32"))
-      .toEqual({ text: "Leave for Practice in 8 min", warn: true });
+      .toEqual({ text: "Leave for Practice in 8 min", warn: true, title: "Leave for Practice", when: "In 8 Min" });
   });
 });
 
@@ -136,12 +136,12 @@ describe("Gap Fill (item 11)", () => {
 describe("Hyperfocus Guard (item 12)", () => {
   it("states the next commitment as a fact", () => {
     const g = hyperfocusGuard([ev("Practice", "18:00")], "15:00")!;
-    expect(g).toEqual({ text: "Practice at 6 PM", warn: false });
+    expect(g).toEqual({ text: "Practice at 6 PM", warn: false, title: "Practice", when: "6 PM" });
   });
 
   it("warns inside ten minutes, in minutes", () => {
     const g = hyperfocusGuard([ev("Practice", "18:00")], "17:52")!;
-    expect(g).toEqual({ text: "Practice in 8 min", warn: true });
+    expect(g).toEqual({ text: "Practice in 8 min", warn: true, title: "Practice", when: "In 8 Min" });
   });
 
   it("nothing coming renders nothing", () => {

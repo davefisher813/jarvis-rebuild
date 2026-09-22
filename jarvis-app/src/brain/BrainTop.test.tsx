@@ -74,11 +74,13 @@ describe("BrainTop", () => {
     // told outranks watched in rankForRecall, so the rule leads.
     expect(cardRows[0]?.textContent).toContain("Bridge wins ties");
     const facts0 = [...cardRows[0]!.querySelectorAll(".fact")].map((e) => e.textContent);
-    expect(facts0).toEqual(["Known", "Rule", "Your Move", "Schedule", "Decisions"]);
+    // §AK (2026-09-21): where a strand is used is ONE fact with a list in it,
+    // not a grey fact per surface.
+    expect(facts0).toEqual(["Known", "Rule", "Your Move, Schedule, Decisions"]);
     // The watched fact reads its confidence off the readiness row: 156 over 10 is High.
     const energy = cardRows.find((r) => r.textContent?.includes("mid morning"))!;
     const factsE = [...energy.querySelectorAll(".fact")].map((e) => e.textContent);
-    expect(factsE).toEqual(["Learned", "High", "Schedule", "Plan My Day", "Your Move"]);
+    expect(factsE).toEqual(["Learned", "High", "Schedule, Plan My Day, Your Move"]);
     // Every row leads with the star; none is linked yet.
     expect(cardRows.every((r) => r.firstElementChild?.classList.contains("row-star"))).toBe(true);
     // One band: no detector is watching and nothing has faded.

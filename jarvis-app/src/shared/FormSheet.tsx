@@ -139,6 +139,15 @@ export function Row({ tone, glyph, label, meta, children, onClick, forwardTo, ch
     <div
       ref={box}
       className={"row xs-row " + className}
+      /* THE FORWARDING IS A FACT ABOUT THE HIT AREA, SO IT BELONGS IN THE DOM
+         (2026-09-21). forwardTo is a React prop and the visual auditor reads
+         the RENDERED page, so it had no way to know that a 220x24 dropdown
+         value is really a 48px row: it measured the control's own box, saw a
+         thumb 9px below it land on .row, and called the target too small. It
+         was right about the pixels and wrong about the app. The selector is
+         the same string the pointer handler uses, so a tool can resolve the
+         real target exactly as the row does, and the two cannot drift. */
+      data-forwards={forwardTo || undefined}
       {...(onClick ? pressable(onClick) : { onClick: forwardTo ? forward : undefined })}
     >
       {tone && glyph && <Tile tone={tone}>{glyph}</Tile>}

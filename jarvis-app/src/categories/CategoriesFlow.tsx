@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useCategories, useTasks, useSchedule } from "../data/NotesProvider";
+import { useCategories, useTasks, useSchedule, useNotes, useProjects, usePeople } from "../data/NotesProvider";
 import type { Category } from "./types";
 import CategoriesPage from "./screens/CategoriesPage";
 import CategorySheet, { type CategoryDraft } from "./screens/CategorySheet";
@@ -13,6 +13,9 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
   const categories = useCategories();
   const tasks = useTasks();
   const schedule = useSchedule();
+  const notes = useNotes();
+  const projects = useProjects();
+  const people = usePeople();
   const [list, setList] = useState<Category[]>([]);
   const [sheet, setSheet] = useState<SheetState>({ kind: "closed" });
 
@@ -61,9 +64,9 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
     const gone = list.find((c) => c.id === id)?.data;
     // The same unfiling the area page does. This door never even showed the
     // cost, so a delete from here stranded its tasks silently.
-    let prior: Unfiled = { tasks: [], events: [] };
+    let prior: Unfiled = { tasks: [], events: [], notes: [], projects: [], people: [] };
     const ok = await attemptWrite(async () => {
-      prior = await unfileArea(id, tasks, schedule);
+      prior = await unfileArea(id, tasks, schedule, notes, projects, people);
       await categories.remove(id);
     });
     if (!ok) return;
@@ -74,7 +77,7 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
       actionLabel: "Undo",
       onAction: async () => {
         if (gone) await attemptWrite(() => categories.restore(id, gone));
-        await attemptWrite(() => refileArea(prior, tasks, schedule));
+        await attemptWrite(() => refileArea(prior, tasks, schedule, notes, projects, people));
         await reload();
       },
     });

@@ -26,7 +26,7 @@ import InlineEdit from "../../shared/InlineEdit";
 import HeadMenu from "../../shared/HeadMenu";
 import { useLongPress } from "../../shared/useLongPress";
 import { haptics } from "../../shared/haptics";
-import { ParentLineGlyph } from "../../shared/glyphs";
+import { ParentLineGlyph, EnvelopeGlyph } from "../../shared/glyphs";
 import StepCount, { stepsOf, hasUnfinishedSteps } from "../../shared/StepCount";
 import { Nums } from "../../bigger/GoalRowRuled";
 import type { ParentLine } from "../../life/parent";
@@ -83,13 +83,13 @@ function groupItems(items: TaskItem[], by: GroupBy, goalOf: ((t: TaskItem) => st
 // tasks", "No done tasks" and "No all tasks". A template that reads wrong in
 // half its cases is not worth the line of code it saves.
 const EMPTY_TITLE: Record<TaskFilter, string> = {
-  all: "No tasks yet",
-  daily: "No dailies yet",
-  today: "Nothing due today",
-  overdue: "Nothing overdue",
-  upcoming: "Nothing coming up",
-  email: "Nothing from email",
-  done: "Nothing completed yet",
+  all: "No Tasks Yet",
+  daily: "No Dailies Yet",
+  today: "Nothing Due Today",
+  overdue: "Nothing Overdue",
+  upcoming: "Nothing Coming Up",
+  email: "Nothing from Email",
+  done: "Nothing Completed Yet",
 };
 
 // The second line exists ONLY when it carries information the user cannot
@@ -279,7 +279,13 @@ export function TaskRow({
       {/* B13 (2026-08-23): a clock and a trash can, side by side, in two
           coloured slots, with nothing saying which is which. Both say their
           names now. Reveal width is unchanged: the labels fit 88px. */}
-      <button className="task-del" onClick={() => onDelete?.(item.id)} aria-label="Delete task">
+          {/* NAME THE RECORD, which this app's own convention does in twelve
+              places and missed in five (VoiceOver sweep, 2026-09-21). On the
+              web build the swipe rail's buttons are siblings of the row, so a
+              screen reader reaching one hears "Delete task" with nothing
+              saying which. SwipeDelete, the reminder row and the bill row all
+              pass the record's name already. */}
+      <button className="task-del" onClick={() => onDelete?.(item.id)} aria-label={"Delete " + t.text}>
         <Trash2 className="ic" />
         <span className="swipe-label">Delete</span>
       </button>
@@ -409,9 +415,20 @@ export function TaskRow({
                 </>
               : parent
               ? <ParentLineGlyph p={parent} />
-              : (categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || originLabel(t))
+              : categoriesOf(t).map((id) => catName(id)).filter(Boolean).length > 0
               ? <span className="r-goal r-cat">
-                  {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || originLabel(t)}
+                  {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ")}
+                </span>
+              : originLabel(t)
+              /* WHERE IT CAME FROM WEARS A MARK (§AK, 2026-09-21, Dave's
+                 Anytime screenshot: "Email" in bare grey under one task and
+                 a dotted category under the next). An origin is a parent of
+                 sorts -- the email, the note, the paste it was lifted
+                 from -- so it takes the parent line's shape: a wordless
+                 mark ahead of plain words, the same as a category's dot. */
+              ? <span className="r-goal r-parent r-parent-plain">
+                  <span className="r-pg"><EnvelopeGlyph className="r-gm" /></span>
+                  <span className="r-goal-t">{originLabel(t)}</span>
                 </span>
               : null}
             {/* A1: the cue, where he will see it while scanning. The whole

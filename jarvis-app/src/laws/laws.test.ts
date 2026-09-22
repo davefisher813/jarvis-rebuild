@@ -406,7 +406,13 @@ describe("LAW: Apple HIG casing", () => {
   // nature (only pure literals are scanned).
   it("line starts and dot-break segments start capital", () => {
     const segsOk = (raw: string) =>
-      raw.replace(/&middot;/g, "·").split("·").every((seg) => {
+      // AN ESCAPED DOT IS STILL A DOT (2026-09-21). This read the SOURCE
+      // text, so a string written "Marked blocked \\u00b7 " carried no
+      // literal middot to split on and the whole line was judged as one
+      // segment -- which meant the capital after the break was never
+      // checked in any of the eighty places the app writes the escape
+      // instead of the character. Both spellings normalise here.
+      raw.replace(/&middot;|\\u00b7/g, "·").split("·").every((seg) => {
         // Apple's own brand casing is not a violation: iCloud, iPhone, iOS.
         if (/^i[A-Z]/.test(seg.trim())) return true;
         const first = seg.trim().match(/[A-Za-z]/)?.[0];
@@ -528,7 +534,7 @@ describe("LAW: Apple HIG casing", () => {
   // this catches is the expansion being deleted, which is how it went missing
   // the first time.
   it("every control that paints under 44px expands its hit area", () => {
-    const css = read(SRC + "/styles/components.css") + read(SRC + "/styles/uniformity.css");
+    const css = read(SRC + "/styles/components.css") + read(SRC + "/styles/uniformity.css") + read(SRC + "/styles/ruled.css");
     const bad: string[] = [];
     // class -> the painted size that makes the expansion mandatory
     const small: Record<string, string> = {
@@ -556,6 +562,13 @@ describe("LAW: Apple HIG casing", () => {
       // painted at 26px with no expander at all, and a miss lands on the toast
       // body, which does nothing, while the timer runs out.
       "toast-action": "26px Undo, the app's only take-it-back",
+      // Added 2026-09-22 (visual audit, Life's Projects and Goals shelves).
+      // Apple Music's own section head (H0, Dave 2026-09-18): 24px of bold
+      // text and a chevron that opens the area filtered. Growing the box to
+      // 44 would eat the 24pt gap to the next shelf Dave measured off his
+      // screenshot, so it keeps its rung the way a chip or capsule does --
+      // the room bought back past the paint, not a taller row.
+      "bp-shelf-head": "24px Apple Music section head, Projects and Goals lenses",
     };
     for (const [cls, why] of Object.entries(small)) {
       // Either an ::after carrying inset/height, or a wrapper that is itself
@@ -699,7 +712,14 @@ describe("LAW: Apple HIG casing", () => {
     const PROPS = /(padding|margin|gap|row-gap|column-gap|padding-(top|bottom|left|right|inline|block)|margin-(top|bottom|left|right|inline|block))\s*:\s*([^;}]+)/g;
     const bad: string[] = [];
     for (const f of files) {
-      const css = read(SRC + "/styles/" + f);
+      // A COMMENT IS NOT A DECLARATION (2026-09-21). This read raw text, and
+      // the regex runs to the next `;` or `}` -- neither of which a comment
+      // has -- so a line of prose explaining `margin-block: -9px` swallowed
+      // the rest of the sentence and reported the 16px in it as an off-grid
+      // margin. Comment bodies are blanked with their newlines kept, so the
+      // line numbers this reports stay true.
+      const css = read(SRC + "/styles/" + f)
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "));
       for (const [i, line] of css.split("\n").entries()) {
         for (const m of line.matchAll(PROPS)) {
           const value = (m[4] ?? "").trim();
@@ -1814,6 +1834,11 @@ describe("LAW: a row that is a button keeps its area", () => {
     const nested: Record<string, string> = {
       "sched-until-btn": ".sched-row",
       "sched-badge-btn": ".sched-row",
+      // Joined 2026-09-22: the time button carried -13px, written before
+      // .sched-strip existed to clip it, and never re-measured after. 6 and
+      // 3 are what .sched-row actually has free around it (see
+      // components.css and the matching RUNGS entry in tools/visual-audit.mjs).
+      "sched-time-btn": ".sched-row",
     };
     for (const [cls, row] of Object.entries(nested)) {
       const m = new RegExp("\\." + cls + "::after\\s*\\{([^}]*)\\}").exec(CSS);
@@ -4318,8 +4343,17 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
   });
 
   it("the Now rule is a hairline and a word, never a fill", () => {
+    // The flex shorthand is no longer pinned here (2026-09-21). It was
+    // `flex: 1` and is `flex: 1 1 24px` with a matching min-width, because at
+    // --type-scale 1.4 the fixed items on this row were wider than the phone:
+    // the rule collapsed to nothing and the clock painted past the right
+    // edge. What this law is about is that the rule is a HAIRLINE IN THE
+    // SYSTEM RED and never a fill, and that is what it still checks, to the
+    // pixel and to the token. How much room the hairline asks for is layout.
     expect(CSS, "the rule paints a 1px line in the system red")
-      .toMatch(/\.ruled \.sched-now \.l \{ flex: 1; height: 1px; background: var\(--sys-red\)/);
+      .toMatch(/\.ruled \.sched-now \.l \{[^}]*height: 1px; background: var\(--sys-red\)/);
+    expect(CSS, "and it keeps a floor, so it stays a rule and not a dash")
+      .toMatch(/\.ruled \.sched-now \.l \{[^}]*min-width: 24px/);
     expect(CSS, "and Running Late? beside it stays neutral")
       .toMatch(/\.ruled \.sched-late \{[^}]*background: var\(--press-3\); color: var\(--tx-1\)/);
   });

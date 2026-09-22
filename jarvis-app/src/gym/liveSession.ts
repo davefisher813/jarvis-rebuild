@@ -74,6 +74,22 @@ export interface LiveSession {
    *  receipt's minutes read startedAt + pausedMs, never the wall clock alone. */
   pausedMs?: number;
   pausedAt?: number;
+  /** A SUPERSET MADE FOR TODAY ONLY (Dave, 2026-09-21, picking "ask me each
+   *  time"). exerciseId -> groupId, for pairs made mid-session that are NOT
+   *  to reach the program.
+   *
+   *  Grouping has always been a program construct, and the live screen reads
+   *  its pairs off the day. That is right for a pair you train every week and
+   *  wrong for the one you invent because a rack is busy, so the choice had
+   *  no honest "just today" answer to offer -- it would have been a button
+   *  that lies. This is the other half: the ids are the DAY's exercise ids,
+   *  the same ones the program uses, so one overlay is enough and everything
+   *  that reads a group (the label, the filler, the round rest, what comes
+   *  next in the round) keeps reading exactly what it read before.
+   *
+   *  A stance for one session, like every other field here (LAW 17), and
+   *  absent on every session that never made one. */
+  groups?: Record<string, string>;
 }
 
 export interface Storage2 { read(k: string): string | null; write(k: string, v: string): void; remove(k: string): void }

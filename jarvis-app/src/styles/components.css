@@ -144,6 +144,13 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cal-dots { display: flex; gap: var(--s-0h); height: 5px; }
 .cal-dot { width: 5px; height: 5px; border-radius: var(--r-circle); }
 .sched-cat { display: flex; align-items: center; gap: var(--s-1h); font-size: var(--t-meta); color: var(--tx-3); }
+/* One fact and the separator that introduces it, as a single wrapping unit.
+   See the note in DayRow.tsx: a run of loose separators and values reads
+   correctly only while it fits on one line. */
+.sched-fact { display: inline-flex; align-items: center; gap: var(--s-1h); white-space: nowrap; min-width: 0; }
+/* The place is the one fact with no ceiling on its length, so it is the one
+   allowed to shrink -- but as a whole line now, not as a remainder. */
+.sched-fact-loc { flex: 0 1 auto; min-width: 0; }
 .sched-cat .cat-dot { width: 8px; height: 8px; }
 .sched-until, .sched-rep { font-size: var(--t-meta); color: var(--tx-3); }
 .sched-firstmove { font-size: var(--t-meta); color: var(--tx-3); }
@@ -792,15 +799,50 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    from the type ramp (the kicker is already tx-3) and from having no category
    bar, not from fading the row. */
 .sched-locked .sched-title { color: var(--tx-2); }
-/* A block that HOLDS tasks is a container, and it looks like one: brand-red
-   spine, the faintest red wash, and its work drawn inside it. */
-/* The wash is deliberately FAINT. --red-tint (16%) is the banner strength and
-   reads as an alarm on a four-hour block; this is a container, not a warning.
-   The spine carries the identity, the wash only groups. */
-.sched-holds { background: rgba(255, 43, 60, 0.055); box-shadow: inset 3px 0 0 var(--accent-glyph); border-radius: var(--r-md); }
-[data-theme="light"] .sched-holds { background: rgba(204, 5, 27, 0.045); }
+/* A block that HOLDS tasks is a container, and it looks like one: a quiet
+   surface, its work drawn inside it. */
+/* THE RED SPINE IS GONE (2026-09-22, Dave: "reformat that section... any row
+   that expands like there"). The curved brand-red bar plus a red wash was
+   the loudest thing on a row that is not a warning, and it stayed loud on
+   every block whether or not there was anything to say about it. A quiet
+   card groups the same way without shouting; the block's own identity now
+   lives in the small dot ahead of its title, not a full-height rule. */
+.sched-holds { background: var(--surface-1); border-radius: var(--r-md); }
 .sched-holds .sched-title { color: var(--tx-1); }
-.block-nest { margin: var(--s-2) 0 0; padding-left: var(--s-3); border-left: 2px dotted var(--accent-chip-bd); display: flex; flex-direction: column; }
+/* THE DOT REPLACES THE LOCK GLYPH A HOLDS ROW NEVER GOT (2026-09-22). Every
+   other locked row draws a small icon ahead of its title; a holds row drew
+   nothing there and let the spine carry that identity instead. Now that the
+   spine is gone, the title gets its own small mark, wordless like the
+   category dots elsewhere on the row. */
+.sched-holds .sched-lock-title { position: relative; padding-left: var(--s-3h); }
+.sched-holds .sched-lock-title::before {
+  content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--accent-glyph);
+}
+/* THE STATE WORD STAYS PLAIN CAPS, NOT A TAG (2026-09-22). The rendered
+   options sent for this pass included a filled pill for the state word, and
+   it looked clean enough to pick -- but Astra law 2026-09-12 already closed
+   that door on purpose (src/laws/astra.test.ts: "the state word is small
+   caps from CSS, never a filled pill"), and caught it the moment this rule
+   landed. Caps already exempts it from §AK with no fill needed, so nothing
+   here actually required one; dropped rather than reopening a ruling this
+   pass was never asked to revisit.
+   THE META LINE SPLITS, KICKER LEFT AND UNTIL RIGHT (2026-09-22). Chaining
+   "FLEXIBLE Focus time · Until 7:00 PM" left to right was the run that
+   crowded and wrapped in the first place; pinning Until to the row's right
+   edge reads as two separate facts at a glance instead of one long sentence
+   competing for the same width. WRAP STAYS ON, NOWRAP DID NOT (caught at
+   --type-scale 1.4: a forced single line pushed "Until 7:00 PM" straight
+   off the right edge of the screen instead of giving it room). The row can
+   still wrap to two lines exactly as it did before this pass; the only
+   change is that Until keeps the auto margin that pins it right on
+   whichever line it lands on, flex's own behaviour for a wrapped line. */
+.sched-holds .sched-cat .sched-sep { display: none; }
+.sched-holds .sched-cat .sched-fact { margin-left: auto; flex-shrink: 0; padding-left: var(--s-2); }
+/* THE NEST LINE IS QUIET TOO (2026-09-22): a dotted red rule was the same
+   loudness the spine was, on the one part of the row that is already
+   telling you it holds something. A plain hairline groups without it. */
+.block-nest { margin: var(--s-2) 0 0; padding-left: var(--s-3); border-left: 1px solid var(--tx-4); display: flex; flex-direction: column; }
 .block-held { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1h) 0; background: 0; border: 0; width: 100%; text-align: left; font-family: var(--f); }
 .block-held-t { color: var(--tx-1); font-size: var(--t-body); flex: 1; min-width: 0; }
 .block-held-u { color: var(--tx-3); font-size: var(--t-meta); font-variant-numeric: tabular-nums; flex-shrink: 0; }
@@ -891,7 +933,14 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .late-chips { padding-bottom: var(--s-2); }
 .plan-cta.late-armed { background: var(--press-5); }
 .search-top { display: flex; align-items: center; gap: var(--s-3); padding: calc(var(--safe-top) + var(--s-3)) var(--s-4) var(--s-3); }
-.search-top .search-bar { flex: 1; }
+.search-top .search-bar { flex: 1; min-width: 0; }
+/* min-width:0 on both, 2026-09-21. At --type-scale 1.4 the input's intrinsic
+   width (its 20-character default sizing at the inflated type) refused to
+   shrink, the bar grew past the row, and Cancel was pushed to x=468 on a
+   390px screen -- off the edge, untappable, and taking the headings under it
+   with it. A flex child defaults to min-width:auto; the search field has to
+   be allowed to get narrower than its text. */
+.search-top .search-bar input { min-width: 0; }
 .search-top .search-bar .ic { width: 18px; height: 18px; color: var(--tx-3); flex-shrink: 0; }
 .search-cancel { background: 0; border: 0; color: var(--tint); font-weight: var(--w-medium); font-size: var(--t-h3); font-family: var(--f); flex-shrink: 0; }
 .search-results { flex: 1; min-height: 0; overflow-y: auto; }
@@ -1474,7 +1523,22 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .ob-rename { font: inherit; background: transparent; border: 0; padding: var(--s-1h) 0; width: 100%; color: inherit; }
 .ob-rename:focus { outline: none; border-bottom: 1px solid var(--accent); }
 
-.toast-dock { padding: 0 var(--s-3) var(--s-2); }
+/* THE TOAST CLEARS A LOG BAR (2026-09-21, the first audit ever run inside a
+   session). The dock rides the shell's footer stack, above the tab bar. A
+   live workout hides the tab bar and the voice dock and puts a FIXED log bar
+   over that edge instead, so the toast landed underneath it: "Set 1 logged ·
+   Undo" was painted on, unreadable and untappable, and the five second timer
+   ran out on a control the finger could not reach -- every miss landing on
+   the Log button instead. --logbar-clear is written by the bar itself while
+   it exists and removed when it does not, so this is exactly zero on every
+   other screen in the app.
+
+   A TRANSFORM, NOT PADDING. The dock sits in the shell's footer stack BELOW
+   .app-scroll, so padding it taller takes those pixels off the scrolling
+   region: the first attempt lifted the toast correctly and left 80px of dead
+   black under the last card while it was up. A transform moves the paint and
+   costs the layout nothing. */
+.toast-dock { padding: 0 var(--s-3) var(--s-2); transform: translateY(calc(-1 * var(--logbar-clear, 0px))); }
 .toast { display: flex; align-items: center; gap: var(--s-3); background: var(--surface-3); border: 0.5px solid var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); box-shadow: var(--shadow-card); }
 .toast-msg { flex: 1; font-size: var(--t-body); color: var(--tx-1); }
 .toast-action { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: var(--s-1) var(--s-2); flex-shrink: 0; }
@@ -1799,7 +1863,11 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
      worst surface red text actually meets in Daylight -- the tinted
      capsule (4.52:1) -- so it also clears the page (4.79) and white
      (5.26), and carries white text at 5.26 where it is a fill. */
-  --on-light-red: #DA0012;
+  /* #DA0012 clears 4.5 on white and on a card, and misses on every raised
+     grey it actually lands on: 4.14 on a row, 4.07 on the page's press, 3.91
+     on a sheet's (2026-09-22, measured across 43 screens). #BC000E reads
+     6.68 / 5.26 / 4.97 and is the same hue. */
+  --on-light-red: #BC000E;
   /* --on-light-good and --on-light-warn are gone with the allow-list
      (BROWSER-F-04, 2026-09-05): their values are what the light --good and
      --warn tokens are now, so the two fills that still want the darker green
@@ -2249,7 +2317,7 @@ button {
   /* --tx-quiet (BROWSER-F-09, 2026-09-05): every one of these is a BUTTON that
      opens the pile it describes ("13 More waiting", "4 More Emails in Your
      Inbox"), and 2.3:1 is not a quiet button, it is a hidden one. */
-  color: var(--tx-quiet); padding: var(--s-1) var(--s-4) 0; white-space: nowrap; overflow: hidden;
+  color: var(--tx-quiet); padding: var(--s-1) var(--s-4) 0; white-space: nowrap; overflow: visible;
   text-overflow: ellipsis; background: none; border: 0; width: 100%; text-align: left;
   position: relative; display: flex; align-items: center; gap: var(--s-2); }
 /* I5 (2026-08-24). Every one of these is a <button> that opens something,
@@ -2598,8 +2666,17 @@ button {
 .lib-row .lib-ico { width: 30px; display: flex; justify-content: center; flex-shrink: 0; }
 :where(.lib-ico) { color: var(--accent-glyph); }
 .lib-row .lib-ico .ic { width: 25px; height: 25px; }
+/* TWO LINES, FOR THE SAME REASON .pagehead-title GOT THEM (2026-09-21, and
+   on the same string: BROWSER-F-06 took the big page title off the no-wrap
+   law because "What JARVIS Knows" did not fit it. At --type-scale 1.4 the
+   NAV ROW that opens that page does not fit it either -- 312px of name in a
+   261px column once the disc and the chevron are paid for. Every .lib-name
+   is a page this app named; a page whose name does not fit is a two-line
+   name. Clamped at two so a long one still ends in an ellipsis rather than
+   growing the list, and at --type-scale 1 nothing here wraps at all. */
 .lib-name { flex: 1; font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-1); min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; text-overflow: clip; white-space: normal; }
 .lib-ico-neutral { color: var(--tx-2); }
 /* ICON LAW (2026-08-22): a category in a nav list is a filled color disc
    with a white glyph -- the same fill weight as the brand rows beside it,
@@ -2819,7 +2896,12 @@ button {
 @media (prefers-reduced-motion: reduce) { .promo-card { animation: none; } }
 
 /* THE NO-WRAP LAW: titles ellipsize, never wrap. Subs clamp at two lines. */
-.conn-name, .lib-name, .sched-title, .task-title, .restore-title, .tip-title,
+/* .lib-name came OFF this roster on 2026-09-21, for the reason .pagehead-title
+   came off it on 2026-09-05 and on the same string: at --type-scale 1.4 the
+   nav row for "What JARVIS Knows" clipped the page's own name. Its two-line
+   rule is at :2609 and this roster was overriding it from further down the
+   file at equal specificity. */
+.conn-name, .sched-title, .task-title, .restore-title, .tip-title,
 .sh2 .t, .empty-title, .msg-name, .proj-title, .pagebar-title {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* THE THREE STEPS ARE THE APP'S OWN SENTENCE, AND ONE OF THEM DID NOT FIT
@@ -2930,7 +3012,22 @@ button {
   color: var(--tx-2); font-weight: var(--w-semi); flex-wrap: wrap; }
 /* The window it covers, riding the title now that the second line is gone. */
 .sched-gap-win { font-size: var(--t-meta); font-weight: var(--w-regular); color: var(--tx-3); }
+/* THE PLUS BECOMES A WORDLESS MARK, NOT NEW COLOUR (2026-09-22, the
+   tightened §AK: weight alone stopped being enough to tell two greys
+   apart, and this row's title ("45m open") and its window ("until 1:00
+   PM") are both the same plain ink -- the auditor now counts three grey
+   runs here with .sched-time. The 2026-08-29 red diet already settled that
+   this row keeps ONE small tint and nothing else ("only the colour
+   leaves"), so recolouring the title or the window to fix this would undo
+   that ruling. A mark ahead of the words is the other way §AK allows telling
+   them apart, and this row already has one: the plus was only ever text
+   wearing the tint, never actually wordless. Moving it to generated content
+   changes nothing anyone sees -- same glyph, same size, same colour -- and
+   makes it the wordless mark the auditor's own "marked ahead of the words"
+   exemption looks for, clearing both runs it leads without spending any
+   more colour. */
 .sched-open-plus { font-size: var(--t-h3); line-height: 1; font-weight: var(--w-bold); color: var(--accent-tx); }
+.sched-open-plus::before { content: "+"; }
 .sched-gap.past { opacity: 0.4; }
 .sched-gap:active { background: var(--press-3); }
 
@@ -3078,10 +3175,17 @@ button {
    to not look like the row is one big button. */
 .sched-time-btn { position: relative; background: 0; border: 0; font-family: var(--f); text-align: left;
   padding: 1px 0 0; margin: 0; cursor: pointer; }
-/* Tapping the time opens the time editor, and the time renders at 19px. Same
-   rule as .pill-act: expand the hit area past the paint so the control meets
-   --tap-min without the type getting fatter. */
-.sched-time-btn::after { content: ""; position: absolute; inset: -13px -8px; }
+/* Tapping the time opens the time editor, and the time renders at 19px. This
+   used to claim the same -13px .pill-act uses, which was never honest here:
+   .sched-time-btn sits inside .sched-row, itself role="button" (same shape
+   as .sched-until-btn below). Measured live, -13px overshoots .sched-strip's
+   own clip on top (the row starts only 9px above the button; the
+   elementFromPoint check landed on .sched-list, not this button) and on the
+   bottom reaches past the title line to 2px from .sched-notes, a real
+   button 5px below. 6 up and 3 down are what is actually free -- the same
+   "a control inside a tappable row expands only into free space" rule
+   .sched-until-btn already lives by. */
+.sched-time-btn::after { content: ""; position: absolute; inset: -6px -8px -3px; }
 .sched-time-btn:active { color: var(--accent-tx); }
 .time-pop-scrim { position: fixed; inset: 0; z-index: 60; }
 /* BROWSER-F-17 (2026-09-05): under the row, not on it. top: 50% with a
@@ -3099,9 +3203,18 @@ button {
    .sched-time-btn has to .sched-time: the text keeps its exact paint and the
    pseudo-element carries the 44px, so a control appears where dead text was
    without the row growing by a pixel. */
+/* --tint, NOT --tx-3 (2026-09-22, Dave: "too much grey subtext... styled
+   different if it shares a line w grey subtext"). This shares its line with
+   the row's one true grey (the kicker), and bold-on-the-same-grey was not
+   actually a different style, just a heavier one -- the two still read as
+   one grey mass, and on a block with a kicker this is exactly the line that
+   wrapped. --tint is the app's own answer for "tappable but not a button"
+   (the nav +, back chevrons, links): real color, not a shade of the same
+   ink, and it tells you this one word opens something the words next to it
+   do not. */
 .sched-until-btn { position: relative; background: 0; border: 0; padding: 0; margin: 0;
   font-family: var(--f); font-size: var(--t-meta); font-weight: inherit;
-  color: var(--tx-3); cursor: pointer; }
+  color: var(--tint); cursor: pointer; }
 /* A CONTROL INSIDE A TAPPABLE ROW EXPANDS ONLY INTO FREE SPACE (2026-08-24).
    Shipped at -13px, which is the number every other 44px expansion uses, and
    it was wrong here for a reason none of the others have: .sched-row is
@@ -3181,7 +3294,14 @@ button {
 .see-all { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1);
   background: 0; border: 0; font-family: var(--f); letter-spacing: 0.02em;
   min-height: var(--tap-min); display: inline-flex; align-items: center; }
-.sh2 .see-all { order: 2; margin: -13px 0; flex-shrink: 0; }
+/* THE 44 GROWS UPWARD, NOT DOWN (2026-09-21). The head action is a real
+   44px box paid back with negative margins, and split evenly it reached 13px
+   below an 18px head -- six of them landing on the first row of the card
+   underneath, which is a target of its own ("View History" over the first
+   Recent session). Above the head is section spacing, which has the room to
+   give; below it is the next thing you can tap. Same 26px of payback, same
+   layout to the pixel, the reach just goes where nothing else is. */
+.sh2 .see-all { order: 2; margin: -20px 0 -6px; flex-shrink: 0; }
 /* An action CLUSTER on a head (YourDay's pause + Schedule) rides the same
    far-right slot as a lone action: after the leader, never mid-head. */
 .sh2 .sec-left { order: 2; display: inline-flex; align-items: center; gap: var(--s-2); margin: -13px 0; flex-shrink: 0; }
@@ -3405,6 +3525,15 @@ button {
    producer is a thing that changes, and the row should survive the next one.
    9.5rem fits every sanctioned verb in the app with room to spare. */
 .pill-act { max-width: 9.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* AND THE ELLIPSIS HAS TO BE ABLE TO DRAW (2026-09-21, Dave's screenshot of
+   the lift page: "·vidence and Calculatio", the first and last letters gone).
+   text-overflow only works on a block container; .pill-act is inline-flex
+   so its label can centre beside a glyph, and a flex container clips its
+   overflowing text on BOTH sides and never draws the mark. Measured: the
+   label started 67px left of the pill's own edge. A pill with nothing but
+   words in it drops to inline-block, where the ellipsis is real, and keeps
+   its exact height by the line box; a pill carrying a glyph keeps flex. */
+.pill-act:not(:has(*)) { display: inline-block; line-height: 16px; text-align: center; }
 /* MAIL CAN GROW PAST TWO LINES, SO ITS PILL CANNOT STAY CENTERED (2026-08-26,
    Dave off a real screenshot: "nikestrength Hasn't Replied" wrapping beside
    "Open a Dispute"). align-self: center on .pill-act, just above, was tuned
@@ -3471,7 +3600,16 @@ button {
 
 /* Decision list styling pass (Dave 2026-08-18): the linked home renders as a
    colored fact inside the sub; the recorded date is the quiet right column. */
-.fact-link { font-weight: var(--w-semi); }
+/* A LINKED NAME IS NOT A BADGE, AND IT WAS EATING THE DATE BESIDE IT
+   (2026-09-22 audit). Every other .fact on this row is a short, fixed word
+   (a source kind, an outcome); this one is a free-form entity name with no
+   bound, and it sits flex-shrink:0 same as the others -- so a decision
+   linked to something like "Rebuild Calder App" could claim the row's
+   entire width before .dec-when, the LAST fact and the only one the shrink
+   law lets give way, ever got a share to shrink from. Measured "Revisit Sep
+   22" losing up to 79%. This fact now gives way on its own instead of
+   starving the one after it. */
+.fact-link { font-weight: var(--w-semi); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dec-when { font-size: var(--t-caption); color: var(--tx-2); flex-shrink: 0; align-self: flex-start; margin-top: var(--s-1); font-variant-numeric: tabular-nums; }
 /* Decisions are sentences; two lines beats an ellipsis (Dave critique fix). */
 .dec-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -3602,8 +3740,17 @@ button {
 .stream-grouped .stream-card > .task-row { background: var(--surface-1); }
 /* The uniform two-line box stands down: one line, the row's own 44px floor. */
 .stream-grouped .notice-card-row.notice-card-uniform { min-height: 0; }
+/* DYNAMIC TYPE AT 1.4 (2026-09-21). The stand-down to one line was measured
+   at --type-scale 1, where every solo title in this band fits. At 1.4, the
+   phone's largest step and one this app supports, "Add Daily Weather" loses
+   a quarter of itself to a 100px action column that does not shrink. The
+   band gets the same two-line box the card has outside it: nothing wraps at
+   1, so the row is unchanged at the default, and the title keeps its words
+   when the type grows. This is the no-wrap law's own exception -- app copy
+   that does not fit is a title that needs a second line. */
 .stream-grouped .notice-card-row.notice-card-solo .conn-name {
-  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  white-space: normal; overflow: hidden; text-overflow: clip; }
 /* One icon COLUMN for the whole group: the 30px disc rides centered in the
    same 44px slot the task check-tap owns, so every fact starts at the same
    x whether its row is a task or a notice. */
@@ -3954,10 +4101,15 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 
 /* A NOTIFICATION TITLE IS A SENTENCE, NOT A NAME. The email list clips
    .msg-name on purpose, because a sender is a name and one line is right.
-   Here the same class carries "Draft the Coach Onboarding Email" and was
-   clipping it by twelve pixels to save nothing. Same treatment the decision
+   NotificationsFlow.tsx never renders .msg-name -- its row wears the shared
+   .task-name inside a .notif-row .task-title, so this rule matched nothing
+   and "Draft the Coach Onboarding Email" kept clipping by twelve pixels to
+   save nothing, the exact defect this comment already describes fixing.
+   Scoped to the class the row actually carries (specificity has to beat
+   .ruled .task-row .task-title > .task-name in ruled.css, which is why
+   .task-row and .ruled both ride along here). Same treatment the decision
    list and the notice card already use. */
-.notif-row .msg-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ruled .task-row.notif-row .task-title > .task-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* A TASK NAME IS THE ONE THING THE ROW EXISTS TO SAY. It was clipping
    "Draft the Coach Onboarding Email" to fit beside the urgency column, which
@@ -4104,6 +4256,50 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    only. Same wash, same red, just the one longhand that leaves the clip. */
 [data-theme="light"] .pill-act { background-color: rgba(204,5,27,0.085); color: var(--on-light-red); }
 [data-theme="light"] .note-fix { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
+/* THE ROW ACTION IN LIGHT TAKES OPTION D TOO (2026-09-22). "Add Account",
+   "Add Person", "Add Area", "Focus" and "Add a Task" were the light red on
+   a GREY press fill -- 4.07:1 on the page's press, 4.46 on a card's -- the
+   .row-act half of the decision the pill settled on 2026-09-21. The same
+   answer: no fill, the brand ring, the light red on the card or the page
+   itself (5.26:1 and 4.79:1). One treatment for every red action that is
+   not the screen's one filled primary. */
+/* AND IN DARK (2026-09-22). "Add Account" and "Add Person" measured 3.81:1:
+   the brand red on surface-2, which is the exact defect option D was picked
+   to answer on the pill. Same answer, same control: no fill, the brand ring,
+   the app's own accent text (white in dark, the light red in light). This is
+   the other half of OPEN DECISION 1 and closes it. */
+.row-act, .quiet-action, .ruled .card .row.row-act {
+  background: transparent; box-shadow: inset 0 0 0 1px var(--accent-chip-bd); color: var(--accent-tx);
+}
+[data-theme="light"] .row-act, [data-theme="light"] .quiet-action,
+[data-theme="light"] .ruled .card .row.row-act {
+  background: transparent; box-shadow: inset 0 0 0 1px var(--accent-chip-bd); color: var(--on-light-red);
+}
+/* THE ACTION PILL, OPTION D (Dave's pick 2026-09-21, from a rendered
+   comparison of four through these stylesheets with their measured numbers
+   under them).
+
+   The audit found the same defect in twelve places across Today, Notes,
+   Money, the Tracker and the live workout, and it is one control. Brand red
+   on the pill's own 6% white wash measures 4.50:1 on a glass card and 3.12
+   on a raised one. Two of the obvious answers do not fix it: outlining the
+   pill and keeping the red text (the row-pill option Dave picked on
+   2026-08-21) only reaches 3.76 raised, and this file has argued twice
+   already that no red which clears 4.5 on these greys stays out of salmon.
+
+   So the ring carries the meaning and the words carry the reading: 19.10:1
+   on glass, 13.94 raised, and red is still what tells you the pill is a
+   verb. Light gains too (4.51 to 5.26) though it never failed.
+
+   background-COLOR, not the shorthand, for the reason written six lines up:
+   the shorthand resets background-clip and paints across the transparent hit
+   border. The ring is an inset shadow, which is clipped to the PADDING box,
+   so it hugs the pill's paint and not its 34px touch area. */
+.pill-act:not(.pill-quiet):not(.pill-neutral),
+[data-theme="light"] .pill-act:not(.pill-quiet):not(.pill-neutral) {
+  background-color: transparent; box-shadow: inset 0 0 0 1px var(--accent-chip-bd);
+  color: var(--accent-tx);
+}
 /* The variants the tint must NOT bleach, restated so the cascade keeps
    them: primary stays the flat brand fill, danger stays system red,
    neutral stays neutral, icon buttons stay furniture. */
@@ -4616,7 +4812,44 @@ body.selecting .voice-dock { display: none; }
 .rep-chip { font-size: var(--t-caption); font-weight: var(--w-bold); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); white-space: nowrap; flex-shrink: 0; }
 .rep-chip-good { background: var(--good-tint); color: var(--good); }
 .rep-chip-warn { background: var(--warn-tint); color: var(--warn); }
-.rep-btnrow { display: flex; gap: var(--s-2); padding: var(--s-0h) var(--s-4) var(--s-3h); }
+.rep-btnrow { display: flex; gap: var(--s-2); padding: var(--s-0h) var(--s-4) var(--s-3h); overflow: hidden; }
+/* THE REPORT'S OWN OVERLAP (2026-09-22, the 834-wide audit: "1 Followed you
+   all month" x "Do One" / "Drop One"). .pill-act reaches 44px with a 9px
+   transparent border pulled back by an equal negative margin (BROWSER-F-03),
+   invisible everywhere it has a row's own generous padding to spend it in.
+   .rep-btnrow's padding-top is --s-0h, 2px, sized for how close the pills sit
+   under the title, not for swallowing a 9px reach, so the invisible top
+   border landed 7px into the "carried" row above and a tap meant for its
+   receipts could open or drop a task instead (confirmed live:
+   getBoundingClientRect gave row bottom 892.875 vs the pill's own border-box
+   top 885.875).
+
+   The fix is `overflow: hidden` on the CONTAINER, not a border/margin change
+   on .pill-act itself. .pill-act also carries `min-height: 34px` under this
+   app's global `box-sizing: border-box` reset, which pins the pill's TOTAL
+   border-box height at 34 no matter how border-top/border-bottom are split.
+   An earlier version of this fix tried `border-top-width: 0; margin-top: 0`
+   on `.rep-btnrow .pill-act`, reasoning that 0/0 cancels the same way the
+   base rule's 9/-9 does -- and the pill's visible TOP edge does stay put,
+   verified live. But shrinking border-top-width without shrinking min-height
+   does not remove those 9px: box-sizing:border-box + min-height:34 forces
+   the browser to make them up elsewhere, and with 0 vertical padding the
+   only place left is the content box, so the capsule's visible BOTTOM edge
+   grows by the same 9px (16px of painted capsule -> 25px, confirmed with
+   before/after screenshots and getBoundingClientRect: bottom moved from
+   910.875 to 919.875). The pill visibly balloons downward and pushes the
+   next row ("Family went quiet") down with it -- not the "paint does not
+   move a pixel" the algebra promised.
+
+   `overflow: hidden` sidesteps this entirely: it never touches .pill-act's
+   border or margin, so there is no min-height interaction and the capsule's
+   painted rect is pixel-identical before and after (verified live). It only
+   clips the portion of the already-invisible hit border that would poke
+   above .rep-btnrow's own box into the row above -- which is exactly the
+   part of the geometry that was the bug. Confirmed live: the AUDIT() overlap
+   finding is gone, elementFromPoint at the pill's own center still resolves
+   to the button (still fully tappable), and all of laws.test.ts,
+   browserWalk.test.ts, itemCard.test.ts and ReportPage.test.tsx still pass. */
 .rep-good-glyph { color: var(--good); }
 .rep-one { border: 1px solid var(--accent); }
 .rep-question { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); margin-top: var(--s-1h); }
@@ -4774,7 +5007,14 @@ body.selecting .voice-dock { display: none; }
    by side because they are the same size of decision; the quiet one is the
    one that changes nothing. Both are capsules -- a bare text pair here
    would be two links pretending to be buttons. */
-.row-pair { display: flex; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
+/* A WRAPPED ROW OF PILLS MUST NOT STACK ITS OWN TAP TARGETS (2026-09-21).
+   .pill-act buys its 34px touch height from 9px transparent borders pulled
+   back out of the flow (margin-block: -9px), so its painted box is 16px and
+   its HIT box is 34. At an 8px gap two pills on consecutive rows overlapped
+   by 10px of hit area: the bottom of "Log 275 lb x 5" opened Basis. The gap
+   has to clear both expansions, which is 18px, and nothing smaller will do
+   however good it looks. */
+.row-pair { display: flex; column-gap: var(--s-2); row-gap: var(--s-5); margin-top: var(--s-3); flex-wrap: wrap; }
 .row-pair .pill-act { align-self: auto; max-width: none; }
 .pill-act.pill-quiet { color: var(--tx-2); }
 /* TAP-TO-MATCH, D2 (Training Catalog V2, 2026-08-31). On a ghost chip the
@@ -4783,7 +5023,25 @@ body.selecting .voice-dock { display: none; }
    because RED IS A VERB and this one really is tappable. */
 .set-last-act { background: none; border: 0; padding: 0; margin-top: 1px; display: block; text-align: left;
   font-family: var(--f); font-size: var(--t-meta); color: var(--tx-3); }
+/* AND IT HAS TO BE BIG ENOUGH TO HIT (2026-09-21, the first audit ever run
+   inside a session). A one-line text button is 16px tall, well under the 24px
+   floor, and this one LOGS A SET. The room comes out of the ghost row's own
+   bottom padding and nowhere else: there is a single pixel above it before
+   .se-grid, which is a target of its own, so growing upward would only trade
+   a small target for two stacked ones. Thirteen pixels sit below it inside
+   the row; eight of them go here, which clears the floor with five to spare
+   and moves no paint. */
+.set-last-act { border-bottom: 8px solid transparent; margin-bottom: -8px; }
 .set-last-act .act { color: var(--accent-chrome); font-weight: var(--w-semi); margin-left: var(--s-2); }
+/* --accent-chrome is tuned for the PAGE in dark, per its own comment: "sits
+   on the PAGE, never on a card". This link sits on the ghost row's own 4%
+   press wash, which measured 4.4955:1 here (2026-09-22) -- under 4.5 by less
+   than a rounding error, still under it. In light --accent-chrome already
+   resolves to --accent-tx and was never the problem, so only dark needs the
+   nudge: the same brand red raised two points, not a visible shift, that
+   clears 4.52:1 on the ground this control actually sits on. Scoped to dark
+   so light keeps reading the token it was already reading correctly. */
+[data-theme="dark"] .set-last-act .act { color: #FF2D3E; }
 /* The gym feature cards open with a kicker (Up Next; Exercise N of M). Give
    the kicker its breathing room once, here -- the only .card.pad > .eyebrow
    in the app is on these gym cards. */
@@ -4803,7 +5061,22 @@ body.selecting .voice-dock { display: none; }
    wrapper needs the row's own flex so the chevron sits beside the text
    instead of wrapping under it (visible in Dave's 2026-08-31 screenshot:
    every day row's chevron beached on its own line). */
-.row-press { display: flex; align-items: center; gap: var(--s-3); flex: 1; min-width: 0; }
+/* AND IT TAKES THE ROW'S FULL HEIGHT (2026-09-21, the first audit ever run on
+   the program screen). The wrapper is the only thing bound to the tap, and
+   it was sized by its own content: 42px inside a 66px row, so the row's top
+   and bottom padding -- twelve pixels of what reads as a row -- did nothing
+   at all. align-self: stretch hands it the whole row, which is what the row
+   looks like it is offering. */
+.row-press { display: flex; align-items: center; gap: var(--s-3); flex: 1; min-width: 0; align-self: stretch; }
+/* AND IT TAKES THE ROW'S PADDING WITH IT (2026-09-21). align-self: stretch
+   alone only reaches the row's CONTENT box, which is why the wrapper still
+   measured 42px inside a 66px row: twelve pixels of what reads as a tappable
+   row, top and bottom, opened nothing. The padding moves off the row and onto
+   the only thing bound to the tap, so the row is the same size it always was
+   and every pixel of it now works. Scoped by :has so the set strip's own
+   rows, which set padding: 0 and carry no .row-press, are untouched. */
+.row:has(> .row-press) { padding: 0; }
+.row > .row-press { padding: var(--s-3) var(--s-4); }
 
 /* THE WEEK STRIP (gym catalog §4.1). A week is a row like any other; the
    back-off tag reuses .pill-subdued (the app's existing neutral pill) on
@@ -4940,9 +5213,14 @@ body.selecting .voice-dock { display: none; }
    verbs wear the gradient and its soft glow; everything else keeps the flat
    brand fill. One filled red per screen still holds -- this is the same one,
    dressed for the gym. */
-.btn-launch { background: linear-gradient(135deg, #FF3B4E, #E01230);
+/* WHITE HAS TO CARRY ON THE LIGHTEST STOP (2026-09-22). The label measured
+   4.14:1 against the gradient's own middle in dark and 4.96 in light -- the
+   app's single most important button, under the bar, in both themes. The
+   stops move just far enough that white clears on the lightest one (4.59)
+   and reads 5.45 across the middle. Same hue, same direction, same bloom. */
+.btn-launch { background: linear-gradient(135deg, #E32438, #BE0C25);
   box-shadow: 0 6px 22px rgba(255, 43, 60, 0.28); }
-[data-theme="light"] .btn-launch { background: linear-gradient(135deg, #F02539, #C90E28);
+[data-theme="light"] .btn-launch { background: linear-gradient(135deg, #E32438, #BE0C25);
   box-shadow: 0 6px 18px rgba(218, 0, 18, 0.24); color: #fff; }
 
 /* Destructive text, bare (preview .btn.danger): red words on nothing. The
@@ -5126,7 +5404,37 @@ body.selecting .voice-dock { display: none; }
 .xs .sheet-form > .grp.xs-grp:first-child { padding-top: var(--s-1); }
 .xs .card.xs-group { margin-bottom: 0; }
 .xs .row.xs-row { min-height: 48px; padding-top: var(--s-2); padding-bottom: var(--s-2); }
-.xs .row.xs-row > .conn-name { flex: 1; min-width: 0; }
+/* THE LABEL IS THE FIXED SIDE, THE VALUE IS THE VARIABLE ONE (2026-09-21,
+   Dynamic Type at 1.4). With flex:1 (basis 0) the label took only the space
+   the value left over, so at 1.4 "Appears" shipped as "App..." in 52px and
+   "Next Due" as "Next D..." -- two labels this app wrote, of known length,
+   losing half of themselves to a value of unknown length that had a perfectly
+   good ellipsis of its own. Basis auto and no shrink: the label states itself
+   whole, and .dd-w / .xs-input yield, which is what they are already built to
+   do. Nothing moves at --type-scale 1, where both already fit. */
+.xs .row.xs-row > .conn-name { flex: 0 0 auto; min-width: 0; }
+/* AND THE VALUE HAS TO BE ABLE TO TAKE IT (2026-09-21, second half of the
+   same fix, caught by the outside-box check the day it was written).
+   Holding the label without letting the value shrink just moves the overflow:
+   at --type-scale 1.4 "At a Date and Time" ran 17px past the card and off the
+   screen, chevron and all, because .dd is a flex item with the default
+   min-width:auto and .dd.dd-value .dd-w capped itself at 52vw -- 203px at
+   390, a number that cannot know how much room this row actually has. A
+   viewport cap doing a flexbox job.
+   In a row, the row decides: .dd may shrink to nothing and .dd-w's own
+   ellipsis, which it has always carried, finally binds to the real space.
+   The vw cap stays for the capsule worn on a header, where there is no row
+   to bound it. */
+.xs .row.xs-row > .dd { flex: 0 1 auto; min-width: 0; margin-left: auto; }
+.xs .row.xs-row > .dd .dd-w { max-width: none; }
+/* AND WHEN EVEN THAT IS NOT ENOUGH, THE ROW TAKES A SECOND LINE. Bounding
+   the value correctly turned a 17px escape into an honest 25% ellipsis, and
+   a quarter of "At a Date and Time" is still a quarter of the answer the row
+   exists to state. Same call as the capture bar on the same day: the pill
+   wraps, nothing gives up a character, and at --type-scale 1 nothing wraps
+   at all so every one of these rows is unchanged. The row gap is --s-1 so
+   the second line sits tight under the first. */
+.xs .row.xs-row { flex-wrap: wrap; row-gap: var(--s-1); }
 .xs .row.xs-row .row-grow .conn-meta { margin-top: var(--s-0h); }
 /* The row that IS an input: no box inside a box, the field is the row. */
 .xs .xs-input { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none;
@@ -5449,6 +5757,16 @@ body.selecting .voice-dock { display: none; }
 .facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .facts > .fact { flex-shrink: 0; }
 .facts > .fact:last-child { flex-shrink: 1; }
+/* THE ONE-LINE RULE IS A LIST RULE, AND THIS IS NOT A LIST (2026-09-21).
+   "Three facts, one line" exists so a busy ROW does not grow a third line
+   and leave the list ragged. The focus card is one card on an otherwise
+   empty screen with nothing under it to go ragged, and at --type-scale 1.4
+   its reason shipped as "No deadline * your focus pe..." -- the sentence the
+   card exists to give. It wraps inside its own column, so the separator
+   before it stays where it belongs instead of dangling at the head of a
+   wrapped line. At --type-scale 1 it is one line, as before. */
+.focus-card .facts { align-items: flex-start; }
+.focus-card .facts > .fact:last-child { white-space: normal; overflow: visible; text-overflow: clip; }
 
 /* THE LEAD CHIP IS REVERTED (2026-09-18, same day, on Dave's screenshots).
    "I would prefer one chip if there's two facts" was implemented as: the
@@ -5477,6 +5795,14 @@ body.selecting .voice-dock { display: none; }
 .fact.good { color: var(--good); }
 .fact.purp { color: var(--cat-purple); }
 .fact.red { color: var(--accent-tx); }
+/* .fact.purp painted the raw category FILL as text, which is .cat-fg-*'s own
+   old mistake before the Astra pass gave it per-theme text variants
+   (2026-09-22, "1 Moved" measured 2.98:1 on light's info card wash). Same
+   tokens .cat-fg-purple already reads, so the two names never drift from
+   each other again. The sky variant's own swap retired with the class
+   itself ("the blue subtext goes"): it was the last user of --cat-tx-sky. */
+[data-theme="light"] .fact.purp { color: var(--cat-tx-purple); }
+[data-theme="dark"] .fact.purp { color: var(--cat-dtx-purple); }
 /* Category is a 7px dot in the category colour plus plain text, never
    coloured text (G4). The dot wears .cat-bg-<slot>. */
 .fact.cat { color: var(--tx-3); display: inline-flex; align-items: center; gap: var(--s-1h); }
@@ -5553,7 +5879,9 @@ body.selecting .voice-dock { display: none; }
    detector still watching. The star on a strand row is a marker, not a
    control, so it does not invite a tap. */
 .strand-disc { background: var(--cat-purple); }
-.warn-disc { background: var(--warn-fill); }
+/* The glyph on an amber disc is dark (2026-09-22): white on #FF9500 is
+   2.06:1 in both themes, the one badge in the app that failed everywhere. */
+.warn-disc { background: var(--warn-fill); color: var(--on-fill-dark); }
 .disc-glyph { font-size: calc(15px * var(--type-scale)); font-weight: 800; line-height: 1; }
 .strand-row .lib-disc { flex-shrink: 0; }
 span.row-star { cursor: default; }
@@ -5609,10 +5937,27 @@ span.row-star { cursor: default; }
 .tiles { display: flex; gap: var(--s-1h); margin: 0 0 var(--s-2h); }
 .itile { flex: 1; border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); min-width: 0; }
 .itile b { display: block; font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
-.itile span { display: block; margin-top: var(--s-1); font-size: calc(11px * var(--type-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* THE THREE TILES SHARE ONE WIDTH, NOT ONE LABEL LENGTH (2026-09-22 audit).
+   flex:1 gives "done", "goals moved" and "flexible" the same third of the
+   card, but they are not the same length, and .04em tracking on an 11px cap
+   label only widens the gap. "goals moved" measured losing up to 39% at
+   --type-scale 1.4. These are three fixed words the app itself chose, never
+   arbitrary data, so the fix is the one already used for known short app
+   copy elsewhere (.voice-hint, 2026-09-21): wrap rather than ellipsize.
+   Identical at scale 1, where all three already fit on one line. */
+.itile span { display: block; margin-top: var(--s-1); font-size: calc(11px * var(--type-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: normal; overflow: visible; text-overflow: clip; }
 .itile-good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
-.itile-purp { background: color-mix(in srgb, var(--cat-purple) 14%, transparent); color: var(--cat-purple); }
-.itile-sky { background: color-mix(in srgb, var(--cat-sky) 14%, transparent); color: var(--cat-sky); }
+/* THE TILE'S WORDS READ THE THEME'S OWN CATEGORY INK (2026-09-22). These
+   painted the raw fill as text on a 14% wash of itself: "goals moved" in
+   --cat-purple measured 4.00:1 in dark. .cat-fg-* has carried a per-theme
+   text variant for exactly this since the Astra pass; the tiles never read
+   it. In light the Apple system colour is the ruling and stays. */
+.itile-purp { background: color-mix(in srgb, var(--cat-purple) 14%, transparent); color: var(--cat-tx-purple); }
+.itile-sky { background: color-mix(in srgb, var(--cat-sky) 14%, transparent); color: var(--cat-tx-sky); }
+/* Only purple has a dark ink to read: sky was never flagged in dark, and
+   there is no --cat-dtx-sky, so naming one would make the declaration
+   invalid at computed-value time and the tile would inherit its way to mud. */
+[data-theme="dark"] .itile-purp { color: var(--cat-dtx-purple); }
 .stack { display: flex; height: 10px; border-radius: var(--r-xs); overflow: hidden; margin: var(--s-1h) 0 var(--s-2); background: var(--press-3); }
 .stack > i { display: block; height: 100%; }
 .stack > i.stack-open { background: var(--divider); }
@@ -5849,10 +6194,41 @@ span.row-star { cursor: default; }
 
 /* Four labels, one of them "Subscriptions", do not share a 390px row four
    ways. The control keeps its own look and scrolls instead of clipping. */
+/* AND A ROW THAT SCROLLS HAS TO SAY SO (2026-09-21, focus audit). It did not.
+   It shipped as "Dashboard | Transactions | Budgets | Su", the fourth label
+   cut mid-word at the screen edge with nothing saying more existed -- which
+   is word for word the bug the chip rows were fixed for on 2026-08-02, in a
+   control that was never given the fix. The rule was written once and applied
+   once.
+   The mask reads HERE where the 2026-08-02 note says it did not read on a
+   chip row, and for the reason that note gives: a chip's fill is six percent
+   white on a black page, so fading it toward the page fades it toward what it
+   already looked like. This control has a solid --press-3 track and white
+   labels on it, both plainly lighter than the page, so the fade has something
+   to fade. Rendered in Chromium before it was kept, as that note requires.
+   Snap so a segment does not park half-visible. */
 .mt-tabrow { margin-bottom: var(--s-2); }
-.mt-tabrow .segmented { overflow-x: auto; scrollbar-width: none; }
-.mt-tabrow .segmented::-webkit-scrollbar { display: none; }
-.mt-tabrow .segmented .seg { flex: 0 0 auto; white-space: nowrap; }
+/* EVERY SEGMENTED CONTROL THAT SCROLLS SAYS SO -- ONE RULE, NOT ONE PER PAGE
+   (2026-09-21). The Tracker's got the fade on 2026-09-21 and Life's did not,
+   and Life's is the one on a tab: "Areas Tasks Reminders Projects Goa", the
+   fifth lens hard-clipped at the screen edge with nothing saying it was
+   there. Fixing it by name would have been the third copy of a rule that has
+   already drifted twice, so the two scrollers share one declaration and a
+   third joins by being named here.
+   The reasoning is the chip rows' from 2026-08-02: a scrolling row that does
+   not admit it is a row whose last item is cut mid-word for no reason. The
+   mask reads on these because the track is solid --press-3 with white labels,
+   both plainly lighter than the page; on a chip row it did not, and that note
+   says why. */
+.mt-tabrow .segmented,
+.life-seg .segmented { overflow-x: auto; scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%); }
+.mt-tabrow .segmented::-webkit-scrollbar,
+.life-seg .segmented::-webkit-scrollbar { display: none; }
+.mt-tabrow .segmented .seg,
+.life-seg .segmented .seg { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
 
 .mt-monthnav { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
 .mt-monthname { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }

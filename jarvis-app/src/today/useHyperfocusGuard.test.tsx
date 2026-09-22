@@ -41,9 +41,9 @@ describe("useHyperfocusGuard", () => {
   });
 
   it("renders the warn tone only when the producer says so", () => {
-    const { rerender } = render(<HyperfocusLine guard={{ text: "Team sync in 9 min", warn: true }} />);
+    const { rerender } = render(<HyperfocusLine guard={{ text: "Team sync in 9 min", warn: true, title: "Team sync", when: "In 9 Min" }} />);
     expect(document.querySelector(".urgency-warn")).toBeTruthy();
-    rerender(<HyperfocusLine guard={{ text: "Team sync at 3 PM", warn: false }} />);
+    rerender(<HyperfocusLine guard={{ text: "Team sync at 3 PM", warn: false, title: "Team sync", when: "3 PM" }} />);
     expect(document.querySelector(".urgency-warn")).toBeNull();
     expect(screen.getByText("Team sync at 3 PM")).toBeInTheDocument();
   });

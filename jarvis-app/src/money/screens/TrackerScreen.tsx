@@ -86,7 +86,11 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
         <div className="pad-x"><div className="card list-card-ruled">
           <div className="row" {...pressable(() => void runSeed())}>
             <div className="row-grow">
-              <div className="conn-name">Import September Data</div>
+              {/* .truncate is this app's two-lines-not-a-clip class (see the
+                  task-name note in components.css). At --type-scale 1.4 this
+                  title lost "Data" to the Import pill beside it; it is copy
+                  this app wrote, so it takes the second line. */}
+              <div className="conn-name truncate">Import September Data</div>
               <div className="conn-meta">Your accounts, subscriptions and 31 transactions</div>
             </div>
             <button className="pill-act" disabled={seeding}
@@ -205,7 +209,7 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
           <div className="row-grow">
             <div className="conn-name">Add an Account</div>
             {data.accounts.length === 0 && (
-              <div className="conn-meta">Nothing here yet</div>
+              <div className="conn-meta">No accounts yet</div>
             )}
           </div>
           <button className="pill-act" onClick={(e) => { e.stopPropagation(); setAcct("new"); }}>Add</button>

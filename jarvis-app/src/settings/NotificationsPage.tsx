@@ -122,15 +122,15 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
             flipping one cannot make a single alert arrive, and a control that
             answers a tap with nothing at all is worse than one that says why.
             The foot below carries the why. */}
-        <Switch label="Overdue and due tasks" on={prefs.overdue} locked={denied} onToggle={() => set({ overdue: !prefs.overdue })} />
-        <Switch label="Today's events" on={prefs.events} locked={denied} onToggle={() => set({ events: !prefs.events })} />
-        <Switch label="Daily check-ins" on={prefs.checkins} locked={denied} onToggle={() => set({ checkins: !prefs.checkins })} />
-        <Switch label="Goal and life-area nudges" on={prefs.goals} locked={denied} onToggle={() => set({ goals: !prefs.goals })} />
+        <Switch label="Overdue and due tasks" meta="On the Notifications tab, not a lock-screen alert" on={prefs.overdue} locked={denied} onToggle={() => set({ overdue: !prefs.overdue })} />
+        <Switch label="Today's events" meta="A lock-screen alert 15 minutes before, and its own row on the Notifications tab" on={prefs.events} locked={denied} onToggle={() => set({ events: !prefs.events })} />
+        <Switch label="Daily check-ins" meta="Two lock-screen prompts, morning and night" on={prefs.checkins} locked={denied} onToggle={() => set({ checkins: !prefs.checkins })} />
+        <Switch label="Goal and life-area nudges" meta="On the Notifications tab when a goal falls behind" on={prefs.goals} locked={denied} onToggle={() => set({ goals: !prefs.goals })} />
         {/* UP-ATH-03 (2026-09-06): the rest timer's buzz between sets. The
             only alert on this page the athlete asked for by starting the
             thing that schedules it, which is why it is last and why it is
             on by default. */}
-        <Switch label="Rest timer" on={prefs.rest} locked={denied} onToggle={() => { updateHealthSettings({ restNotify: !prefs.rest }); void set({ rest: !prefs.rest }); }} />
+        <Switch label="Rest timer" meta="A buzz on the lock screen when the rest is over" on={prefs.rest} locked={denied} onToggle={() => { updateHealthSettings({ restNotify: !prefs.rest }); void set({ rest: !prefs.rest }); }} />
       </Card>
       {/* A4 (audit 2026-08-21, catalog Q8: never promise what the platform
           cannot do). A page called Notifications with four switches on it

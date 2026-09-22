@@ -25,11 +25,16 @@ export default function MailSwipe({
   onArchive,
   onDelete,
   onLater,
+  label,
   children,
 }: {
   onArchive: () => void;
   onDelete: () => void;
   onLater?: () => void;
+  /** Who the thread is from, so the rail says WHICH one (VoiceOver sweep,
+   *  2026-09-21). On the web build these buttons are siblings of the row, so
+   *  a screen reader reaching one heard "Delete" with nothing saying what. */
+  label: string;
   children: React.ReactNode;
 }) {
   const swipe = useSwipe({ revealW: onLater ? 264 : 176 });
@@ -37,16 +42,16 @@ export default function MailSwipe({
   return (
     <div className="task-swipe">
       {onLater && (
-        <button className="mail-later" onClick={onLater} aria-label="Later">
+        <button className="mail-later" onClick={onLater} aria-label={"Later " + label}>
           <Clock className="ic" />
           <span className="swipe-label">Later</span>
         </button>
       )}
-      <button className="mail-arch" onClick={onArchive} aria-label="Archive">
+      <button className="mail-arch" onClick={onArchive} aria-label={"Archive " + label}>
         <Archive className="ic" />
         <span className="swipe-label">Archive</span>
       </button>
-      <button className="task-del" onClick={onDelete} aria-label="Delete">
+      <button className="task-del" onClick={onDelete} aria-label={"Delete " + label}>
         <Trash2 className="ic" />
         <span className="swipe-label">Delete</span>
       </button>

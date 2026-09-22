@@ -445,9 +445,18 @@ function GhostGrid({ entry, unit, step, setNo, onLog, onDraft }: {
   const selectAll = (e: { currentTarget: HTMLInputElement }) => e.currentTarget.select();
   return (
     <div className="se-grid" onClick={stop} onPointerDown={stop}>
-      <input className="set-field" type="number" inputMode="decimal" min={0} step={step} value={w} placeholder={unit ?? "0"} onFocus={selectAll} aria-label={`Set ${setNo} weight`} onChange={(e) => { setW(e.target.value); report(e.target.value, r); }} />
+      {/* NO PLACEHOLDER: THE LABEL BESIDE IT ALREADY SAYS THE WORD (2026-09-21).
+          The weight field's placeholder was the UNIT, printed immediately
+          again by the span next to it, so an unset weight on a fresh lift
+          rendered "lb  lb  8  reps" -- caught by looking at a real session,
+          never by a test. Reps had the same duplication and only hid it by
+          usually having a number in it.
+          A field with the word already written beside it needs no ghost of
+          the same word inside it; empty reads as "not set yet", which is what
+          it is, and aria-label still names each field for a screen reader. */}
+      <input className="set-field" type="number" inputMode="decimal" min={0} step={step} value={w} onFocus={selectAll} aria-label={`Set ${setNo} weight`} onChange={(e) => { setW(e.target.value); report(e.target.value, r); }} />
       <span className="se-grid-u">{unit ?? ""}</span>
-      <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} placeholder="reps" onFocus={selectAll} aria-label={`Set ${setNo} reps`} onChange={(e) => { setR(e.target.value); report(w, e.target.value); }} />
+      <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} onFocus={selectAll} aria-label={`Set ${setNo} reps`} onChange={(e) => { setR(e.target.value); report(w, e.target.value); }} />
       <span className="se-grid-u">reps</span>
       <button type="button" className="se-tick" aria-label={`Log set ${setNo}`} onClick={() => onLog({ w: Number(w) || 0, r: Number(r) || 0 })}><Check className="ic" /></button>
     </div>

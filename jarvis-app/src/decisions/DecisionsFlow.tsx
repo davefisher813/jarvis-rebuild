@@ -538,7 +538,10 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
                   {r.data.source && <span className={"fact" + (r.data.source.kind === "manual" ? "" : " sky")}>{SOURCE_LABEL[r.data.source.kind]}</span>}
                   {linksOf(r.data).map((l) => <span className={"fact fact-link " + glyphClass(r, projCat)} key={l.id}>{l.label}</span>)}
                   {r.data.outcome && <span className="fact">{OUTCOME_LABEL[r.data.outcome.word]}</span>}
-                  <span className="fact dec-when">{r.data.revisitOn && (r.data.revisitState === "pending" || r.data.revisitState === "shown") ? "Revisit " + fmtShort(r.data.revisitOn) : fmtShort(r.data.createdAt)}</span>
+                  {/* A date wears cyan (§AJ G4, §AK): the reason is the
+                      row's one regular grey, and the date beside it was a
+                      second one on every decision row. */}
+                  <span className="fact cyan dec-when">{r.data.revisitOn && (r.data.revisitState === "pending" || r.data.revisitState === "shown") ? "Revisit " + fmtShort(r.data.revisitOn) : fmtShort(r.data.createdAt)}</span>
                 </div>
               </div>
               <Chev />

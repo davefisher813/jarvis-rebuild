@@ -4050,6 +4050,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return (
     <MailSwipe
       key={r.id}
+      label={displayName(r.from) || r.from}
       onArchive={() => archiveRow(r)}
       onDelete={() => void trashThread(r.id, r.account)}
       // E-28: only a Needs You row (alwaysStrong is that section's mark)

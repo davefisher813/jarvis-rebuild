@@ -87,3 +87,42 @@ describe("creating a lift from the library carries what the sheet was told", () 
     expect(FLOW).toContain("const key = draft.exerciseKey ?? newExerciseKey();");
   });
 });
+
+// ---------------------------------------------------------------------------
+// DAVE, 2026-09-21, on a live Push Day: "I still can't make an exercise as
+// done during a workout."
+//
+// He could, but only once every planned set was logged. Two of three, because
+// two is genuinely all you have in you, and the way on was not offered: the
+// only exit was Skip This Exercise, a row far down the screen, and the wrong
+// word for it. Skipped means you did none of it.
+// ---------------------------------------------------------------------------
+describe("the way on is offered before the plan runs out", () => {
+  it("appears as soon as there is anything worth keeping", () => {
+    expect(SESSION).toContain("{!planComplete && logged.length > 0 && !cond && (");
+  });
+
+  it("is the same destination as the one after the plan completes", () => {
+    // Two buttons, one decision: whichever is on screen, it goes to the next
+    // exercise, or finishes the session when this was the last one.
+    const goes = SESSION.match(/upNextIdx >= 0 \? onMove\(upNextIdx\) : onFinish\(\)/g) ?? [];
+    expect(goes.length, "the mid-plan one and the plan-complete one").toBeGreaterThanOrEqual(2);
+    const says = SESSION.match(/\{upNextIdx >= 0 \? "Next Exercise" : "Finish Workout"\}/g) ?? [];
+    expect(says.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("stays SECONDARY until the plan is done, then they swap", () => {
+    // The 2026-09-17 ruling is unchanged: until the plan is complete logging
+    // is the common move, so moving on does not take the primary.
+    expect(SESSION).toContain(`{!planComplete && logged.length > 0 && !cond && (
+            <button className="btn btn-secondary btn-lg"`);
+    expect(SESSION).toContain(`{planComplete
+            ? <button className="btn btn-primary btn-launch btn-lg"`);
+  });
+
+  it("is not offered with nothing logged, where Skip is the honest word", () => {
+    // An exercise you did none of IS skipped, and that row already exists.
+    expect(SESSION).toContain("logged.length > 0 && !cond");
+    expect(SESSION).toContain(">Skip This Exercise<");
+  });
+});

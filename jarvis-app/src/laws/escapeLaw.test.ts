@@ -21,6 +21,8 @@ import { join, relative } from "node:path";
 
 const SRC = join(__dirname, "..");
 const HOOK = readFileSync(join(SRC, "shared/useSheetEscape.ts"), "utf8");
+const FOCUS = readFileSync(join(SRC, "shared/useLayerFocus.ts"), "utf8");
+const APP = readFileSync(join(SRC, "App.tsx"), "utf8");
 
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -82,5 +84,49 @@ describe("LAW: Escape closes the top layer, whatever kind it is", () => {
     const prevent = HOOK.indexOf("e.preventDefault()");
     expect(guard, "the hook must know about the menu scrim").toBeGreaterThan(-1);
     expect(guard, "the menu's claim is checked before Escape is consumed").toBeLessThan(prevent);
+  });
+
+  // ------------------------------------------------------------------
+  // FOCUS, WHICH IS THE OTHER HALF OF THE SAME BUG (2026-09-21).
+  //
+  // Escape alone made the layers closable and left them transparent to Tab.
+  // Measured on the built app, by driving it: the New Event sheet let 10 of
+  // 14 tabs land OUTSIDE itself, in the Day/Week/Month control behind it,
+  // and What Now let 13 of 14 reach the tab bar. Focus never entered either
+  // layer, and closing left it on the body or somewhere arbitrary. A keyboard
+  // user was pressing things they could not see.
+  //
+  // After: focus lands on Cancel and on Close, 0 of 14 tabs escape either
+  // layer, and Escape puts focus back on the exact control that opened it.
+  // ------------------------------------------------------------------
+
+  it("focus and escape read the same roster of layers", () => {
+    // The failure this prevents is subtle and total: a layer Escape closes
+    // but Tab can walk out of is the worse half of the original bug, and two
+    // hand-kept lists are how that comes back.
+    expect(HOOK).toMatch(/export const LAYER_SELECTOR/);
+    expect(FOCUS).toMatch(/LAYER_SELECTOR/);
+    expect(FOCUS).not.toMatch(/"\.sheet-scrim/);
+  });
+
+  it("the focus hook is mounted, once, beside the escape hook", () => {
+    expect(APP).toMatch(/useSheetEscape\(\)/);
+    expect(APP).toMatch(/useLayerFocus\(\)/);
+    expect(APP.match(/useLayerFocus\(\)/g)?.length, "one hook, not one per sheet").toBe(1);
+  });
+
+  it("it does all three jobs, not just the easy one", () => {
+    // Trapping without returning focus strands the user; returning without
+    // trapping leaves the page behind reachable. Both, or neither is worth
+    // having.
+    expect(FOCUS, "moves focus into the layer").toMatch(/first\?\.focus\(\)/);
+    expect(FOCUS, "wraps Tab at both ends").toMatch(/e\.shiftKey \? last : first|shiftKey && active === first/);
+    expect(FOCUS, "gives focus back on close").toMatch(/back\.isConnected/);
+  });
+
+  it("a sheet that focuses its own field keeps it", () => {
+    // Add a Reminder opens on its text field. Yanking focus to Cancel because
+    // a generic hook ran second would be a regression dressed as a fix.
+    expect(FOCUS).toMatch(/layer\.contains\(active\)\) return/);
   });
 });

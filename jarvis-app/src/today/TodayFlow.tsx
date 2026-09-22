@@ -110,7 +110,7 @@ import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
 import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
-import { liveCard } from "../gym/liveCard";
+import { liveCard, currentLine } from "../gym/liveCard";
 import { readFifteen, writeFifteen, clearFifteen, isStillLive, fifteenFace, extended, type LiveFifteen } from "./liveFifteen";
 import { sourceOpener } from "../shared/openSource";
 import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
@@ -1462,7 +1462,7 @@ export default function TodayFlow({
     await reload();
     if (!ok || !res) return;
     const r = res as BreakdownResult;
-    if (r.reason === "no-ai") { showToast({ message: "Couldn't reach JARVIS" }); return; }
+    if (r.reason === "no-ai") { showToast({ message: "Couldn't reach JARVIS · Try again" }); return; }
     showToast({
       message: splitLine(r.made.length),
       actionLabel: "Undo",
@@ -2333,7 +2333,16 @@ export default function TodayFlow({
             <RowIcon kind="gym" />
             <div className="row-stack">
               <div className="conn-name truncate">In: {liveNow.dayName}</div>
-              <div className="conn-meta truncate">{[liveNow.left ?? liveNow.elapsed, liveNow.progress].filter(Boolean).join(" · ")}</div>
+              {/* THE LIFT YOU ARE ON LEADS THE LINE (2026-09-21). liveCard
+                  has always computed it -- currentLine, "Bench Press · 3 ×
+                  225 lb × 5", written, documented as "the one line the card
+                  leads with", unit tested -- and NEITHER render site used
+                  it. The comment on the notice card below even says the card
+                  reads "the exercise it is on WITH its numbers". It did not.
+                  So while a workout was running, Today told you the day, the
+                  minutes and the set count, and never the one fact you would
+                  pick up the phone for. */}
+              <div className="conn-meta truncate">{[currentLine(liveNow), liveNow.left ?? liveNow.elapsed, liveNow.progress].filter(Boolean).join(" · ")}</div>
             </div>
             <button className="pill-act pill-go" onClick={own(() => onRestoreSpot?.("gym", gymCatId ?? ""))}>Resume</button>
           </div>
@@ -2785,7 +2794,7 @@ export default function TodayFlow({
           icon={<BarbellGlyph />}
           tone="cat-fg-orange"
           title={card.fresh ? `${card.dayName} is ready` : `Back to ${card.dayName}`}
-          sub={card.left ?? card.elapsed ?? card.progress}
+          sub={[currentLine(card), card.left ?? card.elapsed ?? card.progress].filter(Boolean).join(" · ")}
           action={{ label: card.fresh ? "Start" : "Resume", go: true, onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
           // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
           // opens the session, like the pill.

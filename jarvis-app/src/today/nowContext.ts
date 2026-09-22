@@ -189,6 +189,20 @@ export const GUARD_WARN_MIN = 10;
 export interface GuardLine {
   text: string;
   warn: boolean;
+  /** THE SAME FACT IN ITS PARTS (2026-09-21, Dave on a live Push Day: "the
+   *  notification that I have an interview looks awful").
+   *
+   *  It did. The guard renders as one sentence in .conn-meta, which is the
+   *  app's quiet furniture ink, and on the session screen every neighbour is
+   *  a coloured chip -- EQUIPMENT violet, BEST lime, LAST cyan. So the one
+   *  fact on that screen with a deadline attached to it, a job interview in
+   *  ninety minutes, was drawn quieter than his best set of chest flys.
+   *
+   *  A chip is built from a label and a value, so the parts are stated rather
+   *  than sliced back out of the sentence. `text` is untouched and is still
+   *  what Up Next and the note editor render. */
+  title: string;
+  when: string;
 }
 
 export function hyperfocusGuard(events: EventItem[], nowHHMM: string): GuardLine | null {
@@ -208,8 +222,9 @@ export function hyperfocusGuard(events: EventItem[], nowHHMM: string): GuardLine
     .sort((a, b) => a.s - b.s)[0];
   if (!next) return null;
   const mins = next.s - now;
+  const title = next.leaving ? `Leave for ${next.title}` : next.title;
   if (mins <= GUARD_WARN_MIN) {
-    return { text: next.leaving ? `Leave for ${next.title} in ${mins} min` : `${next.title} in ${mins} min`, warn: true };
+    return { text: `${title} in ${mins} min`, warn: true, title, when: `In ${mins} Min` };
   }
-  return { text: next.leaving ? `Leave for ${next.title} at ${fmt12(next.s)}` : `${next.title} at ${fmt12(next.s)}`, warn: false };
+  return { text: `${title} at ${fmt12(next.s)}`, warn: false, title, when: fmt12(next.s) };
 }

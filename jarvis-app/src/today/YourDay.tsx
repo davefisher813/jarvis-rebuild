@@ -80,7 +80,7 @@ const todayISODate = () => {
 // component Schedule uses, for the identical reason DayRow became shared in
 // the wave before this one: an edit added there is never a second thing to
 // remember to add here. Today also picks up the mode-aware kicker text
-// ("Focus time · 2 tasks", "Can blend · ears free") that only Schedule had.
+// ("Focus time", "Can blend · ears free") that only Schedule had.
 
 // One full pass of the day: events + protected blocks in time order, with the
 // Now line inserted at the right spot and time-as-distance on the next event.
@@ -144,16 +144,11 @@ function DaySet({
   // proposals, and this screen nested neither. One helper, both kinds, both
   // surfaces.
   const holders = holdersIn(locked);
-  const heldEv = new Map<string, EventItem[]>();
   const heldProp = new Map<string, PlanBlock[]>();
   const nested = new Set<string>();
-  for (const ev of events) {
-    const h = holderFor(holders, ...spanOf(ev.data.start, ev.data.end));
-    if (!h) continue;
-    const k = holderKey(h);
-    heldEv.set(k, [...(heldEv.get(k) ?? []), ev]);
-    nested.add("e:" + ev.id);
-  }
+  // COMMITTED EVENTS DO NOT NEST (NESTABLE.event, 2026-09-21). They used to,
+  // and Dave's 3pm job interview spent the day inside "Deep Work 3:00 PM -
+  // 7:00 PM" behind a collapsed "5 tasks". See the ruling in nesting.ts.
   for (const b of proposed?.blocks ?? []) {
     const h = holderFor(holders, ...spanOf(b.start, b.end));
     if (!h) continue;
@@ -163,8 +158,8 @@ function DaySet({
   }
 
   const entries: Entry[] = [
-    ...events.filter((ev) => !nested.has("e:" + ev.id))
-      .map((ev): Entry => ({ kind: "event", ev, s: toMin(ev.data.start) })),
+    // Every event, always. Nothing filters this list (NESTABLE.event).
+    ...events.map((ev): Entry => ({ kind: "event", ev, s: toMin(ev.data.start) })),
     ...locked.map((l): Entry => ({ kind: "locked", l, s: l.s })),
     // Proposals join the SAME sort, not a separate list below the day. That
     // is the whole point: one schedule, in time order.
@@ -246,7 +241,6 @@ function DaySet({
       );
     } else {
       const k = holderKey(en.l);
-      const evs = heldEv.get(k) ?? [];
       const props = heldProp.get(k) ?? [];
       const blockId = en.l.id;
       out.push(
@@ -256,23 +250,15 @@ function DaySet({
           past={en.l.e <= nowMin}
           {...(stateWords ? { state: stateForBlock(en.l) } : {})}
           onOpen={blockId && onOpenBlock ? () => onOpenBlock(blockId) : onEditRoutine ? () => onEditRoutine(blockId) : undefined}
-          heldCount={evs.length + props.length}
+          heldCount={props.length}
           onShift={onShiftBlock && blockId ? (m) => onShiftBlock(blockId, m) : undefined}
           onRetime={onRetimeBlock && blockId ? (s) => onRetimeBlock(blockId, s) : undefined}
           onResize={onResizeBlock && blockId ? (e) => onResizeBlock(blockId, e) : undefined}
           onDelete={onDeleteBlock && blockId ? () => onDeleteBlock(blockId) : undefined}
         >
-          {(evs.length > 0 || props.length > 0) && (
-            <HeldTasks count={evs.length + props.length} alwaysOpen={expandHeld}>
+          {props.length > 0 && (
+            <HeldTasks count={props.length} alwaysOpen={expandHeld}>
               <>
-              {evs.map((h) => (
-                <div className="block-held" key={h.id} role="button" tabIndex={0}
-                  onClick={(ev) => { ev.stopPropagation(); onOpenEvent?.(h.id); }}>
-                  <span className={"cat-dot cat-bg-" + catColor(h.data.category)} />
-                  <span className="block-held-t truncate">{h.data.title}</span>
-                  <span className="block-held-u">{fmtTime(h.data.start).time}</span>
-                </div>
-              ))}
               {/* A TASK HELD IN A BLOCK IS STILL A TASK (2026-09-15).
                   It had no completion control, and its one tap was dead --
                   onToggle sets openId, and openId is read only by

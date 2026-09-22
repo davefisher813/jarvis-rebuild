@@ -79,8 +79,9 @@ const sameFilter = (a: Filter, b: Filter) => JSON.stringify(a) === JSON.stringif
 // Undo, the flow's own). Off in select mode, where a half-swiped row under
 // a selection is two gestures fighting.
 type RowDrag = { dragging: boolean; style?: React.CSSProperties; handlers?: SwipeState["handlers"] };
-function NoteSwipeRow({ enabled, onFile, onAppend, onDelete, forever = false, children }: {
-  enabled: boolean; onFile?: () => void; onAppend?: () => void; onDelete?: () => void; forever?: boolean; children: (drag: RowDrag) => ReactNode;
+function NoteSwipeRow({ enabled, label, onFile, onAppend, onDelete, forever = false, children }: {
+  /** The note's own name, so the rail says WHICH note it would delete. */
+  enabled: boolean; label: string; onFile?: () => void; onAppend?: () => void; onDelete?: () => void; forever?: boolean; children: (drag: RowDrag) => ReactNode;
 }) {
   const swipe = useSwipe({ revealW: 88 * (1 + (onFile ? 1 : 0) + (onAppend ? 1 : 0)), enabled });
   return (
@@ -99,7 +100,7 @@ function NoteSwipeRow({ enabled, onFile, onAppend, onDelete, forever = false, ch
           <span className="swipe-label">File</span>
         </button>
       )}
-      <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label={forever ? "Delete forever" : "Delete note"}>
+      <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label={(forever ? "Delete forever: " : "Delete ") + label}>
         <Trash2 className="ic" />
         <span className="swipe-label">{forever ? "Forever" : "Delete"}</span>
       </button>
@@ -302,13 +303,13 @@ export default function NotesList({
     // for a note that is still here.
     if (n.deleted) {
       return onDeleteForever ? (
-        <NoteSwipeRow key={n.id} enabled={!sel.active} onDelete={() => onDeleteForever(n.id)} forever>
+        <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title} onDelete={() => onDeleteForever(n.id)} forever>
           {body}
         </NoteSwipeRow>
       ) : <Fragment key={n.id}>{body({ dragging: false })}</Fragment>;
     }
     return onDelete ? (
-      <NoteSwipeRow key={n.id} enabled={!sel.active} onFile={onFile ? () => onFile(n.id) : undefined} onAppend={onAppend ? () => onAppend(n.id) : undefined} onDelete={() => onDelete(n.id)}>
+      <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title} onFile={onFile ? () => onFile(n.id) : undefined} onAppend={onAppend ? () => onAppend(n.id) : undefined} onDelete={() => onDelete(n.id)}>
         {body}
       </NoteSwipeRow>
     ) : <Fragment key={n.id}>{body({ dragging: false })}</Fragment>;

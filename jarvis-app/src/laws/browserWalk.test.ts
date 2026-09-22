@@ -692,52 +692,57 @@ describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
 // terms of the per-row lead, and every control that can take the leading
 // slot must declare one. A new leading control with no declaration is the
 // same bug again.
-describe("LAW: the schedule rail is positioned past whatever leads the row", () => {
+describe("LAW: the schedule rail leads the row, so nothing can get in front of it", () => {
   const ruled = () => readFileSync(join(SRC, "styles/ruled.css"), "utf8");
 
-  it("the rail's left reads the row's own lead instead of a fixed gutter", () => {
+  // WHAT THIS LAW USED TO SAY, AND WHY IT SAYS SOMETHING ELSE (2026-09-21).
+  // The rail used to sit just PAST the time gutter, so its left was written
+  // as "row padding + 62px" -- and when the Remember star was added ahead of
+  // the time, the gutter moved right, the rail did not, and the rail landed
+  // inside the digits. The law that followed pinned the SHAPE: the rail's
+  // left must read a per-row --sched-lead, and every control that can take
+  // the leading slot must declare the room it takes.
+  //
+  // Dave's row layout of 2026-09-21 (the time above the title, picked from
+  // four rendered options) removes the gutter entirely. The rail is the
+  // row's left edge now, ahead of the star and everything else, so there is
+  // nothing to sit past and no lead to read. The bug the old law existed for
+  // cannot happen: a new leading control lands AFTER the rail by
+  // construction.
+  //
+  // So the law keeps its job and changes its sentence. The rail is pinned to
+  // the row's own inset, and --sched-lead must not come back into it, which
+  // is what a half-revert of the layout would look like.
+  it("the rail is pinned to the row's own inset, not to a gutter", () => {
     const bare = ruled().replace(/\/\*[\s\S]*?\*\//g, "");
     const bar = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
       .filter((m) => m[1]!.split(",").some((s) => s.trim() === ".ruled .sched-bar"))
       .map((m) => m[2]!).join(" ");
     expect(bar, ".ruled .sched-bar still has its own rule").toBeTruthy();
-    expect(bar, "the rail's left must include the row's lead").toMatch(/left:[^;]*var\(--sched-lead/);
+    expect(bar, "the rail sits at the row's inset").toMatch(/left:\s*var\(--s-4\)/);
+    expect(bar, "and never behind a gutter measurement again").not.toMatch(/var\(--sched-lead|62px/);
   });
 
-  it("every control that can lead a schedule row declares its lead", () => {
-    const bare = ruled().replace(/\/\*[\s\S]*?\*\//g, "");
-    // The default, so a row with nothing in front is exactly where it was.
-    expect(bare).toMatch(/\.ruled \.sched-row \{[^}]*--sched-lead:\s*0px/);
-    for (const lead of ["row-star", "sched-sel"]) {
-      expect(bare, lead + " must declare the room it takes")
-        .toMatch(new RegExp("\\.ruled \\.sched-row:has\\(> \\." + lead + "\\)[^{]*\\{[^}]*--sched-lead:"));
-    }
-  });
-
-  // The two leading controls, as the row markup actually carries them. The
-  // leading slot is the source between the rail and the time; anything that
-  // lands there and is not one of the declared pair is the bug again.
-  it("nothing undeclared sits between the rail and the time", () => {
+  it("the rail is the first thing in the row", () => {
     for (const f of ["schedule/screens/DayRow.tsx", "schedule/screens/ProposedRow.tsx"]) {
       const src = readFileSync(join(SRC, f), "utf8");
       const from = src.indexOf("sched-bar");
       const to = src.indexOf("sched-time");
       expect(from, f + " draws the rail").toBeGreaterThan(-1);
       expect(to, f + " draws the time").toBeGreaterThan(from);
-      const lead = src.slice(from, to);
-      const classes = [...lead.matchAll(/className=\{?"([^"]+)"/g)].flatMap((m) => m[1]!.split(/\s+/));
-      for (const c of classes) {
-        // "ic" is the glyph INSIDE the select box, not a sibling of it.
-        expect(["sel-box", "sched-sel", "cat-bg-", "sched-bar", "ic"].some((ok) => c.startsWith(ok)),
-          `${f}: "${c}" leads the row with no --sched-lead declared for it`).toBe(true);
-      }
-      // A component in the leading slot hides its own class, so the ones
-      // allowed there are named outright.
-      const comps = [...lead.matchAll(/<([A-Z]\w+)/g)].map((m) => m[1]!);
-      for (const c of comps) {
-        expect(["EntityStar", "CheckGlyph"], `${f}: <${c}> leads the row with no --sched-lead declared for it`).toContain(c);
-      }
+      // Whatever leads the row now leads it AFTER the rail, which is the
+      // whole point: the rail cannot be pushed off its own edge.
+      const rowOpen = src.lastIndexOf("<", from);
+      expect(src.slice(0, from).lastIndexOf("sched-row"), f + " the rail sits inside the row element")
+        .toBeLessThan(rowOpen);
     }
+  });
+
+  it("the body takes the row's full width under the time", () => {
+    const bare = ruled().replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(bare, "the row wraps").toMatch(/\.ruled \.sched-row \{[^}]*flex-wrap: wrap/);
+    expect(bare, "and the body is the thing that takes the second line")
+      .toMatch(/\.ruled \.sched-row > \.sched-body \{[^}]*flex: 1 0 100%/);
   });
 });
 
@@ -793,5 +798,380 @@ describe("BROWSER-F: a task's Notes field keeps its text clear of the card's rou
     expect(cardPad).toMatch(/padding:\s*var\(--s-1\)\s*0/);
     const padRule = ruleBody(read("styles/jarvis-design-system.css"), ".card.pad");
     expect(padRule, ".card.pad's own padding is the reason its editor needs none").toMatch(/padding:\s*var\(--s-4\)/);
+  });
+});
+
+// DYNAMIC TYPE AT THE TOP OF ITS OWN RANGE (2026-09-21).
+//
+// appearance/textZoom.ts has always clamped --type-scale to 1.0-1.4, read it
+// from the phone and offered an override in Settings, and every named type
+// token multiplies by it. What nothing had ever done was LOOK at 1.4. The
+// first pass that did found eight findings on Dave's own width, and six of
+// them were the same elements that "only existed at 320" -- the width dropped
+// the day before on the grounds that nobody uses it. Larger text in a fixed
+// width is the same arithmetic as fixed text in a narrower one, so retiring
+// 320 had hidden those findings rather than removed them.
+//
+// Each check here pins one of the eight. The ruling behind all of them is the
+// no-wrap law's own stated exception, already written twice in components.css:
+// an ellipsis is the honest answer to a string the WORLD writes and whose
+// length is unknown; copy this app wrote that does not fit is a title that
+// needs a second line.
+describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", () => {
+  const bare = () => css().replace(/\/\*[\s\S]*?\*\//g, "");
+
+  it("the visual auditor runs every size at 1.4 as well as 1", () => {
+    const tool = readFileSync(join(SRC, "..", "tools", "visual-audit.mjs"), "utf8");
+    // The scale list, not just the string "1.4" somewhere in a comment.
+    expect(tool, "the matrix fans out over a scale list").toMatch(/\[1,\s*1\.4\]\.flatMap/);
+    expect(tool, "a pass applies its own scale, not a global").toMatch(/setProperty\("--type-scale", String\(n\)\), scale\)/);
+    expect(tool, "runPass takes the scale and defaults to 1").toMatch(/async function runPass\(\{ w, h, theme, scale = 1 \}\)/);
+  });
+
+  it("the search field may shrink, so Cancel stays on the screen", () => {
+    // At 1.4 the input's intrinsic width refused to give, the bar grew past
+    // the row, and Cancel painted to x=468 on a 390px screen: off the edge,
+    // untappable, and taking the headings under it with it.
+    expect(ruleBody(css(), ".search-top .search-bar")).toMatch(/min-width:\s*0/);
+    expect(ruleBody(css(), ".search-top .search-bar input"), "a flex child defaults to min-width:auto").toMatch(/min-width:\s*0/);
+  });
+
+  it("a form row's label states itself whole and the value is what yields", () => {
+    // "Appears" shipped in 52px and "Next Due" in 78px, both losing half of
+    // themselves to a value that had a perfectly good ellipsis of its own.
+    const label = ruleBody(css(), ".xs .row.xs-row > .conn-name");
+    expect(label, "the label row rule still exists").toBeTruthy();
+    expect(label, "basis auto, no shrink").toMatch(/flex:\s*0\s+0\s+auto/);
+    // The two controls that take the other side are both built to give way.
+    expect(ruleBody(css(), ".dd .dd-w")).toMatch(/text-overflow:\s*ellipsis/);
+    expect(ruleBody(css(), ".xs .xs-input")).toMatch(/min-width:\s*0/);
+  });
+
+  it("a nav row's page name is off the no-wrap law, like the big title above it", () => {
+    const law = [...bare().matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .find((m) => /white-space:\s*nowrap/.test(m[2]!) && m[1]!.includes(".pagebar-title"));
+    expect(law, "the no-wrap law still exists").toBeTruthy();
+    expect(law![1], ".lib-name is off the no-wrap law").not.toMatch(/\.lib-name\b/);
+    const own = ruleBody(css(), ".lib-name")!;
+    expect(own, "it wraps").toMatch(/white-space:\s*normal/);
+    expect(own, "clamped at two, so a long one still ends in an ellipsis").toMatch(/-webkit-line-clamp:\s*2/);
+  });
+
+  it("a solo notice in the grouped band takes its second line", () => {
+    const solo = ruleBody(css(), ".stream-grouped .notice-card-row.notice-card-solo .conn-name")!;
+    expect(solo, "the band's stand-down rule still exists").toBeTruthy();
+    expect(solo, "it no longer forces one line").not.toMatch(/white-space:\s*nowrap/);
+    expect(solo).toMatch(/-webkit-line-clamp:\s*2/);
+    // It is the same box the card wears outside the band.
+    expect(ruleBody(css(), ".notice-card .conn-name")).toMatch(/-webkit-line-clamp:\s*2/);
+  });
+
+  it("the Tracker's import row wears the two-line class at its call site", () => {
+    expect(read("money/screens/TrackerScreen.tsx")).toMatch(/className="conn-name truncate">Import September Data</);
+    // .truncate is what that class means here, despite the name.
+    expect(ruleBody(css(), ".task-row .conn-name.truncate, .row .conn-name.truncate")).toMatch(/-webkit-line-clamp:\s*2/);
+  });
+
+  it("the focus card's reason wraps, because one card is not a list", () => {
+    // "Three facts, one line" is a LIST rule: it exists so a busy row does
+    // not leave the list ragged. The focus card is one card on an otherwise
+    // empty screen, and the reason is the sentence it exists to give.
+    expect(ruleBody(css(), ".facts"), "the list rule is untouched").toMatch(/flex-wrap:\s*nowrap/);
+    expect(ruleBody(css(), ".facts > .fact:last-child")).toMatch(/white-space:\s*nowrap/);
+    const card = ruleBody(css(), ".focus-card .facts > .fact:last-child")!;
+    expect(card, "the card's own exception exists").toBeTruthy();
+    expect(card).toMatch(/white-space:\s*normal/);
+    expect(ruleBody(css(), ".focus-card .facts")).toMatch(/align-items:\s*flex-start/);
+  });
+
+  it("the capture bar takes a second line rather than losing half a sentence", () => {
+    // The ninth finding, and the auditor could not see it: the hint did not
+    // CLIP, it wrapped to two lines and painted past the pill's right edge
+    // across the wordmark, on the one piece of chrome that is on every tab.
+    // A screenshot found it. The gap is named in docs/AUDIT_CHECKLIST.md.
+    // An ellipsis was tried first and the auditor then read "Add anything"
+    // losing 48% on ten screens, so the pill wraps and keeps every word.
+    const u = read("styles/uniformity.css");
+    const bar = ruleBody(u, ".voice-bar")!;
+    expect(bar, "the pill is what grows").toMatch(/flex-wrap:\s*wrap/);
+    expect(ruleBody(u, ".voice-name"), "the mark does not give up a character").toMatch(/flex-shrink:\s*0/);
+    const hint = ruleBody(u, ".voice-hint")!;
+    expect(hint, "it moves to the next line whole, it does not clip").not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(hint, "and it does not break mid-sentence on that line either").toMatch(/white-space:\s*nowrap/);
+    expect(hint).toMatch(/min-width:\s*0/);
+  });
+
+  it("the scale the auditor tops out at is the scale the app clamps to", () => {
+    // If MAX_TYPE_SCALE ever moves, the matrix is measuring the wrong ceiling.
+    expect(read("appearance/textZoom.ts")).toMatch(/MAX_TYPE_SCALE\s*=\s*1\.4/);
+  });
+});
+
+// THE FOCUS AUDIT (2026-09-21). The last question the DOM audit could not
+// answer, because it is about a SEQUENCE and not a frame: where does the
+// keyboard go, and can you see it when it gets there. FOCUS=1 in
+// tools/visual-audit.mjs tabs every screen and reports four kinds.
+//
+// The starting suspicion was WRONG and is recorded so nobody re-runs it. The
+// computed outline on a focused control reads `auto 1px rgb(16,16,16)`, which
+// looks like a near-black ring on a near-black app. It is not: Chromium's
+// `outline: auto` is drawn specially and inverts per backdrop, and
+// screenshotted on this app it is a white ring in dark and a black one in
+// light. The ring is fine. What was not fine was everything around it.
+describe("FOCUS-AUDIT: the keyboard can be followed, and what it lands on can be seen", () => {
+  const tool = () => readFileSync(join(SRC, "..", "tools", "visual-audit.mjs"), "utf8");
+
+  it("the auditor has a focus mode, and it starts at the top of the document", () => {
+    expect(tool()).toMatch(/const FOCUS = process\.env\.FOCUS === "1"/);
+    // blur() alone does NOT reset the sequential focus navigation starting
+    // point, so Tab carried on from wherever the crawl's last click left it
+    // and the order recorded was a partial one. A verification run caught it.
+    expect(tool(), "focusing <body> is what moves the starting point").toMatch(/document\.body\.focus\(\)/);
+  });
+
+  it("the order check compares document position, within one scroller, ignoring fixed", () => {
+    // Three false positives, all from this one arithmetic, all chased down
+    // rather than triaged away: viewport y is not position (tabbing scrolls);
+    // adding the scroll back puts an element in ITS OWN scroller's frame; and
+    // a toast or a sheet footer does not scroll at all.
+    const t = tool();
+    expect(t).toMatch(/docY:/);
+    expect(t).toMatch(/scroller:/);
+    expect(t).toMatch(/!s\.fixed && !prev\.fixed && s\.scroller === prev\.scroller/);
+  });
+
+  it("a ring cut by overflow:hidden is a different finding from a row that did not scroll", () => {
+    const t = tool();
+    expect(t).toMatch(/add\(s\.scrolled \? "focus-unscrolled" : "ring-clipped"/);
+    expect(t, "a field's caret is its indicator, so only a field is exempt from no-ring").toMatch(/add\("no-ring"/);
+  });
+
+  it("a scrolling row follows the keyboard, in one place for every row", () => {
+    const hook = read("shared/useFocusReveal.ts");
+    expect(hook, "the keyboard test, so a tap does not snap a chip about").toMatch(/matches\(":focus-visible"\)/);
+    // "nearest" is the polite option and it did nothing on a snapping row, so
+    // the hook measures first and centres. Both halves or neither.
+    expect(hook).toMatch(/inline: "center"/);
+    expect(hook, "measuring first is what buys back the no-op").toMatch(/!outOfView\(el\)/);
+    // Mounted once, beside the other two document-level hooks.
+    const app = read("App.tsx");
+    expect(app).toMatch(/useFocusReveal\(\);/);
+    expect(app, "it sits with useSheetEscape and useLayerFocus, not somewhere new").toMatch(/useLayerFocus\(\);\s*\n\s*useFocusReveal\(\);/);
+  });
+
+  it("every segmented control that scrolls says so, from ONE declaration", () => {
+    // The Tracker's shipped as "Dashboard | Transactions | Budgets | Su", the
+    // fourth label cut mid-word at the screen edge with nothing saying more
+    // existed -- word for word the bug the chip rows were fixed for on
+    // 2026-08-02, in a control that was never given the fix.
+    //
+    // Then Life's did the same thing ("Areas Tasks Reminders Projects Goa")
+    // because the Tracker had been fixed BY NAME. Two scrollers, one rule:
+    // a third joins by being added to this selector, and cannot be forgotten
+    // the way Life's was.
+    const seg = ruleBody(css(), ".mt-tabrow .segmented, .life-seg .segmented")!;
+    expect(seg, "one declaration covering both").toBeTruthy();
+    expect(seg, "the scroller is still a scroller").toMatch(/overflow-x:\s*auto/);
+    expect(seg, "and it fades at the edge, as .chip-row does").toMatch(/mask-image:\s*linear-gradient/);
+    expect(seg).toMatch(/scroll-snap-type:\s*x/);
+    expect(ruleBody(css(), ".mt-tabrow .segmented .seg, .life-seg .segmented .seg")).toMatch(/scroll-snap-align:\s*start/);
+    // Neither may quietly grow a private copy of the rule again.
+    expect(ruleBody(css(), ".life-seg .segmented"), "no second Life-only copy").toBeNull();
+    // The pattern it was copied from, so deleting one orphans the other.
+    // .chip-row is declared twice (the base row at :117, the fade at :1909),
+    // so take every rule whose selector IS that, not the first one.
+    const chipRow = rulesOf("styles/components.css")
+      .filter(([sel]) => sel === ".chip-row").map(([, body]) => body).join(" ");
+    expect(chipRow).toMatch(/mask-image:\s*linear-gradient/);
+  });
+});
+
+// THE GAP THAT LET TWO REAL BUGS SHIP PAST TWELVE CLEAN PASSES (2026-09-21).
+//
+// `truncated` measures scrollWidth against clientWidth, and those are EQUAL
+// on a box that does not clip. So a string that simply grows past the box it
+// sits in -- no overflow, no ellipsis, just painting on top of whatever is
+// there -- was invisible to the tool by construction. Both of the day's bugs
+// were exactly that: the capture bar's hint wrapping across the JARVIS
+// wordmark and out past the pill, and "Subscriptions" running off the end of
+// a segmented control. Both were found by LOOKING at a screenshot.
+describe("OUTSIDE-BOX: text that escapes its box is a finding, not a blind spot", () => {
+  const tool = () => readFileSync(join(SRC, "..", "tools", "visual-audit.mjs"), "utf8");
+
+  it("the auditor reports text painting outside its nearest painted ancestor", () => {
+    const t = tool();
+    expect(t).toMatch(/add\("outside-box"/);
+    // The box has to be the one a reader SEES. Half the spans in this app sit
+    // in a bare div with no background, and escaping one of those is what
+    // normal text flow looks like.
+    expect(t, "the painted ancestor is the box").toMatch(/const painted = \(cs\) =>/);
+    // Content outside a SCROLLER is the entire point of a scroller.
+    expect(t, "the walk stops at the first scrollable ancestor")
+      .toMatch(/if \(\[cs\.overflow, cs\.overflowX, cs\.overflowY\]\.some\(\(v\) => v === "auto" \|\| v === "scroll"\)\) break;/);
+  });
+
+  it("truncation is measured against the width the label WANTED", () => {
+    // scrollWidth is blind to a flex item that lost a shrink fight: its
+    // content box is smaller, so the text lays out at THAT width and
+    // scrollWidth comes back equal to clientWidth. Measured on the New
+    // Reminder sheet at 1.4 -- the bar title paints "New Remind..." and
+    // reports 196 against 195. A Range over the text node agrees with
+    // scrollWidth exactly, because both describe the post-ellipsis layout.
+    const t = tool();
+    expect(t, "an off-screen ruler at max-content").toMatch(/const natural = \(e, cs\) =>/);
+    expect(t, "asked only when scrollWidth has nothing to say").toMatch(/if \(want <= e\.clientWidth \+ 1 && cs\.whiteSpace\.startsWith\("nowrap"\)\)/);
+    // getComputedStyle().font is an empty string in Chromium for most
+    // elements, which silently left the ruler measuring at the default 16px.
+    expect(t, "the longhands, never the shorthand").toMatch(/ruler\.style\.fontFamily = cs\.fontFamily/);
+    expect(t).not.toMatch(/ruler\.style\.font = cs\.font/);
+  });
+
+  it("a control its row forwards to is measured as big as the row", () => {
+    // forwardTo is a React prop, so the auditor measured a 220x24 dropdown
+    // value, found a thumb 9px below it landing on .row, and called the
+    // target too small. It was right about the pixels and wrong about the
+    // app. The selector is now in the DOM, and it is the SAME string the
+    // pointer handler uses, so the two cannot drift.
+    expect(read("shared/FormSheet.tsx")).toMatch(/data-forwards=\{forwardTo \|\| undefined\}/);
+    const t = tool();
+    expect(t).toMatch(/const forwarder = \(e\) =>/);
+    expect(t, "resolved the way the row resolves it").toMatch(/n\.querySelector\(sel\) === e/);
+  });
+
+  it("a form row's value can shrink, and the row wraps before it loses a word", () => {
+    // Holding the label without letting the value shrink just moved the
+    // overflow: "At a Date and Time" ran 17px past the card and off the
+    // screen, chevron and all, because .dd.dd-value .dd-w capped itself at
+    // 52vw -- a viewport number doing a flexbox job.
+    expect(ruleBody(css(), ".xs .row.xs-row > .dd")).toMatch(/min-width:\s*0/);
+    expect(ruleBody(css(), ".xs .row.xs-row > .dd .dd-w"), "the row decides, not the viewport").toMatch(/max-width:\s*none/);
+    // .xs .row.xs-row is declared twice (the 48px floor at :5137, the wrap
+    // beside the .dd rules), so take every rule whose selector IS that.
+    const xsRow = rulesOf("styles/components.css")
+      .filter(([sel]) => sel === ".xs .row.xs-row").map(([, body]) => body).join(" ");
+    expect(xsRow, "and it wraps before it clips").toMatch(/flex-wrap:\s*wrap/);
+    // The vw cap stays for the capsule worn on a header, where there is no
+    // row to bound it.
+    expect(ruleBody(css(), ".dd.dd-value .dd-w")).toMatch(/max-width:\s*52vw/);
+  });
+});
+
+// NOTHING HIDES A COMMITTED EVENT (Dave, 2026-09-21, on a screenshot of his
+// own Today: "I also have a job interview at 3 today and Jarvis is aware. How
+// is that not in the schedule?").
+//
+// It WAS in the schedule. It was inside "Deep Work 3:00 PM - 7:00 PM", behind
+// a collapsed disclosure that called it one of "5 tasks". Both day lists
+// nested any event wholly contained by a holding block and then filtered it
+// out of the top level, so the one appointment that could not be moved was
+// the one thing the day did not show.
+//
+// The August request that built the nesting said TASKS, on a screenshot of a
+// PROPOSAL drawn beside the block it had been planned into. Proposals still
+// nest. Events never did belong in that rule, and planDay.ts had already
+// written the opposite for the planner it feeds: "Zones are preferences, not
+// walls: events and hard blocks inside a zone still win."
+describe("NESTING: a block may hold work, never a commitment", () => {
+  it("the ruling is written once, where both surfaces read it", () => {
+    const n = read("schedule/nesting.ts");
+    expect(n).toMatch(/export const NESTABLE = \{ proposal: true, event: false \}/);
+    // The geometry stays: a proposal still has to be WHOLLY inside to nest.
+    expect(n).toMatch(/export function holderFor/);
+  });
+
+  it("neither day list nests a committed event", () => {
+    // Today and the Schedule tab had separate copies of this, which is how it
+    // came to be wrong on both. Each is checked, so fixing one and forgetting
+    // the other fails here.
+    const today = read("today/YourDay.tsx");
+    expect(today, "Today builds no held-event map").not.toMatch(/heldEv/);
+    expect(today, "and filters no event out of its own day").not.toMatch(/nested\.has\("e:"/);
+    const sched = read("schedule/screens/SchedulePage.tsx");
+    expect(sched, "the Schedule tab builds none either").not.toMatch(/heldBy/);
+    expect(sched).not.toMatch(/nestedIds/);
+    // Both still nest proposals, which is the half that was always right.
+    expect(today).toMatch(/heldProp/);
+    expect(sched).toMatch(/heldPropBy/);
+  });
+
+  it("the held count counts only what the word says", () => {
+    // The disclosure is labelled "task", so counting committed events into it
+    // is how a job interview came to be described as one of "5 tasks".
+    expect(read("today/YourDay.tsx")).toMatch(/heldCount=\{props\.length\}/);
+    expect(read("schedule/screens/SchedulePage.tsx")).toMatch(/heldCount=\{heldProps\.length\}/);
+  });
+});
+
+// WHAT THE AUDIT ACTUALLY LOOKED AT (2026-09-21).
+//
+// Dave, after reporting four bugs on a live workout screen: "You are not
+// proofing work." He was right, and the reason was measurable. The crawl's
+// tab list was a hardcoded ["Today", "Tasks", "Schedule", "More"] -- the tab
+// bar on the day it was written. The bar is CONFIGURABLE, his reads Today /
+// Life / Schedule / Brain / Email / More, so "Tasks" matched nothing and was
+// silently skipped by the click's own try/continue, and Life, Brain and Email
+// were never opened at all.
+//
+// So a tool that reported "0 findings across 22 screens" had never once
+// opened the screen every one of his bugs was on. A tool that decides for
+// itself which parts of the app count is not an audit, it is a sample.
+describe("AUDIT COVERAGE: the crawl does not choose what counts", () => {
+  const tool = () => readFileSync(join(SRC, "..", "tools", "visual-audit.mjs"), "utf8");
+
+  it("takes its tabs from the rendered tab bar, never from a list in the tool", () => {
+    const t = tool();
+    expect(t).toMatch(/const TABS = await page\.evaluate\(/);
+    expect(t).toMatch(/querySelectorAll\("\.tab-bar \.tab"\)/);
+    expect(t, "the hardcoded four are gone").not.toMatch(/const TABS = \["Today", "Tasks", "Schedule", "More"\]/);
+    // A bar that names nothing is a gap, and a gap is reported, not assumed
+    // away -- the same rule the sheet skips already follow.
+    expect(t).toMatch(/the tab bar named no tabs/);
+  });
+
+  it("dives into a TAB as well as a More row", () => {
+    // Life is a hub. Audited as one screen it looked fine, and everything
+    // behind it was invisible.
+    const t = tool();
+    expect(t).toMatch(/async function diveInto\(page, label, sheetSkips, sheetsSeen\)/);
+    expect(t, "More still dives").toMatch(/diveInto\(page, "More > " \+ r/);
+    expect(t, "and now so does every other tab").toMatch(/diveInto\(page, "Tab: " \+ t/);
+    // More's own rows are crawled in full above, so it is not dived twice.
+    expect(t).toMatch(/if \(t === "More"\) continue;/);
+  });
+
+  it("prints every screen it visited, so coverage is never invisible again", () => {
+    // The gap was findable the whole time; nothing ever printed the list.
+    const t = tool();
+    expect(t).toMatch(/SCREENS VISITED/);
+    expect(t).toMatch(/VISITED\.push\(name\)/);
+  });
+});
+
+// A NEW SCREEN STARTS AT ITS TOP (2026-09-21).
+//
+// Dave: "You need to VIEW the visual edits. Stop going off of code." Driving
+// the real app to a real workout is what found this, and reading the code
+// would not have: .app-scroll is ONE scroller for the whole app and it keeps
+// its scrollTop when the thing inside it is replaced. Walking down a program
+// day to reach Start left the scroller 34px down, so the live session opened
+// with its exercise dots and "1 of 7" under the sticky nav bar, half drawn,
+// on the first frame of a workout.
+//
+// Measured before and after rather than argued: .se-prog sat at y 43 with the
+// nav occupying 0 to 61; it sits at 77 now.
+describe("SCROLL RESET: a screen does not inherit the last one's position", () => {
+  it("the shell brings its scroller back to the top when the screen changes", () => {
+    const shell = read("shell/AppShell.tsx");
+    expect(shell, "the scroller is held, not queried for by class").toMatch(/const scroller = useRef<HTMLDivElement>\(null\)/);
+    expect(shell).toMatch(/<div className="app-scroll" ref=\{scroller\}>/);
+    expect(shell).toMatch(/scroller\.current\?\.scrollTo\(\{ top: 0/);
+    // The two screen changes this component can see. A live session is one of
+    // them because the gym sits four components below the shell and swaps the
+    // whole surface without the tab ever changing.
+    expect(shell).toMatch(/\}, \[active, sessionOpen\]\);/);
+  });
+
+  it("does not animate a move the person did not make", () => {
+    expect(read("shell/AppShell.tsx")).toMatch(/behavior: "instant"/);
   });
 });

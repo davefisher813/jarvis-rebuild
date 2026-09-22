@@ -33,6 +33,51 @@ interface Extras {
   gym?: GymService;
 }
 
+// A REAL PROGRAM IN THE DEMO (2026-09-21). Until this, the gym seed wrote
+// fourteen finished sessions with `exercises: []` against a programId of
+// "demo" that no program had, so Health read "Set Up a Program / 0 Exercises
+// / 0 Days" and there was NO WAY to start a session. Every screen behind
+// Start -- the live session, the set strip, the rest clock, the finish
+// receipt -- was therefore unreachable, which is why the visual auditor had
+// never once opened one and why every bug on those screens arrived as a
+// screenshot from Dave instead of as a finding.
+//
+// The prior sessions carry real sets for the same reason: "prefill defaults
+// to the prior session, then to the set before" cannot be looked at when
+// there is no prior session to default to.
+const PUSH_LIFTS: { id: string; name: string; sets: [number, number][] }[] = [
+  { id: "dx-bench", name: "Bench Press", sets: [[185, 5], [185, 5], [185, 5]] },
+  { id: "dx-incline", name: "Incline Dumbbell Press", sets: [[60, 10], [60, 9], [60, 8]] },
+  { id: "dx-ohp", name: "Overhead Press", sets: [[95, 8], [95, 8], [95, 7]] },
+  { id: "dx-pushdown", name: "Triceps Pushdown", sets: [[50, 12], [50, 12], [50, 10]] },
+];
+const PULL_LIFTS: { id: string; name: string; sets: [number, number][] }[] = [
+  { id: "dx-dead", name: "Deadlift", sets: [[275, 5], [275, 5], [275, 3]] },
+  { id: "dx-row", name: "Barbell Row", sets: [[135, 8], [135, 8], [135, 8]] },
+  { id: "dx-curl", name: "Dumbbell Curl", sets: [[35, 10], [35, 10], [35, 9]] },
+  { id: "dx-face", name: "Face Pull", sets: [[40, 15], [40, 15], [40, 12]] },
+];
+
+/** Plan chips: the target strip, no numbers logged. */
+function planStrip(lifts: typeof PUSH_LIFTS) {
+  return lifts.map((l) => ({
+    id: l.id, name: l.name, kind: "weight_reps" as const, unit: "lb",
+    sets: l.sets.map(([w, r], i) => ({ id: `${l.id}-p${i}`, w, r })),
+    restSec: 120,
+  }));
+}
+
+/** Logged chips: what happened, stamped so pacing has something to read. */
+function loggedStrip(lifts: typeof PUSH_LIFTS, at: number) {
+  return lifts.map((l, xi) => ({
+    exerciseId: l.id, name: l.name, kind: "weight_reps" as const, unit: "lb",
+    sets: l.sets.map(([w, r], i) => ({
+      id: `${l.id}-l${i}`, w, r, at: at + (xi * 4 + i) * 180000,
+      moved: (i === l.sets.length - 1 ? "grind" : "clean") as "clean" | "grind",
+    })),
+  }));
+}
+
 export async function seedDemoData(
   tasks: TasksService,
   schedule: ScheduleService,
@@ -214,6 +259,23 @@ export async function seedDemoData(
     }
   }
 
+  // THE PROGRAM ITSELF, seeded before the sessions that reference it. Two
+  // days, pinned to real weekdays so the calendar and Today have something
+  // to claim, and four lifts each so a live session is a screen with
+  // content rather than a header over nothing.
+  if (extras?.gym && (await extras.gym.listPrograms()).length === 0) {
+    await extras.gym.createProgram({
+      name: "Upper / Lower",
+      weeks: [{
+        id: "dw-1", label: "Week 1",
+        days: [
+          { id: "dd-push", name: "Push Day", pinDays: [1, 4], exercises: planStrip(PUSH_LIFTS) },
+          { id: "dd-pull", name: "Pull Day", pinDays: [0, 3], exercises: planStrip(PULL_LIFTS) },
+        ],
+      }],
+    });
+  }
+
   // THE MONTHLY REPORT'S DEMO (2026-08-25): two sealed months plus the
   // dated Store facts the hero and joins read, so a reviewer sees the full
   // page instead of a first-of-the-month empty state. Demo only; the real
@@ -235,13 +297,20 @@ export async function seedDemoData(
     const carriedId = await tasks.createTask("Update insurance docs", { category: cat("Friends") });
 
     if (extras.gym) {
+      const prog = (await extras.gym.listPrograms())[0];
+      const pid = prog?.id ?? "demo";
+      const days = prog?.data.weeks[0]?.days ?? [];
+      const pushId = days.find((d) => d.name === "Push Day")?.id ?? "demo-day";
+      const pullId = days.find((d) => d.name === "Pull Day")?.id ?? "demo-day";
       for (const day of [2, 4, 7, 9, 11, 13, 14, 16, 18, 21, 23, 25, 27, 28]) {
+        const push = day % 2 === 0;
+        const startedAt = new Date(dIn(monthKey, day) + "T17:30:00").getTime();
         await extras.gym.saveWorkout({
-          programId: "demo", dayId: "demo-day", dayName: day % 2 === 0 ? "Push Day" : "Pull Day",
+          programId: pid, dayId: push ? pushId : pullId, dayName: push ? "Push Day" : "Pull Day",
           date: dIn(monthKey, day),
-          startedAt: new Date(dIn(monthKey, day) + "T17:30:00").getTime(),
+          startedAt,
           endedAt: new Date(dIn(monthKey, day) + "T18:17:00").getTime(),
-          exercises: [],
+          exercises: loggedStrip(push ? PUSH_LIFTS : PULL_LIFTS, startedAt),
         });
       }
     }
