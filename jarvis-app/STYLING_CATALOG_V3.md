@@ -838,6 +838,56 @@ A 32% black sink also cleared contrast and was rejected: on the pure-black page 
 
 **ENFORCED.** `src/laws/capsuleLaw.test.ts` pins this section to the CSS: the ring is gone, the fill token exists in both themes, the geometry paints 34, and no rule fills a `.pill-act` with the shorthand. The next pass that wants to change this control has to change the law and this section with it.
 
+## §AM. The Colour Key (V5.4, Dave 2026-09-22: "The color should be based on what it's showing. Make a color key.")
+
+**THE RULE.** Colour is for MEANING. A thing wears a colour because of what it IS, not because it needs to stand out. If a thing does not mean one of the things below, it does not get a colour -- it takes white when it needs emphasis, and the row's one grey when it does not (§AK).
+
+This is the rule that decides §AM F1 below, and it is the reason the answer there is not "make the numbers red". Red already means something.
+
+**THE KEY.** Eight entries, and there is no ninth. Each was already in the app; none of this is new vocabulary. What was missing was the statement that these are the only meanings colour carries, which is why the same meaning had drifted onto two colours in three places.
+
+| Meaning | Colour | Token | Where it already was |
+| --- | --- | --- | --- |
+| Done, on track, paid, logged, in range | Green | `--good` | `Done` chips, a met goal, a paid bill, a passing check |
+| Needs you soon: due, next, stalled, near a limit | Amber | `--warn` | `Today` chips, `NEXT` on a project, a stalled goal, a full week |
+| Late: overdue, over the limit, missed | Red | `--sys-red` | `3d late`, an overdue task, a hot queue, a day count |
+| An estimate: a number the app worked out | Sky | `--cat-sky` | the estimate on a task row, a goal's projection |
+| Which area of life this belongs to | the category's own | `--cat-*`, **on the dot** | every category on every row |
+| **Tap this** (not a meaning -- an affordance) | Brand red | `--tint` | `Until 8:30 PM`, the nav `+`, links |
+| A number with no state, that still needs to stand out | White | `--tx-1` | a balance, a total, a step count |
+| Everything else, ONCE per row | The one grey | `--tx-3` | where it came from, a place, a person |
+
+**THE CATEGORY RIDES A DOT, NEVER THE WORDS** (§AJ G4, restated here because it is what lets the key work). If a category coloured its own text, no row could also carry a green or an amber without two hues fighting. The dot carries the hue; the words stay grey; the row keeps its meaning colour for the thing that has one.
+
+**BRAND RED IS NOT IN THE MEANING COLUMN.** `--tint` says "this responds to a tap". Every other red thing on screen opens something. A number that is merely a fact must never take it, or it promises a tap that is not there. This is why a duration is NOT red: four red numbers on one screen, none of which opens anything, was the rendered proof.
+
+**HEALTH KEEPS ITS OWN INKS, NOT ITS OWN MEANINGS.** The gym and health screens run a brighter ramp so a line reads at arm's length between sets. The meanings are the same; only the inks change, and only inside `.ruled.health-ruled` (and `.sheet-scrim > .card`, which is where its sheets render):
+
+- lime `--hl-lime-ink` -- done, logged, in range
+- cyan `--hl-cyan-ink` -- now, current, the live set
+- amber `--hl-amber-ink` -- next up, over budget, a guard
+- violet `--hl-violet-ink` -- a budget or a pairing
+- blue `--hl-blue-ink` -- a cool-down
+
+**WHAT THE KEY FIXED WHEN IT WAS WRITTEN.** Three places where one meaning wore two colours:
+
+1. **Over a limit** was `--hl-amber-ink` in one Health readout and plain `--warn` in another, on the same screen. Both are Health, so both are the Health amber.
+2. **A hard warning** in a session guard used `--accent-tx`, the BRAND red, which the key reserves for tappable. It is `--sys-red` now, the same as every other late.
+3. **A duration** had no colour at all and was bolded in the grey instead -- which is exactly what §AK V5.2 outlawed that morning. Under the key it is sky when the app estimated it and white when it was measured or entered.
+
+**§AM F1 (a number inside a grey line).** Twelve rules brightened a `<b>` inside a quiet line and they disagreed six/six: half went `--tx-1`, half went `--tx-2`, which is the SAME COLOUR as `--tx-3` and so was the one grey made heavier. Settled by the key: the number takes the colour of what it means, and white when it means nothing in particular. Never `--tint`.
+
+**§AM F2-F7 (the rest of the Subtext Catalog, same day).** Rendered from the real components in both themes and picked one at a time:
+
+- **F2, a second fact on one line takes a colour** from the key above.
+- **F3, the separator is a middot the CSS draws**, in the structure grey, never a character inside a string.
+- **F4, two sizes carry subtext**: 14 (`--t-sub`) for facts, 11 caps (`--t-eyebrow`) for kickers. Eight were shipping.
+- **F5, a date or a time on a row is small caps**, the letterform `.urgency` already used, so it survives a row that has spent its grey.
+- **F6, one note under a field**: 14px italic. Three classes said it three ways.
+- **F7, one section head rule**: `--t-caption` at 700 with 0.1em. Two rules said it two ways and the one the catalog documented was the one that never painted.
+
+**THIS APPLIES EVERYWHERE, INCLUDING WHAT DOES NOT EXIST YET** (Dave, same day: "Make sure all of these edits are applied to all pages, modals, backend pages, email pages, settings, Brain, etc. Literally everywhere. Text boxes, chat boxes, previews and future additions"). A sweep cannot reach a screen nobody has written. So the key is held by `src/laws/colourKey.test.ts`, which reads every stylesheet and fails on a semantic colour used for a meaning the key does not give it -- a new screen cannot opt out, because the law does not look at screens, it looks at the rules they all share.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

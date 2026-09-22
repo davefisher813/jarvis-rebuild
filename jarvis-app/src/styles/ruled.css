@@ -429,7 +429,7 @@
    action takes --tx-2, one step brighter than the --tx-3 progress line
    above, so the row's brightest ink after the title is the actual move. Same
    device as `.r-goal b`, which already brightens the fact inside a line. */
-.ruled .task-row .r-goal b { font-weight: var(--w-semi); color: var(--tx-2); }
+.ruled .task-row .r-goal b { font-weight: var(--w-semi); color: var(--tx-1); }
 /* (The goal as a head over its projects, .sh2.gh-goal, is retired. The
    Projects lens groups by area like the Goals lens does, so the head is the
    area's and the goal rides on the row as an .r-is-goal chip. Dave
@@ -699,15 +699,25 @@
 .ruled .sched-row > .sched-body { order: 1; flex: 1 0 100%; }
 .ruled .sched-body { padding-left: 0; }
 .ruled .sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: var(--s-1); }
-.ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: var(--t-caption); }
+/* §AM F4: TWO SIZES CARRY SUBTEXT, 14 and 11 caps. This dropped the whole
+   schedule meta line to 13, which made a third rung out of the one line in
+   the app that most needed to be ordinary. It was kept on the theory that 14
+   would re-create the wrap in Dave's 2026-09-22 screenshot; rendered at
+   Dynamic Type 1.4 the line breaks in the SAME place at both sizes, and the
+   separator travels with the place name either way (the .sched-fact wrap).
+   So the theory was wrong and the rung goes. */
+.ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: var(--t-sub); }
 .ruled .sched-cat .cat-dot { width: 7px; height: 7px; }
 .ruled .sched-rep, .ruled .sched-until { white-space: nowrap; } /* an item wraps whole or not at all */
-/* ONE GREY, EVER (§AK, 2026-09-21). The meta line reads FIXED · Family ·
-   1h 30m · Ridgeline Fields: the state word is caps, the category is dotted,
-   and then the length and the place were both plain grey. The length and
-   the repeat carry weight now; the place, which is the one string on the
-   line the athlete wrote, keeps the single regular grey the ruling allows. */
-.ruled .sched-until, .ruled .sched-rep, .ruled .sched-until-btn { font-weight: var(--w-semi); }
+/* ONE GREY, EVER (§AK, tightened to V5.2 on 2026-09-22). The meta line reads
+   FIXED · Family · 1h 30m · Ridgeline Fields: the state word is caps, the
+   category is dotted, the length is a tappable control in --tint, and the
+   place keeps the single regular grey the ruling allows.
+   THE WEIGHT CAME OFF (§AM). V5.1 let the length and the repeat carry
+   semibold instead of a real distinction; V5.2 pulled that exemption, because
+   --tx-2 and --tx-3 are the same hex and a heavier grey is still the one
+   grey. The repeat is the line's one grey now and nothing else on it is. */
+.ruled .sched-until-btn { font-weight: var(--w-semi); }
 /* The divider starts where the row's content starts, which is the rail's
    own inset now rather than the far side of a gutter that is gone. */
 .ruled .sched-row + .sched-row::before, .ruled .sched-swipe-wrap + .sched-swipe-wrap .sched-row::before {
@@ -900,7 +910,7 @@
 .ruled .ins-row .ins-k { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .ins-move { display: inline-flex; align-items: center; gap: var(--s-2); flex-shrink: 0;
   font-size: var(--t-caption); color: var(--tx-3); font-variant-numeric: tabular-nums; }
-.ruled .ins-move b { font-weight: var(--w-semi); color: var(--tx-2); }
+.ruled .ins-move b { font-weight: var(--w-semi); color: var(--tx-1); }
 .ruled .ins-arrow { width: 14px; height: 1.5px; background: var(--tx-4); position: relative; display: inline-block; }
 .ruled .ins-arrow::after { content: ""; position: absolute; right: 0; top: -2.5px; width: 6px; height: 6px;
   border-top: 1.5px solid var(--tx-4); border-right: 1.5px solid var(--tx-4); transform: rotate(45deg); }
@@ -921,7 +931,10 @@
 .ruled .vol-n { width: 26px; flex-shrink: 0; text-align: right; font-size: var(--t-caption);
   font-weight: var(--w-semi); font-variant-numeric: tabular-nums; }
 .ruled .vol-n.vol-in { color: var(--hl-lime-ink); }
-.ruled .vol-n.vol-under, .ruled .vol-n.vol-over { color: var(--warn); }
+/* §AM: one meaning, one colour. "Over a limit" sat on the plain --warn here
+   while the line above it used the Health amber for the same idea, on the
+   same readout. Inside Health the ink is the Health ink. */
+.ruled .vol-n.vol-under, .ruled .vol-n.vol-over { color: var(--hl-amber-ink); }
 .ruled .h-week { display: flex; justify-content: space-between; padding: var(--s-0h) var(--s-5) var(--s-3h); }
 /* A trained day is lime and TODAY is a cyan ring; neither glows (Health R5,
    2026-09-12). The 8px bloom went with the hero's. */
@@ -1062,7 +1075,7 @@
 .ruled .sc-dayhead .t { flex-shrink: 0; }
 .ruled .sc-dayhead .sc-fact { font-weight: var(--w-regular); font-size: var(--t-caption); color: var(--tx-3); min-width: 0;
   white-space: nowrap; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
-.ruled .sc-fact b { color: var(--tx-2); font-weight: var(--w-semi); }
+.ruled .sc-fact b { color: var(--tx-1); font-weight: var(--w-semi); }
 .ruled .sc-fact .sched-sep { margin: 0 var(--s-1h); opacity: 0.55; }
 
 /* ---------- THE DAY STARTS AT NOW (same catalog, picked "Everything behind
@@ -1508,13 +1521,13 @@
    for a one, two and three line reading at 390 wide. Copy is written to land
    on two wherever it can be said in two. */
 .ruled .rdy-why { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); line-height: 1.45; margin-top: var(--s-1); }
-.ruled .rdy-why b { font-weight: var(--w-medium); color: var(--tx-2); }
+.ruled .rdy-why b { font-weight: var(--w-semi); color: var(--tx-1); }
 .ruled .rdy-n { flex-shrink: 0; align-self: flex-start; margin-top: 1px;
   font-size: var(--t-caption); font-weight: var(--w-medium);
   color: var(--tx-3); font-variant-numeric: tabular-nums; text-align: right; }
 /* The have, against the gate behind it. Quiet ink is the resting state: a
    detector that is simply waiting is not a warning. */
-.ruled .rdy-n b { font-weight: var(--w-semi); color: var(--tx-2); }
+.ruled .rdy-n b { font-weight: var(--w-semi); color: var(--tx-1); }
 .ruled .rdy-n.rdy-good b { color: var(--good); }
 .ruled .rdy-n.rdy-warn b { color: var(--warn); }
 /* Muted: the nod test switched this detector off, so its count is the
@@ -1689,8 +1702,11 @@
    from the title by being smaller, bolder and upper case, the way every
    other .se-chip em is, so it does not need to be dimmer as well. */
 .ruled.health-ruled .se-guard em { color: var(--hl-amber-ink); white-space: nowrap; flex-shrink: 0; }
-.ruled.health-ruled .se-guard-warn { color: var(--accent-tx); background: var(--red-tint); }
-.ruled.health-ruled .se-guard-warn em { color: var(--accent-tx); }
+/* §AM: --accent-tx is the BRAND red, and the key reserves red-as-brand for
+   things that respond to a tap. A guard that has been crossed is LATE in the
+   key's sense, which is --sys-red, the same red every overdue thing wears. */
+.ruled.health-ruled .se-guard-warn { color: var(--sys-red); background: var(--red-tint); }
+.ruled.health-ruled .se-guard-warn em { color: var(--sys-red); }
 
 /* THE PIN IS A CLAIM, NOT A VERB (2026-09-16). "Pin Days" was a red capsule on
    every unpinned day, so a five-day program showed five red verbs down one
@@ -2077,7 +2093,12 @@
    themes, so this needs no colour of its own. */
 .ruled .slide-tag { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.07em; text-transform: uppercase; padding: var(--s-0h) var(--s-2); border-radius: var(--r-pill);
-  color: var(--hl-violet-ink); background: var(--hl-violet-tint); white-space: nowrap; }
+  /* §AM: a HEALTH ink on a TASKS row. "Keeps Sliding" is the same meaning
+     .r-stalled already draws in --warn two hundred lines up, so one idea had
+     two colours and one of them was borrowed from a surface this tag never
+     renders on. Same grammar as .uchip.u-today, which is the app's chip for
+     "this needs you soon". */
+  color: var(--warn); background: var(--warn-tint); white-space: nowrap; }
 
 /* ---------- THE HEALTH OVERVIEW, TO THE REFERENCE (Dave 2026-09-14) ------
    Three tabs, the next-workout card with its eyebrow and program beside it,

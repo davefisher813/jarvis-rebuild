@@ -5756,7 +5756,14 @@ describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatment
     // Nums is the one renderer for that, already used by the goal and review
     // rows, so the task row does not invent a second one.
     expect(PAGE).toMatch(/<Nums text=\{durLabel\(t\.estimateMin\)\} \/>/);
-    expect(RULED).toMatch(/\.ruled \.task-row \.r-goal b \{ font-weight: var\(--w-semi\); color: var\(--tx-2\); \}/);
+    // AMENDED 2026-09-22 (§AM, the Colour Key). This pinned --tx-2, and
+    // --tx-2 is the SAME HEX as --tx-3, so what it actually pinned was the
+    // row's one grey made heavier -- the exact thing §AK V5.2 outlawed that
+    // morning. The key settles it: a number inside a quiet line takes the
+    // colour of what it MEANS, and white when it means nothing in
+    // particular. An estimate has a meaning and wears sky (.r-est); this
+    // emphasis does not, so it steps up in brightness instead of hue.
+    expect(RULED).toMatch(/\.ruled \.task-row \.r-goal b \{ font-weight: var\(--w-semi\); color: var\(--tx-1\); \}/);
   });
 
   it("a category name stays plain, which is what the contract says it does", () => {

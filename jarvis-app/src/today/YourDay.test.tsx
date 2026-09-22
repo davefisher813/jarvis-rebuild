@@ -22,11 +22,20 @@ beforeEach(() => {
 });
 
 describe("YourDay", () => {
-  it("is a static card (no ticker, no pause) when the day fits", () => {
+  // AMENDED 2026-09-22. This asserted the card was absent on a day that
+  // fits, which gave the home page two different shapes depending on how
+  // busy the day was. Dave: "I want the tv guide schedule to render at all
+  // times on the home page. It looks awful the other way." The card is
+  // always the card; only the MOTION is conditional.
+  it("keeps the card when the day fits, still and without the pause control", () => {
     const { container } = render(<YourDay events={[ev("a", "09:00")]} now="08:00" nowLabel="8:00" onSeeAll={() => {}} />);
     expect(screen.getByText("Your Day")).toBeInTheDocument();
-    expect(container.querySelector(".sched-ticker")).toBeNull();
+    const card = container.querySelector(".sched-ticker");
+    expect(card, "the card renders at all times").not.toBeNull();
+    expect(card!.className).toContain("ticker-still");
+    // Nothing is moving, so there is nothing to pause and nothing to explain.
     expect(container.querySelector(".ticker-toggle")).toBeNull();
+    expect(container.querySelector(".ticker-hint")).toBeNull();
   });
 
   it("shows an empty state when nothing is scheduled", () => {

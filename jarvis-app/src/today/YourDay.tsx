@@ -632,7 +632,23 @@ export default function YourDay({
   // that stopped it must not also activate whatever it landed on.
   const nowMinutes = (() => { const p = now.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); })();
 
-  if (!overflow || paused) {
+  // THE TV GUIDE RENDERS AT ALL TIMES (Dave 2026-09-22: "I want the tv guide
+  // schedule to render at all times on the home page. It looks awful the
+  // other way.")
+  //
+  // It used to appear only on a day long enough to overflow 252px, so the
+  // home page had two completely different shapes depending on how busy the
+  // day was, and the quiet day got the plain stacked list. Now the card is
+  // always the card. What `overflow` decides is only whether it MOVES:
+  //
+  //   overflowing -> two copies and the loop, as before
+  //   fits        -> one copy, no animation, every control live
+  //
+  // It cannot simply always run: the loop is a -50% translate across two
+  // copies, so a day shorter than the viewport would slide a gap through the
+  // card, which is the "awful" it is meant to stop. Pause is untouched and
+  // still renders the plain list, because that is the explicit off switch.
+  if (paused) {
     return (
       <div>
         {header}
@@ -680,27 +696,42 @@ export default function YourDay({
     <div>
       {header}
       {nowHead}
-      {nowHead && <div className="day-band">The whole day</div>}
+      {nowHead && <div className="day-band">{overflow ? "The whole day" : "The rest of today"}</div>}
       <div className="pad-x">
         <div
-          className={"card sched-ticker" + (held ? " holding" : "")}
-          onTouchStart={() => setHeld(true)}
-          onTouchEnd={() => setHeld(false)}
-          onTouchCancel={() => setHeld(false)}
-          // Capture, so the tap that stops the scroll is swallowed before it
-          // reaches the row it happened to land on. Without this the first
-          // touch opens whatever was passing, which is the worst possible
-          // outcome of reaching for a moving list.
-          onClickCapture={(e) => { e.stopPropagation(); setPausedSticky(true); }}
+          className={"card sched-ticker" + (held ? " holding" : "") + (overflow ? "" : " ticker-still")}
+          // ONLY THE MOVING CARD STEALS THE TAP. Swallowing the first click
+          // is right when rows are sliding under the thumb and wrong when
+          // nothing is moving: on a still card it would eat the tap that
+          // opens an event and pause a loop that is not running.
+          {...(overflow ? {
+            onTouchStart: () => setHeld(true),
+            onTouchEnd: () => setHeld(false),
+            onTouchCancel: () => setHeld(false),
+            onClickCapture: (e: React.MouseEvent) => { e.stopPropagation(); setPausedSticky(true); },
+          } : {})}
         >
-          <div className="ticker-track">
-            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
-            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
-          </div>
+          {overflow ? (
+            <div className="ticker-track">
+              <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
+              <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
+            </div>
+          ) : (
+            /* THE STILL CARD MEASURES ITSELF. The twin the paused branch
+               mounts exists because the compressed day on screen is not the
+               day the ticker would show. Here it IS: one copy, expanded,
+               exactly the content the loop would carry, so the track is the
+               measurement and no hidden second copy is needed. A day that
+               grows past the viewport flips this to the loop above. */
+            <div className="ticker-track" ref={measureRef}>
+              <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} firstMoveMap={firstMoveMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} onDeleteEvent={onDeleteEvent} onDeleteBlock={onDeleteBlock} gymDoorFor={gymDoorFor} expandHeld stateWords />
+            </div>
+          )}
         </div>
         {/* Says what the tap does, because a list that stops when you touch
-            it is only obvious after it has happened once. */}
-        <div className="ticker-hint">Tap to hold it still</div>
+            it is only obvious after it has happened once. Nothing is moving
+            in the still card, so there is nothing to say about touching it. */}
+        {overflow && <div className="ticker-hint">Tap to hold it still</div>}
       </div>
       {/* Same move as the paused view (Option B, 2026-08-26): actions trail
           the day instead of splitting Now from it. */}

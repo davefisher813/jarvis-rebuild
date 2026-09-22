@@ -78,13 +78,21 @@ describe("the day that only fits because it is compressed", () => {
     expect(container.querySelectorAll(".day-measure").length).toBe(0);
   });
 
-  it("a genuinely short day still sits still", () => {
+  it("a genuinely short day keeps the card and drops the motion", () => {
     const { container } = render(
       <YourDay events={[ev("a", "13:05"), ev("b", "18:00")]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
     );
-    // Two rows, 120px, under the window. Measuring the expanded day must not
-    // turn every day into a ticker.
-    expect(container.querySelector(".sched-ticker"), "two rows do not need a loop").toBeNull();
+    // AMENDED 2026-09-22 (Dave: "I want the tv guide schedule to render at
+    // all times on the home page. It looks awful the other way.") The card
+    // is the home page's shape now whether or not the day is long enough to
+    // scroll, so this used to assert the card was ABSENT and now asserts it
+    // is present and still. Two rows, 120px, under the window: nothing to
+    // loop, and a -50% translate across a day shorter than the viewport
+    // would slide a gap through the card, which is the "awful".
+    const card = container.querySelector(".sched-ticker");
+    expect(card, "the card renders at all times").not.toBeNull();
+    expect(card!.className, "two rows do not need a loop").toContain("ticker-still");
+    expect(container.querySelectorAll(".ticker-track"), "one copy, not two").toHaveLength(1);
   });
 
   it("the day you can touch is still collapsed", () => {

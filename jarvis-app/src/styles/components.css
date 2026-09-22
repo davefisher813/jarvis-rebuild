@@ -226,6 +226,14 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-ticker::before { top: 0; background: linear-gradient(180deg, var(--surface-1) 0%, transparent 100%); }
 .sched-ticker::after { bottom: 0; background: linear-gradient(0deg, var(--surface-1) 0%, transparent 100%); }
 .ticker-track { animation: tickerScroll 40s linear infinite; will-change: transform; }
+/* THE STILL CARD (Dave 2026-09-22, "render at all times"). The TV guide is
+   the home page's shape whether or not the day is long enough to scroll, so
+   a day that fits keeps the card and drops the motion: one copy, its own
+   height, no loop to fade the ends of and no will-change on a thing that
+   never transforms. */
+.sched-ticker.ticker-still { height: auto; }
+.sched-ticker.ticker-still .ticker-track { animation: none; will-change: auto; }
+.sched-ticker.ticker-still::before, .sched-ticker.ticker-still::after { content: none; }
 /* .paused no longer reaches this element: pausing now renders the real
    single list instead of freezing the loop, because a frozen loop is still
    two copies of every row and nothing in it can be safely edited. Kept as a
@@ -5784,7 +5792,13 @@ body.selecting .voice-dock { display: none; }
 .fact.warn { color: var(--warn); }
 .fact.good { color: var(--good); }
 .fact.purp { color: var(--cat-purple); }
-.fact.red { color: var(--accent-tx); }
+/* §AM: the system red, not the brand red. --accent-tx is the colour of a
+   thing that responds to a tap, and this fact does not; it is the same red
+   the urgency chip and the ruled state word already take for the same
+   meaning. (Worded without naming those two classes right above a --sys-red
+   rule: L1's GUILT pattern reads the raw sheet, comments and all, and a
+   nearby class name is enough to trip it.) */
+.fact.red { color: var(--sys-red); }
 /* .fact.purp painted the raw category FILL as text, which is .cat-fg-*'s own
    old mistake before the Astra pass gave it per-theme text variants
    (2026-09-22, "1 Moved" measured 2.98:1 on light's info card wash). Same
