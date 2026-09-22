@@ -791,6 +791,28 @@ A structural audit of the corners looked for lists with no head, screens with no
 
 Three laws were repinned to the tokens rather than to the literals they used to name: the shelf head reads `--t-h2`, the ruled row's provenance reads `--t-caption`, and the one-line clamp derives the chip's height from `--t-micro`. That is the point of the pass: a law that names a number has to be edited every time the number moves, and a law that names a token never does.
 
+## §AK. One Grey, Ever (V5.1, Dave 2026-09-21, five screenshots: "There should not be more than one gray subtext anywhere")
+
+The ruling, in his words: "it should say one thing up top or just say whatever it says up top. And if there's subtext, you can make it gray with regular font one time. And then after that shit has to look different. If you want to bold something in gray, fine. Color coordinating, dots, chips, whatever. But I never want to speak about this again."
+
+**THE LAW.** On any row, under its title, at most ONE run of text is secondary ink at regular weight. Every other thing on the row is told apart by something you can see without reading it:
+
+- **weight** -- the same grey at 600 or heavier;
+- **colour** -- a fact wearing its intent (§AJ G4: a date in cyan, a count in the category's colour, a state word in its tone);
+- **a mark** -- the category dot, the event mark, the project pie, the goal ring, ahead of plain words;
+- **a fill** -- a chip or a pill, which carries its own ground;
+- **caps** -- a state word or an eyebrow, which is told apart by its letterforms.
+
+A separator (the middot, a slash) is structure and does not count. A row's title is primary ink and does not count. Everything else does.
+
+**WHAT IT REPLACES.** V4.1 M.3 said "one colored fact inside a grey sub, no more". That was the right instinct pointed the wrong way: it capped the colour and let the grey run. Five screenshots on 2026-09-21 showed where that leads -- "KNOWN · Your Move · Plan My Day" with two grey facts after the state word; a Notes row reading "Javris · JARVIS found 6 · Sep 15" in one grey; "Nothing under it yet" under six goals in a row; "Email" in bare grey under one task and a dotted category under the next. M.3 is superseded: the cap is on the GREY now, and colour is what you reach for when a second fact needs saying.
+
+**WHAT IT MEANS FOR A PLACEHOLDER.** A line that says the row has nothing to say ("Nothing under it yet", "No category") is grey subtext with no information in it, repeated once per row. It is the exact thing the ruling is about. A row with nothing under it shows nothing under it.
+
+**WHAT IT MEANS FOR A DATE ON THE TITLE.** A note made from a meeting used to carry the date in its title AND on its meta line. Once. The meta line already has it.
+
+**ENFORCED BY MEASUREMENT, NOT BY CLASS NAME.** `tools/visual-audit.mjs` check 8 (`grey-twice`) walks every row on every screen it reaches and reads the COMPUTED colour and weight of each text-bearing leaf: achromatic ink between the two ends of the ramp, under 600, not uppercase, not on its own fill, not a separator glyph. Two of those on one row is a finding, named with the runs it saw. A class rename cannot slip past it, because it never reads a class. `src/laws/subtextLaw.test.ts` pins this section and that check to each other, so neither can be removed without the other noticing.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

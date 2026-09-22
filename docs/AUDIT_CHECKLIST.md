@@ -367,6 +367,40 @@ before this phase was a screens-only number.
       the tool's blind spots, not the app's.
 - [ ] **Anything else the crawler names as unreachable** on its next run.
 
+## PHASE 8 · ONE GREY, EVER (Dave 2026-09-21, five screenshots)
+
+"There should not be more than one gray subtext anywhere... you can make it
+gray with regular font one time. And then after that shit has to look
+different... I never want to speak about this again. Enforced strict, strict
+laws with visuals."
+
+- [x] **The catalog carries it** · §AK, in his words, naming what it
+      supersedes (V4.1 M.3 capped the colour and let the grey run).
+- [x] **The auditor measures it** · check 8, `grey-twice`: the COMPUTED
+      colour and weight of every text leaf in every row and card, on every
+      screen it reaches. Not class names. The three ways out the ruling
+      names are the three exemptions: weight 600+, a wordless mark ahead of
+      the words (a dot, a pie, a ring, inside the span or before it), a fill
+      of its own. A sentence whose numbers sit in their own spans is one run.
+      `src/laws/subtextLaw.test.ts` pins the section and the check together.
+- [x] **The first pass found 20 rows on 7 screens; the fourth found 0** ·
+      across both themes at both text sizes, 43 screens each. Fixed: the
+      Schedule meta line (length and repeat carry weight; the place is the
+      one grey), Decisions (the date wears cyan), Money's account rows (the
+      amount carries weight), the set strip (units are labels and carry
+      weight; "Last:" is the one grey), Brain's Shaping rows ("Your Move ·
+      Plan My Day" was two greys and is one fact with a list in it), the
+      goal cards (the count carries weight).
+- [x] **The five screenshots** · the lift page's pill clipped on BOTH sides
+      ("·vidence and Calculatio") because text-overflow cannot draw on a flex
+      container, measured at 67px past its own edge; a text-only pill is
+      inline-block now and the ellipsis is real. Two stacked action rows had
+      colliding hit boxes (same arithmetic as Basis). A note made from a
+      meeting carried its date in the title AND on the meta line. "Nothing
+      under it yet" drew a grey line with nothing in it under six goals. An
+      email-born task said "Email" in bare grey beside a dotted category; an
+      origin wears a mark now.
+
 ## PHASE 7 · DRIFT
 
 Dave, 2026-09-21, after finding the superset buttons missing: "We cannot

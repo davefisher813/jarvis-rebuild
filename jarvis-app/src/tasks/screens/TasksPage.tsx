@@ -26,7 +26,7 @@ import InlineEdit from "../../shared/InlineEdit";
 import HeadMenu from "../../shared/HeadMenu";
 import { useLongPress } from "../../shared/useLongPress";
 import { haptics } from "../../shared/haptics";
-import { ParentLineGlyph } from "../../shared/glyphs";
+import { ParentLineGlyph, EnvelopeGlyph } from "../../shared/glyphs";
 import StepCount, { stepsOf, hasUnfinishedSteps } from "../../shared/StepCount";
 import { Nums } from "../../bigger/GoalRowRuled";
 import type { ParentLine } from "../../life/parent";
@@ -415,9 +415,20 @@ export function TaskRow({
                 </>
               : parent
               ? <ParentLineGlyph p={parent} />
-              : (categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || originLabel(t))
+              : categoriesOf(t).map((id) => catName(id)).filter(Boolean).length > 0
               ? <span className="r-goal r-cat">
-                  {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || originLabel(t)}
+                  {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ")}
+                </span>
+              : originLabel(t)
+              /* WHERE IT CAME FROM WEARS A MARK (§AK, 2026-09-21, Dave's
+                 Anytime screenshot: "Email" in bare grey under one task and
+                 a dotted category under the next). An origin is a parent of
+                 sorts -- the email, the note, the paste it was lifted
+                 from -- so it takes the parent line's shape: a wordless
+                 mark ahead of plain words, the same as a category's dot. */
+              ? <span className="r-goal r-parent r-parent-plain">
+                  <span className="r-pg"><EnvelopeGlyph className="r-gm" /></span>
+                  <span className="r-goal-t">{originLabel(t)}</span>
                 </span>
               : null}
             {/* A1: the cue, where he will see it while scanning. The whole

@@ -145,7 +145,13 @@ export function reachLine(r: GoalReach, done = false): string {
   // line has to say only what is true, which is that some work under this
   // goal is still open. The sibling line above names its noun ("2 of 5
   // Projects done"), so this one does too, and stops there.
-  return "Nothing under it yet";
+  //
+  // AND WHEN THERE IS NOTHING, IT SAYS NOTHING (§AK, 2026-09-21). This
+  // returned "Nothing under it yet", which drew a grey line with no
+  // information in it under every goal that had no work yet -- six in a
+  // row on Dave's screen. A placeholder is exactly the grey subtext the
+  // ruling is about. The row with nothing under it shows nothing under it.
+  return "";
 }
 
 // ---------------------------------------------------------------------------

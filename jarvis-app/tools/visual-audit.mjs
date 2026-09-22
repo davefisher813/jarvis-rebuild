@@ -562,6 +562,103 @@ const AUDIT = () => {
     }
   }
 
+  // 8. ONE GREY, EVER (Dave 2026-09-21, five screenshots: "There should not
+  //    be more than one gray subtext anywhere... you can make it gray with
+  //    regular font one time. And then after that shit has to look different.
+  //    If you want to bold something in gray, fine. Color coordinating,
+  //    dots, chips, whatever. But I never want to speak about this again.")
+  //
+  //    So under a row's title, at most ONE run of text may be secondary ink
+  //    at regular weight. Everything else on the row has to be told apart by
+  //    something you can see without reading: weight, a colour, a dot, a
+  //    chip's own fill. This measures the COMPUTED colour and weight of every
+  //    text-bearing leaf in the row, which is what he sees, rather than
+  //    class names, which is what drifted. A separator glyph (a middot, a
+  //    slash, a bare bullet) is structure and does not count, and a leaf
+  //    sitting on its own fill (a chip, a pill) is already told apart.
+  // A CARD WITH A TITLE IS A ROW FOR THIS PURPOSE. The goal and project
+  // cards on Life's grid carry a title and lines under it exactly as a row
+  // does, and the first look at them showed two grey lines the row scan
+  // could not see ("0 of 1 Projects done" over "1 Linked project").
+  const ROWS = ".row, .task-row, .sched-row, .lib-row, .conn-row, .proj-row, .person-row, .lm-row, .rem-card, .area-card, .notice-card, .stream-card, .cat-row, .bp-card";
+  const isGrey = (rgb) => {
+    const m = rgb.match(/[\d.]+/g); if (!m) return false;
+    const [r, g, b] = m.map(Number);
+    const a = m[3] === undefined ? 1 : Number(m[3]);
+    if (a < 0.2) return false;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    // Achromatic, and not the primary ink at either end of the ramp.
+    return mx - mn < 18 && mx < 244 && mn > 12;
+  };
+  const onOwnFill = (e, stop) => {
+    let n = e;
+    while (n && n !== stop) {
+      const bg = getComputedStyle(n).backgroundColor;
+      const m = bg.match(/[\d.]+/g);
+      if (m && (m[3] === undefined || Number(m[3]) > 0.02)) return true;
+      n = n.parentElement;
+    }
+    return false;
+  };
+  for (const row of ROOT.querySelectorAll(ROWS)) {
+    if (!vis(row) || !clipped(row)) continue;
+    // Nested rows report themselves; a card that holds rows is not a row.
+    if (row.querySelector(ROWS)) continue;
+    const greys = [];
+    for (const e of row.querySelectorAll("*")) {
+      if (e.children.length > 0 && [...e.childNodes].every((c) => c.nodeType !== 3 || !c.textContent.trim())) continue;
+      const txt = [...e.childNodes].filter((c) => c.nodeType === 3).map((c) => c.textContent).join("").trim();
+      if (!txt || /^[\u00b7\u2022\u2013\u2014\-\/|:,.\s]+$/.test(txt)) continue;
+      if (!vis(e)) continue;
+      const cs = getComputedStyle(e);
+      if (!isGrey(cs.color)) continue;
+      if (Number(cs.fontWeight) >= 600) continue;
+      if (cs.textTransform === "uppercase") continue;   // a state word or eyebrow is told apart by its caps
+      if (onOwnFill(e, row)) continue;
+      // A MARK AHEAD OF THE WORDS TELLS THEM APART (the ruling names "dots").
+      // The category dot, the event mark, the project pie and the goal ring
+      // are all a wordless element drawn just before the text, so a leaf
+      // whose nearest inline group opens with one is marked, not grey.
+      const grp = e.parentElement;
+      const marked = (n) => {
+        let p = n.previousElementSibling;
+        while (p) {
+          if (vis(p) && !(p.textContent || "").trim()) return true;
+          if ((p.textContent || "").trim()) return false;
+          p = p.previousElementSibling;
+        }
+        return false;
+      };
+      // ...and a dot drawn INSIDE the leaf, ahead of its own text, is the
+      // same mark: the schedule's "· Family" is a wordless dot element and
+      // a text node in one span.
+      const leadsWithMark = (n) => {
+        for (const c of n.childNodes) {
+          if (c.nodeType === 3 && c.textContent.trim()) return false;
+          if (c.nodeType === 1) return vis(c) && !(c.textContent || "").trim();
+        }
+        return false;
+      };
+      if (leadsWithMark(e) || marked(e) || (grp && grp !== row && marked(grp))) continue;
+      // ONE SENTENCE IS ONE RUN. "Looks like Wednesday 2:30 PM · 30 Min" is
+      // a single grey line whose numbers happen to sit in their own spans;
+      // that is one run, not three. A run is the nearest ancestor that is a
+      // direct item of a flex or grid box (or of the row): everything in
+      // flowing text under it is the same run, and two items of a flex line
+      // (two facts on a meta line) are two.
+      let unit = e;
+      while (unit.parentElement && unit.parentElement !== row) {
+        const pd = getComputedStyle(unit.parentElement).display;
+        if (pd.includes("flex") || pd.includes("grid")) break;
+        unit = unit.parentElement;
+      }
+      if (!greys.some((g) => g.unit === unit)) greys.push({ unit, txt: txt.slice(0, 22) });
+    }
+    if (greys.length > 1) {
+      add("grey-twice", `${greys.length} grey runs on one row: ${greys.map((g) => '"' + g.txt + '"').join(", ")}`, row);
+    }
+  }
+
   // 7. CONTENT UNDER THE FIXED BARS. A row you can see but never tap.
   //
   // THE BARS COME FROM ROOT TOO (2026-09-21, found the first time a finish

@@ -185,7 +185,11 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
                       {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
                       {s.data.strength === "rule" && <span className="fact st red">Rule</span>}
                       {conf && <span className={"fact " + (conf === "High" ? "good" : "warn")}>{conf}</span>}
-                      {usedBy(s.data.category).map((u) => <span className="fact" key={u}>{u}</span>)}
+                      {/* ONE FACT, ONE RUN (§AK, 2026-09-21: "KNOWN · Your
+                          Move · Plan My Day" was two plain greys after the
+                          state word). Where a strand is used is one fact
+                          with a list in it, not a fact per surface. */}
+                      {usedBy(s.data.category).length > 0 && <span className="fact">{usedBy(s.data.category).join(", ")}</span>}
                     </div>
                   </div>
                   <div className="chev" />

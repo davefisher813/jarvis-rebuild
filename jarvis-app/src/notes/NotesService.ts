@@ -311,8 +311,14 @@ export class NotesService {
   async createForEvent(event: { id: string; title: string; date: string; category?: string }): Promise<string | null> {
     const title = event.title.trim();
     if (!title || !event.date) return null;
+    // THE DATE IS NOT IN THE TITLE (§AK, 2026-09-21). It used to be baked
+    // in -- "Meeting Notes · Sep 17" -- and then the row's own meta line
+    // printed the date again under it, so one note said its date twice, the
+    // second time in grey. The meta line is where a date lives; the title
+    // is the meeting's name. Two notes for a weekly meeting still read apart,
+    // because the meta line is what tells them apart.
     const id = await this.createNote(
-      `${title} · ${shortDateFromMs(new Date(event.date + "T12:00:00").getTime())}`,
+      title,
       event.category ?? "",
       [],
       madeBy("event", event.id),

@@ -703,6 +703,12 @@
 .ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: var(--t-caption); }
 .ruled .sched-cat .cat-dot { width: 7px; height: 7px; }
 .ruled .sched-rep, .ruled .sched-until { white-space: nowrap; } /* an item wraps whole or not at all */
+/* ONE GREY, EVER (§AK, 2026-09-21). The meta line reads FIXED · Family ·
+   1h 30m · Ridgeline Fields: the state word is caps, the category is dotted,
+   and then the length and the place were both plain grey. The length and
+   the repeat carry weight now; the place, which is the one string on the
+   line the athlete wrote, keeps the single regular grey the ruling allows. */
+.ruled .sched-until, .ruled .sched-rep, .ruled .sched-until-btn { font-weight: var(--w-semi); }
 /* The divider starts where the row's content starts, which is the rail's
    own inset now rather than the far side of a gutter that is gone. */
 .ruled .sched-row + .sched-row::before, .ruled .sched-swipe-wrap + .sched-swipe-wrap .sched-row::before {
@@ -870,6 +876,12 @@
 /* Part 3 wave 3 (2026-09-13): the Evidence pill under a card and the rows it
    opens, in the card's own row anatomy. */
 .ruled .ins-acts { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-2); }
+/* TWO ACTION ROWS IN A ROW (2026-09-21, the lift page's View Contributing
+   Sets over Evidence and Calculation). Each pill buys its 34px touch height
+   from 9px transparent borders pulled out of the flow, so two of these rows
+   eight pixels apart overlap by ten pixels of hit area: the bottom of the
+   first pill opened the second. Same arithmetic as .row-pair, same answer. */
+.ruled .ins-acts + .ins-acts { margin-top: var(--s-5); }
 /* A .see-all at a card's foot (health polish 2026-09-16): the head rule gives
    it the 44px target and pulls the extra height back out of layout, and a card
    foot needs the same trade -- the paint is a line of text, the target is a
@@ -1133,7 +1145,10 @@
 .ruled .money-hero-total + .money-hero-label { margin: 0; }
 .ruled .money-line { padding: 0 var(--s-4) var(--s-2); font-size: var(--t-caption); color: var(--tx-3); }
 .ruled .money-line b { color: var(--tx-1); font-weight: var(--w-semi); font-variant-numeric: tabular-nums; }
-.ruled .task-row .money-amt { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-regular); color: var(--tx-2); flex-shrink: 0;
+/* The amount carries weight (§AK, 2026-09-21): the type ("Investment",
+   "Cash") is the row's one regular grey, and a number beside it in the same
+   ink and weight was two greys on every account row in Money. */
+.ruled .task-row .money-amt { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); flex-shrink: 0;
   font-variant-numeric: tabular-nums; }
 .ruled .task-row .money-amt.money-neg { color: var(--tx-3); }
 .ruled .task-row .money-amt.paid { color: var(--tx-2); }
@@ -2041,7 +2056,9 @@
    the header facts. Same fields, same ramp, same tokens. */
 .ruled.health-ruled .se-grid { display: flex; align-items: center; gap: var(--s-1h); margin-top: var(--s-1); }
 .ruled.health-ruled .se-grid .set-field { width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
-.ruled.health-ruled .se-grid-u { font-size: var(--t-caption); color: var(--tx-3); }
+/* The unit is a label on a field, not a fact: it carries weight (§AK), so
+   the "Last:" line under the fields is the row's one regular grey. */
+.ruled.health-ruled .se-grid-u { font-size: var(--t-caption); color: var(--tx-3); font-weight: var(--w-semi); }
 .ruled.health-ruled .se-tick { margin-left: auto; width: 36px; height: 36px; border-radius: var(--r-circle); border: 0; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: var(--hl-lime); color: var(--on-fill-dark); cursor: pointer; }
 .ruled.health-ruled .se-tick .ic { width: 18px; height: 18px; stroke-width: 2.6; }
@@ -2554,8 +2571,11 @@
 .ruled .bp-card-lead {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
-/* The count is short by construction ("8 of 10 tasks"), so it stays one line. */
-.ruled .bp-card-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The count is short by construction ("8 of 10 tasks"), so it stays one line.
+   It carries weight (§AK, 2026-09-21): the lead above it is the card's one
+   regular secondary line, and a count in the same ink and weight under it
+   read as two of the same thing on every goal card. */
+.ruled .bp-card-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: var(--w-semi); }
 /* A thin bar, and only where it is earned: a project's real task count, or a
    goal's Measure. Never a goal's task completion (see ItemCard). */
 .ruled .bp-card-bar {
