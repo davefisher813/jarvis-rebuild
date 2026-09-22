@@ -317,6 +317,17 @@
   --hl-amber: #FF9F0A; --hl-amber-tint: rgba(255,159,10,0.16);
   --hl-violet: #BF5AF2; --hl-violet-tint: rgba(191,90,242,0.16);
   --hl-blue: #0A84FF; --hl-blue-tint: rgba(10,132,255,0.16);
+  /* THE INK TWIN (2026-09-22). Words, chips, kickers and facts read these;
+     the numerals and the tints keep the vivid six above. In dark the two
+     are one and the same, byte for byte. */
+  --hl-lime-ink: #A6FF00; --hl-cyan-ink: #00E5FF; --hl-amber-ink: #FF9F0A;
+  /* Three of the six do NOT clear 4.5 as words on their own tint even in
+     dark, measured: violet 3.95, pink 4.10, blue 3.85 on the 16% wash over
+     the card. So the twin lightens exactly those three until they do on the
+     tint AND on surface-2 (violet 4.56/4.63, pink 4.66/4.56, blue
+     4.67/4.71). The vivid six above are untouched and still wear every
+     numeral, which is what Dave picked. */
+  --hl-pink-ink: #FF537B; --hl-violet-ink: #D179FF; --hl-blue-ink: #1E98FF;
   /* --tint is the colour of things that are tappable but are not buttons: the
      nav "+", back chevrons, links, sliders, steppers, action-sheet items.
      It was blue here and red in light theme, so the same control changed
@@ -405,7 +416,10 @@
      clears 4.5:1 on BOTH grounds (4.74 on a white card, 4.51 on the page).
      Quiet and secondary land on the same value in light and stay a step apart
      in dark, which is the honest answer: daylight has less room. */
-  --tx-quiet: rgba(60,60,67,0.72);
+  /* 0.72 measured 4.17:1 on a raised grey row (2026-09-22) -- under the bar
+     the ink ruling holds the secondary to. 0.80 reads 5.07 there and 5.97 on
+     a white card. */
+  --tx-quiet: rgba(60,60,67,0.80);
   /* iOS system colors, LIGHT variants, exactly as the HIG defines them. */
   --sys-gray: #8E8E93;
   /* AND THE ONE PLACE systemGray IS NOT READABLE (visual audit 2026-09-20:
@@ -475,6 +489,21 @@
   --hl-amber: #FF9F0A; --hl-amber-tint: rgba(255,159,10,0.16);
   --hl-violet: #BF5AF2; --hl-violet-tint: rgba(191,90,242,0.16);
   --hl-blue: #0A84FF; --hl-blue-tint: rgba(10,132,255,0.16);
+  /* THE INK TWIN, IN LIGHT (2026-09-22). The ruling above is kept whole:
+     the six vivid hues are Dave's pick and the numerals and tints wear them.
+     What the ruling also says is that the ramp is "never body copy, never a
+     label" -- and by the first light audit that could reach Health, it was
+     both: "1 of 12 Sets" in lime on a white card at 1.24:1, "0:02" in amber
+     at 2.06, "Aug 25" in cyan on the page. Those are words. Words read the
+     ink twin, which is each hue driven down until it clears 4.5:1 on white,
+     on the page and on its own tint wash (measured on white / its own tint / a raised
+     grey row: lime 5.72/5.48/4.50, cyan 5.82/5.34/4.58, amber
+     5.85/5.21/4.60, violet 6.98/5.82/5.50, pink 6.77/5.46/5.33, blue
+     6.25/5.14/4.92). The raised row is the ground that settled the first
+     three: they cleared white and the tint and missed it, and the law found
+     that before a screenshot did. */
+  --hl-lime-ink: #397400; --hl-cyan-ink: #006F84; --hl-pink-ink: #B8003C;
+  --hl-amber-ink: #995300; --hl-violet-ink: #7E22CE; --hl-blue-ink: #0A5DC2;
   --good-fill: #34C759; --warn-fill: #FF9500;
   --yellow: #FFCC00; --teal: #30B0C7; --mint: #00C7BE; --pink: #FF2D55;
   /* ONE LIGHT RED (Dave, 2026-08-22: "the red still isn't Jarvis red").
@@ -492,7 +521,9 @@
      under the 3:1 non-text bar, and only lettering steps down to #DA0012. */
   --tint: #DA0012;
   /* Same reason as --tint, same value. */
-  --accent-tx: #DA0012;
+  /* The same words-red as --on-light-red, and for the same measurement:
+     #DA0012 misses on every raised grey a red word lands on (2026-09-22). */
+  --accent-tx: #BC000E;
   /* Destructive text, light, and it is deliberately NOT --accent-tx
      (merge, 2026-08-24). Two sessions landed here at once: one made the
      light accent #DA0012, the other added a separate destructive red.

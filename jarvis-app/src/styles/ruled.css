@@ -173,7 +173,10 @@
    themselves in light, and a hand-kept hex is how .gstat-good and the whole
    month report got missed. Blue and red keep theirs: their tokens are still
    one value per theme. */
-[data-theme="light"] .ruled .st-time { color: #005CBF; }
+/* #005CBF measured 4.28:1 on the Your Day gradient card in light
+   (2026-09-22); the ground there is not flat white, and the word needs the
+   4.5 bar the ground actually costs. */
+[data-theme="light"] .ruled .st-time { color: #0052A8; }
 [data-theme="light"] .ruled .st-late { color: var(--on-light-red, #B8001A); }
 
 /* ---------- THE DAY RING: flat, one colour, no gradient, no glow ---------
@@ -804,7 +807,7 @@
    takes the ramp's lime, which is the hue Fitness gives to exercise, and the
    card behind it gets a lime rim and a lime bloom so the section that IS the
    page reads as lit rather than as another grey slab. */
-.ruled .h-hero-ico { width: 40px; height: 40px; border-radius: var(--r-md); background: var(--hl-lime-tint); color: var(--hl-lime);
+.ruled .h-hero-ico { width: 40px; height: 40px; border-radius: var(--r-md); background: var(--hl-lime-tint); color: var(--hl-lime-ink);
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .ruled .h-hero-ico .ic { width: 22px; height: 22px; }
 .ruled .h-hero-b { flex: 1; min-width: 0; }
@@ -833,7 +836,7 @@
 .ruled .h-pick-c:active { opacity: 0.6; }
 /* Pinned, and it wears the training accent so it reads as the one option on
    the row that does not come from the program. */
-.ruled .h-pick-c.h-pick-new { background: var(--hl-lime-tint); color: var(--hl-lime);
+.ruled .h-pick-c.h-pick-new { background: var(--hl-lime-tint); color: var(--hl-lime-ink);
   font-weight: var(--w-semi); max-width: none; }
 /* WEEKLY VOLUME, ONE CARD (Dave 2026-09-10: "insights are weak and random it
    seems. Make them of actual use to the user and render it an appealing
@@ -872,7 +875,7 @@
   text-transform: uppercase; color: var(--tx-3); }
 .ruled .ins-v { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums; color: var(--tx-1); }
-.ruled .ins-v.ins-v-warn { color: var(--hl-amber); }
+.ruled .ins-v.ins-v-warn { color: var(--hl-amber-ink); }
 /* Part 3 wave 3 (2026-09-13): the Evidence pill under a card and the rows it
    opens, in the card's own row anatomy. */
 .ruled .ins-acts { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-2); }
@@ -925,7 +928,7 @@
 .ruled .vol-dot.vol-under, .ruled .vol-dot.vol-over { background: var(--warn); }
 .ruled .vol-n { width: 26px; flex-shrink: 0; text-align: right; font-size: var(--t-caption);
   font-weight: var(--w-semi); font-variant-numeric: tabular-nums; }
-.ruled .vol-n.vol-in { color: var(--hl-lime); }
+.ruled .vol-n.vol-in { color: var(--hl-lime-ink); }
 .ruled .vol-n.vol-under, .ruled .vol-n.vol-over { color: var(--warn); }
 .ruled .h-week { display: flex; justify-content: space-between; padding: var(--s-0h) var(--s-5) var(--s-3h); }
 .ruled .h-day { display: flex; flex-direction: column; align-items: center; gap: var(--s-1h); font-size: var(--t-micro); font-weight: var(--w-bold);
@@ -1113,6 +1116,10 @@
 .ruled .sched-now .w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--sys-red); flex-shrink: 0; }
 .ruled .sched-now .l { flex: 1 1 24px; min-width: 24px; height: 1px; background: var(--sys-red); opacity: 0.4; }
+/* In light the WORD reads the light red (5.26:1 on white); the system red it
+   shares with the hairline is 3.55 there, and a word is held to 4.5 where a
+   rule is held to 3. The hairline keeps the system red. */
+[data-theme="light"] .ruled .sched-now .w { color: var(--on-light-red); }
 .ruled .sched-now .t { font-size: calc(11px * var(--type-scale)); color: var(--tx-quiet); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 /* Running Late? rides the rule it is about. Neutral capsule: the rule's own
    red is the signal, and two reds on one line is the thing being fixed. */
@@ -1239,6 +1246,14 @@
 .ruled .set-card > .set-sub .conn-name { font-size: calc(14px * var(--type-scale)); color: var(--tx-3); }
 .ruled .set-card > .row-act { margin: var(--s-1) auto; }
 .ruled .set-card > .row-act:disabled { opacity: 0.4; }
+/* THE SAME QUESTION browserWalk.test.ts ALREADY ASKED (2026-09-22). A bare
+   .btn reads --tint, and a wider-viewport pass found "Add a Day Off" at
+   4.13:1: .set-card composites 55% black over the page plus its own sheen,
+   which is exactly the darker-than-page ground --tint-on-sheet exists for
+   (the toast action and .opt-done already read it there). Scoped to the
+   card, not to --tint itself, because --tint is right everywhere else it is
+   read -- this ground is what changed, not the brand's one red. */
+[data-theme="dark"] .ruled .set-card .btn { color: var(--tint-on-sheet); }
 .ruled .row-act-pill { font-size: var(--t-caption); }
 .ruled .legal-card { padding: var(--s-2) var(--s-4); }
 .ruled .legal-card .legal-body { padding-bottom: var(--s-2); }
@@ -1494,14 +1509,14 @@
 
 /* Section heads: the caps stay quiet, but the count chip beside them takes
    the ramp so a page of five sections reads as five things, not one wall. */
-.ruled.health-ruled .sh2 .n { color: var(--hl-cyan); }
+.ruled.health-ruled .sh2 .n { color: var(--hl-cyan-ink); }
 /* The head's action pill (Program, Reorder, History, Add) is a door, not a
    verb, so it takes cyan rather than the app's red-for-action. */
-.ruled.health-ruled .sh2 .pill-action { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+.ruled.health-ruled .sh2 .pill-action { color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
 
 /* A PR is the loudest good thing the gym can say. */
 .ruled.health-ruled .gstat-good, .ruled.health-ruled .pill-good {
-  color: var(--hl-lime); background: var(--hl-lime-tint); }
+  color: var(--hl-lime-ink); background: var(--hl-lime-tint); }
 
 /* The set strip: a set that is planned but not yet logged is a ghost, and a
    ghost is the one thing here that should NOT be lit -- it is the work still
@@ -1515,7 +1530,7 @@
 .ruled.health-ruled .lift-bars { color: var(--hl-lime); }
 
 /* The barbell tile, wherever it appears. */
-.ruled.health-ruled .h-hero-ico { background: var(--hl-lime-tint); color: var(--hl-lime); }
+.ruled.health-ruled .h-hero-ico { background: var(--hl-lime-tint); color: var(--hl-lime-ink); }
 
 /* The three banner tints the module uses for its findings, moved off the
    status palette (which means "you are behind") and onto the ramp (which
@@ -1526,7 +1541,7 @@
 /* The cool-down card: medication-free blue off the ramp, fading from the top
    of the card to nothing at its foot (Dave 2026-09-13). */
 .ruled.health-ruled .banner-cool { box-shadow: inset 0 0 0 1px var(--hl-blue-tint); background-image: linear-gradient(180deg, var(--hl-blue-tint), transparent 90%); }
-.ruled.health-ruled .eyebrow.eyebrow-cool { color: var(--hl-blue); }
+.ruled.health-ruled .eyebrow.eyebrow-cool { color: var(--hl-blue-ink); }
 
 /* The big one-tap loggers inside the health module (Lights Out, Took It)
    are the same "commit it" move as Start, so they read the same way. */
@@ -1564,7 +1579,7 @@
 .ruled.health-ruled .se-chip, .sheet-scrim > .card .se-chip { display: inline-flex; align-items: baseline; gap: var(--s-1h); flex-shrink: 0;
   font-size: var(--t-caption); font-weight: var(--w-semi); font-variant-numeric: tabular-nums;
   padding: var(--s-1) var(--s-2h); border-radius: var(--r-pill); white-space: nowrap;
-  color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+  color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
 .ruled.health-ruled .se-chip em, .sheet-scrim > .card .se-chip em { font-style: normal; font-size: var(--t-micro);
   font-weight: var(--w-bold); letter-spacing: 0.07em; text-transform: uppercase; color: var(--tx-2); }
 .ruled.health-ruled .se-chips { display: flex; flex-wrap: wrap; gap: var(--s-1h); margin-top: var(--s-2); }
@@ -1584,10 +1599,10 @@
    which is lime. This is the narrower thing -- the day you last finished this
    -- so it gets its own name and the lime that fact already has. */
 .ruled.health-ruled .se-chip-best,
-.ruled.health-ruled .se-chip-done { color: var(--hl-lime); background: var(--hl-lime-tint); }
-.ruled.health-ruled .se-chip-last, .sheet-scrim > .card .se-chip-last, .ruled.health-ruled .se-chip-time { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
-.ruled.health-ruled .se-chip-budget, .ruled.health-ruled .se-chip-pair { color: var(--hl-violet); background: var(--hl-violet-tint); }
-.ruled.health-ruled .se-chip-over { color: var(--hl-amber); background: var(--hl-amber-tint); }
+.ruled.health-ruled .se-chip-done { color: var(--hl-lime-ink); background: var(--hl-lime-tint); }
+.ruled.health-ruled .se-chip-last, .sheet-scrim > .card .se-chip-last, .ruled.health-ruled .se-chip-time { color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
+.ruled.health-ruled .se-chip-budget, .ruled.health-ruled .se-chip-pair { color: var(--hl-violet-ink); background: var(--hl-violet-tint); }
+.ruled.health-ruled .se-chip-over { color: var(--hl-amber-ink); background: var(--hl-amber-tint); }
 .ruled.health-ruled .se-chip-when, .ruled.health-ruled .se-chip-game { color: var(--tx-3); background: var(--press-3); }
 
 /* THE HYPERFOCUS GUARD, IN THE ROOM'S OWN LANGUAGE (2026-09-21, Dave on a
@@ -1608,7 +1623,7 @@
    known width and this carries a calendar title -- "General Manager
    (Operations) interview" is 37 characters and nowrap would have run it off
    the screen. */
-.ruled.health-ruled .se-guard { color: var(--hl-amber); background: var(--hl-amber-tint);
+.ruled.health-ruled .se-guard { color: var(--hl-amber-ink); background: var(--hl-amber-tint);
   flex-shrink: 1; min-width: 0; white-space: normal; line-height: 1.35; }
 /* The label is a clock reading and never breaks: white-space: normal on the
    chip is for the TITLE, and it was wrapping "3 PM" onto two lines.
@@ -1617,7 +1632,7 @@
    faded colour is an unmeasurable colour. The label is already separated
    from the title by being smaller, bolder and upper case, the way every
    other .se-chip em is, so it does not need to be dimmer as well. */
-.ruled.health-ruled .se-guard em { color: var(--hl-amber); white-space: nowrap; flex-shrink: 0; }
+.ruled.health-ruled .se-guard em { color: var(--hl-amber-ink); white-space: nowrap; flex-shrink: 0; }
 .ruled.health-ruled .se-guard-warn { color: var(--accent-tx); background: var(--red-tint); }
 .ruled.health-ruled .se-guard-warn em { color: var(--accent-tx); }
 
@@ -1645,7 +1660,7 @@
   border-right: 1.5px solid currentColor; border-top: 1.5px solid currentColor;
   transform: rotate(45deg); margin-left: var(--s-0h); order: 9; }
 .ruled.health-ruled .se-chip-door::after { content: ""; position: absolute; inset: -11px -4px; }
-.ruled.health-ruled .se-chip-skip { color: var(--hl-amber); background: var(--hl-amber-tint); }
+.ruled.health-ruled .se-chip-skip { color: var(--hl-amber-ink); background: var(--hl-amber-tint); }
 
 
 /* WHERE YOU ARE, DRAWN. Filled for finished, ringed for the current one,
@@ -1659,7 +1674,7 @@
 /* The ring around NOW stays; the 8px bloom behind it does not (R5). */
 .ruled.health-ruled .se-dot.on { background: var(--hl-cyan); box-shadow: 0 0 0 2px var(--hl-cyan-tint); }
 .ruled.health-ruled .se-count { font-size: var(--t-caption); font-weight: var(--w-bold);
-  color: var(--hl-cyan); font-variant-numeric: tabular-nums; }
+  color: var(--hl-cyan-ink); font-variant-numeric: tabular-nums; }
 .ruled.health-ruled .se-count em { font-style: normal; color: var(--tx-3); font-weight: var(--w-medium); }
 
 /* NOW is a position, so it is lit rather than subdued. */
@@ -1669,13 +1684,13 @@
 
 /* The set kicker. SET 1 was the same grey as everything under it. */
 .ruled.health-ruled .se-kick, .sheet-scrim > .card .se-kick { font-size: var(--t-micro); font-weight: var(--w-bold);
-  letter-spacing: 0.09em; text-transform: uppercase; color: var(--hl-cyan); margin-bottom: var(--s-0h);
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--hl-cyan-ink); margin-bottom: var(--s-0h);
   display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
 /* TWO LINES, NOT THREE (Dave's row rule, and his 2026-09-14 screenshot: Set 1
    over the numbers over Last was three stacked lines). Last time rides the
    kicker line, at its right end, in its own case. */
 .ruled.health-ruled .se-kick .se-chip, .sheet-scrim > .card .se-kick .se-chip { margin-left: auto; text-transform: none; letter-spacing: normal; }
-.ruled.health-ruled .se-kick.se-kick-next { color: var(--hl-amber); }
+.ruled.health-ruled .se-kick.se-kick-next { color: var(--hl-amber-ink); }
 
 /* ---------- THE FACTS LINE, IN HEALTH (Health R7, Dave's picks 2026-09-12)
    ---------------------------------------------------------------------------
@@ -1694,16 +1709,16 @@
    Styles only in this push: no health surface has adopted .facts yet, and
    each takes it when its own push lands (Session in B, the Health page in C).
    Same discipline Astra Push A shipped its primitives under. */
-.ruled.health-ruled .fact.lime   { color: var(--hl-lime); }
-.ruled.health-ruled .fact.cyan   { color: var(--hl-cyan); }
-.ruled.health-ruled .fact.amber  { color: var(--hl-amber); }
-.ruled.health-ruled .fact.violet { color: var(--hl-violet); }
-.ruled.health-ruled .fact.hblue  { color: var(--hl-blue); }
-.ruled.health-ruled .fact.pink   { color: var(--hl-pink); }
+.ruled.health-ruled .fact.lime   { color: var(--hl-lime-ink); }
+.ruled.health-ruled .fact.cyan   { color: var(--hl-cyan-ink); }
+.ruled.health-ruled .fact.amber  { color: var(--hl-amber-ink); }
+.ruled.health-ruled .fact.violet { color: var(--hl-violet-ink); }
+.ruled.health-ruled .fact.hblue  { color: var(--hl-blue-ink); }
+.ruled.health-ruled .fact.pink   { color: var(--hl-pink-ink); }
 /* A state word takes the ramp too, and stays small caps rather than a pill. */
-.ruled.health-ruled .fact.st.lime  { color: var(--hl-lime); }
-.ruled.health-ruled .fact.st.cyan  { color: var(--hl-cyan); }
-.ruled.health-ruled .fact.st.amber { color: var(--hl-amber); }
+.ruled.health-ruled .fact.st.lime  { color: var(--hl-lime-ink); }
+.ruled.health-ruled .fact.st.cyan  { color: var(--hl-cyan-ink); }
+.ruled.health-ruled .fact.st.amber { color: var(--hl-amber-ink); }
 /* R2: the facts line's own ink is --tx-2 in Health, one rung up from the
    app's --tx-3, because it is read between sets at arm's length. */
 .ruled.health-ruled .facts { color: var(--tx-3); }
@@ -1728,8 +1743,8 @@
    disabled row, and it is not red, which in Health is the thing you tap. A
    finished set is lime, the hue of logged work. What is still ahead is quiet
    ink at full strength -- an Up next kicker, no dimming (R2). */
-.ruled.health-ruled .se-kick.now { color: var(--hl-cyan); }
-.ruled.health-ruled .se-kick.done { color: var(--hl-lime); }
+.ruled.health-ruled .se-kick.now { color: var(--hl-cyan-ink); }
+.ruled.health-ruled .se-kick.done { color: var(--hl-lime-ink); }
 /* NOW, on the open set chip: a 1.5px cyan inset rule, which is an edge rather
    than a fill, so the numbers inside stay the loudest thing in the row. */
 .ruled.health-ruled .setrow-now { box-shadow: inset 0 0 0 1.5px var(--hl-cyan); }
@@ -1741,7 +1756,7 @@
 .ruled.health-ruled .se-kick.skipped { color: var(--tx-3); }
 /* Part 3 wave 2 (2026-09-13): a drop segment's kicker wears the load hue, so
    it reads as weight that moved and never as the working set above it. */
-.ruled.health-ruled .se-kick.drop { color: var(--hl-amber); }
+.ruled.health-ruled .se-kick.drop { color: var(--hl-amber-ink); }
 .ruled.health-ruled .se-kick-ic { width: 10px; height: 10px; vertical-align: -1px; margin-right: var(--s-1); }
 .ruled.health-ruled .set-chip-ghost.setrow-now { border-color: transparent; }
 /* The session screen leaves room for the Log bar (H-11). */
@@ -1818,7 +1833,7 @@
 /* The plates, as plates. */
 .ruled.health-ruled .se-plates, .sheet-scrim > .card .se-plates { display: flex; flex-wrap: wrap; gap: var(--s-1h); }
 .ruled.health-ruled .se-plate, .sheet-scrim > .card .se-plate { font-size: var(--t-caption); font-weight: var(--w-bold);
-  font-variant-numeric: tabular-nums; color: var(--hl-amber); background: var(--hl-amber-tint);
+  font-variant-numeric: tabular-nums; color: var(--hl-amber-ink); background: var(--hl-amber-tint);
   padding: var(--s-1) var(--s-2h); border-radius: var(--r-pill); }
 .ruled.health-ruled .se-plate-k, .sheet-scrim > .card .se-plate-k { font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-2); margin-top: var(--s-1h); }
@@ -1854,7 +1869,7 @@
    .conn-meta was already there. Stated rather than assumed, because the law
    below scans this block for anything quieter. */
 .ruled.health-ruled .conn-meta { color: var(--tx-3); }
-.ruled.health-ruled .conn-meta b, .ruled.health-ruled .conn-name b { color: var(--hl-cyan); font-weight: var(--w-semi); }
+.ruled.health-ruled .conn-meta b, .ruled.health-ruled .conn-name b { color: var(--hl-cyan-ink); font-weight: var(--w-semi); }
 /* An eyebrow on these screens is a LABEL, so it keeps the quiet ramp -- but
    --tx-4 was the past-state grey, which is invisible on a phone in a gym.
    R2 (2026-09-12) takes it one further rung, to --tx-2: on the harness there
@@ -1955,7 +1970,7 @@
   color: var(--tx-1); background: transparent; box-shadow: inset 0 0 0 1px var(--tx-4); }
 .ruled.health-ruled .h-pick-c.h-pick-new { display: inline-flex; align-items: center; gap: var(--s-1h); color: var(--tx-1);
   background: var(--press-3); box-shadow: none; }
-.ruled.health-ruled .h-pick-new .ic { width: 14px; height: 14px; color: var(--hl-lime); stroke-width: 2.6; }
+.ruled.health-ruled .h-pick-new .ic { width: 14px; height: 14px; color: var(--hl-lime-ink); stroke-width: 2.6; }
 .ruled.health-ruled .h-week { padding: var(--s-0h) var(--s-5) var(--s-3h); }
 .ruled.health-ruled .h-last { padding-top: var(--s-2h); padding-bottom: var(--s-2h); }
 .ruled.health-ruled .h-last-k { display: block; font-size: calc(11px * var(--type-scale)); font-weight: var(--w-bold);
@@ -1965,7 +1980,7 @@
 
 /* A DOOR SAYS ONE THING, IN ITS HUE. */
 .ruled.health-ruled .h-door-v { flex-shrink: 0; margin-right: var(--s-1h); font-size: calc(14px * var(--type-scale));
-  font-weight: var(--w-semi); color: var(--hl-blue); }
+  font-weight: var(--w-semi); color: var(--hl-blue-ink); }
 .ruled.health-ruled .h-when { flex-shrink: 0; margin-left: var(--s-2); font-size: var(--t-caption);
   font-weight: var(--w-semi); color: var(--tx-2); font-variant-numeric: tabular-nums; }
 
@@ -2020,7 +2035,7 @@
    themes, so this needs no colour of its own. */
 .ruled .slide-tag { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.07em; text-transform: uppercase; padding: var(--s-0h) var(--s-2); border-radius: var(--r-pill);
-  color: var(--hl-violet); background: var(--hl-violet-tint); white-space: nowrap; }
+  color: var(--hl-violet-ink); background: var(--hl-violet-tint); white-space: nowrap; }
 
 /* ---------- THE HEALTH OVERVIEW, TO THE REFERENCE (Dave 2026-09-14) ------
    Three tabs, the next-workout card with its eyebrow and program beside it,
@@ -2059,6 +2074,12 @@
 /* The unit is a label on a field, not a fact: it carries weight (§AK), so
    the "Last:" line under the fields is the row's one regular grey. */
 .ruled.health-ruled .se-grid-u { font-size: var(--t-caption); color: var(--tx-3); font-weight: var(--w-semi); }
+/* A GHOST ROW IN LIGHT SITS ON THE CARD, NOT ON A WASH (2026-09-22). The
+   press wash under the unfilled sets put "Match" -- the light red, the one
+   red words may wear there -- on a grey at 4.07:1. The ring already says the
+   row is a ghost; the wash was saying it twice, and the second time it cost
+   the word its contrast. */
+[data-theme="light"] .ruled.health-ruled .set-chip-ghost { background: var(--surface-1); }
 .ruled.health-ruled .se-tick { margin-left: auto; width: 36px; height: 36px; border-radius: var(--r-circle); border: 0; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: var(--hl-lime); color: var(--on-fill-dark); cursor: pointer; }
 .ruled.health-ruled .se-tick .ic { width: 18px; height: 18px; stroke-width: 2.6; }
@@ -2115,6 +2136,11 @@
 .ruled.health-ruled .h-stat b { display: block; font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled.health-ruled .h-stat b small { font-size: var(--t-caption); font-weight: var(--w-semi); }
+/* The unit beside the numeral is a WORD, so it reads the ink twin (2026-09-22):
+   "min" in vivid amber on a white card was 2.06:1 in light. */
+.ruled.health-ruled .h-stat.lime b small { color: var(--hl-lime-ink); }
+.ruled.health-ruled .h-stat.amber b small { color: var(--hl-amber-ink); }
+.ruled.health-ruled .h-stat.violet b small { color: var(--hl-violet-ink); }
 .ruled.health-ruled .h-stat.lime b { color: var(--hl-lime); }
 .ruled.health-ruled .h-stat.amber b { color: var(--hl-amber); }
 .ruled.health-ruled .h-stat.violet b { color: var(--hl-violet); }
@@ -2187,7 +2213,7 @@
 .ruled .ex-bar { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-bottom: var(--s-2); }
 /* A control that is currently DOING something reads on, in the page's own
    reading hue. Not red: red is a verb here, never a state (LAW L1). */
-.ruled .ex-bar .pill-act.on { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+.ruled .ex-bar .pill-act.on { color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
 
 .ruled .ex-row { align-items: flex-start; }
 .ruled .ex-row.on { background: var(--hl-cyan-tint); }
@@ -2200,7 +2226,7 @@
 .ruled .ex-chip { font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.01em;
   padding: var(--s-1) var(--s-2); border-radius: var(--r-pill); background: var(--surface-2); color: var(--tx-2);
   border: none; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
-.ruled .ex-chip.on { color: var(--hl-cyan); background: var(--hl-cyan-tint); }
+.ruled .ex-chip.on { color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
 /* ONE MEANING PER HUE ON A ROW OF CHIPS (2026-09-16, Dave: "too much of the
    same color"). Every chip that carried meaning was cyan, and so was the date
    beside them, so a row said cyan three times about three unrelated things.
@@ -2210,13 +2236,13 @@
    plain chip: it is the least load-bearing axis and does not need a colour to
    be found. Cyan goes back to meaning one thing here -- when it last
    happened. */
-.ruled .ex-chip.lime { color: var(--hl-lime); background: var(--hl-lime-tint); }
-.ruled .ex-chip.violet { color: var(--hl-violet); background: var(--hl-violet-tint); }
+.ruled .ex-chip.lime { color: var(--hl-lime-ink); background: var(--hl-lime-tint); }
+.ruled .ex-chip.violet { color: var(--hl-violet-ink); background: var(--hl-violet-tint); }
 /* A secondary muscle is the same fact at half weight (the app's own counting
    convention), so it is the same hue with the fill taken off. */
-.ruled .ex-chip.lime.sec { color: var(--hl-lime); background: none; box-shadow: inset 0 0 0 1px var(--hl-lime-tint); }
+.ruled .ex-chip.lime.sec { color: var(--hl-lime-ink); background: none; box-shadow: inset 0 0 0 1px var(--hl-lime-tint); }
 .ruled .ex-chip.sec { color: var(--tx-3); }
-.ruled .ex-chip.amber { color: var(--hl-amber); background: var(--hl-amber-tint); }
+.ruled .ex-chip.amber { color: var(--hl-amber-ink); background: var(--hl-amber-tint); }
 .ruled .ex-chip.quiet { color: var(--tx-3); background: none; padding-left: 0; }
 .ruled .ex-chip:disabled { opacity: 0.55; }
 /* The overflow. One control, a real 44px target, and no pencil. */
@@ -2524,16 +2550,46 @@
 .ruled .bp-shelf-arrow-l { left: 5px; }
 .ruled .bp-shelf-arrow .ic { width: 17px; height: 17px; }
 
-/* Top row: the mark, the area, the overflow. One line, never wrapping. */
-.ruled .bp-card-top { display: flex; align-items: center; gap: var(--s-1h); flex-shrink: 0; }
+/* Top row: the mark, the area, the overflow. One line, never wrapping.
+   z-index: 2, not the 1 every .bp-card child gets by default (2026-09-22):
+   .bp-card-more's hit area grows down into .bp-card-title below it, and a
+   stacking context only wins against a SIBLING context at its own level --
+   giving the ::after z-index:2 inside .bp-card-top does nothing against
+   .bp-card-title (also z-index: 1) if .bp-card-top itself is still capped
+   at 1. Found by testing elementFromPoint at the tap-target check's exact
+   points, not by reading the CSS: the bottom point kept resolving to the
+   title. This row and the title never overlap in paint, only in the
+   expander's reach, so raising it costs nothing. */
+.ruled .bp-card-top { display: flex; align-items: center; gap: var(--s-1h); flex-shrink: 0; position: relative; z-index: 2; }
 .ruled .bp-card-ic { display: inline-flex; flex-shrink: 0; }
 .ruled .bp-card-ic .ic, .ruled .bp-card-ic svg { width: 17px; height: 17px; color: #FFFFFF; }
 .ruled .bp-card-spring { flex: 1; min-width: 0; }
 .ruled .bp-card-more {
+  position: relative;
   flex-shrink: 0; width: 28px; height: 22px; margin: -4px -4px -4px 0; padding: 0;
   border: 0; background: transparent; color: rgba(255, 255, 255, 0.92);
   font-size: calc(15px * var(--type-scale)); line-height: 1; cursor: pointer;
 }
+/* 22x28 painted, needs the app's own 44 floor (2026-09-22, widened from a
+   first pass that only cleared 24: it still showed as small-44, the flat
+   bar every control with no named rung is held to). The card is narrow --
+   160px, with the icon at one end and this at the other -- so the hit area
+   grows mostly LEFT, into .bp-card-spring, which paints nothing and holds
+   no other control, and a little into the card's own top padding and the
+   space above the title. .bp-card is itself role="button" underneath, but
+   containment already exempts a control from overlapping its own ancestor
+   (the same rule that lets every other expander in this file sit inside a
+   tappable row), so this reaches 44 on both axes without a second live
+   target under it. */
+/* z-index: 2, not 1 (2026-09-22, found by testing elementFromPoint at the
+   exact points the tap-target check uses, not just reading the CSS).
+   .bp-card-title is ALSO z-index: 1 (it needs its own stack to sit above
+   the card's ::before sheen), so z-index:1 here was a TIE the later element
+   -- the title -- won by source order. This is not an audit quirk: a real
+   tap on those pixels was silently landing on the title instead of opening
+   the menu. Two beats the tie without beating anything that actually needs
+   to sit above it. */
+.ruled .bp-card-more::after { content: ""; position: absolute; inset: -16px -6px -14px -55px; z-index: 2; }
 
 /* The title takes the middle and clamps, so a long name spends its own room
    and never the count and bar underneath it. */

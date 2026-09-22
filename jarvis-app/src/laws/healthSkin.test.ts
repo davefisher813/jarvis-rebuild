@@ -161,7 +161,7 @@ describe("HEALTH law 3: the light activity ramp equals the dark one", () => {
   };
   const ramp = (css: string) => {
     const out: Record<string, string> = {};
-    const re = /--hl-([a-z]+(?:-tint)?):\s*([^;]+);/g;
+    const re = /--hl-([a-z]+(?:-tint|-ink)?):\s*([^;]+);/g;
     let m: RegExpExecArray | null;
     while ((m = re.exec(css))) out[m[1]!] = m[2]!.trim();
     return out;
@@ -175,6 +175,48 @@ describe("HEALTH law 3: the light activity ramp equals the dark one", () => {
       expect(light[hue], `light --hl-${hue} is missing`).toBeTruthy();
       expect(light[hue], `light --hl-${hue} was darkened away from dark`).toBe(dark[hue]);
       expect(light[`${hue}-tint`], `light --hl-${hue}-tint drifted from dark`).toBe(dark[`${hue}-tint`]);
+    }
+  });
+
+  // THE INK TWIN (2026-09-22). The ruling above says the vivid six are
+  // "never body copy, never a label", and by the first light audit that could
+  // reach Health they were both: "1 of 12 Sets" in lime on a white card at
+  // 1.24:1. Words read --hl-*-ink now. In dark the twin IS the vivid value,
+  // so nothing Dave picked changes there; in light it is each hue driven down
+  // until it clears AA on white. Both halves are pinned: dark equal, light
+  // readable, measured here rather than trusted.
+  const lum = (hex: string) => {
+    const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+    return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!;
+  };
+  // The rule is not "equal to the vivid six" -- that was the first draft, and
+  // measuring it showed three of the six miss 4.5 as words on their OWN tint
+  // even in dark (violet 3.95, pink 4.10, blue 3.85). The rule is that a word
+  // in this hue is readable on the two grounds words sit on: the hue's tint
+  // wash, and the raised surface. Measured here, per theme, rather than
+  // asserted.
+  const over = (hex: string, a: number, bg: string) => {
+    const f = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const b = [1, 3, 5].map((i) => parseInt(bg.slice(i, i + 2), 16));
+    return "#" + [0, 1, 2].map((i) => Math.round(f[i]! * a + b[i]! * (1 - a)).toString(16).padStart(2, "0")).join("");
+  };
+  const ratio = (a: string, b: string) => {
+    const [la, lb] = [lum(a), lum(b)];
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+  it("a word in a ramp hue clears 4.5:1 on its own tint and on the raised surface, in both themes", () => {
+    for (const [theme, card, raised] of [["dark", "#1c1c1e", "#2b2b2c"], ["light", "#ffffff", "#e4e4e5"]] as const) {
+      const t = ramp(block('[data-theme="' + theme + '"] {'));
+      for (const hue of RAMP) {
+        const ink = t[`${hue}-ink`];
+        expect(ink, `${theme} --hl-${hue}-ink is missing`).toMatch(/^#[0-9A-Fa-f]{6}$/);
+        const alpha = Number((t[`${hue}-tint`] ?? "").match(/([\d.]+)\)$/)?.[1] ?? "0.16");
+        const onTint = ratio(ink!, over(t[hue]!, alpha, card));
+        const onRaised = ratio(ink!, raised);
+        expect(onTint, `${theme} --hl-${hue}-ink reads ${onTint.toFixed(2)}:1 on its own tint`).toBeGreaterThanOrEqual(4.5);
+        expect(onRaised, `${theme} --hl-${hue}-ink reads ${onRaised.toFixed(2)}:1 on the raised surface`).toBeGreaterThanOrEqual(4.5);
+      }
     }
   });
 

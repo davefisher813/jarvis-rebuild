@@ -362,16 +362,125 @@ const AUDIT = () => {
   // which is nearly black; reading the raw declaration calls white text on it
   // invisible, which is how a detector invents 40 bugs that do not exist.
   const parse = (c) => {
+    // color-mix() computes to color(srgb r g b / a) with the channels as
+    // FRACTIONS (2026-09-22). Read as rgb() they came out as 0.86 0.86 0.86,
+    // and every Insights tile measured as a grey nobody had painted.
+    const hex = (c || "").match(/^#([0-9a-fA-F]{6})$/);
+    if (hex) return { r: parseInt(hex[1].slice(0, 2), 16), g: parseInt(hex[1].slice(2, 4), 16), b: parseInt(hex[1].slice(4, 6), 16), a: 1 };
+    const srgb = (c || "").match(/color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\)/);
+    if (srgb) return { r: +srgb[1] * 255, g: +srgb[2] * 255, b: +srgb[3] * 255, a: srgb[4] === undefined ? 1 : +srgb[4] };
     const m = (c || "").match(/[\d.]+/g);
     if (!m) return null;
     return { r: +m[0], g: +m[1], b: +m[2], a: m.length > 3 ? +m[3] : 1 };
   };
+  // background-image is a comma-separated LIST of layers, and commas also
+  // live inside rgba() and gradient() -- so split only at depth zero.
+  const gradientLayers = (v) => {
+    const out = []; let depth = 0, cur = "";
+    for (const ch of v) {
+      if (ch === "(") depth++;
+      else if (ch === ")") depth--;
+      if (ch === "," && depth === 0) { out.push(cur); cur = ""; continue; }
+      cur += ch;
+    }
+    if (cur.trim()) out.push(cur);
+    return out.map((x) => x.trim()).filter((x) => x.includes("gradient("));
+  };
+  // WHERE ON THE GRADIENT THE WORDS ACTUALLY SIT (fourth pass, same day).
+  // A flat average of a two-stop gradient is the colour at its CENTRE, and
+  // text is not always centred: the goal card's foot is pinned to the
+  // bottom (margin-top: auto), which on a 153deg gradient sits close to the
+  // dark stop, not halfway to it. Averaged flat, six of the app's twenty-
+  // four card hues measured under 4.5 for white text EVEN AT FULL OPACITY,
+  // which would have meant darkening tiles that pass on the phone. The fix
+  // is the actual CSS gradient projection: given the angle and the two
+  // boxes (the gradient's own box, and the text's), find how far along the
+  // gradient axis the text's centre sits and interpolate the stops there.
+  // Multi-stop and radial gradients, which this app does not currently use
+  // for a ground under text, fall back to the flat average.
+  const gradientColorAt = (gi, box, point) => {
+    const m = gi.match(/^linear-gradient\((-?[\d.]+)deg\s*,\s*([\s\S]*)\)$/);
+    const stopsRaw = (m ? m[2] : gi).match(/(rgba?\([^)]*\)|color\(srgb[^)]*\)|#[0-9a-fA-F]{3,8})\s*(-?[\d.]+%)?/g) || [];
+    const stops = stopsRaw.map((raw, i) => {
+      const pm = raw.match(/(-?[\d.]+)%\s*$/);
+      const c = parse(raw);
+      return c && { c, pct: pm ? +pm[1] : (i === 0 ? 0 : i === stopsRaw.length - 1 ? 100 : null) };
+    }).filter(Boolean);
+    if (!m || stops.length < 2 || stops.some((s) => s.pct === null)) {
+      // Fallback: the flat average, weighted by each stop's own alpha.
+      const wsum = stops.reduce((t, s) => t + s.c.a, 0) || 1;
+      const g = { r: 0, g: 0, b: 0, a: 0 };
+      for (const s of stops) { g.r += s.c.r * s.c.a / wsum; g.g += s.c.g * s.c.a / wsum; g.b += s.c.b * s.c.a / wsum; g.a += s.c.a / stops.length; }
+      return stops.length ? g : null;
+    }
+    const theta = (+m[1] * Math.PI) / 180;
+    const dx = Math.sin(theta), dy = -Math.cos(theta);
+    const W = box.width, H = box.height;
+    const halfLen = (Math.abs(W * dx) + Math.abs(H * dy)) / 2 || 1;
+    const cx = box.left + W / 2, cy = box.top + H / 2;
+    const px = point.left + point.width / 2, py = point.top + point.height / 2;
+    const proj = (px - cx) * dx + (py - cy) * dy;
+    const t = Math.max(0, Math.min(1, 0.5 + proj / (2 * halfLen))) * 100;
+    let lo = stops[0], hi = stops[stops.length - 1];
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (t >= stops[i].pct && t <= stops[i + 1].pct) { lo = stops[i]; hi = stops[i + 1]; break; }
+    }
+    const span = hi.pct - lo.pct || 1;
+    const f = Math.max(0, Math.min(1, (t - lo.pct) / span));
+    return {
+      r: lo.c.r + (hi.c.r - lo.c.r) * f, g: lo.c.g + (hi.c.g - lo.c.g) * f, b: lo.c.b + (hi.c.b - lo.c.b) * f,
+      a: lo.c.a + (hi.c.a - lo.c.a) * f,
+    };
+  };
   const bgOf = (e) => {
     const layers = [];
+    const pointRect = e.getBoundingClientRect();
     let n = e;
     while (n && n !== document.documentElement) {
-      const c = parse(getComputedStyle(n).backgroundColor);
+      const cs = getComputedStyle(n);
+      // A GRADIENT IS A GROUND TOO (2026-09-22). This read background-color
+      // alone, so the goal and project cards on Life's grid -- drawn with a
+      // gradient and no colour behind it -- composited straight through to
+      // the page, and every white word on a blue card was reported as white
+      // on the light page's near-white. Chromium hands the computed gradient
+      // back with its stops already in rgb.
+      const gi = cs.backgroundImage || "";
+      if (gi.includes("gradient(")) {
+        // THE BASE LAYER, PROJECTED TO WHERE THE TEXT SITS. Two wrong
+        // answers preceded this and both are worth keeping. The first stop
+        // alone is the lightest pixel of a glass card's sheen, not the
+        // ground under words drawn halfway down. Averaging every rgba() in
+        // the property is worse: background-image stacks LAYERS, and a
+        // Bigger Picture card carries three white sheen radials over its
+        // colour, so averaging them all called a tile a pale lilac nobody
+        // painted. And even the base layer's flat average is wrong for text
+        // that is not centred on the card -- gradientColorAt reads the
+        // actual angle and the text's real position.
+        const base = gradientLayers(gi).pop() || "";
+        const g = gradientColorAt(base, n.getBoundingClientRect(), pointRect);
+        if (g && g.a > 0) { layers.push(g); if (g.a >= 0.999) break; }
+      }
+      const c = parse(cs.backgroundColor);
       if (c && c.a > 0) { layers.push(c); if (c.a === 1) break; }
+      // A GROUND DRAWN BY A PSEUDO-ELEMENT (2026-09-22). The goal and project
+      // cards paint their gradient on ::before, so the card itself is
+      // transparent and every white word on a blue card read as white on
+      // the light page. A generated box that is positioned and painted is a
+      // layer under everything the element holds.
+      for (const pseudo of ["::before", "::after"]) {
+        const ps = getComputedStyle(n, pseudo);
+        if (ps.content === "none" || ps.position !== "absolute") continue;
+        const pgi = ps.backgroundImage || "";
+        const pbase = gradientLayers(pgi).pop() || "";
+        // ::before with inset: 0 shares its host's box exactly; anything
+        // else is rare enough here to read the host's rect too rather than
+        // add a second geometry path for a case that does not occur.
+        const pg = pbase && gradientColorAt(pbase, n.getBoundingClientRect(), pointRect);
+        if (pg && pg.a > 0) layers.push(pg);
+        const pc = parse(ps.backgroundColor);
+        if (pc && pc.a > 0) layers.push(pc);
+      }
+      if (layers.length && layers[layers.length - 1].a >= 0.999) break;
       n = n.parentElement;
     }
     // The base is the DOCUMENT's own background, not black. Hardcoding black
@@ -486,16 +595,43 @@ const AUDIT = () => {
     // nothing else inherits it by sharing a hex.
     const GLYPH_TEXT = [".brand-mark .j", ".today-brand .j"];
     const isGlyph = GLYPH_TEXT.some((sel) => e.matches(sel));
+    //   THE ASTRA PALETTE, IN FULL (widened 2026-09-22). The roster carried
+    //   two of it, --good and --warn, and reported the other ten. The ruling
+    //   is broader than the pair: laws.test.ts holds that a category slot
+    //   whose light fill IS an Apple light system colour "wears that fill as
+    //   its ink and its glyph, NO RATIO ASKED", and fails the build if one is
+    //   darkened. So the auditor was reporting a law as a defect -- and I
+    //   darkened three of them (sky, blue, purple) before that law caught it,
+    //   which is the whole reason it exists. In LIGHT, the twelve are ruled.
+    //   In dark the app uses its own derived --cat-dtx-* inks, so nothing
+    //   here is waved through by sharing a hex across themes.
+    const APPLE_LIGHT = new Set(["rgb(255, 59, 48)", "rgb(255, 149, 0)", "rgb(255, 204, 0)",
+      "rgb(52, 199, 89)", "rgb(0, 199, 190)", "rgb(48, 176, 199)", "rgb(50, 173, 230)",
+      "rgb(0, 122, 255)", "rgb(88, 86, 214)", "rgb(175, 82, 222)", "rgb(255, 45, 85)", "rgb(162, 132, 94)"]);
+    const lightTheme = document.documentElement.getAttribute("data-theme") === "light";
     const ASTRA = { "rgb(52, 199, 89)": "--good", "rgb(255, 149, 0)": "--warn" };
-    const astra = ASTRA[cs.color];
+    const astra = ASTRA[cs.color] || (lightTheme && APPLE_LIGHT.has(cs.color) ? "an Apple light system colour" : undefined);
+    //   THE VIVID RAMP ON NUMERALS (added 2026-09-22). Health's six activity
+    //   hues are byte-identical across themes by Dave's pick (§AB, law 3 in
+    //   healthSkin.test.ts), and the token file says what that costs: "as
+    //   TEXT on the light page these miss AA, worst at lime". The ruling's own
+    //   boundary is that the ramp is data ink on NUMERALS, never words --
+    //   words read the ink twin now (--hl-*-ink), which this file measures
+    //   like any other colour. The numerals below are the ruling rendering.
+    //   Named by class, not by hex, for the reason the glyph bar is.
+    const VIVID_NUMERALS = [".stat-num", ".h-stat b", ".h-week-count b", ".ins-big", ".rest-clock"];
+    const vivid = /^rgb\((166, 255, 0|0, 229, 255|255, 159, 10|191, 90, 242|255, 55, 95|10, 132, 255)\)$/.test(cs.color)
+      && VIVID_NUMERALS.some((sel) => e.matches(sel));
     const ruled = isGlyph
       ? { why: "--accent-glyph, catalog L6: a glyph answers to 3:1" }
       : astra
         ? { why: astra + ", the Astra ruling 2026-09-12, law-pinned" }
-        : null;
+        : vivid
+          ? { why: "the vivid ramp on a numeral, §AB and law 3, Dave's pick" }
+          : null;
     // A ruled colour is judged by the bar its ruling names, never waved
     // through: the wordmark still has to clear the 3:1 mark bar.
-    const need = isGlyph ? 3 : astra ? 0 : (large ? 3 : 4.5);
+    const need = isGlyph ? 3 : (astra || vivid) ? 0 : (large ? 3 : 4.5);
     if (need === 0) continue;
     let faded = false;
     for (let n = e; n && n !== document.documentElement; n = n.parentElement) {

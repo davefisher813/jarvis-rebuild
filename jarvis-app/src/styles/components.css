@@ -1828,7 +1828,11 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
      worst surface red text actually meets in Daylight -- the tinted
      capsule (4.52:1) -- so it also clears the page (4.79) and white
      (5.26), and carries white text at 5.26 where it is a fill. */
-  --on-light-red: #DA0012;
+  /* #DA0012 clears 4.5 on white and on a card, and misses on every raised
+     grey it actually lands on: 4.14 on a row, 4.07 on the page's press, 3.91
+     on a sheet's (2026-09-22, measured across 43 screens). #BC000E reads
+     6.68 / 5.26 / 4.97 and is the same hue. */
+  --on-light-red: #BC000E;
   /* --on-light-good and --on-light-warn are gone with the allow-list
      (BROWSER-F-04, 2026-09-05): their values are what the light --good and
      --warn tokens are now, so the two fills that still want the darker green
@@ -4173,6 +4177,25 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    only. Same wash, same red, just the one longhand that leaves the clip. */
 [data-theme="light"] .pill-act { background-color: rgba(204,5,27,0.085); color: var(--on-light-red); }
 [data-theme="light"] .note-fix { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
+/* THE ROW ACTION IN LIGHT TAKES OPTION D TOO (2026-09-22). "Add Account",
+   "Add Person", "Add Area", "Focus" and "Add a Task" were the light red on
+   a GREY press fill -- 4.07:1 on the page's press, 4.46 on a card's -- the
+   .row-act half of the decision the pill settled on 2026-09-21. The same
+   answer: no fill, the brand ring, the light red on the card or the page
+   itself (5.26:1 and 4.79:1). One treatment for every red action that is
+   not the screen's one filled primary. */
+/* AND IN DARK (2026-09-22). "Add Account" and "Add Person" measured 3.81:1:
+   the brand red on surface-2, which is the exact defect option D was picked
+   to answer on the pill. Same answer, same control: no fill, the brand ring,
+   the app's own accent text (white in dark, the light red in light). This is
+   the other half of OPEN DECISION 1 and closes it. */
+.row-act, .quiet-action, .ruled .card .row.row-act {
+  background: transparent; box-shadow: inset 0 0 0 1px var(--accent-chip-bd); color: var(--accent-tx);
+}
+[data-theme="light"] .row-act, [data-theme="light"] .quiet-action,
+[data-theme="light"] .ruled .card .row.row-act {
+  background: transparent; box-shadow: inset 0 0 0 1px var(--accent-chip-bd); color: var(--on-light-red);
+}
 /* THE ACTION PILL, OPTION D (Dave's pick 2026-09-21, from a rendered
    comparison of four through these stylesheets with their measured numbers
    under them).
@@ -4894,6 +4917,15 @@ body.selecting .voice-dock { display: none; }
    and moves no paint. */
 .set-last-act { border-bottom: 8px solid transparent; margin-bottom: -8px; }
 .set-last-act .act { color: var(--accent-chrome); font-weight: var(--w-semi); margin-left: var(--s-2); }
+/* --accent-chrome is tuned for the PAGE in dark, per its own comment: "sits
+   on the PAGE, never on a card". This link sits on the ghost row's own 4%
+   press wash, which measured 4.4955:1 here (2026-09-22) -- under 4.5 by less
+   than a rounding error, still under it. In light --accent-chrome already
+   resolves to --accent-tx and was never the problem, so only dark needs the
+   nudge: the same brand red raised two points, not a visible shift, that
+   clears 4.52:1 on the ground this control actually sits on. Scoped to dark
+   so light keeps reading the token it was already reading correctly. */
+[data-theme="dark"] .set-last-act .act { color: #FF2D3E; }
 /* The gym feature cards open with a kicker (Up Next; Exercise N of M). Give
    the kicker its breathing room once, here -- the only .card.pad > .eyebrow
    in the app is on these gym cards. */
@@ -5065,9 +5097,14 @@ body.selecting .voice-dock { display: none; }
    verbs wear the gradient and its soft glow; everything else keeps the flat
    brand fill. One filled red per screen still holds -- this is the same one,
    dressed for the gym. */
-.btn-launch { background: linear-gradient(135deg, #FF3B4E, #E01230);
+/* WHITE HAS TO CARRY ON THE LIGHTEST STOP (2026-09-22). The label measured
+   4.14:1 against the gradient's own middle in dark and 4.96 in light -- the
+   app's single most important button, under the bar, in both themes. The
+   stops move just far enough that white clears on the lightest one (4.59)
+   and reads 5.45 across the middle. Same hue, same direction, same bloom. */
+.btn-launch { background: linear-gradient(135deg, #E32438, #BE0C25);
   box-shadow: 0 6px 22px rgba(255, 43, 60, 0.28); }
-[data-theme="light"] .btn-launch { background: linear-gradient(135deg, #F02539, #C90E28);
+[data-theme="light"] .btn-launch { background: linear-gradient(135deg, #E32438, #BE0C25);
   box-shadow: 0 6px 18px rgba(218, 0, 18, 0.24); color: #fff; }
 
 /* Destructive text, bare (preview .btn.danger): red words on nothing. The
@@ -5643,6 +5680,16 @@ body.selecting .voice-dock { display: none; }
 .fact.sky { color: var(--cat-sky); }
 .fact.purp { color: var(--cat-purple); }
 .fact.red { color: var(--accent-tx); }
+/* .fact.sky and .fact.purp painted the raw category FILL as text, which is
+   .cat-fg-*'s own old mistake before the Astra pass gave it per-theme text
+   variants (2026-09-22, "1 Moved" measured 4.01:1 on a raised dark card and
+   2.98 on light's info card wash). Same tokens .cat-fg-purple already reads,
+   so the two names never drift from each other again. Sky's raw dark value
+   (#64D2FF) already clears 6.6:1 on every dark surface, so only its light
+   and purple's dark side need the swap. */
+[data-theme="light"] .fact.sky { color: var(--cat-tx-sky); }
+[data-theme="light"] .fact.purp { color: var(--cat-tx-purple); }
+[data-theme="dark"] .fact.purp { color: var(--cat-dtx-purple); }
 /* Category is a 7px dot in the category colour plus plain text, never
    coloured text (G4). The dot wears .cat-bg-<slot>. */
 .fact.cat { color: var(--tx-3); display: inline-flex; align-items: center; gap: var(--s-1h); }
@@ -5719,7 +5766,9 @@ body.selecting .voice-dock { display: none; }
    detector still watching. The star on a strand row is a marker, not a
    control, so it does not invite a tap. */
 .strand-disc { background: var(--cat-purple); }
-.warn-disc { background: var(--warn-fill); }
+/* The glyph on an amber disc is dark (2026-09-22): white on #FF9500 is
+   2.06:1 in both themes, the one badge in the app that failed everywhere. */
+.warn-disc { background: var(--warn-fill); color: var(--on-fill-dark); }
 .disc-glyph { font-size: calc(15px * var(--type-scale)); font-weight: 800; line-height: 1; }
 .strand-row .lib-disc { flex-shrink: 0; }
 span.row-star { cursor: default; }
@@ -5777,8 +5826,17 @@ span.row-star { cursor: default; }
 .itile b { display: block; font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .itile span { display: block; margin-top: var(--s-1); font-size: calc(11px * var(--type-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .itile-good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
-.itile-purp { background: color-mix(in srgb, var(--cat-purple) 14%, transparent); color: var(--cat-purple); }
-.itile-sky { background: color-mix(in srgb, var(--cat-sky) 14%, transparent); color: var(--cat-sky); }
+/* THE TILE'S WORDS READ THE THEME'S OWN CATEGORY INK (2026-09-22). These
+   painted the raw fill as text on a 14% wash of itself: "goals moved" in
+   --cat-purple measured 4.00:1 in dark. .cat-fg-* has carried a per-theme
+   text variant for exactly this since the Astra pass; the tiles never read
+   it. In light the Apple system colour is the ruling and stays. */
+.itile-purp { background: color-mix(in srgb, var(--cat-purple) 14%, transparent); color: var(--cat-tx-purple); }
+.itile-sky { background: color-mix(in srgb, var(--cat-sky) 14%, transparent); color: var(--cat-tx-sky); }
+/* Only purple has a dark ink to read: sky was never flagged in dark, and
+   there is no --cat-dtx-sky, so naming one would make the declaration
+   invalid at computed-value time and the tile would inherit its way to mud. */
+[data-theme="dark"] .itile-purp { color: var(--cat-dtx-purple); }
 .stack { display: flex; height: 10px; border-radius: var(--r-xs); overflow: hidden; margin: var(--s-1h) 0 var(--s-2); background: var(--press-3); }
 .stack > i { display: block; height: 100%; }
 .stack > i.stack-open { background: var(--divider); }
