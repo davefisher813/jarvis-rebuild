@@ -1,0 +1,2009 @@
+{
+ "css_by_sheet": {
+  "components.css": [
+   9,
+   17,
+   36,
+   37,
+   38,
+   40,
+   42,
+   43,
+   114,
+   117,
+   128,
+   156,
+   166,
+   167,
+   187,
+   188,
+   208,
+   211,
+   214,
+   218,
+   220,
+   227,
+   259,
+   280,
+   284,
+   285,
+   286,
+   293,
+   294,
+   317,
+   374,
+   404,
+   411,
+   436,
+   439,
+   444,
+   507,
+   514,
+   518,
+   520,
+   525,
+   526,
+   527,
+   529,
+   530,
+   541,
+   542,
+   543,
+   544,
+   547,
+   549,
+   550,
+   551,
+   555,
+   557,
+   558,
+   559,
+   560,
+   564,
+   565,
+   566,
+   567,
+   568,
+   569,
+   570,
+   572,
+   573,
+   574,
+   575,
+   578,
+   579,
+   582,
+   583,
+   584,
+   585,
+   588,
+   589,
+   590,
+   591,
+   592,
+   593,
+   594,
+   595,
+   596,
+   597,
+   598,
+   599,
+   600,
+   601,
+   605,
+   606,
+   607,
+   609,
+   610,
+   611,
+   612,
+   613,
+   615,
+   616,
+   617,
+   618,
+   620,
+   621,
+   622,
+   623,
+   625,
+   626,
+   627,
+   629,
+   630,
+   648
+  ],
+  "ruled.css": [
+   16,
+   32,
+   45,
+   102,
+   104,
+   106,
+   149,
+   154,
+   245,
+   257,
+   271,
+   272,
+   277,
+   278,
+   282,
+   303,
+   347,
+   350,
+   351,
+   356,
+   365,
+   366,
+   378,
+   389,
+   390,
+   410,
+   418,
+   433,
+   435,
+   449,
+   466,
+   469,
+   470,
+   488,
+   490,
+   497,
+   513,
+   519,
+   580
+  ],
+  "editor.css": [
+   129,
+   395,
+   396,
+   400,
+   401,
+   403,
+   414,
+   521,
+   522,
+   523,
+   531,
+   532,
+   631,
+   632,
+   639,
+   640,
+   641,
+   642,
+   643,
+   645,
+   646,
+   649,
+   651
+  ],
+  "mail-rows.css": [
+   157,
+   159,
+   635,
+   636,
+   644,
+   652
+  ],
+  "jarvis-design-system.css": [
+   528,
+   650
+  ],
+  "uniformity.css": [
+   633
+  ]
+ },
+ "code_groups": [
+  {
+   "files": [
+    "src/today/TodayPage.tsx"
+   ],
+   "finding_ids": [
+    2,
+    15
+   ]
+  },
+  {
+   "files": [
+    "src/upnext/UpNextFlow.tsx"
+   ],
+   "finding_ids": [
+    5
+   ]
+  },
+  {
+   "files": [
+    "src/upnext/FocusScreen.tsx"
+   ],
+   "finding_ids": [
+    8
+   ]
+  },
+  {
+   "files": [
+    "src/upnext/FreshStartFlow.tsx"
+   ],
+   "finding_ids": [
+    10
+   ]
+  },
+  {
+   "files": [
+    "src/today/MoveHeadliner.tsx"
+   ],
+   "finding_ids": [
+    18,
+    19
+   ]
+  },
+  {
+   "files": [
+    "src/today/TodayFlow.tsx"
+   ],
+   "finding_ids": [
+    24,
+    25,
+    27,
+    28,
+    29
+   ]
+  },
+  {
+   "files": [
+    "src/today/todayData.ts"
+   ],
+   "finding_ids": [
+    30
+   ]
+  },
+  {
+   "files": [
+    "src/today/MailNotices.tsx"
+   ],
+   "finding_ids": [
+    31
+   ]
+  },
+  {
+   "files": [
+    "src/today/routinePatterns.ts"
+   ],
+   "finding_ids": [
+    33
+   ]
+  },
+  {
+   "files": [
+    "src/today/YourDay.tsx"
+   ],
+   "finding_ids": [
+    39
+   ]
+  },
+  {
+   "files": [
+    "src/today/quiet.tsx"
+   ],
+   "finding_ids": [
+    41
+   ]
+  },
+  {
+   "files": [
+    "src/routine/RoutineFlow.tsx"
+   ],
+   "finding_ids": [
+    98,
+    100
+   ]
+  },
+  {
+   "files": [
+    "src/review/InsightsFlow.tsx"
+   ],
+   "finding_ids": [
+    109,
+    111,
+    112
+   ]
+  },
+  {
+   "files": [
+    "src/review/week.ts"
+   ],
+   "finding_ids": [
+    110,
+    602
+   ]
+  },
+  {
+   "files": [
+    "src/review/ReportPage.tsx"
+   ],
+   "finding_ids": [
+    115,
+    118,
+    603
+   ]
+  },
+  {
+   "files": [
+    "src/review/report.ts"
+   ],
+   "finding_ids": [
+    116,
+    581,
+    604
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/screens/TaskSheet.tsx"
+   ],
+   "finding_ids": [
+    120,
+    123
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/screens/StartScreen.tsx"
+   ],
+   "finding_ids": [
+    126
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/screens/ReminderSettingsSheet.tsx"
+   ],
+   "finding_ids": [
+    132
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/screens/RemindersPage.tsx"
+   ],
+   "finding_ids": [
+    134,
+    135,
+    586
+   ]
+  },
+  {
+   "files": [
+    "src/projects/ProjectDetailPage.tsx"
+   ],
+   "finding_ids": [
+    136,
+    140
+   ]
+  },
+  {
+   "files": [
+    "src/projects/types.ts"
+   ],
+   "finding_ids": [
+    138
+   ]
+  },
+  {
+   "files": [
+    "src/decisions/DecisionsFlow.tsx"
+   ],
+   "finding_ids": [
+    141,
+    142,
+    143,
+    145,
+    147,
+    148,
+    624
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/screens/TasksPage.tsx"
+   ],
+   "finding_ids": [
+    150,
+    151
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/screens/ContextPromptSheet.tsx"
+   ],
+   "finding_ids": [
+    153
+   ]
+  },
+  {
+   "files": [
+    "src/notifications/NotificationsFlow.tsx"
+   ],
+   "finding_ids": [
+    161
+   ]
+  },
+  {
+   "files": [
+    "src/messages/MessagesFlow.tsx",
+    "src/messages/factsLine.tsx",
+    "src/messages/weeklyClose.ts"
+   ],
+   "finding_ids": [
+    172,
+    177,
+    178,
+    182,
+    184,
+    185,
+    186,
+    189,
+    191,
+    195,
+    196,
+    197,
+    209,
+    228,
+    229
+   ]
+  },
+  {
+   "files": [
+    "src/messages/ThreadStateCard.tsx"
+   ],
+   "finding_ids": [
+    216
+   ]
+  },
+  {
+   "files": [
+    "src/messages/WindowsSheet.tsx"
+   ],
+   "finding_ids": [
+    219,
+    571
+   ]
+  },
+  {
+   "files": [
+    "src/messages/DemoMail.tsx"
+   ],
+   "finding_ids": [
+    231
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/PointAtItScreen.tsx"
+   ],
+   "finding_ids": [
+    240
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/DoctorReportScreen.tsx"
+   ],
+   "finding_ids": [
+    241
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/AgeRuleScreen.tsx"
+   ],
+   "finding_ids": [
+    242
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/RefillRunwayScreen.tsx"
+   ],
+   "finding_ids": [
+    243,
+    244,
+    246
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/LockerScreen.tsx"
+   ],
+   "finding_ids": [
+    247,
+    248,
+    261
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/MedRows.tsx"
+   ],
+   "finding_ids": [
+    249
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/DoseTimeline.tsx"
+   ],
+   "finding_ids": [
+    250
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/LightsOutScreen.tsx"
+   ],
+   "finding_ids": [
+    251,
+    252
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/CheckInScreen.tsx"
+   ],
+   "finding_ids": [
+    253
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/MealScreen.tsx"
+   ],
+   "finding_ids": [
+    254
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/MedicationScreen.tsx"
+   ],
+   "finding_ids": [
+    255
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/WhatTheySeeScreen.tsx"
+   ],
+   "finding_ids": [
+    256
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/ShareLineScreen.tsx"
+   ],
+   "finding_ids": [
+    258
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/EatingWindowsScreen.tsx"
+   ],
+   "finding_ids": [
+    260
+   ]
+  },
+  {
+   "files": [
+    "src/gym/GymFlow.tsx"
+   ],
+   "finding_ids": [
+    262,
+    263,
+    264,
+    265,
+    268,
+    269,
+    270,
+    273,
+    619
+   ]
+  },
+  {
+   "files": [
+    "src/gym/SessionScreen.tsx"
+   ],
+   "finding_ids": [
+    275,
+    276
+   ]
+  },
+  {
+   "files": [
+    "src/gym/SetStrip.tsx"
+   ],
+   "finding_ids": [
+    281
+   ]
+  },
+  {
+   "files": [
+    "src/gym/DurationCard.tsx"
+   ],
+   "finding_ids": [
+    287,
+    288,
+    289
+   ]
+  },
+  {
+   "files": [
+    "src/gym/HistoryScreen.tsx"
+   ],
+   "finding_ids": [
+    290
+   ]
+  },
+  {
+   "files": [
+    "src/gym/LiftDetailScreen.tsx",
+    "src/gym/LiftDetailScreen.tsx + src/gym/muscles.ts"
+   ],
+   "finding_ids": [
+    295,
+    296,
+    297,
+    299,
+    300,
+    301,
+    302,
+    304
+   ]
+  },
+  {
+   "files": [
+    "src/gym/LoadSheet.tsx",
+    "src/gym/LoadSheet.tsx + src/gym/equipment.ts"
+   ],
+   "finding_ids": [
+    306
+   ]
+  },
+  {
+   "files": [
+    "src/gym/DuplicateReview.tsx",
+    "src/gym/DuplicateReview.tsx + src/gym/merge.ts"
+   ],
+   "finding_ids": [
+    309,
+    310,
+    311,
+    312
+   ]
+  },
+  {
+   "files": [
+    "src/gym/LibraryPage.tsx"
+   ],
+   "finding_ids": [
+    313,
+    314,
+    316
+   ]
+  },
+  {
+   "files": [
+    "src/gym/ClassifySheet.tsx"
+   ],
+   "finding_ids": [
+    318,
+    319,
+    320
+   ]
+  },
+  {
+   "files": [
+    "src/gym/ExerciseSheet.tsx"
+   ],
+   "finding_ids": [
+    323,
+    324
+   ]
+  },
+  {
+   "files": [
+    "src/gym/LibraryPickSheet.tsx"
+   ],
+   "finding_ids": [
+    328
+   ]
+  },
+  {
+   "files": [
+    "src/gym/PlateSheet.tsx"
+   ],
+   "finding_ids": [
+    329
+   ]
+  },
+  {
+   "files": [
+    "src/brain/BrainTop.tsx"
+   ],
+   "finding_ids": [
+    336,
+    338,
+    388
+   ]
+  },
+  {
+   "files": [
+    "src/brain/strands/state.ts"
+   ],
+   "finding_ids": [
+    337
+   ]
+  },
+  {
+   "files": [
+    "src/brain/strands/StrandsPage.tsx"
+   ],
+   "finding_ids": [
+    339,
+    340,
+    341
+   ]
+  },
+  {
+   "files": [
+    "src/brain/docs/BrainDocPage.tsx"
+   ],
+   "finding_ids": [
+    343
+   ]
+  },
+  {
+   "files": [
+    "src/brain/CategoryDetail.tsx"
+   ],
+   "finding_ids": [
+    353,
+    354,
+    355,
+    357,
+    359,
+    363,
+    364
+   ]
+  },
+  {
+   "files": [
+    "src/brain/HealthBody.tsx"
+   ],
+   "finding_ids": [
+    367,
+    368,
+    369,
+    370,
+    373
+   ]
+  },
+  {
+   "files": [
+    "src/insights/InsightsPage.tsx"
+   ],
+   "finding_ids": [
+    371,
+    379,
+    380,
+    381,
+    383,
+    384,
+    385
+   ]
+  },
+  {
+   "files": [
+    "src/insights/AllDataPage.tsx"
+   ],
+   "finding_ids": [
+    375,
+    376
+   ]
+  },
+  {
+   "files": [
+    "src/insights/ExportSheet.tsx"
+   ],
+   "finding_ids": [
+    386,
+    387
+   ]
+  },
+  {
+   "files": [
+    "src/notes/screens/NotesList.tsx"
+   ],
+   "finding_ids": [
+    392,
+    393
+   ]
+  },
+  {
+   "files": [
+    "src/notes/screens/NoteEditor.tsx"
+   ],
+   "finding_ids": [
+    394,
+    397,
+    398,
+    412,
+    413,
+    563,
+    587,
+    634,
+    647
+   ]
+  },
+  {
+   "files": [
+    "src/notes/screens/ExportSheet.tsx",
+    "src/notes/screens/ExportSheet.tsx + src/notes/screens/AISheet.tsx"
+   ],
+   "finding_ids": [
+    402
+   ]
+  },
+  {
+   "files": [
+    "src/chat/ChatFlow.tsx"
+   ],
+   "finding_ids": [
+    415
+   ]
+  },
+  {
+   "files": [
+    "src/settings/AIControlPage.tsx"
+   ],
+   "finding_ids": [
+    419
+   ]
+  },
+  {
+   "files": [
+    "src/data/useSyncState.ts",
+    "src/settings/BackupPage.tsx",
+    "src/settings/BackupPage.tsx + src/data/useSyncState.ts"
+   ],
+   "finding_ids": [
+    424
+   ]
+  },
+  {
+   "files": [
+    "src/settings/BookingPage.tsx"
+   ],
+   "finding_ids": [
+    430,
+    431
+   ]
+  },
+  {
+   "files": [
+    "src/settings/LearnedRulesPage.tsx"
+   ],
+   "finding_ids": [
+    432
+   ]
+  },
+  {
+   "files": [
+    "src/people/screens/PeopleListPage.tsx"
+   ],
+   "finding_ids": [
+    440
+   ]
+  },
+  {
+   "files": [
+    "src/people/PeopleFlow.tsx"
+   ],
+   "finding_ids": [
+    446,
+    447
+   ]
+  },
+  {
+   "files": [
+    "src/people/screens/PersonDetail.tsx"
+   ],
+   "finding_ids": [
+    451,
+    452,
+    453,
+    454,
+    455
+   ]
+  },
+  {
+   "files": [
+    "src/people/CallPrepSheet.tsx"
+   ],
+   "finding_ids": [
+    456
+   ]
+  },
+  {
+   "files": [
+    "src/life/SyllabusUploadFlow.tsx"
+   ],
+   "finding_ids": [
+    461,
+    462
+   ]
+  },
+  {
+   "files": [
+    "src/life/GoalSheet.tsx",
+    "src/shared/FormSheet.tsx"
+   ],
+   "finding_ids": [
+    463,
+    524
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/BiggerPicturePage.tsx",
+    "src/bigger/GoalRowRuled.tsx"
+   ],
+   "finding_ids": [
+    468,
+    473,
+    487
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/ProjectRowRuled.tsx"
+   ],
+   "finding_ids": [
+    471
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/measure.ts"
+   ],
+   "finding_ids": [
+    474
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/GoalDetailPage.tsx"
+   ],
+   "finding_ids": [
+    478,
+    479,
+    482,
+    483,
+    484,
+    485
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/reach.ts"
+   ],
+   "finding_ids": [
+    480
+   ]
+  },
+  {
+   "files": [
+    "src/money/MoneyFlow.tsx"
+   ],
+   "finding_ids": [
+    491,
+    494,
+    496,
+    498
+   ]
+  },
+  {
+   "files": [
+    "src/money/bills.ts"
+   ],
+   "finding_ids": [
+    493
+   ]
+  },
+  {
+   "files": [
+    "src/money/BillSheet.tsx"
+   ],
+   "finding_ids": [
+    501
+   ]
+  },
+  {
+   "files": [
+    "src/money/screens/TrackerScreen.tsx"
+   ],
+   "finding_ids": [
+    502,
+    512,
+    628
+   ]
+  },
+  {
+   "files": [
+    "src/booking/PublicBookingPage.tsx"
+   ],
+   "finding_ids": [
+    506
+   ]
+  },
+  {
+   "files": [
+    "src/booking/PublicCancelPage.tsx"
+   ],
+   "finding_ids": [
+    509
+   ]
+  },
+  {
+   "files": [
+    "src/booking/CancelBookingSheet.tsx"
+   ],
+   "finding_ids": [
+    510
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/progress.ts"
+   ],
+   "finding_ids": [
+    511
+   ]
+  },
+  {
+   "files": [
+    "src/shared/ProvenanceLine.tsx"
+   ],
+   "finding_ids": [
+    516,
+    517
+   ]
+  },
+  {
+   "files": [
+    "src/admin/AdminPanel.tsx"
+   ],
+   "finding_ids": [
+    535,
+    553
+   ]
+  },
+  {
+   "files": [
+    "src/onboarding/OnboardingFlow.tsx"
+   ],
+   "finding_ids": [
+    545,
+    546,
+    548,
+    552,
+    554
+   ]
+  },
+  {
+   "files": [
+    "src/styles/jarvis-design-system.css + src/gym/MetricGoalSheet.tsx + src/gym/LiftGoalSheet.tsx"
+   ],
+   "finding_ids": [
+    637
+   ]
+  },
+  {
+   "files": [
+    "src/styles/editor.css + src/notes/screens/ExportSheet.tsx"
+   ],
+   "finding_ids": [
+    638
+   ]
+  }
+ ],
+ "middot_groups": [
+  {
+   "files": [
+    "src/messages/home.ts",
+    "src/today/NoticeCard.tsx"
+   ],
+   "finding_ids": [
+    3,
+    221,
+    222,
+    223,
+    224
+   ]
+  },
+  {
+   "files": [
+    "src/upnext/FocusScreen.tsx",
+    "src/upnext/UpNextFlow.tsx"
+   ],
+   "finding_ids": [
+    4,
+    6,
+    7
+   ]
+  },
+  {
+   "files": [
+    "src/today/TodayPage.tsx"
+   ],
+   "finding_ids": [
+    11,
+    12,
+    14
+   ]
+  },
+  {
+   "files": [
+    "src/today/evening.ts"
+   ],
+   "finding_ids": [
+    13
+   ]
+  },
+  {
+   "files": [
+    "src/today/TodayFlow.tsx"
+   ],
+   "finding_ids": [
+    20,
+    21,
+    22,
+    23,
+    26
+   ]
+  },
+  {
+   "files": [
+    "src/today/patterns.ts"
+   ],
+   "finding_ids": [
+    34
+   ]
+  },
+  {
+   "files": [
+    "src/weather/weather.ts"
+   ],
+   "finding_ids": [
+    35
+   ]
+  },
+  {
+   "files": [
+    "src/routine/RoutineFlow.tsx"
+   ],
+   "finding_ids": [
+    97
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/screens/TasksPage.tsx"
+   ],
+   "finding_ids": [
+    105
+   ]
+  },
+  {
+   "files": [
+    "src/review/InsightsFlow.tsx"
+   ],
+   "finding_ids": [
+    107,
+    108
+   ]
+  },
+  {
+   "files": [
+    "src/review/report.ts"
+   ],
+   "finding_ids": [
+    119
+   ]
+  },
+  {
+   "files": [
+    "src/shared/ProvenanceLine.tsx",
+    "src/tasks/ifThen.ts",
+    "src/tasks/screens/TaskSheet.tsx"
+   ],
+   "finding_ids": [
+    121,
+    122,
+    152
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/screens/StartCard.tsx"
+   ],
+   "finding_ids": [
+    124
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/screens/StartScreen.tsx"
+   ],
+   "finding_ids": [
+    125,
+    127
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/screens/ReminderSheet.tsx"
+   ],
+   "finding_ids": [
+    131
+   ]
+  },
+  {
+   "files": [
+    "src/tasks/reminders.ts",
+    "src/tasks/screens/ReminderDetailSheet.tsx"
+   ],
+   "finding_ids": [
+    133
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/ProjectRowRuled.tsx",
+    "src/projects/shape.ts"
+   ],
+   "finding_ids": [
+    137,
+    472
+   ]
+  },
+  {
+   "files": [
+    "src/projects/ProjectDetailPage.tsx"
+   ],
+   "finding_ids": [
+    139
+   ]
+  },
+  {
+   "files": [
+    "src/decisions/DecisionsFlow.tsx"
+   ],
+   "finding_ids": [
+    144,
+    146
+   ]
+  },
+  {
+   "files": [
+    "src/messages/MessagesFlow.tsx"
+   ],
+   "finding_ids": [
+    158,
+    163,
+    168,
+    169,
+    170,
+    171,
+    173,
+    174,
+    176,
+    181,
+    183,
+    190,
+    192,
+    199,
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    207
+   ]
+  },
+  {
+   "files": [
+    "src/notifications/feed.ts"
+   ],
+   "finding_ids": [
+    160
+   ]
+  },
+  {
+   "files": [
+    "src/notifications/NotificationsFlow.tsx"
+   ],
+   "finding_ids": [
+    162
+   ]
+  },
+  {
+   "files": [
+    "src/messages/purge.ts"
+   ],
+   "finding_ids": [
+    165
+   ]
+  },
+  {
+   "files": [
+    "src/messages/batching.ts"
+   ],
+   "finding_ids": [
+    175
+   ]
+  },
+  {
+   "files": [
+    "src/messages/vip.ts"
+   ],
+   "finding_ids": [
+    179
+   ]
+  },
+  {
+   "files": [
+    "src/messages/attachmentKind.ts"
+   ],
+   "finding_ids": [
+    180
+   ]
+  },
+  {
+   "files": [
+    "src/messages/collapse.ts"
+   ],
+   "finding_ids": [
+    193
+   ]
+  },
+  {
+   "files": [
+    "src/messages/safetyNet.ts"
+   ],
+   "finding_ids": [
+    194
+   ]
+  },
+  {
+   "files": [
+    "src/messages/cleared.ts"
+   ],
+   "finding_ids": [
+    198
+   ]
+  },
+  {
+   "files": [
+    "src/messages/outbox.ts"
+   ],
+   "finding_ids": [
+    206
+   ]
+  },
+  {
+   "files": [
+    "src/messages/DeckFlow.tsx"
+   ],
+   "finding_ids": [
+    213
+   ]
+  },
+  {
+   "files": [
+    "src/messages/MailMoreSheet.tsx"
+   ],
+   "finding_ids": [
+    215
+   ]
+  },
+  {
+   "files": [
+    "src/messages/ThreadStateCard.tsx"
+   ],
+   "finding_ids": [
+    217
+   ]
+  },
+  {
+   "files": [
+    "src/messages/meetingTimes.ts"
+   ],
+   "finding_ids": [
+    225
+   ]
+  },
+  {
+   "files": [
+    "src/messages/staleDrafts.ts"
+   ],
+   "finding_ids": [
+    226
+   ]
+  },
+  {
+   "files": [
+    "src/messages/DemoMail.tsx"
+   ],
+   "finding_ids": [
+    230,
+    232,
+    233,
+    234
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/ThirdPracticeScreen.tsx"
+   ],
+   "finding_ids": [
+    235
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/WeekShapeScreen.tsx"
+   ],
+   "finding_ids": [
+    236
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/MedWindowScreen.tsx"
+   ],
+   "finding_ids": [
+    237
+   ]
+  },
+  {
+   "files": [
+    "src/health/screens/SeasonFeedScreen.tsx"
+   ],
+   "finding_ids": [
+    238
+   ]
+  },
+  {
+   "files": [
+    "src/health/checkin.ts"
+   ],
+   "finding_ids": [
+    239
+   ]
+  },
+  {
+   "files": [
+    "src/gym/GymFlow.tsx",
+    "src/gym/GymFlow.tsx + src/gym/pins.ts"
+   ],
+   "finding_ids": [
+    266,
+    267,
+    274
+   ]
+  },
+  {
+   "files": [
+    "src/gym/SessionScreen.tsx",
+    "src/gym/SessionScreen.tsx + src/gym/CondReceipt.tsx"
+   ],
+   "finding_ids": [
+    279
+   ]
+  },
+  {
+   "files": [
+    "src/gym/CondReceipt.tsx"
+   ],
+   "finding_ids": [
+    283
+   ]
+  },
+  {
+   "files": [
+    "src/gym/LiftDetailScreen.tsx",
+    "src/gym/LiftDetailScreen.tsx + src/gym/chartData.ts"
+   ],
+   "finding_ids": [
+    291,
+    292,
+    298
+   ]
+  },
+  {
+   "files": [
+    "src/gym/classify.ts"
+   ],
+   "finding_ids": [
+    305
+   ]
+  },
+  {
+   "files": [
+    "src/brain/CategoryDetail.tsx",
+    "src/gym/insights.ts"
+   ],
+   "finding_ids": [
+    307,
+    308,
+    352,
+    358,
+    360,
+    361,
+    362,
+    467
+   ]
+  },
+  {
+   "files": [
+    "src/gym/libraryView.ts"
+   ],
+   "finding_ids": [
+    315
+   ]
+  },
+  {
+   "files": [
+    "src/gym/ExerciseSheet.tsx"
+   ],
+   "finding_ids": [
+    321,
+    322
+   ]
+  },
+  {
+   "files": [
+    "src/gym/FitSheet.tsx"
+   ],
+   "finding_ids": [
+    325
+   ]
+  },
+  {
+   "files": [
+    "src/gym/fit.ts"
+   ],
+   "finding_ids": [
+    326
+   ]
+  },
+  {
+   "files": [
+    "src/gym/LibraryPickSheet.tsx"
+   ],
+   "finding_ids": [
+    327
+   ]
+  },
+  {
+   "files": [
+    "src/gym/PlateSheet.tsx"
+   ],
+   "finding_ids": [
+    330
+   ]
+  },
+  {
+   "files": [
+    "src/gym/ReceiptSheet.tsx"
+   ],
+   "finding_ids": [
+    331
+   ]
+  },
+  {
+   "files": [
+    "src/gym/UploadFlow.tsx"
+   ],
+   "finding_ids": [
+    332
+   ]
+  },
+  {
+   "files": [
+    "src/gym/liveCard.ts"
+   ],
+   "finding_ids": [
+    334
+   ]
+  },
+  {
+   "files": [
+    "src/gym/stateWord.ts"
+   ],
+   "finding_ids": [
+    335
+   ]
+  },
+  {
+   "files": [
+    "src/brain/strands/StrandsPage.tsx"
+   ],
+   "finding_ids": [
+    342
+   ]
+  },
+  {
+   "files": [
+    "src/brain/readiness.ts"
+   ],
+   "finding_ids": [
+    344
+   ]
+  },
+  {
+   "files": [
+    "src/brain/strands/ReadinessPanel.tsx"
+   ],
+   "finding_ids": [
+    345,
+    346
+   ]
+  },
+  {
+   "files": [
+    "src/brain/derive.ts"
+   ],
+   "finding_ids": [
+    348
+   ]
+  },
+  {
+   "files": [
+    "src/brain/InsightEvidence.tsx"
+   ],
+   "finding_ids": [
+    349
+   ]
+  },
+  {
+   "files": [
+    "src/brain/HealthBody.tsx"
+   ],
+   "finding_ids": [
+    372
+   ]
+  },
+  {
+   "files": [
+    "src/insights/records.ts"
+   ],
+   "finding_ids": [
+    377
+   ]
+  },
+  {
+   "files": [
+    "src/insights/InsightsPage.tsx"
+   ],
+   "finding_ids": [
+    382
+   ]
+  },
+  {
+   "files": [
+    "src/notes/screens/NotesList.tsx"
+   ],
+   "finding_ids": [
+    391
+   ]
+  },
+  {
+   "files": [
+    "src/notes/screens/NoteEditor.tsx"
+   ],
+   "finding_ids": [
+    399
+   ]
+  },
+  {
+   "files": [
+    "src/notes/screens/Templates.tsx"
+   ],
+   "finding_ids": [
+    405
+   ]
+  },
+  {
+   "files": [
+    "src/notes/screens/CreateTasks.tsx"
+   ],
+   "finding_ids": [
+    406
+   ]
+  },
+  {
+   "files": [
+    "src/notes/NotesService.ts"
+   ],
+   "finding_ids": [
+    407
+   ]
+  },
+  {
+   "files": [
+    "src/capture/QuickCapture.tsx"
+   ],
+   "finding_ids": [
+    408,
+    409
+   ]
+  },
+  {
+   "files": [
+    "src/settings/AIControlPage.tsx"
+   ],
+   "finding_ids": [
+    416,
+    417
+   ]
+  },
+  {
+   "files": [
+    "src/settings/AdvancedPage.tsx"
+   ],
+   "finding_ids": [
+    420,
+    437
+   ]
+  },
+  {
+   "files": [
+    "src/settings/AboutPage.tsx"
+   ],
+   "finding_ids": [
+    421
+   ]
+  },
+  {
+   "files": [
+    "src/settings/AccountPage.tsx"
+   ],
+   "finding_ids": [
+    422,
+    438
+   ]
+  },
+  {
+   "files": [
+    "src/settings/BackupPage.tsx"
+   ],
+   "finding_ids": [
+    423,
+    425,
+    426,
+    427
+   ]
+  },
+  {
+   "files": [
+    "src/settings/BookingPage.tsx"
+   ],
+   "finding_ids": [
+    428,
+    429
+   ]
+  },
+  {
+   "files": [
+    "src/people/importMatch.ts"
+   ],
+   "finding_ids": [
+    441,
+    443
+   ]
+  },
+  {
+   "files": [
+    "src/people/importContacts.ts"
+   ],
+   "finding_ids": [
+    442
+   ]
+  },
+  {
+   "files": [
+    "src/people/PeopleFlow.tsx"
+   ],
+   "finding_ids": [
+    445,
+    448
+   ]
+  },
+  {
+   "files": [
+    "src/people/screens/PersonDetail.tsx"
+   ],
+   "finding_ids": [
+    450
+   ]
+  },
+  {
+   "files": [
+    "src/connections/ConnectionsPage.tsx"
+   ],
+   "finding_ids": [
+    457,
+    458
+   ]
+  },
+  {
+   "files": [
+    "src/connections/google/humanError.ts"
+   ],
+   "finding_ids": [
+    459
+   ]
+  },
+  {
+   "files": [
+    "src/life/SyllabusUploadFlow.tsx",
+    "src/life/syllabusExtract.ts"
+   ],
+   "finding_ids": [
+    460
+   ]
+  },
+  {
+   "files": [
+    "src/life/cards/AreaItemStandard.tsx"
+   ],
+   "finding_ids": [
+    464
+   ]
+  },
+  {
+   "files": [
+    "src/life/tabs/AreasTab.tsx"
+   ],
+   "finding_ids": [
+    465
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/measure.ts"
+   ],
+   "finding_ids": [
+    475
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/progress.ts"
+   ],
+   "finding_ids": [
+    476
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/savings.ts"
+   ],
+   "finding_ids": [
+    477
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/GoalDetailPage.tsx"
+   ],
+   "finding_ids": [
+    481,
+    486
+   ]
+  },
+  {
+   "files": [
+    "src/bigger/BiggerPicturePage.tsx"
+   ],
+   "finding_ids": [
+    489
+   ]
+  },
+  {
+   "files": [
+    "src/money/bills.ts"
+   ],
+   "finding_ids": [
+    492,
+    495
+   ]
+  },
+  {
+   "files": [
+    "src/money/MoneyFlow.tsx"
+   ],
+   "finding_ids": [
+    499,
+    500
+   ]
+  },
+  {
+   "files": [
+    "src/money/screens/TrackerScreen.tsx"
+   ],
+   "finding_ids": [
+    503,
+    504,
+    505
+   ]
+  },
+  {
+   "files": [
+    "src/booking/PublicBookingPage.tsx"
+   ],
+   "finding_ids": [
+    508
+   ]
+  },
+  {
+   "files": [
+    "src/shared/provenance.ts"
+   ],
+   "finding_ids": [
+    515
+   ]
+  },
+  {
+   "files": [
+    "src/admin/AdminPanel.tsx",
+    "src/admin/adminCompute.ts"
+   ],
+   "finding_ids": [
+    533,
+    534,
+    536,
+    537
+   ]
+  },
+  {
+   "files": [
+    "src/monitoring/ErrorBoundary.tsx"
+   ],
+   "finding_ids": [
+    538
+   ]
+  },
+  {
+   "files": [
+    "src/data/useSyncState.ts"
+   ],
+   "finding_ids": [
+    539
+   ]
+  },
+  {
+   "files": [
+    "src/onboarding/found.ts"
+   ],
+   "finding_ids": [
+    540
+   ]
+  }
+ ]
+}

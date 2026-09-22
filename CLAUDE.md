@@ -3,6 +3,15 @@
 Decisions that outlive the session that made them. Short, dated, and only
 the ones a future session would otherwise get wrong.
 
+## Unfinished: the Colour Key sweep (paused 2026-09-22)
+
+Dave paused a sweep to make the 2026-09-22 rulings (§AK one grey, §AL the
+capsule, §AM the Colour Key and Subtext Catalog picks) hold on every screen,
+to resume when his usage resets. **If he says "resume", start at
+`qa/findings/2026-09-22-RESUME.md`** and follow it in order: it holds the
+questions to ask him first, the 581 pending findings, the ready-to-run
+workflow, and the pitfalls already hit. Do not re-audit from scratch.
+
 ## The writing bar and iOS's accessory pill (Dave, 2026-09-15)
 
 When the keyboard is up in a document, two bars sit above the keys:
