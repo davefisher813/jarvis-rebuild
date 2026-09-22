@@ -2960,7 +2960,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="row" key={title + ":" + r.key} {...rowDoor(() => openRow(r))}>
               <div className="row-grow">
                 <div className="conn-name truncate">{r.who || r.what}</div>
-                <div className="conn-meta truncate">{r.who ? r.what + " · " + r.since : r.since}</div>
+                {/* No "since" (an undated row) means no separator and, with no
+                    `who` either, no line at all -- never a stranded dot. */}
+                {(r.who ? r.what : "") + (r.who && r.since ? " · " : "") + r.since
+                  ? <div className="conn-meta truncate">{(r.who ? r.what : "") + (r.who && r.since ? " · " : "") + r.since}</div>
+                  : null}
               </div>
               <button className="btn-sm" onClick={(e) => { e.stopPropagation(); act(r); }}>{r.action}</button>
               {r.decision && r.decision.alternates.length > 0 && (() => {

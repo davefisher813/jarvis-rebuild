@@ -5845,7 +5845,9 @@ describe("a create alone in a card paints no card (2026-09-06)", () => {
     const comp = read(join(SRC, "styles/components.css")).replace(/\/\*[\s\S]*?\*\//g, "");
     const act = comp.match(/\.row-act\s*\{([^}]*)\}/)?.[1] ?? "";
     expect(act, "an in-list create is a capsule").toMatch(/border-radius:\s*var\(--r-pill\)/);
-    expect(act, "Action treatment: the label's colour on the press neutral").toMatch(/background:\s*var\(--press-3\)/);
+    // AMENDED 2026-09-22 (§AL): the label's colour on the CAPSULE fill, as
+    // background-color. --press-3 was the translucent fill §AL replaced.
+    expect(act, "Action treatment: the label's colour on the capsule fill").toMatch(/background-color:\s*var\(--capsule-fill\)/);
     expect(act).toMatch(/color:\s*var\(--tint\)/);
     // And it keeps that ground inside a ruled card. .ruled .card .row makes
     // every row transparent so a swipe reveal stays hidden at rest, and
@@ -5854,7 +5856,11 @@ describe("a create alone in a card paints no card (2026-09-06)", () => {
     // rgba(255, 255, 255, 0.06). A create has no reveal to hide, and a button
     // with no ground is the bare words the capsule law exists to stop.
     expect(RULES.find((r) => r.sels.includes(".ruled .card .row.row-act"))?.body,
-      "the ruled skin eats the create's capsule again").toMatch(/background:\s*var\(--press-3\)/);
+      "the ruled skin eats the create's capsule again")
+      // AMENDED 2026-09-22 (§AL): the capsule's fill is --capsule-fill now, and
+      // as background-COLOR -- the shorthand reset the clip, and --press-3 was
+      // the translucent fill §AL replaced.
+      .toMatch(/background-color:\s*var\(--capsule-fill\)/);
     // And the Checklist group still renders that shared class, not a dress
     // of its own.
     expect(read(join(SRC, "tasks/screens/TaskSheet.tsx")))

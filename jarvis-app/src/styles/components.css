@@ -687,7 +687,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    `display: flex` with `width: fit-content` keeps the pill the width of its
    label and makes the auto margins work. */
 .row-act { justify-content: center; width: fit-content; align-self: center; margin: var(--s-1) auto;
-  background: var(--press-3); border: 0; color: var(--tint); font-weight: var(--w-semi);
+  background-color: var(--capsule-fill); border: 0; color: var(--tint); font-weight: var(--w-semi);
   font-size: var(--t-body); height: 40px; padding: 0 var(--s-5); border-radius: var(--r-pill);
   display: flex; align-items: center; position: relative; }
 /* B1/B8 (2026-08-23): found by measuring, not by reading. .row-act paints at
@@ -1658,7 +1658,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-more { padding: 0 var(--s-4); }
 .rem-more > summary { color: var(--tx-2); }
 .rem-prompt-sheet .sheet-form { padding-top: var(--s-3); }
-.rem-prompt-eyebrow { color: var(--tint); padding: 0 var(--s-4); }
+.rem-prompt-eyebrow { padding: 0 var(--s-4); } /* §AM: not tappable, so .eyebrow's own grey */
 .rem-prompt-sheet .rem-detail-title { padding: var(--s-1) var(--s-4) 0; }
 .rem-prompt-line { padding: var(--s-1) var(--s-4) var(--s-2); font-size: var(--t-meta); color: var(--tx-2); }
 .rem-summary { margin: var(--s-2) var(--s-4); padding: var(--s-2h) var(--s-3); border-radius: var(--r-md); background: var(--good-tint); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--divider)); }
@@ -4568,7 +4568,7 @@ body.selecting .voice-dock { display: none; }
 /* 4A: the verb is the headline. Big on purpose: it is the decision, and the
    email below it is the evidence. A drafted reply reads as a quote. */
 .sweep-kicker-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
-.sweep-cost { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.sweep-cost { font-size: var(--t-meta); color: var(--cat-sky); font-variant-numeric: tabular-nums; flex-shrink: 0; } /* §AM: an estimate */
 .sweep-verb { font-size: var(--t-h2); font-weight: var(--w-bold); line-height: var(--lh-tight);
   letter-spacing: -0.01em; margin: var(--s-2) 0 var(--s-3); overflow-wrap: break-word; }
 .sweep-verb-quote { font-weight: var(--w-semi); font-size: var(--t-h3); }
@@ -4626,7 +4626,7 @@ body.selecting .voice-dock { display: none; }
    streak only means anything if the misses are as legible as the hits. */
 .sweep-sq { width: 14px; height: 14px; border-radius: var(--r-xs); background: var(--press-3);
   border: 0.5px solid var(--divider); }
-.sweep-sq.on { background: var(--accent); border-color: var(--accent); }
+.sweep-sq.on { background: var(--good-fill); border-color: var(--good-fill); } /* §AM: a cleared day is done */
 .sweep-streak-line { font-size: var(--t-meta); color: var(--tx-3); }
 
 /* L2: EVERY LIST HAS A FLOOR (Dave 2026-08-25, adopted as law). Quiet on

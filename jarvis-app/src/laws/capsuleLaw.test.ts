@@ -104,7 +104,14 @@ describe("LAW §AL: the capsule, settled", () => {
         const body = m[2]!;
         // `.pill-act` as a WHOLE class: `.pill-action` is a different control
         // (the head action's capsule form) and must not be caught here.
-        if (!/\.pill-act(?![\w-])/.test(selector)) continue;
+        // .row-act too (2026-09-22): the in-list create is the same capsule,
+        // and a shorthand on `.ruled .card .row.row-act` kept every create in
+        // a ruled card off it while this law, watching .pill-act only, passed.
+        // Judged on each selector's SUBJECT (its last compound): a rule for
+        // `.card:has(> .row-act:only-child)` styles the card, not the button.
+        const subjects = selector.replace(/:has\([^)]*\)/g, "").split(",")
+          .map((x) => x.trim().split(/\s+|>/).filter(Boolean).pop() ?? "");
+        if (!subjects.some((x) => /\.(pill-act|row-act)(?![\w-])/.test(x))) continue;
         if (/(^|[;\s])background:\s*(?!none\b)(?!0\b)/.test(body)) {
           offenders.push(file + " — " + selector.split("\n").pop()!.trim());
         }

@@ -96,7 +96,9 @@ export function buildLedger(input: LedgerInput): Ledger {
       side: "you_owe",
       who: "",
       what: t.text,
-      since: due ? capAfterNumber(titleCase("Due " + dayPhrase(due, today))) : "No date",
+      // §AK: a line that says nothing is not written. "No date" was grey text
+      // with no information in it, under every undated row you owe.
+      since: due ? capAfterNumber(titleCase("Due " + dayPhrase(due, today))) : "",
       sortKey: due || "9999-12-31",
       late: !!due && due < today,
       ...(t.fromThread ? { threadId: t.fromThread } : {}),

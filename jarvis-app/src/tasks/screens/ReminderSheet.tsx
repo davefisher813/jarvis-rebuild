@@ -259,7 +259,7 @@ export default function ReminderSheet({
           </Group>
         )}
         <Group label="Linked Action">
-          <Row tone="sky" glyph={<Link2 className="ic" />} label="Linked Item" meta={link ? (link.label ?? "Linked") : "None"} onClick={() => setPickingLink(true)} chev />
+          <Row tone="sky" glyph={<Link2 className="ic" />} label="Linked Item" meta={link ? (link.label ?? "Linked") : undefined} onClick={() => setPickingLink(true)} chev />
           {mode === "edit" && link && onOpenLinked && (
             <Row tone="red" glyph={<Forward className="ic" />} label={actionLabelFor(link)} meta={link.label ?? ""} onClick={() => onOpenLinked(link)} chev />
           )}

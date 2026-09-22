@@ -110,7 +110,12 @@
    choose a shape" broken by collateral rather than by choice, and the
    capsule law ("buttons need to look like buttons not text") broken on ten
    screens. A create is not swipeable: it has no reveal to hide. */
-.ruled .card .row.row-act { background: var(--press-3); }
+/* §AL (2026-09-22): the capsule's fill, as background-COLOR. This set the
+   shorthand at the same specificity as the capsule rule and loaded later, so
+   every in-list create inside a ruled card ("Add Area", "Add Item") kept the
+   translucent press fill and never became a capsule -- and the shorthand
+   reset the clip besides. Found by the code audit of every surface. */
+.ruled .card .row.row-act { background-color: var(--capsule-fill); }
 
 /* ---------- EVERY BAND IS ONE CARD ("Go with pic 1. Apply that everywhere.")
    The Email band on Today wore three separate cards, each its own height.
@@ -373,7 +378,9 @@
    ink keeps it behind where the task lives; the press dims it, the way every
    other quiet text control in the app answers a finger. */
 .ruled .r-goal.r-person { color: var(--tx-3); font-weight: var(--w-medium); }
-.ruled .r-goal.r-person[role="button"] { cursor: pointer; }
+/* §AM: tappable, so it wears the colour that says so. A name that cannot be
+   opened keeps the row's grey. */
+.ruled .r-goal.r-person[role="button"] { cursor: pointer; color: var(--tint); }
 .ruled .r-goal.r-person[role="button"]:active { opacity: 0.6; }
 /* AN ESTIMATE is a NUMBER, and §5 rules what a number does inside meta text:
    it takes the extra weight and the brighter ink. That is the `.r-goal b`
@@ -430,6 +437,11 @@
    above, so the row's brightest ink after the title is the actual move. Same
    device as `.r-goal b`, which already brightens the fact inside a line. */
 .ruled .task-row .r-goal b { font-weight: var(--w-semi); color: var(--tx-1); }
+/* ...except inside the estimate, which has a meaning and wears it (§AM:
+   an estimate the app worked out is sky). Nums bolds the number, and the
+   line above turned that bold white, so "45m" lost its colour the same day
+   the key gave it one. */
+.ruled .task-row .r-goal.r-est b { color: var(--cat-sky); }
 /* (The goal as a head over its projects, .sh2.gh-goal, is retired. The
    Projects lens groups by area like the Goals lens does, so the head is the
    area's and the goal rides on the row as an .r-is-goal chip. Dave
@@ -1153,12 +1165,20 @@
 .ruled .money-hero-total + .money-hero-label { margin: 0; }
 .ruled .money-line { padding: 0 var(--s-4) var(--s-2); font-size: var(--t-caption); color: var(--tx-3); }
 .ruled .money-line b { color: var(--tx-1); font-weight: var(--w-semi); font-variant-numeric: tabular-nums; }
-/* The amount carries weight (§AK, 2026-09-21): the type ("Investment",
-   "Cash") is the row's one regular grey, and a number beside it in the same
-   ink and weight was two greys on every account row in Money. */
-.ruled .task-row .money-amt { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); flex-shrink: 0;
+/* The amount is WHITE (§AM, 2026-09-22). It "carried weight" under §AK
+   V5.1 -- semibold in --tx-2 beside the type ("Investment", "Cash") in
+   --tx-3 -- but those are the same hex, and V5.2 ruled that a heavier grey is
+   still the one grey. A balance is a number with no state, and the key says
+   that steps up to white. */
+.ruled .task-row .money-amt { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); flex-shrink: 0;
   font-variant-numeric: tabular-nums; }
-.ruled .task-row .money-amt.money-neg { color: var(--tx-3); }
+/* §AM (2026-09-22): a balance is a number with no state, so it is WHITE.
+   These were --tx-2 and --tx-3 -- the same hex -- beside the account's
+   category in --tx-3 on the same row, which the fixed auditor measured as two
+   greys on every account ("Investment" / "$32,540.75"). A negative balance
+   keeps its sign and stays out of red (L1, red is a verb), and no longer
+   drops to a second grey to say it. */
+.ruled .task-row .money-amt.money-neg { color: var(--tx-1); }
 .ruled .task-row .money-amt.paid { color: var(--tx-2); }
 .ruled .task-row .bill-pay { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-medium); padding-left: var(--s-2h); }
 .ruled .task-row .budget-add { flex-shrink: 0; }
