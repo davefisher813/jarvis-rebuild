@@ -7,6 +7,7 @@ import { linksOf } from "../decisions/types";
 import { openWith as openWithPerson, type MentionItem } from "./mentions";
 import { todayISO } from "../tasks/grouping";
 import { ENTITY_PERSON, type Person } from "./types";
+import { unfilePerson, refilePerson, type UnfiledFromPerson } from "./unfile";
 import { useFreshLists } from "../data/useFreshLists";
 import { needsAdversarialReview, extractEmailFromNotes } from "./views";
 import type { SheetCategoryOpt } from "./screens/PersonSheet";
@@ -352,7 +353,18 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     if (sheet.kind !== "edit") return;
     const keptId = sheet.id;
     const kept = list.find((x) => x.id === keptId)?.data;
-    const ok = await attemptWrite(() => people.remove(sheet.id));
+    // The unfiling the comment below assumed away: Undo repairs a deleted
+    // person's links only because the recreate reuses their id. A delete
+    // that is never undone leaves every task's personId, and every decision
+    // attached to them, pointing at a row that is gone -- the same
+    // unresolved-pointer defect unfileArea (categories/unfile.ts) fixes for
+    // areas. Linked Notes are left alone: NotesFlow already marks a gone
+    // connection target instead of pretending it is live (HMN-F-18).
+    let unfiled: UnfiledFromPerson = { tasks: [], decisions: [] };
+    const ok = await attemptWrite(async () => {
+      unfiled = await unfilePerson(sheet.id, tasksSvc, decisionsSvc);
+      await people.remove(sheet.id);
+    });
     if (!ok) return; // the sheet stays open rather than closing over a failure
     setSheet({ kind: "closed" });
     setOpenId(null);
@@ -366,6 +378,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
       // to them showing no attachment, because both link by person id.
       onAction: () => void (async () => {
         await attemptWrite(() => people.create(kept, keptId));
+        await attemptWrite(() => refilePerson(keptId, unfiled, tasksSvc, decisionsSvc));
         await reload();
       })(),
     });

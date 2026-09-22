@@ -228,7 +228,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
                 <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void answerPrincipleWith(n.d, "right"); }}>That's Right</button>
               </div>
             ) : n.kind === "watching" ? (
-              <div {...pressable(() => onOpenWatching(n.r.key))} className="row strand-row" key={"w-" + n.r.key}>
+              <div {...pressable(() => onOpenWatching(n.r.key))} className="row strand-row needs-watch-row" key={"w-" + n.r.key}>
                 <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
                 <div className="row-grow">
                   <div className="conn-name">{n.r.label}</div>

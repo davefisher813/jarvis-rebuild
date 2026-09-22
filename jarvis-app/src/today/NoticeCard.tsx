@@ -115,11 +115,13 @@ export default function NoticeCard({
   // Uniform clamps both to exactly one line. Default ON, because he asked for
   // all of them and an opt-in default would have left the stream as it was.
   //
-  // Mail opts OUT, and that is his call too (2026-08-25, "mail stays"). A
-  // mail notice's title is a SENDER, which is whatever length the world
-  // chooses; the 22 Aug screenshot of "nikestrength H… Missi…" is what the
-  // one-line form does to one. Everything else here is a phrase this app
-  // wrote itself and can be trusted to fit.
+  // Mail opted OUT of this at first (2026-08-25, "mail stays"), on the
+  // reasoning that a mail notice's title is a SENDER, whatever length the
+  // world chooses, and the 22 Aug screenshot of "nikestrength H… Missi…" is
+  // what the one-line form does to one. Dave reversed that on 2026-09-01
+  // (MailNotices.tsx: "one line each, so every row in the card is the same
+  // shape"): mail is uniform now too, and a sender longer than the line
+  // ellipses on purpose, the same as everything else here.
   uniform?: boolean;
   /* THE VERB MOVES UNDER THE WORDS WHEN THE WORDS ARE THE POINT (2026-09-07).
      Measured at 390x844: the right slot's capsule takes 139px of a 326px row,

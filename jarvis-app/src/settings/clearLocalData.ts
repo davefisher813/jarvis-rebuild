@@ -1,4 +1,6 @@
 import { clearPreload } from "../data/preloadCache";
+import { clearRows } from "../messages/mailCache";
+import { clearRecentErrors } from "../monitoring/monitor";
 
 // S3-Q17 (2026-09-04): "Clear Local Data destroys things with no other
 // copy." The row's footnote reads "This device only, no undo," which is the
@@ -105,6 +107,13 @@ export function clearLocalData(storage: Pick<Storage, "removeItem"> = localStora
   // key per type) with an existing sweep that already knows how to find all
   // of them; reuse it instead of re-deriving the prefix here.
   clearPreload();
+  // The cached inbox rows are a fetch cache (rebuilt from Gmail on the next
+  // Email visit) and, on shared glass, exactly the last person's life on the
+  // phone that SHELL-F-10 exists to remove. clearRows() was written and
+  // tested but never called from here. Same for the crash ring: its own
+  // comment already names Clear Local Data as one of its two callers.
+  clearRows(storage);
+  clearRecentErrors();
 }
 
 // SHELL-F-10 (2026-09-05): SIGNING OUT IS A DIFFERENT QUESTION.

@@ -2251,12 +2251,13 @@ export default function CategoryDetail({
           deleteCost={deleteCost}
           onDelete={async () => {
             const gone = cat ? { ...cat.data } : null;
-            // The cost line above says "Untags N Tasks". Until today nothing
-            // untagged them: the area row went and every task and event kept
-            // pointing at an id that no longer resolves.
-            let prior: Unfiled = { tasks: [], events: [] };
+            // The cost line above says "Untags N Tasks, Notes, Projects,
+            // People". Until today nothing untagged any of them: the area
+            // row went and every one kept pointing at an id that no longer
+            // resolves.
+            let prior: Unfiled = { tasks: [], events: [], notes: [], projects: [], people: [] };
             const ok = await attemptWrite(async () => {
-              prior = await unfileArea(categoryId, tasksSvc, schedule);
+              prior = await unfileArea(categoryId, tasksSvc, schedule, notesSvc, projectsSvc, peopleSvc);
               await catsSvc.remove(categoryId);
             });
             if (!ok) return;
@@ -2269,7 +2270,7 @@ export default function CategoryDetail({
                 // The area returns under its own id, so the rows go back
                 // exactly where they were rather than approximately.
                 if (gone) await attemptWrite(() => catsSvc.restore(categoryId, gone));
-                await attemptWrite(() => refileArea(prior, tasksSvc, schedule));
+                await attemptWrite(() => refileArea(prior, tasksSvc, schedule, notesSvc, projectsSvc, peopleSvc));
                 onChanged?.();
               },
             });

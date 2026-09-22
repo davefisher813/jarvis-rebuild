@@ -63,7 +63,32 @@ before this phase was a screens-only number.
 
 - [x] **320px retired** · `305e6c9` · Dave's call. Seven of the eighteen
       findings lived only there, including every truncation in the app.
-- [x] **Truncation** · 2 fixed (`b84c911`), 0 remain at 390/430/834.
+- [x] **Truncation** · 2 fixed (`b84c911`), 0 remain at 390/430/834. **Richer
+      demo content brought it back, 2026-09-22:** More > Notifications'
+      `.msg-name` fix (this same line) had gone dead -- the class it targets
+      is never rendered, so the two-line rule it names never applied and
+      titles clipped again; fixed by targeting the class the row actually
+      carries. A `.fact-link` chip with no length bound could claim a whole
+      Decisions row before the date after it got any width to shrink from,
+      losing up to 79%; capped to its own share. Three Brain "This Week"
+      tiles read equal-flex widths for unequal-length words at 1.4 scale;
+      wrapped, like `.voice-hint` already does for the same class of fixed
+      app copy. Readiness-row labels are a closed set of app-written
+      sentences read as arbitrary world text; they get the two-line
+      treatment `.dec-name` already has. Settings' longest Menu label (Who
+      Can Book) fought its own dropdown for width at 1.4 scale; the label
+      states itself whole now, scoped so a row that also carries a meta line
+      is untouched (freezing that case would have pushed the dropdown off
+      the row entirely, the same failure this fix was built to prevent).
+      Notes' `.task-name` carries the identical 2026-08-21 exception its
+      previous row shape had, which never followed it when Notes moved onto
+      `.task-row`. Left for Dave, each a design call rather than a bug: the
+      Move headliner's title (a hand-rebuilt row that never got the shared
+      component's adaptive layout, a §R.7 violation); the "Needs You" head
+      against its own Sweep pill; ordinary `.task-name` truncation on real-
+      length titles in Life · Tasks; a Switch row's label against its fixed
+      51×31 toggle; a reminder row with both a time gutter and a Snooze pill
+      compounding at 1.4 scale.
 - [x] **The Schedule row is two lines now** · Dave's pick 2026-09-21, from
       four layouts rendered in the real app on his own day at both text
       sizes. The row was five columns -- rail, star, a 62px time gutter, the
@@ -148,11 +173,29 @@ before this phase was a screens-only number.
       also never rendered. The COVERAGE was the real gap and is closed: the
       law watches the prop route and the full class census now, and is proven
       to bite on the line it was widened for.
-- [ ] **Settings switch descriptions** · 8 of them, a separate class from a
-      row's fact line: a toggle has to say what it does. Deliberately left out
-      of the no-manual law; decide whether they get a rule of their own.
-- [ ] **Empty-state copy** · exempt from the no-manual law by design; never
-      reviewed on its own terms.
+- [x] **Settings switch descriptions** · 2026-09-22. The "8" was stale: five
+      switches in `NotificationsPage.tsx` had no description at all (every
+      other switch in `src/settings/` already carried one), each now reading
+      the real, traced effect of its own toggle rather than a paraphrase of
+      its label -- Overdue/Goal nudges are in-app-tab-only and say so; Rest
+      timer reuses the exact string `HealthSettingsPage.tsx` already uses for
+      the same underlying field, so the two controls for one setting agree.
+      Whether they get a law of their own (§AK already reaches the `meta=`
+      prop, per `typeLaw.test.ts`'s EXPLAINING regex) is still open, named
+      here rather than decided unilaterally.
+- [x] **Empty-state copy** · 2026-09-22, read on its own terms for the first
+      time: ~40 sampled across the app, most already good and left alone
+      (Health, Gym, Money's top-level states, Decisions, the review module).
+      Four real defects fixed: Tasks' `EMPTY_TITLE` map rendered sentence
+      case while every sibling Life lens is Title Case, invisible to the
+      casing law because the title is a dynamic lookup, not literal JSX;
+      Reminders showed one generic title for all four of its views where
+      Tasks (its structural sibling) already writes one per filter; Strands'
+      "A detector lands here as it nears its gate" was the one place
+      internal engineering vocabulary ("detector", "gate") leaked into
+      user-facing copy; Money's Tracker still had a live, reachable
+      "Nothing here yet" — the exact generic-filler pattern already fixed
+      once elsewhere, now reading "No accounts yet" like its siblings.
 - [x] **Error and toast copy** · 2026-09-21. All 142 distinct toasts read.
       **Every failure toast now names what happened AND what to do next**;
       the one without a dot-break carries a Retry button instead, which is
@@ -365,7 +408,11 @@ before this phase was a screens-only number.
       written, 28 once the live workout was reachable, **43** once segments
       and the dive cap were fixed. The screens that were "unreachable" were
       the tool's blind spots, not the app's.
-- [ ] **Anything else the crawler names as unreachable** on its next run.
+- [x] **Anything else the crawler names as unreachable** · checked
+      2026-09-22. Unchanged: the same 4 `DIVE_CAP` gaps (More > Brain, More >
+      Email, More > Settings, Tab: Today), each named and each just past the
+      default 6-row dive depth, reachable with `DIVE_CAP=30` when wanted.
+      Nothing newly unreachable.
 
 ## PHASE 8 · ONE GREY, EVER (Dave 2026-09-21, five screenshots)
 
@@ -427,16 +474,39 @@ one surface, is a rule and a capability that is wrong everywhere else.
       above one of them said the card reads "the exercise it is on WITH its
       numbers". Mid-workout, Today told you the day, the minutes and the set
       count, and never the lift. Both surfaces lead with it now.
-- [ ] **The other ~60 exports the law finds app-wide** · scoped to `gym/`
-      for now, at zero roster entries, because the sixty are not one thing.
-      Some are test utilities by their own name (`resetOutboxForTest`). A
-      whole layer is waiting on a build that has not happened: `native/`
-      carries `workoutFromHealth`, `dedupeHealthWorkouts` and `enrichPeople`,
-      all written, all tested, all called by nothing, and CLAUDE.md says why
-      (the iOS half is deferred until there is a native build to put it in).
-      That is a roster entry with a real reason, not a bug. The rest can only
-      be judged one at a time. Named here so the number is countable rather
-      than quietly left out of a report.
+- [x] **The other ~67 exports the law finds app-wide, triaged** · 2026-09-22.
+      `noDeadExport.test.ts` still only walks `gym/` (still zero roster
+      entries there); widening its scan the same way this triage did found
+      **16 false positives** first -- the law's own source-scan only reaches
+      `src/`, and these 16 (the admin panel, the AI proxy, the booking
+      system, `legal/html.renderPage`) are called from `api/` and `tools/`,
+      real code the law cannot see. Rostering them would be lying about a
+      live caller; widening the scan itself is bigger than this pass. Of the
+      remaining 51: **~30 are legitimate** (test-only helpers, the `native/`
+      layer, self-contained eval harnesses, code superseded by a later
+      mechanism and never deleted -- e.g. `automaticity.ts`'s two exports,
+      named BAN-1 right next to the replacement that superseded them). **Two
+      were real, fixed:** `messages/mailCache.ts::clearRows()` and
+      `monitoring/monitor.ts::clearRecentErrors()` were written, tested and
+      wired to nothing -- `jarvis.mail.rows.v1` (cached inbox rows: senders,
+      subjects, snippets) survived both Clear Local Data and sign-out on
+      shared glass, the exact SHELL-F-10 bug already fixed once for other
+      keys; and `people/importMatch.ts` hand-duplicated `contactMethods.ts`'s
+      documented `matchKeys` as a private `keysOf`. Both wired in. **A real
+      tail, diagnosed but not wired** (each is a design/product call, not a
+      mechanical fix): `ai/context.ts::movePack` is built and documented for
+      Your Move's prompt but the live prompt still uses the generic pack;
+      `notes/richtext.ts::wrapRange` implements a bold/italic toggle for
+      inline-edited text but `InlineEdit.tsx` has no bold/italic control at
+      all; `bigger/reach.ts::byDue` is a tested sort helper nothing calls,
+      and the comment above it in the same file already records an identical
+      case that was found dead and deleted; `tasks/rightNow.ts::rightNowLine`
+      is unused even though Just Fifteen, the feature it belongs to, is
+      alive and wired elsewhere with its own hand-written copy;
+      `tasks/startStore.ts::newestSession` looks superseded by the Resume
+      card's real, view-scoped resolver but has no explicit "this replaces
+      it" comment the way `automaticity.ts` does. Full 67-item roster with
+      reasoning for each is in the session's own record; not reproduced here.
 
 ## PHASE 6 · BEHAVIOUR, NOT PIXELS
 
@@ -455,10 +525,142 @@ one surface, is a rule and a capability that is wrong everywhere else.
       reason it does not need one (a best-effort cleanup after an already-
       guarded call, a callback whose caller reads the outcome). Green on the
       current suite.
-- [ ] **Orphan sweep** · deleting an area was leaving 34 rows pointing at
-      nothing (`645c990` fixed the cause). Other parent/child pairs unchecked.
+- [x] **Orphan sweep** · 2026-09-22. `unfileArea` (`645c990`) was itself
+      partial -- it walked tasks and events but not notes, projects or
+      people, even though both delete doors' own cost lines already promised
+      "Untags N Tasks, Notes, Projects, People." All five are unfiled now,
+      symmetrically, with Undo restoring exactly what was taken. Two more
+      pairs the same class of bug: deleting a project orphaned every task
+      pointing at it, and deleting a goal orphaned its projects -- both
+      named in `BiggerPictureFlow.tsx`'s own comment, both only ever fixed
+      for the Undo path (the row comes back under its own id) and never for
+      a delete that stays deleted. `projects/unfile.ts` and
+      `life/unfileGoal.ts` close both, same shape as `unfileArea`. Deleting a
+      person orphaned their tasks and any decision attached to them, same
+      Undo-only gap (`people/unfile.ts`); linked Notes are deliberately left
+      alone, since `NotesFlow.tsx`'s `targetGone` already marks a gone
+      connection instead of pretending it is live, and that design must not
+      be quietly overridden here.
+      **Two more real gaps found, not fixed, both bigger than a roster
+      entry:** `GymService.removeProgram` never clears a workout's
+      `programId`, and that delete has no Undo at all today, so fixing the
+      orphan and adding the Undo it never had are one decision, not two.
+      `ScheduleService.deleteEvent` never clears a task's `eventId`, and is
+      called from 20+ sites (Today, Schedule, Messages, Google sync,
+      booking import) -- patching the two user-facing delete flows would
+      leave the programmatic ones still leaking, so this wants a single
+      choke point (a `TasksService` handle on `ScheduleService`, or an
+      `entity.deleted` subscriber) rather than twenty call-site patches.
+      Both are Dave's call on shape, not a diff to guess at.
 - [ ] **The 34 rows already orphaned in the live database** · Dave's call on
       where they belong; not a migration's.
+
+## PHASE 9 · THE REST OF THE LIST (Dave 2026-09-22: "finish the entire rest
+## of the outstanding items")
+
+Fourteen parallel investigations, each independently verified before its
+diff was applied, closed every checklist item above marked 2026-09-22.
+The rest of this phase is what that pass found beyond those items.
+
+- [x] **Tap Ladder gaps that were the auditor's, not the app's** · Life's
+      Area/Group/Focus filter capsules and Booking's own capsule rows were
+      already painted at their correct 34px rung; the auditor's `RUNGS`
+      roster in `tools/visual-audit.mjs` just never learned their class, so
+      it held them to the flat 44px floor and reported a working control as
+      broken. Taught, not resized -- the same fix shape Phase 1's Tap Ladder
+      item already established, extended to controls found after it.
+- [x] **A real 24px tap-target bug, only visible once the false ones were
+      gone** · Life's Projects and Goals category headers (`.bp-shelf-head`,
+      "Work"/"Family"/"Health"/"Money") are genuine `<button>`s at 24px, with
+      no hit-area expansion at all. Bought back with the app's own `::after`
+      technique, the paint held exactly to Dave's Apple Music reference
+      (2026-09-18); the under-44 law now scans `ruled.css`, where this
+      control's rule lives, so it stops being invisible to the law meant to
+      catch it.
+- [x] **Schedule's "Running Late?" capsule, genuinely under its own rung** ·
+      painted 23px against the capsule floor of 34, the one control the Now
+      row never gave the `.pill-act` hit-area trade to. Grown into
+      `.sched-now`'s own spare padding, zero visual change. The row's two
+      remaining sub-44 controls (the time and duration buttons nested inside
+      a `role="button"` row) are a named, accepted rung (14px, "nested in a
+      tappable row") -- one already law-pinned as Dave's call
+      (`sched-until-btn`, 2026-08-24); the other's stale `-13px` hit-area
+      inset actually overshot the row's own clip and undershot a real
+      button 2px away, corrected to what is actually free.
+- [x] **Two auditor-side false positives, taught rather than chased into the
+      app** · `flush-stack` fired between adjacent rows of the same grouped
+      card (Today's Your Move and mail bands), which components.css draws
+      flush on purpose with a zero-height hairline divider -- "like every
+      other grouped list in the app." `overlap` fired between Bigger
+      Picture's card menu and the shelf's own "scroll for more" arrow only
+      at 1.4x type scale, where cards grow wide enough to make an
+      always-latent, by-design overlay actually visible; both now read the
+      pattern instead of re-litigating it every run.
+- [x] **A real hit-box collision, found by 1.4x scale specifically** · two
+      `.se-chip-door` buttons (Equipment, Superset) share a row that wraps
+      to two lines only at 1.4x scale, and their opposing 11px hit-area
+      expansions overlapped across the new line break -- a genuine mis-tap
+      hazard invisible at scale 1. Row-gap widened past the collision;
+      deliberately not given a rung, since a rung skips the hit-test that
+      caught this.
+- [x] **A tap target that was never trapped, just scrolled** · two findings
+      ("Vitamin D" in Reminders, "Focus" on Today) measured broken only at
+      the exact scroll position where their natural box ends at the app's
+      persistent footer -- which is laid out by the shell's flex column, not
+      `position: fixed`, so the existing "a row you can scroll out is not
+      trapped" exemption never saw it. Same exemption, asked earlier.
+- [x] **FitSheet's missing scroll region** · the one gym sheet that never
+      wrapped its variable-height body in `.sheet-form`, so at 1.4x scale on
+      a full day its own Start/Cancel buttons render off the bottom of the
+      screen and fail a real tap, not just a visual clip. Wrapped, matching
+      every sibling sheet.
+- [x] **A real overlap on Today, from the Report card's own hit-area** ·
+      `.pill-act`'s universal 9px reach poked into the row above it inside a
+      2px-padded button row. The fix that looked right first --
+      zeroing just the top border -- was caught before landing: `.pill-act`
+      also carries `min-height: 34px` under `box-sizing: border-box`, so
+      removing border height without removing the min-height just pushed
+      the missing pixels into the pill's own paint, growing it visibly
+      taller. `overflow: hidden` on the container fixes the same root cause
+      with no effect on the pill at all.
+- [x] **Today itself, read start to finish rather than sampled** · already
+      closed by every phase above that names it (Tap Ladder, one-grey,
+      Dynamic Type, drift). One live auditor pass found four findings, three
+      by design (the dealt task's one-line title, a mail sender's ellipsis,
+      both per named 2026-09-16/2026-09-01 rulings) and one real: a mail
+      card in the Heads Up band's compact 56px row can lose its title AND
+      its sub at once, the exact failure the "shredded sub" law exists to
+      prevent, because the law's drop-a-line gate never fires in the
+      compact band. Left for the rendered comparison below rather than
+      guessed at. One stale doc comment (`NoticeCard.tsx` still said mail
+      "opts OUT" of the uniform row a year after Dave reversed that) fixed
+      in passing.
+- [ ] **Task #27 itself** · "render options from Dave's real day and send
+      examples" has no further spec anywhere in the docs or code. Read
+      end to end: this is a rendering exercise against Dave's real account
+      data (not the demo seed), the same process that produced the writing-
+      bar and Schedule-row decisions, and cannot be done from a demo build.
+      The one concrete candidate ready for that comparison is the Heads Up
+      mail card above.
+- [ ] **One new tap-target edge the `.receipt-line` fix surfaced** ·
+      "4 More Emails in Your Inbox" now reaches its own top edge correctly
+      (the `overflow: hidden` fix above did its job), but at 834px wide and
+      1.4x type scale specifically, it is the LAST row before the app's
+      persistent voice-bar footer, and the downward half of its hit-area
+      expansion lands on that footer instead of empty space -- a real tap
+      there would miss. Narrow (one screen, one viewport, one scale) and not
+      chased further this pass; the fix likely wants the same shape as the
+      log bar's own `--logbar-clear` (measured clearance published as a
+      variable) rather than a wider blind expansion.
+- [ ] **Truncation calls still open, each a design decision** · the Move
+      headliner's title (a hand-rebuilt row that never got the shared
+      component's adaptive layout -- itself a catalog §R.7 violation worth
+      fixing on its own); "Needs You" against its own Sweep pill at 1.4x
+      scale; ordinary task-row title truncation on real-length titles in
+      Life · Tasks (extending the Heads Up stream's two-line rule app-wide
+      is a scope decision, not a bug fix); Notifications' longest Switch
+      label against its fixed-size toggle; a Reminders row with both a time
+      gutter and a Snooze pill compounding at 1.4x scale.
 
 ---
 

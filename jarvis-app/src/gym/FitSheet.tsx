@@ -78,6 +78,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{day.name} · Plan {planMin} Min{gameLine ? " · " + gameLine : ""}</div></div>
 
+        <div className="sheet-form">
         {/* WHAT, BEFORE HOW LONG (2026-09-21). The sheet asked how long you
             had and offered to trim accessory sets, and never asked which
             lifts -- so a day was a script you ran, and choosing meant Skip or
@@ -167,6 +168,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
           {/* A For Time cap is where the clock stops, not how long the work
               takes: the only number in this sheet that can only be too high. */}
           {est.cappedCount > 0 && <div className="conn-meta">A For Time cap is the ceiling, not a forecast.</div>}
+        </div>
         </div>
 
         <div className="pad-x sheet-actions">

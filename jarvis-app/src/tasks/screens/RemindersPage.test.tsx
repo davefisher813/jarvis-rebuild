@@ -112,8 +112,7 @@ describe("RemindersPage", () => {
     render(<RemindersPage chrome={{ back: "Today", onBack: noop }} sections={[]} tab="upcoming" onTab={noop}
       query="" onQuery={noop} searchOpen={false} onSearchToggle={noop} today={TUE} onNew={onNew} onSettings={noop} onOpen={noop}
       onTick={noop} onSnooze={noop} onResume={noop} onRestore={noop} />);
-    expect(screen.getByText("Nothing Here Right Now")).toBeInTheDocument();
-    expect(screen.getByText("Reminders appear here when they match this view.")).toBeInTheDocument();
+    expect(screen.getByText("Nothing Coming Up")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Add a Reminder"));
     expect(onNew).toHaveBeenCalled();
   });

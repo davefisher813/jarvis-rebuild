@@ -61,6 +61,17 @@ export interface PageChrome {
   segments?: ReactNode;
 }
 
+// Per-view empty title, the same idea as Tasks' EMPTY_TITLE (its structural
+// sibling one screen over in Life): each view says what is actually true of
+// IT, instead of the one generic line every view used to share regardless of
+// which was open.
+const EMPTY_TITLE: Record<PageTab, string> = {
+  today: "Nothing Due Today",
+  upcoming: "Nothing Coming Up",
+  routines: "No Routines Yet",
+  done: "Nothing Completed Yet",
+};
+
 export default function RemindersPage({
   chrome, sections, tab, onTab, query, onQuery, searchOpen, onSearchToggle, today,
   onNew, onSettings, onOpen, onTick, onSnooze, onOpenLinked, onResume, onRestore,
@@ -254,8 +265,8 @@ export default function RemindersPage({
 
       {shownSections.length === 0 && (
         <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
-          <div className="empty-title">Nothing Here Right Now</div>
-          <div className="empty-sub">{query ? "Nothing matches that." : "Reminders appear here when they match this view."}</div>
+          <div className="empty-title">{query ? "No Matches" : EMPTY_TITLE[tab]}</div>
+          {query && <div className="empty-sub">Nothing matches that.</div>}
           <button className="row row-act" onClick={onNew}><Plus className="ic" />Add a Reminder</button>
         </div></div></div>
       )}

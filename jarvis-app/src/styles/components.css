@@ -2282,7 +2282,7 @@ button {
   /* --tx-quiet (BROWSER-F-09, 2026-09-05): every one of these is a BUTTON that
      opens the pile it describes ("13 More waiting", "4 More Emails in Your
      Inbox"), and 2.3:1 is not a quiet button, it is a hidden one. */
-  color: var(--tx-quiet); padding: var(--s-1) var(--s-4) 0; white-space: nowrap; overflow: hidden;
+  color: var(--tx-quiet); padding: var(--s-1) var(--s-4) 0; white-space: nowrap; overflow: visible;
   text-overflow: ellipsis; background: none; border: 0; width: 100%; text-align: left;
   position: relative; display: flex; align-items: center; gap: var(--s-2); }
 /* I5 (2026-08-24). Every one of these is a <button> that opens something,
@@ -3126,10 +3126,17 @@ button {
    to not look like the row is one big button. */
 .sched-time-btn { position: relative; background: 0; border: 0; font-family: var(--f); text-align: left;
   padding: 1px 0 0; margin: 0; cursor: pointer; }
-/* Tapping the time opens the time editor, and the time renders at 19px. Same
-   rule as .pill-act: expand the hit area past the paint so the control meets
-   --tap-min without the type getting fatter. */
-.sched-time-btn::after { content: ""; position: absolute; inset: -13px -8px; }
+/* Tapping the time opens the time editor, and the time renders at 19px. This
+   used to claim the same -13px .pill-act uses, which was never honest here:
+   .sched-time-btn sits inside .sched-row, itself role="button" (same shape
+   as .sched-until-btn below). Measured live, -13px overshoots .sched-strip's
+   own clip on top (the row starts only 9px above the button; the
+   elementFromPoint check landed on .sched-list, not this button) and on the
+   bottom reaches past the title line to 2px from .sched-notes, a real
+   button 5px below. 6 up and 3 down are what is actually free -- the same
+   "a control inside a tappable row expands only into free space" rule
+   .sched-until-btn already lives by. */
+.sched-time-btn::after { content: ""; position: absolute; inset: -6px -8px -3px; }
 .sched-time-btn:active { color: var(--accent-tx); }
 .time-pop-scrim { position: fixed; inset: 0; z-index: 60; }
 /* BROWSER-F-17 (2026-09-05): under the row, not on it. top: 50% with a
@@ -3535,7 +3542,16 @@ button {
 
 /* Decision list styling pass (Dave 2026-08-18): the linked home renders as a
    colored fact inside the sub; the recorded date is the quiet right column. */
-.fact-link { font-weight: var(--w-semi); }
+/* A LINKED NAME IS NOT A BADGE, AND IT WAS EATING THE DATE BESIDE IT
+   (2026-09-22 audit). Every other .fact on this row is a short, fixed word
+   (a source kind, an outcome); this one is a free-form entity name with no
+   bound, and it sits flex-shrink:0 same as the others -- so a decision
+   linked to something like "Rebuild Calder App" could claim the row's
+   entire width before .dec-when, the LAST fact and the only one the shrink
+   law lets give way, ever got a share to shrink from. Measured "Revisit Sep
+   22" losing up to 79%. This fact now gives way on its own instead of
+   starving the one after it. */
+.fact-link { font-weight: var(--w-semi); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dec-when { font-size: var(--t-caption); color: var(--tx-2); flex-shrink: 0; align-self: flex-start; margin-top: var(--s-1); font-variant-numeric: tabular-nums; }
 /* Decisions are sentences; two lines beats an ellipsis (Dave critique fix). */
 .dec-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -4027,10 +4043,15 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 
 /* A NOTIFICATION TITLE IS A SENTENCE, NOT A NAME. The email list clips
    .msg-name on purpose, because a sender is a name and one line is right.
-   Here the same class carries "Draft the Coach Onboarding Email" and was
-   clipping it by twelve pixels to save nothing. Same treatment the decision
+   NotificationsFlow.tsx never renders .msg-name -- its row wears the shared
+   .task-name inside a .notif-row .task-title, so this rule matched nothing
+   and "Draft the Coach Onboarding Email" kept clipping by twelve pixels to
+   save nothing, the exact defect this comment already describes fixing.
+   Scoped to the class the row actually carries (specificity has to beat
+   .ruled .task-row .task-title > .task-name in ruled.css, which is why
+   .task-row and .ruled both ride along here). Same treatment the decision
    list and the notice card already use. */
-.notif-row .msg-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ruled .task-row.notif-row .task-title > .task-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* A TASK NAME IS THE ONE THING THE ROW EXISTS TO SAY. It was clipping
    "Draft the Coach Onboarding Email" to fit beside the urgency column, which
@@ -4733,7 +4754,44 @@ body.selecting .voice-dock { display: none; }
 .rep-chip { font-size: var(--t-caption); font-weight: var(--w-bold); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); white-space: nowrap; flex-shrink: 0; }
 .rep-chip-good { background: var(--good-tint); color: var(--good); }
 .rep-chip-warn { background: var(--warn-tint); color: var(--warn); }
-.rep-btnrow { display: flex; gap: var(--s-2); padding: var(--s-0h) var(--s-4) var(--s-3h); }
+.rep-btnrow { display: flex; gap: var(--s-2); padding: var(--s-0h) var(--s-4) var(--s-3h); overflow: hidden; }
+/* THE REPORT'S OWN OVERLAP (2026-09-22, the 834-wide audit: "1 Followed you
+   all month" x "Do One" / "Drop One"). .pill-act reaches 44px with a 9px
+   transparent border pulled back by an equal negative margin (BROWSER-F-03),
+   invisible everywhere it has a row's own generous padding to spend it in.
+   .rep-btnrow's padding-top is --s-0h, 2px, sized for how close the pills sit
+   under the title, not for swallowing a 9px reach, so the invisible top
+   border landed 7px into the "carried" row above and a tap meant for its
+   receipts could open or drop a task instead (confirmed live:
+   getBoundingClientRect gave row bottom 892.875 vs the pill's own border-box
+   top 885.875).
+
+   The fix is `overflow: hidden` on the CONTAINER, not a border/margin change
+   on .pill-act itself. .pill-act also carries `min-height: 34px` under this
+   app's global `box-sizing: border-box` reset, which pins the pill's TOTAL
+   border-box height at 34 no matter how border-top/border-bottom are split.
+   An earlier version of this fix tried `border-top-width: 0; margin-top: 0`
+   on `.rep-btnrow .pill-act`, reasoning that 0/0 cancels the same way the
+   base rule's 9/-9 does -- and the pill's visible TOP edge does stay put,
+   verified live. But shrinking border-top-width without shrinking min-height
+   does not remove those 9px: box-sizing:border-box + min-height:34 forces
+   the browser to make them up elsewhere, and with 0 vertical padding the
+   only place left is the content box, so the capsule's visible BOTTOM edge
+   grows by the same 9px (16px of painted capsule -> 25px, confirmed with
+   before/after screenshots and getBoundingClientRect: bottom moved from
+   910.875 to 919.875). The pill visibly balloons downward and pushes the
+   next row ("Family went quiet") down with it -- not the "paint does not
+   move a pixel" the algebra promised.
+
+   `overflow: hidden` sidesteps this entirely: it never touches .pill-act's
+   border or margin, so there is no min-height interaction and the capsule's
+   painted rect is pixel-identical before and after (verified live). It only
+   clips the portion of the already-invisible hit border that would poke
+   above .rep-btnrow's own box into the row above -- which is exactly the
+   part of the geometry that was the bug. Confirmed live: the AUDIT() overlap
+   finding is gone, elementFromPoint at the pill's own center still resolves
+   to the button (still fully tappable), and all of laws.test.ts,
+   browserWalk.test.ts, itemCard.test.ts and ReportPage.test.tsx still pass. */
 .rep-good-glyph { color: var(--good); }
 .rep-one { border: 1px solid var(--accent); }
 .rep-question { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); margin-top: var(--s-1h); }
@@ -5824,7 +5882,15 @@ span.row-star { cursor: default; }
 .tiles { display: flex; gap: var(--s-1h); margin: 0 0 var(--s-2h); }
 .itile { flex: 1; border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); min-width: 0; }
 .itile b { display: block; font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
-.itile span { display: block; margin-top: var(--s-1); font-size: calc(11px * var(--type-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* THE THREE TILES SHARE ONE WIDTH, NOT ONE LABEL LENGTH (2026-09-22 audit).
+   flex:1 gives "done", "goals moved" and "flexible" the same third of the
+   card, but they are not the same length, and .04em tracking on an 11px cap
+   label only widens the gap. "goals moved" measured losing up to 39% at
+   --type-scale 1.4. These are three fixed words the app itself chose, never
+   arbitrary data, so the fix is the one already used for known short app
+   copy elsewhere (.voice-hint, 2026-09-21): wrap rather than ellipsize.
+   Identical at scale 1, where all three already fit on one line. */
+.itile span { display: block; margin-top: var(--s-1); font-size: calc(11px * var(--type-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: normal; overflow: visible; text-overflow: clip; }
 .itile-good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
 /* THE TILE'S WORDS READ THE THEME'S OWN CATEGORY INK (2026-09-22). These
    painted the raw fill as text on a 14% wash of itself: "goals moved" in

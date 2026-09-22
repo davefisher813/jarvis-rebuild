@@ -341,7 +341,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           {watching.length === 0 && (
             <div className="empty-state">
               <div className="empty-title">Nothing Close Yet</div>
-              <div className="empty-sub">A detector lands here as it nears its gate</div>
+              <div className="empty-sub">Something lands here once JARVIS is close to certain</div>
             </div>
           )}
           {watching.length > 0 && (

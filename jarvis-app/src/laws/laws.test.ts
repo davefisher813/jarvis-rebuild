@@ -535,7 +535,7 @@ describe("LAW: Apple HIG casing", () => {
   // this catches is the expansion being deleted, which is how it went missing
   // the first time.
   it("every control that paints under 44px expands its hit area", () => {
-    const css = read(SRC + "/styles/components.css") + read(SRC + "/styles/uniformity.css");
+    const css = read(SRC + "/styles/components.css") + read(SRC + "/styles/uniformity.css") + read(SRC + "/styles/ruled.css");
     const bad: string[] = [];
     // class -> the painted size that makes the expansion mandatory
     const small: Record<string, string> = {
@@ -563,6 +563,13 @@ describe("LAW: Apple HIG casing", () => {
       // painted at 26px with no expander at all, and a miss lands on the toast
       // body, which does nothing, while the timer runs out.
       "toast-action": "26px Undo, the app's only take-it-back",
+      // Added 2026-09-22 (visual audit, Life's Projects and Goals shelves).
+      // Apple Music's own section head (H0, Dave 2026-09-18): 24px of bold
+      // text and a chevron that opens the area filtered. Growing the box to
+      // 44 would eat the 24pt gap to the next shelf Dave measured off his
+      // screenshot, so it keeps its rung the way a chip or capsule does --
+      // the room bought back past the paint, not a taller row.
+      "bp-shelf-head": "24px Apple Music section head, Projects and Goals lenses",
     };
     for (const [cls, why] of Object.entries(small)) {
       // Either an ::after carrying inset/height, or a wrapper that is itself
@@ -1835,6 +1842,11 @@ describe("LAW: a row that is a button keeps its area", () => {
     const nested: Record<string, string> = {
       "sched-until-btn": ".sched-row",
       "sched-badge-btn": ".sched-row",
+      // Joined 2026-09-22: the time button carried -13px, written before
+      // .sched-strip existed to clip it, and never re-measured after. 6 and
+      // 3 are what .sched-row actually has free around it (see
+      // components.css and the matching RUNGS entry in tools/visual-audit.mjs).
+      "sched-time-btn": ".sched-row",
     };
     for (const [cls, row] of Object.entries(nested)) {
       const m = new RegExp("\\." + cls + "::after\\s*\\{([^}]*)\\}").exec(CSS);

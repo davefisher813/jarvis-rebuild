@@ -209,7 +209,7 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
           <div className="row-grow">
             <div className="conn-name">Add an Account</div>
             {data.accounts.length === 0 && (
-              <div className="conn-meta">Nothing here yet</div>
+              <div className="conn-meta">No accounts yet</div>
             )}
           </div>
           <button className="pill-act" onClick={(e) => { e.stopPropagation(); setAcct("new"); }}>Add</button>

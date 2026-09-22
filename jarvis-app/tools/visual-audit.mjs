@@ -51,6 +51,30 @@ const AUDIT = () => {
     }
     return r;
   };
+  // A ROW YOU CAN SCROLL OUT IS NOT TRAPPED, EVEN WHEN THE BAR HOLDING IT
+  // IS NOT position:fixed (2026-09-22, hardening the rule section 7's own
+  // under-bar check already lives by). This app's persistent footer -- the
+  // voice bar and the tab bar -- is pinned by the shell's flex layout
+  // (.app-scroll is the scrollable middle, the footer is a plain sibling
+  // after it), not by position:fixed, so section 7's canScrollPast below
+  // never gets asked about it. A reminder row or the Focus button that
+  // lands, by pure coincidence of page length, right at .app-scroll's clip
+  // boundary on first paint measured as a broken 41px or 40px target when
+  // one more line of scroll clears it completely ("Vitamin D" in the
+  // Reminders strip, "Focus" on Today). Lifted here, ahead of section 4, so
+  // the small-target/rung pass can ask the same question section 7 asks.
+  const canScrollFurther = (e) => {
+    let n = e.parentElement;
+    while (n && n !== document.documentElement) {
+      const cs = getComputedStyle(n);
+      if (["auto", "scroll"].includes(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) {
+        return n.scrollTop + n.clientHeight < n.scrollHeight - 1;
+      }
+      n = n.parentElement;
+    }
+    const d = document.scrollingElement;
+    return !!d && d.scrollTop + d.clientHeight < d.scrollHeight - 1;
+  };
   // WHEN A LAYER IS UP, THE PAGE UNDER IT IS NOT THE SUBJECT (2026-09-20).
   // Auditing inside sheets immediately produced 63 "overlap" findings that
   // were not overlaps at all: What Now paints over Today, so its "Back to
@@ -229,7 +253,25 @@ const AUDIT = () => {
       if (a.contains(c) || c.contains(a)) continue;
       // A swipe rail sits deliberately behind its row. Same container, by
       // design, and not a stacked tap target.
-      const SWIPE = ".task-swipe, .notice-swipe, .sched-swipe-wrap";
+      // .bp-shelf joined the list 2026-09-22 (the 1.4x type-scale pass on
+      // Bigger Picture: "...Rebuild Calder " x "", "...Remodel Calder " x "",
+      // "...Calder Summer C" x ""). The second operand's empty text is not
+      // .bp-card-more (it prints the glyph "..." as real text) -- it is
+      // .bp-shelf-arrow, the shelf's own icon-only "Scroll for more" button,
+      // which ruled.css positions ON TOP of the shelf by design ("It sits
+      // over the shelf rather than beside it so it costs no width"). At
+      // --type-scale 1 the two-and-a-peek 160px cards fit these viewports
+      // with nothing to scroll, so the arrow never renders and nothing
+      // overlaps; at 1.4 the same cards are calc(160px * var(--type-scale))
+      // = 224px, the shelf overflows, and the always-latent arrow lands on
+      // the next card's face. Verified live (0 overlaps at scale 1, 1-2 at
+      // 1.4 across widths/themes, always this pairing) -- .bp-card-more's
+      // own ::after (widened the same day) never appears in either operand:
+      // it is a pseudo-element, invisible to querySelectorAll, and it never
+      // raised a below-rung/small-44/small-target finding either. Same shape
+      // as a swipe rail: one container, an overlay that IS the control's
+      // point, not a stacked tap target.
+      const SWIPE = ".task-swipe, .notice-swipe, .sched-swipe-wrap, .bp-shelf";
       if (a.closest(SWIPE) && a.closest(SWIPE) === c.closest(SWIPE)) continue;
       // App chrome sits in normal flow at the edges of the shell and content
       // scrolls behind it BY DESIGN. Content passing under the capture bar is
@@ -291,7 +333,28 @@ const AUDIT = () => {
     // C1 names these as capsules by name: the row-action pill, the head
     // action (See All, Open Inbox, Schedule, Add), the small pill, the
     // segmented control's segment (34 by X0), and the dropdown value.
-    [/(^| )(pill-act|pill-action|see-all|btn-sm|seg|dd-lead)( |$)/, 34, "capsule"],
+    // THE LIFE HEADER'S OWN CAPSULES (2026-09-22): Area, Group by and the
+    // Focus door, on every hdr-controls line (Tasks, Reminders, Projects,
+    // Goals). components.css sets both .hdr-controls .dd and
+    // .hdr-controls .tasks-focus to min-height: 34px on purpose -- the
+    // capsule rung, raised there from .dd's own smaller default by the
+    // ancestor selector. tasks-focus is safe to match everywhere: it is
+    // the one control that wears the class. Bare "dd" is not -- HeadMenu's
+    // closed button carries that same plain class outside hdr-controls too
+    // (SelectBar's "Move to Project", at its own smaller default height),
+    // so matching it unconditionally would call THAT one broken instead.
+    // dd-hdr is a marker the loop below adds only when a bare "dd" really
+    // sits inside .hdr-controls, so this rung only ever claims the
+    // controls the CSS itself already raises to 34.
+    // .sched-late (Running Late?) joined this 2026-09-22: a real capsule --
+    // same pill radius, same press-3 fill, same semibold caption type as
+    // .pill-act -- that had never been given the CSS to reach 34, so it
+    // painted 23px and fell through to the flat 44 floor. Grown to a real
+    // 34px border-box (ruled.css, the same transparent-border trade
+    // .pill-act uses) using only .sched-now's own 9px/7px padding, which is
+    // all the free space next to it: the row right after it starts the
+    // instant that padding ends.
+    [/(^| )(pill-act|pill-action|see-all|btn-sm|seg|dd-lead|tasks-focus|dd-hdr|sched-late)( |$)/, 34, "capsule"],
     // INLINE ACTION, 24 (Dave's call 2026-09-21, the ladder's fourth rung).
     // The Match shortcut under a set chip ("Last: 275 lb x 5  Match") is a
     // line of text that logs a set, and a line of text is 16px tall. It
@@ -302,6 +365,18 @@ const AUDIT = () => {
     // five to spare, and the rung says that is the answer rather than
     // leaving the auditor to report a decision as a defect for ever.
     [/(^| )(set-last-act)( |$)/, 24, "inline action"],
+    // NESTED IN A ROW THAT IS ITSELF THE DOOR, 14 (2026-09-22). .sched-time-btn
+    // and .sched-until-btn sit mid-sentence inside .sched-row, which is
+    // role="button" end to end. laws.test.ts ("LAW: a row that is a button
+    // keeps its area") already caps how far each may expand into it --
+    // .sched-until-btn to 3px above/5px below since 2026-08-24, after a
+    // wider reach opened the length editor instead of the event; the same
+    // review now caps .sched-time-btn (6 above, clear of .sched-strip's own
+    // clip; 3 below, clear of .sched-notes). Neither can ever reach 44
+    // without taking area the row itself needs, so 14 -- under both of
+    // their measured heights (15 and 18) -- says that is a decision, not a
+    // defect still waiting for one.
+    [/(^| )(sched-until-btn|sched-time-btn)( |$)/, 14, "nested in a tappable row"],
   ];
   const rungOf = (cls) => RUNGS.find(([re]) => re.test(" " + cls + " "));
   // A CONTROL A ROW FORWARDS TO IS AS BIG AS THE ROW (2026-09-21). Eleven
@@ -330,6 +405,16 @@ const AUDIT = () => {
     const txt = (e.textContent || "").trim();
     if (!txt || r.height >= HIG) continue;
     if (r.top < 0 || r.bottom > window.innerHeight) continue; // off-screen: cannot hit-test
+    // A ROW AT THE SCROLL FOLD IS NOT A SMALL TARGET (2026-09-22). "Vitamin
+    // D" in the Reminders strip and "Focus" on Today both reach the ladder
+    // everywhere except the one scroll position where their natural box
+    // ends right at .app-scroll's clip boundary, under the footer -- and
+    // that footer is not position:fixed, so section 7 below never excuses
+    // it. Same excuse, asked here: a target only failing because it is
+    // clipped by a scroller that can still move is not a defect, it is a
+    // frame.
+    const clipHere = clipped(forwarder(e) || e);
+    if (clipHere && clipHere.height + 0.5 < r.height && canScrollFurther(e)) continue;
     const cx = r.left + r.width / 2;
     const own = forwarder(e) || e;
     const hits = (y) => { const t = document.elementFromPoint(cx, y); return t === own || own.contains(t); };
@@ -342,7 +427,15 @@ const AUDIT = () => {
     };
     const size = `${Math.round(r.width)}x${Math.round(r.height)}`;
     if (!reaches(MIN)) { add("small-target", `"${txt.slice(0,24)}" hit ${size}, needs ${MIN}`, e); continue; }
-    const rung = rungOf(typeof e.className === "string" ? e.className : "");
+    // dd-hdr: see the RUNGS comment above. Only a bare "dd" token picks it
+    // up (dd-value and dd-lead already read as their own tokens), and only
+    // when .hdr-controls is really an ancestor, so a dropdown wearing the
+    // same class anywhere else -- inside a sheet row, or SelectBar's own
+    // capsule -- is untouched.
+    const ownCls = typeof e.className === "string" ? e.className : "";
+    const isBareDd = /(^| )dd( |$)/.test(" " + ownCls + " ");
+    const inHdrControls = isBareDd && typeof e.closest === "function" && e.closest(".hdr-controls");
+    const rung = rungOf(ownCls + (inHdrControls ? " dd-hdr" : ""));
     if (rung) {
       // The rung is a PAINT spec (a chip is 28 tall), so it is checked against
       // the painted box. The hit is the ladder's own business: a rung under 44
@@ -689,9 +782,20 @@ const AUDIT = () => {
 
   // 6. STACKED SIBLINGS WITH NO GAP. The bug Dave found in Heads Up.
   const cards = [...ROOT.querySelectorAll(".card, .notice-swipe, .promo-card")].filter(vis);
+  // ROWS OF ONE GROUPED CARD ARE MEANT TO BE FLUSH (catalog "ONE CARD",
+  // Dave 2026-08-26: "my issue with the glass is when it's stacked and not
+  // together"). .stream-grouped renders every member -- a row's own inner
+  // .card and the next row's .notice-swipe wrapper alike -- with zero gap
+  // and an inset hairline between them, on purpose (components.css: "Inset
+  // hairlines between rows... like every other grouped list in the app").
+  // Two of its own rows sharing that ancestor are not the bug this check
+  // exists to catch; only cards OUTSIDE a shared group are.
+  const groupOf = (e) => e.closest(".stream-grouped");
   for (let i = 1; i < cards.length; i++) {
     const a = cards[i-1].getBoundingClientRect(), c = cards[i].getBoundingClientRect();
     if (cards[i-1].contains(cards[i]) || cards[i].contains(cards[i-1])) continue;
+    const g = groupOf(cards[i-1]);
+    if (g && g === groupOf(cards[i])) continue;
     const gap = c.top - a.bottom;
     if (gap >= -1 && gap < 4 && Math.abs(a.left - c.left) < 3) {
       add("flush-stack", `gap=${Math.round(gap)}px between two cards`, cards[i]);

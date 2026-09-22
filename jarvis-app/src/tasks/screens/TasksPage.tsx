@@ -83,13 +83,13 @@ function groupItems(items: TaskItem[], by: GroupBy, goalOf: ((t: TaskItem) => st
 // tasks", "No done tasks" and "No all tasks". A template that reads wrong in
 // half its cases is not worth the line of code it saves.
 const EMPTY_TITLE: Record<TaskFilter, string> = {
-  all: "No tasks yet",
-  daily: "No dailies yet",
-  today: "Nothing due today",
-  overdue: "Nothing overdue",
-  upcoming: "Nothing coming up",
-  email: "Nothing from email",
-  done: "Nothing completed yet",
+  all: "No Tasks Yet",
+  daily: "No Dailies Yet",
+  today: "Nothing Due Today",
+  overdue: "Nothing Overdue",
+  upcoming: "Nothing Coming Up",
+  email: "Nothing from Email",
+  done: "Nothing Completed Yet",
 };
 
 // The second line exists ONLY when it carries information the user cannot

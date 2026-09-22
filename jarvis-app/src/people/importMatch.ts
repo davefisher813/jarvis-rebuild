@@ -1,6 +1,6 @@
 import type { ImportedContact } from "./importContacts";
 import type { ContactMethod, Person, PersonData } from "./types";
-import { phonesOf, emailsOf, normPhone, normEmail, withPhones, withEmails } from "./contactMethods";
+import { phonesOf, emailsOf, normPhone, normEmail, withPhones, withEmails, matchKeys } from "./contactMethods";
 import { capAfterNumber } from "../shared/casing";
 
 // WHO IS THIS, AND HAVE I GOT THEM ALREADY (People handoff, 2026-09-16).
@@ -58,7 +58,7 @@ export function planImport(existing: Person[], incoming: ImportedContact[]): Mat
   const byName = new Map<string, Person[]>();
   for (const p of existing) {
     if (p.data.sourceUid) byUid.set(p.data.sourceUid, p);
-    for (const k of keysOf(p.data)) push(byKey, k, p);
+    for (const k of matchKeys(p.data)) push(byKey, k, p);
     push(byName, nameKey(p.data.name), p);
     for (const a of p.data.aliases ?? []) push(byName, nameKey(a), p);
   }
@@ -119,15 +119,8 @@ function push<T>(m: Map<string, T[]>, k: string, v: T): void {
 
 const nameKey = (n: string) => n.trim().toLowerCase();
 
-function keysOf(d: Pick<PersonData, "phone" | "phones" | "email" | "emails">): string[] {
-  const out: string[] = [];
-  for (const e of emailsOf(d)) { const k = normEmail(e.value); if (k) out.push("e:" + k); }
-  for (const p of phonesOf(d)) { const k = normPhone(p.value); if (k) out.push("p:" + k); }
-  return out;
-}
-
 function byContact(byKey: Map<string, Person[]>, c: ImportedContact): Person | undefined {
-  for (const k of keysOf(c)) {
+  for (const k of matchKeys(c)) {
     const hits = byKey.get(k);
     // Two people sharing one key is a household number, not an identity.
     // Ambiguous evidence is no evidence: fall through to the name rung.

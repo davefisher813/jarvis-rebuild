@@ -17,6 +17,8 @@ import type { Recurrence } from "../notes/types";
 import ProjectDetailPage from "../projects/ProjectDetailPage";
 import { loadLinks, linkedThreadsFor } from "../messages/threadLink";
 import { attemptWrite } from "../shared/guard";
+import { unfileProject, refileProject, type UnfiledFromProject } from "../projects/unfile";
+import { unfileGoal, refileGoal, type UnfiledFromGoal } from "../life/unfileGoal";
 import GoalSheet from "../life/GoalSheet";
 import { rankProjects, projectPace, projectProgress } from "./progress";
 import { reachOf, type GoalReach, fileableGoals } from "./reach";
@@ -450,7 +452,16 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   ) => {
     const svc = kind === "project" ? projectsSvc : goalsSvc;
     const kept = (kind === "project" ? projects : goals).find((x) => x.id === id)?.data;
-    const ok = await attemptWrite(() => svc.remove(id));
+    // The unfiling the comment above this function names and never did: a
+    // project delete orphans its tasks, a goal delete orphans its projects,
+    // same unresolved-pointer shape unfileArea already fixes for areas.
+    let unfiledTasks: UnfiledFromProject = { tasks: [] };
+    let unfiledProjects: UnfiledFromGoal = { projects: [] };
+    const ok = await attemptWrite(async () => {
+      if (kind === "project") unfiledTasks = await unfileProject(id, tasksSvc);
+      else unfiledProjects = await unfileGoal(id, projectsSvc);
+      await svc.remove(id);
+    });
     if (!ok) return; // attemptWrite already said what went wrong; sheet stays open
     close();
     await reload();
@@ -460,6 +471,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       actionLabel: "Undo",
       onAction: () => void (async () => {
         await attemptWrite(() => svc.create(kept as never, id));
+        if (kind === "project") await attemptWrite(() => refileProject(id, unfiledTasks, tasksSvc));
+        else await attemptWrite(() => refileGoal(id, unfiledProjects, projectsSvc));
         await reload();
       })(),
     });
