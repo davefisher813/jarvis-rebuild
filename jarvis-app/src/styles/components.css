@@ -5799,6 +5799,24 @@ body.selecting .voice-dock { display: none; }
    rule: L1's GUILT pattern reads the raw sheet, comments and all, and a
    nearby class name is enough to trip it.) */
 .fact.red { color: var(--sys-red); }
+/* §AM PRIMITIVES (2026-09-22). One way to draw each meaning inside a quiet
+   line. The sweep that applied the Colour Key across every screen found each
+   screen reaching for its own answer -- "fact urgency", "fact dec-when",
+   "fact cyan" off the health surface -- to say the same three things. These
+   are the three, and every screen uses them.
+
+   A NEUTRAL DATE OR TIME is small caps (F5), in the row's own grey: caps is
+   the distinction, so it survives a row that has already spent its one grey.
+   It carries no colour because it carries no meaning -- a date that is DUE is
+   .fact.warn and a LATE one .fact.red. */
+.fact.date { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
+  font-variant-numeric: tabular-nums; }
+/* AN ESTIMATE the app worked out is sky, the ink .r-est already wears. */
+.fact.est { color: var(--cat-sky); font-variant-numeric: tabular-nums; }
+/* A NUMBER inside a quiet line that means nothing in particular steps up to
+   white (F1) -- never the same grey made heavier, which is what --tx-2 is. */
+.facts b, .fact b { font-weight: var(--w-semi); color: var(--tx-1); }
 /* .fact.purp painted the raw category FILL as text, which is .cat-fg-*'s own
    old mistake before the Astra pass gave it per-theme text variants
    (2026-09-22, "1 Moved" measured 2.98:1 on light's info card wash). Same

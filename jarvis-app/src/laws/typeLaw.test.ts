@@ -167,6 +167,11 @@ describe("THE LINE UNDER A NAME IS ONE TREATMENT", () => {
     for (const { file, sel, body } of rules()) {
       if (!/(^|[\s,>])\.facts?\./.test(sel)) continue;
       if (/\.fact\.st\b/.test(sel)) continue;
+      // .fact.date is the same object as .fact.st (§AM, 2026-09-22): an 11px
+      // uppercase tag whose distinction is its CAPS, not its weight, and
+      // which needs the weight to be legible at that size. Named, not
+      // pattern-matched, so no other modifier inherits the exception.
+      if (/\.fact\.date\b/.test(sel)) continue;
       const w = /font-weight:\s*(var\(--([a-z-]+)\)|\d+)/.exec(body);
       if (!w) continue;
       const n = w[2] ? weight(w[2]) : Number(w[1]);
