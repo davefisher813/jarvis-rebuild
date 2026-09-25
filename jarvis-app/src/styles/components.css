@@ -157,15 +157,23 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* The separator between facts on the category line. Dimmer than the facts it
    divides, so it groups without competing. */
 .sched-sep { font-size: var(--t-meta); color: var(--tx-quiet); }
-.sched-badge { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-chrome); border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle; }
+/* THE OVERLAP IS A STATE, THEN A CONTROL (§AM + §AL, 2026-09-25). Where it
+   cannot be tapped (Today, Select mode) it is the word in the key's amber:
+   a clash needs you soon, and the brand red it wore promised a tap that was
+   not there. The 1px brand ring is retired with every other ring. */
+.sched-badge { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--warn); vertical-align: middle; }
 /* N5 completion (2026-08-21): the badge as a button. Same anatomy; the
    ::after pad brings the touch target up without moving a pixel.
    Clamped 2026-08-24 by the new nested-control law, which found it while
    catching the until button. This badge sits INSIDE .sched-title, so -8px on
    every side covered the title text either side of it, and .sched-row is a
    button: those taps belonged to "open this event". Sideways it can have
-   what it likes; vertically it takes the 4px that is empty. */
-.sched-badge-btn { background: transparent; font-family: var(--f); position: relative; }
+   what it likes; vertically it takes the 4px that is empty.
+   Where it CAN be tapped to fix, it is a capsule (§AL): the fill, the pill
+   radius, the action-red label. background-color, never the shorthand. */
+.sched-badge-btn { background-color: var(--capsule-fill); border: 0; border-radius: var(--r-pill); padding: 0 var(--s-1h);
+  color: var(--tint); font-family: var(--f); position: relative; }
+[data-theme="light"] .sched-badge-btn { color: var(--on-light-red); }
 .sched-badge-btn::after { content: ""; position: absolute; inset: -4px -8px; }
 /* UP-CORE-08 (2026-09-05): the meeting's own page, from its row. Quiet ink
    until the note exists, then the app's tint, so the row says at a glance
@@ -179,15 +187,17 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* Red is a verb, so the "already has one" state is INK, not colour: the
    quiet grey brightens to the ordinary secondary text. */
 .sched-notes.on { color: var(--tx-2); }
-/* UP-CORE-10 (2026-09-05): the meeting link, on the row. The smallest
-   capsule the capsule law allows, in ordinary ink on the press grey: red is
-   a verb reserved for the completing action, and joining a call is neither
-   completion nor alarm. */
-.sched-join { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1);
-  background: var(--press-3); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle;
+/* UP-CORE-10 (2026-09-05): the meeting link, on the row, as the smallest
+   capsule. Under §AL (2026-09-22) a capsule's label is the action red, and
+   under §AM brand red means "tap this", which Join is: the capsule fill and
+   the red label, like every other capsule (2026-09-25). */
+.sched-join { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tint);
+  background-color: var(--capsule-fill); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle;
   text-decoration: none; position: relative; }
+[data-theme="light"] .sched-join { color: var(--on-light-red); }
 .sched-join::after { content: ""; position: absolute; inset: -4px -8px; }
-.sched-row-warn { box-shadow: inset 2px 0 0 var(--accent); }
+/* The overlap bar is the same state as the word: amber, not brand red. */
+.sched-row-warn { box-shadow: inset 2px 0 0 var(--warn); }
 /* Capsule law: the inline fix offer wears the smallest capsule. */
 .note-fix { background: var(--press-3); border: 0; color: var(--tint); font-weight: var(--w-semi);
   font-size: var(--t-meta); padding: 0 var(--s-2h); min-height: 28px; border-radius: var(--r-pill);
@@ -259,7 +269,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .ticker-toggle.paused .icon-play { display: block; }
 .ticker-toggle.paused .icon-pause { display: none; }
 .now-line { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1) var(--s-4); }
-.now-line .now-label { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--accent-chrome); flex-shrink: 0; }
+/* The Now label cannot be tapped, so it is not brand red (§AM, 2026-09-25):
+   the time it states is a number with no state that must stand out, white.
+   The rule beside it and LIVE carry the marker. */
+.now-line .now-label { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--tx-1); flex-shrink: 0; }
 .now-line .now-rule { height: 2px; background: var(--accent); flex: 1; border-radius: 1px; opacity: 0.5; }
 .sched-row.past { opacity: 0.45; }
 .screen-foot { height: var(--s-8); }
@@ -848,7 +861,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .block-nest { margin: var(--s-2) 0 0; padding-left: var(--s-3); border-left: 1px solid var(--tx-4); display: flex; flex-direction: column; }
 .block-held { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1h) 0; background: 0; border: 0; width: 100%; text-align: left; font-family: var(--f); }
 .block-held-t { color: var(--tx-1); font-size: var(--t-body); flex: 1; min-width: 0; }
-.block-held-u { color: var(--tx-3); font-size: var(--t-meta); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* The held task's start is a neutral time on a row, so it is small caps
+   (§AM F5), the same letterforms a date fact wears: the title beside it is
+   already the row's grey. */
+.block-held-u { color: var(--tx-3); font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 /* A proposal nested inside its holding block (2026-08-24). Same hollow
    vocabulary the proposed ROW uses out in the timeline: a dashed or hollow
    mark means "not real yet", so the nested version needs no new idea, only
@@ -869,7 +886,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
   font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-chrome); text-align: left; }
 .sched-lock-title { display: flex; align-items: center; gap: var(--s-1h); }
 .lock-ic { width: 13px; height: 13px; color: var(--tx-3); flex-shrink: 0; }
-.sched-dist { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--good); margin-left: var(--s-2); }
+/* "in 25m" on the next event: next is amber in the key (§AM), and an 11px
+   run is caps (§AM F4). Green is for done. */
+.sched-dist { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
+  text-transform: uppercase; color: var(--warn); margin-left: var(--s-2); }
 /* The wrapper holds the row AND anything the row expands into (the length
    editor, the time popover), so it must NOT be the containing block for the
    swipe rail and must NOT clip. Both of those now belong to .sched-strip,
@@ -1103,7 +1123,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    punch a page-coloured hole in a white card. */
 .card .dring > div { background: var(--surface-1); }
 .dring b { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
-.dring span { font-size: calc(8px * var(--type-scale)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-0h); }
+.dring span { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: var(--track-eyebrow); text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-0h); }
 .dring.done { animation: ringPop 480ms var(--ease-spring); }
 @keyframes ringPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
 
@@ -1396,8 +1416,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
   border: 1px dashed var(--tx-3); color: var(--tx-3);
   font-size: calc(14px * var(--type-scale)); line-height: 1;
 }
-.blend-text { font-size: var(--t-meta); color: var(--tx-2); }
-.blend-why { font-size: var(--t-eyebrow); color: var(--tx-3); }
+/* ONE GREY ON THE OFFER (§AK, 2026-09-25). The task it offers is the offer's
+   title and takes the primary ink at the meta size, still under the event's
+   own name; the reason is the row's one grey at the fact size (§AM F4). */
+.blend-text { font-size: var(--t-meta); color: var(--tx-1); }
+.blend-why { font-size: var(--t-sub); color: var(--tx-3); }
 
 /* In the editor the same offers are full rows, because there he is choosing
    between them rather than accepting one. */
@@ -1872,7 +1895,6 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    brand #FF2B3C), which a single token cannot express. */
 [data-theme="light"] .urgency-red { color: var(--on-light-red); }
 [data-theme="light"] .sec-head .see-all { color: var(--on-light-red); }
-[data-theme="light"] .now-line .now-label { color: var(--on-light-red); }
 /* THE WORDMARK IS A LOGOTYPE. The J in JARVIS carries no information a
    reader must decode, and WCAG exempts brand marks from the text bar for
    exactly that reason, so it wears the real brand red in both themes.
@@ -2292,8 +2314,11 @@ button {
 .vrow-fact { flex: 1 1 auto; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vrow-sub { flex: 0 100 auto; min-width: 52px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The receipt line: facts that need nothing collapse into one quiet mono
-   line under the stream. Furniture is for decisions. */
-.receipt-line { font-size: var(--t-eyebrow); letter-spacing: 0.02em;
+   line under the stream. Furniture is for decisions. At 11px it is caps
+   (§AM F4, 2026-09-25): the eyebrow size is for caps only, and "the quiet
+   caps row" was what every call site already called it. */
+.receipt-line { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase;
+  letter-spacing: var(--track-caps);
   /* --tx-quiet (BROWSER-F-09, 2026-09-05): every one of these is a BUTTON that
      opens the pile it describes ("13 More waiting", "4 More Emails in Your
      Inbox"), and 2.3:1 is not a quiet button, it is a hidden one. */
@@ -2440,8 +2465,13 @@ button {
    every "Until 10:00 AM" uses, so a rain warning had the weight of a label.
    The symbol carries the condition and the words read at --tx-2, one step up,
    which is as loud as a fact that is not asking for a tap ever gets. */
+/* ON AN EVENT ROW IT STEPS UP FOR REAL (2026-09-25). --tx-2 has been the
+   same hex as --tx-3 since the two-tier ramp, so the "one step up" above
+   never happened: on a row the forecast was one more run of the row's grey
+   (§AK). The inline forecast takes white, the key's ink for a thing that
+   needs emphasis and has no state colour of its own (§AM). */
 .weather-line { margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tx-2); }
-.weather-inline { font-size: var(--t-meta); color: var(--tx-2); }
+.weather-inline { font-size: var(--t-meta); color: var(--tx-1); }
 /* Sized off the line rather than the root so it scales with the text it
    leads, and given its own right margin so the glyph never touches the word.
    line-height 1 keeps an emoji from pushing the row taller than its
@@ -3086,7 +3116,8 @@ button {
 .focus-row .row-act { gap: var(--s-2); }
 .focus-row .row-act .ic { width: 17px; height: 17px; flex-shrink: 0; }
 .focus-row .row-act .fc-t { font-weight: var(--w-semi); }
-.focus-row .row-act .fc-n { font-size: var(--t-eyebrow); font-weight: var(--w-medium); letter-spacing: 0.02em;
+.focus-row .row-act .fc-n { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase;
+  letter-spacing: var(--track-caps);
   color: var(--tx-2); padding-left: var(--s-2); border-left: 0.5px solid var(--card-bd);
   font-variant-numeric: tabular-nums; margin-left: var(--s-1); }
 
@@ -4065,7 +4096,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    Italic is not one of §AK's four ways out, and it does not need to be: a
    field note is alone under its field, so there is no second grey to be
    told apart from. */
-.input-hint, .input-help, .input-note { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); font-style: italic; }
+.input-hint, .input-help, .input-note, .form-sheet .xs-note { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); font-style: italic; }
 
 /* D1 · THE AUTOMATICITY LINE. A progress bar toward the thing being
    automatic, not a streak: it has no cliff, so there is nothing to lose by
@@ -4681,17 +4712,20 @@ body.selecting .voice-dock { display: none; }
 /* The count. It is the whole reason grouping beats a list: it says which
    single decision removes the most. Deliberately NOT a red badge. L1 holds
    here too, and a number that is only a fact should not wear an alarm.
-   Tabular so a column of them lines up and can be scanned instead of read. */
+   Tabular so a column of them lines up and can be scanned instead of read.
+   White, not grey (§AK + §AM, 2026-09-25): it is a number with no state
+   that must stand out, and grey semibold beside the grey safety line was
+   the same ink twice, heavier. */
 .purge-count { flex-shrink: 0; margin-left: var(--s-3);
-  font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-3);
+  font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
 
-/* The safety line, on the row that is unsafe rather than in a legend. It is
-   grey on purpose: --warn is #FF9500, which is 2.2:1 on a light card and
-   would fail the contrast law, and --danger-tx would make red a status,
-   which L1 forbids. The unticked box is the signal; this line is the reason.
-   The words do the work, and they can, because they are specific. */
-.purge-warn { color: var(--tx-3); }
+/* The safety line, on the row that is unsafe rather than in a legend. It
+   says this pile held mail that needed him, which is the key's amber
+   (§AM, 2026-09-25; the facts line's amber ships as text in both themes
+   since the Astra picks of 2026-09-12). Never red: that would make red a
+   status. The unticked box is the signal; this line is the reason. */
+.purge-warn { color: var(--warn); }
 
 .purge-foot { margin-top: var(--s-5); }
 
@@ -4779,7 +4813,7 @@ body.selecting .voice-dock { display: none; }
    color carry the page; bars grow once on open and reduced motion gets the
    finished frame. Down-deltas are muted facts, never red ones. */
 .rep-hero { padding: var(--s-3) var(--s-4) 0; }
-.rep-eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 2px; text-transform: uppercase; color: var(--accent-tx); }
+.rep-eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 2px; text-transform: uppercase; color: var(--tx-3); }
 .rep-quiet { color: var(--tx-3); }
 .rep-quiet2 { color: var(--tx-2); margin-top: var(--s-1); }
 .rep-big { font-size: calc(64px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1; letter-spacing: -2px; color: var(--tx-1); margin-top: var(--s-1h); }
@@ -4789,7 +4823,7 @@ body.selecting .voice-dock { display: none; }
 .rep-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); line-height: var(--lh-default); }
 .rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-3h); }
 .rep-win { border-radius: var(--r-md); padding: var(--s-3) var(--s-3h); }
-.rep-win-name { font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--tx-2); }
+.rep-win-name { font-size: var(--t-sub); font-weight: var(--w-medium); color: var(--tx-3); }
 .rep-win-val { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); margin-top: var(--s-0h); }
 .rep-win-good { background: var(--good-tint); } .rep-win-good .rep-win-val { color: var(--good); }
 .rep-win-blue { background: rgba(10, 132, 255, 0.14); } .rep-win-blue .rep-win-val { color: var(--blue); }
@@ -4803,7 +4837,7 @@ body.selecting .voice-dock { display: none; }
 .rep-delta-up { color: var(--good); }
 .rep-gap { margin-top: var(--s-2h); }
 .rep-split { display: flex; align-items: baseline; justify-content: space-between; }
-.rep-split b { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--accent-tx); }
+.rep-split b { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1); }
 .rep-hours { display: flex; gap: var(--s-1); align-items: flex-end; height: 30px; margin-top: var(--s-2h); }
 .rep-hours i { flex: 1; background: var(--surface-3); border-radius: var(--r-xxs); display: block; transition: height 0.45s var(--ease-out); }
 .rep-hours i.hot { background: var(--accent); }
@@ -5553,10 +5587,13 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .row.xs-strip { display: block; padding: var(--s-2) var(--s-3) var(--s-2h); }
 .form-sheet .row.xs-strip .chip-row { margin: 0; flex-wrap: wrap; overflow: visible; padding: 0; }
 .form-sheet .row.xs-strip .chip { background: var(--press-3); }
-/* A note under a group (an overlap, a hint), in the quiet ink. */
+/* A note under a group (an overlap, a hint). Its type is the one field note
+   (§AM F6, 2026-09-25): it joins .input-hint's rule, so this keeps only the
+   layout, and the margin that rule adds is taken back so nothing moves. The
+   fix capsule inside it stays upright. */
 .form-sheet .xs-note { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
-  padding: var(--s-1h) var(--s-4) 0; font-size: var(--t-caption); color: var(--tx-3); }
-.form-sheet .xs-note .note-fix { flex-shrink: 0; }
+  padding: var(--s-1h) var(--s-4) 0; margin-top: 0; }
+.form-sheet .xs-note .note-fix { flex-shrink: 0; font-style: normal; }
 /* A photo-only note: the canvas keeps no room for words it does not have. */
 .screen-editor .doc.doc-lean, .doc.doc-lean { padding-top: 0; padding-bottom: var(--s-2); }
 /* File Under (the note swipe, 2026-09-02): the dot leads, the tick says which. */

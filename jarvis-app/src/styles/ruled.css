@@ -135,9 +135,11 @@
    sits in the card's foot instead, and this rule is the whole point of moving
    it: it WRAPS. No clamp, no ellipsis, no nowrap, at any length, at any
    --type-scale. Whatever the server said, he can read all of it.
-   The ink and the 12.5/1.45 are the readiness panel's reading line, which is
-   the app's existing answer to "a sentence a phone must not cut in half". */
-.ruled .notice-card .notice-why { font-size: var(--t-caption);
+   The ink and the 1.45 leading are the readiness panel's reading line, which
+   is the app's existing answer to "a sentence a phone must not cut in half".
+   The size is the fact size (§AM F4, 2026-09-25): subtext is 14 or 11 caps,
+   and this was a 13 of its own. */
+.ruled .notice-card .notice-why { font-size: var(--t-sub);
   color: var(--tx-3); line-height: 1.45; white-space: normal; overflow-wrap: anywhere;
   padding-bottom: var(--s-2); }
 
@@ -162,12 +164,17 @@
 .ruled .stat-tile .st-n { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.05; }
 .ruled .stat-tile .st-w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.09em;
   text-transform: uppercase; opacity: 0.72; }
-/* kinds. Blue is the app's data/time colour, green is completion and goal
-   movement, amber and red are the two urgency steps. Neutral is the raised
-   chip layer, which is what a plain count deserves. */
-.ruled .st-time  { background: var(--blue-tint);  color: var(--blue); }
+/* kinds. Green is completion and goal movement, amber and red are the two
+   urgency steps. Neutral is the raised chip layer, which is what a plain
+   count deserves.
+   THE EVENTS TILE IS A PLAIN COUNT (§AM, 2026-09-25). It wore blue as "the
+   app's data/time colour", and blue is not in the Colour Key: a count of
+   events has no state, so it takes the neutral tile with its number in
+   white, the same as the due count beside it. */
 .ruled .st-goal  { background: var(--good-tint);  color: var(--good); }
+.ruled .st-time,
 .ruled .st-quiet { background: var(--press-3);    color: var(--tx-2); }
+.ruled .st-time .st-n,
 .ruled .st-quiet .st-n { color: var(--tx-1); }
 .ruled .st-warn  { background: var(--warn-tint);  color: var(--warn); }
 .ruled .st-late  { background: var(--red-tint);   color: var(--sys-red); }
@@ -175,12 +182,8 @@
    BROWSER-F-04 (2026-09-05): the green and amber steps are gone from here.
    They were two more hand-kept hexes doing what --good and --warn now do
    themselves in light, and a hand-kept hex is how .gstat-good and the whole
-   month report got missed. Blue and red keep theirs: their tokens are still
-   one value per theme. */
-/* #005CBF measured 4.28:1 on the Your Day gradient card in light
-   (2026-09-22); the ground there is not flat white, and the word needs the
-   4.5 bar the ground actually costs. */
-[data-theme="light"] .ruled .st-time { color: #0052A8; }
+   month report got missed. Red keeps its own: its token is still one value
+   per theme. (Blue's light hex went with the blue tile, 2026-09-25.) */
 [data-theme="light"] .ruled .st-late { color: var(--on-light-red, #B8001A); }
 
 /* ---------- THE DAY RING: flat, one colour, no gradient, no glow ---------
@@ -274,6 +277,14 @@
    it, and it sits ahead of both the person and the estimate in the markup
    because it is the fact that says when. */
 .ruled .r-k-one > .r-cue { flex: 0 0 auto; }
+/* THE CUE IS SMALL CAPS (§AM F5, 2026-09-25). Its sky never painted here:
+   the line's own grey is a two-class rule and outranked it, so "3:30 PM"
+   read as one more plain grey run beside the recurrence and the source.
+   Sky would be wrong anyway, since sky means an estimate and a cue is a
+   trigger. It takes the neutral-date letterform instead: caps is the
+   distinction, and it survives a line that has already spent its grey. */
+.ruled .r-goal.r-cue { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); }
 /* Provenance joined the line too (2026-09-09), last and quietest. Two things
    have to change for it to belong here rather than on a row of its own: it
    wears the line's type (it was --t-meta, 15px, which is taller than the
@@ -288,12 +299,20 @@
 .ruled .r-k-one > .prov-line { flex: 0 0 auto; font-size: var(--t-caption);
   color: var(--tx-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border-top: 0; border-bottom: 0; margin-block: 0; line-height: inherit; }
+/* §AM (2026-09-25): a source that opens is a tap, so it wears the colour
+   that says so, the same as an openable person on this line. One that
+   cannot be opened keeps the line's grey. */
+.ruled .r-k-one > .prov-link { color: var(--tint); }
 /* THE STEP COUNT IN THE RIGHT SLOT (TRACE-02, 2026-09-07). Dave: "there is
    no trace of events or steps (for tasks) anywhere in the app." Contract 4.1
    names three things this slot can hold and this is the third, so it is the
-   contract's own right slot and nothing new: section 5 rules it 12.5/600,
-   --tx-2, tabular. Tabular because a column of these must not jitter, the
-   same reason the estimate above carries it.
+   contract's own right slot and nothing new. Tabular because a column of
+   these must not jitter, the same reason the estimate above carries it.
+   WHITE AT THE FACT SIZE (§AM, 2026-09-25). Section 5 ruled it 12.5/600 in
+   --tx-2, and --tx-2 is the row's one grey: "of" was a further grey run on
+   a row whose second line had already spent it, at a 13 that is neither
+   subtext size. A count with no state is white under the key, so the whole
+   count is, at 14.
    Never shrinks: 4.1 puts the name last in the truncation order and the
    right slot first in what is protected, so the words on line two give up
    room before this does.
@@ -301,8 +320,8 @@
    readiness panel's fraction wears), because "2 of 5" read as one flat grey
    run is exactly the undifferentiated meta line that ruling exists to end. */
 .ruled .task-row > .tr-steps { flex-shrink: 0; align-self: center;
-  font-size: var(--t-caption); font-weight: var(--w-medium);
-  color: var(--tx-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  font-size: var(--t-sub); font-weight: var(--w-medium);
+  color: var(--tx-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ruled .task-row > .tr-steps b { font-weight: var(--w-semi); color: var(--tx-1); }
 .ruled .r-bar { width: 4px; height: 11px; border-radius: var(--r-xxs); flex-shrink: 0; }
 .ruled .r-goal { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3);
@@ -437,6 +456,10 @@
    above, so the row's brightest ink after the title is the actual move. Same
    device as `.r-goal b`, which already brightens the fact inside a line. */
 .ruled .task-row .r-goal b { font-weight: var(--w-semi); color: var(--tx-1); }
+/* The same emphasis on a plain .row (§AM F1, 2026-09-25). Insights writes
+   its month and ledger lines through Nums on .row, not .task-row, so the
+   number there was the line's grey at the browser's bold. */
+.ruled .row .r-goal b { font-weight: var(--w-semi); color: var(--tx-1); }
 /* ...except inside the estimate, which has a meaning and wears it (§AM:
    an estimate the app worked out is sky). Nums bolds the number, and the
    line above turned that bold white, so "45m" lost its colour the same day
@@ -763,7 +786,11 @@
 .ruled .sched-gap { background: transparent; margin: 6px var(--s-4); padding: 8px var(--s-3); gap: var(--s-3); }
 .ruled .sched-gap .sched-time { width: calc(62px * var(--type-scale)); }
 .ruled .sched-gap .sched-gap-title { font-size: calc(14px * var(--type-scale)); }
-.ruled .sched-gap-win { font-size: var(--t-caption); }
+/* "until 3:00 PM" is a neutral time on the row: the neutral-date
+   letterform (§AM F5, 2026-09-25), which also tells it apart from the
+   title's words without spending a colour. */
+.ruled .sched-gap-win { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; }
 /* The count line: numbers bold in --tx-1, the words quiet (contract: inline
    number emphasis). */
 .ruled .count-line { display: inline-flex; align-items: baseline; gap: var(--s-1h); flex-wrap: wrap; }
@@ -1021,7 +1048,11 @@
    time on the right in the ruled number style. A past day says how many
    blocks it held; a full day says Full in amber, the one warning colour. */
 .ruled .week-rows { padding: 0; overflow: hidden; }
-.ruled .sh2.wk-head .n { text-transform: none; letter-spacing: 0; }
+/* The head's fact is a fact, so it takes the fact size and weight (§AM F4,
+   2026-09-25). Un-capped, the head count's 11 bold was neither of the two
+   subtext sizes, and the day head drew the same fact at 13. */
+.ruled .sh2.wk-head .n { text-transform: none; letter-spacing: 0;
+  font-size: var(--t-sub); font-weight: var(--w-regular); }
 .ruled .wk-row { display: flex; align-items: center; gap: var(--s-3); padding: 10px var(--s-4); min-height: 58px; cursor: pointer; }
 .ruled .wk-row + .wk-row { border-top: 0.5px solid var(--divider); }
 .ruled .wk-row:active { background: var(--press-3); }
@@ -1036,16 +1067,18 @@
 .ruled .wk-seg { position: absolute; top: 0; bottom: 0; border-radius: var(--r-xs); }
 .ruled .wk-seg.hollow { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; opacity: 0.9; }
 .ruled .wk-now { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--tx-1); border-radius: 1px; }
-.ruled .wk-open { font-size: var(--t-caption); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 52px; text-align: right; }
+/* 56px, not 52: the column the ticks below are measured against grew with
+   the fact size (13 to 14, 2026-09-25), so "4h open" still fits inside it. */
+.ruled .wk-open { font-size: var(--t-sub); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 56px; text-align: right; }
 .ruled .wk-open b { color: var(--tx-1); font-weight: var(--w-semi); }
 .ruled .wk-open.wk-full { color: var(--warn); font-weight: var(--w-semi); }
 /* The clock the bars are drawn on, and the one line of advice under it. */
-.ruled .wk-ticks { position: relative; height: 16px; margin: 6px calc(var(--s-4) + 64px) 0 calc(var(--s-4) + 46px);
+.ruled .wk-ticks { position: relative; height: 16px; margin: 6px calc(var(--s-4) + 68px) 0 calc(var(--s-4) + 46px);
   font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em; color: var(--tx-quiet); text-transform: uppercase; }
 .ruled .wk-ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
 .ruled .wk-ticks span.first { transform: none; }
 .ruled .wk-ticks span.last { transform: translateX(-100%); }
-.ruled .wk-note { padding: 10px var(--s-4) 0; font-size: var(--t-caption); color: var(--tx-3); }
+.ruled .wk-note { padding: 10px var(--s-4) 0; font-size: var(--t-sub); color: var(--tx-3); }
 .ruled .wk-note b { color: var(--tx-1); font-weight: var(--w-semi); }
 
 
@@ -1085,7 +1118,7 @@
    here with a tail worth losing, so it takes all of the shortfall and says so
    with an ellipsis instead of spilling. */
 .ruled .sc-dayhead .t { flex-shrink: 0; }
-.ruled .sc-dayhead .sc-fact { font-weight: var(--w-regular); font-size: var(--t-caption); color: var(--tx-3); min-width: 0;
+.ruled .sc-dayhead .sc-fact { font-weight: var(--w-regular); font-size: var(--t-sub); color: var(--tx-3); min-width: 0;
   white-space: nowrap; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
 .ruled .sc-fact b { color: var(--tx-1); font-weight: var(--w-semi); }
 .ruled .sc-fact .sched-sep { margin: 0 var(--s-1h); opacity: 0.55; }
@@ -1094,9 +1127,11 @@
    you folds to one line, and the day starts at Now"). The day used to open
    on a dashed box offering to fill an hour that ended before breakfast. */
 .ruled .sched-earlier { display: flex; align-items: center; gap: var(--s-2h); width: 100%; min-height: 44px;
-  padding: 0 var(--s-4); background: none; border: 0; font-family: var(--f); font-size: var(--t-caption);
+  padding: 0 var(--s-4); background: none; border: 0; font-family: var(--f); font-size: var(--t-sub);
   color: var(--tx-3); text-align: left; }
-.ruled .sched-earlier .n { color: var(--tx-2); }
+/* The count is a number with no state, so it steps up to white (§AM,
+   2026-09-25). It was --tx-2 beside the --tx-3 word, which is one grey. */
+.ruled .sched-earlier .n { color: var(--tx-1); }
 .ruled .sched-earlier .chev { margin-left: auto; }
 .ruled .sched-earlier:active { background: var(--press-1); }
 /* The rule: the one place on this page the system red says "here", and it
@@ -1119,7 +1154,10 @@
    shares with the hairline is 3.55 there, and a word is held to 4.5 where a
    rule is held to 3. The hairline keeps the system red. */
 [data-theme="light"] .ruled .sched-now .w { color: var(--on-light-red); }
-.ruled .sched-now .t { font-size: calc(11px * var(--type-scale)); color: var(--tx-quiet); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* The clock is a neutral time on the row, so it wears the neutral-date
+   letterform (§AM F5, 2026-09-25) on the kicker token, not a raw 11. */
+.ruled .sched-now .t { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
+  text-transform: uppercase; color: var(--tx-quiet); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 /* Running Late? rides the rule it is about. Neutral capsule: the rule's own
    red is the signal, and two reds on one line is the thing being fixed. */
 .ruled .sched-late { flex-shrink: 0; background: var(--press-3); color: var(--tx-1); border: 0;
@@ -1586,9 +1624,10 @@
 /* Section heads: the caps stay quiet, but the count chip beside them takes
    the ramp so a page of five sections reads as five things, not one wall. */
 .ruled.health-ruled .sh2 .n { color: var(--hl-cyan-ink); }
-/* The head's action pill (Program, Reorder, History, Add) is a door, not a
-   verb, so it takes cyan rather than the app's red-for-action. */
-.ruled.health-ruled .sh2 .pill-action { color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
+/* The head's action capsule (Program, Reorder, History, Add, Superset) wore
+   cyan here until 2026-09-25. Cyan means now, the live set, in the Colour
+   Key, and a capsule that opens something means neither. It takes the app's
+   head capsule instead, white on the raised grey, like every other head. */
 
 /* A PR is the loudest good thing the gym can say. */
 .ruled.health-ruled .gstat-good, .ruled.health-ruled .pill-good {
@@ -2086,13 +2125,19 @@
 /* One quiet receipt under the log (H-53): what is still waiting to sync. */
 .ruled.health-ruled .h-sync { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--tx-2); }
 
-/* HEALTH PUSH D (2026-09-12 picks; built 2026-09-13). The Refill Runway's two
-   tiles wear medication blue, which is what blue means in Health; the effort
-   blocks get their two ends named in the quiet text colour; and the Skip
-   under them sits at the right, a way out and not the move. */
-.ruled.health-ruled .stat-row.stat-hblue .stat-tile .stat-num { color: var(--hl-blue); }
+/* HEALTH PUSH D (2026-09-12 picks; built 2026-09-13). The effort blocks get
+   their two ends named in the quiet text colour; and the Skip under them
+   sits at the right, a way out and not the move.
+   THE REFILL RUNWAY'S TWO NUMBERS ARE WHITE (§AM, 2026-09-25). They wore
+   medication blue as the area's colour, and under the Colour Key an area's
+   colour rides a dot, never a reading, while blue in Health means a
+   cool-down. A count of doses and a count of days have no state of their
+   own, so they take white, the key's number that must still stand out.
+   The two ends are scale-end kickers, so 11 caps (§AM F4), not a 13. */
+.ruled.health-ruled .stat-row.stat-hblue .stat-tile .stat-num { color: var(--tx-1); }
 .ruled.health-ruled .rpe-ends { display: flex; justify-content: space-between; margin-top: var(--s-1h);
-  font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2); }
+  font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
+  text-transform: uppercase; color: var(--tx-3); }
 .ruled.health-ruled .rpe-foot { display: flex; justify-content: flex-end; margin-top: var(--s-2h); }
 
 /* THE VERDICT IS A CHIP, THE EVIDENCE IS A LINE (Dave 2026-09-11: "Keep
