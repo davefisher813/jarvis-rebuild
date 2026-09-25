@@ -9,6 +9,14 @@
    40,
    42,
    43,
+   51,
+   54,
+   55,
+   56,
+   57,
+   58,
+   73,
+   80,
    114,
    117,
    128,
@@ -70,6 +78,7 @@
    573,
    574,
    575,
+   576,
    578,
    579,
    582,
@@ -117,6 +126,14 @@
    16,
    32,
    45,
+   65,
+   66,
+   67,
+   68,
+   69,
+   70,
+   71,
+   74,
    102,
    104,
    106,
@@ -288,6 +305,95 @@
    ],
    "finding_ids": [
     41
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/DayRow.tsx"
+   ],
+   "finding_ids": [
+    46,
+    47,
+    48,
+    49,
+    50,
+    577
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/LockedRow.tsx"
+   ],
+   "finding_ids": [
+    60
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/stateWord.ts"
+   ],
+   "finding_ids": [
+    61
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/SchedulePage.tsx"
+   ],
+   "finding_ids": [
+    63,
+    64,
+    72,
+    75
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/EventDetailPage.tsx"
+   ],
+   "finding_ids": [
+    77,
+    78
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/EventSheet.tsx"
+   ],
+   "finding_ids": [
+    81,
+    82
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/OverlapSheet.tsx"
+   ],
+   "finding_ids": [
+    83
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/PlanDaySheet.tsx"
+   ],
+   "finding_ids": [
+    84,
+    87,
+    88,
+    91,
+    92,
+    608
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/ScheduleUploadFlow.tsx"
+   ],
+   "finding_ids": [
+    94,
+    95,
+    96
    ]
   },
   {
@@ -1192,6 +1298,72 @@
   },
   {
    "files": [
+    "src/schedule/screens/DayRow.tsx",
+    "src/shared/ProvenanceLine.tsx",
+    "src/tasks/ifThen.ts",
+    "src/tasks/screens/TaskSheet.tsx"
+   ],
+   "finding_ids": [
+    52,
+    53,
+    121,
+    122,
+    152
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/LockedRow.tsx"
+   ],
+   "finding_ids": [
+    59
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/SchedulePage.tsx"
+   ],
+   "finding_ids": [
+    62
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/EventDetailPage.tsx"
+   ],
+   "finding_ids": [
+    76
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/EventSheet.tsx"
+   ],
+   "finding_ids": [
+    79
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/PlanDaySheet.tsx"
+   ],
+   "finding_ids": [
+    85,
+    86,
+    89,
+    90
+   ]
+  },
+  {
+   "files": [
+    "src/schedule/screens/ScheduleUploadFlow.tsx"
+   ],
+   "finding_ids": [
+    93
+   ]
+  },
+  {
+   "files": [
     "src/routine/RoutineFlow.tsx"
    ],
    "finding_ids": [
@@ -1221,18 +1393,6 @@
    ],
    "finding_ids": [
     119
-   ]
-  },
-  {
-   "files": [
-    "src/shared/ProvenanceLine.tsx",
-    "src/tasks/ifThen.ts",
-    "src/tasks/screens/TaskSheet.tsx"
-   ],
-   "finding_ids": [
-    121,
-    122,
-    152
    ]
   },
   {
@@ -1621,6 +1781,15 @@
    ],
    "finding_ids": [
     332
+   ]
+  },
+  {
+   "files": [
+    "src/gym/door.ts",
+    "src/gym/door.ts + src/gym/useGymDoor.ts + src/schedule/screens/DayRow.tsx"
+   ],
+   "finding_ids": [
+    333
    ]
   },
   {

@@ -29,6 +29,22 @@ if (phase === "css") {
       groups.push({ label: `${sheet}#${i / 20 + 1}`, files: [`jarvis-app/src/styles/${sheet}`], finding_ids: l.slice(i, i + 20) });
     }
   }
+} else if (phase === "all-code") {
+  // Code and separator findings together, one agent per file group: groups
+  // from both lists that share a file are merged so no file has two agents.
+  const src = [...plan.code_groups, ...plan.middot_groups].map((g) => ({ files: new Set(g.files), ids: [...g.finding_ids] }));
+  const merged = [];
+  for (const g of src) {
+    const hits = merged.filter((m) => [...g.files].some((f) => m.files.has(f)));
+    const into = { files: new Set(g.files), ids: [...g.ids] };
+    for (const h of hits) { h.files.forEach((f) => into.files.add(f)); into.ids.push(...h.ids); merged.splice(merged.indexOf(h), 1); }
+    merged.push(into);
+  }
+  merged.forEach((g, i) => {
+    const l = live(g.ids);
+    const files = [...g.files].sort();
+    if (l.length) groups.push({ label: `code-${i + 1}:${files[0].split("/").pop()}`, files: files.map((f) => "jarvis-app/" + f), finding_ids: l });
+  });
 } else if (phase === "code" || phase === "middots") {
   const src = phase === "code" ? plan.code_groups : plan.middot_groups;
   src.forEach((g, i) => {
@@ -36,7 +52,7 @@ if (phase === "css") {
     if (l.length) groups.push({ label: `${phase}-${i + 1}:${g.files[0].split("/").pop()}`, files: g.files.map((f) => "jarvis-app/" + f), finding_ids: l });
   });
 } else {
-  console.error("usage: node build-args.mjs css|code|middots");
+  console.error("usage: node build-args.mjs css|all-code|code|middots");
   process.exit(1);
 }
 

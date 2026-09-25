@@ -79,7 +79,7 @@ grey. Bolding it does not make it different.
   `components.css`, 700 weight at 0.1em. Any other rule restyling `.sh2 .t`'s
   weight or tracking is a violation.
 - **R11.** The Today "Your Day" card (`.sched-ticker`) renders at all times.
-  **Do not touch it** (Dave, 2026-09-22: "Leave the schedule alone").
+  **Never change its behaviour** (Dave, 2026-09-22 and 2026-09-25).
 
 ## The primitives — use these, never a new class per screen
 
@@ -118,10 +118,15 @@ decision for the lead session, added once in `components.css` with a law.
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report
   it as `needs_other_file` and leave it.
-- Never delete or reword user-facing copy. Restyle instead. If the only fix is
-  a copy change, report it as `needs_dave`.
-- Never touch `src/schedule/`, `src/today/YourDay.tsx`, `DayRow`, `LockedRow`,
-  `PlanDaySheet` or `SchedulePage` without Dave's explicit OK.
+- Rewording is ALLOWED (Dave, 2026-09-25: "Reword freely"): reword, or drop a
+  fact that only repeats another, when that is the better fix. Keep meaning.
+  Report EVERY wording change in `reworded` as exact old -> new, so he can be
+  shown the list.
+- Schedule rows are IN SCOPE for styling (Dave, 2026-09-25: "Fix row styling
+  only"): `src/schedule/`, `DayRow`, `LockedRow`, `PlanDaySheet`,
+  `SchedulePage`. The Today TV guide's BEHAVIOUR is NOT: never change how
+  `.sched-ticker` scrolls, pauses, measures, or when it renders (the state and
+  branches in `src/today/YourDay.tsx`). Styling a row it contains is fine.
 - Never edit `src/laws/`. If a law blocks a correct fix, report the law and why.
 - Co-located tests (`X.test.tsx` beside `X.tsx`) may be updated when a fix
   intentionally changes what they assert; say so in the report.

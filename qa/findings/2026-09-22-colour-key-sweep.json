@@ -11,7 +11,8 @@
   "confidence": "high",
   "status": "done",
   "status_note": "fixed in 80354a3: pause is per-visit, paused keeps the card",
-  "id": 0
+  "id": 0,
+  "needs_dave": false
  },
  {
   "file": "src/today/YourDay.tsx",
@@ -24,8 +25,9 @@
   "law_risk": "none",
   "confidence": "high",
   "status": "deferred",
-  "status_note": "Dave: leave the schedule alone",
-  "id": 1
+  "status_note": "TV guide behaviour (when the card renders); Dave: never change its behaviour",
+  "id": 1,
+  "needs_dave": false
  },
  {
   "file": "src/today/TodayPage.tsx",
@@ -130,7 +132,7 @@
   "status": "pending",
   "id": 8,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/styles/components.css",
@@ -160,7 +162,7 @@
   "status": "pending",
   "id": 10,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/today/TodayPage.tsx",
@@ -175,7 +177,7 @@
   "status": "pending",
   "id": 11,
   "phase": "3-middots",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/today/TodayPage.tsx",
@@ -370,7 +372,7 @@
   "status": "pending",
   "id": 24,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/today/TodayFlow.tsx",
@@ -669,7 +671,8 @@
   "confidence": "medium",
   "status": "done",
   "status_note": "capsule fill restored on in-list creates in ruled cards",
-  "id": 44
+  "id": 44,
+  "needs_dave": false
  },
  {
   "file": "src/styles/ruled.css",
@@ -696,9 +699,10 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 46
+  "status": "pending",
+  "id": 46,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -710,9 +714,10 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none if the place stays grey. The alternative (place to --tint) would break src/laws/laws.test.ts 'the place is a fact on the meta line, not an accent link on its own' (asserts .ruled .sched-cat .sched-loc { color: var(--tx-3)",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 47
+  "status": "pending",
+  "id": 47,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -724,9 +729,10 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 48
+  "status": "pending",
+  "id": 48,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -738,9 +744,10 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none (DayRow.test.tsx only asserts .sched-cat .sched-firstmove text)",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 49
+  "status": "pending",
+  "id": 49,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -752,9 +759,10 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 50
+  "status": "pending",
+  "id": 50,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -766,9 +774,10 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 51
+  "status": "pending",
+  "id": 51,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -780,9 +789,10 @@
   "fix_file": "src/shared/ProvenanceLine.tsx",
   "law_risk": "none in src/laws; keep sourceLine exported (src/shared/provenance.test.ts and src/tasks/taskMoves.test.ts call it)",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 52
+  "status": "pending",
+  "id": 52,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -794,9 +804,10 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "do NOT name the class .fact.sky (astra.test.ts asserts components.css does not contain '.fact.sky'); src/gym/door.test.ts:42 reads info.meta, so keep meta",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 53
+  "status": "pending",
+  "id": 53,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -808,9 +819,10 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 54
+  "status": "pending",
+  "id": 54,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -822,9 +834,10 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (laws.test.ts nested-control roster only pins its container)",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 55
+  "status": "pending",
+  "id": 55,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -836,9 +849,10 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 56
+  "status": "pending",
+  "id": 56,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -850,9 +864,10 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 57
+  "status": "pending",
+  "id": 57,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -864,9 +879,10 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 58
+  "status": "pending",
+  "id": 58,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/LockedRow.tsx",
@@ -878,9 +894,10 @@
   "fix_file": "src/schedule/screens/LockedRow.tsx",
   "law_risk": "none in src/laws; src/today/YourDay.test.tsx:336 expects 'Protected' on Today with no state word, which this keeps",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 59
+  "status": "pending",
+  "id": 59,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/LockedRow.tsx",
@@ -892,9 +909,10 @@
   "fix_file": "src/schedule/screens/LockedRow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 60
+  "status": "pending",
+  "id": 60,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/stateWord.ts",
@@ -906,9 +924,10 @@
   "fix_file": "src/schedule/stateWord.ts",
   "law_risk": "none (astra.test.ts only asserts .fact.sky stays out of components.css)",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 61
+  "status": "pending",
+  "id": 61,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -920,9 +939,10 @@
   "fix_file": "src/schedule/screens/SchedulePage.tsx",
   "law_risk": "none (waves.test.ts pins endsLabel, which is unchanged)",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 62
+  "status": "pending",
+  "id": 62,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -934,9 +954,10 @@
   "fix_file": "src/schedule/screens/SchedulePage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 63
+  "status": "pending",
+  "id": 63,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -948,9 +969,10 @@
   "fix_file": "src/schedule/screens/SchedulePage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 64
+  "status": "pending",
+  "id": 64,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -962,9 +984,10 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none (browserWalk.test.ts only pins its overflow/ellipsis)",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 65
+  "status": "pending",
+  "id": 65,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -976,9 +999,10 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 66
+  "status": "pending",
+  "id": 66,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -990,9 +1014,10 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 67
+  "status": "pending",
+  "id": 67,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -1004,9 +1029,10 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 68
+  "status": "pending",
+  "id": 68,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -1018,9 +1044,10 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 69
+  "status": "pending",
+  "id": 69,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -1032,9 +1059,10 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "browserWalk.test.ts 'live metadata takes the quiet token' requires this exact selector to keep color: var(--tx-quiet); the fix keeps it",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 70
+  "status": "pending",
+  "id": 70,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -1046,9 +1074,10 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 71
+  "status": "pending",
+  "id": 71,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -1060,9 +1089,10 @@
   "fix_file": "src/schedule/screens/SchedulePage.tsx",
   "law_risk": "astra.test.ts 'every fact variant the app renders has a rule' needs the .sched-est rule to exist; do not call it .fact.sky",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 72
+  "status": "pending",
+  "id": 72,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -1074,9 +1104,10 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 73
+  "status": "pending",
+  "id": 73,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -1088,9 +1119,10 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "src/laws/laws.test.ts pins the Now rule's hairline min-width and Running Late neutrality; check the adjacent Now-rule assertions before changing its colour",
   "confidence": "low",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 74
+  "status": "pending",
+  "id": 74,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -1102,9 +1134,10 @@
   "fix_file": "src/schedule/screens/SchedulePage.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 75
+  "status": "pending",
+  "id": 75,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/EventDetailPage.tsx",
@@ -1116,9 +1149,10 @@
   "fix_file": "src/schedule/screens/EventDetailPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 76
+  "status": "pending",
+  "id": 76,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/EventDetailPage.tsx",
@@ -1130,9 +1164,10 @@
   "fix_file": "src/schedule/screens/EventDetailPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 77
+  "status": "pending",
+  "id": 77,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/EventDetailPage.tsx",
@@ -1144,9 +1179,10 @@
   "fix_file": "src/schedule/screens/EventDetailPage.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 78
+  "status": "pending",
+  "id": 78,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/EventSheet.tsx",
@@ -1158,9 +1194,10 @@
   "fix_file": "src/schedule/screens/EventSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 79
+  "status": "pending",
+  "id": 79,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/EventSheet.tsx",
@@ -1172,9 +1209,10 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 80
+  "status": "pending",
+  "id": 80,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/EventSheet.tsx",
@@ -1186,9 +1224,10 @@
   "fix_file": "src/schedule/screens/EventSheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 81
+  "status": "pending",
+  "id": 81,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/EventSheet.tsx",
@@ -1200,9 +1239,10 @@
   "fix_file": "src/schedule/screens/EventSheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 82
+  "status": "pending",
+  "id": 82,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/OverlapSheet.tsx",
@@ -1214,9 +1254,10 @@
   "fix_file": "src/schedule/screens/OverlapSheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 83
+  "status": "pending",
+  "id": 83,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/PlanDaySheet.tsx",
@@ -1228,9 +1269,10 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "src/schedule/planning.test.ts (not a law) pins loadLine's string, so keep loadLine exported or update the test",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 84
+  "status": "pending",
+  "id": 84,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/PlanDaySheet.tsx",
@@ -1242,9 +1284,10 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 85
+  "status": "pending",
+  "id": 85,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/PlanDaySheet.tsx",
@@ -1256,9 +1299,10 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none (all three words are in astra.test.ts STATE_WORDS)",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 86
+  "status": "pending",
+  "id": 86,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/PlanDaySheet.tsx",
@@ -1270,9 +1314,10 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 87
+  "status": "pending",
+  "id": 87,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/PlanDaySheet.tsx",
@@ -1284,9 +1329,10 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 88
+  "status": "pending",
+  "id": 88,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/PlanDaySheet.tsx",
@@ -1298,9 +1344,10 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "src/schedule/planning.test.ts:108 (not a law) pins splitLine('2 Sittings \u00b7 90m each'), so keep the helper or update the test",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 89
+  "status": "pending",
+  "id": 89,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/PlanDaySheet.tsx",
@@ -1312,9 +1359,10 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 90
+  "status": "pending",
+  "id": 90,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/PlanDaySheet.tsx",
@@ -1326,9 +1374,10 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 91
+  "status": "pending",
+  "id": 91,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/PlanDaySheet.tsx",
@@ -1340,9 +1389,10 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "check src/schedule tests for dayClock().sub before removing the field",
   "confidence": "low",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 92
+  "status": "pending",
+  "id": 92,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/ScheduleUploadFlow.tsx",
@@ -1354,9 +1404,10 @@
   "fix_file": "src/schedule/screens/ScheduleUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 93
+  "status": "pending",
+  "id": 93,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/schedule/screens/ScheduleUploadFlow.tsx",
@@ -1368,9 +1419,10 @@
   "fix_file": "src/schedule/screens/ScheduleUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 94
+  "status": "pending",
+  "id": 94,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/ScheduleUploadFlow.tsx",
@@ -1382,9 +1434,10 @@
   "fix_file": "src/schedule/screens/ScheduleUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 95
+  "status": "pending",
+  "id": 95,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/schedule/screens/ScheduleUploadFlow.tsx",
@@ -1396,9 +1449,10 @@
   "fix_file": "src/schedule/screens/ScheduleUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 96
+  "status": "pending",
+  "id": 96,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/routine/RoutineFlow.tsx",
@@ -1442,7 +1496,8 @@
   "confidence": "high",
   "status": "done",
   "status_note": "capsule fill restored on in-list creates in ruled cards",
-  "id": 99
+  "id": 99,
+  "needs_dave": false
  },
  {
   "file": "src/routine/RoutineFlow.tsx",
@@ -1471,7 +1526,8 @@
   "law_risk": "none (laws.test.ts DEFECT 6 pins the .r-goal b line verbatim, which is kept; colourKey.test pins .r-est sky, which this finally delivers)",
   "status": "done",
   "status_note": "estimate stays sky inside Nums",
-  "id": 101
+  "id": 101,
+  "needs_dave": false
  },
  {
   "file": "src/tasks/screens/TasksPage.tsx",
@@ -1500,7 +1556,8 @@
   "law_risk": "laws.test.ts DEFECT 6 'the split is the neutral text ramp, never a colour' reads the bare `.ruled .r-goal.r-person` rule (unchanged, still passes) but its stated intent is superseded by \u00a7AK V5.2 -- update its comment; colourKey.test OPERABLE exempts [role=\"button\"]",
   "status": "done",
   "status_note": "tappable person is --tint",
-  "id": 103
+  "id": 103,
+  "needs_dave": false
  },
  {
   "file": "src/tasks/screens/TasksPage.tsx",
@@ -1649,7 +1706,8 @@
   "law_risk": "none",
   "status": "done",
   "status_note": "kicker no longer brand red",
-  "id": 113
+  "id": 113,
+  "needs_dave": false
  },
  {
   "file": "src/review/ReportPage.tsx",
@@ -1903,7 +1961,8 @@
   "law_risk": "none",
   "status": "done",
   "status_note": "placeholder removed",
-  "id": 130
+  "id": 130,
+  "needs_dave": false
  },
  {
   "file": "src/tasks/screens/ReminderSheet.tsx",
@@ -2023,7 +2082,7 @@
   "status": "pending",
   "id": 138,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/projects/ProjectDetailPage.tsx",
@@ -2277,7 +2336,8 @@
   "law_risk": "any ASTRA I3 accent-head law in laws.test.ts",
   "status": "rejected",
   "status_note": "\u00a7AJ G0 rules 'Only Now wears the accent' in section heads",
-  "id": 155
+  "id": 155,
+  "needs_dave": false
  },
  {
   "file": "src/review/ReportPage.tsx",
@@ -2411,7 +2471,8 @@
   "confidence": "high",
   "status": "done",
   "status_note": "placeholder removed",
-  "id": 164
+  "id": 164,
+  "needs_dave": false
  },
  {
   "file": "src/messages/purge.ts",
@@ -2621,7 +2682,7 @@
   "status": "pending",
   "id": 178,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/messages/vip.ts",
@@ -2726,7 +2787,7 @@
   "status": "pending",
   "id": 185,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -2786,7 +2847,7 @@
   "status": "pending",
   "id": 189,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -2816,7 +2877,7 @@
   "status": "pending",
   "id": 191,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -2906,7 +2967,7 @@
   "status": "pending",
   "id": 197,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/messages/cleared.ts",
@@ -3100,7 +3161,8 @@
   "confidence": "high",
   "status": "done",
   "status_note": "cleared day is green",
-  "id": 210
+  "id": 210,
+  "needs_dave": false
  },
  {
   "file": "src/messages/DeckFlow.tsx",
@@ -3129,7 +3191,8 @@
   "confidence": "high",
   "status": "done",
   "status_note": "estimate is sky",
-  "id": 212
+  "id": 212,
+  "needs_dave": false
  },
  {
   "file": "src/messages/DeckFlow.tsx",
@@ -3609,7 +3672,7 @@
   "status": "pending",
   "id": 244,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/health/screens/RefillRunwayScreen.tsx",
@@ -3774,7 +3837,7 @@
   "status": "pending",
   "id": 255,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/health/screens/WhatTheySeeScreen.tsx",
@@ -3819,7 +3882,7 @@
   "status": "pending",
   "id": 258,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/health/screens/AteBeforeScreen.tsx",
@@ -4074,7 +4137,7 @@
   "status": "pending",
   "id": 275,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/gym/SessionScreen.tsx",
@@ -4464,7 +4527,7 @@
   "status": "pending",
   "id": 301,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/gym/LiftDetailScreen.tsx",
@@ -4941,9 +5004,10 @@
   "fix_file": "src/gym/door.ts + src/gym/useGymDoor.ts + src/schedule/screens/DayRow.tsx",
   "law_risk": "check door.test.ts / useGymDoor tests for the meta string",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 333
+  "status": "pending",
+  "id": 333,
+  "needs_dave": false,
+  "phase": "3-middots"
  },
  {
   "file": "src/gym/liveCard.ts",
@@ -5003,7 +5067,7 @@
   "status": "pending",
   "id": 337,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/brain/BrainTop.tsx",
@@ -5093,7 +5157,7 @@
   "status": "pending",
   "id": 343,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/brain/readiness.ts",
@@ -5318,7 +5382,7 @@
   "status": "pending",
   "id": 358,
   "phase": "3-middots",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/brain/CategoryDetail.tsx",
@@ -5573,7 +5637,7 @@
   "status": "pending",
   "id": 375,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/insights/AllDataPage.tsx",
@@ -5633,7 +5697,7 @@
   "status": "pending",
   "id": 379,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/insights/InsightsPage.tsx",
@@ -6457,7 +6521,8 @@
   "confidence": "high",
   "status": "done",
   "status_note": "capsule fill restored on in-list creates in ruled cards",
-  "id": 434
+  "id": 434,
+  "needs_dave": false
  },
  {
   "file": "src/settings/kit.tsx",
@@ -6712,7 +6777,7 @@
   "status": "pending",
   "id": 451,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/people/screens/PersonDetail.tsx",
@@ -6862,7 +6927,7 @@
   "status": "pending",
   "id": 461,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/life/SyllabusUploadFlow.tsx",
@@ -7057,7 +7122,7 @@
   "status": "pending",
   "id": 474,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/bigger/measure.ts",
@@ -7192,7 +7257,7 @@
   "status": "pending",
   "id": 483,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/bigger/GoalDetailPage.tsx",
@@ -8272,7 +8337,7 @@
   "status": "pending",
   "id": 555,
   "phase": "1-css",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/styles/ruled.css",
@@ -8286,7 +8351,8 @@
   "confidence": "high",
   "status": "done",
   "status_note": "capsule fill restored on in-list creates in ruled cards",
-  "id": 556
+  "id": 556,
+  "needs_dave": false
  },
  {
   "file": "src/styles/components.css",
@@ -8331,7 +8397,7 @@
   "status": "pending",
   "id": 559,
   "phase": "1-css",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/styles/components.css",
@@ -8360,7 +8426,8 @@
   "confidence": "high",
   "status": "rejected",
   "status_note": "\u00a7AJ G0 rules 'Only Now wears the accent' in section heads",
-  "id": 561
+  "id": 561,
+  "needs_dave": false
  },
  {
   "file": "src/styles/components.css",
@@ -8374,7 +8441,8 @@
   "confidence": "high",
   "status": "done",
   "status_note": "kicker no longer brand red",
-  "id": 562
+  "id": 562,
+  "needs_dave": false
  },
  {
   "file": "src/styles/components.css",
@@ -8389,7 +8457,7 @@
   "status": "pending",
   "id": 563,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/styles/components.css",
@@ -8581,9 +8649,10 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "colourKey 'a fact never wears the brand red' already exempts .sched-loc as operable; no law pins .sched-rep's size",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 576
+  "status": "pending",
+  "id": 576,
+  "needs_dave": false,
+  "phase": "1-css"
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -8595,9 +8664,10 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 577
+  "status": "pending",
+  "id": 577,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/styles/components.css",
@@ -8987,7 +9057,7 @@
   "status": "pending",
   "id": 603,
   "phase": "2-code",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/styles/components.css",
@@ -9032,7 +9102,7 @@
   "status": "pending",
   "id": 606,
   "phase": "1-css",
-  "needs_dave": true
+  "needs_dave": false
  },
  {
   "file": "src/styles/components.css",
@@ -9059,9 +9129,10 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "deferred",
-  "status_note": "schedule rows feed the TV guide; Dave: leave the schedule alone",
-  "id": 608
+  "status": "pending",
+  "id": 608,
+  "needs_dave": false,
+  "phase": "2-code"
  },
  {
   "file": "src/styles/components.css",
@@ -9150,7 +9221,8 @@
   "confidence": "medium",
   "status": "done",
   "status_note": "estimate is sky",
-  "id": 614
+  "id": 614,
+  "needs_dave": false
  },
  {
   "file": "src/styles/components.css",
