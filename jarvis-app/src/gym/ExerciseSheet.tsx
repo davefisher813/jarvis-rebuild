@@ -481,7 +481,9 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <Tile tone="green"><Timer className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Clock</div>
-                {condBlock && <div className="conn-meta">{condSummary(condBlock)}</div>}
+                {/* The menu beside it already names the format, so the line
+                    carries only the length, the receipt's own trim. */}
+                {condBlock && <div className="conn-meta">{condSummary(condBlock).replace(COND_LABEL[condBlock.format] + " · ", "")}</div>}
               </div>
               <HeadMenu variant="value" ariaLabel="Clock" value={condFormat ?? "off"} off={!condFormat}
                 options={[{ value: "off", label: "Off" }, ...COND_FORMATS.map((f) => ({ value: f, label: COND_LABEL[f] }))]}
@@ -557,7 +559,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                   {/* The preview is data, so it shows; Off needs no sentence. */}
                   {ramp && (
                     <div className="conn-meta">
-                      {rampPreview.length ? rampPreview.map((r) => formatSet(draft, r)).join(" · ") : "Nothing to ramp at this weight"}
+                      {rampPreview.length ? rampPreview.map((r) => formatSet(draft, r)).join(", ") : "Nothing to ramp at this weight"}
                     </div>
                   )}
                 </div>
@@ -573,7 +575,8 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 <Tile tone="teal"><Link2 className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Pair With</div>
-                  <div className="conn-meta">{partner ?? "Not paired"}</div>
+                  {/* Unpaired says nothing: the Choose capsule already says it (§AK). */}
+                  {partner && <div className="conn-meta">{partner}</div>}
                 </div>
                 <button className="pill-act pill-neutral" onClick={own(onPairWith)}>{partner ? "Change" : "Choose"}</button>
               </div>
@@ -615,8 +618,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                   <div className="row-grow">
                     <div className="conn-name">{`Add to ${alsoOnDay.dayName}`}</div>
                     <div className="facts">
-                      <span className="fact">{alsoOnDay.value ? "Kept for next time" : "This session only"}</span>
-                      {alsoOnDay.value && <span className="fact">Can be paired</span>}
+                      <span className="fact">{alsoOnDay.value ? "Kept for next time, can be paired" : "This session only"}</span>
                     </div>
                   </div>
                   <div className={"switch" + (alsoOnDay.value ? "" : " off")} role="switch" aria-checked={alsoOnDay.value}

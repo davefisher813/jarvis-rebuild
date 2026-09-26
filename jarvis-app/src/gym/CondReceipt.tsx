@@ -22,7 +22,7 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
   exercise: Exercise;
   entries: SetEntry[];
   onChange: (entries: SetEntry[]) => void;
-  /** "Last: 6 + 4 · Aug 21", when there is a last time. */
+  /** "Last: 6 + 4 on Aug 21", when there is a last time. */
   lastLine?: string | null;
 }) {
   const cond = exercise.cond!;
@@ -79,7 +79,7 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
             )}
             <div className="cr-score">
               <span className="cr-score-l">
-                {condScoreLabel(exercise)}{ran != null && exercise.kind !== "time_faster" && exercise.kind !== "time_longer" ? ` · ${mmss(ran)}` : ""}
+                {condScoreLabel(exercise)}{ran != null && exercise.kind !== "time_faster" && exercise.kind !== "time_longer" ? ` in ${mmss(ran)}` : ""}
               </span>
               {exercise.kind === "rounds" ? (
                 <span className="cr-score-v">

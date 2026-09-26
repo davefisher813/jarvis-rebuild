@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSyllabusExtract, buildSyllabusRows, toISODate, rowLine, type ExtractedSyllabusItem } from "./syllabusExtract";
+import { parseSyllabusExtract, buildSyllabusRows, toISODate, type ExtractedSyllabusItem } from "./syllabusExtract";
 
 const ex = (over: Partial<ExtractedSyllabusItem> = {}): ExtractedSyllabusItem =>
   ({ id: "s1", title: "Essay 1", kind: "task", month: 9, day: 15, year: 2026, start: null, weight: null, ...over });
@@ -65,10 +65,11 @@ describe("buildSyllabusRows", () => {
     expect(rows[0]!.noDate).toBe(true);
   });
 
-  it("the review line states the read, and the weight is the syllabus's own claim", () => {
-    const word = (iso: string) => iso;
-    expect(rowLine(buildSyllabusRows([ex({ weight: "20%" })], 2026)[0]!, word)).toBe("Task · 2026-09-15 · 20%");
-    expect(rowLine(buildSyllabusRows([ex({ kind: "event", start: "14:00" })], 2026)[0]!, word)).toBe("Event · 2026-09-15 · 14:00");
-    expect(rowLine(buildSyllabusRows([ex({ month: null, day: null })], 2026)[0]!, word)).toBe("Task · No date found");
+  // The review row draws these as separate facts now (SyllabusUploadFlow),
+  // so what is pinned here is the data it reads: the weight is the
+  // syllabus's own claim, carried through verbatim, and the time rides along.
+  it("carries the weight and the start time through to the review row", () => {
+    expect(buildSyllabusRows([ex({ weight: "20%" })], 2026)[0]).toMatchObject({ weight: "20%", date: "2026-09-15" });
+    expect(buildSyllabusRows([ex({ kind: "event", start: "14:00" })], 2026)[0]).toMatchObject({ kind: "event", start: "14:00" });
   });
 });

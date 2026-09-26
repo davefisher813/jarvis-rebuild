@@ -105,13 +105,20 @@ export function firstFree(options: TimeOption[]): TimeOption | null {
 
 // What the card says. Honest in all three shapes: one that fits, several that
 // fit, or none, which is a real answer and not a failure to hide.
+//
+// §AM R6 (2026-09-26): one sentence, no typed dot. It renders as the Today
+// card's quiet line, where a dot in grey words strands when the line wraps.
+// Several open times are listed with "and", since a comma already joins the
+// two halves.
 export function meetingLine(options: TimeOption[]): string {
   if (options.length === 0) return "";
   const free = options.filter((o) => o.free);
   const offered = options.length === 1 ? "one time" : options.length + " times";
-  if (free.length === 0) return `Offered ${offered} · You're busy for all of them`;
-  if (free.length === options.length) return `Offered ${offered} · All open`;
-  return `Offered ${offered} · Only ${free.map((f) => f.label).join(", ")} is open`;
+  if (free.length === 0) return `Offered ${offered}, you're busy for all of them`;
+  if (free.length === options.length) return `Offered ${offered}, all open`;
+  const names = free.map((f) => f.label);
+  const list = names.length === 1 ? names[0]! : names.slice(0, -1).join(", ") + " and " + names[names.length - 1]!;
+  return `Offered ${offered}, only ${list} ${names.length === 1 ? "is" : "are"} open`;
 }
 
 export function acceptBody(option: TimeOption): string {

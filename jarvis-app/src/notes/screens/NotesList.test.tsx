@@ -50,7 +50,11 @@ describe("NotesList", () => {
     }
   });
 
-  it("the second line is the area's dot and name, then when; unfiled wears yellow and says so", () => {
+  // §AK (R1), 2026-09-26: "Not Filed" under every unfiled note was a
+  // placeholder, a line saying there was nothing to say. An unfiled row
+  // names no area, and a row with nothing at all under its title draws no
+  // empty second line.
+  it("the second line is the area's dot and name, then when; unfiled names no area", () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     try {
       const { container } = render(<NotesList notes={notes} />);
@@ -58,9 +62,11 @@ describe("NotesList", () => {
       expect(rows[0]!.querySelector(".r-parent .r-pg")).toHaveClass("cat-fg-blue");
       expect(rows[0]!.querySelector(".r-parent .r-goal-t")).toHaveTextContent("Work");
       expect(rows[0]!.querySelector(".r-when")).toHaveTextContent("Edited today");
-      expect(rows[1]!.querySelector(".r-parent .r-pg")).toHaveClass("cat-fg-yellow");
-      expect(rows[1]!.querySelector(".r-parent .r-goal-t")).toHaveTextContent("Not Filed");
+      expect(rows[1]!.querySelector(".r-parent")).toBeNull();
+      expect(rows[1]!.querySelector(".r-when")).toHaveTextContent("Yesterday");
+      expect(rows[1]!.textContent).not.toMatch(/Not Filed/);
       expect(rows[3]!.querySelector(".r-when")).toBeNull();
+      expect(rows[3]!.querySelector(".r-k")).toBeNull();
     } finally {
       vi.useRealTimers();
     }

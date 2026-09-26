@@ -56,7 +56,7 @@ import { inheritFromThread } from "../messages/threadTasks";
 import { endOfAct, type MailAct } from "../messages/mailAct";
 import { dayPhrase } from "../money/bills";
 import { rankProjects, closable, projectPaceParts, projectProgress } from "../bigger/progress";
-import { movesCount, goalsMovedToday, movedLine, untouchedGoal, untouchedLine, openWorkOf, dismissGoalNudge } from "./goalPulse";
+import { movesCount, goalsMovedToday, movedLine, untouchedGoal, openWorkOf, dismissGoalNudge } from "./goalPulse";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
@@ -111,7 +111,7 @@ import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
 import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
-import { liveCard, currentLine } from "../gym/liveCard";
+import { liveCard, type LiveCard } from "../gym/liveCard";
 import { readFifteen, writeFifteen, clearFifteen, isStillLive, fifteenFace, extended, type LiveFifteen } from "./liveFifteen";
 import { sourceOpener } from "../shared/openSource";
 import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
@@ -141,7 +141,7 @@ import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { scheduleTask, breakDownTask as splitIntoSteps, undoBreakdown, splitLine, type BreakdownResult } from "../tasks/taskMoves";
 import { identityToText, voiceToText, contextToText } from "../ai/context";
 import { meetingPrep, type PrepPerson } from "./meetingPrep";
-import { loadLastContact } from "../people/lastContact";
+import { loadLastContact, agoLabel } from "../people/lastContact";
 import { useAIContext } from "../ai/useAIContext";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
 import { supabase } from "../auth/supabaseClient";
@@ -1722,10 +1722,26 @@ export default function TodayFlow({
   const untouched = untouchedGoal(goalIdx, goalList, goalReach, todaysTasks(taskItems, today), today);
   // The chain's one meta line: derived facts only, and the task's own length
   // when it has one (UP-CORE-02), because "10m" is what makes it startable.
-  const momentumSub = (t: TaskItem): string => {
-    const why = chainReason(t, t.data.category ?? "", today);
+  // §AK, §AM (2026-09-26): the reason is the line's one grey and the
+  // length is an estimate the app worked out, so it is sky (.fact.est, as on
+  // the headliner). "Keep going" came off the card: a second grey that said
+  // nothing the slot, the tick a second ago and Start Now do not already say.
+  // momentumSub keeps it, because that string is only the tuning rule's
+  // stored evidence and never renders as the card's line.
+  const momentumParts = (t: TaskItem) => {
     const mins = t.data.estimateMin ?? estimates[t.data.category ?? ""];
-    return ["Keep going", why?.toLowerCase(), mins ? durLabel(mins) : null].filter(Boolean).join(" \u00b7 ");
+    return { why: chainReason(t, t.data.category ?? "", today), len: mins ? durLabel(mins) : null };
+  };
+  const momentumSub = (t: TaskItem): string => {
+    const { why, len } = momentumParts(t);
+    return ["Keep going", why?.toLowerCase(), len].filter(Boolean).join(" \u00b7 ");
+  };
+  // Null when there is nothing to say, so the card goes solo instead of
+  // carrying an empty sub line.
+  const momentumFacts = (t: TaskItem) => {
+    const { why, len } = momentumParts(t);
+    if (!why && !len) return null;
+    return <Facts facts={[why ? { text: why } : null, len ? { text: len, tone: "est" } : null]} />;
   };
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm, completionsToday) : undefined;
   // C-24 (Astra, 2026-09-12): the headliner's own two facts. The area is a
@@ -2281,6 +2297,8 @@ export default function TodayFlow({
     nowMin,
     (personId) => prepLast[personId] ?? null,
   );
+  // The same last-mail time meetingPrep read, for the row's own facts line.
+  const prepLastMs = prep ? prepLast[prep.person.id] ?? null : null;
   const gapKey = today + ":" + (nowCtx.nextStart ?? "end");
   // Pick 1 + pick 31: the goal this gap task moves, when naming it says
   // something the task title did not already say.
@@ -2326,6 +2344,25 @@ export default function TodayFlow({
   // that, before any gap or block: the day, the time left or the time in, what
   // is logged, and Resume as its one door. Same read as the Your Move row.
   const liveNow = liveGym && !gymDismissed && tuned("live-gym") ? liveCard(liveGym) : null;
+  // THE SESSION'S FACTS, ONE GREY (§AK, §AM, 2026-09-26). Both render sites
+  // joined currentLine, the clock and the count into one string, so the dots
+  // were typed and every fact wore the same grey. The lift's name is the
+  // line's one grey; the numbers drawn up for it, the clock and the count are
+  // data with no state, so they step up to white (F1); a budget that has run
+  // out is over its limit, which is the key's red. With no lift to name, the
+  // line says nothing rather than repeat the day the title already says.
+  // `clock` is the time left when a timer was set, else the time in; the
+  // count rides after it on Now, and stands in for it on Your Move.
+  const liveFacts = (card: LiveCard, clock: string | null, count: string | null, cls = "facts") => (
+    <div className={cls}>
+      {card.current && <span className="fact">{card.current.name}</span>}
+      {card.current?.plan && <span className="fact"><b>{card.current.plan}</b></span>}
+      {clock && (clock === "Time's up"
+        ? <span className="fact red">{clock}</span>
+        : <span className="fact"><b>{clock}</b></span>)}
+      {count && <span className="fact"><b>{count}</b></span>}
+    </div>
+  );
   const nowSection = !evening && (
     <>
       <div className="pad-x"><div className="card">
@@ -2343,7 +2380,7 @@ export default function TodayFlow({
                   So while a workout was running, Today told you the day, the
                   minutes and the set count, and never the one fact you would
                   pick up the phone for. */}
-              <div className="conn-meta truncate">{[currentLine(liveNow), liveNow.left ?? liveNow.elapsed, liveNow.progress].filter(Boolean).join(" · ")}</div>
+              {liveFacts(liveNow, liveNow.left ?? liveNow.elapsed, liveNow.progress, "conn-meta facts")}
             </div>
             <button className="pill-act pill-go" onClick={own(() => onRestoreSpot?.("gym", gymCatId ?? ""))}>Resume</button>
           </div>
@@ -2405,7 +2442,14 @@ export default function TodayFlow({
               <RowIcon kind="event" />
               <div className="row-stack">
                 <div className="conn-name truncate">{shortSpan(nowCtx.gapMin)} open</div>
-                <div className="conn-meta truncate">Until {nowCtx.nextTitle ?? "your next event"} {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</div>
+                {/* §AM F5 (2026-09-26): when the window ends is a neutral
+                    time, so it is small caps, the same "Until" the in-a-block
+                    row below says; what ends it is the line's one grey, and
+                    last, so a long title is the fact that gives way. */}
+                <div className="conn-meta facts">
+                  <span className="fact date">Until {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</span>
+                  <span className="fact">{nowCtx.nextTitle ?? "Your next event"}</span>
+                </div>
                 {nextOutdoor && <EventWeatherLine dateIso={today} start={nextOutdoor.data.start} />}
               </div>
               {/* MERGE B: Plan My Day used to sit here as well as in the
@@ -2446,7 +2490,9 @@ export default function TodayFlow({
                 already written as the line it is. */}
             <div className="row-stack">
               <div className="conn-name truncate">{nowCtx.head ?? nowCtx.line}</div>
-              {nowCtx.tail && <div className="conn-meta truncate">{nowCtx.tail}</div>}
+              {/* §AM F5 (2026-09-26): the tail here is "Until 7:00 PM", a
+                  neutral time stated as the row's fact, so it is small caps. */}
+              {nowCtx.tail && <div className="conn-meta facts"><span className="fact date">{nowCtx.tail}</span></div>}
             </div>
             {/* UP-CORE-08 (2026-09-05): INSIDE A MEETING, THE PILL IS ITS
                 PAGE. An exec pays for walking into the 2 PM with a page
@@ -2485,7 +2531,19 @@ export default function TodayFlow({
           <div className="row" {...rowDoor(() => void (onOpenPerson ?? onAskSaid)?.(prep.person.id))}>
             <RowIcon kind="event" />
             <div className="row-stack">
-              <div className="conn-name truncate">{prep.line}</div>
+              {/* THE NAME IS THE TITLE; THE FACTS GO UNDER IT (§AK, §AM,
+                  2026-09-26). prep.line put the name, the count and the last
+                  mail in the title with typed dots, so the facts truncated
+                  with it and wore its ink. The count is white (a count with
+                  no state), "with them" is the line's one grey, and the last
+                  mail is a neutral date, so it is small caps. */}
+              <div className="conn-name truncate">{prep.person.name}</div>
+              {(prep.open.length > 0 || prepLastMs) ? (
+                <div className="conn-meta facts">
+                  {prep.open.length > 0 && <span className="fact"><b>{capAfterNumber(`${prep.open.length} open`)}</b> with them</span>}
+                  {prepLastMs ? <span className="fact date">Last mail {agoLabel(prepLastMs, Date.now()).toLowerCase()}</span> : null}
+                </div>
+              ) : null}
               {/* row-tap: chip strip inside the prep row, not a row of its own */}
               <div className="row mail-chips">
                 {prep.open.length > 0 && (
@@ -2630,7 +2688,9 @@ export default function TodayFlow({
   // `accepted` has been on the draft since the Day Loop shipped.
   const draftReceipt = !evening && dayDraft?.accepted && !dayDraft.dismissed && planEvs.length > 0 ? (
     <div className="receipt-line" aria-label={`Accepted, ${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} planned`}>
-      <span className="rl-t">{capAfterNumber(`Accepted · ${planEvs.length} ${planEvs.length === 1 ? "Block" : "Blocks"}`)}</span>
+      {/* One phrase, no typed dot (§AM F3, 2026-09-26): the count leads,
+          the way every other receipt here reads. */}
+      <span className="rl-t">{capAfterNumber(`${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} accepted`)}</span>
     </div>
   ) : null;
 
@@ -2795,7 +2855,7 @@ export default function TodayFlow({
           icon={<BarbellGlyph />}
           tone="cat-fg-orange"
           title={card.fresh ? `${card.dayName} is ready` : `Back to ${card.dayName}`}
-          sub={[currentLine(card), card.left ?? card.elapsed ?? card.progress].filter(Boolean).join(" · ")}
+          sub={liveFacts(card, card.left ?? card.elapsed, (card.left ?? card.elapsed) ? null : card.progress)}
           action={{ label: card.fresh ? "Start" : "Resume", go: true, onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
           // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
           // opens the session, like the pill.
@@ -2807,9 +2867,13 @@ export default function TodayFlow({
   const alertCards = [
     // The welcome-back recap is a RECEIPT: it reports, it does not ask.
     // One quiet line; tapping it opens the pile it describes.
+    // ONE SENTENCE, NO TYPED DOTS (§AM F3, 2026-09-26). back.sub's first
+    // half is "Nothing was lost" on every render (agedOut is 0, see above):
+    // the empty case of a count, which says nothing, so it came off. The
+    // greeting and the one thing to start with stay.
     back ? (
       <button key="back" data-receipt className="receipt-line" onClick={() => setUpNextOpen(true)}>
-        <span className="rl-t">{back.title} · {back.sub}</span>
+        <span className="rl-t">{back.title}. Start with one?</span>
         <span className="chev" />
       </button>
     ) : null,
@@ -2841,7 +2905,9 @@ export default function TodayFlow({
         icon={SWEEP_ICO}
         tone="cat-fg-red"
         title="Couldn't Move Yesterday's Tasks"
-        sub="Nothing was lost · Try again"
+        // One grey (§AK, 2026-09-26): "Try again" came off, because the
+        // Retry pill beside it says it and does it.
+        sub="Nothing was lost"
         // ROW-TAP (Dave 2026-09-15): nothing to open, so the body retries,
         // the same safe verb as the pill.
         onOpen={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}
@@ -3069,7 +3135,7 @@ export default function TodayFlow({
         icon={<CheckCircleGlyph />}
         tone="cat-fg-blue"
         title={momentum.data.text}
-        sub={momentumSub(momentum)}
+        sub={momentumFacts(momentum)}
         action={{ label: "Start Now", onClick: () => { const t = momentum; setMomentum(null); if (onStartNow) onStartNow(t.id); else void startFifteen(t); } }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
         // opens the task.
@@ -3124,7 +3190,16 @@ export default function TodayFlow({
            report); this card is about a GOAL, so it wears the goal's color. */
         tone={goalTone(untouched.data.tags)}
         title={untouched.data.title}
-        sub={untouchedLine(openWorkOf(goalReach(untouched.id))) + " · Pick a project to move it"}
+        // §AK, §AM (2026-09-26): two facts, the dot drawn by the
+        // stylesheet. The open count is a count with no state, so it is white;
+        // the reason is the line's one grey. "Pick a project to move it" came
+        // off: an instruction, a third grey, and what Resume already does.
+        sub={(
+          <div className="facts">
+            <span className="fact"><b>{capAfterNumber(`${openWorkOf(goalReach(untouched.id))} open`)}</b></span>
+            <span className="fact">Nothing today moves it</span>
+          </div>
+        )}
         // "Pick One", not "Pick Something" (2026-08-25). Measured on the
         // uniform card: the longer label took 139px of a 358px row and left
         // the goal's own name 133px when it needed 202, so a two-word button
@@ -3247,7 +3322,10 @@ export default function TodayFlow({
       icon={<BellRing className="ic" />}
       tone="cat-fg-slate"
       title={r.text}
-      sub={"Missed at " + fmtTime(r.time).time + " " + fmtTime(r.time).ap}
+      // §AM (2026-09-25/26): missed is one of the key's reds, and a time
+      // with a meaning takes the key colour (F5): the same red the strip
+      // gives a missed reminder's time, on the time's fact alone.
+      sub={<Facts facts={[{ text: "Missed at " + fmtTime(r.time).time + " " + fmtTime(r.time).ap, tone: "red" }]} />}
       action={{ label: "Ask Again in 15m", onClick: () => void onAskAgainReminder(r.id) }}
       alt={{ label: "Done", onClick: () => void onTickReminder(r.id, true) }}
       // The row opens the reminder (Dave 2026-09-15: "I want all rows clickable").

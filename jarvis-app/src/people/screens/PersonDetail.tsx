@@ -17,10 +17,11 @@ const EDIT = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
 );
 
-// A promise's deadline wears the same window a reminder's day and a
-// project's due date wear (§AM, R8): past is late (red), today or tomorrow
-// is due (amber), and anything later is a neutral date (small caps).
-function promiseTone(due: string, today: string): "red" | "warn" | "date" {
+// A promise's deadline, and an open task's due date, wear the same window a
+// reminder's day and a project's due date wear (§AM, R8): past is late
+// (red), today or tomorrow is due (amber), and anything later is a neutral
+// date (small caps).
+function dueTone(due: string, today: string): "red" | "warn" | "date" {
   if (due < today) return "red";
   if (due <= addDays(today, 1)) return "warn";
   return "date";
@@ -106,12 +107,13 @@ export default function PersonDetail({
   // service access on purpose). Absent on everyone else, which is most people.
   trustedAdult?: boolean;
   // LAST TALKED (S6-Q40, 2026-08-10's lastContact.ts brought to the card
-  // itself): a ready sentence ("3 Weeks ago", "Gone quiet · 2 Months ago"),
-  // resolved by the caller same as everything else here (a Gmail lookup
+  // itself): a ready ago ("3 Weeks ago", "2 Months ago"), resolved by the
+  // caller same as everything else here (a Gmail lookup
   // needs a session this screen has no access to). Undefined hides the row:
   // no email, no session, or never talked.
   lastTalked?: string;
-  // Gates the Check In action; does not affect what lastTalked itself says.
+  // Gates the Check In action, and draws the ago in the Colour Key's amber:
+  // gone quiet is stalled, which needs him (§AM). The words stay the ago.
   quiet?: boolean;
   // Drafts the gone-quiet check-in (checkinPrompt, already written for the
   // same job on the Family/area pages) and opens it in the mail app --
@@ -160,7 +162,7 @@ export default function PersonDetail({
   const emails = emailsOf(person.data);
   const phone = phones[0]?.value;
   const email = emails[0]?.value;
-  const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0 || !!lastTalked;
+  const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0 || !!lastTalked || trustedAdult;
   // How JARVIS writes to them, stated in the card because it drives every
   // draft. Flagged wins over register, same precedence the drafting stack uses.
   const writeStyle = flagged
@@ -193,20 +195,25 @@ export default function PersonDetail({
                 rather than repeating it. */}
             {relationship && !areaEchoes && <span className="fact">{relationship}</span>}
             {/* A ROLE PER AREA (People handoff, 2026-09-16). Where a role
-                is set, the area says what they are IN it: "Family · Mother",
-                "Bridge · Board secretary". Both facts on one chip, because
-                they are one fact. An area with no role reads as it always
-                did. Text, never colour alone: the area's dot is the colour
-                and the words carry the meaning. */}
+                is set, the area says what they are IN it: "Family", then
+                "Mother". Both under the one dot, because they are one fact.
+                An area with no role reads as it always did. Text, never
+                colour alone: the area's dot is the colour and the words
+                carry the meaning.
+                The dot between area and role is the stylesheet's separator
+                (.fact + .fact), never one baked into the words (§AM, R6).
+                The pair sits in one plain span so the category's own gap
+                does not widen the space ahead of it. */}
             {categoryColors.map((c) => (
               <span className="fact cat" key={c.name}>
                 <span className={"cd cat-bg-" + catColor(c.color)} />
-                {c.role ? c.name + " · " + c.role : c.name}
+                {c.role
+                  ? <span><span className="fact">{c.name}</span><span className="fact">{c.role}</span></span>
+                  : c.name}
               </span>
             ))}
           </div>
         )}
-        {trustedAdult && <div className="bp-sub">Trusted adult</div>}
       </div>
       {/* Reach them (2026-08-10): the email and phone this card has stored
           since the person pass, finally shown, and tappable so the card is a
@@ -319,13 +326,18 @@ export default function PersonDetail({
           <KV label="Birthday" value={birthday} onEdit={onEdit} />
           <KV label="JARVIS writes" value={writeStyle} onEdit={onEdit} />
           <KV label="Areas" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} onEdit={onEdit} />
+          {/* UP-ATH-07: the one person Say It to Someone reaches. It sat
+              under the name as a second grey beside the relationship (§AK),
+              so it is a fact of its own here. No tap: the person sheet does
+              not set it. */}
+          {trustedAdult && <KV label="Say It to Someone" value="Trusted adult" />}
           {lastTalked && (
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): a quiet
             // contact's row drafts the check in, as its pill does. It opens a
             // draft in the mail app and never sends.
             <div className="row" {...(quiet && onCheckIn && !checkingIn ? pressable(onCheckIn) : {})}>
               <div className="row-grow"><div className="conn-name">Last Talked</div></div>
-              <span className="kv-val">{lastTalked}</span>
+              <span className="kv-val">{quiet ? <span className="fact warn">{lastTalked}</span> : lastTalked}</span>
               {quiet && onCheckIn && (
                 <button className="pill-act" disabled={checkingIn} onClick={(ev) => { ev.stopPropagation(); onCheckIn(); }}>
                   {checkingIn ? "Drafting" : "Check In"}
@@ -362,7 +374,7 @@ export default function PersonDetail({
               <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => onAddTask(p)) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.text}</div>
-                  <div className="facts"><span className="fact">You promised</span>{p.due && <span className={"fact " + promiseTone(p.due, todayISO())}>{shortDate(p.due)}</span>}</div>
+                  <div className="facts"><span className="fact">You promised</span>{p.due && <span className={"fact " + dueTone(p.due, todayISO())}>{shortDate(p.due)}</span>}</div>
                 </div>
                 {onAddTask && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onAddTask(p); }}>Add Task</button>}
               </div>
@@ -374,7 +386,17 @@ export default function PersonDetail({
                 <div className="task-check-tap"><RowGlyph kind={m.kind} /></div>
                 <div className="task-title">
                   <span className="task-name">{m.title}</span>
-                  {m.sub && <div className="r-k"><span className="r-goal r-cat">{m.sub}</span></div>}
+                  {/* A task's due date wears the reminder and project window
+                      (§AM, R8), an event's date is a neutral small-caps date,
+                      and a reminder's own words ("Reminds at 2:00PM") are the
+                      line's one grey. Never the raw ISO string. */}
+                  {m.sub && (
+                    <div className="facts">
+                      {m.reminder
+                        ? <span className="fact">{m.sub}</span>
+                        : <span className={"fact " + (m.kind === "task" ? dueTone(m.sub, todayISO()) : "date")}>{shortDate(m.sub)}</span>}
+                    </div>
+                  )}
                 </div>
                 {onMessageAbout && (
                   <button className="pill-act" onClick={(e) => { e.stopPropagation(); onMessageAbout(m); }}>Message</button>
@@ -394,7 +416,9 @@ export default function PersonDetail({
               <div className="row" key={p.id} {...(onOpenProject ? pressable(() => onOpenProject(p.id)) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.title}</div>
-                  {p.next && <div className="facts"><span className="fact">Next: {p.next}</span></div>}
+                  {/* The house project row's next move: NEXT in the key's
+                      amber small caps, then the action in full ink (§AM). */}
+                  {p.next && <div className="r-k"><span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{p.next}</span></span></div>}
                 </div>
                 {onOpenProject && <div className="chev" />}
               </div>

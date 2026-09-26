@@ -78,7 +78,7 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
             account to be active, so the honest value follows the same signal
             BackupPage uses. */}
         <Row label="Status" value={backendConfigured ? "Active" : "Local"} />
-        <Row label={redoArmed ? "Tap again to redo setup" : "Redo Setup"} meta={redoArmed ? "Your data stays · Intake runs again" : undefined} chev
+        <Row label={redoArmed ? "Tap again to redo setup" : "Redo Setup"} meta={redoArmed ? "Your data stays" : undefined} chev
           onClick={async () => {
             if (!redoArmed) { setRedoArmed(true); return; }
             // SHELL-F-14 (2026-09-05): this write had no catch, so a failed

@@ -122,11 +122,15 @@ export default function PublicBookingPage({ slug, fetchImpl = fetch }: { slug: s
     const m = phase.made;
     return (
       <div className="screen ruled bk-page">
-        <div className="pagehead"><div className="pagehead-title">You Are Booked</div></div>
+        <div className="pagehead"><div className="eyebrow">{m.name}</div><div className="pagehead-title">You Are Booked</div></div>
         <div className="pad-x"><div className="card pad">
           <div className="bk-when">{dayLabel(m.startMs)}</div>
           <div className="bk-time">{timeLabel(m.startMs)} to {timeLabel(m.endMs)}</div>
-          <div className="facts"><span className="fact">{m.name}</span><span className="fact">{localZone() || m.timezone}</span></div>
+          {/* ONE GREY UNDER THE TIME (§AK, 2026-09-26). The meeting's name
+              rides the eyebrow, as it does on the grid, and the zone is a
+              neutral time fact in small caps, so the confirmation below is
+              the card's one quiet line. */}
+          <div className="facts"><span className="fact date">{localZone() || m.timezone}</span></div>
           {/* WHAT ACTUALLY HAPPENED (2026-09-19). This line used to promise a
               confirmation whether or not one was sent. The server now says,
               and when nothing went out the page says the one thing that is

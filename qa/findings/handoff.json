@@ -335,5 +335,293 @@
   "group": "ruled.css#3",
   "phase": "css",
   "done": true
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 33,
+  "file": "jarvis-app/src/today/TodaySuggestions.tsx (+ TodaySuggestions.test.tsx, + my routinePatterns.ts in the same change)",
+  "change": "Land these together. Applying the routinePatterns.ts half alone would either break TodaySuggestions.test.tsx:107 (/Gym \u00b7 Around 6 AM/) or drop the evidence count the offer card must show, so I left routinePatterns.ts untouched. (1) routinePatterns.ts: add `sub: string` to RoutineCandidate, import { capAfterNumber } from \"../shared/casing\", and change line 95 `text: `${title} \u00b7 Around ${min12h(startMin)} ${daysSummary(days)} \u00b7 ${evs.length} times this month`,` to `text: `${title} around ${min12h(startMin)} ${daysSummary(days)}`, sub: capAfterNumber(`${evs.length} times this month`),`. (2) TodaySuggestions.tsx:139: `{ id: routineC.id, text: routineC.text, routineBlock: routineC.block }` becomes `{ id: routineC.id, text: routineC.text, sub: routineC.sub, routineBlock: routineC.block }`. The candidate type already has sub?, and the card already renders sub={pattern.sub}. (3) TodaySuggestions.test.tsx:107: /Gym \u00b7 Around 6 AM/ becomes /Gym around 6 AM/ (optionally also assert '3 Times this month'). Reword: 'Gym \u00b7 Around 6 AM weekdays \u00b7 5 times this month' becomes title 'Gym around 6 AM weekdays' with sub '5 Times this month'. Accepting a routine uses routineBlock, not the text, so nothing stored changes.",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 59,
+  "file": "jarvis-app/src/today/YourDay.test.tsx",
+  "change": "Line 349 pins screen.getByText(\"Protected\") on Today, and every YourDay DaySet branch passes stateWords, so that row always carries the PROTECTED state word too. The finding's full fix drops the kicker words that repeat the state word, and that would break this test. Change the assertion to getByText(\"PROTECTED\"), the state word. Then follow up in LockedRow.tsx (mine) with: kicker = state ? (m === \"blends\" ? \"Can blend, \" + free : \"\") : <current kicker>. That drops 'Protected' beside PROTECTED and 'Focus time' beside FOCUS. Not done here, so the test keeps passing.",
+  "group": "code-3:schedule:stateWord.ts",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 77,
+  "file": "jarvis-app/src/styles/ruled.css",
+  "change": "When the event page's provenance line cannot be opened, it is still a 14px regular grey, a second grey beside the place. Extend the existing caps rule so it covers this line: `.ruled .sched-body > .prov-line, .ruled .row-pair + .prov-line { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps); text-transform: uppercase; }`. EventDetailPage's header card is the only place a Provenance follows a .row-pair. Related, and outside my files: sourceLine in shared/provenance.ts bakes ' \u00b7 ' into 'From Smart Paste \u00b7 2:14 PM'.",
+  "group": "code-3:schedule:stateWord.ts",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 603,
+  "file": "jarvis-app/src/styles/components.css",
+  "change": "Nothing uses these rules any more; delete them (currently about lines 4971-4975): .rep-win-blue {...} .rep-win-blue .rep-win-val {...}, .rep-win-purple {...} .rep-win-purple .rep-win-val {...}, .rep-win-warn {...} .rep-win-warn .rep-win-val {...}, and the two raw-hex light rules [data-theme=\"light\"] .rep-win-blue .rep-win-val { color: #0A5FD0; } and [data-theme=\"light\"] .rep-win-purple .rep-win-val { color: #7A2F9E; }. Keep .rep-win-good. (This covers 115 as well.)",
+  "group": "code-4:review:week.ts",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 604,
+  "file": "jarvis-app/src/styles/components.css",
+  "change": "Nothing uses these rules any more; delete them (currently about lines 4943-4945): .stat-tile.stat-blue { background: rgba(10, 132, 255, 0.14); }, .stat-tile.stat-blue .stat-num { color: var(--blue); } and the raw-hex [data-theme=\"light\"] .stat-tile.stat-blue .stat-num { color: #0A5FD0; }. Also trim the \"Sessions tile\" sentences in the comment above them. Keep the .week-dots rules below it, and keep .stat-tile.stat-sky and .stat-tile.stat-warn, which RefillRunwayScreen uses.",
+  "group": "code-4:review:week.ts",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 139,
+  "file": "jarvis-app/src/bigger/GoalDetailPage.tsx",
+  "change": "Line 341 renders the same decision banner, with a middot baked into promo-sub and the \"No reason recorded\" placeholder. Apply the same fix there so the two banners match: `{decision.data.why && <div className=\"promo-sub\">Because {decision.data.why}</div>}<div className=\"facts\"><span className=\"fact date\">Decided {fmtDay(decision.data.createdAt)}</span></div>`",
+  "group": "code-6:projects:types.ts",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 311,
+  "file": "jarvis-app/src/gym/classify.ts",
+  "change": "Three functions bake \" \u00b7 \" into strings that render inside `.fact` spans: `valueLine` for equipment (`${label} \u00b7 ${COUNTED_LABEL[counted]}`), `valueLine` for muscles (`${p} \u00b7 Also ${s}`), and `identityLine` (`bits.join(\" \u00b7 \")`). The places are DuplicateReview's Side kit fact, DuplicatesSheet's amber 'X and Y' fact, and the Conflicts facts. Join with \", \" instead, the way equipment.ts styleSummary now does, and update classify.test.ts:101. Until then the Side equipment fact can mix separators, e.g. 'Dumbbells \u00b7 The Whole Load, Home Gym \u00b7 Leg Press'.",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 265,
+  "file": "jarvis-app/src/gym/editor.test.ts",
+  "change": "Apply these two changes together. (1) GymFlow.tsx ExerciseRow (~line 519): change `{exercise.restSec ? <span className=\"fact\">{`${mmss(exercise.restSec)} rest`}</span> : null}` to `{exercise.restSec ? <span className=\"fact\"><b>{`${mmss(exercise.restSec)} rest`}</b></span> : null}`. The rest is a length with no state, so it is a white <b>, the lead's settled rule for untappable lengths. That leaves the row's one grey to the .row-ghost note. (2) editor.test.ts:323: change the regex to `/exercise\\.restSec \\? <span className=\"fact\"><b>\\{`\\$\\{mmss\\(exercise\\.restSec\\)\\} rest`\\}<\\/b><\\/span> : null/`. I applied (1), confirmed it was right, then reverted it: editor.test.ts pins the old literal and is not a co-located test of a file I own. GymFlow.tsx is back to its original line. If you would rather use caps, .fact.date (\"1:30 REST\") is the alternative primitive, with the same test edit.",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 619,
+  "file": "jarvis-app/src/gym/editor.test.ts",
+  "change": "Same fix as #265: the rest fact becomes a white <b> in GymFlow.tsx:519, and editor.test.ts:323's regex is updated to match. The finding's CSS half is not needed and should not be applied. It proposed a new `.fact.fact-time` class, and the rulebook forbids new classes when a primitive exists. It also proposed changing `.row-ghost` from `--t-meta`/`--tx-2` to `--t-sub`/`--tx-3`, but those are the same 14px and the same hex, so nothing would change on screen.",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 269,
+  "file": "jarvis-app/src/styles/ruled.css",
+  "change": "Optional tidy: `.ruled.health-ruled .se-chip-skip { color: var(--hl-amber-ink); background: var(--hl-amber-tint); }` (ruled.css ~1905) now has no user in src after the Logged Later chip moved to se-chip-when. Delete it so a dead amber variant isn't picked up by accident. No law currently catches it.",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 377,
+  "file": "jarvis-app/src/insights/exportData.ts",
+  "change": "The CSV Detail column read r.detail, which used to contain ' \u00b7 Duration needs review'. That text is now in the new optional r.review field, so until this is changed a flagged workout's CSV row no longer says it needs review. In buildCsv, write the Detail column as `[r.detail, r.review].filter(Boolean).join(\"; \")`. The summary export already says 'Sessions whose duration needs review: N'.",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 377,
+  "file": "jarvis-app/src/health/checkin.ts",
+  "change": "checkInLine() joins 'Energy X' and 'Mood Y' with ' \u00b7 '. That string is a check-in record's value and renders inside a .fact on All Data, so it is a baked middot (R6). Join with ', ' instead. Its other callers (log.ts detail, CheckInScreen title, doctorReport) are fine with a comma.",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 387,
+  "file": "jarvis-app/src/insights/AssignMusclesSheet.tsx",
+  "change": "Line 58: `<span className=\"fact cyan\">{capAfterNumber(`${assigned} of ${untagged.length} assigned`)}</span>` is a count painted in Health's 'now' cyan. Use `fact amber` while assigned < untagged.length (it still needs the person), otherwise `fact lime`.",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 498,
+  "file": "jarvis-app/src/money/budget.ts",
+  "change": "Comment only, nothing depends on it. Lines 102-103 say \"Overspend is stated in words and never dressed up in red, the same way an overdue bill is.\" That is now wrong: MoneyFlow shows the shortfall in `.fact.red` per \u00a7AM (over the limit is red), and the overdue bill's late chip is already red. Suggested replacement: \"Overspend is stated in words; on the page it wears the Colour Key's red (over the limit), as a late bill's chip does.\"",
+  "group": "code-18:money:BillSheet.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 23,
+  "file": "jarvis-app/src/today/goalPulse.ts",
+  "change": "Optional cleanup, not needed for the fix: untouchedLine() (typed middot) has no callers in the app now. It can be removed with its test in goalPulse.test.ts, or left alone.",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 25,
+  "file": "jarvis-app/src/today/welcomeBack.ts",
+  "change": "Optional cleanup, not needed for the fix: WelcomeBack.sub (\"Nothing was lost \u00b7 Start with one?\", typed middot) is no longer rendered on Today. adhdPack.test.ts still pins it.",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 27,
+  "file": "jarvis-app/src/today/meetingPrep.ts",
+  "change": "Optional cleanup, not needed for the fix: MeetingPrep.line (the typed-middot join) is no longer rendered by Today; only meetingPrep.test.ts reads it.",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 20,
+  "file": "jarvis-app/src/gym/liveCard.ts",
+  "change": "Optional cleanup, not needed for the fix: currentLine() (typed middot) no longer has an app caller; only liveCard.test.ts uses it.",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 608,
+  "file": "jarvis-app/src/styles/components.css",
+  "change": "Line ~3978: delete `.plan-load.over { color: var(--amber, #FF9F0A); font-weight: var(--w-semi); }`. Nothing applies .over any more, and it was the raw-hex fallback. Optionally trim line ~3977 `.plan-load` to `{ padding: 2px var(--s-1) var(--s-2); font-variant-numeric: tabular-nums; }`, because .facts now sets the size and ink.",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 88,
+  "file": "jarvis-app/src/styles/components.css",
+  "change": "The trailing time on a picked plan row is a tappable button, but `.p3-row.on .p3-time { color: var(--tx-2) }` (~1836) and `.p3-time-btn { ... color: inherit }` (~975) draw it grey, a second grey on the row. Set the picked, tappable time to `var(--tint-on-sheet)` (red words straight on a sheet), keeping `.p3-time-btn.placing` as is.",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 84,
+  "file": "jarvis-app/src/schedule/planLoad.ts",
+  "change": "`loadLine` has no caller outside tests now, and it still bakes ' \u00b7 '. Delete it and its three cases in src/schedule/planning.test.ts (lines ~47, 54, 58), or keep it on purpose. noDeadExport only covers gym/, so nothing fails either way.",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 89,
+  "file": "jarvis-app/src/schedule/splitSitting.ts",
+  "change": "`splitLine` has no caller outside tests now, and it still bakes ' \u00b7 '. Delete it and its cases in src/schedule/planning.test.ts (lines ~108 and ~123).",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 92,
+  "file": "jarvis-app/src/schedule/planClock.ts",
+  "change": "`ClockVerdict.sub` (\"Plan tomorrow instead?\") is no longer rendered. Drop the field, and the `expect(v?.sub)` assertion at src/schedule/planning.test.ts:137.",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 148,
+  "file": "jarvis-app/src/styles/components.css",
+  "change": "Delete the orphaned rule `.dec-meta { font-size: var(--t-meta); color: var(--tx-3); }` (line 3046, under the DECISION RECORD comment). DecisionsFlow.tsx was its only call site. Until it is deleted, src/laws/subtextLaw.test.ts > 'every class that sets a size and a secondary ink is rendered somewhere' fails with `expected [ 'dec-meta' ] to deeply equal []`. No law or other file references .dec-meta, so deleting it is safe. `.dec-old` is still used and stays.",
+  "group": "code-27:decisions:DecisionsFlow.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 301,
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "change": "Optional cleanup: line ~1752 `rangeRows[0]!.range.source.split(\" \u00b7 \").join(\", \")` now does nothing, because muscles.ts's source string no longer contains ' \u00b7 '. It can become `rangeRows[0]!.range.source`. What it renders is unchanged.",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 53,
+  "file": "jarvis-app/src/today/YourDay.test.tsx",
+  "change": "Line 59 builds a gym door with meta: \"6 exercises \u00b7 Est 42 min\", and line 63 asserts that string. Change the fixture to facts: { exercises: 6, estMin: 42 } and assert getByText(\"6 exercises\") and getByText(\"Est 42 min\"). Then the @deprecated GymDoorView.meta field and its fallback branch in DayRow.tsx (': gymDoor.meta && <div className=\"sched-cat\">{gymDoor.meta}</div>') can be deleted.",
+  "group": "code-35:gym:UploadFlow.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 516,
+  "file": "jarvis-app/src/shared/provenance.ts",
+  "change": "Export sourceWhen(source, now = Date.now): string | null (the when half of sourceLine, clock time today and shortDateFromMs otherwise), and optionally build sourceLine from it. ProvenanceLine.tsx can then import it and drop its local whenOf() duplicate.",
+  "group": "code-35:gym:UploadFlow.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 459,
+  "file": "jarvis-app/src/messages/MessagesFlow.test.tsx",
+  "change": "The finding is real. SendHold (MessagesFlow.tsx, failed branch) renders `item.error` inside `<div className=\"conn-meta\">`, and sendPump.ts:174 and TodayOutboxPump.tsx:53 fill that from humanError. So the five constants in humanError.ts (lines 18-26) put a hard-coded middot into a meta line. The fix is ready but I did not apply it: this test asserts the exact old strings at lines 1010 and 1042 (\"Your Google sign-in expired \u00b7 Reconnect in Settings\") and at line 1026 (\"You're offline \u00b7 Nothing was lost\"), and I don't own this file. The finding's suggested \". \" wording would also fail src/laws/shortCopy.test.ts, which rejects any rendered string containing \". \" followed by a capital. Apply this in one commit. In humanError.ts: SIGNED_OUT \"Your Google sign-in expired; reconnect in Settings\", NO_ACCESS \"Google refused that; reconnect in Settings to update permissions\", TOO_FAST \"Google is rate-limiting us; try again in a minute\", GOOGLE_DOWN \"Google's mail service is having trouble; try again shortly\", OFFLINE \"You're offline; nothing was lost\". In this test: change lines 1010 and 1042 to \"Your Google sign-in expired; reconnect in Settings\" and line 1026 to \"You're offline; nothing was lost\". The co-located humanError.test.ts uses regexes (sign-in expired, permissions, rate-limiting, trouble, offline) and still passes unchanged.",
+  "group": "code-41:connections:ConnectionsPage.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 459,
+  "file": "jarvis-app/src/ai/failureLine.test.ts",
+  "change": "Same atomic change as the MessagesFlow.test.tsx entry for 459. Line 16: expect \"You're offline; nothing was lost\". Line 17: expect \"Google's mail service is having trouble; try again shortly\". aiFailureLine passes non-proxy errors through humanError, so these assertions follow the humanError.ts constants. Optional: update the comment at src/connections/google/api.ts:55, which quotes the old SIGNED_OUT string. It is a comment only, so nothing renders it.",
+  "group": "code-41:connections:ConnectionsPage.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 512,
+  "file": "jarvis-app/src/styles/components.css",
+  "change": "Optional cleanup: `.mt-sum-value.warn { color: var(--warn); }` (around line 6533) now has no call site, because TrackerScreen's negative Net uses .fact.red. It can be deleted. No law requires this; it only removes dead CSS.",
+  "group": "code-44:money:TrackerScreen.tsx",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "needs_other_file",
+  "id": 515,
+  "file": "jarvis-app/src/shared/ProvenanceLine.tsx",
+  "change": "Optional cleanup, no visual change: import { sourceLabel, sourceWhen, type Source } from \"./provenance\", and replace the private whenOf(source) (lines 38-46, a copy of provenance.ts's same-day logic) with `const when = compact ? null : sourceWhen(source);`. Then drop the now-unused shortDateFromMs import and change the comment at lines 38-40, which still says sourceLine() 'still joins the two halves for the callers that want one string'.",
+  "group": "code-45:shared:provenance.ts",
+  "phase": "code",
+  "done": false
+ },
+ {
+  "kind": "blocked_by_law",
+  "id": 325,
+  "law": "src/laws/laws.test.ts:4251-4252 ('every estimate names its evidence'): expect(gym(\"FitSheet.tsx\")).toMatch(/default pace \u00b7 improves as you log/). The same law also pins pacing.ts:4247.",
+  "why": "The FitSheet honesty line is a `.conn-meta` meta line with a baked middot ('default pace \u00b7 improves as you log'), so R6 says it should read 'default pace, improves as you log'. The law requires the exact middot text in FitSheet.tsx, so the correct fix fails it. The law needs its regex changed to the comma form (in both FitSheet and pacing.ts) before this part can land. The rest of #325 is applied.",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code",
+  "done": false
  }
 ]

@@ -164,7 +164,7 @@ export default function LiftDetailScreen({
     // The band he set in Health Settings replaces the studied one here too
     // (Dave 2026-09-13), so the lift page and the Health page agree.
     const hb = readHealthSettings().volumeBand;
-    const band = hb ? { ...hb, note: `Your band ${hb.low}-${hb.high} · Set in Health Settings`, source: "Your band, from Health Settings" } : undefined;
+    const band = hb ? { ...hb, note: `Your band ${hb.low}-${hb.high}`, source: "Your band, from Health Settings" } : undefined;
     return hardSetRows(workouts, map, now, band).find((r) => r.muscle === muscleGroup) ?? null;
   }, [muscleGroup, muscleMap, name, workouts, now]);
   /** This lift's own share of that total, so the row can say both numbers
@@ -268,7 +268,7 @@ export default function LiftDetailScreen({
                       </div>
                     </div>
                     <div className="facts">
-                      <span className="fact cyan">{`Best on ${shortDate(best.date)}`}</span>
+                      <span className="fact date">{`Best on ${shortDate(best.date)}`}</span>
                       <span className="fact date">{`${shortDate(sessions[0]!.date)} to ${shortDate(sessions[sessions.length - 1]!.date)}`}</span>
                     </div>
                   </div>
@@ -296,7 +296,15 @@ export default function LiftDetailScreen({
               <div className="row">
                 <div className="row-grow">
                   <div className="conn-name">Best so far · {formatSet({ kind, unit, timeUnit }, shownTop(sessions[sessions.length - 1]!))}</div>
-                  <div className="conn-meta">{label} {latest != null ? `${latest}${unit ? " " + unit : ""}` : "--"} · logged {agoPhraseLower(sessions[sessions.length - 1]!.date, todayIso)}</div>
+                  {/* §AM (2026-09-26): two facts, not one grey run joined
+                      by baked dots. The estimate is sky; the date is a
+                      neutral date, so small caps. A non-weight kind's "Best"
+                      value is the set in the title again, so it is left
+                      out. The estimate's caveat is on the Best card above. */}
+                  <div className="facts">
+                    {kind === "weight_reps" && latest != null && <span className="fact est">{`Est 1RM ${latest}${unit ? " " + unit : ""}`}</span>}
+                    <span className="fact date">{`Logged ${agoPhraseLower(sessions[sessions.length - 1]!.date, todayIso)}`}</span>
+                  </div>
                 </div>
               </div>
               <div className="row"><div className="row-grow"><div className="conn-meta">The trend line starts at your second session</div></div></div>
@@ -305,7 +313,7 @@ export default function LiftDetailScreen({
             <div className="pad-x"><div className="card pad banner-blue">
               <div className="row-stack">
                 {/* H-31 / H-34: the unit joins the caption. */}
-                <div className="conn-meta">{label}{unit ? " · " + unit : ""}</div>
+                <div className="conn-meta">{unit ? `${label}, ${unit}` : label}</div>
                 {/* The latest number is white (§AM: a number with no state).
                     For weight_reps it is the Epley estimate, so it wears the
                     estimate primitive (sky); .fact has no size of its own and
@@ -338,11 +346,13 @@ export default function LiftDetailScreen({
                   {/* THREE FACTS, THREE SPANS (2026-09-16). One span carrying
                       two middots of its own is a sentence with punctuation in
                       it; components.css draws the separator so no string has
-                      to. The hue stays on the date, which is the datum the
-                      tapped point is about. */}
-                  <span className="fact cyan">{shortDate(sessions[sel]!.date)}</span>
+                      to. §AM (2026-09-26): the date is a neutral date, so
+                      small caps; the set is the line's one grey; the
+                      estimate is sky. A non-weight kind's chart value is the
+                      set again, so it is not said twice. */}
+                  <span className="fact date">{shortDate(sessions[sel]!.date)}</span>
                   <span className="fact">{formatSet({ kind, unit, timeUnit }, shownTop(sessions[sel]!))}</span>
-                  <span className="fact">{`${kind === "weight_reps" ? "Est" : "Best"} ${chartVals[sel]}${unit ? " " + unit : ""}`}</span>
+                  {kind === "weight_reps" && <span className="fact est">{`Est ${chartVals[sel]}${unit ? " " + unit : ""}`}</span>}
                 </div>
               )}
               {/* Three facts in one grey run-on, and the two that matter --
@@ -385,8 +395,11 @@ export default function LiftDetailScreen({
                   // The row opens the logs, same as its pill (Dave 2026-09-15: "I want all rows clickable").
                   <div className="row" {...(onOpenLogs ? rowDoor(onOpenLogs) : {})}>
                     <div className="row-grow">
-                      <div className="conn-meta">{`${lane.data.name}, same ${WEEKS} weeks`}</div>
-                      {laneVals.every((v) => v == null) && <div className="facts"><span className="fact">Not enough records</span></div>}
+                      {/* One grey line, not two (§AK): an empty lane says so
+                          in the caption itself. */}
+                      <div className="conn-meta">{laneVals.every((v) => v == null)
+                        ? `Not enough ${lane.data.name} records in these ${WEEKS} weeks`
+                        : `${lane.data.name}, same ${WEEKS} weeks`}</div>
                     </div>
                     {/* A TEXT ACTION, NOT A CAPSULE (2026-09-16, polish rule
                         2, which names this family by name: View Sets, View
@@ -414,7 +427,10 @@ export default function LiftDetailScreen({
                 <div className="conn-name">{goal.data.title}</div>
                 <div className="conn-meta">{goalState.line}</div>
               </div>
-              <div className="bp-bar"><div className="bp-bar-fill" style={{ width: `${goalState.pct}%`, background: goalState.met ? "var(--good)" : "var(--cat-yellow)" }} /></div>
+              {/* §AM (2026-09-26): the fill is .bp-bar-fill's own, the
+                  same bar every goal in Bigger Picture draws. A category
+                  colour belongs on a dot, never on progress. */}
+              <div className="bp-bar"><div className="bp-bar-fill" style={{ width: `${goalState.pct}%` }} /></div>
               {goalState.met && <span className="pill pill-good">Goal</span>}
             </div></div>
           ) : (
@@ -436,7 +452,15 @@ export default function LiftDetailScreen({
                 <div className="row">
                   <div className="row-grow">
                     <div className="conn-name">{capAfterNumber(`${plateau.flatSessions} sessions with no new best`)}</div>
-                    <div className="conn-meta">Best was {plateau.peakValue} on {plateau.peakDate} · Now {plateau.currentValue}</div>
+                    {/* §AM (2026-09-26): three facts, the separator drawn by
+                        CSS. The best is the line's one grey, its date small
+                        caps, and the stalled current value amber, the same
+                        reading the Brain plateau card gives. */}
+                    <div className="facts">
+                      <span className="fact">{`Best ${plateau.peakValue}`}</span>
+                      <span className="fact date">{shortDate(plateau.peakDate)}</span>
+                      <span className="fact amber">{`Now ${plateau.currentValue}`}</span>
+                    </div>
                   </div>
                 </div>
                 {plateau.whatChanged.length > 0 && (
@@ -479,9 +503,14 @@ export default function LiftDetailScreen({
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEditClass(f.field); } }}>
                       <div className="row-grow">
                         <div className="conn-name">{f.label}</div>
+                        {/* An unset field says nothing (§AK: a placeholder
+                            is not a fact). Muscles alone asks, because the
+                            volume row cannot count without it. */}
                         {v
                           ? <div className="facts"><span className="fact">{v}</span></div>
-                          : <div className="facts"><span className={"fact" + (f.field === "muscles" ? " amber" : "")}>{f.field === "muscles" ? "Assign muscles" : "Not set"}</span></div>}
+                          : f.field === "muscles"
+                            ? <div className="facts"><span className={"fact amber"}>Assign muscles</span></div>
+                            : null}
                       </div>
                       {CHEV}
                     </div>
@@ -516,7 +545,7 @@ export default function LiftDetailScreen({
                   </div>
                 </div>
                 <div className="facts">
-                  <span className="fact cyan">{`${shortDate(weekFrom)} to ${shortDate(todayIso)}`}</span>
+                  <span className="fact date">{`${shortDate(weekFrom)} to ${shortDate(todayIso)}`}</span>
                   <span className="fact">Warm-ups and drop sets left out</span>
                 </div>
                 {contributions.length > 0 && (
@@ -531,12 +560,17 @@ export default function LiftDetailScreen({
                       <div className="row" key={v.name + v.date + i}>
                         <div className="row-grow">
                           <div className="conn-name">{v.name}</div>
+                          {/* §AM (2026-09-26), the same reading the Brain
+                              volume card gives: the date is a neutral date,
+                              so small caps, and the count and how it counts
+                              are ONE grey fact with the number in white. A
+                              primary lift is the default and says nothing;
+                              only a secondary one owes the reader its half. */}
                           <div className="facts">
-                            <span className="fact cyan">{shortDate(v.date)}</span>
-                            <span className="fact">{v.primary ? "Primary" : "Secondary, counted half"}</span>
+                            <span className="fact date">{shortDate(v.date)}</span>
+                            <span className="fact"><b>{v.sets}</b> {v.sets === 1 ? "set" : "sets"}{v.primary ? "" : ", secondary, counted half"}</span>
                           </div>
                         </div>
-                        <div className="conn-meta">{`${v.sets} ${v.sets === 1 ? "set" : "sets"}`}</div>
                       </div>
                     ))}
                   </>
@@ -548,11 +582,15 @@ export default function LiftDetailScreen({
                     {rangeOpen ? "Hide Evidence and Calculation" : "Evidence and Calculation"}
                   </button>
                 </div>
+                {/* §AK (2026-09-26): three grey facts on one line that
+                    ellipsized are three labelled rows, the Evidence table
+                    InsightEvidence draws: a caps label and one grey value
+                    each, a long value wrapping under its label. */}
                 {rangeOpen && (
-                  <div className="facts">
-                    <span className="fact">{muscleRow.range.note}</span>
-                    <span className="fact">{muscleRow.range.source}</span>
-                    <span className="fact">A primary muscle counts a whole set, a secondary counts half. This app's counting rule, not the cited work's.</span>
+                  <div className="ins-rows ins-ev">
+                    <div className="ins-row"><span className="ins-k">Range</span><span className="ins-sub">{muscleRow.range.note}</span></div>
+                    <div className="ins-row"><span className="ins-k">Source</span><span className="ins-sub">{muscleRow.range.source}</span></div>
+                    <div className="ins-row"><span className="ins-k">Our Convention</span><span className="ins-sub">A primary muscle counts a whole set, a secondary counts half</span></div>
                   </div>
                 )}
               </div></div>
@@ -592,11 +630,11 @@ export default function LiftDetailScreen({
           <div className="sh2 sh2-quiet"><span className="t">Milestones</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             <div className="row">
-              <div className="row-grow"><div className="conn-name">First Session</div><div className="facts"><span className="fact cyan">{shortDate(sessions[0]!.date)}</span></div></div>
+              <div className="row-grow"><div className="conn-name">First Session</div><div className="facts"><span className="fact date">{shortDate(sessions[0]!.date)}</span></div></div>
             </div>
             {best && bestShown && (
               <div className="row">
-                <div className="row-grow"><div className="conn-name">{`Best ${formatSet({ kind, unit, timeUnit }, bestShown)}`}</div><div className="facts"><span className="fact cyan">{shortDate(best.date)}</span></div></div>
+                <div className="row-grow"><div className="conn-name">{`Best ${formatSet({ kind, unit, timeUnit }, bestShown)}`}</div><div className="facts"><span className="fact date">{shortDate(best.date)}</span></div></div>
               </div>
             )}
           </div></div>

@@ -34,9 +34,14 @@ export default function ThirdPracticeScreen({ offers, onProtectGap, onBack }: {
             <div className="row" key={i} {...pressable(() => onProtectGap(o))}>
               <div className="row-grow">
                 <div className="conn-name">{weekdayShortDate(o.fact.date)}</div>
-                <div className="bp-sub">{o.fact.orgs.join(" · ")}</div>
+                {/* The teams are one list, so one grey run joined by commas:
+                    a dot baked into the string is a separator only CSS may
+                    draw (§AM F3). */}
+                <div className="bp-sub">{o.fact.orgs.join(", ")}</div>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={(ev) => { ev.stopPropagation(); onProtectGap(o); }}>Protect a Gap</button>
+              {/* The offer is the row's capsule (§AL). Its red label means
+                  "tap" (§AM), not a warning; the fact itself stays uncoloured. */}
+              <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onProtectGap(o); }}>Protect a Gap</button>
             </div>
           ))}
         </div></div>

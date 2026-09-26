@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { Facts, waitingFor, evidenceFact, ruleAccountFact, dayTone } from "./factsLine";
+import { Facts, waitingFor, evidenceFact, ruleStateFact, dayTone } from "./factsLine";
 
 // EM5 (2026-09-12): K.3, one coloured fact per line, enforced where the
 // line is built rather than trusted at every call site.
@@ -62,8 +62,11 @@ describe("the presets", () => {
     expect(f?.tone).toBeUndefined();
     expect(evidenceFact(undefined)).toBeNull();
   });
-  it("ruleAccountFact keeps the account quiet and tones only On", () => {
-    expect(ruleAccountFact(undefined, true)).toEqual([{ text: "Account: All" }, { text: "On", tone: "good" }]);
-    expect(ruleAccountFact("gmail", false)).toEqual([{ text: "Account: gmail" }, { text: "Off" }]);
+  // §AM R1 (2026-09-26): the rule row spends its one grey on the bucket, so
+  // the account (the chip row's to show) and Off (the dimmed name and the
+  // Turn On capsule say it) are gone; On is the one fact, and it is green.
+  it("ruleStateFact is a green On, and nothing at all for an off rule", () => {
+    expect(ruleStateFact(true)).toEqual({ text: "On", tone: "good" });
+    expect(ruleStateFact(false)).toBeNull();
   });
 });

@@ -320,18 +320,27 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
           </div></div>
 
           {/* C-53: where it came from. A row that opens the origin when the
-              host can take him there; otherwise it says, and that is all. */}
+              host can take him there; otherwise it says, and that is all.
+              The kind is the row's name and the moment is a neutral date
+              under it, in small caps (§AM F5): the two used to share the
+              title, joined by a typed dot. */}
           {d.source && (
             <>
               <div className="sh2 sh2-quiet"><span className="t">Source</span></div>
               <div className="pad-x"><div className="card">
                 {onOpenSource && d.source.entityId && SOURCE_ROUTE[d.source.kind] ? (
                   <div {...pressable(() => onOpenSource(SOURCE_ROUTE[d.source!.kind]!, d.source!.entityId!))} className="row">
-                    <div className="row-grow"><div className="conn-name">{SOURCE_LABEL[d.source.kind]} · {srcAt}</div></div>
+                    <div className="row-grow">
+                      <div className="conn-name">{SOURCE_LABEL[d.source.kind]}</div>
+                      <div className="facts"><span className="fact date">{srcAt}</span></div>
+                    </div>
                     <Chev />
                   </div>
                 ) : (
-                  <div className="row"><div className="row-grow"><div className="conn-name">{SOURCE_LABEL[d.source.kind]} · {srcAt}</div></div></div>
+                  <div className="row"><div className="row-grow">
+                    <div className="conn-name">{SOURCE_LABEL[d.source.kind]}</div>
+                    <div className="facts"><span className="fact date">{srcAt}</span></div>
+                  </div></div>
                 )}
               </div></div>
             </>
@@ -382,8 +391,11 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                     {d.revisitOn ? fmtDay(d.revisitOn) : "No Date"}
                   </div>
                 </div>
+                {/* The answer takes the key (on track is green) and the day he
+                    gave it is a neutral small-caps date (§AM F5); the CSS
+                    draws the dot between them. */}
                 {d.revisitState === "confirmed" && d.confirmedAt && (
-                  <div className="row"><div className="row-stack"><div className="conn-meta"><span className="fact-good">Still good</span> · Confirmed {fmtDay(d.confirmedAt)}</div></div></div>
+                  <div className="row"><div className="row-stack"><div className="facts"><span className="fact good">Still good</span><span className="fact date">Confirmed {fmtShort(d.confirmedAt)}</span></div></div></div>
                 )}
                 {revisitOpen && (
                   // Row tap (Dave 2026-09-15): the form row focuses its date field.
@@ -437,7 +449,9 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                 <div className="row">
                   <div className="row-grow">
                     <div className="conn-name">{d.outcome ? OUTCOME_LABEL[d.outcome.word] : "Mark Outcome"}</div>
-                    {d.outcome && <div className="conn-meta">Marked {fmtDay(d.outcome.at)}</div>}
+                    {/* A neutral date is small caps (§AM F5), here and on the
+                        record's other dated lines below. */}
+                    {d.outcome && <div className="facts"><span className="fact date">Marked {fmtShort(d.outcome.at)}</span></div>}
                   </div>
                 </div>
                 {/* row-tap: the three outcome capsules fill this line; it is a verb strip, not an item */}
@@ -457,7 +471,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                 <div {...pressable(() => goRecord(older.id))} className="row">
                   <div className="row-stack">
                     <div className="dec-old">{older.data.decision}</div>
-                    <div className="dec-meta">Recorded {fmtDay(older.data.createdAt)}</div>
+                    <div className="facts"><span className="fact date">Recorded {fmtShort(older.data.createdAt)}</span></div>
                   </div>
                   <Chev />
                 </div>
@@ -472,7 +486,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                 <div {...pressable(() => goRecord(newer.id))} className="row">
                   <div className="row-stack">
                     <div className="conn-name">{newer.data.decision}</div>
-                    <div className="dec-meta">Recorded {fmtDay(newer.data.createdAt)}</div>
+                    <div className="facts"><span className="fact date">Recorded {fmtShort(newer.data.createdAt)}</span></div>
                   </div>
                   <Chev />
                 </div>
@@ -481,7 +495,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
           )}
 
           <div className="pad-x"><div className="card">
-            <div className="row"><div className="row-stack"><div className="conn-meta">Recorded {fmtDay(d.createdAt)}</div></div></div>
+            <div className="row"><div className="row-stack"><div className="facts"><span className="fact date">Recorded {fmtShort(d.createdAt)}</span></div></div></div>
           </div></div>
 
           {!newer && (
@@ -491,7 +505,10 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                 <button className="row row-act" onClick={() => void makeRule(record)}>Make It a Rule</button>
               )}
               {d.ruleStrandId && (
-                <div className="row"><div className="row-stack"><div className="conn-meta"><span className="fact st red">Rule</span> · Saved to Values</div></div></div>
+                // Rule is a state word (§AM, as on the Brain): its caps set it
+                // apart, and it is not late, so it wears no red. The dot
+                // between it and the fact is drawn by the CSS.
+                <div className="row"><div className="row-stack"><div className="facts"><span className="fact st">Rule</span><span className="fact">Saved to Values</span></div></div></div>
               )}
               <button className="row row-act" onClick={() => setSheet({ kind: "supersede", oldId: record.id })}>Change It</button>
               {!armedDelete

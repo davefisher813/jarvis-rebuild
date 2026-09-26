@@ -15,7 +15,12 @@
   "id": 317,
   "question": "On 2026-09-16 you asked for colour on the Classify sheet (\"it's ugly, has no color\"). Its selected chips are now coloured by question: lime for muscles, violet for equipment, cyan for how the lift is described. The library row chips use the same hues. Under the Colour Key (2026-09-22), colour is for meaning only, and on Health these inks already mean done, budget/pair and now. Should the selected chips go back to the app's neutral selected pill, library row chips included? Or keep the question colours as a named exemption to \u00a7AM?",
   "group": "components.css#2",
-  "phase": "css"
+  "phase": "css",
+  "covers": [
+   316,
+   317,
+   318
+  ]
  },
  {
   "id": 439,
@@ -92,5 +97,37 @@
   "phase": "css",
   "question": "The white footer text on pale goal/project cards measures 2.8 to 4.5:1. Add a dark fade under the footer?",
   "default": "add the fade"
+ },
+ {
+  "id": 41,
+  "question": "Quiet (today/quiet.tsx) colours every day count red, for example \"3 days left\" and \"Due in 5 days\". You set that on 2026-09-21: \"They should both be red and all instances. We need everything uniform without drifting\". It was about this exact pair: \"Mailchimp trial ends, 3 days left\" next to \"Invoice \u00b7 84 Days\". The Colour Key from 2026-09-22 makes a countdown to a due date amber (needs you soon) and keeps red for late. Should a day count that runs forward (\"N days left\", \"in N days\") now be amber, with red kept for ages like \"Slid 3d\" and \"84 Days\"? Or does your 09-21 ruling stand? If amber, it also needs a .qd-soon { color: var(--warn); } rule in components.css, which is not my file.",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 316,
+  "question": "This is dave-queue.json #317, which the rulebook lists as held for Dave ('the Classify sheet's question colours', library row chips included), so nothing was changed. The Exercises page chips are coloured by axis: muscles lime, equipment violet, movement plain. That followed your 2026-09-16 'too much of the same color'. Under the 2026-09-22 Colour Key, Health lime means done and violet means budget/pair. Should the chips go neutral (fill only, with secondary muscles as an outline), or keep the axis hues as a named exemption? If neutral: chipTone in LibraryPage.tsx becomes `ch.tone === \"secondary\" ? \" sec\" : \"\"`. ruled.css would also need `.ruled .ex-chip.sec` to show secondary as an outline, because `--tx-2` and `--tx-3` are the same hex and would make primary and secondary look identical.",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code",
+  "covered_by": 317
+ },
+ {
+  "id": 318,
+  "question": "This belongs with question 317 (the Classify sheet's question colours, held for you). On the Muscles card's facts line, 'Secondary Biceps' is drawn in Health cyan, while the chips above it use lime for muscles. Under the Colour Key, cyan means 'now' on Health. HEALTH law 2 also says a hue should land on the datum, and here it lands on the label word 'Secondary' too. Two options. (A) Keep the cyan as part of the Classify sheet's named question-colour exemption. (B) Make both facts quiet: for example, 'Primary Hamstrings' as the line's one grey and the secondary as a white <b>, with no hue. The placeholder half of this finding ('No primary yet') is already applied.",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code",
+  "covered_by": 317
+ },
+ {
+  "id": 437,
+  "question": "The warning under a destructive action is amber, bold (.slip-warn). That covers Advanced's 'This device only \u00b7 No undo' under Clear Local Data, Account's 'Permanent \u00b7 Every note, task and event is erased' under an armed Delete Account, and Account's delete-error line. In the Colour Key, amber means 'needs you soon' (due, next, stalled, near a limit), and a permanence warning is none of those. By the key it would drop to the note's own grey, italic like the rest of the note. Keep these warnings amber as a named exception, or let them go grey? The middle dots stay either way (field-note rule). Covers #437 and #438.",
+  "group": "code-15:settings:LearnedRulesPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 81,
+  "question": "Event sheet, Travel row: when a place has a remembered travel time, a grey line under 'Travel' says '25 min last time', beside the grey 'None' value. That is two greys on one row. The only fix that satisfies the key is to make the line a one-tap red link (.note-fix) that sets Travel to 25 min, and that adds new behaviour. Today it only informs, and 25 min is not in the Travel menu, so using it means Custom and typing 25. Should 'Use 25 min last time' become a tap that fills Travel? Recommended: yes.",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
  }
 ]

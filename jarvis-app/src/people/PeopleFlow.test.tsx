@@ -168,6 +168,8 @@ describe("repairing contact details out of the notes", () => {
     // The value and the line are both on screen, so "is this a number?" can
     // actually be answered rather than assumed.
     expect(await screen.findByText("555-010-3311")).toBeInTheDocument();
+    // The value is the white emphasis, so the line under it is the one grey.
+    expect(screen.getByText("555-010-3311").tagName).toBe("B");
     expect(screen.getByText("Cell 555-010-3311, call after 6")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "It's a number" })).toBeInTheDocument();
   });

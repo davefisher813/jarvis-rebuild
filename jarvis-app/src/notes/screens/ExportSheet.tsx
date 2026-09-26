@@ -127,10 +127,11 @@ export default function ExportSheet({ doc, title, selection = false, images, att
           </details>
           {failed && (
             <div role="alert">
-              {/* One sentence, one grey (§AK): the reason, then what is safe
-                  and what to do. A reason that brings its own full stop
-                  does not get a second one. */}
-              <div className="exp-note">{failed.replace(/[.\s]+$/, "")}. The note is unchanged: retry, or choose another format</div>
+              {/* One sentence on the error line, not a note class of the
+                  sheet's own (§AM F6): the reason, then what is safe and
+                  what to do. A reason that brings its own full stop does
+                  not get a second one. */}
+              <div className="input-error">{failed.replace(/[.\s]+$/, "")}. The note is unchanged: retry, or choose another format</div>
             </div>
           )}
           <div className="exp-acts">

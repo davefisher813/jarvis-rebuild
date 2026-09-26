@@ -67,6 +67,22 @@ describe("undo send", () => {
     expect(loaded!.error).toBe(INTERRUPTED_LINE);
     expect(dueNow([loaded!], NOW)).toEqual([]);
   });
+
+  // §AM R6 (2026-09-26): the line lost its typed dot. A send stored as
+  // interrupted by the old build still reads as interrupted, in the new
+  // words; any other failure keeps its own.
+  it("an interruption stored in the old words comes back in the new ones", () => {
+    let v: string | null = null;
+    const st = { getItem: () => v, setItem: (_k: string, s: string) => { v = s; } };
+    saveOutbox([
+      item({ id: "old", state: "failed", error: "Interrupted · Check Sent, then Retry" }),
+      item({ id: "net", state: "failed", error: "No connection" }),
+    ], st);
+    const [old, net] = loadOutbox(st);
+    expect(INTERRUPTED_LINE).not.toMatch(/·/);
+    expect(old!.error).toBe(INTERRUPTED_LINE);
+    expect(net!.error).toBe("No connection");
+  });
 });
 
 describe("schedule send", () => {

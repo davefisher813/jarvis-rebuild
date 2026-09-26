@@ -47,6 +47,13 @@ export interface DataRecord {
   value: string | null;
   /** One more fact beside the reading. */
   detail: string | null;
+  /** WHAT NEEDS A LOOK, KEPT OUT OF THE DETAIL (§AM, 2026-09-26). A workout
+   *  whose duration crossed the review threshold said so inside `detail`,
+   *  after a baked middot, as a second grey clause on a line that had already
+   *  spent its one. The row now says it in the key's amber on the minutes
+   *  themselves; the words live here, for search, the export and the row's
+   *  accessible name. Absent on every record with nothing to review. */
+  review?: string;
   source: "Logged by hand" | "Imported" | "Waiting to sync";
   hue: "lime" | "amber" | "violet" | "cyan" | "hblue" | "pink";
   open: RecordOpen;
@@ -98,7 +105,8 @@ export function allRecords(inp: RecordInputs): DataRecord[] {
     const sets = w.data.exercises.reduce((n, ex) => n + workingSetsIn(ex), 0);
     out.push({
       id: "w-" + w.id, category: "workouts", date: w.data.date, at: w.data.endedAt,
-      title: w.data.dayName, value: `${d.activeMin} min`, detail: `${sets} ${sets === 1 ? "working set" : "working sets"}${d.flagged ? " · Duration needs review" : ""}`,
+      title: w.data.dayName, value: `${d.activeMin} min`, detail: `${sets} ${sets === 1 ? "working set" : "working sets"}`,
+      ...(d.flagged ? { review: "Duration needs review" } : {}),
       source: w.data.source ? "Imported" : "Logged by hand", hue: d.flagged ? "amber" : "lime", open: { kind: "workout", id: w.id },
     });
     for (const ex of w.data.exercises) {
@@ -157,7 +165,7 @@ export function allRecords(inp: RecordInputs): DataRecord[] {
   for (const e of inp.callIt) out.push({ id: "ci-" + e.id, category: "effort", date: localDay(e.data.at), at: e.data.at, title: "Session Effort", value: `${e.data.rpe}/10`, detail: e.data.durationMin ? `${e.data.durationMin} min` : null, source: "Logged by hand", hue: "cyan", open: { kind: "callIt", at: e.data.at } });
   for (const e of inp.pointAtIt) {
     const words = [e.data.feel === "soreness" ? "Soreness" : e.data.feel === "pain" ? "Pain" : e.data.feel === "stiffness" ? "Stiffness" : null, e.data.level === "mild" ? "Mild" : e.data.level === "moderate" ? "Moderate" : e.data.level === "severe" ? "Severe" : null].filter(Boolean);
-    out.push({ id: "pa-" + e.id, category: "effort", date: localDay(e.data.at), at: e.data.at, title: e.data.region ? `Discomfort · ${e.data.region}` : "Discomfort", value: words.length ? words.join(" · ") : null, detail: e.data.note ?? null, source: "Logged by hand", hue: "pink", open: { kind: "pointAtIt", at: e.data.at } });
+    out.push({ id: "pa-" + e.id, category: "effort", date: localDay(e.data.at), at: e.data.at, title: e.data.region ? `Discomfort · ${e.data.region}` : "Discomfort", value: words.length ? words.join(", ") : null, detail: e.data.note ?? null, source: "Logged by hand", hue: "pink", open: { kind: "pointAtIt", at: e.data.at } });
   }
   for (const e of inp.meals) out.push({ id: "me-" + e.id, category: "nutrition", date: localDay(e.data.at), at: e.data.at, title: "Meal", value: null, detail: e.data.text, source: e.pending ? "Waiting to sync" : "Logged by hand", hue: "amber", open: { kind: "meal", at: e.data.at, pending: e.pending } });
   for (const e of inp.checkins) out.push({ id: "ck-" + e.id, category: "checkins", date: localDay(e.data.at), at: e.data.at, title: "Check In", value: checkInLine(e.data), detail: null, source: e.pending ? "Waiting to sync" : "Logged by hand", hue: "cyan", open: { kind: "checkin", at: e.data.at, pending: e.pending } });
@@ -172,7 +180,7 @@ export function filterRecords(rows: DataRecord[], f: RecordFilter): DataRecord[]
     if (f.category !== "all" && r.category !== f.category) return false;
     if (f.date && r.date !== f.date) return false;
     if (f.period && !inPeriod(r.date, f.period)) return false;
-    if (q && !(`${r.title} ${r.value ?? ""} ${r.detail ?? ""}`.toLowerCase().includes(q))) return false;
+    if (q && !(`${r.title} ${r.value ?? ""} ${r.detail ?? ""} ${r.review ?? ""}`.toLowerCase().includes(q))) return false;
     return true;
   });
 }

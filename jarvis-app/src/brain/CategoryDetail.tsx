@@ -34,6 +34,7 @@ import { todayISO } from "../tasks/grouping";
 import { timeLabelFor, isDone } from "../tasks/reminders";
 import { nextActionOf } from "../bigger/related";
 import { dayPhrase } from "../money/bills";
+import { dayTone } from "../messages/factsLine";
 import { fmtTime, addMinutes, addDays, eventsForDate } from "../schedule/calendar";
 import { comingUpFor, gymDoorOn, type UpcomingRow } from "./comingUp";
 import { FIFTEEN } from "../tasks/rightNow";
@@ -1250,16 +1251,19 @@ export default function CategoryDetail({
   // The cap of three went with it. It was a preview cap from when Goals Here
   // was a teaser under the fold; since 09-09 this is the SECTION, and a cap on
   // a section silently hides goals with nothing offering to show the rest.
+  //
+  // THE KIND IS A LABEL, SO IT WEARS NO HUE (§AM, 2026-09-26). Each kind had
+  // a Health ink of its own (lime, cyan, violet), which made the ink say
+  // WHICH KIND -- a meaning the Colour Key does not have -- and put Health
+  // inks on a Work or Family page too. The chip's caps are what set it apart
+  // from the facts beside it; the colour is left for done, due and late.
   const goalKindChip = (m: Goal["data"]["measure"]) => {
     if (!m) return null;
-    if (m.kind === "lift") return { text: "Lift", hue: "hue-hl-lime" };
-    if (m.kind === "training") return { text: "Sessions", hue: "hue-hl-cyan" };
-    if (m.kind === "cadence") return { text: "Rhythm", hue: "hue-hl-violet" };
-    // A goal set on a reading (Dave's ask 2026-09-12) reads at a glance the
-    // same way a lift or training goal does: hue-hl-cyan, the ramp's
-    // reading/reference colour (R4), not lime -- a metric is being watched,
-    // not logged work the way a set is.
-    if (m.kind === "metric") return { text: "Metric", hue: "hue-hl-cyan" };
+    if (m.kind === "lift") return { text: "Lift", hue: "" };
+    if (m.kind === "training") return { text: "Sessions", hue: "" };
+    if (m.kind === "cadence") return { text: "Rhythm", hue: "" };
+    // A goal set on a reading (Dave's ask 2026-09-12).
+    if (m.kind === "metric") return { text: "Metric", hue: "" };
     return null;
   };
   const goalsHere = (goalIdx.byCategory.get(categoryId) ?? [])
@@ -1443,10 +1447,23 @@ export default function CategoryDetail({
               // (Paused, Stalled in the warning ink). The week's count and
               // any overdue ride as chips ahead of it; the goal it moves is
               // the Goals Here card two sections down, not a third line.
+              //
+              // ONE RUN PER FACT (§AM, 2026-09-26). The line baked its own
+              // middots ("Next: Email sponsors · tomorrow", "Stalled · No
+              // next action"), so the day and the reason sat inside the one
+              // grey. Each is its own span now: Stalled in the warning ink
+              // (never also .r-cat, whose Health rule outranks it and turned
+              // it grey), the reason as the one grey; the next move as the
+              // one grey and its day by the window -- today or tomorrow is an
+              // amber chip with the other chips ahead of the line (a chip
+              // keeps its width where the line's facts ellipse), later a
+              // small-caps date after it. A late one says nothing more:
+              // nextActionOf takes the earliest due task, so a late next
+              // move is the task the red "late" chip already counts.
               const stalled = !next && p.data.status !== "on_hold";
-              const line = next
-                ? `Next: ${next.data.text}${next.data.due ? ` \u00b7 ${dayPhrase(next.data.due, today)}` : ""}`
-                : p.data.status === "on_hold" ? "Paused" : "Stalled \u00b7 No next action";
+              const line = next ? `Next: ${next.data.text}` : p.data.status === "on_hold" ? "Paused" : "No next action";
+              const nextDue = next?.data.due ?? null;
+              const nextTone = nextDue ? dayTone(nextDue, today) : null;
               return (
                 <div {...pressable(() => onOpenProject?.(p.id))} className="task-row p2 proj-row-ruled" key={p.id}>
                   <div className="task-check-tap"><span className={"pp-slot cat-fg-" + cat.data.color}><ProjectPie pct={pct} /></span></div>
@@ -1455,7 +1472,10 @@ export default function CategoryDetail({
                     <div className="r-k">
                       {doneWeek > 0 && <span className="uchip u-done">{doneWeek} done</span>}
                       {overdue > 0 && <span className="uchip u-late">{overdue} late</span>}
-                      <span className={"r-goal r-cat" + (stalled ? " r-stalled" : "")}>{line}</span>
+                      {nextDue && nextTone === "warn" && <span className="uchip u-today">{nextDue === today ? "Today" : "Tomorrow"}</span>}
+                      {stalled && <span className="r-goal r-stalled">Stalled</span>}
+                      <span className="r-goal r-cat">{line}</span>
+                      {nextDue && nextTone === "date" && <span className="fact date">{dayPhrase(nextDue, today).replace(/ /g, "\u00a0")}</span>}
                     </div>
                   </div>
                   {CHEV}
@@ -1555,7 +1575,9 @@ export default function CategoryDetail({
               <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All day</span>}</div>
               <div className="sched-body">
                 <div className="sched-title">{e.title}</div>
-                <div className="sched-cat"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}<span className="sched-sep">{"\u00b7"}</span>{when}</div>
+                {/* The day is a neutral date, so small caps (§AM F5): the
+                    area's name is the line's one grey. */}
+                <div className="sched-cat"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}<span className="sched-sep">{"\u00b7"}</span><span className="fact date">{when}</span></div>
               </div>
               {/* THE GYM BLOCK IS NOT A NOTICE, IT IS A DOOR (Dave 2026-09-10,
                   on making the health page read as training). Today's gym
@@ -1845,9 +1867,11 @@ export default function CategoryDetail({
                 {correlations.map((c) => (
                   <InsightCard key={c.exerciseName + "-" + c.metricName} evidence={c.evidence} onExplain={explain}>
                     <div className="ins-head">
-                      <span className="ins-dot hue-hl-cyan" />
+                      {/* A correlation is a PAIRING, which is Health's violet
+                          (§AM); cyan is now, the live set. */}
+                      <span className="ins-dot hue-hl-violet" />
                       <span className="ins-t">{c.exerciseName}</span>
-                      <span className="ins-chip hue-hl-cyan">{c.metricName}</span>
+                      <span className="ins-chip hue-hl-violet">{c.metricName}</span>
                     </div>
                     {/* The line ends "Correlation, not cause" itself (correlate()
                         writes it in), so no cite repeats it under the line. */}
@@ -1861,9 +1885,12 @@ export default function CategoryDetail({
                 {offerLighter && (
                   <InsightCard key="lighter" evidence={backOff?.evidence} onExplain={explain} note="Never a prescription, just an offer.">
                     <div className="ins-head">
-                      <span className="ins-dot hue-hl-pink" />
+                      {/* Pink is no meaning in Health's key (§AM). A lighter
+                          week offered after grinds and misses is a guard,
+                          which is Health's amber, as the plateau cards are. */}
+                      <span className="ins-dot hue-hl-amber" />
                       <span className="ins-t">A Lighter Week, If You Want It</span>
-                      <span className="ins-chip hue-hl-pink">Offer</span>
+                      <span className="ins-chip hue-hl-amber">Offer</span>
                     </div>
                     <div className="ins-line">Several grinds and misses lately.</div>
                   </InsightCard>
@@ -1898,7 +1925,7 @@ export default function CategoryDetail({
                       sessions up there, finished tasks down here. The heading
                       now says which one it is. */}
                   <div className="sh2 sh2-quiet"><span className="t">Done This Week</span><span className="n">{rec.recent.length}</span>
-                    {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
+                    {!weekOpen && dayGroups.length > 2 && <button className="see-all" onClick={() => setWeekOpen(true)}>See All</button>}</div>
                   {/* One card, the day at the right edge (2026-09-13): a
                       card per day made two ticks cost half a screen. */}
                   <div className="pad-x"><div className="card list-card-ruled">
@@ -2081,7 +2108,7 @@ export default function CategoryDetail({
       {rec.recent.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">This Week</span><span className="n">{rec.recent.length}</span>
-            {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
+            {!weekOpen && dayGroups.length > 2 && <button className="see-all" onClick={() => setWeekOpen(true)}>See All</button>}</div>
           <div className="pad-x">
             {shownGroups.map((g) => (
               <div key={g.day}>
@@ -2143,19 +2170,36 @@ export default function CategoryDetail({
               const last = contact[p.id];
               const wrow = waitingBy[p.id];
               const quiet = last != null && isQuiet(last, nowMs);
-              const bits: string[] = [];
-              if (p.data.relationship) bits.push(p.data.relationship);
-              if (bday) bits.push(bday.inDays === 0 ? "Birthday today" : bday.inDays === 1 ? "Birthday tomorrow" : `Birthday ${bday.label}`);
-              else if (wrow) bits.push(wrow.waitingDays === 1 ? "Waiting on their reply · 1 day" : `Waiting on their reply · ${wrow.waitingDays} days`);
-              else if (quiet) bits.push(`Gone quiet: last talked ${agoLabel(last, nowMs)}`);
-              else if (last != null) bits.push(`Last talked ${agoLabel(last, nowMs)}`);
+              // ONE RUN PER FACT (§AM, 2026-09-26). The relationship and the
+              // state were one grey run joined by baked middots ("Client ·
+              // Waiting on their reply · 3 days"). The relationship is the
+              // row's one grey now, and the state wears its meaning: a
+              // birthday today or tomorrow, a reply owed and a line gone
+              // quiet all need him soon, so amber (the last two are what the
+              // Nudge pill is for); a later birthday and a plain last-talked
+              // are neutral times, so small caps.
+              const state: { text: string; tone: "warn" | "date" } | null =
+                bday ? (bday.inDays <= 1
+                  ? { text: bday.inDays === 0 ? "Birthday today" : "Birthday tomorrow", tone: "warn" }
+                  : { text: `Birthday ${bday.label}`, tone: "date" })
+                : wrow ? { text: `Waiting ${wrow.waitingDays} ${wrow.waitingDays === 1 ? "day" : "days"} on their reply`, tone: "warn" }
+                : quiet ? { text: `Gone quiet: last talked ${agoLabel(last, nowMs)}`, tone: "warn" }
+                : last != null ? { text: `Last talked ${agoLabel(last, nowMs)}`, tone: "date" }
+                : null;
               const nudgeable = !!p.data.email && (quiet || !!wrow);
               return (
                 <div {...pressable(() => onOpenPerson?.(p.id))} className="task-row p2 person-row-ruled" key={p.id}>
                   <div className="task-check-tap"><div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div></div>
                   <div className="task-title">
                     <span className="task-name">{p.data.name}</span>
-                    {bits.length > 0 && <div className="r-k"><span className="r-goal r-cat">{bits.join(" · ")}</span></div>}
+                    {(p.data.relationship || state) && (
+                      <div className="r-k">
+                        {p.data.relationship && <span className="r-goal r-cat">{p.data.relationship}</span>}
+                        {state && (state.tone === "warn"
+                          ? <span className="r-goal fact warn">{state.text}</span>
+                          : <span className="fact date">{state.text}</span>)}
+                      </div>
+                    )}
                   </div>
                   {nudgeable ? (
                     <button className="pill-act" disabled={nudging === p.id}

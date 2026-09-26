@@ -168,7 +168,10 @@ export function parseVCard(text: string): ImportedContact[] {
     } else if (p.prop === "BDAY") cur.bday = vBirthday(p.value);
     else if (p.prop === "TEL" && p.value) cur.phones.push(p.label ? { value: p.value, label: p.label } : { value: p.value });
     else if (p.prop === "EMAIL" && p.value) cur.emails.push(p.label ? { value: p.value, label: p.label } : { value: p.value });
-    else if (p.prop === "ORG" && p.value) cur.org = p.value.replace(/;+$/, "").replace(/;/g, " · ");
+    // ORG is Organization;Unit;Subunit. The units join with a comma, never a
+    // middle dot: the one place an organization shows is a row's meta line,
+    // where the separator is the stylesheet's to draw (§AM, R6).
+    else if (p.prop === "ORG" && p.value) cur.org = p.value.replace(/;+$/, "").replace(/;/g, ", ");
     else if ((p.prop === "TITLE" || p.prop === "ROLE") && p.value && !cur.title) cur.title = p.value;
     else if (p.prop === "NOTE" && p.value) cur.note.push(p.value.replace(/\\n/g, "\n"));
     else if (p.prop === "URL" && p.value) cur.urls.push(p.value);

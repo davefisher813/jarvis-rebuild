@@ -169,7 +169,7 @@ describe("a real contact file loses nothing", () => {
 
   it("keeps the organization, title, url, address and source id", () => {
     const c = parseVCard(RICH)[0]!;
-    expect(c.org).toBe("Cedar Bridge Club · Board");
+    expect(c.org).toBe("Cedar Bridge Club, Board");
     expect(c.title).toBe("Secretary");
     expect(c.urls).toEqual(["https://bridgeclub.org/board"]);
     expect(c.addresses).toEqual(["1 Vine St, Cedar, OH 44121, USA"]);

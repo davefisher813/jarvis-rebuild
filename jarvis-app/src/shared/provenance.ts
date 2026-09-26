@@ -93,18 +93,26 @@ export function rowSource(source: Source | undefined, moved: Source | undefined,
   return source;
 }
 
-// "From Smart Paste · 2:14 PM" today, "From Smart Paste · Aug 12" earlier.
-// Null for a missing or unknown source so callers can render nothing.
-// Auto-Sweep receipts (sweep type) render nothing. That a task moved is kept
-// internal; the row shows where it came from instead.
-export function sourceLine(source: Source | undefined, now: () => number = Date.now): string | null {
-  if (!source || !LABEL[source.type]) return null;
-  if (source.type === "sweep") return null;
+// The WHEN half of the fact: "2:14 PM" today, "Aug 12" earlier. Null exactly
+// where sourceLabel() is null, so the two halves never disagree about whether
+// a line exists. A rendered line puts this in its own `.fact.date` span beside
+// the label; the separator between them is drawn by CSS, not typed (§AM F3).
+export function sourceWhen(source: Source | undefined, now: () => number = Date.now): string | null {
+  if (!sourceLabel(source) || !source) return null;
   const d = new Date(source.ts);
-  const when = sameDay(d, new Date(now()))
+  return sameDay(d, new Date(now()))
     ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
     : shortDateFromMs(source.ts);
-  return `${LABEL[source.type]} · ${when}`;
+}
+
+// Label and time joined into one plain string, "From Smart Paste · 2:14 PM",
+// for text that is not a facts line (a test, an export). Never render it
+// inside a meta line: ProvenanceLine renders sourceLabel() and sourceWhen() as
+// two facts instead. Null for a missing, unknown or Auto-Sweep source.
+export function sourceLine(source: Source | undefined, now: () => number = Date.now): string | null {
+  const label = sourceLabel(source);
+  const when = sourceWhen(source, now);
+  return label && when ? `${label} · ${when}` : null;
 }
 
 /** The same fact with the WHEN left off, for a row that has to share one line
@@ -117,6 +125,8 @@ export function sourceLine(source: Source | undefined, now: () => number = Date.
  *  fact that fits beside a category and one that does not -- measured at 390,
  *  "From an email · Sep 2" left the line and "From an email" stayed on it. */
 export function sourceLabel(source: Source | undefined): string | null {
+  // Auto-Sweep receipts render nothing. That a task moved is kept internal;
+  // the row shows where it came from instead.
   if (!source || !LABEL[source.type]) return null;
   if (source.type === "sweep") return null;
   return LABEL[source.type];

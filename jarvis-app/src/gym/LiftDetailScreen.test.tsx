@@ -70,10 +70,17 @@ describe("LiftDetailScreen weekly hard sets", () => {
     expect(screen.getByText(/Schoenfeld/)).toBeInTheDocument();
   });
 
+  // §AM (2026-09-26): the count and how it counts are one fact, the number
+  // in white, and a primary lift (the default) says nothing more.
   it("lists the sets behind the number on tap", () => {
     render(<LiftDetailScreen {...base} workouts={workouts} muscleGroup="chest" muscleMap={chestMap} />);
+    expect(screen.queryByText("Bench Press")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "View Contributing Sets" }));
-    expect(screen.getAllByText("Primary").length).toBeGreaterThan(0);
+    expect(screen.getByText("Bench Press")).toBeInTheDocument();
+    const count = screen.getAllByText((_, el) => !!el?.classList.contains("fact") && el.textContent === "6 sets");
+    expect(count.length).toBe(1);
+    expect(count[0]!.querySelector("b")?.textContent).toBe("6");
+    expect(screen.queryByText("Primary")).toBeNull();
   });
 
   it("a lift with no muscle set claims nothing at all", () => {
@@ -119,27 +126,29 @@ describe("LiftDetailScreen: the chart says what it is, and answers a tap", () =>
 
   it("the caption names Epley, says it is not a tested max, and carries the unit", () => {
     render(<LiftDetailScreen {...base} workouts={two} />);
-    expect(screen.getByText("Est 1RM · Epley · not a tested max · lb")).toBeInTheDocument();
+    expect(screen.getByText("Est 1RM (Epley), not a tested max, lb")).toBeInTheDocument();
   });
 
   // AMENDED 2026-09-16 (Dave: "uniform everything"). The three readings were
   // one span carrying two middots of its own, which is a sentence with
   // punctuation in it -- components.css draws the separator so no string has
-  // to. Three spans now, and the hue stays on the date, which is the datum
-  // the tapped point is about.
+  // to. AMENDED 2026-09-26 (§AM): the date is a neutral date, so small caps
+  // (.fact.date) rather than the health "now" hue; the estimate wears the
+  // estimate primitive (sky); the set between them is the line's one grey.
   it("tapping a point reads its date, set, and estimate as three facts", () => {
     render(<LiftDetailScreen {...base} workouts={two} />);
     expect(screen.queryByText(/^Est \d+ lb$/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Session 1 of 2" }));
-    // The date appears in the session list too, so read the one in the chart's
-    // own facts line.
-    const date = screen.getAllByText(/^Aug 26$/).find((e) => e.classList.contains("cyan"))!;
-    expect(date, "the hue lands on the date").toHaveClass("fact", "cyan");
+    // The date appears in the Milestones card too, so read the one in the
+    // chart's own facts line, which sits beside the estimate.
     const est = screen.getByText(/^Est \d+ lb$/);
-    expect(est).toHaveClass("fact");
-    expect(est.className, "and not on a second reading beside it").not.toMatch(/cyan/);
+    expect(est, "the estimate wears the estimate primitive").toHaveClass("fact", "est");
+    const line = est.parentElement!;
+    const date = line.querySelector(".fact.date")!;
+    expect(date.textContent, "the date is small caps on the same line").toBe("Aug 26");
+    expect(line.querySelectorAll(".fact.cyan").length, "no health hue on a neutral date").toBe(0);
     // The separator is the CSS's, never the string's.
-    expect(date.textContent).not.toMatch(/\u00b7/);
+    expect(line.textContent).not.toMatch(/\u00b7/);
   });
 });
 

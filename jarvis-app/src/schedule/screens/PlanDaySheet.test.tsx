@@ -338,7 +338,8 @@ describe("Split It reaches the calendar as two sittings", () => {
     fireEvent.click(document.querySelector(".p3-time-btn")!);
     await waitFor(() => expect(screen.getByText("Split It")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Split It"));
-    expect(screen.getByText(/2 Sittings/)).toBeInTheDocument();
+    // The sittings are one white number now (§AM F1), not "2 Sittings · 90m each".
+    expect(screen.getByText("2 × 90m")).toBeInTheDocument();
     // Two blocks now, and the button counts blocks.
     fireEvent.click(screen.getByText("Add These 2"));
     expect(got.length).toBe(1);

@@ -73,6 +73,19 @@ describe("NotificationsFlow: Done and Undo on a task", () => {
 
   beforeEach(() => { localStorage.clear(); resetToasts(); });
 
+  // §AM (2026-09-26): the why takes the Colour Key. The sliding verdict is the
+  // Tasks chip with its evidence beside it (no dot baked between them), and
+  // the overdue twin says so in the late chip, not the line's plain grey.
+  it("the sliding verdict is its own chip, and overdue wears the late chip", async () => {
+    render(<NotesProvider userId="u-notif-key"><Seeded /></NotesProvider>);
+    await screen.findAllByText("Water plants");
+    const tag = document.querySelector(".notif-row .slide-tag");
+    expect(tag).toHaveTextContent("Keeps Sliding");
+    expect(tag!.nextElementSibling).toHaveClass("r-goal");
+    expect(tag!.nextElementSibling!.textContent).not.toMatch(/·/);
+    expect(screen.getByText("Overdue")).toHaveClass("uchip", "u-late");
+  });
+
   it("Done clears every row for the task, so the twin cannot un-complete it", async () => {
     render(<NotesProvider userId="u-notif-done-twin"><Seeded /></NotesProvider>);
     const rows = await screen.findAllByText("Water plants");

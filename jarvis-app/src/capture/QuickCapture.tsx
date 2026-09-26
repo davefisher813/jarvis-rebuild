@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useState, useRef } from "react";
+import { useState, useRef, type ReactNode } from "react";
 import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, usePeople, useProjects } from "../data/NotesProvider";
 import { STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
@@ -34,23 +34,6 @@ const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "
 const KINDS: SavedEntity["kind"][] = ["task", "event", "note", "fact"];
 const FACT_CATEGORIES = Object.keys(STRAND_CATEGORY_LABEL) as StrandCategory[];
 
-// "Thursday Aug 20 · 7:00 PM" on the receipt: the resolved date is shown so a
-// wrong read is visible the moment it happens (Smart Paste law: resolved
-// dates on receipt).
-function fmtWhen(s: SavedEntity): string {
-  const parts: string[] = [];
-  if (s.date) {
-    parts.push(weekdayLongDate(s.date));
-  }
-  if (s.start) {
-    const [h, m] = s.start.split(":").map((x) => parseInt(x, 10));
-    const d = new Date();
-    d.setHours(h ?? 9, m ?? 0);
-    parts.push(d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
-  }
-  return parts.join(" · ");
-}
-
 // UP-CORE-01 (2026-09-05): WHAT IT READ, IN WORDS. A capture that quietly
 // became a reminder, a repeating task or a bill has to say so on the
 // receipt, or the read is invisible until it pings at nine at night. Same
@@ -65,6 +48,18 @@ function fmtClock(hhmm: string): string {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+// The resolved date and the clock time, as two facts ("Thursday, Aug 20",
+// "7:00 PM"): the resolved date is shown so a wrong read is visible the
+// moment it happens (Smart Paste law: resolved dates on receipt). Two facts,
+// not one string with a dot typed into it, so the stylesheet draws the
+// separator (§AM F3).
+function whenParts(s: SavedEntity): string[] {
+  const parts: string[] = [];
+  if (s.date) parts.push(weekdayLongDate(s.date));
+  if (s.start) parts.push(fmtClock(s.start));
+  return parts;
+}
+
 // 2026-09-11: any `days` used to read "Weekdays". The reminder sheet's own
 // presets name Mon-Fri and Sat-Sun; any other set is named day by day.
 function reminderDays(days?: number[]): string {
@@ -74,32 +69,41 @@ function reminderDays(days?: number[]): string {
   return preset?.label ?? daysSummary(set);
 }
 
-function readWord(s: SavedEntity): string {
-  if (s.reminder) return "Reminder";
-  if (s.bill) return "Bill";
-  return KIND_LABEL[s.kind];
-}
-
-function readFacts(s: SavedEntity, names: { person?: string; project?: string }): string[] {
-  const out: string[] = [];
-  if (s.reminder) out.push(fmtClock(s.reminder.time));
-  if (s.bill) out.push(formatMoney(s.bill.amount));
+// WHAT IT READ, AS FACTS (§AM, 2026-09-26). The receipt line was one grey
+// string with its dots typed in ("Reminder · 9:00 PM · Daily · Marco · From
+// your paste"), so every fact on it was the same grey. Each one now wears
+// what it is, and the line keeps one grey run (§AK):
+//   - every WHEN is small caps (F5): the resolved date, the clock time, the
+//     repeat, and a reminder's time with the word Reminder in front of it;
+//   - a bill's amount is a number with no state, so it steps up to white
+//     (F1). A bill is a task wearing money, and the amount is that read;
+//   - a Never/Always line is the state word Rule;
+//   - the one grey run is the words: who and which project in one run, a
+//     Remember line's kind when it is not plain Fact, or the kind of a
+//     record that has no chip (a decision, a person's card).
+// Nothing here repeats the chips under the receipt, which already name the
+// kind and the area (or the Brain bucket) with the right one lit; that is
+// the same word-twice rule the person card follows. "From your paste" went
+// too: everything on this sheet came from the paste.
+function receiptFacts(s: SavedEntity, names: { person?: string; project?: string }): ReactNode[] {
+  const out: ReactNode[] = [];
+  if (!KINDS.includes(s.kind)) out.push(<span className="fact" key="kind">{KIND_LABEL[s.kind]}</span>);
+  if (s.reminder) out.push(<span className="fact date" key="remind">Reminder {fmtClock(s.reminder.time)}</span>);
+  if (s.bill) out.push(<span className="fact" key="bill"><b>{formatMoney(s.bill.amount)}</b></span>);
   if (s.kind === "fact") {
-    if (s.factCategory) out.push(STRAND_CATEGORY_LABEL[s.factCategory]);
     // C-49: the kind the prefix chose, and Rule when Never/Always made one.
-    if (s.factType) out.push(STRAND_TYPE_LABEL[s.factType]);
-    if (s.rule) out.push("Rule");
+    if (s.factType && s.factType !== "fact") out.push(<span className="fact" key="type">{STRAND_TYPE_LABEL[s.factType]}</span>);
+    if (s.rule) out.push(<span className="fact st" key="rule">Rule</span>);
   } else {
-    const when = fmtWhen(s);
-    if (when) out.push(when);
+    whenParts(s).forEach((w, i) => out.push(<span className="fact date" key={"when" + i}>{w}</span>));
   }
   // A reminder with no repeat runs every day: that is what an absent `days`
   // MEANS in ReminderInfo, so the receipt says it rather than leaving the
   // person to find out tomorrow morning.
-  if (s.recurrence) out.push(REPEAT_WORD[s.recurrence] ?? s.recurrence);
-  else if (s.reminder) out.push(reminderDays(s.reminder.days));
-  if (names.person) out.push(names.person);
-  if (names.project) out.push(names.project);
+  const repeat = s.recurrence ? (REPEAT_WORD[s.recurrence] ?? s.recurrence) : s.reminder ? reminderDays(s.reminder.days) : "";
+  if (repeat) out.push(<span className="fact date" key="repeat">{repeat}</span>);
+  const who = [names.person, names.project].filter(Boolean).join(", ");
+  if (who) out.push(<span className="fact" key="who">{who}</span>);
   return out;
 }
 
@@ -405,70 +409,76 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
         {phase === "saved" && (
           <div className="pad-x sheet-form">
             <div className="capture-saved-list">
-              {saved.map((s) => (
-                <div key={s.id} className="capture-saved">
-                  {/* C-49: a fact's receipt opens the strand to correct it. */}
-                  <div className="row" role={s.kind === "fact" && onOpen ? "button" : undefined} tabIndex={s.kind === "fact" && onOpen ? 0 : undefined}
-                    onClick={s.kind === "fact" && onOpen ? () => { onOpen("fact", s.id); onClose(); } : undefined}>
-                    <div className="row-stack">
-                      <div className="conn-name">{s.title}</div>
-                      {/* A fact says where in the Brain it landed instead of
-                          a date it does not have: "Fact · Values". */}
-                      <div className="conn-meta">{[readWord(s), ...readFacts(s, {
-                        person: people.find((p) => p.id === s.personId)?.name,
-                        project: projects.find((p) => p.id === s.projectId)?.title,
-                      })].filter(Boolean).join(" · ")} · From your paste</div>
+              {saved.map((s) => {
+                // Two Marcos: the choice chips below name the person, lit
+                // once one is picked, so the line does not say it again.
+                const asking = s.kind === "task" && (s.personChoices?.length ?? 0) > 1;
+                const facts = receiptFacts(s, {
+                  person: asking ? undefined : people.find((p) => p.id === s.personId)?.name,
+                  project: projects.find((p) => p.id === s.projectId)?.title,
+                });
+                return (
+                  <div key={s.id} className="capture-saved">
+                    {/* C-49: a fact's receipt opens the strand to correct it. */}
+                    <div className="row" role={s.kind === "fact" && onOpen ? "button" : undefined} tabIndex={s.kind === "fact" && onOpen ? 0 : undefined}
+                      onClick={s.kind === "fact" && onOpen ? () => { onOpen("fact", s.id); onClose(); } : undefined}>
+                      <div className="row-stack">
+                        <div className="conn-name">{s.title}</div>
+                        {/* A read with nothing past what the chips below say
+                            shows no line at all. */}
+                        {facts.length > 0 && <div className="facts">{facts}</div>}
+                      </div>
+                      <button className="btn-sm" onClick={() => void onUndo(s)}>Undo</button>
                     </div>
-                    <button className="btn-sm" onClick={() => void onUndo(s)}>Undo</button>
-                  </div>
-                  {/* SHELL-F-16 (2026-09-05): a wrapping row, because the
-                      category chips below used to be cats.slice(0, 4) for
-                      row width. Every template seeds six areas, so a capture
-                      filed under the fifth or sixth showed no active chip
-                      and could not be moved there from the receipt at all,
-                      which also meant the learned-rules loop could never be
-                      taught those areas. Same wrap the gym sheets use. */}
-                  <div className="chip-row chip-wrap-row">
-                    {/* SHELL-F-02: no Brain, no Fact chip. Offering a lane
-                        that cannot take the record is a chip that can only
-                        refuse. */}
-                    {KINDS.filter((k) => k !== "fact" || strands).map((k) => (
-                      <div key={k} className={"chip" + (s.kind === k ? " active" : "")} role="radio" aria-checked={s.kind === k} tabIndex={0} onClick={() => void onKind(s, k)}>{KIND_LABEL[k]}</div>
-                    ))}
-                    {/* A strand does not use the app's category taxonomy, so
-                        a fact's row gets its own six buckets here instead
-                        (S4-Q22): the category is a guess same as any other
-                        capture, and selfFact.ts has always said the receipt
-                        lets it be changed. */}
-                    {s.kind === "fact"
-                      ? FACT_CATEGORIES.map((c) => (
-                          <div key={c} className={"chip" + (s.factCategory === c ? " active" : "")} role="radio" aria-checked={s.factCategory === c} tabIndex={0} onClick={() => void onFactCat(s, c)}>
-                            {STRAND_CATEGORY_LABEL[c]}
-                          </div>
-                        ))
-                      : cats.map((c) => (
-                          <div key={c.id} className={"chip" + (s.category === c.id ? " active" : "")} role="radio" aria-checked={s.category === c.id} tabIndex={0} onClick={() => void onCat(s, c.id)}>
-                            <span className={"cat-dot cat-bg-" + c.data.color} />
-                            {c.data.name}
-                          </div>
-                        ))}
-                  </div>
-                  {/* UP-CORE-01: who, when the line named more than one real
-                      contact. Nobody was filed; these chips are the ask. */}
-                  {s.kind === "task" && (s.personChoices?.length ?? 0) > 1 && (
+                    {/* SHELL-F-16 (2026-09-05): a wrapping row, because the
+                        category chips below used to be cats.slice(0, 4) for
+                        row width. Every template seeds six areas, so a capture
+                        filed under the fifth or sixth showed no active chip
+                        and could not be moved there from the receipt at all,
+                        which also meant the learned-rules loop could never be
+                        taught those areas. Same wrap the gym sheets use. */}
                     <div className="chip-row chip-wrap-row">
-                      {s.personChoices!.map((id) => {
-                        const p = people.find((x) => x.id === id);
-                        return p ? (
-                          <div key={id} className={"chip" + (s.personId === id ? " active" : "")} role="radio" aria-checked={s.personId === id} tabIndex={0} onClick={() => void onPerson(s, id)}>
-                            {p.name}
-                          </div>
-                        ) : null;
-                      })}
+                      {/* SHELL-F-02: no Brain, no Fact chip. Offering a lane
+                          that cannot take the record is a chip that can only
+                          refuse. */}
+                      {KINDS.filter((k) => k !== "fact" || strands).map((k) => (
+                        <div key={k} className={"chip" + (s.kind === k ? " active" : "")} role="radio" aria-checked={s.kind === k} tabIndex={0} onClick={() => void onKind(s, k)}>{KIND_LABEL[k]}</div>
+                      ))}
+                      {/* A strand does not use the app's category taxonomy, so
+                          a fact's row gets its own six buckets here instead
+                          (S4-Q22): the category is a guess same as any other
+                          capture, and selfFact.ts has always said the receipt
+                          lets it be changed. */}
+                      {s.kind === "fact"
+                        ? FACT_CATEGORIES.map((c) => (
+                            <div key={c} className={"chip" + (s.factCategory === c ? " active" : "")} role="radio" aria-checked={s.factCategory === c} tabIndex={0} onClick={() => void onFactCat(s, c)}>
+                              {STRAND_CATEGORY_LABEL[c]}
+                            </div>
+                          ))
+                        : cats.map((c) => (
+                            <div key={c.id} className={"chip" + (s.category === c.id ? " active" : "")} role="radio" aria-checked={s.category === c.id} tabIndex={0} onClick={() => void onCat(s, c.id)}>
+                              <span className={"cat-dot cat-bg-" + c.data.color} />
+                              {c.data.name}
+                            </div>
+                          ))}
                     </div>
-                  )}
-                </div>
-              ))}
+                    {/* UP-CORE-01: who, when the line named more than one real
+                        contact. Nobody was filed; these chips are the ask. */}
+                    {asking && (
+                      <div className="chip-row chip-wrap-row">
+                        {s.personChoices!.map((id) => {
+                          const p = people.find((x) => x.id === id);
+                          return p ? (
+                            <div key={id} className={"chip" + (s.personId === id ? " active" : "")} role="radio" aria-checked={s.personId === id} tabIndex={0} onClick={() => void onPerson(s, id)}>
+                              {p.name}
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {recents.length > 0 && (
@@ -492,7 +502,11 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                     >
                       <div className="row-stack">
                         <div className="conn-name truncate">{r.title}</div>
-                        <div className="conn-meta">{KIND_LABEL[r.kind]} · {fmtRecent(r.ts)}</div>
+                        {/* The kind is the row's one grey. When it was
+                            captured is a neutral time, so it is small caps
+                            (§AM F5), and the stylesheet draws the dot
+                            between the two (F3). */}
+                        <div className="facts"><span className="fact">{KIND_LABEL[r.kind]}</span><span className="fact date">{fmtRecent(r.ts)}</span></div>
                       </div>
                       {onOpen && <div className="chev" />}
                     </div>

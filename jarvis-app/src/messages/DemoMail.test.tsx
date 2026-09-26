@@ -25,11 +25,11 @@ describe("DemoMail fixture", () => {
     expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
     // Needs You shows first; Waiting On's rows are one tap over.
     expect(screen.getByText("Northwind Cloud")).toBeInTheDocument();
-    expect(screen.queryByText(/Summitgear · Missing Items/)).toBeNull();
+    expect(screen.queryByText(/Summitgear: Missing Items/)).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: /Waiting On/ }));
     // E2 (2026-08-24): THE ASK LEADS. The verb is the headline and the sender
     // is context beneath it, so the name shares a line with the subject now.
-    expect(screen.getByText(/Summitgear · Missing Items/)).toBeInTheDocument();
+    expect(screen.getByText(/Summitgear: Missing Items/)).toBeInTheDocument();
     expect(screen.queryByText(/No reply/)).toBeNull();
     expect(screen.queryByText(/nadia@northlake\.org/)).toBeNull();
     // SPEC MOVED 2026-08-21: the demo runs the real action model, so a

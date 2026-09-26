@@ -3,7 +3,7 @@ import LargeTitleNav from "../shared/LargeTitleNav";
 import { useBackup, useStore } from "../data/NotesProvider";
 import { backendConfigured } from "../data/store";
 import { saveBackupFile } from "../backup/exportFile";
-import { useSyncState, syncLine } from "../data/useSyncState";
+import { useSyncState, syncFacts } from "../data/useSyncState";
 import { attemptWrite } from "../shared/guard";
 import { Head, Card, Row, Foot } from "./kit";
 
@@ -96,7 +96,9 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
       <LargeTitleNav title="Backup" back="Settings" onBack={onBack} />
       <Head label="Your Data" />
       <Card>
-        <Row label="Export All Data" meta={lastExport ? `Last exported ${lastExport}` : "One JSON file · Everything here"} onClick={onExport} disabled={busy} chev />
+        {/* §AM F5 (2026-09-26): the stamp is a neutral date on a row, so it
+            is small caps; the fallback is one fact, with no dot typed in. */}
+        <Row label="Export All Data" meta={lastExport ? <span className="fact date">{`Last exported ${lastExport}`}</span> : "Everything in one JSON file"} onClick={onExport} disabled={busy} chev />
         <Row label="Import from File" meta="Adds from a backup file" onClick={onPickFile} disabled={busy} chev />
       </Card>
       {pending && (
@@ -120,8 +122,16 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
             the one place a person looks after watching a note vanish told
             them nothing. It is the live state now: what is waiting, whether
             the phone is online, and when something last actually left it.
-            Only where there is a Store to ask; the demo build has none. */}
-        <Row label="iCloud / Account Sync" value={backendConfigured ? "On" : "Off"} meta={sync ? syncLine(sync) : undefined} />
+            §AM (2026-09-26): "On" is on track, so green; what is held is
+            amber and the last sync a small-caps time, so the row spends one
+            grey at most. The line only shows with sync on: without a backend
+            the Store is in memory, and "Last synced" under "Off" named a
+            sync that never left the phone. */}
+        <Row
+          label="iCloud / Account Sync"
+          value={backendConfigured ? <span className="fact good">On</span> : "Off"}
+          meta={backendConfigured && sync ? syncFacts(sync).map((f) => <span key={f.text} className={f.tone ? "fact " + f.tone : "fact"}>{f.text}</span>) : undefined}
+        />
         {/* Retry only exists when there is something to retry: a button that
             can do nothing is a promise the screen cannot keep. */}
         {sync && sync.queued > 0 && (
@@ -135,16 +145,16 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
         )}
         <Row
           label={backendConfigured ? "Data Lives in Your Account" : "Data Lives on This Device"}
-          meta={backendConfigured ? "Synced automatically · Export keeps your own copy" : "Export keeps your own copy"}
+          meta="Export keeps your own copy"
         />
-        <Row label="Import Adds, Never Removes" meta="Duplicates skipped · Nothing overwritten" />
+        <Row label="Import Adds, Never Removes" meta="Duplicates skipped, nothing overwritten" />
         {/* PLUMB-F-12 (2026-09-05): a restore used to bring every record back
             with its links pointing at ids from the old account, and the
             receipt said nothing about it. Links survive now, so the row says
             so, and it says the one thing that still does not travel: the
             bundle is JSON, so a photo or receipt's bytes stay in the storage
             of the account they were uploaded to. */}
-        <Row label="Links Come Back with the Records" meta="Categories, goals, projects and note links · Photos and files stay in the old account" />
+        <Row label="Links Come Back with the Records" meta="Photos and files stay in the old account" />
         <Row label="Sync Follows Your Account" meta="Turns on with a synced sign-in" />
       </Card>
       <input ref={fileRef} className="visually-hidden-input" type="file" accept="application/json,.json" onChange={onFile} />

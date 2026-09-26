@@ -227,10 +227,18 @@ export default function BiggerPicturePage({
               project row draws it (§AM): an amber NEXT kicker, the action in
               full ink. */}
           {next && <div className="bp-sub bp-next truncate"><span className="bp-next-k">Next</span> {next}</div>}
-          {/* PICK 20: the date is the whole content of a hold. */}
+          {/* PICK 20: the date is the whole content of a hold. Otherwise the
+              count, and Stalled as its own amber fact with the stylesheet's
+              dot between them (§AM, F3). A project with no tasks says
+              nothing here: a row with nothing to say shows nothing (§AK). */}
           {hold
             ? <div className="bp-sub bp-stalled">{hold}</div>
-            : <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>}
+            : progress && (
+              <div className="bp-sub">
+                <span className="fact">{progressLabel(progress, false)}</span>
+                {stalled && <span className="fact warn">Stalled</span>}
+              </div>
+            )}
           {/* PICK 22: size from the planner's own learned durations, which
               makes it an estimate the app worked out: sky (§AM). It is the
               time alone ("About 3h left"); the open count it used to lead with
@@ -279,7 +287,15 @@ export default function BiggerPicturePage({
           <div className={"row-glyph " + goalTone(g.data.tags)}>{TARGET}</div>
           <div className="row-grow">
             <div className="conn-name">{g.data.title}</div>
-            <div className={"bp-sub" + (extra ? (extra.tone === "good" ? " rep-good-glyph" : " bp-stalled") : "")}>{extra ? extra.text + " · " + body : body}</div>
+            {/* The extra word wears its meaning's colour and the line keeps
+                its grey; two facts, the stylesheet's dot between them (§AM,
+                F3), never one typed into the string. */}
+            {(extra || body) && (
+              <div className="bp-sub">
+                {extra && <span className={"fact " + extra.tone}>{extra.text}</span>}
+                {body && <span className="fact">{body}</span>}
+              </div>
+            )}
             {(ms || r.progress) && <Bar p={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress!} />}
           </div>
           {CHEV}
@@ -329,7 +345,7 @@ export default function BiggerPicturePage({
         glyphTone={"cat-fg-" + catColor(project.data.category ?? "")}
         next={next}
         goal={filed && !filed.data.dropped ? { title: filed.data.title, hue: goalHue } : null}
-        meter={progress ? capAfterNumber(`${progress.done} of ${progress.total} done`) : "No tasks yet"}
+        meter={progress ? capAfterNumber(`${progress.done} of ${progress.total} done`) : ""}
         hold={hold}
         status={projStatus(row)}
         bar={progress}
@@ -351,7 +367,7 @@ export default function BiggerPicturePage({
         title={project.data.title}
         areaRef={ref}
         lead={nextActionTextOf?.(project.id) ? "Next: " + nextActionTextOf(project.id) : holdLineOf?.(project.id) ?? null}
-        foot={progress ? capAfterNumber(`${progress.done} of ${progress.total} tasks`) : "No tasks yet"}
+        foot={progress ? capAfterNumber(`${progress.done} of ${progress.total} tasks`) : null}
         progress={progress}
         onOpen={() => onOpenProject(project.id)}
         menuLabel={"More for " + project.data.title}
@@ -406,17 +422,19 @@ export default function BiggerPicturePage({
     // something else. For a goal he finished, that is when he finished it,
     // which is the fact a Logbook row exists to show. Where the record has no
     // date (goals achieved before the stamp landed) the line stays quiet
-    // rather than inventing one, and the capsule says it alone.
-    const body = g.data.state === "achieved"
-      ? (g.data.achievedOn ? "Finished " + fmtDay(g.data.achievedOn) : "")
-      : ms ? ms.line : reachLine(r, finished);
+    // rather than inventing one, and the capsule says it alone. The date is a
+    // neutral date, so it is drawn as one (§AM F5): GoalRowRuled's `when`,
+    // small caps, never the measure line's bold numbers.
+    const achieved = g.data.state === "achieved";
+    const when = achieved && g.data.achievedOn ? "Finished " + fmtDay(g.data.achievedOn) : null;
+    const body = achieved ? "" : ms ? ms.line : reachLine(r, finished);
     // C-35: the projects under it that are moving, from the same rows the
     // Projects lens buckets. C-36: the next milestone. C-37: the check-in.
     const moving = projectRows.filter((row) => row.project.data.goalId === g.id && bucketOf(row) === "moving").length;
     const next = nextMilestone(g.data.measure);
     return (
       <GoalRowRuled key={g.id} title={g.data.title} tone={goalTone(g.data.tags)}
-        body={body} status={statusOf?.(g.id) ?? null}
+        body={body} when={when} status={statusOf?.(g.id) ?? null}
         moving={finished || g.data.measure?.kind === "projects" ? 0 : moving} next={finished ? null : next?.text ?? null}
         checkin={finished ? null : checkinOf?.(g.id) ?? null}
         bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)} />

@@ -111,7 +111,7 @@ export default function TaskSheet({
   linkedNotes = [],
   onOpenNote,
   onAddNote,
-  slidingNote,
+  slidingNote: slidingText,
 }: {
   mode: "new" | "edit";
   /** ONE NEGATIVE PER ROW (Dave 2026-09-11: "We also don't need 'pushed 8
@@ -321,6 +321,13 @@ export default function TaskSheet({
   const areaWord = cats.length === 0 ? "None" : cats.length === 1 ? primaryName : `${primaryName} +${cats.length - 1}`;
   const projectWord = projects.find((p) => p.id === projectId)?.title ?? "None";
   const eventWord = events.find((e) => e.id === eventId)?.title ?? "None";
+  // The evidence under Due takes the key's colour for what it says (§AM,
+  // 2026-09-26): days late is late, so red; pushed again and again is
+  // stalled, so amber. It was the plain grey the key keeps for facts with
+  // no meaning.
+  const slidingNote = slidingText
+    ? <span className={"fact " + (/\blate$/i.test(slidingText) ? "red" : "warn")}>{slidingText}</span>
+    : null;
   const personWord = people.find((p) => p.id === personId)?.name ?? "None";
 
   // closeNow: the "Close Task" offer under a fully-checked list calls
@@ -512,7 +519,10 @@ export default function TaskSheet({
               <Tile tone="purple"><Hourglass className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Length</div>
-                {estimateMin === null && usualWord && <div className="conn-meta">Usually {usualWord} in this area</div>}
+                {/* The learned median is an estimate the app worked out, so
+                    it wears the key's sky (§AM, 2026-09-26), not the grey
+                    the unset value beside it already wears. */}
+                {estimateMin === null && usualWord && <div className="conn-meta"><span className="fact est">Usually {usualWord} in this area</span></div>}
               </div>
               <HeadMenu variant="value" ariaLabel="Length" value={estimateMin === null ? "" : String(estimateMin)} label={lengthLabel} off={estimateMin === null}
                 options={[{ value: "", label: "None" }, ...DUR_CHOICES.map((m) => ({ value: String(m), label: durLabel(m) }))]}

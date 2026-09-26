@@ -19,6 +19,12 @@ describe("billSubline", () => {
     expect(billSubline(bill({ due: "2026-08-30" }), TODAY).text).toBe("Due Aug 30");
   });
 
+  // §AK (2026-09-22): a placeholder line under a row states nothing, so a
+  // bill with no due date has no line at all rather than "No due date".
+  it("says nothing about a date it does not have", () => {
+    expect(billSubline(bill(), TODAY)).toEqual({ text: "", state: "due" });
+  });
+
   it("overdue is words, stated flat", () => {
     expect(billSubline(bill({ due: "2026-08-02" }), TODAY)).toEqual({ text: "Was due yesterday", state: "overdue" });
     expect(billSubline(bill({ due: "2026-08-01" }), TODAY).text).toBe("Was due 2 days ago");
@@ -35,7 +41,9 @@ describe("billSubline", () => {
 
   it("autopay NEVER says paid: only scheduled language, before and after", () => {
     const upcoming = bill({ bill: { amount: 1850, autopay: true }, recurrence: "monthly", due: "2026-08-07" });
-    expect(billSubline(upcoming, TODAY).text).toBe("Set to autopay · Friday");
+    // The day is its own field, so the row sets it as a date rather than
+    // gluing it to the words with a baked dot (§AM F3, F5).
+    expect(billSubline(upcoming, TODAY)).toEqual({ text: "Set to autopay", when: "Friday", state: "autopay" });
     const rolled = bill({ bill: { amount: 1850, autopay: true }, recurrence: "monthly", due: "2026-09-01", lastDone: "2026-08-01" });
     expect(billSubline(rolled, TODAY).text).toBe("Autopay scheduled Aug 1");
     for (const b of [upcoming, rolled]) {
@@ -54,7 +62,7 @@ describe("billSubline", () => {
     expect(billSubline(handled, TODAY).text.toLowerCase()).not.toContain("paid");
     // Before the roll runs, the line at least says the day it was, not "today".
     const lapsed = bill({ bill: { amount: 85, autopay: true }, due: "2026-07-20" });
-    expect(billSubline(lapsed, TODAY).text).toBe("Set to autopay · Jul 20");
+    expect(billSubline(lapsed, TODAY)).toEqual({ text: "Set to autopay", when: "Jul 20", state: "autopay" });
   });
 });
 
@@ -103,7 +111,7 @@ describe("payday anchoring", () => {
       bill({ text: "rent", bill: { amount: 1850 }, due: "2026-08-20" }), // after payday: out of window
     ], TODAY);
     expect(line!.title).toBe("Between now and Friday");
-    expect(line!.sub).toBe("$1,200 in · $165 of bills out");
+    expect(line!.sub).toBe("$1,200 in, $165 of bills out");
   });
 
   // HMN-F-10 (2026-09-05), option A. The line carried a fourth filter that
@@ -123,7 +131,7 @@ describe("payday anchoring", () => {
     });
     const line = paydayLine(p, [weekly], TODAY);
     expect(line).not.toBeNull();
-    expect(line!.sub).toBe("$1,200 in · $500 of bills out");
+    expect(line!.sub).toBe("$1,200 in, $500 of bills out");
     // And it agrees with the hero, which counts by the same one rule
     // (MoneyFlow.tsx: unpaid, dated, due on or before payday).
     const heroOut = [weekly]

@@ -31,8 +31,10 @@ export interface LiveHero { dayName: string; nextExercise: string | null; setNo:
 // record browser read, so the page cannot disagree with them.
 //
 // The dress is the app's: black, charcoal cards, white text at full ink,
-// the hues by meaning (lime for training, amber for time, violet for sleep,
-// cyan for exploration, amber again for a record that needs a look).
+// and colour only for a meaning in the Colour Key (§AM, 2026-09-22): lime
+// for what is logged, sky for what the app estimated, and a measured number
+// with no state in white. Time and sleep used to wear amber and violet for
+// WHAT they were, which the key does not give a colour to.
 
 const CHEV = <div className="chev" />;
 
@@ -120,7 +122,7 @@ export default function HealthBody({
       <div className="pad-x"><div className="card h-week-card">
         <div className="h-week-top">
           <span className="h-eyebrow">Last 7 Days</span>
-          <span className="fact">{range}</span>
+          <span className="fact date">{range}</span>
         </div>
         <div className="h-week-main">
           <button type="button" className="h-week-count" aria-label={`${overview.workouts} workouts, open the workouts`} onClick={() => onOpenRecords({ kind: "workouts" })}>
@@ -146,7 +148,7 @@ export default function HealthBody({
           <button type="button" className="h-stat lime" onClick={() => onOpenRecords({ kind: "sets" })}>
             <b>{overview.workingSets}</b><span>Working Sets</span>
           </button>
-          <button type="button" className="h-stat amber" onClick={() => onOpenRecords({ kind: "workouts" })}>
+          <button type="button" className="h-stat" onClick={() => onOpenRecords({ kind: "workouts" })}>
             <b>{overview.trainingMin}<small> min</small></b><span>Training Time</span>
           </button>
           {/* NOTHING LOGGED IS NOT A READING (polish pass 2026-09-16; the
@@ -157,20 +159,21 @@ export default function HealthBody({
               so an empty tile shouted louder than seven hours of sleep and the
               eye read it as a value. A dash is the app saying it has nothing,
               at the weight that deserves, and the label under it says which
-              nothing. The hue goes with the number: a dash is not a datum, and
-              a hue on a non-datum is the failure health skin law 2 exists for.
+              nothing. A dash is not a datum, so it steps down to the grey.
+              (The average itself is white since 2026-09-26: a measured number
+              with no state, which is the Colour Key's white, not violet.)
 
               AN EN DASH, NOT AN EM DASH (Dave's pick, polish conflict 1). The
               app bans U+2014 outright (laws.test.ts:63) and the two files that
               may carry one are both about quoting somebody else's punctuation.
               At this size the two are all but indistinguishable. */}
-          <button type="button" className="h-stat violet" onClick={() => onOpenRecords({ kind: "sleep" })}>
+          <button type="button" className="h-stat" onClick={() => onOpenRecords({ kind: "sleep" })}>
             {overview.sleep.avgHours != null ? (
               <b>{hoursLabel(overview.sleep.avgHours)}</b>
             ) : (
               <b className="h-stat-none" aria-label="No sleep logged">{"\u2013"}</b>
             )}
-            <span>{overview.sleep.nights > 0 ? capAfterNumber(`Sleep · ${overview.sleep.nights} ${overview.sleep.nights === 1 ? "night" : "nights"}`) : "Sleep Not Logged"}</span>
+            <span>{overview.sleep.nights > 0 ? `Sleep Across ${overview.sleep.nights} ${overview.sleep.nights === 1 ? "Night" : "Nights"}` : "Sleep Not Logged"}</span>
           </button>
         </div>
       </div></div>
@@ -258,9 +261,9 @@ export default function HealthBody({
               <div className="h-hero-b">
                 <div className="h-hero-t">{next.day.name}</div>
                 <div className="facts h-hero-facts">
-                  {when && <span className="fact">{when}</span>}
+                  {when && <span className="fact date">{when}</span>}
                   <span className="fact lime">{capAfterNumber(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
-                  {est > 0 && <span className="fact amber">{capAfterNumber(`About ${est} min`)}</span>}
+                  {est > 0 && <span className="fact est">{capAfterNumber(`About ${est} min`)}</span>}
                 </div>
               </div>
               {CHEV}

@@ -69,9 +69,33 @@ describe("AdminPanel", () => {
     render(<AdminPanel isAdmin source={src} />);
     fireEvent.click(await screen.findByText("Disable"));
     await waitFor(() => expect(screen.getByText("admin 502")).toBeInTheDocument());
-    // The account is active, because nothing changed it.
+    // The account is active, because nothing changed it. The row states its
+    // status through the capsule's verb alone (§AK: one grey per row).
     expect(screen.getByText("Disable")).toBeInTheDocument();
-    expect(screen.getByText(/Pro . active/)).toBeInTheDocument();
+    expect(screen.queryByText("Enable")).toBeNull();
+  });
+
+  // §AM (2026-09-22): a cost with no state is white, and an account whose
+  // model has no price says so in amber on its facts line, not as a second
+  // grey in the value slot.
+  it("draws a spend row's cost white and an unpriced one amber", async () => {
+    const src: AdminService = {
+      available: true,
+      async listUsers() { return []; }, async setUserStatus() {},
+      async usage() {
+        return { totalUsers: 2, activeUsers: 2, signups7d: 0, aiCalls30d: 13, spend: [
+          { id: "u1", email: "a@b.com", calls: 12, usd: 4.2 },
+          { id: "u2", email: "c@d.com", calls: 1, usd: null },
+        ] };
+      },
+      async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
+      async feedback() { return []; },
+      async metrics() { throw new Error("no metrics endpoint"); },
+    };
+    render(<AdminPanel isAdmin source={src} />);
+    expect(await screen.findByText("$4.20")).toHaveClass("money-amt");
+    expect(screen.getByText("Not priced")).toHaveClass("fact", "warn");
+    expect(screen.getByText("12 calls")).toHaveClass("fact");
   });
 
   it("is honest when there is no admin server", () => {

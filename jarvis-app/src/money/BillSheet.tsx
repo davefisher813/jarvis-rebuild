@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Recurrence, BillInfo } from "../notes/types";
-import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
+import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, Note } from "../shared/FormSheet";
 import { Calendar, Link2 } from "../shared/icons";
 import { DollarGlyph, RepeatGlyph, WalletGlyph } from "../shared/glyphs";
 import { monthDay } from "./bills";
@@ -81,8 +81,9 @@ export default function BillSheet({ mode, initial, paidOn, onSave, onDelete, onC
       </Group>
       <ErrorLine text={touched && !valid ? "Add a name and an amount." : null} />
       {/* UP-CORE-13: what this Save will record, said before it happens. The
-          words are the ones bills.ts already uses for a manual payment. */}
-      {mode === "paid" && paidOn && <div className="pad-x"><div className="conn-meta">Files as paid {monthDay(paidOn)}</div></div>}
+          words are the ones bills.ts already uses for a manual payment. It is
+          the note under a group, so it is the sheet's one field note (§AM F6). */}
+      {mode === "paid" && paidOn && <Note>Files as paid {monthDay(paidOn)}</Note>}
       <Group label="When">
         <FieldRow tone="orange" glyph={<Calendar className="ic" />} label="Next Due" type="date" value={due} onChange={setDue} ariaLabel="Next due" />
         <MenuRow tone="sky" glyph={<RepeatGlyph />} label="Repeats" value={recurrence ?? "once"} ariaLabel="Repeats"

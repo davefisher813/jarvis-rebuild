@@ -6,6 +6,7 @@ import "@testing-library/jest-dom";
 import { NotesProvider, useTasks, useCategories, useProfile } from "../data/NotesProvider";
 import MoneyFlow from "./MoneyFlow";
 import { todayISO } from "../tasks/grouping";
+import { monthDay } from "./bills";
 import type { TemplateKey } from "../categories/defaults";
 
 // 2026-09-11: AI is off for every test here except the receipt read, which
@@ -28,8 +29,11 @@ describe("MoneyFlow", () => {
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(screen.getByText("Total balance")).toBeInTheDocument());
     expect(screen.getAllByText("$5,000").length).toBeGreaterThanOrEqual(2);
-    // The balance is self-reported and the page says so, with a date.
-    expect(screen.getByText(/As you last entered it ·/)).toBeInTheDocument();
+    // The balance is self-reported and the page says so, with a date. The
+    // date is its own fact (§AM F3, F5): the dot between them is drawn by
+    // CSS, never baked into the words.
+    expect(screen.getByText("As you last entered it")).toBeInTheDocument();
+    expect(screen.getByText(monthDay(todayISO()))).toHaveClass("fact", "date");
   });
 
   it("adds a bill and marks it paid with a dated receipt; autopay copy never says paid", async () => {

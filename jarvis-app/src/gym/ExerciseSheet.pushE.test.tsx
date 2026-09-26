@@ -69,7 +69,8 @@ describe("ExerciseSheet: Pair With (H-24)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Change" }));
     expect(onPairWith).toHaveBeenCalled();
     rerender(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={() => {}} onCancel={() => {}} partner={null} onPairWith={onPairWith} />);
-    expect(screen.getByText("Not paired")).toBeInTheDocument();
+    // Unpaired says nothing; the Choose capsule is the whole answer (§AK).
+    expect(screen.queryByText("Not paired")).toBeNull();
     expect(screen.getByRole("button", { name: "Choose" })).toBeInTheDocument();
     rerender(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={() => {}} onCancel={() => {}} />);
     expect(screen.queryByText("Pair With")).toBeNull();

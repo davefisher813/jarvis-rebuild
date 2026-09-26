@@ -30,6 +30,20 @@ const KIND: Record<NudgeKind, RowKind> = {
   goal_risk: "goal",
 };
 
+// THE WHY TAKES THE COLOUR KEY (§AM, 2026-09-26). Every sub line here was the
+// same plain grey, so "Overdue" and "Due today" read as neutral as "Today"
+// under an event. Late and due are the task row's own urgency chips (Tasks,
+// Today and Projects draw the same facts that way); an at-risk goal needs
+// him soon, so it is amber; the sliding task's evidence stays the one grey,
+// because the chip beside it already carries the verdict.
+const SUB: Record<NudgeKind, string> = {
+  sliding: "r-goal r-cat",
+  overdue: "uchip u-late",
+  due_today: "uchip u-today",
+  event: "r-goal r-cat",
+  goal_risk: "r-goal fact warn",
+};
+
 // A1 (audit 2026-08-21). Every row here was a static div: ten sentences
 // telling him things with nothing to do about any of them, which is how a
 // notification screen teaches you to stop reading it. The row opens the
@@ -114,7 +128,7 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
       <PageHeader title="Notifications" />
       {feed.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{BELL}</div><div className="empty-title">You're All Caught Up</div>
-          <div className="empty-sub">Overdue · Today's events · At-risk goals</div></div>
+          <div className="empty-sub">Overdue tasks, today's events and goals at risk</div></div>
       ) : (
         <div>
           {bands.map((b) => (
@@ -134,7 +148,8 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
                     <span className="task-name">{n.title}</span>
                     <div className="r-k">
                       {n.when && <span className="uchip u-today">{whenWord(n.when)}</span>}
-                      <span className={"r-goal r-cat" + (n.kind === "sliding" ? " r-stalled" : "")}>{n.sub}</span>
+                      {n.tag && <span className="slide-tag">{n.tag}</span>}
+                      {n.sub && <span className={SUB[n.kind]}>{n.sub}</span>}
                     </div>
                   </div>
                   {/* One pill, and only where finishing IS the answer. An

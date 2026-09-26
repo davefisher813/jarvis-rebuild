@@ -34,7 +34,9 @@ export default function EatingWindowsScreen({ offers, onTakeOffer, onBack }: {
                 <div className="conn-name">{o.line}</div>
                 <div className="bp-sub">{o.gap.minutes} Minutes</div>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={(ev) => { ev.stopPropagation(); onTakeOffer(o); }}>Pack It</button>
+              {/* The row's verb is the capsule (§AL), as Took It is on the
+                  med rows: a fill and the action red, not a grey button. */}
+              <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onTakeOffer(o); }}>Pack It</button>
             </div>
           ))}
         </div></div>

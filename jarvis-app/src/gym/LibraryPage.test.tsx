@@ -44,11 +44,11 @@ describe("LibraryPage: the row's anatomy", () => {
     render(<LibraryPage {...base} rows={[row()]} />);
     // The count leads the line, so the word behind it carries the capital
     // (shared/casing.ts; applied here in the 2026-09-16 health polish pass).
-    expect(screen.getByText("4 Sessions")).toHaveClass("fact");
+    expect(screen.getByText("4 Sessions")).toHaveClass("fact", "lime");
     // "Last yesterday" was half of a run-on; when it happened is its own
     // field now, and it opens with a capital because it is the first word of
     // a line rather than the tail of a sentence.
-    expect(screen.getByText("Tuesday")).toHaveClass("fact", "cyan");
+    expect(screen.getByText("Tuesday")).toHaveClass("fact", "lime");
   });
 
   it("offers Assign Muscles in amber, and only while there is no primary", () => {

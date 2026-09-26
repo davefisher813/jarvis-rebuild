@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { Head, Card, Switch, Menu, Foot } from "./kit";
+import { Head, Card, Switch, Menu, Foot, DangerRow } from "./kit";
 import { pressable } from "../shared/pressable";
 import { capAfterNumber } from "../shared/casing";
 import {
@@ -29,12 +29,14 @@ const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const DAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 /** The day and time of a booking, on this device's clock, because that is the
- *  clock the person reading this screen is standing on. */
-function when(b: BookingFace): string {
+ *  clock the person reading this screen is standing on. Two neutral facts,
+ *  so two small-caps dates with the stylesheet's separator between them
+ *  (§AM F5, 2026-09-26), never a dot typed into one string. */
+function When({ b }: { b: BookingFace }) {
   const d = new Date(b.startMs);
   const day = d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
   const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return `${day} \u00b7 ${time}`;
+  return <><span className="fact date">{day}</span><span className="fact date">{time}</span></>;
 }
 
 // The two reads are injectable, the same way PublicBookingPage takes its
@@ -202,7 +204,7 @@ export default function BookingPage({
           })}>
             <div className="row-grow">
               <div className="conn-name">{linkUrl(link.slug)}</div>
-              <div className="conn-meta">{link.days > 0 ? capAfterNumber(`Open ${link.days} ${link.days === 1 ? "day" : "days"} a week \u00b7 Tap to copy`) : "No hours set \u00b7 Nobody can book"}</div>
+              <div className="conn-meta">{link.days > 0 ? capAfterNumber(`Open ${link.days} ${link.days === 1 ? "day" : "days"} a week, tap to copy`) : "No hours set, nobody can book"}</div>
             </div>
           </div>
         ) : (
@@ -221,7 +223,7 @@ export default function BookingPage({
           </button>
         </div>
         {link && (
-          <button type="button" className="row xs-row xs-del" onClick={() => void takeDown()} disabled={busy}>Take the Link Down</button>
+          <DangerRow label="Take the Link Down" onClick={() => void takeDown()} disabled={busy} />
         )}
       </Card>
       <Foot>Your times stay on this device. Publishing writes them to the booking server so the address above can offer them; taking the link down clears the hours and never cancels a booking you already have.</Foot>
@@ -231,7 +233,6 @@ export default function BookingPage({
           <div className="row" key={d} {...pressable(() => setActingDay(d))}>
             <div className="row-grow">
               <div className="conn-name">{dayOffLabel(d)}</div>
-              <div className="conn-meta">Off for the whole day</div>
             </div>
           </div>
         )) : (
@@ -258,7 +259,7 @@ export default function BookingPage({
                 <div className="row" key={b.id} {...pressable(() => setActing(b))}>
                   <div className="row-grow">
                     <div className="conn-name">{m.title}</div>
-                    <div className="conn-meta">{when(b)}</div>
+                    <div className="conn-meta"><When b={b} /></div>
                   </div>
                 </div>
               );

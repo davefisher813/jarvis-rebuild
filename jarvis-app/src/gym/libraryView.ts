@@ -140,5 +140,7 @@ export function floorLine(v: ViewResult, total: number, filter: LibraryFilter): 
   ].filter((x): x is string => !!x);
   if (!away.length) return `That's every exercise you have, all ${total}.`;
   if (v.rows.length === 0 && filter.q.trim()) return `Nothing matches "${filter.q.trim()}".`;
-  return capAfterNumber(`${v.rows.length} of ${total} shown · ${away.join(" · ")}.`);
+  // Commas, not baked middots (§AM F3): this is a sentence under the list,
+  // and each count still hands its capital to the word behind it.
+  return [`${v.rows.length} of ${total} shown`, ...away].map(capAfterNumber).join(", ") + ".";
 }

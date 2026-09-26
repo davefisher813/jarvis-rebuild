@@ -83,7 +83,9 @@ function Attachment({ a, store, onRemove }: { a: EditorAttachment; store?: FileS
   }
   return (
     <div className={"row" + (url ? " note-file-open" : "")} role={url ? "button" : undefined} tabIndex={url ? 0 : undefined} onClick={url ? open : undefined}>
-      <span className={a.type === "file" ? "fg-red" : "fg-blue"}>
+      {/* A file's kind is not a meaning the Colour Key has (§AM): the glyph
+          takes the neutral list-glyph ink, not the late red or a blue. */}
+      <span className="lead-ink">
         {a.type === "file" ? <FileText className="ic" /> : <Image className="ic" />}
       </span>
       <div className="conn-name truncate">{a.name}</div>
@@ -223,8 +225,10 @@ function FindBar({ editor, onClose }: { editor: DocEditorHandle | null; onClose:
       </div>
       <div className="doc-find-row" onClick={focusOn(replRef)}>
         <input ref={replRef} className="input" aria-label="Replace with" placeholder="Replace With" value={repl} onChange={(e) => setRepl(e.target.value)} />
-        <button type="button" className="pill-act pill-quiet" disabled={count === 0} onClick={() => { editor?.replaceCurrent(repl); bump(); }}>Replace</button>
-        <button type="button" className="pill-act pill-quiet" disabled={count === 0} onClick={() => { const n = editor?.replaceAll(repl) ?? 0; bump(); if (n) showToast({ message: capAfterNumber(n === 1 ? "1 replaced" : n + " replaced") }); }}>Replace All</button>
+        {/* Replace and Replace All change the words, so they are the red
+            verb (§AL); moving between matches and closing stay quiet. */}
+        <button type="button" className="pill-act" disabled={count === 0} onClick={() => { editor?.replaceCurrent(repl); bump(); }}>Replace</button>
+        <button type="button" className="pill-act" disabled={count === 0} onClick={() => { const n = editor?.replaceAll(repl) ?? 0; bump(); if (n) showToast({ message: capAfterNumber(n === 1 ? "1 replaced" : n + " replaced") }); }}>Replace All</button>
       </div>
     </div>
   );
@@ -458,7 +462,8 @@ export default function NoteEditor({
         {note.eyebrow && (
           <div className="doc-eyebrow">
             <span className={"cat-dot cat-bg-" + catColor(note.category)} />
-            <span className={"eyebrow cat-fg-" + catColor(note.category)}>{note.eyebrow}</span>
+            {/* The dot carries the area's hue; the words stay grey (§AM). */}
+            <span className="eyebrow">{note.eyebrow}</span>
           </div>
         )}
         <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Title" onSave={onEditTitle} />
@@ -477,7 +482,9 @@ export default function NoteEditor({
         />
         {saveLine}
         {(tags ?? []).length > 0 && (
-          <div className="facts note-tags">{(tags ?? []).map((t) => <span className="fact" key={t}>#{t}</span>)}</div>
+          // The tags are one run, the line's one grey (§AK), as on the
+          // library row: a fact per tag was two greys told apart by a dot.
+          <div className="facts note-tags"><span className="fact">{(tags ?? []).map((t) => "#" + t).join(" ")}</span></div>
         )}
         <Provenance source={note.source} {...(note.source && openSourceFor ? { onOpen: openSourceFor(note.source) } : {})} />
         <HyperfocusLine guard={guard} />

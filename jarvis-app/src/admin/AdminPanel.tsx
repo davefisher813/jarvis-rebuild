@@ -122,9 +122,16 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
               <div className="row" key={s.id}>
                 <div className="row-grow">
                   <div className="conn-name">{s.email}</div>
-                  <div className="conn-meta">{s.calls} {s.calls === 1 ? "call" : "calls"}</div>
+                  {/* §AM: the call count is the row's one grey. A cost is a
+                      number with no state, so it is white; a model the price
+                      table does not know needs the admin to add it, so it is
+                      amber, on the facts line rather than in the value slot. */}
+                  <div className="facts">
+                    <span className="fact">{s.calls} {s.calls === 1 ? "call" : "calls"}</span>
+                    {s.usd == null && <span className="fact warn">Not priced</span>}
+                  </div>
                 </div>
-                <div className="conn-meta">{s.usd != null ? formatUSD(s.usd) : "Not priced"}</div>
+                {s.usd != null && <span className="money-amt">{formatUSD(s.usd)}</span>}
               </div>
             ))}
           </div></div>
@@ -159,9 +166,11 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
             <div className="adm-tile"><div className="adm-num">{pct(metrics.d7)}</div><div className="adm-label">Came back day 7{metrics.d7Basis ? " (" + metrics.d7Basis + ")" : ""}</div></div>
             <div className="adm-tile"><div className="adm-num">{metrics.aiCallsPerActive ?? "-"}</div><div className="adm-label">AI calls per active</div></div>
             <div className="adm-tile"><div className="adm-num">{metrics.signups7d}</div><div className="adm-label">Signups 7d</div></div>
-          </div></div>
-          <div className="pad-x"><div className="list-floor">
-            {metrics.funnel.started} started intake · {metrics.funnel.finished} finished · {metrics.funnel.skipped} skipped
+            {/* The funnel behind "Finished onboarding", one number per tile,
+                the way every other count on this screen is drawn. */}
+            <div className="adm-tile"><div className="adm-num">{metrics.funnel.started}</div><div className="adm-label">Started intake</div></div>
+            <div className="adm-tile"><div className="adm-num">{metrics.funnel.finished}</div><div className="adm-label">Finished intake</div></div>
+            <div className="adm-tile"><div className="adm-num">{metrics.funnel.skipped}</div><div className="adm-label">Skipped intake</div></div>
           </div></div>
           {metrics.truncated && (
             <div className="pad-x"><div className="list-floor">Too many days of history to walk, so the two return numbers are withheld rather than guessed</div></div>
@@ -202,10 +211,17 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
             <div className="row" key={u.id} aria-expanded={openUser === u.id} {...pressable(() => setOpenUser(openUser === u.id ? null : u.id))}>
               <div className="row-grow">
                 <div className="conn-name">{u.email}{u.role === "admin" && <span className="adm-role">admin</span>}</div>
-                <div className="conn-meta">{u.plan} &middot; {u.status}</div>
-                {openUser === u.id && <div className="conn-meta">Joined {u.createdAt.slice(0, 10)} &middot; {u.id}</div>}
+                {/* §AK/§AM: the plan is the row's one grey and the join date
+                    is a neutral date, so small caps. The status is not
+                    repeated here: the capsule's verb already says it
+                    (Disable on an active account, Enable on a disabled one).
+                    Nor is the account id: the email already names it. */}
+                <div className="facts">
+                  <span className="fact">{u.plan}</span>
+                  {openUser === u.id && <span className="fact date">Joined {u.createdAt.slice(0, 10)}</span>}
+                </div>
               </div>
-              <button className="chip" onClick={(ev) => { ev.stopPropagation(); void toggle(u); }}>{u.status === "active" ? "Disable" : "Enable"}</button>
+              <button className="pill-act" onClick={(ev) => { ev.stopPropagation(); void toggle(u); }}>{u.status === "active" ? "Disable" : "Enable"}</button>
             </div>
           ))}
         </div></div>

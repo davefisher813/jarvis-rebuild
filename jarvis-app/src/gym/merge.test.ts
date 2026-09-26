@@ -90,7 +90,7 @@ describe("the plan counts the real records", () => {
 
   it("says what moves in plain counts, and says so honestly when nothing has been logged", () => {
     const { plan } = setup();
-    expect(movesLine(plan)).toBe("1 session · 2 sets · 1 program day · 1 goal");
+    expect(movesLine(plan)).toBe("1 session, 2 sets, 1 program day, 1 goal");
     expect(movesLine({ ...plan, sessions: 0, sets: 0, programDays: 0, goals: [] }))
       .toBe("Nothing logged under it yet, so only the name moves");
   });
@@ -159,7 +159,7 @@ describe("a failure is reported as a failure", () => {
   });
 
   it("says nothing was changed when nothing landed", () => {
-    expect(remainingLine(state({ applied: 0 }))).toBe("Nothing was changed");
+    expect(remainingLine(state({ applied: 0 }))).toBe("Nothing was changed, both exercises are exactly as they were");
   });
 
   it("says what landed and that Retry finishes the rest", () => {
@@ -167,7 +167,7 @@ describe("a failure is reported as a failure", () => {
     // Three workouts and one program day: the patch stamps the survivor's own
     // sightings too, so it is bigger than the count of what moves.
     expect(totalWrites(s.plan)).toBe(4);
-    expect(remainingLine(s)).toBe("1 of 4 saved · Retry finishes the rest");
+    expect(remainingLine(s)).toBe("1 of 4 saved and nothing was deleted, Retry finishes the rest");
   });
 
   it("does not claim a partial write when every write landed", () => {

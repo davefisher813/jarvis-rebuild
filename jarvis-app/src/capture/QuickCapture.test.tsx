@@ -133,7 +133,10 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
-    expect(screen.getByText("Fact · Routine · From your paste")).toBeInTheDocument();
+    // §AM (2026-09-26): the bucket is the lit chip, and the receipt line no
+    // longer says it again ("Fact · Routine · From your paste" repeated both
+    // chips word for word). A plain self-fact has nothing else to say.
+    expect(document.querySelector(".capture-saved .facts")).toBeNull();
     expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "false");
     for (const label of ["Energy", "Work Style", "Writing", "People", "Values", "Routine"]) {
@@ -152,8 +155,7 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("radio", { name: "Energy" }));
-    await waitFor(() => expect(screen.getByText("Fact · Energy · From your paste")).toBeInTheDocument());
-    expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "true");
+    await waitFor(() => expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "true"));
     expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "false");
   });
 
@@ -177,7 +179,6 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "The Brain is full · Prune it in What JARVIS Knows" }));
 
     // The refusal moved nothing: the fact is still under Routine.
-    expect(screen.getByText("Fact · Routine · From your paste")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "false");
   });
@@ -213,6 +214,66 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     expect(screen.getByRole("radio", { name: "Fact" })).toHaveAttribute("aria-checked", "false");
     expect(await strandsRef!.list()).toHaveLength(12);
     expect(await tasksRef!.listTasks()).toHaveLength(1);
+  });
+});
+
+// §AM (2026-09-26): WHAT IT READ, AS FACTS. The receipt line was one grey
+// string with its dots typed in, and every fact on it the same grey. Each
+// fact now wears what it is: every when in small caps, a bill's amount in
+// white, and the dots drawn by the stylesheet, never carried in the words.
+describe("QuickCapture receipt reads as facts (§AM)", () => {
+  const receiptFacts = () => Array.from(document.querySelectorAll(".capture-saved .facts > .fact"));
+
+  it("a reminder says so beside its time, and every when is small caps", async () => {
+    render(
+      <NotesProvider userId="u-receipt-remind">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "remind me to water the plants at 9pm" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    const facts = receiptFacts();
+    expect(facts.map((f) => f.textContent)).toEqual([expect.stringMatching(/^Reminder 9:00\sPM$/), "Daily"]);
+    for (const f of facts) expect(f.className).toBe("fact date");
+    const line = document.querySelector(".capture-saved .facts")!;
+    expect(line.textContent).not.toContain("\u00b7");
+    expect(line.textContent).not.toContain("From your paste");
+  });
+
+  it("a bill's amount is a white number, not a grey word", async () => {
+    render(
+      <NotesProvider userId="u-receipt-bill">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "pay rent $1,200 every month" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    const facts = receiptFacts();
+    expect(facts[0]!.querySelector("b")?.textContent).toMatch(/1,200/);
+    expect(facts[facts.length - 1]!.textContent).toBe("Monthly");
+    expect(facts[facts.length - 1]!.className).toBe("fact date");
+  });
+
+  it("a recent capture is its kind in grey and its time in small caps", async () => {
+    recordCapture({ id: "old-note-2", kind: "note", title: "Gate code", ts: Date.now() - 60000 });
+    render(
+      <NotesProvider userId="u-recent-facts">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    const row = screen.getByText("Gate code").closest(".row")!;
+    const facts = Array.from(row.querySelectorAll(".facts > .fact"));
+    expect(facts.map((f) => f.className)).toEqual(["fact", "fact date"]);
+    expect(facts[0]!.textContent).toBe("Note");
+    expect(row.textContent).not.toContain("\u00b7");
   });
 });
 

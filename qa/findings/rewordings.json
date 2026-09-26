@@ -504,5 +504,1205 @@
   "old": "For Time \u00b7 cap 20:00 (receipt shows \"cap 20:00\")",
   "new": "For Time \u00b7 Cap 20:00 (receipt shows \"Cap 20:00\")",
   "phase": "css-round4"
+ },
+ {
+  "id": 11,
+  "file": "jarvis-app/src/today/TodayPage.tsx",
+  "old": "Re-plan what's left \u00b7 Nothing lost",
+  "new": "Nothing lost",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 31,
+  "file": "jarvis-app/src/today/MailNotices.tsx",
+  "old": "{residual} \u00b7 Nothing urgent  (e.g. \"4 More Emails in Your Inbox \u00b7 Nothing urgent\")",
+  "new": "{residual}  (e.g. \"4 More Emails in Your Inbox\")",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 30,
+  "file": "jarvis-app/src/today/todayData.ts",
+  "old": "$1850 \u00b7 Due tomorrow  (one string)",
+  "new": "$1850 | Due tomorrow  (two .fact spans; the dot is drawn by CSS; words unchanged)",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 12,
+  "file": "jarvis-app/src/today/evening.ts",
+  "old": "6 Done today \u00b7 Moved Ship the App \u00b7 2 Left tonight",
+  "new": "6 Done today | Moved Ship the App  (two .fact spans, CSS dot; 'N Left tonight' shows only when no goal moved: '6 Done today | 2 Left tonight')",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 14,
+  "file": "jarvis-app/src/today/TodayPage.tsx",
+  "old": "TUESDAY, SEPTEMBER 22 \u00b7 OFFLINE  (typed dot)",
+  "new": "TUESDAY, SEPTEMBER 22 | OFFLINE  (two .fact spans, CSS dot; words unchanged)",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 34,
+  "file": "jarvis-app/src/today/patterns.ts",
+  "old": "Heavy stretch \u00b7 Keeping plans light",
+  "new": "Heavy stretch, keeping plans light",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 34,
+  "file": "jarvis-app/src/today/patterns.ts",
+  "old": "${DOW_NAME[dow]} run heavy \u00b7 Plan lighter?  (e.g. \"Mondays run heavy \u00b7 Plan lighter?\")",
+  "new": "${DOW_NAME[dow]} run heavy, plan lighter?  (e.g. \"Mondays run heavy, plan lighter?\")",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 34,
+  "file": "jarvis-app/src/today/patterns.ts",
+  "old": "${streak.len} days in flow \u00b7 It is working",
+  "new": "${streak.len} days in flow, and it is working",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 2,
+  "file": "jarvis-app/src/today/TodayPage.tsx",
+  "old": "No category  (second line of a Tomorrow event or task with no area)",
+  "new": "(no second line)",
+  "group": "code-2:today:MoveHeadliner.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 59,
+  "file": "jarvis-app/src/schedule/screens/LockedRow.tsx",
+  "old": "Focus time \u00b7 Tasks land here",
+  "new": "Focus time",
+  "group": "code-3:schedule:stateWord.ts",
+  "phase": "code"
+ },
+ {
+  "id": 59,
+  "file": "jarvis-app/src/schedule/screens/LockedRow.tsx",
+  "old": "Can blend \u00b7 mouth and ears free",
+  "new": "Can blend, mouth and ears free",
+  "group": "code-3:schedule:stateWord.ts",
+  "phase": "code"
+ },
+ {
+  "id": 59,
+  "file": "jarvis-app/src/schedule/screens/LockedRow.tsx",
+  "old": "FLEXIBLE Protected \u00b7 Until 7:00 PM (soft protects block)",
+  "new": "FLEXIBLE \u00b7 Until 7:00 PM (without a state word, which no caller does today: Flexible \u00b7 Until 7:00 PM)",
+  "group": "code-3:schedule:stateWord.ts",
+  "phase": "code"
+ },
+ {
+  "id": 62,
+  "file": "jarvis-app/src/schedule/screens/SchedulePage.tsx",
+  "old": "Every Tuesday \u00b7 No end date \u00b7 2 skipped   [No End]",
+  "new": "Every Tuesday \u00b7 2 skipped   [No End]  (dot drawn by CSS; a series with an end reads 'Every Tuesday \u00b7 THROUGH NOV 8', with the text unchanged and small caps from CSS)",
+  "group": "code-3:schedule:stateWord.ts",
+  "phase": "code"
+ },
+ {
+  "id": 63,
+  "file": "jarvis-app/src/schedule/screens/SchedulePage.tsx",
+  "old": "Repeats / Nothing repeats yet",
+  "new": "Repeats (no line under it when nothing is standing)",
+  "group": "code-3:schedule:stateWord.ts",
+  "phase": "code"
+ },
+ {
+  "id": 64,
+  "file": "jarvis-app/src/schedule/screens/SchedulePage.tsx",
+  "old": "+! 3 clashes today   Fix",
+  "new": "[amber warning triangle] 3 clashes today   Fix",
+  "group": "code-3:schedule:stateWord.ts",
+  "phase": "code"
+ },
+ {
+  "id": 76,
+  "file": "jarvis-app/src/schedule/screens/EventDetailPage.tsx",
+  "old": "Tuesday, September 22 \u00b7 3:00 PM to 4:00 PM",
+  "new": "Tuesday, September 22 / 3:00 PM to 4:00 PM (two lines, small caps from CSS)",
+  "group": "code-3:schedule:stateWord.ts",
+  "phase": "code"
+ },
+ {
+  "id": 78,
+  "file": "jarvis-app/src/schedule/screens/EventDetailPage.tsx",
+  "old": "Area .......... No area",
+  "new": "(Area card not shown when the event has no area)",
+  "group": "code-3:schedule:stateWord.ts",
+  "phase": "code"
+ },
+ {
+  "id": 110,
+  "file": "jarvis-app/src/review/week.ts",
+  "old": "Unfiled \u00b7 3 Tasks pushed (Slipped line, when the top area has been deleted)",
+  "new": "3 Tasks pushed",
+  "group": "code-4:review:week.ts",
+  "phase": "code"
+ },
+ {
+  "id": 112,
+  "file": "jarvis-app/src/review/InsightsFlow.tsx",
+  "old": "Everything you achieve, dated, forever (sub under The Long Story when nothing is achieved yet)",
+  "new": "(no line; the row shows only its title until the first crossing)",
+  "group": "code-4:review:week.ts",
+  "phase": "code"
+ },
+ {
+  "id": 118,
+  "file": "jarvis-app/src/review/report.ts",
+  "old": "Your first three get done \u00b7 The later picks mostly do not",
+  "new": "Your first three get done, the later picks mostly do not",
+  "group": "code-4:review:week.ts",
+  "phase": "code"
+ },
+ {
+  "id": 118,
+  "file": "jarvis-app/src/review/report.ts",
+  "old": "Starting tomorrow \u00b7 Change it any time",
+  "new": "Starting tomorrow, change it any time",
+  "group": "code-4:review:week.ts",
+  "phase": "code"
+ },
+ {
+  "id": 119,
+  "file": "jarvis-app/src/review/report.ts",
+  "old": "2 This month \u00b7 11 In July",
+  "new": "2 This month, 11 in July",
+  "group": "code-4:review:week.ts",
+  "phase": "code"
+ },
+ {
+  "id": 119,
+  "file": "jarvis-app/src/review/report.ts",
+  "old": "Firsts 78% \u00b7 Later picks 20%",
+  "new": "Firsts 78%, later picks 20%",
+  "group": "code-4:review:week.ts",
+  "phase": "code"
+ },
+ {
+  "id": 119,
+  "file": "jarvis-app/src/review/report.ts",
+  "old": "You fixed 1 \u00b7 It is gone (plural: You fixed 2 \u00b7 They are gone)",
+  "new": "You fixed 1, it is gone (plural: You fixed 2, they are gone)",
+  "group": "code-4:review:week.ts",
+  "phase": "code"
+ },
+ {
+  "id": 119,
+  "file": "jarvis-app/src/review/report.ts",
+  "old": "4 Reminders \u00b7 3 of 5 Drafts sent as written",
+  "new": "4 Reminders, 3 of 5 drafts sent as written",
+  "group": "code-4:review:week.ts",
+  "phase": "code"
+ },
+ {
+  "id": 139,
+  "file": "jarvis-app/src/projects/ProjectDetailPage.tsx",
+  "old": "Because {why} \u00b7 Decided {date}",
+  "new": "Because {why}  /  DECIDED {DATE} (two lines; date in small caps)",
+  "group": "code-6:projects:types.ts",
+  "phase": "code"
+ },
+ {
+  "id": 139,
+  "file": "jarvis-app/src/projects/ProjectDetailPage.tsx",
+  "old": "No reason recorded \u00b7 Decided {date}",
+  "new": "DECIDED {DATE} (placeholder dropped; date line only)",
+  "group": "code-6:projects:types.ts",
+  "phase": "code"
+ },
+ {
+  "id": 140,
+  "file": "jarvis-app/src/projects/ProjectDetailPage.tsx",
+  "old": "TODAY today  /  N DAYS LATE yesterday  /  N DAYS LATE {Month Day}",
+  "new": "TODAY  /  N DAYS LATE (chip only; repeated day dropped)",
+  "group": "code-6:projects:types.ts",
+  "phase": "code"
+ },
+ {
+  "id": 140,
+  "file": "jarvis-app/src/projects/ProjectDetailPage.tsx",
+  "old": "tomorrow",
+  "new": "Tomorrow (amber)",
+  "group": "code-6:projects:types.ts",
+  "phase": "code"
+ },
+ {
+  "id": 306,
+  "file": "jarvis-app/src/gym/LoadSheet.tsx + jarvis-app/src/gym/equipment.ts",
+  "old": "\"Dumbbells \u00b7 The Whole Load\" \u00b7 \"Reps Per Side\" (two facts)",
+  "new": "\"Dumbbells, The Whole Load, Reps Per Side\" (one fact). styleSummary itself changes from \"Dumbbells \u00b7 The Whole Load\" to \"Dumbbells, The Whole Load\", which also changes SessionScreen's equipment chip and the progression variant label.",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 310,
+  "file": "jarvis-app/src/gym/merge.ts",
+  "old": "\"12 sessions \u00b7 36 sets \u00b7 1 program day \u00b7 1 goal\"",
+  "new": "\"12 sessions, 36 sets, 1 program day, 1 goal\"",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 310,
+  "file": "jarvis-app/src/gym/DuplicateReview.tsx",
+  "old": "\"Every one of them reads as Bench Press afterwards\" / \"Sets, notes, goals and program days come across exactly as they are\" / \"Nothing is dropped for looking like anything else\"",
+  "new": "\"All of it reads as Bench Press afterwards, exactly as it is\" (not shown when nothing is logged)",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 309,
+  "file": "jarvis-app/src/gym/merge.ts + jarvis-app/src/gym/DuplicateReview.tsx",
+  "old": "(nothing saved) \"Nothing was changed\" / \"Both exercises are exactly as they were\" / \"Retry picks up where it stopped\"",
+  "new": "\"Nothing was changed, both exercises are exactly as they were\"",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 309,
+  "file": "jarvis-app/src/gym/merge.ts + jarvis-app/src/gym/DuplicateReview.tsx",
+  "old": "(partly saved) \"1 of 4 saved \u00b7 Retry finishes the rest\" / \"Some sessions already read as the kept name \u00b7 Retry finishes the rest, and nothing was deleted\" / \"Retry picks up where it stopped\"",
+  "new": "\"1 of 4 saved and nothing was deleted, Retry finishes the rest\"",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 309,
+  "file": "jarvis-app/src/gym/DuplicateReview.tsx",
+  "old": "(all saved) \"Everything saved, but the last step did not confirm\" / \"Some sessions already read as the kept name \u00b7 Retry finishes the rest, and nothing was deleted\" / \"Retry picks up where it stopped\"",
+  "new": "\"Everything saved, but the last step did not confirm\"",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 311,
+  "file": "jarvis-app/src/gym/DuplicateReview.tsx",
+  "old": "\"12 sessions\" \u00b7 \"36 sets\" \u00b7 \"From Aug 1\" \u00b7 \"To Sep 20\"",
+  "new": "\"12 sessions, 36 sets\" \u00b7 \"Aug 1 to Sep 20\" (drawn in small caps)",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 311,
+  "file": "jarvis-app/src/gym/DuplicateReview.tsx",
+  "old": "\"Never done\"; \"No equipment set\"",
+  "new": "(nothing shown)",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 311,
+  "file": "jarvis-app/src/gym/DuplicateReview.tsx",
+  "old": "\"Dumbbells\" \u00b7 \"Home Gym \u00b7 Leg Press 2\" (two facts)",
+  "new": "\"Dumbbells, Home Gym \u00b7 Leg Press 2\" (one fact; the dot inside comes from classify.ts identityLine, see needs_other_file)",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 311,
+  "file": "jarvis-app/src/gym/DuplicateReview.tsx",
+  "old": "muscles line, e.g. \"Back \u00b7 Also Biceps\"",
+  "new": "(dropped; the Conflicts card names differing muscles)",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 311,
+  "file": "jarvis-app/src/gym/DuplicateReview.tsx",
+  "old": "\"This name survives\" (inside the Keeping card)",
+  "new": "(dropped; the head says Keeping)",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 311,
+  "file": "jarvis-app/src/gym/DuplicateReview.tsx",
+  "old": "\"This name becomes a searchable alias\" (a grey line inside the Folding In card)",
+  "new": "\"This name becomes a searchable alias\" (same words, now an input-hint foot under the card)",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 313,
+  "file": "jarvis-app/src/gym/LibraryPage.tsx",
+  "old": "\"Never done\" (row facts and the merge picker's sub)",
+  "new": "(nothing shown)",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 313,
+  "file": "jarvis-app/src/gym/LibraryPage.tsx",
+  "old": "\"Favorite\" \u00b7 \"Hidden\" \u00b7 \"Archived\" \u00b7 \"Saved\" (separate facts)",
+  "new": "\"Favorite, Hidden, Archived, Saved\" (one fact, only the flags that apply)",
+  "group": "code-10:gym:SetStrip.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 273,
+  "file": "jarvis-app/src/gym/GymFlow.tsx",
+  "old": "Day row facts on a day with no exercises: \"Empty\"",
+  "new": "(no line; the row shows the day's name alone, plus Live or the done word when one applies)",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 268,
+  "file": "jarvis-app/src/gym/GymFlow.tsx",
+  "old": "Resume {Day} row meta before any set is logged: \"Nothing logged yet\"",
+  "new": "(no line; \"N sets logged\" appears once there is one)",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 266,
+  "file": "jarvis-app/src/gym/GymFlow.tsx",
+  "old": "Pinned Days meta with no pins: \"None \u00b7 Rotation decides\"",
+  "new": "\"Rotation decides\"",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 266,
+  "file": "jarvis-app/src/gym/pins.ts",
+  "old": "pinLabel: \"Tue \u00b7 Fri\" (Pinned Days meta, the day row's pin chip, and the pin toast \"Push Day pinned \u00b7 Tue \u00b7 Fri\")",
+  "new": "\"Tue, Fri\" (toast now reads \"Push Day pinned \u00b7 Tue, Fri\")",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 267,
+  "file": "jarvis-app/src/gym/GymFlow.tsx",
+  "old": "No days with exercises yet \u00b7 Build one first",
+  "new": "No days with exercises yet, build one first",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 318,
+  "file": "jarvis-app/src/gym/ClassifySheet.tsx",
+  "old": "Muscles card facts with no primary set: \"No primary yet\"",
+  "new": "(no fact; the line shows \"Primary ...\" and/or \"Secondary ...\" only once a muscle is set)",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 320,
+  "file": "jarvis-app/src/gym/ClassifySheet.tsx",
+  "old": "Classify sheet foot line with no muscles: \"No muscles yet\"",
+  "new": "(no line; the foot line appears once a muscle is set)",
+  "group": "code-11:gym:ClassifySheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 377,
+  "file": "jarvis-app/src/insights/records.ts",
+  "old": "12 working sets \u00b7 Duration needs review",
+  "new": "12 working sets. The flag now shows as amber minutes, with 'Duration needs review' in the new `review` field and the row's aria-label.",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 377,
+  "file": "jarvis-app/src/insights/records.ts",
+  "old": "Stiffness \u00b7 Mild",
+  "new": "Stiffness, Mild",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 375,
+  "file": "jarvis-app/src/insights/AllDataPage.tsx",
+  "old": "12 working sets \u00b7 Imported (two facts)",
+  "new": "12 working sets, imported (one fact). A sets row with no detail shows 'Imported' alone.",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 379,
+  "file": "jarvis-app/src/insights/InsightsPage.tsx",
+  "old": "Biggest gain \u00b7 Best set at 5 reps \u00b7 All History / big number '135 lb'",
+  "new": "Biggest gain \u00b7 ALL HISTORY / big number '135 lb \u00d7 5'",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 380,
+  "file": "jarvis-app/src/insights/InsightsPage.tsx",
+  "old": "First muscle whole, the rest half \u00b7 The app's convention",
+  "new": "First muscle whole, the rest half, by the app's convention",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 380,
+  "file": "jarvis-app/src/insights/InsightsPage.tsx",
+  "old": "Working sets only \u00b7 Warm-ups are not counted",
+  "new": "Working sets only, warm-ups not counted",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 382,
+  "file": "jarvis-app/src/insights/InsightsPage.tsx",
+  "old": "Latest Sep 20 \u00b7 2 of 30 days (one fact with a baked middot)",
+  "new": "LATEST SEP 20 (small-caps date fact) \u00b7 2 of 30 days (grey fact)",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 382,
+  "file": "jarvis-app/src/insights/InsightsPage.tsx",
+  "old": "4 Rated sessions \u00b7 3 days",
+  "new": "4 Rated sessions over 3 days",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 383,
+  "file": "jarvis-app/src/insights/InsightsPage.tsx",
+  "old": "Not logged",
+  "new": "(nothing: the row shows only the metric's name)",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 384,
+  "file": "jarvis-app/src/insights/InsightsPage.tsx",
+  "old": "Records, dates and counts only \u00b7 Nothing here reads a cause into a coincidence",
+  "new": "Records, dates and counts only, with no cause read into a coincidence",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 385,
+  "file": "jarvis-app/src/insights/InsightsPage.tsx",
+  "old": "No night logged in this period",
+  "new": "(nothing: the Sleep card shows its name and its View Sleep Logs link)",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 385,
+  "file": "jarvis-app/src/insights/InsightsPage.tsx",
+  "old": "No working sets in this period",
+  "new": "(nothing: the Where Your Sets Went card is not drawn when the period has no working sets)",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 386,
+  "file": "jarvis-app/src/insights/ExportSheet.tsx",
+  "old": "142 records \u00b7 Every record with its date, value, unit and source",
+  "new": "142 records, each with its date, value, unit and source",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 386,
+  "file": "jarvis-app/src/insights/ExportSheet.tsx",
+  "old": "142 records \u00b7 The period in plain text, with how each number was made",
+  "new": "142 records, as the period in plain text, with how each number was made",
+  "group": "code-13:insights:AllDataPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 416,
+  "file": "jarvis-app/src/settings/AIControlPage.tsx",
+  "old": "Acts \u00b7 Receipts + undo \u00b7 You send",
+  "new": "Acts with receipts and undo, you still send",
+  "group": "code-15:settings:LearnedRulesPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 416,
+  "file": "jarvis-app/src/settings/AIControlPage.tsx",
+  "old": "Drafts ready \u00b7 Nothing acts",
+  "new": "Drafts ready, nothing acts",
+  "group": "code-15:settings:LearnedRulesPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 416,
+  "file": "jarvis-app/src/settings/AIControlPage.tsx",
+  "old": "Zero AI calls \u00b7 Nothing deleted",
+  "new": "Zero AI calls, nothing deleted",
+  "group": "code-15:settings:LearnedRulesPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 422,
+  "file": "jarvis-app/src/settings/AccountPage.tsx",
+  "old": "Your data stays \u00b7 Intake runs again",
+  "new": "Your data stays",
+  "group": "code-15:settings:LearnedRulesPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 429,
+  "file": "jarvis-app/src/settings/BookingPage.tsx",
+  "old": "Open {n} days a week \u00b7 Tap to copy",
+  "new": "Open {n} days a week, tap to copy",
+  "group": "code-15:settings:LearnedRulesPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 429,
+  "file": "jarvis-app/src/settings/BookingPage.tsx",
+  "old": "No hours set \u00b7 Nobody can book",
+  "new": "No hours set, nobody can book",
+  "group": "code-15:settings:LearnedRulesPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 430,
+  "file": "jarvis-app/src/settings/BookingPage.tsx",
+  "old": "Off for the whole day (under every Days Off row)",
+  "new": "(no line; the row shows only the date, e.g. \"Friday, December 25\")",
+  "group": "code-15:settings:LearnedRulesPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 432,
+  "file": "jarvis-app/src/settings/LearnedRulesPage.tsx",
+  "old": "Two stacked evidence lines under each rule, e.g. '\"Gym at 6\" moved to Health' / '\"Gym at 7\" moved to Health'",
+  "new": "One line, the latest evidence only, e.g. '\"Gym at 7\" moved to Health'",
+  "group": "code-15:settings:LearnedRulesPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 493,
+  "file": "jarvis-app/src/money/bills.ts",
+  "old": "No due date",
+  "new": "(no line: a bill with no due date shows only its name and amount)",
+  "group": "code-18:money:BillSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 495,
+  "file": "jarvis-app/src/money/bills.ts",
+  "old": "$2,400 in \u00b7 $1,150 of bills out",
+  "new": "$2,400 in, $1,150 of bills out (amounts in white <b>)",
+  "group": "code-18:money:BillSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 496,
+  "file": "jarvis-app/src/money/MoneyFlow.tsx",
+  "old": "As you last entered it \u00b7 Sep 12 \u00b7 3 accounts",
+  "new": "As you last entered it [CSS dot] SEP 12 (date as small caps; account count dropped because the account rows directly below already show it)",
+  "group": "code-18:money:BillSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 496,
+  "file": "jarvis-app/src/money/MoneyFlow.tsx",
+  "old": "$X across 3 accounts \u00b7 as you last entered it \u00b7 Sep 12 (bills-lead branch, never rendered while MONEY_TOP is \"hero-accts\")",
+  "new": "$X across 3 accounts, as you last entered it SEP 12 (date as a fact date span)",
+  "group": "code-18:money:BillSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 509,
+  "file": "jarvis-app/src/booking/PublicCancelPage.tsx",
+  "old": "\"The hour is free again and it has come off their calendar\" + (separate line) \"Nothing else is needed from you\"",
+  "new": "\"The hour is free again and has come off their calendar, so nothing else is needed from you\"",
+  "group": "code-19:booking:PublicCancelPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 510,
+  "file": "jarvis-app/src/booking/CancelBookingSheet.tsx",
+  "old": "`${m.title}, ${m.date} at ${m.start}` (renders e.g. \"Intro with Sam, 2026-09-30 at 14:00\")",
+  "new": "`${m.title}, ${dayWords(booking.startMs)} at ${timeWords(booking.startMs)}` (renders e.g. \"Intro with Sam, Wednesday, September 30 at 2:00 PM\")",
+  "group": "code-19:booking:PublicCancelPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 20,
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "Push Day \u00b7 12 Min left \u00b7 2 of 6 logged (Now card, when no exercise is current: currentLine fell back to the day name, repeating the title \"In: Push Day\")",
+  "new": "12 Min left \u00b7 2 of 6 logged (with a current exercise the facts are unchanged: Bench Press \u00b7 3 \u00d7 225 lb \u00d7 5 \u00b7 12 Min left \u00b7 2 of 6 logged, dots now drawn by CSS)",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 21,
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "Push Day \u00b7 12 Min left (Your Move sub, when no exercise is current, repeating \"Back to Push Day\")",
+  "new": "12 Min left",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 22,
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "Keep going \u00b7 same category, due today \u00b7 15m",
+  "new": "Same category, due today \u00b7 15m",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 23,
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "4 Open \u00b7 Nothing today moves it \u00b7 Pick a project to move it",
+  "new": "4 Open \u00b7 Nothing today moves it",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 24,
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "Nothing was lost \u00b7 Try again",
+  "new": "Nothing was lost",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 25,
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "Welcome Back \u00b7 Nothing was lost \u00b7 Start with one?",
+  "new": "Welcome Back. Start with one?",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 26,
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "Accepted \u00b7 3 Blocks",
+  "new": "3 Blocks accepted",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 27,
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "Marco Silva \u00b7 1 Open with them \u00b7 Last mail 3 weeks ago (all as the row title)",
+  "new": "Title: Marco Silva; facts line: 1 Open with them \u00b7 LAST MAIL 3 WEEKS AGO",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 28,
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "Until Gym 11:00 AM (fallback: Until your next event 11:00 AM)",
+  "new": "UNTIL 11:00 AM \u00b7 Gym (fallback: UNTIL 11:00 AM \u00b7 Your next event)",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 28,
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "Until 7:00 PM (grey sentence)",
+  "new": "UNTIL 7:00 PM (same words, small caps via .fact.date)",
+  "group": "code-22:today:TodayFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 82,
+  "file": "jarvis-app/src/schedule/screens/EventSheet.tsx",
+  "old": "Training Door row, line under the name: \"On\" / \"Off\"",
+  "new": "(line removed; the switch and the name, 'Training Door' or 'This Block Opens the Gym', say it)",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 84,
+  "file": "jarvis-app/src/schedule/screens/PlanDaySheet.tsx",
+  "old": "\"{open} open \u00b7 {n} picked, fits \u00b7 Your usual \u00b7 {k} Already planned\" (e.g. \"6h open \u00b7 3 picked, fits \u00b7 Your usual \u00b7 2 Already planned\")",
+  "new": "\"{open} open, {k} already planned\" then (CSS dot) \"Your usual {n}, fits\" in green (\"{n} picked, fits\" when it is not his usual), e.g. \"6h open, 2 already planned \u00b7 Your usual 3, fits\"",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 608,
+  "file": "jarvis-app/src/schedule/screens/PlanDaySheet.tsx",
+  "old": "over the limit: \"{open} open \u00b7 {over} over \u00b7 Your usual \u00b7 {k} Already planned\" (whole line amber)",
+  "new": "\"{open} open, {k} already planned\" then (CSS dot) \"{over} over\" in red. 'Your usual' is not shown when the day runs over.",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 85,
+  "file": "jarvis-app/src/schedule/screens/PlanDaySheet.tsx",
+  "old": "\"Around Gym, Lunch \u00b7 2 Flexible\"",
+  "new": "\"Around Gym, Lunch, plus 2 flexible\" (flexible blocks only: \"2 Flexible\", unchanged)",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 86,
+  "file": "jarvis-app/src/schedule/screens/PlanDaySheet.tsx",
+  "old": "\"Focus \u00b7 Picks land here\" / \"Protected \u00b7 Routed around\" / \"Flexible \u00b7 Used when tight\"",
+  "new": "\"FOCUS\" / \"PROTECTED\" / \"FLEXIBLE\" (small-caps state word only)",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 88,
+  "file": "jarvis-app/src/schedule/screens/PlanDaySheet.tsx",
+  "old": "\"Overlaps your {X}; the day is tight, move it if that doesn't work\"",
+  "new": "\"Overlaps your {X}\" (amber)",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 88,
+  "file": "jarvis-app/src/schedule/screens/PlanDaySheet.tsx",
+  "old": "picked row reasons: \"Fits before Gym \u00b7 Same context as previous pick \u00b7 Your peak window\"",
+  "new": "first reason only: \"Fits before Gym\"",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 89,
+  "file": "jarvis-app/src/schedule/screens/PlanDaySheet.tsx",
+  "old": "\"2 Sittings \u00b7 90m each\" / \"2 Sittings \u00b7 120m + 105m\"",
+  "new": "\"2 \u00d7 90m\" / \"120m + 105m\" (white)",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 90,
+  "file": "jarvis-app/src/schedule/screens/PlanDaySheet.tsx",
+  "old": "\"OVERDUE \u00b7 3\" (group eyebrow)",
+  "new": "\"OVERDUE\" head with \"3\" in the head's count slot at the right of the dotted leader",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 92,
+  "file": "jarvis-app/src/schedule/screens/PlanDaySheet.tsx",
+  "old": "\"Only 40 Minutes Left Today\" / \"Plan tomorrow instead?\"",
+  "new": "\"Only 40 Minutes Left Today\" (second line removed; the Plan Tomorrow pill is the answer)",
+  "group": "code-24:schedule:EventSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 94,
+  "file": "jarvis-app/src/schedule/screens/ScheduleUploadFlow.tsx",
+  "old": "Tap a row to fix it",
+  "new": "(line removed)",
+  "group": "code-25:schedule:ScheduleUploadFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 93,
+  "file": "jarvis-app/src/schedule/screens/ScheduleUploadFlow.tsx",
+  "old": "{date} \u00b7 {time range | No time found} \u00b7 Updates existing  (middots in the string)",
+  "new": "{date} / {time range | No time found} / Updates existing as separate .fact spans; the words are unchanged and the CSS now draws the middot separators",
+  "group": "code-25:schedule:ScheduleUploadFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 144,
+  "file": "jarvis-app/src/decisions/DecisionsFlow.tsx",
+  "old": "Still good \u00b7 Confirmed September 3",
+  "new": "Still good \u00b7 CONFIRMED SEP 3 (\"Confirmed {fmtShort}\" in `.fact.date` small caps; the dot is now drawn by CSS)",
+  "group": "code-27:decisions:DecisionsFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 148,
+  "file": "jarvis-app/src/decisions/DecisionsFlow.tsx",
+  "old": "Marked September 3",
+  "new": "Marked Sep 3 (small caps: MARKED SEP 3)",
+  "group": "code-27:decisions:DecisionsFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 148,
+  "file": "jarvis-app/src/decisions/DecisionsFlow.tsx",
+  "old": "Recorded September 3 (the record's own date card, and under Replaces and Replaced By)",
+  "new": "Recorded Sep 3 (small caps: RECORDED SEP 3), matching the list row's \"Revisit Sep 3\"",
+  "group": "code-27:decisions:DecisionsFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 275,
+  "file": "jarvis-app/src/gym/SessionScreen.tsx",
+  "old": "Paused time excluded (visible fact on the session header facts line)",
+  "new": "(no visible text; the clock's aria-label reads \"23:45 elapsed, paused time excluded\" when paused time exists, else \"23:45 elapsed\")",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 279,
+  "file": "jarvis-app/src/gym/SessionScreen.tsx",
+  "old": "Last: 6 + 4 \u00b7 Aug 21",
+  "new": "Last: 6 + 4 on Aug 21",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 283,
+  "file": "jarvis-app/src/gym/CondReceipt.tsx",
+  "old": "Rounds + reps \u00b7 12:00",
+  "new": "Rounds + reps in 12:00",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 305,
+  "file": "jarvis-app/src/gym/classify.ts",
+  "old": "Back \u00b7 Also Biceps",
+  "new": "Back, also Biceps",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 305,
+  "file": "jarvis-app/src/gym/classify.ts",
+  "old": "Dumbbells \u00b7 The Whole Load",
+  "new": "Dumbbells, The Whole Load",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 305,
+  "file": "jarvis-app/src/gym/classify.ts",
+  "old": "Pause \u00b7 Close grip \u00b7 Incline",
+  "new": "Pause, Close grip, Incline",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 305,
+  "file": "jarvis-app/src/gym/classify.ts",
+  "old": "Home \u00b7 Hammer Row \u00b7 #4",
+  "new": "Home, Hammer Row, #4",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 315,
+  "file": "jarvis-app/src/gym/libraryView.ts",
+  "old": "12 of 30 Shown \u00b7 3 Filtered Out \u00b7 2 Hidden.",
+  "new": "12 of 30 Shown, 3 Filtered out, 2 Hidden.",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 321,
+  "file": "jarvis-app/src/gym/ExerciseSheet.tsx",
+  "old": "AMRAP \u00b7 12:00 (Clock row meta; likewise 'EMOM \u00b7 10 \u00d7 1:00', 'For Time \u00b7 Cap 20:00', 'Tabata \u00b7 8 \u00d7 0:20 / 0:10')",
+  "new": "12:00 (likewise '10 \u00d7 1:00', 'Cap 20:00', '8 \u00d7 0:20 / 0:10')",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 322,
+  "file": "jarvis-app/src/gym/ExerciseSheet.tsx",
+  "old": "95 lb \u00d7 5 \u00b7 135 lb \u00d7 3 \u00b7 185 lb \u00d7 2",
+  "new": "95 lb \u00d7 5, 135 lb \u00d7 3, 185 lb \u00d7 2",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 323,
+  "file": "jarvis-app/src/gym/ExerciseSheet.tsx",
+  "old": "Not paired",
+  "new": "(nothing; the row shows only the Choose capsule)",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 324,
+  "file": "jarvis-app/src/gym/ExerciseSheet.tsx",
+  "old": "Kept for next time \u00b7 Can be paired (two facts)",
+  "new": "Kept for next time, can be paired (one fact)",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 325,
+  "file": "jarvis-app/src/gym/FitSheet.tsx",
+  "old": "No cap",
+  "new": "(nothing; the selected No Cap chip says it)",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 325,
+  "file": "jarvis-app/src/gym/FitSheet.tsx",
+  "old": "A For Time cap is the ceiling, not a forecast. (its own second conn-meta line)",
+  "new": "; a For Time cap is the ceiling, not a forecast (appended to the honesty line, e.g. \"default pace \u00b7 improves as you log; a For Time cap is the ceiling, not a forecast\")",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 326,
+  "file": "jarvis-app/src/gym/fit.ts",
+  "old": "saves ~5 min \u00b7 never your main lift",
+  "new": "saves ~5 min, never your main lift",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 327,
+  "file": "jarvis-app/src/gym/LibraryPickSheet.tsx",
+  "old": "Nothing found yet \u00b7 Keep typing or add it new",
+  "new": "Nothing found yet: keep typing, or add it new",
+  "group": "code-33:gym:CondReceipt.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 291,
+  "file": "jarvis-app/src/gym/chartData.ts",
+  "old": "Est 1RM \u00b7 Epley \u00b7 not a tested max",
+  "new": "Est 1RM (Epley), not a tested max",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 291,
+  "file": "jarvis-app/src/gym/LiftDetailScreen.tsx",
+  "old": "Est 1RM \u00b7 Epley \u00b7 not a tested max 262 lb \u00b7 logged yesterday (non-weight kinds: Best 30 \u00b7 logged yesterday)",
+  "new": "Est 1RM 262 lb \u00b7 LOGGED YESTERDAY as two facts, the middot drawn by CSS (non-weight kinds: LOGGED YESTERDAY only; 'Best 30' repeated the title's set). The Epley / not-a-tested-max caveat stays on the Trend caption and on the Best card's Estimated One-Rep Max disclosure.",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 292,
+  "file": "jarvis-app/src/gym/LiftDetailScreen.tsx",
+  "old": "Est 1RM \u00b7 Epley \u00b7 not a tested max \u00b7 lb",
+  "new": "Est 1RM (Epley), not a tested max, lb",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 295,
+  "file": "jarvis-app/src/gym/LiftDetailScreen.tsx",
+  "old": "Sep 12 \u00b7 30 reps \u00b7 Best 30 (non-weight kinds)",
+  "new": "SEP 12 \u00b7 30 reps (the 'Best N' fact is dropped because it repeated the set)",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 297,
+  "file": "jarvis-app/src/gym/LiftDetailScreen.tsx",
+  "old": "Sleep, same 8 weeks + Not enough records",
+  "new": "Not enough Sleep records in these 8 weeks (only when the lane is empty; otherwise it is still 'Sleep, same 8 weeks')",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 298,
+  "file": "jarvis-app/src/gym/LiftDetailScreen.tsx",
+  "old": "Best was 225 on 2026-08-12 \u00b7 Now 215",
+  "new": "Best 225 \u00b7 AUG 12 \u00b7 Now 215",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 299,
+  "file": "jarvis-app/src/gym/LiftDetailScreen.tsx",
+  "old": "Not set",
+  "new": "(nothing; the unset row shows only its name)",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 300,
+  "file": "jarvis-app/src/gym/LiftDetailScreen.tsx",
+  "old": "Sep 18 \u00b7 Primary + trailing '3 sets' / Sep 18 \u00b7 Secondary, counted half + trailing '3 sets'",
+  "new": "SEP 18 \u00b7 3 sets / SEP 18 \u00b7 3 sets, secondary, counted half",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 301,
+  "file": "jarvis-app/src/gym/LiftDetailScreen.tsx",
+  "old": "A primary muscle counts a whole set, a secondary counts half. This app's counting rule, not the cited work's.",
+  "new": "Our Convention: A primary muscle counts a whole set, a secondary counts half",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 301,
+  "file": "jarvis-app/src/gym/LiftDetailScreen.tsx",
+  "old": "(no labels) Studied growth range \u2026 \u00b7 Schoenfeld \u2026 (one facts line)",
+  "new": "Range: \u2026 / Source: \u2026 / Our Convention: \u2026 (three labelled rows)",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 301,
+  "file": "jarvis-app/src/gym/muscles.ts",
+  "old": "Studied growth range 10\u201320 \u00b7 diminishing above ~20",
+  "new": "Studied growth range 10\u201320, diminishing above ~20",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 301,
+  "file": "jarvis-app/src/gym/muscles.ts",
+  "old": "Schoenfeld dose-response meta-analysis \u00b7 2025 Sports Medicine meta-regression",
+  "new": "Schoenfeld dose-response meta-analysis, 2025 Sports Medicine meta-regression (also changes the HealthSettingsPage .input-hint 'The studied range, \u2026'; CategoryDetail already showed the comma form via its split/join, so it renders unchanged)",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 301,
+  "file": "jarvis-app/src/gym/LiftDetailScreen.tsx",
+  "old": "Your band 12-18 \u00b7 Set in Health Settings",
+  "new": "Your band 12-18 (the Source row beside it already says 'Your band, from Health Settings')",
+  "group": "code-34:gym:LiftDetailScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 121,
+  "file": "jarvis-app/src/tasks/ifThen.ts",
+  "old": "Shorter \u00b7 5 words or fewer",
+  "new": "Keep it to 5 words or fewer",
+  "group": "code-35:gym:UploadFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 46,
+  "file": "jarvis-app/src/schedule/screens/DayRow.tsx",
+  "old": "(grey dot) No category",
+  "new": "(nothing: an event with no area shows no area fact, and no meta line at all when it has no other facts)",
+  "group": "code-35:gym:UploadFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "<any receipt> \u00b7 From your paste",
+  "new": "(suffix removed: everything on the sheet came from the paste)",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "Task \u00b7 Thursday, Aug 20 \u00b7 7:00 PM \u00b7 From your paste",
+  "new": "Thursday, Aug 20 | 7:00 PM (two .fact.date spans, drawn THURSDAY, AUG 20 \u00b7 7:00 PM; the kind word is dropped because the lit Task/Event/Note chip below names it)",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "Reminder \u00b7 9:00 PM \u00b7 Daily \u00b7 From your paste",
+  "new": "Reminder 9:00 PM | Daily (both .fact.date, drawn REMINDER 9:00 PM \u00b7 DAILY)",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "Bill \u00b7 $1,200.00 \u00b7 Monthly \u00b7 From your paste",
+  "new": "$1,200.00 (white <b>) | Monthly (.fact.date); the word Bill is dropped because the amount is what made it a bill (a bill is a task wearing money) and the Money chip below is lit",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "Fact \u00b7 Routine \u00b7 From your paste",
+  "new": "(no line: the lit Fact chip and the lit Routine bucket chip below say both)",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "Fact \u00b7 People \u00b7 Relationship \u00b7 From your paste",
+  "new": "Relationship",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "Fact \u00b7 Values \u00b7 Fact \u00b7 From your paste  (a Remember line whose type is plain fact)",
+  "new": "(no line)",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "Fact \u00b7 Values \u00b7 Rule \u00b7 From your paste",
+  "new": "Rule (.fact.st, drawn RULE)",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "Task \u00b7 Marco \u00b7 Kitchen Remodel \u00b7 From your paste",
+  "new": "Marco, Kitchen Remodel (one grey run)",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "Task \u00b7 Marco Rossi \u00b7 From your paste  (Two Marcos, one picked)",
+  "new": "(no line: the lit person chip below names him)",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 408,
+  "file": "jarvis-app/src/capture/QuickCapture.tsx",
+  "old": "Decision \u00b7 From your paste",
+  "new": "Decision",
+  "group": "code-40:capture:QuickCapture.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 457,
+  "file": "jarvis-app/src/connections/ConnectionsPage.tsx",
+  "old": "Signed out \u00b7 Reconnect for mail + events",
+  "new": "Signed out",
+  "group": "code-41:connections:ConnectionsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 458,
+  "file": "jarvis-app/src/connections/ConnectionsPage.tsx",
+  "old": "Read receipts on sent mail \u00b7 Powers Opened",
+  "new": "Read receipts on sent mail",
+  "group": "code-41:connections:ConnectionsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 502,
+  "file": "jarvis-app/src/money/screens/TrackerScreen.tsx",
+  "old": "No accounts yet",
+  "new": "(line removed; the Add an Account row shows only its title and the Add capsule)",
+  "group": "code-44:money:TrackerScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 503,
+  "file": "jarvis-app/src/money/screens/TrackerScreen.tsx",
+  "old": "Target $500.00 \u00b7 Expected $4,000.00",
+  "new": "Aiming to save $500.00 of an expected $4,000.00 (both amounts are white <b>)",
+  "group": "code-44:money:TrackerScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 505,
+  "file": "jarvis-app/src/money/screens/TrackerScreen.tsx",
+  "old": "Monthly \u00b7 Cancelled",
+  "new": "[CANCELLED] Monthly (the state is a grey filled caps chip ahead of the frequency; active rows read just \"Monthly\" as before)",
+  "group": "code-44:money:TrackerScreen.tsx",
+  "phase": "code"
  }
 ]

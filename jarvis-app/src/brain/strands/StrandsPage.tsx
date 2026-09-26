@@ -16,7 +16,6 @@ import { pressable } from "../../shared/pressable";
 import ReadinessPanel, { useReadiness } from "./ReadinessPanel";
 import { stateForStrand, toneForStrandState, STRAND_STATE_LABEL, bucketFor, confidenceWord, isWatching, type StrandBucket } from "./state";
 import { usedBy } from "./usedBy";
-import { daysSince } from "../recall";
 import { watchingCount } from "../readiness";
 import RowStar from "../../shared/RowStar";
 
@@ -390,12 +389,24 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
 
       {/* THE STRAND ROW (C-40, C-41, C-43, C-47, C-50; Astra, 2026-09-12).
           The star leads, then the fact, then one facts line: the state word,
-          Rule when he made it one, the confidence word with its count where
-          the derivation owns one, days unconfirmed when it is fading, Paused
-          when it is, and the bucket. A fading row carries Still True in the
-          trailing slot instead of the chevron; the sheet still opens from the
-          row itself. The eyebrow that said "Energy · Watched" is gone: the
-          state word says who said it, the bucket says where it lives. */}
+          Rule when he made it one, High where the derivation's count is past
+          twice its gate, and the bucket. A fading row carries Still True in
+          the trailing slot instead of the chevron; the sheet still opens from
+          the row itself. The eyebrow that named the bucket and the source is
+          gone from the row: the state word says who said it, the bucket says
+          where it lives.
+
+          ONE GREY (§AK, 2026-09-22). The bucket is the row's one plain grey;
+          everything before it is caps or a key colour. The count, the days
+          unconfirmed and Paused were three more plain greys beside it. The
+          count is the Learning Lab's (High already says it cleared the gate
+          twice over); Fading says the fact has gone a season unconfirmed and
+          the sheet gives the day it was last confirmed; Paused joins the
+          bucket's own run, on a row that is already dimmed. Rule is a state
+          word like Known, so it wears none of the key's colours, and Medium
+          is not said at all: a fact at its gate is what Learned already
+          says, and amber would claim it needs him. Same row as the Brain
+          hub's (BrainTop). */}
       {visible.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled">
           {visible.map((s) => {
@@ -413,12 +424,9 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
                   <div className="conn-name">{s.data.text}</div>
                   <div className="facts">
                     {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
-                    {s.data.strength === "rule" && <span className="fact st red">Rule</span>}
-                    {conf && <span className={"fact " + (conf === "High" ? "good" : "warn")}>{conf}</span>}
-                    {rr && conf && <span className="fact">{rr.have} {rr.unit}</span>}
-                    {fading && <span className="fact">{daysSince(s.data.lastConfirmed, today)} days unconfirmed</span>}
-                    {s.data.status === "paused" && <span className="fact">Paused</span>}
-                    <span className="fact">{STRAND_CATEGORY_LABEL[s.data.category]}</span>
+                    {s.data.strength === "rule" && <span className="fact st">Rule</span>}
+                    {conf === "High" && <span className="fact good">High</span>}
+                    <span className="fact">{s.data.status === "paused" ? `Paused, ${STRAND_CATEGORY_LABEL[s.data.category]}` : STRAND_CATEGORY_LABEL[s.data.category]}</span>
                   </div>
                 </div>
                 {fading
@@ -439,21 +447,33 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
         <div className="sheet-scrim" onClick={() => setOpenId(null)}>
           <div className="card" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
-            <div className="grp"><div className="eyebrow">{STRAND_CATEGORY_LABEL[open.data.category]} &middot; {SOURCE_LABEL[open.data.source]}{open.data.strength === "rule" ? " · Rule" : ""}</div></div>
+            {/* The separators are drawn by CSS (.fact + .fact, §AM F3), never
+                typed into the words. The facts sit in one inline run so the
+                eyebrow's flex gap does not stand beside each drawn dot. */}
+            <div className="grp"><div className="eyebrow"><span>
+              <span className="fact">{STRAND_CATEGORY_LABEL[open.data.category]}</span>
+              <span className="fact">{SOURCE_LABEL[open.data.source]}</span>
+              {open.data.strength === "rule" && <span className="fact">Rule</span>}
+            </span></div></div>
             <div className="pad-x sheet-form">
               <div className="strand-head">{open.data.text}</div>
               <div className="conn-meta">Confirmed {monthDay(open.data.lastConfirmed)}</div>
+              {/* A receipt is what happened and the day it did: one grey for
+                  the what, and the day in small caps (§AM F5), so the pair
+                  is not two of the same grey side by side. */}
               {(open.data.evidence ?? []).map((e, i) => (
                 <div className="strand-receipt" key={i}>
                   <div className="r-what conn-meta">{receiptLine(open.data.derivation, e)}</div>
-                  <div className="conn-meta">{monthDay(e.day)}</div>
+                  <span className="fact date">{monthDay(e.day)}</span>
                 </div>
               ))}
-              {/* C-43: where this fact is read. Plain facts, from the static
-                  map, the same words the row wears on the Brain hub. */}
+              {/* C-43: where this fact is read, from the static map. ONE
+                  FACT, ONE RUN (§AK, 2026-09-21): a list in one fact, the
+                  same words and the same shape the row wears on the Brain
+                  hub, not a plain grey per surface. */}
               <div className="strand-used">
                 <div className="input-label">Used By</div>
-                <div className="facts">{usedBy(open.data.category).map((u) => <span className="fact" key={u}>{u}</span>)}</div>
+                <div className="facts"><span className="fact">{usedBy(open.data.category).join(", ")}</span></div>
               </div>
             </div>
             <div className="pad-x sheet-actions">

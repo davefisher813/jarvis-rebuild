@@ -619,9 +619,10 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
           </div>
         </div>
         {/* L2 arrives properly in Wave 2, but the Sweep is born obeying it:
-            the hand has a floor and says so. */}
+            the hand has a floor and says so. One line, no typed dot (§AM
+            R6): a dot in grey words strands when the line wraps. */}
         <div className="sweep-floor">{threads.length > hand.length
-          ? "The deck keeps the rest · this hand is " + hand.length
+          ? "This hand holds " + hand.length + ", the deck keeps the rest"
           : "That's everything."}</div>
       </div>
       <div className="screen-foot" />

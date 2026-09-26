@@ -303,11 +303,22 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
 
       <Head label="Protected Time" />
       <Card>
+        {/* §AM (2026-09-26): the meta line is a facts line, so its separators
+            are drawn by the stylesheet, not baked into a string. Flexible is
+            the block's state word, not part of its name; the hours and the
+            days are neutral times in small caps; the place is the one grey. */}
         {sortedBlocks.map((b) => (
           <Row
             key={b.id}
-            label={b.label + (b.soft ? " · Flexible" : "")}
-            meta={`${label12(b.startMin)} to ${label12(b.endMin)} · ${daysSummary(b.days)}${b.location ? ` · ${b.location}` : ""}`}
+            label={b.label}
+            meta={
+              <div className="facts">
+                {b.soft && <span className="fact st gray">Flexible</span>}
+                <span className="fact date">{label12(b.startMin)} to {label12(b.endMin)}</span>
+                <span className="fact date">{daysSummary(b.days)}</span>
+                {b.location && <span className="fact">{b.location}</span>}
+              </div>
+            }
             onClick={() => openEdit(b)}
             chev
           />
@@ -326,7 +337,10 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
               <div className="row" key={s.id} {...pressable(() => void updateRoutine(s))}>
                 <div className="row-grow">
                   <div className="conn-name">{s.data.text}</div>
-                  <div className="facts"><span className="fact">Watched</span><span className="fact">{rhythmFact(s)}</span></div>
+                  {/* Every rhythm here was watched (the list is filtered to
+                      source "watched" under the Learned Rhythms head), so the
+                      word said nothing; the count is the one grey. */}
+                  <div className="facts"><span className="fact">{rhythmFact(s)}</span></div>
                 </div>
                 <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void updateRoutine(s); }}>Update Routine</button>
               </div>

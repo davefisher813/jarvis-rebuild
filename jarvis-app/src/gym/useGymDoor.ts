@@ -68,7 +68,7 @@ export function useGymDoor(events: EventItem[], dateIso: string, todayIso: strin
         - (Number(e.data.start.slice(0, 2)) * 60 + Number(e.data.start.slice(3))))
       : 0;
     return {
-      ...(info ? { dayName: info.day.name, meta: info.meta } : {}),
+      ...(info ? { dayName: info.day.name, facts: info.facts } : {}),
       ...(startable ? { onStart: () => setOpened({ eventId: e.id, ...(budgetMin > 0 ? { budgetMin } : {}) }) } : {}),
     };
   }, [gymSvc, gymData, dateIso, todayIso]);

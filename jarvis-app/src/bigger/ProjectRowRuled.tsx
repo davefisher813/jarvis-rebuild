@@ -27,7 +27,9 @@ export default function ProjectRowRuled({ title, glyphTone, next = null, goal = 
   /** A cat-fg-* class: the project's area colour. */
   glyphTone: string;
   next?: string | null;
-  /** The goal it is filed to, shown only when there is no next move. */
+  /** The goal it is filed to, shown only when there is no next move. The hue
+   *  rides the goal mark only; the name stays the line's ink (§AM, 2026-09-26:
+   *  the category is a mark, never the words). */
   goal?: { title: string; hue: string } | null;
   /** "3 of 4 Done", or "No tasks yet". */
   meter: string;
@@ -58,7 +60,7 @@ export default function ProjectRowRuled({ title, glyphTone, next = null, goal = 
           <div className="r-k goal-sub">
             {next
               ? <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{next}</span></span>
-              : goal && <span className={"r-goal r-is-goal r-goal-lit " + goal.hue}><GoalMark /><span className="r-goal-t">{goal.title}</span></span>}
+              : goal && <span className={"r-goal r-is-goal " + goal.hue}><GoalMark /><span className="r-goal-t">{goal.title}</span></span>}
           </div>
         )}
         <div className="goal-meter">

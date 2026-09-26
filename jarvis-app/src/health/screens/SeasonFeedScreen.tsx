@@ -64,7 +64,12 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
             <div className="row" key={i}>
               <div className="row-grow">
                 <div className="conn-name truncate">{e.title}</div>
-                <div className="bp-sub">{e.date} · {e.start}{e.end ? " to " + e.end : ""}</div>
+                {/* A neutral date and a neutral time, each small caps (§AM
+                    F5), with the dot between them drawn by CSS (F3). */}
+                <div className="facts">
+                  <span className="fact date">{e.date}</span>
+                  <span className="fact date">{e.start}{e.end ? " to " + e.end : ""}</span>
+                </div>
               </div>
             </div>
           ))}

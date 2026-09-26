@@ -161,8 +161,10 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
               <div className="msg-line">
                 <span className="conn-name truncate">{d.primary.label}</span>
               </div>
-              {/* E2: the ask leads; the sender is context under it. */}
-              <div className="conn-meta msg-gist">{nameFor({ byEmail: {} }, undefined, w.to)} · {w.sub}</div>
+              {/* E2: the ask leads; the sender is context under it. One
+                  grey run (§AM R1, R6): who, then what, the way the live
+                  page's rows read. */}
+              <div className="conn-meta msg-gist">{nameFor({ byEmail: {} }, undefined, w.to) + ": " + w.sub}</div>
             </div>
           </div>
           );
@@ -176,7 +178,8 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <div className="row" role="button" tabIndex={0} onClick={demoTap}>
             <div className="row-grow">
               <div className="conn-name">The Rest</div>
-              <div className="conn-meta msg-gist">Nothing waiting on you</div>
+              {/* No line under it (§AM R1): a line that is the same on every
+                  inbox says nothing, and the count is the pill. */}
             </div>
             <span className="pill pill-subdued">14</span>
           </div>
@@ -191,7 +194,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Clean Out</div>
-            <div className="conn-meta">14 threads {"\u00b7"} 6 senders {"\u00b7"} In the inbox</div>
+            <div className="conn-meta">14 Threads from 6 senders</div>
           </div>
           <div className="chev" />
         </div>
@@ -199,7 +202,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Only a Few Minutes?</div>
-            <div className="conn-meta">A timed drain {"\u00b7"} It stops itself</div>
+            <div className="conn-meta">A timed drain that stops itself</div>
           </div>
           <div className="chev" />
         </div>
@@ -207,7 +210,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Read It to Me</div>
-            <div className="conn-meta">Senders and gists only {"\u00b7"} Never the message</div>
+            <div className="conn-meta">Senders and gists, never the message</div>
           </div>
           <span className="pill-act">Play</span>
         </div>

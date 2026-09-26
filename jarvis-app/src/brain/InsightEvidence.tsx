@@ -65,7 +65,7 @@ export default function InsightEvidence({ evidence, explain }: {
             <div className="ins-row"><span className="ins-k">Our Convention</span><span className="ins-sub">{evidence.convention}</span></div>
           )}
           {evidence.minimum && (
-            <div className="ins-row"><span className="ins-k">Minimum</span><span className="ins-sub">{evidence.minimum.name} {evidence.minimum.value} · {evidence.minimum.reason}</span></div>
+            <div className="ins-row"><span className="ins-k">Minimum</span><span className="ins-sub">{evidence.minimum.name} {evidence.minimum.value}, {evidence.minimum.reason}</span></div>
           )}
           {explained && <div className="ins-line">{explained}</div>}
         </div>

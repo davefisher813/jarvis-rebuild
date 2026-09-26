@@ -3,7 +3,7 @@ import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
 import { leadFor, faceSlot } from "./rowAnatomy";
-import { Facts, waitingFor, ruleAccountFact, dayTone } from "./factsLine";
+import { Facts, waitingFor, ruleStateFact, dayTone, type FactTone } from "./factsLine";
 import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
 import type { TaskItem } from "../tasks/TasksService";
 import { attemptWrite } from "../shared/guard";
@@ -119,7 +119,7 @@ import { loadVips, toggleVip, isVip, applyVips, vipLine, VIP_MAX } from "./vip";
 import { mailSnapshot, hydrateMailFromProfile } from "./mailSync";
 import { collapseNoise, collapseLine } from "./collapse";
 import { loadNudgeCounts } from "./escalate";
-import { decide, type Decision, type MailAction } from "./mailAction";
+import { decide, toneFor, type Decision, type MailAction } from "./mailAction";
 import MailMoreSheet from "./MailMoreSheet";
 import { phoneBook, phoneFor, telLink, smsLink, colleagueBook, altFor, firstName,
   type PhoneBook, type Colleague } from "./reachBy";
@@ -2876,7 +2876,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="sweep-finish-done">{deadStats.n > 0 ? "Done." : "Nothing needed you."}</div>
           <div className="sweep-finish-sub">
             {deadStats.n > 0
-              ? deadStats.n + " handled · " + fmtDuration(deadStats.ms)
+              ? capAfterNumber(deadStats.n + " handled in " + fmtDuration(deadStats.ms))
               : "The deck is holding the rest for next time"}
           </div>
           {lines.length > 0 && (
@@ -2952,6 +2952,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (w && r.decision) { void runAction(w, r.decision.primary); return; }
       openRow(r);
     };
+    // The age says what it means (§AM R8), so it is never a second grey
+    // beside the subject. Past its date is red, either side. A due day
+    // wears the reminder window: a you-owe row sorts by its due day
+    // (ledger.ts), so its sort key is that date when it has one, and the
+    // sentinel when it has none. A chase he set has come due, so it is
+    // amber. A wait still inside a week is a neutral time: small caps,
+    // the letterform the mail row's own time wears.
+    const ledgerTone = (r: LedgerRow): FactTone | undefined =>
+      r.late ? "red"
+      : r.side === "you_owe" ? (r.sortKey < "9999-12-31" ? dayTone(r.sortKey, todayISO()) : undefined)
+      : r.key.startsWith("chase:") ? "warn"
+      : "date";
     const section = (title: string, rows2: LedgerRow[]) => rows2.length === 0 ? null : (
       <div key={title}>
         <div className="sh2 sh2-quiet"><span className="t">{title}</span><span className="n">{rows2.length}</span></div>
@@ -2960,11 +2972,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="row" key={title + ":" + r.key} {...rowDoor(() => openRow(r))}>
               <div className="row-grow">
                 <div className="conn-name truncate">{r.who || r.what}</div>
-                {/* No "since" (an undated row) means no separator and, with no
-                    `who` either, no line at all -- never a stranded dot. */}
-                {(r.who ? r.what : "") + (r.who && r.since ? " · " : "") + r.since
-                  ? <div className="conn-meta truncate">{(r.who ? r.what : "") + (r.who && r.since ? " · " : "") + r.since}</div>
-                  : null}
+                {/* The subject and the row's age are two facts, and .facts
+                    draws the dot between them (§AM R6). An empty one is
+                    skipped, so an undated row with no `who` has no line at
+                    all -- never a stranded dot. */}
+                <Facts facts={[
+                  r.who ? { text: r.what } : null,
+                  { text: r.since, tone: ledgerTone(r) },
+                ]} />
               </div>
               <button className="btn-sm" onClick={(e) => { e.stopPropagation(); act(r); }}>{r.action}</button>
               {r.decision && r.decision.alternates.length > 0 && (() => {
@@ -3130,10 +3145,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 <span className="conn-name truncate">{nameFor(names, sender, prettyHandle(sender.split("@")[0] ?? "") ?? sender)}</span>
                   <span className="conn-meta">{BUCKET_LABEL[rule.bucket]}</span>
                 </div>
-                {/* E-24: the rule's scope and its switch, as facts (K.3: On
-                    is the one toned fact). The account chips appear only
-                    when there is more than one inbox to choose between. */}
-                <Facts facts={ruleAccountFact(rule.account ? acctLabel(rule.account) : undefined, rule.enabled)} />
+                {/* E-24: the rule's switch, as one green fact. The bucket
+                    beside the name is the row's one grey (§AM R1); the
+                    account is the chips' to show, and they appear only when
+                    there is more than one inbox to choose between. */}
+                <Facts facts={[ruleStateFact(rule.enabled)]} />
               </div>
               <div className="rule-acts">
                 <button className="pill-act" onClick={(e) => { e.stopPropagation(); setRules(setRuleEnabled(sender, !rule.enabled)); mirrorMail(); }}>{rule.enabled ? "Turn Off" : "Turn On"}</button>
@@ -3171,7 +3187,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="row" key={r.sender} {...rowDoor(() => showFrom([r.sender]))}>
                     <div className="row-grow">
                       <div className="conn-name truncate">{nameFor(names, r.sender, prettyHandle(r.sender.split("@")[0] ?? "") ?? r.sender)}</div>
-                      <div className="conn-meta">{unsubReceipt(r, s2?.since ?? 0, todayISO())}</div>
+                      {/* When he asked, then whether it worked, as two facts
+                          (§AM R5, R6). The receipt is asked for WITHOUT the
+                          count, so it carries no dot of its own; a sender
+                          still sending after the ask has stalled, which is
+                          amber. */}
+                      <Facts facts={[
+                        { text: unsubReceipt(r, 0, todayISO()) },
+                        s2 ? { text: "Still sending", tone: "warn" } : null,
+                      ]} />
                     </div>
                     {s2 && canBlock(s2) && (
                       <button className="pill-act" onClick={(e) => { e.stopPropagation(); void (async () => {
@@ -3205,7 +3229,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="row" {...rowDoor(() => void putBack())}>
                 <div className="row-grow">
                   <div className="conn-name">{putBackLine(closedBatch)}</div>
-                  <div className="conn-meta">Still searchable in Gmail · Can go back for a week</div>
+                  {/* One fact (§AM R1): "archived" in the name above already
+                      says it is still in Gmail. */}
+                  <div className="conn-meta">Can go back for a week</div>
                 </div>
                 <button className="pill-act" disabled={closeBusy} onClick={(e) => { e.stopPropagation(); void putBack(); }}>{closeBusy ? "Putting Back…" : "Put It Back"}</button>
               </div>
@@ -3318,7 +3344,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="row" {...pressable(() => { openAnyway(); void openThread(r.id); })} key={r.id}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{displayName(r.from)}</div>
-                  <div className="conn-meta truncate">VIP · {r.subject}</div>
+                  {/* VIP is the mail row's own star, a MARK, so the subject
+                      is the line's one grey (§AM R1). */}
+                  <div className="conn-meta truncate"><span className="mstar" role="img" aria-label="VIP">{"\u2605"}</span> {r.subject}</div>
                 </div>
                 <span className="pill-act">Open It</span>
               </div>
@@ -3639,7 +3667,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className={"msg-turn" + (focusMsg === m.id ? " ev-target" : "")} id={"msgturn-" + m.id} key={m.id}>
               <div className="msg-turn-head">
                 <span className="msg-turn-from">{m.from}</span>
-                <span className="conn-meta">{m.date}</span>
+                {/* A neutral time is small caps (§AM R8). */}
+                <span className="fact date">{m.date}</span>
               </div>
               {mode === "sent"
                 ? <MailHtmlView html={m.html!} />
@@ -4208,7 +4237,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="row" {...pressable(() => void openThread(h.threadId))} key={h.threadId + i}>
               <div className="row-grow">
                 <div className="conn-name">&ldquo;{h.quote}&rdquo;</div>
-                <div className="conn-meta">{monthDay(h.dateISO)} · {h.subject}</div>
+                {/* A neutral date is small caps (§AM R8), and .facts draws
+                    the dot (R6). */}
+                <Facts facts={[{ text: monthDay(h.dateISO), tone: "date" }, { text: h.subject }]} />
               </div>
               <div className="chev" />
             </div>
@@ -4414,7 +4445,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             {/* EMAIL-F-18: search results are their own complete answer, so
                 they keep the plain floor; the inbox gets the honest one. */}
             {results !== null
-              ? <ListFloor>{"That\u2019s everything" + (g.accounts.length > 1 ? " \u00b7 " + (acctFilter ? acctLabel(acctFilter) : "All accounts") : ".")}</ListFloor>
+              ? <ListFloor>{"That\u2019s everything" + (g.accounts.length > 1 ? " in " + (acctFilter ? acctLabel(acctFilter) : "all accounts") : "") + "."}</ListFloor>
               : mailFloor()}
           </>
         )
@@ -4779,7 +4810,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                           <div className="msg-line">
                             <span className="conn-name truncate">{d.primary.label}</span>
                           </div>
-                          <div className="conn-meta msg-gist">{nameFor(names, w.toEmail, w.to)} · {w.subject}</div>
+                          {/* One grey run (§AM R1, R6): who, then what, the
+                              way a mail header reads. */}
+                          <div className="conn-meta msg-gist">{nameFor(names, w.toEmail, w.to) + (w.subject ? ": " + w.subject : "")}</div>
                         </div>
                         {/* EMAIL-F-22: same reach here. Always Quiet This
                             Sender and Add as Task were swipe-only too, on the
@@ -4874,11 +4907,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         wearing the same weight as a person. The count is
                         a fact, not an alarm, and the one action ends the
                         lot. Tap the line to unfold if you want to look. */}
-                    <div className="msg-machines" {...pressable(() => setNoiseOpen(!noiseOpen))}>
+                    <div className="msg-machines" {...pressable(() => setNoiseOpen(!noiseOpen))} aria-expanded={noiseOpen}>
                       <span className="msg-machines-icon" aria-hidden="true"><Tag className="ic" /></span>
                       <span className="msg-machines-text">
                         {capAfterNumber(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
-                        {" \u00b7 "}{noiseOpen ? "Tap to fold" : "Tap to look"}
                       </span>
                       <button className="pill-act msg-machines-sweep" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(noise); }}>
                         Sweep
@@ -5061,6 +5093,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const ruleCount = Object.keys(rules).length;
         const showRules = ruleCount > 0 || muted.length > 0;
         const oldest = owed.length ? Math.max(...owed.map((w) => w.waitingDays)) : 0;
+        const oldestRung = toneFor(oldest);
+        const oldestTone: FactTone = oldestRung === "firm" ? "red" : oldestRung === "direct" ? "warn" : "date";
         return (
           <>
             <div className="sh2 sh2-quiet"><span className="t">Tools</span></div>
@@ -5095,7 +5129,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Only a Few Minutes?</div>
-                    <div className="conn-meta">A timed drain {"\u00b7"} It stops itself</div>
+                    <div className="conn-meta">A timed drain that stops itself</div>
                   </div>
                   <div className="chev" />
                 </div>
@@ -5109,11 +5143,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <span className="row-ico cat-bg-graphite" aria-hidden="true"><Hourglass className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Still Open</div>
-                    <div className="conn-meta">{capAfterNumber(
-                      (mine > 0 ? mine + " you owe" : "") +
-                      (mine > 0 && owed.length > 0 ? " \u00b7 " : "") +
-                      (owed.length > 0 ? owed.length + " owed to you" : ""),
-                    )}</div>
+                    {/* Two counts, two facts (§AM R5, R6): what he owes
+                        needs him, so it is amber; what he is owed is the
+                        line's one grey. */}
+                    <Facts facts={[
+                      mine > 0 ? { text: capAfterNumber(mine + " you owe"), tone: "warn" } : null,
+                      owed.length > 0 ? { text: capAfterNumber(owed.length + " owed to you") } : null,
+                    ]} />
                   </div>
                   <div className="chev" />
                 </div>
@@ -5124,7 +5160,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <span className="row-ico cat-bg-graphite" aria-hidden="true"><MessageSquare className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">One at a Time</div>
-                    <div className="conn-meta">{capAfterNumber(owed.length + " waiting on answers \u00b7 oldest is " + oldest + (oldest === 1 ? " day" : " days"))}</div>
+                    {/* The oldest wait wears the nudge ladder's heat (§AM
+                        R5, R8): past the point an email helps is red, a
+                        week or more is amber, and inside a week it is a
+                        neutral time, small caps. */}
+                    <Facts facts={[
+                      { text: capAfterNumber(owed.length + " waiting on answers") },
+                      { text: "Oldest " + oldest + (oldest === 1 ? " day" : " days"), tone: oldestTone },
+                    ]} />
                   </div>
                   <div className="chev" />
                 </div>
@@ -5150,7 +5193,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
                     <div className="row-grow">
                       <div className="conn-name">Read It to Me</div>
-                      <div className="conn-meta">Senders and gists only {"\u00b7"} Never the message</div>
+                      <div className="conn-meta">Senders and gists, never the message</div>
                     </div>
                     <div className="mail-read-acts">
                       {speaking !== "idle" && (
@@ -5172,11 +5215,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <span className="row-ico cat-bg-graphite" aria-hidden="true"><ListChecks className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Standing Rules</div>
-                    <div className="conn-meta">{capAfterNumber(
-                      (ruleCount > 0 ? ruleCount + (ruleCount === 1 ? " sender filed" : " senders filed") : "") +
-                      (ruleCount > 0 && muted.length > 0 ? " \u00b7 " : "") +
-                      (muted.length > 0 ? muted.length + (muted.length === 1 ? " thread muted" : " threads muted") : ""),
-                    )}</div>
+                    {/* One count, one grey (§AM R1, R6): the filed senders
+                        lead, and the muted count shows here only when
+                        nothing is filed. The screen lists both. */}
+                    <div className="conn-meta">{capAfterNumber(ruleCount > 0
+                      ? ruleCount + (ruleCount === 1 ? " sender filed" : " senders filed")
+                      : muted.length + (muted.length === 1 ? " thread muted" : " threads muted"))}</div>
                   </div>
                   <div className="chev" />
                 </div>
@@ -5189,7 +5233,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 <span className="row-ico cat-bg-graphite" aria-hidden="true"><CalendarClock className="ic" /></span>
                 <div className="row-grow">
                   <div className="conn-name">Email Windows</div>
-                  <div className="conn-meta">{windows.on ? "On \u00b7 " + windowStatusLine(windows, new Date()) : "Open email on a schedule"}</div>
+                  {/* On is a state, so it is green; when the next open or
+                      close follows, it is the line's one grey (§AM R1, R6). */}
+                  {windows.on
+                    ? <Facts facts={[{ text: "On", tone: "good" }, { text: windowStatusLine(windows, new Date()) }]} />
+                    : <div className="conn-meta">Open email on a schedule</div>}
                 </div>
                 <div className="chev" />
               </div>

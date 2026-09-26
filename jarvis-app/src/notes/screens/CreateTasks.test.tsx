@@ -46,6 +46,17 @@ describe("CreateTasks", () => {
     expect(screen.queryByText(/This Week/)).not.toBeInTheDocument();
   });
 
+  // §AM F3 (R6), 2026-09-26: the meta line is one sentence with no typed
+  // dot, and an unfiled note leaves no gap where an area would be.
+  it("the line under the title types no dot, and an unfiled note names no area", () => {
+    const { container, unmount } = render(<CreateTasks {...FRAME} items={ITEMS} onCreate={() => {}} />);
+    expect(container.querySelector(".t-meta")).toHaveTextContent("Checklist items become Groceries Tasks, completed ones skipped");
+    expect(container.querySelector(".t-meta")!.textContent).not.toMatch(/\u00b7/);
+    unmount();
+    const { container: unfiled } = render(<CreateTasks {...FRAME} categoryLabel="" items={ITEMS} onCreate={() => {}} />);
+    expect(unfiled.querySelector(".t-meta")!.textContent).toBe("Checklist items become Tasks, completed ones skipped");
+  });
+
   it("one item reads as one task", () => {
     render(<CreateTasks {...FRAME} items={ITEMS.slice(0, 1)} onCreate={() => {}} />);
     expect(screen.getByText("Create 1 Task")).toBeInTheDocument();

@@ -109,8 +109,8 @@ function bandRow(key: DerivationKey, label: string, unit: string, done: WindowRo
       // the same tense the spoken branches above and below use.
       ? `${have} ${unit}, spread across the day, with no 3-hour stretch in front`
       : have >= MIN_COMPLETIONS
-        ? `${have} ${unit}, spread across the day · One 3-hour stretch has to hold ${BAND_PCT} percent`
-        : `Needs ${MIN_COMPLETIONS} ${unit} · One 3-hour stretch holding ${BAND_PCT} percent of them`;
+        ? `${have} ${unit}, spread across the day, but one 3-hour stretch has to hold ${BAND_PCT} percent`
+        : `Needs ${MIN_COMPLETIONS} ${unit}, with one 3-hour stretch holding ${BAND_PCT} percent of them`;
   return { key, label, have, need: MIN_COMPLETIONS, unit, detail, speaks: band ? key : absence };
 }
 
@@ -163,7 +163,7 @@ function planRow(rows: WindowRow[]): Built {
   const detail = spoken
     ? `${done} of ${have} picks finished by that night`
     : have >= MIN_PLAN_PICKS
-      ? `${done} of ${have} picks finished by that night · The middle is a normal life, not a pattern`
+      ? `${done} of ${have} picks finished by that night, a rate in the middle, which is a normal life, not a pattern`
       : `Needs ${MIN_PLAN_PICKS} plan picks resolved, then a rate clearly high or clearly low`;
   return {
     key: "plan_rate", label: "Whether Plans Finish",
@@ -188,7 +188,7 @@ function peopleRow(rows: WindowRow[], people: DerivePerson[]): Built {
     // The log carries person ids and nothing else, on purpose: no names ever
     // leave the device through it. With no Contacts there is nobody to put a
     // name to, whatever the rows say.
-    detail = "Nobody in Contacts to put a name to · The log carries ids, so a name comes from a person card";
+    detail = "Nobody in Contacts to put a name to, since the log carries only ids";
   } else if (labelled >= MIN_PERSON_HANDLED) {
     detail = "The person you handle most already has a label, which is what this one proposes";
   } else {
@@ -244,8 +244,8 @@ function timingRow(rows: WindowRow[], nowMs: number): Built {
       // the one thing an instrument may never do.
       ? "The area in front is one JARVIS can no longer name"
       : have >= MIN_TIMING_SAMPLES
-        ? `${have} corrections in one area · Not all the same way, or under ${MIN_AVG_ABS_MIN} minutes on average · Read from this device's log`
-        : `Needs ${MIN_TIMING_SAMPLES} corrections in one area, same way, ${MIN_AVG_ABS_MIN} minutes or more · Read from this device's log`;
+        ? `${have} corrections in one area, not all the same way or under ${MIN_AVG_ABS_MIN} minutes on average, from this device's log`
+        : `Needs ${MIN_TIMING_SAMPLES} corrections in one area, same way, ${MIN_AVG_ABS_MIN} minutes or more, from this device's log`;
   return {
     key: "task_timing", label: "How Long Tasks Take",
     have, need: MIN_TIMING_SAMPLES, unit: "corrections in one area", detail, speaks: spoken ? "task_timing" : null,

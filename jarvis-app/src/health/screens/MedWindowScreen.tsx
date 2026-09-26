@@ -43,7 +43,13 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
                 <div className="row" key={i}>
                   <div className="row-grow">
                     <div className="conn-name">{MARK_LABEL[m.kind]}</div>
-                    <div className="bp-sub">{m.label !== MARK_LABEL[m.kind] ? m.label + " · " : ""}{new Date(m.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
+                    {/* The time is a neutral time, small caps (§AM F5), and
+                        comes first so a long label is the fact that gives
+                        way. The dot between them is CSS's (F3). */}
+                    <div className="facts">
+                      <span className="fact date">{new Date(m.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+                      {m.label !== MARK_LABEL[m.kind] && <span className="fact">{m.label}</span>}
+                    </div>
                   </div>
                 </div>
               ))}

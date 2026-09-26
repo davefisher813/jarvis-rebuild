@@ -183,8 +183,14 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
                     <div className="conn-name">{s.data.text}</div>
                     <div className="facts">
                       {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
-                      {s.data.strength === "rule" && <span className="fact st red">Rule</span>}
-                      {conf && <span className={"fact " + (conf === "High" ? "good" : "warn")}>{conf}</span>}
+                      {/* §AM, 2026-09-26: Rule is a state word like Known,
+                          so it wears none of the key's colours (it is not
+                          late, due or done). Confidence says High only:
+                          High is on track, green; Medium, a fact at its
+                          gate, is what Learned already says, and amber
+                          would claim it needs him. */}
+                      {s.data.strength === "rule" && <span className="fact st">Rule</span>}
+                      {conf === "High" && <span className="fact good">High</span>}
                       {/* ONE FACT, ONE RUN (§AK, 2026-09-21: "KNOWN · Your
                           Move · Plan My Day" was two plain greys after the
                           state word). Where a strand is used is one fact

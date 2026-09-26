@@ -27,7 +27,7 @@ describe("InsightEvidence", () => {
     expect(screen.getByText(ev.method)).toBeInTheDocument();
     expect(screen.getByText(ev.supports)).toBeInTheDocument();
     expect(screen.getByText(ev.doesNot)).toBeInTheDocument();
-    expect(screen.getByText(/Paired sessions 10 · fewer than ten/)).toBeInTheDocument();
+    expect(screen.getByText(/Paired sessions 10, fewer than ten/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Explain" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Hide Evidence" }));
     expect(screen.queryByText("Exploratory Pattern")).toBeNull();

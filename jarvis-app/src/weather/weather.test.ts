@@ -71,8 +71,19 @@ describe("staleness is stated, death is silence", () => {
     expect(staleSuffix(snap(), now)).toBe("");
   });
   it("an old snapshot says how old", () => {
-    expect(staleSuffix(snap({ fetchedAt: NOW - 40 * 60_000 }), now)).toBe(" · Checked 40 min ago"); // SPEC MOVED
-    expect(staleSuffix(snap({ fetchedAt: NOW - 3 * 3600e3 }), now)).toBe(" · Checked 3 hr ago"); // SPEC MOVED
+    // SPEC MOVED (Colour Key sweep, 2026-09-26): the age carries no baked-in
+    // separator; the line draws it as its own fact and CSS draws the dot.
+    expect(staleSuffix(snap({ fetchedAt: NOW - 40 * 60_000 }), now)).toBe("Checked 40 min ago");
+    expect(staleSuffix(snap({ fetchedAt: NOW - 3 * 3600e3 }), now)).toBe("Checked 3 hr ago");
+  });
+  it("the age rides beside the sentence, never inside it", () => {
+    const p = Array(24).fill(5); p[18] = 80;
+    const old = snap({ precipProb: p, fetchedAt: NOW - 40 * 60_000 });
+    expect(morningFact(old, TODAY, now)).toMatchObject({ kind: "rain", stale: "Checked 40 min ago" });
+    expect(morningFact(old, TODAY, now)?.text).not.toMatch(/\u00B7|Checked/);
+    expect(eventFact(old, TODAY, "18:00", now)).toEqual({ kind: "rain", text: "Rain likely at start", stale: "Checked 40 min ago" });
+    // A fresh read has no age at all, not an empty one.
+    expect(eventFact(snap({ precipProb: p }), TODAY, "18:00", now)).toEqual({ kind: "rain", text: "Rain likely at start" });
   });
   it("a day-old snapshot renders nothing at all", () => {
     const dead = snap({ fetchedAt: NOW - 25 * 3600e3, precipProb: Array(24).fill(90) });

@@ -422,7 +422,9 @@ export function derivePeopleRhythm(rows: WindowRow[], people: DerivePerson[]): D
   const weeks = Math.max(1, Math.round(days.length / 7) || 1);
   // C-59: a fuller label when the app can see why: a shared area or a live
   // project makes them a work collaborator, named by the area when known.
-  const label = p.onProject || p.area ? `Work collaborator${p.area ? ` · ${p.area}` : ""}` : "Frequent";
+  // The label renders as ONE fact on the person (a relationship), so the
+  // area joins it in words, never after a typed middle dot (§AM F3).
+  const label = p.onProject || p.area ? `Work collaborator${p.area ? ` in ${p.area}` : ""}` : "Frequent";
   return {
     derivation: "people_rhythm",
     category: "people",

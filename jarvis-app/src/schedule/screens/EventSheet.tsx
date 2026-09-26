@@ -285,11 +285,10 @@ export default function EventSheet({
     if (categories.some((c) => c.id === s.category)) setCategory(s.category);
     if (err) setErr(false);
   };
-  const sugLabel = (s: TitleSuggestion) => {
-    const t = fmtTime(s.start);
-    const dur = s.durationMin % 60 === 0 ? `${s.durationMin / 60}h` : `${s.durationMin}m`;
-    return `${t.time} ${t.ap} · ${dur}`;
-  };
+  // A suggestion's two facts, drawn apart (§AM F2/F3): the start is a
+  // neutral time, so small caps; the length is a number, so it steps up to
+  // white. The dot between them is the stylesheet's, never the string's.
+  const sugLen = (min: number) => (min % 60 === 0 ? `${min / 60}h` : `${min}m`);
 
   const durNow = end && toMin(end) > toMin(start) ? toMin(end) - toMin(start) : 0;
   const durOptions = DUR_CHOICES.map((m) => ({ value: String(m), label: durLabel(m) }));
@@ -326,12 +325,18 @@ export default function EventSheet({
             </div>
             {/* Memory: past events offered whole while typing, as rows under
                 the name, the exercise sheet's library form. */}
-            {titleSugs.map((s) => (
-              <div key={s.title} className="row xs-row" role="button" tabIndex={0} onClick={() => applySug(s)}>
-                <span className={"cat-dot cat-bg-" + catColor(s.category)} />
-                <div className="row-grow"><div className="conn-name">{s.title}</div><div className="conn-meta">{sugLabel(s)}</div></div>
-              </div>
-            ))}
+            {titleSugs.map((s) => {
+              const t = fmtTime(s.start);
+              return (
+                <div key={s.title} className="row xs-row" role="button" tabIndex={0} onClick={() => applySug(s)}>
+                  <span className={"cat-dot cat-bg-" + catColor(s.category)} />
+                  <div className="row-grow">
+                    <div className="conn-name">{s.title}</div>
+                    <div className="facts"><span className="fact date">{t.time} {t.ap}</span><span className="fact"><b>{sugLen(s.durationMin)}</b></span></div>
+                  </div>
+                </div>
+              );
+            })}
           </div></div>
 
           <div className="grp xs-grp"><div className="eyebrow">When</div></div>
@@ -692,14 +697,16 @@ export default function EventSheet({
           )}
 
           {/* THE TRAINING DOOR (D4-C). The calendar has no built-in idea of
-              which block is the gym, so the athlete says so here, once. */}
+              which block is the gym, so the athlete says so here, once.
+              No On/Off line under the name (§AK, 2026-09-22): the switch
+              and the name already say it, and a line that repeats them is
+              a placeholder. */}
           <div className="grp xs-grp"><div className="eyebrow">Training</div></div>
           <div className="pad-x"><div className="card xs-group">
             <div onClick={tapField} className="row xs-row">
               <Tile tone="orange"><BarbellGlyph /></Tile>
               <div className="row-grow">
                 <div className="conn-name">{gym ? "This Block Opens the Gym" : "Training Door"}</div>
-                <div className="conn-meta">{gym ? "On" : "Off"}</div>
               </div>
               <div className={"switch" + (gym ? "" : " off")} role="switch" aria-checked={gym} aria-label="Training door" tabIndex={0}
                 onClick={() => setGym((g) => !g)} />

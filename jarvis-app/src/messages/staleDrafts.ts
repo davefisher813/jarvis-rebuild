@@ -57,8 +57,12 @@ export function staleDrafts(
     .sort((a, b) => a.dateMs - b.dateMs); // oldest first: it has waited longest
 }
 
+// §AM R6 (2026-09-26): one sentence, no typed dot; it renders as the Today
+// card's quiet line. "Draft" went with the dot: the card's title already
+// says Unsent. Still routed through capAfterNumber, so a line that one day
+// leads with the count gets its capital.
 export function staleLine(d: DraftRow, nowMs: number): string {
   const days = Math.floor((nowMs - d.dateMs) / 86400e3);
-  const who = d.to.trim() ? "to " + d.to.trim() : "with no recipient";
-  return capAfterNumber(`${days} days old · Draft ${who}`);
+  const who = d.to.trim() ? "To " + d.to.trim() : "No recipient";
+  return capAfterNumber(`${who}, ${days} days old`);
 }

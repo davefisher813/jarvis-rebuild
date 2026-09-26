@@ -230,7 +230,7 @@ export default function InsightsPage({
             {k === "7d" ? "7 Days" : k === "30d" ? "30 Days" : k === "90d" ? "90 Days" : "Custom"}
           </div>
         ))}
-        <span className="fact ins-range">{rangeLabel}</span>
+        <span className="fact date ins-range">{rangeLabel}</span>
       </div>
       {range === "custom" && (
         <div className="ins-dates">
@@ -254,9 +254,9 @@ export default function InsightsPage({
         <span className="ins-dot hue-hl-violet" />
         <span className="ins-t">Sleep</span>
       </div>
-      {overview.sleep.nights === 0 ? (
-        <div className="facts"><span className="fact">No night logged in this period</span></div>
-      ) : (
+      {/* A card with no night to report says nothing under its name (§AK:
+          a placeholder is not a fact); its door to the sleep logs stays. */}
+      {overview.sleep.nights === 0 ? null : (
         <>
           <div className="ins-big violet">{hoursLabel(overview.sleep.avgHours!)}</div>
           <div className="facts"><span className="fact">{`Average across ${overview.sleep.nights} logged ${overview.sleep.nights === 1 ? "night" : "nights"} of ${period.days}`}</span></div>
@@ -288,61 +288,57 @@ export default function InsightsPage({
 // What did NOT change: Assign Muscles stays a real .pill-act, because it
 // writes; and the disclosures keep their capsules, because aria-expanded is a
 // control and rule 3 wants methodology behind a labelled one.
-const musclesCard = (
+//
+// A period with no working sets has nothing to say here, and a card that
+// would hold only its own name is not drawn (§AK: a placeholder is not a
+// fact, and the card's one door, View Sets, lived in the other branch).
+const musclesCard = breakdown.total === 0 ? null : (
     <div className="pad-x"><div className="card ins-card">
       <div className="ins-head">
         <span className="ins-dot hue-hl-lime" />
         <span className="ins-t">Where Your Sets Went</span>
       </div>
-      {breakdown.total === 0 ? (
-        <div className="facts"><span className="fact">No working sets in this period</span></div>
-      ) : (
-        <>
-          {breakdown.rows.map((r) => (
-            <div className="ins-bar" key={r.muscle}>
-              <span className="ins-bar-k">{MUSCLE_LABEL[r.muscle]}</span>
-              <span className="ins-bar-track"><i className="lime" style={{ width: `${Math.min(100, (r.sets / Math.max(1, breakdown.total)) * 100)}%` }} /></span>
-              <span className="fact lime">{Number.isInteger(r.sets) ? r.sets : r.sets.toFixed(1)}</span>
-            </div>
-          ))}
-          {breakdown.unassigned > 0 && (
-            <div className="ins-bar">
-              <span className="ins-bar-k">Unassigned</span>
-              <span className="ins-bar-track"><i className="amber" style={{ width: `${Math.min(100, (breakdown.unassigned / Math.max(1, breakdown.total)) * 100)}%` }} /></span>
-              <span className="fact amber">{breakdown.unassigned}</span>
-            </div>
-          )}
-          {/* THE METHOD GOES IN A DISCLOSURE (health polish rule 3: "Do not
-              turn every grey paragraph into a colored badge. Essential
-              metadata gets one short readable line. Methodology, citations,
-              limitations and edit effects remain available in labeled
-              disclosures. No meaning may be silently removed").
-
-              Two grey lines sat under every reading of this card, on every
-              visit, saying the same thing they said last time. The first is
-              the fact -- how much of the period is actually mapped -- and it
-              stays on the face, because it is what makes the bars above it
-              mean anything. The second is the counting convention, which you
-              need once and then never again, so it is behind a summary that
-              names it. Nothing is removed. */}
-          <div className="facts">
-            <span className="fact">{capAfterNumber(`${breakdown.assigned} of ${breakdown.total} working sets mapped`)}</span>
-          </div>
-          <details className="ins-table">
-            <summary>How Sets Are Counted</summary>
-            <div className="facts">
-              <span className="fact">First muscle whole, the rest half</span><span className="fact">The app's convention</span>
-            </div>
-            <div className="facts">
-              <span className="fact">Working sets only</span><span className="fact">Warm-ups are not counted</span>
-            </div>
-          </details>
-          <div className="ins-acts">
-            {breakdown.unassigned > 0 && <button type="button" className="pill-act" onClick={() => onAssignMuscles(breakdown.untagged)}>Assign Muscles</button>}
-            <button type="button" className="see-all" onClick={() => onOpenAllData("sets", period)}>View Sets</button>
-          </div>
-        </>
+      {breakdown.rows.map((r) => (
+        <div className="ins-bar" key={r.muscle}>
+          <span className="ins-bar-k">{MUSCLE_LABEL[r.muscle]}</span>
+          <span className="ins-bar-track"><i className="lime" style={{ width: `${Math.min(100, (r.sets / Math.max(1, breakdown.total)) * 100)}%` }} /></span>
+          <span className="fact lime">{Number.isInteger(r.sets) ? r.sets : r.sets.toFixed(1)}</span>
+        </div>
+      ))}
+      {breakdown.unassigned > 0 && (
+        <div className="ins-bar">
+          <span className="ins-bar-k">Unassigned</span>
+          <span className="ins-bar-track"><i className="amber" style={{ width: `${Math.min(100, (breakdown.unassigned / Math.max(1, breakdown.total)) * 100)}%` }} /></span>
+          <span className="fact amber">{breakdown.unassigned}</span>
+        </div>
       )}
+      {/* THE METHOD GOES IN A DISCLOSURE (health polish rule 3: "Do not
+          turn every grey paragraph into a colored badge. Essential
+          metadata gets one short readable line. Methodology, citations,
+          limitations and edit effects remain available in labeled
+          disclosures. No meaning may be silently removed").
+
+          Two grey lines sat under every reading of this card, on every
+          visit, saying the same thing they said last time. The first is
+          the fact -- how much of the period is actually mapped -- and it
+          stays on the face, because it is what makes the bars above it
+          mean anything. The second is the counting convention, which you
+          need once and then never again, so it is behind a summary that
+          names it. Nothing is removed. */}
+      <div className="facts">
+        <span className="fact">{capAfterNumber(`${breakdown.assigned} of ${breakdown.total} working sets mapped`)}</span>
+      </div>
+      <details className="ins-table">
+        <summary>How Sets Are Counted</summary>
+        {/* One fact per line (§AK): each line was a rule and its gloss as
+            two plain greys, so the gloss joins the rule it glosses. */}
+        <div className="facts"><span className="fact">First muscle whole, the rest half, by the app's convention</span></div>
+        <div className="facts"><span className="fact">Working sets only, warm-ups not counted</span></div>
+      </details>
+      <div className="ins-acts">
+        {breakdown.unassigned > 0 && <button type="button" className="pill-act" onClick={() => onAssignMuscles(breakdown.untagged)}>Assign Muscles</button>}
+        <button type="button" className="see-all" onClick={() => onOpenAllData("sets", period)}>View Sets</button>
+      </div>
     </div></div>
   );
 
@@ -368,16 +364,18 @@ const musclesCard = (
             comparable change, and a card that chose its own subject has to
             say so or it reads as the only exercise you have. */}
         {ovIdx == null && <span className="fact">Biggest gain</span>}
-        <span className="fact">{`Best set at ${headline.reps} reps`}</span>
         {/* THE ONE CARD THAT IS NOT THE PAGE'S PERIOD (polish: "Trend period
             clearly 'All history'... Do not imply every card follows the same
             date scope"). Every other card on this screen reads the chips at
             the top; this one spans every comparable session there has ever
             been, and that difference has to be on its face, not only in the
-            basis line at its foot. */}
-        <span className="fact">All History</span>
+            basis line at its foot. A span of time is a neutral date, so
+            small caps (§AM, 2026-09-26), and the rep count it compares at
+            rides on the number as the set it is, rather than as a third
+            grey fact on this line. */}
+        <span className="fact date">All History</span>
       </div>
-      <div className="ins-big lime">{`${headline.to.w} ${headline.lift.unit ?? "lb"}`}</div>
+      <div className="ins-big lime">{`${headline.to.w} ${headline.lift.unit ?? "lb"} × ${headline.reps}`}</div>
       <div className="facts">
         <span className="fact lime">{`${sign(headline.delta)} ${headline.lift.unit ?? "lb"} since ${monthDay(headline.from.date)}`}</span>
         <span className="fact">{`${headline.sessions} comparable sessions`}</span>
@@ -483,7 +481,7 @@ const musclesCard = (
                     <>
                       <div className="facts">
                         <span className="fact lime">{`${sign(g.delta)} ${lift.unit ?? "lb"} at ${g.reps} reps`}</span>
-                        <span className="fact">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)}`}</span>
+                        <span className="fact date">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)}`}</span>
                         <span className="fact">{`${g.sessions} comparable sessions`}</span>
                       </div>
                       {chart(pts, lift.unit ?? "lb")}
@@ -526,14 +524,24 @@ const musclesCard = (
   );
 
   // The third section: every tracked thing as records, with its gaps.
+  //
+  // THE KEY, NOT THE KIND (§AM, 2026-09-26). Each value wore the hue of what
+  // the record IS -- violet sleep, cyan metrics, pink discomfort, amber meals,
+  // blue doses -- which is a category colour on words, and amber on a meal
+  // count read as "over". Now a count of things logged is lime, the key's
+  // logged; a reading is a number with no state, so white. The date it was
+  // last read is a neutral date, small caps, in its own fact rather than
+  // behind a baked middot; the coverage is the row's one grey.
   const restRows = (() => {
-    const rows: { key: string; title: string; hue: string; value: string; context: string; category: DataCategory }[] = [];
+    const rows: { key: string; title: string; logged: boolean; value: string; when: string; context: string; category: DataCategory }[] = [];
     const daysIn = (dates: string[]) => new Set(dates.filter((d) => inPeriod(d, period))).size;
     for (const def of activeMetrics(metricDefs)) {
       const mine = metricLogs.filter((l) => l.data.metricId === def.id && inPeriod(l.data.date, period) && (l.data.value != null || l.data.yes != null));
       const latest = mine.sort((a, b) => a.data.date.localeCompare(b.data.date))[mine.length - 1];
       const days = daysIn(mine.map((l) => l.data.date));
-      const value = !latest ? "Not logged" : def.data.type === "yesno" ? (latest.data.yes ? "Yes" : "No") : `${latest.data.value}${def.data.type === "scale5" ? "/5" : def.data.unit ? " " + def.data.unit : ""}`;
+      // A metric with no reading in the period says nothing under its name
+      // (§AK: "Not logged" is a placeholder, not a fact).
+      const value = !latest ? "" : def.data.type === "yesno" ? (latest.data.yes ? "Yes" : "No") : `${latest.data.value}${def.data.type === "scale5" ? "/5" : def.data.unit ? " " + def.data.unit : ""}`;
       const isSleep = def.data.presetKey === "sleep";
       // SAY IT ONCE, AND DO NOT PRINT ARITHMETIC (2026-09-16, Dave's Rest and
       // Readings screenshot: "Not logged · No log in 7 days"). The value
@@ -541,18 +549,18 @@ const musclesCard = (
       // And the logged version ran to three clauses, the third of which was
       // the second subtracted from the period -- a number the reader can do
       // and did not ask for.
-      rows.push({ key: def.id, title: def.data.name, hue: isSleep ? "violet" : "cyan", value, context: latest ? `Latest ${monthDay(latest.data.date)} · ${days} of ${period.days} days` : "", category: isSleep ? "sleep" : def.data.presetKey === "bodyweight" ? "body" : "other" });
+      rows.push({ key: def.id, title: def.data.name, logged: false, value, when: latest ? `Latest ${monthDay(latest.data.date)}` : "", context: latest ? `${days} of ${period.days} days` : "", category: isSleep ? "sleep" : def.data.presetKey === "bodyweight" ? "body" : "other" });
     }
     const effort = logs.callIt.filter((e) => inPeriod(localDay(e.data.at), period));
-    if (effort.length) rows.push({ key: "effort", title: "Session Effort", hue: "cyan", value: `${effort[effort.length - 1]!.data.rpe}/10 latest`, context: capAfterNumber(`${effort.length} rated ${effort.length === 1 ? "session" : "sessions"} · ${daysIn(effort.map((e) => localDay(e.data.at)))} days`), category: "effort" });
+    if (effort.length) rows.push({ key: "effort", title: "Session Effort", logged: false, value: `${effort[effort.length - 1]!.data.rpe}/10 latest`, when: "", context: capAfterNumber(`${effort.length} rated ${effort.length === 1 ? "session" : "sessions"} over ${daysIn(effort.map((e) => localDay(e.data.at)))} days`), category: "effort" });
     const sore = logs.pointAtIt.filter((e) => inPeriod(localDay(e.data.at), period));
-    if (sore.length) rows.push({ key: "discomfort", title: "Discomfort", hue: "pink", value: `${sore.length} ${sore.length === 1 ? "entry" : "entries"}`, context: [...new Set(sore.map((e) => e.data.region).filter(Boolean))].join(", ") || "Spots on the map", category: "effort" });
+    if (sore.length) rows.push({ key: "discomfort", title: "Discomfort", logged: true, when: "", value: `${sore.length} ${sore.length === 1 ? "entry" : "entries"}`, context: [...new Set(sore.map((e) => e.data.region).filter(Boolean))].join(", ") || "Spots on the map", category: "effort" });
     const meals = logs.meals.filter((e) => inPeriod(localDay(e.data.at), period));
-    if (meals.length) rows.push({ key: "meals", title: "Meals", hue: "amber", value: capAfterNumber(`${meals.length} logged`), context: `${daysIn(meals.map((e) => localDay(e.data.at)))} of ${period.days} days`, category: "nutrition" });
+    if (meals.length) rows.push({ key: "meals", title: "Meals", logged: true, when: "", value: capAfterNumber(`${meals.length} logged`), context: `${daysIn(meals.map((e) => localDay(e.data.at)))} of ${period.days} days`, category: "nutrition" });
     const doses = logs.tookIt.filter((e) => inPeriod(localDay(e.data.at), period));
-    if (doses.length) rows.push({ key: "doses", title: "Medication", hue: "hblue", value: `${doses.length} ${doses.length === 1 ? "dose" : "doses"} logged`, context: `${daysIn(doses.map((e) => localDay(e.data.at)))} of ${period.days} days`, category: "medication" });
+    if (doses.length) rows.push({ key: "doses", title: "Medication", logged: true, when: "", value: `${doses.length} ${doses.length === 1 ? "dose" : "doses"} logged`, context: `${daysIn(doses.map((e) => localDay(e.data.at)))} of ${period.days} days`, category: "medication" });
     const checks = logs.checkins.filter((e) => inPeriod(localDay(e.data.at), period));
-    if (checks.length) rows.push({ key: "checkins", title: "Check Ins", hue: "cyan", value: capAfterNumber(`${checks.length} logged`), context: `${daysIn(checks.map((e) => localDay(e.data.at)))} of ${period.days} days`, category: "checkins" });
+    if (checks.length) rows.push({ key: "checkins", title: "Check Ins", logged: true, when: "", value: capAfterNumber(`${checks.length} logged`), context: `${daysIn(checks.map((e) => localDay(e.data.at)))} of ${period.days} days`, category: "checkins" });
     return rows;
   })();
   const rest = (
@@ -566,14 +574,22 @@ const musclesCard = (
             <div {...pressable(() => onOpenAllData(r.category, period))} className="row" key={r.key}>
               <div className="row-grow">
                 <div className="conn-name">{r.title}</div>
-                <div className="facts"><span className={"fact " + r.hue}>{r.value}</span>{r.context && <span className="fact">{r.context}</span>}</div>
+                {r.value && (
+                  <div className="facts">
+                    {r.logged ? <span className="fact lime">{r.value}</span> : <span className="fact"><b>{r.value}</b></span>}
+                    {r.when && <span className="fact date">{r.when}</span>}
+                    {r.context && <span className="fact">{r.context}</span>}
+                  </div>
+                )}
               </div>
               {CHEV}
             </div>
           ))}
         </div></div>
       )}
-      <div className="pad-x"><div className="facts"><span className="fact">Records, dates and counts only</span><span className="fact">Nothing here reads a cause into a coincidence</span></div></div>
+      {/* A caveat under the list is a note below the card, the group-footer
+          pattern, not a facts line of two plain greys (§AK). */}
+      <div className="pad-x"><div className="input-hint">Records, dates and counts only, with no cause read into a coincidence</div></div>
     </>
   );
 

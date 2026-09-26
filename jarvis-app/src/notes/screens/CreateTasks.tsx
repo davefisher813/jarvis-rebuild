@@ -52,8 +52,10 @@ export default function CreateTasks({
       <div className="nav-large">Create Tasks</div>
 
       <div className="detail-head">
+        {/* One sentence, no typed dot (§AM F3); an unfiled note has no
+            area to name, so the line does not leave a gap for one. */}
         <div className="t-meta">
-          Checklist items become {categoryLabel} Tasks · Completed ones skipped
+          {"Checklist items become " + (categoryLabel ? categoryLabel + " " : "") + "Tasks, completed ones skipped"}
         </div>
       </div>
 

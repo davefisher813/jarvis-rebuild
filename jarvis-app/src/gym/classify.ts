@@ -367,14 +367,14 @@ export function valueLine(c: Classification, field: Chip["field"]): string | nul
       const s = c.secondary.map((m) => MUSCLE_LABEL[m]).join(", ");
       if (!s) return p;
       if (!p) return `Also ${s}`;
-      return `${p} · Also ${s}`;
+      return `${p}, also ${s}`;
     }
     case "equipment": {
       if (!c.equipment) return null;
       const label = EQUIPMENT_LABEL[c.equipment];
       const counted = c.counted;
       if (!counted || countsFor(c.equipment).length < 2 || counted === defaultCount(c.equipment)) return label;
-      return `${label} · ${COUNTED_LABEL[counted]}`;
+      return `${label}, ${COUNTED_LABEL[counted]}`;
     }
     case "movement": return c.movement ? MOVEMENT_LABEL[c.movement] : null;
     case "type": return c.type ? TYPE_LABEL[c.type] : null;
@@ -384,7 +384,7 @@ export function valueLine(c: Classification, field: Chip["field"]): string | nul
         c.execution ? EXECUTION_LABEL[c.execution] : null,
         c.grip ?? null, c.stance ?? null, c.angle ?? null, c.variation ?? null,
       ].filter((x): x is string => !!x);
-      return bits.length ? bits.join(" · ") : null;
+      return bits.length ? bits.join(", ") : null;
     }
     case "tag": return c.tags.length ? c.tags.join(", ") : null;
   }
@@ -395,7 +395,7 @@ export function valueLine(c: Classification, field: Chip["field"]): string | nul
  *  says so. */
 export function identityLine(c: Classification): string | null {
   const bits = [c.gym, c.machineName, c.machineId].filter((x): x is string => !!x);
-  return bits.length ? bits.join(" · ") : null;
+  return bits.length ? bits.join(", ") : null;
 }
 
 // --- BATCH EDITING ---------------------------------------------------------

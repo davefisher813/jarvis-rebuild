@@ -1,7 +1,7 @@
 // THE FACTS LINE, IN MAIL (EM5, Email Build Master section 3, Dave's picks
 // 2026-09-12). Non-interactive per-row data on these screens (what a thread
-// is waiting for, the sender's own words behind a claim, a rule's account
-// and whether it is on) renders as Astra's .facts: short fragments, a
+// is waiting for, the sender's own words behind a claim, whether a rule is
+// on) renders as Astra's .facts: short fragments, a
 // middle dot the CSS draws between them, at most one semantic colour per
 // line (K.3). Filled chips and capsules are for things you tap; a fact is
 // read.
@@ -73,12 +73,12 @@ export function evidenceFact(ev: Evidence | undefined): Fact | null {
   return span ? { text: "“" + span + "”" } : null;
 }
 
-/** E-24 (ahead of Push E): a standing rule's scope and its switch. The
- *  account is a label and stays quiet; On is the one fact that carries a
- *  tone, because it is the one that changes what the rule does. */
-export function ruleAccountFact(account: string | undefined, on: boolean): Fact[] {
-  return [
-    { text: "Account: " + (account || "All") },
-    on ? { text: "On", tone: "good" } : { text: "Off" },
-  ];
+/** E-24 (ahead of Push E): a standing rule's switch. On is the one fact,
+ *  toned, because it is the one that changes what the rule does. The row
+ *  already spends its one grey on the bucket beside the name (§AM R1), so
+ *  nothing else here is grey: the account is the chip row's to show (it
+ *  appears when there is a choice), and Off is already said by the dimmed
+ *  name and the Turn On capsule, so an off rule has no line at all. */
+export function ruleStateFact(on: boolean): Fact | null {
+  return on ? { text: "On", tone: "good" } : null;
 }

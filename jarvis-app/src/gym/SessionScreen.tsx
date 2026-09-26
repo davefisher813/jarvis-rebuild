@@ -50,7 +50,16 @@ function ElapsedClock({ live }: { live: LiveSession }) {
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", tick); };
   }, []);
   const s = Math.floor(elapsedMs(live, now) / 1000);
-  return <span className="fact amber">{`${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`}</span>;
+  const text = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const paused = (live.pausedMs ?? 0) > 0;
+  // The running clock is the current reading, so it wears the Health "now"
+  // ink (§AM). Parked time is excluded, and the clock says so to VoiceOver
+  // rather than as a second plain fact beside the lift count (§AK).
+  return (
+    <span className="fact cyan" role="timer" aria-label={paused ? `${text} elapsed, paused time excluded` : `${text} elapsed`}>
+      {text}
+    </span>
+  );
 }
 
 // The in-gym screen. ONE exercise, huge type, readable from a bench, because
@@ -566,10 +575,9 @@ export default function SessionScreen({
           {gameLine && <span className="se-chip se-chip-game">{gameLine}</span>}
         </div>
         {/* H-52: how long he has actually been in the gym and how far through
-            the day. Parked time is excluded, and says so once there is any. */}
+            the day. Parked time is excluded; the clock's own label says so. */}
         <div className="facts se-elapsed">
           <ElapsedClock live={live} />
-          {(live.pausedMs ?? 0) > 0 && <span className="fact">Paused time excluded</span>}
           <span className="fact">{capAfterNumber(`${liftsDone} of ${live.exercises.length} lifts`)}</span>
           {plannedTotal > 0 && <span className="fact lime">{capAfterNumber(`${loggedTotal} of ${plannedTotal} sets`)}</span>}
         </div>
@@ -795,7 +803,7 @@ export default function SessionScreen({
             exercise={exercise}
             entries={logged}
             onChange={changeSets}
-            lastLine={header ? `Last: ${header.last} · ${monthDay(header.date)}` : null}
+            lastLine={header ? `Last: ${header.last} on ${monthDay(header.date)}` : null}
           />
         ) : (
           <SetStrip

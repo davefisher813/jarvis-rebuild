@@ -157,17 +157,22 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     notifyFreshLists(ENTITY_TASK);
     await waitFor(() => expect(screen.getByText("Book the field")).toBeInTheDocument());
 
-    // Tick the dealt task; the chain fills the slot it left.
+    // Tick the dealt task; the chain fills the slot it left. Its line is the
+    // reason, then the length (2026-09-26: "Keep going" came off the card as
+    // a second grey that said nothing the slot does not).
     fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
-    await waitFor(() => expect(screen.getByText(/Keep going/)).toBeInTheDocument());
-    // The task's own length is what makes it startable (UP-CORE-02).
+    await waitFor(() => expect(screen.getByText("Same category, due today")).toBeInTheDocument());
+    expect(screen.queryByText(/Keep going/)).toBeNull();
+    // The task's own length is what makes it startable (UP-CORE-02), drawn
+    // as an estimate the app worked out (sky, .fact.est).
     expect(screen.getAllByText(/15m/).length).toBeGreaterThan(0);
+    const chain = screen.getByText("Same category, due today").closest(".notice-swipe")!;
+    expect(chain.querySelector(".fact.est")?.textContent).toBe("15m");
 
     // Waving it off empties the slot. Two of those quiet the chain for the
     // day, which is momentum.ts's own rule, unchanged.
-    const chain = screen.getByText(/Keep going/).closest(".notice-swipe")!;
     fireEvent.click(chain.querySelector(".notice-dismiss")!);
-    await waitFor(() => expect(screen.queryByText(/Keep going/)).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Same category, due today")).toBeNull());
   });
 });
 
@@ -354,8 +359,11 @@ describe("TodayFlow: the meeting link and notes survive an edit", () => {
       url: "https://zoom.us/j/old", notes: "Old line",
     }))!;
     notifyFreshLists(ENTITY_EVENT);
-    await waitFor(() => expect(screen.getByText("Bridge Foundation Zoom")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Bridge Foundation Zoom"));
+    // Now names the next event too, as its own fact (2026-09-26: "Until
+    // 5:30 PM · Bridge Foundation Zoom"), so the row to open is the day's.
+    const dayRow = () => screen.getAllByText("Bridge Foundation Zoom").find((el) => !el.closest(".facts"))!;
+    await waitFor(() => expect(dayRow()).toBeInTheDocument());
+    fireEvent.click(dayRow());
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     await screen.findByText("Edit Event");
 

@@ -159,14 +159,3 @@ export function buildSyllabusRows(items: ExtractedSyllabusItem[], fallbackYear: 
     };
   });
 }
-
-// What the review says about one row, in words. The weight is the syllabus's
-// own claim, quoted rather than computed.
-export function rowLine(r: SyllabusRow, dateWord: (iso: string) => string): string {
-  const parts: string[] = [r.kind === "event" ? "Event" : "Task"];
-  if (r.noDate) parts.push("No date found");
-  else parts.push(dateWord(r.date));
-  if (r.kind === "event" && r.start) parts.push(r.start);
-  if (r.weight) parts.push(r.weight);
-  return parts.join(" · ");
-}

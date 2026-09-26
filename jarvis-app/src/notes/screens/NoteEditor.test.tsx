@@ -288,3 +288,47 @@ describe("the connection strip, under the writing now", () => {
     expect(onOpenConnection).toHaveBeenCalledWith("project", "p1");
   });
 });
+
+// THE COLOUR KEY ON THE NOTE SCREEN (§AK, §AL, §AM; 2026-09-26). Colour is
+// for meaning: the area's hue rides its dot and never its name, a file's
+// kind has no key colour, the tags are one run of the line's one grey, and
+// the find bar's verbs that change the words are the red capsule.
+describe("the Colour Key on the note screen", () => {
+  it("the area's name stays grey beside its dot", () => {
+    const { container } = render(<NoteEditor {...base} />);
+    const eyebrow = container.querySelector(".doc-eyebrow .eyebrow")!;
+    expect(eyebrow).toHaveTextContent("Family");
+    expect(eyebrow.className).not.toMatch(/cat-fg-/);
+    expect(container.querySelector(".doc-eyebrow .cat-dot")).toBeInTheDocument();
+  });
+
+  it("an attachment's glyph takes the neutral glyph ink, not red or blue", () => {
+    const note: EditorNote = { ...NOTE, attachments: [
+      { id: "a1", type: "file", name: "Invoice.pdf", size: "240 KB" },
+      { id: "a2", type: "photo", name: "IMG_2231.jpg", size: "1.2 MB" },
+    ] };
+    const { container } = render(<NoteEditor {...base} note={note} />);
+    expect(container.querySelectorAll(".list-card-ruled .lead-ink")).toHaveLength(2);
+    expect(container.querySelector(".fg-red, .fg-blue")).toBeNull();
+  });
+
+  it("the tags are one run on their line", () => {
+    const { container } = render(<NoteEditor {...base} tags={["work", "ideas"]} />);
+    const facts = container.querySelectorAll(".note-tags .fact");
+    expect(facts).toHaveLength(1);
+    expect(facts[0]).toHaveTextContent("#work #ideas");
+  });
+
+  it("Replace and Replace All are the red capsule; stepping and closing stay quiet", async () => {
+    render(<NoteEditor {...base} />);
+    fireEvent.click(screen.getByLabelText("Note options"));
+    fireEvent.click(screen.getByText("Find in Note"));
+    await screen.findByLabelText("Find");
+    for (const name of ["Replace", "Replace All"]) {
+      const b = screen.getByText(name, { selector: "button" });
+      expect(b).toHaveClass("pill-act");
+      expect(b).not.toHaveClass("pill-quiet");
+    }
+    expect(screen.getByLabelText("Next match")).toHaveClass("pill-quiet");
+  });
+});

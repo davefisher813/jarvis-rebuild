@@ -97,8 +97,9 @@ describe("the floor", () => {
   it("accounts for every kind of absence", () => {
     const v = viewRows(rows, store, NO_FILTER, "name");
     // capAfterNumber owns the casing: a number hands its edge slot to the
-    // word behind it, in every dot segment.
-    expect(floorLine(v, rows.length, NO_FILTER)).toBe("2 of 4 Shown · 1 Hidden · 1 Archived.");
+    // word behind it, in every comma segment. Commas, not baked middots
+    // (§AM F3).
+    expect(floorLine(v, rows.length, NO_FILTER)).toBe("2 of 4 Shown, 1 Hidden, 1 Archived.");
   });
 
   it("says what was searched for when nothing matched", () => {

@@ -25,7 +25,8 @@ describe("the milestones measure (C-36)", () => {
     const s = measureState(m, ctx())!;
     expect(s).toMatchObject({ done: 2, target: 4, met: false, pct: 50 });
     expect(s.line).toBe("2 of 4 Milestones");
-    expect(measureState({ kind: "milestones", items: [] }, ctx())!.line).toBe("No milestones yet");
+    // §AK (2026-09-26): an empty list has no line, never a placeholder.
+    expect(measureState({ kind: "milestones", items: [] }, ctx())!.line).toBe("");
   });
 
   it("the next milestone is the first not yet ticked", () => {
