@@ -17,6 +17,7 @@ import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskShe
 import { useProjects, useGoals } from "../data/NotesProvider";
 import type { Goal } from "../life/types";
 import { buildGoalIndex, liveGoals, goalTitleForTask, sheetGoals } from "../bigger/reach";
+import { sheetProjects, sheetPeople } from "../tasks/screens/sheetLinks";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import { sheetEvents, type SheetEvent as SheetEventRow } from "../schedule/sheetEvents";
 import { rowSource, type Source } from "../shared/provenance";
@@ -1138,7 +1139,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       />
       {sheet && (
         <TaskSheet
-          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId), goalId: p.data.goalId }))}
+          projects={sheetProjects(projects, goals)}
           goals={sheetGoals(goals, sheet.mode === "edit" ? sheet.initial?.goalId : undefined)}
           events={sheetEventList}
           mode={sheet.mode}
@@ -1147,7 +1148,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
           openSourceFor={openSourceFor}
           categories={categories}
           categoryMinutes={categoryMinutes}
-          people={people.map((p) => ({ id: p.id, name: p.data.name }))}
+          people={sheetPeople(people)}
           onSave={onSave}
           otherPlans={allItems.map((t) => ({ id: t.id, text: t.data.text, plan: t.data.plan }))}
           selfId={sheet.mode === "edit" ? sheet.id : undefined}

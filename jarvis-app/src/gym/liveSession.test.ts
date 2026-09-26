@@ -273,6 +273,20 @@ describe("sessionExercisesSameAsLastTime: catalog §3.13", () => {
     expect(out[1]!.custom).toBeUndefined();
   });
 
+  // 2026-09-26 (the workout logging pass-off): last session's ramp and drop
+  // segments were carried forward as WORKING sets of the plan.
+  it("carries last time's working sets only, never its warm-ups or drops", () => {
+    const last: WorkoutData = {
+      programId: "p", dayId: "d1", dayName: "Push", date: "2026-08-01", startedAt: 0, endedAt: 1,
+      exercises: [{ exerciseId: "e1", name: "Bench", kind: "weight_reps", unit: "lb", sets: [
+        mkSet({ w: 95, r: 5, warmup: true }), mkSet({ w: 135, r: 8 }), mkSet({ w: 135, r: 7 }), mkSet({ w: 95, r: 10, drop: true }),
+      ] }],
+    };
+    const out = sessionExercisesSameAsLastTime(day, last);
+    expect(out[0]!.plan).toHaveLength(2);
+    expect(out[0]!.plan).toMatchObject([{ w: 135, r: 8 }, { w: 135, r: 7 }]);
+  });
+
   it("a wholly skipped prior exercise falls back to the program's own plan", () => {
     const last: WorkoutData = {
       programId: "p", dayId: "d1", dayName: "Push", date: "2026-08-01", startedAt: 0, endedAt: 1,
@@ -400,13 +414,17 @@ describe("D3: a ramp never advances the athlete's place in the plan", () => {
     expect(sets.length).toBe(3); // the strip is longer than the work, on purpose
   });
 
-  it("plannedEntryAt reads the plan by working position", async () => {
-    const { plannedEntryAt } = await import("./measures");
-    const ex = { sets: [{ id: "p1", w: 225, r: 5 }, { id: "p2", w: 225, r: 5 }] };
-    // Two warm-ups and one work set logged: the next plan entry is the
-    // SECOND working set, not the third slot of the strip.
-    expect(plannedEntryAt(ex, 1)!.id).toBe("p2");
-    expect(plannedEntryAt(ex, 3)).toBeUndefined();
+  // AMENDED 2026-09-26 (workout logging): plannedEntryAt went with the bug
+  // it fed -- the plan layered under the Log button's label. The one reader
+  // of the plan by working position is nextSetEntry, which skips warm-ups.
+  it("the next set reads the plan by working position, warm-ups skipped", async () => {
+    const { nextSetEntry } = await import("./nextSet");
+    const plan = { id: "e", name: "Bench", kind: "weight_reps" as const, unit: "lb", sets: [{ id: "p1", w: 225, r: 5 }, { id: "p2", w: 235, r: 5 }] };
+    const logged = [mkSet({ w: 95, r: 5, warmup: true }), mkSet({ w: 135, r: 5, warmup: true }), mkSet({ w: 225, r: 5 })];
+    // Two warm-ups and one work set logged: the next set follows the set
+    // before, and the plan's own second entry is the floor with no history.
+    expect(nextSetEntry({ plan, logged })).toMatchObject({ w: 225, r: 5 });
+    expect(nextSetEntry({ plan, logged: [] })).toMatchObject({ w: 225, r: 5 });
   });
 });
 

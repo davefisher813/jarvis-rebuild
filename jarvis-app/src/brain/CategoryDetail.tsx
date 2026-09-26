@@ -3,7 +3,12 @@ import { promptsDue, shownNow, snoozedForADay } from "../tasks/contextPrompts";
 import ContextPromptSheet from "../tasks/screens/ContextPromptSheet";
 import type { LinkedItem, ContextTriggerConfig } from "../notes/types";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine, usePeople, useProfile } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine, usePeople, useProfile, useOptionalRules } from "../data/NotesProvider";
+import NoticeCard from "../today/NoticeCard";
+import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningsFrom, type TuningChoice } from "../rules/tuning";
+import { DOW_FULL, DOW_PLURAL, nextDow } from "../categories/record";
+import { Nums } from "../bigger/GoalRowRuled";
+import { CalendarGlyph } from "../shared/glyphs";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import type { Person } from "../people/types";
 import { personInitials, avatarClass } from "../people/types";
@@ -85,13 +90,14 @@ import { periodFor, periodOverview, muscleBreakdown } from "../insights/analytic
 import { findings, type Finding, type LiftId } from "../insights/findings";
 import type { HealthView } from "../insights/HealthNav";
 import type { Program } from "../gym/types";
-import { capAfterNumber, titleCase } from "../shared/casing";
+import { capAfterNumber, titleCase, lineCase } from "../shared/casing";
 import { ProjectPie } from "../shared/glyphs";
 import GoalRowRuled from "../bigger/GoalRowRuled";
 import { TaskRow } from "../tasks/screens/TasksPage";
 import { trainingSummary, agoPhrase } from "../gym/summary";
 import type { Workout } from "../gym/types";
 import { buildGoalIndex, liveGoals, reachOf, reachLine, sheetGoals } from "../bigger/reach";
+import { sheetProjects, sheetPeople } from "../tasks/screens/sheetLinks";
 import { measureState, healthOf, HEALTH_LABEL, type MeasureContext } from "../bigger/measure";
 import { goalTone } from "../shared/categories";
 import HealthBody from "./HealthBody";
@@ -159,8 +165,6 @@ function groupByDay(recent: RecordEntry[]): { day: string; rows: RecordEntry[] }
   return out;
 }
 const NOTES_CAP = 4;
-
-const DOW_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project"; goalId?: string } | { kind: "goal" } | { kind: "event" } | { kind: "edit" };
 
@@ -353,8 +357,37 @@ export default function CategoryDetail({
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   // This Week's day groups start capped; See All opens the rest.
   const [weekOpen, setWeekOpen] = useState(false);
-  // The This Week head, so the learned-pattern card's action can bring it up.
-  const weekRef = useRef<HTMLDivElement>(null);
+  // The Up Next head: the learned-day card's door lands on the tasks it
+  // would line up.
+  const upNextRef = useRef<HTMLDivElement>(null);
+  // THE LEARNED DAY IS TUNABLE (Dave's pass-off, 2026-09-26), like every
+  // other automation: a long-press on its card writes a rule in What JARVIS
+  // Learned, read here the way Today reads its own.
+  const rulesSvc = useOptionalRules();
+  const [tunings, setTunings] = useState<Record<string, TuningChoice>>({});
+  const [tuneTick, setTuneTick] = useState(0);
+  useEffect(() => {
+    if (!rulesSvc) return;
+    let on = true;
+    void rulesSvc.list().then((rules) => { if (on) setTunings(tuningsFrom(rules)); });
+    return () => { on = false; };
+  }, [rulesSvc, tuneTick]);
+  const tune = async (name: string, choice: TuningChoice, evidence: string) => {
+    if (!rulesSvc) return;
+    const ok = await attemptWrite(async () => {
+      const existing = (await rulesSvc.list()).find((r) => r.data.scope === tuningScope(name) && r.data.from === "frequency");
+      if (existing) await rulesSvc.delete(existing.id);
+      await rulesSvc.create("tuning", tuningScope(name), "frequency", choice, evidence);
+    });
+    if (!ok) return;
+    setTuneTick((n) => n + 1);
+    const label = AUTOMATION_LABEL[name] ?? name;
+    showToast({
+      message: choice === "never" ? `${label} · Off · Change It in Settings`
+        : choice === "less" ? `${label} · Less Often · Change It in Settings`
+        : `${label} · More Often · Change It in Settings`,
+    });
+  };
   const today = todayISO();
 
   const reload = useCallback(async () => {
@@ -1350,6 +1383,34 @@ export default function CategoryDetail({
     await reload();
     if (ok) showToast({ message: "Moved to tomorrow" });
   };
+  // THE LEARNED DAY'S ONE MOVE (Dave's pick, 2026-09-26). Up to three of
+  // this area's undated open tasks, oldest first as the list stands, take
+  // the next such weekday as their due date, in one write, with one Undo
+  // that puts every prior due back. Never a reminder or a bill: those keep
+  // their own clocks.
+  const learnedDay = (() => {
+    const d = rec.insightDetail;
+    if (!d || !tuningAllows(tunings, "learned-day", today)) return null;
+    const lineUp = open.filter((t) => !t.data.done && !t.data.due && !t.data.reminder && !t.data.bill).slice(0, 3);
+    if (lineUp.length === 0) return null;
+    return { ...d, lineUp, date: nextDow(today, d.dow) };
+  })();
+  const lineUpForDay = async () => {
+    if (!learnedDay) return;
+    const { lineUp, date, dow } = learnedDay;
+    const prior = lineUp.map((t) => ({ id: t.id, due: t.data.due ?? null }));
+    const ok = await attemptWrite(async () => { for (const t of lineUp) await tasksSvc.setDue(t.id, date); });
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: lineCase(`Lined up ${lineUp.length} for ${DOW_FULL[dow]}`),
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => { for (const p of prior) await tasksSvc.setDue(p.id, p.due); });
+        await reload();
+      },
+    });
+  };
   const startTask = async (id: string) => {
     const t = await tasksSvc.task(id);
     if (!t) return;
@@ -1372,7 +1433,7 @@ export default function CategoryDetail({
   // the write actually landed.
   const saveTask = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
-    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin }));
+    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, personId: draft.personId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin }));
     if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();
@@ -1471,9 +1532,18 @@ export default function CategoryDetail({
               // action, so a grey "No next action" after the amber word only
               // restated it: a stalled row draws the amber word and no grey.
               const stalled = !next && p.data.status !== "on_hold";
-              // The next step is his own typed task, SHOWN in Title Case
-              // (Dave's pass-off, 2026-09-26); stored unchanged.
-              const line = next ? `Next: ${titleCase(next.data.text)}` : p.data.status === "on_hold" ? "Paused" : null;
+              // THE WHOLE NEXT STEP, ON ITS OWN LINE (Dave's pass-off,
+              // 2026-09-26). Beside the chips the step lost to the
+              // ellipsis after a word or two ("Next: Go to Bradfor..."),
+              // and it said "Next:" in the one grey while the Projects lens
+              // says NEXT in amber with the step in white. It is the lens's
+              // form now (.r-next-in, ruled.css), on line two, the step in
+              // Title Case (his typed task, stored unchanged) and free to
+              // wrap; the toned chips and the date sit on line three, the
+              // short toned facts first. A row with no next step keeps one
+              // line: Paused grey, Stalled amber. Each row is about 22px
+              // taller for it; accepted.
+              const line = !next && p.data.status === "on_hold" ? "Paused" : null;
               const nextDue = next?.data.due ?? null;
               const nextTone = nextDue ? dayTone(nextDue, today) : null;
               return (
@@ -1481,14 +1551,21 @@ export default function CategoryDetail({
                   <div className="task-check-tap"><span className={"pp-slot cat-fg-" + cat.data.color}><ProjectPie pct={pct} /></span></div>
                   <div className="task-title">
                     <span className="task-name">{titleCase(p.data.title)}</span>
-                    <div className="r-k">
-                      {doneWeek > 0 && <span className="uchip u-done">{doneWeek} Done</span>}
-                      {overdue > 0 && <span className="uchip u-late">{overdue} Late</span>}
-                      {nextDue && nextTone === "warn" && <span className="uchip u-today">{nextDue === today ? "Today" : "Tomorrow"}</span>}
-                      {stalled && <span className="r-goal r-stalled">Stalled</span>}
-                      {line && <span className="r-goal r-cat">{line}</span>}
-                      {nextDue && nextTone === "date" && <span className="fact date">{dayPhrase(nextDue, today).replace(/ /g, "\u00a0")}</span>}
-                    </div>
+                    {next && (
+                      <div className="r-k goal-sub proj-next-line">
+                        <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{titleCase(next.data.text)}</span></span>
+                      </div>
+                    )}
+                    {(doneWeek > 0 || overdue > 0 || (nextDue && nextTone !== "red") || stalled || line) && (
+                      <div className="r-k">
+                        {doneWeek > 0 && <span className="uchip u-done">{doneWeek} Done</span>}
+                        {overdue > 0 && <span className="uchip u-late">{overdue} Late</span>}
+                        {nextDue && nextTone === "warn" && <span className="uchip u-today">{nextDue === today ? "Today" : "Tomorrow"}</span>}
+                        {nextDue && nextTone === "date" && <span className="fact date">{dayPhrase(nextDue, today).replace(/ /g, "\u00a0")}</span>}
+                        {stalled && <span className="r-goal r-stalled">Stalled</span>}
+                        {line && <span className="r-goal r-cat">{line}</span>}
+                      </div>
+                    )}
                   </div>
                   {CHEV}
                 </div>
@@ -1614,7 +1691,7 @@ export default function CategoryDetail({
       </>)}
 
       {(kind !== "health" || open.length > 0) && (<>
-      <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{open.length > 0 && <span className="n">{open.length}</span>}</div>
+      <div className="sh2 sh2-quiet" ref={upNextRef}><span className="t">Up Next</span>{open.length > 0 && <span className="n">{open.length}</span>}</div>
       {/* THE SAME ROW AS EVERYWHERE (Dave 2026-09-02, on the Health page:
           "should render as a task there like it does everywhere else. It
           should have the same clearing ability as well"). */}
@@ -2119,34 +2196,32 @@ export default function CategoryDetail({
           <div className="area-fact">{ahLine}</div>
         </div></div>
       )}
-      {/* A LEARNED PATTERN IS A CARD, NOT A GREY LINE (Dave's pass-off,
-          2026-09-26: "Most gets done on Wednesdays" "reads flat"). It is
-          something the app worked out, so the kicker wears the key's colour
-          for that (§AM: an estimate, the app's own reckoning, sky). The one
-          sentence under it is the count it rests on (record.ts's own
-          numbers, never a guess), and its one action opens the week it was
-          learned from: This Week, the list of what got done and when. Plan
-          Wednesday would be the better action; nothing on this page can
-          reach Plan My Day (the hook stops at AppShell > TodayFlow). */}
-      {rec.insight && rec.insightDetail && (
-        <div className="pad-x"><div className="card ins-card area-learned">
-          <div className="ins-head">
-            <span className="ins-t">{rec.insight}</span>
-            <span className="ins-chip area-learned-chip">Learned</span>
-          </div>
-          <div className="conn-meta area-learned-why">
-            <span className="fact">{capAfterNumber(`${rec.insightDetail.count} of the last ${rec.insightDetail.total} done here landed on a ${DOW_NAMES[rec.insightDetail.dow]}`)}</span>
-          </div>
-          {rec.recent.length > 0 && (
-            <div className="ins-acts">
-              <button type="button" className="see-all" onClick={() => { setWeekOpen(true); weekRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>See the Pattern</button>
-            </div>
-          )}
+      {/* A LEARNED PATTERN IS A NOTICE WITH ONE DECISION (Dave's pick,
+          2026-09-26: "Most gets done on Wednesdays" read flat, a statistic
+          with nothing to do about it). The app's one notification
+          component: the calendar in the area's colour, "Wednesdays Get the
+          Most Done", the count it rests on with white numbers (record.ts's
+          own numbers, never a guess), and one red capsule that lines this
+          area's undated open tasks up for the next such day, with Undo. It
+          shows only when there is something to line up (§R.4: no dead
+          ends), and a long-press tunes it like every other automation. */}
+      {learnedDay && (
+        <div className="pad-x heads-up-stream stream-grouped one-ask-row"><div className="card stream-card">
+          <NoticeCard
+            icon={<CalendarGlyph />}
+            tone={"cat-fg-" + cat.data.color}
+            title={`${DOW_PLURAL[learnedDay.dow]} Get the Most Done`}
+            sub={<div className="facts"><span className="fact"><Nums text={lineCase(`${learnedDay.count} of ${learnedDay.total} done on ${DOW_PLURAL[learnedDay.dow]}`)} /></span></div>}
+            action={{ label: `Line Up ${learnedDay.lineUp.length} for ${DOW_FULL[learnedDay.dow]}`, onClick: () => void lineUpForDay() }}
+            onOpen={() => upNextRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            automation="learned-day"
+            onTune={(choice) => void tune("learned-day", choice, `${DOW_PLURAL[learnedDay.dow]} Get the Most Done`)}
+          />
         </div></div>
       )}
       {rec.recent.length > 0 && (
         <>
-          <div className="sh2 sh2-quiet" ref={weekRef}><span className="t">This Week</span><span className="n">{rec.recent.length}</span>
+          <div className="sh2 sh2-quiet"><span className="t">This Week</span><span className="n">{rec.recent.length}</span>
             {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
           <div className="pad-x">
             {shownGroups.map((g) => (
@@ -2305,7 +2380,8 @@ export default function CategoryDetail({
           to, and the derived Goal row had nothing to derive from. */}
       {sheet.kind === "task" && (
         <TaskSheet mode="new" categories={sheetCats} events={sheetEvents(allEvents, today)}
-          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId), goalId: p.data.goalId }))}
+          projects={sheetProjects(projects, goals)}
+          people={sheetPeople(allPeople)}
           goals={sheetGoals(goals)}
           initial={{ category: categoryId }} onSave={saveTask} onCancel={() => setSheet({ kind: "closed" })} />
       )}
@@ -2324,8 +2400,7 @@ export default function CategoryDetail({
         <EventSheet
           mode="new"
           categories={sheetCats}
-          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId), goalId: p.data.goalId }))}
-          goals={sheetGoals(goals)}
+          projects={sheetProjects(projects, goals)}
           initial={{ date: today, category: categoryId }}
           onSave={async (d) => {
             // Field for field with ScheduleFlow's own createEvent. This call
@@ -2340,7 +2415,7 @@ export default function CategoryDetail({
                 until: d.until || undefined, days: d.days, interval: d.interval,
                 travelMin: d.travelMin ?? undefined, bufferMin: d.bufferMin ?? undefined,
                 url: d.url, notes: d.notes,
-                projectId: d.projectId || undefined, goalId: d.goalId || undefined,
+                projectId: d.projectId || undefined,
               });
               if (made && d.gym) await schedule.editGymDoor(made, true);
             });

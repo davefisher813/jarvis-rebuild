@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions, useOptionalGym, useOptionalMetrics, useOptionalStrands } from "../data/NotesProvider";
+import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions, useOptionalGym, useOptionalMetrics, useOptionalStrands, useOptionalPeople, useOptionalSchedule } from "../data/NotesProvider";
+import type { Person } from "../people/types";
+import type { EventItem } from "../schedule/types";
+import { sheetEvents } from "../schedule/sheetEvents";
+import { sheetProjects, sheetPeople } from "../tasks/screens/sheetLinks";
 import { checkinText, readCheckin, CHECKIN_LABEL, type CheckinWord } from "./checkin";
 import { ENTITY_GOAL } from "../life/types";
 import { bucketOf, type ProjectRow } from "./progress";
@@ -167,15 +171,27 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   const [dismissTick, setDismissTick] = useState(0);
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  // THE SAME FIVE ROWS HERE TOO (Dave 2026-09-16 "same 5 options"; pass-off
+  // 2026-09-26). This flow handed the task sheet no people and no events,
+  // so a step opened from a project had a shorter Where group than the same
+  // task opened from Life. The lists come from the same services every
+  // other flow reads; optional, because a bench renders this flow without
+  // them.
+  const peopleSvc = useOptionalPeople();
+  const schedSvc = useOptionalSchedule();
+  const [people, setPeople] = useState<Person[]>([]);
+  const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
   const reload = useCallback(async () => {
-    const [p, g, c, t, w, ml] = await Promise.all([
+    const [p, g, c, t, w, ml, ppl, ev] = await Promise.all([
       projectsSvc.list(), goalsSvc.list(), catsSvc.list(), tasksSvc.listTasks(),
       gymSvc ? gymSvc.listWorkouts() : Promise.resolve([] as Workout[]),
       metricsSvc ? metricsSvc.listLogs() : Promise.resolve([] as MetricLog[]),
+      peopleSvc ? peopleSvc.list() : Promise.resolve([] as Person[]),
+      schedSvc ? schedSvc.listEvents() : Promise.resolve([] as EventItem[]),
     ]);
-    setProjects(p); setGoals(g); setCategories(c); setTasks(t); setWorkouts(w); setMetricLogs(ml); setLoading(false);
-  }, [projectsSvc, goalsSvc, catsSvc, tasksSvc, gymSvc, metricsSvc]);
+    setProjects(p); setGoals(g); setCategories(c); setTasks(t); setWorkouts(w); setMetricLogs(ml); setPeople(ppl); setAllEvents(ev); setLoading(false);
+  }, [projectsSvc, goalsSvc, catsSvc, tasksSvc, gymSvc, metricsSvc, peopleSvc, schedSvc]);
   useEffect(() => { void reload(); }, [reload]);
 
   useEffect(() => {
@@ -758,13 +774,17 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
             <TaskSheet
               mode="new"
               categories={categories.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}
-              projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId), goalId: p.data.goalId }))}
+              projects={sheetProjects(projects, goals)}
+              people={sheetPeople(people)}
+              events={sheetEvents(allEvents, today)}
               goals={sheetGoals(goals)}
               initial={{ category: proj?.data.category ?? "", projectId: sheet.projectId, goalId: proj?.data.goalId ?? "" }}
               onSave={async (d: TaskDraft) => {
                 await attemptWrite(() => tasksSvc.createTask(d.text, {
                   projectId: d.projectId || sheet.projectId,
                   goalId: d.goalId || undefined,
+                  personId: d.personId,
+                  eventId: d.eventId,
                   category: d.category || undefined,
                   extraCategories: d.extraCategories,
                   due: d.due || null,
@@ -797,7 +817,9 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
               // whose due date was the only thing that changed. It is the
               // same sheet the Tasks tab opens, so it now reads and writes
               // exactly what TasksFlow.openEdit and TasksFlow.onSave do.
-              projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId), goalId: p.data.goalId }))}
+              projects={sheetProjects(projects, goals)}
+              people={sheetPeople(people)}
+              events={sheetEvents(allEvents, today)}
               goals={sheetGoals(goals, t.data.goalId)}
               otherPlans={tasks.map((x) => ({ id: x.id, text: x.data.text, plan: x.data.plan }))}
               selfId={sheet.id}
@@ -810,6 +832,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                 repeat: t.data.recurrence ?? "",
                 projectId: t.data.projectId ?? "",
                 goalId: t.data.goalId ?? "",
+                personId: t.data.personId,
+                eventId: t.data.eventId ?? "",
                 plan: t.data.plan,
                 steps: t.data.steps,
                 // 2026-09-11: Length read None here and an edit to it was dropped.
@@ -830,6 +854,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                   await tasksSvc.setDue(id, d.due || null);
                   await tasksSvc.setProject(id, d.projectId ?? null);
                   await tasksSvc.setGoal(id, d.goalId ?? null);
+                  await tasksSvc.setPerson(id, d.personId ?? null);
+                  await tasksSvc.setEvent(id, d.eventId ?? null);
                   await tasksSvc.setRecurrence(id, rec || null);
                   await tasksSvc.setPlan(id, d.plan ?? null);
                   await tasksSvc.setSteps(id, d.steps ?? []);

@@ -6,11 +6,10 @@ import type { Derived } from "./derive";
 import type { LearnedRule } from "../rules/LearnedRulesService";
 import { linksOf } from "../decisions/types";
 import { todayISO } from "../ai/useAIContext";
-import { rankForRecall, fadedStrands, daysSince } from "./recall";
+import { rankForRecall, fadedStrands } from "./recall";
 import { useReadiness } from "./strands/ReadinessPanel";
 import { stateForStrand, toneForStrandState, STRAND_STATE_LABEL, confidenceWord, isWatching } from "./strands/state";
-import { usedBy } from "./strands/usedBy";
-import { NO_PATTERN_TWIN, type Strand } from "./strands/types";
+import { NO_PATTERN_TWIN, STRAND_CATEGORY_LABEL, type Strand } from "./strands/types";
 import { watchingCount, type Readiness } from "./readiness";
 import { pressable } from "../shared/pressable";
 import { attemptWrite } from "../shared/guard";
@@ -18,6 +17,7 @@ import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import { filledIcon } from "../shared/filledIcons";
 import RowStar from "../shared/RowStar";
+import { lineCase } from "../shared/casing";
 
 // THE BRAIN'S LIVE TOP (C-38, Astra, 2026-09-12). Two bands above the nav
 // list. Both heads are quiet grey like every other head (Dave's pick,
@@ -25,9 +25,12 @@ import RowStar from "../shared/RowStar";
 // red head in the app):
 //
 //   Shaping JARVIS Now  up to three active strands, ranked by rankForRecall,
-//                       which is the order the AI reads them in. Each row:
-//                       purple glyph, the fact, one facts line (state word,
-//                       confidence word, the surfaces that use it).
+//                       which is the order the AI reads them in. Each row is
+//                       the What JARVIS Knows row (StrandsPage): purple
+//                       glyph, the fact, one facts line (the state word in
+//                       caps, Rule, a green High, then ONE grey: the fact's
+//                       category). Where a fact is used lives on its sheet
+//                       (Dave 2026-09-26, the pass-off).
 //   Needs You           capped at two, in this order: a readiness detector
 //                       that is WATCHING (past CLOSE_SHARE of its gate, or
 //                       past the gate and not yet accepted), then a faded
@@ -193,11 +196,14 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
                           would claim it needs him. */}
                       {s.data.strength === "rule" && <span className="fact st">Rule</span>}
                       {conf === "High" && <span className="fact good">High</span>}
-                      {/* ONE FACT, ONE RUN (§AK, 2026-09-21: "KNOWN · Your
-                          Move · Plan My Day" was two plain greys after the
-                          state word). Where a strand is used is one fact
-                          with a list in it, not a fact per surface. */}
-                      {usedBy(s.data.category).length > 0 && <span className="fact">{usedBy(s.data.category).join(", ")}</span>}
+                      {/* THE ROW'S ONE GREY IS THE CATEGORY (Dave 2026-09-26,
+                          the pass-off: "KNOWN · Work Style"). The Used By
+                          list sat here: static per category, identical on
+                          every fact in it, and cut off at 390px. It is on
+                          the fact's sheet, where there is room to read it.
+                          The row is now the What JARVIS Knows row, as its
+                          comment always claimed. */}
+                      <span className="fact">{STRAND_CATEGORY_LABEL[s.data.category]}</span>
                     </div>
                   </div>
                   <div className="chev" />
@@ -217,7 +223,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
                 <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
                 <div className="row-grow">
                   <div className="conn-name">{n.p.text}</div>
-                  <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{n.p.edits} edits</span></div>
+                  <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{lineCase(`${n.p.edits} edits`)}</span></div>
                 </div>
                 <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void confirmWriting(n.p); }}>That's Right</button>
               </div>
@@ -253,9 +259,15 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
                 <div className="lib-ico lib-disc strand-disc">{filledIcon("knows")}</div>
                 <div className="row-grow">
                   <div className="conn-name">{n.s.data.text}</div>
+                  {/* The same fading row What JARVIS Knows draws (§AK, one
+                      grey): Fading already says it has gone a season, the
+                      sheet gives the day it was last confirmed, and the one
+                      grey is the category. "264 Days Unconfirmed" beside
+                      the Still True capsule clipped both the state word and
+                      itself at 390px (pass-off, 2026-09-26). */}
                   <div className="facts">
                     <span className="fact st warn">Fading</span>
-                    <span className="fact">{daysSince(n.s.data.lastConfirmed, today)} days unconfirmed</span>
+                    <span className="fact">{STRAND_CATEGORY_LABEL[n.s.data.category]}</span>
                   </div>
                 </div>
                 <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void confirm(n.s); }}>Still True</button>

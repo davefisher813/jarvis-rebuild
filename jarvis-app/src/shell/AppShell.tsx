@@ -680,8 +680,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           it is content plus the safe-area inset, so any number here would be
           wrong on some device. */}
       <div id="select-bar-host" />
-      {/* The way home from anything a jump opened: see ReturnPill. */}
-      <ReturnPill />
+      {/* The way home from anything a jump opened: see ReturnPill. It stands
+          down while a workout session is open (Dave 2026-09-26): the session
+          owns the bottom edge (§AB R8), and the pill floated over its set list. */}
+      {!sessionOpen && <ReturnPill />}
       {showCapture && (
         <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={openFocus} />
       )}

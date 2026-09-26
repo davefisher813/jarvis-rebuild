@@ -65,13 +65,18 @@ const EXEMPT: { key: string; files: RegExp; check: Check; why: string }[] = [
   // true for exactly one save and never read back off a task.
   { key: "TaskSheet closeNow", files: /.*/, check: "load", why: "an action, not a stored value" },
   { key: "TaskSheet closeNow", files: /BiggerPictureFlow|CategoryDetail/, check: "save", why: "new-task sites cannot close a task that does not exist yet" },
-  // THE HIDDEN-ROW RULE. The Event and Person rows render only when the call
-  // site passes `events` / `people`, and these do not. Saving a field whose
-  // control is not on screen writes its empty default over a real value --
-  // which is exactly how BiggerPictureFlow came to erase notes. So for a
-  // hidden row the honest answer is to touch neither end.
-  { key: "TaskSheet eventId", files: /BiggerPictureFlow/, check: "both", why: "no events prop: the Event row does not render here" },
-  { key: "TaskSheet personId", files: /BiggerPictureFlow|CategoryDetail/, check: "both", why: "no people prop: the Person row does not render here" },
+  // THE HIDDEN-ROW RULE. A row that renders only when the call site passes
+  // its list must not be saved where the list is not passed: saving a field
+  // whose control is not on screen writes its empty default over a real
+  // value -- which is exactly how BiggerPictureFlow came to erase notes. So
+  // for a hidden row the honest answer is to touch neither end.
+  // AMENDED 2026-09-26 (pass-off): the Person and Event exemptions are gone.
+  // Dave (2026-09-16): "They should all have the same 5 options", so the task
+  // sheet's five Where rows render on every screen that opens it, the lists
+  // come from one builder (tasks/screens/sheetLinks.ts, schedule/sheetEvents.ts),
+  // and BiggerPictureFlow and CategoryDetail load and save personId and
+  // eventId like every other site. Only the event sheet's attach rows are
+  // still gated on their list.
   { key: "EventSheet taskIds", files: /CategoryDetail/, check: "both", why: "no attachTasks prop: the attach rows do not render here" },
   // This sheet edits a STAGED IMPORT ROW before anything is created, not an
   // event record. The row carries only the columns a parsed schedule has.

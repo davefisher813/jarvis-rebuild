@@ -48,10 +48,14 @@ describe("D2: last time is wired everywhere sets render", () => {
     // number that matters mid-lift was the last thing on a wrapped line. Same
     // three facts, three chips, best leading in the ramp's ink.
     expect(s).toContain("se-chip-best");
-    expect(s).toMatch(/\{header\.best\}/);
-    expect(s).toMatch(/\{header\.last\}/);
+    // AMENDED 2026-09-26 (workout logging): cased by the whole rule.
+    expect(s).toMatch(/\{lineCase\(header\.best\)\}/);
+    expect(s).toMatch(/\{lineCase\(header\.last\)\}/);
     expect(s).toContain("onMatchLast={lastHit");
-    expect(s).toContain("onLog(entryFrom(src))");
+    // AMENDED 2026-09-26 (workout logging, Dave: only the red button logs):
+    // Match puts last time's numbers IN THE FIELDS, and the bar writes them.
+    expect(s).toContain("setDraft(fieldsOf(entryFrom(src)))");
+    expect(s, "Match no longer writes a set on its own").not.toContain("onLog(entryFrom(src))");
   });
 
   it("the exercise sheet shows the same per-position reference while planning", () => {

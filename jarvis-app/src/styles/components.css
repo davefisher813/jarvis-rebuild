@@ -6671,7 +6671,8 @@ span.row-star { cursor: default; }
 /* ===== WORKOUT LOGGING, one flow (2026-09-26) ===== */
 /* Dave's pass-off, top item: "Logging renders inconsistently... Needs one
    single clean logging flow, no fluctuation." Every rule here is scoped to
-   the health root, as R3 of the Colour Key asks of the health inks. */
+   the health root, as R3 of the Colour Key asks of the health inks, or to
+   the portal sheet the Set sheet renders in (§AD: the sheet is a portal). */
 /* A SUPERSET READS AS ONE in the This Session list: the A1/A2 mark rides
    the facts line as the pair capsule (violet, its own fill, so it is never
    a second grey), and the member row wears the same hue as a rule down its
@@ -6680,11 +6681,44 @@ span.row-star { cursor: default; }
 .ruled.health-ruled .row.se-grp { box-shadow: inset 3px 0 0 var(--hl-violet); }
 .ruled.health-ruled .facts > .se-chip { align-self: center; margin-right: var(--s-2); }
 /* The Up Next rows after the Now row are the plan, read and not tapped:
-   no pointer, no ring, the dashed edge alone says "not yet". */
+   no pointer, the dashed edge alone says "not yet". */
 .ruled.health-ruled .set-chip-ghost.se-next { cursor: default; }
-/* The set editor's two moves are one capsule row, padded to the editor's
-   own text edge; the row-pair's tall row-gap stays for the 44px hit boxes. */
+/* The set editor's two moves (planning and history strips) are one capsule
+   row; the row-pair's tall row-gap stays for the 44px hit boxes. */
 .ruled.health-ruled .set-chip-editor .set-chip-acts, .sheet-scrim > .card .set-chip-editor .set-chip-acts { margin: var(--s-2) 0 var(--s-2); }
-/* The More capsule on the strip's head takes the head's own capsule slot
-   (.sh2 .see-all.pill-action) and sits after the count. */
-.ruled.health-ruled .sh2 > .n + .see-all.pill-action { margin-left: var(--s-2); }
+/* THE MORE CAPSULE on the strip's head (Dave: "Three dots isn't obvious
+   enough but that's the right idea"): a labelled §AL capsule, tap red, in
+   the head's trailing slot. .sh2 orders its dotted rule at 1 and everything
+   trailing at 2; the capsule's own -5px block margin keeps the head's
+   height, and centring beats the head's baseline for a filled pill. */
+.ruled.health-ruled .sh2 .pill-act.se-more { order: 2; align-self: center; margin-left: var(--s-2); }
+/* THE SUGGESTION LINE inside the Now row: the estimate's ink for the
+   number (§AM: an estimate the app worked out is sky), the two verbs as the
+   same inline action the Match line is, and the evidence rows under it. */
+.ruled.health-ruled .se-sugg { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s-2); margin-top: var(--s-1); }
+.ruled.health-ruled .se-sugg > .fact { flex-shrink: 1; min-width: 0; }
+.ruled.health-ruled .se-sugg .se-sugg-act { display: inline; margin-top: 0; }
+.ruled.health-ruled .se-sugg .se-sugg-act .act { margin-left: 0; }
+.ruled.health-ruled .se-sugg .ins-rows { flex-basis: 100%; margin-top: var(--s-1h); }
+/* THE SET SHEET IS A PORTAL (§AD), so the How Did It Move chips need their
+   hues named for the sheet's card as well as the health root. Same three
+   meanings the strip's editor draws: clean lime, grind amber, miss pink. */
+.sheet-scrim > .card .chip.mv { position: relative; padding-left: var(--s-7); }
+.sheet-scrim > .card .chip.mv::before { content: ""; position: absolute; left: 11px; top: 50%; margin-top: -3.5px;
+  width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--mv-hue); }
+.sheet-scrim > .card .chip.mv.mv-clean { --mv-hue: var(--hl-lime); }
+.sheet-scrim > .card .chip.mv.mv-grind { --mv-hue: var(--hl-amber); }
+.sheet-scrim > .card .chip.mv.mv-missed { --mv-hue: var(--hl-pink); }
+.sheet-scrim > .card .chip.mv.active { color: var(--mv-hue); background: var(--mv-tint); box-shadow: inset 0 0 0 1px var(--mv-hue); }
+.sheet-scrim > .card .chip.mv.mv-clean.active { --mv-tint: var(--hl-lime-tint); }
+.sheet-scrim > .card .chip.mv.mv-grind.active { --mv-tint: var(--hl-amber-tint); }
+.sheet-scrim > .card .chip.mv.mv-missed.active { --mv-tint: var(--hl-pink-tint); }
+
+/* ===== PASS-OFF BATCH 1, Notes / Brain hub / Knows (2026-09-26) ===== */
+/* A STATE WORD IS NEVER CLIPPED. On a strand row (the Brain hub and What
+   JARVIS Knows) the caps word says who said the fact or what it needs
+   (KNOWN, LEARNED, FADING, WATCHING); beside a Still True capsule the line
+   used to shrink it to "FADI…" at 390px. The state word keeps its width,
+   as the Now line's does, and the row's one grey (the category, last on
+   the line) is the fact that ellipsizes when the room runs out. */
+.strand-row .facts > .fact.st { flex-shrink: 0; }

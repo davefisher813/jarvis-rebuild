@@ -15,6 +15,7 @@
 import {
   ArrowsClockwise as ArrowsClockwiseFill,
   Barbell as BarbellFill,
+  Target as TargetFill,
   Moon as MoonFill,
   Drop as DropFill,
   Smiley as SmileyFill,
@@ -37,22 +38,26 @@ import {
   Pulse as PulseFill,
   Sun as SunFill,
   SunHorizon as SunHorizonFill,
-  Target as TargetFill,
   UsersThree as UsersThreeFill,
   Wallet as WalletFill,
   Warning as WarningFill,
   Phone as PhoneFill,
 } from "@phosphor-icons/react";
 
+// THE GOAL MARK, ONE SHAPE IN BOTH THEMES (Dave's pass-off, 2026-09-26:
+// "the goals icon should have its middle circle filled with colour"). A ring
+// with a solid centre disc: two hollow rings read as a wheel, a filled centre
+// reads as a target hit. It is drawn once and worn in dark AND light, which
+// is a named exception to L5 (light wears the filled glyph, dark the
+// outline): the filled Phosphor target it used to swap in for light is a
+// different shape (rings and a dart), and a goal has to look like the same
+// thing on both sides of the switch. Recorded in STYLING_CATALOG_V3.md L5.
 export function TargetGlyph({ className = "ic" }: { className?: string }) {
   return (
-    <>
-      {/* THE MIDDLE IS FILLED (Dave's pass-off, 2026-09-26: "the goals icon
-          should have its middle circle filled with colour"). Two hollow
-          rings read as a wheel; a filled centre reads as a target hit. */}
-      <svg className={className + " ic-out"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" /></svg>
-      <TargetFill className={className + " ic-fill"} weight="fill" />
-    </>
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
+    </svg>
   );
 }
 
@@ -293,9 +298,10 @@ export function EventMark() {
 }
 
 export function GoalMark() {
+  // The same filled centre as TargetGlyph (2026-09-26), at the inline size.
   return (
     <svg className="r-gm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" />
+      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
     </svg>
   );
 }

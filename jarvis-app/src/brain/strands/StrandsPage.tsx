@@ -18,6 +18,7 @@ import { stateForStrand, toneForStrandState, STRAND_STATE_LABEL, bucketFor, conf
 import { usedBy } from "./usedBy";
 import { watchingCount } from "../readiness";
 import RowStar from "../../shared/RowStar";
+import { lineCase } from "../../shared/casing";
 
 // C-40: the filter chips. Choosers, so filled chips. Watching is not a
 // strand bucket: it lists the readiness rows past CLOSE_SHARE of their gate.
@@ -54,7 +55,14 @@ function monthDay(iso: string): string {
 
 // Receipts render from numbers at display time; the meaning of a/b belongs
 // to the derivation (same law as the event log: no free text stored).
+// A receipt is a grey sub line, so it is Title Case through the one
+// formatter ("Ran 30 Min Past the Estimate", never "30 min"; Dave 2026-09-26,
+// the pass-off).
 export function receiptLine(derivation: DerivationKey | undefined, e: StrandEvidence): string {
+  return lineCase(receiptWords(derivation, e));
+}
+
+function receiptWords(derivation: DerivationKey | undefined, e: StrandEvidence): string {
   if (derivation === "completion_window" && typeof e.a === "number") {
     return `Finished in the ${hour12(e.a)} window`;
   }
@@ -406,7 +414,8 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           word like Known, so it wears none of the key's colours, and Medium
           is not said at all: a fact at its gate is what Learned already
           says, and amber would claim it needs him. Same row as the Brain
-          hub's (BrainTop). */}
+          hub's (BrainTop), which dropped its Used By list for the category
+          on 2026-09-26 (Dave, the pass-off) so the two read as one. */}
       {visible.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled">
           {visible.map((s) => {
@@ -495,7 +504,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
             <div className="grp"><div className="eyebrow">{adding ? "One True Thing" : "Say It Right"}</div></div>
             <div className="pad-x sheet-form">
               <div className="field">
-                <label className="input-label">{adding ? "Something JARVIS should know about you" : "The fact, in your words"}</label>
+                <label className="input-label">{adding ? "Something JARVIS Should Know About You" : "The Fact, in Your Words"}</label>
                 <input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Brainstorms best at night" />
               </div>
               {/* S4-Q22: the edit sheet is the only exit for a fact already

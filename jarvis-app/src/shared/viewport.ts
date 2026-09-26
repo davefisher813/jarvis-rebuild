@@ -34,6 +34,19 @@
 // bar ride the top of the keys AND drop the home-indicator inset, which the
 // keys are already covering, in the same rule.
 
+/** A SHEET OPENING RE-READS THE BAND (Dave's pass-off, 2026-09-26, on the
+ *  New Event sheet: a black band of page under the sheet's foot). A sheet's
+ *  scrim is sized from --vv-h, so a band left stale by a keyboard that went
+ *  away without an event leaves the sheet short of the screen's foot, with
+ *  the page showing under it. Nothing is focused when a sheet mounts, so the
+ *  read is exact: it asks the tracker to write again, through the same
+ *  resize it already listens for. Harmless when the band was right. */
+export function nudgeViewport(): void {
+  const vv = typeof window === "undefined" ? null : window.visualViewport;
+  if (!vv) return;
+  try { vv.dispatchEvent(new Event("resize")); } catch { /* an old webview */ }
+}
+
 /** Mirror the visual viewport into --vv-h, --vv-top and --vv-bot. Returns the
  *  stopper. */
 export function trackVisualViewport(): () => void {

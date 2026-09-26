@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextSetEntry } from "./nextSet";
+import { nextSetEntry, withDraft, fieldsOf } from "./nextSet";
 import type { Exercise, SetEntry } from "./types";
 
 const s = (id: string, w: number, r: number, extra: Partial<SetEntry> = {}): SetEntry =>
@@ -65,5 +65,34 @@ describe("what a seeded set must never inherit", () => {
 
   it("no plan, no history and no typing means no answer to give", () => {
     expect(nextSetEntry({ plan: bench([]), logged: [] })).toBeNull();
+  });
+});
+
+// 2026-09-26 (the workout logging pass-off, Dave: "Bottom action buttons do
+// not update when numbers change. They show the wrong logged weight"). The
+// fields are strings the session owns; the one answer is the seed with the
+// typing laid over it, and the plan is never layered under it.
+describe("the fields' strings and the one pending answer", () => {
+  const plan = bench([s("p1", 20, 10), s("p2", 20, 10)]);
+
+  it("opens the fields from the seed, empty where the app knows no number", () => {
+    expect(fieldsOf(s("x", 225, 5))).toEqual({ w: "225", r: "5" });
+    expect(fieldsOf({ id: "x", r: 10 } as SetEntry)).toEqual({ w: "", r: "10" });
+    expect(fieldsOf(null)).toEqual({ w: "", r: "" });
+  });
+
+  it("with nothing typed the answer is the seed itself", () => {
+    const seed = nextSetEntry({ plan, logged: [], lastSession: [{ id: "l1", r: 10 } as SetEntry] });
+    expect(seed).toMatchObject({ r: 10 });
+    expect(seed!.w, "last time logged reps alone, so the plan's 20 lb is NOT under it").toBeUndefined();
+    expect(withDraft(seed, null)).toBe(seed);
+  });
+
+  it("typing wins, and an emptied field comes off rather than landing as a zero", () => {
+    const seed = s("x", 225, 5);
+    expect(withDraft(seed, { w: "230", r: "5" })).toMatchObject({ w: 230, r: 5 });
+    expect(withDraft(seed, { w: "", r: "5" })!.w).toBeUndefined();
+    expect(withDraft(seed, { w: "0", r: "5" })!.w).toBeUndefined();
+    expect(withDraft(null, { w: "100", r: "8" })).toMatchObject({ w: 100, r: 8 });
   });
 });

@@ -94,9 +94,11 @@ describe("confidenceWord (C-41)", () => {
 });
 
 describe("watchingCount (the fact on a WATCHING row)", () => {
-  it("says of-the-gate short of it, and the count alone once past it", () => {
-    expect(watchingCount({ have: 4, need: 5, unit: "pushes in one area" })).toBe("4 of 5 pushes in one area");
-    expect(watchingCount({ have: 28, need: 10, unit: "completions" })).toBe("28 completions");
-    expect(watchingCount({ have: 10, need: 10, unit: "completions" })).toBe("10 completions");
+  // AMENDED 2026-09-26 (pass-off): a facts line is Title Case after every
+  // number ("45 Min", never "45 min"), so the unit takes its capital too.
+  it("says of-the-gate short of it, and the count alone once past it, in Title Case", () => {
+    expect(watchingCount({ have: 4, need: 5, unit: "pushes in one area" })).toBe("4 of 5 Pushes in One Area");
+    expect(watchingCount({ have: 28, need: 10, unit: "completions" })).toBe("28 Completions");
+    expect(watchingCount({ have: 10, need: 10, unit: "completions" })).toBe("10 Completions");
   });
 });

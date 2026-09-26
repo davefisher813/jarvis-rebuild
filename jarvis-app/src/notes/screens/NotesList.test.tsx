@@ -26,7 +26,7 @@ const notes: NoteListItem[] = [
 
 describe("editedLabel", () => {
   it("reads the calendar, not the clock", () => {
-    expect(editedLabel(at(0, 0), NOW)).toBe("Edited today");
+    expect(editedLabel(at(0, 0), NOW)).toBe("Edited Today");
     expect(editedLabel(at(1, 23), NOW)).toBe("Yesterday");
     expect(editedLabel(at(5), NOW)).toBe("Aug 28");
     expect(editedLabel(new Date(2025, 11, 31).getTime(), NOW)).toBe("Dec 31, 2025");
@@ -54,6 +54,9 @@ describe("NotesList", () => {
   // placeholder, a line saying there was nothing to say. An unfiled row
   // names no area, and a row with nothing at all under its title draws no
   // empty second line.
+  // AMENDED 2026-09-26 (pass-off): the day is said once, above the group
+  // (catalog §B). Under Today and Yesterday the row repeats no date; under
+  // Earlier the date is the row's own.
   it("the second line is the area's dot and name, then when; unfiled names no area", () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     try {
@@ -61,10 +64,13 @@ describe("NotesList", () => {
       const rows = container.querySelectorAll(".note-row");
       expect(rows[0]!.querySelector(".r-parent .r-pg")).toHaveClass("cat-fg-blue");
       expect(rows[0]!.querySelector(".r-parent .r-goal-t")).toHaveTextContent("Work");
-      expect(rows[0]!.querySelector(".r-when")).toHaveTextContent("Edited today");
+      expect(rows[0]!.querySelector(".r-when"), "the Today head already says it").toBeNull();
       expect(rows[1]!.querySelector(".r-parent")).toBeNull();
-      expect(rows[1]!.querySelector(".r-when")).toHaveTextContent("Yesterday");
+      expect(rows[1]!.querySelector(".r-when"), "the Yesterday head already says it").toBeNull();
+      // An unfiled note edited yesterday has nothing left to say under it.
+      expect(rows[1]!.querySelector(".r-k")).toBeNull();
       expect(rows[1]!.textContent).not.toMatch(/Not Filed/);
+      expect(rows[2]!.querySelector(".r-when"), "under Earlier the date is the row's own").toHaveTextContent("Aug 28");
       expect(rows[3]!.querySelector(".r-when")).toBeNull();
       expect(rows[3]!.querySelector(".r-k")).toBeNull();
     } finally {
@@ -72,15 +78,41 @@ describe("NotesList", () => {
     }
   });
 
+  // The Pinned head is not a day, so a pinned note edited today still says
+  // when it was touched.
+  it("a pinned note keeps its date, because its head is Pinned, not a day", () => {
+    vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+    try {
+      const pinned: NoteListItem[] = [{ id: "p", title: "Packing List", edited: at(0, 12), category: "", first: "", body: "", pinned: true }];
+      const { container } = render(<NotesList notes={pinned} />);
+      expect(container.querySelector(".sh2 .t")).toHaveTextContent("Pinned");
+      expect(container.querySelector(".note-row .r-when")).toHaveTextContent("Edited Today");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Dave 2026-09-26 (the pass-off): his typed titles are SHOWN in Title Case
+  // everywhere and stored unchanged. Only the drawn name is cased; the row's
+  // labels keep what he typed, so nothing that looks a note up changes.
+  it("shows his typed title in Title Case and keeps the raw title for the labels", () => {
+    const typed: NoteListItem[] = [{ id: "j", title: "jarvis updates", edited: at(5), category: "c-work", first: "", body: "" }];
+    const { container } = render(<NotesList notes={typed} onDelete={() => {}} />);
+    expect(container.querySelector(".note-row .task-name")).toHaveTextContent("Jarvis Updates");
+    expect(screen.getByLabelText("Delete jarvis updates")).toBeInTheDocument();
+  });
+
   // §AM F3 (R6) and §AK (R1), 2026-09-26: the line's gap separates its facts,
   // so no dot is typed into them, and it carries one grey at most: the tags
   // are one run, the finds are amber work waiting for review (§AM) with the
   // number white, and the date is its own caps.
+  // AMENDED 2026-09-26 (pass-off): "JARVIS Found", Title Case like every
+  // line the app writes; the note sits under Earlier so its date shows.
   it("the second line types no dots, and its tags are one run beside the finds and the date", () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     try {
       const tagged: NoteListItem[] = [
-        { id: "t", title: "Offsite Ideas", edited: at(0, 12), category: "c-work", first: "", body: "", tags: ["ideas", "q3"], found: 3 },
+        { id: "t", title: "Offsite Ideas", edited: at(3), category: "c-work", first: "", body: "", tags: ["ideas", "q3"], found: 3 },
       ];
       const { container } = render(<NotesList notes={tagged} />);
       const line = container.querySelector(".note-row .r-k") as HTMLElement;
@@ -90,9 +122,9 @@ describe("NotesList", () => {
       expect(tags[0]).toHaveTextContent("#ideas #q3");
       expect(line.querySelector(".r-cue"), "the finds are not an if-then cue").toBeNull();
       const found = line.querySelector(".r-goal.fact.warn") as HTMLElement;
-      expect(found).toHaveTextContent("JARVIS found 3");
+      expect(found).toHaveTextContent("JARVIS Found 3");
       expect(found.querySelector("b")).toHaveTextContent("3");
-      expect(line.querySelector(".r-when")?.textContent).toBe("Edited today");
+      expect(line.querySelector(".r-when")?.textContent).toBe("Aug 30");
     } finally {
       vi.useRealTimers();
     }

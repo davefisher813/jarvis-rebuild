@@ -57,7 +57,10 @@ describe("BrainTop", () => {
     expect(container.querySelector(".sh2")).toBeNull();
   });
 
-  it("Shaping JARVIS Now: up to three live facts with state, confidence and where they are used", async () => {
+  // AMENDED 2026-09-26 (pass-off, Dave): the row's one grey is the fact's
+  // category, the same row What JARVIS Knows draws; where a fact is used is
+  // on its sheet, not the row.
+  it("Shaping JARVIS Now: up to three live facts with state, confidence and the category", async () => {
     rows = [known, waiting];
     svc.list.mockResolvedValue([
       strand(),
@@ -74,13 +77,17 @@ describe("BrainTop", () => {
     // told outranks watched in rankForRecall, so the rule leads.
     expect(cardRows[0]?.textContent).toContain("Bridge wins ties");
     const facts0 = [...cardRows[0]!.querySelectorAll(".fact")].map((e) => e.textContent);
-    // §AK (2026-09-21): where a strand is used is ONE fact with a list in it,
-    // not a grey fact per surface.
-    expect(facts0).toEqual(["Known", "Rule", "Your Move, Schedule, Decisions"]);
+    // §AK one grey (Dave 2026-09-26): the state word in caps, Rule, then the
+    // category as the row's one grey. No list of screen names.
+    expect(facts0).toEqual(["Known", "Rule", "Values"]);
     // The watched fact reads its confidence off the readiness row: 156 over 10 is High.
     const energy = cardRows.find((r) => r.textContent?.includes("mid morning"))!;
     const factsE = [...energy.querySelectorAll(".fact")].map((e) => e.textContent);
-    expect(factsE).toEqual(["Learned", "High", "Schedule, Plan My Day, Your Move"]);
+    expect(factsE).toEqual(["Learned", "High", "Energy"]);
+    // Every row carries exactly one plain grey fact: the rest are caps or a key colour.
+    for (const r of cardRows) {
+      expect([...r.querySelectorAll(".fact:not(.st):not(.good):not(.warn):not(.red)")].length, r.textContent ?? "").toBe(1);
+    }
     // Every row leads with the star; none is linked yet.
     expect(cardRows.every((r) => r.firstElementChild?.classList.contains("row-star"))).toBe(true);
     // One band: no detector is watching and nothing has faded.
@@ -106,11 +113,14 @@ describe("BrainTop", () => {
     const cardRows = [...container.querySelectorAll(".strand-row")];
     expect(cardRows.length).toBe(2);
     expect(cardRows[0]?.textContent).toContain("The Area That Slips");
-    expect([...cardRows[0]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Watching", "4 of 5 pushes in one area"]);
+    // Title Case on the facts line (Dave 2026-09-26, the pass-off).
+    expect([...cardRows[0]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Watching", "4 of 5 Pushes in One Area"]);
     // Oldest unconfirmed first (fadedStrands), and the cap of two leaves the
     // other fading fact for What JARVIS Knows.
     expect(cardRows[1]?.textContent).toContain("Old and quiet");
-    expect([...cardRows[1]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Fading", "145 days unconfirmed"]);
+    // The fading row is What JARVIS Knows' fading row: Fading, then the
+    // category as its one grey; the days live on the sheet (§AK, pass-off).
+    expect([...cardRows[1]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Fading", "People"]);
     expect(screen.queryByText("Admin happens Friday afternoons")).toBeNull();
     fireEvent.click(cardRows[0]!);
     expect(onOpenWatching).toHaveBeenCalledWith("slip_category");

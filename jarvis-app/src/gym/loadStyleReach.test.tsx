@@ -52,14 +52,14 @@ describe("the strip adjusts to what the lift loads with", () => {
     const { unmount } = render(<SetStrip kind="weight_reps" unit="lb" style={{ equipment: "dumbbell", counted: "each_hand" }}
       entries={[{ id: "s1", w: 50, r: 10 }]} onChange={() => {}} />);
     fireEvent.click(screen.getByLabelText("Set 1, 50 lb × 10, tap to edit"));
-    expect(screen.queryByText("Per side")).toBeNull();
+    expect(screen.queryByText("Per Side")).toBeNull();
     unmount();
 
     render(<SetStrip kind="weight_reps" unit="lb" style={{ equipment: "machine", counted: "total" }}
       entries={[{ id: "s2", w: 90, r: 10 }]} onChange={() => {}} />);
     fireEvent.click(screen.getByLabelText("Set 1, 90 lb × 10, tap to edit"));
     // 90 with no bar is 45 a side. A barbell reading would say 22.5.
-    expect(screen.getByText("Per side")).toBeInTheDocument();
+    expect(screen.getByText("Per Side")).toBeInTheDocument();
     expect(screen.getByText("45")).toBeInTheDocument();
   });
 });

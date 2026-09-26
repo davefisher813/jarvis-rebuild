@@ -27,8 +27,20 @@ export interface CategoryRecord {
   insightDetail: { dow: number; count: number; total: number } | null;
 }
 
-const DOW_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const DOW_PLURAL = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
+export const DOW_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+export const DOW_PLURAL = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
+
+// THE NEXT SUCH DAY (Dave's pass-off, 2026-09-26: "Line Up 3 for
+// Wednesday"). Today when today is that weekday, else the next one, as a
+// local calendar date: the pattern is a day of the week, and the nearest
+// one is the one to line work up for.
+export function nextDow(todayIso: string, dow: number): string {
+  const d = new Date(todayIso + "T12:00:00");
+  const ahead = (dow - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + ahead);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 
 // Local calendar date of an epoch-ms instant, matching how samples were
 // stamped (local getHours/getDay at completion time).

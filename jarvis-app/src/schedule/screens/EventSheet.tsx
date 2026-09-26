@@ -1,8 +1,9 @@
 import { createPortal } from "react-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { nudgeViewport } from "../../shared/viewport";
 import type { ColorSlot } from "../../categories/types";
 import { suggestFor, loadBlendMemory, blockKind, type Fit } from "../blend";
-import type { SheetCategory, SheetProject, SheetGoal } from "../../tasks/screens/TaskSheet";
+import type { SheetCategory, SheetProject } from "../../tasks/screens/TaskSheet";
 import { sortPicks } from "../../shared/pickerSort";
 import type { EventRecurrence } from "../types";
 import { addMinutes, fmtTime, minToHHMM, addDays, minutesBetween } from "../calendar";
@@ -18,7 +19,7 @@ import HeadMenu from "../../shared/HeadMenu";
 import { onPressKey } from "../../shared/pressable";
 import { Tile, tapField } from "../../shared/FormSheet";
 import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban } from "../../shared/icons";
-import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph, SunGlyph, TargetGlyph } from "../../shared/glyphs";
+import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph, SunGlyph } from "../../shared/glyphs";
 
 export type { SheetCategory };
 
@@ -70,10 +71,10 @@ export interface EventDraft {
   // that row, so an ordinary save never erases the memory.
   forgetTravel?: boolean;
   // WHAT THIS EVENT IS FOR (Dave's pass-off, 2026-09-26: "no way to attach
-  // a project"). The project and the goal, by id, as a task's sheet files
-  // them. "" clears, like every other id on this draft.
+  // a project"). The project, by id, as a task's sheet files it. "" clears,
+  // like every other id on this draft. No goal row here: a project carries
+  // its own goal, and the event sheet had no goal row to fix.
   projectId?: string;
-  goalId?: string;
   // THE TRAINING DOOR (D4-C): this block opens the gym. By the athlete's own
   // hand only -- the sheet never guesses from the title.
   gym?: boolean;
@@ -113,7 +114,6 @@ export default function EventSheet({
   onOpenPerson,
   onAddPerson,
   projects = [],
-  goals = [],
 }: {
   mode: "new" | "edit";
   initial?: Partial<EventDraft>;
@@ -152,12 +152,13 @@ export default function EventSheet({
   knownPeople?: { id: string; name: string; email?: string }[];
   onOpenPerson?: (personId: string) => void;
   onAddPerson?: (a: { email: string; name?: string }) => void;
-  // THE PROJECT AND GOAL PICKERS (Dave's pass-off, 2026-09-26). The same
-  // shapes the task sheet takes; without them the rows do not render, so a
-  // caller that cannot save them never shows a control that would lie.
+  // THE PROJECT PICKER (Dave's pass-off, 2026-09-26). The same shape the
+  // task sheet takes; without it the row does not render, so a caller that
+  // cannot save it never shows a control that would lie.
   projects?: SheetProject[];
-  goals?: SheetGoal[];
 }) {
+  // The band under this sheet is re-read on open (viewport.ts, 2026-09-26).
+  useEffect(() => { nudgeViewport(); }, []);
   const [taskIds, setTaskIds] = useState<string[]>(initial?.taskIds ?? []);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [date, setDate] = useState(initial?.date ?? "");
@@ -166,24 +167,20 @@ export default function EventSheet({
   const [category, setCategory] = useState(initial?.category ?? categories[0]?.id ?? "");
   const [location, setLocation] = useState(initial?.location ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
-  const [goalId, setGoalId] = useState(initial?.goalId ?? "");
-  // A project already knows its area and its goal, so picking one answers
-  // both rows (the task sheet's rule: only a blank is filled). The area on
-  // an event is never blank (it defaults to the first), so it follows the
-  // project only while it is still that default on a new event.
+  // A project already knows its area, so picking one answers the Area row
+  // (the task sheet's rule: only a blank is filled). The area on an event is
+  // never blank (it defaults to the first), so it follows the project only
+  // while it is still that default on a new event.
   const pickProject = (id: string) => {
     setProjectId(id);
     const p = projects.find((x) => x.id === id);
     if (!p) return;
     if (p.category && mode === "new" && category === (initial?.category ?? categories[0]?.id ?? "")) setCategory(p.category);
-    if (p.goalId && goals.some((g) => g.id === p.goalId)) setGoalId((cur) => cur || p.goalId!);
   };
   const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
   const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category) })), projectId)
     .map((p) => ({ value: p.id, label: p.title }));
   const projectWord = projects.find((p) => p.id === projectId)?.title ?? "None";
-  const goalWord = (goalId ? goals.find((g) => g.id === goalId)?.title : undefined)
-    ?? projects.find((p) => p.id === projectId && p.goalId)?.goalTitle ?? "None";
   const [recurrence, setRecurrence] = useState<EventRecurrence>(initial?.recurrence ?? "none");
   const [gym, setGym] = useState(!!initial?.gym);
   // UP-CORE-07 (2026-09-05): how long it takes to get there. Typed once per
@@ -252,10 +249,9 @@ export default function EventSheet({
       ...(place && travelMin !== null ? { travelMin } : {}),
       ...(place && travelMin !== null && bufferMin !== null ? { bufferMin } : {}),
       ...(forgetTravel ? { forgetTravel: true } : {}),
-      // The links ride only where their rows rendered (sheetFields law: a
+      // The link rides only where its row rendered (sheetFields law: a
       // hidden row must not write its empty default over a real value).
       ...(projects.length > 0 ? { projectId } : {}),
-      ...(goals.length > 0 ? { goalId } : {}),
     };
     recurringEdit ? onSave(draft, scope) : onSave(draft);
   };
@@ -540,9 +536,9 @@ export default function EventSheet({
                 options={categories.map((c) => ({ value: c.id, label: c.name, dot: slot(c) as string }))} onPick={setCategory} />
             </div>
             {/* WHAT IT IS FOR (Dave's pass-off, 2026-09-26: "no way to attach
-                a project"). The task sheet's Project and Goal rows, on the
-                event: a project pick fills the goal (and a new event's area),
-                the menu is in order with a search at its top. */}
+                a project"). The task sheet's Project row, on the event: a
+                pick fills a new event's area, the menu is in order with a
+                search at its top. */}
             {projects.length > 0 && (
               <div onClick={tapField} className="row xs-row">
                 <Tile tone="indigo"><FolderKanban className="ic" /></Tile>
@@ -551,16 +547,6 @@ export default function EventSheet({
                   options={[{ value: "", label: "None" }, ...projectOptions]}
                   search="Search Projects"
                   onPick={pickProject} />
-              </div>
-            )}
-            {goals.length > 0 && (
-              <div onClick={tapField} className="row xs-row">
-                <Tile tone="red"><TargetGlyph /></Tile>
-                <div className="conn-name">Goal</div>
-                <HeadMenu variant="value" ariaLabel="Goal" value={goalId} label={goalWord} off={goalWord === "None"}
-                  options={[{ value: "", label: "None" }, ...sortPicks(goals, goalId).map((g) => ({ value: g.id, label: g.title }))]}
-                  search="Search Goals"
-                  onPick={setGoalId} />
               </div>
             )}
             <div onClick={tapField} className="row xs-row">

@@ -236,10 +236,10 @@ export default function TaskSheet({
     setProjectId(id);
     const p = projects.find((x) => x.id === id);
     fillAreaFrom(p?.category);
-    // A project already knows the goal it climbs to, so filing the task to
-    // it answers the Goal row too; only a blank goal is filled, for the
-    // same reason only a blank area is (2026-09-26).
-    if (p?.goalId && goals.some((g) => g.id === p.goalId)) setGoalId((cur) => cur || p.goalId!);
+    // WITH A PROJECT, THE GOAL IS THE PROJECT'S (Dave's pass-off,
+    // 2026-09-26: "with a project, Goal shows the project's goal"). The
+    // project decides, so the row follows it, to its goal or to None.
+    setGoalId(p?.goalId ?? "");
   };
   const pickEvent = (id: string) => {
     setEventId(id);
@@ -256,8 +256,14 @@ export default function TaskSheet({
   // is a menu like Project's; a project pick still fills it. Where it does
   // not, the derived line stays. What is shown is the pick, or the project's
   // goal when nothing was picked.
-  const goalTitle = (goalId ? goals.find((g) => g.id === goalId)?.title : undefined)
-    ?? projects.find((p) => p.id === projectId)?.goalTitle ?? "";
+  // ...AND SINCE 2026-09-26 IT IS ALSO A PICK (Dave's pass-off: "Pick any
+  // goal"). With no project the row lists the live goals, None first, and
+  // saves the pick. With a project the goal IS the project's: the row shows
+  // it and tapping the row opens the Project menu, since changing the goal
+  // means changing the project. The derived line stays only for a caller
+  // that hands over no goals.
+  const project = projects.find((p) => p.id === projectId);
+  const goalTitle = project ? project.goalTitle ?? "" : (goalId ? goals.find((g) => g.id === goalId)?.title ?? "" : "");
   // THE PROJECT MENU IN ORDER (Dave's pass-off, 2026-09-26): the current
   // pick first, then by area, then by name (shared/pickerSort), with a
   // search field at the top of the menu.
@@ -373,7 +379,10 @@ export default function TaskSheet({
     // BRAIN-F-09 (2026-09-05): a failed write used to hold this latch on
     // "Saving" forever, and Cancel (the only way out) took the draft with it.
     const r = onSave({
-      text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined, goalId: goalId || undefined, eventId: eventId || undefined,
+      text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined,
+      // With a project the goal is the project's (or none); without one it
+      // is the pick.
+      goalId: (project ? project.goalId : goalId) || undefined, eventId: eventId || undefined,
       // Only a plan that will actually work is saved. A weak one is worse
       // than none: it feels like a plan and carries no effect.
       plan: planTouched && isUsable(draftPlan) ? draftPlan : undefined,
@@ -585,16 +594,19 @@ export default function TaskSheet({
                 guessing from spelling, and the task could not open his Call
                 Prep card at all. The chooser hands back a real contact's
                 id, so neither end has to guess. */}
-            {people.length > 0 && (
-              <div className="row xs-row" onClick={tapField}>
-                <Tile tone="teal"><User className="ic" /></Tile>
-                <div className="conn-name">Person</div>
-                <HeadMenu variant="value" ariaLabel="Person" value={personId} label={personWord} off={personId === ""}
-                  options={[{ value: "", label: "None" }, ...people.map((p) => ({ value: p.id, label: p.name }))]}
-                  onPick={setPersonId} />
-              </div>
-            )}
-            {projects.length > 0 && (
+            {/* ALL FIVE ROWS, ON EVERY SCREEN (Dave 2026-09-16: "They should
+                all have the same 5 options"; pass-off 2026-09-26). These
+                rows were gated on the caller handing over a list, so Where
+                read as four fields on one screen and three on another. A
+                menu with nothing to pick says None and offers None. */}
+            <div className="row xs-row" onClick={tapField}>
+              <Tile tone="teal"><User className="ic" /></Tile>
+              <div className="conn-name">Person</div>
+              <HeadMenu variant="value" ariaLabel="Person" value={personId} label={personWord} off={personId === ""}
+                options={[{ value: "", label: "None" }, ...people.map((p) => ({ value: p.id, label: p.name }))]}
+                onPick={setPersonId} />
+            </div>
+            {(
               <div className="row xs-row" onClick={tapField}>
                 <Tile tone="indigo"><FolderKanban className="ic" /></Tile>
                 <div className="conn-name">Project</div>
@@ -626,14 +638,19 @@ export default function TaskSheet({
                 nothing; it is the same menu Project's is now, and a project
                 pick still fills it. The derived line survives only for a
                 caller that hands over no goals. */}
-            {goals.length > 0 ? (
+            {goals.length > 0 || projectId ? (
               <div className="row xs-row" onClick={tapField}>
                 <Tile tone="red"><TargetGlyph /></Tile>
                 <div className="conn-name">Goal</div>
-                <HeadMenu variant="value" ariaLabel="Goal" value={goalId} label={goalTitle || "None"} off={goalTitle === ""}
-                  options={[{ value: "", label: "None" }, ...sortPicks(goals, goalId).map((g) => ({ value: g.id, label: g.title }))]}
-                  search="Search Goals"
-                  onPick={setGoalId} />
+                {project
+                  ? <HeadMenu variant="value" ariaLabel="Goal" value={projectId} label={goalTitle || "None"} off={goalTitle === ""}
+                      options={[{ value: "", label: "None" }, ...projectOptions]}
+                      search="Search Projects"
+                      onPick={pickProject} />
+                  : <HeadMenu variant="value" ariaLabel="Goal" value={goalId} label={goalTitle || "None"} off={goalTitle === ""}
+                      options={[{ value: "", label: "None" }, ...sortPicks(goals, goalId).map((g) => ({ value: g.id, label: g.title }))]}
+                      search="Search Goals"
+                      onPick={setGoalId} />}
               </div>
             ) : (
               <div className="row xs-row">
@@ -649,15 +666,13 @@ export default function TaskSheet({
                 and belongs to Saturday. The menu names the day beside the
                 title, because two practices called "Practice" are not the
                 same practice. */}
-            {events.length > 0 && (
-              <div className="row xs-row" onClick={tapField}>
-                <Tile tone="sky"><CalendarDays className="ic" /></Tile>
-                <div className="conn-name">Event</div>
-                <HeadMenu variant="value" ariaLabel="Event" value={eventId} label={eventWord} off={eventId === ""}
-                  options={[{ value: "", label: "None" }, ...events.map((e) => ({ value: e.id, label: e.title + " \u00b7 " + e.when }))]}
-                  onPick={pickEvent} />
-              </div>
-            )}
+            <div className="row xs-row" onClick={tapField}>
+              <Tile tone="sky"><CalendarDays className="ic" /></Tile>
+              <div className="conn-name">Event</div>
+              <HeadMenu variant="value" ariaLabel="Event" value={eventId} label={eventWord} off={eventId === ""}
+                options={[{ value: "", label: "None" }, ...events.map((e) => ({ value: e.id, label: e.title + " \u00b7 " + e.when }))]}
+                onPick={pickEvent} />
+            </div>
           </div></div>
 
           <div className="grp xs-grp"><div className="eyebrow">More</div></div>

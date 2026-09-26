@@ -34,7 +34,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; bookingId?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[]; days?: number[]; interval?: 1 | 2; projectId?: string; goalId?: string },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; bookingId?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[]; days?: number[]; interval?: 1 | 2; projectId?: string },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -81,10 +81,9 @@ export class ScheduleService {
     if (opts.attendees?.length) data.attendees = opts.attendees;
     if (data.location && isTravel(opts.travelMin)) data.travelMin = opts.travelMin;
     if (data.location && isTravel(opts.bufferMin)) data.bufferMin = opts.bufferMin;
-    // The project and the goal it is for (2026-09-26), written at creation
-    // because that is when the sheet knows them.
+    // The project it is for (2026-09-26), written at creation because that
+    // is when the sheet knows it.
     if (opts.projectId) data.projectId = opts.projectId;
-    if (opts.goalId) data.goalId = opts.goalId;
     const id = await this.store.create(this.ownerId, ENTITY_EVENT, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_EVENT, entityId: id });
     return id;
@@ -197,12 +196,12 @@ export class ScheduleService {
     });
   }
 
-  // WHAT IT IS FOR (Dave's pass-off, 2026-09-26): the project and the goal,
-  // set or cleared together from the sheet, the way editTravel writes its
-  // pair. Undefined clears: an event that stops belonging to a project is a
-  // real edit, and a stale id would keep it on that project's page.
-  async editLinks(id: string, links: { projectId: string | null; goalId: string | null }): Promise<boolean> {
-    return this.patch(id, { projectId: links.projectId ?? undefined, goalId: links.goalId ?? undefined });
+  // WHAT IT IS FOR (Dave's pass-off, 2026-09-26): the project, set or
+  // cleared from the sheet the way a task's setProject is. Undefined
+  // clears: an event that stops belonging to a project is a real edit, and
+  // a stale id would keep it on that project's page.
+  async editProject(id: string, projectId: string | null): Promise<boolean> {
+    return this.patch(id, { projectId: projectId ?? undefined });
   }
 
   async editLocation(id: string, location: string): Promise<boolean> {

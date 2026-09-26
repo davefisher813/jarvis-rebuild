@@ -2976,6 +2976,9 @@
 .sheet-scrim > .card .rem-row.rem-tick-row { background: transparent; cursor: pointer; }
 .sheet-scrim > .card .rem-tick-row .cb { flex-shrink: 0; }
 .sheet-scrim > .card .rem-tick-row:active { background: var(--press-3); }
+/* THE WHOLE NEXT STEP (Dave: the area page's project rows). On its own line
+   the step is free to wrap, where the lens's one-line form ellipsizes. */
+.ruled .proj-row-ruled .proj-next-line .r-next-v { white-space: normal; overflow: visible; text-overflow: clip; }
 /* THE EMPTY GOAL'S ONE MOVE (Dave: "Add a Project"): the inline-fix capsule
    the sheets already use, alone on the meter line. */
 .ruled .goal-row-ruled .goal-add-proj { margin-top: var(--s-1); }
@@ -2984,10 +2987,3 @@
 .hmenu-search { position: sticky; top: 0; z-index: 1; padding: var(--s-1h) var(--s-2h) var(--s-2); background: inherit; }
 .hmenu-search .search-bar { min-height: 40px; padding: var(--s-1) var(--s-2h); }
 .hmenu-search .search-bar input { font-size: calc(16px * var(--type-scale)); }
-/* THE LEARNED-PATTERN CARD on an area page ("Most Gets Done on Wednesdays").
-   The app worked it out, so its chip wears the key's colour for the app's
-   own reckoning (§AM: an estimate, sky, --est-ink in both themes). The title
-   wraps: a pattern is a sentence, not a name to ellipsize. */
-.ruled .area-learned { --h-hue: var(--est-ink); --h-tint: color-mix(in srgb, var(--est-ink) 16%, transparent); --h-ink: var(--est-ink); }
-.ruled .area-learned .ins-t { white-space: normal; }
-.ruled .area-learned-why { margin-top: var(--s-1h); }

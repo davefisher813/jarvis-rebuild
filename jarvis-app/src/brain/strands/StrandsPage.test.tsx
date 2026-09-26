@@ -72,6 +72,13 @@ vi.mock("../../data/NotesProvider", async (orig) => {
   };
 });
 vi.mock("../../ai/useAI", () => ({ useAI: () => ({ available: false, complete: async () => "" }) }));
+// The detectors, as BrainTop.test stubs them: set `rows` for one test to put a
+// watched fact past twice its gate; null leaves the real read in place.
+let rows: import("../readiness").Readiness[] | null = null;
+vi.mock("../readiness", async (orig) => {
+  const actual = await orig<typeof import("../readiness")>();
+  return { ...actual, readiness: (...a: Parameters<typeof actual.readiness>) => rows ?? actual.readiness(...a) };
+});
 // useAIContext reaches for the whole identity (people, profile, schedule,
 // routine, money). It is only ever CALLED behind an ai.available gate, but
 // the hook runs at the top of the component, so it is stubbed at the module
@@ -85,6 +92,21 @@ describe("StrandsPage renders the genome", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     svc.list.mockResolvedValue([]);
+    rows = null;
+  });
+
+  // §AK one grey, pinned for the High row (the pass-off, 2026-09-26): a
+  // watched fact past twice its gate reads LEARNED, a green High, and then
+  // exactly one plain grey, its category. The count is the Learning Lab's.
+  it("a Learned + High row carries one plain grey fact, the category", async () => {
+    rows = [{ key: "completion_window", label: "When Tasks Get Done", have: 156, need: 10, unit: "completions", state: "known" }];
+    svc.list.mockResolvedValue([strand()]);
+    const { container } = render(<StrandsPage onBack={() => {}} />);
+    await screen.findByText("Gets things done mid morning");
+    const row = container.querySelector(".strand-row")!;
+    await waitFor(() => expect(row.querySelector(".fact.good")).toHaveTextContent("High"));
+    expect(row.querySelector(".fact.st")).toHaveTextContent("Learned");
+    expect([...row.querySelectorAll(".fact:not(.st):not(.good):not(.warn):not(.red)")].map((e) => e.textContent)).toEqual(["Energy"]);
   });
 
   it("says something honest when there is nothing yet, and never fakes a fact", async () => {
@@ -159,7 +181,7 @@ describe("StrandsPage renders the genome", () => {
     svc.list.mockResolvedValue([strand()]);
     render(<StrandsPage onBack={() => {}} />);
     fireEvent.click(await screen.findByText("Gets things done mid morning"));
-    await screen.findByText("Finished in the 9 AM window");
+    await screen.findByText("Finished in the 9 AM Window");
     expect(screen.getByText("Aug 19")).toBeInTheDocument();
   });
 
@@ -316,23 +338,25 @@ describe("the Brain hub actually reaches the page", () => {
   });
 });
 
+// AMENDED 2026-09-26 (pass-off): a receipt is a grey sub line, so it is
+// Title Case through lineCase ("45 Min", never "45 min").
 describe("receiptLine speaks each derivation's own numbers", () => {
   it("renders a completion hour", () => {
-    expect(receiptLine("completion_window", { day: "d", a: 14 })).toBe("Finished in the 2 PM window");
+    expect(receiptLine("completion_window", { day: "d", a: 14 })).toBe("Finished in the 2 PM Window");
   });
   it("renders a plan-rate day", () => {
-    expect(receiptLine("plan_rate", { day: "d", a: 3, b: 4 })).toBe("3 of 4 picks done");
+    expect(receiptLine("plan_rate", { day: "d", a: 3, b: 4 })).toBe("3 of 4 Picks Done");
   });
   it("renders a timing overrun and an early finish", () => {
-    expect(receiptLine("task_timing", { day: "d", a: 30 })).toBe("Ran 30 min past the estimate");
-    expect(receiptLine("task_timing", { day: "d", a: -15 })).toBe("Wrapped 15 min early");
+    expect(receiptLine("task_timing", { day: "d", a: 30 })).toBe("Ran 30 Min Past the Estimate");
+    expect(receiptLine("task_timing", { day: "d", a: -15 })).toBe("Wrapped 15 Min Early");
   });
   // B5 (2026-09-04): these two fell through to "Seen" on every row, because
   // no case named them despite derive.ts writing the band hour the same way
   // completion_window does.
   it("renders the training and email band hours, not \"Seen\"", () => {
-    expect(receiptLine("training_window", { day: "d", a: 18 })).toBe("Trained in the 6 PM window");
-    expect(receiptLine("email_window", { day: "d", a: 9 })).toBe("Handled email in the 9 AM window");
+    expect(receiptLine("training_window", { day: "d", a: 18 })).toBe("Trained in the 6 PM Window");
+    expect(receiptLine("email_window", { day: "d", a: 9 })).toBe("Handled Email in the 9 AM Window");
   });
   it("never invents a receipt it cannot render", () => {
     expect(receiptLine(undefined, { day: "d" })).toBe("Seen");

@@ -617,7 +617,7 @@ export function MomentumRow({
 }) {
   const { dx, dragging, handlers, open: swipeOpen, closeThen } = useSwipe({ revealW: 88 });
   const due = distanceFor(task.data, today);
-  const sameArea = !!reason && /^same category/i.test(reason);
+  const sameArea = !!reason && /^same (category|area)/i.test(reason);
   return (
     <div className="task-swipe">
       <button className="task-snooze" onClick={() => closeThen(onNotNow)} aria-label="Not now">

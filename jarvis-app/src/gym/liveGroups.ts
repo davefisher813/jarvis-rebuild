@@ -90,11 +90,17 @@ export function isLiveGroup(groups: Record<string, string> | undefined, id: stri
  *  exerciseIds, which for a planned lift are the day's, so `groups` needs no
  *  second key. */
 export function sessionExercises(
-  live: Pick<WorkoutExercise, "exerciseId" | "name" | "kind" | "unit" | "timeUnit" | "plan" | "program">[],
+  live: Pick<WorkoutExercise, "exerciseId" | "name" | "kind" | "unit" | "timeUnit" | "plan" | "program" | "custom">[],
   day: Exercise[],
   groups?: Record<string, string>,
 ): Exercise[] {
-  const list = live.map((w) => day.find((e) => e.id === w.exerciseId)
-    ?? ({ id: w.exerciseId, name: w.name, kind: w.kind, unit: w.unit, timeUnit: w.timeUnit, sets: w.plan ?? [], ...(w.program ?? {}) } as Exercise));
+  const list = live.map((w): Exercise => {
+    const onDay = day.find((e) => e.id === w.exerciseId);
+    if (!onDay) return { id: w.exerciseId, name: w.name, kind: w.kind, unit: w.unit, timeUnit: w.timeUnit, sets: w.plan ?? [], ...(w.program ?? {}) } as Exercise;
+    // A swapped lift keeps its slot's id (GYM-F-16), so it takes the slot's
+    // place in the pair for this session, under its own name and plan.
+    if (!w.custom) return onDay;
+    return { ...onDay, name: w.name, kind: w.kind, unit: w.unit, timeUnit: w.timeUnit, ...(w.plan ? { sets: w.plan } : {}) };
+  });
   return withLiveGroups(list, groups);
 }

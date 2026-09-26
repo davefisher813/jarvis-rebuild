@@ -33,15 +33,22 @@ describe("an exercise can be finished on purpose", () => {
     expect(SESSION).toContain(": logged.length > 0);");
   });
 
+  // AMENDED 2026-09-26 (workout logging): the destination is one decision,
+  // `nextIdx` / `goNext`, and inside a superset it names the partner's turn
+  // ("Next: A2") instead of walking the day's order.
   it("says where the button goes, rather than just Done", () => {
     // "Done" alone on the last exercise of a session would be a button that
     // silently ends the workout.
-    expect(SESSION).toContain('{upNextIdx >= 0 ? "Next Exercise" : "Finish Workout"}');
-    expect(SESSION).toContain("onClick={() => (upNextIdx >= 0 ? onMove(upNextIdx) : onFinish())}");
+    expect(SESSION).toContain('const nextLabel = pairNextLiveIdx >= 0 ? `Next: ${labels.get(pairNextId!) ?? ""}`.trim() : nextIdx >= 0 ? "Next Exercise" : "Finish Workout";');
+    expect(SESSION).toContain("const goNext = () => (nextIdx >= 0 ? onMove(nextIdx) : onFinish());");
   });
 
+  // AMENDED 2026-09-26 (workout logging, Dave: one flow, only the red button
+  // logs): the extra set is not written on the spot from a number nowhere on
+  // the screen. "Add a Set" opens one more Now row, prefilled with the set
+  // before, and the red button logs it like every other set.
   it("keeps another set one tap away, as the secondary", () => {
-    expect(SESSION).toContain('<button className="btn btn-secondary btn-lg" onClick={log}>Log Another Set</button>');
+    expect(SESSION).toContain('<button className="btn btn-secondary btn-lg" onClick={() => setExtraOpen(true)}>Add a Set</button>');
     expect(SESSION).toContain('<button className="btn btn-secondary btn-lg" onClick={() => setClockOpen(true)}>Run It Again</button>');
   });
 
@@ -98,31 +105,36 @@ describe("creating a lift from the library carries what the sheet was told", () 
 // word for it. Skipped means you did none of it.
 // ---------------------------------------------------------------------------
 describe("the way on is offered before the plan runs out", () => {
+  // AMENDED 2026-09-26 (workout logging): the extra Now row (Add a Set)
+  // counts as "the plan is not done" for the bar, so the pair reads the same
+  // while it is open.
   it("appears as soon as there is anything worth keeping", () => {
-    expect(SESSION).toContain("{!planComplete && logged.length > 0 && !cond && (");
+    expect(SESSION).toContain("{(!planComplete || extraOpen) && logged.length > 0 && !cond && (");
   });
 
   it("is the same destination as the one after the plan completes", () => {
-    // Two buttons, one decision: whichever is on screen, it goes to the next
-    // exercise, or finishes the session when this was the last one.
-    const goes = SESSION.match(/upNextIdx >= 0 \? onMove\(upNextIdx\) : onFinish\(\)/g) ?? [];
+    // Two buttons, one decision: whichever is on screen, it goes through
+    // goNext, to the partner's turn, the next exercise, or the finish.
+    const goes = SESSION.match(/onClick=\{goNext\}/g) ?? [];
     expect(goes.length, "the mid-plan one and the plan-complete one").toBeGreaterThanOrEqual(2);
-    const says = SESSION.match(/\{upNextIdx >= 0 \? "Next Exercise" : "Finish Workout"\}/g) ?? [];
+    const says = SESSION.match(/\{nextLabel\}/g) ?? [];
     expect(says.length).toBeGreaterThanOrEqual(2);
   });
 
   it("stays SECONDARY until the plan is done, then they swap", () => {
     // The 2026-09-17 ruling is unchanged: until the plan is complete logging
     // is the common move, so moving on does not take the primary.
-    expect(SESSION).toContain(`{!planComplete && logged.length > 0 && !cond && (
-            <button className="btn btn-secondary btn-lg"`);
-    expect(SESSION).toContain(`{planComplete
+    expect(SESSION).toContain(`{(!planComplete || extraOpen) && logged.length > 0 && !cond && (
+            <button className="btn btn-secondary btn-lg" onClick={goNext}>{nextLabel}</button>`);
+    expect(SESSION).toContain(`{planComplete && !extraOpen
             ? <button className="btn btn-primary btn-launch btn-lg"`);
   });
 
+  // AMENDED 2026-09-26 (workout logging): Skip lives in the More sheet, and
+  // only while nothing is logged, since skipping discards the sets done.
   it("is not offered with nothing logged, where Skip is the honest word", () => {
-    // An exercise you did none of IS skipped, and that row already exists.
+    // An exercise you did none of IS skipped, and that line exists for it.
     expect(SESSION).toContain("logged.length > 0 && !cond");
-    expect(SESSION).toContain(">Skip This Exercise<");
+    expect(SESSION).toContain('...(logged.length === 0 ? [{ label: "Skip This Exercise", onClick: onSkip }] : []),');
   });
 });

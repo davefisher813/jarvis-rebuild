@@ -2,7 +2,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import type { Progress } from "./progress";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // ---------------------------------------------------------------------------
 // ARCHITECTURE C (Dave's pick, 2026-08-22): a goal reaches its work TWO ways.
@@ -140,14 +140,16 @@ export function reachLine(r: GoalReach, done = false): string {
   // Silence, not the word: with no filed record this said "Done" under a
   // hero whose status already says it (§AK, 2026-09-26), which is the "says
   // done twice" shape Dave objected to on the Goals lens.
+  // Title Case on the line, "0 of 1 Projects Done" (Dave's pass-off,
+  // 2026-09-26: every word the app writes, the last one included).
   if (done) {
     const p0 = r.progress;
-    return p0 ? capAfterNumber(`${p0.done} of ${p0.total} done`) : "";
+    return p0 ? lineCase(`${p0.done} of ${p0.total} done`) : "";
   }
   const p = r.progress;
   // Filed work only (2026-09-13): no "tagged open" tail, no open count borrowed
   // from an area.
-  if (p) return capAfterNumber(`${p.done} of ${p.total} done`);
+  if (p) return lineCase(`${p.done} of ${p.total} done`);
   // PLAIN WORDS (Dave 2026-09-03, pic 4: "'open in your tags' maybe just
   // open or something"). "In your tags" is this file's own vocabulary
   // leaking onto a goal row: the reader does not think in tags, and the

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { MeasureKind, SetEntry } from "./types";
 import { entryNoun, fieldsFor, formatSet } from "./measures";
 import { plateFacts, type PlateFacts } from "./ramp";
@@ -37,7 +37,7 @@ import { Trash2, Check } from "../shared/icons";
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, style, entries, onChange, ghost, onLogGhost, onLogGhostAs, nowDraft, onNowDraft, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false, canAdd = true,
+  kind, unit, timeUnit, style, entries, onChange, ghost, onLogGhost, nowDraft, onNowDraft, nowExtra, nowMatchesLast = false, onOpenSet, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false, canAdd = true,
 }: {
   kind: MeasureKind;
   unit?: string;
@@ -64,18 +64,27 @@ export default function SetStrip({
    *  on it said something else was two doors with two answers. */
   ghost?: SetEntry[];
   onLogGhost?: (ghostIdx: number) => void;
-  /** VALUES READY TO EDIT (2026-09-14, the reference's set grid). With
-   *  editableGhosts on, the Now row carries the two fields and a tick: the
-   *  tick logs what the fields say, and so does the session's own Log
-   *  button, through the same `withDraft` answer (nextSet.ts). */
-  onLogGhostAs?: (ghostIdx: number, patch: Partial<SetEntry>) => void;
   /** THE FIELDS' OWN STRINGS, OWNED BY THE SESSION (2026-09-26). Given, the
    *  Now row shows exactly these and reports every keystroke back through
    *  onNowDraft, so the button's label, the fields and the write can never
    *  say three things. Absent (a planning strip, a test), the row keeps its
-   *  own copy seeded from the ghost. */
+   *  own copy seeded from the ghost. ONLY THE RED BUTTON LOGS (Dave,
+   *  2026-09-26): the Now row has no tick of its own any more. */
   nowDraft?: SetDraft;
   onNowDraft?: (draft: SetDraft) => void;
+  /** One line the session folds into the Now row under the fields: the
+   *  progression's suggestion, in the estimate's ink (Dave, 2026-09-26:
+   *  nothing above the Now row may change height when a set lands). */
+  nowExtra?: ReactNode;
+  /** Match hides when the fields already say what last time did. */
+  nowMatchesLast?: boolean;
+  /** THE SET SHEET (2026-09-26). In the live session a Done row opens the
+   *  session's own sheet (SetSheet.tsx) instead of the inline stepper panel,
+   *  so the numbers are typed the one way everywhere on the screen. The
+   *  planning and history editors, which do not pass this, keep the panel. */
+  onOpenSet?: (id: string) => void;
+  /** VALUES READY TO EDIT (2026-09-14, the reference's set grid): with this
+   *  on, the Now row carries the two fields. */
   editableGhosts?: boolean;
   disabled?: boolean;
   /** True at an index that earned the in-session PR pill (live session only). */
@@ -172,10 +181,10 @@ export default function SetStrip({
                 disabled={!!disabled}
                 pr={!!prAt?.(i)}
                 last={lastFor?.(i) ?? null}
-                onToggle={() => setOpenId(openId === id ? null : id)}
+                onToggle={() => (onOpenSet ? onOpenSet(id) : setOpenId(openId === id ? null : id))}
                 onDelete={() => remove(id)}
               />
-              {openId === id && !disabled && (
+              {openId === id && !disabled && !onOpenSet && (
                 <SetChipEditor kind={kind} fields={fields} entry={e} onPatch={(p) => patch(id, p)} moveTracking={moveTracking}
                   // WHICH SET THIS IS (2026-09-16, Dave: "I don't even know
                   // what I'm logging"). The editor drops open UNDER the chip
@@ -212,11 +221,8 @@ export default function SetStrip({
             const pos = entries.length + i;
             const st = setState(g, pos, nowPos);
             const isNow = st === "now";
-            const grid = isNow && editableGhosts && kind === "weight_reps" && !!onLogGhostAs;
-            // The reference rides the Now row only: it is the set about to be
-            // logged, and the one Match applies to. On the rows after it the
-            // same line was a second grey under a plan nobody is typing into.
-            const lastText = isNow ? (lastFor?.(pos) ?? null)?.replace(/^Last:?\s*/, "") ?? null : null;
+            const grid = isNow && editableGhosts && kind === "weight_reps";
+            const lastText = (lastFor?.(pos) ?? null)?.replace(/^Last:?\s*/, "") ?? null;
             const tappable = st === "warm" && !!onLogGhost && !disabled;
             return (
               // row-tap: the Now row is the fields and the tick; a tap on its
@@ -227,21 +233,26 @@ export default function SetStrip({
                   {/* H-17 / R9 (2026-09-12): the row says its state. The working
                       set the athlete is on says Now and wears the cyan rule;
                       the rest say Up Next in quiet ink at full strength. */}
-                  <div className={"se-kick " + st}>{setKicker(st, workNoAt(pos))}</div>
+                  <div className={"se-kick " + st}>{setKicker(st, workNoAt(pos))}
+                    {/* An Up Next row carries last time's reference as the
+                        same chip a Done row wears, at the kicker's end; on the
+                        Now row the reference is the Match line below. */}
+                    {!isNow && lastText && <span className="se-chip se-chip-last"><em>Last</em>{lineCase(lastText)}</span>}</div>
                   {grid
                     ? <GhostGrid entry={g} unit={unit} repWord={style ? repLabel(style) : "Reps"} step={fields.find((f) => f.key === "w")?.step ?? 0.5} setNo={workNoAt(pos)}
-                        value={nowDraft} onDraft={onNowDraft}
-                        onLog={(patch) => onLogGhostAs!(i, patch)} />
+                        value={nowDraft} onDraft={onNowDraft} />
                     : <div className="conn-name">{kind === "done" ? "Mark Done" : lineCase(formatSet(fx, g))}</div>}
                   {/* D2 tap-to-match: the last-time line is the door to putting
-                      those exact numbers in the fields; the tick or the Log
-                      button then writes them, like every other set. */}
-                  {lastText && (onMatchLast
+                      those exact numbers in the fields; the red button then
+                      writes them, like every other set. The verb hides once
+                      the fields already say it (Dave, 2026-09-26). */}
+                  {isNow && lastText && (onMatchLast && !nowMatchesLast
                     ? <button type="button" className="set-last-act" aria-label={`Use ${lastText}, same as last time`}
                         onClick={(e) => { e.stopPropagation(); onMatchLast(pos); }}>
                         {`Last ${lineCase(lastText)}`}<span className="act">Match</span>
                       </button>
                     : <div className="conn-meta">{`Last ${lineCase(lastText)}`}</div>)}
+                  {isNow && nowExtra}
                 </div>
               </div>
             );
@@ -438,7 +449,7 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, tit
 // what the button now logs and what its label now reads. The fields stay
 // uncontrolled -- the local state is still the source of truth for the input,
 // so nothing re-renders under the thumb mid-keystroke.
-function GhostGrid({ entry, unit, repWord, step, setNo, value, onLog, onDraft }: {
+function GhostGrid({ entry, unit, repWord, step, setNo, value, onDraft }: {
   entry: SetEntry;
   unit?: string;
   /** "Reps", or "Reps Per Side" for a sided lift (2026-09-26): the field
@@ -450,7 +461,6 @@ function GhostGrid({ entry, unit, repWord, step, setNo, value, onLog, onDraft }:
   setNo: number;
   /** The session's own strings for these fields, when it owns them. */
   value?: SetDraft;
-  onLog: (patch: Partial<SetEntry>) => void;
   onDraft?: (draft: SetDraft) => void;
 }) {
   // A ZERO IS NOT A NUMBER SOMEBODY TYPED (Dave 2026-09-17: "a new exercise
@@ -496,7 +506,6 @@ function GhostGrid({ entry, unit, repWord, step, setNo, value, onLog, onDraft }:
       <span className="se-grid-u">{lineCase(unit ?? "")}</span>
       <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} onFocus={selectAll} aria-label={`Set ${setNo} reps`} onChange={(e) => { setR(e.target.value); report(w, e.target.value); }} />
       <span className="se-grid-u">{repWord}</span>
-      <button type="button" className="se-tick" aria-label={`Log set ${setNo}`} onClick={() => onLog({ w: Number(w) || 0, r: Number(r) || 0 })}><Check className="ic" /></button>
     </div>
   );
 }

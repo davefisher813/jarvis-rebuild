@@ -145,6 +145,21 @@ export function displayTitle(d: { title?: string; doc?: Doc; blocks?: Block[] })
   return firstLineOf(doc) || "Untitled";
 }
 
+/** THE TITLE THE LIST SHOWS (§AK "a date on the title"; the pass-off,
+ *  2026-09-26). A note the calendar made before 2026-09-21 still carries its
+ *  date in its stored title ("Meeting Notes · Sep 17") while the row's own
+ *  line says the date again under it. The list strips it, and only the list:
+ *  only on a note born from an event (its source, or an event connection),
+ *  only a trailing " · Mon D", and never in storage. A date he typed himself
+ *  on a hand-made note is his and stays; the editor keeps showing the stored
+ *  title so he can see it and change it. */
+const LEGACY_EVENT_DATE = /\s+\u00b7\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}$/;
+export function listTitle(d: { title?: string; doc?: Doc; blocks?: Block[]; source?: { type: string }; connections?: { kind: string }[] }): string {
+  const t = displayTitle(d);
+  const eventBorn = d.source?.type === "event" || (d.connections ?? []).some((c) => c.kind === "event");
+  return eventBorn ? t.replace(LEGACY_EVENT_DATE, "") : t;
+}
+
 /** Words in the body. Headings are structure, not writing. */
 export function docWordCount(doc: Doc | undefined): number {
   const lines: string[] = [];

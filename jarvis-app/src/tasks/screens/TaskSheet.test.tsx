@@ -81,10 +81,13 @@ describe("TaskSheet", () => {
   // UP-CORE-17 (2026-09-05): who this task is about, chosen from real
   // contacts and stored as an id. Never free text: a name typed into a task
   // is exactly the guessing this field replaces.
-  it("the person value is a bounded chooser, and there is no row without contacts", () => {
+  // AMENDED 2026-09-26 (pass-off; Dave 2026-09-16 "same 5 options"): the
+  // Person row stands with no contacts too, offering None, so the Where
+  // group is the same five rows on every screen.
+  it("the person value is a bounded chooser, and the row stands even without contacts", () => {
     const onSave = vi.fn();
     const { rerender } = render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
-    expect(screen.queryByLabelText("Person")).toBeNull();
+    expect(screen.getByLabelText("Person").textContent).toContain("None");
     rerender(
       <TaskSheet mode="new" categories={CATS} people={[{ id: "p1", name: "Marco Diaz" }]} onSave={onSave} onCancel={() => {}} />,
     );
@@ -473,9 +476,12 @@ describe("the event a task belongs to", () => {
     expect(screen.getByRole("menuitemradio", { name: /Practice · Tomorrow 5:00PM/ })).toBeInTheDocument();
   });
 
-  it("a caller with no events renders no row at all, the same as Project", () => {
+  // AMENDED 2026-09-26 (pass-off): the row stands with nothing to pick,
+  // the same as Person and Project (Dave 2026-09-16 "same 5 options").
+  it("a caller with no events still renders the row, saying None", () => {
     render(<TaskSheet mode="new" categories={[]} onSave={() => {}} onCancel={() => {}} />);
-    expect(screen.queryByText("Event")).not.toBeInTheDocument();
+    expect(screen.getByText("Event")).toBeInTheDocument();
+    expect(screen.getByLabelText("Event").textContent).toContain("None");
   });
 
   it("an existing task opens showing the event it is already filed to", () => {
@@ -507,7 +513,13 @@ describe("TaskSheet: the smart Where group", () => {
     fireEvent.click(screen.getByRole("menuitemradio", { name: /Kitchen Remodel/ }));
     expect(screen.getByLabelText("Area").textContent).toContain("Money");
     expect(screen.getByText("Goal")).toBeInTheDocument();
-    expect(document.querySelector(".row-val")).toHaveTextContent("Build a Six-Month Runway");
+    // AMENDED 2026-09-26 (pass-off, Dave: "with a project, Goal shows the
+    // project's goal and tapping it opens the Project menu"): the Goal row
+    // is a menu now, reading the project's goal.
+    expect(screen.getByLabelText("Goal").textContent).toContain("Build a Six-Month Runway");
+    fireEvent.click(screen.getByLabelText("Goal"));
+    expect(screen.getByRole("menuitemradio", { name: /Kitchen Remodel/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Kitchen Remodel/ }));
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "Call the contractor" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0].projectId).toBe("pr1");

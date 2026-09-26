@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path/posix";
-import { withLiveGroups, groupForToday, ungroupToday, isLiveGroup } from "./liveGroups";
+import { withLiveGroups, groupForToday, ungroupToday, isLiveGroup, sessionExercises } from "./liveGroups";
 import type { Exercise } from "./types";
 
 const ex = (id: string, groupId?: string): Exercise =>
@@ -75,19 +75,23 @@ describe("making and unmaking one", () => {
   });
 });
 
-// The choice, and the two writes behind it.
-describe("ask me each time", () => {
+// AMENDED 2026-09-26 (workout logging, Dave: "Superset linking between
+// exercises is broken and hard to use"). The multi-pick sheet and the choice
+// sheet that followed it are gone: the Superset chip pairs this lift with
+// the NEXT one in the session and asks the one question, and the session
+// reads every group off its own list (sessionExercises), never the day's.
+describe("the superset chip's two writes", () => {
   const read = (f: string) => readFileSync(join(process.cwd().replace(/\\/g, "/"), "src", f), "utf8");
 
   it("offers both answers, named for what they actually do", () => {
-    const flow = read("gym/GymFlow.tsx");
-    expect(flow).toContain('label: "Just This Workout"');
-    expect(flow, "the other one says WHICH day it will change").toContain('label: "Every " + workoutTitle(day?.name ?? "Session")');
+    const sess = read("gym/SessionScreen.tsx");
+    expect(sess).toContain('label: "Just This Workout"');
+    expect(sess, "the other one says WHICH day it will change").toContain("label: `Every ${dayWord}`");
   });
 
   it("just-today writes the session and never the program", () => {
     const flow = read("gym/GymFlow.tsx");
-    const today = flow.slice(flow.indexOf('label: "Just This Workout"'), flow.indexOf('label: "Every "'));
+    const today = flow.slice(flow.indexOf("onGroupToday: (ids: string[], partnerName: string) => {"), flow.indexOf("onUngroup: (scope"));
     expect(today, "the live session is the only thing it touches").toContain("patchLive((l) => ({ ...l, groups: groupForToday(");
     expect(today, "and it does not call the program writer").not.toContain("groupAction(");
     expect(today, "with an Undo that restores the exact map it replaced").toContain("actionLabel: \"Undo\"");
@@ -95,28 +99,56 @@ describe("ask me each time", () => {
 
   it("every-session is the program writer that already existed", () => {
     const flow = read("gym/GymFlow.tsx");
-    const every = flow.slice(flow.indexOf('label: "Every "'));
-    expect(every.slice(0, 400)).toContain("void groupAction(pick.weekId, pick.dayId, pick.exId, pick.ids)");
+    const every = flow.slice(flow.indexOf("onGroupProgram: (ids: string[]) => {"));
+    expect(every.slice(0, 400)).toContain("void groupAction(w.id, day.id, exercise.id, onDay)");
   });
 
-  it("the session lays its own pairs over the day for every reader at once", () => {
+  it("the session asks every group question of its own list, with today's pairs laid over it", () => {
     const sess = read("gym/SessionScreen.tsx");
-    expect(sess).toContain("const dayEx = withLiveGroups(dayExercises, live.groups);");
-    // Each group question is asked of the overlaid list, not the raw day.
-    for (const call of ["groupLabels(dayEx)", "groupOf(exercise, dayEx)", "fillerFor(exercise, dayEx)",
-                        "roundRestFor(exercise, dayEx)", "nextInGroup(exercise, dayEx"]) {
+    expect(sess).toContain("const dayEx = sessionExercises(live.exercises, dayExercises, live.groups);");
+    for (const call of ["groupLabels(dayEx)", "groupOf(me, dayEx)", "fillerFor(me, dayEx)",
+                        "roundRestFor(me, dayEx)", "nextInGroup(me, dayEx"]) {
       expect(sess, call).toContain(call);
     }
   });
 
-  it("the session renders its own pickers, because it returns before the shell", () => {
-    // The button worked and the state was set and nothing appeared: this
-    // branch returns early, before the shell that carries pickerEl()
-    // everywhere else. Found by driving it, not by a type or a test.
+  it("the session renders its own sheets, because it returns before the shell", () => {
     const flow = read("gym/GymFlow.tsx");
     const sessionBranch = flow.slice(flow.indexOf("onClose={() => setAdjustOpen(false)}"));
     expect(sessionBranch.slice(0, 900)).toContain("{pickerEl()}");
-    expect(sessionBranch.slice(0, 900)).toContain("{supersetChoiceEl()}");
+  });
+});
+
+// THE SESSION'S OWN LIST (2026-09-26). Every group reader used to be handed
+// the program day's list, so a swapped or added lift could never be paired
+// and the session hid every pair on the day for it.
+describe("sessionExercises", () => {
+  const day: Exercise[] = [ex("a", "gp"), ex("b", "gp"), ex("c")];
+  const live = (ids: string[], custom: Record<string, Partial<{ name: string; plan: { id: string }[] }>> = {}) =>
+    ids.map((id) => ({ exerciseId: id, name: custom[id]?.name ?? id, kind: "weight_reps" as const, unit: "lb", sets: [], ...(custom[id]?.plan ? { plan: custom[id]!.plan as never } : {}), ...(custom[id] ? { custom: true } : {}) }));
+
+  it("keeps the day's exercise, program pairing included, for a planned lift", () => {
+    const out = sessionExercises(live(["a", "b", "c"]), day);
+    expect(out.map((e) => e.id)).toEqual(["a", "b", "c"]);
+    expect(out[0]!.groupId).toBe("gp");
+  });
+
+  it("stands in for a lift the day does not have, so it can be paired like any other", () => {
+    const out = sessionExercises(live(["a", "mid1"], { mid1: { name: "Hammer Curl" } }), day, { a: "gt", mid1: "gt" });
+    expect(out.map((e) => e.id)).toEqual(["a", "mid1"]);
+    expect(out[1]).toMatchObject({ id: "mid1", name: "Hammer Curl", groupId: "gt" });
+    expect(out[0]!.groupId, "today's pair wins over the program's").toBe("gt");
+  });
+
+  it("follows the session's order and leaves out what the session left out", () => {
+    const out = sessionExercises(live(["c", "a"]), day);
+    expect(out.map((e) => e.id)).toEqual(["c", "a"]);
+  });
+
+  it("a swapped lift takes its slot's place in the pair, under its own name", () => {
+    const out = sessionExercises(live(["a", "b"], { a: { name: "DB Press", plan: [{ id: "p" }] } }), day);
+    expect(out[0]).toMatchObject({ id: "a", name: "DB Press", groupId: "gp" });
+    expect(out[0]!.sets).toHaveLength(1);
   });
 });
 

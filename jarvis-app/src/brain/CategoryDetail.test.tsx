@@ -303,8 +303,12 @@ describe("CategoryDetail org health (2026-08-10)", () => {
     // ONE GREY LINE (Dave 2026-09-02): the next move as the line, the
     // overdue count as a chip ahead of it; the goal it moves is the Goals
     // Here card, not a third line.
-    expect(screen.getByText(/Next: Email sponsors/)).toBeInTheDocument();
-    expect(screen.getByText("1 late")).toHaveClass("u-late");
+    // AMENDED 2026-09-26 (pass-off): the next move is the lens's NEXT form
+    // on its own line, the step in Title Case; the chips sit on the line
+    // under it, cased.
+    expect(screen.getByText("Email Sponsors")).toHaveClass("r-next-v");
+    expect(screen.getByText("1 Late")).toHaveClass("u-late");
+    expect(screen.queryByText(/Next: /)).toBeNull();
     expect(screen.queryByText(/Moves Grow the league/)).toBeNull();
   });
 

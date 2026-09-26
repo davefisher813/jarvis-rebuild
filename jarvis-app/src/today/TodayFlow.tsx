@@ -51,6 +51,7 @@ import { rememberLeanedOn } from "./leanedOn";
 import { readSamples } from "../shared/timeSense";
 import { settleDuePlans } from "../events/pipeline";
 import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask, sheetGoals } from "../bigger/reach";
+import { sheetProjects, sheetPeople } from "../tasks/screens/sheetLinks";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import { sheetEvents } from "../schedule/sheetEvents";
 import { inheritFromThread } from "../messages/threadTasks";
@@ -862,7 +863,7 @@ export default function TodayFlow({
     // section of the sheet was unusable from the tab today's events live on.
     // Travel, the weekday set and the guest list were missing for the same
     // reason and told the same lie. One literal now, matching openEdit's.
-    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "", goalId: e.goalId ?? "" } });
+    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "" } });
   };
   // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07; built
   // 2026-09-09). Tapping an event opens its PAGE, here as well as on Schedule.
@@ -1104,7 +1105,7 @@ export default function TodayFlow({
         // The split copy carries the meeting and the travel too: "This
         // Event" on a recurring Zoom used to stand the occurrence up without
         // its link, which is the same disappearance by another route.
-        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined, goalId: draft.goalId || undefined });
+        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined });
         if (splitId && draft.gym) await schedule.editGymDoor(splitId, true);
       });
     } else {
@@ -1131,7 +1132,7 @@ export default function TodayFlow({
         await schedule.editMeeting(id, { url: draft.url ?? "", notes: draft.notes ?? "" });
         await schedule.editTaskIds(id, draft.taskIds ?? []);
         await schedule.editGymDoor(id, !!draft.gym);
-        await schedule.editLinks(id, { projectId: draft.projectId || null, goalId: draft.goalId || null });
+        await schedule.editProject(id, draft.projectId || null);
       });
     }
     setEventSheet(null);
@@ -4189,7 +4190,8 @@ export default function TodayFlow({
         // THE SAME SHEET EVERYWHERE (2026-09-26): Today's copy handed over
         // no projects and no goals, so its Where group had no Project row
         // and a Goal row that could not be picked.
-        projects={projList.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: liveGoals(goalList).find((g) => g.id === p.data.goalId)?.data.title, goalId: p.data.goalId }))}
+        projects={sheetProjects(projList, goalList)}
+        people={sheetPeople(peopleList)}
         goals={sheetGoals(goalList, sheet.initial.goalId)}
         mode="edit"
         initial={sheet.initial}
@@ -4207,8 +4209,7 @@ export default function TodayFlow({
         mode="edit"
         initial={eventSheet.initial}
         categories={categories}
-        projects={projList.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: liveGoals(goalList).find((g) => g.id === p.data.goalId)?.data.title, goalId: p.data.goalId }))}
-        goals={sheetGoals(goalList, eventSheet.initial.goalId)}
+        projects={sheetProjects(projList, goalList)}
         onSave={onSaveEvent}
         onDelete={onDeleteEvent}
         onMoveToAnytime={onEventToAnytime}

@@ -51,16 +51,18 @@ function renderScreen(over: Partial<Parameters<typeof SessionScreen>[0]> = {}) {
 describe("logging a set in the live session", () => {
   beforeEach(() => { vi.mocked(showToast).mockClear(); });
 
+  // AMENDED 2026-09-26 (workout logging): the button and the receipt are
+  // cased by the whole rule, "225 Lb × 5".
   it("says what was logged, in the exercise's own units", () => {
     renderScreen();
-    fireEvent.click(screen.getByRole("button", { name: "Log 225 lb × 5" }));
-    expect(vi.mocked(showToast).mock.calls[0]![0].message).toBe("Logged 225 lb × 5");
+    fireEvent.click(screen.getByRole("button", { name: "Log 225 Lb × 5" }));
+    expect(vi.mocked(showToast).mock.calls[0]![0].message).toBe("Logged 225 Lb × 5");
   });
 
   it("offers an Undo that puts the strip back exactly as it was before the tap", () => {
     const onSetLogged = vi.fn();
     renderScreen({ onSetLogged });
-    fireEvent.click(screen.getByRole("button", { name: "Log 225 lb × 5" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log 225 Lb × 5" }));
     const toast = vi.mocked(showToast).mock.calls[0]![0];
     expect(toast.actionLabel).toBe("Undo");
     toast.onAction!();
@@ -74,7 +76,7 @@ describe("logging a set in the live session", () => {
   it("the Undo names the exercise it belongs to, so a late tap cannot land on another one", () => {
     const onSetLogged = vi.fn();
     renderScreen({ onSetLogged });
-    fireEvent.click(screen.getByRole("button", { name: "Log 225 lb × 5" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log 225 Lb × 5" }));
     expect(vi.mocked(showToast).mock.calls[0]![0].onAction).toBeTypeOf("function");
     vi.mocked(showToast).mock.calls[0]![0].onAction!();
     expect(onSetLogged.mock.calls[0]![1]).toBe(0);

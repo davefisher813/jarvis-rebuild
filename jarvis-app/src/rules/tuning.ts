@@ -41,6 +41,8 @@ export const AUTOMATION_LABEL: Record<string, string> = {
   "live-gym": "Back to Training",
   "mail-notice": "Mail Notices",
   "project-due": "Project Deadlines",
+  // The area page's learned weekday (Dave's pass-off, 2026-09-26).
+  "learned-day": "Learned Day",
 };
 
 export function tuningScope(name: string): string {

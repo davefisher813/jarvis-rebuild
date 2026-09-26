@@ -116,11 +116,6 @@ export function fieldsFor(
   }
 }
 
-/** The planned entry at strip position `i` (the set strip IS the plan). */
-export function plannedEntryAt(ex: Pick<Exercise, "sets">, i: number): SetEntry | undefined {
-  return ex.sets[i];
-}
-
 /** Does this exercise carry an actual planned number anywhere in its strip? */
 export function hasTarget(ex: Pick<Exercise, "kind" | "sets">): boolean {
   if (ex.kind === "done") return false;

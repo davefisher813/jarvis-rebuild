@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatSet, logButtonLabel, entryNoun, beats, hasVolume, setVolume, scoreOf, fieldsFor, hasTarget, targetLine, plannedEntryAt, isUniformStrip } from "./measures";
+import { formatSet, logButtonLabel, entryNoun, beats, hasVolume, setVolume, scoreOf, fieldsFor, hasTarget, targetLine, isUniformStrip } from "./measures";
 import type { Exercise, MeasureKind, SetEntry, SetLog } from "./types";
 
 // Nine measure kinds, and the direction lives IN the kind. These pin the two
@@ -45,8 +45,7 @@ describe("the one-tap button names exactly the entry it will write", () => {
   it("never reads the plan on its own: an entry with reps alone says reps alone", () => {
     const heavy = ex("weight_reps", { unit: "lb", sets: strip(2, { w: 135, r: 8 }) });
     expect(logButtonLabel(heavy, { r: 10 })).toBe("Log 10 Reps");
-    // Past the end of the plan there is no next chip to read.
-    expect(plannedEntryAt(heavy, 2)).toBeUndefined();
+    // With no entry at all there is nothing to name.
     expect(logButtonLabel(heavy, null)).toBe("Log Set");
   });
   it("names entries the way the athlete would", () => {

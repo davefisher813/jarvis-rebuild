@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupLabels, fillerFor, nextInGroup, groupExercises, ungroupExercise, roundRestFor } from "./groups";
+import { groupLabels, fillerFor, nextInGroup, nextTurnInGroup, groupExercises, ungroupExercise, roundRestFor } from "./groups";
 import type { Exercise } from "./types";
 
 const ex = (id: string, name: string, over: Partial<Exercise> = {}): Exercise =>
@@ -195,5 +195,27 @@ describe("roundRestFor and unequal counts", () => {
     expect(nextInGroup(A, [A, B], { a: 2, b: 1 })).toBe("b");
     expect(nextInGroup(B, [A, B], { a: 2, b: 2 })).toBeNull();
     expect(nextInGroup(A, [A, B], { a: 3, b: 2 })).toBeNull();
+  });
+});
+
+// 2026-09-26 (the workout logging pass-off): the bar's Next inside a superset.
+describe("nextTurnInGroup answers the level case too", () => {
+  const a: Exercise = { id: "a", name: "A", kind: "weight_reps", groupId: "g", sets: [{ id: "1" }, { id: "2" }] };
+  const b: Exercise = { id: "b", name: "B", kind: "weight_reps", groupId: "g", sets: [{ id: "3" }, { id: "4" }] };
+  const c: Exercise = { id: "c", name: "C", kind: "weight_reps", sets: [{ id: "5" }] };
+  const day = [a, b, c];
+
+  it("sends you to the partner when it is behind, like nextInGroup", () => {
+    expect(nextTurnInGroup(a, day, { a: 1, b: 0 })).toBe("b");
+  });
+  it("comes back to A1 for the next round once the counts are level", () => {
+    expect(nextTurnInGroup(b, day, { a: 1, b: 1 })).toBe("a");
+    expect(nextInGroup(b, day, { a: 1, b: 1 }), "the rest still reads the round as complete").toBeNull();
+  });
+  it("has no answer once every member is done, so the day's order takes over", () => {
+    expect(nextTurnInGroup(b, day, { a: 2, b: 2 })).toBeNull();
+  });
+  it("and none outside a group", () => {
+    expect(nextTurnInGroup(c, day, { c: 0 })).toBeNull();
   });
 });

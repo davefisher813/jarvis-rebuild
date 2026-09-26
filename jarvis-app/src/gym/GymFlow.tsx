@@ -2425,7 +2425,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
         // A free-text swap mints a lift the library has never seen, same as
         // an add does, so it is seeded the same way.
-        onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); seedLibrary(sub); showToast({ message: `Swapped in ${sub.name}` }); }}
+        onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); seedLibrary(sub); showToast({ message: lineCase(`Swapped in ${liftTitle(sub.name)}`) }); }}
         onSetLoad={(next) => { void setLoadStyle(exercise, next); }}
         {...(() => {
           // SUPERSET WHILE LOGGING (Dave, 2026-09-21: "I can't easily create
@@ -2448,36 +2448,41 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 onAction: () => patchLive((l) => ({ ...l, groups: before })),
               });
             },
-            // AND THE WAY BACK OUT (2026-09-21). Today's own pair is simply
-            // released; a pair that came from the PROGRAM is broken for today
-            // only and the toast says which of the two happened, because one
-            // of them is still there next week and the other never was.
-            onUngroup: () => {
+            // AND THE WAY BACK OUT (2026-09-21; scoped 2026-09-26). Today's
+            // own pair is simply released. A pair the PROGRAM owns is asked
+            // the same two questions as making one: for today, which marks
+            // it "" in the session's overlay and leaves next week alone, or
+            // for every one of this day, which is the program editor's own
+            // Ungroup. Both carry Undo, and the toast says which happened.
+            onUngroup: (scope: "today" | "program") => {
               const before = liveRef.current?.groups;
-              const wasTodays = isLiveGroup(before, exercise.id);
-              patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id, day?.exercises ?? []) }));
-              showToast({
-                message: wasTodays || !day
-                  ? "Broken Up for Today"
-                  : capAfterNumber(`Broken up for today \u00b7 ${workoutTitle(day.name)} keeps the pair`),
-                actionLabel: "Undo",
-                onAction: () => patchLive((l) => ({ ...l, groups: before })),
+              if (scope === "today" || !w || !day) {
+                patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id, day?.exercises ?? []) }));
+                showToast({
+                  message: "Broken Up for Today",
+                  actionLabel: "Undo",
+                  onAction: () => patchLive((l) => ({ ...l, groups: before })),
+                });
+                return;
+              }
+              const others = groupOf(exercise, day.exercises).filter((e) => e.id !== exercise.id).map((e) => e.id);
+              void ungroupAction(w.id, day.id, exercise.id).then(() => {
+                patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id) }));
+                showToast({
+                  message: lineCase(`Broken up in every ${workoutTitle(day.name)}`),
+                  actionLabel: "Undo",
+                  onAction: () => { if (others.length) void groupAction(w.id, day.id, exercise.id, others); },
+                });
               });
             },
-            // THE ONE EXPLICIT PROGRAM WRITE for a pair made at the rack.
-            // Only the members the day actually has can be written to it; the
-            // session's overlay is released once the program holds the pair,
-            // so Break Up afterwards means what it says.
+            // "EVERY PUSH DAY": the one program write for a pair made at the
+            // rack, through the day's own groupAction (its toast carries the
+            // Undo). Offered by the session only when both lifts are on the day.
             ...(w && day ? {
-              onKeepSuperset: (memberIds: string[]) => {
-                const onDay = memberIds.filter((id) => id !== exercise.id && day.exercises.some((e) => e.id === id));
-                if (!day.exercises.some((e) => e.id === exercise.id) || onDay.length === 0) {
-                  showToast({ message: "Add the Lift to the Day First" });
-                  return;
-                }
-                void groupAction(w.id, day.id, exercise.id, onDay).then(() => {
-                  patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id) }));
-                });
+              onGroupProgram: (ids: string[]) => {
+                const onDay = ids.filter((id) => id !== exercise.id && day.exercises.some((e) => e.id === id));
+                if (onDay.length === 0) return;
+                void groupAction(w.id, day.id, exercise.id, onDay);
               },
             } : {}),
           };
@@ -2504,7 +2509,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         }}
         onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
         // Part 3 wave 5 (Dave's 10a): only a swapped or added entry offers it.
-        onUpdateProgram={liveEx?.custom && !live.sameAsLastTime && day ? () => {
+        // AND ONLY UNTIL IT IS THERE (2026-09-26): an added lift the day now
+        // holds (by key, or by name and kind) is not offered again, since a
+        // second tap used to add a second copy.
+        onUpdateProgram={liveEx?.custom && !live.sameAsLastTime && day && (behind || !day.exercises.some((e) => (liveEx.exerciseKey && e.exerciseKey === liveEx.exerciseKey) || (e.name.trim().toLowerCase() === liveEx.name.trim().toLowerCase() && e.kind === liveEx.kind))) ? () => {
           const week = program?.data.weeks.find((w) => w.days.some((d) => d.id === day.id));
           if (!week) return;
           const next = dayWithSessionEntry(day, liveEx, () => nid("e"));

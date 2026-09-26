@@ -184,7 +184,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     expect([...line.children].map((f) => f.className)).toEqual(["fact", "fact est"]);
     expect(line.querySelector(".uchip.u-today")?.textContent).toBe("TODAY");
     expect(line.lastElementChild?.textContent).toBe("15m");
-    expect(chain.textContent).not.toMatch(/Same category/);
+    expect(chain.textContent).not.toMatch(/Same (category|Area)/);
     expect(chain.textContent).not.toMatch(/due today/i);
 
     // Waving it off empties the slot. Two of those quiet the chain for the
@@ -225,7 +225,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     const line = chain.querySelector(".facts")!;
     expect([...line.children].map((f) => [f.className, f.textContent])).toEqual([
       ["fact est", "15m"],
-      ["fact", "Same category"],
+      ["fact", "Same Area"], // AMENDED 2026-09-26 (pass-off)
     ]);
     expect(chain.querySelector(".uchip")).toBeNull();
   });
@@ -262,7 +262,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     });
     const chain = due.closest(".notice-swipe")!;
     expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
-    expect(chain.textContent).not.toMatch(/Same category/);
+    expect(chain.textContent).not.toMatch(/Same (category|Area)/);
     expect(chain.querySelector(".uchip")).toBeNull();
   });
 

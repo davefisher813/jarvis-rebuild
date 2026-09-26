@@ -90,7 +90,9 @@ describe("NotesFlow: the document saves as it changes (the writing system)", () 
     await act(async () => { typeInto(pm, "Groceries for the week"); });
     await waitFor(async () => expect((await svc.note(id))!.doc).toBeTruthy(), { timeout: 4000 });
     fireEvent.click(screen.getByText("Notes", { selector: "button" }));
-    expect(await screen.findByText("Groceries for the week", {}, { timeout: 4000 })).toBeInTheDocument();
+    // AMENDED 2026-09-26 (pass-off): a row name is shown in Title Case, the
+    // first-line fallback included; the stored line is untouched.
+    expect(await screen.findByText("Groceries for the Week", {}, { timeout: 4000 })).toBeInTheDocument();
   });
 });
 
