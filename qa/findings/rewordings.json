@@ -3704,5 +3704,173 @@
   "new": "Log 135 Lb × 8 / Log 4.6 Sec",
   "phase": "passoff-workout",
   "group": "passoff-workout"
+ },
+ {
+  "id": "TL-01",
+  "file": "jarvis-app/src/today/RemindersStrip.tsx",
+  "old": "Every reminder of the day as its own row, done ones struck through, each with Adjust",
+  "new": "The next 3 upcoming by time, each with Adjust; then one red row \"{N} Missed\" (chevron) that opens the \"Missed Reminders\" sheet",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-02",
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "Heads Up card per missed reminder: \"{Name}\" · \"Missed at 8:00 AM\" · \"Ask Again in 15m\" / \"Done\"",
+  "new": "Gone from Heads Up (§Q.4: one place). The Missed sheet row: \"{Name}\" · time · area, whole row ticks it, one capsule \"Ask Again\"",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-03",
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "\"Asking again at 8:15 AM\"",
+  "new": "\"Asking Again at 8:15 AM\"",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-04",
+  "file": "jarvis-app/src/today/TodayFlow.tsx",
+  "old": "(no toast on ticking a reminder from the strip)",
+  "new": "\"Marked Done\" · Undo",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-05",
+  "file": "jarvis-app/src/today/RemindersStrip.tsx",
+  "old": "Reminder name as typed (\"take meds\")",
+  "new": "Reminder name shown in Title Case (\"Take Meds\"); stored unchanged",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-06",
+  "file": "jarvis-app/src/tasks/momentum.ts",
+  "old": "\"Same category\"",
+  "new": "\"Same Area\"",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-07",
+  "file": "jarvis-app/src/tasks/screens/TasksPage.tsx",
+  "old": "Keep Going row aria-label \"Open {task}\"; row tap opens the edit sheet",
+  "new": "aria-label \"Start {Task}\"; the whole row starts the task (same door as its Start capsule); title shown in Title Case",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-08",
+  "file": "jarvis-app/src/tasks/screens/TaskSheet.tsx",
+  "old": "\"{Area} is the main one\"",
+  "new": "\"{Area} Is the Main One\"",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-09",
+  "file": "jarvis-app/src/tasks/screens/TaskSheet.tsx",
+  "old": "When and Where: \"Not set\"",
+  "new": "\"Not Set\"",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-10",
+  "file": "jarvis-app/src/tasks/screens/TaskSheet.tsx",
+  "old": "Goal row: a read-only value \"None\" / \"{Goal}\" (no chevron); Person and Event rows absent on screens with no list",
+  "new": "Goal row is a menu on every screen: \"None\" + live goals (\"Search Goals\"), or the project's goal opening the Project menu (\"Search Projects\"); Person and Event rows always present, saying \"None\" with nothing to pick",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-11",
+  "file": "jarvis-app/src/tasks/screens/TaskSheet.tsx",
+  "old": "Project, Goal and Event titles as typed in the menus and on the row (\"kitchen remodel\")",
+  "new": "Shown in Title Case (\"Kitchen Remodel\"); each project option wears its area dot",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-12",
+  "file": "jarvis-app/src/schedule/screens/EventSheet.tsx",
+  "old": "Travel and Buffer: \"10 min\", \"20 min\", \"30 min\", \"45 min\"",
+  "new": "\"10 Min\", \"20 Min\", \"30 Min\", \"45 Min\"",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-13",
+  "file": "jarvis-app/src/schedule/screens/EventSheet.tsx",
+  "old": "(no Project row)",
+  "new": "Where group: \"Project\" row, \"None\" + projects by area then name with \"Search Projects\", each with its area dot; titles shown in Title Case",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-14",
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "Project row line 2 (one grey): \"1 done · Next: Draft th… · today\" (\"Next: {task}\" grey, chips \"1 done\" / \"2 late\")",
+  "new": "Line 2: amber \"NEXT\" + \"{Task Step}\" in white, Title Case, whole step shown; line 3: \"1 Done\" green, \"2 Late\" red, \"TODAY\"/\"TOMORROW\" amber, or small-caps day",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-15",
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "Project titles as typed (\"Final visual polish\")",
+  "new": "Shown in Title Case (\"Final Visual Polish\")",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-16",
+  "file": "jarvis-app/src/categories/record.ts",
+  "old": "\"Most gets done on Wednesdays\" (a flat grey .area-fact sentence)",
+  "new": "record.insight \"Most Gets Done on Wednesdays\"; on the area page it is a NoticeCard: title \"Wednesdays Get the Most Done\", sub \"6 of 14 Done on Wednesdays\", action \"Line Up 3 for Wednesday\" (only when there is something to line up)",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-17",
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "(no receipt)",
+  "new": "Toast \"Lined Up 3 for Wednesday\" · Undo; long-press tune toasts \"Learned Day · More Often / Less Often / Off · Change It in Settings\"",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-18",
+  "file": "jarvis-app/src/bigger/GoalRowRuled.tsx",
+  "old": "Empty goal: \"Nothing under it yet\" (grey; silenced 2026-09-21)",
+  "new": "One capsule \"Add a Project\" on the empty goal's meter line, opening the add-project sheet already linked to that goal",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-19",
+  "file": "jarvis-app/src/bigger/reach.ts",
+  "old": "\"0 of 1 Projects done\"",
+  "new": "\"0 of 1 Projects Done\"",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-20",
+  "file": "jarvis-app/src/bigger/GoalRowRuled.tsx, ProjectRowRuled.tsx, ItemCard.tsx, BiggerPicturePage.tsx",
+  "old": "Goal and project titles and the NEXT step as typed (\"get my own facility\", \"Finalize details\")",
+  "new": "Shown in Title Case (\"Get My Own Facility\", \"Finalize Details\"); stored unchanged",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
+ },
+ {
+  "id": "TL-21",
+  "file": "jarvis-app/src/shared/casing.ts",
+  "old": "titleCase: \"Sleep 8h\" → \"Sleep 8H\"; \"six-month\" → \"Six-month\"",
+  "new": "A compact clock or count keeps its shape (\"Sleep 8h\"); a hyphenated pair takes both capitals (\"Six-Month\"), as lineCase already did (H2)",
+  "group": "passoff-today-life",
+  "phase": "passoff-today-life"
  }
 ]

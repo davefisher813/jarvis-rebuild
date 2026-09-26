@@ -5032,8 +5032,12 @@ body.selecting .voice-dock { display: none; }
 .rep-good-glyph { color: var(--good); }
 .rep-one { border: 1px solid var(--accent); }
 .rep-question { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); margin-top: var(--s-1h); }
-.rep-one-acts { display: flex; gap: var(--s-2h); margin-top: var(--s-3h); }
-.rep-one-acts .btn { flex: 1; }
+/* AMENDED 2026-09-26 (pass-off item 14): the pair wraps, so at type scale
+   1.4 two 50px labels stack rather than overflow the card (the same wrap
+   .plan-cta-pair took on Today); the This Week card's offer wears this same
+   pair now, so the two surfaces of the One Change agree. */
+.rep-one-acts { display: flex; flex-wrap: wrap; gap: var(--s-2h); margin-top: var(--s-3h); }
+.rep-one-acts .btn { flex: 1 1 auto; }
 .rep-one-foot { margin-top: var(--s-2h); }
 @media (prefers-reduced-motion: reduce) {
   .rep-hours i, .rep-stack i { transition: none; }
