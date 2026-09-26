@@ -73,30 +73,31 @@ export default function ProposedRow({
       >
         <span className={"sched-bar sched-bar-proposed cat-bd-" + slot} />
         <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
-        <div className="sched-body">
-          {/* THE CHECKBOX RODE DOWN WITH THE TITLE (2026-09-26, off Dave's
-              screenshot: "the check off box is in the wrong spot and
-              causing wrapping"). It used to sit here, between .sched-time
-              and .sched-body, back when both sat on one line. The ruled
-              theme's two-line row (this file untouched, ruled.css doing the
-              wrapping: .sched-body now .ruled .sched-row > .sched-body
-              { order: 1; flex: 1 0 100% }) left it stranded alone on line
-              one and pushed the title down to start flush left with
-              nothing beside it -- the title lost the very slot the comment
-              on onComplete calls out, "the lead slot, where the hand
-              already looks for it". .sched-title-line is that slot, and it
-              lives inside .sched-body now, so the two ride down to the
-              same line together on every theme, ruled included. */}
-          <div className="sched-title-line">
-            {onComplete && (
-              <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
-                aria-label={`Mark ${block.text} done`}
-                onClick={(e) => { e.stopPropagation(); onComplete(); }}>
-                <div className="task-check" />
-              </div>
-            )}
-            <div className="sched-title">{block.text}</div>
+        {/* THE CHECKBOX RIDES LINE ONE, LIKE THE GRIP (2026-09-26 correction,
+            off Dave's second screenshot: "did you even reference our
+            catalog... this was how the rows were originally, stacked the
+            same way just with the new styling"). The first pass paired it
+            with the title inside .sched-body, which pushed the title's own
+            line in by 44px while .sched-cat below it stayed flush left --
+            the two lines of one row no longer shared a left edge, the same
+            kind of mess as the original bug. DayRow and LockedRow already
+            answer this: .sched-grip is a direct .sched-row child, pinned to
+            the end of line one next to the time (ruled.css: margin-left:
+            auto; order: 0), leaving .sched-body's two lines flush with each
+            other on line two. .sched-check gets the identical treatment
+            here, so ProposedRow's title and category line up exactly the
+            way every other row's does, and the catalog's own law (J.6:
+            schedule rows lead with the time column) never gets a second
+            leading column to fight it. */}
+        {onComplete && (
+          <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
+            aria-label={`Mark ${block.text} done`}
+            onClick={(e) => { e.stopPropagation(); onComplete(); }}>
+            <div className="task-check" />
           </div>
+        )}
+        <div className="sched-body">
+          <div className="sched-title">{block.text}</div>
           <div className="sched-cat">
             <span className={"cat-dot cat-bg-" + slot} />
             {catName(block.category)}
