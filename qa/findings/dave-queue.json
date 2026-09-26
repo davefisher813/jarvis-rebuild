@@ -86,5 +86,11 @@
   "kind": "heads-up (applied, shown for approval)",
   "question": "Applied from the Colour Key; say if you want any of it back. Today's stat tiles: the Late tile is red from the first late task (it was amber for one or two); the Due tile is amber (it was grey); Brain's area Done tile is green (it was grey). Events stay grey.",
   "default": "keep as applied"
+ },
+ {
+  "id": "bp-foot",
+  "phase": "css",
+  "question": "The white footer text on pale goal/project cards measures 2.8 to 4.5:1. Add a dark fade under the footer?",
+  "default": "add the fade"
  }
 ]
