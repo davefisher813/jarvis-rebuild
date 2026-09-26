@@ -180,6 +180,48 @@ Changes he chose:
 - A day count that runs forward ("3 days left") is amber; slipped is red.
 - "25 min last time" on the Event sheet is a one-tap fill for Travel.
 
+## Decided by Dave (2026-09-26, pass-off Batch 1): never reopen these
+
+Casing, the whole rule (Dave: "After dots and numbers is always title
+casing"; "Make sure all cases are addressed (ex: 45 min v 45 Min)"):
+- Every word the app writes is Title Case: titles, row names, buttons,
+  heads, chips, AND every grey sub line and facts line. The start of a line,
+  the part after every middle dot, and the word after every number all
+  follow it. Small words (a, an, and, at, by, for, from, in, of, on, or, the,
+  to, with) stay lowercase mid-phrase; the first and last word are always
+  capitalized.
+  - "Saves About 8 Min · Never Your Main Lift"
+  - "Sep 14 · Food and Beverage Store"
+  - "2 of 5 Lifts", "45 Min" (never "45 min"), "310 of 325 Lb"
+- Sentence case stays only where the app is talking in sentences:
+  chat, notes' bodies, onboarding and check-in prompts, and a field note
+  that is a full sentence.
+- His own typed titles (tasks, notes, projects, goals, events) are SHOWN in
+  Title Case everywhere. What he typed is stored unchanged; only the display
+  is re-cased.
+- One shared formatter owns this; a law scans every sub-line builder and
+  literal so "45 min" cannot come back.
+
+Colour (Dave: "Keep the key but add stuff that requires colors or add to
+color logic"): the Colour Key stands. A plain page gets colour by showing
+something that carries meaning (a status, a trend, an amount in or out, an
+area's own colour on its tile), or by a new meaning added to the key and
+written into §AM. Never decorative colour with no meaning.
+
+Life's "Keep Going" row: make it real. The whole row opens and starts that
+task, and the same task is hidden from the list below while the suggestion
+shows, so nothing appears twice.
+
+Reminders on Today: the next 3 upcoming by time, then one red "N Missed"
+row that opens a list where each missed reminder is ticked off in one tap.
+See All handles the rest.
+
+Goals with nothing under them: the empty line is one short tap-red action,
+"Add a Project", that opens the add sheet already linked to that goal.
+
+Pass-off item 15: the numbered-bullet casing note does not match its
+screenshot (the Money page); skip it. The Money colour pass still happens.
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report
