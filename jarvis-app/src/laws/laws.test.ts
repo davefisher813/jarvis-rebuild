@@ -5616,7 +5616,11 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     // Meta type is taller than the 19px clamp: it would be sliced. AMENDED
     // 2026-09-18 (Catalog V5): the size is --t-caption now, the one stop the
     // whole small end reads from, rather than a 12.5 written here alone.
-    expect(r).toMatch(/font-size:\s*var\(--t-caption\)/);
+    // AMENDED 2026-09-25 (§AM F4/F5): 13 was a third subtext size and a
+    // second grey beside the recurrence. It is the cue's 11px small caps now,
+    // still shorter than the clamp.
+    expect(r).toMatch(/font-size:\s*var\(--t-eyebrow\)/);
+    expect(r).toMatch(/text-transform:\s*uppercase/);
     // The 44px expansion is 13px of transparent border top and bottom, which
     // inside a clipped 19px line is cut off, and uncut would reach into the
     // title's own tap target. The full target lives on the sheet.

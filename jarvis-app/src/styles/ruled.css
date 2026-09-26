@@ -296,7 +296,11 @@
    full target on the sheet, which is where a source is actually opened from
    with a thumb. On the row it stays a tap, just a row-sized one, exactly as
    the person beside it already is. */
-.ruled .r-k-one > .prov-line { flex: 0 0 auto; font-size: var(--t-caption);
+/* §AM F4/F5 (2026-09-25): 13px was a third size, and beside the recurrence
+   it was a second grey. It takes the cue's letterform, 11px small caps,
+   which is shorter than the clamp, so nothing is sliced. */
+.ruled .r-k-one > .prov-line { flex: 0 0 auto; font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase;
   color: var(--tx-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border-top: 0; border-bottom: 0; margin-block: 0; line-height: inherit; }
 /* §AM (2026-09-25): a source that opens is a tap, so it wears the colour
@@ -436,14 +440,24 @@
    project can close (Dave 2026-09-13). The name keeps the task-name clamp. */
 .ruled .proj-row-ruled .proj-line1 { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
 .ruled .proj-row-ruled .proj-line1 > .task-name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ruled .proj-row-ruled .proj-close { flex-shrink: 0; align-self: center; margin: -4px 0; padding: var(--s-1) var(--s-3); font-size: var(--t-caption); }
+/* Close is the app's capsule as it stands (§AL, 2026-09-25): its 14px label,
+   its sides, and the -5px that pays its 44 box back. This rule drew a 13px
+   capsule with narrower sides and a -4px margin, so the one Close on a
+   finished project was the only capsule in the list drawn smaller. Measured:
+   the title line is 34 tall at text size 1.0 and 1.4 alike, and the name at
+   1.4 (29px) still sits inside it. */
+.ruled .proj-row-ruled .proj-close { flex-shrink: 0; align-self: center; }
 /* A goal row (Dave 2026-09-13): what moves it on line two, the count the bar
    draws on the line over the bar with the status at its right edge. */
 .ruled .goal-row-ruled .goal-sub { margin-top: var(--s-1); }
 /* The Projects lens's All / Paused chips (Dave 2026-09-13): a chooser, so
    filled chips, sitting between the segments and the first area card. */
 .ruled .proj-filters { padding-top: var(--s-1); }
-.ruled .goal-row-ruled .goal-proj { color: var(--cat-sky); font-weight: var(--w-semi); }
+/* The count of projects moving a goal is a number with no state, so it is
+   white (§AM, 2026-09-25). It wore sky, which means an estimate. Not green:
+   the count includes projects that are behind, and a check-in on the same
+   line can already be green. */
+.ruled .goal-row-ruled .goal-proj { color: var(--tx-1); }
 .ruled .goal-row-ruled .goal-meter { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1h); min-width: 0; }
 .ruled .goal-row-ruled .goal-meter > .r-goal { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tx-3); }
 .ruled .task-row .goal-meter > .r-goal b { color: var(--tx-1); font-weight: var(--w-semi); }
@@ -493,9 +507,11 @@
 /* THE NEXT MOVE, ON LINE TWO (Dave 2026-09-13: "three lines of white and
    gray text... there needs to be some color coding"). A sky small-caps label,
    then the action in full ink, the one thing on the line allowed to ellipse;
-   the status chip beside it keeps its width. */
+   the status chip beside it keeps its width. The action is a fact, so it is
+   the fact size, 14, like the facts beside and under it (§AM F4, 2026-09-25);
+   it was 13, which is neither subtext size. */
 .ruled .r-next-in { display: inline-flex; align-items: baseline; gap: var(--s-1h); flex: 1 1 auto; min-width: 0;
-  font-size: var(--t-caption); }
+  font-size: var(--t-sub); }
 /* NEXT is orange (Dave 2026-09-13: "next should be yellow in my opinion or
    orange"), on a project row and on a goal row's next milestone alike. */
 .ruled .r-next-k { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
@@ -740,8 +756,10 @@
    would re-create the wrap in Dave's 2026-09-22 screenshot; rendered at
    Dynamic Type 1.4 the line breaks in the SAME place at both sizes, and the
    separator travels with the place name either way (the .sched-fact wrap).
-   So the theory was wrong and the rung goes. */
-.ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: var(--t-sub); }
+   So the theory was wrong and the rung goes.
+   The repeat and an untappable time are not on this list: they are small
+   caps at 11 (components.css), and this rule would lift them back to 14. */
+.ruled .sched-cat, .ruled .sched-sep, .ruled .sched-until-btn { font-size: var(--t-sub); }
 .ruled .sched-cat .cat-dot { width: 7px; height: 7px; }
 .ruled .sched-rep, .ruled .sched-until { white-space: nowrap; } /* an item wraps whole or not at all */
 /* ONE GREY, EVER (§AK, tightened to V5.2 on 2026-09-22). The meta line reads
@@ -751,7 +769,8 @@
    THE WEIGHT CAME OFF (§AM). V5.1 let the length and the repeat carry
    semibold instead of a real distinction; V5.2 pulled that exemption, because
    --tx-2 and --tx-3 are the same hex and a heavier grey is still the one
-   grey. The repeat is the line's one grey now and nothing else on it is. */
+   grey. The place is the line's one regular grey; the repeat and a time
+   that cannot be tapped are small caps (2026-09-25). */
 .ruled .sched-until-btn { font-weight: var(--w-semi); }
 /* The divider starts where the row's content starts, which is the rail's
    own inset now rather than the far side of a gutter that is gone. */
@@ -933,7 +952,9 @@
 .ruled .ins-acts .see-all { min-height: var(--tap-min); display: inline-flex; align-items: center;
   margin-block: -13px; padding: 0; }
 .ruled .ins-ev { margin-top: var(--s-2); }
-.ruled .ins-sub { font-size: var(--t-micro); color: var(--tx-2); }
+/* A value is a fact, so it is the fact size (§AM F4, 2026-09-25). It was 11px
+   in sentence case, and 11px is for the uppercase kicker beside it. */
+.ruled .ins-sub { font-size: var(--t-sub); color: var(--tx-3); }
 /* What changed: label left, the move right, in one aligned column. */
 .ruled .ins-rows { margin-top: var(--s-2h); }
 /* The set table inside an All Data row. The disclosure keeps its 44px
@@ -944,18 +965,26 @@
 /* A ramp or a drop in the set table: named, present, and quieter than the
    work, which is the only thing the count above was ever about (D3-A). */
 .ruled .ad-sets .ins-k.ad-warm { color: var(--tx-3); }
-.ruled .ins-row { display: flex; align-items: center; gap: var(--s-2h); padding: var(--s-1h) 0; }
+/* THE LABEL NEVER GIVES WAY TO THE VALUE (2026-09-25). The label grew from a
+   zero basis, so a value wider than the row took all of it: Method and Sets
+   measured 0px wide at 390 on the Evidence and Basis tables, the value with
+   no name. The label now starts at its own width and grows to push a short
+   value to the right edge; a value that cannot fit beside it wraps onto its
+   own line underneath, where it reads as the sentence it is. */
+.ruled .ins-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-0h) var(--s-2h); padding: var(--s-1h) 0; }
 .ruled .ins-row + .ins-row { border-top: 0.5px solid var(--divider); }
-.ruled .ins-row .ins-k { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .ins-row .ins-k { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .ins-move { display: inline-flex; align-items: center; gap: var(--s-2); flex-shrink: 0;
   font-size: var(--t-caption); color: var(--tx-3); font-variant-numeric: tabular-nums; }
 .ruled .ins-move b { font-weight: var(--w-semi); color: var(--tx-1); }
 .ruled .ins-arrow { width: 14px; height: 1.5px; background: var(--tx-4); position: relative; display: inline-block; }
 .ruled .ins-arrow::after { content: ""; position: absolute; right: 0; top: -2.5px; width: 6px; height: 6px;
   border-top: 1.5px solid var(--tx-4); border-right: 1.5px solid var(--tx-4); transform: rotate(45deg); }
-.ruled .ins-line { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--tx-2); }
-/* The source and the caveat: shaded, italic, and last. Present, never loud. */
-.ruled .ins-cite { margin-top: var(--s-2h); font-size: var(--t-micro); font-style: italic;
+.ruled .ins-line { margin-top: var(--s-2); font-size: var(--t-sub); color: var(--tx-3); }
+/* The source and the caveat: shaded, italic, and last. Present, never loud.
+   At the fact size like the line above it (§AM F4, 2026-09-25): 11px is the
+   uppercase kicker's, and this is a sentence. */
+.ruled .ins-cite { margin-top: var(--s-2h); font-size: var(--t-sub); font-style: italic;
   color: var(--tx-quiet); }
 .ruled .vol-card { padding: var(--s-3h) var(--s-4) var(--s-1h); }
 .ruled .vol-row { display: flex; align-items: center; gap: var(--s-2h); padding: var(--s-2) 0; }
@@ -1197,7 +1226,13 @@
 .ruled .money-hero-card > .money-hero + .task-row { position: relative; border-top: 0; }
 .ruled .money-hero-card > .money-hero + .task-row::before { content: ""; position: absolute; left: var(--s-4); right: 0; top: 0;
   height: 0.5px; background: var(--divider); pointer-events: none; }
-.ruled .money-hero-label { font-size: var(--t-caption); color: var(--tx-3); font-weight: var(--w-regular); }
+/* The hero's two quiet lines were both 13px grey, one over the number and one
+   under it (2026-09-25). The line under it is a fact, so it is the fact size,
+   14 (§AM F4); the one over it names the number, so it is a kicker, 11px caps
+   (F4), and caps is what keeps it from being a second grey (§AK V5.2). */
+.ruled .money-hero-label { font-size: var(--t-sub); color: var(--tx-3); font-weight: var(--w-regular); }
+.ruled .money-hero > .money-hero-label:first-child { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-eyebrow); text-transform: uppercase; }
 .ruled .money-hero-total { font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.1;
   font-variant-numeric: tabular-nums; margin: var(--s-0h) 0 var(--s-1); }
 .ruled .money-hero-total + .money-hero-label { margin: 0; }
@@ -1217,7 +1252,10 @@
    keeps its sign and stays out of red (L1, red is a verb), and no longer
    drops to a second grey to say it. */
 .ruled .task-row .money-amt.money-neg { color: var(--tx-1); }
-.ruled .task-row .money-amt.paid { color: var(--tx-2); }
+/* PAID IS GREEN (§AM, 2026-09-25). A paid bill's amount was --tx-2 beside
+   "Paid Sep 1" in --tx-3: the same hex, two greys differing only by weight.
+   The key gives paid green, and the amount is what was paid. */
+.ruled .task-row .money-amt.paid { color: var(--good); }
 .ruled .task-row .bill-pay { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-medium); padding-left: var(--s-2h); }
 .ruled .task-row .budget-add { flex-shrink: 0; }
 .ruled .task-row .budget-add .input { height: 34px; font-size: calc(14px * var(--type-scale)); }
@@ -1236,7 +1274,12 @@
    Earlier), quiet like Today's. The page glyph is gone from the line row;
    the dot is the colour. */
 .ruled .note-row { cursor: pointer; }
-.ruled .note-row .r-k .r-when { flex-shrink: 0; color: var(--tx-2); }
+/* When it was touched is a neutral date, so it is small caps in the row's
+   grey (§AM F5, the same numbers as the date fact, 2026-09-25): caps is the
+   distinction, which a second 14px grey beside the area never was. */
+.ruled .note-row .r-k .r-when { flex-shrink: 0; font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
+  font-variant-numeric: tabular-nums; }
 .ruled .note-row .sel-box { margin: 0; }
 /* THE OLD EXCEPTION NEVER FOLLOWED THE ROW IT WAS WRITTEN FOR (2026-09-22).
    "Bridge Invitational Item List" lost a fifth of itself at 320px on the
@@ -1342,10 +1385,16 @@
   font-family: var(--f); font-size: calc(16px * var(--type-scale)); color: var(--tx-2); text-align: right; }
 .ruled .set-field::placeholder { color: var(--tx-2); }
 .ruled .set-gap { margin-top: var(--s-5); }
-.ruled .set-foot { padding-top: var(--s-2); font-size: var(--t-caption); color: var(--tx-3); line-height: 1.45; }
+/* The note under a settings card is the field note (§AM F6, 2026-09-25): its
+   size, ink and italic, so it reads like the one HealthSettingsPage and
+   TrainingPage already draw with the field note's own class. It was 13px. */
+.ruled .set-foot { padding-top: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); font-style: italic; line-height: 1.45; }
 .ruled .set-card > .set-act .conn-name { color: var(--tint); }
 .ruled .set-card > .set-quiet .conn-name { color: var(--tx-3); }
-.ruled .set-card > .set-sub .conn-name { font-size: calc(14px * var(--type-scale)); color: var(--tx-3); }
+/* A sub-row is demoted by SIZE only (2026-09-25). Its name wore the grey as
+   well, so "Tokens Today" and its value were two greys on one row, and the
+   one grey belongs to the value. */
+.ruled .set-card > .set-sub .conn-name { font-size: calc(14px * var(--type-scale)); }
 .ruled .set-card > .row-act { margin: var(--s-1) auto; }
 .ruled .set-card > .row-act:disabled { opacity: 0.4; }
 /* THE SAME QUESTION browserWalk.test.ts ALREADY ASKED (2026-09-22). A bare
@@ -1356,7 +1405,10 @@
    card, not to --tint itself, because --tint is right everywhere else it is
    read -- this ground is what changed, not the brand's one red. */
 [data-theme="dark"] .ruled .set-card .btn { color: var(--tint-on-sheet); }
-.ruled .row-act-pill { font-size: var(--t-caption); }
+/* The one capsule that painted 13px (2026-09-25): every capsule's label is
+   14 (§AL, restating §AJ C1), so this now only restates that. It stays until
+   its one call site drops the class, which a class with no rule may not do. */
+.ruled .row-act-pill { font-size: var(--t-meta); }
 .ruled .legal-card { padding: var(--s-2) var(--s-4); }
 .ruled .legal-card .legal-body { padding-bottom: var(--s-2); }
 .ruled .set-card.about-hero, .ruled .set-card.account-hero { padding: var(--s-6) var(--s-4); }
@@ -1397,14 +1449,17 @@
    column); the notes wear the note row. */
 .ruled.person-ruled .person-hero { padding-bottom: var(--s-2); }
 .ruled.person-ruled .person-notes .note-body { padding: var(--s-3) var(--s-4); }
-.ruled.person-ruled .kv-val { color: var(--tx-3); }
+/* A fact's value is the fact line (§AM F4, 2026-09-25): 14px at its weight.
+   The base value is 15px semibold, and this only greyed it, which drew the
+   one grey bolded at a third size. */
+.ruled.person-ruled .kv-val { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 /* Connections (2026-09-02): quiet heads over the grouped cards; the second
    card a breath below the first. */
 .ruled .list-card-ruled.conn-mail-card { margin-top: var(--s-3); }
 /* Chat (2026-09-02): the Try head is the quiet caps head; the provenance
    line under a bubble is the ruled row's quiet grey, not a caps eyebrow. */
 .ruled.chat-ruled .chat-starter-head { padding-left: 0; padding-right: 0; }
-.ruled.chat-ruled .chat-prov { text-transform: none; letter-spacing: 0; font-size: var(--t-caption); font-weight: var(--w-regular); color: var(--tx-3); }
+.ruled.chat-ruled .chat-prov { text-transform: none; letter-spacing: 0; font-size: var(--t-sub); font-weight: var(--w-regular); color: var(--tx-3); }
 .ruled.chat-ruled .chat-jarvis { background: var(--press-3); }
 /* Search (2026-09-02): every result list is a card, every head the quiet
    caps head, same as the screens the results open. */
@@ -1580,10 +1635,13 @@
    on two wherever it can be said in two. */
 .ruled .rdy-why { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); line-height: 1.45; margin-top: var(--s-1); }
 .ruled .rdy-why b { font-weight: var(--w-semi); color: var(--tx-1); }
+/* The gate is a number with no state, so it is white at the fact size
+   (§AM, 2026-09-25). It was a 13px grey beside the reading, which had
+   already spent the row's one grey. */
 .ruled .rdy-n { flex-shrink: 0; align-self: flex-start; margin-top: 1px;
-  font-size: var(--t-caption); font-weight: var(--w-medium);
-  color: var(--tx-3); font-variant-numeric: tabular-nums; text-align: right; }
-/* The have, against the gate behind it. Quiet ink is the resting state: a
+  font-size: var(--t-sub); font-weight: var(--w-medium);
+  color: var(--tx-1); font-variant-numeric: tabular-nums; text-align: right; }
+/* The have, against the gate behind it. White is the resting state: a
    detector that is simply waiting is not a warning. */
 .ruled .rdy-n b { font-weight: var(--w-semi); color: var(--tx-1); }
 .ruled .rdy-n.rdy-good b { color: var(--good); }
@@ -1621,13 +1679,12 @@
 .ruled.health-ruled .btn-primary { background: var(--accent-fill); color: #fff; }
 .ruled.health-ruled .btn-danger, .ruled.health-ruled .btn-destructive { background: var(--red); color: #fff; }
 
-/* Section heads: the caps stay quiet, but the count chip beside them takes
-   the ramp so a page of five sections reads as five things, not one wall. */
-.ruled.health-ruled .sh2 .n { color: var(--hl-cyan-ink); }
-/* The head's action capsule (Program, Reorder, History, Add, Superset) wore
-   cyan here until 2026-09-25. Cyan means now, the live set, in the Colour
-   Key, and a capsule that opens something means neither. It takes the app's
-   head capsule instead, white on the raised grey, like every other head. */
+/* Section heads wore cyan here until 2026-09-25, on their count and on their
+   action capsule (Program, Reorder, History, Add, Superset). Cyan means now,
+   the live set, in the Colour Key; a count has no state and a capsule that
+   opens something means neither. The count keeps the head's own quiet ink
+   and the capsule takes the app's head capsule, white on the raised grey,
+   like every other head. */
 
 /* A PR is the loudest good thing the gym can say. */
 .ruled.health-ruled .gstat-good, .ruled.health-ruled .pill-good {
@@ -1979,8 +2036,9 @@
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-2); margin-top: var(--s-1h); }
 
 /* An exercise note is the athlete's own words, so it is italic and shaded
-   rather than another grey fact line. */
-.ruled.health-ruled .se-note { font-size: var(--t-caption); font-style: italic;
+   rather than another grey fact line. At the fact size (§AM F4, 2026-09-25);
+   it was 13px. */
+.ruled.health-ruled .se-note { font-size: var(--t-sub); font-style: italic;
   color: var(--tx-quiet); margin-top: var(--s-2); }
 
 /* HOW IT MOVED: three meanings, three colours, at rest AND when picked. A
@@ -2098,8 +2156,11 @@
 /* A DOOR SAYS ONE THING, IN ITS HUE. */
 .ruled.health-ruled .h-door-v { flex-shrink: 0; margin-right: var(--s-1h); font-size: calc(14px * var(--type-scale));
   font-weight: var(--w-semi); color: var(--hl-blue-ink); }
-.ruled.health-ruled .h-when { flex-shrink: 0; margin-left: var(--s-2); font-size: var(--t-caption);
-  font-weight: var(--w-semi); color: var(--tx-2); font-variant-numeric: tabular-nums; }
+/* The day a task was done is a neutral date: small caps in the row's grey,
+   the date fact's numbers (§AM F5, 2026-09-25). It was 13px semibold grey. */
+.ruled.health-ruled .h-when { flex-shrink: 0; margin-left: var(--s-2); font-size: var(--t-eyebrow);
+  font-weight: var(--w-semi); letter-spacing: var(--track-caps); text-transform: uppercase;
+  color: var(--tx-3); font-variant-numeric: tabular-nums; }
 
 /* A FINDING'S KIND IS A WORD, NOT A PILL, and nothing glows (R5). */
 .ruled.health-ruled .ins-chip { background: transparent; padding: 0; }
@@ -2110,12 +2171,16 @@
    the shared goal row keeps its look on every other page. */
 .ruled.health-ruled .gkind, .ruled.health-ruled .gstat { background: transparent; padding: 0; border-radius: 0; box-shadow: none; }
 
-/* THE CREATES, AT THE FOOT. One compact row, centred, three capsules. */
+/* THE CREATES, AT THE FOOT. One compact row, centred, three capsules.
+   The capsule (§AL, 2026-09-25): the capsule fill, the action red on label
+   and plus alike, and the capsule's 14px label. They were 13px white words
+   on the alpha press fill with only the plus in red. */
 .ruled.health-ruled .h-adds { display: flex; flex-wrap: nowrap; justify-content: center; gap: var(--s-2); margin-top: var(--s-6); margin-bottom: var(--s-4); }
 .ruled.health-ruled .h-add { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h); min-height: 36px; padding: 0 var(--s-3h); white-space: nowrap;
-  border: 0; border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); font-family: var(--f);
-  font-size: var(--t-caption); font-weight: var(--w-semi); cursor: pointer; }
-.ruled.health-ruled .h-add .ic { width: 14px; height: 14px; color: var(--tint); stroke-width: 2.6; }
+  border: 0; border-radius: var(--r-pill); background-color: var(--capsule-fill); color: var(--tint); font-family: var(--f);
+  font-size: var(--t-meta); font-weight: var(--w-semi); cursor: pointer; }
+[data-theme="light"] .ruled.health-ruled .h-add { color: var(--on-light-red); }
+.ruled.health-ruled .h-add .ic { width: 14px; height: 14px; color: currentColor; stroke-width: 2.6; }
 /* THE LOG (H-48, Health Push C, 2026-09-12): today's entries, the glyph in
    the entry's hue on its tint, the time in the same hue, one fact beside it. */
 .ruled.health-ruled .h-log-row { gap: var(--s-2h); }
@@ -2123,7 +2188,7 @@
   display: inline-flex; align-items: center; justify-content: center; background: var(--h-tint); color: var(--h-hue); }
 .ruled.health-ruled .h-log-ico .ic { width: 15px; height: 15px; }
 /* One quiet receipt under the log (H-53): what is still waiting to sync. */
-.ruled.health-ruled .h-sync { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--tx-2); }
+.ruled.health-ruled .h-sync { margin-top: var(--s-2); font-size: var(--t-sub); color: var(--tx-3); }
 
 /* HEALTH PUSH D (2026-09-12 picks; built 2026-09-13). The effort blocks get
    their two ends named in the quiet text colour; and the Skip under them
@@ -2193,9 +2258,11 @@
    the header facts. Same fields, same ramp, same tokens. */
 .ruled.health-ruled .se-grid { display: flex; align-items: center; gap: var(--s-1h); margin-top: var(--s-1); }
 .ruled.health-ruled .se-grid .set-field { width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
-/* The unit is a label on a field, not a fact: it carries weight (§AK), so
-   the "Last:" line under the fields is the row's one regular grey. */
-.ruled.health-ruled .se-grid-u { font-size: var(--t-caption); color: var(--tx-3); font-weight: var(--w-semi); }
+/* The unit is a label on a field, not a fact, so it is a kicker: 11px caps
+   (§AM F4, 2026-09-25). Weight alone no longer sets it apart (§AK V5.2), and
+   caps does, so the "Last:" line under the fields stays the row's one grey. */
+.ruled.health-ruled .se-grid-u { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase; color: var(--tx-3); }
 /* A GHOST ROW IN LIGHT SITS ON THE CARD, NOT ON A WASH (2026-09-22). The
    press wash under the unfilled sets put "Match" -- the light red, the one
    red words may wear there -- on a grey at 4.07:1. The ring already says the
@@ -2433,7 +2500,10 @@
 .ruled .ex-cell { min-width: 84px; }
 .ruled .ex-cell-n { color: var(--tx-1); font-size: calc(20px * var(--type-scale)); font-weight: var(--w-bold);
   font-variant-numeric: tabular-nums; line-height: 1.1; overflow-wrap: anywhere; }
-.ruled .ex-cell-k { color: var(--tx-3); font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi); }
+/* What the number is, as the kicker under it: 11px is the kicker's size only
+   in caps (§AM F4, 2026-09-25), so it takes the eyebrow's caps. */
+.ruled .ex-cell-k { color: var(--tx-3); font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-eyebrow); text-transform: uppercase; }
 
 /* THE LIVE SESSION'S PLAN, ON TODAY (2026-09-14, Dave: "when I hit start
    workout ... renders what we drew up"). The card used to be a bookmark with
@@ -2741,9 +2811,13 @@
    survives whatever the title does (measured against the two worst names in
    the bench: "Reynolds & Rowella General Manager..." and the 34-letter one). */
 .ruled .bp-card-foot { flex-shrink: 0; display: flex; flex-direction: column; gap: var(--s-1); margin-top: auto; padding-top: var(--s-2); }
+/* The card's two facts at the fact size, 14 (§AM F4, 2026-09-25); they were
+   13. They take the card's own white rather than a raw near-white of their
+   own: the ground is a fixed colour in both themes, so the key's greys
+   cannot sit on it, and the card already names the one ink that can. */
 .ruled .bp-card-lead, .ruled .bp-card-n {
-  font-size: var(--t-caption); font-weight: var(--w-sub);
-  color: rgba(255, 255, 255, 0.92);
+  font-size: var(--t-sub); font-weight: var(--w-sub);
+  color: inherit;
 }
 /* THE NEXT ACTION WRAPS (2026-09-18). It was one line with an ellipsis, so
    six of nine real projects read "Next: Go to Bradfor..." -- the one line on
@@ -2753,10 +2827,13 @@
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 /* The count is short by construction ("8 of 10 tasks"), so it stays one line.
-   It carries weight (§AK, 2026-09-21): the lead above it is the card's one
-   regular secondary line, and a count in the same ink and weight under it
-   read as two of the same thing on every goal card. */
-.ruled .bp-card-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: var(--w-semi); }
+   It is small caps (§AK V5.2, 2026-09-25): the lead above it is the card's
+   one plain line, and a count in the same ink under it read as two of the
+   same thing on every goal card. Weight was the only difference, and weight
+   alone is not one; caps is, the same caps a neutral date wears. */
+.ruled .bp-card-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; }
 /* A thin bar, and only where it is earned: a project's real task count, or a
    goal's Measure. Never a goal's task completion (see ItemCard). */
 .ruled .bp-card-bar {

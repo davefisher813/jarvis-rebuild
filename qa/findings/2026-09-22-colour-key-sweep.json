@@ -1944,7 +1944,7 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 129,
   "phase": "1-css",
   "needs_dave": false
@@ -2364,7 +2364,7 @@
   "fix_file": "src/styles/mail-rows.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 157,
   "phase": "1-css",
   "needs_dave": false
@@ -2394,7 +2394,7 @@
   "fix_file": "src/styles/mail-rows.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 159,
   "phase": "1-css",
   "needs_dave": false
@@ -5934,7 +5934,7 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx + src/styles/editor.css",
   "law_risk": "none (capsuleLaw only checks .pill-act rules use background-color; no new fill rule)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 395,
   "phase": "1-css",
   "needs_dave": false
@@ -5949,7 +5949,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 396,
   "phase": "1-css",
   "needs_dave": false
@@ -6009,7 +6009,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 400,
   "phase": "1-css",
   "needs_dave": false
@@ -6024,7 +6024,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "subtextLaw 'no subtext class survives without a call site': keep at least the CopyFallback/AISheet call sites or delete the rule if every .exp-note moves to .input-hint",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 401,
   "phase": "1-css",
   "needs_dave": false
@@ -6054,7 +6054,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 403,
   "phase": "1-css",
   "needs_dave": false
@@ -6219,7 +6219,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 414,
   "phase": "1-css",
   "needs_dave": false
@@ -7824,7 +7824,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 521,
   "phase": "1-css",
   "needs_dave": false
@@ -7839,7 +7839,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 522,
   "phase": "1-css",
   "needs_dave": false
@@ -7854,7 +7854,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 523,
   "phase": "1-css",
   "needs_dave": false
@@ -7929,7 +7929,7 @@
   "fix_file": "src/styles/jarvis-design-system.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 528,
   "phase": "1-css",
   "needs_dave": false
@@ -7974,7 +7974,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 531,
   "phase": "1-css",
   "needs_dave": false
@@ -7989,7 +7989,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 532,
   "phase": "1-css",
   "needs_dave": false
@@ -9474,7 +9474,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 631,
   "phase": "1-css",
   "needs_dave": false
@@ -9489,7 +9489,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 632,
   "phase": "1-css",
   "needs_dave": false
@@ -9504,7 +9504,7 @@
   "fix_file": "src/styles/uniformity.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 633,
   "phase": "1-css",
   "needs_dave": false
@@ -9534,7 +9534,7 @@
   "fix_file": "src/styles/mail-rows.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 635,
   "phase": "1-css",
   "needs_dave": false
@@ -9549,7 +9549,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx + src/styles/mail-rows.css",
   "law_risk": "none (do not colour the separator --tx-4: laws.test.ts 'the structure ink never colours text' allows only .r-cue::before and .fact + .fact::before)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 636,
   "phase": "1-css",
   "needs_dave": false
@@ -9594,7 +9594,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 639,
   "phase": "1-css",
   "needs_dave": false
@@ -9609,7 +9609,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 640,
   "phase": "1-css",
   "needs_dave": false
@@ -9624,7 +9624,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 641,
   "phase": "1-css",
   "needs_dave": false
@@ -9639,7 +9639,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 642,
   "phase": "1-css",
   "needs_dave": false
@@ -9654,7 +9654,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 643,
   "phase": "1-css",
   "needs_dave": false
@@ -9669,7 +9669,7 @@
   "fix_file": "src/styles/mail-rows.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 644,
   "phase": "1-css",
   "needs_dave": false
@@ -9684,7 +9684,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 645,
   "phase": "1-css",
   "needs_dave": false
@@ -9699,7 +9699,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 646,
   "phase": "1-css",
   "needs_dave": false
@@ -9744,10 +9744,11 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none (background, not color, so laws.test.ts' --tx-4 text law does not apply)",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 649,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed before I started, by the earlier editor.css batch (finding 531). `.doc-pm .doc-callout::before` is already `background: var(--tx-4)`, the grey the blockquote rule uses, and has a comment."
  },
  {
   "file": "src/styles/jarvis-design-system.css",
@@ -9759,7 +9760,7 @@
   "fix_file": "src/styles/jarvis-design-system.css",
   "law_risk": "none (browserWalk.test.ts:568 lists '.ruled .sched-time .ampm', a different rule)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 650,
   "phase": "1-css",
   "needs_dave": false
@@ -9774,7 +9775,7 @@
   "fix_file": "src/styles/editor.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 651,
   "phase": "1-css",
   "needs_dave": false
@@ -9789,7 +9790,7 @@
   "fix_file": "src/styles/mail-rows.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 652,
   "phase": "1-css",
   "needs_dave": false
@@ -9804,7 +9805,7 @@
   "fix_file": "src/styles/mail-rows.css",
   "confidence": "high",
   "id": 653,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css"
@@ -9819,7 +9820,7 @@
   "fix_file": "src/styles/mail-rows.css",
   "confidence": "high",
   "id": 654,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css"
@@ -9834,10 +9835,11 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "high",
   "id": 655,
-  "status": "pending",
+  "status": "rejected",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Already fixed before I started (finding 640). `.doc-save` is already `font-size: var(--t-sub); color: var(--tx-3)`. `.doc-save.failed` stays --sys-red, which is correct: a failed save is 'missed'."
  },
  {
   "file": "src/shared/DocEditor.tsx",
@@ -9849,10 +9851,11 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "high",
   "id": 656,
-  "status": "pending",
+  "status": "rejected",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Already fixed before I started (findings 643 and 523), though not the way the finding suggested. `.doc-paste .doc-paste-k` is now an 11px uppercase kicker: `var(--t-eyebrow)`, semibold, `--track-eyebrow`, `text-transform: uppercase`, `--tx-3`. R7 explicitly allows that as the second size. It is a style change, not a wording change."
  },
  {
   "file": "src/notes/screens/ExportSheet.tsx",
@@ -9864,10 +9867,11 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "high",
   "id": 657,
-  "status": "pending",
+  "status": "rejected",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Already fixed before I started. `.exp-format .exp-d` is already `font-size: var(--t-sub); color: var(--tx-3)`, so each format row has one grey line under its title."
  },
  {
   "file": "src/notes/screens/AISheet.tsx",
@@ -9879,10 +9883,11 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "high",
   "id": 658,
-  "status": "pending",
+  "status": "rejected",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Already fixed before I started. `.exp-note` is already `font-size: var(--t-sub); color: var(--tx-3)`, which covers every use: the AISheet status, the copy-fallback lines and the Export sheet notes. The separate question of whether the Filename note under the field should become .input-hint needs ExportSheet.tsx and is finding 638, not this one."
  },
  {
   "file": "src/notes/screens/ExportSheet.tsx",
@@ -9909,10 +9914,11 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "high",
   "id": 660,
-  "status": "pending",
+  "status": "rejected",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Already fixed before I started. `.doc-find-n` is already `font-size: var(--t-sub); color: var(--tx-3)`."
  },
  {
   "file": "src/tasks/screens/ReminderSheet.tsx",
@@ -9924,10 +9930,11 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "high",
   "id": 661,
-  "status": "pending",
+  "status": "rejected",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Already fixed before I started (finding 642). `.rem-read-k` is now an 11px uppercase kicker (--t-eyebrow, semibold, --track-eyebrow, --tx-3), which R7 allows. The wording is unchanged; only the case is styled."
  },
  {
   "file": "src/shared/DocEditor.tsx",
@@ -9939,10 +9946,11 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "high",
   "id": 662,
-  "status": "pending",
+  "status": "rejected",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Already fixed before I started (finding 631). `.doc-kai` is already `color: var(--tint-on-sheet)`, the same ink as `.doc-kdone` beside it. The finding suggested --tint, but --tint-on-sheet is the tap ink the design system assigns to the sheet-grey bar, where plain --tint measures 3.76:1 (BROWSER-F-10), so the current value is the better one."
  },
  {
   "file": "src/shared/DocEditor.tsx",
@@ -9954,7 +9962,7 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "high",
   "id": 663,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css"
@@ -9969,7 +9977,7 @@
   "fix_file": "src/styles/uniformity.css",
   "confidence": "high",
   "id": 664,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css"
@@ -9984,10 +9992,11 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "medium",
   "id": 665,
-  "status": "pending",
+  "status": "rejected",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Duplicate of 649, and already fixed: the callout bar is already var(--tx-4)."
  },
  {
   "file": "src/shared/docExtensions.ts",
@@ -9999,7 +10008,7 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "medium",
   "id": 666,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css"
@@ -10014,10 +10023,11 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "low",
   "id": 667,
-  "status": "pending",
+  "status": "rejected",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Already fixed before I started (finding 532). `.doc-pm mark` is on var(--warn-tint) and `.doc-pm .selectedCell::after` is on var(--press-5), so no Health ramp token is left in the editor. The highlighter is the writer's own formatting inside the document body, which the rulebook's Known legitimate list puts out of scope for subtext, so its yellow wash stays. I only reworded its comment, which had "
  },
  {
   "file": "src/shared/FormSheet.tsx",
@@ -10029,7 +10039,7 @@
   "fix_file": "src/styles/jarvis-design-system.css",
   "confidence": "medium",
   "id": 668,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css"
@@ -10044,7 +10054,7 @@
   "fix_file": "src/styles/jarvis-design-system.css",
   "confidence": "medium",
   "id": 669,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css"
@@ -10059,10 +10069,11 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "medium",
   "id": 670,
-  "status": "pending",
+  "status": "rejected",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Already fixed before I started (finding 414). `.exp-more summary` is already `font-size: var(--t-sub)`, not the raw calc(14px * var(--type-scale)), so it renders identically."
  },
  {
   "file": "src/notes/screens/NoteEditor.tsx",
@@ -10104,10 +10115,11 @@
   "fix_file": "src/styles/uniformity.css",
   "confidence": "low",
   "id": 673,
-  "status": "pending",
+  "status": "needs_dave",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "The user's own chat bubble is a brand-red fill: .bubble-user in onboarding and .chat-user in Chat. Should it stay that way under the Colour Key? Two rulings disagree here. On 2026-08-14 you approved the red user bubble (components.css:2581, 'chat-user rides the accent'), and laws.test.ts:971 explicitly exempts both .chat-user and .bubble-user as 'identity marks, not actions'. The 2026-09-22 key (R3) says --accent* on anything that cannot be tapped is a violation. If you keep the bubble red, it stays as a sanctioned exception and nothing changes. If you want it neutral, both bubbles have to mov"
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -10119,7 +10131,7 @@
   "fix_file": "src/styles/mail-rows.css",
   "confidence": "low",
   "id": 674,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css"
@@ -10134,7 +10146,7 @@
   "fix_file": "src/styles/editor.css",
   "confidence": "low",
   "id": 675,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "1-css"

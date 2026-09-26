@@ -4108,7 +4108,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             : <span className="mwhen">{fmtWhen(r.dateMs)}</span>}
         </div>
         <div className={"mline2" + (strong ? " strong" : "")}>
-          {gist ?? r.subject}{!gist && r.count > 1 ? " \u00b7 " + r.count : ""}
+          {gist ?? r.subject}{!gist && r.count > 1 && <><span className="sched-sep">{"\u00b7"}</span><b>{r.count}</b></>}
           {g.accounts.length > 1 && r.account && <span className="macct">{acctLabel(r.account)}</span>}
         </div>
       </div>

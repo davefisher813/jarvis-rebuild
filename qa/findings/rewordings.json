@@ -1,0 +1,18 @@
+[
+ {
+  "id": 522,
+  "file": "jarvis-app/src/styles/editor.css",
+  "old": "content: \" \u00b7 Task\"",
+  "new": "content: \"Task\" (drawn as TASK by text-transform, with a 6px margin in place of the baked-in middot)",
+  "group": "editor.css#1",
+  "phase": "css-small"
+ },
+ {
+  "id": 663,
+  "file": "jarvis-app/src/styles/editor.css",
+  "old": "content: \" \u00b7 Task\"",
+  "new": "content: \"Task\" (drawn uppercase by text-transform)",
+  "group": "editor.css#2",
+  "phase": "css-small"
+ }
+]

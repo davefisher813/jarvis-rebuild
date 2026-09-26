@@ -416,9 +416,15 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     const rule = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
       .find((m) => /color:\s*var\(--tint-on-sheet\)/.test(m[2]!));
     expect(rule, "something has to take the token").toBeTruthy();
-    for (const sel of [".sheet-bar-save", ".row-act", ".note-fix", ".toast-action"]) {
+    for (const sel of [".sheet-bar-save", ".note-fix", ".toast-action", ".see-all", ".prov-link"]) {
       expect(rule![1], `${sel} is on the sheet-red list`).toContain(sel);
     }
+    // AMENDED 2026-09-25 (§AL): the capsule left this list. Its label sits on
+    // its own opaque --capsule-fill now, not on the sheet grey (--tint on
+    // #17171A is 4.82:1), and a capsule reads the same on a sheet as off one.
+    // .see-all and .prov-link joined it: §AM made them the tap red, and they
+    // sit straight on the sheet grey.
+    expect(rule![1], "the capsule keeps its own red label on a sheet").not.toMatch(/\.row-act(?![\w-])/);
     // The .btn variants declare their own ink against their own fill; taking
     // this token would invert .btn-danger's white on red.
     expect(rule![1]).toMatch(/:not\(\.btn-danger\)/);
@@ -564,7 +570,11 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
     // in --warn and the value in --tx-1. The old rule was never deleted, so
     // for nine days this law measured the quiet ink of a line no screen drew.
     // There is no successor to list here: nothing in that row is quiet now.
-    const LIVE = [".prop-tag", ".sched-sep", ".focus-skip", ".rep-hint", ".doc-count",
+    // AMENDED 2026-09-25 (§AM): .focus-skip left this list. "Not This One"
+    // is a tap, and the key gives a tap that is not button-shaped the red.
+    const skip = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === ".focus-skip")?.[2];
+    expect(skip, "Not This One wears the tap red").toMatch(/color:\s*var\(--tint\)/);
+    const LIVE = [".prop-tag", ".sched-sep", ".rep-hint", ".doc-count",
       ".receipt-line", ".ruled .sched-time .ampm", ".ruled .wk-w", ".ruled .sched-now .t"];
     for (const sel of LIVE) {
       const body = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === sel)?.[2];
@@ -599,11 +609,16 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   it("the deliberately dimmed states recede to secondary, never to --tx-4", () => {
     const all = (css() + read("styles/ruled.css")).replace(/\/\*[\s\S]*?\*\//g, "");
     const rules = [...all.matchAll(/([^{}]+)\{([^}]*)\}/g)];
-    for (const sel of [".cal-cell.out", ".rem-row.done .rem-name", ".ruled .task-row .money-amt.paid"]) {
+    for (const sel of [".cal-cell.out", ".rem-row.done .rem-name"]) {
       const body = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === sel)?.[2];
       expect(body, `${sel} is still in the sheet`).toBeTruthy();
       expect(body, `${sel} is a past state and recedes to secondary`).toMatch(/color:\s*var\(--tx-2\)/);
     }
+    // AMENDED 2026-09-25 (§AM): a paid amount left this list. Beside "Paid
+    // Sep 1" in --tx-3 it was a second grey of the same hex, and the key
+    // gives paid green.
+    const paid = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === ".ruled .task-row .money-amt.paid")?.[2];
+    expect(paid, "a paid amount is the key's green").toMatch(/color:\s*var\(--good\)/);
   });
 });
 

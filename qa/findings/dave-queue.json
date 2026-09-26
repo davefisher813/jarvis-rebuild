@@ -1,0 +1,14 @@
+[
+ {
+  "id": 414,
+  "question": "Should disclosure labels wear the tap colour, or stay the one grey? One rule (.exp-more summary) draws 13 of them: Preview and More Options on Export, the three reminder sheets (\"Area, Linked Action and Follow-up\", \"More Actions\", \"Why This Appeared\"), Gym's and Library's \"About\u2026\" sections, Classify, and \"The Sets\" on every All Data and Insights row. Today they are grey with a chevron mark in front. The Colour Key gives a tappable control that is not button-shaped the tap red. But \u00a7AL says every tappable control that is not the primary is a capsule, and the Export sheet is catalogued with one red (Export File). If they take the tap colour, sheets must use --tint-on-sheet (white in dark, dark red in light), pages use --tint, and components.css .rem-more > summary { color: var(--tx-2) } has to follow. The size half of this finding is already applied.",
+  "group": "editor.css#1",
+  "phase": "css-small"
+ },
+ {
+  "id": 673,
+  "question": "The user's own chat bubble is a brand-red fill: .bubble-user in onboarding and .chat-user in Chat. Should it stay that way under the Colour Key? Two rulings disagree here. On 2026-08-14 you approved the red user bubble (components.css:2581, 'chat-user rides the accent'), and laws.test.ts:971 explicitly exempts both .chat-user and .bubble-user as 'identity marks, not actions'. The 2026-09-22 key (R3) says --accent* on anything that cannot be tapped is a violation. If you keep the bubble red, it stays as a sanctioned exception and nothing changes. If you want it neutral, both bubbles have to move together to the same fill, for example var(--sel-bg) / var(--sel-fg). That means editing components.css .chat-user as well as uniformity.css .bubble-user. Moving only the onboarding bubble would make it disagree with the Chat screen, so I left both alone.",
+  "group": "uniformity.css#1",
+  "phase": "css-small"
+ }
+]

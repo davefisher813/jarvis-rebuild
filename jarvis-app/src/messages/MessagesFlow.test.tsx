@@ -153,7 +153,9 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
-    expect(screen.getByText(/Waiver · 2/)).toBeInTheDocument(); // subject without Re:, with count
+    // Subject without Re:, with count. The count is its own <b> behind a drawn
+    // separator now (§AM R6/F1, 2026-09-25), so the line is read whole.
+    expect(screen.getAllByText((_, el) => /^Waiver·2$/.test((el?.textContent ?? "").replace(/\s+/g, "")) && !!el?.classList.contains("mline2")).length).toBeGreaterThan(0);
     expect(screen.getByText("DoorDash")).toBeInTheDocument();
   });
 

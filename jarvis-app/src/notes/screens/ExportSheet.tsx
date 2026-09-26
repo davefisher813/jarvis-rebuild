@@ -93,7 +93,7 @@ export default function ExportSheet({ doc, title, selection = false, images, att
           <div className="field">
             <div className="input-label">Filename</div>
             <input className="input exp-name" aria-label="Filename" value={stem} onChange={(e) => setStem(e.target.value)} onBlur={() => setStem(cleanStem(stem) || "Note")} />
-            <div className="exp-note">{filename}</div>
+            <div className="input-hint">{filename}</div>
           </div>
           <div className="field">
             <div className="input-label">Format</div>

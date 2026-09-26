@@ -34,14 +34,23 @@
 .doc-pm ul[data-type="taskList"] > li { display: flex; align-items: flex-start; gap: var(--s-2h); min-height: 44px; }
 .doc-pm ul[data-type="taskList"] > li > label { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; cursor: pointer; }
 .doc-pm ul[data-type="taskList"] > li > label input { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; margin: 0; border-radius: var(--r-circle); border: 1.5px solid var(--tx-4); background: transparent; display: grid; place-items: center; }
-.doc-pm ul[data-type="taskList"] > li > label input:checked { background: var(--accent); border-color: var(--accent); }
+/* A ticked line is done, and done is green (§AM): the same fill as every
+   other done check in the app, not the red that means tap me. */
+.doc-pm ul[data-type="taskList"] > li > label input:checked { background: var(--good-fill); border-color: var(--good-fill); }
 .doc-pm ul[data-type="taskList"] > li > label input:checked::after { content: ""; width: 6px; height: 11px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg) translateY(-1px); }
 .doc-pm ul[data-type="taskList"] > li > div { flex: 1; min-width: 0; padding-top: var(--s-2h); }
 .doc-pm ul[data-type="taskList"] > li[data-checked="true"] > div { text-decoration: line-through; color: var(--tx-2); }
-.doc-pm ul[data-type="taskList"] > li[data-task-id] > div::after { content: " · Task"; font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--hl-cyan); letter-spacing: 0.02em; }
+/* A checklist line that became a task wears a small-caps tag, the kicker
+   size in the row's one grey (§AM F4, F5): it cannot be tapped and means
+   nothing the key has a colour for, and the Health cyan it wore read 1.4:1 on
+   the light page. It follows the line's paragraph, a block, so it takes the
+   line under the words, flush with them; no dot is drawn in the string. */
+.doc-pm ul[data-type="taskList"] > li[data-task-id] > div::after { content: "Task"; font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); }
 .doc-pm blockquote { margin: 0; padding: var(--s-0h) 0 var(--s-0h) var(--s-3h); border-left: 3px solid var(--tx-4); color: var(--tx-1); }
 .doc-pm .doc-callout { display: flex; gap: var(--s-2h); padding: var(--s-3) var(--s-3h); border-radius: var(--r-md); background: var(--surface-2); }
-.doc-pm .doc-callout::before { content: ""; flex-shrink: 0; width: 4px; border-radius: var(--r-xxs); background: var(--accent); }
+/* The callout's bar is structure, the same grey as the quote's rule: brand
+   red is for what answers a tap (§AM), and this does not. */
+.doc-pm .doc-callout::before { content: ""; flex-shrink: 0; width: 4px; border-radius: var(--r-xxs); background: var(--tx-4); }
 .doc-pm .doc-callout > * { flex: 1; min-width: 0; }
 .doc-pm .doc-callout > * + * { margin-top: var(--s-2); }
 .doc-pm pre { margin: 0; padding: var(--s-3); border-radius: var(--r-md); background: var(--surface-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: calc(14px * var(--type-scale)); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -49,12 +58,14 @@
 .doc-pm pre code { background: none; padding: 0; font-size: inherit; }
 .doc-pm hr { border: 0; border-top: 0.5px solid var(--divider); margin: var(--s-3) 0; }
 .doc-pm a { color: var(--tint); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
-.doc-pm mark { background: var(--hl-amber-tint); color: inherit; border-radius: var(--r-xxs); padding: 0 1px; }
+/* The highlighter is the writer's own yellow, on the app's own amber wash
+   rather than the Health ramp (the Health inks live on Health, §AM). */
+.doc-pm mark { background: var(--warn-tint); color: inherit; border-radius: var(--r-xxs); padding: 0 1px; }
 .doc-pm s { color: var(--tx-2); }
 .doc-pm table { border-collapse: collapse; width: 100%; table-layout: fixed; border: 0.5px solid var(--divider); border-radius: var(--r-md); overflow: hidden; font-size: calc(15px * var(--type-scale)); }
 .doc-pm th, .doc-pm td { border: 0.5px solid var(--divider); padding: var(--s-2) var(--s-2h); vertical-align: top; text-align: left; min-width: 60px; }
 .doc-pm th { font-weight: var(--w-semi); background: var(--press-1); }
-.doc-pm .selectedCell::after { content: ""; position: absolute; inset: 0; background: var(--hl-cyan-tint); pointer-events: none; }
+.doc-pm .selectedCell::after { content: ""; position: absolute; inset: 0; background: var(--press-5); pointer-events: none; }
 .doc-pm td, .doc-pm th { position: relative; }
 .doc-pm .ProseMirror-selectednode { outline: 2px solid var(--tint); outline-offset: 2px; border-radius: var(--r-sm); }
 /* The cue on an empty document only (never on every empty line): out of
@@ -65,9 +76,9 @@
 .doc-pm .ProseMirror-gapcursor::after { border-top: 1px solid var(--tx-1); }
 
 /* The save line: one fact, never a spinner, never before the write returns. */
-.doc-save { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-caption); color: var(--tx-2); min-height: 20px; margin-top: var(--s-2); }
+.doc-save { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-sub); color: var(--tx-3); min-height: 20px; margin-top: var(--s-2); }
 .doc-save.failed { color: var(--sys-red); }
-.doc-save .pill-action { margin-left: var(--s-1); }
+.doc-save .pill-act { margin-left: var(--s-1); }
 
 /* THE WRITING BAR: fixed to the top of the keyboard through the visual
    viewport (shared/viewport.ts writes --vv-top and --vv-h). With no keyboard
@@ -95,7 +106,9 @@
 .doc-kbtn:disabled { color: var(--tx-2); }
 .doc-kbtn.on { background: var(--press-3); }
 .doc-kword { padding: 0 var(--s-3h); }
-.doc-kdone { color: var(--tint); }
+/* The bar is the sheet grey, where --tint reads 3.76:1 (BROWSER-F-10), so
+   its tap words take the sheet's tap ink. */
+.doc-kdone { color: var(--tint-on-sheet); }
 .doc-kgrow { flex: 1; }
 .doc-kmenu { display: flex; gap: var(--s-2); padding: var(--s-2) var(--s-3); overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none; border-bottom: 0.5px solid var(--divider); }
 .doc-kmenu::-webkit-scrollbar { display: none; }
@@ -144,7 +157,7 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
    paste reads as Markdown, Undo. Never a dialog, never a second prompt. */
 .doc-paste { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-3); border-bottom: 0.5px solid var(--divider); overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none; }
 .doc-paste::-webkit-scrollbar { display: none; }
-.doc-paste .doc-paste-k { font-size: var(--t-caption); color: var(--tx-2); flex-shrink: 0; }
+.doc-paste .doc-paste-k { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-eyebrow); text-transform: uppercase; color: var(--tx-3); flex-shrink: 0; }
 .doc-paste .chip { flex-shrink: 0; min-height: 36px; }
 
 /* THE EXPORT SHEET (wave 2): a filename field, four formats as rows with
@@ -154,17 +167,19 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
 .exp-formats { display: grid; gap: var(--s-2); }
 .exp-format { display: flex; align-items: center; gap: var(--s-3); width: 100%; min-height: 52px; padding: var(--s-2) var(--s-3); border-radius: var(--r-md);
   background: var(--surface-2); border: 1.5px solid transparent; color: var(--tx-1); font-family: var(--f); text-align: left; }
-.exp-format.on { border-color: var(--tint); }
+/* The picked format inverts like every picked control (the selection
+   doctrine, 2026-08-02): picked is not a tap, so it is never the red. */
+.exp-format.on { border-color: var(--sel-bg); }
 .exp-format .ic { width: 20px; height: 20px; flex-shrink: 0; }
 .exp-format .exp-k { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
-.exp-format .exp-d { font-size: var(--t-caption); color: var(--tx-2); margin-top: 1px; }
+.exp-format .exp-d { font-size: var(--t-sub); color: var(--tx-3); margin-top: 1px; }
 .exp-format .exp-t { flex: 1; min-width: 0; }
 .exp-format .exp-ring { width: 20px; height: 20px; border-radius: var(--r-circle); border: 1.5px solid var(--tx-4); flex-shrink: 0; display: grid; place-items: center; }
-.exp-format.on .exp-ring { border-color: var(--tint); background: var(--tint); }
-.exp-format.on .exp-ring::after { content: ""; width: 6px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translateY(-1px); }
-.exp-note { font-size: var(--t-caption); color: var(--tx-2); line-height: 1.4; margin-top: var(--s-2); }
+.exp-format.on .exp-ring { border-color: var(--sel-bg); background: var(--sel-bg); }
+.exp-format.on .exp-ring::after { content: ""; width: 6px; height: 10px; border: solid var(--sel-fg); border-width: 0 2px 2px 0; transform: rotate(45deg) translateY(-1px); }
+.exp-note { font-size: var(--t-sub); color: var(--tx-3); line-height: 1.4; margin-top: var(--s-2); }
 .exp-more { margin-top: var(--s-2); }
-.exp-more summary { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-2); cursor: pointer; padding: var(--s-2) 0; list-style: none; min-height: 44px; display: flex; align-items: center; }
+.exp-more summary { font-size: var(--t-sub); font-weight: var(--w-semi); color: var(--tx-2); cursor: pointer; padding: var(--s-2) 0; list-style: none; min-height: 44px; display: flex; align-items: center; }
 .exp-more summary::-webkit-details-marker { display: none; }
 .exp-more summary::before { content: ""; display: inline-block; width: 7px; height: 7px; border-right: 1.5px solid var(--tx-4); border-bottom: 1.5px solid var(--tx-4); transform: rotate(-45deg); margin: 0 var(--s-2h) var(--s-0h) var(--s-0h); transition: transform var(--dur-fast) var(--ease-out); }
 .exp-more[open] summary::before { transform: rotate(45deg); }
@@ -187,13 +202,16 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
 .doc-pm .doc-heading-closed::after { content: " …"; color: var(--tx-2); font-weight: var(--w-regular); }
 .doc-write .doc-editor { padding-left: 0; }
 
-/* FIND IN NOTE (wave 3): every match on a tint, the current one stronger. */
-.doc-pm .doc-match { background: var(--hl-amber-tint); border-radius: var(--r-xxs); }
-.doc-pm .doc-match.current { background: var(--hl-amber); color: #000; }
+/* FIND IN NOTE (wave 3): every match on the quiet press wash, the one you
+   are on inverted like any picked thing. Not amber: a match is not "needs
+   you soon" (§AM), and amber is the highlighter's wash, so a match looked
+   the same as words the writer had highlighted. */
+.doc-pm .doc-match { background: var(--press-5); border-radius: var(--r-xxs); }
+.doc-pm .doc-match.current { background: var(--sel-bg); color: var(--sel-fg); }
 .doc-find { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: var(--s-2) 0; display: grid; gap: var(--s-2); border-bottom: 0.5px solid var(--divider); margin-bottom: var(--s-2); }
 .doc-find-row { display: flex; align-items: center; gap: var(--s-2); }
 .doc-find-row .input { flex: 1; min-width: 0; }
-.doc-find-n { font-size: var(--t-caption); color: var(--tx-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.doc-find-n { font-size: var(--t-sub); color: var(--tx-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .doc-find-row .pill-act { flex-shrink: 0; }
 
 /* THE OUTLINE (wave 3): headings as rows, indented by level. */
@@ -223,13 +241,16 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
 .sheet-form .doc-editor-quick .doc-pm { background: var(--surface-2); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); min-height: 60px; }
 
 /* JARVIS ON A SELECTION (wave 4): the word on the bar while words are
-   selected, in the reading hue; the preview's two panes. */
-.doc-kai { color: var(--hl-cyan); }
+   selected, in the tap ink its neighbour Done wears (the key has no AI
+   colour, and the Health cyan it wore read 1.5:1 on the light bar); the
+   preview's two panes. */
+.doc-kai { color: var(--tint-on-sheet); }
 .ai-original { max-height: 22vh; }
 .ai-result { max-height: 34vh; }
 
 /* THE REMINDER SHEET (the reminders rebuild, 2026-09-15): the quick read's
-   caption in front of its chips, and the disclosure that holds the rest. */
-.rem-read-k { font-size: var(--t-caption); color: var(--tx-2); align-self: center; white-space: nowrap; }
+   kicker in front of its chips (11 caps, §AM F4), and the disclosure that
+   holds the rest. */
+.rem-read-k { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-eyebrow); text-transform: uppercase; color: var(--tx-3); align-self: center; white-space: nowrap; }
 .rem-more { padding: 0 var(--s-4); }
 .rem-more > summary { padding: var(--s-2) 0; }

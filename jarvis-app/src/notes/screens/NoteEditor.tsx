@@ -390,7 +390,7 @@ export default function NoteEditor({
   };
 
   const saveLine =
-    saveState === "failed" ? <span className="doc-save failed" role="status">Couldn't save{onRetrySave && <button type="button" className="pill-action" onClick={onRetrySave}>Retry</button>}</span>
+    saveState === "failed" ? <span className="doc-save failed" role="status">Couldn't save{onRetrySave && <button type="button" className="pill-act" onClick={onRetrySave}>Retry</button>}</span>
     : saveState === "saving" ? <span className="doc-save" role="status">Saving</span>
     : saveState === "synced" ? <span className="doc-save" role="status">Synced</span>
     : saveState === "saved" ? <span className="doc-save" role="status">Saved on device</span>
