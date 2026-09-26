@@ -24,8 +24,11 @@ describe("routineBlockCandidate", () => {
   it("offers a block after three similar one-off events", () => {
     const c = routineBlockCandidate([gymWeek(1), gymWeek(2), gymWeek(3)], DEFAULT_ROUTINE, NOW);
     expect(c).not.toBeNull();
-    expect(c!.text).toContain("Gym · Around 6 AM"); // SPEC MOVED (short copy, 2026-08-15)
-    expect(c!.text).toContain("times this month");
+    // SPEC MOVED (Colour Key F3, 2026-09-26): no typed dots in the line, and
+    // the count moved to the sub.
+    expect(c!.text).toMatch(/^Gym around 6 AM /);
+    expect(c!.text).not.toMatch(/\u00b7/);
+    expect(c!.sub).toBe("3 Times this month");
     expect(c!.block).toMatchObject({ label: "Gym", startMin: 360, endMin: 420 });
     expect(c!.block.days.length).toBeGreaterThan(0);
   });

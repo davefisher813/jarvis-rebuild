@@ -151,7 +151,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 
 /* v2.2 GATE color: category tile glyph size + file-type color glyphs (Files-app convention) */
 .proj-icon .ic { width: 16px; height: 16px; }
-.fg-good{color:var(--good);flex-shrink:0} .fg-red{color:var(--sys-red);flex-shrink:0} .fg-blue{color:var(--blue);flex-shrink:0} .fg-warn{color:var(--warn);flex-shrink:0}
+.fg-good{color:var(--good);flex-shrink:0} .fg-warn{color:var(--warn);flex-shrink:0}
 
 /* ============================================================
    v2.3  R3: Maps / Notifications / Money / Charts.
@@ -365,7 +365,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .detail-head { padding: 0 var(--s-4) var(--s-2); }
 .doc { padding: var(--s-4); }
 /* 44pt list rows, 12pt vertical (iOS single-line cell), 16pt leading */
-.row, .task-row, .conn-row, .msg-row, .sched-row, .proj-row, .suggestion-row, .lifemap-row { padding: var(--s-3) var(--s-4); min-height: var(--tap-min); }
+.row, .task-row, .conn-row, .msg-row, .sched-row, .suggestion-row, .lifemap-row { padding: var(--s-3) var(--s-4); min-height: var(--tap-min); }
 /* keep the player / voice / convo blocks on the 16pt margin too */
 .np, .np-meta, .np-context, .np-head, .volume, .np-tools, .convo, .convo-actions, .lockin, .voice-screen { padding-left: var(--s-4); padding-right: var(--s-4); }
 /* type-ahead completion chips under the search bar */

@@ -2,6 +2,7 @@ import type { EventItem } from "../schedule/types";
 import type { RoutineData, ProtectedBlock } from "../routine/types";
 import { daysSummary } from "../routine/types";
 import { todayISO as isoOf } from "../schedule/calendar";
+import { capAfterNumber } from "../shared/casing";
 
 // The routine that builds itself (2026-08-09). Dave: "it should know your
 // routine life." The honest version of that is not a longer intake form, it
@@ -18,7 +19,8 @@ const DEFAULT_DUR = 60;
 
 export interface RoutineCandidate {
   id: string;    // dismiss-memory key, stable per title
-  text: string;  // the JARVIS Noticed line
+  text: string;  // the JARVIS Noticed line: what, and when
+  sub: string;   // the evidence under it: how often it happened
   block: ProtectedBlock; // ready to append to routineData.protectedBlocks
 }
 
@@ -92,7 +94,11 @@ export function routineBlockCandidate(
     const location = evs.map((e) => e.data.location?.trim()).find((l) => !!l);
     return {
       id: "routine-" + title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40),
-      text: `${title} · Around ${min12h(startMin)} ${daysSummary(days)} · ${evs.length} times this month`,
+      // THE LINE SAYS WHAT, THE SUB SAYS HOW OFTEN (Colour Key F3,
+      // 2026-09-26). Three facts were packed into the title with typed dots;
+      // the count is evidence, and the card already has a sub to carry it.
+      text: `${title} around ${min12h(startMin)} ${daysSummary(days)}`,
+      sub: capAfterNumber(`${evs.length} times this month`),
       block: {
         id: "pb_learned_" + Math.abs(startMin * 7 + days.length) + "_" + title.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 20),
         label: title, startMin, endMin, days,

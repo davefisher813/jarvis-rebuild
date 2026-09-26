@@ -22,18 +22,25 @@ import { dayPhrase } from "../money/bills";
 // On, on Today, and in the deck.
 
 export type LedgerSide = "you_owe" | "they_owe";
+/** Where a row came from. Said outright so a reader never has to parse it
+ *  back out of the key or the sort key. */
+export type LedgerKind = "task" | "promise" | "waiting" | "chase";
 
 export interface LedgerRow {
   key: string;
   side: LedgerSide;
+  kind: LedgerKind;
   /** The person, when the app knows who: a display name, never invented. */
   who: string;
   /** What is outstanding, in the words it was recorded in. */
   what: string;
   /** "Since Tuesday" / "9 days". The row's own age, never a score. */
   since: string;
-  /** Sorts the row: the day it is due, or the day it started. */
+  /** Sorts the row: the day it is due, or the day it started. Ordering
+   *  only; read `due` for the date itself. */
   sortKey: string;
+  /** The day it is due (ISO), on a task or promise that has one. */
+  due?: string;
   /** Past its date, either side. */
   late: boolean;
   /** The thread it came from, when there is one. */
@@ -94,12 +101,14 @@ export function buildLedger(input: LedgerInput): Ledger {
     rows.push({
       key: "task:" + t.id,
       side: "you_owe",
+      kind: "task",
       who: "",
       what: t.text,
       // §AK: a line that says nothing is not written. "No date" was grey text
       // with no information in it, under every undated row you owe.
       since: due ? capAfterNumber(titleCase("Due " + dayPhrase(due, today))) : "",
       sortKey: due || "9999-12-31",
+      ...(due ? { due } : {}),
       late: !!due && due < today,
       ...(t.fromThread ? { threadId: t.fromThread } : {}),
       taskId: t.id,
@@ -111,10 +120,12 @@ export function buildLedger(input: LedgerInput): Ledger {
     rows.push({
       key: "promise:" + p.threadId,
       side: "you_owe",
+      kind: "promise",
       who: "",
       what: titleCase(p.text),
       since: p.due ? capAfterNumber(titleCase("Due " + dayPhrase(p.due, today))) : "You said you would",
       sortKey: p.due || "9999-12-31",
+      ...(p.due ? { due: p.due } : {}),
       late: !!p.due && p.due < today,
       threadId: p.threadId,
       ...(p.personId ? { personId: p.personId } : {}),
@@ -134,6 +145,7 @@ export function buildLedger(input: LedgerInput): Ledger {
     rows.push({
       key: "waiting:" + w.threadId,
       side: "they_owe",
+      kind: "waiting",
       who: w.to,
       what: w.subject,
       since: sinceLabel(w.days),
@@ -155,6 +167,7 @@ export function buildLedger(input: LedgerInput): Ledger {
     rows.push({
       key: "chase:" + c.threadId,
       side: "they_owe",
+      kind: "chase",
       who: c.to,
       what: c.subject,
       since: "You asked me to",

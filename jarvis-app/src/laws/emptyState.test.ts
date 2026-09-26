@@ -117,6 +117,12 @@ const ACTION_ON_SCREEN: Record<string, string> = {
   "schedule/screens/PlanDaySheet.tsx · #1": "the sheet's own add field is below it, and the sub says so only when it exists",
   "messages/MessagesFlow.tsx · Connect Your Email": "the connect action is the very next block, in .conn-action",
   "schedule/ScheduleFlow.tsx · #1": "a sheet whose own bar carries the action",
+  // AMENDED 2026-09-26 (Colour Key sweep, lead decision #373): Health's
+  // findings card said it had nothing as a placeholder ROW, a row with
+  // nothing to say (§AK V5.2). It is an in-card empty state now, and its
+  // door is Log Something in the actions directly under the card; a second
+  // one inside would be the duplicate door this roster exists to refuse.
+  "brain/HealthBody.tsx · Nothing to Read Yet": "Log Something sits under this card, on this screen",
 };
 
 // REAL DEBT. The action exists but lives on ANOTHER screen, so these fail L7
@@ -124,7 +130,10 @@ const ACTION_ON_SCREEN: Record<string, string> = {
 // callback plumbed from its parent, which is a change to make deliberately
 // and not in a sweep. Listed so the number can only go down.
 const ACTION_ELSEWHERE: Record<string, string> = {
-  "life/tabs/AreasTab.tsx · #1": "says 'Add one in Settings > Categories' in words; needs an onOpenCategories prop",
+  // AMENDED 2026-09-26 (Colour Key sweep, lead decision #465): the same dead
+  // end, renamed. It was bare text with a typed dot gluing a title to a sub,
+  // so it had no title to key on; it has one now. Still debt, same reason.
+  "life/tabs/AreasTab.tsx · No Areas Yet": "says 'Add one in Settings > Categories' in words; needs an onOpenCategories prop",
   "gym/LiftDetailScreen.tsx · No Numbers Yet": "needs the log-a-set door for this exercise",
   "gym/HistoryScreen.tsx · No Numbers Yet": "same door",
   "gym/HistoryScreen.tsx · No Sessions Yet": "needs the start-a-session door",

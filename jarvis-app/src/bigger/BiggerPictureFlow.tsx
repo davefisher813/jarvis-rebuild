@@ -20,7 +20,7 @@ import { attemptWrite } from "../shared/guard";
 import { unfileProject, refileProject, type UnfiledFromProject } from "../projects/unfile";
 import { unfileGoal, refileGoal, type UnfiledFromGoal } from "../life/unfileGoal";
 import GoalSheet from "../life/GoalSheet";
-import { rankProjects, projectPaceParts, projectProgress } from "./progress";
+import { rankProjects } from "./progress";
 import { reachOf, type GoalReach, fileableGoals } from "./reach";
 import { measureState, paceLine, healthOf, HEALTH_LABEL, type MeasureContext } from "./measure";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
@@ -28,7 +28,7 @@ import { supabase } from "../auth/supabaseClient";
 import type { WindowClient } from "../brain/window";
 import type { Workout } from "../gym/types";
 import type { MetricLog } from "../gym/metrics";
-import { holdLine, sizeOf, sizeLine } from "../projects/shape";
+import { holdLine } from "../projects/shape";
 import { openWorkOf } from "../today/goalPulse";
 import GoalDetailPage from "./GoalDetailPage";
 import { relatedProjectsForGoal, nextActionOf, isLinkDismissed, dismissLink } from "./related";
@@ -326,33 +326,6 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     setDismissTick((n) => n + 1);
     emit({ type: "suggestion.dismissed", props: { kind: "proj_step" } });
   };
-  // Catalog V4: banners are promo cards. Amber badge = stalled work.
-  const stalledOffer = stalled ? (
-    <div className="pad-x">
-      <div className="promo-card">
-        <div className="promo-head">
-          <div className="promo-badge b-amber">
-            <TargetGlyph />
-          </div>
-          <div className="promo-body">
-            <div className="promo-title">{stalled.data.title}</div>
-            <div className="promo-sub">{projStep && projStep.projectId === stalled.id ? <>Start with: {projStep.step}</> : "Nothing is moving here."}</div>
-          </div>
-        </div>
-        {projStep && projStep.projectId === stalled.id ? (
-          <div className="promo-acts">
-            <button className="promo-pill quiet" onClick={projStepDismiss}>Not Now</button>
-            <button className="promo-pill" disabled={projStepBusy} onClick={() => void projStepAccept()}>{projStepBusy ? "Adding..." : "Add This Step"}</button>
-          </div>
-        ) : (
-          <div className="promo-acts">
-            <button className="promo-pill quiet" onClick={projStepDismiss}>Not Now</button>
-            <button className="promo-pill" onClick={() => void projStepAsk()} disabled={projStepBusy}>{projStepBusy ? "Thinking..." : "First Step"}</button>
-          </div>
-        )}
-      </div>
-    </div>
-  ) : null;
 
   // ---- The life frame (merged here 2026-08-26; model in review/life.ts) ----
   const evidenceOf = useCallback(
@@ -385,7 +358,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   // notice row"). On the Life tab the stalled-project ask wears the same
   // anatomy as a mail notice on Today: the tile in orange, the project's
   // name, one line of why, one pill. Not Now is the swipe. It sits in the
-  // list instead of over it. The promo card stays for the unlensed frame.
+  // list instead of over it.
   // THREE THINGS WERE WRONG WITH THIS ROW (Dave 2026-09-09: "why is there a
   // random goal at the top that I can't even click on? Remove this or give
   // the concept real value to the user and it has to be fully functional").
@@ -401,8 +374,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   // the project now.
   //
   // And it was showing on the Goals segment, where nothing else on screen is
-  // a project. The ask lives with its own kind: Projects, and the unlensed
-  // frame that shows both. See the `offer` gate in BiggerPicturePage.
+  // a project. The ask lives with its own kind: Projects. See the `offer`
+  // gate in BiggerPicturePage.
   const stalledRow = stalled ? (
     <div className="heads-up-stream stream-grouped one-ask-row">
       <div className="card stream-card">
@@ -421,7 +394,6 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       </div>
     </div>
   ) : null;
-  const oneAsk = segments ? stalledRow : stalledOffer;
 
   // Finishing something big earns a moment. Only on the TRANSITION into done:
   // saving an already-finished project must not re-congratulate anyone.
@@ -1056,22 +1028,15 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         goals={goals}
         reachOfGoal={reachOfGoal}
         measureOfGoal={(id: string) => { const g = goals.find((x) => x.id === id); return g ? measureState(g.data.measure, measureCtxFor(g)) : null; }}
-        extraOf={extraOf}
         statusOf={statusOf}
         checkinOf={checkinOf}
         projectRows={projectRows}
         // THE FRAME IS THE CATEGORIES (2026-08-29): same ids, Brain's order.
         sections={[...categories].sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0)).map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}
         loading={loading}
-        offer={oneAsk}
+        offer={stalledRow}
         nextActionTextOf={nextActionTextOf}
         holdLineOf={(id: string) => { const p = projects.find((x) => x.id === id); return p ? holdLine(p.data, today) : null; }}
-        sizeLineOf={(id: string) => sizeLine(sizeOf(tasks.filter((t) => t.data.projectId === id).map((t) => ({ done: !!t.data.done, category: t.data.category })), estimateFor))}
-        // UP-CORE-18 (2026-09-05): N left, D days, is the pace real. The same
-        // arithmetic paceLine does for a goal with a By date. In its parts
-        // (§AM, 2026-09-26), so the row can draw the date in its meaning's
-        // colour and the stylesheet can draw the dot.
-        paceLineOf={(id: string) => projectPaceParts(projectProgress(tasks, id), projects.find((p) => p.id === id)?.data.due, today)}
         // Single-goal default: with exactly one goal, a new project starts
         // linked to it, visibly, one tap to undo in the sheet. A default, not
         // a hidden action.

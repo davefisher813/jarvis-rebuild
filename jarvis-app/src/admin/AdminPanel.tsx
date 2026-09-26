@@ -188,14 +188,34 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
         <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">Nothing Sent Yet</div></div></div></div>
       ) : (
         <div className="pad-x"><div className="card">
-          {feedback.map((f) => (
-            <div className="row" key={f.id}>
-              <div className="row-grow">
-                <div className="conn-name adm-feedback">{f.text}</div>
-                <div className="conn-meta">{f.meta}{f.lastError ? " \u00b7 with the last error" : ""}</div>
+          {feedback.map((f) => {
+            // meta is build, template, device, in that order, empty parts
+            // left out. The sheet always sends a build ("dev" at worst), so
+            // the first part is the build.
+            const [build, ...from] = f.meta;
+            return (
+              <div className="row" key={f.id}>
+                <div className="row-grow">
+                  <div className="conn-name adm-feedback">{f.text}</div>
+                  {/* §AK/§AM: one grey on the line. The build number is a
+                      number with no state that is scanned for (which deploy
+                      a report predates), so it is white. An attached crash
+                      is red and comes before the context so the ellipsis
+                      never takes it. Template and device read as one fact,
+                      who sent it from where, and that is the row's one grey.
+                      The stylesheet draws the separators; no string carries
+                      one (F3). A row with none of these shows no line. */}
+                  {(build || f.lastError) && (
+                    <div className="facts">
+                      {build && <span className="fact"><b>{build}</b></span>}
+                      {f.lastError && <span className="fact red">Last error</span>}
+                      {from.length > 0 && <span className="fact">{from.join(" on ")}</span>}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div></div>
       )}
       {feedback !== null && feedback.length >= 50 && (

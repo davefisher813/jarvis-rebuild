@@ -165,7 +165,9 @@ export function findings(inp: FindingsInput): Finding[] {
   //    working sets against the period before.
   if (overview.sleep.nights >= 3 && overview.sleep.avgHours != null) {
     out.push({
-      id: "sleep", kind: "observation", hue: "violet",
+      // Lime, the Health key's logged ink: an average over nights he logged.
+      // Violet means a budget or a pair, and sleep is neither (§AM).
+      id: "sleep", kind: "observation", hue: "lime",
       title: "Sleep",
       value: hoursLabel(overview.sleep.avgHours),
       context: [capAfterNumber(`${overview.sleep.nights} of ${overview.period.days} nights logged`)],

@@ -42,7 +42,10 @@ export interface AdminBilling {
 export interface AdminFeedbackItem {
   id: string;
   text: string;
-  meta: string;
+  /** Build, template, device: one part each, empty parts left out. A list,
+      not a joined string, so the panel draws each as its own fact and the
+      stylesheet draws the separator (Colour Key F3, 2026-09-26). */
+  meta: string[];
   at: string;
   lastError: string | null;
 }
@@ -117,7 +120,7 @@ export function makeSampleAdminSource(): AdminService {
     async usage() { return { totalUsers: 3, activeUsers: 2, signups7d: 1, aiCalls30d: 42 }; },
     async billing() { return { mrr: 36, activeSubs: 2, trialing: 1, currency: "USD" }; },
     async feedback() {
-      return [{ id: "f_001", text: "The gym timer keeps running when I leave the screen.", meta: "abc1234 \u00b7 student \u00b7 iPhone", at: "2026-09-04T18:02:00.000Z", lastError: null }];
+      return [{ id: "f_001", text: "The gym timer keeps running when I leave the screen.", meta: ["abc1234", "student", "iPhone"], at: "2026-09-04T18:02:00.000Z", lastError: null }];
     },
     async metrics() {
       return {

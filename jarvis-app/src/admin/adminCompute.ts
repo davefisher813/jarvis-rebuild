@@ -135,9 +135,11 @@ export interface RawFeedback {
 export interface AdminFeedback {
   id: string;
   text: string;
-  /** "build · template · device", with the empty parts left out entirely
-      rather than rendered as blanks. */
-  meta: string;
+  /** Build, template, device, in that order, with the empty parts left out
+      entirely rather than rendered as blanks. A list, not a joined string:
+      the panel draws each part as its own fact and the stylesheet draws the
+      separator between them (Colour Key F3, 2026-09-26). */
+  meta: string[];
   at: string;
   lastError: string | null;
 }
@@ -157,7 +159,7 @@ export function mapFeedback(rows: RawFeedback[]): AdminFeedback[] {
   return rows.map((r) => ({
     id: r.id,
     text: r.text,
-    meta: [r.build, r.template, deviceName(r.device)].filter(Boolean).join(" · "),
+    meta: [r.build, r.template, deviceName(r.device)].filter((s): s is string => !!s),
     at: r.created_at,
     lastError: r.last_error || null,
   }));

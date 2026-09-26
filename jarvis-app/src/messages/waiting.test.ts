@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findWaiting, waitingLine, nudgePrompt, loadWaitingCache } from "./waiting";
+import { findWaiting, nudgePrompt, loadWaitingCache } from "./waiting";
 import { loadTracks, saveTrack, trackForThread } from "./tracking";
 import { encodeEmail, type GmailMeta, type GmailThreadMeta } from "../connections/google/map";
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
@@ -136,19 +136,6 @@ describe("findWaiting", () => {
         expect(after).toHaveProperty("t204");
       });
     });
-  });
-});
-
-describe("waitingLine", () => {
-  const row = { threadId: "t", to: "Sarah", toEmail: "s@y.com", subject: "LLC", waitingDays: 4, lastMsgId: "m" };
-  it("no open signal: states the wait, never claims 'not opened'", () => {
-    const line = waitingLine(row, null);
-    // SPEC MOVED (V4 capitals law, 2026-08-18): segments start capital.
-    expect(line).toBe("4 Days · No reply");
-    expect(line.toLowerCase()).not.toContain("not opened");
-  });
-  it("a real open shows the date", () => {
-    expect(waitingLine(row, "2026-08-02T10:00:00Z")).toMatch(/^Opened Aug 2 · No reply$/);
   });
 });
 

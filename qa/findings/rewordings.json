@@ -2904,5 +2904,229 @@
   "new": "iCloud / Account Sync [Off] with no meta line (the sync line shows only when sync is On)",
   "group": "code-48:data:useSyncState.ts",
   "phase": "code"
+ },
+ {
+  "item": "239",
+  "file": "src/health/checkin.ts",
+  "old": "Energy High \u00b7 Mood Good",
+  "new": "Energy High, Mood Good",
+  "phase": "code-finish",
+  "group": "finish-1"
+ },
+ {
+  "item": "92",
+  "file": "src/schedule/planClock.ts",
+  "old": "Plan tomorrow instead? (ClockVerdict.sub)",
+  "new": "(removed; it was not rendered anywhere, so nothing changes on screen)",
+  "phase": "code-finish",
+  "group": "finish-1"
+ },
+ {
+  "item": "84",
+  "file": "src/schedule/planLoad.ts",
+  "old": "loadLine: '8h open \u00b7 1 picked, fits' / '1h open \u00b7 1h 30m over'",
+  "new": "(helper deleted; it was not rendered anywhere, and PlanDaySheet already draws that line as .fact spans)",
+  "phase": "code-finish",
+  "group": "finish-1"
+ },
+ {
+  "item": "89",
+  "file": "src/schedule/splitSitting.ts",
+  "old": "splitLine: '2 Sittings \u00b7 90m each'",
+  "new": "(helper deleted; it was not rendered anywhere, and PlanDaySheet already draws the sittings as .fact spans)",
+  "phase": "code-finish",
+  "group": "finish-1"
+ },
+ {
+  "item": "199",
+  "file": "src/messages/MessagesFlow.tsx",
+  "old": "30 Threads \u00b7 12 senders \u00b7 All Accounts \u00b7 Loaded so far",
+  "new": "30 Threads from 12 senders in all accounts so far",
+  "phase": "code-finish",
+  "group": "finish-2"
+ },
+ {
+  "item": "199",
+  "file": "src/messages/MessagesFlow.tsx",
+  "old": "30 Threads \u00b7 12 senders \u00b7 Work \u00b7 In the inbox",
+  "new": "30 Threads from 12 senders in Work",
+  "phase": "code-finish",
+  "group": "finish-2"
+ },
+ {
+  "item": "199",
+  "file": "src/messages/MessagesFlow.tsx",
+  "old": "30 Threads \u00b7 12 senders \u00b7 In the inbox (one account)",
+  "new": "30 Threads from 12 senders",
+  "phase": "code-finish",
+  "group": "finish-2"
+ },
+ {
+  "item": "199",
+  "file": "src/messages/MessagesFlow.tsx",
+  "old": "30 Threads \u00b7 12 senders \u00b7 Loaded so far (one account)",
+  "new": "30 Threads from 12 senders so far",
+  "phase": "code-finish",
+  "group": "finish-2"
+ },
+ {
+  "item": "473",
+  "file": "src/bigger/GoalDetailPage.tsx",
+  "old": "No tasks yet (under an unstarted project's title on the goal page)",
+  "new": "(nothing: the line is dropped)",
+  "phase": "code-finish",
+  "group": "finish-2"
+ },
+ {
+  "item": "#236",
+  "file": "src/health/screens/WeekShapeScreen.tsx",
+  "old": "1 \u00b7 2 Hours (e.g. \"2 \u00b7 3.5 Hours\"; a baked middot, no noun on the count, \"1 Hours\" when one hour)",
+  "new": "1 Session \u00b7 2 Hours (two facts, CSS-drawn dot; noun added to the count; singular \"Session\"/\"Hour\" when the number is 1)",
+  "phase": "code-finish",
+  "group": "finish-3"
+ },
+ {
+  "item": "#258",
+  "file": "src/health/screens/ShareLineScreen.tsx",
+  "old": "\"Not a setting. This never crosses to your parent, no matter what.\" (under each of Mood and Mind, Cycle, Private Notes)",
+  "new": "\"Not settings: none of these ever cross to your parent.\" (once, as a footer note under the Kid's Room card; one clause, keeping to the short-copy law's spirit rather than the handoff's two-sentence \"Not settings. Nothing here ever crosses to your parent.\")",
+  "phase": "code-finish",
+  "group": "finish-3"
+ },
+ {
+  "item": "#325",
+  "file": "src/gym/FitSheet.tsx, src/gym/pacing.ts",
+  "old": "default pace \u00b7 improves as you log",
+  "new": "default pace, improves as you log",
+  "phase": "code-finish",
+  "group": "finish-4"
+ },
+ {
+  "item": "#33",
+  "file": "src/today/routinePatterns.ts (finish-8 edits this string; TodaySuggestions.tsx now carries the sub)",
+  "old": "Gym \u00b7 Around 6 AM weekdays \u00b7 5 times this month (one title line)",
+  "new": "title \"Gym around 6 AM weekdays\", sub \"5 Times this month\"",
+  "phase": "code-finish",
+  "group": "finish-4"
+ },
+ {
+  "item": "handoff 377",
+  "file": "src/insights/exportData.ts",
+  "old": "CSV Detail column for a workout whose duration needs review: \"4 working sets \u00b7 Duration needs review\" (before records.ts moved the words into r.review, after which the column had dropped the review note entirely)",
+  "new": "\"4 working sets; Duration needs review\"",
+  "phase": "code-finish",
+  "group": "finish-5"
+ },
+ {
+  "item": "124",
+  "file": "src/tasks/screens/StartCard.tsx",
+  "old": "3 Days late \u00b7 Editable message ready (one grey fact, typed dot)",
+  "new": "3 Days late (red .fact.red) + Editable message ready (grey .fact), dot drawn by CSS; 'Due today'/'Due in 1 day' amber, 'Due in N days' small-caps date",
+  "phase": "code-finish",
+  "group": "finish-8"
+ },
+ {
+  "item": "124",
+  "file": "src/tasks/screens/StartCard.tsx",
+  "old": "You were already working on it \u00b7 Your draft is waiting (when resuming)",
+  "new": "Your draft is waiting (reason dropped when resuming: the Resume button says it)",
+  "phase": "code-finish",
+  "group": "finish-8"
+ },
+ {
+  "item": "459",
+  "file": "src/connections/google/humanError.ts",
+  "old": "Your Google sign-in expired \u00b7 Reconnect in Settings",
+  "new": "Your Google sign-in expired; reconnect in Settings",
+  "phase": "code-finish",
+  "group": "finish-8"
+ },
+ {
+  "item": "459",
+  "file": "src/connections/google/humanError.ts",
+  "old": "Google refused that \u00b7 Reconnect in Settings to update permissions",
+  "new": "Google refused that; reconnect in Settings to update permissions",
+  "phase": "code-finish",
+  "group": "finish-8"
+ },
+ {
+  "item": "459",
+  "file": "src/connections/google/humanError.ts",
+  "old": "Google is rate-limiting us \u00b7 Try again in a minute",
+  "new": "Google is rate-limiting us; try again in a minute",
+  "phase": "code-finish",
+  "group": "finish-8"
+ },
+ {
+  "item": "459",
+  "file": "src/connections/google/humanError.ts",
+  "old": "Google's mail service is having trouble \u00b7 Try again shortly",
+  "new": "Google's mail service is having trouble; try again shortly",
+  "phase": "code-finish",
+  "group": "finish-8"
+ },
+ {
+  "item": "459",
+  "file": "src/connections/google/humanError.ts",
+  "old": "You're offline \u00b7 Nothing was lost",
+  "new": "You're offline; nothing was lost",
+  "phase": "code-finish",
+  "group": "finish-8"
+ },
+ {
+  "item": "33",
+  "file": "src/today/routinePatterns.ts",
+  "old": "Gym \u00b7 Around 6 AM weekdays \u00b7 5 times this month (one title line)",
+  "new": "title 'Gym around 6 AM weekdays', sub '5 Times this month'",
+  "phase": "code-finish",
+  "group": "finish-8"
+ },
+ {
+  "item": "399",
+  "file": "src/notes/screens/NoteEditor.tsx",
+  "old": "Book the Flights \u00b7 Gone (one label)",
+  "new": "Book the Flights + small-caps GONE beside it (.urgency.urgency-muted)",
+  "phase": "code-finish",
+  "group": "finish-8"
+ },
+ {
+  "item": "534",
+  "file": "src/admin/AdminService.ts",
+  "old": "sample meta \"abc1234 \u00b7 student \u00b7 iPhone\"",
+  "new": "sample meta [\"abc1234\", \"student\", \"iPhone\"] (AdminPanel, owned by finish-9, draws each as its own fact)",
+  "phase": "code-finish",
+  "group": "finish-8"
+ },
+ {
+  "item": "534",
+  "file": "src/admin/AdminPanel.tsx",
+  "old": "abc1234 \u00b7 student \u00b7 iPhone \u00b7 with the last error  (one grey string)",
+  "new": "abc1234 (white) \u00b7 Last error (red) \u00b7 student on iPhone (grey)  (three facts, separators drawn by CSS; the error flag moved ahead of template/device)",
+  "phase": "code-finish",
+  "group": "finish-9"
+ },
+ {
+  "item": "534",
+  "file": "src/admin/AdminPanel.tsx",
+  "old": " \u00b7 with the last error",
+  "new": "Last error",
+  "phase": "code-finish",
+  "group": "finish-9"
+ },
+ {
+  "item": "534",
+  "file": "src/admin/AdminPanel.tsx",
+  "old": "student \u00b7 iPhone  (two facts)",
+  "new": "student on iPhone  (one fact; with only one of the two present it shows alone, e.g. \"iPhone\")",
+  "phase": "code-finish",
+  "group": "finish-9"
+ },
+ {
+  "item": "465",
+  "file": "src/life/tabs/AreasTab.tsx",
+  "old": "No areas yet \u00b7 Add one in Settings > Categories",
+  "new": "No Areas Yet (title) / Add one in Settings > Categories (sub)",
+  "phase": "code-finish",
+  "group": "finish-9"
  }
 ]

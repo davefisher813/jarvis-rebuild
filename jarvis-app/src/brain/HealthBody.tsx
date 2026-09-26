@@ -293,10 +293,13 @@ export default function HealthBody({
         <button className="see-all" onClick={onOpenInsights}>View Insights</button></div>
       <div className="pad-x"><div className="card list-card-ruled">
         {findings.length === 0 ? (
-          <div className="row"><div className="row-grow">
-            <div className="conn-name">Nothing to Read Yet</div>
-            <div className="facts"><span className="fact">A logged workout or a night of sleep is enough to start</span></div>
-          </div></div>
+          /* An empty state, not a placeholder row (Colour Key, 2026-09-26): a
+             row with nothing to say shows nothing. Its door is Log Something,
+             directly under this card, so it carries no second one. */
+          <div className="empty-state empty-compact">
+            <div className="empty-title">Nothing to Read Yet</div>
+            <div className="empty-sub">A logged workout or a night of sleep is enough to start</div>
+          </div>
         ) : findings.map((f) => (
           <div {...pressable(() => onOpenFinding(f))} className="task-row p2 h-find" key={f.id}>
             <span className="h-log-ico" data-hue={f.hue} aria-hidden="true">{findGlyph(f)}</span>

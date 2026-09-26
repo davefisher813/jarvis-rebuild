@@ -1106,6 +1106,9 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
             <MomentumRow
               task={momentum.task}
               reason={chainReason(momentum.task, momentum.task.data.category ?? "", today)}
+              // The due chip is measured against the same day the reason
+              // and the rest of this flow use, not a second clock read.
+              today={today}
               onOpen={(id) => void openEdit(id)}
               onToggle={(id) => { setMomentum(null); void onToggle(id); }}
               onStart={(id) => { setMomentum(null); void onStartTask(id); }}

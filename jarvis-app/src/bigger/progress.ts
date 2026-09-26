@@ -154,13 +154,6 @@ export function rankProjects(
     });
 }
 
-// The one honest line under a project. No tasks means we say exactly that.
-export function progressLabel(p: Progress | null, stalled: boolean): string {
-  if (!p) return "No tasks yet";
-  if (p.done === p.total) return `All ${p.total} done`;
-  return capAfterNumber(`${p.done} of ${p.total} done`) + (stalled ? " · Stalled" : "");
-}
-
 // ---------------------------------------------------------------------------
 // WAVE 1, THE HONESTY PASS (Dave's picks 6, 9, 10, 2026-08-22).
 //

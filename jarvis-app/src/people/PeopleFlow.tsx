@@ -667,8 +667,11 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
                   <span key={f.text} className={"fact" + (f.tone ? " " + f.tone : "")}>{f.text}</span>
                 ))}
               </div>
+              {/* WHO IS COMING IN is the content, not a note under a field:
+                  primary ink at the fact size, so the counts above stay the
+                  sheet's one grey (§AK V5.2, 2026-09-26). */}
               {importPlan.plan.create.length > 0 && (
-                <div className="input-help">
+                <div className="plan-names">
                   {importPlan.plan.create.slice(0, 5).map((c) => c.name).join(", ")}
                   {importPlan.plan.create.length > 5 ? ` and ${importPlan.plan.create.length - 5} more` : ""}
                 </div>

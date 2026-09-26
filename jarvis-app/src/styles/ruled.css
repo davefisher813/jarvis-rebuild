@@ -329,10 +329,15 @@
    schedule strip the reach is 42px, because the strip clips what overflows
    it and cuts about 4px off the lower border; beside a place, the place's
    own reach wins the band above, and the source gets about 18px there. So
-   it is not 44 in the strip, and it is no worse than before the change (41). */
-.ruled .sched-body > .prov-line { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+   it is not 44 in the strip, and it is no worse than before the change (41).
+   The event page's header card takes the same letterform (2026-09-26): its
+   source line sits under the place, the card's one grey, and at 14px
+   regular it was a second grey run beside it. Same reach, same payback. */
+.ruled .sched-body > .prov-line,
+.ruled .row-pair + .prov-line { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; }
-.ruled .sched-body > .prov-link { border-top-width: 16px; border-bottom-width: 16px; margin-block: -16px; }
+.ruled .sched-body > .prov-link,
+.ruled .row-pair + .prov-link { border-top-width: 16px; border-bottom-width: 16px; margin-block: -16px; }
 /* §AM (2026-09-25): a source that opens is a tap, so it wears the colour
    that says so, the same as an openable person on this line. One that
    cannot be opened keeps the line's grey. */
@@ -385,17 +390,6 @@
    to meaning Health and done. */
 .ruled [class*="cat-fg-"] > .r-gm, .ruled .r-goal.r-is-goal[class*="cat-fg-"] > .r-gm { color: currentColor; }
 .ruled .r-goal.r-is-goal[class*="cat-fg-"] > .r-goal-t { color: var(--tx-2); }
-/* COLOUR CODED WHERE THE GOAL IS THE SORT (Dave 2026-09-11: "The goals in
-   projects should also be color coated"). Everywhere else the goal chip is a
-   parent line -- one of several things a row belongs to -- so its name stays
-   grey and only the mark carries the hue, which is the rule two blocks up. On
-   the Projects lens the goal is the ONE thing distinguishing rows inside a
-   card that is already all one category, so the name takes the hue too and a
-   card of projects can be read by colour before it is read by word. Opt-in by
-   class, never by position, so no other surface picks this up by accident.
-   The ink is the category's own per-theme text token (--cat-tx-* / --cat-dtx-*
-   via cat-fg-*), which is the AA-safe one; nothing is washed or mixed. */
-.ruled .r-goal.r-is-goal.r-goal-lit[class*="cat-fg-"] > .r-goal-t { color: currentColor; font-weight: var(--w-semi); }
 
 /* ---------- THE PARENT LINE (The Row and Health, Dave 2026-09-02: "The
    parent's own glyph leads the line"; the vertical bar is gone) -----------
@@ -562,10 +556,14 @@
    the second line -- so the eye picks up "this one is measured off the barbell"
    before it reads a single number. Sits ahead of the measure line and the
    status capsule keeps the far right, which is where status lives everywhere
-   in this app. */
+   in this app.
+   AMENDED 2026-09-26 (§AM): the kind is a label, so it wears no hue. Its caps
+   (and, off Health, its fill) set it apart from the facts beside it; the ink
+   is the one grey and the fill the quiet press. With the activity hue gone
+   the chip had no ink of its own and took the goal title's white. */
 .ruled .gkind { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.06em; text-transform: uppercase; padding: var(--s-0h) var(--s-1h); border-radius: var(--r-pill);
-  color: var(--h-hue); background: var(--h-tint); white-space: nowrap; }
+  color: var(--tx-3); background: var(--press-3); white-space: nowrap; }
 /* A second create row under the first is a SECOND door, not a second primary:
    it takes the quiet ramp so the section still has exactly one red verb. */
 .ruled .row-create.row-create-quiet { color: var(--tx-3); font-weight: var(--w-medium); }
@@ -683,7 +681,10 @@
 /* Done rows strike the name, not the whole block: the kicker stays legible. */
 .ruled .task-row.completed .task-title { text-decoration: none; }
 .ruled .task-row.completed .task-name { text-decoration: line-through; color: var(--tx-2); }
-.ruled .task-row.completed .r-goal, .ruled .task-row.completed .r-bar { opacity: 0.5; }
+/* The kicker's clock time dims with the rest of the line (2026-09-26): a
+   done Health reminder's small-caps time stayed full strength beside it. */
+.ruled .task-row.completed .r-goal, .ruled .task-row.completed .r-bar,
+.ruled .task-row.completed .r-k > .fact.date { opacity: 0.5; }
 /* Renaming in place: the editable name keeps the row's own type. */
 .ruled .task-row .task-title .task-name[contenteditable] { display: block; white-space: nowrap; overflow: hidden; }
 
@@ -723,8 +724,6 @@
 .life-seg .segmented { overflow-x: auto; scrollbar-width: none; }
 .life-seg .segmented::-webkit-scrollbar { display: none; }
 .life-seg .segmented .seg { flex: 0 0 auto; padding-left: var(--s-2h); padding-right: var(--s-2h); white-space: nowrap; }
-/* A project row's lineage line: the goal it is filed to, short name and mark. */
-.ruled .proj-row .r-k { margin-top: var(--s-1); }
 
 /* ---------- SCHEDULE, PORTED (2026-09-02, fourth surface) ------------------
    The block row (contract §4.9, Schedule handoff §5.5): gutter 62, rail 3,
@@ -1110,8 +1109,6 @@
 /* The class form stays for the insight dot and chip, which take the same pair
    and are not tiles. */
 .ruled .hue-hl-lime   { --h-hue: var(--hl-lime);   --h-tint: var(--hl-lime-tint); }
-.ruled .hue-hl-cyan   { --h-hue: var(--hl-cyan);   --h-tint: var(--hl-cyan-tint); }
-.ruled .hue-hl-pink   { --h-hue: var(--hl-pink);   --h-tint: var(--hl-pink-tint); }
 .ruled .hue-hl-violet { --h-hue: var(--hl-violet); --h-tint: var(--hl-violet-tint); }
 .ruled .hue-hl-amber  { --h-hue: var(--hl-amber);  --h-tint: var(--hl-amber-tint); }
 .ruled .hue-hl-blue   { --h-hue: var(--hl-blue);   --h-tint: var(--hl-blue-tint); }
@@ -1407,6 +1404,10 @@
 .ruled .set-card > .set-row[aria-disabled="true"] { opacity: 0.5; }
 .ruled .set-card > .set-row .row-value { color: var(--tx-3); }
 .ruled .set-card > .set-row .conn-meta { margin-top: var(--s-0h); }
+/* A facts line handed in as a row's meta sits inside the meta line, which
+   already carries the gap; it takes no second one (2026-09-26), the way a
+   notice card's does. */
+.ruled .set-card > .set-row .conn-meta > .facts { margin-top: 0; line-height: inherit; }
 /* THE LABEL IS THE FIXED SIDE HERE TOO (2026-09-22, Dynamic Type at 1.4).
    Booking's own row asks "Who Can Book", and .row-grow carried the generic
    flex:1 (basis 0) every row wears, so at 1.4 the label took only what the
@@ -1902,7 +1903,6 @@
   border-right: 1.5px solid currentColor; border-top: 1.5px solid currentColor;
   transform: rotate(45deg); margin-left: var(--s-0h); order: 9; }
 .ruled.health-ruled .se-chip-door::after { content: ""; position: absolute; inset: -11px -4px; }
-.ruled.health-ruled .se-chip-skip { color: var(--hl-amber-ink); background: var(--hl-amber-tint); }
 
 
 /* WHERE YOU ARE, DRAWN. Filled for finished, ringed for the current one,
@@ -2220,7 +2220,7 @@
 .ruled.health-ruled .ins-chip { background: transparent; padding: 0; }
 .ruled.health-ruled .ins-dot { box-shadow: none; }
 .ruled.health-ruled .ins-cite { color: var(--tx-2); }
-/* A goal row's kind and state are words in their hue, not pills (Astra G5:
+/* A goal row's kind and state are words, not pills (Astra G5:
    a state word is coloured small caps, never a filled pill). Health only:
    the shared goal row keeps its look on every other page. */
 .ruled.health-ruled .gkind, .ruled.health-ruled .gstat { background: transparent; padding: 0; border-radius: 0; box-shadow: none; }
@@ -2381,8 +2381,9 @@
    the large purple word None"), so the wrap is a given. What was ragged was
    one two-line tile beside two one-line ones, with the divider rules running
    past the short ones. Two lines of room for every label reads as a table;
-   widening one column just moved the wrap to Training Time. */
-.ruled.health-ruled .h-stat span { min-height: calc(var(--t-caption) * 2.7); }
+   widening one column just moved the wrap to Training Time. The room is
+   counted in the label's own size, the fact size since 2026-09-26. */
+.ruled.health-ruled .h-stat span { min-height: calc(var(--t-sub) * 2.7); }
 .ruled.health-ruled .h-stat { background: none; border: 0; border-left: 0.5px solid var(--divider); padding: var(--s-0h) var(--s-2h); text-align: left;
   font-family: var(--f); color: var(--tx-1); cursor: pointer; min-width: 0; }
 .ruled.health-ruled .h-stat:first-child { border-left: 0; padding-left: 0; }
@@ -2392,12 +2393,10 @@
 /* The unit beside the numeral is a WORD, so it reads the ink twin (2026-09-22):
    "min" in vivid amber on a white card was 2.06:1 in light. */
 .ruled.health-ruled .h-stat.lime b small { color: var(--hl-lime-ink); }
-.ruled.health-ruled .h-stat.amber b small { color: var(--hl-amber-ink); }
-.ruled.health-ruled .h-stat.violet b small { color: var(--hl-violet-ink); }
 .ruled.health-ruled .h-stat.lime b { color: var(--hl-lime); }
-.ruled.health-ruled .h-stat.amber b { color: var(--hl-amber); }
-.ruled.health-ruled .h-stat.violet b { color: var(--hl-violet); }
-.ruled.health-ruled .h-stat span { display: block; font-size: var(--t-caption); color: var(--tx-2); margin-top: var(--s-0h); }
+/* The label under a tile's number is its one fact: the fact size and the
+   one grey (§AM F4, 2026-09-26). It was 13px, a third size. */
+.ruled.health-ruled .h-stat span { display: block; font-size: var(--t-sub); color: var(--tx-3); margin-top: var(--s-0h); }
 .ruled.health-ruled .h-next-acts { display: flex; gap: var(--s-2); padding: 0 var(--s-4) var(--s-3); }
 .ruled.health-ruled .h-next-acts .pill-act { flex: 1; justify-content: center; max-width: none; }
 .ruled.health-ruled .h-find { gap: var(--s-2h); }
@@ -2538,9 +2537,8 @@
    press state all come from the shared grouped-list rules rather than from
    three bespoke declarations here. */
 /* An empty sleep tile: the dash is the app saying it has nothing, so it wears
-   the quiet ink rather than the violet a real reading wears. See the note at
+   the quiet ink rather than the white a real reading wears. See the note at
    the tile in HealthBody.tsx. */
-.ruled.health-ruled .h-stat.violet b.h-stat-none,
 .ruled.health-ruled .h-stat b.h-stat-none { color: var(--tx-3); }
 
 .ruled .h-doors { padding: 0; overflow: hidden; }

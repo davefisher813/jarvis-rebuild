@@ -1749,7 +1749,7 @@ export default function CategoryDetail({
                     middots were. */}
                 {rangeRows.length > 0 && (
                   <InsightCard evidence={hardSetEvidence(rangeRows, nowMs, hsBand ? rangeRows[0]!.range : undefined)} onExplain={explain}
-                    note={<>Last 7 days, working sets only, warm-ups excluded. {rangeRows[0]!.range.source.split(" · ").join(", ")}.</>}>
+                    note={<>Last 7 days, working sets only, warm-ups excluded. {rangeRows[0]!.range.source}.</>}>
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-lime" />
                       <span className="ins-t">Weekly Volume</span>

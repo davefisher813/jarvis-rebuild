@@ -35,6 +35,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
   const est = estimateDay(day, history, rack, plan);
   const offers = leverOffers(day, history, rack, plan);
   const over = budget > 0 ? est.min - budget : 0;
+  const budgetTone = over > 0 ? "fit-over" : "fit-under";
 
   const chips: number[] = [30, 45, 60];
   if (defaultBudgetMin && !chips.includes(defaultBudgetMin)) {
@@ -150,7 +151,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
           <div className="fit-line">
             <span>Fits: {est.min} min</span>
             {/* No cap says nothing here: the selected No Cap chip above says it. */}
-            {budget > 0 && <span className={over > 0 ? "fit-over" : "fit-under"}>{over > 0 ? `${over} min over` : over < 0 ? `${-over} min under` : "On budget"}</span>}
+            {budget > 0 && <span className={budgetTone}>{over > 0 ? `${over} min over` : over < 0 ? `${-over} min under` : "On budget"}</span>}
           </div>
           {/* The honesty line (D5 "needs D7 for honest numbers"): the sheet
               always says which world its estimate came from. GYM-F-07

@@ -11,11 +11,19 @@ function Seed() { const p = useProjects(); useEffect(() => { void p.create({ tit
 
 beforeEach(() => localStorage.clear());
 
+// Life mounts the flow as its Projects segment, which opens on the cards; the
+// ruled list is one tap away on the header's view toggle. The test walks the
+// same way in, then taps the project's row.
+async function openRow(title: string) {
+  await screen.findByText(title);
+  fireEvent.click(document.querySelector(".bp-viewtog")!);
+  fireEvent.click(screen.getByText(title).closest(".proj-row-ruled")!);
+}
+
 describe("Project detail", () => {
   it("tapping a project opens its detail with an Edit action", async () => {
-    render(<NotesProvider userId="u1"><Seed /><BiggerPictureFlow /></NotesProvider>);
-    const row = await screen.findByText("Kitchen remodel");
-    fireEvent.click(row.closest(".proj-row")!);
+    render(<NotesProvider userId="u1"><Seed /><BiggerPictureFlow lens="projects" segments={<div />} /></NotesProvider>);
+    await openRow("Kitchen remodel");
     await waitFor(() => expect(screen.getByText("Details")).toBeInTheDocument());
     expect(screen.getByText("Edit")).toBeInTheDocument();
   });
@@ -38,11 +46,10 @@ describe("Project detail", () => {
     render(
       <NotesProvider userId="u2">
         <SeedLinked />
-        <BiggerPictureFlow onGoEmail={(threadId) => { opened = threadId; }} />
+        <BiggerPictureFlow lens="projects" segments={<div />} onGoEmail={(threadId) => { opened = threadId; }} />
       </NotesProvider>,
     );
-    const row = await screen.findByText("Ridgeley waiver");
-    fireEvent.click(row.closest(".proj-row")!);
+    await openRow("Ridgeley waiver");
     await waitFor(() => expect(screen.getByText("Linked Conversations")).toBeInTheDocument());
     fireEvent.click(screen.getByText("The waiver"));
     expect(opened).toBe("t9");

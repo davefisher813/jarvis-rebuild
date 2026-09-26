@@ -837,8 +837,8 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .unread-dot { width: 8px; height: 8px; background: var(--blue); border-radius: var(--r-circle); flex-shrink: 0; }
 
 /* ROWS (shared) */
-.row, .task-row, .conn-row, .msg-row, .sched-row, .proj-row, .suggestion-row { display: flex; gap: var(--s-3); padding: var(--s-3h) var(--s-4); align-items: center; }
-.row + .row, .task-row + .task-row, .conn-row + .conn-row, .msg-row + .msg-row, .sched-row + .sched-row, .proj-row + .proj-row, .suggestion-row + .suggestion-row, .lifemap-row + .lifemap-row { border-top: 0.5px solid var(--divider); }
+.row, .task-row, .conn-row, .msg-row, .sched-row, .suggestion-row { display: flex; gap: var(--s-3); padding: var(--s-3h) var(--s-4); align-items: center; }
+.row + .row, .task-row + .task-row, .conn-row + .conn-row, .msg-row + .msg-row, .sched-row + .sched-row, .suggestion-row + .suggestion-row, .lifemap-row + .lifemap-row { border-top: 0.5px solid var(--divider); }
 /* The row whose editor is open below it (Your Routine's protected-time list,
    2026-08-28). Same tint the app already uses for "busy/pressed", so the
    open card reads as attached to the row that opened it instead of just
@@ -928,12 +928,6 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .sched-loc { font-size: var(--t-meta); color: var(--tx-3); }
 
 .proj-icon { width: 32px; height: 32px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; font-size: var(--t-meta); font-weight: var(--w-bold); color: #fff; flex-shrink: 0; }
-/* min-width: 0 is not optional on a flex text column. Without it the item
-   keeps its intrinsic content width and refuses to shrink, so at 375px the
-   disclosure chevron beside it was pushed 8px off the screen. Every other
-   flex:1 text container in the app already carries this; this one did not. */
-.proj-meta { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.proj-title { font-size: var(--t-h3); }
 
 .lifemap-row { padding: var(--s-3h) var(--s-4); }
 .lifemap-head { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-2); }

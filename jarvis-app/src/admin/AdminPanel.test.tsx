@@ -98,6 +98,36 @@ describe("AdminPanel", () => {
     expect(screen.getByText("12 calls")).toHaveClass("fact");
   });
 
+  // §AK/§AM F3 (2026-09-26): the feedback row's second line was one string
+  // of four greys with the middots baked in. Each part is its own fact now:
+  // the build white, an attached crash red, who sent it from where the one
+  // grey, and the separators are the stylesheet's.
+  it("draws a feedback row's parts as separate facts with no baked separator", async () => {
+    const src: AdminService = {
+      available: true,
+      async listUsers() { return []; }, async setUserStatus() {},
+      async usage() { return { totalUsers: 0, activeUsers: 0, signups7d: 0, aiCalls30d: 0 }; },
+      async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
+      async feedback() {
+        return [
+          { id: "f1", text: "It froze.", meta: ["abc1234", "student", "iPhone"], at: "2026-09-05T10:00:00.000Z", lastError: "TypeError: x" },
+          { id: "f2", text: "Nothing else.", meta: [], at: "2026-09-05T10:00:00.000Z", lastError: null },
+        ];
+      },
+      async metrics() { throw new Error("no metrics endpoint"); },
+    };
+    render(<AdminPanel isAdmin source={src} />);
+    const row = (await screen.findByText("It froze.")).closest(".row") as HTMLElement;
+    const facts = row.querySelector(".facts") as HTMLElement;
+    expect(facts.textContent).not.toMatch(/·/);
+    expect(screen.getByText("abc1234").tagName).toBe("B");
+    expect(screen.getByText("Last error")).toHaveClass("fact", "red");
+    expect(screen.getByText("student on iPhone")).toHaveClass("fact");
+    // A row with nothing to say shows no line at all.
+    const bare = screen.getByText("Nothing else.").closest(".row") as HTMLElement;
+    expect(bare.querySelector(".facts")).toBeNull();
+  });
+
   it("is honest when there is no admin server", () => {
     const src: AdminService = {
       available: false,

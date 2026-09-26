@@ -3238,10 +3238,19 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
     // pick had no reason. startPick makes no such pick now, so the reason is
     // printed on the card. Anchored on the JSX, not the file: the note above
     // this component still uses the old words to say what it replaced.
-    expect(card, "the reason is printed, not hidden behind a link")
-      .toMatch(/<span className="fact">\{line\}<\/span>/);
-    expect(card, "and the reason leads the line")
-      .toMatch(/const line = \[reason, action\.ready\]\.filter\(Boolean\)/);
+    // AMENDED 2026-09-26 (Colour Key sweep, lead decision #124): TWO FACTS,
+    // NOT ONE JOIN. The one span with a typed middle dot held a late reason
+    // in the same grey as what is ready (§AK V5.2, §AM F3). The reason is
+    // now its own fact in its key colour, what is ready the fact after it,
+    // and the stylesheet draws the dot between them. Still printed, still
+    // first, still no sheet.
+    expect(card, "the reason is printed, not hidden behind a link, in its key colour")
+      .toMatch(/\{why && <span className=\{reasonClass\(why\)\}>\{why\}<\/span>\}/);
+    expect(card, "and the reason leads the line, what is ready its own fact after it")
+      .toMatch(/\{why && [^\n]*\n\s*\{action\.ready && <span className="fact">\{action\.ready\}<\/span>\}/);
+    expect(card, "late reads red").toMatch(/\/ late\$\/\.test\(why\)\) return "fact red";/);
+    expect(card, "due soon reads amber").toMatch(/\.test\(why\)\) return "fact warn";/);
+    expect(card, "no typed dot joins them").not.toMatch(/\.join\(" \\u00b7 "\)|\.join\(" · "\)/);
     expect(card, "and no sheet opens off this card at all").not.toMatch(/createPortal|useState/);
   });
 
@@ -3519,10 +3528,16 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
   // what it clipped had to be the inferable half. EM1 / EM8 (2026-09-12):
   // the card is a Tools row now, and the row's job is to be HONEST about
   // its own number: it is unmuted and not account-filtered, unlike the
-  // Sweep's count above it, and EMAIL-F-18's "loaded so far" tail still
-  // holds until the inbox has been read to the bottom. The law is that the
-  // sub leads with the count and names its scope, so a disagreement with
-  // the number above it is legible rather than silent.
+  // Sweep's count above it, and EMAIL-F-18's " so far" tail still holds
+  // until the inbox has been read to the bottom. The law is that the sub
+  // leads with the count and names its scope, so a disagreement with the
+  // number above it is legible rather than silent.
+  // AMENDED 2026-09-26 (Colour Key sweep, lead decision #199): ONE RUN, NO
+  // TYPED DOTS. The line was up to four facts in one grey joined by three
+  // typed middle dots (§AK V5.2, §AM F3) on a meta line. It is one sentence
+  // now: the count, the senders, the account scope in words, and a "so far"
+  // tail while the count is partial. Every protection stays: the count
+  // leads, the senders follow, the scope is named, a partial count says so.
   it("Clean Out leads its sub with its own count and says what that count is of", () => {
     const src = read(join(SRC, "messages/MessagesFlow.tsx"));
     const at = src.indexOf('<div className="conn-name">Clean Out</div>');
@@ -3531,8 +3546,13 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
     // E-29 (2026-09-12): counted over visibleRows, the list's own rows.
     expect(row, "the thread count leads").toMatch(/capAfterNumber\(\s*visibleRows\.length \+/);
     expect(row, "then the sender count").toMatch(/senderPiles\(visibleRows, effTriage, vips\)\.length \+ " senders"/);
-    expect(row, "and the scope, with both tails leading capitalized")
-      .toMatch(/\(atEnd \? " \\u00b7 In the inbox" : " \\u00b7 Loaded so far"\)/);
+    expect(row, "the account scope, in words")
+      .toMatch(/" in " \+ \(acctFilter \? acctLabel\(acctFilter\) : "all accounts"\)/);
+    expect(row, "and a 'so far' tail until the inbox is read to the bottom")
+      .toMatch(/\(atEnd \? "" : " so far"\)/);
+    const meta = row.slice(row.indexOf('<div className="conn-meta">'), row.indexOf("</div>", row.indexOf('<div className="conn-meta">')));
+    expect(meta, "the sub is the row's meta line").toMatch(/senderPiles/);
+    expect(meta, "no typed dot on the meta line").not.toMatch(/\\u00b7|\u00b7/);
   });
 });
 
@@ -3563,12 +3583,24 @@ describe("LAW 10: one taxonomy -- the category is the area", () => {
     expect(flow, "and no longer mounts its admin sheet").not.toMatch(/AreasSheet/);
   });
 
+  // AMENDED 2026-09-26 (Colour Key sweep, lead decision #489): the pinned
+  // line lived only in the unlensed frame, a return no lens reached, and
+  // that frame is deleted. The rule it pinned lives in the lensed sections:
+  // cards and ruled, goals and projects, each skips an empty area. So the
+  // law now holds every sections.map in the page to that skip, and there
+  // must be at least the four lens sites.
   it("a goal is homed by its first live tag, and empty areas render nothing", () => {
     const page = read(join(SRC, "bigger/BiggerPicturePage.tsx"));
     expect(page, "one home per goal: first tag that names a live section")
       .toMatch(/\(g\.data\.tags \?\? \[\]\)\.find\(\(t\) => sectionIds\.has\(t\)\)/);
     expect(page, "PARA: never ship empty containers")
-      .toMatch(/if \(mine\.length === 0 && loose\.length === 0\) return null;/);
+      .toMatch(/if \(mine\.length === 0\) return null;/);
+    const maps = page.split("{sections.map((c) => {").slice(1);
+    expect(maps.length, "each lens draws its areas").toBeGreaterThanOrEqual(4);
+    for (const m of maps) {
+      expect(m.slice(0, m.indexOf("})}")), "every area section skips an empty area")
+        .toMatch(/if \(mine\.length === 0\) return null;/);
+    }
     // The guilt-render this replaces must not come back.
     expect(page).not.toMatch(/Nothing Live Here Yet/);
   });
@@ -3607,8 +3639,11 @@ describe("LAW 10: one taxonomy -- the category is the area", () => {
     const page = read(join(SRC, "bigger/BiggerPicturePage.tsx"));
     // TWO HEAD SHAPES, ONE RULE (2026-09-18). The ruled lenses still count
     // through catHead(c, n) -- items shown, never percent done.
+    // AMENDED 2026-09-26 (#489): the unlensed head that summed two piles is
+    // deleted with its frame, so the alternative that matched it is gone and
+    // the pin is the one head the page still draws.
     const cat = page.slice(page.indexOf("const catHead ="));
-    expect(page, "items shown, not percent done").toMatch(/\{mine\.length \+ loose\.length\}|catHead\(c, (?:mine|loose)\.length\)/);
+    expect(page, "items shown, not percent done").toMatch(/catHead\(c, mine\.length\)/);
     expect(cat.slice(0, cat.indexOf("</div>")), "and the head itself does no arithmetic").not.toMatch(/pct|%/);
     // The card view's shelf head carries NO number, which is Apple Music's
     // own shape (Dave: "Reference the formatting of Apple Music it's
@@ -4243,13 +4278,21 @@ describe("LAW 17: the fit is a stance, never an edit", () => {
       .not.toMatch(/updateProgram|saveDays/);
   });
 
+  // AMENDED 2026-09-26 (Colour Key sweep, lead decision #325): the default
+  // wording is one clause joined by a comma, not two joined by a typed
+  // middle dot. The line renders on a meta line, where a separator is drawn
+  // by the stylesheet or not at all (§AM F3). The honesty itself is
+  // unchanged: a default still says it is one, in both places.
   it("every estimate names its evidence: learned, or a default that says so", () => {
     expect(gym("pacing.ts"), "the honesty line lost its default wording")
-      .toMatch(/default pace · improves as you log/);
+      .toMatch(/default pace, improves as you log/);
     expect(gym("pacing.ts"), "the honesty line lost its learned wording")
       .toMatch(/learned from your last/);
     expect(gym("FitSheet.tsx"), "the fit sheet hides where its estimate came from")
-      .toMatch(/default pace · improves as you log/);
+      .toMatch(/default pace, improves as you log/);
+    for (const f of ["pacing.ts", "FitSheet.tsx"]) {
+      expect(gym(f), f + ": a typed dot on the meta line").not.toMatch(/default pace · /);
+    }
   });
 
   it("pacing never learns from a backdated session's stamps", () => {

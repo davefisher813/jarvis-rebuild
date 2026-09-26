@@ -81,8 +81,8 @@ export function isWatching(state: ReadinessState): boolean {
 
 // THE CONFIDENCE WORD (C-41), from the derivation's have and need: High at
 // twice the gate, Medium at the gate, nothing below it. Told and asked
-// strands get no word; the caller does not ask for one. The real count
-// renders beside the word as a plain fact where the derivation owns one.
+// strands get no word; the caller does not ask for one. Only High is said on
+// a row (§AM, 2026-09-26); the count is the Learning Lab's.
 export type ConfidenceWord = "High" | "Medium";
 
 export function confidenceWord(have: number, need: number): ConfidenceWord | null {

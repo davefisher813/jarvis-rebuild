@@ -508,10 +508,11 @@
   "fix_file": "src/today/routinePatterns.ts",
   "law_risk": "none in src/laws; TodaySuggestions.test.tsx:107 matches /Gym \u00b7 Around 6 AM/",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 33,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/today/patterns.ts",
@@ -1892,10 +1893,11 @@
   "fix_file": "src/tasks/screens/StartCard.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 124,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/tasks/screens/StartScreen.tsx",
@@ -3035,10 +3037,11 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 199,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -3336,10 +3339,11 @@
   "fix_file": "src/messages/WindowsSheet.tsx",
   "law_risk": "subtextLaw.test.ts (no subtext class without a call site): .win-note must be deleted with its last call site",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 219,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/messages/WindowsSheet.tsx",
@@ -3591,10 +3595,11 @@
   "fix_file": "src/health/screens/WeekShapeScreen.tsx",
   "law_risk": "none (non-law test brain/CategoryDetail.test.tsx:708 must be updated)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 236,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/health/screens/MedWindowScreen.tsx",
@@ -3636,10 +3641,11 @@
   "fix_file": "src/health/checkin.ts",
   "law_risk": "none (non-law tests health/log.test.ts:91 and health/doctorReport.test.ts:118 must be updated)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 239,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/health/screens/PointAtItScreen.tsx",
@@ -3923,10 +3929,11 @@
   "fix_file": "src/health/screens/ShareLineScreen.tsx",
   "law_risk": "none (healthPrivacy law checks only that Kid's Room rows carry no onClick; non-law test HealthFlow.test.tsx:34 must be updated)",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 258,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/health/screens/AteBeforeScreen.tsx",
@@ -4029,10 +4036,11 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 265,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/gym/GymFlow.tsx",
@@ -5672,10 +5680,11 @@
   "fix_file": "src/brain/HealthBody.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 373,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/brain/HealthBody.tsx",
@@ -6066,10 +6075,11 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "NotesFlow.test.tsx:194 matches /Book the Flights \u00b7 Gone/ and must be updated (not a src/laws law); do NOT use .fact.st (\"GONE\" is not in astra.test.ts STATE_WORDS)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 399,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/notes/screens/NoteEditor.tsx",
@@ -6779,10 +6789,11 @@
   "fix_file": "src/people/PeopleFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 446,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/people/PeopleFlow.tsx",
@@ -6976,10 +6987,11 @@
   "fix_file": "src/connections/google/humanError.ts",
   "law_risk": "none. Unit test src/ai/failureLine.test.ts:16 expects \"You're offline \u00b7 Nothing was lost\".",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 459,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/life/syllabusExtract.ts",
@@ -7069,10 +7081,11 @@
   "fix_file": "src/life/tabs/AreasTab.tsx",
   "law_risk": "src/laws/emptyState.test.ts: the ACTION_ELSEWHERE key \"life/tabs/AreasTab.tsx \u00b7 #1\" must be renamed to \"life/tabs/AreasTab.tsx \u00b7 No Areas Yet\"",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 465,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/life/cards/HealthMiniAppCard.tsx",
@@ -8118,10 +8131,11 @@
   "fix_file": "src/admin/adminCompute.ts",
   "law_risk": "src/settings/feedback.test.ts:109 pins meta === \"abc1234 \u00b7 student \u00b7 iPhone\" and :115 pins meta === \"\"; update them to [\"abc1234\",\"student\",\"iPhone\"] and []. Not a src/laws law.",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 534,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/admin/AdminPanel.tsx",
@@ -8688,10 +8702,11 @@
   "fix_file": "src/messages/WindowsSheet.tsx",
   "law_risk": "subtextLaw 'no subtext class survives without a call site' will pass once the .win-note rule is deleted with its only caller",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 571,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/styles/components.css",
@@ -9431,10 +9446,11 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "typeLaw.test.ts 'lets no modifier smuggle a weight back onto a fact' (keep .fact.fact-time at regular weight, as written); astra.test.ts 'every fact variant has a rule' is satisfied by the new rule",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 619,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/styles/components.css",

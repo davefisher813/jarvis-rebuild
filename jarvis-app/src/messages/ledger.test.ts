@@ -64,6 +64,28 @@ describe("they owe you", () => {
   });
 });
 
+// A reader colours a row by where it came from and when it is due. Both are
+// said on the row, so nothing has to read them back out of the key's prefix
+// or the sort key's 9999-12-31 sentinel.
+describe("each row says what it is", () => {
+  it("carries its kind, and its due day only when it has one", () => {
+    const l = buildLedger(input({
+      tasks: [{ id: "t1", text: "Send it", fromThread: "th1", due: "2026-08-20" }, { id: "t2", text: "Undated", fromThread: "th2" }],
+      promises: [{ threadId: "p1", text: "send the quote", due: "2026-08-18" }],
+      waiting: [{ threadId: "w1", to: "Rob", subject: "Field booking", days: 9 }],
+      chases: [{ threadId: "c1", to: "Ann", subject: "Quote" }],
+    }));
+    const byKey = new Map([...l.youOwe, ...l.theyOweYou].map((r) => [r.key, r] as const));
+    expect(byKey.get("task:t1")).toMatchObject({ kind: "task", due: "2026-08-20" });
+    expect(byKey.get("task:t2")!.kind).toBe("task");
+    expect(byKey.get("task:t2")).not.toHaveProperty("due");
+    expect(byKey.get("promise:p1")).toMatchObject({ kind: "promise", due: "2026-08-18" });
+    expect(byKey.get("waiting:w1")).toMatchObject({ kind: "waiting" });
+    expect(byKey.get("waiting:w1")).not.toHaveProperty("due");
+    expect(byKey.get("chase:c1")).toMatchObject({ kind: "chase" });
+  });
+});
+
 describe("one debt, one line", () => {
   it("does not list the same thread on both sides", () => {
     const l = buildLedger(input({

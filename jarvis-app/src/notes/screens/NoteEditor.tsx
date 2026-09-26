@@ -501,8 +501,11 @@ export default function NoteEditor({
                     {ic.node}
                   </span>
                   <span className="note-conn-label" role={canOpen ? "button" : undefined} tabIndex={canOpen ? 0 : undefined} onClick={canOpen ? open : undefined}>
-                    {c.label}{c.gone ? " · Gone" : ""}
+                    {c.label}
                   </span>
+                  {/* GONE is a small-caps state beside the name, never typed
+                      onto it after a middle dot (Colour Key F3, 2026-09-26). */}
+                  {c.gone && <span className="urgency urgency-muted">Gone</span>}
                   {onRemoveConnection && (
                     <button className="note-conn-x" aria-label={"Unlink " + c.label} onClick={() => onRemoveConnection(c.id)}>
                       <X className="ic" />

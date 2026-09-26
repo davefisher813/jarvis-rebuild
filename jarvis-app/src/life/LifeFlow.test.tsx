@@ -38,7 +38,10 @@ describe("LifeFlow", () => {
     // money-kind with no explicit kind set -- the same exclusion Brain's own
     // area list always applied (BrainPage's prior "drops money-kind
     // categories" coverage), so the Areas tab correctly shows none here.
-    expect(await screen.findByText("No areas yet · Add one in Settings > Categories", {}, { timeout: 3000 })).toBeInTheDocument();
+    // The empty state is a title and a sub now, not one string glued by a
+    // typed dot (Colour Key, 2026-09-26).
+    expect(await screen.findByText("No Areas Yet", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByText("Add one in Settings > Categories")).toBeInTheDocument();
     expect(screen.queryByText("Money")).not.toBeInTheDocument();
     expect(document.querySelector(".pagehead-title")).toHaveTextContent("Life");
     const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
@@ -48,7 +51,7 @@ describe("LifeFlow", () => {
 
   it("Projects groups projects under their AREA with the goal-row anatomy; Goals shows goals only", async () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
-    await screen.findByText("No areas yet · Add one in Settings > Categories", {}, { timeout: 3000 });
+    await screen.findByText("No Areas Yet", {}, { timeout: 3000 });
     fireEvent.click(screen.getByRole("tab", { name: "Projects" }));
     // AMENDED 2026-09-18 (the approved card mockup). Projects and Goals open
     // on the CARDS now; this test is about the ruled ROW anatomy, which is
