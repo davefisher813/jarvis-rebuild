@@ -794,6 +794,11 @@
 .ruled .sched-row > .sched-body { order: 1; flex: 1 0 100%; }
 .ruled .sched-body { padding-left: 0; }
 .ruled .sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: var(--s-1); }
+/* Same override as the base rule, at the specificity ruled needs to win it:
+   inside .sched-title-line the title sits beside the checkbox, not above
+   the category line, so ITS OWN margin-bottom would just be dead space
+   inside that row rather than the gap before .sched-cat. */
+.ruled .sched-title-line .sched-title { margin-bottom: 0; }
 /* §AM F4: TWO SIZES CARRY SUBTEXT, 14 and 11 caps. This dropped the whole
    schedule meta line to 13, which made a third rung out of the one line in
    the app that most needed to be ordinary. It was kept on the theory that 14

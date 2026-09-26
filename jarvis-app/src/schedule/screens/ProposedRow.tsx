@@ -73,15 +73,30 @@ export default function ProposedRow({
       >
         <span className={"sched-bar sched-bar-proposed cat-bd-" + slot} />
         <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
-        {onComplete && (
-          <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
-            aria-label={`Mark ${block.text} done`}
-            onClick={(e) => { e.stopPropagation(); onComplete(); }}>
-            <div className="task-check" />
-          </div>
-        )}
         <div className="sched-body">
-          <div className="sched-title">{block.text}</div>
+          {/* THE CHECKBOX RODE DOWN WITH THE TITLE (2026-09-26, off Dave's
+              screenshot: "the check off box is in the wrong spot and
+              causing wrapping"). It used to sit here, between .sched-time
+              and .sched-body, back when both sat on one line. The ruled
+              theme's two-line row (this file untouched, ruled.css doing the
+              wrapping: .sched-body now .ruled .sched-row > .sched-body
+              { order: 1; flex: 1 0 100% }) left it stranded alone on line
+              one and pushed the title down to start flush left with
+              nothing beside it -- the title lost the very slot the comment
+              on onComplete calls out, "the lead slot, where the hand
+              already looks for it". .sched-title-line is that slot, and it
+              lives inside .sched-body now, so the two ride down to the
+              same line together on every theme, ruled included. */}
+          <div className="sched-title-line">
+            {onComplete && (
+              <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
+                aria-label={`Mark ${block.text} done`}
+                onClick={(e) => { e.stopPropagation(); onComplete(); }}>
+                <div className="task-check" />
+              </div>
+            )}
+            <div className="sched-title">{block.text}</div>
+          </div>
           <div className="sched-cat">
             <span className={"cat-dot cat-bg-" + slot} />
             {catName(block.category)}

@@ -950,6 +950,15 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    250px slot. This also makes the .truncate on sched titles actually work. */
 .sched-body { flex: 1; min-width: 0; }
 .sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: var(--s-0h); }
+/* THE CHECKBOX'S LEAD SLOT, INSIDE .sched-body (2026-09-26). Only
+   ProposedRow uses this: its optional completion ring pairs with the title
+   on the title's own line, same anatomy as .task-check-tap beside
+   .task-name on a plain task row. min-width: 0 on the title for the same
+   reason it is load-bearing on .sched-body itself, two lines up: without it
+   a long title will not shrink and the row overflows instead of wrapping. */
+.sched-title-line { display: flex; align-items: center; gap: var(--s-2); }
+.sched-title-line .sched-title { flex: 1; min-width: 0; margin-bottom: 0; }
+.sched-title-line .sched-check { margin-right: 0; }
 .sched-loc { font-size: var(--t-meta); color: var(--tx-3); }
 
 .proj-icon { width: 32px; height: 32px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; font-size: var(--t-meta); font-weight: var(--w-bold); color: #fff; flex-shrink: 0; }
