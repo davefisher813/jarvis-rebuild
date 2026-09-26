@@ -61,7 +61,7 @@ describe("LiftDetailScreen weekly hard sets", () => {
   it("states the window the numbers cover rather than saying this week", () => {
     render(<LiftDetailScreen {...base} workouts={workouts} muscleGroup="chest" muscleMap={chestMap} />);
     expect(screen.getAllByText(/ to /).length).toBeGreaterThan(0);
-    expect(screen.getByText("Warm-ups and drop sets left out")).toBeInTheDocument();
+    expect(screen.getByText("Warm-Ups and Drop Sets Left Out")).toBeInTheDocument();
   });
 
   it("keeps the research behind its own disclosure, apart from the recorded total", () => {
@@ -78,7 +78,7 @@ describe("LiftDetailScreen weekly hard sets", () => {
     expect(screen.queryByText("Bench Press")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "View Contributing Sets" }));
     expect(screen.getByText("Bench Press")).toBeInTheDocument();
-    const count = screen.getAllByText((_, el) => !!el?.classList.contains("fact") && el.textContent === "6 sets");
+    const count = screen.getAllByText((_, el) => !!el?.classList.contains("fact") && el.textContent === "6 Sets");
     expect(count.length).toBe(1);
     expect(count[0]!.querySelector("b")?.textContent).toBe("6");
     expect(screen.queryByText("Primary")).toBeNull();
@@ -141,7 +141,8 @@ describe("the goal card on a lift's page", () => {
     render(<LiftDetailScreen {...base} workouts={history} goal={one as never} />);
     const card = screen.getByLabelText("Edit Goal");
     expect(card).toHaveClass("banner-good");
-    expect(screen.getByText("Hit")).toHaveClass("fact", "lime");
+    expect(screen.getByText("Hit").tagName).toBe("B");
+    expect(screen.getByText("Hit").closest(".fact")).not.toHaveClass("lime");
     expect(card.textContent).not.toContain("×");
     expect(screen.queryByText(/to Go/)).toBeNull();
   });
@@ -198,7 +199,7 @@ describe("LiftDetailScreen: the chart says what it is, and answers a tap", () =>
     expect(screen.getByText("A tested max, or a weight to attempt")).toBeInTheDocument();
     expect(screen.getByText(/^Epley/)).toBeInTheDocument();
     // The range chip states both ends as dates, like the Best card.
-    expect(screen.getByText("Aug 26 to Sep 2")).toBeInTheDocument();
+    expect(screen.getAllByText("Aug 26 to Sep 2").length).toBeGreaterThanOrEqual(2);
   });
 
   // AMENDED 2026-09-16 (Dave: "uniform everything"). The three readings were
@@ -238,7 +239,7 @@ describe("LiftDetailScreen: best recorded set and milestones", () => {
     // Performance and History head.
     expect(screen.getByText("Performance and History")).toBeInTheDocument();
     expect(screen.getByText("Best Set")).toBeInTheDocument();
-    expect(screen.getByText("135 Lb × 5")).toBeInTheDocument();
+    expect(screen.getAllByText("135 Lb × 5").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Sessions").length).toBeGreaterThan(0);
     // The estimate has one home: the Trend headline (pass-off item 7).
     expect(screen.queryByText("Change")).not.toBeInTheDocument();

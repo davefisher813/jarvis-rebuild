@@ -352,7 +352,7 @@ export function lifeCards(seal: MonthSealData, name: string, people: { id: strin
         lineCase(`${d.made} recorded in ${name}`),
         ...(d.revisited > 0 ? [lineCase(`${d.revisited} revisited and still good`)] : []),
         ...(d.worked > 0 ? [lineCase(`${d.worked} marked worked`)] : []),
-        "A decision is never scored, only remembered",
+        "A decision is kept, not judged",
       ],
     });
   }

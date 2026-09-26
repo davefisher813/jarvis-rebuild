@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useOptionalFiles, useFileStore } from "../data/NotesProvider";
+import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useOptionalFiles, useFileStore, useTracker } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
 import { ACCOUNT_META, ACCOUNT_KINDS, ENTITY_ACCOUNT, formatMoney, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
@@ -20,7 +20,8 @@ import { RepeatGlyph, WalletGlyph, TargetGlyph, DollarGlyph } from "../shared/gl
 import { TaskRow } from "../tasks/screens/TasksPage";
 import { daysBetween } from "../upnext/upnext";
 import { attemptWrite } from "../shared/guard";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, lineCase } from "../shared/casing";
+import { inMonth, thisMonth, incomeCents, spentCents, fmtCents } from "./tracker";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
 import { usePickFile } from "../shared/usePickFile";
@@ -219,7 +220,14 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   const tasksSvc = useTasks();
   const profileSvc = useProfile();
   const catsSvc = useCategories();
+  const trackerSvc = useTracker();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  // THE TRACKER ROW'S NET (2026-09-26, the pass-off: "the Tracker row's net
+  // green (more in) or red (more out)"). This month's income less spending
+  // from the tracker's own transactions, an amount in or out, which is a
+  // meaning the key colours; null until the tracker has a transaction this
+  // month, and the row then says only where it goes.
+  const [monthNet, setMonthNet] = useState<number | null>(null);
   const [bills, setBills] = useState<TaskItem[]>([]);
   const [paidMonth, setPaidMonth] = useState<{ total: number; count: number }>({ total: 0, count: 0 });
   // Also tagged Money (2026-08-10): the "Money" category used to be its own
@@ -380,8 +388,15 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     // Autopay bills whose date passed roll themselves forward first, so the
     // list never shows an autopay bill pretending to be overdue.
     await tasksSvc.rollAutopayBills();
-    const [accts, allTasks, prof, cats] = await Promise.all([svc.list(), tasksSvc.listTasks(), profileSvc.get(), catsSvc.list()]);
+    const [accts, allTasks, prof, cats, trk] = await Promise.all([
+      svc.list(), tasksSvc.listTasks(), profileSvc.get(), catsSvc.list(),
+      // Best effort: a tracker that cannot be read costs the row its net,
+      // never the page.
+      trackerSvc.load().catch(() => null),
+    ]);
     setAccounts(accts);
+    const txs = trk ? inMonth(trk.txs, thisMonth()) : [];
+    setMonthNet(txs.length > 0 ? incomeCents(txs) - spentCents(txs) : null);
     setBills(activeBills(allTasks, todayISO()));
     // UP-CORE-13 (2026-09-05): what actually went out this month, from the
     // paid bills the app holds. Read off the whole task list, because
@@ -404,7 +419,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     }
     const moneyCatIds = new Set(cats.filter((c) => effectiveKind(c.data) === "money").map((c) => c.id));
     setTagged(allTasks.filter((t) => !t.data.done && !t.data.bill && moneyCatIds.has(t.data.category ?? "")));
-  }, [svc, tasksSvc, profileSvc, catsSvc]);
+  }, [svc, tasksSvc, profileSvc, catsSvc, trackerSvc]);
   useEffect(() => { void reload(); }, [reload]);
   // UP-PLAT-06 (2026-09-06): this page draws accounts AND the bills that live
   // as tasks, so a bill paid on the laptop repaints here too.
@@ -586,7 +601,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         <div className="task-row p2" {...pressable(() => setPaydayOpen(true))}>
           <div className="task-title">
             <span className="task-name">{anchor.title}</span>
-            <div className="r-k"><span className="r-goal r-cat"><Amounts text={anchor.sub} /></span></div>
+            <div className="r-k"><span className="r-goal r-cat"><Amounts text={lineCase(anchor.sub)} /></span></div>
           </div>
           {CHEV}
         </div>
@@ -606,9 +621,9 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         // close, the date says when. A bill with no date has nothing to say
         // here, so the row says nothing (§AK).
         const line = paid
-          ? <span className="r-goal fact good">{sub.text}</span>
+          ? <span className="r-goal fact good">{lineCase(sub.text)}</span>
           : sub.state === "autopay"
-            ? <><span className="r-goal r-cat">{sub.text}</span>{sub.when && <span className="fact date">{sub.when}</span>}</>
+            ? <><span className="r-goal r-cat">{lineCase(sub.text)}</span>{sub.when && <span className="fact date">{sub.when}</span>}</>
             : b.data.due
               ? <span className="fact date">{"Due " + monthDay(b.data.due)}</span>
               : null;
@@ -657,7 +672,13 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
       <div className="task-row p2" {...pressable(() => setSheet({ kind: "edit", id: a.id }))} key={a.id}>
         <div className="task-title">
           <span className="task-name">{a.data.name}</span>
-          <div className="r-k"><span className="r-goal r-cat">{m.label}</span></div>
+          {/* THE KIND RIDES A DOT (2026-09-26, the pass-off: "a kind dot per
+              account"). ACCOUNT_META has carried a colour slot per kind since
+              Money v1 and nothing drew it; the catalog's category primitive
+              puts it on the dot and leaves the word the row's one grey (§AM:
+              the category rides a dot, never the words). Green cash, sky
+              savings, blue investment, red credit, graphite other. */}
+          <div className="r-k"><span className="r-goal r-cat fact cat"><span className={"cd cat-bg-" + m.slot} />{m.label}</span></div>
         </div>
         {/* A negative balance is a fact, not an alarm: it reads in the
             quiet ink with its sign, never in red (L1, red is a verb).
@@ -682,10 +703,14 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   // Self-reported and it says so, then the day it was entered, as a date
   // (§AM F5), with the dot between them drawn by .facts rather than baked
   // into the words (F3).
+  // The count is back beside them (the lead, 2026-09-26: "As You Last
+  // Entered It · Sep 18 · 4 Accounts"), a number with no state, so white
+  // (§AM); the words before it keep the line's one grey (§AK).
   const balanceFacts = (
     <div className="money-hero-label facts">
-      <span className="fact">As you last entered it</span>
+      <span className="fact">As You Last Entered It</span>
       {balanceAsOf && <span className="fact date">{monthDay(balanceAsOf)}</span>}
+      <span className="fact"><b>{accounts.length} {accounts.length === 1 ? "Account" : "Accounts"}</b></span>
     </div>
   );
 
@@ -701,7 +726,18 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
       <div className="row" {...pressable(() => setTracker(true))}>
         <div className="row-grow">
           <div className="conn-name">Tracker</div>
-          <div className="conn-meta">Spending, Budgets and Subscriptions</div>
+          {/* The net is the row's one key colour, green when more came in
+              than went out and the system red when more went out (over the
+              limit, §AM), ahead of the row's one grey; a month with nothing
+              tracked says nothing. Zero exactly is a number with no state,
+              white. */}
+          <div className="facts">
+            {monthNet != null && monthNet !== 0 && (
+              <span className={"fact " + (monthNet > 0 ? "good" : "red")}>{lineCase(`${fmtCents(Math.abs(monthNet))} more ${monthNet > 0 ? "in" : "out"} this month`)}</span>
+            )}
+            {monthNet === 0 && <span className="fact"><b>Even This Month</b></span>}
+            <span className="fact">Spending, Budgets and Subscriptions</span>
+          </div>
         </div>
         {CHEV}
       </div>
@@ -730,7 +766,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
           {left && (
             <>
               <div className="pad-x"><div className="card list-card-ruled money-hero" {...pressable(() => setMathOpen(!mathOpen))}>
-                <div className="money-hero-label">{nextPay ? "Yours until " + monthDay(nextPay) : "Yours"}</div>
+                <div className="money-hero-label">{nextPay ? "Yours Until " + monthDay(nextPay) : "Yours"}</div>
                 <div className="money-hero-total">{formatMoney(Math.max(0, left.amount))}</div>
                 {/* Under the total: the shortfall, or what the total is
                     after, or (with no bills or set-aside) the per-day line.
@@ -739,25 +775,25 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                     shortfall is over the limit, which the key says in red,
                     the same red the late chip on a bill already wears. */}
                 {left.amount < 0
-                  ? <div className="money-hero-label"><span className="fact red">{shortLine(left)}</span></div>
+                  ? <div className="money-hero-label"><span className="fact red">{lineCase(shortLine(left))}</span></div>
                   : leftSub(left)
-                    ? <div className="money-hero-label">{leftSub(left)}</div>
-                    : perDayLine(left, daysLeft) && <div className="money-hero-label"><span className="fact est">{perDayLine(left, daysLeft)}</span></div>}
+                    ? <div className="money-hero-label">{lineCase(leftSub(left)!)}</div>
+                    : perDayLine(left, daysLeft) && <div className="money-hero-label"><span className="fact est">{lineCase(perDayLine(left, daysLeft)!)}</span></div>}
                 {mathOpen && (
                   <div className="budget-math">
                     <div className="budget-row"><span>Paycheck</span><span>{formatMoney(left.paycheck)}</span></div>
                     {left.billsOut > 0 && (
-                      <div className="budget-row"><span>Bills before {monthDay(nextPay!)}</span><span>-{formatMoney(left.billsOut)}</span></div>
+                      <div className="budget-row"><span>Bills Before {monthDay(nextPay!)}</span><span>-{formatMoney(left.billsOut)}</span></div>
                     )}
                     {left.setAside > 0 && (
-                      <div className="budget-row"><span>Set aside</span><span>-{formatMoney(left.setAside)}</span></div>
+                      <div className="budget-row"><span>Set Aside</span><span>-{formatMoney(left.setAside)}</span></div>
                     )}
                     <div className="budget-row budget-total"><span>Yours</span><span>{formatMoney(left.amount)}</span></div>
                     {/* With no bills or set-aside, the line under the total
                         already IS the per-day line: say it once. Shown, it
                         is an amount the app worked out, so it wears sky. */}
                     {leftSub(left) && perDayLine(left, daysLeft) && (
-                      <div className="money-hero-label"><span className="fact est">{perDayLine(left, daysLeft)}</span></div>
+                      <div className="money-hero-label"><span className="fact est">{lineCase(perDayLine(left, daysLeft)!)}</span></div>
                     )}
                   </div>
                 )}
@@ -805,7 +841,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
               </div></div>
               {envelopes.length === 0 && (
                 <div className="pad-x"><div className="input-help">
-                  Reserved · Not spendable · A plan
+                  Reserved · Not Spendable · A Plan
                 </div></div>
               )}
             </>
@@ -816,7 +852,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
           {MONEY_TOP === "hero-accts" && accounts.length > 0 && (
             <div className="pad-x"><div className="card list-card-ruled money-hero-card">
               <div className="money-hero">
-                <div className="money-hero-label">Total balance</div>
+                <div className="money-hero-label">Total Balance</div>
                 <div className="money-hero-total">{formatMoney(totalBalance(accounts))}</div>
                 {/* Self-reported and it says so: the app has no live feed.
                     The accounts are the rows right under it, so it does not
@@ -832,7 +868,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
           )}
           {MONEY_TOP === "before" && accounts.length > 0 && (
             <div className="pad-x"><div className="card list-card-ruled money-hero">
-              <div className="money-hero-label">Total balance</div>
+              <div className="money-hero-label">Total Balance</div>
               <div className="money-hero-total">{formatMoney(totalBalance(accounts))}</div>
               {balanceFacts}
             </div></div>
@@ -853,9 +889,12 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
             <>
               <div className="sh2 sh2-quiet"><span className="t">Paid This Month</span><span className="n">{paidMonth.count}</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
+                {/* A paid amount is green (the lead, 2026-09-26: "A paid
+                    amount is --good"), the same green the paid bill's amount
+                    above it already wears. The count stays the one grey. */}
                 <div className="row">
-                  <div className="row-grow"><div className="conn-name">{formatMoney(paidMonth.total)}</div></div>
-                  <span className="conn-meta">{capAfterNumber(`${paidMonth.count} ${paidMonth.count === 1 ? "bill" : "bills"} in the app`)}</span>
+                  <div className="row-grow"><span className="money-amt paid">{formatMoney(paidMonth.total)}</span></div>
+                  <span className="conn-meta">{lineCase(capAfterNumber(`${paidMonth.count} ${paidMonth.count === 1 ? "bill" : "bills"} in the app`))}</span>
                 </div>
               </div></div>
             </>
@@ -885,7 +924,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                     <div className="task-check-tap"><span className={"gm-slot " + goalTone(g.data.tags)}><TargetGlyph /></span></div>
                     <div className="task-title">
                       <span className="task-name">{g.data.title}</span>
-                      <div className="r-k"><span className="r-goal r-cat">{savingsLine(g.data.moneyTarget!, g.data.saved)}</span></div>
+                      <div className="r-k"><span className="r-goal r-cat">{lineCase(savingsLine(g.data.moneyTarget!, g.data.saved))}</span></div>
                       {savedTotal(g.data.saved) > 0 && (
                         <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, savingsPct(g.data.moneyTarget!, g.data.saved)) + "%" }} /></div>
                       )}

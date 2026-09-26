@@ -240,7 +240,9 @@ describe("GYM-F-17: an uploaded program is a program", () => {
   // -- so it reads the head action both layouts render and the sheet behind
   // it, rather than counting rows in a card.
   it("the upload door is reachable from both layouts", () => {
-    const heads = flow.match(/<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/g) ?? [];
+    // AMENDED 2026-09-26 (pass-off item 10): Manage is the 34px head
+    // capsule ("see-all pill-action"), the same form Reorder wears beside it.
+    const heads = flow.match(/<button className="see-all pill-action" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/g) ?? [];
     expect(heads.length, "one in the Days head, one in the Weeks head").toBe(2);
     expect(flow).toMatch(/label: "Upload a Program", onClick: \(\) => setUploadOpen\(true\)/);
   });

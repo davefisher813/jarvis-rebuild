@@ -301,7 +301,7 @@ export default function LiftDetailScreen({
                       value is the set in the title again, so it is left
                       out. The estimate's receipt opens once the chart does. */}
                   <div className="facts">
-                    {kind === "weight_reps" && latest != null && <span className="fact est">{`Est. Max ${withUnit(latest)}`}</span>}
+                    {kind === "weight_reps" && latest != null && <span className="fact est">{`Est Max ${withUnit(latest)}`}</span>}
                     <span className="fact date">{`Logged ${agoPhrase(sessions[sessions.length - 1]!.date, todayIso)}`}</span>
                   </div>
                 </div>
@@ -445,7 +445,9 @@ export default function LiftDetailScreen({
                ("15 Lb to Go"), and the line under the title reads "310 of
                325 Lb" with the current best in white (§AM F1), the rep
                floor named only when it is above 1 so "205 of 225" never
-               hides a 5-rep floor. Hit, not Done: done is Dave's call. */
+               hides a 5-rep floor. Once hit, a white "Hit" on the green card
+               (the card carries the colour; a label never wears a data hue).
+               Hit, not Done: done is Dave's call. */
             <div className="pad-x"><div className={"card pad" + (goalState.met ? " banner-good" : "")}
               role="button" tabIndex={0} aria-label="Edit Goal" onClick={onSetGoal}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSetGoal(); } }}>
@@ -463,7 +465,7 @@ export default function LiftDetailScreen({
                         : <div className="conn-meta">{goalState.line}</div>}
                     </div>
                     {wr && (goalState.met
-                      ? <div className="row-value"><span className="fact lime">Hit</span></div>
+                      ? <div className="row-value"><span className="fact"><b>Hit</b></span></div>
                       : <div className="row-value"><span className="fact"><b>{lineCase(`${left}${m.unit ? " " + m.unit : ""} to go`)}</b></span></div>)}
                   </div>
                 );
