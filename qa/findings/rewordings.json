@@ -14,5 +14,165 @@
   "new": "content: \"Task\" (drawn uppercase by text-transform)",
   "group": "editor.css#2",
   "phase": "css-small"
+ },
+ {
+  "id": "114",
+  "file": "src/review/ReportPage.tsx",
+  "old": "Your Month \u00b7 Still Open",
+  "new": "Your Month So Far",
+  "group": "settings-report",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "418",
+  "file": "src/settings/AIControlPage.tsx",
+  "old": "{N} in \u00b7 {M} out  (e.g. \"12.3K in \u00b7 4.1K out\")",
+  "new": "{N} in, {M} out  (e.g. \"12.3K in, 4.1K out\")",
+  "group": "settings-report",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "68",
+  "file": "jarvis-app/src/schedule/screens/SchedulePage.tsx",
+  "old": "Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b> \u00b7 {spanShort(best.e - best.s)}  (e.g. \"Longest open stretch Wed 1:00 to 5:30 PM \u00b7 4h 30m\")",
+  "new": "Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b>  (e.g. \"Longest open stretch Wed 1:00 to 5:30 PM\")",
+  "group": "schedule-rows",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "DayRow-untappable-length",
+  "file": "jarvis-app/src/schedule/screens/DayRow.tsx",
+  "old": "Untappable length drawn in small caps: \"30M\" / \"1H 30M\"",
+  "new": "The same words in sentence case as a white <b> once the CSS below lands: \"30m\" / \"1h 30m\". This is a letter-case change only; the text is the same.",
+  "group": "schedule-rows",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 Email \u00b7 From an email",
+  "new": "\u2709 Email",
+  "group": "tasks-reminders",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 Note \u00b7 From a note",
+  "new": "\u2709 Note",
+  "group": "tasks-reminders",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 Smart Paste \u00b7 From Smart Paste",
+  "new": "\u2709 Smart Paste",
+  "group": "tasks-reminders",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 Recording \u00b7 From the recorder",
+  "new": "\u2709 Recording",
+  "group": "tasks-reminders",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 Chat \u00b7 From chat",
+  "new": "\u2709 Chat",
+  "group": "tasks-reminders",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 File \u00b7 From a file",
+  "new": "\u2709 File",
+  "group": "tasks-reminders",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "278",
+  "file": "src/gym/progression.ts",
+  "old": "Lift (basis): \"{Exercise} \u00b7 {Equipment}\" (e.g. \"Bench \u00b7 Barbell\")",
+  "new": "\"{Exercise}, {Equipment}\" (e.g. \"Bench, Barbell\")",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "278",
+  "file": "src/gym/progression.ts",
+  "old": "Read (basis): \"{when} \u00b7 {N} working sets\" (e.g. \"Last Tuesday \u00b7 2 working sets\")",
+  "new": "\"{when}, {N} working sets\" (e.g. \"Last Tuesday, 2 working sets\")",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "278",
+  "file": "src/gym/progression.ts",
+  "old": "Sets (basis): \"Completed working sets only \u00b7 Warm-ups and drops left out\"",
+  "new": "\"Completed working sets only, warm-ups and drops left out\"",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "278",
+  "file": "src/gym/progression.ts",
+  "old": "Marks (basis): \"2 clean \u00b7 1 grind \u00b7 1 missed\"",
+  "new": "\"2 clean, 1 grind, 1 missed\"",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "623",
+  "file": "src/gym/CondReceipt.tsx",
+  "old": "Conditioning receipt before the clock has run, with no last time: \"Not run yet\"",
+  "new": "(nothing shown; last time's line still shows when there is one)",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "245",
+  "file": "src/health/screens/RefillRunwayScreen.tsx",
+  "old": "Runway tile before any dose is taken since the fill: number \"Not Yet\", label \"Runway\"",
+  "new": "(tile not shown until there is a pace; then \"{N}\" / \"Days of Runway\" as before)",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "389",
+  "file": "src/notes/screens/NotesList.tsx",
+  "old": "\u00b7 JARVIS found 6",
+  "new": "JARVIS found 6 (leading middot dropped; the count is now a white bold number)",
+  "group": "purple-and-decisions",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "575",
+  "file": "src/bigger/BiggerPicturePage.tsx",
+  "old": "5 of 8 Left \u00b7 Due tomorrow (pace line under the progress line '3 of 8 Done', unlensed Bigger Picture project row)",
+  "new": "Due tomorrow (the 'N of M Left' count is dropped on this row because the progress line directly above already says it; it stays when a hold line replaces the progress line). This takes effect once BiggerPictureFlow passes projectPaceParts. The projectPace string that other screens show is unchanged, word for word.",
+  "group": "bigger-picture",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "R8-peakDate",
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "2026-08-12 (the raw ISO date under Best on a plateau card)",
+  "new": "Aug 12 (shortDate; drawn in small caps as AUG 12)",
+  "group": "today-brain",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "R8-volume",
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "Aug 12 \u00b7 3 sets \u00b7 primary",
+  "new": "AUG 12 \u00b7 3 sets \u00b7 primary (same words; the date is now small caps, 3 is white, and CSS draws the dots instead of the string)",
+  "group": "today-brain",
+  "phase": "css-handoff"
  }
 ]

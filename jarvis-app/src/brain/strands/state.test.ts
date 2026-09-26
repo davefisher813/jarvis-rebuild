@@ -47,9 +47,9 @@ describe("stateForStrand (C-40, C-47)", () => {
     expect(Object.keys(src.data)).not.toContain("state");
   });
 
-  it("tones: sky for what he said, purple for what JARVIS learned, warn for the question", () => {
+  it("tones: sky for what he said, green for what JARVIS learned, warn for the question", () => {
     expect(toneForStrandState("KNOWN")).toBe("sky");
-    expect(toneForStrandState("LEARNED")).toBe("purp");
+    expect(toneForStrandState("LEARNED")).toBe("good");
     expect(toneForStrandState("FADING")).toBe("warn");
   });
 });

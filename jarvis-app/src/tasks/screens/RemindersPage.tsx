@@ -144,7 +144,11 @@ export default function RemindersPage({
     const hasGutter = it.state === "open" && timed && !!it.time;
     const dueToday = hasGutter && it.date === today;
     const when = it.state === "skipped" ? "Skipped · " + whenWords(r, it.date, it.time, today, area) : whenWords(r, it.date, it.time, today, area);
-    const tone = it.state === "open" && it.date === today ? "when" : "later";
+    // Today's open occurrence is due, so amber. Any other open date is a
+    // neutral date, and a neutral date on a row is small caps (§AM F5), never
+    // the row's grey again. A row with no date at all (unscheduled, on an
+    // action) keeps a plain fact: its phrase is not a date.
+    const tone = it.state !== "open" ? "" : it.date === today ? "when" : it.date ? "date" : "";
     // ONE RIGHT-SLOT ACTION, whatever the state (Dave 2026-09-15, v3: the row
     // stacked to three lines because the pill took a line of its own under
     // the body). Open rows answer with the linked verb when there is one and
@@ -175,7 +179,7 @@ export default function RemindersPage({
                   has. */}
               {hasGutter
                 ? (!dueToday && <span className={"fact " + tone}>{dateWordFor(it.date!, today)}</span>)
-                : <span className={"fact " + (it.state === "open" ? tone : "")}>{when}</span>}
+                : <span className={"fact " + tone}>{when}</span>}
               {/* The area name takes its own element so IT is what gives way
                   when the line runs out of room. Its colour is already on the
                   dot beside it, so a clipped name still says which area this

@@ -172,19 +172,18 @@
    events has no state, so it takes the neutral tile with its number in
    white, the same as the due count beside it. */
 .ruled .st-goal  { background: var(--good-tint);  color: var(--good); }
-.ruled .st-time,
 .ruled .st-quiet { background: var(--press-3);    color: var(--tx-2); }
-.ruled .st-time .st-n,
 .ruled .st-quiet .st-n { color: var(--tx-1); }
 .ruled .st-warn  { background: var(--warn-tint);  color: var(--warn); }
 .ruled .st-late  { background: var(--red-tint);   color: var(--sys-red); }
-/* Light needs the darker text steps the pills already learned to use.
-   BROWSER-F-04 (2026-09-05): the green and amber steps are gone from here.
-   They were two more hand-kept hexes doing what --good and --warn now do
-   themselves in light, and a hand-kept hex is how .gstat-good and the whole
-   month report got missed. Red keeps its own: its token is still one value
-   per theme. (Blue's light hex went with the blue tile, 2026-09-25.) */
-[data-theme="light"] .ruled .st-late { color: var(--on-light-red, #B8001A); }
+/* No light text step for these tiles. BROWSER-F-04 (2026-09-05) took the
+   green and amber steps out: two more hand-kept hexes doing what --good and
+   --warn now do themselves in light. The red step went on 2026-09-26 (§AM,
+   the lead, on Dave's 2026-09-12 Astra ruling that Apple's light system
+   colours as shipped are the palette, as text too): it stepped lateness
+   down to the brand's words red, and that red means "tap this". Late is the
+   system red in both themes, and the raw fallback hex went with it. (Blue's
+   light hex went with the blue tile, 2026-09-25.) */
 
 /* ---------- THE DAY RING: flat, one colour, no gradient, no glow ---------
    "Keep them completely separate." The ring counts due work and says so in
@@ -585,9 +584,10 @@
 /* E-31 (2026-09-12): a proposed day is a guess he made, not a deadline the
    app holds him to, so it wears the quiet ramp. */
 .ruled .uchip.u-proposed { color: var(--tx-3); background: var(--press-3); }
-/* BROWSER-F-04 (2026-09-05): u-today's light hex is gone with the rest of
-   the hand-kept amber; --warn is the readable value in light now. */
-[data-theme="light"] .ruled .uchip.u-late  { color: var(--on-light-red, #B8001A); }
+/* No light override for either chip. BROWSER-F-04 (2026-09-05) retired the
+   today chip's hand-kept amber; the late chip's step down to the brand's
+   words red went on 2026-09-26 (§AM, Dave's 2026-09-12 Astra ruling: late
+   is Apple's light system red as shipped, including as text). */
 
 /* ---------- ONE ACTION COLUMN on the stream and mail rows ---------------
    "The urgency chip makes the call to action button look misaligned." It
@@ -840,7 +840,6 @@
 .ruled .msg-line .conn-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .ruled .msg-gist { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .ruled .mail-arch[aria-label="Archive"] { background: #0A84FF; color: #fff; } /* More moves keeps the neutral fill */
-.ruled .msg-fold-head { padding-left: var(--s-4); }
 
 /* ---------- THE HEALTH PAGE (Check, Health, Stop, Dave 2026-09-02: "The
    next session, then the week, then the numbers") ---------------------------
@@ -1384,11 +1383,11 @@
 .ruled .set-field { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none;
   font-family: var(--f); font-size: calc(16px * var(--type-scale)); color: var(--tx-2); text-align: right; }
 .ruled .set-field::placeholder { color: var(--tx-2); }
-.ruled .set-gap { margin-top: var(--s-5); }
-/* The note under a settings card is the field note (§AM F6, 2026-09-25): its
-   size, ink and italic, so it reads like the one HealthSettingsPage and
-   TrainingPage already draw with the field note's own class. It was 13px. */
-.ruled .set-foot { padding-top: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); font-style: italic; line-height: 1.45; }
+/* A flex column, like the screen itself (2026-09-26), so a note under a
+   card inside this wrapper keeps its own top margin instead of collapsing
+   into the one above it: Account's armed-delete warning sat 9px higher
+   than the same note anywhere else. A wrapper holding one card is unchanged. */
+.ruled .set-gap { margin-top: var(--s-5); display: flex; flex-direction: column; }
 .ruled .set-card > .set-act .conn-name { color: var(--tint); }
 .ruled .set-card > .set-quiet .conn-name { color: var(--tx-3); }
 /* A sub-row is demoted by SIZE only (2026-09-25). Its name wore the grey as
@@ -1405,10 +1404,6 @@
    card, not to --tint itself, because --tint is right everywhere else it is
    read -- this ground is what changed, not the brand's one red. */
 [data-theme="dark"] .ruled .set-card .btn { color: var(--tint-on-sheet); }
-/* The one capsule that painted 13px (2026-09-25): every capsule's label is
-   14 (§AL, restating §AJ C1), so this now only restates that. It stays until
-   its one call site drops the class, which a class with no rule may not do. */
-.ruled .row-act-pill { font-size: var(--t-meta); }
 .ruled .legal-card { padding: var(--s-2) var(--s-4); }
 .ruled .legal-card .legal-body { padding-bottom: var(--s-2); }
 .ruled .set-card.about-hero, .ruled .set-card.account-hero { padding: var(--s-6) var(--s-4); }
@@ -1787,6 +1782,10 @@
 .ruled.health-ruled .se-chip-done { color: var(--hl-lime-ink); background: var(--hl-lime-tint); }
 .ruled.health-ruled .se-chip-last, .sheet-scrim > .card .se-chip-last, .ruled.health-ruled .se-chip-time { color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
 .ruled.health-ruled .se-chip-budget, .ruled.health-ruled .se-chip-pair { color: var(--hl-violet-ink); background: var(--hl-violet-tint); }
+/* An estimate the app worked out is sky (§AM, 2026-09-26): the Up Next
+   card's length was wearing the budget violet. Health has no sky ink of its
+   own, so it takes the key's, washed at the budget violet's 16%. */
+.ruled.health-ruled .se-chip-est { color: var(--cat-sky); background: color-mix(in srgb, var(--cat-sky) 16%, transparent); }
 .ruled.health-ruled .se-chip-over { color: var(--hl-amber-ink); background: var(--hl-amber-tint); }
 .ruled.health-ruled .se-chip-when, .ruled.health-ruled .se-chip-game { color: var(--tx-3); background: var(--press-3); }
 
@@ -2198,8 +2197,11 @@
    colour rides a dot, never a reading, while blue in Health means a
    cool-down. A count of doses and a count of days have no state of their
    own, so they take white, the key's number that must still stand out.
+   Doses Left turns Health's amber once the pharmacy call is due (2026-09-26):
+   near a limit is a state, and the key gives it amber.
    The two ends are scale-end kickers, so 11 caps (§AM F4), not a 13. */
 .ruled.health-ruled .stat-row.stat-hblue .stat-tile .stat-num { color: var(--tx-1); }
+.ruled.health-ruled .stat-row.stat-hblue .stat-tile.stat-warn .stat-num { color: var(--hl-amber-ink); }
 .ruled.health-ruled .rpe-ends { display: flex; justify-content: space-between; margin-top: var(--s-1h);
   font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
   text-transform: uppercase; color: var(--tx-3); }

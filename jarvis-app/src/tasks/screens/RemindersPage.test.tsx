@@ -19,8 +19,8 @@ const items = [
   item({ time: "07:00", paused: true }, "Stretch", "p1"),
   item({ time: "10:00", skippedDates: [TUE] }, "Log Effort", "sk1"),
 ];
-function page(tab: PageTab, extra: Partial<Parameters<typeof RemindersPage>[0]> = {}) {
-  const sections = pageSections(items, tab, TUE, "09:30");
+function page(tab: PageTab, extra: Partial<Parameters<typeof RemindersPage>[0]> = {}, list: TaskItem[] = items) {
+  const sections = pageSections(list, tab, TUE, "09:30");
   return render(<RemindersPage chrome={{ back: "Today", onBack: noop }} sections={sections} tab={tab} onTab={noop}
     query="" onQuery={noop} searchOpen={false} onSearchToggle={noop} today={TUE} onNew={noop} onSettings={noop} onOpen={noop}
     onTick={noop} onSnooze={noop} onResume={noop} onRestore={noop} {...extra} />);
@@ -105,6 +105,24 @@ describe("RemindersPage", () => {
     fireEvent.click(screen.getByText("Restore"));
     expect(onRestore).toHaveBeenCalledWith("sk1", TUE);
     expect(screen.getByText(/^Skipped · Today/)).toBeInTheDocument();
+  });
+
+  // §AM F5 (2026-09-26): a neutral future date on a row is small caps, the
+  // .fact.date primitive, never the row's grey a second time. And "Paused" is
+  // not one of the closed state words, so a paused row spends its one grey on
+  // that word and carries no rhythm beside it.
+  it("a future date is the neutral date fact, and a paused row carries no rhythm", () => {
+    const thu = item({ time: "08:00", days: [4] }, "Water The Plants", "thu1");
+    const r = page("upcoming", {}, [thu]);
+    const facts = screen.getByText("Water The Plants").closest(".rem-card")!.querySelector(".facts")!;
+    const date = facts.querySelector(".fact")!;
+    expect(date).toHaveClass("date");
+    expect(date).not.toHaveClass("later");
+    expect(date).toHaveTextContent(/17/);
+    r.unmount();
+    page("routines");
+    const paused = screen.getByText("Stretch").closest(".rem-card")!.querySelector(".facts")!;
+    expect([...paused.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual(["Paused"]);
   });
 
   it("with nothing in the view, the empty state carries its Add", () => {

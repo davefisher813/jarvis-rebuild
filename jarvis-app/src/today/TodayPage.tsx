@@ -457,11 +457,14 @@ export default function TodayPage({
   // user with three zeros). Every tile keeps the door it had: events land on
   // Schedule, due on Tasks, late on the Overdue filter, goals on the Bigger
   // Picture. Rolling numbers kept.
+  // AMENDED 2026-09-25 (§AM, the Colour Key): time is no longer blue. A count
+  // of events has no state, so the events tile is quiet like the due tile;
+  // colour on a tile now only ever means late or moved.
   const lateKind = summary.overdue >= 3 ? "st-late" : "st-warn";
   const parts = (
     <div className="stat-tiles">
       {summary.events > 0 && (
-        <span className="stat-tile st-time" role="button" tabIndex={0} onClick={onSeeAllSchedule}>
+        <span className="stat-tile st-quiet" role="button" tabIndex={0} onClick={onSeeAllSchedule}>
           <span className="st-n"><RollingNumber value={summary.events} /></span>
           <span className="st-w">{summary.events === 1 ? "event" : "events"}</span>
         </span>

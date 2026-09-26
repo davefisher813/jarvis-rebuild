@@ -475,9 +475,10 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
-        {/* THE PREVIEW IS THE SPEC (2026-09-01): pairing wears the blue data
-            tag, a ramp wears the amber prep tag, a filler stays quiet --
-            colored facts, not more prose in the name. */}
+        {/* THE PREVIEW IS THE SPEC (2026-09-01), RECOLOURED BY THE KEY
+            (§AM, 2026-09-25): a pairing wears Health's violet tag, a ramp
+            and a filler wear the neutral tag, set apart by fill and caps --
+            marked facts, not more prose in the name. */}
         <div className="conn-name truncate">
           {pairLabel && <span className="xtag xtag-blue">{pairLabel}</span>}
           {liftTitle(exercise.name)}
@@ -3425,7 +3426,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     glance where a sentence has to be parsed. */}
                 <div className="se-chips">
                   <span className="se-chip se-chip-last">{nextDay.exercises.length}<em>{nextDay.exercises.length === 1 ? "Lift" : "Lifts"}</em></span>
-                  {nextEst > 0 && <span className="se-chip se-chip-budget"><em>Est</em>{nextEst} Min</span>}
+                  {nextEst > 0 && <span className="se-chip se-chip-est"><em>Est</em>{nextEst} Min</span>}
                   {(pinnedToday === nextDay || upcomingPin?.day === nextDay) && (
                     <span className="se-chip se-chip-pin"><em>Pinned</em>{pinnedToday === nextDay
                       ? "Today"

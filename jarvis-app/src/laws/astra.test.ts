@@ -59,10 +59,18 @@ describe("ASTRA: the primitives exist under the harness's own names", () => {
     // .fact.sky went on 2026-09-21 with the headliner's lineage line, its
     // only user (Dave: "get rid of the blue subtext"). A variant nothing
     // renders is a colour waiting to be reached for by accident.
-    for (const sel of [".facts {", ".fact + .fact::before", ".fact.warn", ".fact.good", ".fact.purp", ".fact.red", ".fact.cat", ".fact.st", ".row-star {", ".row-star.on", ".why {", ".dring {"]) {
+    //
+    // AMENDED 2026-09-26 (§AM, handoff #606): .fact.purp left the required
+    // list and joined .fact.sky among the retired. Purple is not in the
+    // Colour Key, so a purple fact is a colour with no meaning; its call
+    // sites moved to the key's own variants first (done and learned went
+    // green, a promise amber, a count with no state white, a date small
+    // caps). The rest of the list is unchanged.
+    for (const sel of [".facts {", ".fact + .fact::before", ".fact.warn", ".fact.good", ".fact.red", ".fact.cat", ".fact.st", ".row-star {", ".row-star.on", ".why {", ".dring {"]) {
       expect(CSS, sel + " is missing").toContain(sel);
     }
     expect(CSS, "and the one that lost its last user is gone").not.toContain(".fact.sky");
+    expect(CSS, "purple is not in the Colour Key").not.toContain(".fact.purp");
   });
 
   // THE OTHER DIRECTION (2026-09-22). The law above checks that a retired

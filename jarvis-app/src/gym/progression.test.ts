@@ -126,9 +126,9 @@ describe("the Assisted engine", () => {
     expect(s.kind).toBe("bump");
     expect(s.next.w).toBe(227.5);
     expect(s.why).toMatch(/every set cleared 8/);
-    expect(s.basis).toMatchObject({ variant: "Bench · Barbell", range: "6 to 8 reps", increment: "2.5 lb", marks: "None marked" });
+    expect(s.basis).toMatchObject({ variant: "Bench, Barbell", range: "6 to 8 reps", increment: "2.5 lb", marks: "None marked" });
     expect(s.basis!.source).toMatch(/2 working sets/);
-    expect(s.basis!.role).toMatch(/Warm-ups and drops left out/);
+    expect(s.basis!.role).toMatch(/warm-ups and drops left out/);
   });
 
   it("inside the range, the weight holds and the target is the top of the range; under it, a step back", () => {

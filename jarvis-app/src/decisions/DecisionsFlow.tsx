@@ -56,21 +56,24 @@ export const fmtDay = (iso: string) =>
   new Date(iso.length === 10 ? iso + "T12:00:00" : iso).toLocaleDateString("en-US", { month: "long", day: "numeric" });
 
 // The list glyph wears the linked entity's color and goes quiet when the
-// decision stands alone.
-function glyphClass(rec: DecisionRecord, projectCat: (id: string) => string | undefined): string {
+// decision stands alone. One slot, read two ways: the glyph takes it as ink
+// (cat-fg-*) and the linked home's fact takes it as a dot (cat-bg-*), so the
+// two can never name different colours for the same home.
+function glyphSlot(rec: DecisionRecord, projectCat: (id: string) => string | undefined): string {
   const t = rec.data.linkedType;
   // V4 styling pass: an unlinked decision wears the decision type color
   // (purple), never grey; nothing with an identity is grey.
-  if (!t || !rec.data.linkedId) return "cat-fg-purple";
+  if (!t || !rec.data.linkedId) return "purple";
   if (t === "project") {
     const cat = projectCat(rec.data.linkedId);
-    return cat ? "cat-fg-" + catColor(cat) : "cat-fg-indigo";
+    return cat ? catColor(cat) : "indigo";
   }
-  if (t === "org") return "cat-fg-" + catColor(rec.data.linkedId);
-  if (t === "goal") return "cat-fg-purple";
-  if (t === "person") return "cat-fg-teal";
-  return "cat-fg-blue"; // task
+  if (t === "org") return catColor(rec.data.linkedId);
+  if (t === "goal") return "purple";
+  if (t === "person") return "teal";
+  return "blue"; // task
 }
+const glyphClass = (rec: DecisionRecord, projectCat: (id: string) => string | undefined) => "cat-fg-" + glyphSlot(rec, projectCat);
 
 export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsumed, onOpenSource }: { onBack: () => void; openId?: string;
   // BRAIN-F-04 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
@@ -536,7 +539,9 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
                 <div className="conn-meta truncate">{r.data.why ? "Because " + r.data.why : NO_REASON}</div>
                 <div className="facts">
                   {r.data.source && <span className={"fact" + (r.data.source.kind === "manual" ? "" : " sky")}>{SOURCE_LABEL[r.data.source.kind]}</span>}
-                  {linksOf(r.data).map((l) => <span className={"fact fact-link " + glyphClass(r, projCat)} key={l.id}>{l.label}</span>)}
+                  {/* The linked home is the category fact (§AM): the hue
+                      rides the dot, the name stays the line's grey. */}
+                  {linksOf(r.data).map((l) => <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + glyphSlot(r, projCat)} /><span className="cat-t">{l.label}</span></span>)}
                   {r.data.outcome && <span className="fact">{OUTCOME_LABEL[r.data.outcome.word]}</span>}
                   {/* A date is SMALL CAPS (§AM F5, 2026-09-22). This asked
                       for cyan and never got it -- .fact.cyan is scoped to

@@ -289,7 +289,7 @@ export default function NotesList({
             <div className="r-k">
               <ParentLineGlyph p={{ kind: "category", name: area || "Not Filed", tone, pct: null }} />
               {(n.tags ?? []).map((t) => <span className="r-goal r-cat" key={t}>{"· #" + t}</span>)}
-              {(n.found ?? 0) > 0 && <span className="r-goal r-cat fact purp">{"· JARVIS found " + n.found}</span>}
+              {(n.found ?? 0) > 0 && <span className="r-goal">JARVIS found <b>{n.found}</b></span>}
               {when && <span className="r-goal r-cat r-when">{"· " + when}</span>}
             </div>
           )}

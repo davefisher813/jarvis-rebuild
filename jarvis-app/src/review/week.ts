@@ -23,9 +23,11 @@ import { capAfterNumber } from "../shared/casing";
 // other number here is a count.
 
 export type LineKey = "Worked" | "Slipped" | "Changed" | "Learned" | "Next";
-export type FactTone = "good" | "warn" | "sky" | "purp" | "cat" | undefined;
+export type FactTone = "good" | "warn" | "sky" | "cat" | undefined;
 export interface WeekFact { text: string; tone?: FactTone; color?: string }
-export interface WeekLine { key: LineKey; tone: "good" | "warn" | "sky" | "purp" | "red"; facts: WeekFact[] }
+// A line's key word takes a colour only when the word is a meaning; "quiet"
+// is the caps grey (Learned). Purple is not in the Colour Key (§AM).
+export interface WeekLine { key: LineKey; tone: "good" | "warn" | "sky" | "quiet" | "red"; facts: WeekFact[] }
 export interface WeekSegment { id: string; name: string; color: string; minutes: number; pct: number }
 
 export interface WeekInputs {
@@ -134,9 +136,12 @@ export function buildWeek(inp: WeekInputs): WeekReport {
   const learnedN = seal.strands.created;
   const starred = rows.filter((r) => r.type === "strand.starred").length;
   const learned: WeekFact[] = [];
-  if (learnedN > 0) learned.push({ text: capAfterNumber(`${learnedN} new ${learnedN === 1 ? "fact" : "facts"}`), tone: "purp" });
-  if (starred > 0) learned.push({ text: capAfterNumber(`${starred} remembered`) });
-  if (learned.length) lines.push({ key: "Learned", tone: "purp", facts: learned });
+  // Purple is not in the Colour Key (§AM, 2026-09-26): what JARVIS learned
+  // is the line's one grey, and what he chose to keep (starred) is logged,
+  // so green. One grey and at most one coloured fact, in either order.
+  if (learnedN > 0) learned.push({ text: capAfterNumber(`${learnedN} new ${learnedN === 1 ? "fact" : "facts"}`) });
+  if (starred > 0) learned.push({ text: capAfterNumber(`${starred} remembered`), tone: "good" });
+  if (learned.length) lines.push({ key: "Learned", tone: "quiet", facts: learned });
 
   // Next: the live-goal area with the least of the week's hours, said as a
   // count of hours against the scheduled total, with C-65's vs-usual beside

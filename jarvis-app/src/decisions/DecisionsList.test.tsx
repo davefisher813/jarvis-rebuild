@@ -1,6 +1,7 @@
 // The decision list anatomy (Dave 2026-08-18 styling pass): the linked
-// home renders as a colored fact in the sub line, the recorded date rides
-// the name line, and long decision sentences wrap instead of truncating.
+// home renders as the category fact in the sub line (its colour on a dot,
+// §AM 2026-09-26), the recorded date rides the name line, and long
+// decision sentences wrap instead of truncating.
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -24,12 +25,18 @@ function Seed() {
 }
 
 describe("Decision list anatomy", () => {
-  it("renders the linked home as a colored fact with a date in the name line", async () => {
+  it("renders the linked home as the category fact with a date in the name line", async () => {
     const { container } = render(
       <NotesProvider userId="u-dec-list"><Seed /><DecisionsFlow onBack={() => {}} /></NotesProvider>,
     );
     await waitFor(() => expect(screen.getByText("Rebuild Bridge App")).toBeInTheDocument());
-    expect(screen.getByText("Rebuild Bridge App").className).toContain("fact-link");
+    // The home is the category fact: the name sits in .cat-t inside the
+    // .fact-link, and the hue rides its dot, never the words (§AM).
+    const link = screen.getByText("Rebuild Bridge App").closest(".fact-link")!;
+    expect(link).toBeInTheDocument();
+    expect(link.className).toContain("fact cat");
+    expect(link.querySelector(".cd")!.className).toMatch(/\bcat-bg-/);
+    expect(link.className).not.toMatch(/cat-fg-/);
     expect(container.querySelector(".dec-when")).toBeInTheDocument();
     // Long decision sentences wrap (two-line clamp) rather than truncating.
     const name = container.querySelector(".dec-name");

@@ -42,6 +42,11 @@ describe("buildWeek", () => {
     expect(byKey.Slipped).toEqual(["Tucci · 2 Tasks pushed"]);
     expect(byKey.Changed).toEqual(["1 Block moved"]);
     expect(byKey.Learned).toEqual(["1 New fact"]);
+    // Purple is not in the Colour Key (§AM): Learned is the caps grey, and
+    // what JARVIS learned is the line's one grey fact.
+    const learnedLine = w.lines.find((l) => l.key === "Learned")!;
+    expect(learnedLine.tone).toBe("quiet");
+    expect(learnedLine.facts[0]?.tone).toBeUndefined();
     expect(byKey.Next).toEqual(["Bridge 3h of 17h"]);
     expect(w.next?.name).toBe("Bridge");
     expect(w.offer).toBe(true);

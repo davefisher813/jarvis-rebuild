@@ -91,7 +91,7 @@ export default function ReminderDetailSheet({
                 <button type="button" className="btn btn-secondary" onClick={() => onPause(item.id, true)}>Pause</button>
                 {occurrence && <button type="button" className="btn btn-secondary" onClick={() => onSkip(item.id, occurrence.date)}>{"Skip " + (occurrence.date === today ? "Today" : "Next")}</button>}
               </div>
-              {link && onOpenLinked && <Note>Opening it keeps the reminder active. The ring marks it done</Note>}
+              {link && onOpenLinked && <Note>Opening it keeps the reminder active · The ring marks it done</Note>}
             </div>
           )}
           {r.paused && (

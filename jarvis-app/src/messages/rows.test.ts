@@ -13,11 +13,21 @@ describe("the rail's two authorities", () => {
   });
 
   it("triage heat is the sender's stated deadline, translated", () => {
-    expect(railToneForDeadline("today", NOW)).toBe("hot");
-    expect(railToneForDeadline("asap", NOW)).toBe("hot");
-    expect(railToneForDeadline("tomorrow", NOW)).toBe("hot");
+    expect(railToneForDeadline("today", NOW)).toBe("warm");
+    expect(railToneForDeadline("asap", NOW)).toBe("warm");
+    expect(railToneForDeadline("tomorrow", NOW)).toBe("warm");
     expect(railToneForDeadline("Friday", NOW)).toBe("warm");
     expect(railToneForDeadline("next week", NOW)).toBeNull();
+  });
+
+  // The Colour Key (§AM, 2026-09-26): a stated deadline is DUE (amber). byRank
+  // ranks a date that passed yesterday the same as today, so reading rank 0
+  // as LATE (red) would call today's mail overdue.
+  it("a stated deadline is due, never late, even once it has passed", () => {
+    expect(railToneForDeadline("Aug 24", NOW)).toBe("warm");
+    for (const by of ["today", "asap", "eod", "tomorrow", "Aug 24", "Friday", "this week"]) {
+      expect(railToneForDeadline(by, NOW)).not.toBe("hot");
+    }
   });
 
   it("never invents heat from silence or from 'no rush'", () => {

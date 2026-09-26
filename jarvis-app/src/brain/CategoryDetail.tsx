@@ -1748,9 +1748,16 @@ export default function CategoryDetail({
                               {volumeBreakdown(workouts, muscleMap, r.muscle, nowMs).map((lift, i) => (
                                 <div className="ins-row" key={lift.name + lift.date + i}>
                                   <span className="ins-k">{lift.name}</span>
+                                  {/* §AM (2026-09-26): the date is a neutral date,
+                                      so small caps, and the separators are
+                                      drawn by .fact + .fact rather than baked
+                                      into the string. The facts sit inline in
+                                      the one value run, which wraps under the
+                                      name when it cannot fit beside it. */}
                                   <span className="ins-sub">
-                                    {shortDate(lift.date)} · {lift.sets} {lift.sets === 1 ? "set" : "sets"}
-                                    {lift.primary ? " · primary" : " · secondary, counted half"}
+                                    <span className="fact date">{shortDate(lift.date)}</span>
+                                    <span className="fact"><b>{lift.sets}</b> {lift.sets === 1 ? "set" : "sets"}</span>
+                                    <span className="fact">{lift.primary ? "primary" : "secondary, counted half"}</span>
                                   </span>
                                 </div>
                               ))}
@@ -1805,7 +1812,7 @@ export default function CategoryDetail({
                     {/* The two numbers that matter, side by side and aligned,
                         rather than a sentence you have to read to compare. */}
                     <div className="ins-pair">
-                      <div className="ins-cell"><span className="ins-k">Best</span><span className="ins-v">{p.peakValue}</span><span className="ins-sub">{p.peakDate}</span></div>
+                      <div className="ins-cell"><span className="ins-k">Best</span><span className="ins-v">{p.peakValue}</span><span className="fact date">{shortDate(p.peakDate)}</span></div>
                       <div className="ins-cell"><span className="ins-k">Now</span><span className="ins-v ins-v-warn">{p.currentValue}</span><span className="ins-sub">Latest</span></div>
                     </div>
                     {p.whatChanged.length > 0 && (
@@ -2044,7 +2051,7 @@ export default function CategoryDetail({
       {(receipt.done > 0 || receipt.events > 0 || pushedWeek > 0 || rec.lastWeek > 0) && (
         <div className="pad-x"><div className="stat-tiles area-tiles">
           {receipt.done > 0 && <span className="stat-tile st-quiet"><span className="st-n">{receipt.done}</span><span className="st-w">done</span></span>}
-          {receipt.events > 0 && <span className="stat-tile st-time"><span className="st-n">{receipt.events}</span><span className="st-w">{receipt.events === 1 ? "event" : "events"}</span></span>}
+          {receipt.events > 0 && <span className="stat-tile st-quiet"><span className="st-n">{receipt.events}</span><span className="st-w">{receipt.events === 1 ? "event" : "events"}</span></span>}
           {pushedWeek > 0 && <span className="stat-tile st-warn"><span className="st-n">{pushedWeek}</span><span className="st-w">pushed</span></span>}
           {rec.lastWeek > 0 && <span className="stat-tile st-quiet"><span className="st-n">{(receipt.done - rec.lastWeek >= 0 ? "+" : "") + (receipt.done - rec.lastWeek)}</span><span className="st-w">vs last week</span></span>}
         </div></div>

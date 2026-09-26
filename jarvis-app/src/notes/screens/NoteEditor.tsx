@@ -535,8 +535,8 @@ export default function NoteEditor({
                 <div className="row-grow">
                   <div className="conn-name">{c.text}</div>
                   <div className="facts">
-                    <span className={"fact " + (c.kind === "decision" ? "purp" : "sky")}>{c.kind === "task" ? "Task" : c.kind === "decision" ? "Decision" : c.kind === "person" ? "Person" : "Project"}</span>
-                    {c.due && <span className="fact">{c.due}</span>}
+                    <span className="fact">{c.kind === "task" ? "Task" : c.kind === "decision" ? "Decision" : c.kind === "person" ? "Person" : "Project"}</span>
+                    {c.due && <span className="fact date">{c.due}</span>}
                   </div>
                 </div>
                 {(c.kind === "task" || c.kind === "decision")

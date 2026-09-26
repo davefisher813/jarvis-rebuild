@@ -263,15 +263,17 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
           {[...seals].reverse().map((s) => {
             const moved = movedIn(s.data.month, goals, projects).length + (s.data.saved > 0 ? 1 : 0);
             return (
-              // C-64: the month row wears the purple glyph and one facts line,
-              // moved purple and done plain (one coloured fact per line).
+              // C-64: the month row wears the purple glyph and one facts line.
+              // §AM (2026-09-26): purple is not in the Colour Key, so done is
+              // the one coloured fact (green, done) and moved is the one
+              // grey, its count a white number with no state.
               <div {...pressable(() => setScreen({ kind: "month", month: s.data.month }))} className="row" key={s.id}>
                 <div className="lib-ico lib-disc strand-disc">{filledIcon("month")}</div>
                 <div className="row-grow">
                   <div className="conn-name">{monthName(s.data.month)} {s.data.month.slice(0, 4)}</div>
                   <div className="facts">
-                    <span className="fact purp">{capAfterNumber(`${moved} moved`)}</span>
-                    <span className="fact">{capAfterNumber(`${s.data.done} done`)}</span>
+                    <span className="fact"><b>{moved}</b> Moved</span>
+                    <span className="fact good">{capAfterNumber(`${s.data.done} done`)}</span>
                   </div>
                 </div>
                 {CHEV}

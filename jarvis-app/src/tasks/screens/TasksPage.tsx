@@ -198,6 +198,16 @@ export function TaskRow({
   const t = item.data;
   const u = urgencyFor(t, today);
   const prov = rowSource(t.source, t.moved);
+  // ONE WHERE-IT-CAME-FROM PER ROW (§AK, 2026-09-26). When nothing ahead of
+  // it claims the second line's slot, the origin mark draws the envelope and
+  // "Email" there, and the compact provenance at the end of the line then said
+  // the same thing again as "From an email". The mark keeps it; provenance
+  // stays for a row whose origin the mark did not draw, and for a move made
+  // today, which is a different fact from where the task came from.
+  const originDrawn = !(kicker || tag) && !parent
+    && categoriesOf(t).map((id) => catName(id)).filter(Boolean).length === 0
+    && !!originLabel(t);
+  const provRepeatsOrigin = originDrawn && prov === t.source;
   // The distance chip: TODAY, 2 DAYS LATE, 3 WEEKS LATE, OVER A MONTH.
   // Same ladder as Today's dealt row (distanceFor). Muted on the Today
   // filter, where every row would say the same word.
@@ -485,7 +495,7 @@ export function TaskRow({
                 out, whole rather than clipped -- and the full line, with its
                 own tap and its own 44px target, is on the sheet one tap away,
                 where it has always been. */}
-            <Provenance compact source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
+            {!provRepeatsOrigin && <Provenance compact source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />}
           </div>
         </div>
         {/* The urgency label steps aside for Start, exactly as it does on

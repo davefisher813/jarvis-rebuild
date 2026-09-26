@@ -6,7 +6,8 @@
   "change": "Replace the \" \u00b7 \" baked into <Note> strings with \". \". Sites: SnoozeSheet.tsx:38 \"Only this occurrence changes \u00b7 The schedule stays the same\"; ReminderSheet.tsx:266 \"What this reminder is about \u00b7 Opening it never marks the reminder done\"; ReminderSettingsSheet.tsx:48 \"Follow-ups and in-app prompts wait until quiet hours end \u00b7 A reminder's own alert still rings\"; ReminderDetailSheet.tsx:94 \"Opening it keeps the reminder active \u00b7 The ring marks it done\"; ContextPromptSheet.tsx:44 \"This reminder asked to be shown here \u00b7 It responds to what you open inside JARVIS, never to another app\"; GoalDetailPage.tsx:468 \"Optional \u00b7 Whatever you write is kept with the decision\"; RoutineFlow.tsx:426 \"A call fits \u00b7 Typing does not\". These are sentence notes under a field, not facts lines, so under R6 they may be out of scope. Leave them to the lead or Phase D.",
   "group": "components.css#1",
   "phase": "css",
-  "done": false
+  "done": true,
+  "note": "middot half not changed: shortCopy law + R6 (field notes are not facts lines)"
  },
  {
   "kind": "needs_other_file",
@@ -15,7 +16,7 @@
   "change": "Line 94 `{stillOpen ? \"Your Month \u00b7 Still Open\" : \"Your Month\"}` bakes a middot into the hero kicker. Suggested reword: `{stillOpen ? \"Your Month So Far\" : \"Your Month\"}`. The nav title is only the month name, so \"So Far\" carries the still-open meaning without a separator. \"Still Open\" is not one of the 13 state words, so a .fact.st route would need a ruling.",
   "group": "components.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -24,7 +25,7 @@
   "change": "Line 659: change <span className=\"fact cyan\">{`Saves ${leverSave} min`}</span> to <span className=\"fact est\">{`Saves ${leverSave} min`}</span>. The saving is an estimate, so it takes sky. .fact.est already exists in components.css with --cat-sky, and no ruled.css rule outranks it on health.",
   "group": "components.css#2",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -33,7 +34,7 @@
   "change": "Line 309: drop \"blue\" from the trend headline, <div className=\"p3-q\">. For kind === \"weight_reps\" the number is the Epley estimate, so wrap it in the existing primitive, <span className=\"fact est\">\u2026</span>. .fact has no size of its own, so it inherits the h1. Other kinds stay plain white. Then delete `.p3-q.blue { color: var(--blue); }` and its comment from components.css, since this line is its only user. I left the CSS rule in place because deleting it before the TSX changes would paint the estimate white.",
   "group": "components.css#2",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -42,7 +43,7 @@
   "change": "Line 284: change <span className=\"fact amber\">{`${bestE1rm}${unit ? \" \" + unit : \"\"}`}</span> to <span className=\"fact est\">\u2026</span>. The estimated one-rep max is an estimate (sky), not over/next (amber). No CSS change is needed because .fact.est already exists.",
   "group": "components.css#2",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -51,7 +52,8 @@
   "change": "Only if Dave picks the neutral chip: drop the hue props (lines 294, 299, 310, 337, 343, 349, 351-354) and the \" chip-lime\" classes (lines 218, 259). Then delete the four :where(.sheet-scrim > .card) .chip\u2026chip-{lime,violet,cyan} rules in components.css and the matching .ex-chip hue rules in ruled.css.",
   "group": "components.css#2",
   "phase": "css",
-  "done": false
+  "done": true,
+  "note": "held for Dave (dave-queue)"
  },
  {
   "kind": "needs_other_file",
@@ -60,7 +62,7 @@
   "change": "Line 56 (STEEL HEADS APP-WIDE) still says detail-page group labels (.grp .eyebrow: Decided, Because, Details) 'ride the same treatment' (red mini-caps + dotted leader). Amend it to say .grp .eyebrow is quiet since \u00a7AM (2026-09-25): --tx-3 with a --divider dotted leader, because a label cannot be tapped.",
   "group": "components.css#3",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -69,7 +71,7 @@
   "change": "Line 755: remove `.ruled .sched-until, .ruled .sched-rep` from the `font-size: var(--t-sub)` list, keeping `.ruled .sched-cat, .ruled .sched-sep, .ruled .sched-until-btn`. At 0,2,0 that rule otherwise beats the new small caps, and Today and Schedule are both .ruled, so the caps would render at 14px (R7). Line 757's nowrap can stay.",
   "group": "components.css#4",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -78,7 +80,7 @@
   "change": "Optional, for the key colour: line 376, \"Leave by\" means needs you soon, so `className=\"sched-until\"` could become `className=\"sched-until fact warn\"`. .fact.warn is later in components.css at equal specificity, so it wins. It is already R1-clean as grey small caps. Lines 382-386: firstMove's separator is not wrapped in a .sched-fact, so it can strand at a wrap (finding 49's second half).",
   "group": "components.css#4",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -87,7 +89,7 @@
   "change": "Line 147: `const tone = it.state === \"open\" && it.date === today ? \"when\" : \"later\";` should give \"date\" instead of \"later\", so a neutral future date uses the .fact.date primitive. Paused rows are still two greys: whenWords gives \"Paused\" as a plain .fact next to the plain rhythm .fact at line 203. Line 179's `\"fact \" + (it.state === \"open\" ? tone : \"\")` could use \"date\" for non-open states too, or drop the rhythm on a paused row.",
   "group": "components.css#4",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -96,7 +98,7 @@
   "change": "Line 232: `<div className=\"bp-sub\">{sized}</div>` should become `<div className=\"bp-sub\"><span className=\"fact est\">{sized}</span></div>`, the estimate primitive (sky). Line 237: the pace line from progress.ts projectPace bakes in \" \u00b7 \" and mixes meanings: \"Past its date\" is .fact.red, \"Due today/tomorrow\" is .fact.warn, and \"About N a day\" is .fact.est. It needs splitting into facts, or the progress line and the pace line stay two greys.",
   "group": "components.css#4",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -105,7 +107,7 @@
   "change": "Comment only, lines ~137-138: \"A missed reminder marks its TIME, not the whole row ... Never red, never a count.\" It is stale now that the time is --sys-red under \u00a7AM. Change it to \"marks its time in the key's red, not the whole row; never a count\".",
   "group": "components.css#4",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -114,7 +116,7 @@
   "change": "Move each purp call site to the key first, keeping one grey per line and at most one coloured fact (astra law 4). InsightsFlow.tsx:273 \"3 Moved\": `fact purp` -> `fact good` as the finding says, keeping \"41 Done\" as the one grey; or the \"41 Done\" fact becomes `fact good` and \"3 Moved\" becomes `<span className=\"fact\"><b>{moved}</b> Moved</span>`. week.ts:137 fact `tone: \"purp\"` -> undefined, and check what the line tone at week.ts:139 renders. NoteEditor.tsx:538: the kind word becomes plain `fact` (its `sky` half already paints grey, since .fact.sky is retired), and `c.due` becomes `fact date`. PersonDetail.tsx:350: \"You promised\" -> `fact warn`, the date -> `fact date`. strands/state.ts:41: LEARNED -> \"good\". NotesList.tsx:292: drop ` fact purp` (it already renders grey under .ruled .r-goal.r-cat). Only then, in components.css, delete `.fact.purp { color: var(--cat-purple); }` and its two theme variants (`[data-theme=\"light\"] .fact.purp`, `[data-theme=\"dark\"] .fact.purp`, around components.css:5903 and 5935-5936).",
   "group": "components.css#5",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -123,7 +125,7 @@
   "change": "Line 539: `<span className={\"fact fact-link \" + glyphClass(r, projCat)} key={l.id}>{l.label}</span>` -> `<span className=\"fact cat fact-link\" key={l.id}><span className={\"cd \" + glyphClass(r, projCat).replace(\"cat-fg-\", \"cat-bg-\")} /><span className=\"cat-t\">{l.label}</span></span>`. That is the category primitive: the dot carries the hue and the words stay grey. The co-located DecisionsList.test.tsx:32 `screen.getByText(\"Rebuild Bridge App\").className` would then find the inner .cat-t span, so change it to `.closest(\".fact-link\")!.className` or similar.",
   "group": "components.css#6",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -132,7 +134,7 @@
   "change": "Lines 50-52: `{entries.length === 0 && (<div className=\"cr-empty\">{lastLine ?? \"Not run yet\"}</div>)}` -> `{entries.length === 0 && lastLine && (<div className=\"cr-empty\">{lastLine}</div>)}`. This drops the placeholder that says nothing (R1); it is a wording change, so list it for Dave.",
   "group": "components.css#6",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -141,7 +143,8 @@
   "change": "Line 693, the base `.btn`: `background: var(--press-3); color: var(--tint); }` -> `background-color: var(--capsule-fill); color: var(--tint); }`. Warning: laws.test.ts:3148 ('the quiet CTA is neutral...') pins `/background: var\\(--press-3\\); color: var\\(--tint\\)/` against all stylesheets combined, and after my components.css change that text survives only in jarvis-design-system.css:693. Changing DS will fail that law, so amend it in place with a dated reason, e.g. to `/background-color: var\\(--capsule-fill\\); color: var\\(--tint\\)/`.",
   "group": "components.css#6",
   "phase": "css",
-  "done": false
+  "done": true,
+  "resolution": "Resolved 2026-09-26 by the lead's decision, not as proposed: the 50px base .btn in jarvis-design-system.css is not a capsule and keeps `background: var(--press-3); color: var(--tint)` (so the laws.test.ts quiet-CTA pin stays true, unamended). \u00a7AL binds .btn-sm: the unthemed .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) chain already takes background-color var(--capsule-fill) with the --tint label, and components.css now states the dark half explicitly beside the light rule ([data-theme=\"dark\"] chain: capsule fill, --tint label)."
  },
  {
   "kind": "needs_other_file",
@@ -150,7 +153,7 @@
   "change": "Optional tidy. The comment at lines 478-480 ('pairing wears the blue data tag, a ramp wears the amber prep tag') is now stale: pairing is Health violet and a ramp is the neutral tag. You could also rename the classes to say what they are (for example xtag-blue -> xtag-pair); that also needs components.css.",
   "group": "components.css#6",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -159,7 +162,7 @@
   "change": "Optional cleanup; the visual fix is already live in ruled.css. (1) TodayPage.tsx:464 and CategoryDetail.tsx:2047: `stat-tile st-time` -> `stat-tile st-quiet`. (2) TodayPage.test.tsx:53-54: change the `.st-time` selectors to match. (3) Then remove `.ruled .st-time,` and `.ruled .st-time .st-n,` from the two combined st-quiet selectors in ruled.css.",
   "group": "ruled.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -168,7 +171,7 @@
   "change": "Mint a late-red text token. The light --sys-red (#FF3B30) fails text contrast, so light lateness is routed through --on-light-red, which the rulebook counts as brand (tap) red. Add e.g. `--sys-red-tx: var(--sys-red)` in dark and a text-safe late red in the light block. Then ruled.css `[data-theme=\"light\"] .ruled .uchip.u-late { color: var(--on-light-red, #B8001A); }` -> `color: var(--sys-red-tx)`, and do the same for `[data-theme=\"light\"] .ruled .st-late`. That also drops the raw #B8001A fallback on both. The GUILT law still exempts both, since the matched selector is `.u-late` / `.st-late`.",
   "group": "ruled.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -177,7 +180,7 @@
   "change": "Duplicate of 45. Same new late-text token, also applied to components.css `[data-theme=\"light\"] .urgency-red { color: var(--on-light-red); }` (~line 1873).",
   "group": "ruled.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -186,7 +189,7 @@
   "change": "Line 604 has a baked middot inside the wk-note line. After it, the duration is a second bare grey run, and it only repeats the range already stated. Reword: `Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b> \u00b7 {spanShort(best.e - best.s)}` -> `Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b>` (e.g. 'Longest open stretch Wed 1:00 to 5:30 PM \u00b7 4h 30m' -> 'Longest open stretch Wed 1:00 to 5:30 PM'). If the duration is kept instead, use `<span className=\"sched-sep\">` and `<b>` the duration.",
   "group": "ruled.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -195,7 +198,7 @@
   "change": "Cleanup: line ~4056 `.r-cue { color: var(--cat-sky); font-variant-numeric: tabular-nums; }` -> `.r-cue { font-variant-numeric: tabular-nums; }`. Sky means an estimate, not a cue. The rule never painted inside .ruled, which is the only place .r-cue renders.",
   "group": "ruled.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -204,7 +207,7 @@
   "change": "Rewording (dropping a repeated fact). When the origin branch at lines ~422-432 drew the envelope and 'Email' (no kicker, tag, parent or named category, but originLabel(t) present), line ~488's `<Provenance compact .../>` repeats it as 'From an email'. Render Provenance only when that origin branch did not draw, so '\u2709 Email \u00b7 From an email' becomes '\u2709 Email'. The row law needs `<Provenance` to stay inside the r-k block, so keep it there, conditioned.",
   "group": "ruled.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -213,7 +216,7 @@
   "change": "Numbers are white now. For the state colour, give the Doses Left tile `stat-warn` when needsRefillCall(state), then add to ruled.css `.ruled.health-ruled .stat-row.stat-hblue .stat-tile.stat-warn .stat-num { color: var(--hl-amber-ink); }`. The health rule (0,5,0) outranks components.css `.stat-tile.stat-warn .stat-num`. Optional: rename `stat-hblue` to a neutral name, since it no longer paints blue. Also review the 'Not Yet' placeholder in the runway tile (\u00a7AK: a row with nothing to say shows nothing), and `.fact hblue` on 'Filled {date}' on the same card.",
   "group": "ruled.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -222,7 +225,7 @@
   "change": "GymFlow.tsx:3428: the Up Next 'EST 45 Min' chip is `se-chip se-chip-budget` (Health violet = budget or pair), but it is an estimate, which is sky under the key. No existing se-chip variant is sky, and the rulebook forbids inventing one here. Lead: add e.g. `.ruled.health-ruled .se-chip-est { color: var(--cat-sky); background: color-mix(in srgb, var(--cat-sky) 16%, transparent); }` to ruled.css and change the className to `se-chip se-chip-est`. SessionScreen.tsx:588's real Budget chip keeps se-chip-budget.",
   "group": "ruled.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -231,7 +234,7 @@
   "change": "R6: the Basis values render in .ins-sub value cells with baked ' \u00b7 ' separators. Suggested (the finding's own fix): :163 `\" \u00b7 \" + opts.equipmentLabel` -> `\", \" + opts.equipmentLabel`. :164 `when + \" \u00b7 \" + ...` -> `when + \", \" + ...`. :165 'Completed working sets only \u00b7 Warm-ups and drops left out' -> 'Completed working sets only, warm-ups and drops left out'. :168 `.join(\" \u00b7 \")` -> `.join(\", \")`. Check progression.test.ts for these basis strings. These are wording changes, so report them in 'reworded'.",
   "group": "ruled.css#2",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -240,7 +243,7 @@
   "change": ":292 `<span className=\"r-goal r-cat fact purp\">{\"\u00b7 JARVIS found \" + n.found}</span>` -> `<span className=\"r-goal\">{\"JARVIS found \"}<b>{n.found}</b></span>`. This uses the 'number with no state' primitive; `.ruled .task-row .r-goal b` already paints it --tx-1, and .note-row is a .task-row, so no CSS is needed. Drop `r-cat fact purp`: `.ruled .r-goal.r-cat` beats .fact.purp so the purple never painted, and purple words would be a category colour on words anyway. The leading '\u00b7 ' belongs to middot finding #391. If Dave reads 'found' as waiting on him, use amber instead, which needs a .r-goal-level amber rule (a lead decision, not a new per-screen class).",
   "group": "ruled.css#2",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -249,7 +252,7 @@
   "change": ":96 R6: the .row-value string `${formatTokens(inTok)} in \u00b7 ${formatTokens(outTok)} out` -> `${formatTokens(inTok)} in, ${formatTokens(outTok)} out`. This is a wording change, so report it in 'reworded'.",
   "group": "ruled.css#2",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -258,7 +261,7 @@
   "change": ":69 `className=\"pill-act row-act-pill\"` -> `className=\"pill-act\"`. In the SAME change, delete `.ruled .row-act-pill { font-size: var(--t-meta); }` and its comment from ruled.css. laws.test.ts fails if the rule goes first, and the rule is dead once the class goes.",
   "group": "ruled.css#2",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -267,7 +270,7 @@
   "change": ":85 `return <div className=\"pad-x set-foot\">{children}</div>;` -> `return <div className=\"pad-x\"><div className=\"input-hint\">{children}</div></div>;`. In the SAME change, delete the `.ruled .set-foot` rule and its comment from ruled.css. Once nothing renders .set-foot, subtextLaw 'no subtext class survives without a call site' fails on it, and laws.test.ts fails if the rule goes first.",
   "group": "ruled.css#2",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "needs_other_file",
@@ -276,7 +279,7 @@
   "change": "Line 1008: `.money-amt.paid { color: var(--tx-3); font-weight: var(--w-regular); }` -> `.money-amt.paid { color: var(--good); }`. This only matters outside `.ruled`. Every current call site (MoneyFlow.tsx:614) is under `.screen.ruled`, where the ruled.css rule wins. Apply it together with the ruled.css change and the law amendment in blocked_by_law.",
   "group": "ruled.css#3",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "blocked_by_law",
@@ -285,7 +288,7 @@
   "why": "\"Not This One\" (FocusScreen.tsx:159) is a bare-words tappable control drawn in --tx-quiet. The key gives tappable non-button text --tint, and \u00a7AL says a control is never bare words. The finding's fix, --tint on .focus-skip, would fail this law. \u00a7AL offers another route: make it the quiet option, `className=\"quiet-action\"` in FocusScreen.tsx (press-1 fill, pill, --tx-2). That also clears \u00a7AL, but it needs a file I do not own. The lead should either amend the law, dropping .focus-skip from LIVE with a dated reason, or take the quiet-action route in FocusScreen.tsx.",
   "group": "components.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "blocked_by_law",
@@ -294,7 +297,8 @@
   "why": "The finding adds `button.receipt-line { color: var(--tint) }`. That would pass the law's text match, because only the base rule is read. It would defeat the law's stated intent, though: the pin on --tx-quiet was written knowing every receipt line is a BUTTON (\"13 More waiting\" and so on), and the I5 comment says \"It stays dim; the glyph does the work, not colour\". Dave also moved \"N more in Anytime\" from a red link to this quiet line on 2026-09-11. Turning all of them red on Today, Life and Goals conflicts with that pin and that history. It needs the law amended with a dated reason, or the finding rejected. I did not game the law with an override. The 11px-caps half (#42) is applied.",
   "group": "components.css#1",
   "phase": "css",
-  "done": false
+  "done": true,
+  "note": "held for Dave (dave-queue)"
  },
  {
   "kind": "blocked_by_law",
@@ -303,7 +307,7 @@
   "why": "The finding is real: in dark, every .row-act inside a sheet (Add Item, Add a Window, Edit Routine) paints a white label. `.form-sheet .row-act` and `.sheet-scrim > .card .row-act` (components.css:1588/1590, 0,3,0) set it to --tint-on-sheet (#FFFFFF), which beats the capsule's --tint. The correct fix is to delete those two selectors. The capsule now carries an opaque --capsule-fill (#17171A), where --tint measures 4.82:1, so the white-label workaround for a translucent sheet grey no longer applies. Light is unaffected, because --accent-tx in light is #BC000E, the same as --on-light-red. The law loops over [\".sheet-bar-save\", \".row-act\", \".note-fix\", \".toast-action\"] and requires each in the --tint-on-sheet selector list, so the law must drop \".row-act\". I did not work around it with a later override, because that would defeat the law's stated intent.",
   "group": "components.css#4",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "blocked_by_law",
@@ -312,7 +316,7 @@
   "why": "It requires \".fact.purp\" to be in components.css, so the correct fix (delete the purple text variant, since purple is not in the key) fails it. The same file's \"every fact variant the app renders has a rule somewhere\" would also fail while the six call sites still render `purp`. Amend in place once the call sites move: take \".fact.purp\" out of the required list and add it to the not.toContain retired-variant check beside \".fact.sky\".",
   "group": "components.css#5",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "blocked_by_law",
@@ -321,7 +325,7 @@
   "why": "The fix needs a subtext size other than the pinned 13 (R7), plus a distinction from the recurrence's grey on the same line (R1). The right change is the letterform the cue now wears: `font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps); text-transform: uppercase;`. The law's reason (15px meta would be sliced by the 19px clamp) does not apply to 11 caps. Amend the pin from --t-caption to --t-eyebrow with a dated reason.",
   "group": "ruled.css#1",
   "phase": "css",
-  "done": false
+  "done": true
  },
  {
   "kind": "blocked_by_law",
@@ -330,6 +334,6 @@
   "why": "The finding is real now. On a paid bill row, 'Paid Sep 1' (`.r-goal.r-cat`, `--tx-3` regular) sits beside '$1,800' (`.ruled .task-row .money-amt.paid`, `--tx-2`, which is the same hex, and semibold because the ruled base rule sets `--w-semi`). That is two greys that differ only by weight (R1). The key also says paid is green (R3). The correct fix is `.ruled .task-row .money-amt.paid { color: var(--good); }`. This law requires that exact selector to exist with `color: var(--tx-2)`, a 2026-09-14 ruling that \u00a7AK V5.2 and \u00a7AM have since overtaken. Amend it to drop `.ruled .task-row .money-amt.paid` from its list (or pin `--good` for it), with a dated reason. A more-specific override rule would get around the law without meeting its intent, so it was not added. Without a law change, the fallback is to mark the sub line `r-goal fact good` in MoneyFlow.tsx:611 when paid. That does not work either: `.ruled .r-goal.r-cat` (0,3,0) out-ranks `.fact.good` (0,2,0), so that markup would also need a ruled rule.",
   "group": "ruled.css#3",
   "phase": "css",
-  "done": false
+  "done": true
  }
 ]

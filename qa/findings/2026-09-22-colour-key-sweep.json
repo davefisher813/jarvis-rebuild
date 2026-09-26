@@ -1933,7 +1933,8 @@
   "status": "done",
   "id": 128,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "2026-09-26: the xs-note half is done (it draws .input-hint). The middot half is NOT changed: field notes are not facts lines (R6), and shortCopy.test.ts (Dave 2026-08-15) keeps notes as fragments joined by a middle dot."
  },
  {
   "file": "src/tasks/screens/ReminderSheet.tsx",

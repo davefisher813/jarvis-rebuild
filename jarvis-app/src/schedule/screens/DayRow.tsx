@@ -347,7 +347,9 @@ export default function DayRow({
                     onClick={(ev) => { ev.stopPropagation(); setSizing(!sizing); }}
                   >{durLabel(mins)}</button>
                 ) : (
-                  <span className="sched-until">{durLabel(mins)}</span>
+                  /* A length that cannot be tapped is a number with no
+                     state: white <b>, not small caps ("30M" read as months). */
+                  <b>{durLabel(mins)}</b>
                 )}
               </span>
             )}
@@ -380,10 +382,10 @@ export default function DayRow({
             {/* S6-Q36: the row's own start time is already this event's cue;
                 the move is the half that is not redundant here. */}
             {firstMove && (
-              <>
+              <span className="sched-fact">
                 <span className="sched-sep">&middot;</span>
                 <span className="sched-firstmove">{firstMove}</span>
-              </>
+              </span>
             )}
           </div>
           {/* UP-CORE-05 (2026-09-05): where this block came from, or that

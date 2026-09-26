@@ -47,8 +47,11 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
         <span className="cr-name">{exercise.note ?? liftTitle(exercise.name)}</span>
         <span className="cr-cap">{condSummary(cond).replace(COND_LABEL[cond.format] + " · ", "")}</span>
       </div>
-      {entries.length === 0 && (
-        <div className="cr-empty">{lastLine ?? "Not run yet"}</div>
+      {/* Before the clock runs the receipt shows last time's line, when
+          there is one, and nothing otherwise: a placeholder that states
+          nothing is not a line (§AK). */}
+      {entries.length === 0 && lastLine && (
+        <div className="cr-empty">{lastLine}</div>
       )}
       {entries.map((e, i) => {
         const rounds = perRound(e.splits ?? []);

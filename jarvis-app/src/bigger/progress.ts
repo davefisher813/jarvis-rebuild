@@ -46,23 +46,45 @@ export function projectProgress(tasks: TaskItem[], projectId: string): Progress 
 // Null when there is nothing to pace: no date, no tasks, or already finished.
 // Never a scolding and never a prescription: "2 a day from here" is what the
 // arithmetic says, not what anyone should do about it.
-export function projectPace(progress: Progress | null, due: string | undefined, today: string): string | null {
+//
+// IN ITS PARTS (the Colour Key, §AM, 2026-09-26). The pace is two facts, and
+// only the second carries a meaning: late is red, due today or tomorrow is
+// amber, a rate the app worked out is an estimate (sky), and a date further
+// off than the work needs is a neutral date (small caps). Joined into one
+// string they could only be one grey with a separator baked in, so a line
+// that draws them takes the parts, puts each in its own fact, and lets the
+// stylesheet draw the dot. `tone` is the fact variant it wears.
+export type PaceTone = "red" | "warn" | "est" | "date";
+export interface PaceParts {
+  count: string; // "3 of 8 Left"
+  when: string;  // "Due tomorrow", "About 2 a day from here"
+  tone: PaceTone;
+}
+
+export function projectPaceParts(progress: Progress | null, due: string | undefined, today: string): PaceParts | null {
   if (!due || !progress || progress.total === 0) return null;
   const left = progress.total - progress.done;
   if (left <= 0) return null;
   const days = daysBetween(today, due);
   // The count reads "3 of 8 left" so the fraction is visible, and the rate
-  // segment leads with a WORD ("About 2 a day"), which is the same trick
+  // part leads with a WORD ("About 2 a day"), which is the same trick
   // paceLine uses to keep the number-lead casing law reading as English.
-  const count = `${left} of ${progress.total} left`;
-  if (days < 0) return capAfterNumber(`${count} · Past its date`);
-  if (days === 0) return capAfterNumber(`${count} · Due today`);
-  if (days === 1) return capAfterNumber(`${count} · Due tomorrow`);
+  const count = capAfterNumber(`${left} of ${progress.total} left`);
+  if (days < 0) return { count, when: "Past its date", tone: "red" };
+  if (days === 0) return { count, when: "Due today", tone: "warn" };
+  if (days === 1) return { count, when: "Due tomorrow", tone: "warn" };
   // Fewer things left than days: one a day is more than enough, and a rate
   // under one ("0.4 a day") is arithmetic nobody can act on.
   const perDay = left / days;
-  if (perDay <= 1) return capAfterNumber(`${count} · Due in ${days} days`);
-  return capAfterNumber(`${count} · About ${Math.ceil(perDay)} a day from here`);
+  if (perDay <= 1) return { count, when: `Due in ${days} days`, tone: "date" };
+  return { count, when: `About ${Math.ceil(perDay)} a day from here`, tone: "est" };
+}
+
+// The same pace as one sentence, for a caller that still takes a string.
+// Word for word what it always said; a facts line should take the parts.
+export function projectPace(progress: Progress | null, due: string | undefined, today: string): string | null {
+  const p = projectPaceParts(progress, due, today);
+  return p ? `${p.count} · ${p.when}` : null;
 }
 
 // LIFE-F-22 (2026-09-05): goalProgress had no caller, and laws.test.ts:1494

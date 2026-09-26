@@ -339,15 +339,16 @@ export default function PersonDetail({
           <div className="sh2 sh2-quiet"><span className="t">Still Open</span><span className="n">{openWith.length + promises.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {/* C-61: what he said he would do, in his own mail to them.
-                The purple fact is the promise; the deadline beside it; Add
-                Task writes the task and the row leaves. */}
+                The amber fact is the promise (it needs him); the deadline
+                beside it in small caps; Add Task writes the task and the row
+                leaves. Purple is not in the Colour Key (§AM). */}
             {promises.map((p) => (
               // Row tap (Dave 2026-09-15): a promise has no task yet, so the row
               // does its pill's verb, Add Task.
               <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => onAddTask(p)) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.text}</div>
-                  <div className="facts"><span className="fact purp">You promised</span>{p.due && <span className="fact">{shortDate(p.due)}</span>}</div>
+                  <div className="facts"><span className="fact warn">You promised</span>{p.due && <span className="fact date">{shortDate(p.due)}</span>}</div>
                 </div>
                 {onAddTask && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onAddTask(p); }}>Add Task</button>}
               </div>

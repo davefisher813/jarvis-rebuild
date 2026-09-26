@@ -6,9 +6,10 @@ import { shortDateFromMs } from "../../shared/dateFormat";
 // REFILL RUNWAY (Part 4, top 3; Health Push D). Counts down remaining doses
 // from real Took It taps, and lands the pharmacy call as an offer on the
 // PARENT's list, never a badge on the athlete's. Pure logistics: no
-// medication is ever named on this screen. The fill is three facts in
-// medication blue (filled when, how many came, how many taken since) and two
-// tiles (doses left, runway); the form takes the day it was received, so a
+// medication is ever named on this screen. The fill is three facts (filled
+// when, how many came, how many taken since) and two white tiles (doses left,
+// amber once the call is due; runway, once there is a pace to count it
+// from); the form takes the day it was received, so a
 // fill logged on Tuesday for a bottle picked up Sunday counts from Sunday.
 export default function RefillRunwayScreen({
   state, onLogFill, onLandParentTask, onBack,
@@ -39,13 +40,18 @@ export default function RefillRunwayScreen({
         {state.hasFill ? (
           <>
             <div className="facts">
-              {state.filledAt !== undefined && <span className="fact hblue">Filled {shortDateFromMs(state.filledAt)}</span>}
+              {state.filledAt !== undefined && <span className="fact date">Filled {shortDateFromMs(state.filledAt)}</span>}
               <span className="fact">{state.dosesInFill} received</span>
               <span className="fact">{state.taken} taken since</span>
             </div>
             <div className="stat-row stat-row-gap stat-hblue">
-              <div className="stat-tile"><div className="stat-num">{state.remaining}</div><div className="stat-label">Doses Left</div></div>
-              <div className="stat-tile"><div className="stat-num">{state.runwayDays !== undefined ? state.runwayDays : "Not Yet"}</div><div className="stat-label">{state.runwayDays !== undefined ? "Days of Runway" : "Runway"}</div></div>
+              {/* Amber when the call is due (§AM: near a limit). The runway
+                  tile shows only once there is a pace to count it from: a
+                  "Not Yet" tile states nothing (§AK). */}
+              <div className={"stat-tile" + (needsRefillCall(state) ? " stat-warn" : "")}><div className="stat-num">{state.remaining}</div><div className="stat-label">Doses Left</div></div>
+              {state.runwayDays !== undefined && (
+                <div className="stat-tile"><div className="stat-num">{state.runwayDays}</div><div className="stat-label">Days of Runway</div></div>
+              )}
             </div>
             <div className="bp-sub">Counted from real taps on Took It, never a guess.</div>
           </>

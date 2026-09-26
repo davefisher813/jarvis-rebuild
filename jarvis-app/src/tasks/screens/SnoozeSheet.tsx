@@ -35,7 +35,7 @@ export default function SnoozeSheet({ title, fromDate, today, now = Date.now(), 
   return (
     <FormSheet title="Choose a Better Time" onCancel={onCancel} onSave={save} saveLabel="Use This Time">
       <Group label={title}>
-        <Note>Only this occurrence changes. The schedule stays the same</Note>
+        <Note>Only this occurrence changes · The schedule stays the same</Note>
         <Strip>
           {chip("In 15 Minutes", m15, "m15")}
           {chip("In 1 Hour", h1, "h1")}

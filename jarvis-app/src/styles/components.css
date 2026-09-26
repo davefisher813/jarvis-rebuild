@@ -156,15 +156,17 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* ONE GREY ON THE META LINE (§AK V5.2, 2026-09-25). The place is the line's
    one regular grey (pinned in ruled.css). Every other run is set apart:
    the repeat and a time that cannot be tapped ("Daily", "Leave by 9:00 AM",
-   a length in Select mode, a protected block's "Until 7:00 PM") take the
-   neutral-date letterform, small caps in the same grey (§AM F5); the length
-   that CAN be tapped is the action red (.sched-until-btn); the first move is
-   the one thing on the line to do, so it steps up to white, which is what
-   the key gives emphasis that carries no meaning. */
+   a protected block's "Until 7:00 PM") take the neutral-date letterform,
+   small caps in the same grey (§AM F5); the length that CAN be tapped is the
+   action red; a length that cannot be tapped is a number with no state, a
+   white bold (2026-09-26: as caps, "30M" read as months).
+   AMENDED 2026-09-26 (§AM, lead): the first move is the NEXT step to take,
+   and the key gives "next" amber. It was white, which the key reserves for a
+   number with no state. */
 .sched-rep, .sched-until:not(.sched-until-btn) { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
-.sched-firstmove { font-size: var(--t-meta); color: var(--tx-1); }
+.sched-firstmove { font-size: var(--t-meta); color: var(--warn); }
 /* The separator between facts on the category line. Dimmer than the facts it
    divides, so it groups without competing. */
 .sched-sep { font-size: var(--t-meta); color: var(--tx-quiet); }
@@ -1283,17 +1285,19 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* E3 (2026-08-24): THE RAIL. One element in the reserved left column carrying
    what the dot, the age badge and its tone color used to say in three places.
-   Solid means it wants you (unread, or heat from a deadline or a long wait);
-   hollow means read and calm. Color is the heat, in the key's two inks
-   (§AM, 2026-09-25): amber for a wait that needs him soon, red for one past
-   the point an email helps. It was a category hue for the second rung, and
-   a category colour belongs on a category dot. Height comes from stretching
-   against the row, so a two-line row gets a two-line rail, which is what
-   makes it read as a rail and not a misplaced dash. */
+   Its colours are the Colour Key's (§AM, settled 2026-09-26): solid white
+   (primary ink) is unread and nothing else known; amber is due soon, a
+   deadline the sender stated or a wait of weeks; red is overdue, a wait past
+   the point another email helps; hollow is read and calm. Unread has no key
+   colour, so solid against hollow carries it; heat is solid in the key's ink
+   and outranks unread. A stated deadline is due, never late: its ranking
+   cannot tell a date that passed yesterday from today. Height comes from
+   stretching against the row, so a two-line row gets a two-line rail, which
+   is what makes it read as a rail and not a misplaced dash. */
 .msg-rail { width: 3px; border-radius: var(--r-xxs); align-self: stretch; min-height: 20px;
   margin: var(--s-1) 0; background: transparent; box-shadow: inset 0 0 0 1px var(--tx-4);
   flex-shrink: 0; }
-.msg-rail.on { background: var(--accent); box-shadow: none; }
+.msg-rail.on { background: var(--tx-1); box-shadow: none; }
 .msg-rail.warm { box-shadow: inset 0 0 0 1px var(--warn-fill); }
 .msg-rail.on.warm { background: var(--warn-fill); box-shadow: none; }
 .msg-rail.hot { box-shadow: inset 0 0 0 1px var(--sys-red); }
@@ -1309,11 +1313,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    rendered every headline one character wide. Found by screenshot, not by
    any test. */
 .msg-line .msg-from { flex: 1; min-width: 0; }
-
-/* E5: the count on a band head. A number with no state inside a grey line
-   is white (§AM F1, 2026-09-25): grey semibold was the head's own grey made
-   heavier, which is not a second ink. */
-.band-n { color: var(--tx-1); font-weight: var(--w-semi); margin-left: var(--s-2); }
 
 /* E6: one decision on screen. The card borrows the deck's anatomy; the count
    line is the honesty and the exit is on screen the whole time. */
@@ -1480,14 +1479,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 .msg-fold { margin-top: var(--s-3); }
 .msg-fold .conn-name { color: var(--tx-2); }
-/* The band and fold heads are uppercase kickers, so they take the kicker
-   size (§AM F4, 2026-09-25): 14px caps was a second head size. */
-.msg-fold-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  padding: var(--s-3) 0 var(--s-1);
-  font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
-  text-transform: uppercase; color: var(--tx-3);
-}
 .msg-guard { margin-top: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); }
 
 /* The Deal With It deck (email 2): one card, one prepared decision. The prep
@@ -1819,14 +1810,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* === Roadmap v2: Plan My Day, pick your three === */
 .p3-q { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: var(--track-h1); line-height: var(--lh-snug); margin-bottom: var(--s-2); }
-/* D9-A lift trend headline: a token modifier rather than an inline style so
-   the "no inline styles" law holds. It was system blue, which the key does
-   not have a meaning for (§AM, 2026-09-25): the latest number is a number
-   with no state that must stand out, so it is white, and on Health's own
-   surface, the only place it renders, it takes Health's reading ink, the
-   cyan its card's ground and the tapped point on the chart already wear. */
-.p3-q.blue { color: var(--tx-1); }
-.ruled.health-ruled .p3-q.blue { color: var(--hl-cyan-ink); }
 .p3-list { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
 .p3-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-3h); border-radius: var(--r-lg);
   background: var(--press-3); box-shadow: inset 0 0 0 0.5px var(--divider); cursor: pointer; }
@@ -1945,10 +1928,11 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    .stat-tile.stat-good/.stat-warn) sitting at 1.8 to 2.2:1 in daylight. The
    light --good and --warn tokens carry these values themselves now
    (jarvis-design-system.css), so every one of those classes is readable and
-   the next one is readable the day it is written. Red stays a list: its
-   light value is routed by job (text steps down to #DA0012, glyphs keep the
-   brand #FF2B3C), which a single token cannot express. */
-[data-theme="light"] .urgency-red { color: var(--on-light-red); }
+   the next one is readable the day it is written. Red stays a list, for
+   the brand red only: a tappable word steps down to the words red, a glyph
+   keeps the brand hue. Lateness left this list on 2026-09-26 (§AM, Dave's
+   2026-09-12 Astra ruling): late is Apple's light system red as shipped,
+   including as text, and the words red means "tap this". */
 [data-theme="light"] .sec-head .see-all { color: var(--on-light-red); }
 /* THE WORDMARK IS A LOGOTYPE. The J in JARVIS carries no information a
    reader must decode, and WCAG exempts brand marks from the text bar for
@@ -4180,10 +4164,11 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    arrow rides with the words and the one-line clamp governs it like every
    other fact on that line. The time is tabular so a column of cues does not
    jitter as the digits change, the same reason the step count is. A cue
-   is a trigger, not an estimate, so it is not sky (§AM, 2026-09-25); on
-   the ruled row, the only place it renders, ruled.css gives it the
-   neutral-date caps. */
-.r-cue { color: var(--tx-3); font-variant-numeric: tabular-nums; }
+   is a trigger, not an estimate, so it is not sky (§AM, 2026-09-25), and
+   it sets no colour of its own here (2026-09-26): on the ruled row, the
+   only place it renders, ruled.css gives it the neutral-date caps in the
+   line's grey. */
+.r-cue { font-variant-numeric: tabular-nums; }
 .r-cue::before { content: "\2192\00a0"; color: var(--tx-4); }
 /* The whole if-then sentence, read back under the fields while he writes it,
    so he sees the plan he is actually making. */
@@ -4358,10 +4343,19 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    capsules, and the row pill beside it already wears the capsule fill in
    light, so a "Not Now" next to a "Link" was two fills for one control. It
    takes the capsule fill and the light red, the same pair as the row pill;
-   the chain still matches the backstop's specificity. */
+   the chain still matches the backstop's specificity.
+   Dark says the same thing in its own words (2026-09-26, §AL, handoff
+   #648): the capsule fill with the capsule's own label red, at the same
+   specificity as the light rule, so the dark settings-card rule that
+   re-letters a 50px button in the sheet red cannot reach a small pill that
+   also carries the base class. The 50px base button is not a capsule and
+   keeps its own fill in both themes. */
 [data-theme="light"] .btn { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
 [data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   background-color: var(--capsule-fill); color: var(--on-light-red);
+}
+[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
+  background-color: var(--capsule-fill); color: var(--tint);
 }
 /* THE TWO THEMES USED TO DISAGREE ABOUT A QUIET PILL (fixed 2026-09-22).
    This rule had no :not() chain, so .pill-quiet and .pill-neutral -- the
@@ -5973,7 +5967,6 @@ body.selecting .voice-dock { display: none; }
    signal; weight is the ladder, and the ladder has two rungs, not three. */
 .fact.warn { color: var(--warn); }
 .fact.good { color: var(--good); }
-.fact.purp { color: var(--cat-purple); }
 /* §AM: the system red, not the brand red. --accent-tx is the colour of a
    thing that responds to a tap, and this fact does not; it is the same red
    the urgency chip and the ruled state word already take for the same
@@ -5998,15 +5991,7 @@ body.selecting .voice-dock { display: none; }
 .fact.est { color: var(--cat-sky); font-variant-numeric: tabular-nums; }
 /* A NUMBER inside a quiet line that means nothing in particular steps up to
    white (F1) -- never the same grey made heavier, which is what --tx-2 is. */
-.facts b, .fact b { font-weight: var(--w-semi); color: var(--tx-1); }
-/* .fact.purp painted the raw category FILL as text, which is .cat-fg-*'s own
-   old mistake before the Astra pass gave it per-theme text variants
-   (2026-09-22, "1 Moved" measured 2.98:1 on light's info card wash). Same
-   tokens .cat-fg-purple already reads, so the two names never drift from
-   each other again. The sky variant's own swap retired with the class
-   itself ("the blue subtext goes"): it was the last user of --cat-tx-sky. */
-[data-theme="light"] .fact.purp { color: var(--cat-tx-purple); }
-[data-theme="dark"] .fact.purp { color: var(--cat-dtx-purple); }
+.facts b, .fact b, .sched-cat b { font-weight: var(--w-semi); color: var(--tx-1); }
 /* Category is a 7px dot in the category colour plus plain text, never
    coloured text (G4). The dot wears .cat-bg-<slot>. */
 .fact.cat { color: var(--tx-3); display: inline-flex; align-items: center; gap: var(--s-1h); }
@@ -6175,7 +6160,7 @@ span.row-star { cursor: default; }
    Changed and Learned are neither an estimate nor a category, so they are
    the caps grey, and their caps set them apart from the facts beside them. */
 .eq-k { flex: 0 0 64px; font-size: var(--t-eyebrow); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
-.eq-good { color: var(--good); } .eq-warn { color: var(--warn); } .eq-sky, .eq-purp { color: var(--tx-3); } .eq-red { color: var(--red); }
+.eq-good { color: var(--good); } .eq-warn { color: var(--warn); } .eq-sky, .eq-quiet { color: var(--tx-3); } .eq-red { color: var(--red); }
 .eq .facts { flex: 1; min-width: 0; }
 .week-acts { margin-top: var(--s-2h); align-items: center; }
 .rep-vs { margin-left: var(--s-1h); }

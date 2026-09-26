@@ -132,8 +132,9 @@ export default function RemindersStrip({
               {r.done && <Check className="ic" />}
               <Burst show={burstId === r.id} />
             </div>
-            {/* A missed reminder marks its TIME, not the whole row: it needs
-                to be findable, not accusatory. Never red, never a count. */}
+            {/* A missed reminder marks its TIME in the key's red (§AM,
+                2026-09-25), not the whole row: it needs to be findable, not
+                accusatory. Never a count. */}
             {/* 12-HOUR, LIKE EVERY OTHER TIME IN THE APP (Dave 2026-08-22:
                 "reminders are rendering in military time"). r.time is the
                 stored HH:MM; every other surface runs it through fmtTime and

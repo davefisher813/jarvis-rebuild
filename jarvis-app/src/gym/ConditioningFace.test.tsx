@@ -118,9 +118,11 @@ describe("CondReceipt", () => {
     fireEvent.change(screen.getByLabelText("Reps past the last round"), { target: { value: "12" } });
     expect(onChange).toHaveBeenCalledWith([{ id: "s1", r: 3, elapsed: 720, splits: [98, 202, 313], extra: 12 }]);
   });
-  it("says Not run yet before the clock has run", () => {
-    render(<CondReceipt exercise={ex} entries={[]} onChange={() => {}} />);
-    expect(screen.getByText("Not run yet")).toBeInTheDocument();
+  it("before the clock has run, shows last time's line, or nothing when there is none", () => {
+    const { container, rerender } = render(<CondReceipt exercise={ex} entries={[]} onChange={() => {}} />);
+    expect(container.querySelector(".cr-empty")).toBeNull();
+    rerender(<CondReceipt exercise={ex} entries={[]} onChange={() => {}} lastLine="Last: 6 + 4" />);
+    expect(container.querySelector(".cr-empty")).toHaveTextContent("Last: 6 + 4");
   });
 
   // GYM-F-10: miss one Round tap and the receipt showed 6 with no way to make

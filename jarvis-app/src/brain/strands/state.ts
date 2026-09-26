@@ -35,10 +35,11 @@ export function stateForStrand(s: Strand, today: string): StrandState | null {
 }
 
 // The colour each word wears: sky for what he said (time-neutral, quiet
-// certainty), purple for JARVIS-made knowledge (G7), warn for the one that
-// asks something of him.
-export function toneForStrandState(w: StrandState): "sky" | "purp" | "warn" {
-  return w === "KNOWN" ? "sky" : w === "LEARNED" ? "purp" : "warn";
+// certainty), green for JARVIS-made knowledge (G7; purple is not in the
+// Colour Key, §AM 2026-09-26, and a fact JARVIS learned is logged), warn for
+// the one that asks something of him.
+export function toneForStrandState(w: StrandState): "sky" | "good" | "warn" {
+  return w === "KNOWN" ? "sky" : w === "LEARNED" ? "good" : "warn";
 }
 
 // THE FILTER BUCKETS (C-40). Choosers over the list: a strand sits in exactly

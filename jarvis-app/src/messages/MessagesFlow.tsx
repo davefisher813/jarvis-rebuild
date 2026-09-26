@@ -4696,7 +4696,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 const heads = showBandHeads(bands);
                 return bands.map((band) => (
                 <div key={band.label}>
-                  {heads && <div className="msg-fold-head">{band.label}<span className="band-n">{band.rows.length}</span></div>}
+                  {/* R10 (§AM F7, 2026-09-26): a band head is a section
+                      head, so it is the one section-head primitive, count
+                      and all, not a second caps style of its own. */}
+                  {heads && <div className="sh2 sh2-quiet"><span className="t">{band.label}</span><span className="n">{band.rows.length}</span></div>}
                   <div className="pad-x"><div className="card list-card-ruled">
                   {band.rows.map(({ w, d }) => (
                     <LetGoSwipe
@@ -4830,13 +4833,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     )}
                     {worthKnowing.length > 0 && (
                       <>
-                        <div className="msg-fold-head">Worth Knowing</div>
+                        <div className="sh2 sh2-quiet"><span className="t">Worth Knowing</span></div>
                         {worthKnowing.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
                       </>
                     )}
                     {noise.length > 0 && (
                       <>
-                        <div className="msg-fold-head">Noise</div>
+                        <div className="sh2 sh2-quiet"><span className="t">Noise</span></div>
                         {/* 8A: ONE GREY LINE FOR ALL OF THEM. This was a
                             full row with a bold name, which is the sensory
                             flatness the catalog is against: a shipping promo
