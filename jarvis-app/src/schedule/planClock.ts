@@ -12,11 +12,13 @@ export const SHORTEST_USEFUL = 15;
 // the sheet says nothing: an afternoon is still an afternoon.
 export const WARN_UNDER = 60;
 
+// The title is the whole notice. It once carried a second line, "Plan
+// tomorrow instead?", which asked the question the sheet's own Plan Tomorrow
+// pill already answers on the same row, so it went (§AK, 2026-09-26).
 export interface ClockVerdict {
   spent: boolean;
   leftMin: number;
   title: string;
-  sub: string;
 }
 
 export function dayClock(startMin: number, endMin: number, shortest = SHORTEST_USEFUL): ClockVerdict | null {
@@ -26,6 +28,5 @@ export function dayClock(startMin: number, endMin: number, shortest = SHORTEST_U
     spent: left < shortest,
     leftMin: left,
     title: left < shortest ? "Today Is Done" : `Only ${left} Minutes Left Today`,
-    sub: "Plan tomorrow instead?",
   };
 }

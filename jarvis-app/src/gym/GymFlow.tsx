@@ -510,7 +510,10 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
             finds the number second, which is the order they matter in.
 
             Rest rides beside it as its own fact rather than a clause glued on
-            with a middot, and only when there is one. */}
+            with a middot, and only when there is one. It is a neutral time,
+            so it is small caps (§AM F5, .fact.date): the athlete's quoted
+            note below is the row's one grey, and a plain grey rest beside it
+            would be a second (§AK). */}
         {/* THE COUNT LEADS, AND THE NOUN IS QUIET (2026-09-16, Dave asked for
             the sets to start the line, with a faded bold grey for the word).
             The line used to carry two multiplication signs doing two
@@ -522,7 +525,7 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
           <span className="fact cyan" aria-label={planChipText(exercise)}>
             {plan.count}<em className="fw">{plan.noun}</em>{plan.target}
           </span>
-          {exercise.restSec ? <span className="fact">{`${mmss(exercise.restSec)} rest`}</span> : null}
+          {exercise.restSec ? <span className="fact date">{`${mmss(exercise.restSec)} rest`}</span> : null}
         </div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}

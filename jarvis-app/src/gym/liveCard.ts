@@ -55,7 +55,8 @@ export interface LiveCard {
   progress: string;
   /** The whole plan, in order. */
   lines: LiveLine[];
-  /** The exercise the session is on, for the one-line summary. */
+  /** The exercise the session is on. Today's facts line leads with its name
+   *  and its plan as separate facts; nothing here joins them into a string. */
   current: LiveLine | null;
   /** True when nothing has been logged yet: the session is drawn up and
    *  waiting, which is exactly the moment Dave is describing. */
@@ -98,12 +99,4 @@ export function liveCard(s: LiveSession, now: number = Date.now()): LiveCard {
     current: lines.find((l) => l.current) ?? null,
     fresh: done === 0,
   };
-}
-
-/** The one line the card leads with: the exercise it is sitting on and the
- *  numbers drawn up for it. Falls back to the name alone, then to the day. */
-export function currentLine(card: LiveCard): string {
-  const c = card.current;
-  if (!c) return card.dayName;
-  return c.plan ? `${c.name} · ${c.plan}` : c.name;
 }

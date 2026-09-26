@@ -5146,14 +5146,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Clean Out</div>
-                    {/* E-29: counted over visibleRows, the list's own rows,
-                        and the row says which accounts it means so a
-                        disagreement with the Sweep's number is legible. */}
+                    {/* E-29: counted over visibleRows and names its
+                        accounts, so a disagreement with the Sweep is
+                        legible. R6: one sentence, no typed dots. */}
                     <div className="conn-meta">{capAfterNumber(
                       visibleRows.length + (visibleRows.length === 1 ? " thread" : " threads")
-                      + " \u00b7 " + senderPiles(visibleRows, effTriage, vips).length + " senders"
-                      + (g.accounts.length > 1 ? " \u00b7 " + (acctFilter ? acctLabel(acctFilter) : "All Accounts") : "")
-                      + (atEnd ? " \u00b7 In the inbox" : " \u00b7 Loaded so far"),
+                      + " from " + senderPiles(visibleRows, effTriage, vips).length + " senders"
+                      + (g.accounts.length > 1 ? " in " + (acctFilter ? acctLabel(acctFilter) : "all accounts") : "")
+                      + (atEnd ? "" : " so far"),
                     )}</div>
                   </div>
                   <div className="chev" />
@@ -5360,7 +5360,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       {more && (
         <MailMoreSheet
           who={displayName(more.row.to)}
-          subject={more.row.subject ?? ""}
           days={more.row.waitingDays}
           decision={more.d}
           onPick={(a) => void runAction(more.row, a)}

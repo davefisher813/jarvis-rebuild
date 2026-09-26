@@ -166,7 +166,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
               ? "timed from the block's own clock"
               : est.learnedCount > 0
                 ? `${est.learnedCount} of ${est.liftCount} lifts at your logged pace`
-                : "default pace · improves as you log"}
+                : "default pace, improves as you log"}
             {est.cappedCount > 0 && "; a For Time cap is the ceiling, not a forecast"}
           </div>
         </div>

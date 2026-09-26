@@ -166,8 +166,3 @@ export function untouchedGoal(
       .map((x) => x.g)[0] ?? null
   );
 }
-
-/** The nudge's evidence line. Counts, never a scolding. */
-export function untouchedLine(open: number): string {
-  return capAfterNumber(`${open} open · Nothing today moves it`);
-}

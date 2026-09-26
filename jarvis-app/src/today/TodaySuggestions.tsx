@@ -136,7 +136,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       } catch { /* silence beats a guess, and definitely beats a crash */ }
       const candidates: (PatternObservation & { routineBlock?: ProtectedBlock; moment?: Derived; sub?: string; stale?: Strand })[] = [
         ...(patternObservation(prof?.checkin, today) ? [patternObservation(prof?.checkin, today)!] : []),
-        ...(routineC ? [{ id: routineC.id, text: routineC.text, routineBlock: routineC.block }] : []),
+        ...(routineC ? [{ id: routineC.id, text: routineC.text, sub: routineC.sub, routineBlock: routineC.block }] : []),
         ...(planningPatternObservation(readDurationCorrections(), Date.now()) ? [planningPatternObservation(readDurationCorrections(), Date.now())!] : []),
         ...moments.map((m) => ({ id: "brain-" + m.derivation, text: m.title, sub: m.sub, moment: m })),
         // Last in the order, behind every proposal: being asked to re-confirm

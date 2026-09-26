@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { LiveSession } from "./liveSession";
 import type { SetEntry, WorkoutExercise } from "./types";
-import { currentLine, liveCard } from "./liveCard";
+import { liveCard } from "./liveCard";
 
 // Dave, 2026-09-14: "when I hit start workout ... it automatically feeds to
 // the today page and renders what we drew up. It still isn't doing that."
@@ -39,14 +39,14 @@ describe("the live card reads the plan off the session", () => {
   });
 
   it("leads with the exercise the session is on, and its numbers", () => {
-    expect(currentLine(liveCard(session(), NOW))).toBe("Bench Press · 3 × 225 lb × 5");
-    expect(currentLine(liveCard(session({ idx: 2 }), NOW))).toBe("Dips · 2 × 10 reps");
+    expect(liveCard(session(), NOW).current).toMatchObject({ name: "Bench Press", plan: "3 × 225 lb × 5" });
+    expect(liveCard(session({ idx: 2 }), NOW).current).toMatchObject({ name: "Dips", plan: "2 × 10 reps" });
   });
 
   it("falls back to the name when an exercise carries no plan", () => {
     const s = session({ exercises: [ex("Farmer Carry")] });
     expect(liveCard(s, NOW).lines[0]!.plan).toBeNull();
-    expect(currentLine(liveCard(s, NOW))).toBe("Farmer Carry");
+    expect(liveCard(s, NOW).current).toMatchObject({ name: "Farmer Carry", plan: null });
   });
 
   it("marks where he is", () => {

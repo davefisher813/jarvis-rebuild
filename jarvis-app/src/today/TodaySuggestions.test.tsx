@@ -104,7 +104,11 @@ describe("TodaySuggestions routine candidate", () => {
     );
     await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/^Noticed ·/));
-    await waitFor(() => expect(screen.getByText(/Gym · Around 6 AM/)).toBeInTheDocument());
+    // The offer names the habit; the count behind it is the card's sub, not a
+    // third run glued onto the title with a middot (§AM F2/F3).
+    await waitFor(() => expect(screen.getByText(/^Gym around 6 AM/)).toBeInTheDocument());
+    // Quiet lifts the figure into its own span, so read the whole sub line.
+    expect(screen.getByText(/Times this month/).parentElement?.textContent).toBe("3 Times this month");
     fireEvent.click(screen.getByText("Add to Routine"));
     await waitFor(() => expect(screen.queryByText(/Gym has landed/)).not.toBeInTheDocument());
     await waitFor(async () => {

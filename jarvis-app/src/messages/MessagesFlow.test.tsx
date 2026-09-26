@@ -21,6 +21,7 @@ import MailOutboxPump from "./MailOutboxPump";
 import ToastHost from "../shared/ToastHost";
 import { saveMailSnapshot, loadMailSnapshot } from "./home";
 import { loadOutbox, resetOutboxForTest } from "./outbox";
+import { humanError } from "../connections/google/humanError";
 import { loadLetGo } from "./letGo";
 import { loadVips, toggleVip } from "./vip";
 import { loadMinutes } from "./drain";
@@ -987,6 +988,20 @@ describe("MessagesFlow (threads)", () => {
     await waitFor(() => expect(screen.getByLabelText("Message").textContent).toContain("Half a sentence"));
   });
 
+  // The failure lines are whatever humanError says for that status. Its own
+  // test pins the wording (humanError.test.ts); these cases pin that the
+  // screen shows that line, for the right account, and never a dead inbox.
+  // AMENDED 2026-09-26 (sweep #459): the literals here pinned the old
+  // wording with a typed middot, which R6 retires from a meta line.
+  const EXPIRED = humanError(new Error("threads 401"), "");
+  const REFUSED = humanError(new Error("threads 403"), "");
+  const OFFLINE = humanError(new TypeError("Failed to fetch"), "");
+  it("the failure lines say what a person can do, not the machine's words", () => {
+    expect(EXPIRED).toMatch(/sign-in expired/i);
+    expect(REFUSED).toMatch(/permissions/i);
+    expect(OFFLINE).toMatch(/offline/i);
+  });
+
   // EMAIL-F-04 (2026-09-05): "An expired token or a dead network reads as
   // Inbox Is Quiet and wipes the Today email band." PROOF A from the audit:
   // listThreads throwing "threads 401" rendered "Inbox Is Quiet", no
@@ -1007,7 +1022,7 @@ describe("MessagesFlow (threads)", () => {
     // re-runs loadThreads, and each run clears the line before re-setting
     // it, so a node found mid-flight can be swapped out a tick later.
     await waitFor(() => {
-      expect(screen.getByText("Your Google sign-in expired · Reconnect in Settings")).toBeInTheDocument();
+      expect(screen.getByText(EXPIRED)).toBeInTheDocument();
       expect(screen.getByText("Couldn’t Reach Your Mail")).toBeInTheDocument();
       expect(screen.getByText("Try Again")).toBeInTheDocument();
     });
@@ -1023,7 +1038,7 @@ describe("MessagesFlow (threads)", () => {
     const api = makeApi({ listThreads: async () => { throw new Error("Failed to fetch"); } });
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await waitFor(() => expect(screen.getByText("You're offline · Nothing was lost")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(OFFLINE)).toBeInTheDocument());
     expect(screen.queryByText("Inbox Empty")).toBeNull();
   });
 
@@ -1038,8 +1053,6 @@ describe("MessagesFlow (threads)", () => {
   // A failure belongs to the ACCOUNT it happened to, so there is one line per
   // account and each one names its own. The full address, not acctLabel:
   // two gmail accounts both shorten to "gmail".
-  const REFUSED = "Google refused that · Reconnect in Settings to update permissions";
-  const EXPIRED = "Your Google sign-in expired · Reconnect in Settings";
 
   it("one account of two refusing says which one, and does not read as a dead inbox", async () => {
     const apis: Record<string, GoogleApi> = {

@@ -92,7 +92,7 @@ export default function WindowsSheet({
               </button>
             ))}
           </div>
-          <div className="win-note">Times are device local</div>
+          <div className="input-hint">Times are device local</div>
 
           <div className="list-flat">
             {draft.windows.map((w, i) => (

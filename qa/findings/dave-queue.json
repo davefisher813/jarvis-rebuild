@@ -122,7 +122,11 @@
   "id": 437,
   "question": "The warning under a destructive action is amber, bold (.slip-warn). That covers Advanced's 'This device only \u00b7 No undo' under Clear Local Data, Account's 'Permanent \u00b7 Every note, task and event is erased' under an armed Delete Account, and Account's delete-error line. In the Colour Key, amber means 'needs you soon' (due, next, stalled, near a limit), and a permanence warning is none of those. By the key it would drop to the note's own grey, italic like the rest of the note. Keep these warnings amber as a named exception, or let them go grey? The middle dots stay either way (field-note rule). Covers #437 and #438.",
   "group": "code-15:settings:LearnedRulesPage.tsx",
-  "phase": "code"
+  "phase": "code",
+  "covers": [
+   437,
+   438
+  ]
  },
  {
   "id": 81,

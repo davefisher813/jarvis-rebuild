@@ -1,5 +1,4 @@
-import { sourceLabel, type Source } from "./provenance";
-import { shortDateFromMs } from "./dateFormat";
+import { sourceLabel, sourceWhen, type Source } from "./provenance";
 
 // The one provenance renderer (addendum item 8). A single meta line; a button
 // only when the caller can actually open the source, otherwise a plain fact.
@@ -17,11 +16,13 @@ import { shortDateFromMs } from "./dateFormat";
 // The words and the time are separate facts now. The separator between them
 // is the one every facts line draws in CSS, and the time takes the neutral
 // date's small caps, so it stays apart from the words even where the line
-// has already spent its one grey.
+// has already spent its one grey. Both halves come from provenance.ts
+// (sourceLabel, sourceWhen), so this line and any other reader of a source
+// agree on the words and on the same-day clock-time-or-date reading.
 export default function Provenance({ source, onOpen, compact = false }: { source?: Source; onOpen?: () => void; compact?: boolean }) {
   const label = sourceLabel(source);
   if (!label || !source) return null;
-  const when = compact ? null : whenOf(source);
+  const when = compact ? null : sourceWhen(source);
   const line = when
     ? <><span className="fact">{label}</span><span className="fact date">{when}</span></>
     : label;
@@ -33,14 +34,4 @@ export default function Provenance({ source, onOpen, compact = false }: { source
     );
   }
   return <div className="prov-line">{line}</div>;
-}
-
-// The time half of the fact: the clock time when it happened today, the date
-// when it did not. The same reading provenance.ts's sourceLine() gives, which
-// still joins the two halves for the callers that want one string.
-function whenOf(source: Source, now: number = Date.now()): string {
-  const d = new Date(source.ts);
-  const n = new Date(now);
-  const today = d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
-  return today ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : shortDateFromMs(source.ts);
 }

@@ -20,11 +20,19 @@ import { showToast } from "../shared/toast";
 // and the words step up out of --tx-3 to the reading ink they should always
 // have had. aria-hidden on the glyph: a screen reader gets "Rain likely 2 PM
 // to 5 PM", which already says it, not "cloud with rain" in front of it.
+//
+// THE AGE IS A SECOND FACT (§AM F3/F5, 2026-09-26). "Checked 40 min ago"
+// used to arrive glued to the sentence with a middot typed into the string,
+// the same grey and case as the words. It now travels in `fact.stale`, and
+// renders as a neutral time in the facts line's small caps, with the dot
+// between the two drawn by the stylesheet (.fact + .fact::before). A fresh
+// forecast has no age, so the sentence stands alone.
 function Fact({ fact }: { fact: WeatherFact }) {
   return (
     <>
       <span className="weather-ico" aria-hidden="true">{WEATHER_EMOJI[fact.kind]}</span>
-      {fact.text}
+      <span className="fact">{fact.text}</span>
+      {fact.stale && <span className="fact date">{fact.stale}</span>}
     </>
   );
 }

@@ -31,7 +31,8 @@ describe("HealthFlow: the Share Line", () => {
     // permanently off. Clicking it does nothing, because it carries no
     // onClick at all (checked statically too, in healthPrivacy.test.ts).
     expect(screen.getByText("Mood and Mind")).toBeInTheDocument();
-    expect(screen.getAllByText("Not a setting. This never crosses to your parent, no matter what.").length).toBe(3);
+    // Said once under the Kid's Room card, not repeated under every row (§AK).
+    expect(screen.getAllByText("Not settings: none of these ever cross to your parent.").length).toBe(1);
     const kidSwitch = screen.getByRole("switch", { name: /Mood and Mind/ });
     expect(kidSwitch).toHaveAttribute("aria-checked", "false");
     expect(kidSwitch).toHaveAttribute("aria-disabled", "true");

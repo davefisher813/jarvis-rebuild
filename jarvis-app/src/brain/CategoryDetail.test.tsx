@@ -3,7 +3,7 @@ import { writeLive, clearLive } from "../gym/liveSession";
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { useEffect, useState } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useTasks, useCategories, useProjects } from "../data/NotesProvider";
 import CategoryDetail from "./CategoryDetail";
@@ -705,7 +705,11 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
     fireEvent.click(screen.getByText("Customize"));
     fireEvent.click(await screen.findByText("Week Shape"));
     // The 16:00 to 18:00 practice on the org area, read through the calendar.
-    await waitFor(() => expect(screen.getByText("1 · 2 Hours")).toBeInTheDocument());
+    // Two facts on that day's row, the dot between them drawn by the
+    // stylesheet (§AM R6), so the row is read as its two parts.
+    await waitFor(() => expect(screen.getByText("2 Hours")).toBeInTheDocument());
+    const day = screen.getByText("2 Hours").closest(".row-value") as HTMLElement;
+    expect(within(day).getByText("1 Session")).toBeInTheDocument();
   });
 
   // UP-ATH-10 (2026-09-06): this case asserted the OLD behaviour, which

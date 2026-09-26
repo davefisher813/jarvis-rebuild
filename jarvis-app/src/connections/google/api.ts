@@ -52,7 +52,7 @@ export type FetchLike = (url: string, init?: { method?: string; headers?: Record
 // PLUMB-F-04 (2026-09-05): "Google access tokens are minted once at open and
 // never refreshed." An access token lives about an hour; the app stays
 // resident on the phone for days. Every method below threw on 401 and
-// humanError turned that into "Your Google sign-in expired · Reconnect in
+// humanError turned that into "Your Google sign-in expired; reconnect in
 // Settings", where one tap on Reconnect worked instantly and silently,
 // because the server still held the refresh token the whole time. This
 // wraps the fetch every api instance uses: a 401 is met with ONE silent

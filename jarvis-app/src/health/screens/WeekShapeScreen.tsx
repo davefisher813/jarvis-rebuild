@@ -25,7 +25,17 @@ export default function WeekShapeScreen({ shape, onOpenTwoDaysOff, onBack }: {
         {shape.days.map((d) => (
           <div className="row" key={d.date}>
             <div className="row-grow"><div className="conn-name">{weekdayShortDate(d.date)}</div></div>
-            <div className="row-value">{d.sessions === 0 ? "No Sessions" : d.sessions + " · " + d.hours + " Hours"}</div>
+            {/* Two counts with no state, so each is a white number (§AM) in
+                its own fact, and the stylesheet draws the dot between them
+                (R6). A day with none says so: that is the screen's point. */}
+            <div className="row-value">
+              {d.sessions === 0 ? "No Sessions" : (
+                <>
+                  <span className="fact"><b>{`${d.sessions} ${d.sessions === 1 ? "Session" : "Sessions"}`}</b></span>
+                  <span className="fact"><b>{`${d.hours} ${d.hours === 1 ? "Hour" : "Hours"}`}</b></span>
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div></div>

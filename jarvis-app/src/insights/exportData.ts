@@ -26,7 +26,7 @@ export function buildCsv(rows: DataRecord[], categories: DataCategory[]): string
   const lines = ["Date,Time,Category,Record,Value,Detail,Source"];
   for (const r of rows) {
     if (!want.has(r.category)) continue;
-    lines.push([r.date, stamp(r.at).slice(11), CATEGORY_LABEL[r.category], r.title, r.value ?? "", r.detail ?? "", r.source].map(q).join(","));
+    lines.push([r.date, stamp(r.at).slice(11), CATEGORY_LABEL[r.category], r.title, r.value ?? "", [r.detail, r.review].filter(Boolean).join("; "), r.source].map(q).join(","));
   }
   return lines.join("\n") + "\n";
 }

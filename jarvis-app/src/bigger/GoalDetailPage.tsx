@@ -377,7 +377,7 @@ export default function GoalDetailPage({
               title={p.data.title}
               glyphTone={"cat-fg-" + (p.data.category ? catColor(p.data.category) : "graphite")}
               next={nextActionTextOf(p.id)}
-              meter={row.progress ? capAfterNumber(`${row.progress.done} of ${row.progress.total} done`) : "No tasks yet"}
+              meter={row.progress ? capAfterNumber(`${row.progress.done} of ${row.progress.total} done`) : ""}
               hold={holdLineOf?.(p.id) ?? null}
               status={projStatus(row)}
               bar={row.progress}
