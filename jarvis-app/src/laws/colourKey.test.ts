@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { posix } from "node:path";
+import { TAP_RED } from "./reds";
 
 const { join } = posix;
 const ROOT = process.cwd().replace(/\\/g, "/");
@@ -95,7 +96,16 @@ describe("LAW §AM: the colour key", () => {
     // either passed. Every --tint* and --accent* token counts now, plus
     // --on-light-red. Measured on the sheets that day: it matches only the
     // two operable rules already exempt above, so nothing new fails.
-    const BRAND_RED = /var\(--(tint[\w-]*|on-light-red|accent[\w-]*)\)/;
+    // AMENDED 2026-09-26 (round-3 review, the lead): the pattern only matched
+    // a token with its closing paren straight after, so a fact painted
+    // `var(--tint, #FF2B3C)` (a fallback) passed, and it left out
+    // --danger-tx, the words red F-04 already named (#CC051B in light). The
+    // brand red is read from the one shared definition now (laws/reds.ts),
+    // the same one F-04 and L1 read: every token above, --danger-tx, a
+    // reference followed by a fallback, and the brand's hexes. Every token
+    // it matched before still matches. Measured on the sheets that day: it
+    // still matches only the operable rules exempt above.
+    const BRAND_RED = TAP_RED;
     const bad: string[] = [];
     for (const { sel, body, file } of RULES) {
       const c = textColour(body);

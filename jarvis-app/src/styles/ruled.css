@@ -286,14 +286,14 @@
    it, and it sits ahead of both the person and the estimate in the markup
    because it is the fact that says when. */
 .ruled .r-k-one > .r-cue { flex: 0 0 auto; }
-/* THE CUE IS SMALL CAPS (§AM F5, 2026-09-25). Its sky never painted here:
-   the line's own grey is a two-class rule and outranked it, so "3:30 PM"
-   read as one more plain grey run beside the recurrence and the source.
-   Sky would be wrong anyway, since sky means an estimate and a cue is a
-   trigger. It takes the neutral-date letterform instead: caps is the
-   distinction, and it survives a line that has already spent its grey. */
-.ruled .r-goal.r-cue { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
-  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); }
+/* THE CUE IS SET APART BY ITS ARROW (§AK R1, AMENDED 2026-09-26). The arrow
+   drawn before it is a MARK, one of the four distinctions, so the cue needs
+   no letterform of its own and wears the line's own 14px grey. It was small
+   caps for a day, and caps is for a label, never a sentence: a place or an
+   event cue is his own words ("after I drop the kids at school"), and set in
+   caps it shouted. The semibold went with the caps, since weight alone is
+   not a distinction. Not sky either: sky means an estimate, and a cue is a
+   trigger. So no rule restyles it here; the line's grey below is its type. */
 /* Provenance joined the line too (2026-09-09), last and quietest. Two things
    have to change for it to belong here rather than on a row of its own: it
    wears the line's type (it was --t-meta, 15px, which is taller than the
@@ -306,8 +306,8 @@
    with a thumb. On the row it stays a tap, just a row-sized one, exactly as
    the person beside it already is. */
 /* §AM F4/F5 (2026-09-25): 13px was a third size, and beside the recurrence
-   it was a second grey. It takes the cue's letterform, 11px small caps,
-   which is shorter than the clamp, so nothing is sliced. */
+   it was a second grey. It takes 11px small caps itself, which is shorter
+   than the clamp, so nothing is sliced. */
 .ruled .r-k-one > .prov-line { flex: 0 0 auto; font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase;
   color: var(--tx-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -319,8 +319,13 @@
    The smaller line shrank the tap reach the openable form carries, which is
    transparent border above and below the line box (SHARED-F-17): measured
    42px on the 14px line, 39px on the 11px one. The border grows by the same
-   amount the line lost and the margin pays it back, so the reach is 44px
-   again and nothing on the row moves (2026-09-26). */
+   amount the line lost and the margin pays it back, so nothing on the row
+   moves (2026-09-26). MEASURED, AMENDED 2026-09-26 (round 3): the box is
+   45px, which is the reach on a row that sits on its own. Inside the
+   schedule strip the reach is 42px, because the strip clips what overflows
+   it and cuts about 4px off the lower border; beside a place, the place's
+   own reach wins the band above, and the source gets about 18px there. So
+   it is not 44 in the strip, and it is no worse than before the change (41). */
 .ruled .sched-body > .prov-line { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; }
 .ruled .sched-body > .prov-link { border-top-width: 16px; border-bottom-width: 16px; margin-block: -16px; }

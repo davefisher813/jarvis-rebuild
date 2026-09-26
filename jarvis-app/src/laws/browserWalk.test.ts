@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { TAP_RED } from "./reds";
 
 // THE BROWSER WALK, AS LAWS (2026-09-05).
 //
@@ -145,10 +146,13 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
   // classes, one at a time, which is the pattern this describe exists to
   // end; so the token is pinned, and no light rule on a lateness selector
   // may hand-paint the words red (or its old hexes) back.
-  it("light --sys-red is Apple's light system red, and no light rule steps lateness down to the words red", () => {
+  it("light --sys-red is Apple's light system red, and no rule in either theme paints lateness in the brand red", () => {
     expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#FF3B30");
     const bare = ["components.css", "ruled.css", "uniformity.css", "jarvis-design-system.css", "mail-rows.css", "editor.css"]
-      .map((f) => read("styles/" + f)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
+      .map((f) => read("styles/" + f)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "")
+      // A rule inside an at-rule block is still a rule: the wrapper's own
+      // brace would otherwise swallow the first rule inside it unread.
+      .replace(/@(?:media|supports|container|layer)[^{;]*\{/g, "");
     const LATE = /(?:^|[\s.>+~,-])(?:late|overdue|missed)(?![a-z])|\.fact\.red(?![\w-])|urgency-red(?![\w-])/;
     // AMENDED 2026-09-26 (round-2 review, the lead): the ban named the words
     // red's hexes but only two of the tokens that resolve to them, so
@@ -156,15 +160,25 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
     // light lateness rule passed while the same hex failed. Every --tint*
     // and --accent* token and --danger-tx count now, beside the hexes and
     // --on-light-red, which stay.
-    const WORDS_RED = /var\(--(?:on-light-red|accent[\w-]*|tint[\w-]*|danger-tx)\)|#(?:BC000E|DA0012|CC051B)\b/i;
+    // AMENDED 2026-09-26 (round-3 review, the lead): two holes. The pattern
+    // wanted a closing paren straight after the token, so the exact form the
+    // phase deleted, `var(--on-light-red, #B8001A)` (a fallback), passed, and
+    // #B8001A was not on the hex list. And only rules scoped to light were
+    // judged, so a base `.urgency-red { color: var(--tint); }` passed too,
+    // though urgency-red is one of the classes this law names. The words red
+    // is now the one shared brand red (laws/reds.ts): every token and hex it
+    // matched before, a reference with a fallback, #B8001A, and the dark
+    // brand hexes. Every rule whose selector names lateness is judged, in
+    // either theme; the light rules it judged before are all still judged.
+    const WORDS_RED = TAP_RED;
     const offenders: string[] = [];
-    for (const m of bare.matchAll(/([^{}]*\[data-theme="light"\][^{}]*)\{([^}]*)\}/g)) {
+    for (const m of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
       for (const one of m[1]!.split(",").map((x) => x.trim())) {
-        if (!one.includes('[data-theme="light"]') || !LATE.test(one)) continue;
+        if (!one || one.startsWith("@") || !LATE.test(one)) continue;
         if (WORDS_RED.test(m[2]!)) offenders.push(one.replace(/\s+/g, " "));
       }
     }
-    expect(offenders, "late is --sys-red in both themes; the words red means tap").toEqual([]);
+    expect(offenders, "late is --sys-red in both themes; the brand red means tap").toEqual([]);
   });
 
   // The saturated pair did not disappear, it changed job: anything with no
@@ -447,6 +461,24 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(rule, "something has to take the token").toBeTruthy();
     for (const sel of [".sheet-bar-save", ".note-fix", ".toast-action", ".see-all", ".prov-link"]) {
       expect(rule![1], `${sel} is on the sheet-red list`).toContain(sel);
+    }
+    // AMENDED 2026-09-26 (round-3 review, the lead): the check above is a
+    // substring match, so once `.banner-warn .see-all` joined the list it
+    // alone satisfied ".see-all", and the two sheet forms this law was
+    // amended for could both go with every law green (a head action on a
+    // sheet back on the plain tap red). `.prov-link` had the same gap. The
+    // list is split on its commas and each sheet form is required by name,
+    // as an exact member. The substring checks above stay.
+    const members = rule![1]!.split(",").map((x) => x.replace(/\s+/g, " ").trim());
+    for (const sel of [
+      ".form-sheet .sheet-bar-save", ".sheet-scrim > .card .sheet-bar-save",
+      ".form-sheet .note-fix", ".sheet-scrim > .card .note-fix",
+      ".form-sheet .see-all", ".sheet-scrim > .card .see-all",
+      ".form-sheet .prov-link", ".sheet-scrim > .card .prov-link",
+      ".banner-warn .see-all", ".banner-cool .see-all",
+      ".toast .toast-action",
+    ]) {
+      expect(members, `${sel} is a member of the sheet-red list`).toContain(sel);
     }
     // AMENDED 2026-09-25 (§AL): the capsule left this list. Its label sits on
     // its own opaque --capsule-fill now, not on the sheet grey (--tint on

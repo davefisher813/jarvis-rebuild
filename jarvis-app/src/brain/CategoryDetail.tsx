@@ -1712,13 +1712,19 @@ export default function CategoryDetail({
                   a footnote. Same facts, same honesty, same "correlation not
                   cause" -- read in a glance instead of a paragraph. */}
               <div className="sh2 sh2-quiet"><span className="t">Insights</span><span className="n">{insightCount}</span></div>
+              {/* ONE .pad-x FOR THE WHOLE STACK. It insets every card AND the
+                  note under it, so each note sits 16px from the screen edge,
+                  level with its card's edge, as settings' Foot does beside
+                  its Card. InsightCard and the nearest-pair note carry no
+                  .pad-x of their own; one would stack on this and push the
+                  note to 32px. */}
               <div className="pad-x">
                 {/* H-33 (Health Push C): what the count is made of, and whose
                     band it is. CAPS IS FOR A LABEL, NEVER A SENTENCE (§AK,
                     2026-09-26): this was an 11px caps cite of four facts and
                     a citation inside the card. It is a sentence, so it is
-                    the note under the card now, the group footer settings'
-                    Foot draws, with commas where the middots were. */}
+                    the note under the card now, with commas where the
+                    middots were. */}
                 {rangeRows.length > 0 && (
                   <InsightCard evidence={hardSetEvidence(rangeRows, nowMs, hsBand ? rangeRows[0]!.range : undefined)} onExplain={explain}
                     note={<>Last 7 days, working sets only, warm-ups excluded. {rangeRows[0]!.range.source.split(" · ").join(", ")}.</>}>
@@ -1848,8 +1854,9 @@ export default function CategoryDetail({
                     <div className="ins-line">{c.line}</div>
                   </InsightCard>
                 ))}
+                {/* Bare: the one .pad-x above insets it, level with the cards. */}
                 {nearest && (
-                  <div className="pad-x"><div className="input-hint">Not enough days yet for {nearest.def} and {nearest.ex}, {nearest.p.paired} of {nearest.p.needed} paired sessions.</div></div>
+                  <div className="input-hint">Not enough days yet for {nearest.def} and {nearest.ex}, {nearest.p.paired} of {nearest.p.needed} paired sessions.</div>
                 )}
                 {offerLighter && (
                   <InsightCard key="lighter" evidence={backOff?.evidence} onExplain={explain} note="Never a prescription, just an offer.">

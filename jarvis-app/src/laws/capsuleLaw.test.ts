@@ -110,11 +110,65 @@ describe("LAW §AL: the capsule, settled", () => {
     // a ring and pass, and it still could: nothing read box-shadow or border.
     // No rule for it may draw a shadow other than none, and the base rule
     // keeps border 0 with no border longhand to draw one back.
+    // AMENDED 2026-09-26 (round 3): the lookahead sat after `\s*`, which can
+    // give back its space, so "box-shadow: none" itself read as a ring. The
+    // lookahead takes the space now; any other shadow still fails.
     for (const [theme, body] of [["base", base], ["light", light], ["dark", dark]] as const) {
-      expect(body, `${theme}: no ring`).not.toMatch(/box-shadow:\s*(?!none\b)/);
+      expect(body, `${theme}: no ring`).not.toMatch(/box-shadow:(?!\s*none\b)/);
     }
     expect(base, "no border").toMatch(/(^|[;\s])border:\s*0\s*(;|$)/);
     expect(base, "and no border longhand to draw one").not.toMatch(/(^|[;\s])border-(?:width|style|color|top|right|bottom|left|block|inline)[\w-]*\s*:/);
+    // AMENDED 2026-09-26 (round-3 review, the lead): the check above passed
+    // on an ABSENT box-shadow and read only the three chain rules, so any
+    // other rule reaching a small pill could paint the ring back:
+    // `.row-acts .btn-sm { box-shadow: inset 0 0 0 1px var(--tint); }` in
+    // this sheet, or `.ruled .card .btn-sm { border: 1px solid ...; }` in
+    // ruled.css, left every law green. That is the 2026-09-21 regression
+    // this file exists to stop. The base rule now says none out loud, the
+    // way .pill-act and .row-act must, and every rule in all six sheets
+    // whose subject is a small pill (not a primary, danger or secondary) is
+    // read for a shadow or a border with a width. Every check above stays.
+    expect(base, "the base rule says no ring out loud").toMatch(/(^|[;\s])box-shadow:\s*none\s*(;|$)/);
+    const SIX = ["components.css", "ruled.css", "jarvis-design-system.css", "uniformity.css", "editor.css", "mail-rows.css"];
+    const STYLE = /\b(solid|dashed|dotted|double|groove|ridge|inset|outset)\b/;
+    const drawsLine = (prop: string, value: string): boolean => {
+      const v = value.trim().toLowerCase();
+      if (/^(none|hidden|0|0px)$/.test(v)) return false;
+      // A transparent border is a hit area (the row pill reaches 44 that
+      // way), not a ring: it paints nothing.
+      if (!/-width$/.test(prop) && /\btransparent\b/.test(v)) return false;
+      if (/\b(thin|medium|thick)\b/.test(v)) return true;
+      const widths = [...v.matchAll(/(?:^|\s)(\d*\.?\d+)(?:px|rem|em|pt)?(?=\s|$)/g)].map((w) => Number(w[1]));
+      if (widths.some((n) => n > 0)) return true;
+      if (/-width$/.test(prop)) return /var\(/.test(v);
+      // A shorthand with a line style and no width of its own draws at
+      // medium; one whose only width is 0 draws nothing.
+      return STYLE.test(v) && !widths.some((n) => n === 0);
+    };
+    const rings: string[] = [];
+    for (const f of SIX) {
+      const bare = read("src/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/@(?:media|supports|container|layer)[^{;]*\{/g, "");
+      for (const m of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+        const subjects = m[1]!.replace(/:has\([^)]*\)/g, "").split(",")
+          .map((x) => x.trim().split(/\s+|>/).filter(Boolean).pop() ?? "");
+        const smallPill = subjects.some((x) => /\.btn-sm(?![\w-])/.test(x)
+          && !/\.btn-(primary|danger|secondary)(?![\w-])/.test(x.replace(/:not\([^)]*\)/g, "")));
+        if (!smallPill) continue;
+        const where = `${f}: ${m[1]!.replace(/\s+/g, " ").trim()}`;
+        for (const d of m[2]!.split(";")) {
+          const i = d.indexOf(":");
+          if (i < 0) continue;
+          const prop = d.slice(0, i).trim().toLowerCase();
+          const value = d.slice(i + 1).trim();
+          if (prop === "box-shadow" && !/^none\b/i.test(value)) rings.push(`${where} -> box-shadow: ${value}`);
+          if (/^border(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?(?:-width)?$/.test(prop) && drawsLine(prop, value)) {
+            rings.push(`${where} -> ${prop}: ${value}`);
+          }
+        }
+      }
+    }
+    expect(rings, "a small pill is a fill and no ring, whichever rule reaches it").toEqual([]);
   });
 
   it("the capsule fill is opaque in dark, so contrast cannot depend on the ground", () => {

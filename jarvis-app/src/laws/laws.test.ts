@@ -16,6 +16,7 @@ import { setCategoryRegistry } from "../shared/categories";
 import { stepsOf, hasUnfinishedSteps } from "../shared/StepCount";
 import type { TaskData } from "../notes/types";
 import type { WindowRow } from "../brain/window";
+import { TAP_RED, ANY_RED } from "./reds";
 
 // THE LAWS, AS TESTS.
 //
@@ -1914,6 +1915,9 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "healthBench.tsx",                     // bench harness, run by hand
     "score.ts",                            // golden-set scorer, run by hand
     "rowTap.scan.ts",                      // the row-tap law's scanner, run by laws/rowTap.test.ts
+    // AMENDED 2026-09-26 (round 3): the one definition of red that the
+    // Colour Key, F-04 and L1 read. Laws only; the app never imports it.
+    "reds.ts",                             // the laws' shared reds, read by colourKey, browserWalk and laws tests
     // A serverless route is an entry point: Vercel reaches api/book.ts by
     // URL, exactly the way the browser reaches main.tsx, and nothing imports
     // either. The other api routes pass this law only because a comment
@@ -2387,7 +2391,15 @@ describe("LAW L1: red is a verb, never a status", () => {
   // The amendment above names missed with late and overdue, but the pattern
   // never checked it, so a missed reminder's time recoloured to the tap red
   // passed every law. Every other word and colour stays.
-  const GUILT = /\.(?:[a-z-]*)(overdue|late|missed|unread|behind)(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--accent-tx|--tint|--on-light-red)\b/gi;
+  // AMENDED 2026-09-26 (round-3 review, the lead): the laws amended that
+  // day defined red three ways. The tap reds here left out --danger-tx,
+  // which F-04 already counted as the words red (#CC051B in light), and the
+  // words red's hexes, so a lateness rule hand-painted #B8001A passed. The
+  // colour group is the one shared brand red now (laws/reds.ts), which the
+  // Colour Key and F-04 read too: every token matched before (each --accent*
+  // and --tint*, --on-light-red), plus --danger-tx, a reference with a
+  // fallback, and the brand's hexes. The words and the rest are unchanged.
+  const GUILT = new RegExp(String.raw`\.(?:[a-z-]*)(overdue|late|missed|unread|behind)(?:[a-z-]*)\b[^{]*\{[^}]*(?:${TAP_RED.source})`, "gi");
   // Unread is a state of the inbox, not of the user: no red of any kind,
   // the key's included (Anti-Inbox, 2026-08-25; the mail rail's white dot).
   // AMENDED 2026-09-26 (round-2 review, the lead): "behind" joins unread
@@ -2397,7 +2409,15 @@ describe("LAW L1: red is a verb, never a status", () => {
   // this law was written against, and the key files stalled work under
   // amber. So a behind class takes neither the brand red nor the system red.
   // Unread keeps every colour it was already denied.
-  const UNREAD_RED = /\.(?:[a-z-]*)(unread|behind)(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--accent-tx|--tint|--on-light-red|--sys-red|--red|--bad)\b/gi;
+  // AMENDED 2026-09-26 (round-3 review, the lead): "no red of any kind"
+  // missed --danger-tx, which in dark is #FF453A, the system red itself, so
+  // `.msg-unread-dot { color: var(--danger-tx); }` passed every law; and
+  // --bad is defined in no sheet, so that entry checked nothing. The colour
+  // group is the shared ANY_RED now (laws/reds.ts): every brand red above,
+  // --sys-red and --red with their tints and fills, the red category's
+  // inks, and the system red's hexes (#FF453A, #FF3B30) beside the brand's.
+  // Every token it matched before still matches except the undefined --bad.
+  const UNREAD_RED = new RegExp(String.raw`\.(?:[a-z-]*)(unread|behind)(?:[a-z-]*)\b[^{]*\{[^}]*(?:${ANY_RED.source})`, "gi");
 
   // WIDENED APP-WIDE 2026-08-25 (Dave). L1 was written for email and scoped
   // to email, which left the same mechanic running one tab over: the Tasks
@@ -5668,8 +5688,10 @@ describe("DEFECT 1 (2026-09-06): the ruled row's second line is one line, always
     // 2026-09-18 (Catalog V5): the size is --t-caption now, the one stop the
     // whole small end reads from, rather than a 12.5 written here alone.
     // AMENDED 2026-09-25 (§AM F4/F5): 13 was a third subtext size and a
-    // second grey beside the recurrence. It is the cue's 11px small caps now,
-    // still shorter than the clamp.
+    // second grey beside the recurrence. It is 11px small caps now, still
+    // shorter than the clamp. AMENDED 2026-09-26 (round 3, the cue lost its
+    // caps): this said "the cue's" small caps; the cue now wears the line's
+    // 14px grey behind its arrow mark, so the provenance owns the letterform.
     expect(r).toMatch(/font-size:\s*var\(--t-eyebrow\)/);
     expect(r).toMatch(/text-transform:\s*uppercase/);
     // The 44px expansion is 13px of transparent border top and bottom, which

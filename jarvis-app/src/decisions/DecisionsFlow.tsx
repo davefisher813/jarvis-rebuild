@@ -18,6 +18,7 @@ import type { DecisionSourceKind } from "./types";
 // other costume.
 const SOURCE_ROUTE: Partial<Record<DecisionSourceKind, string>> = { note: "note", email: "email" };
 import { todayISO } from "../schedule/calendar";
+import { dayTone } from "../messages/factsLine";
 import EntityStar from "../shared/EntityStar";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
@@ -90,6 +91,18 @@ function linkAreaSlot(l: DecisionLink, projectCat: (id: string) => string | unde
 // The outcome word in the Colour Key (§AM): worked is done, mixed needs him
 // soon, didn't is missed.
 const OUTCOME_KEY: Record<OutcomeWord, "good" | "warn" | "red"> = { worked: "good", mixed: "warn", didnt: "red" };
+
+// A revisit still waiting on him (pending, or shown on Today) is a due date,
+// so it takes the reminder window (§AM R8): late red, today or tomorrow
+// amber, later a neutral small-caps date. Once answered or expired it is no
+// longer his to do, and the row falls back to the day the call was made,
+// which is always a neutral date.
+function whenFact(d: DecisionRecord["data"], today: string): { text: string; tone: "red" | "warn" | "date" } {
+  const revisit = d.revisitOn && (d.revisitState === "pending" || d.revisitState === "shown") ? d.revisitOn : null;
+  return revisit
+    ? { text: "Revisit " + fmtShort(revisit), tone: dayTone(revisit, today) }
+    : { text: fmtShort(d.createdAt), tone: "date" };
+}
 
 export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsumed, onOpenSource }: { onBack: () => void; openId?: string;
   // BRAIN-F-04 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
@@ -247,6 +260,16 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
     const older = d.supersedesId ? byId.get(d.supersedesId) : undefined;
     const newer = d.supersededById ? byId.get(d.supersededById) : undefined;
     const links = linksOf(d);
+    // The Attached To card (lead, 2026-09-26, the row's ruling carried over):
+    // a home in an area draws as the row draws it, the category fact with its
+    // own area's dot. A person, goal or task, or a project with no category,
+    // has no dot to wear, so those homes share ONE plain fact, joined, and the
+    // line keeps one grey.
+    const areaHomes = links.flatMap((l) => {
+      const slot = linkAreaSlot(l, (id) => projCats[id]);
+      return slot ? [{ link: l, slot }] : [];
+    });
+    const plainHomes = links.filter((l) => !areaHomes.some((h) => h.link.id === l.id)).map((l) => l.label).join(", ");
     const toggleLink = (opt: AttachOption) => {
       const next = links.some((l) => l.id === opt.id)
         ? links.filter((l) => l.id !== opt.id)
@@ -379,9 +402,15 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               <div className="sh2 sh2-quiet"><span className="t">Attached To</span></div>
               <div className="pad-x"><div className="card pad">
                 {/* C-53: every home, as facts; while editing, every option as
-                    a chooser chip, the ones it holds filled. */}
+                    a chooser chip, the ones it holds filled. Area homes wear
+                    their dot; every other home rides one plain run. */}
                 {!editing && (
-                  <div className="facts">{links.map((l) => <span className="fact" key={l.id}>{l.label}</span>)}</div>
+                  <div className="facts">
+                    {areaHomes.map(({ link: l, slot }) => (
+                      <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{l.label}</span></span>
+                    ))}
+                    {plainHomes && <span className="fact">{plainHomes}</span>}
+                  </div>
                 )}
                 {editing && (
                   <div className="chip-row chip-wrap-row">
@@ -515,6 +544,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
   onOpen: (id: string) => void;
   onAdd: () => void;
 }) {
+  const today = todayISO();
   return (
     <div className="screen ruled">
       <PageHeader
@@ -546,7 +576,9 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
           its outcome, and the revisit day or the day it was recorded. */}
       {live.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled">
-          {live.map((r) => (
+          {live.map((r) => {
+            const when = whenFact(r.data, today);
+            return (
             <div {...pressable(() => onOpen(r.id))} className="row dec-row" key={r.id}>
               <EntityStar entityType={ENTITY_DECISION} entityId={r.id} title={r.data.decision} />
               <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
@@ -578,20 +610,22 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
                   {/* How it turned out takes the key: worked is done, mixed
                       needs him, didn't is missed. */}
                   {r.data.outcome && <span className={"fact " + OUTCOME_KEY[r.data.outcome.word]}>{OUTCOME_LABEL[r.data.outcome.word]}</span>}
-                  {/* A date is SMALL CAPS (§AM F5, 2026-09-22). This asked
-                      for cyan and never got it -- .fact.cyan is scoped to
-                      .ruled.health-ruled and this screen is plain .ruled --
+                  {/* A neutral date is SMALL CAPS (§AM F5, 2026-09-22). This
+                      asked for cyan and never got it -- .fact.cyan is scoped
+                      to .ruled.health-ruled and this screen is plain .ruled --
                       so the date drew as a second plain grey beside the
                       reason on every decision row. Caps is told apart by its
                       letterforms, so the row keeps its one grey for the
-                      words. The dead .cyan is gone with it, and the date is
-                      the shared .fact.date primitive, not a class of its own. */}
-                  <span className="fact date">{r.data.revisitOn && (r.data.revisitState === "pending" || r.data.revisitState === "shown") ? "Revisit " + fmtShort(r.data.revisitOn) : fmtShort(r.data.createdAt)}</span>
+                      words. A revisit that is due takes the key instead
+                      (§AM R8, whenFact): amber today or tomorrow, red once
+                      past. The recorded-on day is always the neutral date. */}
+                  <span className={"fact " + when.tone}>{when.text}</span>
                 </div>
               </div>
               <Chev />
             </div>
-          ))}
+            );
+          })}
         </div></div>
       )}
       <div className="screen-foot" />

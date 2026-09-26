@@ -20,7 +20,7 @@ import { shortDate } from "../shared/dateFormat";
 // THE NOTE GOES UNDER THE CARD (§AK, 2026-09-26: "Caps is for a label, never
 // a sentence"). The line saying where the words came from is a sentence, so
 // it is not an 11px caps cite inside the card any more: it is the quiet note
-// under the card, the group-footer pattern settings' Foot draws. A component
+// under the card, at the card's own edge as settings' Foot is. A component
 // inside a card cannot draw below it, so the explain seam comes with a
 // second half: onShown tells the card's owner when the explanation is on
 // screen, and InsightCard below draws the note. The two travel as one prop,
@@ -79,11 +79,17 @@ export const EXPLAIN_NOTE = "Explanation from your records + AI, adding nothing 
 
 /** An insight card, its receipt, and the note it owes the reader.
  *
- *  The note is the card's one sentence, drawn UNDER the card as the group
- *  footer (.pad-x > .input-hint), never inside it: inside, it was a second
- *  grey under the finding's own line (§AK R1), and in caps it was a sentence
- *  shouting (§AK, 2026-09-26). When the explanation is open its note joins
- *  the same footer, so a card never grows two notes under it. */
+ *  The note is the card's one sentence, drawn UNDER the card as a bare
+ *  .input-hint, never inside it: inside, it was a second grey under the
+ *  finding's own line (§AK R1), and in caps it was a sentence shouting (§AK,
+ *  2026-09-26). When the explanation is open its note joins the same line,
+ *  so a card never grows two notes under it.
+ *
+ *  NO .pad-x OF ITS OWN. The card is drawn bare too: the caller's one .pad-x
+ *  insets the card and its note together, so both sit 16px from the screen
+ *  edge and the note lines up with the card's edge, where settings' Foot
+ *  puts it beside its Card. A .pad-x here would stack on the caller's and
+ *  push the note to 32px, inside the card's edge. */
 export function InsightCard({ evidence, onExplain, note, children }: {
   evidence?: Evidence | null;
   onExplain?: (evidence: Evidence) => Promise<string>;
@@ -98,9 +104,9 @@ export function InsightCard({ evidence, onExplain, note, children }: {
         {evidence && <InsightEvidence evidence={evidence} explain={{ run: onExplain, onShown: setExplainShown }} />}
       </div>
       {(note || (evidence && explainShown)) && (
-        <div className="pad-x"><div className="input-hint">
+        <div className="input-hint">
           {note}{note && evidence && explainShown ? " " : null}{evidence && explainShown ? EXPLAIN_NOTE : null}
-        </div></div>
+        </div>
       )}
     </>
   );

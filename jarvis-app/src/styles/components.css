@@ -1481,7 +1481,13 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .wait-why { margin: calc(var(--s-2) * -1) 0 var(--s-2); color: var(--tx-3); }
 
 .msg-fold { margin-top: var(--s-3); }
-.msg-fold .conn-name { color: var(--tx-2); }
+/* The fold's own row and the collapsed Noise senders read quieter than a
+   person (8A). RE-SCOPED 2026-09-26 (round 3): the Noise list moved out of
+   the fold into its own list card under its own head (R10), so the fold
+   alone no longer reached its sender groups and they went white. A sender
+   group is the block that follows the machines line in that card, so the
+   sibling reach finds them wherever the card sits. */
+.msg-fold .conn-name, .msg-machines ~ div .conn-name { color: var(--tx-2); }
 .msg-guard { margin-top: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); }
 
 /* The Deal With It deck (email 2): one card, one prepared decision. The prep
@@ -3237,6 +3243,9 @@ button {
    time takes the key's red (§AM, 2026-09-25): the key files missed with the
    other lapsed states, which supersedes the August note that kept it white. */
 .rem-row.missed .rem-time { color: var(--sys-red); font-weight: var(--w-semi); }
+/* The meridiem is part of the time (2026-09-26, round 3): its own grey would
+   leave "AM" out of the red, so it follows the time's ink. */
+.rem-row.missed .rem-time .ampm { color: inherit; }
 .rem-row.done .rem-name { color: var(--tx-2); text-decoration: line-through; }
 /* A FINISHED REMINDER RECEDES (2026-08-24). `.cb.on` fills with `--sel-bg`,
    which in dark is near-white, so the done row wore the brightest element in
@@ -3441,10 +3450,12 @@ button {
    words on Dave's screenshots. Its fill is its own now.
    §AL binds it to the capsule by name (2026-09-25): the opaque capsule
    fill, the longhand, so it reads the same red on every ground as the row
-   pill beside it. The alpha press fill measured 2.55 on surface-3. */
+   pill beside it. The alpha press fill measured 2.55 on surface-3.
+   A fill and no ring (§AL, 2026-09-26): it says so, as the two capsules
+   beside it do, rather than leaving the ring to whatever else reaches it. */
 .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   height: 34px; font-size: var(--t-meta); padding: 0 var(--s-3h);
-  background-color: var(--capsule-fill); color: var(--tint); border: 0;
+  background-color: var(--capsule-fill); color: var(--tint); border: 0; box-shadow: none;
   border-radius: var(--r-pill); font-weight: var(--w-semi); font-family: var(--f);
   display: inline-flex; align-items: center; flex-shrink: 0; }
 /* Detail-page group labels: Decided, Because, Details, Ruled Out. Scoped
@@ -4171,9 +4182,8 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    other fact on that line. The time is tabular so a column of cues does not
    jitter as the digits change, the same reason the step count is. A cue
    is a trigger, not an estimate, so it is not sky (§AM, 2026-09-25), and
-   it sets no colour of its own here (2026-09-26): on the ruled row, the
-   only place it renders, ruled.css gives it the neutral-date caps in the
-   line's grey. */
+   it sets no colour of its own here (2026-09-26): the arrow before it is
+   the cue's mark, and it wears the line's own 14px grey. */
 .r-cue { font-variant-numeric: tabular-nums; }
 .r-cue::before { content: "\2192\00a0"; color: var(--tx-4); }
 /* The whole if-then sentence, read back under the fields while he writes it,
@@ -5801,6 +5811,14 @@ body.selecting .voice-dock { display: none; }
   padding: max(20px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
   gap: var(--s-1h); -webkit-user-select: none; user-select: none; touch-action: none;
 }
+/* ...and it answers Increase Contrast the way the dark theme does (AMENDED
+   2026-09-26, round 3). A token set on the face outranks the stronger inks
+   the contrast query sets on the root, so without this twin every label on
+   the clock dropped back to the ordinary greys when he asked for more.
+   These are the dark theme's high-contrast values from the design system. */
+@media (prefers-contrast: more) {
+  .cond-face { --tx-2: #E6E6EA; --tx-3: #E6E6EA; --tx-4: #9A9AA0; }
+}
 .cf-top { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0;
   display: flex; flex-direction: column; align-items: center; gap: var(--s-1); }
 .cf-cancel { position: absolute; left: 14px; top: 0; border: 0; background: none; color: var(--tx-3);
@@ -5876,11 +5894,14 @@ body.selecting .voice-dock { display: none; }
 .cr-fmt { font-size: var(--t-eyebrow); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tx-3);
   background: var(--press-3); padding: var(--s-1) var(--s-2); border-radius: var(--r-sm); flex-shrink: 0; }
 .cr-name { flex: 1; min-width: 0; font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* The cap is a neutral time, so it is small caps (§AM F5, AMENDED
-   2026-09-26): at 14px regular it was a second grey beside the line under
-   it, the card's one grey. It pairs with the caps format tag beside it. */
-.cr-cap { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
-  text-transform: uppercase; color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* The cap is a length that cannot be tapped (§AM, AMENDED 2026-09-26, round
+   3): a number with no state, so it is white at the fact size, the way a
+   schedule row's length is. It was small caps for a round, but for most
+   formats it holds digits only ("12:00", "10 × 1:00"), which caps cannot
+   change, so it read as a second grey beside the line under it, the card's
+   one grey. White is the distinction whatever the format. */
+.cr-cap { font-size: var(--t-sub); font-weight: var(--w-semi); color: var(--tx-1);
+  font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .cr-empty { font-size: var(--t-sub); color: var(--tx-3); margin-top: var(--s-2h); }
 .cr-attempt { margin-top: var(--s-2); }
 /* GYM-F-10 (2026-09-05): the attempt title row now carries the delete a
@@ -6116,6 +6137,16 @@ body.selecting .voice-dock { display: none; }
 span.row-star { cursor: default; }
 .strand-filters { padding-top: 0; }
 .rdy-receipt { padding-bottom: var(--s-2h); }
+/* The Readiness receipt WRAPS (AMENDED 2026-09-26, round 3). It is not a
+   button and it exists only to say where the numbers live, so the place it
+   names is the half it cannot lose. At the fact size the one-line ellipsis
+   cut the destination off at 390px (28% of it gone at 1.0, 48% at 1.4).
+   Every other receipt line keeps its one line and its ellipsis. Wrapped, it
+   needs air above and below of its own: the ruled card's receipt row keeps
+   none, since one line centres in its 44px, and two or three lines filled
+   it edge to edge. */
+.rdy-receipt, .rdy-receipt .rl-t { white-space: normal; overflow: visible; }
+.ruled .card .receipt-line.rdy-receipt { padding-block: var(--s-2h); }
 .strand-used { padding-top: var(--s-3); }
 .strand-used .input-label { margin-bottom: var(--s-1); }
 

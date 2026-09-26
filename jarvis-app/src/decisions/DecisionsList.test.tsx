@@ -5,12 +5,14 @@
 // sentences wrap instead of truncating.
 // @vitest-environment jsdom
 import { describe, it, expect, afterAll } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useEffect, useState, type ReactNode } from "react";
 import { NotesProvider, useDecisions, useProjects } from "../data/NotesProvider";
 import { setCategoryRegistry } from "../shared/categories";
 import DecisionsFlow from "./DecisionsFlow";
+import { todayISO } from "../schedule/calendar";
+import { shortDate } from "../shared/dateFormat";
 
 setCategoryRegistry([{ id: "cat-home", name: "Home", color: "orange" }]);
 afterAll(() => setCategoryRegistry([]));
@@ -97,6 +99,97 @@ describe("Decision list anatomy", () => {
     expect(bare.querySelector(".conn-meta")).toBeNull();
     const reasoned = rows.find((r) => r.textContent!.includes("Student template"))!;
     expect(reasoned.querySelector(".conn-meta")!.textContent).toBe("Because Northlake gives 60 warm leads on day one");
+  });
+});
+
+// A day N days from today, local, as YYYY-MM-DD.
+const dayFromToday = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return todayISO(d); };
+
+// A revisit that is still waiting on him is a DUE date (§AM R8, the lead's
+// 2026-09-26 window): today or tomorrow is amber, later is the neutral
+// small-caps date. The day the call was recorded is always neutral.
+function SeededRevisits({ children }: { children: ReactNode }) {
+  const svc = useDecisions();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    void (async () => {
+      await svc.create({ decision: "Revisit the gym plan", revisitOn: dayFromToday(0), source: { kind: "manual", at: new Date().toISOString() } });
+      await svc.create({ decision: "Revisit the reading list", revisitOn: dayFromToday(1), source: { kind: "manual", at: new Date().toISOString() } });
+      await svc.create({ decision: "Revisit the move", revisitOn: dayFromToday(5), source: { kind: "manual", at: new Date().toISOString() } });
+      await svc.create({ decision: "No revisit on this one", source: { kind: "manual", at: new Date().toISOString() } });
+      setReady(true);
+    })();
+  }, [svc]);
+  return ready ? <>{children}</> : null;
+}
+
+describe("the decision row's date", () => {
+  it("wears the reminder window when a revisit is due, and small caps otherwise", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-dec-revisit"><SeededRevisits><DecisionsFlow onBack={() => {}} /></SeededRevisits></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("No revisit on this one")).toBeInTheDocument());
+    const dateOf = (name: string) => Array.from(container.querySelectorAll(".dec-row"))
+      .find((r) => r.textContent!.includes(name))!.querySelector(".facts > .fact:last-child")!;
+    expect(dateOf("Revisit the gym plan").className).toBe("fact warn");
+    expect(dateOf("Revisit the gym plan").textContent).toBe("Revisit " + shortDate(dayFromToday(0)));
+    expect(dateOf("Revisit the reading list").className).toBe("fact warn");
+    expect(dateOf("Revisit the move").className).toBe("fact date");
+    expect(dateOf("Revisit the move").textContent).toBe("Revisit " + shortDate(dayFromToday(5)));
+    // The recorded-on day is always the neutral date.
+    expect(dateOf("No revisit on this one").className).toBe("fact date");
+    expect(dateOf("No revisit on this one").textContent).toBe(shortDate(todayISO()));
+  });
+});
+
+// THE ATTACHED TO CARD (lead, 2026-09-26, the row's ruling carried over): a
+// home in an area draws as the row draws it, the category fact with its own
+// area's dot and the name in .cat-t. A person, goal or task has no dot to
+// wear, so every such home shares ONE plain fact, joined, and the line keeps
+// one grey. No invented grey dot for them.
+function SeededHomes({ children }: { children: ReactNode }) {
+  const svc = useDecisions();
+  const projects = useProjects();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    void (async () => {
+      await projects.create({ title: "Rebuild Bridge App", category: "cat-home", status: "active" }, "p1");
+      await svc.create({
+        decision: "Ship the student template first",
+        links: [
+          { type: "project", id: "p1", label: "Rebuild Bridge App" },
+          { type: "person", id: "per-sam", label: "Sam" },
+          { type: "goal", id: "g-fit", label: "Get Fit" },
+        ],
+        source: { kind: "manual", at: new Date().toISOString() },
+      });
+      setReady(true);
+    })();
+  }, [svc, projects]);
+  return ready ? <>{children}</> : null;
+}
+
+describe("the record's Attached To card", () => {
+  it("dots each area home and joins every other home into one plain fact", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-dec-homes"><SeededHomes><DecisionsFlow onBack={() => {}} /></SeededHomes></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Ship the student template first")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Ship the student template first").closest(".dec-row")!);
+    await waitFor(() => expect(screen.getByText("Attached To")).toBeInTheDocument());
+    const card = screen.getByText("Attached To").closest(".sh2")!.nextElementSibling!;
+    const facts = Array.from(card.querySelectorAll(".facts > .fact"));
+    expect(facts.map((f) => f.textContent)).toEqual(["Rebuild Bridge App", "Sam, Get Fit"]);
+    // The area home: the category fact, its own area on the dot, the name in .cat-t.
+    const area = facts[0]!;
+    expect(area.className).toBe("fact cat fact-link");
+    await waitFor(() => expect(area.querySelector(".cd")!.className).toMatch(/\bcat-bg-orange\b/));
+    expect(area.querySelector(".cat-t")!.textContent).toBe("Rebuild Bridge App");
+    // Every other home: ONE plain fact, no dot, no invented grey mark.
+    const plain = facts[1]!;
+    expect(plain.className).toBe("fact");
+    expect(plain.querySelector(".cd")).toBeNull();
+    expect(container.querySelector(".cat-bg-graphite")).toBeNull();
   });
 });
 
