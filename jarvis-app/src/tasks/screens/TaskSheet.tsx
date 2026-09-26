@@ -18,6 +18,7 @@ import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
 import { addDays } from "../../schedule/calendar";
 import { sortPicks } from "../../shared/pickerSort";
+import { titleCase } from "../../shared/casing";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
 export interface TaskDraft {
@@ -263,13 +264,15 @@ export default function TaskSheet({
   // means changing the project. The derived line stays only for a caller
   // that hands over no goals.
   const project = projects.find((p) => p.id === projectId);
-  const goalTitle = project ? project.goalTitle ?? "" : (goalId ? goals.find((g) => g.id === goalId)?.title ?? "" : "");
+  const goalTitle = titleCase(project ? project.goalTitle ?? "" : (goalId ? goals.find((g) => g.id === goalId)?.title ?? "" : ""));
   // THE PROJECT MENU IN ORDER (Dave's pass-off, 2026-09-26): the current
   // pick first, then by area, then by name (shared/pickerSort), with a
   // search field at the top of the menu.
   const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
+  // His titles are SHOWN in Title Case, in the menu and on the row alike
+  // (Dave's pass-off, 2026-09-26); the value stays the id.
   const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category) })), projectId)
-    .map((p) => ({ value: p.id, label: p.title }));
+    .map((p) => ({ value: p.id, label: titleCase(p.title) }));
   // UP-CORE-02: null means he has not said how long, which is different from
   // zero and is what lets the learned median keep answering.
   const [estimateMin, setEstimateMin] = useState<number | null>(initial?.estimateMin ?? null);
@@ -355,8 +358,8 @@ export default function TaskSheet({
 
   const primaryName = categories.find((c) => c.id === category)?.name ?? "";
   const areaWord = cats.length === 0 ? "None" : cats.length === 1 ? primaryName : `${primaryName} +${cats.length - 1}`;
-  const projectWord = projects.find((p) => p.id === projectId)?.title ?? "None";
-  const eventWord = events.find((e) => e.id === eventId)?.title ?? "None";
+  const projectWord = titleCase(projects.find((p) => p.id === projectId)?.title ?? "None");
+  const eventWord = titleCase(events.find((e) => e.id === eventId)?.title ?? "None");
   // The evidence under the When group takes the key's colour for what it
   // says (§AM, 2026-09-26): days late is late, so red; pushed again and
   // again is stalled, so amber. It was the plain grey the key keeps for
@@ -648,7 +651,7 @@ export default function TaskSheet({
                       search="Search Projects"
                       onPick={pickProject} />
                   : <HeadMenu variant="value" ariaLabel="Goal" value={goalId} label={goalTitle || "None"} off={goalTitle === ""}
-                      options={[{ value: "", label: "None" }, ...sortPicks(goals, goalId).map((g) => ({ value: g.id, label: g.title }))]}
+                      options={[{ value: "", label: "None" }, ...sortPicks(goals, goalId).map((g) => ({ value: g.id, label: titleCase(g.title) }))]}
                       search="Search Goals"
                       onPick={setGoalId} />}
               </div>

@@ -5,6 +5,7 @@ import type { ColorSlot } from "../../categories/types";
 import { suggestFor, loadBlendMemory, blockKind, type Fit } from "../blend";
 import type { SheetCategory, SheetProject } from "../../tasks/screens/TaskSheet";
 import { sortPicks } from "../../shared/pickerSort";
+import { titleCase } from "../../shared/casing";
 import type { EventRecurrence } from "../types";
 import { addMinutes, fmtTime, minToHHMM, addDays, minutesBetween } from "../calendar";
 import type { TitleSuggestion } from "../memory";
@@ -178,9 +179,10 @@ export default function EventSheet({
     if (p.category && mode === "new" && category === (initial?.category ?? categories[0]?.id ?? "")) setCategory(p.category);
   };
   const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
+  // His titles are SHOWN in Title Case (Dave's pass-off, 2026-09-26).
   const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category) })), projectId)
-    .map((p) => ({ value: p.id, label: p.title }));
-  const projectWord = projects.find((p) => p.id === projectId)?.title ?? "None";
+    .map((p) => ({ value: p.id, label: titleCase(p.title) }));
+  const projectWord = titleCase(projects.find((p) => p.id === projectId)?.title ?? "None");
   const [recurrence, setRecurrence] = useState<EventRecurrence>(initial?.recurrence ?? "none");
   const [gym, setGym] = useState(!!initial?.gym);
   // UP-CORE-07 (2026-09-05): how long it takes to get there. Typed once per
