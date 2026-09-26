@@ -73,25 +73,20 @@ export default function ProposedRow({
       >
         <span className={"sched-bar sched-bar-proposed cat-bd-" + slot} />
         <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
-        {/* TIME LEFT, EVENT ON TOP, EVERYTHING ELSE UNDER (Dave, 2026-09-26,
-            his own words after two earlier passes still read wrong). The
-            title rides line one beside the time, a direct .sched-row child
-            so ruled.css can give it flex:1 there without touching DayRow or
-            LockedRow's .sched-title (theirs lives inside .sched-body, never
-            a direct child, so the `>` selector never reaches it). Everything
-            that is not the event -- the checkbox, the category, the Proposed
-            tag -- drops into .sched-body as one line, full width, right
-            under the title. */}
+        {/* THE CHECKBOX SITS NEXT TO THE TIME, NOT UNDER IT (Dave, 2026-09-26).
+            Line one is time, checkbox, title, in that order -- the checkbox
+            is part of the row's lead, not part of "everything else". Line
+            two (.sched-body) is category and the Proposed tag only. */}
+        {onComplete && (
+          <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
+            aria-label={`Mark ${block.text} done`}
+            onClick={(e) => { e.stopPropagation(); onComplete(); }}>
+            <div className="task-check" />
+          </div>
+        )}
         <div className="sched-title">{block.text}</div>
         <div className="sched-body">
           <div className="sched-cat">
-            {onComplete && (
-              <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
-                aria-label={`Mark ${block.text} done`}
-                onClick={(e) => { e.stopPropagation(); onComplete(); }}>
-                <div className="task-check" />
-              </div>
-            )}
             <span className={"cat-dot cat-bg-" + slot} />
             {catName(block.category)}
             {/* The word does the work the dashes started. Its own segment, so
