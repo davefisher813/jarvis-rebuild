@@ -121,7 +121,10 @@ describe("the card is square, and the shelf runs sideways", () => {
   // projects read "Next: Go to Bradfor...". It wraps now.
   it("lets the next action wrap instead of cutting it mid-word", () => {
     expect(CSS).toMatch(/\.ruled \.bp-card-lead \{[^{}]*-webkit-line-clamp: 2;/);
-    const lead = CSS.slice(CSS.indexOf(".ruled .bp-card-lead {"), CSS.indexOf(".ruled .bp-card-n {"));
+    // Every rule that names the lead, the shared one with the count included
+    // (the old slice ran to .bp-card-n, which comes FIRST, so it was empty).
+    const lead = (CSS.match(/[^{}]*\.bp-card-lead\b[^{}]*\{[^}]*\}/g) ?? []).join("\n");
+    expect(lead, "the lead's rules are found").toMatch(/line-clamp/);
     expect(lead, "nothing may pin it back to one line").not.toMatch(/white-space: nowrap/);
   });
 
