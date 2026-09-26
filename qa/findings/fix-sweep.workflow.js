@@ -85,20 +85,24 @@ Then check your work, and report the exact commands and result lines:
   - ${g.files.some((f) => f.endsWith('.css')) ? 'npx vitest run src/laws/   (many laws pin stylesheet text)' : 'npx vitest run src/laws/ if you changed anything a law could read'}
 Fix any failure your change caused before you finish.`
 
-const reviewPrompt = (lens, phase) => `Read ${RULES} in full first.
+const reviewPrompt = (lens, phase) => `Read ${RULES} in full first (its "Settled by the lead" and "Held for Dave" sections are not problems).
 
 A sweep just applied Colour Key fixes (phase: ${phase}). Review the working-tree
 diff with an ADVERSARIAL eye, through this lens only: ${lens}
 
-Run: cd ${ROOT} && git diff -- jarvis-app/src
+Run: cd ${ROOT} && git diff ${(args && args.base) || 'HEAD'} -- jarvis-app/src   (the phase's whole change: committed checkpoints plus the working tree)
 Look for anything that is now WRONG: a fix that broke the rule it was fixing,
 introduced a second grey or a meaningless colour elsewhere on the same row,
 used a new class instead of a primitive, changed the Today TV guide's
 BEHAVIOUR (scrolling, pausing, when it renders -- styling its rows is allowed),
 reworded text in a way that changes its MEANING (rewording itself is allowed),
 broke a layout (a wrapped or clipped line, a lost tap target), or will break a
-law (grep src/laws/ for the selector or string). Default to reporting only what
-you can show from the diff and the code. Do not edit anything.`
+law (grep src/laws/ for the selector or string). Report only defects the diff
+introduced or left half-done (a conversion it started and did not finish, a rule
+with no markup or markup with no rule); a pre-existing violation on a row the diff
+did not touch is out of scope (it is either a pending finding or a later audit's).
+Default to reporting only what you can show from the diff and the code. Do not
+edit anything.`
 
 const LENSES = [
   'R1/R5 one grey per row: count the grey runs on every row the diff touches, as rendered',
