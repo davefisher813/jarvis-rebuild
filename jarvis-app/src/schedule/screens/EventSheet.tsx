@@ -179,9 +179,13 @@ export default function EventSheet({
     if (p.category && mode === "new" && category === (initial?.category ?? categories[0]?.id ?? "")) setCategory(p.category);
   };
   const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
-  // His titles are SHOWN in Title Case (Dave's pass-off, 2026-09-26).
-  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category) })), projectId)
-    .map((p) => ({ value: p.id, label: titleCase(p.title) }));
+  const areaDotOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.color : undefined);
+  // His titles are SHOWN in Title Case (Dave's pass-off, 2026-09-26). Each
+  // option wears its area's dot (the lead, 2026-09-26: the Projects menu
+  // shows each project's area dot and keeps area-then-name order with
+  // search), so the order reads as grouping.
+  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId)
+    .map((p) => ({ value: p.id, label: titleCase(p.title), ...(p.dot ? { dot: p.dot as string } : {}) }));
   const projectWord = titleCase(projects.find((p) => p.id === projectId)?.title ?? "None");
   const [recurrence, setRecurrence] = useState<EventRecurrence>(initial?.recurrence ?? "none");
   const [gym, setGym] = useState(!!initial?.gym);
@@ -582,10 +586,12 @@ export default function EventSheet({
                     </div>
                   )}
                 </div>
-                <HeadMenu variant="value" ariaLabel="Travel" value={travelMin === null ? "" : String(travelMin)} label={travelMin === null ? "None" : `${travelMin} min`} off={travelMin === null}
+                <HeadMenu variant="value" ariaLabel="Travel" value={travelMin === null ? "" : String(travelMin)} label={travelMin === null ? "None" : `${travelMin} Min`} off={travelMin === null}
                   options={[
                     { value: "", label: "None" },
-                    ...TRAVEL_CHOICES.map((m) => ({ value: String(m), label: `${m} min` })),
+                    // "45 Min" (Dave's pass-off, 2026-09-26: durations spelled and
+                    // capitalized for minutes-only).
+                    ...TRAVEL_CHOICES.map((m) => ({ value: String(m), label: `${m} Min` })),
                     { value: "custom", label: "Custom" },
                     // Only offered when there is something to forget, so the
                     // row never advertises a memory that does not exist.
@@ -614,8 +620,8 @@ export default function EventSheet({
               <div onClick={tapField} className="row xs-row">
                 <Tile tone="sky"><ClockGlyph /></Tile>
                 <div className="conn-name">Buffer</div>
-                <HeadMenu variant="value" ariaLabel="Buffer" value={bufferMin === null ? "" : String(bufferMin)} label={bufferMin === null ? "None" : `${bufferMin} min`} off={bufferMin === null}
-                  options={[{ value: "", label: "None" }, ...BUFFER_CHOICES.map((m) => ({ value: String(m), label: `${m} min` }))]}
+                <HeadMenu variant="value" ariaLabel="Buffer" value={bufferMin === null ? "" : String(bufferMin)} label={bufferMin === null ? "None" : `${bufferMin} Min`} off={bufferMin === null}
+                  options={[{ value: "", label: "None" }, ...BUFFER_CHOICES.map((m) => ({ value: String(m), label: `${m} Min` }))]}
                   onPick={(v) => setBufferMin(v === "" ? null : Number(v))} />
               </div>
             )}

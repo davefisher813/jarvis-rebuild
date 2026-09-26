@@ -203,6 +203,27 @@ function setsOn(workouts: Workout[], lift: LiftLike, date: string): number | nul
 }
 
 /**
+ * THE ESTIMATE'S RECEIPT (pass-off item 7, 2026-09-26; Dave: "rendered nice
+ * and clean and simple"). The lift page's Trend card states the Epley
+ * estimate and what it did over the chart's window, and nothing else; the
+ * method and the caveat that used to ride the caption and a second capsule
+ * sit here, one tap away behind the card's Evidence, the same rows every
+ * other finding opens. The no-predicted-max rule stands: this names what the
+ * number is NOT, and no screen reads it as a weight to attempt.
+ */
+export function estimateEvidence(sessions: LiftSession[]): Evidence {
+  return {
+    label: "Observation",
+    from: sessions[0]?.date ?? "",
+    to: sessions[sessions.length - 1]?.date ?? "",
+    records: sessions.length,
+    method: "Epley, from each session's best set: weight × (1 + reps ÷ 30)",
+    supports: "How strength is moving across rep ranges",
+    doesNot: "A tested max, or a weight to attempt",
+  };
+}
+
+/**
  * WHEN is computable; WHY is never claimed. Finds the most recent session
  * that was itself a new best (direction-aware), and flags a plateau when
  * PLATEAU_MIN_SESSIONS or more have passed since with no new best. The

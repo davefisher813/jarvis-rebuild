@@ -105,6 +105,8 @@ export function paceFor(history: Workout[], ex: Pick<Exercise, "name" | "kind" |
  *  for a per-lift estimate, and this function is what carries it. It is the
  *  wording any per-lift pace display has to reuse rather than reinvent. */
 export function paceLine(p: LiftPace): string {
-  if (!p.learned) return "default pace, improves as you log";
-  return p.sessions === 1 ? "learned from your last session" : `learned from your last ${p.sessions} sessions`;
+  // Title Case by the whole rule (2026-09-26, pass-off item 9), the same
+  // words the fit sheet prints for a day with no learned lift.
+  if (!p.learned) return "Default Pace, Improves as You Log";
+  return p.sessions === 1 ? "Learned from Your Last Session" : `Learned from Your Last ${p.sessions} Sessions`;
 }

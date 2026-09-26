@@ -190,7 +190,18 @@ export type LeverKey = "restCut" | "superset" | "trim" | "skipCool";
 export interface LeverOffer {
   key: LeverKey;
   name: string;
+  /** The saving, as the row says it: "Saves About 8 Min" for a marginal
+   *  estimate, "Saves 5 Min" for a stated length. Pass-off item 9
+   *  (2026-09-26): written in Title Case at the source, with "About" and
+   *  never "~" (the lead's settlement: estimates say About), so the row
+   *  prints it as given and no renderer re-cases it. */
   sub: string;
+  /** True when the saving is the app's own estimate (it wears the estimate
+   *  ink); false when it is a length the program states. */
+  est: boolean;
+  /** A guarantee that rides beside the saving as its own fact ("Never
+   *  Your Main Lift"), absent on levers that need none. */
+  note?: string;
   on: boolean;
   saveMin: number;
 }
@@ -212,8 +223,10 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
     if (save >= 1) {
       const rests = day.exercises.filter((e) => !e.filler && e.restSec != null).map((e) => e.restSec!);
       const uniform = rests.length > 0 && rests.every((r) => r === rests[0]);
-      const name = uniform ? `Rests ${rests[0]} → ${Math.max(REST_FLOOR_SEC, rests[0]! - REST_CUT_SEC)}s` : "Shorter rests";
-      offers.push({ key: "restCut", name, sub: `saves ~${save} min`, on: !!plan.restCut, saveMin: save });
+      // "90 Sec", not "90s" (2026-09-26): the durations ruling spells a
+      // seconds count out, and titleCase read the fused "90s" as a word.
+      const name = uniform ? `Rests ${rests[0]} → ${Math.max(REST_FLOOR_SEC, rests[0]! - REST_CUT_SEC)} Sec` : "Shorter Rests";
+      offers.push({ key: "restCut", name, sub: `Saves About ${save} Min`, est: true, on: !!plan.restCut, saveMin: save });
     }
   }
   // 2. Superset the pairs.
@@ -221,8 +234,8 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
     const pairs = groupsIn(day);
     const save = saveOf({ ...plan, superset: true }, { ...plan, superset: false });
     if (pairs.length > 0 && save >= 1) {
-      const name = pairs.length === 1 ? `Superset ${pairs[0]!.map((x) => x.name).join(" + ")}` : "Superset the groups";
-      offers.push({ key: "superset", name, sub: `saves ~${save} min`, on: !!plan.superset, saveMin: save });
+      const name = pairs.length === 1 ? `Superset ${pairs[0]!.map((x) => x.name).join(" + ")}` : "Superset the Groups";
+      offers.push({ key: "superset", name, sub: `Saves About ${save} Min`, est: true, on: !!plan.superset, saveMin: save });
     }
   }
   // 3. Trim last sets of accessories. Never the main lift.
@@ -233,10 +246,11 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
       const save = saveOf({ ...plan, trims: targets }, { ...plan, trims: {} });
       if (save >= 1) {
         const one = ids.length === 1 ? day.exercises.find((e) => e.id === ids[0]) : null;
-        const name = one ? `${one.name} ${one.sets.length} → ${one.sets.length - 1} sets` : "Trim last accessory sets";
+        const name = one ? `${one.name} ${one.sets.length} → ${one.sets.length - 1} Sets` : "Trim Last Accessory Sets";
         offers.push({
           key: "trim", name,
-          sub: `saves ~${save} min, never your main lift`,
+          sub: `Saves About ${save} Min`, est: true,
+          note: "Never Your Main Lift",
           on: Object.keys(plan.trims ?? {}).length > 0, saveMin: save,
         });
       }
@@ -246,7 +260,7 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
   {
     const coolMin = day.coolDown?.length ? (day.coolDownMin ?? 0) : 0;
     if (coolMin > 0) {
-      offers.push({ key: "skipCool", name: "Skip the cool-down", sub: `saves ${coolMin} min`, on: !!plan.skipCool, saveMin: coolMin });
+      offers.push({ key: "skipCool", name: "Skip the Cool-Down", sub: `Saves ${coolMin} Min`, est: false, on: !!plan.skipCool, saveMin: coolMin });
     }
   }
   return offers;

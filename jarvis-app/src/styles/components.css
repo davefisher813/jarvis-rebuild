@@ -3650,7 +3650,13 @@ button {
    label started 67px left of the pill's own edge. A pill with nothing but
    words in it drops to inline-block, where the ellipsis is real, and keeps
    its exact height by the line box; a pill carrying a glyph keeps flex. */
-.pill-act:not(:has(*)) { display: inline-block; line-height: 16px; text-align: center; }
+.pill-act:not(:has(*)) { display: inline-block; line-height: 34px; text-align: center; }
+/* THE LABEL SITS IN THE MIDDLE OF THE PAINT (Dave's pass-off, 2026-09-26: the
+   Event sheet's "Add" was stuck to the top of its capsule). A <button> centres
+   its one line natively; a <span> pill drops to inline-block above, where the
+   16px line box sat at the top of the 34px painted box (the 5px transparent
+   borders make the 44). The line box is the painted height now, so the word
+   is centred in it at every type scale; the min-height still governs. */
 /* MAIL CAN GROW PAST TWO LINES, SO ITS PILL CANNOT STAY CENTERED (2026-08-26,
    Dave off a real screenshot: "nikestrength Hasn't Replied" wrapping beside
    "Open a Dispute"). align-self: center on .pill-act, just above, was tuned
@@ -4938,10 +4944,13 @@ body.selecting .voice-dock { display: none; }
 [data-theme="light"] .week-dots i.on { background: #0A5FD0; }
 
 /* ---- The monthly report (2026-08-25, from the approved v3 preview) ------
-   Spoken sentences wear .rep-title (sentence case is their register; the
-   Title Case law scans conn-name, and these are not labels). Numbers and
-   color carry the page; bars grow once on open and reduced motion gets the
-   finished frame. Down-deltas are muted facts, never red ones. */
+   AMENDED 2026-09-26 (pass-off): .rep-title is Title Case like every other
+   title the app writes (the whole casing rule, Dave 2026-09-26: "After dots
+   and numbers is always title casing"); the 2026-08-25 note that called
+   these spoken sentences in sentence case is superseded. The line under a
+   title is a .facts line, never a caps sentence. Numbers and color carry
+   the page; bars grow once on open and reduced motion gets the finished
+   frame. Down-deltas are muted facts, never red ones. */
 .rep-hero { padding: var(--s-3) var(--s-4) 0; }
 .rep-eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 2px; text-transform: uppercase; color: var(--tx-3); }
 .rep-quiet { color: var(--tx-3); }
@@ -4949,7 +4958,11 @@ body.selecting .voice-dock { display: none; }
 .rep-big { font-size: calc(64px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1; letter-spacing: -2px; color: var(--tx-1); margin-top: var(--s-1h); }
 .rep-big-label { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-2); margin-top: var(--s-0h); }
 .rep-anchor { display: inline-block; font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--good); background: var(--good-tint); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); margin-left: var(--s-2h); vertical-align: middle; }
-.rep-hint { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-quiet); margin-top: var(--s-3); }
+/* AMENDED 2026-09-26 (pass-off): a sentence, so it wears the field note's 14
+   italic grey (.input-hint) and only sets its own distance from the hero;
+   it was an 11px caps sentence, which "caps is for a label, never a
+   sentence" forbids. */
+.rep-hint { margin-top: var(--s-3); }
 .rep-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); line-height: var(--lh-default); }
 .rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-3h); }
 .rep-win { border-radius: var(--r-md); padding: var(--s-3) var(--s-3h); }
@@ -5504,14 +5517,9 @@ body.selecting .voice-dock { display: none; }
 .dd.dd-value .dd-cv { color: var(--tx-2); opacity: 1; width: 7px; height: 7px; margin-left: var(--s-1); }
 .dd.dd-value .dd-w { max-width: 52vw; }
 .dd.dd-value.dd-open { background: transparent; opacity: 0.6; }
-/* A ROW'S VALUE WITH NO MENU BEHIND IT (2026-09-09): the Goal row on the task
-   sheet, which is DERIVED from the project the task is filed to rather than
-   picked. It takes .dd-value's type so it sits on the same optical line as
-   every picker beside it, and --tx-3 so it reads as an answer the sheet is
-   giving rather than a control that would do nothing if tapped. */
-.xs-group .row-val { margin-left: auto; max-width: 52vw; color: var(--tx-3);
-  font-size: var(--t-body); text-align: right;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The derived Goal value of 2026-09-09 (a --tx-3 answer with no menu behind
+   it) is gone since 2026-09-26: the Goal row is a picker on every screen
+   (Dave's pass-off), so the rule that drew it was retired with it. */
 
 /* ==========================================================================
    THE DROPDOWN MENU (shared/HeadMenu, Fewer Buttons 2026-09-02). Portaled
@@ -6132,9 +6140,15 @@ body.selecting .voice-dock { display: none; }
    and below it, its surface and its inset are the .pad-x rules the notice
    rows already answer to. */
 .hl { position: relative; }
-/* The title is .conn-name, with nothing added: it inherits the stream's type,
-   its one-line clamp and its ellipsis from the rows it sits with. */
-.hl .hl-title { min-width: 0; }
+/* The title is .conn-name and inherits the stream's type. AMENDED 2026-09-26
+   (Dave's pick, the audit leftover): it takes TWO lines before its ellipsis,
+   the one named exception to the uniform row's one-line clamp, because the
+   checkbox and the Start Now pill left "Create Calder Invoice" cut at normal
+   text size. The row grows by one line of name (min-height, not height); the
+   rows under it keep their one line. Same specificity as the uniform clamp,
+   so this sits after it in the file on purpose. */
+.hl .hl-title { min-width: 0; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
 /* THE SUB LINE IS THE FACTS LINE. .conn-meta gives it the notice sub's size
    and colour; .facts gives it the dot separators and the chip. It cannot wrap
    (the row is one height for every member of this card), so the LAST fact
@@ -6722,3 +6736,53 @@ span.row-star { cursor: default; }
    as the Now line's does, and the row's one grey (the category, last on
    the line) is the fact that ellipsizes when the room runs out. */
 .strand-row .facts > .fact.st { flex-shrink: 0; }
+
+/* ===== PASS-OFF BATCH 1, gym pages (2026-09-26) ===== */
+/* TWO HEAD ACTIONS ON ONE HEAD WEAR ONE FORM (the Program page's Days head:
+   Reorder and Manage are both the 34px head capsule). The cluster's -13px
+   payback exists for a BARE text link's 44px box; a cluster of capsules
+   already paints 34 and has nothing to pay back, and with the payback it
+   sat 1px into the card below and 4px into the card above. The head
+   measures 58 with the capsules inside it, the same as every Today head
+   that carries a capsule. */
+.sh2 .sec-left:has(.pill-action) { margin: 0; }
+
+/* A SWIPE ROW WITHOUT A CHECK STARTS ITS HAIRLINE AT THE TEXT EDGE (§H.2).
+   The ruled list insets a swipe row's divider past a task's check box; the
+   Program page's Recent rows swipe to delete but have no check, so their
+   dividers began 72px in while their names began at 16. Scoped to a list
+   whose rows carry no check, so the Tasks list keeps its inset. */
+.ruled .list-card-ruled > .task-swipe:not(:has(.task-check-tap)) + .task-swipe::before { left: var(--s-4); }
+
+/* THE FIT SHEET'S ESTIMATE, IN THE ESTIMATE INK. "Fits: 34 Min" names the
+   app's own estimate, so the number wears the key's sky; the span takes the
+   line's own size and weight, since it is part of the sentence. */
+.fit-line .fact.est { font-size: inherit; font-weight: inherit; }
+/* A budget chip strip lines up with the label over it: a chip row pays one
+   inset inside a field that is already inset by its .pad-x, the same fix a
+   form row's chip strip took on 2026-09-16. */
+.sheet-scrim > .card .pad-x > .field > .chip-wrap-row { padding-left: 0; padding-right: 0; }
+
+/* THE CLASSIFY SHEET'S CARDS OPEN WITH A TILE (pass-off item 1). Once a card
+   leads with the 28px glyph tile, every line under it indents to the 56px
+   text edge (§H.1: a tiled card indents every text to 56, and a card never
+   mixes), chips included, so the card has one edge; and the dividers inset
+   to that edge too (§H.2), including the one under a row that has no tile
+   of its own. A card with no tile keeps its 16 edge. */
+.sheet-scrim > .card .xs-group:has(> .row > .row-ico) > .row:not(:has(> .row-ico)) { padding-left: calc(var(--s-4) + 28px + var(--s-3)); }
+.sheet-scrim > .card .xs-group:has(> .row > .row-ico) > .row + .row::before { left: calc(var(--s-4) + 28px + var(--s-3)); }
+/* The typed row's label is a row name (16, semibold, primary ink), the way
+   every other sheet writes a row's label; it had no rule outside a ruled
+   screen and drew at the body's 17 regular. It keeps its width so the value
+   beside it is the thing that yields. */
+.sheet-form .xs-label { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); color: var(--tx-1); flex-shrink: 0; }
+/* A PICKED CHIP KEEPS ITS QUESTION'S COLOUR IN LIGHT (Dave 2026-09-26: the
+   Classify sheet keeps its question colours). Light's white-pill selection
+   rule outranked the three hue rules by order, so every picked chip turned
+   back into the plain pill and the secondary muscle drew the dark lime on
+   the grouped card at 1.1:1. The Health light inks on the tint: lime
+   5.12:1, violet 6.26:1, cyan 5.22:1 on the sheet's card. */
+[data-theme="light"] .sheet-scrim > .card .chip.active.chip-lime { background: var(--hl-lime-tint); color: var(--hl-lime-ink); box-shadow: inset 0 0 0 1.5px var(--hl-lime-ink); }
+[data-theme="light"] .sheet-scrim > .card .chip.active.chip-violet { background: var(--hl-violet-tint); color: var(--hl-violet-ink); box-shadow: inset 0 0 0 1.5px var(--hl-violet-ink); }
+[data-theme="light"] .sheet-scrim > .card .chip.active.chip-cyan { background: var(--hl-cyan-tint); color: var(--hl-cyan-ink); box-shadow: inset 0 0 0 1.5px var(--hl-cyan-ink); }
+[data-theme="light"] .sheet-scrim > .card .chip.chip-half.chip-lime { background: none; color: var(--hl-lime-ink); box-shadow: inset 0 0 0 1px var(--hl-lime-ink); }

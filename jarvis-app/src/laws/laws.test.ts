@@ -1307,7 +1307,11 @@ describe("LAW: one filled red per screen", () => {
       const src = strip(read(f)).replace(/aria-label=\{?`[^`]*`\}?/g, " ");
       // A file that routes its lines through the rule is trusted: its
       // literals are inputs to capAfterNumber, not final copy.
-      if (src.includes("capAfterNumber")) continue;
+      // AMENDED 2026-09-26 (pass-off): lineCase is the whole rule now (H2,
+      // Dave: "After dots and numbers is always title casing"), and a file
+      // that routes its lines through it is trusted the same way; the
+      // catalog names it the one formatter beside capAfterNumber.
+      if (src.includes("capAfterNumber") || src.includes("lineCase")) continue;
       for (const m of src.matchAll(/"(\d[\d.,]*\s+[a-z][A-Za-z]*(?:\s|·|"))/g)) {
         bad.push(r + " [literal]: " + m[1]!.trim());
       }
@@ -4162,7 +4166,15 @@ describe("LAW 15: the gym speaks one grammar", () => {
     for (const label of ["Upload a Program", "Add a Week"]) {
       expect(src, `${label} is back in a list`).not.toMatch(new RegExp('className="row-create"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
     }
-    expect(src, "both layouts' heads offer it").toMatch(/<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>[\s\S]*<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/);
+    // AMENDED 2026-09-26 (pass-off): Manage is the head CAPSULE now
+    // (className="see-all pill-action"), the same 34px form Reorder wears
+    // beside it, because two head actions on one head wear one form (the
+    // lead's settlement: "Reorder and Manage are both 34px head capsules on
+    // one line"). The law still requires Manage on BOTH layouts' heads; it
+    // no longer pins the bare-text class, which was the defect.
+    const manage = '<button className="see-all pill-action" onClick=\\{\\(\\) => setManageOpen\\(true\\)\\}>Manage<\\/button>';
+    expect(src, "both layouts' heads offer it").toMatch(new RegExp(manage + "[\\s\\S]*" + manage));
+    expect(src, "Manage is never the bare-text head link beside a capsule").not.toMatch(/<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/);
     expect(src, "and the sheet carries both actions").toMatch(/title="Manage Program"/);
   });
 
@@ -4294,15 +4306,21 @@ describe("LAW 17: the fit is a stance, never an edit", () => {
   // middle dot. The line renders on a meta line, where a separator is drawn
   // by the stylesheet or not at all (§AM F3). The honesty itself is
   // unchanged: a default still says it is one, in both places.
+  // AMENDED 2026-09-26 (pass-off): the line is Title Case by the whole
+  // casing rule ("Default Pace, Improves as You Log", "Learned from Your
+  // Last 3 Sessions"), so the pins match the words in either case. What
+  // they hold is unchanged: both files carry the default wording, and it
+  // is one comma-joined clause, never a typed dot.
+  const DEFAULT_PACE = /[Dd]efault [Pp]ace, [Ii]mproves as [Yy]ou [Ll]og/;
   it("every estimate names its evidence: learned, or a default that says so", () => {
     expect(gym("pacing.ts"), "the honesty line lost its default wording")
-      .toMatch(/default pace, improves as you log/);
+      .toMatch(DEFAULT_PACE);
     expect(gym("pacing.ts"), "the honesty line lost its learned wording")
-      .toMatch(/learned from your last/);
+      .toMatch(/[Ll]earned from [Yy]our [Ll]ast/);
     expect(gym("FitSheet.tsx"), "the fit sheet hides where its estimate came from")
-      .toMatch(/default pace, improves as you log/);
+      .toMatch(DEFAULT_PACE);
     for (const f of ["pacing.ts", "FitSheet.tsx"]) {
-      expect(gym(f), f + ": a typed dot on the meta line").not.toMatch(/default pace · /);
+      expect(gym(f), f + ": a typed dot on the meta line").not.toMatch(/[Dd]efault [Pp]ace · /);
     }
   });
 

@@ -470,6 +470,23 @@ function minutesFact(w: WorkoutData) {
     : <span className="fact">{capAfterNumber(`${workoutMinutes(w)} min`)}</span>;
 }
 
+/** THE SAME LENGTH AS A LIST ROW'S TRAILING VALUE (pass-off item 11,
+ *  2026-09-26: "find a better way to display this section"). On a browsing
+ *  row the minutes were the middle fact of three, so nothing lined up down
+ *  the list and the number you scan for sat mid-line. It is the row's
+ *  right-hand column now, so every length shares one right edge (§H.3): a
+ *  measured length is white (§AM, a number with no state), and a length
+ *  worth a look keeps the amber the head's fact wears, with the word for it
+ *  on the row's sub line (the caller says "Worth Reviewing" there, so the
+ *  colour never travels without its reason). Same threshold, same
+ *  durationOf, so the row and the head can never disagree. */
+function minutesValue(w: WorkoutData) {
+  const d = durationOf(w);
+  return d.flagged
+    ? <div className="row-value"><span className="fact amber" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}>{lineCase(`${d.activeMin} min`)}</span></div>
+    : <div className="row-value"><span className="fact"><b>{lineCase(`${workoutMinutes(w)} min`)}</b></span></div>;
+}
+
 function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
   exercise: Exercise;
   pairLabel?: string;
@@ -3438,7 +3455,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             {multiWeek ? (
               <>
                 <div className="sh2 sh2-quiet"><span className="t">Weeks</span>
-                  <button className="see-all" onClick={() => setManageOpen(true)}>Manage</button>
+                  <button className="see-all pill-action" onClick={() => setManageOpen(true)}>Manage</button>
                 </div>
                 <div className="pad-x"><div className="card list-card-ruled">
                   {weeks.map((w) => (
@@ -3465,7 +3482,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                         {reorderTarget === "days" ? "Done" : "Reorder"}
                       </button>
                     )}
-                    <button className="see-all" onClick={() => setManageOpen(true)}>Manage</button>
+                    <button className="see-all pill-action" onClick={() => setManageOpen(true)}>Manage</button>
                   </span>
                 </div>
                 <div className="pad-x list-card"><div className="card list-card-ruled">
@@ -3554,16 +3571,21 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                             and the completeness fact was the last thing on it. */}
                         {/* §AM (2026-09-26): the date is a neutral past date,
                             so small caps rather than Health's "now" cyan; a
-                            partial count has no state, so it is a white <b>,
-                            and the minutes keep the row's one grey. */}
+                            partial count has no state, so it is a white <b>.
+                            Pass-off item 11 (2026-09-26): the length left the
+                            sub line for the row's right column (minutesValue),
+                            so the line holds the date and the completion, and
+                            the row's one grey is "Worth Reviewing" when the
+                            length earned it, or nothing. */}
                         <div className="facts">
                           <span className="fact date">{monthDay(w.data.date)}</span>
-                          {minutesFact(w.data)}
                           {logged === total
-                            ? <span className="fact lime">{capAfterNumber(`${total} ${total === 1 ? "lift" : "lifts"}`)}</span>
-                            : <span className="fact"><b>{`${logged} of ${total}`}</b></span>}
+                            ? <span className="fact lime">{lineCase(`${total} ${total === 1 ? "lift" : "lifts"}`)}</span>
+                            : <span className="fact"><b>{lineCase(`${logged} of ${total} lifts`)}</b></span>}
+                          {durationOf(w.data).flagged && <span className="fact">Worth Reviewing</span>}
                         </div>
                       </div>
+                      {minutesValue(w.data)}
                       {CHEV}
                     </div>
                   </SwipeDelete>

@@ -63,7 +63,7 @@ describe("liftMeasureState", () => {
     expect(st.met).toBe(false);
     expect(st.done).toBe(205);
     expect(st.target).toBe(225);
-    expect(st.line).toBe("205 of 225 Lb at 5+ reps");
+    expect(st.line).toBe("205 of 225 Lb at 5+ Reps");
   });
 
   it("met the instant one set clears it, anywhere in history", () => {
@@ -71,7 +71,7 @@ describe("liftMeasureState", () => {
     const st = liftMeasureState(target, h);
     expect(st.met).toBe(true);
     expect(st.pct).toBe(100);
-    expect(st.line).toBe("225 Lb at 5+ reps -- hit it");
+    expect(st.line).toBe("225 Lb at 5+ Reps -- Hit It");
   });
 
   it("a faster-time goal fills toward 100 as the best time drops", () => {

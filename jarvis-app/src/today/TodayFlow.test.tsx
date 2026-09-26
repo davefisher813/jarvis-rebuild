@@ -197,6 +197,13 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
   // the facts that can ellipsize go last: the length, then the shared area
   // in grey, the words, which is the one fact the line may shorten.
   it("with no due day, the length leads and Same category is last", async () => {
+    // THE CLOCK IS PART OF THE FIXTURE (AMENDED 2026-09-26, pass-off gate):
+    // an undated task is dealt onto Today in the day and not in the evening
+    // (Tonight shows the evening's own rows), so this passed before dark and
+    // failed after 22:00 on the same tree. Freeze the morning, as the
+    // meeting-link fixture below does.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(todayISO() + "T09:00:00"));
     const { notifyFreshLists } = await import("../data/store");
     const { ENTITY_TASK } = await import("../notes/types");
     let svc: import("../tasks/TasksService").TasksService | null = null;
@@ -228,6 +235,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
       ["fact", "Same Area"], // AMENDED 2026-09-26 (pass-off)
     ]);
     expect(chain.querySelector(".uchip")).toBeNull();
+    vi.useRealTimers();
   });
 
   // §AM R3/R8 and the finished task's area (2026-09-26). nextBest falls

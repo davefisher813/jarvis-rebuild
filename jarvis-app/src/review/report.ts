@@ -2,7 +2,9 @@ import type { MonthSealData } from "./seal";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
 import type { Workout } from "../gym/types";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
+import { formatMoney } from "../money/types";
+import { RUNG_AT } from "../messages/mailAction";
 import { hoursRows, hoursLabel } from "./hours";
 import { stillTrueGoals } from "./stillTrue";
 
@@ -14,6 +16,15 @@ import { stillTrueGoals } from "./stillTrue";
 // receipts; setbacks never get a win's visual weight; exactly one proposed
 // change; nothing counted that the app decided not to count; it ends in a
 // setting, not a feeling. Every gate errs toward silence.
+//
+// AMENDED 2026-09-26 (pass-off): every title and sub line here is Title
+// Case through lineCase() (the whole casing rule), a sub line is a list of
+// FACTS the page draws as one .facts line (one grey, one key colour, the
+// dot drawn by CSS: §AK, §AM F2/F3), a sentence-length note is a footer
+// under its card rather than a caps line under a title, and the report
+// carries Money, Mail, People, Health and Decisions from the seal's v4
+// numbers. Each of those cards has an EXIT (Open Money, Check In...) and
+// never a proposed rule: One Change stays the only proposed change.
 
 // A win is done, achieved or paid, so every win wears the key's green (§AM);
 // it used to carry a slot index that picked green, blue, purple or amber by
@@ -35,7 +46,7 @@ export interface ReportSegment { id: string; name: string; color: string; n: num
 // with no target between them: the report says where the hours went and what
 // had none, and never which of those is the right answer.
 export interface TimeRow { id: string; name: string; color: string; label: string; pct: number;
-  // C-65 (Astra, 2026-09-12): "26% vs usual 35%", beside the hours, only
+  // C-65 (Astra, 2026-09-12): "26% vs Usual 35%", beside the hours, only
   // inside a report and only when the share moved against last month.
   vs?: string;
 }
@@ -47,18 +58,49 @@ export interface TimeSection {
   quiet: { id: string; name: string }[];
 }
 export interface CarriedTask { id: string; text: string; n: number }
+
+// ONE FACT ON A SUB LINE (2026-09-26). The page draws a list of these as one
+// .facts line: the words grey, a count white (`parts`, the §AM F1 <b>), and
+// at most one fact wearing a key colour. `text` is the same words joined,
+// for the receipts sheet and the tests.
+export type FactPart = string | { b: string };
+export interface ReportFact { text: string; tone?: "good" | "warn" | "red"; parts?: FactPart[] }
+
+/** A fact's words with every count split out as a part of its own, so the
+ *  page can draw the counts white and leave the words grey. */
+export function boldCounts(text: string): FactPart[] {
+  return text.split(/(\d[\d,.]*)/).filter((s) => s.length > 0).map((s) => (/^\d[\d,.]*$/.test(s) ? { b: s } : s));
+}
+/** A grey fact whose counts are white. */
+const plain = (text: string): ReportFact => ({ text, parts: boldCounts(text) });
+
 export interface WorthCard {
   id: "carried" | "quiet" | "cut" | "stillTrue";
   title: string;
-  sub: string | null;
+  sub: ReportFact[] | null;
+  /** A sentence-length note, drawn under the card as a field note (the
+   *  group-footer pattern), never as a caps line under the title. */
+  foot?: string;
   carried?: CarriedTask[];
   receipts: string[];
 }
 export interface PatternRow {
   id: string;
   title: string;
-  sub: string | null;
+  sub: ReportFact[] | null;
   chip: { text: string; tone: "good" | "warn" } | null;
+  receipts: string[];
+}
+// THE LIFE CARDS (2026-09-26). Money, Mail, People, Health and Decisions,
+// each one title, one facts line, and an exit: a door to the place the
+// numbers came from, never a rule proposed. The report may propose exactly
+// one change and that is One Change below.
+export type ExitKind = "money" | "email" | "person" | "health" | "decisions";
+export interface LifeCard {
+  id: "money" | "mail" | "people" | "health" | "decisions";
+  title: string;
+  facts: ReportFact[];
+  exit: { label: string; kind: ExitKind; id?: string };
   receipts: string[];
 }
 export interface ReportCloser {
@@ -79,8 +121,11 @@ export interface MonthReport {
   time: TimeSection | null;
   worth: WorthCard[];
   patterns: PatternRow[];
-  learned: { title: string; sub: string | null } | null;
-  did: { title: string; sub: string | null } | null;
+  /** The life cards, in a fixed order; absent on a seal without the
+   *  numbers, and silent below each card's floor. */
+  life: LifeCard[];
+  learned: { title: string; sub: ReportFact[] | null } | null;
+  did: { title: string; sub: ReportFact[] | null } | null;
   closer: ReportCloser | null;
   sealed: { title: string; sub: string };
 }
@@ -96,6 +141,13 @@ export interface ReportInputs {
   openTaskText: (id: string) => string | null;
   /** True when a chosen plan cap is already set; the closer stays quiet. */
   alreadyCapped: boolean;
+  /** The live people list, for resolving the seal's quiet ids to names. A
+   *  person no longer in it is dropped without a word. Optional. */
+  people?: { id: string; name: string }[];
+  /** The health area's category id, for the Health card's exit. Optional:
+   *  without it the card still renders and its exit is the health page by
+   *  kind alone. */
+  healthCategoryId?: string | null;
 }
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -118,6 +170,7 @@ function daysInMonth(month: string): number {
   return new Date(y, m, 0).getDate();
 }
 const MINUS = "−";
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 /** A delta chip. Up wears good; down is a muted fact, never a red one. */
 export function deltaOf(now: number, prev: number | null, vs: string | null): { text: string; up: boolean } | null {
@@ -193,6 +246,119 @@ export function trainJoin(doneByDay: Record<string, number>, workouts: Workout[]
   return { on: onSum / onDays, off: offSum / offDays };
 }
 
+// ---- the life cards ------------------------------------------------------
+
+/** The wait's tone follows the mail rail's one ladder (mailAction.toneFor):
+ *  firm is red, direct amber, and a gentle wait is not a fact this card
+ *  needs to say. */
+export function waitFact(days: number): ReportFact | null {
+  if (days < RUNG_AT.direct) return null;
+  return { text: lineCase(`Waiting ${days} days on a reply`), tone: days >= RUNG_AT.switch ? "red" : "warn" };
+}
+
+/** Money, Mail, People, Health and Decisions, each silent below its floor.
+ *  Exported so the week card can carry the same lines at week scale. */
+export function lifeCards(seal: MonthSealData, name: string, people: { id: string; name: string }[], healthCategoryId: string | null | undefined): LifeCard[] {
+  const out: LifeCard[] = [];
+  const b = seal.bills;
+  if (b && (b.paid > 0 || b.open > 0)) {
+    const facts: ReportFact[] = [];
+    if (b.paid > 0) facts.push({ text: formatMoney(b.total), tone: "good" });
+    if (b.open > 0) facts.push(plain(lineCase(`${b.open} still due`)));
+    out.push({
+      id: "money",
+      title: b.paid > 0 ? lineCase(`Paid ${b.paid} ${plural(b.paid, "bill", "bills")}`) : lineCase(`${b.open} ${plural(b.open, "bill", "bills")} still due`),
+      facts,
+      exit: { label: "Open Money", kind: "money" },
+      receipts: [
+        ...(b.paid > 0 ? [lineCase(`${b.paid} ${plural(b.paid, "bill", "bills")} paid in ${name}, ${formatMoney(b.total)} in all`)] : []),
+        b.open > 0 ? lineCase(`${b.open} dated in ${name} and not yet paid`) : lineCase(`Nothing dated in ${name} left to pay`),
+        "Only the bills the app holds; never a claim about the account",
+      ],
+    });
+  }
+  const m = seal.mail;
+  const wait = m ? waitFact(m.waitDays) : null;
+  if (m && (m.handled > 0 || wait)) {
+    const facts: ReportFact[] = [];
+    if (wait) facts.push(wait);
+    if (seal.deck.sent > 0) {
+      const drafts = lineCase(`${seal.deck.asWritten} of ${seal.deck.sent} drafts sent unedited`);
+      // As written is done, so it is green: unless the wait already spent
+      // the line's one colour, in which case it is the line's grey.
+      facts.push(wait ? plain(drafts) : { text: drafts, tone: "good" });
+    }
+    out.push({
+      id: "mail",
+      title: m.handled > 0 ? lineCase(`Handled ${m.handled} ${plural(m.handled, "email", "emails")}`) : "Mail",
+      facts,
+      exit: { label: "Open Email", kind: "email" },
+      receipts: [
+        lineCase(`${m.handled} handled in ${name}`),
+        ...(seal.deck.sent > 0 ? [lineCase(`${seal.deck.asWritten} of ${seal.deck.sent} drafts went out as written`)] : []),
+        ...(wait ? [lineCase(`The longest wait for a reply is ${m.waitDays} days`)] : []),
+      ],
+    });
+  }
+  const p = seal.people;
+  if (p) {
+    const quiet = p.quiet.map((id) => people.find((x) => x.id === id)).filter((x): x is { id: string; name: string } => !!x);
+    if (p.reached > 0 || quiet.length > 0) {
+      const names = quiet.map((q) => q.name).join(", ");
+      const facts: ReportFact[] = [];
+      if (quiet.length > 0 && p.reached > 0) facts.push({ text: `Gone Quiet: ${names}`, tone: "warn" });
+      if (quiet.length > 1 && p.reached === 0) facts.push({ text: `Gone Quiet: ${quiet.slice(1).map((q) => q.name).join(", ")}`, tone: "warn" });
+      out.push({
+        id: "people",
+        title: p.reached > 0 ? lineCase(`Reached ${p.reached} ${plural(p.reached, "person", "people")}`) : lineCase(`${quiet[0]!.name} went quiet`),
+        facts,
+        exit: quiet.length > 0 ? { label: "Check In", kind: "person", id: quiet[0]!.id } : { label: "Open People", kind: "person" },
+        receipts: [
+          lineCase(`${p.reached} ${plural(p.reached, "call, message or check-in", "calls, messages and check-ins")} in ${name}`),
+          ...quiet.map((q) => `No word either way with ${q.name} in 30 days`),
+          "A quiet month can be on purpose",
+        ],
+      });
+    }
+  }
+  const t = seal.training;
+  if (t && seal.sessions > 0) {
+    const facts: ReportFact[] = [];
+    if (t.prs > 0) facts.push({ text: `${t.prs} ${plural(t.prs, "PR", "PRs")}`, tone: "good" });
+    if (t.sets > 0) facts.push(plain(lineCase(`${t.sets} working ${plural(t.sets, "set", "sets")}`)));
+    out.push({
+      id: "health",
+      title: lineCase(`${seal.sessions} ${plural(seal.sessions, "session", "sessions")}`),
+      facts,
+      exit: { label: "Open Health Insights", kind: "health", ...(healthCategoryId ? { id: healthCategoryId } : {}) },
+      receipts: [
+        lineCase(`${seal.sessions} ${plural(seal.sessions, "session", "sessions")} logged in ${name}`),
+        lineCase(`${t.sets} working ${plural(t.sets, "set", "sets")}; warm-ups and drops are not counted`),
+        ...(t.prs > 0 ? [lineCase(`${t.prs} ${plural(t.prs, "lift", "lifts")} set a personal best`)] : []),
+      ],
+    });
+  }
+  const d = seal.decisions;
+  if (d && (d.made > 0 || d.revisited > 0)) {
+    const facts: ReportFact[] = [];
+    if (d.worked > 0) facts.push({ text: lineCase(`${d.worked} worked`), tone: "good" });
+    if (d.revisited > 0) facts.push(plain(lineCase(`${d.revisited} revisited`)));
+    out.push({
+      id: "decisions",
+      title: d.made > 0 ? lineCase(`Made ${d.made} ${plural(d.made, "decision", "decisions")}`) : lineCase(`Revisited ${d.revisited} ${plural(d.revisited, "decision", "decisions")}`),
+      facts,
+      exit: { label: "Open Decisions", kind: "decisions" },
+      receipts: [
+        lineCase(`${d.made} recorded in ${name}`),
+        ...(d.revisited > 0 ? [lineCase(`${d.revisited} revisited and still good`)] : []),
+        ...(d.worked > 0 ? [lineCase(`${d.worked} marked worked`)] : []),
+        "A decision is never scored, only remembered",
+      ],
+    });
+  }
+  return out;
+}
+
 // ---- the report ----------------------------------------------------------
 
 export function buildReport(inp: ReportInputs): MonthReport {
@@ -217,13 +383,13 @@ export function buildReport(inp: ReportInputs): MonthReport {
   const hero = movedCount > 0
     ? {
         big: String(movedCount),
-        label: movedCount === 1 ? "Thing moved" : "Things moved",
+        label: movedCount === 1 ? "Thing Moved" : "Things Moved",
         anchor: prev && prevMoved != null ? `${prevName}: ${prevMoved}` : null,
         wins,
       }
     : {
         big: String(seal.done),
-        label: seal.done === 1 ? "Thing done" : "Things done",
+        label: seal.done === 1 ? "Thing Done" : "Things Done",
         anchor: prev ? `${prevName}: ${prev.done}` : null,
         wins: [],
       };
@@ -249,7 +415,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
 
   // WHERE THE HOURS WENT (item 13). Calendar-mined, entirely passive, and
   // silent below the floor. The uncategorised bucket ("" ) is rendered as
-  // "Everything else" rather than dropped, so the percentages the reader adds
+  // "Everything Else" rather than dropped, so the percentages the reader adds
   // up in their head actually reach a hundred.
   const timeRows = hoursRows(seal.hours ?? {});
   // C-65: last month's shares, for the one percent a report may say.
@@ -258,10 +424,10 @@ export function buildReport(inp: ReportInputs): MonthReport {
     rows: timeRows.map((r) => {
       const cat = r.category ? catById.get(r.category) : undefined;
       const was = prevRows.find((p) => p.category === r.category);
-      const vs = was && Math.abs(r.pct - was.pct) >= 5 ? `${r.pct}% vs usual ${was.pct}%` : undefined;
+      const vs = was && Math.abs(r.pct - was.pct) >= 5 ? lineCase(`${r.pct}% vs usual ${was.pct}%`) : undefined;
       return {
         id: r.category,
-        name: cat?.name ?? "Everything else",
+        name: cat?.name ?? "Everything Else",
         color: cat?.color ?? "graphite",
         label: hoursLabel(r.minutes),
         pct: r.pct,
@@ -287,10 +453,10 @@ export function buildReport(inp: ReportInputs): MonthReport {
   if (carried.length > 0) {
     worth.push({
       id: "carried",
-      title: carried.length === 1 ? "1 Followed you all month" : `${carried.length} Followed you all month`,
+      title: lineCase(`${carried.length} Followed You All Month`),
       sub: null,
       carried,
-      receipts: carried.map((c) => capAfterNumber(`${c.text} · ${c.n} pushes`)),
+      receipts: carried.map((c) => lineCase(`${c.text} · ${c.n} Pushes`)),
     });
   }
   if (prev) {
@@ -301,9 +467,11 @@ export function buildReport(inp: ReportInputs): MonthReport {
     if (quiet) {
       worth.push({
         id: "quiet",
-        title: `${quiet.cat!.name} went quiet`,
-        sub: capAfterNumber(`${quiet.now} this month, ${quiet.was} in ${prevName}`),
-        receipts: [capAfterNumber(`${quiet.was} finishes in ${prevName}, ${quiet.now} in ${name}`), "A quiet month can be on purpose", "Leave It means exactly that"],
+        title: lineCase(`${quiet.cat!.name} went quiet`),
+        // Stalled is amber (§AM): the count first, then last month's in the
+        // line's one grey with its count white.
+        sub: [{ text: lineCase(`${quiet.now} this month`), tone: "warn" }, plain(lineCase(`${quiet.was} in ${prevName}`))],
+        receipts: [lineCase(`${quiet.was} finishes in ${prevName}, ${quiet.now} in ${name}`), "A quiet month can be on purpose", "Leave It means exactly that"],
       });
     }
   }
@@ -317,10 +485,11 @@ export function buildReport(inp: ReportInputs): MonthReport {
   if (still.length > 0) {
     worth.push({
       id: "stillTrue",
-      title: still.length === 1 ? `${still[0]!.title}: still true?` : capAfterNumber(`${still.length} goals went still`),
-      sub: "Nothing finished and nothing scheduled this month",
+      title: still.length === 1 ? lineCase(`${still[0]!.title}: still true?`) : lineCase(`${still.length} Goals Went Still`),
+      sub: null,
+      foot: "Nothing finished and nothing scheduled this month",
       receipts: [
-        ...still.map((g) => capAfterNumber(`${g.title}: ${g.wasDone} finished in ${prevName}, none in ${name}`)),
+        ...still.map((g) => lineCase(`${g.title}: ${g.wasDone} finished in ${prevName}, none in ${name}`)),
         "A month off a goal is not the same as dropping it",
         "Yes is a complete answer",
       ],
@@ -331,9 +500,10 @@ export function buildReport(inp: ReportInputs): MonthReport {
   if (cut.length > 0) {
     worth.push({
       id: "cut",
-      title: capAfterNumber(`${cut.length} ${cut.length === 1 ? "goal" : "goals"} cut`),
-      sub: "Cutting is a decision, and it counts",
-      receipts: cut.map((g) => g.data.title),
+      title: lineCase(`${cut.length} ${plural(cut.length, "goal", "goals")} cut`),
+      sub: null,
+      foot: "Cutting is a decision, and it counts",
+      receipts: cut.map((g) => lineCase(g.data.title)),
     });
   }
 
@@ -343,12 +513,12 @@ export function buildReport(inp: ReportInputs): MonthReport {
   if (picks && picks.firstRate >= PICK_FIRST_RATE && picks.latePicked >= PICK_LATE_MIN && picks.lateRate <= PICK_LATE_RATE) {
     patterns.push({
       id: "picks",
-      title: "First picks finish",
-      sub: `Firsts ${Math.round(picks.firstRate * 100)}%, later picks ${Math.round(picks.lateRate * 100)}%`,
+      title: "First Picks Finish",
+      sub: [plain(lineCase(`Firsts ${Math.round(picks.firstRate * 100)}%, later picks ${Math.round(picks.lateRate * 100)}%`))],
       chip: null,
       receipts: [
-        capAfterNumber(`${picks.firstDone} of ${picks.firstPicked} first picks done that day`),
-        capAfterNumber(`${picks.latePicked} picks landed fourth or later`),
+        lineCase(`${picks.firstDone} of ${picks.firstPicked} first picks done that day`),
+        lineCase(`${picks.latePicked} picks landed fourth or later`),
       ],
     });
   }
@@ -360,8 +530,8 @@ export function buildReport(inp: ReportInputs): MonthReport {
     const mins = Math.round(Math.abs(overrun.avg));
     patterns.push({
       id: "overrun",
-      title: overrun.avg > 0 ? `${overrun.cat!.name} runs ${mins}m over` : `${overrun.cat!.name} runs ${mins}m under`,
-      sub: capAfterNumber(`Across ${overrun.n} corrections`),
+      title: lineCase(`${overrun.cat!.name} runs ${hoursLabel(mins)} ${overrun.avg > 0 ? "over" : "under"}`),
+      sub: [plain(lineCase(`Across ${overrun.n} Corrections`))],
       chip: null,
       receipts: ["Plan lengths already learn from this; new blocks pre-fill from your history"],
     });
@@ -371,8 +541,8 @@ export function buildReport(inp: ReportInputs): MonthReport {
     const pct = Math.round(((join.on - join.off) / Math.max(0.1, join.off)) * 100);
     patterns.push({
       id: "train",
-      title: "Train days win",
-      sub: `${join.on.toFixed(1)} Done vs ${join.off.toFixed(1)}`,
+      title: "Train Days Win",
+      sub: [plain(lineCase(`${join.on.toFixed(1)} done vs ${join.off.toFixed(1)}`))],
       chip: { text: `+${pct}%`, tone: "good" },
       receipts: ["A pattern in your data, not a cause"],
     });
@@ -382,24 +552,24 @@ export function buildReport(inp: ReportInputs): MonthReport {
     .filter((m) => m.total >= MIRROR_MIN);
   const taken = mirror.filter((m) => m.acc / m.total >= 0.7).sort((a, b) => b.total - a.total)[0];
   const skipped = mirror.filter((m) => m.acc / m.total <= 0.25).sort((a, b) => b.total - a.total)[0];
-  const KIND_TAKEN: Record<string, string> = { first_step: "You take first steps", pattern: "You take the patterns", ai: "You take the AI's offers", routine: "You take the routine blocks", proj_step: "You take project steps", link: "You take the links" };
-  const KIND_SKIP: Record<string, string> = { link: "Links get skipped", ai: "AI offers get skipped", pattern: "Patterns get skipped", first_step: "First steps get skipped", routine: "Routine blocks get skipped", proj_step: "Project steps get skipped" };
+  const KIND_TAKEN: Record<string, string> = { first_step: "You Take First Steps", pattern: "You Take the Patterns", ai: "You Take the AI's Offers", routine: "You Take the Routine Blocks", proj_step: "You Take Project Steps", link: "You Take the Links" };
+  const KIND_SKIP: Record<string, string> = { link: "Links Get Skipped", ai: "AI Offers Get Skipped", pattern: "Patterns Get Skipped", first_step: "First Steps Get Skipped", routine: "Routine Blocks Get Skipped", proj_step: "Project Steps Get Skipped" };
   if (taken) {
     patterns.push({
       id: "mirror-taken",
-      title: KIND_TAKEN[taken.kind] ?? "You take the suggestions",
-      sub: capAfterNumber(`${taken.acc} of ${taken.total} accepted`),
+      title: KIND_TAKEN[taken.kind] ?? "You Take the Suggestions",
+      sub: [plain(lineCase(`${taken.acc} of ${taken.total} accepted`))],
       chip: null,
-      receipts: [capAfterNumber(`${taken.acc} accepted · ${taken.dis} dismissed`)],
+      receipts: [lineCase(`${taken.acc} accepted · ${taken.dis} dismissed`)],
     });
   }
   if (skipped) {
     patterns.push({
       id: "mirror-skipped",
-      title: KIND_SKIP[skipped.kind] ?? "Some suggestions get skipped",
-      sub: capAfterNumber(`${skipped.acc} of ${skipped.total} taken`),
+      title: KIND_SKIP[skipped.kind] ?? "Some Suggestions Get Skipped",
+      sub: [plain(lineCase(`${skipped.acc} of ${skipped.total} taken`))],
       chip: null,
-      receipts: [capAfterNumber(`${skipped.dis} dismissed this month`)],
+      receipts: [lineCase(`${skipped.dis} dismissed this month`)],
     });
   }
   if (seal.slip) {
@@ -407,37 +577,43 @@ export function buildReport(inp: ReportInputs): MonthReport {
     if (cat) {
       patterns.push({
         id: "slip",
-        title: `${cat.name} slips most`,
+        title: lineCase(`${cat.name} slips most`),
         sub: null,
-        chip: { text: capAfterNumber(`${seal.slip.n} pushes`), tone: "warn" },
-        receipts: [capAfterNumber(`${seal.slip.n} pushes in ${name}, the most of any category`), "A fact about tasks, never a verdict"],
+        chip: { text: lineCase(`${seal.slip.n} Pushes`), tone: "warn" },
+        receipts: [lineCase(`${seal.slip.n} Pushes in ${name}, the most of any category`), "A fact about tasks, never a verdict"],
       });
     }
   }
+
+  // THE LIFE CARDS (2026-09-26): what the app already keeps, each with a
+  // door out and nothing proposed.
+  const life = lifeCards(seal, name, inp.people ?? [], inp.healthCategoryId);
 
   // JARVIS. The learned line's second half is the anti-horoscope device:
   // a system that shows its own retractions is one whose claims can be false.
   const fixes = seal.strands.corrected + seal.strands.deleted;
   const learned = seal.strands.created > 0
     ? {
-        title: capAfterNumber(`Learned ${seal.strands.created} ${seal.strands.created === 1 ? "thing" : "things"} about you`),
-        sub: fixes > 0 ? capAfterNumber(`You fixed ${fixes}, ${fixes === 1 ? "it is" : "they are"} gone`) : null,
+        title: lineCase(`Learned ${seal.strands.created} ${plural(seal.strands.created, "thing", "things")} about you`),
+        sub: fixes > 0 ? [plain(lineCase(`You fixed ${fixes}, ${fixes === 1 ? "it is" : "they are"} gone`))] : null,
       }
     : null;
   const didCount = seal.remindersTicked + seal.deck.sent;
-  const didParts: string[] = [];
-  if (seal.remindersTicked > 0) didParts.push(`${seal.remindersTicked} ${seal.remindersTicked === 1 ? "reminder" : "reminders"}`);
-  if (seal.deck.sent > 0) didParts.push(`${seal.deck.asWritten} of ${seal.deck.sent} drafts sent as written`);
+  const didParts: ReportFact[] = [];
+  if (seal.remindersTicked > 0) didParts.push(plain(lineCase(`${seal.remindersTicked} ${plural(seal.remindersTicked, "reminder", "reminders")}`)));
+  // As written is done, so the drafts fact is green (§AM); the reminders
+  // count stays the line's one grey with its number white.
+  if (seal.deck.sent > 0) didParts.push({ text: lineCase(`${seal.deck.asWritten} of ${seal.deck.sent} drafts sent unedited`), tone: "good" });
   const did = didCount > 0
-    ? { title: capAfterNumber(`Kept ${didCount} ${didCount === 1 ? "thing" : "things"} moving`), sub: didParts.length ? capAfterNumber(didParts.join(", ")) : null }
+    ? { title: lineCase(`Kept ${didCount} ${plural(didCount, "thing", "things")} moving`), sub: didParts.length ? didParts : null }
     : null;
 
   // THE ONE CHANGE. Exactly one, and only when the evidence carries it.
   const closer = !inp.alreadyCapped && picks && picks.firstRate >= 0.6 && picks.lateRate <= 0.35 && picks.latePicked >= PICK_LATE_MIN
     ? {
         n: 3,
-        question: "Cap the day at three?",
-        sub: "Your first three get done, the later picks mostly do not",
+        question: "Cap the Day at Three?",
+        sub: "Your First Three Get Done, the Later Picks Mostly Do Not",
         foot: "Starting tomorrow, change it any time",
       }
     : null;
@@ -452,9 +628,10 @@ export function buildReport(inp: ReportInputs): MonthReport {
     time,
     worth,
     patterns,
+    life,
     learned,
     did,
     closer,
-    sealed: { title: `${name} sealed`, sub: `${nextMonthName(month)} compares to this` },
+    sealed: { title: `${name} Sealed`, sub: lineCase(`${nextMonthName(month)} compares to this`) },
   };
 }

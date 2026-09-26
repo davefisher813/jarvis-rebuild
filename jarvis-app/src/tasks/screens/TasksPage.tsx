@@ -1003,6 +1003,12 @@ export default function TasksPage({
 
       {loading ? (
         <SkeletonRows />
+      ) : shown.length === 0 && momentumHome && listed.length !== items.length ? (
+        // ONLY THE SUGGESTION IS LEFT (Dave's pass-off, 2026-09-26). The one
+        // task in this view is the Keep Going row, so the list is not empty:
+        // the card holds the suggestion and no empty-state copy says
+        // "Nothing Due Today" under a live task.
+        <div className="card list-card-ruled">{momentumHome}{notice}</div>
       ) : shown.length === 0 ? (
         <>
         {(momentumHome || notice) && <div className="card list-card-ruled">{momentumHome}{notice}</div>}

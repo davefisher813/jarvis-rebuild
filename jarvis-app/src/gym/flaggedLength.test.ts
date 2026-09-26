@@ -45,7 +45,14 @@ describe("a length worth reviewing says so where it is read", () => {
     // the flag reaching the browsing rows, which is unchanged.
     expect(flow).toMatch(/function minutesFact\(w: WorkoutData\)/);
     expect(flow).toMatch(/d\.flagged[\s\S]{0,200}fact amber/);
-    expect(flow.match(/\{minutesFact\(w\.data\)\}/g)?.length, "the Recent row and the workout head").toBe(2);
+    // AMENDED 2026-09-26 (pass-off item 11): the Recent row states the
+    // length in its right-hand column (minutesValue, the same durationOf),
+    // and the workout head keeps the facts form. Both still read the flag.
+    expect(flow.match(/\{minutesFact\(w\.data\)\}/g)?.length, "the workout head").toBe(1);
+    expect(flow.match(/\{minutesValue\(w\.data\)\}/g)?.length, "the Recent row").toBe(1);
+    expect(flow).toMatch(/function minutesValue\(w: WorkoutData\)[\s\S]{0,400}d\.flagged[\s\S]{0,200}fact amber/);
+    // The word that explains the amber rides the Recent row's sub line.
+    expect(flow).toMatch(/durationOf\(w\.data\)\.flagged && <span className="fact">Worth Reviewing<\/span>/);
     // And no row states the minutes without going through it.
     expect(flow).not.toMatch(/se-chip-budget">\{mins\}/);
   });

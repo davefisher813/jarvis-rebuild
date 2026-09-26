@@ -64,7 +64,7 @@ describe("paceFor", () => {
     const p = paceFor(h, { name: "Bench", kind: "weight_reps" });
     expect(p.learned).toBe(false);
     expect(p.secPerSet).toBe(WORK_SEC + DEFAULT_REST_SEC);
-    expect(paceLine(p)).toBe("default pace, improves as you log");
+    expect(paceLine(p)).toBe("Default Pace, Improves as You Log");
   });
 
   it("prices the default from a stated rest target when one exists", () => {
@@ -81,7 +81,7 @@ describe("paceFor", () => {
     expect(p.learned).toBe(true);
     expect(p.secPerSet).toBe(120); // median of [~120s, 180s, 120s]
     expect(p.sessions).toBe(2);
-    expect(paceLine(p)).toBe("learned from your last 2 sessions");
+    expect(paceLine(p)).toBe("Learned from Your Last 2 Sessions");
   });
 
   it("only the newest PACE_WINDOW sessions teach it: pace drifts with programs", () => {

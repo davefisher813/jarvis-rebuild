@@ -131,10 +131,13 @@ describe("the rows the report draws", () => {
 
 describe("the label", () => {
   it("reads in hours and minutes, never a decimal hour", () => {
-    expect(hoursLabel(45)).toBe("45m");
+    // The durations ruling (Dave 2026-09-26): minutes-only is spelled and
+    // capitalized, "45 Min"; an hour or more keeps the compact clock.
+    expect(hoursLabel(45)).toBe("45 Min");
     expect(hoursLabel(60)).toBe("1h");
+    expect(hoursLabel(90)).toBe("1h 30m");
     expect(hoursLabel(1110)).toBe("18h 30m");
-    expect(hoursLabel(0)).toBe("0m");
+    expect(hoursLabel(0)).toBe("0 Min");
   });
 });
 

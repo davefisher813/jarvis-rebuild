@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useGoals, useProjects, useOptionalSeal, useOptionalSchedule, useOptionalCategories, useOptionalGym, useOptionalRoutine, useOptionalRules } from "../data/NotesProvider";
+import { useGoals, useProjects, useOptionalSeal, useOptionalSchedule, useOptionalCategories, useOptionalGym, useOptionalRoutine, useOptionalRules, useOptionalTasks, useOptionalDecisions, useOptionalPeople } from "../data/NotesProvider";
 import { buildWeek, type WeekReport } from "./week";
 import { hoursLabel } from "./hours";
 import { readWindow, type WindowClient } from "../brain/window";
@@ -12,9 +12,10 @@ import type { Project } from "../projects/types";
 import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
 import { monthName, movedIn } from "./report";
-import ReportFlow from "./ReportPage";
+import ReportFlow, { oldestWaitDays } from "./ReportPage";
+import { peopleForDerivation } from "../brain/peopleFacts";
 import type { MonthSeal } from "./seal";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { Nums } from "../bigger/GoalRowRuled";
 import { CheckCircleGlyph, SunriseGlyph } from "../shared/glyphs";
 import { usePushDepth } from "../shared/pushNav";
@@ -33,9 +34,14 @@ const CHEV = <div className="chev" />;
 // "6h", "4h 30m": the legend's hours, the report's own label.
 const hoursOf = (minutes: number) => hoursLabel(minutes);
 
-export default function InsightsFlow({ onBack, onOpenTask }: {
+export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenMoney, onOpenEmail }: {
   onBack: () => void;
   onOpenTask?: (id: string) => void;
+  /** The month report's exits (2026-09-26), passed straight through; see
+   *  ReportFlow. Each optional. */
+  onOpenEntity?: (kind: string, id: string) => void;
+  onOpenMoney?: () => void;
+  onOpenEmail?: () => void;
 }) {
   const goalsSvc = useGoals();
   const projectsSvc = useProjects();
@@ -55,19 +61,27 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
   const gymSvc = useOptionalGym();
   const routineSvc = useOptionalRoutine();
   const rulesSvc = useOptionalRules();
+  // The life lines' sources (2026-09-26): the bills live as tasks, the
+  // decisions carry their outcomes, the people list says who went quiet.
+  const tasksSvc = useOptionalTasks();
+  const decisionsSvc = useOptionalDecisions();
+  const peopleSvc = useOptionalPeople();
   const [week, setWeek] = useState<WeekReport | null>(null);
   const [offered, setOffered] = useState(false);
   const loadWeek = useCallback(async (gl: Goal[], pj: Project[]) => {
     try {
       const now = Date.now();
-      const [rows, events, workouts, categories, routine, rule] = await Promise.all([
+      const [rows, events, workouts, categories, routine, rule, tasks, decisions] = await Promise.all([
         readWindow(supabase as unknown as WindowClient | null, now, 15),
         schedSvc ? schedSvc.listEvents().catch(() => []) : Promise.resolve([]),
         gymSvc ? gymSvc.listWorkouts().catch(() => []) : Promise.resolve([]),
         catsSvc ? catsSvc.list().catch(() => []) : Promise.resolve([]),
         routineSvc ? routineSvc.get().catch(() => null) : Promise.resolve(null),
         rulesSvc ? rulesSvc.resolve("plan.focus", "week").catch(() => null) : Promise.resolve(null),
+        tasksSvc ? tasksSvc.listTasks().catch(() => []) : Promise.resolve([]),
+        decisionsSvc ? decisionsSvc.listAll().catch(() => []) : Promise.resolve([]),
       ]);
+      const people = await peopleForDerivation(peopleSvc, categories.map((c) => ({ id: c.id, name: c.data.name }))).catch(() => []);
       // Built for buildWeek below and for nothing else: this used to also
       // land in a `cats` state nothing on this screen ever read (audit
       // 2026-09-16), so every load re-rendered the flow to store a list it
@@ -83,9 +97,10 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
         today, rows: rows.filter((r) => days7.has(r.day)), prevRows: rows.filter((r) => !days7.has(r.day)),
         events, workouts, goals: gl, projects: pj, categories: cs,
         ...(work ? { workMinutesPerDay: work } : {}), alreadyOffered: !!rule,
+        tasks, decisions: decisions.map((d) => d.data), people, waitDays: oldestWaitDays(now),
       }));
     } catch { setWeek(null); }
-  }, [schedSvc, gymSvc, catsSvc, routineSvc, rulesSvc, today]);
+  }, [schedSvc, gymSvc, catsSvc, routineSvc, rulesSvc, tasksSvc, decisionsSvc, peopleSvc, today]);
   const [screen, setScreen] = useState<{ kind: "live" } | { kind: "month"; month: string } | { kind: "story" } | null>(null);
 
   const reload = useCallback(async () => {
@@ -146,8 +161,9 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
     return out;
   }, [story]);
 
-  if (screen?.kind === "live") return <div className={pushCls} key="d-live"><ReportFlow live onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} /></div>;
-  if (screen?.kind === "month") return <div className={pushCls} key={"d-" + screen.month}><ReportFlow month={screen.month} onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} /></div>;
+  const exits = { onOpenEntity, onOpenMoney, onOpenEmail };
+  if (screen?.kind === "live") return <div className={pushCls} key="d-live"><ReportFlow live onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} {...exits} /></div>;
+  if (screen?.kind === "month") return <div className={pushCls} key={"d-" + screen.month}><ReportFlow month={screen.month} onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} {...exits} /></div>;
   if (screen?.kind === "story") {
     return (
       <div className={pushCls} key="d-story">
@@ -230,10 +246,18 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
                   </span>
                 </div>
               ))}
+              {/* THE OFFER PAIR IS THE REPORT'S PAIR (2026-09-26, pass-off
+                  item 14): the same One Change on two surfaces wore two
+                  shapes, a 50px primary beside a 32px quiet dismiss here and
+                  two equal 50px buttons on the month report. One offer, one
+                  hierarchy: primary red and the base capsule with its red
+                  label, flex 1, wrapping at type scale 1.4. The "quiet
+                  dismiss" intent (components.css) keeps Today's Check In and
+                  the Tasks nudge; it is retired for this card only. */}
               {week.offer && !offered && rulesSvc && (
-                <div className="dec-outcome-acts week-acts">
+                <div className="rep-one-acts week-acts">
                   <button type="button" className="btn btn-primary" onClick={() => void moveTwoBlocks()}>Move Two Blocks</button>
-                  <button type="button" className="quiet-action" onClick={noThanks}>No Thanks</button>
+                  <button type="button" className="btn" onClick={noThanks}>No Thanks</button>
                 </div>
               )}
             </div></div>
@@ -260,8 +284,8 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
                   below wear. Done is the green fact, "Still open" the one grey,
                   and the dot between them is drawn by CSS, not typed. */}
               <div className="facts">
-                {liveDone != null && <span className="fact good">{capAfterNumber(`${liveDone} done`)}</span>}
-                <span className="fact">Still open</span>
+                {liveDone != null && <span className="fact good">{lineCase(`${liveDone} Done`)}</span>}
+                <span className="fact">Still Open</span>
               </div>
             </div>
             {CHEV}
@@ -284,7 +308,7 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
                   <div className="conn-name">{monthName(s.data.month)} {s.data.month.slice(0, 4)}</div>
                   <div className="facts">
                     <span className="fact"><b>{moved}</b> Moved</span>
-                    <span className="fact good">{capAfterNumber(`${s.data.done} done`)}</span>
+                    <span className="fact good">{lineCase(`${s.data.done} Done`)}</span>
                   </div>
                 </div>
                 {CHEV}
@@ -294,7 +318,7 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
           {seals.length === 0 && (
             <div className="row"><div className="row-grow">
               <div className="conn-name">No Month Sealed Yet</div>
-              <div className="r-k"><span className="r-goal r-cat">The first seals itself on the 1st</span></div>
+              <div className="r-k"><span className="r-goal r-cat">The First Seals Itself on the 1st</span></div>
             </div></div>
           )}
         </div></div>
@@ -309,7 +333,7 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
               {/* A row with nothing to say shows nothing (§AK): before the
                   first crossing the ledger has no line, and the page it
                   opens says what will land there. */}
-              {story.length > 0 && <div className="r-k"><span className="r-goal r-cat"><Nums text={capAfterNumber(`${story.length} ${story.length === 1 ? "crossing" : "crossings"} and counting`)} /></span></div>}
+              {story.length > 0 && <div className="r-k"><span className="r-goal r-cat"><Nums text={lineCase(`${story.length} ${story.length === 1 ? "crossing" : "crossings"} and counting`)} /></span></div>}
             </div>
             {CHEV}
           </div>

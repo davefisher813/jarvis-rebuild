@@ -1,8 +1,11 @@
 import { NAME_FIELD } from "../shared/nameField";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { own } from "../shared/rowDoor";
 import { createPortal } from "react-dom";
 import SheetBar from "../shared/SheetBar";
+import { Tile } from "../shared/FormSheet";
+import { liftTitle } from "../shared/casing";
+import { Archive, CalendarDays, Dumbbell, Gauge, Home, Info, PersonStanding, Shuffle, SlidersHorizontal, Tag, Target } from "../shared/icons";
 import { monthDay } from "../schedule/repeats";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 import { MEASURE_KINDS, MEASURE_LABEL, type MeasureKind } from "./types";
@@ -39,6 +42,28 @@ const OPEN_GROUP: Record<Chip["field"], string> = {
   tag: "Tags",
 };
 
+/** THE HEAD OF A QUESTION CARD (pass-off item 1, 2026-09-26; Dave on this
+ *  sheet: "no icons anywhere", against the sibling Edit Exercise sheet whose
+ *  every row leads with a coloured tile). Each single-question card opens
+ *  with the app's sheet-row anatomy -- the glyph tile, a white bold name,
+ *  one grey line under it where the question needs a hint -- in place of the
+ *  grey caps eyebrow that used to sit over the card. The tile wears the
+ *  question's colour family, the same three meanings the picked chips wear
+ *  (green for what the body does, purple for what the hardware is, sky for
+ *  how the lift is described), so the icon matches the chip it heads.
+ *  Equipment Identity keeps its quiet eyebrow, since it groups three fields. */
+function Head({ tone, glyph, name, meta }: { tone: string; glyph: ReactNode; name: string; meta?: string }) {
+  return (
+    <div className="row xs-row">
+      <Tile tone={tone}>{glyph}</Tile>
+      <div className="row-grow">
+        <div className="conn-name">{name}</div>
+        {meta && <div className="conn-meta">{meta}</div>}
+      </div>
+    </div>
+  );
+}
+
 /** ONE OF THE ANSWERS, OR THE ONE ALREADY THERE (2026-09-16). The list is the
  *  common answers; a stored value that is not on it rides at the end as its
  *  own chip, so a free-text grip typed months ago is still readable and still
@@ -55,7 +80,10 @@ function PresetRow({ label, items, value, onChange, hue }: {
   const all = value.trim() && !known ? [...items, value.trim()] : items;
   return (
     <>
-      <div className="row xs-row"><div className="row-grow"><div className="conn-meta">{label}</div></div></div>
+      {/* A white row label over its chips (2026-09-26), not a grey boxed
+          line: the label names a question, and the card's one grey is the
+          hint under its head. */}
+      <div className="row xs-row"><div className="row-grow"><div className="conn-name">{label}</div></div></div>
       {/* row-tap: chip strip, every inch of it is one of the answer chips */}
       <div className="row xs-row">
         <div className="chip-row chip-wrap-row">
@@ -75,14 +103,19 @@ function PresetRow({ label, items, value, onChange, hue }: {
   );
 }
 
-/** The free-text rows under Equipment Identity. */
-function TextRow({ label, value, placeholder, onChange }: {
+/** The free-text rows under Equipment Identity and Tags. Each leads with
+ *  its tile (2026-09-26), the way every typed row on the Edit Exercise sheet
+ *  does; the label keeps its literal .xs-label div, which the sheet
+ *  stylesheet reads to right-align the value beside it. */
+function TextRow({ label, value, placeholder, onChange, tone, glyph }: {
   label: string; value: string; placeholder: string; onChange: (v: string) => void;
+  tone: string; glyph: ReactNode;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
     // The label and the gaps land in the field too (Dave 2026-09-15: "I want all rows clickable").
     <div className="row xs-row xs-row-write" onClick={() => ref.current?.focus()}>
+      <Tile tone={tone}>{glyph}</Tile>
       <div className="xs-label">{label}</div>
       <input
         ref={ref}
@@ -176,12 +209,22 @@ export default function ClassifySheet({
   const counts = countsFor(c.equipment);
   const toggleArchived = () => (c.archived ? clear("archived") : set({ archived: true }));
 
+  // THE SCRIM HOLDS UNSAVED WORK (2026-09-26, the guard FormSheet's sheets
+  // have had since SHARED-F-13). Every answer here lives in the draft, and
+  // the draft is replaced on every edit, so identity says whether anything
+  // changed. Cancel in the bar is untouched: one stray thumb on the scrim
+  // no longer throws away a whole classification.
+  const dirty = c !== initial || scope !== scopeOf(initial);
+  const onScrim = () => { if (!dirty) onCancel(); };
+
   return createPortal(
-    <div className="sheet-scrim" onClick={onCancel}>
+    <div className="sheet-scrim" onClick={onScrim}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
+        {/* Display only: the name handed onward stays as stored (a cased
+            name silently fails a lookup, gymShelf.test.ts). */}
         <SheetBar
-          title={name}
+          title={liftTitle(name)}
           onCancel={onCancel}
           saveLabel="Save"
           onSave={() => onSave(withScope(c, scope, todayIso), scope)}
@@ -190,15 +233,14 @@ export default function ClassifySheet({
           {/* MUSCLES. The one axis anything downstream depends on, so it
               leads, and its row says what the two roles do to the count
               rather than leaving the athlete to infer it from a colour. */}
-          <div className="grp xs-grp"><div className="eyebrow">{OPEN_GROUP.muscles}</div></div>
           <div className="pad-x"><div className="card xs-group">
             {/* ONE HINT, AND ONLY THE HALF THAT IS NOT OBVIOUS (2026-09-16).
                 The card used to open with a "Muscles Worked" title under an
                 eyebrow that already said Muscles, and a sentence explaining
                 both taps. Tapping a chip to pick it needs no explaining; the
-                SECOND tap does. Same label-row shape as "What the number
-                means" under Equipment, so the two cards read alike. */}
-            <div className="row xs-row"><div className="row-grow"><div className="conn-meta">Tap twice for secondary</div></div></div>
+                SECOND tap does. Since 2026-09-26 the hint is the head row's
+                one grey line, under the card's name and tile. */}
+            <Head tone="green" glyph={<PersonStanding className="ic" />} name={OPEN_GROUP.muscles} meta="Tap Twice for Secondary" />
             {/* row-tap: chip strip, every inch of it is one of the muscle chips */}
             <div className="row xs-row">
               <div className="chip-row chip-wrap-row">
@@ -255,8 +297,8 @@ export default function ClassifySheet({
               afterwards rather than being a thing that happened once. */}
           {askScope && (
             <>
-              <div className="grp xs-grp"><div className="eyebrow">Applies To</div></div>
               <div className="pad-x"><div className="card xs-group">
+                <Head tone="green" glyph={<CalendarDays className="ic" />} name="Applies To" />
                 {/* row-tap: chip strip, every inch of it is one of the three scope chips */}
                 <div className="row xs-row">
                   <div className="chip-row chip-wrap-row">
@@ -274,16 +316,16 @@ export default function ClassifySheet({
                     than the ISO string the store happens to keep. */}
                 <div className="row xs-row"><div className="row-grow"><div className="facts">
                   {scope === "all" ? (
-                    <span className="fact">Every session, past and future</span>
+                    <span className="fact">Every Session, Past and Future</span>
                   ) : scope === "future" ? (
                     <>
                       <span className="fact date">{`From ${monthDay(todayIso)} on`}</span>
-                      <span className="fact">Earlier ones keep what they had</span>
+                      <span className="fact">Earlier Ones Keep What They Had</span>
                     </>
                   ) : (
                     <>
                       <span className="fact date">{`Up to ${monthDay(todayIso)}`}</span>
-                      <span className="fact">Later ones will not carry these</span>
+                      <span className="fact">Later Ones Will Not Carry These</span>
                     </>
                   )}
                 </div></div></div>
@@ -294,13 +336,13 @@ export default function ClassifySheet({
           {/* EQUIPMENT, and what its number means. The second row only
               appears when the equipment leaves the reading genuinely open,
               which is the rule equipment.ts has kept since it shipped. */}
-          <div className="grp xs-grp"><div className="eyebrow">{OPEN_GROUP.equipment}</div></div>
           <div className="pad-x"><div className="card xs-group">
+            <Head tone="purple" glyph={<Dumbbell className="ic" />} name={OPEN_GROUP.equipment} />
             <ChipRow items={EQUIPMENT_KINDS} label={(e) => EQUIPMENT_LABEL[e]} value={c.equipment} ariaPrefix="Equipment" hue="violet"
               onPick={(e) => (e ? set({ equipment: e, ...(c.counted && !countsFor(e).includes(c.counted) ? { counted: undefined } : {}) }) : (clear("equipment"), clear("counted")))} />
             {asksCount(c.equipment) && (
               <>
-                <div className="row xs-row"><div className="row-grow"><div className="conn-meta">What the number means</div></div></div>
+                <div className="row xs-row"><div className="row-grow"><div className="conn-name">What the Number Means</div></div></div>
                 <ChipRow items={counts} label={(x) => COUNTED_LABEL[x]} value={c.counted} ariaPrefix="Counted as" hue="violet"
                   onPick={(x) => (x ? set({ counted: x }) : clear("counted"))} />
               </>
@@ -310,8 +352,8 @@ export default function ClassifySheet({
           {/* MEASUREMENT. Editable, and honest about what editing it does:
               it is what the NEXT sighting carries, never a rewrite of what
               recorded numbers already mean. */}
-          <div className="grp xs-grp"><div className="eyebrow">{OPEN_GROUP.measure}</div></div>
           <div className="pad-x"><div className="card xs-group">
+            <Head tone="sky" glyph={<Gauge className="ic" />} name={OPEN_GROUP.measure} />
             <ChipRow items={MEASURE_KINDS} label={(k: MeasureKind) => MEASURE_LABEL[k]} value={c.measure} ariaPrefix="Measured as" hue="cyan"
               onPick={(k) => (k ? set({ measure: k }) : clear("measure"))} />
             {/* AN EDIT EFFECT, WHICH IS A DISCLOSURE (polish rule 3, and
@@ -337,20 +379,20 @@ export default function ClassifySheet({
 
           {more && (
             <>
-              <div className="grp xs-grp"><div className="eyebrow">{OPEN_GROUP.movement}</div></div>
               <div className="pad-x"><div className="card xs-group">
+                <Head tone="sky" glyph={<Shuffle className="ic" />} name={OPEN_GROUP.movement} />
                 <ChipRow items={MOVEMENTS} label={(m) => MOVEMENT_LABEL[m]} value={c.movement} ariaPrefix="Movement" hue="cyan"
                   onPick={(m) => (m ? set({ movement: m }) : clear("movement"))} />
               </div></div>
 
-              <div className="grp xs-grp"><div className="eyebrow">{OPEN_GROUP.type}</div></div>
               <div className="pad-x"><div className="card xs-group">
+                <Head tone="sky" glyph={<Target className="ic" />} name={OPEN_GROUP.type} />
                 <ChipRow items={EXERCISE_TYPES} label={(t) => TYPE_LABEL[t]} value={c.type} ariaPrefix="Type" hue="cyan"
                   onPick={(t) => (t ? set({ type: t }) : clear("type"))} />
               </div></div>
 
-              <div className="grp xs-grp"><div className="eyebrow">{OPEN_GROUP.execution}</div></div>
               <div className="pad-x"><div className="card xs-group">
+                <Head tone="sky" glyph={<SlidersHorizontal className="ic" />} name={OPEN_GROUP.execution} />
                 <ChipRow items={EXECUTIONS} label={(x) => EXECUTION_LABEL[x]} value={c.execution} ariaPrefix="Execution" hue="cyan"
                   onPick={(x) => (x ? set({ execution: x }) : clear("execution"))} />
                 <PresetRow label="Grip" items={GRIPS} value={c.grip ?? ""} hue="cyan" onChange={(v) => (v ? set({ grip: v }) : clear("grip"))} />
@@ -365,29 +407,31 @@ export default function ClassifySheet({
                   anything. */}
               <div className="grp xs-grp"><div className="eyebrow">Equipment Identity</div></div>
               <div className="pad-x"><div className="card xs-group">
-                <TextRow label="Gym" value={c.gym ?? ""} placeholder="Home · Planet Fitness" onChange={(v) => set({ gym: v })} />
-                <TextRow label="Machine" value={c.machineName ?? ""} placeholder="Hammer Strength Row" onChange={(v) => set({ machineName: v })} />
-                <TextRow label="Machine ID" value={c.machineId ?? ""} placeholder="Frame number · Station 4" onChange={(v) => set({ machineId: v })} />
+                <TextRow label="Gym" tone="purple" glyph={<Home className="ic" />} value={c.gym ?? ""} placeholder="Home · Planet Fitness" onChange={(v) => set({ gym: v })} />
+                <TextRow label="Machine" tone="purple" glyph={<Dumbbell className="ic" />} value={c.machineName ?? ""} placeholder="Hammer Strength Row" onChange={(v) => set({ machineName: v })} />
+                <TextRow label="Machine ID" tone="purple" glyph={<Info className="ic" />} value={c.machineId ?? ""} placeholder="Frame number · Station 4" onChange={(v) => set({ machineId: v })} />
               </div></div>
 
-              <div className="grp xs-grp"><div className="eyebrow">{OPEN_GROUP.tag}</div></div>
+              {/* No eyebrow over a row that already says Tags (2026-09-26):
+                  the row's tile and label are its title. */}
               <div className="pad-x"><div className="card xs-group">
                 <TextRow
-                  label="Tags"
+                  label="Tags" tone="graphite" glyph={<Tag className="ic" />}
                   value={c.tags.join(", ")}
                   placeholder="Warm-up · Rehab · Comp lift"
                   onChange={(v) => set({ tags: v.split(",").map((t) => t.trim()).filter(Boolean) })}
                 />
               </div></div>
 
-              <div className="grp xs-grp"><div className="eyebrow">Archive</div></div>
               <div className="pad-x"><div className="card xs-group">
                 {/* The row flips the draft the same way its pill does; nothing is
-                    written until Save (Dave 2026-09-15: "I want all rows clickable"). */}
+                    written until Save (Dave 2026-09-15: "I want all rows clickable").
+                    No ARCHIVE eyebrow over an Archive button (2026-09-26). */}
                 <div className="row xs-row" onClick={toggleArchived}>
+                  <Tile tone="graphite"><Archive className="ic" /></Tile>
                   <div className="row-grow">
                     <div className="conn-name">{c.archived ? "Archived" : "Active"}</div>
-                    <div className="conn-meta">An archived exercise keeps every record it has</div>
+                    <div className="conn-meta">An Archived Exercise Keeps Every Record It Has</div>
                   </div>
                   <button type="button" className="pill-act" onClick={own(toggleArchived)}>
                     {c.archived ? "Restore" : "Archive"}

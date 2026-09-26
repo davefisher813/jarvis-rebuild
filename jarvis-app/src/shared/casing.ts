@@ -69,7 +69,13 @@ export function titleCase(text: string): string {
       const lower = w.toLowerCase();
       if (!isEdge && (SMALL.has(lower) || SMALL_FORMS.has(lower))) return lower;
       if (ownSpelling(w)) return w;
-      return capFirst(w);
+      // A compact clock or count keeps its shape in a title too ("Sleep 8h",
+      // "10x"), as lineCase keeps it on a line (H2, 2026-09-26): the letters
+      // ride on the digits and are not a word.
+      if (COMPACT.test(w)) return w;
+      // A hyphenated pair takes a capital on both halves ("Six-Month"), as
+      // lineCase gives it (H2, 2026-09-26).
+      return capWord(w);
     })
     .join(" ");
 }

@@ -4,7 +4,8 @@ import { exerciseHistory, trendLine, doneCount, sessionGroups } from "./history"
 import { liftSessions, chartValue } from "./chartData";
 import { sameLiftAnyKind } from "./identity";
 import { monthDay } from "../money/bills";
-import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
+import { capAfterNumber, lineCase, liftTitle, workoutTitle } from "../shared/casing";
+import { durationOf } from "../insights/analytics";
 import { todayISO } from "../tasks/grouping";
 
 const CHEV = <div className="chev" />;
@@ -106,16 +107,22 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenWorkout?.(r.workout); } }}>
                     <div className="row-grow">
                       <div className="conn-name truncate">{workoutTitle(r.workout.data.dayName)}</div>
-                      {/* Three facts: the date in small caps, the minutes as
-                          the row's one grey, the working sets in the
-                          logged-work hue. Amber says over or next, and a
-                          session's length is neither (§AM). */}
+                      {/* The date in small caps and the working sets in the
+                          logged-work hue. Pass-off item 11 (2026-09-26):
+                          the length is the row's right-hand column, the same
+                          layout the Program page's Recent rows wear, so the
+                          two lists one tap apart read alike and the lengths
+                          line up down the list. A length worth a look is
+                          amber there and says so here, the row's one grey. */}
                       <div className="facts">
                         <span className="fact date">{monthDay(r.date)}</span>
-                        <span className="fact">{capAfterNumber(`${r.minutes} min`)}</span>
-                        <span className="fact lime">{r.sets} {r.sets === 1 ? "set" : "sets"}</span>
+                        <span className="fact lime">{lineCase(`${r.sets} ${r.sets === 1 ? "set" : "sets"}`)}</span>
+                        {durationOf(r.workout.data).flagged && <span className="fact">Worth Reviewing</span>}
                       </div>
                     </div>
+                    {durationOf(r.workout.data).flagged
+                      ? <div className="row-value"><span className="fact amber">{lineCase(`${durationOf(r.workout.data).activeMin} min`)}</span></div>
+                      : <div className="row-value"><span className="fact"><b>{lineCase(`${r.minutes} min`)}</b></span></div>}
                     {onOpenWorkout && CHEV}
                   </div>
                 ))}

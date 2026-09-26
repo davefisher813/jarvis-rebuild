@@ -118,13 +118,15 @@ describe("the upward index", () => {
     expect(movesGoal(idx, task("a", { category: "errands" }))).toBe(false);
     expect(goalTitleForTask(idx, task("a", { category: "errands" }))).toBeNull();
   });
-  // THE GOAL IS A PICK (Dave's pass-off, 2026-09-26): a goal picked on the
-  // task sheet moves that goal, ahead of the project chain, and a pick on a
-  // goal that is no longer live moves nothing.
-  it("a picked goal wins, the project chain still answers, a stale pick is nothing", () => {
+  // THE GOAL IS A PICK (Dave's pass-off, 2026-09-26): with no project the
+  // goal picked on the task sheet is the goal it moves; with a project that
+  // climbs to a goal, the project decides and the pick is not read (a task
+  // never claims two goals); a pick on a goal that is no longer live moves
+  // nothing.
+  it("a picked goal counts without a project, the project's goal wins with one, a stale pick is nothing", () => {
     expect(goalIdsForTask(idx, task("a", { goalId: "g2" }))).toEqual(["g2"]);
-    expect(goalIdsForTask(idx, task("a", { goalId: "g2", projectId: "p1" }))).toEqual(["g2", "g1"]);
-    expect(goalTitleForTask(idx, task("a", { goalId: "g2", projectId: "p1" }))).toBe("Get Fit");
+    expect(goalIdsForTask(idx, task("a", { goalId: "g2", projectId: "p1" }))).toEqual(["g1"]);
+    expect(goalTitleForTask(idx, task("a", { goalId: "g2", projectId: "p1" }))).toBe("Run a Half");
     expect(goalIdsForTask(idx, task("a", { goalId: "g1", projectId: "p1" }))).toEqual(["g1"]);
     expect(goalIdsForTask(idx, task("a", { goalId: "gone" }))).toEqual([]);
   });

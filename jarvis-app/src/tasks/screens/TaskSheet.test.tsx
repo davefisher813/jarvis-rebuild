@@ -50,7 +50,8 @@ describe("TaskSheet", () => {
     expect(area.querySelector(".cat-dot.cat-bg-yellow")).toBeTruthy();
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Work/ }));
     expect(area.textContent).toContain("Money +1");
-    expect(screen.getByText("Money is the main one")).toBeInTheDocument();
+    // AMENDED 2026-09-26 (pass-off): the sheet's sub lines are Title Case.
+    expect(screen.getByText("Money Is the Main One")).toBeInTheDocument();
     fireEvent.click(document.querySelector(".hmenu-scrim")!);
     expect(document.querySelector(".hmenu")).toBeNull();
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "X" } });
@@ -507,7 +508,9 @@ describe("TaskSheet: the smart Where group", () => {
     // than disappearing (Dave 2026-09-16: "they should all have the same 5
     // options").
     expect(screen.getByText("Goal")).toBeInTheDocument();
-    expect(document.querySelector(".row-val")).toHaveTextContent("None");
+    // AMENDED 2026-09-26 (pass-off): the Goal row is a menu on every screen
+    // (never a value with no control behind it), reading None until a pick.
+    expect(screen.getByLabelText("Goal").textContent).toContain("None");
     expect(screen.getByLabelText("Area").textContent).toContain("None");
     fireEvent.click(screen.getByLabelText("Project"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: /Kitchen Remodel/ }));

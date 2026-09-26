@@ -230,8 +230,14 @@
    name) reaches the 44px minimum even when its lines add up to less
    ("Car Insurance / Due Oct 8" measured 39, 2026-09-26). */
 .ruled .task-row .task-title[role="button"] { min-height: 44px; display: flex; flex-direction: column; justify-content: center; }
-.ruled .task-row .task-title > .task-name { display: block; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; }
+/* THE NAME TAKES TWO LINES WHEN IT NEEDS THEM (Dave 2026-09-26, the audit
+   leftover: "Finish partnership propo..." and "Create Calder Inv..." were cut
+   at normal text size because the star, the checkbox and Start share the
+   row). Two lines, then the ellipsis; the row grows by one line of name and
+   no more. This supersedes the one-line name; DEFECT 1 (2026-09-06) was
+   about the second line's pills, which stay one line. */
+.ruled .task-row .task-title > .task-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  white-space: normal; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
 /* BROWSER-F-06 (2026-09-05) gave this line flex-wrap so a long goal name got a
    row of its own under the badge rather than whatever the chip left over.
    DEFECT 1 (Dave 2026-09-06, on his phone: "There's wrapping in the tasks

@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import LiftDetailScreen from "./LiftDetailScreen";
+import { EMPTY_CLASS } from "./classify";
 import type { Workout, SetEntry } from "./types";
 import type { MuscleGroup } from "./muscles";
 
@@ -115,6 +116,62 @@ describe("the goal card on a lift's page", () => {
     fireEvent.keyDown(screen.getByLabelText("Edit Goal"), { key: "Enter" });
     expect(onSetGoal).toHaveBeenCalledTimes(1);
   });
+
+  // Pass-off item 8 (2026-09-26): readable at a glance. The amount left is
+  // the card's white trailing value, the line under the title reads the
+  // current best in white against the target, the rep floor is named only
+  // above 1, the card is plain in flight and green once hit.
+  it("leads with the amount left, names the rep floor only above 1, and turns green when hit", () => {
+    render(<LiftDetailScreen {...base} workouts={history} goal={goal as never} />);
+    const card = screen.getByLabelText("Edit Goal");
+    expect(card).not.toHaveClass("banner-yellow");
+    expect(card).not.toHaveClass("banner-good");
+    // best set is 135 × 8, so 90 Lb to go toward 225 at 5+
+    const left = screen.getByText("90 Lb to Go");
+    expect(left.tagName).toBe("B");
+    expect(left.closest(".row-value")).not.toBeNull();
+    expect(screen.getByText("135").tagName).toBe("B");
+    expect(card.textContent).toContain("of 225 Lb × 5");
+    expect(card.textContent).not.toMatch(/at \d\+/);
+    expect(card.querySelector(".bp-bar-fill")).not.toBeNull();
+  });
+
+  it("drops the rep floor at 1 and shows a green Hit once the goal is met", () => {
+    const one = { ...goal, data: { ...goal.data, measure: { ...goal.data.measure, target: { w: 135, r: 1 } } } };
+    render(<LiftDetailScreen {...base} workouts={history} goal={one as never} />);
+    const card = screen.getByLabelText("Edit Goal");
+    expect(card).toHaveClass("banner-good");
+    expect(screen.getByText("Hit")).toHaveClass("fact", "lime");
+    expect(card.textContent).not.toContain("×");
+    expect(screen.queryByText(/to Go/)).toBeNull();
+  });
+});
+
+// Pass-off item 8 (2026-09-26): two muscle rows named the way Select mode
+// names them, each value its row's one grey, both opening the same question.
+describe("the classification card on a lift's page", () => {
+  const history = [workout("2026-09-02", [{ name: "Incline Press", sets: 4 }])];
+  const cls = { ...EMPTY_CLASS, primary: ["chest" as const], secondary: ["triceps" as const], equipment: "barbell" as const };
+  it("lists primary and secondary muscles as two rows that open the Muscles question", () => {
+    const onEditClass = vi.fn();
+    render(<LiftDetailScreen {...base} workouts={history} classification={cls} onEditClass={onEditClass} />);
+    const primary = screen.getByText("Primary Muscles").closest(".row")!;
+    const secondary = screen.getByText("Secondary Muscles").closest(".row")!;
+    expect(primary.querySelector(".fact")!.textContent).toBe("Chest");
+    expect(secondary.querySelector(".fact")!.textContent).toBe("Triceps");
+    expect(primary.querySelectorAll(".fact")).toHaveLength(1);
+    expect(primary.textContent).not.toMatch(/also/i);
+    fireEvent.click(primary);
+    fireEvent.click(secondary);
+    expect(onEditClass.mock.calls).toEqual([["muscles"], ["muscles"]]);
+  });
+
+  it("asks for muscles on the Primary row only when none are set, in Title Case", () => {
+    render(<LiftDetailScreen {...base} workouts={history} classification={EMPTY_CLASS} onEditClass={() => {}} />);
+    expect(screen.getByText("Assign Muscles")).toHaveClass("fact", "amber");
+    expect(screen.getByText("Assign Muscles").closest(".row")!.textContent).toContain("Primary Muscles");
+    expect(screen.getByText("Secondary Muscles").closest(".row")!.querySelector(".fact")).toBeNull();
+  });
 });
 
 // Health Push E: H-31 the caption, H-34 tap a point.
@@ -124,9 +181,24 @@ describe("LiftDetailScreen: the chart says what it is, and answers a tap", () =>
 
   const two = [workout("2026-08-26", [{ name: "Incline Press", sets: 3 }]), workout("2026-09-02", [{ name: "Incline Press", sets: 3 }])];
 
-  it("the caption names Epley, says it is not a tested max, and carries the unit", () => {
+  // AMENDED 2026-09-26 (pass-off item 7): the card is the insight, clean.
+  // A caps kicker names the number, the estimate and its move over the
+  // window wear the estimate ink, and Epley with the caveat sit behind
+  // Evidence. The second capsule and the unlabelled Change cell are gone.
+  it("names the estimate with a kicker, states its move, and keeps Epley behind Evidence", () => {
     render(<LiftDetailScreen {...base} workouts={two} />);
-    expect(screen.getByText("Est 1RM (Epley), not a tested max, lb")).toBeInTheDocument();
+    expect(screen.queryByText(/not a tested max/)).not.toBeInTheDocument();
+    expect(screen.getByText("Estimated Max")).toHaveClass("eyebrow");
+    const move = screen.getByText(/^(Up|Down) \d+(\.\d+)? Lb$|^No Change$/);
+    expect(move).toHaveClass("fact", "est");
+    expect(screen.queryByText("Estimated One-Rep Max")).not.toBeInTheDocument();
+    expect(screen.queryByText("Change")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Evidence" }));
+    expect(screen.getByText("Does Not Show")).toBeInTheDocument();
+    expect(screen.getByText("A tested max, or a weight to attempt")).toBeInTheDocument();
+    expect(screen.getByText(/^Epley/)).toBeInTheDocument();
+    // The range chip states both ends as dates, like the Best card.
+    expect(screen.getByText("Aug 26 to Sep 2")).toBeInTheDocument();
   });
 
   // AMENDED 2026-09-16 (Dave: "uniform everything"). The three readings were
@@ -137,11 +209,11 @@ describe("LiftDetailScreen: the chart says what it is, and answers a tap", () =>
   // estimate primitive (sky); the set between them is the line's one grey.
   it("tapping a point reads its date, set, and estimate as three facts", () => {
     render(<LiftDetailScreen {...base} workouts={two} />);
-    expect(screen.queryByText(/^Est \d+ lb$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Est \d+ Lb$/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Session 1 of 2" }));
     // The date appears in the Milestones card too, so read the one in the
     // chart's own facts line, which sits beside the estimate.
-    const est = screen.getByText(/^Est \d+ lb$/);
+    const est = screen.getByText(/^Est \d+ Lb$/);
     expect(est, "the estimate wears the estimate primitive").toHaveClass("fact", "est");
     const line = est.parentElement!;
     const date = line.querySelector(".fact.date")!;
@@ -166,10 +238,12 @@ describe("LiftDetailScreen: best recorded set and milestones", () => {
     // Performance and History head.
     expect(screen.getByText("Performance and History")).toBeInTheDocument();
     expect(screen.getByText("Best Set")).toBeInTheDocument();
-    expect(screen.getByText("Change")).toBeInTheDocument();
+    expect(screen.getByText("135 Lb × 5")).toBeInTheDocument();
     expect(screen.getAllByText("Sessions").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByText("Estimated One-Rep Max"));
-    expect(screen.getAllByText("158 lb").length).toBeGreaterThan(0);
+    // The estimate has one home: the Trend headline (pass-off item 7).
+    expect(screen.queryByText("Change")).not.toBeInTheDocument();
+    expect(screen.queryByText("Estimated One-Rep Max")).not.toBeInTheDocument();
+    expect(screen.getByText("158 Lb")).toHaveClass("fact", "est");
     expect(screen.getByText("First Session")).toBeInTheDocument();
   });
 });

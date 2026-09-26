@@ -496,7 +496,7 @@ export default function LibraryPage({
       )}
 
       {menu && (
-        <ActionSheet title={menu.name} actions={menuActions(menu)} onClose={() => setMenu(null)} />
+        <ActionSheet title={liftTitle(menu.name)} actions={menuActions(menu)} onClose={() => setMenu(null)} />
       )}
 
       {merging && (

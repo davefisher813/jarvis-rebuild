@@ -274,6 +274,12 @@ question for Dave:
 - Today's reminders: the red "N Missed" row is the one place a missed
   reminder appears; the Heads Up missed cards go.
 
+Dave, 2026-09-26, the audit leftover: task names that do not fit beside the
+star, the checkbox and Start (Life rows, Today's top card) WRAP TO TWO
+LINES; the row grows as needed. Star, checkbox and Start stay as they are.
+This supersedes the one-line task name (DEFECT 1, 2026-09-06, which was
+about the second line's pills, not the name).
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report

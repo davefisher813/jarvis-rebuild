@@ -63,9 +63,9 @@ describe("chartValue / chartLabel", () => {
     const h = [bench("2026-08-10", [set({ w: 185, r: 5 })])];
     const s = liftSessions(h, "Bench", "weight_reps")[0]!;
     expect(chartValue(s)).toBe(e1rm(185, 5));
-    // Health Push E (H-31): the estimate says what it is and is not.
-    // §AM (2026-09-26): punctuated as one phrase, never with baked dots.
-    expect(chartLabel("weight_reps")).toBe("Est 1RM (Epley), not a tested max");
+    // Pass-off item 7 (2026-09-26): the label is a caps kicker; the method
+    // and the caveat sit behind the card's Evidence (estimateEvidence).
+    expect(chartLabel("weight_reps")).toBe("Estimated Max");
     expect(chartLabel("reps")).toBe("Best");
   });
 });

@@ -214,14 +214,17 @@ export function buildGoalIndex(projects: Project[], goals: Goal[]): GoalIndex {
 export function goalIdsForTask(idx: GoalIndex, task: TaskItem): string[] {
   if (idx.size === 0) return [];
   const out: string[] = [];
-  // THE PICKED GOAL FIRST (Dave's pass-off, 2026-09-26). A task filed to a
-  // goal on its sheet moves that goal; the project chain still answers for
-  // every task filed before the pick existed. A pick on a goal that is no
-  // longer live (not in the index) moves nothing, like a stale project.
-  const gid = task.data.goalId;
-  if (gid && idx.titleOf.has(gid)) out.push(gid);
   const pid = task.data.projectId;
   if (pid) for (const g of idx.byProject.get(pid) ?? []) if (!out.includes(g)) out.push(g);
+  // THE PICKED GOAL (Dave's pass-off, 2026-09-26: "with no project it lists
+  // live goals and saves the pick; with a project it shows the project's
+  // goal"). A task never claims two goals: with a project filed to a goal,
+  // the project decides and the pick is not read; a task with no project
+  // (or a project climbing to nothing) moves the goal it was filed to on
+  // its sheet. A pick on a goal that is no longer live (not in the index)
+  // moves nothing, like a stale project.
+  const gid = task.data.goalId;
+  if (out.length === 0 && gid && idx.titleOf.has(gid)) out.push(gid);
   return out;
 }
 

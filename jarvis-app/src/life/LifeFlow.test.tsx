@@ -59,7 +59,9 @@ describe("LifeFlow", () => {
     // below is unchanged, and the toggle is how a person reaches it too.
     await screen.findByText("Add Project");
     fireEvent.click(screen.getByLabelText("Show as a list"));
-    const row = screen.getAllByText("Kitchen remodel").map((e) => e.closest(".task-row")).find(Boolean) as HTMLElement;
+    // AMENDED 2026-09-26 (pass-off): his typed title is SHOWN in Title Case
+    // ("Kitchen remodel" reads "Kitchen Remodel"); the record keeps his typing.
+    const row = screen.getAllByText("Kitchen Remodel").map((e) => e.closest(".task-row")).find(Boolean) as HTMLElement;
     expect(row).toBeTruthy();
     // THE CATEGORY IS THE ORGANIZER (Dave 2026-09-09: "projects should be
     // organized much more like goals. The category should be the main
@@ -76,13 +78,15 @@ describe("LifeFlow", () => {
     expect(row.classList.contains("goal-row-ruled")).toBe(true);
     expect(row.querySelector(".gm-slot")).toBeTruthy();
     expect(row.querySelector(".pp")).toBeNull();
-    expect(row.querySelector(".r-is-goal")).toHaveTextContent("Build a six-month runway");
+    // AMENDED 2026-09-26 (pass-off): the goal chip SHOWS his typed title in
+    // Title Case; the record keeps "Build a six-month runway".
+    expect(row.querySelector(".r-is-goal")).toHaveTextContent("Build a Six-Month Runway");
     expect(screen.getByText("Add Project")).toBeInTheDocument();
     expect(screen.queryByText("Add Goal")).toBeNull();
 
     fireEvent.click(screen.getByRole("tab", { name: "Goals" }));
     fireEvent.click(await screen.findByLabelText("Show as a list"));
-    const goal = await screen.findByText("Build a six-month runway");
+    const goal = await screen.findByText("Build a Six-Month Runway"); // AMENDED 2026-09-26 (pass-off): Title Case display
     expect(goal.closest(".task-row.goal-row-ruled")).toBeTruthy();
     expect(document.querySelector(".task-row .pp")).toBeNull();
     expect(screen.getByText("Add Goal")).toBeInTheDocument();
@@ -110,7 +114,8 @@ describe("LifeFlow", () => {
       return ready ? <LifeFlow segment="goals" /> : null;
     }
     render(<NotesProvider userId="u1"><DoneSeeded /></NotesProvider>);
-    await screen.findByText("Build a six-month runway", {}, { timeout: 3000 });
+    // AMENDED 2026-09-26 (pass-off): his typed title is SHOWN in Title Case.
+    await screen.findByText("Build a Six-Month Runway", {}, { timeout: 3000 });
     // Folded: the finished goal is not on screen, only its count.
     expect(screen.queryByText("Get Health Insurance")).toBeNull();
     const receipt = screen.getByText("1 Done goal");
@@ -176,7 +181,7 @@ function DeepLinked({ lens }: { lens: "projects" | "goals" }) {
 describe("a deep link into the lens you are already on (LIFE-F-07)", () => {
   it("opens a project detail that arrives after the lens is mounted", async () => {
     render(<NotesProvider userId="deep-life-1"><DeepLinked lens="projects" /></NotesProvider>);
-    await screen.findAllByText("Kitchen remodel", {}, { timeout: 3000 });
+    await screen.findAllByText("Kitchen Remodel", {}, { timeout: 3000 }); // AMENDED 2026-09-26 (pass-off): Title Case display
     // The list, not the detail: the detail carries its own Back.
     expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Link It"));
@@ -185,7 +190,7 @@ describe("a deep link into the lens you are already on (LIFE-F-07)", () => {
 
   it("does the same for a goal on the Goals lens", async () => {
     render(<NotesProvider userId="deep-life-2"><DeepLinked lens="goals" /></NotesProvider>);
-    await screen.findAllByText("Build a six-month runway", {}, { timeout: 3000 });
+    await screen.findAllByText("Build a Six-Month Runway", {}, { timeout: 3000 }); // AMENDED 2026-09-26 (pass-off): Title Case display
     expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Link It"));
     await waitFor(() => expect(screen.getByLabelText("Back")).toBeInTheDocument());
@@ -281,7 +286,7 @@ function ProjectLinked() {
 describe("a project link is spent once (LIFE-F-08)", () => {
   it("does not reopen the detail after a segment round trip", async () => {
     render(<NotesProvider userId="deep-life-4"><ProjectLinked /></NotesProvider>);
-    await screen.findAllByText("Kitchen remodel", {}, { timeout: 3000 });
+    await screen.findAllByText("Kitchen Remodel", {}, { timeout: 3000 }); // AMENDED 2026-09-26 (pass-off): Title Case display
     fireEvent.click(screen.getByText("Link It"));
     await waitFor(() => expect(screen.getByLabelText("Back")).toBeInTheDocument());
 
@@ -291,7 +296,7 @@ describe("a project link is spent once (LIFE-F-08)", () => {
     fireEvent.click(screen.getByText("Flip Lens"));
     await waitFor(() => expect(screen.getByText("Add Goal")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Flip Lens"));
-    await screen.findAllByText("Kitchen remodel", {}, { timeout: 3000 });
+    await screen.findAllByText("Kitchen Remodel", {}, { timeout: 3000 });
 
     expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
   });

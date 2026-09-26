@@ -269,10 +269,13 @@ export default function TaskSheet({
   // pick first, then by area, then by name (shared/pickerSort), with a
   // search field at the top of the menu.
   const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
+  const areaDotOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.color : undefined);
   // His titles are SHOWN in Title Case, in the menu and on the row alike
-  // (Dave's pass-off, 2026-09-26); the value stays the id.
-  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category) })), projectId)
-    .map((p) => ({ value: p.id, label: titleCase(p.title) }));
+  // (Dave's pass-off, 2026-09-26); the value stays the id. Each option wears
+  // its area's dot (the lead, 2026-09-26), so the area-then-name order reads
+  // as grouping rather than as no order at all.
+  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId)
+    .map((p) => ({ value: p.id, label: titleCase(p.title), ...(p.dot ? { dot: p.dot as string } : {}) }));
   // UP-CORE-02: null means he has not said how long, which is different from
   // zero and is what lets the learned median keep answering.
   const [estimateMin, setEstimateMin] = useState<number | null>(initial?.estimateMin ?? null);
@@ -400,7 +403,9 @@ export default function TaskSheet({
 
   const showNotes = mode === "edit" && (linkedNotes.length > 0 || !!onAddNote);
   const showActions = mode === "edit" && (!!onSchedule || (!!onBreakDown && !!text.trim()) || !!onTextPerson || !!onDelete);
-  const planLine = planOpen ? null : planTouched ? (planWeak ?? sentence(draftPlan)) : "Not set";
+  // "Not Set" (Dave's pass-off, 2026-09-26: every line the app writes is
+  // Title Case, the sheet's sub lines included).
+  const planLine = planOpen ? null : planTouched ? (planWeak ?? sentence(draftPlan)) : "Not Set";
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
@@ -585,7 +590,8 @@ export default function TaskSheet({
               <Tile tone="blue"><Tag className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Area</div>
-                {cats.length > 1 && <div className="conn-meta">{primaryName} is the main one</div>}
+                {/* Title Case on the sub line too (Dave's pass-off, 2026-09-26). */}
+                {cats.length > 1 && <div className="conn-meta">{primaryName} Is the Main One</div>}
               </div>
               <HeadMenu variant="value" ariaLabel="Area" value={category} label={areaWord} off={cats.length === 0} multi picked={cats}
                 options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color as string }))]}
@@ -641,27 +647,23 @@ export default function TaskSheet({
                 nothing; it is the same menu Project's is now, and a project
                 pick still fills it. The derived line survives only for a
                 caller that hands over no goals. */}
-            {goals.length > 0 || projectId ? (
-              <div className="row xs-row" onClick={tapField}>
-                <Tile tone="red"><TargetGlyph /></Tile>
-                <div className="conn-name">Goal</div>
-                {project
-                  ? <HeadMenu variant="value" ariaLabel="Goal" value={projectId} label={goalTitle || "None"} off={goalTitle === ""}
-                      options={[{ value: "", label: "None" }, ...projectOptions]}
-                      search="Search Projects"
-                      onPick={pickProject} />
-                  : <HeadMenu variant="value" ariaLabel="Goal" value={goalId} label={goalTitle || "None"} off={goalTitle === ""}
-                      options={[{ value: "", label: "None" }, ...sortPicks(goals, goalId).map((g) => ({ value: g.id, label: titleCase(g.title) }))]}
-                      search="Search Goals"
-                      onPick={setGoalId} />}
-              </div>
-            ) : (
-              <div className="row xs-row">
-                <Tile tone="red"><TargetGlyph /></Tile>
-                <div className="conn-name">Goal</div>
-                <div className="row-val">{goalTitle || "None"}</div>
-              </div>
-            )}
+            {/* Always the menu, like its four neighbours: with no goals to
+                offer it says None and offers None, the same as Person and
+                Event do with nothing to pick, never a value that looks like
+                a control and is not (O.9). */}
+            <div className="row xs-row" onClick={tapField}>
+              <Tile tone="red"><TargetGlyph /></Tile>
+              <div className="conn-name">Goal</div>
+              {project
+                ? <HeadMenu variant="value" ariaLabel="Goal" value={projectId} label={goalTitle || "None"} off={goalTitle === ""}
+                    options={[{ value: "", label: "None" }, ...projectOptions]}
+                    search="Search Projects"
+                    onPick={pickProject} />
+                : <HeadMenu variant="value" ariaLabel="Goal" value={goalId} label={goalTitle || "None"} off={goalTitle === ""}
+                    options={[{ value: "", label: "None" }, ...sortPicks(goals, goalId).map((g) => ({ value: g.id, label: titleCase(g.title) }))]}
+                    search="Search Goals"
+                    onPick={setGoalId} />}
+            </div>
             {/* EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not
                 tied to task modals"). The event page could file a task to
                 itself from the day it was built, and that was the wrong half
@@ -687,9 +689,9 @@ export default function TaskSheet({
               <Tile tone="sky"><PinGlyph /></Tile>
               <div className="row-grow">
                 <div className="conn-name">When and Where</div>
-                {planLine && planLine !== "Not set" && <div className="conn-meta">{planLine}</div>}
+                {planLine && planLine !== "Not Set" && <div className="conn-meta">{planLine}</div>}
               </div>
-              {planLine === "Not set" && <span className="conn-meta">Not set</span>}
+              {planLine === "Not Set" && <span className="conn-meta">Not Set</span>}
               <div className={"chev chev-down" + (planOpen ? " chev-open" : "")} />
             </div>
             {planOpen && (

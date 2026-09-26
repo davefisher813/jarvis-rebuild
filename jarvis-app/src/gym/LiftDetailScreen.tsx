@@ -4,15 +4,15 @@ import type { Workout, MeasureKind } from "./types";
 import type { Goal } from "../life/types";
 import { formatSet, inUnit, LB_PER_KG } from "./measures";
 import { movedFact } from "./history";
-import { liftSessions, chartValue, chartLabel, prIndexes, weeklySetCounts, weeklyVolume, daysAgo, e1rm } from "./chartData";
+import { liftSessions, chartValue, chartLabel, prIndexes, weeklySetCounts, weeklyVolume, daysAgo } from "./chartData";
 import { bestBefore } from "./prs";
-import { plateauFlag, hardSetRows, volumeBreakdown, type MuscleMap } from "./insights";
+import { plateauFlag, hardSetRows, volumeBreakdown, estimateEvidence, type MuscleMap } from "./insights";
 import { liftMeasureState, type LiftMeasure } from "./goalMeasures";
 import { activeMetrics, numericValue, type MetricDef, type MetricLog } from "./metrics";
 import { MUSCLE_LABEL, type MuscleGroup } from "./muscles";
-import { identityLine, valueLine, type Chip, type Classification } from "./classify";
-import { capAfterNumber, liftTitle } from "../shared/casing";
-import { agoPhrase, agoPhraseLower } from "./summary";
+import { identityLine, valueLine, BATCH_LABEL, type Chip, type Classification } from "./classify";
+import { lineCase, liftTitle } from "../shared/casing";
+import { agoPhrase } from "./summary";
 import { todayISO } from "../tasks/grouping";
 import { shortDate } from "../shared/dateFormat";
 import InsightEvidence from "../brain/InsightEvidence";
@@ -174,11 +174,12 @@ export default function LiftDetailScreen({
     return hardSetRows(workouts, new Map([[name, [muscleGroup]]]), now)[0]?.sets ?? 0;
   }, [muscleGroup, name, workouts, now]);
 
-  // §7: "A long performance sentence clipped mid-line" becomes three fields.
-  // The change is the FIRST session's value against the LATEST, in the unit
-  // this screen is showing, and the comparison period is the two dates that
-  // produced it -- said out loud, because a change with no window behind it
-  // is a number nobody can check.
+  // WHAT THE ESTIMATE DID OVER THE CHART'S WINDOW (pass-off item 7,
+  // 2026-09-26). The FIRST session's chart value against the LATEST, in the
+  // unit this screen is showing. It used to be an unlabelled "Change" cell
+  // on the Best card, where a reader could not tell it was the change in an
+  // ESTIMATE; it reads under the Trend card's headline now, in the estimate
+  // ink, next to the chart whose two ends produced it.
   const change = useMemo(() => {
     if (chartVals.length < 2) return null;
     const first = chartVals[0]!;
@@ -193,12 +194,13 @@ export default function LiftDetailScreen({
   // BEST RECORDED SET (2026-09-14, the reference's Exercise progress page):
   // the one set that beat every other, its date, and how many sessions
   // stand behind it. The same bestBefore the PR mark reads, so the two can
-  // never disagree. weight_reps also gets the Epley estimate, behind a row,
-  // labelled as an estimate and never a suggested weight.
+  // never disagree. The Epley estimate has ONE home on this page since
+  // pass-off item 7 (2026-09-26): the Trend card, whose headline it is. The
+  // second capsule this card carried ("Estimated One-Rep Max", from the
+  // best set) could disagree with the headline (from the latest session),
+  // and its caveat clipped at 390.
   const best = useMemo(() => bestBefore(workouts, lift, kind), [workouts, lift, kind]);
   const bestShown = best ? inUnit(kind, best.set, best.unit, unit) : null;
-  const bestE1rm = kind === "weight_reps" && bestShown && bestShown.w != null && bestShown.r != null && bestShown.r > 0 ? e1rm(bestShown.w, bestShown.r) : null;
-  const [e1rmOpen, setE1rmOpen] = useState(false);
   const [contribOpen, setContribOpen] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(false);
   /** WHICH SETS MADE THAT NUMBER (§8: "View contributing sets"). The same
@@ -221,6 +223,16 @@ export default function LiftDetailScreen({
   const label = chartLabel(kind);
   const latest = chartVals.length ? chartVals[chartVals.length - 1]! : null;
   const todayIso = todayISO();
+  /** A number in this screen's unit, cased by the whole rule ("320 Lb"). */
+  const withUnit = (n: number | string) => lineCase(unit ? `${n} ${unit}` : `${n}`);
+  /** The set, cased for display ("185 Lb × 5"); formatSet itself stays
+   *  lowercase for the strip's own chips and the receipts that read it. */
+  const setLine = (x: import("./types").SetLog) => lineCase(formatSet({ kind, unit, timeUnit }, x));
+  /** The estimate's move over the chart's window, in words. */
+  const moved = change == null ? null
+    : change.delta > 0 ? `Up ${withUnit(Math.round(change.delta * 10) / 10)}`
+    : change.delta < 0 ? `Down ${withUnit(Math.round(-change.delta * 10) / 10)}`
+    : "No Change";
 
   return (
     <div className="screen ruled health-ruled">
@@ -246,22 +258,17 @@ export default function LiftDetailScreen({
           {best && bestShown && (
             <>
               <div className="pad-x"><div className="card pad">
-                {/* THREE FIELDS, NOT A SENTENCE (§7). Best set, what it has
-                    changed by, and the window that comparison covers -- each
-                    one labelled, each one wrapping rather than clipping. */}
+                {/* LABELLED FIELDS, NOT A SENTENCE (§7): the best set and
+                    the sessions behind it, then the window, each one
+                    wrapping rather than clipping. Recorded facts only; the
+                    estimate and its change are the Trend card's. */}
                 <div className="row">
                   <div className="row-grow">
                     <div className="ex-cells">
                       <div className="ex-cell">
-                        <div className="ex-cell-n">{formatSet({ kind, unit, timeUnit }, bestShown)}</div>
+                        <div className="ex-cell-n">{setLine(bestShown)}</div>
                         <div className="ex-cell-k">Best Set</div>
                       </div>
-                      {change && (
-                        <div className="ex-cell">
-                          <div className="ex-cell-n">{`${change.delta > 0 ? "+" : ""}${Math.round(change.delta * 10) / 10}${unit ? " " + unit : ""}`}</div>
-                          <div className="ex-cell-k">Change</div>
-                        </div>
-                      )}
                       <div className="ex-cell">
                         <div className="ex-cell-n">{sessions.length}</div>
                         <div className="ex-cell-k">{sessions.length === 1 ? "Session" : "Sessions"}</div>
@@ -277,19 +284,6 @@ export default function LiftDetailScreen({
                   </div>
                   {celebrate && <span className="se-pr">PR</span>}
                 </div>
-                {bestE1rm != null && (
-                  <>
-                    <div className="ins-acts">
-                      <button type="button" className="pill-act pill-quiet" aria-expanded={e1rmOpen} onClick={() => setE1rmOpen((o) => !o)}>{e1rmOpen ? "Hide the Estimate" : "Estimated One-Rep Max"}</button>
-                    </div>
-                    {e1rmOpen && (
-                      <div className="facts">
-                        <span className="fact est">{`${bestE1rm}${unit ? " " + unit : ""}`}</span>
-                        <span className="fact">Epley estimate, not a tested lift or a suggested weight</span>
-                      </div>
-                    )}
-                  </>
-                )}
               </div></div>
             </>
           )}
@@ -298,25 +292,31 @@ export default function LiftDetailScreen({
             <div className="pad-x"><div className="card list-card-ruled">
               <div className="row">
                 <div className="row-grow">
-                  <div className="conn-name">Best so far · {formatSet({ kind, unit, timeUnit }, shownTop(sessions[sessions.length - 1]!))}</div>
+                  {/* The set is the title, with no dot baked into it
+                      (pass-off item 7, 2026-09-26). */}
+                  <div className="conn-name">{setLine(shownTop(sessions[sessions.length - 1]!))}</div>
                   {/* §AM (2026-09-26): two facts, not one grey run joined
                       by baked dots. The estimate is sky; the date is a
                       neutral date, so small caps. A non-weight kind's "Best"
                       value is the set in the title again, so it is left
-                      out. The estimate's caveat is on the Best card above. */}
+                      out. The estimate's receipt opens once the chart does. */}
                   <div className="facts">
-                    {kind === "weight_reps" && latest != null && <span className="fact est">{`Est 1RM ${latest}${unit ? " " + unit : ""}`}</span>}
-                    <span className="fact date">{`Logged ${agoPhraseLower(sessions[sessions.length - 1]!.date, todayIso)}`}</span>
+                    {kind === "weight_reps" && latest != null && <span className="fact est">{`Est. Max ${withUnit(latest)}`}</span>}
+                    <span className="fact date">{`Logged ${agoPhrase(sessions[sessions.length - 1]!.date, todayIso)}`}</span>
                   </div>
                 </div>
               </div>
-              <div className="row"><div className="row-grow"><div className="conn-meta">The trend line starts at your second session</div></div></div>
+              <div className="row"><div className="row-grow"><div className="conn-meta">Trend Starts at Session 2</div></div></div>
             </div></div>
           ) : (
             <div className="pad-x"><div className="card pad banner-blue">
               <div className="row-stack">
-                {/* H-31 / H-34: the unit joins the caption. */}
-                <div className="conn-meta">{unit ? `${label}, ${unit}` : label}</div>
+                {/* THE INSIGHT, CLEAN (pass-off item 7, 2026-09-26; Dave:
+                    "rendered nice and clean and simple"). An 11px caps
+                    kicker names the number, the kicker the Plateau card
+                    already uses; the caption that named Epley and the
+                    caveat is behind Evidence at the card's foot. */}
+                <div className="eyebrow">{label}</div>
                 {/* The latest number is white (§AM: a number with no state).
                     For weight_reps it is the Epley estimate, so it wears the
                     estimate primitive (sky); .fact has no size of its own and
@@ -324,8 +324,14 @@ export default function LiftDetailScreen({
                 <div className="p3-q">{latest == null
                   ? "--"
                   : kind === "weight_reps"
-                    ? <span className="fact est">{`${latest}${unit ? " " + unit : ""}`}</span>
-                    : `${latest}${unit ? " " + unit : ""}`}</div>
+                    ? <span className="fact est">{withUnit(latest)}</span>
+                    : withUnit(latest)}</div>
+                {/* What it did over the chart's window, in the same ink: one
+                    fact, no goal read, no prompt (the no-predicted-max rule
+                    stands). */}
+                {kind === "weight_reps" && moved && (
+                  <div className="facts"><span className="fact est">{moved}</span></div>
+                )}
               </div>
               <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="lift-chart" role="img"
                 aria-label={`${name} ${label} trend over ${sessions.length} sessions`}>
@@ -354,29 +360,36 @@ export default function LiftDetailScreen({
                       estimate is sky. A non-weight kind's chart value is the
                       set again, so it is not said twice. */}
                   <span className="fact date">{shortDate(sessions[sel]!.date)}</span>
-                  <span className="fact">{formatSet({ kind, unit, timeUnit }, shownTop(sessions[sel]!))}</span>
-                  {kind === "weight_reps" && <span className="fact est">{`Est ${chartVals[sel]}${unit ? " " + unit : ""}`}</span>}
+                  <span className="fact">{setLine(shownTop(sessions[sel]!))}</span>
+                  {kind === "weight_reps" && <span className="fact est">{`Est ${withUnit(chartVals[sel]!)}`}</span>}
                 </div>
               )}
               {/* Three facts in one grey run-on, and the two that matter --
                   how many sessions and how many bests -- were at the end of
                   it. Chips, aligned, the PR count in the ramp's lime. */}
               <div className="se-chips">
-                <span className="se-chip se-chip-when">{agoPhrase(sessions[0]!.date, todayIso)} to {agoPhraseLower(sessions[sessions.length - 1]!.date, todayIso)}</span>
+                {/* Both ends as dates, the way the Best card states the
+                    same span, so the page says one range one way. */}
+                <span className="se-chip se-chip-when">{shortDate(sessions[0]!.date)} to {shortDate(sessions[sessions.length - 1]!.date)}</span>
                 <span className="se-chip se-chip-last">{sessions.length}<em>Sessions</em></span>
                 {prs.size > 0 && readHealthSettings().celebrations && <span className="se-chip se-chip-best">{prs.size}<em>{prs.size === 1 ? "PR" : "PRs"}</em></span>}
               </div>
+              {/* Epley, and what the number is not, one tap away: the same
+                  receipt every finding opens (polish rule 3, 2026-09-16:
+                  methodology behind a labelled disclosure). */}
+              {kind === "weight_reps" && <InsightEvidence evidence={estimateEvidence(sessions)} />}
             </div></div>
           )}
 
           <div className="sh2 sh2-quiet"><span className="t">Weekly Work</span></div>
           <div className="pad-x"><div className="card pad">
             <Bars vals={setBars} tint="blue" />
-            <div className="conn-meta">Working sets, last {WEEKS} weeks</div>
+            <div className="conn-meta">{`Working Sets, Last ${WEEKS} Weeks`}</div>
             {volBars && (
               <>
                 <Bars vals={volBars.map((v) => v)} tint="warn" />
-                <div className="conn-meta">{unit ?? "lb"} moved, last {WEEKS} weeks</div>
+                {/* The unit spelled out as a word, since it leads the line. */}
+                <div className="conn-meta">{`${unit === "kg" ? "Kilograms" : "Pounds"} Moved, Last ${WEEKS} Weeks`}</div>
               </>
             )}
           </div></div>
@@ -400,9 +413,9 @@ export default function LiftDetailScreen({
                     <div className="row-grow">
                       {/* One grey line, not two (§AK): an empty lane says so
                           in the caption itself. */}
-                      <div className="conn-meta">{laneVals.every((v) => v == null)
+                      <div className="conn-meta">{lineCase(laneVals.every((v) => v == null)
                         ? `Not enough ${lane.data.name} records in these ${WEEKS} weeks`
-                        : `${lane.data.name}, same ${WEEKS} weeks`}</div>
+                        : `${lane.data.name}, same ${WEEKS} weeks`)}</div>
                     </div>
                     {/* A TEXT ACTION, NOT A CAPSULE (2026-09-16, polish rule
                         2, which names this family by name: View Sets, View
@@ -423,18 +436,42 @@ export default function LiftDetailScreen({
             /* GYM-F-28 (2026-09-05): the goal card was a flat panel, so a goal
                set here could only be changed from Bigger Picture. It opens the
                same sheet that made it, now in edit mode. */
-            <div className="pad-x"><div className={"card pad " + (goalState.met ? "banner-good" : "banner-yellow")}
+            /* READABLE AT A GLANCE (pass-off item 8, 2026-09-26). The card
+               is plain while the goal is in flight -- the yellow wash meant
+               "in flight", which is not a meaning in the Colour Key, and
+               light never drew it -- with the bar green for logged progress,
+               and the card turns green once the goal is hit. For a
+               weight_reps goal the amount left leads, white on the right
+               ("15 Lb to Go"), and the line under the title reads "310 of
+               325 Lb" with the current best in white (§AM F1), the rep
+               floor named only when it is above 1 so "205 of 225" never
+               hides a 5-rep floor. Hit, not Done: done is Dave's call. */
+            <div className="pad-x"><div className={"card pad" + (goalState.met ? " banner-good" : "")}
               role="button" tabIndex={0} aria-label="Edit Goal" onClick={onSetGoal}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSetGoal(); } }}>
-              <div className="row-stack">
-                <div className="conn-name">{goal.data.title}</div>
-                <div className="conn-meta">{goalState.line}</div>
-              </div>
+              {(() => {
+                const m = goal.data.measure as LiftMeasure;
+                const wr = m.measureKind === "weight_reps";
+                const r = wr && m.target.r != null && m.target.r > 1 ? ` × ${m.target.r}` : "";
+                const left = Math.max(0, Math.round((goalState.target - goalState.done) * 10) / 10);
+                return (
+                  <div className="row">
+                    <div className="row-grow">
+                      <div className="conn-name">{goal.data.title}</div>
+                      {wr
+                        ? <div className="facts"><span className="fact"><b>{goalState.done}</b>{` of ${lineCase(`${goalState.target}${m.unit ? " " + m.unit : ""}`)}${r}`}</span></div>
+                        : <div className="conn-meta">{goalState.line}</div>}
+                    </div>
+                    {wr && (goalState.met
+                      ? <div className="row-value"><span className="fact lime">Hit</span></div>
+                      : <div className="row-value"><span className="fact"><b>{lineCase(`${left}${m.unit ? " " + m.unit : ""} to go`)}</b></span></div>)}
+                  </div>
+                );
+              })()}
               {/* §AM (2026-09-26): the fill is .bp-bar-fill's own, the
                   same bar every goal in Bigger Picture draws. A category
                   colour belongs on a dot, never on progress. */}
               <div className="bp-bar"><div className="bp-bar-fill" style={{ width: `${goalState.pct}%` }} /></div>
-              {goalState.met && <span className="pill pill-good">Goal</span>}
             </div></div>
           ) : (
             <div className="pad-x"><div className="card list-card-ruled">
@@ -454,7 +491,7 @@ export default function LiftDetailScreen({
               <div className="pad-x"><div className="card list-card-ruled banner-warn">
                 <div className="row">
                   <div className="row-grow">
-                    <div className="conn-name">{capAfterNumber(`${plateau.flatSessions} sessions with no new best`)}</div>
+                    <div className="conn-name">{lineCase(`${plateau.flatSessions} sessions with no new best`)}</div>
                     {/* §AM (2026-09-26): three facts, the separator drawn by
                         CSS. The stalled current value is amber, the same
                         reading the Brain plateau card gives, and it leads:
@@ -492,29 +529,38 @@ export default function LiftDetailScreen({
             <>
               <div className="sh2 sh2-quiet"><span className="t">Classification</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
+                {/* TWO MUSCLE ROWS (pass-off item 8, 2026-09-26), named the
+                    way Select mode already names them (BATCH_LABEL), each
+                    value its row's one grey; one line holding both would
+                    have put two plain greys on one line (§AK). Both open the
+                    same Muscles question of the shared editor. */}
                 {([
-                  { field: "muscles" as const, label: "Muscles" },
-                  { field: "equipment" as const, label: "Equipment" },
-                  { field: "measure" as const, label: "Measurement" },
-                  { field: "movement" as const, label: "Movement" },
-                  { field: "type" as const, label: "Type" },
-                  { field: "execution" as const, label: "Execution" },
-                  { field: "tag" as const, label: "Tags" },
+                  { field: "muscles" as const, key: "muscles-primary", label: BATCH_LABEL.primary,
+                    value: classification.primary.length ? classification.primary.map((m) => MUSCLE_LABEL[m]).join(", ") : null },
+                  { field: "muscles" as const, key: "muscles-secondary", label: BATCH_LABEL.secondary,
+                    value: classification.secondary.length ? classification.secondary.map((m) => MUSCLE_LABEL[m]).join(", ") : null },
+                  { field: "equipment" as const, key: "equipment", label: "Equipment", value: valueLine(classification, "equipment") },
+                  { field: "measure" as const, key: "measure", label: "Measurement", value: valueLine(classification, "measure") },
+                  { field: "movement" as const, key: "movement", label: "Movement", value: valueLine(classification, "movement") },
+                  { field: "type" as const, key: "type", label: "Type", value: valueLine(classification, "type") },
+                  { field: "execution" as const, key: "execution", label: "Execution", value: valueLine(classification, "execution") },
+                  { field: "tag" as const, key: "tag", label: "Tags", value: valueLine(classification, "tag") },
                 ]).map((f) => {
-                  const v = valueLine(classification, f.field);
+                  const v = f.value;
                   return (
-                    <div className="row" key={f.field} role="button" tabIndex={0}
+                    <div className="row" key={f.key} role="button" tabIndex={0}
                       onClick={() => onEditClass(f.field)}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEditClass(f.field); } }}>
                       <div className="row-grow">
                         <div className="conn-name">{f.label}</div>
                         {/* An unset field says nothing (§AK: a placeholder
-                            is not a fact). Muscles alone asks, because the
+                            is not a fact). Primary Muscles alone asks, and
+                            only when neither list has anything, because the
                             volume row cannot count without it. */}
                         {v
                           ? <div className="facts"><span className="fact">{v}</span></div>
-                          : f.field === "muscles"
-                            ? <div className="facts"><span className={"fact amber"}>Assign muscles</span></div>
+                          : f.key === "muscles-primary" && classification.secondary.length === 0
+                            ? <div className="facts"><span className={"fact amber"}>Assign Muscles</span></div>
                             : null}
                       </div>
                       {CHEV}
@@ -551,7 +597,7 @@ export default function LiftDetailScreen({
                 </div>
                 <div className="facts">
                   <span className="fact date">{`${shortDate(weekFrom)} to ${shortDate(todayIso)}`}</span>
-                  <span className="fact">Warm-ups and drop sets left out</span>
+                  <span className="fact">Warm-Ups and Drop Sets Left Out</span>
                 </div>
                 {contributions.length > 0 && (
                   <>
@@ -573,7 +619,7 @@ export default function LiftDetailScreen({
                               only a secondary one owes the reader its half. */}
                           <div className="facts">
                             <span className="fact date">{shortDate(v.date)}</span>
-                            <span className="fact"><b>{v.sets}</b> {v.sets === 1 ? "set" : "sets"}{v.primary ? "" : ", secondary, counted half"}</span>
+                            <span className="fact"><b>{v.sets}</b> {v.sets === 1 ? "Set" : "Sets"}{v.primary ? "" : ", Secondary, Counted Half"}</span>
                           </div>
                         </div>
                       </div>
@@ -639,7 +685,7 @@ export default function LiftDetailScreen({
             </div>
             {best && bestShown && (
               <div className="row">
-                <div className="row-grow"><div className="conn-name">{`Best ${formatSet({ kind, unit, timeUnit }, bestShown)}`}</div><div className="facts"><span className="fact date">{shortDate(best.date)}</span></div></div>
+                <div className="row-grow"><div className="conn-name">{`Best ${setLine(bestShown)}`}</div><div className="facts"><span className="fact date">{shortDate(best.date)}</span></div></div>
               </div>
             )}
           </div></div>
@@ -652,14 +698,14 @@ export default function LiftDetailScreen({
               // between a head and a card it read as a stray line (live
               // screenshot, 2026-09-01).
               const fact = movedFact(workouts, lift);
-              return fact ? <div className="row"><div className="row-grow"><div className="conn-meta">{fact}</div></div></div> : null;
+              return fact ? <div className="row"><div className="row-grow"><div className="conn-meta">{lineCase(fact)}</div></div></div> : null;
             })()}
             {receipts.map((s) => (
               // GYM-F-30 (2026-09-05): keyed by the workout, not the date --
               // two sessions can land on one day.
               <div className="row" key={s.workoutId}>
                 <div className="row-grow">
-                  <div className="conn-name">{formatSet({ kind, unit, timeUnit }, shownTop(s))}</div>
+                  <div className="conn-name">{setLine(shownTop(s))}</div>
                   <div className="conn-meta">{agoPhrase(s.date, todayIso)}</div>
                 </div>
                 {prs.has(sessions.indexOf(s)) && <span className="pill pill-good">PR</span>}
