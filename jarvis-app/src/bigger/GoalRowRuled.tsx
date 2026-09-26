@@ -108,7 +108,11 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
         {bar && <Bar p={bar} />}
         {empty && onAddProject && (
           <div className="goal-meter">
-            <button type="button" className="note-fix goal-add-proj"
+            {/* The small capsule, not the inline-fix one: measured on the
+                ruled card in dark, --tint on the note-fix's alpha fill read
+                4.44:1; the capsule's opaque fill clears 4.5 on every ground
+                (§AL). */}
+            <button type="button" className="pill-act goal-add-proj"
               onClick={(e) => { e.stopPropagation(); onAddProject(); }}>Add a Project</button>
           </div>
         )}
