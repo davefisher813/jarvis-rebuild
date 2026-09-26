@@ -777,8 +777,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .fresh-faded { color: var(--tx-3); }
 /* Focus + Plan My Day as a pair: Focus keeps the accent (one red action per
    screen), Plan My Day drops to the quiet fill. */
-.plan-cta-pair { display: flex; gap: var(--s-2h); }
-.plan-cta-pair .plan-cta { width: auto; flex: 1; }
+/* The pair wraps to two rows when its two labels do not fit one (type scale
+   1.4 at 390px: "Plan Tomorrow" beside "Running Late?" ran 51px past the
+   edge and scrolled the whole screen sideways, 2026-09-26). */
+.plan-cta-pair { display: flex; flex-wrap: wrap; gap: var(--s-2h); }
+.plan-cta-pair .plan-cta { width: auto; flex: 1 1 auto; }
 .plan-cta.plan-cta-ghost { background: var(--press-3); color: var(--tx-1); box-shadow: none; }
 /* Quiet right-slot actions in section headers (Not Now, dismiss): same seat as
    See All, calmer color. The question line sits under the header, outside the
@@ -1113,6 +1116,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Day progress ring in the Today hero (RDB, Dave 2026-07-29): fills as
    due-today tasks complete; pops once full. Hidden when nothing is due. */
 .today-hero-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+/* The text column shrinks beside the ring: without min-width: 0 a long
+   evening facts line ("13 Done Today · Moved Ship the App Store Launch") held
+   its full width and pushed the whole hero 120px past the edge at type scale
+   1.4, and the facts line's own ellipsis never got the chance (2026-09-26). */
+.today-hero-row > :first-child { min-width: 0; flex: 1 1 auto; }
 /* THE HERO RING, .dring (Astra pass, Dave's picks 2026-09-12). The 44px SVG
    arc with its "Due" caption becomes the 64px conic ring the approved
    harness draws: completion green over the press ground, done/total inside
