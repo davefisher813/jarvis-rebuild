@@ -2213,6 +2213,11 @@ export default function CategoryDetail({
             title={`${DOW_PLURAL[learnedDay.dow]} Get the Most Done`}
             sub={<div className="facts"><span className="fact"><Nums text={lineCase(`${learnedDay.count} of ${learnedDay.total} done on ${DOW_PLURAL[learnedDay.dow]}`)} /></span></div>}
             action={{ label: `Line Up ${learnedDay.lineUp.length} for ${DOW_FULL[learnedDay.dow]}`, onClick: () => void lineUpForDay() }}
+            // The capsule names the count and the day ("Line Up 3 for
+            // Wednesday", Dave's words), which is too long to sit beside a
+            // title on a 390 screen without crushing it to "Wedne..."; the
+            // stacked form puts it full-width under the words.
+            stack
             onOpen={() => upNextRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
             automation="learned-day"
             onTune={(choice) => void tune("learned-day", choice, `${DOW_PLURAL[learnedDay.dow]} Get the Most Done`)}

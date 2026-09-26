@@ -3485,8 +3485,15 @@ button {
   -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
   border-bottom: 0.5px solid var(--divider); padding-top: calc(var(--s-1) + var(--safe-top, env(safe-area-inset-top, 0px))); }
 [data-theme="light"] .nav-bar { background: rgba(249,249,251,0.86); }
-/* The condensed title is the condensed title, whichever bar is drawing it. */
-.nav-bar .nav-title { position: absolute; left: 0; right: 0; text-align: center; pointer-events: none;
+/* The condensed title is the condensed title, whichever bar is drawing it.
+   AMENDED 2026-09-26 (audit leftovers): it was position: absolute, left 0,
+   right 0, centred on the whole bar, so at --type-scale 1.4 "Pull Day" ran
+   under Pause on the live workout. It is the middle column of the bar's
+   grid now (the AUDIT LEFTOVERS block at the foot of this file): centred on
+   the bar when it fits between the wider side mirrored, shifted into the
+   free middle when it does not, and ellipsized there before it touches an
+   action. */
+.nav-bar .nav-title { grid-column: 2; min-width: 0; text-align: center; pointer-events: none;
   font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -5037,7 +5044,10 @@ body.selecting .voice-dock { display: none; }
    .plan-cta-pair took on Today); the This Week card's offer wears this same
    pair now, so the two surfaces of the One Change agree. */
 .rep-one-acts { display: flex; flex-wrap: wrap; gap: var(--s-2h); margin-top: var(--s-3h); }
-.rep-one-acts .btn { flex: 1 1 auto; }
+/* Each starts at its label's width and both grow to fill the row, so a long
+   primary label stays on one line beside its dismiss at 390; at type scale
+   1.4 the two no longer fit and the pair stacks, each the full width. */
+.rep-one-acts .btn { flex: 1 1 auto; width: auto; padding-left: var(--s-2h); padding-right: var(--s-2h); }
 .rep-one-foot { margin-top: var(--s-2h); }
 @media (prefers-reduced-motion: reduce) {
   .rep-hours i, .rep-stack i { transition: none; }
@@ -6579,7 +6589,10 @@ span.row-star { cursor: default; }
 .mt-monthnav { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
 .mt-monthname { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
 
-.mt-accts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2h); }
+/* AMENDED 2026-09-26 (pass-off item 16): two across at 390, one across once
+   the type scale makes a balance wider than half the row ("$26,512.41" ran
+   out of its tile at 1.4). */
+.mt-accts { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(140px * var(--type-scale)), 1fr)); gap: var(--s-2h); }
 .mt-acct { padding: var(--s-3); }
 .mt-acct-name { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
   text-transform: uppercase; color: var(--tx-3); margin-bottom: var(--s-1); }
@@ -6587,11 +6600,15 @@ span.row-star { cursor: default; }
   font-variant-numeric: tabular-nums; }
 .mt-acct-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-0h); }
 
-.mt-sums { display: flex; gap: var(--s-2h); }
-.mt-sum { flex: 1; padding: var(--s-3); min-width: 0; }
+/* AMENDED 2026-09-26 (pass-off item 16): "-$1,145.68" clipped its last digit
+   in the Net tile at 390 (in Dave's own screenshot too). The tiles wrap and
+   keep their min-content, so a sum that cannot fit three across takes the
+   next line whole rather than losing a digit; the value is a step tighter. */
+.mt-sums { display: flex; flex-wrap: wrap; gap: var(--s-2h); }
+.mt-sum { flex: 1 1 28%; padding: var(--s-3) var(--s-2h); }
 .mt-sum-label { font-size: var(--t-meta); color: var(--tx-3); }
-.mt-sum-value { margin-top: var(--s-0h); font-size: calc(18px * var(--type-scale)); font-weight: var(--w-semi);
-  color: var(--tx-1); font-variant-numeric: tabular-nums; }
+.mt-sum-value { margin-top: var(--s-0h); font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.02em;
+  color: var(--tx-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mt-sum-value.good { color: var(--good); }
 
 .mt-note { font-size: var(--t-meta); color: var(--tx-3); margin-bottom: var(--s-2); }
@@ -6790,3 +6807,35 @@ span.row-star { cursor: default; }
 [data-theme="light"] .sheet-scrim > .card .chip.active.chip-violet { background: var(--hl-violet-tint); color: var(--hl-violet-ink); box-shadow: inset 0 0 0 1.5px var(--hl-violet-ink); }
 [data-theme="light"] .sheet-scrim > .card .chip.active.chip-cyan { background: var(--hl-cyan-tint); color: var(--hl-cyan-ink); box-shadow: inset 0 0 0 1.5px var(--hl-cyan-ink); }
 [data-theme="light"] .sheet-scrim > .card .chip.chip-half.chip-lime { background: none; color: var(--hl-lime-ink); box-shadow: inset 0 0 0 1px var(--hl-lime-ink); }
+
+/* ===== AUDIT LEFTOVERS (2026-09-26) ===== */
+/* THE CONDENSED TITLE NEVER RUNS UNDER THE BAR'S ACTIONS. .nav-title was
+   absolute, left 0 right 0, centred on the whole bar and blind to what sat
+   at its ends: at --type-scale 1.4 "Pull Day" painted through Pause on the
+   live workout (the title's ink 140..250, Pause from 216). A bar that holds
+   a condensed title is a three-column grid instead: the leading control,
+   the title, the trailing control(s). Both side columns are 1fr with their
+   content as a floor, so while the title fits between the WIDER side
+   mirrored, the sides are equal and the title is centred on the bar, as it
+   always was; when it does not, the wider side keeps its width, the title
+   takes the free middle (shifted, whole) and ellipsizes inside it before it
+   can touch an action. justify-self keeps each control its own size at its
+   own edge, so no back button or action grows a hit area it did not have.
+   The 8px column gap is the breath between the title and an action when
+   the title is pushed against one. Scoped with :has so a bar with no
+   condensed title (a large title beside a back button, an action beside a
+   large title) keeps its flex layout.
+   The floor is max-content, stated: a bare 1fr floors at the item's
+   MINIMUM CONTRIBUTION, which for .nav-back is its declared min-width of
+   44px and not its words, so "Cancel" (97px at type 1.4) was given an 83px
+   column and ran under "New Message" on the compose bar. */
+.nav-bar:has(> .nav-title) { display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); column-gap: var(--s-2); }
+.nav-bar:has(> .nav-title) > :not(.nav-title) { grid-column: 1; justify-self: start; }
+.nav-bar:has(> .nav-title) > .nav-title ~ * { grid-column: 3; justify-self: end; }
+/* A DECISION'S REASON READS WHOLE. The row's reason wore .truncate: one
+   line, and on every seeded row at 390 it lost a third to a half of itself
+   ("Because Ridgeline fields are locke…"), when the reason is the row's
+   point. It wraps, unclamped, and stays the row's one grey (§AK): the
+   facts line under it is the category dot, the key's outcome and the
+   small-caps date. */
+.dec-row .conn-meta { display: block; -webkit-line-clamp: none; overflow: visible; white-space: normal; text-overflow: clip; }

@@ -99,6 +99,10 @@ describe("Decision list anatomy", () => {
     expect(bare.querySelector(".conn-meta")).toBeNull();
     const reasoned = rows.find((r) => r.textContent!.includes("Student template"))!;
     expect(reasoned.querySelector(".conn-meta")!.textContent).toBe("Because Northlake gives 60 warm leads on day one");
+    // ADDED 2026-09-26 (audit leftovers): the reason is the row's point and
+    // it wraps rather than clipping to one line. It lost a third to a half
+    // of itself on every seeded row at 390 while it wore .truncate.
+    expect(reasoned.querySelector(".conn-meta")!.className).toBe("conn-meta");
   });
 });
 

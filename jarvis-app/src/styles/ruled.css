@@ -2985,6 +2985,13 @@
 /* THE WHOLE NEXT STEP (Dave: the area page's project rows). On its own line
    the step is free to wrap, where the lens's one-line form ellipsizes. */
 .ruled .proj-row-ruled .proj-next-line .r-next-v { white-space: normal; overflow: visible; text-overflow: clip; }
+/* THE KEEP GOING ROW SHOWS ALL THREE OF ITS FACTS (Dave: "make it real").
+   The row leads with the Remember star now, so its check and title sit in
+   the list's columns; that 30px is what the one-line clamp above needed for
+   TODAY, KEEP GOING and Same Area together, and the clamp hid the last two.
+   This row is the one suggestion on the page, not one of forty task rows,
+   so its facts line may take a second line rather than lose its own name. */
+.ruled .momentum-row .r-k-one { height: auto; overflow: visible; }
 /* THE EMPTY GOAL'S ONE MOVE (Dave: "Add a Project"): the inline-fix capsule
    the sheets already use, alone on the meter line. */
 .ruled .goal-row-ruled .goal-add-proj { margin-top: var(--s-1); }
@@ -2993,3 +3000,18 @@
 .hmenu-search { position: sticky; top: 0; z-index: 1; padding: var(--s-1h) var(--s-2h) var(--s-2); background: inherit; }
 .hmenu-search .search-bar { min-height: 40px; padding: var(--s-1) var(--s-2h); }
 .hmenu-search .search-bar input { font-size: calc(16px * var(--type-scale)); }
+
+/* ===== PASS-OFF BATCH 1, Insights / Money (2026-09-26) ===== */
+/* THE BALANCE LINE WRAPS (item 15). "As You Last Entered It · Sep 18 ·
+   4 Accounts" is one line on the hero card, not a list row, so the one-line
+   list rule (the last fact gives way) is not its rule: at type scale 1.4 it
+   cut both ends mid-word. It is a wrapping .conn-meta of facts (the shape
+   the rulebook keeps for a line that must show every fact), so it takes a
+   second line and the dot rides at the end of a fact; this only keeps the
+   hero label's own size and colour on it. */
+.ruled .money-hero .money-hero-label.conn-meta { font-size: var(--t-sub); color: var(--tx-3); line-height: 1.35; }
+/* THE TRACKER ROW'S NET (item 15) never loses its last word to a sub-pixel
+   shrink: the shared facts rule lets every fact shrink a little, and a
+   0.2px shrink on a 220px fact is enough for an ellipsis. The number is
+   short by construction and the door's words after it give way. */
+.ruled .money-tracker-row .facts > .fact:first-child { flex-shrink: 0; }

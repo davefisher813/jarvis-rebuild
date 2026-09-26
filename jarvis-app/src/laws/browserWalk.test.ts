@@ -1267,6 +1267,17 @@ describe("OUTSIDE-BOX: text that escapes its box is a finding, not a blind spot"
     const t = tool();
     expect(t).toMatch(/const forwarder = \(e\) =>/);
     expect(t, "resolved the way the row resolves it").toMatch(/n\.querySelector\(sel\) === e/);
+    // AMENDED 2026-09-26 (audit): the settings kit's Menu row forwards too.
+    // "Match Master" measured 159x24 on AI Control at 430 and 834 wide with
+    // type at 1.4: the value's own ::after reached 44, but the rows at the
+    // foot of the page sat under the capture bar, which took the hit for
+    // the expanded edge, and the kit's Row carried no data-forwards, so the
+    // auditor had only the 24px value to measure. The row is the door now
+    // (Dave 2026-09-15, "I want all rows clickable"), and it says so in the
+    // DOM with the same selector its pointer handler uses.
+    const kit = read("settings/kit.tsx");
+    expect(kit, "the kit's Row writes its forwarding into the DOM").toMatch(/data-forwards=\{forward \? forwardTo : undefined\}/);
+    expect(kit, "and the Menu row forwards to its dropdown").toMatch(/<Row label=\{label\} meta=\{meta\} forwardTo="\.dd">/);
   });
 
   it("a form row's value can shrink, and the row wraps before it loses a word", () => {
@@ -1410,5 +1421,54 @@ describe("SCROLL RESET: a screen does not inherit the last one's position", () =
 
   it("does not animate a move the person did not make", () => {
     expect(read("shell/AppShell.tsx")).toMatch(/behavior: "instant"/);
+  });
+});
+
+// THE CONDENSED TITLE NEVER RUNS UNDER THE BAR'S ACTIONS (audit leftovers,
+// 2026-09-26). .nav-bar .nav-title was position: absolute, left 0, right 0:
+// centred on the whole bar and blind to what sat at its ends, so at
+// --type-scale 1.4 "Pull Day" painted through Pause on the live workout
+// (title ink 140..250, Pause from 216). A bar holding a condensed title is a
+// three-column grid now, both sides floored at their content, so the title
+// is centred while it fits between the wider side mirrored, shifted into
+// the free middle when it does not, and ellipsized there before it can touch
+// an action. Measured, not argued: "Pull Day" at 99..208 beside Pause at 216
+// after, whole; "Cancel" on the compose bar kept its 97px once the floor was
+// stated as max-content (a bare 1fr floors at .nav-back's declared 44px
+// min-width, not its words, and gave Cancel an 83px column).
+describe("NAV TITLE: centred while it fits, never under an action", () => {
+  it("a bar with a condensed title is a three-column grid floored at its content", () => {
+    const bar = ruleBody(css(), ".nav-bar:has(> .nav-title)");
+    expect(bar, "the grid rule exists").not.toBeNull();
+    expect(bar).toMatch(/display:\s*grid/);
+    expect(bar, "both sides floor at their content, the title takes the rest")
+      .toMatch(/grid-template-columns:\s*minmax\(max-content,\s*1fr\)\s+auto\s+minmax\(max-content,\s*1fr\)/);
+    expect(ruleBody(css(), ".nav-bar:has(> .nav-title) > .nav-title ~ *"), "what follows the title sits in the third column")
+      .toMatch(/grid-column:\s*3/);
+  });
+
+  it("the title is the middle column, never absolute over the whole bar", () => {
+    const title = ruleBody(css(), ".nav-bar .nav-title");
+    expect(title).not.toBeNull();
+    expect(title, "absolute over the bar is how it ran under Pause").not.toMatch(/position:\s*absolute/);
+    expect(title).toMatch(/grid-column:\s*2/);
+    expect(title, "it may shrink to the free middle").toMatch(/min-width:\s*0/);
+    expect(title, "and ellipsize there").toMatch(/text-overflow:\s*ellipsis/);
+  });
+});
+
+// A DECISION'S REASON READS WHOLE (audit leftovers, 2026-09-26). The row's
+// reason wore .truncate and lost a third to a half of itself on every seeded
+// row at 390 ("Because Ridgeline fields are locke…"), when the reason is the
+// row's point. It wraps, unclamped, still the row's one grey.
+describe("DECISION ROW: the reason wraps", () => {
+  it("the reason line is unclamped and never one-line", () => {
+    const why = ruleBody(css(), ".dec-row .conn-meta");
+    expect(why, "the wrapping rule exists").not.toBeNull();
+    expect(why).toMatch(/white-space:\s*normal/);
+    expect(why).toMatch(/-webkit-line-clamp:\s*none/);
+    expect(why).toMatch(/overflow:\s*visible/);
+    expect(read("decisions/DecisionsFlow.tsx"), "the row's reason no longer wears .truncate")
+      .not.toMatch(/className="conn-meta truncate">\{"Because "/);
   });
 });

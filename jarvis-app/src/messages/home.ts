@@ -280,7 +280,8 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
   // segment changes rather than gaining a prefix, because "Due looks like
   // 3 PM" is not a sentence anybody wrote.
   const plain = at ? day + fmtTime(at).time + " " + fmtTime(at).ap : byLabel(t.by, now).toLowerCase();
-  const dueLabel = isHigh(confidenceOf(t.byEv)) ? "Due " + plain : hedge(plain);
+  const sure = isHigh(confidenceOf(t.byEv));
+  const dueLabel = sure ? "Due " + plain : hedge(plain);
   const endAp = clash?.end ? fmtTime(clash.end) : null;
   const until = clash && endAp
     ? " while you're in " + clash.title + " until " + endAp.time + (at && endAp.ap === fmtTime(at).ap ? "" : " " + endAp.ap)
@@ -297,16 +298,17 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
     // The sentence: the sender, then the deadline as the rest of it, so
     // "Due" and "Looks like" drop to lowercase.
     sub: capAfterNumber(`From ${t.from}, ${dueLabel.charAt(0).toLowerCase() + dueLabel.slice(1)}${until}`),
-    // On screen, two facts. The bare day or clock ALONE is the first,
-    // short and toned: with the clash glued on it ran 400px in a 169px line,
-    // and even "Looks like today" was cut to "Looks like t..." at type
-    // scale 1.4 (2026-09-26). The hedge and the clash ride with the sender
-    // in the last fact, the one that gives way first, so they show when
-    // there is room and yield when there is not. The sentence above still
-    // carries all of it aloud.
+    // On screen, two facts. The day or clock is the first, short and toned:
+    // with the clash glued on it ran 400px in a 169px line, and even "Looks
+    // like today" was cut to "Looks like t..." at type scale 1.4
+    // (2026-09-26). The hedge is ONE WORD on that toned fact ("Likely
+    // Tomorrow"): riding with the sender it cost the sender 39% of itself
+    // at 390 ("Likely, from App Sto…", the audit leftovers, 2026-09-26),
+    // and the sender is the fact that gives way first. The clash still
+    // rides with the sender. The sentence above carries all of it aloud.
     facts: [
-      { text: capAfterNumber(capFirst(plain)), tone: byTone },
-      { text: (isHigh(confidenceOf(t.byEv)) ? "From " : "Likely, from ") + t.from + (until ? "," + until : "") },
+      { text: capAfterNumber((sure ? "" : "Likely ") + capFirst(plain)), tone: byTone },
+      { text: "From " + t.from + (until ? "," + until : "") },
     ],
     action: "Add Task",
     tone: "cat-fg-red",

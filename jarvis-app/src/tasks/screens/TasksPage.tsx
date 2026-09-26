@@ -644,6 +644,9 @@ export function MomentumRow({
           onStart(task.id);
         }}
       >
+        {/* The Remember star leads this row as it leads every TaskRow
+            (C-50), so the check and the title sit in the list's columns. */}
+        <EntityStar entityType="task" entityId={task.id} title={task.data.text} />
         <div
           className="task-check-tap"
           onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}

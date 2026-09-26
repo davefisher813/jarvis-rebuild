@@ -3872,5 +3872,925 @@
   "new": "A compact clock or count keeps its shape (\"Sleep 8h\"); a hyphenated pair takes both capitals (\"Six-Month\"), as lineCase already did (H2)",
   "group": "passoff-today-life",
   "phase": "passoff-today-life"
+ },
+ {
+  "item": "audit-leftovers-3",
+  "file": "src/messages/home.ts",
+  "old": "Tomorrow · Likely, from App Store Team  (the deadline card's two facts when the app is not sure of the day; the sender fact lost 39% at 390)",
+  "new": "Likely Tomorrow · From App Store Team  (the hedge is one word on the toned day fact: Likely Today / Likely Tomorrow / Likely 3:00 PM; the sure form, Tomorrow · From App Store Team, is unchanged)",
+  "phase": "audit-leftovers",
+  "group": "audit-leftovers"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Things moved / Things done / Thing moved / Thing done",
+  "new": "Things Moved / Things Done / Thing Moved / Thing Done",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "N Followed you all month",
+  "new": "N Followed You All Month",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Elite Squad went quiet · 4 THIS MONTH, 20 IN AUGUST (one caps run)",
+  "new": "Elite Squad Went Quiet · 4 This Month (amber) · 20 in August (grey, count white)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Run three times a week: still true? · NOTHING FINISHED AND NOTHING SCHEDULED THIS MONTH (caps sub)",
+  "new": "Run Three Times a Week: Still True? (the sentence is the card's field note under it, sentence case)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "N goals went still",
+  "new": "N Goals Went Still",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "N Goal cut / N Goals cut · CUTTING IS A DECISION, AND IT COUNTS (caps sub)",
+  "new": "N Goal Cut / N Goals Cut (the sentence is the card's field note under it)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "First picks finish · Firsts 78%, later picks 20%",
+  "new": "First Picks Finish · Firsts 78%, Later Picks 20%",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Work runs 12m over / under · Across N corrections",
+  "new": "Work Runs 12 Min Over / Under · Across N Corrections",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Train days win · 4.3 Done vs 2.0",
+  "new": "Train Days Win · 4.3 Done vs 2.0",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "You take first steps / You take the patterns / You take the AI's offers / You take the routine blocks / You take project steps / You take the links / You take the suggestions",
+  "new": "You Take First Steps / You Take the Patterns / You Take the AI's Offers / You Take the Routine Blocks / You Take Project Steps / You Take the Links / You Take the Suggestions",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Links get skipped / AI offers get skipped / Patterns get skipped / First steps get skipped / Routine blocks get skipped / Project steps get skipped / Some suggestions get skipped",
+  "new": "Links Get Skipped / AI Offers Get Skipped / Patterns Get Skipped / First Steps Get Skipped / Routine Blocks Get Skipped / Project Steps Get Skipped / Some Suggestions Get Skipped",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "N of M accepted / N of M taken / N dismissed this month",
+  "new": "N of M Accepted / N of M Taken / N Dismissed This Month",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Work slips most · N pushes",
+  "new": "Work Slips Most · N Pushes",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Learned N things about you · You fixed 1, it is gone",
+  "new": "Learned N Things About You · You Fixed 1, It Is Gone",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Kept N things moving · N REMINDERS, N of M DRAFTS SENT AS WRITTEN (caps)",
+  "new": "Kept N Things Moving · N Reminders (grey, count white) · N of M Drafts Sent Unedited (green)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Cap the day at three? · Your first three get done, the later picks mostly do not",
+  "new": "Cap the Day at Three? · Your First Three Get Done, the Later Picks Mostly Do Not",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "September sealed · OCTOBER COMPARES TO THIS (caps)",
+  "new": "September Sealed · October Compares to This (grey fact)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "Everything else (hours legend)",
+  "new": "Everything Else",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "26% vs usual 35%",
+  "new": "26% vs Usual 35%",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "N finishes this month; the tallest bars are your band (receipt)",
+  "new": "N Finishes This Month; the Tallest Bars Are Your Band",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/report.ts",
+  "old": "(receipt) Task · N pushes",
+  "new": "Task · N Pushes",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/ReportPage.tsx",
+  "old": "TAP ANYTHING FOR ITS RECEIPTS (11px caps)",
+  "new": "Tap anything for its receipts (14px field note)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/ReportPage.tsx",
+  "old": "18H 30M ON THE CALENDAR (caps line)",
+  "new": "On the Calendar (kicker) + 18h 30m (white, split line)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/ReportPage.tsx",
+  "old": "NOTHING SCHEDULED FOR X, Y (caps line in the card)",
+  "new": "Nothing Scheduled for X, Y (field note under the card)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/ReportPage.tsx",
+  "old": "STARTING TOMORROW, CHANGE IT ANY TIME (caps)",
+  "new": "Starting tomorrow, change it any time (field note)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/ReportPage.tsx",
+  "old": "Your hours: 9 AM to 12 PM (receipts title)",
+  "new": "Your Hours: 9 AM to 12 PM",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "13",
+  "file": "src/review/ReportPage.tsx",
+  "old": "(new section) —",
+  "new": "Also in September: Paid N Bills / N Bills Still Due · $X (green) · N Still Due; Handled N Emails · Waiting N Days on a Reply · N of M Drafts Sent Unedited; Reached N People / Sam Went Quiet · Gone Quiet: names; N Sessions · N PRs · N Working Sets; Made N Decisions · N Worked · N Revisited; exits Open Money / Open Email / Check In / Open People / Open Health Insights / Open Decisions",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/hours.ts",
+  "old": "45m / 0m (minutes-only length)",
+  "new": "45 Min / 0 Min",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/week.ts",
+  "old": "Elite Squad 0m of 3h 30m (one fact)",
+  "new": "Elite Squad · None of 3h 30m (area fact, then the amount)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/week.ts",
+  "old": "Javris · 24 Tasks pushed",
+  "new": "Javris · 24 Tasks Pushed",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/week.ts",
+  "old": "N of M Plans landed / Focus held N days",
+  "new": "N of M Plans Landed / Focus Held N Days",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/week.ts",
+  "old": "N Blocks moved / N Check-in",
+  "new": "N Blocks Moved / N Check-In",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/week.ts",
+  "old": "N New facts, N remembered",
+  "new": "N New Facts, N Remembered",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/week.ts",
+  "old": "(new lines) —",
+  "new": "Money: N Bills Paid (green) · $X; Mail: Waiting N Days on a Reply · N Handled; People: Gone Quiet: names · N Reached; Health: N PRs · N Sessions; Decided: N Worked · N Made",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/InsightsFlow.tsx",
+  "old": "Still open",
+  "new": "Still Open",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/InsightsFlow.tsx",
+  "old": "N done (green fact)",
+  "new": "N Done",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/InsightsFlow.tsx",
+  "old": "The first seals itself on the 1st",
+  "new": "The First Seals Itself on the 1st",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "14",
+  "file": "src/review/InsightsFlow.tsx",
+  "old": "N crossings and counting",
+  "new": "N Crossings and Counting",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "Total balance",
+  "new": "Total Balance",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "As you last entered it · Sep 18",
+  "new": "As You Last Entered It · Sep 18 · 4 Accounts (count white)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "Spending, Budgets and Subscriptions (Tracker row)",
+  "new": "$X More Out (red) / $X More In (green) / Even This Month · Spending, Budgets and Subscriptions",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "Set to autopay / Autopay scheduled Sep 5 / Paid Sep 5",
+  "new": "Set to Autopay / Autopay Scheduled Sep 5 / Paid Sep 5",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "Yours until Sep 30",
+  "new": "Yours Until Sep 30",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "$40 past this paycheck / After $900 of bills and $200 set aside / 3 days, about $29 a day",
+  "new": "$40 Past This Paycheck / After $900 of Bills and $200 Set Aside / 3 Days, About $29 a Day",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "Bills before Sep 30 / Set aside",
+  "new": "Bills Before Sep 30 / Set Aside",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "Reserved · Not spendable · A plan",
+  "new": "Reserved · Not Spendable · A Plan",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "N bills in the app",
+  "new": "N Bills in the App",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "$0 of $24,000 saved",
+  "new": "$0 of $24,000 Saved",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "$500 in, $2,437 of bills out",
+  "new": "$500 In, $2,437 of Bills Out",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "15",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "Build a six-month runway (his goal title, shown as typed)",
+  "new": "Build a Six-Month Runway (shown Title Case, stored as typed)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "16",
+  "file": "src/money/screens/TrackerScreen.tsx",
+  "old": "Available credit $9,144.00 (one grey)",
+  "new": "Available Credit (grey) $9,144.00 (white)",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "16",
+  "file": "src/money/screens/TrackerScreen.tsx",
+  "old": "Your accounts, subscriptions and 31 transactions",
+  "new": "Your Accounts, Subscriptions and 31 Transactions",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "16",
+  "file": "src/money/screens/TrackerScreen.tsx",
+  "old": "Nothing spent this month",
+  "new": "Nothing Spent This Month",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "16",
+  "file": "src/money/screens/TrackerScreen.tsx",
+  "old": "Aiming to save $X of an expected $Y",
+  "new": "Aiming to Save $X of an Expected $Y",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "16",
+  "file": "src/money/screens/TrackerScreen.tsx",
+  "old": "No limits set for this month",
+  "new": "No Limits Set for This Month",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "16",
+  "file": "src/money/screens/TrackerScreen.tsx",
+  "old": "Nothing tracked yet",
+  "new": "Nothing Tracked Yet",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "16",
+  "file": "src/money/screens/TrackerScreen.tsx",
+  "old": "Counts toward the monthly total / Kept, but not counted",
+  "new": "Counts Toward the Monthly Total / Kept, Not Counted",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "17",
+  "file": "src/money/screens/TrackerScreen.tsx",
+  "old": "Nothing matches",
+  "new": "Nothing Matches",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "17",
+  "file": "src/money/screens/TrackerScreen.tsx",
+  "old": "(merchant, category, subscription name as typed)",
+  "new": "Shown Title Case, stored as typed",
+  "phase": "passoff-insights-money",
+  "group": "passoff-insights-money"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "Bulgarian split squats (sheet title, stored spelling)",
+  "new": "Bulgarian Split Squats (liftTitle, display only)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/LibraryPage.tsx",
+  "old": "bulgarian split squats (row menu title, stored spelling)",
+  "new": "Bulgarian Split Squats (liftTitle, display only)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "MUSCLES eyebrow over the card",
+  "new": "Muscles (tile head row, green PersonStanding)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "Tap twice for secondary",
+  "new": "Tap Twice for Secondary",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "APPLIES TO / EQUIPMENT / MEASUREMENT / MOVEMENT PATTERN / EXERCISE TYPE / EXECUTION eyebrows",
+  "new": "Applies To / Equipment / Measurement / Movement Pattern / Exercise Type / Execution as tile head rows (eyebrows removed; Equipment Identity keeps its eyebrow)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "TAGS eyebrow over the Tags row",
+  "new": "(removed; the Tags row carries a graphite Tag tile)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "ARCHIVE eyebrow over the Active/Archive row",
+  "new": "(removed; the row carries a graphite Archive tile)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "What the number means",
+  "new": "What the Number Means",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "Every session, past and future",
+  "new": "Every Session, Past and Future",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "Earlier ones keep what they had",
+  "new": "Earlier Ones Keep What They Had",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "Later ones will not carry these",
+  "new": "Later Ones Will Not Carry These",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/ClassifySheet.tsx",
+  "old": "An archived exercise keeps every record it has",
+  "new": "Keeps Every Record",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "1",
+  "file": "src/gym/classify.ts",
+  "old": "Chest, also Triceps",
+  "new": "Chest, Also Triceps",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/chartData.ts",
+  "old": "Est 1RM (Epley), not a tested max, lb (Trend caption)",
+  "new": "ESTIMATED MAX (11px caps kicker); Epley and the caveat moved behind the card's Evidence",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Estimated One-Rep Max / Hide the Estimate (capsule on the Best card) + \"Epley estimate, not a tested lift or a suggested weight\"",
+  "new": "(removed; the estimate has one home, the Trend card)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Change (unlabelled cell on the Best card, e.g. +15 lb)",
+  "new": "Up 15 Lb / Down 10 Lb / No Change, in the estimate ink under the Trend headline",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "216 lb (Trend headline)",
+  "new": "216 Lb",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/insights.ts",
+  "old": "(new) Evidence rows",
+  "new": "Kind Observation · Range · Records · Method \"Epley, from each session's best set: weight × (1 + reps ÷ 30)\" · Shows \"How strength is moving across rep ranges\" · Does Not Show \"A tested max, or a weight to attempt\"",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Aug 31 to yesterday (range chip)",
+  "new": "Aug 31 to Sep 24 (shortDate at both ends)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Est 216 lb (tapped point)",
+  "new": "Est 216 Lb",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Best so far · 185 lb × 5 (one-session title)",
+  "new": "185 Lb × 5",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Est 1RM 216 lb (one-session fact)",
+  "new": "Est Max 216 Lb",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Logged yesterday",
+  "new": "Logged Yesterday",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "The trend line starts at your second session",
+  "new": "Trend Starts at Session 2",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Working sets, last 8 weeks",
+  "new": "Working Sets, Last 8 Weeks",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "lb moved, last 8 weeks / kg moved, last 8 weeks",
+  "new": "Pounds Moved, Last 8 Weeks / Kilograms Moved, Last 8 Weeks",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "185 lb × 5 (Best Set, Milestones, Sessions receipts, tapped point)",
+  "new": "185 Lb × 5 (lineCase at render; formatSet unchanged)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "3 Sessions with no new best (Plateau title)",
+  "new": "3 Sessions With No New Best",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Warm-ups and drop sets left out",
+  "new": "Warm-Ups and Drop Sets Left Out",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "7",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "8 sets, secondary, counted half",
+  "new": "8 Sets, Secondary, Counted Half",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "8",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Muscles: Chest, also Triceps (one row)",
+  "new": "Primary Muscles: Chest / Secondary Muscles: Triceps (two rows)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "8",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Assign muscles",
+  "new": "Assign Muscles",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "8",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "185 of 205 Lb at 1+ reps (goal card line)",
+  "new": "185 of 205 Lb (185 white) with \"20 Lb to Go\" on the right; \"× 5\" only when the rep floor is above 1",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "8",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Goal (green pill once met) + \"205 Lb at 1+ reps -- hit it\"",
+  "new": "Hit (white, on the green card)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "8",
+  "file": "src/gym/goalMeasures.ts",
+  "old": "310 of 325 Lb at 1+ reps / 325 Lb at 1+ reps -- hit it (Bigger Picture goal cards, receipt)",
+  "new": "310 of 325 Lb at 1+ Reps / 325 Lb at 1+ Reps -- Hit It",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "8",
+  "file": "src/gym/LiftDetailScreen.tsx",
+  "old": "Energy, same 8 weeks / Not enough Energy records in these 8 weeks",
+  "new": "Energy, Same 8 Weeks / Not Enough Energy Records in These 8 Weeks",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/FitSheet.tsx",
+  "old": "30 min · 45 min · 60 min (budget chips)",
+  "new": "30 Min · 45 Min · 60 Min",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/fit.ts",
+  "old": "Rests 120 → 90s",
+  "new": "Rests 120 → 90 Sec",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/fit.ts",
+  "old": "Shorter rests / Superset the groups / Trim last accessory sets / Skip the cool-down / Lat Raise 3 → 2 sets",
+  "new": "Shorter Rests / Superset the Groups / Trim Last Accessory Sets / Skip the Cool-Down / Lat Raise 3 → 2 Sets",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/fit.ts",
+  "old": "saves ~8 min",
+  "new": "Saves About 8 Min (estimate ink)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/fit.ts",
+  "old": "saves ~9 min, never your main lift",
+  "new": "Saves About 9 Min · Never Your Main Lift (two facts; the dot is the stylesheet's)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/fit.ts",
+  "old": "saves 5 min (cool-down, stated)",
+  "new": "Saves 5 Min",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/FitSheet.tsx",
+  "old": "Fits: 36 min",
+  "new": "Fits: 36 Min (36 Min in the estimate ink)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/FitSheet.tsx",
+  "old": "7 min under / 5 min over / On budget",
+  "new": "7 Min Under / 5 Min Over / On Budget",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/FitSheet.tsx",
+  "old": "4 of 4 lifts at your logged pace",
+  "new": "4 of 4 Lifts at Your Logged Pace",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/FitSheet.tsx + src/gym/pacing.ts",
+  "old": "default pace, improves as you log",
+  "new": "Default Pace, Improves as You Log",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/FitSheet.tsx",
+  "old": "timed from the block's own clock",
+  "new": "Timed from the Block's Own Clock",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/FitSheet.tsx",
+  "old": "; a For Time cap is the ceiling, not a forecast",
+  "new": "; A For Time Cap Is the Ceiling, Not a Forecast",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "9",
+  "file": "src/gym/pacing.ts",
+  "old": "learned from your last 2 sessions (paceLine, no caller today)",
+  "new": "Learned from Your Last 2 Sessions",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "10",
+  "file": "src/gym/GymFlow.tsx",
+  "old": "Manage (bare red head link, Days and Weeks heads)",
+  "new": "Manage (34px head capsule beside Reorder; same words)",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "11",
+  "file": "src/gym/GymFlow.tsx",
+  "old": "AUG 28 · 47 Min · 4 Lifts (Recent row, one line)",
+  "new": "AUG 28 · 4 Lifts on the sub line, 47 Min white on the right",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "11",
+  "file": "src/gym/GymFlow.tsx",
+  "old": "4 of 7 (partial count)",
+  "new": "4 of 7 Lifts",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "11",
+  "file": "src/gym/GymFlow.tsx",
+  "old": "382 Min (amber) · Worth Reviewing on the sub line",
+  "new": "382 Min amber on the right; Worth Reviewing stays on the sub line",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "11",
+  "file": "src/gym/HistoryScreen.tsx",
+  "old": "AUG 28 · 47 Min · 12 sets (History > Sessions row)",
+  "new": "AUG 28 · 12 Sets on the sub line, 47 Min white on the right",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
+ },
+ {
+  "item": "11",
+  "file": "src/gym/HistoryScreen.tsx",
+  "old": "1 set",
+  "new": "1 Set",
+  "phase": "passoff-gym-pages",
+  "group": "passoff-gym-pages"
  }
 ]

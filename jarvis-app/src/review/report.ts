@@ -264,7 +264,9 @@ export function lifeCards(seal: MonthSealData, name: string, people: { id: strin
   if (b && (b.paid > 0 || b.open > 0)) {
     const facts: ReportFact[] = [];
     if (b.paid > 0) facts.push({ text: formatMoney(b.total), tone: "good" });
-    if (b.open > 0) facts.push(plain(lineCase(`${b.open} still due`)));
+    // With nothing paid the title already says still due; the line does
+    // not say it twice.
+    if (b.open > 0 && b.paid > 0) facts.push(plain(lineCase(`${b.open} still due`)));
     out.push({
       id: "money",
       title: b.paid > 0 ? lineCase(`Paid ${b.paid} ${plural(b.paid, "bill", "bills")}`) : lineCase(`${b.open} ${plural(b.open, "bill", "bills")} still due`),

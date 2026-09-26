@@ -130,15 +130,30 @@ describe("the line, drawn with the key", () => {
     expect(bill("2026-08-21").facts![1]).toEqual({ text: "Looks like", num: "$12.00" });
   });
 
-  // The toned fact is the bare day, so it fits at type scale 1.4; the
-  // hedge rides with the sender in the fact that yields (2026-09-26).
+  // The toned fact is the day, so it fits at type scale 1.4, and the sender
+  // is the fact that yields. REWRITTEN 2026-09-26 (audit leftovers): the
+  // hedge rode with the sender ("Likely, from Nadia Brandt") and cost the
+  // sender 39% of itself at 390. It is one word on the toned fact now
+  // ("Likely Tomorrow"), so the sender shows whole; the sure form is
+  // unchanged ("Tomorrow", "From Nadia Brandt").
   it("a deadline is due, amber, and the sender is the fact that yields", () => {
     const n = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "tomorrow" })] }), TODAY, NOW)[0]!;
     expect(n.kind).toBe("deadline");
     expect(n.facts).toEqual([
-      { text: "Tomorrow", tone: "warn" },
-      { text: "Likely, from Nadia Brandt" },
+      { text: "Likely Tomorrow", tone: "warn" },
+      { text: "From Nadia Brandt" },
     ]);
+    // Backed by the sender's own words, the day stands bare and the sender
+    // is just the sender.
+    const byEv = { sourceMsgId: "m1", span: "Please send it by tomorrow.", confidence: "high" as const };
+    const sure = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "tomorrow", byEv })] }), TODAY, NOW)[0]!;
+    expect(sure.facts).toEqual([
+      { text: "Tomorrow", tone: "warn" },
+      { text: "From Nadia Brandt" },
+    ]);
+    // A deadline the app read as today wears the hedge the same way.
+    const today = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "today" })] }), TODAY, NOW)[0]!;
+    expect(today.facts![0]).toEqual({ text: "Likely Today", tone: "warn" });
   });
 
   // The toned fact never shrinks, so it is the deadline alone. The clash
@@ -149,15 +164,17 @@ describe("the line, drawn with the key", () => {
     const events = [{ title: "Design Review", date: TODAY, start: "14:00", end: "15:00" }];
     const n = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "3 PM" })] }), TODAY, NOW, 3, [], events)[0]!;
     expect(n.kind).toBe("deadline");
+    // REWRITTEN 2026-09-26 (audit leftovers): the hedge is the one word on
+    // the toned fact, never on the sender.
     expect(n.facts).toEqual([
-      { text: "3:00 PM", tone: "warn" },
-      { text: "Likely, from Nadia Brandt, while you're in Design Review until 3:00" },
+      { text: "Likely 3:00 PM", tone: "warn" },
+      { text: "From Nadia Brandt, while you're in Design Review until 3:00" },
     ]);
     expect(n.facts![0]!.text).not.toMatch(/while/);
     expect(n.sub).toBe("From Nadia Brandt, looks like 3:00 PM while you're in Design Review until 3:00");
     // No clash, no clause: the sender stands alone.
     const calm = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "3 PM" })] }), TODAY, NOW)[0]!;
-    expect(calm.facts![1]).toEqual({ text: "Likely, from Nadia Brandt" });
+    expect(calm.facts![1]).toEqual({ text: "From Nadia Brandt" });
   });
 
   // The age is short so it always fits first (the wait card's and the More

@@ -20,8 +20,8 @@ import { RepeatGlyph, WalletGlyph, TargetGlyph, DollarGlyph } from "../shared/gl
 import { TaskRow } from "../tasks/screens/TasksPage";
 import { daysBetween } from "../upnext/upnext";
 import { attemptWrite } from "../shared/guard";
-import { capAfterNumber, lineCase } from "../shared/casing";
-import { inMonth, thisMonth, incomeCents, spentCents, fmtCents } from "./tracker";
+import { capAfterNumber, lineCase, titleCase } from "../shared/casing";
+import { inMonth, thisMonth, incomeCents, spentCents, fmtCents, ENTITY_MONEY_TX } from "./tracker";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
 import { usePickFile } from "../shared/usePickFile";
@@ -423,7 +423,9 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   useEffect(() => { void reload(); }, [reload]);
   // UP-PLAT-06 (2026-09-06): this page draws accounts AND the bills that live
   // as tasks, so a bill paid on the laptop repaints here too.
-  useFreshLists([ENTITY_ACCOUNT, ENTITY_TASK], reload);
+  // The tracker's transactions too (2026-09-26): the Tracker row carries
+  // this month's net, so an import or an edit on another device repaints it.
+  useFreshLists([ENTITY_ACCOUNT, ENTITY_TASK, ENTITY_MONEY_TX], reload);
 
   // SHELL-F-21: the account the shell was asked to open, once the list it
   // lives in has arrived. Held until then rather than opening an empty sheet;
@@ -705,16 +707,21 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   // into the words (F3).
   // The count is back beside them (the lead, 2026-09-26: "As You Last
   // Entered It · Sep 18 · 4 Accounts"), a number with no state, so white
-  // (§AM); the words before it keep the line's one grey (§AK).
+  // (§AM); the words before it keep the line's one grey (§AK). It is a
+  // wrapping .conn-meta of facts, not a .facts row: one line on a hero
+  // card, not a list row, so at type scale 1.4 it takes a second line
+  // rather than cutting both ends, and the CSS still draws the dots.
   const balanceFacts = (
-    <div className="money-hero-label facts">
+    <div className="money-hero-label conn-meta">
       <span className="fact">As You Last Entered It</span>
       {balanceAsOf && <span className="fact date">{monthDay(balanceAsOf)}</span>}
       <span className="fact"><b>{accounts.length} {accounts.length === 1 ? "Account" : "Accounts"}</b></span>
     </div>
   );
 
-  if (tracker) return <TrackerScreen onBack={() => setTracker(false)} />;
+  // Back from the tracker re-reads: the row under it says this month's net
+  // and the tracker is where that number changes.
+  if (tracker) return <TrackerScreen onBack={() => { setTracker(false); void reload(); }} />;
 
   // WHERE IT WENT. The hero answers what is left; this is the door to the
   // other half. It is rendered in both branches below on purpose: a page
@@ -723,17 +730,19 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   // balance would be the wrong way round.
   const trackerRow = (
     <div className="pad-x"><div className="card list-card-ruled">
-      <div className="row" {...pressable(() => setTracker(true))}>
+      <div className="row money-tracker-row" {...pressable(() => setTracker(true))}>
         <div className="row-grow">
           <div className="conn-name">Tracker</div>
           {/* The net is the row's one key colour, green when more came in
               than went out and the system red when more went out (over the
               limit, §AM), ahead of the row's one grey; a month with nothing
               tracked says nothing. Zero exactly is a number with no state,
-              white. */}
+              white. The period is the tracker's own: its dashboard opens on
+              this month, and the fact is kept short so it never ellipsizes
+              beside the door's words at type scale 1.4. */}
           <div className="facts">
             {monthNet != null && monthNet !== 0 && (
-              <span className={"fact " + (monthNet > 0 ? "good" : "red")}>{lineCase(`${fmtCents(Math.abs(monthNet))} more ${monthNet > 0 ? "in" : "out"} this month`)}</span>
+              <span className={"fact " + (monthNet > 0 ? "good" : "red")}>{lineCase(`${fmtCents(Math.abs(monthNet))} more ${monthNet > 0 ? "in" : "out"}`)}</span>
             )}
             {monthNet === 0 && <span className="fact"><b>Even This Month</b></span>}
             <span className="fact">Spending, Budgets and Subscriptions</span>
@@ -916,14 +925,16 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                   // The row's one verb is Add, so the row opens the amount
                   // (Dave 2026-09-15: "I want all rows clickable"); taps inside
                   // the open amount stay there.
-                  <div className="task-row p2 goal-row-ruled" key={g.id} role="button" tabIndex={0} aria-label={"Add to " + g.data.title}
+                  <div className="task-row p2 goal-row-ruled" key={g.id} role="button" tabIndex={0} aria-label={"Add to " + titleCase(g.data.title)}
                     onClick={() => { if (saveInto !== g.id) { setSaveInto(g.id); setSaveAmt(""); } }}
                     onKeyDown={rowKey(() => { if (saveInto !== g.id) { setSaveInto(g.id); setSaveAmt(""); } })}>
                     {/* Area color, brand red when unhomed -- the same
                         goalTone every goal glyph wears (2026-08-31). */}
                     <div className="task-check-tap"><span className={"gm-slot " + goalTone(g.data.tags)}><TargetGlyph /></span></div>
                     <div className="task-title">
-                      <span className="task-name">{g.data.title}</span>
+                      {/* His own goal title is SHOWN in Title Case and stored
+                          as typed (the whole casing rule, 2026-09-26). */}
+                      <span className="task-name">{titleCase(g.data.title)}</span>
                       <div className="r-k"><span className="r-goal r-cat">{lineCase(savingsLine(g.data.moneyTarget!, g.data.saved))}</span></div>
                       {savedTotal(g.data.saved) > 0 && (
                         <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, savingsPct(g.data.moneyTarget!, g.data.saved)) + "%" }} /></div>

@@ -219,7 +219,7 @@ describe("the scope receipt is facts, not a sentence carrying a date it stores",
     );
     void container;
     fireEvent.click(screen.getByRole("button", { name: "Existing Records" }));
-    const facts = Array.from(document.querySelectorAll(".facts"))
+    const facts = Array.from(document.querySelectorAll(".conn-meta"))
       .find((f) => f.textContent?.includes("Up to Sep 17"));
     expect(facts).toBeTruthy();
     expect(facts!.querySelectorAll(".fact")).toHaveLength(2);

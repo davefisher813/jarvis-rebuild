@@ -9,7 +9,7 @@ import type { MetricLog } from "../gym/metrics";
 import type { MetricMeasure } from "../gym/metricGoals";
 import { metricMeasureState } from "../gym/metricGoals";
 import { daysBetween } from "../upnext/upnext";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, lineCase } from "../shared/casing";
 import { clearsDoneAutomatically } from "./doneClearing";
 import type { PaceTone } from "./progress";
 
@@ -188,7 +188,9 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
     return {
       done, target, met: done >= target,
       pct: Math.round((done / target) * 100),
-      line: capAfterNumber(`${done} of ${target} projects done`),
+      // "0 of 1 Projects Done" (Dave's pass-off, 2026-09-26): the whole line
+      // is Title Case, the last word included.
+      line: lineCase(`${done} of ${target} projects done`),
     };
   }
 
@@ -211,7 +213,7 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
   // that finishes it (Koo & Fishbach 2008). The measure's own `since` stamp
   // is the age; a measure without one keeps the neutral line.
   const line = (() => {
-    if (done >= target) return capAfterNumber(`${done} of ${target} done`);
+    if (done >= target) return lineCase(`${done} of ${target} done`);
     if (m.since) {
       const age = (ctx.now - new Date(m.since + "T00:00:00").getTime()) / 86400000;
       if (age < COMMIT_DAYS) {
@@ -220,7 +222,7 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
         return capAfterNumber(`${target - done} to go`);
       }
     }
-    return capAfterNumber(`${done} of ${target} done`);
+    return lineCase(`${done} of ${target} done`);
   })();
   return {
     done, target, met: done >= target,

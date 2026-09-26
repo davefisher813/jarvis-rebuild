@@ -273,8 +273,14 @@ export default function ClassifySheet({
                 {/* NOTHING SET SAYS NOTHING (§AK). "No primary yet" was a
                     placeholder line: the chips above already show that none
                     is picked, so the line appears once there is a muscle. */}
+                {/* A wrapping meta line, not a clamped facts line (2026-09-26,
+                    the lead's rule: a line whose job is to show every fact
+                    keeps its facts in the wrapping .conn-meta). Indented to
+                    the tile edge, "Primary Chest · Secondary Triceps" at type
+                    scale 1.4 ellipsised both halves; now the second takes
+                    the next line whole. */}
                 {(c.primary.length > 0 || c.secondary.length > 0) && (
-                  <div className="facts">
+                  <div className="conn-meta">
                     {c.primary.length > 0 && <span className="fact">{`Primary ${c.primary.map((m) => MUSCLE_LABEL[m]).join(", ")}`}</span>}
                     {c.secondary.length > 0 && <span className="fact cyan">{`Secondary ${c.secondary.map((m) => MUSCLE_LABEL[m]).join(", ")}`}</span>}
                   </div>
@@ -314,7 +320,7 @@ export default function ClassifySheet({
                     clauses the CSS separates, not a sentence carrying its own
                     middot, and a date said the way a person says it rather
                     than the ISO string the store happens to keep. */}
-                <div className="row xs-row"><div className="row-grow"><div className="facts">
+                <div className="row xs-row"><div className="row-grow"><div className="conn-meta">
                   {scope === "all" ? (
                     <span className="fact">Every Session, Past and Future</span>
                   ) : scope === "future" ? (
@@ -431,7 +437,7 @@ export default function ClassifySheet({
                   <Tile tone="graphite"><Archive className="ic" /></Tile>
                   <div className="row-grow">
                     <div className="conn-name">{c.archived ? "Archived" : "Active"}</div>
-                    <div className="conn-meta">An Archived Exercise Keeps Every Record It Has</div>
+                    <div className="conn-meta">Keeps Every Record</div>
                   </div>
                   <button type="button" className="pill-act" onClick={own(toggleArchived)}>
                     {c.archived ? "Restore" : "Archive"}
