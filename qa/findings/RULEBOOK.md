@@ -222,6 +222,28 @@ Goals with nothing under them: the empty line is one short tap-red action,
 Pass-off item 15: the numbered-bullet casing note does not match its
 screenshot (the Money page); skip it. The Money colour pass still happens.
 
+Second round of pass-off decisions (Dave, 2026-09-26, later the same day):
+- Workout secondary moves: one labelled tap-red capsule ("More") on the
+  lift's heading opens one sheet with every move. Not a bare ··· ("Three
+  dots isn't obvious enough but that's the right idea"). Equipment and
+  Superset stay visible chips.
+- Match and the suggested set FILL the fields; only the red button logs,
+  with a receipt and Undo. One Log control, always showing what it writes.
+- Task sheet Goal row: a real picker. With no project it lists live goals
+  and saves the pick on the task (goalId); with a project it shows the
+  project's goal and opens the Project menu. All five WHERE rows on every
+  screen that opens the sheet.
+- Estimated one-rep max: an insight on the lift page only, "rendered nice
+  and clean and simple". The no-predicted-max rule stands.
+- Durations: "45 Min" spelled and capitalized for minutes-only, "+30 Sec";
+  hours use the compact clock "1h 30m"; running clocks m:ss, h:mm:ss past
+  an hour; clock times 12-hour with AM/PM.
+- Bridge "Most gets done on Wednesdays": a notice card with one action,
+  "Line Up N for Wednesday", dating the area's undated open tasks to that
+  day, with Undo. Shown only when there is something to line up.
+- Brain hub rows: the grey is the fact's category ("KNOWN · Work Style"),
+  one short grey; the sheet keeps the Used By list.
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report
