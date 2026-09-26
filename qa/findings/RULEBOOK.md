@@ -244,6 +244,36 @@ Second round of pass-off decisions (Dave, 2026-09-26, later the same day):
 - Brain hub rows: the grey is the fact's category ("KNOWN · Work Style"),
   one short grey; the sheet keeps the Used By list.
 
+Settled by the lead from the plan's checker (2026-09-26, pass-off), no
+question for Dave:
+- Superset: offer, don't drive; rest after the round at the program's round
+  rest or the shortest member rest (the catalog's §AB Part 3 rule, now §AN).
+- Numbers are typed in one shape: the Now row; a Done row opens the Set
+  sheet with the same fields; Up Next rows are read-only.
+- Brain's facts about him ("Brainstorms best at night") stay as written; they
+  are sentences, not titles. The grey under them follows the casing rule.
+- His typed titles: "w/", "vs", "via" are small words; a word with its own
+  capital inside (iPhone, eBay, RDLs) is never re-cased.
+- Area project rows take two lines so the whole next step reads (NEXT +
+  the step, then the toned chips and date).
+- Insights: the month report's content is rebuilt from data the app already
+  keeps (Money, Mail, People, Health, Decisions), each card with an exit
+  action only; One Change stays the only proposed change; the hub's four
+  sections stay.
+- Money page: colour through the key only: a kind dot per account, paid in
+  green, the Tracker row's net green (more in) or red (more out); a credit
+  balance stays white. Tracker's In tile is green only above zero.
+- Duration chips follow the rule literally ("45 Min" beside "1h 30m"); the
+  Now card's distance reads "In 25 Min"; a zero reads "None of 3h 30m".
+- Casing boundary is narrow: only chat, note bodies, onboarding and
+  check-in prompts and .input-hint field notes keep sentence case. Estimates
+  say "About", never "~".
+- Program page: Reorder and Manage are both 34px head capsules on one line.
+- Event sheet: Project only (no Goal row); the Projects menu shows each
+  project's area dot and keeps area-then-name order with search.
+- Today's reminders: the red "N Missed" row is the one place a missed
+  reminder appears; the Heads Up missed cards go.
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report

@@ -67,7 +67,8 @@ export function titleCase(text: string): string {
     .map((w, i) => {
       const isEdge = i === firstWord || i === 0 || i === words.length - 1;
       const lower = w.toLowerCase();
-      if (!isEdge && SMALL.has(lower)) return lower;
+      if (!isEdge && (SMALL.has(lower) || SMALL_FORMS.has(lower))) return lower;
+      if (ownSpelling(w)) return w;
       return capFirst(w);
     })
     .join(" ");
@@ -143,9 +144,22 @@ export function liftTitle(name: string): string {
 // onboarding, a field note that is a whole sentence) does not go through it.
 const COMPACT = /^[^A-Za-z]*\d[\d.,:/$%x-]*[a-z]{0,2}$/;
 
+// A word that already carries a capital past its first letter (iPhone, eBay,
+// RDLs, JARVIS) is spelled the way its owner spells it; Title Case never
+// touches it (Dave 2026-09-26, on his typed titles: "iPhone" must not become
+// "IPhone").
+function ownSpelling(w: string): boolean {
+  return /[A-Z]/.test(w.slice(1).replace(/[^A-Za-z]/g, ""));
+}
+
 function capWord(w: string): string {
+  if (ownSpelling(w)) return w;
   return w.split("-").map(capFirst).join("-");
 }
+
+// Short forms that read as small words in a typed title: "w/" (with), "vs",
+// "via" (2026-09-26, the pass-off).
+const SMALL_FORMS = new Set(["w/", "vs", "vs.", "via"]);
 
 export function lineCase(text: string): string {
   return text
@@ -160,7 +174,7 @@ export function lineCase(text: string): string {
       const out = words.map((w, i) => {
         if (COMPACT.test(w)) return w;
         const bare = w.replace(/[^A-Za-z]/g, "").toLowerCase();
-        if (i > 0 && i < last && bare && SMALL.has(bare)) return w;
+        if (i > 0 && i < last && ((bare && SMALL.has(bare)) || SMALL_FORMS.has(w.toLowerCase()))) return w;
         return capWord(w);
       });
       return (pre ?? "") + out.join(" ") + (post ?? "");

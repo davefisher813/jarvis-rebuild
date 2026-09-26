@@ -133,6 +133,11 @@ describe("the whole rule: every line the app writes is Title Case", () => {
     expect(lineCase("one-rep max")).toBe("One-Rep Max");
     expect(lineCase("use last time's 25 min")).toBe("Use Last Time's 25 Min");
   });
+  it("keeps a word's own spelling and treats short forms as small (2026-09-26)", () => {
+    expect(titleCase("go to bradfords w/ sam")).toBe("Go to Bradfords w/ Sam");
+    expect(titleCase("set up my iPhone vs the eBay app")).toBe("Set Up My iPhone vs the eBay App");
+    expect(lineCase("synced via iCloud · 3 items")).toBe("Synced via iCloud · 3 Items");
+  });
   it("is idempotent and keeps the spacing it was given", () => {
     const once = lineCase(" waiting 3 days \u00b7 nudged twice ");
     expect(once).toBe(" Waiting 3 Days \u00b7 Nudged Twice ");
