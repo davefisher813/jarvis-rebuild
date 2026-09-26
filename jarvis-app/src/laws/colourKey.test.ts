@@ -134,7 +134,10 @@ describe("LAW §AM: the colour key", () => {
   // An emphasis steps up to --tx-1, or takes a meaning colour from the key.
   // -------------------------------------------------------------------------
   it("an emphasis inside a quiet line steps up, and never re-states the grey", () => {
-    const KEY_INK = /var\(--(tx-1|good|warn|sys-red|red|cat-sky|hl-[a-z]+(-ink)?|accent-tx|tint|on-light-red)\)|currentColor/;
+    // AMENDED 2026-09-26 (Dave's pick): an estimate wears --est-ink now (the
+    // sky slot in dark, #006592 in light), so it is a key ink beside
+    // --cat-sky. Nothing else joins.
+    const KEY_INK = /var\(--(tx-1|good|warn|sys-red|red|cat-sky|est-ink|hl-[a-z]+(-ink)?|accent-tx|tint|on-light-red)\)|currentColor/;
     const bad: string[] = [];
     for (const { sel, body, file } of RULES) {
       // The inline emphasis inside a meta line: `<something> b { ... }`.
@@ -196,7 +199,46 @@ describe("LAW §AM: the colour key", () => {
       .toMatch(/\.ruled \.vol-n\.vol-under, \.ruled \.vol-n\.vol-over \{ color: var\(--hl-amber-ink\); \}/);
     expect(RULED, "a crossed guard is late, and late is --sys-red")
       .toMatch(/\.ruled\.health-ruled \.se-guard-warn \{ color: var\(--sys-red\)/);
+    // AMENDED 2026-09-26 (Dave's pick): the estimate's sky is its own token,
+    // --est-ink. In dark it is the sky slot, so nothing moved there; in
+    // light it is the darker sky #006592, because Apple's cyan as text was
+    // 2.28:1 on the light page. The token and both values are pinned, so
+    // light cannot drift back to the category cyan and dark cannot drift
+    // off the sky slot.
     expect(RULED, "an estimate is the one number with a meaning, and it is sky")
-      .toMatch(/\.ruled \.r-goal\.r-est \{[^}]*color: var\(--cat-sky\)/);
+      .toMatch(/\.ruled \.r-goal\.r-est \{[^}]*color: var\(--est-ink\)/);
+    const COMP = read("src/styles/components.css");
+    expect(COMP, "in dark the estimate ink is the sky slot").toMatch(/:root \{ --est-ink: var\(--cat-sky\); \}/);
+    expect(COMP, "in light it is the darker sky Dave picked").toMatch(/\[data-theme="light"\] \{ --est-ink: #006592; \}/);
+    expect(COMP, "and the shared estimate fact wears it").toMatch(/\.fact\.est \{ color: var\(--est-ink\);/);
+  });
+
+  // -------------------------------------------------------------------------
+  // DAVE'S PICKS, 2026-09-26 (the sixteen questions the sweep held for him).
+  // Each one settles a place the key was read two ways; pinned so the
+  // reading he chose is the one that stays.
+  // -------------------------------------------------------------------------
+  it("his 2026-09-26 picks hold: plain Health card, tap-red fold labels, amber countdowns", () => {
+    const RULED = read("src/styles/ruled.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    const EDITOR = read("src/styles/editor.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    const COMP = read("src/styles/components.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    // The Health area card is plain like every area card: its colour is on
+    // its tile, never a wash, a rim or a chip tint.
+    const health = /\.ruled \.area-card-health \{([^}]*)\}/.exec(RULED)?.[1] ?? "";
+    expect(health, "the Health card rule exists").not.toBe("");
+    expect(health, "no wash behind it").not.toMatch(/background/);
+    expect(health, "no green rim").not.toMatch(/border/);
+    expect(RULED, "its sub is the area grey, not a white of its own").not.toMatch(/\.ruled \.area-card-health \.area-sub/);
+    expect(RULED, "its chips carry no green").not.toMatch(/\.ruled \.health-chip[^{]*\{[^}]*--good/);
+    // A fold label opens something, so it is the tap red, the words red in
+    // light (the sheet forms take the sheet twin, pinned in browserWalk).
+    expect(EDITOR).toMatch(/\.exp-more summary \{[^}]*color: var\(--tint\);/);
+    expect(EDITOR).toMatch(/\[data-theme="light"\] \.exp-more summary \{ color: var\(--on-light-red\); \}/);
+    expect(RULED).toMatch(/\.ruled\.health-ruled \.ins-table summary \{[^}]*color: var\(--tint\);/);
+    expect(RULED).toMatch(/\[data-theme="light"\] \.ruled\.health-ruled \.ins-table summary \{ color: var\(--on-light-red\); \}/);
+    expect(COMP, "no fold label is put back to grey").not.toMatch(/\.rem-more > summary \{[^}]*color/);
+    // A count of days still running is needs you soon, amber; slipped is late.
+    expect(COMP).toMatch(/\.qd-hot \{ color: var\(--sys-red\); \}/);
+    expect(COMP).toMatch(/\.qd-soon \{ color: var\(--warn\); \}/);
   });
 });

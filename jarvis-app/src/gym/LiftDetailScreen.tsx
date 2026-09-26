@@ -267,7 +267,10 @@ export default function LiftDetailScreen({
                         <div className="ex-cell-k">{sessions.length === 1 ? "Session" : "Sessions"}</div>
                       </div>
                     </div>
-                    <div className="facts">
+                    {/* Both dates are the point, so the pair wraps whole in
+                        the unclamped meta line rather than cutting the range
+                        mid-word at type scale 1.4 (2026-09-26). */}
+                    <div className="conn-meta">
                       <span className="fact date">{`Best on ${shortDate(best.date)}`}</span>
                       <span className="fact date">{`${shortDate(sessions[0]!.date)} to ${shortDate(sessions[sessions.length - 1]!.date)}`}</span>
                     </div>
@@ -453,13 +456,15 @@ export default function LiftDetailScreen({
                   <div className="row-grow">
                     <div className="conn-name">{capAfterNumber(`${plateau.flatSessions} sessions with no new best`)}</div>
                     {/* §AM (2026-09-26): three facts, the separator drawn by
-                        CSS. The best is the line's one grey, its date small
-                        caps, and the stalled current value amber, the same
-                        reading the Brain plateau card gives. */}
+                        CSS. The stalled current value is amber, the same
+                        reading the Brain plateau card gives, and it leads:
+                        last, it was the fact cut mid-number at type scale
+                        1.4. The best is the line's one grey, and its date,
+                        small caps, is the fact that gives way. */}
                     <div className="facts">
+                      <span className="fact amber">{`Now ${plateau.currentValue}`}</span>
                       <span className="fact">{`Best ${plateau.peakValue}`}</span>
                       <span className="fact date">{shortDate(plateau.peakDate)}</span>
-                      <span className="fact amber">{`Now ${plateau.currentValue}`}</span>
                     </div>
                   </div>
                 </div>

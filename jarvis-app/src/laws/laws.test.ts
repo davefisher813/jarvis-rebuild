@@ -3741,10 +3741,11 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     const offenders: string[] = [];
     for (const f of COMPONENTS) {
       if (rel(f) === "today/YourDay.tsx") continue;
-      // C-38 (Astra Build Master 4.5, Dave's picks 2026-09-12): Shaping
-      // JARVIS Now and Needs You on the Brain hub are sh2 heads, "not quiet,
-      // they are the page's live top". The one other exception, by ruling.
-      if (rel(f) === "brain/BrainTop.tsx") continue;
+      // AMENDED 2026-09-26 (Dave's pick): the C-38 exemption for the Brain
+      // hub's Shaping JARVIS Now and Needs You ("not quiet, they are the
+      // page's live top", 2026-09-12) is repealed. They are quiet like every
+      // other head, so BrainTop.tsx is scanned like any other file and
+      // Today's Now is the only red head left.
       read(f).split("\n").forEach((line, i) => {
         const m = line.match(/className="([^"]*\bsh2\b[^"]*)"/);
         if (m && !m[1]!.includes("sh2-quiet")) offenders.push(rel(f) + ":" + (i + 1));

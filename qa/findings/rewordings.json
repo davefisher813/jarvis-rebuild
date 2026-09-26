@@ -3128,5 +3128,93 @@
   "new": "No Areas Yet (title) / Add one in Settings > Categories (sub)",
   "phase": "code-finish",
   "group": "finish-9"
+ },
+ {
+  "item": "1",
+  "file": "src/messages/home.ts",
+  "old": "Mail bill notice facts: [\"Looks like\" $214.00] then [Due tomorrow] (or [Due Aug 12])",
+  "new": "[Tomorrow] (or [Aug 12]) then [Looks like $214.00]: the toned day leads, without \"Due\"",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
+ },
+ {
+  "item": "2",
+  "file": "src/messages/home.ts",
+  "old": "Mail deadline notice facts: [Looks like today] / [Due tomorrow 5:00 PM] then [From Nadia Brandt]",
+  "new": "[Today] / [Tomorrow 5:00 PM] then [Likely, from Nadia Brandt] (hedged) or [From Nadia Brandt] (sure); the spoken sub is unchanged",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
+ },
+ {
+  "item": "13",
+  "file": "src/today/TodayFlow.tsx",
+  "old": "Momentum tuning rule evidence (shown on What JARVIS Learned): Keep going \u00b7 same category, due today \u00b7 15m",
+  "new": "Keep going, same category, due today, 15m",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
+ },
+ {
+  "item": "13",
+  "file": "src/today/TodayFlow.tsx",
+  "old": "Birthday tuning rule evidence: Sam \u00b7 Birthday tomorrow",
+  "new": "Sam, birthday tomorrow",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
+ },
+ {
+  "item": "13",
+  "file": "src/settings/LearnedRulesPage.tsx",
+  "old": "Stored rule evidence drawn as written, typed middle dots included (e.g. Keep going \u00b7 due today \u00b7 15m)",
+  "new": "Each typed middle dot drawn as a comma (Keep going, due today, 15m)",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
+ },
+ {
+  "item": "12",
+  "file": "src/brain/HealthBody.tsx",
+  "old": "Health hero estimate: About 36 min",
+  "new": "36 Min",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
+ },
+ {
+  "item": "16",
+  "file": "src/gym/SessionScreen.tsx",
+  "old": "In-gym facts line while parked: 12:04 \u00b7 2 of 5 Lifts \u00b7 6 of 15 Sets (the caveat only in the clock's VoiceOver label)",
+  "new": "12:04 \u00b7 6 of 15 Sets \u00b7 2 of 5 Lifts, paused time excluded (dots drawn by CSS)",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
+ },
+ {
+  "item": "17",
+  "file": "src/today/TodaySuggestions.tsx",
+  "old": "Noticed \u00b7 {suggestion}",
+  "new": "Noticed: {suggestion}",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
+ },
+ {
+  "item": "17",
+  "file": "src/today/TodaySuggestions.tsx",
+  "old": "Noticed \u00b7 Couldn't check today's suggestions",
+  "new": "Couldn't check today's suggestions",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
+ },
+ {
+  "item": "24",
+  "file": "src/capture/QuickCapture.tsx",
+  "old": "Capture receipt, a decision or person card with a person/project: Decision \u00b7 Marco (two grey facts)",
+  "new": "Decision for Marco (one fact)",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
+ },
+ {
+  "item": "24",
+  "file": "src/capture/QuickCapture.tsx",
+  "old": "Capture receipt, a Remember line with a kind about a person: Preference \u00b7 Marco (two grey facts)",
+  "new": "Preference about Marco (one fact)",
+  "phase": "r3-sitefixes",
+  "group": "r3-sitefixes"
  }
 ]

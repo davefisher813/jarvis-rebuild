@@ -67,8 +67,11 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
               // One line of evidence, the latest (§AK, 2026-09-26): a rule is
               // earned by two corrections, and both drawn stacked were two
               // grey runs under one title, identical for a voice rule.
+              // Rules stored before 2026-09-26 carry evidence joined with a
+              // typed middle dot ("Keep going \u00b7 due today \u00b7 15m"),
+              // and this line renders it, so it reads as a phrase instead.
               <Row key={r.id} label={tuningLine(r) ?? `${label(r.data.from)} means ${label(r.data.to)}`}
-                meta={r.data.evidence[r.data.evidence.length - 1]}>
+                meta={r.data.evidence[r.data.evidence.length - 1]?.replace(/\s*\u00b7\s*/g, ", ")}>
                 <button className="pill-act" disabled={removing === r.id} onClick={() => void remove(r)}>{removing === r.id ? "..." : "Delete"}</button>
               </Row>
             ))}

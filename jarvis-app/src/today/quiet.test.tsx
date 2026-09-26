@@ -9,10 +9,15 @@ const lit = (s: string): string[] => {
   const { container } = render(<Quiet s={s} />);
   return Array.from(container.querySelectorAll(".qd")).map((e) => e.textContent ?? "");
 };
-/** The data this line marks HOT. */
+/** The data this line marks HOT (a count of days that has slipped: red). */
 const hot = (s: string): string[] => {
   const { container } = render(<Quiet s={s} />);
   return Array.from(container.querySelectorAll(".qd-hot")).map((e) => e.textContent ?? "");
+};
+/** The data this line marks SOON (a count of days still running: amber). */
+const soon = (s: string): string[] => {
+  const { container } = render(<Quiet s={s} />);
+  return Array.from(container.querySelectorAll(".qd-soon")).map((e) => e.textContent ?? "");
 };
 
 describe("what counts as data", () => {
@@ -58,12 +63,31 @@ describe("what counts as data", () => {
   // the same number was red in one row, plain in the next and amber on
   // another screen. It is a rule about the shape of the datum now, which is
   // the only kind that can reach inside a sentence a model wrote.
-  it("makes every count of days hot, in both forms", () => {
+  //
+  // UPDATED 2026-09-26 (Dave's pick, the Colour Key): every count of days
+  // still takes a colour, but the colour follows the way it runs. Slipped
+  // (an age) is late, red; forward ("3 days left", "in 5 days") is needs
+  // you soon, amber. A count is one or the other, never both.
+  it("makes every count of days that has slipped hot, in both forms", () => {
     expect(hot("61 Days")).toEqual(["61"]);
-    expect(hot("Mailchimp trial ends, 3 days left")).toEqual(["3"]);
     expect(hot("Invoice \u00b7 84 Days")).toEqual(["84"]);
     expect(hot("Slid 3d")).toEqual(["3d"]);
     expect(hot("59d waiting")).toEqual(["59d"]);
+    expect(hot("Overdue by 4 days")).toEqual(["4"]);
+    expect(soon("61 Days")).toEqual([]);
+  });
+
+  it("makes a count of days that runs forward amber, not red", () => {
+    expect(soon("Mailchimp trial ends, 3 days left")).toEqual(["3"]);
+    expect(hot("Mailchimp trial ends, 3 days left")).toEqual([]);
+    expect(soon("Renews in 5 days")).toEqual(["5"]);
+    expect(soon("Ends in 3d")).toEqual(["3d"]);
+    expect(soon("3d to go")).toEqual(["3d"]);
+    expect(soon("12 days remaining")).toEqual(["12"]);
+    expect(soon("Due within 2 days")).toEqual(["2"]);
+    // "in" must touch the figure: a count that merely sits in a sentence
+    // with "in" earlier on is still an age.
+    expect(hot("Sat in drafts 9 days")).toEqual(["9"]);
   });
 
   it("leaves every other datum cool", () => {

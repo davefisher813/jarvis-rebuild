@@ -29,6 +29,7 @@ import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph,
 import StepCount, { stepsOf } from "../shared/StepCount";
 import type { ParentLine } from "../life/parent";
 import { originLabel } from "../tasks/origin";
+import { useAvatarPhoto } from "../profile/avatarPhoto";
 
 const localISODate = () => {
   const d = new Date();
@@ -444,6 +445,10 @@ export default function TodayPage({
   onOpenPerson?: (id: string) => void;
   onCallPerson?: (id: string) => void;
 }) {
+  // The photo is read here, off the profile, rather than passed down: the
+  // flow already hands this page the initials, and the photo follows a
+  // change made on Account while Today stays mounted.
+  const avatarPhoto = useAvatarPhoto();
   // THE STREAM SHOWS THREE (Dave 2026-08-26, from the five-way render
   // catalog: "Option 1 with a limit. Have a see all button if it exceeds 3
   // things"). Session-local, like a row's own expansion: navigating away and
@@ -810,7 +815,9 @@ export default function TodayPage({
       <div className={"pagebar today-pagebar" + (condensed ? " on" : "") + (scrolled ? " solid" : "")}>
       <div className="today-bar pagebar-row">
         <button className="today-av" aria-label="Account" onClick={onProfile}>
-          <div className="av av-32 av-accent">{avatar}</div>
+          {/* His photo, when he has set one on Account (Dave's pick,
+              2026-09-26), inside the same red disc; his initials otherwise. */}
+          <div className="av av-32 av-accent">{avatarPhoto ? <img className="av-photo" src={avatarPhoto} alt="" /> : avatar}</div>
         </button>
         <div className="today-brand"><span className="j">J</span>ARVIS</div>
         {onSearch ? (

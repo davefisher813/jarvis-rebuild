@@ -97,6 +97,11 @@ function reminderDays(days?: number[]): string {
 //     a clause of it and does not stand on its own. The words go LAST, the
 //     bill with them: the short whens lead and the long free text trails,
 //     so a narrow line loses the tail of a name before it loses a due date.
+//   - the same for every other grey word run (2026-09-26): a decision's or
+//     a person card's kind takes who as "Decision for Marco", and a
+//     Remember line's kind as "Preference about Marco". Who stands alone
+//     only when no other grey run is on the line, so the receipt never
+//     carries two plain greys (§AK one grey per row).
 // Nothing here repeats the chips under the receipt, which already name the
 // kind and the area (or the Brain bucket) with the right one lit; that is
 // the same word-twice rule the person card follows. "From your paste" went
@@ -104,11 +109,15 @@ function reminderDays(days?: number[]): string {
 function receiptFacts(s: SavedEntity, names: { person?: string; project?: string }): ReactNode[] {
   const out: ReactNode[] = [];
   const who = [names.person, names.project].filter(Boolean).join(", ");
-  if (!KINDS.includes(s.kind)) out.push(<span className="fact" key="kind">{KIND_LABEL[s.kind]}</span>);
+  // The one grey word run a record with no chip carries, who folded in.
+  const kindRun = !KINDS.includes(s.kind) ? KIND_LABEL[s.kind] + (who ? " for " + who : "")
+    // C-49: the kind the prefix chose, when it is not plain Fact.
+    : s.kind === "fact" && s.factType && s.factType !== "fact" ? STRAND_TYPE_LABEL[s.factType] + (who ? " about " + who : "")
+    : null;
+  if (kindRun) out.push(<span className="fact" key="kind">{kindRun}</span>);
   if (s.reminder) out.push(<span className="fact date" key="remind">Reminder {fmtClock(s.reminder.time)}</span>);
   if (s.kind === "fact") {
-    // C-49: the kind the prefix chose, and Rule when Never/Always made one.
-    if (s.factType && s.factType !== "fact") out.push(<span className="fact" key="type">{STRAND_TYPE_LABEL[s.factType]}</span>);
+    // C-49: Rule when Never/Always made one.
     if (s.rule) out.push(<span className="fact st" key="rule">Rule</span>);
   } else {
     whenParts(s).forEach((w, i) => out.push(<span className={"fact " + w.tone} key={"when" + i}>{w.text}</span>));
@@ -119,7 +128,7 @@ function receiptFacts(s: SavedEntity, names: { person?: string; project?: string
   const repeat = s.recurrence ? (REPEAT_WORD[s.recurrence] ?? s.recurrence) : s.reminder ? reminderDays(s.reminder.days) : "";
   if (repeat) out.push(<span className="fact date" key="repeat">{repeat}</span>);
   if (s.bill) out.push(<span className="fact" key="bill">Bill <b>{formatMoney(s.bill.amount)}</b>{who ? " for " + who : ""}</span>);
-  else if (who) out.push(<span className="fact" key="who">{who}</span>);
+  else if (who && !kindRun) out.push(<span className="fact" key="who">{who}</span>);
   return out;
 }
 
@@ -444,7 +453,9 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                             shows no line at all. The receipt's job is to
                             show EVERY fact it read (the resolved date and
                             time above all), so its facts sit in the
-                            wrapping two-line .conn-meta, not the one-line
+                            wrapping, unclamped .conn-meta (components.css:
+                            a meta line built of facts has no clamp), not
+                            the one-line
                             .facts whose last fact gives way (2026-09-26, as
                             gym/UploadFlow's review row). The stylesheet
                             still draws the dots between them. */}

@@ -308,7 +308,8 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
             the block's state word, not part of its name; the hours and the
             days are neutral times in small caps; the place is the one grey.
             The facts go straight into the Row's own .conn-meta, which wraps
-            to two lines: a settings row shows every fact, and a one-line
+            unclamped (components.css: a meta line built of facts has no
+            clamp): a settings row shows every fact, and a one-line
             .facts cut the day list mid-word and dropped the place. */}
         {sortedBlocks.map((b) => (
           <Row

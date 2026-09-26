@@ -520,7 +520,19 @@ export default function EventSheet({
                 <Tile tone="teal"><Timer className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Travel</div>
-                  {travelMin === null && remembered !== undefined && <div className="conn-meta">{remembered} min last time</div>}
+                  {/* ONE TAP FILLS IT (Dave's pick, 2026-09-26). The minutes
+                      typed for this place last time were a grey line he then
+                      had to re-pick from the menu; now the line is the offer,
+                      in the inline-fix capsule this sheet already uses for
+                      Use Next Free Slot, and tapping it sets Travel. */}
+                  {travelMin === null && remembered !== undefined && (
+                    <div className="conn-meta">
+                      <button type="button" className="note-fix"
+                        onClick={() => { setTravelCustom(false); setForgetTravel(false); setTravelMin(remembered); }}>
+                        {`Use Last Time's ${remembered} Min`}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <HeadMenu variant="value" ariaLabel="Travel" value={travelMin === null ? "" : String(travelMin)} label={travelMin === null ? "None" : `${travelMin} min`} off={travelMin === null}
                   options={[

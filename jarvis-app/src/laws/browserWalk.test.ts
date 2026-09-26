@@ -477,6 +477,10 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
       ".form-sheet .prov-link", ".sheet-scrim > .card .prov-link",
       ".banner-warn .see-all", ".banner-cool .see-all",
       ".toast .toast-action",
+      // AMENDED 2026-09-26 (Dave's pick): fold labels turned tap red, and
+      // most of them open inside a sheet, where the tap red is 3.76:1 on the
+      // dark sheet grey. Both sheet forms take the sheet twin.
+      ".form-sheet .exp-more summary", ".sheet-scrim > .card .exp-more summary",
     ]) {
       expect(members, `${sel} is a member of the sheet-red list`).toContain(sel);
     }

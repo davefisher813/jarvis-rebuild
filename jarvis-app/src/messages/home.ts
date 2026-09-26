@@ -224,8 +224,23 @@ export function byTime(by: string | undefined): string | null {
  *  later day, or a phrase no one can place, is a neutral date in small caps.
  *  A stated deadline is never late: the phrase cannot say it has passed. */
 export function deadlineTone(by: string | undefined, now = new Date()): "warn" | "date" {
-  const rank = byRank(by, now);
-  return rank <= 1 || (!!byTime(by) && rank >= 500) ? "warn" : "date";
+  return byRank(by, now) <= 1 || isBareClock(by) ? "warn" : "date";
+}
+
+/** A clock and nothing else ("3 PM", "by 15:00"), which is today. Only when
+ *  the clock and its filler words are ALL the phrase holds (2026-09-26):
+ *  byRank gives 500 to every phrase it cannot read, so "by Oct 5 at 3 PM"
+ *  also had a clock and a 500 and came out amber, due, when it is a later
+ *  date the app simply could not parse. One predicate, read by deadlineTone
+ *  and deadlineNotice alike, so the two never disagree. */
+export function isBareClock(by: string | undefined): boolean {
+  if (!byTime(by)) return false;
+  const rest = (by || "").toLowerCase()
+    .replace(/\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/g, " ")
+    .replace(/\b\d{1,2}:\d{2}\b/g, " ")
+    .replace(/\b(?:by|before|at|until|around|latest|the)\b/g, " ")
+    .replace(/[\s,.]+/g, "");
+  return rest === "";
 }
 
 /** One calendar event on `day` that is running at `hhmm`. Facts only: this
@@ -253,8 +268,9 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
   // middle for a phrase it cannot read), which is right for SORTING and
   // wrong here: a sender who wrote "by 3 PM" and nothing else meant today,
   // and the card said nothing at all about it. Only ever a phrase with a
-  // real clock in it; an unreadable phrase without one still says nothing.
-  const bareClock = !!at && rank >= 500;
+  // real clock in it, and nothing else (isBareClock); an unreadable phrase
+  // still says nothing.
+  const bareClock = isBareClock(t.by);
   const due = bareClock ? todayISO : dueFromBy(t.by, todayISO, now);
   if (!due || (!bareClock && rank > 1)) return null; // only when the date is NOW
   const clash = at ? spanningEvent(events, due, at) : null;
@@ -281,15 +297,16 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
     // The sentence: the sender, then the deadline as the rest of it, so
     // "Due" and "Looks like" drop to lowercase.
     sub: capAfterNumber(`From ${t.from}, ${dueLabel.charAt(0).toLowerCase() + dueLabel.slice(1)}${until}`),
-    // On screen, two facts. The deadline ALONE is the first, short and
-    // toned, because a first fact never shrinks: with the clash glued on it
-    // ran 400px in a 169px line and was cut mid-word with the sender pushed
-    // off. The clash rides with the sender in the last fact, the one fact
-    // that may ellipsize, so it shows when there is room and yields when
-    // there is not. The sentence above still carries all of it aloud.
+    // On screen, two facts. The bare day or clock ALONE is the first,
+    // short and toned: with the clash glued on it ran 400px in a 169px line,
+    // and even "Looks like today" was cut to "Looks like t..." at type
+    // scale 1.4 (2026-09-26). The hedge and the clash ride with the sender
+    // in the last fact, the one that gives way first, so they show when
+    // there is room and yield when there is not. The sentence above still
+    // carries all of it aloud.
     facts: [
-      { text: capAfterNumber(dueLabel), tone: byTone },
-      { text: "From " + t.from + (until ? "," + until : "") },
+      { text: capAfterNumber(capFirst(plain)), tone: byTone },
+      { text: (isHigh(confidenceOf(t.byEv)) ? "From " : "Likely, from ") + t.from + (until ? "," + until : "") },
     ],
     action: "Add Task",
     tone: "cat-fg-red",
@@ -422,13 +439,15 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
   const sure = isHigh(confidenceOf(t.actEv));
   const sub = sure ? plain : hedgedActSub(plain);
   // On screen the line is facts, drawn with the key (§AM R6, R8):
-  //   - A bill is two, as the Today bill card draws one: the amount, a
-  //     number with no state (white), then the day it is due in the date
-  //     window's tone. The hedge rides in front of the amount, so the
-  //     qualifier still comes first and the numbers keep their shape.
+  //   - A bill is two: the day it is due, alone, in the date window's
+  //     tone, then the amount, a number with no state (white). The toned
+  //     day leads because the last fact is the one that gives way: with
+  //     the amount first, "Due tomorrow" was cut to its dot and an
+  //     ellipsis on the Today card at 1.0 (2026-09-26). The hedge rides in
+  //     front of the amount, and the sentence read aloud keeps it whole.
   //   - A reminder is its day alone, in the date window's tone (the day it
-  //     is for is when it is due), the hedge inside the one fact the way the
-  //     deadline notice wears it. One fact is the last fact, so it yields
+  //     is for is when it is due), the hedge inside the one fact, as there
+  //     is no other to carry it. One fact is the last fact, so it yields
   //     with an ellipsis and never clips.
   //   - An event is its day and time, a neutral time in small caps, then
   //     its length, a number with no state (white), the fact that yields.
@@ -438,8 +457,8 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
   //     hedge put anywhere but first is the part that gets cut.
   const facts: NoticeFact[] | undefined = a.verb === "bill"
     ? [
+        { text: capFirst(when), tone: dayTone(a.date, todayISO) },
         { text: sure ? "" : "Looks like", num: `$${a.amount!.toFixed(2)}` },
-        { text: "Due " + when, tone: dayTone(a.date, todayISO) },
       ]
     : a.verb === "remind"
       ? [{ text: sure ? capFirst(when) : hedgedActSub(when), tone: dayTone(a.date, todayISO) }]

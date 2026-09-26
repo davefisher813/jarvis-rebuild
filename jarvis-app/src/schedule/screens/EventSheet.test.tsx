@@ -214,13 +214,31 @@ describe("EventSheet: Leave By", () => {
       <EventSheet mode="new" initial={{ date: "2026-05-24", start: "15:40", location: "Rink 2" }} categories={CATS}
         travelMemory={{ "rink 2": 25 }} onSave={onSave} onCancel={() => {}} />,
     );
-    expect(screen.getByText("25 min last time")).toBeInTheDocument();
+    // Dave's pick, 2026-09-26: last time's minutes are a one-tap fill.
+    expect(screen.getByRole("button", { name: "Use Last Time's 25 Min" })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Travel"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Forget This Place" }));
     fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Practice" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0].forgetTravel).toBe(true);
     expect(onSave.mock.calls[0]![0].travelMin).toBeUndefined();
+  });
+});
+
+describe("EventSheet: last time's travel is one tap", () => {
+  it("tapping the offer sets Travel to last time's minutes, and saves them", () => {
+    const onSave = vi.fn();
+    render(
+      <EventSheet mode="new" initial={{ date: "2026-05-24", start: "15:40", location: "Rink 2" }} categories={CATS}
+        travelMemory={{ "rink 2": 25 }} onSave={onSave} onCancel={() => {}} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Use Last Time's 25 Min" }));
+    expect(screen.getByLabelText("Travel").textContent).toContain("25 min");
+    // Filled, so the offer has done its job and goes.
+    expect(screen.queryByRole("button", { name: "Use Last Time's 25 Min" })).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Practice" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0].travelMin).toBe(25);
   });
 });
 

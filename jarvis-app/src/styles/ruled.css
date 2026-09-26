@@ -448,7 +448,7 @@
    not jitter, the same as the right slot's own duration. */
 /* Time is sky (Astra G7), so how long it takes reads as time at a glance
    instead of a fourth word of grey (Dave 2026-09-13: "color coding"). */
-.ruled .r-goal.r-est { color: var(--cat-sky); font-variant-numeric: tabular-nums; }
+.ruled .r-goal.r-est { color: var(--est-ink); font-variant-numeric: tabular-nums; }
 /* A RECURRENCE is a rule, not an instance of one. The quietest fact on the
    line, and by its place in the line the first to go when the room runs out.
    --tx-quiet, NOT --tx-4: BROWSER-F-09 (2026-09-05) split those two apart
@@ -514,7 +514,7 @@
    an estimate the app worked out is sky). Nums bolds the number, and the
    line above turned that bold white, so "45m" lost its colour the same day
    the key gave it one. */
-.ruled .task-row .r-goal.r-est b { color: var(--cat-sky); }
+.ruled .task-row .r-goal.r-est b { color: var(--est-ink); }
 /* (The goal as a head over its projects, .sh2.gh-goal, is retired. The
    Projects lens groups by area like the Goals lens does, so the head is the
    area's and the goal rides on the row as an .r-is-goal chip. Dave
@@ -1855,7 +1855,7 @@
 /* An estimate the app worked out is sky (§AM, 2026-09-26): the Up Next
    card's length was wearing the budget violet. Health has no sky ink of its
    own, so it takes the key's, washed at the budget violet's 16%. */
-.ruled.health-ruled .se-chip-est { color: var(--cat-sky); background: color-mix(in srgb, var(--cat-sky) 16%, transparent); }
+.ruled.health-ruled .se-chip-est { color: var(--est-ink); background: color-mix(in srgb, var(--est-ink) 16%, transparent); }
 .ruled.health-ruled .se-chip-over { color: var(--hl-amber-ink); background: var(--hl-amber-tint); }
 .ruled.health-ruled .se-chip-when, .ruled.health-ruled .se-chip-game { color: var(--tx-3); background: var(--press-3); }
 
@@ -2277,7 +2277,7 @@
    tie on source order.
    The two ends are scale-end kickers, so 11 caps (§AM F4), not a 13. */
 .ruled.health-ruled .stat-row.stat-hblue .stat-tile .stat-num { color: var(--tx-1); }
-.ruled.health-ruled .stat-row.stat-hblue .stat-tile.stat-sky .stat-num { color: var(--cat-sky); }
+.ruled.health-ruled .stat-row.stat-hblue .stat-tile.stat-sky .stat-num { color: var(--est-ink); }
 .ruled.health-ruled .stat-row.stat-hblue .stat-tile.stat-warn .stat-num { color: var(--hl-amber-ink); }
 .ruled.health-ruled .stat-row.stat-hblue .stat-tile.stat-warn { background-color: var(--hl-amber-tint); }
 .ruled.health-ruled .rpe-ends { display: flex; justify-content: space-between; margin-top: var(--s-1h);
@@ -2433,7 +2433,10 @@
 .ruled.health-ruled .ins-big.lime { color: var(--hl-lime); }
 .ruled.health-ruled .ins-chart { display: block; width: 100%; height: auto; margin: var(--s-2h) 0 var(--s-0h); color: var(--tx-1); }
 .ruled.health-ruled .ins-axis { font-size: var(--t-micro); fill: var(--tx-2); font-family: var(--f); }
-.ruled.health-ruled .ins-table summary { font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2); cursor: pointer; padding: var(--s-1h) 0; }
+/* The table's fold label is a tap, so it is the tap red like every fold
+   label (Dave's pick, 2026-09-26), the words red in light. */
+.ruled.health-ruled .ins-table summary { font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tint); cursor: pointer; padding: var(--s-1h) 0; }
+[data-theme="light"] .ruled.health-ruled .ins-table summary { color: var(--on-light-red); }
 .ruled.health-ruled .ins-table table { width: 100%; border-collapse: collapse; font-size: var(--t-caption); font-variant-numeric: tabular-nums; }
 .ruled.health-ruled .ins-table th { text-align: left; font-weight: var(--w-semi); color: var(--tx-2); padding: var(--s-1) 0; }
 .ruled.health-ruled .ins-table td { padding: var(--s-1) 0; border-top: 0.5px solid var(--divider); }
@@ -2620,25 +2623,28 @@
    behind it. */
 /* THE AREAS CARDS (Dave 2026-09-16, his reference mock): each area its own
    card, a flat colour tile with the white glyph, the name over its counts,
-   the chevron at the right; Health leads on the good tint with white words
-   and five icon chips. No shading on any tile. */
+   the chevron at the right; Health leads with five icon chips. No shading
+   on any tile. */
 .ruled .area-cards { display: flex; flex-direction: column; gap: var(--s-2h); }
 .ruled .area-card { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-3h); cursor: pointer; }
 .ruled .area-card:active { opacity: 0.85; }
 .ruled .area-card-top { display: flex; align-items: center; gap: var(--s-3); width: 100%; }
-.ruled .area-card-health { flex-direction: column; align-items: stretch; gap: var(--s-3); background: var(--good-tint); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--divider)); }
+/* PLAIN LIKE THE OTHER AREA CARDS (Dave's pick, 2026-09-26). The card lost
+   its green wash and green border, its sub went back to the area grey, and
+   its chips went neutral: Health's colour lives on its tile, as every
+   area's does. What still sets it apart is content (the sections row). */
+.ruled .area-card-health { flex-direction: column; align-items: stretch; gap: var(--s-3); }
 .ruled .area-tile { width: 44px; height: 44px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
 .ruled .area-tile .ic { width: 22px; height: 22px; }
 .ruled .area-stack { flex: 1; min-width: 0; }
 .ruled .area-name { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .area-sub { font-size: var(--t-meta); color: var(--tx-2); margin-top: 1px; }
-.ruled .area-card-health .area-sub { color: var(--tx-1); opacity: 0.85; }
 .ruled .area-chev { width: 28px; height: 28px; border-radius: var(--r-circle); background: var(--press-3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .ruled .area-chev .chev { margin-right: var(--s-1); border-color: var(--tx-2); }
 .ruled .health-sections { display: flex; flex-wrap: nowrap; gap: var(--s-1h); overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
 .ruled .health-sections::-webkit-scrollbar { display: none; }
-.ruled .health-chip { display: inline-flex; align-items: center; gap: var(--s-1); padding: var(--s-1h) var(--s-2); border-radius: var(--r-pill); background: color-mix(in srgb, var(--good) 22%, var(--good-tint)); color: var(--tx-1); font-size: var(--t-micro); letter-spacing: -0.01em; font-weight: var(--w-semi); white-space: nowrap; flex: 1 1 auto; justify-content: center; min-width: 0; }
-.ruled .health-chip .ic { width: 13px; height: 13px; color: var(--good); flex-shrink: 0; }
+.ruled .health-chip { display: inline-flex; align-items: center; gap: var(--s-1); padding: var(--s-1h) var(--s-2); border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); font-size: var(--t-micro); letter-spacing: -0.01em; font-weight: var(--w-semi); white-space: nowrap; flex: 1 1 auto; justify-content: center; min-width: 0; }
+.ruled .health-chip .ic { width: 13px; height: 13px; color: var(--tx-2); flex-shrink: 0; }
 
 /* ==========================================================================
    THE PROJECT / GOAL CARD (Dave 2026-09-18, approved mockup).
@@ -2892,12 +2898,27 @@
    13. They take the card's own white rather than a raw near-white of their
    own: the ground is a fixed colour in both themes, so the key's greys
    cannot sit on it. White does not pass everywhere either: on the pale
-   slots it measures 2.8 to 4.5:1 (round 3, eleven slots). The fix, a dark
-   fade under the footer or darker gradient pairs, is held for Dave with a
-   rendered preview (question "bp-foot"); until he rules, nothing moves. */
+   slots it measured 2.8 to 4.5:1 (round 3, eleven slots), so the footer
+   sits on a dark fade (Dave's pick, 2026-09-26, question "bp-foot"): below. */
 .ruled .bp-card-lead, .ruled .bp-card-n {
   font-size: var(--t-sub); font-weight: var(--w-sub);
   color: inherit;
+}
+/* THE FOOTER FADE (Dave's pick, 2026-09-26). A black scrim drawn behind the
+   footer only, out to the card's edges and its bottom, ramping in above the
+   footer so it has no edge. The card's top (the gradient, the sheen, the
+   title) is untouched; the pairs stay his sampled pairs. Its strength is
+   MEASURED, not guessed: every one of the twenty-four slots was rendered
+   through this stylesheet and the brightest pixel under any footer line
+   sampled: at 30% the worst (olive) reads 5.16:1, lime 5.39, yellow 5.45,
+   mint 5.52, where they read 2.75 to 2.97 with no fade. It sits
+   at z-index -1 inside the footer's own stack (the footer is z-index 1), so
+   it paints over the card's gradient and under the footer's words. */
+.ruled .bp-card-foot::before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  left: calc(-1 * var(--s-3h)); right: calc(-1 * var(--s-3h));
+  top: calc(-1 * var(--s-4)); bottom: calc(-1 * var(--s-3h));
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0.3) var(--s-7), rgba(0, 0, 0, 0.3) 100%);
 }
 /* THE NEXT ACTION WRAPS (2026-09-18). It was one line with an ellipsis, so
    six of nine real projects read "Next: Go to Bradfor..." -- the one line on

@@ -148,9 +148,13 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
                       detail is the row's one grey, and a record that is not
                       synced yet says so in amber (stalled, per the key). An
                       imported record says so inside the grey rather than as
-                      a second one. */}
+                      a second one. The amber sync fact comes right after the
+                      time (2026-09-26): last, it was squeezed to its dot, so
+                      a record that had not synced never said so. The grey
+                      detail is the fact that gives way. */}
                   <div className="facts">
                     <span className="fact date">{clock(r.at)}</span>
+                    {r.source === "Waiting to sync" && <span className="fact amber">{r.source}</span>}
                     {r.value && (r.open.kind === "workout"
                       ? <span className={"fact " + (r.review ? "amber" : "lime")} aria-label={r.review ? `${r.value}, ${r.review.toLowerCase()}` : undefined}>{r.value}</span>
                       : <span className="fact"><b>{r.value}</b></span>)}
@@ -164,7 +168,6 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
                         method and the edit-effects note behind.
                         Everything else keeps its one-fact detail. */}
                     {quietLine(r) && <span className="fact">{quietLine(r)}</span>}
-                    {r.source === "Waiting to sync" && <span className="fact amber">{r.source}</span>}
                   </div>
                   {r.sets && (
                     // own(): the disclosure is its own control, and opening it

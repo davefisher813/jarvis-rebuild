@@ -20,7 +20,9 @@ import { filledIcon } from "../shared/filledIcons";
 import RowStar from "../shared/RowStar";
 
 // THE BRAIN'S LIVE TOP (C-38, Astra, 2026-09-12). Two bands above the nav
-// list, both sh2 heads because they are the page's live top, not furniture:
+// list. Both heads are quiet grey like every other head (Dave's pick,
+// 2026-09-26: the red "live top" exemption is gone; Today's Now is the one
+// red head in the app):
 //
 //   Shaping JARVIS Now  up to three active strands, ranked by rankForRecall,
 //                       which is the order the AI reads them in. Each row:
@@ -169,7 +171,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
     <>
       {shaping.length > 0 && (
         <>
-          <div className="sh2"><span className="t">Shaping JARVIS Now</span><span className="n">{shaping.length}</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Shaping JARVIS Now</span><span className="n">{shaping.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {shaping.map((s) => {
               const st = stateForStrand(s, today);
@@ -207,7 +209,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
       )}
       {needs.length > 0 && (
         <>
-          <div className="sh2"><span className="t">Needs You</span><span className="n">{needs.length}</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Needs You</span><span className="n">{needs.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {needs.map((n) => n.kind === "writing" ? (
               // row-tap: That's Right is a Brain identity write, and the locked agency law keeps those on an explicit tap of the pill

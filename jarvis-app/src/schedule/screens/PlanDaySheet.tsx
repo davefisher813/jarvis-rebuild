@@ -795,14 +795,19 @@ export default function PlanDaySheet({
                               </div>
                             )}
                             {/* The two placement warnings need him, so they
-                                are amber (§AM), each its own fact. */}
+                                are amber (§AM), each its own fact. This is a
+                                review sheet, whose job is to show every
+                                warning whole, so each is the wrapping,
+                                unclamped meta line (2026-09-26): as a
+                                one-line .facts, "Overlaps your Morning
+                                Routine" lost the name of what it overlaps. */}
                             {on && blockFor(t.id)?.outsideWindow && (
-                              <div className="facts"><span className="fact warn">Outside its work hours</span></div>
+                              <div className="conn-meta"><span className="fact warn">Outside its work hours</span></div>
                             )}
                             {on && blockFor(t.id)?.overSoft && (
-                              <div className="facts"><span className="fact warn">Overlaps your {blockFor(t.id)!.overSoft}</span></div>
+                              <div className="conn-meta"><span className="fact warn">Overlaps your {blockFor(t.id)!.overSoft}</span></div>
                             )}
-                            {chunks && <div className="facts"><span className="fact"><b>{sittingsOf(chunks)}</b></span></div>}
+                            {chunks && <div className="conn-meta"><span className="fact"><b>{sittingsOf(chunks)}</b></span></div>}
                           </div>
                           {on ? (
                             <button

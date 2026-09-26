@@ -538,11 +538,14 @@ export default function SchedulePage({
                       The cadence is the line's one grey; an end date is a
                       neutral date, so small caps; the skip count is a number
                       with no state, so white. An endless series says so once,
-                      in the No End pill, not again in words beside it. */}
+                      in the No End pill, not again in words beside it.
+                      The short facts lead and the cadence, free text, goes
+                      last (2026-09-26): first, a long cadence cut the end
+                      date mid-word and squeezed the skip count to nothing. */}
                   <div className="facts">
-                    <span className="fact">{r.cadence}</span>
                     {!r.endless && <span className="fact date">{r.ends}</span>}
                     {r.skipped > 0 && <span className="fact"><b>{r.skipped} skipped</b></span>}
+                    <span className="fact">{r.cadence}</span>
                   </div>
                 </div>
                 {r.endless && <span className="pill pill-subdued">No End</span>}

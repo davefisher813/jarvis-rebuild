@@ -37,9 +37,12 @@ export default function AreaItemStandard({ area, counts, onOpen }: {
         <div className="area-name">{area.name}</div>
         {/* Each count is its own fact, so the dot between them is drawn by
             .facts and never sits in the string. A count with no state is a
-            white number (§AM), the whole count, so the line spends no grey. */}
+            white number (§AM), the whole count, so the line spends no grey.
+            The line's job is to show every count, so it is the wrapping,
+            unclamped meta line, not the one-line .facts (2026-09-26): there,
+            "2 Projects" was cut to "2 ..." at type scale 1.4. */}
         {stats.length > 0 && (
-          <div className="facts">
+          <div className="conn-meta">
             {stats.map((s) => <span className="fact" key={s}><b>{s}</b></span>)}
           </div>
         )}

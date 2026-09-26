@@ -1734,8 +1734,10 @@ export default function TodayFlow({
   // length is an estimate the app worked out, so it is sky (.fact.est, as on
   // the headliner). "Keep going" came off the card: a second grey that said
   // nothing the slot, the tick a second ago and Start Now do not already say.
-  // momentumSub keeps it, because that string is only the tuning rule's
-  // stored evidence and never renders as the card's line.
+  // momentumSub keeps it, because that string is the tuning rule's stored
+  // evidence, not the card's line. It does render, as the rule's line on
+  // Settings > What JARVIS Learned, so it is a phrase joined by commas,
+  // never typed dots (2026-09-26).
   //
   // DUE AND LATE WEAR THE KEY, THE WAY THE TASKS TAB DRAWS THEM (§AM R3/R8,
   // 2026-09-26). chainReason used to carry "due today" and "overdue" in the
@@ -1756,7 +1758,7 @@ export default function TodayFlow({
   const momentumSub = (m: Momentum): string => {
     const { why, due, len } = momentumParts(m);
     const reason = [why?.toLowerCase(), due ? (due.kind === "late" ? "overdue" : "due today") : null].filter(Boolean).join(", ");
-    return ["Keep going", reason, len].filter(Boolean).join(" \u00b7 ");
+    return ["Keep going", reason, len].filter(Boolean).join(", ");
   };
   // The due half as a fact's words: the chip's own distance, in a sentence's
   // case ("Due today", "3 Days late", "Over a month late"), since a fact is
@@ -1789,7 +1791,16 @@ export default function TodayFlow({
     // mid-word. So the chip branch says the two facts that make the task
     // startable, when and how long, the same two slots the dealt row above
     // it prints (MoveHeadliner: the chip, then the length), and the shared
-    // area stays on the Tasks tab's row.
+    // area stays on the Tasks tab's row. A late chip stands alone
+    // (2026-09-26): "2 DAYS LATE" fills the line at type scale 1.4 and the
+    // length beside it was left its dot and an ellipsis.
+    if (due && len && due.kind === "late") {
+      return (
+        <div className="facts">
+          <span className="fact"><span className="uchip u-late">{due.label}</span></span>
+        </div>
+      );
+    }
     if (due && len) {
       return (
         <div className="facts">
@@ -2231,8 +2242,9 @@ export default function TodayFlow({
 
   //
   // The list is derived with the SAME mailNotices() call MailNotices renders
-  // from, so the drafts that get warmed are the cards he can actually see. A
-  // separate ranking here would warm the wrong five.
+  // from, nudge counts included (a nudged wait can drop its card), so the
+  // drafts that get warmed are the cards he can actually see. A separate
+  // ranking here would warm the wrong five.
   // (The Now suggestion's swipe controller stood here. 55d2b15 took the dealt
   // task off the Now card -- "two surfaces on one screen each offering the
   // thing to do next" -- which took the markup that used it, and the hook call
@@ -2249,7 +2261,7 @@ export default function TodayFlow({
     const snap = loadMailSnapshot();
     if (snap.threads.length === 0 && snap.waiting.length === 0) return;
     pregenRan.current = true;
-    const jobs = mailNotices(snap, today, new Date(), PREGEN_CAP)
+    const jobs = mailNotices(snap, today, new Date(), PREGEN_CAP, [], [], loadNudgeCounts())
       .filter((n) => n.kind === "reply" || n.kind === "deadline" || n.kind === "nudge" || n.kind === "chase")
       .map((n) => jobFor(n))
       .filter((j): j is NonNullable<typeof j> => !!j);
@@ -2514,9 +2526,12 @@ export default function TodayFlow({
                 <div className="conn-name truncate">{shortSpan(nowCtx.gapMin)} open</div>
                 {/* §AM F5 (2026-09-26): when the window ends is a neutral
                     time, so it is small caps, the same "Until" the in-a-block
-                    row below says; what ends it is the line's one grey, and
-                    last, so a long title is the fact that gives way. */}
-                <div className="conn-meta facts">
+                    row below says; what ends it is the line's one grey.
+                    The pair is the row's point, so it is the wrapping,
+                    unclamped meta line (2026-09-26): on one line at type
+                    scale 1.4 the title was left its dot and an ellipsis,
+                    and the row no longer said what ends the window. */}
+                <div className="conn-meta">
                   <span className="fact date">Until {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</span>
                   <span className="fact">{nowCtx.nextTitle ?? "Your next event"}</span>
                 </div>
@@ -3224,7 +3239,7 @@ export default function TodayFlow({
     tomorrowBirthday && tuned("birthday") ? (
       <NoticeCard
         key={"birthday-" + tomorrowBirthday.id}
-        {...tuneProps("birthday", tomorrowBirthday.name + " · Birthday tomorrow")}
+        {...tuneProps("birthday", tomorrowBirthday.name + ", birthday tomorrow")}
         weight={tuningWeight(tunings, "birthday", RESUME)}
         icon={<GiftGlyph />}
         tone="cat-fg-pink"

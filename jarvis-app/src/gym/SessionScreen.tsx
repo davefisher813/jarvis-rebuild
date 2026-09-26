@@ -53,8 +53,8 @@ function ElapsedClock({ live }: { live: LiveSession }) {
   const text = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const paused = (live.pausedMs ?? 0) > 0;
   // The running clock is the current reading, so it wears the Health "now"
-  // ink (§AM). Parked time is excluded, and the clock says so to VoiceOver
-  // rather than as a second plain fact beside the lift count (§AK).
+  // ink (§AM). Parked time is excluded, and the clock says so to VoiceOver;
+  // on screen the lift count carries it, not a second plain fact (§AK).
   return (
     <span className="fact cyan" role="timer" aria-label={paused ? `${text} elapsed, paused time excluded` : `${text} elapsed`}>
       {text}
@@ -575,11 +575,16 @@ export default function SessionScreen({
           {gameLine && <span className="se-chip se-chip-game">{gameLine}</span>}
         </div>
         {/* H-52: how long he has actually been in the gym and how far through
-            the day. Parked time is excluded; the clock's own label says so. */}
+            the day. Parked time is excluded, and once there is any the line
+            says so on screen, not only in the clock's VoiceOver label: a
+            clock shorter than the wall clock needs its reason in sight
+            (2026-09-26). The caveat rides inside the lift count, the line's
+            one grey, rather than as a second grey fact (§AK), and that fact
+            goes last, after the lime sets, as the one that gives way. */}
         <div className="facts se-elapsed">
           <ElapsedClock live={live} />
-          <span className="fact">{capAfterNumber(`${liftsDone} of ${live.exercises.length} lifts`)}</span>
           {plannedTotal > 0 && <span className="fact lime">{capAfterNumber(`${loggedTotal} of ${plannedTotal} sets`)}</span>}
+          <span className="fact">{capAfterNumber(`${liftsDone} of ${live.exercises.length} lifts`)}{(live.pausedMs ?? 0) > 0 ? ", paused time excluded" : ""}</span>
         </div>
         {plannedTotal > 0 && (
           <div className="se-meter" role="img" aria-label={`${loggedTotal} of ${plannedTotal} planned working sets logged`}><span style={{ width: meterPct + "%" }} /></div>

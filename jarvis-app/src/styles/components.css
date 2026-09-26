@@ -1005,6 +1005,12 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .sched-loc { display: inline-flex; align-items: center; gap: var(--s-1); margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tint); font-weight: var(--w-medium); text-decoration: none; }
 .sched-loc .ic { width: 16px; height: 16px; }
 .account-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-1h); padding: var(--s-6) var(--s-4); }
+/* The disc is a tap (Dave's pick, 2026-09-26): it opens the photo sheet.
+   No chrome of its own, the red disc is the control; 72px clears the tap
+   minimum. A chosen photo fills the same circle, cropped to cover it. */
+.account-av { background: none; border: 0; padding: 0; border-radius: var(--r-circle); cursor: pointer; }
+.account-av:active { opacity: 0.7; }
+.av-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
 .account-name { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
 .account-sub { font-size: var(--t-meta); color: var(--tx-3); }
 .about-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-6) var(--s-4); }
@@ -1589,7 +1595,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    AMENDED 2026-09-26: a head action straight on a tinted banner (the Health
    warm-up and cool-down cards) joined too. In dark the warm wash over black
    put the tap red at about 3.4:1; white clears it by far. Light takes the
-   words red either way, so nothing moves there. */
+   words red either way, so nothing moves there.
+   AMENDED 2026-09-26 (Dave's pick): the fold labels joined too, when fold
+   labels turned tap red. Most of them open inside a sheet, where the tap
+   red on the sheet grey is 3.76:1 in dark. */
 .form-sheet .sheet-bar-save,
 .sheet-scrim > .card .sheet-bar-save,
 .form-sheet .note-fix,
@@ -1600,6 +1609,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .banner-cool .see-all,
 .form-sheet .prov-link,
 .sheet-scrim > .card .prov-link,
+.form-sheet .exp-more summary,
+.sheet-scrim > .card .exp-more summary,
 .sheet-scrim > .card .btn:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not(.btn-disabled),
 .sheet-scrim > .card .btn-tertiary,
 .toast .toast-action { color: var(--tint-on-sheet); }
@@ -1689,7 +1700,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-detail-acts .btn { width: 100%; }
 .rem-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
 .rem-more { padding: 0 var(--s-4); }
-.rem-more > summary { color: var(--tx-2); }
 .rem-prompt-sheet .sheet-form { padding-top: var(--s-3); }
 .rem-prompt-eyebrow { padding: 0 var(--s-4); } /* §AM: not tappable, so .eyebrow's own grey */
 .rem-prompt-sheet .rem-detail-title { padding: var(--s-1) var(--s-4) 0; }
@@ -2403,10 +2413,13 @@ button {
    themselves, which is a change to make deliberately and not as part of a
    CSS sweep. Left alone on purpose; noted so nobody "fixes" it in passing. */
 /* The quiet line: words whisper, data pops. Bright tabular data in the time
-   face; heat only where a producer's own thresholds say so. */
+   face; a count of days takes the key's colour for the way it runs (Dave's
+   pick, 2026-09-26): one that has slipped is red, one still running forward
+   ("3 days left") is amber, needs you soon. */
 .qd { font-variant-numeric: tabular-nums;
   color: var(--tx-1); font-weight: var(--w-medium); }
 .qd-hot { color: var(--sys-red); }
+.qd-soon { color: var(--warn); }
 
 /* Undo lives in the toast, because the moment right after the action is the
    only moment anyone wants it. */
@@ -2599,7 +2612,7 @@ button {
 .stat-tile.stat-good { background: var(--good-tint); }
 .stat-tile.stat-good .stat-num { color: var(--good); }
 .stat-tile.stat-sky { background: rgba(90, 200, 250, 0.14); }
-.stat-tile.stat-sky .stat-num { color: var(--cat-sky, #64D2FF); }
+.stat-tile.stat-sky .stat-num { color: var(--est-ink, #64D2FF); }
 .stat-tile.stat-warn { background: var(--warn-tint); }
 .stat-tile.stat-warn .stat-num { color: var(--warn); }
 .stat-tile.stat-plain .stat-num { color: var(--tx-1); }
@@ -4692,7 +4705,7 @@ body.selecting .voice-dock { display: none; }
 /* 4A: the verb is the headline. Big on purpose: it is the decision, and the
    email below it is the evidence. A drafted reply reads as a quote. */
 .sweep-kicker-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
-.sweep-cost { font-size: var(--t-meta); color: var(--cat-sky); font-variant-numeric: tabular-nums; flex-shrink: 0; } /* §AM: an estimate */
+.sweep-cost { font-size: var(--t-meta); color: var(--est-ink); font-variant-numeric: tabular-nums; flex-shrink: 0; } /* §AM: an estimate */
 .sweep-verb { font-size: var(--t-h2); font-weight: var(--w-bold); line-height: var(--lh-tight);
   letter-spacing: -0.01em; margin: var(--s-2) 0 var(--s-3); overflow-wrap: break-word; }
 .sweep-verb-quote { font-weight: var(--w-semi); font-size: var(--t-h3); }
@@ -6051,8 +6064,16 @@ body.selecting .voice-dock { display: none; }
 .fact.date { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
-/* AN ESTIMATE the app worked out is sky, the ink .r-est already wears. */
-.fact.est { color: var(--cat-sky); font-variant-numeric: tabular-nums; }
+/* AN ESTIMATE the app worked out is sky, the ink .r-est already wears.
+   The estimate has its own ink, --est-ink (Dave's pick, 2026-09-26): in dark
+   it IS the sky slot, unchanged; in light it is a darker sky, #006592,
+   because Apple's cyan (#32ADE6) as text read 2.28:1 on the light page and
+   2.54:1 on a white card. #006592 reads 5.74:1 and 6.41:1, and 5.11:1 on
+   the light raised grey. The category slot itself does not move: a sky
+   area's dot and tile stay Apple's cyan. */
+:root { --est-ink: var(--cat-sky); }
+[data-theme="light"] { --est-ink: #006592; }
+.fact.est { color: var(--est-ink); font-variant-numeric: tabular-nums; }
 /* A NUMBER inside a quiet line that means nothing in particular steps up to
    white (F1) -- never the same grey made heavier, which is what --tx-2 is. */
 .facts b, .fact b, .sched-cat b { font-weight: var(--w-semi); color: var(--tx-1); }

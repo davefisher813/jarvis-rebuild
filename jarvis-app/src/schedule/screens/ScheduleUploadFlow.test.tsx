@@ -99,7 +99,7 @@ describe("Schedule upload: an import that fails partway says so and offers the w
 });
 
 // 2026-09-26: this screen exists to check the times it read, so a review
-// row's facts sit in the wrapping two-line .conn-meta, never the one-line
+// row's facts sit in the wrapping, unclamped .conn-meta, never the one-line
 // .facts whose last fact gives way (the end time and "Updates existing" were
 // being cut off at 390px).
 describe("Schedule upload: the review row shows every fact it read", () => {

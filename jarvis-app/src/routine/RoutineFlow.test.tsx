@@ -131,7 +131,7 @@ describe("RoutineFlow blocks save on the tap (BRAIN-F-06)", () => {
 
 // 2026-09-26: a protected-time row states its hours and its days, and both
 // must show. The facts go straight into the settings Row's own .conn-meta,
-// which wraps to two lines, never a one-line .facts whose day list was cut
+// which wraps unclamped, never a one-line .facts whose day list was cut
 // mid-word with the place dropped behind it.
 describe("RoutineFlow protected time: the row shows every fact", () => {
   it("puts the facts straight in the wrapping meta line", async () => {

@@ -55,8 +55,9 @@ export interface LiveCard {
   progress: string;
   /** The whole plan, in order. */
   lines: LiveLine[];
-  /** The exercise the session is on. Today's facts line leads with its name
-   *  and its plan as separate facts; nothing here joins them into a string. */
+  /** The exercise the session is on. Today's facts line puts the clock and
+   *  count first and ends with the lift's name and plan as one fact, the one
+   *  allowed to yield; nothing here joins them into a string. */
   current: LiveLine | null;
   /** True when nothing has been logged yet: the session is drawn up and
    *  waiting, which is exactly the moment Dave is describing. */

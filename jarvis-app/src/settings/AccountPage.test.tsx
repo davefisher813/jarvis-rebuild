@@ -24,6 +24,13 @@ vi.mock("../data/store", async (importOriginal) => {
   return { ...actual, backendConfigured: true };
 });
 
+// The photo helper is the canvas half (jsdom draws nothing), so it is stood
+// in for here; its crop math has its own test in profile/avatarPhoto.test.ts.
+vi.mock("../profile/avatarPhoto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../profile/avatarPhoto")>();
+  return { ...actual, avatarFromFile: vi.fn(async () => "data:image/jpeg;base64,QUJD") };
+});
+
 let profileSpy: { save: ReturnType<typeof vi.fn> } | null = null;
 function SpyProfile() {
   const svc = useProfile();
@@ -125,5 +132,36 @@ describe("AccountPage Delete Account (S3-Q18)", () => {
     act(() => { vi.advanceTimersByTime(4100); });
     expect(screen.getByText("Delete Account")).toBeInTheDocument();
     expect(screen.queryByText("Tap Again to Delete Account")).not.toBeInTheDocument();
+  });
+});
+
+// Dave's pick, 2026-09-26: the avatar keeps its red disc, and it is a tap
+// that opens the app's one action sheet to change the picture.
+describe("AccountPage avatar (a tap that changes the photo)", () => {
+  it("the red disc is a labelled button, and it opens the photo sheet", () => {
+    renderPage();
+    const btn = screen.getByRole("button", { name: "Add profile photo" });
+    expect(btn.querySelector(".av.av-72.av-accent")).not.toBeNull();
+    fireEvent.click(btn);
+    expect(screen.getByRole("button", { name: "Choose Photo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    // Nothing to remove yet, so the sheet does not offer it.
+    expect(screen.queryByRole("button", { name: "Remove Photo" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("button", { name: "Choose Photo" })).toBeNull();
+  });
+
+  it("a chosen photo is saved on the profile and fills the disc; Remove Photo clears it", async () => {
+    const { container } = renderPage();
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input.accept).toBe("image/*");
+    fireEvent.change(input, { target: { files: [new File(["x"], "me.png", { type: "image/png" })] } });
+    await waitFor(() => expect(profileSpy!.save).toHaveBeenCalledWith({ avatar: "data:image/jpeg;base64,QUJD" }));
+    const btn = await screen.findByRole("button", { name: "Change profile photo" });
+    expect(btn.querySelector("img.av-photo")?.getAttribute("src")).toBe("data:image/jpeg;base64,QUJD");
+    fireEvent.click(btn);
+    fireEvent.click(screen.getByRole("button", { name: "Remove Photo" }));
+    await waitFor(() => expect(profileSpy!.save).toHaveBeenCalledWith({ avatar: "" }));
+    await screen.findByRole("button", { name: "Add profile photo" });
   });
 });

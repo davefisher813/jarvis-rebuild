@@ -272,8 +272,9 @@ export default function ScheduleUploadFlow({
                 <div className="row-grow">
                   <div className={"conn-name truncate" + (r.skip ? " upload-row-skipped" : "")}>{r.title}</div>
                   {/* This screen exists to check the times it read, so every
-                      fact must show: they sit in the wrapping two-line
-                      .conn-meta, not the one-line .facts whose last fact
+                      fact must show: they sit in the wrapping, unclamped
+                      .conn-meta (components.css: a meta line built of facts
+                      has no clamp), not the one-line .facts whose last fact
                       gives way (2026-09-26, as gym/UploadFlow's review row).
                       The stylesheet still draws the dots between them. */}
                   <div className="conn-meta">

@@ -224,7 +224,7 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
 // white, and the dots drawn by the stylesheet, never carried in the words.
 describe("QuickCapture receipt reads as facts (§AM)", () => {
   // 2026-09-26: the receipt shows EVERY fact it read, so its facts sit in the
-  // wrapping two-line .conn-meta, never the one-line .facts whose last fact
+  // wrapping, unclamped .conn-meta, never the one-line .facts whose last fact
   // gives way (a reminder's days and its project were being cut off).
   const receiptFacts = () => Array.from(document.querySelectorAll(".capture-saved .conn-meta > .fact"));
 

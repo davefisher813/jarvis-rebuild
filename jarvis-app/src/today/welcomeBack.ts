@@ -30,10 +30,12 @@ function daysBetween(a: string, b: string): number {
 }
 
 // THE PARTS, NOT A JOINED LINE (§AM F3, 2026-09-26). This used to hand back
-// `sub`, the two halves glued with a typed middle dot, and Today had stopped
-// reading it: the receipt wrote its own sentence, so the words lived in two
-// places and a non-zero agedOut would have been dropped without a sound.
-// Today builds its one sentence from these, in its own punctuation.
+// `sub`, the two halves glued with a typed middle dot, and Today rendered it
+// as `{title} · {sub}`, so the empty case's "Nothing was lost" showed on
+// every return (agedOut is always 0 today). That reassurance was removed as
+// a placeholder under §AK R1 (logged in the rewordings), and the typed dot
+// went with the joined string. Today builds its one sentence from these, in
+// its own punctuation.
 export interface WelcomeBack {
   days: number;
   title: string;

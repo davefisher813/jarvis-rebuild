@@ -210,10 +210,13 @@ export default function MoveHeadliner({
                     now, which is amber, the same fact Focus draws amber.
                     The length is the task's estimate or its area's learned
                     median, an estimate the app worked out, which is sky:
-                    .fact.est, the ink the task rows' estimate already wears. */}
+                    .fact.est, the ink the task rows' estimate already wears.
+                    No length beside a late chip (2026-09-26): "2 DAYS LATE"
+                    fills the line at type scale 1.4, and the length after it
+                    was left its dot and an ellipsis. */}
                 {facts.reason
                   ? <span className={"fact" + (facts.over ? " warn" : "")}>{facts.reason}</span>
-                  : facts.estimate ? <span className="fact est">{facts.estimate}</span> : null}
+                  : facts.estimate && facts.urgency?.kind !== "late" ? <span className="fact est">{facts.estimate}</span> : null}
               </div>
             </div>
             {primary && (

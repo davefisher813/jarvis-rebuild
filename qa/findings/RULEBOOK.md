@@ -148,7 +148,7 @@ decision for the lead session, added once in `components.css` with a law.
   the long free-text fact last (a subject, a name, a place). A line whose job
   is to show every fact (a review or import screen, a capture receipt, a
   settings row) keeps its `.fact` spans inside a wrapping `.conn-meta`
-  (two-line clamp; the CSS still draws the dots), as gym/UploadFlow does.
+  (wraps, unclamped; the CSS still draws the dots), as gym/UploadFlow does.
   Check at 390px and at type scale 1.4.
 - The key's red on a sheet grey is `--sys-red-on-sheet` (dark #FF6961); the
   amber twin is `--warn-on-sheet`. A red or amber fact never sits on a grey

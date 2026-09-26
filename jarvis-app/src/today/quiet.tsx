@@ -23,6 +23,13 @@
 // rule about the SHAPE of the datum, which is the only kind of rule that can
 // hold across a producer that writes its own sentence (a reply's gist is
 // model-written; no threshold in domain code can reach inside it).
+//
+// WHICH WAY IT RUNS (Dave's pick, 2026-09-26, the Colour Key): a count that
+// runs FORWARD ("3 days left", "in 5 days") is time still in hand, which the
+// key calls needs you soon, so it is amber. A count that has SLIPPED (an age,
+// "84 Days", "Slid 3d", "59d waiting") is late, so it stays red. The
+// direction is read off the words touching the figure, the same way the
+// shape is, so it still reaches inside a sentence a model wrote.
 
 // A datum, and the characters allowed to touch it.
 //
@@ -47,10 +54,19 @@ function isDayCount(token: string, after: string): boolean {
   return /^\d+$/.test(token) && /^\s*days?\b/i.test(after);
 }
 
+/** A day count runs forward when the words say so: "left", "to go" or
+ *  "remaining" after it ("3 days left", "3d to go"), or "in" or "within"
+ *  before it ("in 5 days", "ends in 3d"). Anything else is a count of days
+ *  gone by, and that has slipped. */
+function dayCountRunsForward(before: string, after: string): boolean {
+  if (/\b(?:in|within)\s+$/i.test(before)) return true;
+  return /^\s*(?:days?\s+)?(?:left|to go|remaining)\b/i.test(after);
+}
+
 export function Quiet({ s }: { s: string }) {
   // Walked rather than split, so each candidate can be judged against the
   // characters around it. Every character of `s` is emitted exactly once.
-  const out: { text: string; data: boolean; hot?: boolean }[] = [];
+  const out: { text: string; data: boolean; tone?: "hot" | "soon" }[] = [];
   let last = 0;
   DATA.lastIndex = 0;
   for (let m = DATA.exec(s); m; m = DATA.exec(s)) {
@@ -61,7 +77,9 @@ export function Quiet({ s }: { s: string }) {
     // Inside an identifier, or carrying a suffix the pattern did not claim.
     if ((before && WORDY.test(before)) || (after && /[A-Za-z]/.test(after))) continue;
     if (start > last) out.push({ text: s.slice(last, start), data: false });
-    out.push({ text: m[0], data: true, hot: isDayCount(m[0], s.slice(end)) });
+    const tone = !isDayCount(m[0], s.slice(end)) ? undefined
+      : dayCountRunsForward(s.slice(0, start), s.slice(end)) ? "soon" : "hot";
+    out.push({ text: m[0], data: true, tone });
     last = end;
   }
   if (!out.length) return <>{s}</>;
@@ -70,7 +88,7 @@ export function Quiet({ s }: { s: string }) {
     <>
       {out.map((p, i) =>
         p.data
-          ? <span key={i} className={"qd" + (p.hot ? " qd-hot" : "")}>{p.text}</span>
+          ? <span key={i} className={"qd" + (p.tone ? " qd-" + p.tone : "")}>{p.text}</span>
           : <span key={i}>{p.text}</span>,
       )}
     </>

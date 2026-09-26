@@ -490,7 +490,9 @@ describe("TodayFlow: the meeting link and notes survive an edit", () => {
     notifyFreshLists(ENTITY_EVENT);
     // Now names the next event too, as its own fact (2026-09-26: "Until
     // 5:30 PM · Bridge Foundation Zoom"), so the row to open is the day's.
-    const dayRow = () => screen.getAllByText("Bridge Foundation Zoom").find((el) => !el.closest(".facts"))!;
+    // That fact now sits in the wrapping .conn-meta (2026-09-26), so the
+    // name to skip is the one inside a .fact, whatever line holds it.
+    const dayRow = () => screen.getAllByText("Bridge Foundation Zoom").find((el) => !el.closest(".fact"))!;
     await waitFor(() => expect(dayRow()).toBeInTheDocument());
     fireEvent.click(dayRow());
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));

@@ -206,7 +206,7 @@ describe("MailNotices: the line wears the key", () => {
     const facts = container.querySelector(".stream-card .facts");
     expect(facts).not.toBeNull();
     expect(facts!.querySelector(".fact b")!.textContent).toBe("$12.00");
-    expect(facts!.querySelector(".fact.warn")!.textContent).toBe("Due tomorrow");
+    expect(facts!.querySelector(".fact.warn")!.textContent).toBe("Tomorrow");
     expect(facts!.textContent).not.toContain("·");
   });
 

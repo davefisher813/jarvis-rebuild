@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProfile } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
 import type { ProfileData } from "../profile/types";
@@ -6,6 +6,9 @@ import LargeTitleNav from "../shared/LargeTitleNav";
 import { backendConfigured } from "../data/store";
 import { Head, Card, Row, DangerRow, Foot } from "./kit";
 import { attemptWrite } from "../shared/guard";
+import { showToast } from "../shared/toast";
+import RowActionSheet from "../shared/RowActionSheet";
+import { avatarFromFile, announceAvatar } from "../profile/avatarPhoto";
 
 export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBack: () => void; onEditProfile?: () => void; onSignOut?: () => void }) {
   const svc = useProfile();
@@ -58,13 +61,46 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
       setDeleteBusy(false);
     }
   };
+  // THE DISC IS A TAP (Dave's pick, 2026-09-26: "your avatar keeps its
+  // brand-red disc, and it is a tap"). It opens the app's one action sheet
+  // (RowActionSheet): Choose Photo, Remove Photo when there is one, Cancel.
+  // Choose Photo opens the system picker through a hidden file input; the
+  // photo is cut to a 256px square on the phone and saved on the profile.
+  const [photoSheet, setPhotoSheet] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const photo = p?.avatar ?? "";
+  const savePhoto = async (next: string): Promise<boolean> => {
+    const ok = await attemptWrite(async () => setP(await svc.save({ avatar: next })));
+    if (!ok) return false;
+    announceAvatar(next);
+    return true;
+  };
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    let next: string;
+    try { next = await avatarFromFile(file); } catch {
+      showToast({ message: "Couldn't read that photo · Try another" });
+      return;
+    }
+    await savePhoto(next);
+  };
+  const removePhoto = async () => {
+    const was = photo;
+    if (!(await savePhoto(""))) return;
+    showToast({ message: "Photo removed", actionLabel: "Undo", onAction: () => { void savePhoto(was); } });
+  };
   const initial = (p?.name?.trim()?.[0] ?? "?").toUpperCase();
   const tmpl = p?.template ? p.template[0]!.toUpperCase() + p.template.slice(1) : "Personal";
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Account" back="Settings" onBack={onBack} />
       <div className="pad-x"><div className="card list-card-ruled set-card account-hero">
-        <div className="av av-72 av-accent">{initial}</div>
+        <button type="button" className="account-av" aria-haspopup="dialog"
+          aria-label={photo ? "Change profile photo" : "Add profile photo"} onClick={() => setPhotoSheet(true)}>
+          <div className="av av-72 av-accent">{photo ? <img className="av-photo" src={photo} alt="" /> : initial}</div>
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" hidden aria-label="Profile photo"
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void onFile(f); }} />
         <div className="account-name">{p?.name || "Your name"}</div>
         <div className="account-sub">{tmpl} plan</div>
       </div></div>
@@ -111,6 +147,16 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         </div>
       )}
       <div className="screen-foot" />
+      {photoSheet && (
+        <RowActionSheet
+          title="Profile Photo"
+          actions={[
+            { label: "Choose Photo", onPick: () => fileRef.current?.click() },
+            ...(photo ? [{ label: "Remove Photo", destructive: true, onPick: () => { void removePhoto(); } }] : []),
+          ]}
+          onCancel={() => setPhotoSheet(false)}
+        />
+      )}
     </div>
   );
 }

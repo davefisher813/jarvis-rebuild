@@ -119,7 +119,7 @@ import { loadVips, toggleVip, isVip, applyVips, vipLine, VIP_MAX } from "./vip";
 import { mailSnapshot, hydrateMailFromProfile } from "./mailSync";
 import { collapseNoise, collapseLine } from "./collapse";
 import { loadNudgeCounts } from "./escalate";
-import { decide, toneFor, type Decision, type MailAction } from "./mailAction";
+import { decide, type Decision, type MailAction } from "./mailAction";
 import MailMoreSheet from "./MailMoreSheet";
 import { phoneBook, phoneFor, telLink, smsLink, colleagueBook, altFor, firstName,
   type PhoneBook, type Colleague } from "./reachBy";
@@ -5127,8 +5127,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const mine = loadMailSnapshot().promises.length;
         const ruleCount = Object.keys(rules).length;
         const showRules = ruleCount > 0 || muted.length > 0;
-        const oldest = owed.length ? Math.max(...owed.map((w) => w.waitingDays)) : 0;
-        const oldestRung = toneFor(oldest);
+        // The oldest owed wait, rated on the ONE ladder with its own nudges
+        // (2026-09-26), the same decideFor call its rail and the deck read:
+        // by its age alone, a 3-day wait nudged twice was red there and a
+        // neutral date here.
+        const oldestRow = owed.length ? owed.reduce((a, b) => (b.waitingDays > a.waitingDays ? b : a)) : null;
+        const oldest = oldestRow?.waitingDays ?? 0;
+        const oldestRung = oldestRow ? decideFor(oldestRow).tone : "gentle";
         const oldestTone: FactTone = oldestRung === "firm" ? "red" : oldestRung === "direct" ? "warn" : "date";
         const piles = senderPiles(visibleRows, effTriage, vips).length;
         return (
@@ -5197,12 +5202,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="row-grow">
                     <div className="conn-name">One at a Time</div>
                     {/* The oldest wait wears the nudge ladder's heat (§AM
-                        R5, R8): past the point an email helps is red, a
-                        week or more is amber, and inside a week it is a
-                        neutral time, small caps. */}
+                        R5, R8): firm is red, direct amber, and gentle a
+                        neutral time, small caps. The toned age leads and
+                        the count, grey, is the fact that gives way
+                        (2026-09-26). */}
                     <Facts facts={[
-                      { text: capAfterNumber(owed.length + " waiting on answers") },
                       { text: "Oldest " + oldest + (oldest === 1 ? " day" : " days"), tone: oldestTone },
+                      { text: capAfterNumber(owed.length + " waiting on answers") },
                     ]} />
                   </div>
                   <div className="chev" />
