@@ -88,7 +88,7 @@ describe("chronologicalLog: check-ins", () => {
       ],
     });
     expect(rows.map((r) => [r.title, r.kind, r.detail])).toEqual([
-      ["Check In", "reading", "Energy High · Mood Good"],
+      ["Check In", "reading", "Energy High, Mood Good"],
       ["Check In", "reading", "Long day"],
     ]);
     expect(rows[0]!.open).toEqual({ kind: "checkin" });
