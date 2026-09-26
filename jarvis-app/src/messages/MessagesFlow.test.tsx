@@ -1216,7 +1216,9 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
     expect(await screen.findByText("Send Interrupted")).toBeInTheDocument();
-    expect(screen.getByText("Interrupted · Check Sent, then Retry")).toBeInTheDocument();
+    // The title says "Interrupted"; the line under it no longer repeats it
+    // behind a typed dot (outbox.ts INTERRUPTED_LINE, §AM R6).
+    expect(screen.getByText("Check Sent, then Retry")).toBeInTheDocument();
     expect(screen.queryByText("On its way")).toBeNull();
     expect(screen.getByText("Retry")).toBeInTheDocument();
     expect(screen.getByText("Edit")).toBeInTheDocument();

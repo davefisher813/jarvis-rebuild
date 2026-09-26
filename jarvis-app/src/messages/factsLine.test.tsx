@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { Facts, waitingFor, evidenceFact, ruleStateFact, dayTone } from "./factsLine";
+import { Facts, evidenceFact, ruleStateFact, dayTone } from "./factsLine";
 
 // EM5 (2026-09-12): K.3, one coloured fact per line, enforced where the
 // line is built rather than trusted at every call site.
@@ -49,13 +49,6 @@ describe("dayTone", () => {
 });
 
 describe("the presets", () => {
-  it("waitingFor names the thing owed, and nothing for a thread owed nothing", () => {
-    expect(waitingFor("money_in")?.text).toBe("Waiting for: money");
-    expect(waitingFor("goods")?.text).toBe("Waiting for: the order");
-    expect(waitingFor("they_asked")?.text).toBe("Waiting for: a call");
-    expect(waitingFor("answer")?.text).toBe("Waiting for: an answer");
-    expect(waitingFor("nothing")).toBeNull();
-  });
   it("evidenceFact quotes the sender's words and carries no tone", () => {
     const f = evidenceFact({ sourceMsgId: "m", span: "need it by Friday", confidence: "high" });
     expect(f?.text).toBe("“need it by Friday”");

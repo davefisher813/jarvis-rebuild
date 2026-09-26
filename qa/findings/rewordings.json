@@ -1704,5 +1704,1205 @@
   "new": "[CANCELLED] Monthly (the state is a grey filled caps chip ahead of the frequency; active rows read just \"Monthly\" as before)",
   "group": "code-44:money:TrackerScreen.tsx",
   "phase": "code"
+ },
+ {
+  "id": 4,
+  "file": "jarvis-app/src/upnext/UpNextFlow.tsx",
+  "old": "No deadline \u00b7 your focus peak  (Focus card reason, task with no due date, in peak)",
+  "new": "Your focus peak  (the 'No deadline' placeholder is dropped; with no due date and outside the peak, no reason fact renders)",
+  "group": "code-1:upnext:FreshStartFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 4,
+  "file": "jarvis-app/src/upnext/UpNextFlow.tsx",
+  "old": "Due today \u00b7 your focus peak  (one grey fact)",
+  "new": "Due today | Your focus peak  (two facts with the separator drawn by CSS: 'Due today' in amber .fact.warn, 'Your focus peak' in grey and capitalised; past-due 'Waiting N days' in red .fact.red, 'Due in N days' in small caps .fact.date)",
+  "group": "code-1:upnext:FreshStartFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 5,
+  "file": "jarvis-app/src/upnext/UpNextFlow.tsx",
+  "old": "Anything  (area name with a graphite dot, shown for a task with no area)",
+  "new": "(nothing: no area fact renders)",
+  "group": "code-1:upnext:FreshStartFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 6,
+  "file": "jarvis-app/src/upnext/UpNextFlow.tsx",
+  "old": "That's momentum \u00b7 Ride it or rest",
+  "new": "Ride the momentum or rest",
+  "group": "code-1:upnext:FreshStartFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 6,
+  "file": "jarvis-app/src/upnext/UpNextFlow.tsx",
+  "old": "No pressure \u00b7 It'll be here",
+  "new": "No pressure",
+  "group": "code-1:upnext:FreshStartFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 10,
+  "file": "jarvis-app/src/upnext/FreshStartFlow.tsx",
+  "old": "Nothing lost  (line under '{n} moved to tomorrow')",
+  "new": "(line removed)",
+  "group": "code-1:upnext:FreshStartFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 132,
+  "file": "jarvis-app/src/tasks/screens/ReminderSettingsSheet.tsx",
+  "old": "Quiet Hours / Off (meta line when the switch is off)",
+  "new": "Quiet Hours (no meta line when off; \"9:00 PM to 8:00 AM\" when on, unchanged)",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 586,
+  "file": "jarvis-app/src/tasks/screens/RemindersPage.tsx",
+  "old": "Reminders. (full stop in brand red)",
+  "new": "Reminders",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 153,
+  "file": "jarvis-app/src/tasks/screens/ContextPromptSheet.tsx",
+  "old": "Still open, whenever you are ready",
+  "new": "(line not shown when the reminder links to nothing; \"X is one tap away\" unchanged)",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 133,
+  "file": "jarvis-app/src/tasks/reminders.ts",
+  "old": "Today \u00b7 9:00 AM / Tomorrow \u00b7 3:30 PM / Sep 18 \u00b7 11:00 AM",
+  "new": "Today, 9:00 AM / Tomorrow, 3:30 PM / Sep 18, 11:00 AM",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 131,
+  "file": "jarvis-app/src/tasks/screens/ReminderSheet.tsx",
+  "old": "Every Day \u00b7 8:00 AM (summary head, any repeat or One Time)",
+  "new": "Every Day at 8:00 AM",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 131,
+  "file": "jarvis-app/src/tasks/screens/ReminderSheet.tsx",
+  "old": "Sits in Upcoming \u00b7 No timed alert",
+  "new": "Sits in Upcoming with no timed alert",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 131,
+  "file": "jarvis-app/src/tasks/screens/ReminderSheet.tsx",
+  "old": "An in-app prompt \u00b7 You can always continue",
+  "new": "An in-app prompt that never blocks you",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 125,
+  "file": "jarvis-app/src/tasks/screens/StartScreen.tsx",
+  "old": "Ticks the task itself \u00b7 Separate from saving",
+  "new": "Ticks the task itself, separate from saving",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 126,
+  "file": "jarvis-app/src/tasks/screens/StartScreen.tsx",
+  "old": "Source: Saturday Tournament \u00b7 To Marco (two facts)",
+  "new": "Source: Saturday Tournament, to Marco (one fact)",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 150,
+  "file": "jarvis-app/src/tasks/screens/TasksPage.tsx",
+  "old": "KEEP GOING  Same category, due today  (or: Overdue / Due today)",
+  "new": "TODAY (amber chip) KEEP GOING  Same category  (late: \"N DAYS LATE\" red chip; the words \"due today\"/\"overdue\" are gone)",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 105,
+  "file": "jarvis-app/src/tasks/screens/TasksPage.tsx",
+  "old": "Money \u00b7 Personal (all area names, one grey run, no dot)",
+  "new": "[dot] Money (first named area only, with its dot; extra areas stay on the task sheet, the same as every other task row)",
+  "group": "code-5:tasks:ReminderSettingsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 221,
+  "file": "jarvis-app/src/messages/home.ts",
+  "old": "From Nadia \u00b7 Due 3:00 PM",
+  "new": "From Nadia, due 3:00 PM",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 221,
+  "file": "jarvis-app/src/messages/home.ts",
+  "old": "From Nadia \u00b7 Due tomorrow 3:00 PM \u00b7 You're in Board Prep until 4:00",
+  "new": "From Nadia, due tomorrow 3:00 PM while you're in Board Prep until 4:00",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 221,
+  "file": "jarvis-app/src/messages/home.ts",
+  "old": "From Nadia \u00b7 Looks like today",
+  "new": "From Nadia, looks like today",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 222,
+  "file": "jarvis-app/src/messages/home.ts",
+  "old": "Invoice \u00b7 You asked me to",
+  "new": "Invoice, as you asked",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 223,
+  "file": "jarvis-app/src/messages/home.ts",
+  "old": "Tomorrow 3:00 PM \u00b7 30 min",
+  "new": "Tomorrow 3:00 PM for 30 min",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 223,
+  "file": "jarvis-app/src/messages/home.ts",
+  "old": "$84.00 \u00b7 Due Friday",
+  "new": "$84.00 Due Friday",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 224,
+  "file": "jarvis-app/src/messages/home.ts",
+  "old": "Order #D2565 \u00b7 55 Days",
+  "new": "Order #D2565, sent 55 days ago",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 165,
+  "file": "jarvis-app/src/messages/purge.ts",
+  "old": "Goes to Gmail's trash \u00b7 30 days to change your mind",
+  "new": "Goes to Gmail's trash, 30 days to change your mind",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 175,
+  "file": "jarvis-app/src/messages/batching.ts",
+  "old": "2 People wrote \u00b7 nothing urgent",
+  "new": "2 People wrote, nothing urgent",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 175,
+  "file": "jarvis-app/src/messages/batching.ts",
+  "old": "2 People wrote \u00b7 Sarah needs you",
+  "new": "2 People wrote, Sarah needs you",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 179,
+  "file": "jarvis-app/src/messages/vip.ts",
+  "old": "Nobody yet \u00b7 Their mail always surfaces",
+  "new": "Their mail always surfaces",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 180,
+  "file": "jarvis-app/src/messages/attachmentKind.ts",
+  "old": "invite.ics \u00b7 From Nadia Brandt",
+  "new": "From Nadia Brandt",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 180,
+  "file": "jarvis-app/src/messages/attachmentKind.ts",
+  "old": "$84.00 \u00b7 From Comcast",
+  "new": "$84.00 From Comcast",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 193,
+  "file": "jarvis-app/src/messages/collapse.ts",
+  "old": "3 Notices \u00b7 Nothing needs you",
+  "new": "3 Notices",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 194,
+  "file": "jarvis-app/src/messages/safetyNet.ts",
+  "old": "1 Email over 3 days old \u00b7 Now tasks",
+  "new": "1 Email over 3 days old is now a task",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 194,
+  "file": "jarvis-app/src/messages/safetyNet.ts",
+  "old": "4 Emails over 3 days old \u00b7 Now tasks",
+  "new": "4 Emails over 3 days old are now tasks",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 198,
+  "file": "jarvis-app/src/messages/cleared.ts",
+  "old": "14 In the inbox \u00b7 2 Still need you",
+  "new": "14 In the inbox, 2 still need you",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 198,
+  "file": "jarvis-app/src/messages/cleared.ts",
+  "old": "14 In the inbox \u00b7 Nothing urgent",
+  "new": "14 In the inbox",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 198,
+  "file": "jarvis-app/src/messages/cleared.ts",
+  "old": "Inbox empty \u00b7 Nothing urgent",
+  "new": "Inbox empty",
+  "group": "code-7:messages:WindowsSheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 255,
+  "file": "jarvis-app/src/health/screens/MedicationScreen.tsx",
+  "old": "Marks the moment, never a tally",
+  "new": "(line removed: before the first dose the Log a Dose row shows no sub line; \"Last dose today\" / \"Last dose yesterday\" is unchanged once a dose exists)",
+  "group": "code-8:health:PointAtItScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 235,
+  "file": "jarvis-app/src/health/screens/ThirdPracticeScreen.tsx",
+  "old": "School Team \u00b7 Travel Team   (code: o.fact.orgs.join(\" \u00b7 \"))",
+  "new": "School Team, Travel Team   (code: o.fact.orgs.join(\", \"))",
+  "group": "code-9:health:WhatTheySeeScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 237,
+  "file": "jarvis-app/src/health/screens/MedWindowScreen.tsx",
+  "old": "Practice \u00b7 4:30 PM   (one grey .bp-sub, dot baked into the string)",
+  "new": "4:30 PM \u00b7 Practice   (time first, in small caps; the dot is drawn by CSS between two .fact spans)",
+  "group": "code-9:health:WhatTheySeeScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 256,
+  "file": "jarvis-app/src/health/screens/WhatTheySeeScreen.tsx",
+  "old": "Tue, Sep 3 / Sep 3   (fuel row with no event title: the date as the title and again beneath it)",
+  "new": "Tue, Sep 3   (the repeated date is dropped; rows with an event title still show the date beneath, in small caps)",
+  "group": "code-9:health:WhatTheySeeScreen.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 388,
+  "file": "jarvis-app/src/brain/BrainTop.tsx",
+  "old": "Medium (confidence word on a strand row, amber)",
+  "new": "(not shown; only \"High\" is shown, in green)",
+  "group": "code-12:brain:BrainTop.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 343,
+  "file": "jarvis-app/src/brain/docs/BrainDocPage.tsx",
+  "old": "None yet",
+  "new": "(dropped; an empty Hard Lines shows its head, chips and input only)",
+  "group": "code-12:brain:BrainTop.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 352,
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "Next: {task} \u00b7 {dayPhrase}",
+  "new": "Next: {task}, plus a separate day: a TODAY or TOMORROW amber chip ahead of the line, or a small-caps date after it for later days; no day when late, because the red \"N late\" chip covers it",
+  "group": "code-12:brain:BrainTop.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 352,
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "Stalled \u00b7 No next action",
+  "new": "Stalled | No next action (two spans, amber then grey, no baked middot)",
+  "group": "code-12:brain:BrainTop.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 358,
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "Waiting on their reply \u00b7 {n} days  /  Waiting on their reply \u00b7 1 day",
+  "new": "Waiting {n} days on their reply  /  Waiting 1 day on their reply",
+  "group": "code-12:brain:BrainTop.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 467,
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "{relationship} \u00b7 {birthday | waiting | gone quiet | last talked}",
+  "new": "{relationship} and {state} as two spans, no baked middot",
+  "group": "code-12:brain:BrainTop.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 362,
+  "file": "jarvis-app/src/gym/insights.ts",
+  "old": "{sign}{d} per session on {higher} days vs {lower} \u00b7 {n} paired \u00b7 Correlation, not cause",
+  "new": "{sign}{d} per session on {higher} days vs {lower}, over {n} paired sessions (Correlation, not cause)",
+  "group": "code-12:brain:BrainTop.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 308,
+  "file": "jarvis-app/src/gym/insights.ts",
+  "old": "First muscle a whole set, the others half \u00b7 This app's counting rule, not the cited work's",
+  "new": "First muscle a whole set, the others half",
+  "group": "code-12:brain:BrainTop.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 441,
+  "file": "jarvis-app/src/people/importMatch.ts",
+  "old": "Client \u00b7 555-0100",
+  "new": "Client",
+  "group": "code-16:people:PeopleListPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 441,
+  "file": "jarvis-app/src/people/importMatch.ts",
+  "old": "Nothing else on file",
+  "new": "(no line: a same-name candidate with nothing on file shows only its name)",
+  "group": "code-16:people:PeopleListPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 442,
+  "file": "jarvis-app/src/people/importContacts.ts",
+  "old": "Cedar Bridge Club \u00b7 Board",
+  "new": "Cedar Bridge Club, Board",
+  "group": "code-16:people:PeopleListPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 443,
+  "file": "jarvis-app/src/people/importMatch.ts",
+  "old": "2 New \u00b7 1 To update \u00b7 5 Already current \u00b7 1 To check",
+  "new": "2 New, 1 To update | 1 To check (amber) | 5 Already current (green): separate facts, separator drawn by CSS, 'To check' moved ahead of 'Already current' so the fact that needs him is not the one an ellipsis cuts",
+  "group": "code-16:people:PeopleListPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 445,
+  "file": "jarvis-app/src/people/PeopleFlow.tsx",
+  "old": "7 Columns read \u00b7 Name the ones worth keeping",
+  "new": "7 Columns read",
+  "group": "code-16:people:PeopleListPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 448,
+  "file": "jarvis-app/src/people/PeopleFlow.tsx",
+  "old": "Gone quiet \u00b7 2 Months ago",
+  "new": "2 Months ago (in amber when gone quiet; the Check In pill still shows)",
+  "group": "code-16:people:PeopleListPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 451,
+  "file": "jarvis-app/src/people/screens/PersonDetail.tsx",
+  "old": "Trusted adult (grey line under the name in the hero)",
+  "new": "About row: label 'Say It to Someone', value 'Trusted adult'",
+  "group": "code-16:people:PeopleListPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 453,
+  "file": "jarvis-app/src/people/screens/PersonDetail.tsx",
+  "old": "2026-09-09",
+  "new": "Sep 9 (small caps; red if past, amber if today or tomorrow)",
+  "group": "code-16:people:PeopleListPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 454,
+  "file": "jarvis-app/src/people/screens/PersonDetail.tsx",
+  "old": "Next: Call the landlord",
+  "new": "NEXT (amber caps kicker) + Call the landlord (white)",
+  "group": "code-16:people:PeopleListPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 456,
+  "file": "jarvis-app/src/people/CallPrepSheet.tsx",
+  "old": "Fall Clinic Plan / Board Minutes / Budget Review (three lines)",
+  "new": "Fall Clinic Plan, Board Minutes, Budget Review (one line)",
+  "group": "code-16:people:PeopleListPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 477,
+  "file": "jarvis-app/src/bigger/savings.ts",
+  "old": "Nothing saved yet \u00b7 Goal $2,000",
+  "new": "$0 of $2,000 Saved",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 475,
+  "file": "jarvis-app/src/bigger/measure.ts",
+  "old": "8 To go \u00b7 Past its date / 8 To go \u00b7 Due today / 8 To go \u00b7 Due tomorrow / 8 To go \u00b7 Due in 6 days / 8 To go \u00b7 About 2 a week",
+  "new": "Past its date (red) / Due today (amber) / Due tomorrow (amber) / Due in 6 days (small caps) / About 2 a week (sky). The \"N To go\" half is dropped because it restated the measure line.",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 474,
+  "file": "jarvis-app/src/bigger/measure.ts",
+  "old": "No milestones yet",
+  "new": "(nothing; the line is empty and not drawn)",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 474,
+  "file": "jarvis-app/src/bigger/measure.ts",
+  "old": "No projects under it yet",
+  "new": "(nothing; the line is empty and not drawn)",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 480,
+  "file": "jarvis-app/src/bigger/reach.ts",
+  "old": "Done (hero line under the DONE eyebrow, achieved goal with no filed work)",
+  "new": "(nothing; the line is not drawn)",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 479,
+  "file": "jarvis-app/src/bigger/GoalDetailPage.tsx",
+  "old": "NO MEASURE (hero eyebrow)",
+  "new": "(nothing; the eyebrow is not drawn when unmeasured)",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 481,
+  "file": "jarvis-app/src/bigger/GoalDetailPage.tsx",
+  "old": "Only asked because nothing here can be measured yet \u00b7 Never overrides a real measure",
+  "new": "Nothing here can be measured yet",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 482,
+  "file": "jarvis-app/src/bigger/GoalDetailPage.tsx",
+  "old": "Last check-in \u00b7 On Track \u00b7 Sep 12",
+  "new": "Checked in Sep 12 (small caps; the word is the pressed pill above)",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 483,
+  "file": "jarvis-app/src/bigger/GoalDetailPage.tsx",
+  "old": "Up Next",
+  "new": "(dropped; the head above is \"Next Milestone\")",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 485,
+  "file": "jarvis-app/src/bigger/GoalDetailPage.tsx",
+  "old": "No reason recorded \u00b7 Decided Sep 3",
+  "new": "Decided Sep 3 (small caps, own facts line)",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 485,
+  "file": "jarvis-app/src/bigger/GoalDetailPage.tsx",
+  "old": "Because the season ended \u00b7 Decided Sep 3",
+  "new": "Because the season ended / Decided Sep 3 (two lines, date in small caps; words unchanged)",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 486,
+  "file": "jarvis-app/src/bigger/GoalDetailPage.tsx",
+  "old": "Dropped Sep 12 \u00b7 The reason is in your decisions",
+  "new": "Dropped Sep 12 (small caps) / The reason is in your decisions (grey line under it; words unchanged)",
+  "group": "code-17:bigger:reach.ts",
+  "phase": "code"
+ },
+ {
+  "id": 405,
+  "file": "jarvis-app/src/notes/screens/Templates.tsx",
+  "old": "A checklist \u00b7 Turns into tasks.",
+  "new": "A checklist that turns into tasks.",
+  "group": "code-21:notes:AISheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 406,
+  "file": "jarvis-app/src/notes/screens/CreateTasks.tsx",
+  "old": "Checklist items become {categoryLabel} Tasks \u00b7 Completed ones skipped",
+  "new": "Checklist items become {categoryLabel} Tasks, completed ones skipped (unfiled note: \"Checklist items become Tasks, completed ones skipped\")",
+  "group": "code-21:notes:AISheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 393,
+  "file": "jarvis-app/src/notes/screens/NotesList.tsx",
+  "old": "Not Filed (yellow dot + words on the second line of every unfiled note row)",
+  "new": "(nothing: an unfiled row names no area; its second line keeps the tags, finds and edited date)",
+  "group": "code-21:notes:AISheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 398,
+  "file": "jarvis-app/src/notes/screens/NoteEditor.tsx",
+  "old": "#work \u00b7 #ideas (one fact per tag, dot drawn between them)",
+  "new": "#work #ideas (one run)",
+  "group": "code-21:notes:AISheet.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 97,
+  "file": "jarvis-app/src/routine/RoutineFlow.tsx",
+  "old": "Row title: \"Gym \u00b7 Flexible\"; meta: \"6:00 AM to 7:00 AM \u00b7 Mon Wed Fri \u00b7 Cortland YMCA\"",
+  "new": "Row title: \"Gym\"; facts line: [FLEXIBLE state word] \u00b7 [6:00 AM to 7:00 AM, small caps] \u00b7 [Mon Wed Fri, small caps] \u00b7 [Cortland YMCA]. Same words; Flexible moved out of the title into the state word, separators drawn by CSS",
+  "group": "code-26:routine:RoutineFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 98,
+  "file": "jarvis-app/src/routine/RoutineFlow.tsx",
+  "old": "Watched \u00b7 3 Sessions",
+  "new": "3 Sessions",
+  "group": "code-26:routine:RoutineFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 174,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "Still searchable in Gmail \u00b7 Can go back for a week",
+  "new": "Can go back for a week",
+  "group": "code-28:messages:MessagesFlow.tsx#1",
+  "phase": "code"
+ },
+ {
+  "id": 176,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "VIP \u00b7 {subject}  (e.g. \"VIP \u00b7 Contract redline\")",
+  "new": "\u2605 {subject}  (the .mstar VIP mark, aria-label \"VIP\", e.g. \"\u2605 Contract redline\")",
+  "group": "code-28:messages:MessagesFlow.tsx#1",
+  "phase": "code"
+ },
+ {
+  "id": 183,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "That\u2019s everything \u00b7 {account label | All accounts}  (e.g. \"That\u2019s everything \u00b7 gmail\")",
+  "new": "That\u2019s everything in {account label | all accounts}.  (e.g. \"That\u2019s everything in gmail.\"; one account: \"That\u2019s everything.\", unchanged)",
+  "group": "code-28:messages:MessagesFlow.tsx#1",
+  "phase": "code"
+ },
+ {
+  "id": 190,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "{name} \u00b7 {subject}  (e.g. \"summitgear \u00b7 Missing Items From Order #D2565\")",
+  "new": "{name}: {subject}  (e.g. \"summitgear: Missing Items From Order #D2565\")",
+  "group": "code-28:messages:MessagesFlow.tsx#1",
+  "phase": "code"
+ },
+ {
+  "id": 172,
+  "file": "jarvis-app/src/messages/factsLine.tsx",
+  "old": "Account: All \u00b7 On   (or 'Account: <acct> \u00b7 On')",
+  "new": "On",
+  "group": "code-29:messages:MessagesFlow.tsx#2",
+  "phase": "code"
+ },
+ {
+  "id": 172,
+  "file": "jarvis-app/src/messages/factsLine.tsx",
+  "old": "Account: All \u00b7 Off   (or 'Account: <acct> \u00b7 Off')",
+  "new": "(no line: an off rule shows only its dimmed name, its bucket and the Turn On capsule)",
+  "group": "code-29:messages:MessagesFlow.tsx#2",
+  "phase": "code"
+ },
+ {
+  "id": 192,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "12 Machines wrote \u00b7 Tap to look   /   12 Machines wrote \u00b7 Tap to fold",
+  "new": "12 Machines wrote",
+  "group": "code-29:messages:MessagesFlow.tsx#2",
+  "phase": "code"
+ },
+ {
+  "id": 200,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "A timed drain \u00b7 It stops itself",
+  "new": "A timed drain that stops itself",
+  "group": "code-29:messages:MessagesFlow.tsx#2",
+  "phase": "code"
+ },
+ {
+  "id": 202,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "4 Waiting on answers \u00b7 oldest is 12 days",
+  "new": "4 Waiting on answers \u00b7 Oldest 12 days   (two facts: the second is red at 21 days or more, amber at 7 days or more, and small caps below that)",
+  "group": "code-29:messages:MessagesFlow.tsx#2",
+  "phase": "code"
+ },
+ {
+  "id": 203,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "Senders and gists only \u00b7 Never the message",
+  "new": "Senders and gists, never the message",
+  "group": "code-29:messages:MessagesFlow.tsx#2",
+  "phase": "code"
+ },
+ {
+  "id": 204,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "3 Senders filed \u00b7 2 Threads muted",
+  "new": "3 Senders filed   (with nothing filed: '2 Threads muted')",
+  "group": "code-29:messages:MessagesFlow.tsx#2",
+  "phase": "code"
+ },
+ {
+  "id": 207,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "4 handled \u00b7 2m 13s",
+  "new": "4 Handled in 2m 13s",
+  "group": "code-29:messages:MessagesFlow.tsx#2",
+  "phase": "code"
+ },
+ {
+  "id": 209,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "3 still need you (grey) / 1 still need you",
+  "new": "3 Still need you (amber) / 1 Still needs you (amber)",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 229,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "Senders You Filed > \"Nothing filed yet.\"",
+  "new": "(section not drawn when nothing is filed)",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 228,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "Muted Threads > \"Nothing muted.\"",
+  "new": "(section not drawn when nothing is muted)",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 182,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "(no subject)",
+  "new": "(no line under a draft that has no subject)",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 184,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "17 Nobody chased \u00b7 Nadia, Peloton and 3 others",
+  "new": "Nadia, Peloton and 3 others (the promise 'Archived, never deleted \u00b7 Searchable in Gmail forever \u00b7 Undo for a week' is unchanged, now a note under the card)",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 185,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "title \"Continue Your Reply\", sub \"To Marcus \u00b7 Re: Harper v Northline\"",
+  "new": "title \"Your Reply to Marcus\", sub \"Re: Harper v Northline\" (title stays \"Continue Your Reply\" when there is no recipient name)",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 186,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "Marcus Delaney \u00b7 55 days / Opened Aug 2 \u00b7 No reply / (1 day read \"1 Days\")",
+  "new": "Marcus Delaney \u00b7 55 Days (dot drawn by CSS, days red/amber/small caps by heat) / OPENED AUG 2 (small caps) / 1 Day",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 189,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "Marcus Delaney \u00b7 Harper v Northline \u00b7 Waiting for: an answer \u00b7 [Also needs you] \u00b7 Opened Aug 2 \u00b7 No reply \u00b7 <account>",
+  "new": "[Also needs you] \u00b7 Marcus Delaney: Harper v Northline. Dropped: 'Waiting for: <money|the order|a call|an answer>', the open date (kept on the one-at-a-time card) and the account label. With two or more inboxes the row no longer names the sending account, and the account chips are hidden on For You and do not filter Waiting On.",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 191,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "The Rest / Nothing waiting on you",
+  "new": "The Rest (no line; the count pill stays)",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 195,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "12 Thrown away without opening \u00b7 Peloton, DoorDash +2",
+  "new": "12 Thrown away without opening from Peloton, DoorDash +2",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 196,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "3 Archived unread \u00b7 Never opened",
+  "new": "3 Archived unread",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 197,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx",
+  "old": "From now on \u00b7 Named on the receipt each time",
+  "new": "Named on the receipt each time",
+  "group": "code-30:messages:MessagesFlow.tsx#3",
+  "phase": "code"
+ },
+ {
+  "id": 162,
+  "file": "jarvis-app/src/notifications/NotificationsFlow.tsx",
+  "old": "Overdue \u00b7 Today's events \u00b7 At-risk goals",
+  "new": "Overdue tasks, today's events and goals at risk",
+  "group": "code-31:notifications:feed.ts",
+  "phase": "code"
+ },
+ {
+  "id": 206,
+  "file": "jarvis-app/src/messages/outbox.ts",
+  "old": "Interrupted \u00b7 Check Sent, then Retry",
+  "new": "Check Sent, then Retry",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 213,
+  "file": "jarvis-app/src/messages/DeckFlow.tsx",
+  "old": "The deck keeps the rest \u00b7 this hand is 9",
+  "new": "This hand holds 9, the deck keeps the rest",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 215,
+  "file": "jarvis-app/src/messages/MailMoreSheet.tsx",
+  "old": "Missing Items From Order #D2565 \u00b7 55d \u00b7 Past the point an email helps",
+  "new": "55 Days \u00b7 Past the point an email helps (subject dropped; '55 Days' red/amber/small-caps by the wait's tone; CSS draws the dot)",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 217,
+  "file": "jarvis-app/src/messages/ThreadStateCard.tsx",
+  "old": "Monday, Sep 28 \u00b7 2:00 PM to 3:00 PM (one grey .conn-meta string)",
+  "new": "MONDAY, SEP 28 \u00b7 2:00 PM to 3:00 PM (two facts: small-caps day, grey hours, CSS dot)",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 217,
+  "file": "jarvis-app/src/messages/MessagesFlow.tsx (toast text via whenLine, no edit to that file)",
+  "old": "On your calendar \u00b7 Monday, Sep 28 \u00b7 2:00 PM to 3:00 PM",
+  "new": "On your calendar \u00b7 Monday, Sep 28, 2:00 PM to 3:00 PM",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 225,
+  "file": "jarvis-app/src/messages/meetingTimes.ts",
+  "old": "Offered 3 times \u00b7 All open",
+  "new": "Offered 3 times, all open",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 225,
+  "file": "jarvis-app/src/messages/meetingTimes.ts",
+  "old": "Offered 3 times \u00b7 You're busy for all of them",
+  "new": "Offered 3 times, you're busy for all of them",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 225,
+  "file": "jarvis-app/src/messages/meetingTimes.ts",
+  "old": "Offered 3 times \u00b7 Only Tue 2pm, Wed 3pm is open",
+  "new": "Offered 3 times, only Tue 2pm and Wed 3pm are open (one open time: 'only Tue 2pm is open')",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 226,
+  "file": "jarvis-app/src/messages/staleDrafts.ts",
+  "old": "5 Days old \u00b7 Draft to Marcus",
+  "new": "To Marcus, 5 days old",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 226,
+  "file": "jarvis-app/src/messages/staleDrafts.ts",
+  "old": "5 Days old \u00b7 Draft with no recipient",
+  "new": "No recipient, 5 days old",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 230,
+  "file": "jarvis-app/src/messages/DemoMail.tsx",
+  "old": "Summitgear \u00b7 Missing Items From Order #D2565",
+  "new": "Summitgear: Missing Items From Order #D2565",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 231,
+  "file": "jarvis-app/src/messages/DemoMail.tsx",
+  "old": "Nothing waiting on you",
+  "new": "(line removed)",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 232,
+  "file": "jarvis-app/src/messages/DemoMail.tsx",
+  "old": "14 threads \u00b7 6 senders \u00b7 In the inbox",
+  "new": "14 Threads from 6 senders",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 233,
+  "file": "jarvis-app/src/messages/DemoMail.tsx",
+  "old": "A timed drain \u00b7 It stops itself",
+  "new": "A timed drain that stops itself",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 234,
+  "file": "jarvis-app/src/messages/DemoMail.tsx",
+  "old": "Senders and gists only \u00b7 Never the message",
+  "new": "Senders and gists, never the message",
+  "group": "code-32:messages:outbox.ts",
+  "phase": "code"
+ },
+ {
+  "id": 339,
+  "file": "jarvis-app/src/brain/strands/StrandsPage.tsx",
+  "old": "LEARNED \u00b7 High \u00b7 14 completions \u00b7 Work Style",
+  "new": "LEARNED \u00b7 High \u00b7 Work Style",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 339,
+  "file": "jarvis-app/src/brain/strands/StrandsPage.tsx",
+  "old": "FADING \u00b7 97 days unconfirmed \u00b7 Energy",
+  "new": "FADING \u00b7 Energy",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 339,
+  "file": "jarvis-app/src/brain/strands/StrandsPage.tsx",
+  "old": "KNOWN \u00b7 Paused \u00b7 Values",
+  "new": "KNOWN \u00b7 Paused, Values",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 388,
+  "file": "jarvis-app/src/brain/strands/StrandsPage.tsx",
+  "old": "LEARNED \u00b7 Medium \u00b7 7 completions \u00b7 Energy (Medium in amber)",
+  "new": "LEARNED \u00b7 Energy (Medium is not shown)",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 341,
+  "file": "jarvis-app/src/brain/strands/StrandsPage.tsx",
+  "old": "Used By: Schedule \u00b7 Plan My Day \u00b7 Your Move (three facts)",
+  "new": "Used By: Schedule, Plan My Day, Your Move (one fact)",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 344,
+  "file": "jarvis-app/src/brain/readiness.ts",
+  "old": "${have} ${unit}, spread across the day \u00b7 One 3-hour stretch has to hold ${BAND_PCT} percent",
+  "new": "${have} ${unit}, spread across the day, but one 3-hour stretch has to hold ${BAND_PCT} percent",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 344,
+  "file": "jarvis-app/src/brain/readiness.ts",
+  "old": "Needs ${MIN_COMPLETIONS} ${unit} \u00b7 One 3-hour stretch holding ${BAND_PCT} percent of them",
+  "new": "Needs ${MIN_COMPLETIONS} ${unit}, with one 3-hour stretch holding ${BAND_PCT} percent of them",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 344,
+  "file": "jarvis-app/src/brain/readiness.ts",
+  "old": "${done} of ${have} picks finished by that night \u00b7 The middle is a normal life, not a pattern",
+  "new": "${done} of ${have} picks finished by that night, a rate in the middle, which is a normal life, not a pattern",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 344,
+  "file": "jarvis-app/src/brain/readiness.ts",
+  "old": "Nobody in Contacts to put a name to \u00b7 The log carries ids, so a name comes from a person card",
+  "new": "Nobody in Contacts to put a name to, since the log carries only ids",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 344,
+  "file": "jarvis-app/src/brain/readiness.ts",
+  "old": "${have} corrections in one area \u00b7 Not all the same way, or under ${MIN_AVG_ABS_MIN} minutes on average \u00b7 Read from this device's log",
+  "new": "${have} corrections in one area, not all the same way or under ${MIN_AVG_ABS_MIN} minutes on average, from this device's log",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 344,
+  "file": "jarvis-app/src/brain/readiness.ts",
+  "old": "Needs ${MIN_TIMING_SAMPLES} corrections in one area, same way, ${MIN_AVG_ABS_MIN} minutes or more \u00b7 Read from this device's log",
+  "new": "Needs ${MIN_TIMING_SAMPLES} corrections in one area, same way, ${MIN_AVG_ABS_MIN} minutes or more, from this device's log",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 345,
+  "file": "jarvis-app/src/brain/strands/ReadinessPanel.tsx",
+  "old": "JARVIS could not read your activity just now \u00b7 Open this screen again on a connection",
+  "new": "JARVIS could not read your activity just now, so open this screen again on a connection",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 345,
+  "file": "jarvis-app/src/brain/strands/ReadinessPanel.tsx",
+  "old": "No day recorded yet \u00b7 The pass only records a day it had something to propose \u00b7 A quiet month looks the same",
+  "new": "No day recorded yet, but the pass only records a day it had something to propose, so a quiet month looks the same",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 345,
+  "file": "jarvis-app/src/brain/strands/ReadinessPanel.tsx",
+  "old": "Last recorded ${passAge} day(s) ago \u00b7 It reviews once a local day, whenever the app is open",
+  "new": "Last recorded ${passAge} day(s) ago, and it reviews once a local day, whenever the app is open",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 345,
+  "file": "jarvis-app/src/brain/strands/ReadinessPanel.tsx",
+  "old": "Read from your account \u00b7 Everything you have done, on every device",
+  "new": "Read from your account, everything you have done on every device",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 346,
+  "file": "jarvis-app/src/brain/strands/ReadinessPanel.tsx",
+  "old": "Numbers behind each gate \u00b7 Settings \u203a Advanced \u203a Learning Lab",
+  "new": "Numbers behind each gate are in Settings \u203a Advanced \u203a Learning Lab",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 348,
+  "file": "jarvis-app/src/brain/derive.ts",
+  "old": "Work collaborator \u00b7 ${p.area}",
+  "new": "Work collaborator in ${p.area}",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 349,
+  "file": "jarvis-app/src/brain/InsightEvidence.tsx",
+  "old": "{name} {value} \u00b7 {reason}  (e.g. Paired sessions 10 \u00b7 fewer than ten same-day pairs is noise dressed as a pattern)",
+  "new": "{name} {value}, {reason}  (e.g. Paired sessions 10, fewer than ten same-day pairs is noise dressed as a pattern)",
+  "group": "code-37:brain:StrandsPage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 372,
+  "file": "jarvis-app/src/brain/HealthBody.tsx",
+  "old": "capAfterNumber(`Sleep \u00b7 ${overview.sleep.nights} ${overview.sleep.nights === 1 ? \"night\" : \"nights\"}`)  (renders \"Sleep \u00b7 5 Nights\" / \"Sleep \u00b7 1 Night\")",
+  "new": "`Sleep Across ${overview.sleep.nights} ${overview.sleep.nights === 1 ? \"Night\" : \"Nights\"}`  (renders \"Sleep Across 5 Nights\" / \"Sleep Across 1 Night\"). I chose this over the finding's \"Sleep over 5 nights\": in the Title Case the other tile labels use, that would read \"Sleep Over\", which scans as \"sleepover\".",
+  "group": "code-38:brain:HealthBody.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 460,
+  "file": "jarvis-app/src/life/SyllabusUploadFlow.tsx",
+  "old": "Task \u00b7 Mon, Sep 15 \u00b7 20%",
+  "new": "MON, SEP 15 \u00b7 20% (the kind word is dropped because the Task/Event button beside it says it; the date is small caps; the dot is drawn by CSS; 20% is white)",
+  "group": "code-42:life:SyllabusUploadFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 460,
+  "file": "jarvis-app/src/life/SyllabusUploadFlow.tsx",
+  "old": "Event \u00b7 Wed, Oct 8 \u00b7 14:00",
+  "new": "WED, OCT 8 \u00b7 14:00 (the kind word is dropped; date and time are small-caps facts)",
+  "group": "code-42:life:SyllabusUploadFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 460,
+  "file": "jarvis-app/src/life/SyllabusUploadFlow.tsx",
+  "old": "Task \u00b7 No date found",
+  "new": "No date found (amber .fact.warn; the kind word is dropped)",
+  "group": "code-42:life:SyllabusUploadFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 464,
+  "file": "jarvis-app/src/life/cards/AreaItemStandard.tsx",
+  "old": "2 tasks \u00b7 1 goal \u00b7 1 project",
+  "new": "2 Tasks \u00b7 1 Goal \u00b7 1 Project (capAfterNumber, matching the Health card's \"5 Sections\"; each count is a white fact; dots drawn by CSS)",
+  "group": "code-42:life:SyllabusUploadFlow.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 473,
+  "file": "jarvis-app/src/bigger/BiggerPicturePage.tsx",
+  "old": "No tasks yet (Projects lens ruled row, meter line, for a project with no tasks)",
+  "new": "(nothing: the line is dropped)",
+  "group": "code-43:bigger:BiggerPicturePage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 473,
+  "file": "jarvis-app/src/bigger/BiggerPicturePage.tsx",
+  "old": "No tasks yet (Projects lens card foot, for a project with no tasks)",
+  "new": "(nothing: the foot is dropped)",
+  "group": "code-43:bigger:BiggerPicturePage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 489,
+  "file": "jarvis-app/src/bigger/BiggerPicturePage.tsx",
+  "old": "No tasks yet (unlensed project row progress line)",
+  "new": "(nothing: the line is dropped)",
+  "group": "code-43:bigger:BiggerPicturePage.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 533,
+  "file": "jarvis-app/src/admin/AdminPanel.tsx",
+  "old": "Users row sub line \"Pro \u00b7 active\"; expanded second line \"Joined 2026-05-01 \u00b7 u_001\"",
+  "new": "One facts line: \"Pro\" collapsed and \"Pro \u00b7 JOINED 2026-05-01\" expanded. The status word is dropped because the Disable/Enable capsule already states it. The account id is dropped because the email already names the account.",
+  "group": "code-46:admin:AdminPanel.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 536,
+  "file": "jarvis-app/src/admin/AdminPanel.tsx",
+  "old": "\"3 started intake \u00b7 2 finished \u00b7 1 skipped\" (line under the Metrics grid)",
+  "new": "Three Metrics tiles: \"3 / Started intake\", \"2 / Finished intake\", \"1 / Skipped intake\"",
+  "group": "code-46:admin:AdminPanel.tsx",
+  "phase": "code"
+ },
+ {
+  "id": 423,
+  "file": "jarvis-app/src/settings/BackupPage.tsx",
+  "old": "One JSON file \u00b7 Everything here",
+  "new": "Everything in one JSON file",
+  "group": "code-48:data:useSyncState.ts",
+  "phase": "code"
+ },
+ {
+  "id": 425,
+  "file": "jarvis-app/src/settings/BackupPage.tsx",
+  "old": "Synced automatically \u00b7 Export keeps your own copy",
+  "new": "Export keeps your own copy",
+  "group": "code-48:data:useSyncState.ts",
+  "phase": "code"
+ },
+ {
+  "id": 426,
+  "file": "jarvis-app/src/settings/BackupPage.tsx",
+  "old": "Duplicates skipped \u00b7 Nothing overwritten",
+  "new": "Duplicates skipped, nothing overwritten",
+  "group": "code-48:data:useSyncState.ts",
+  "phase": "code"
+ },
+ {
+  "id": 427,
+  "file": "jarvis-app/src/settings/BackupPage.tsx",
+  "old": "Categories, goals, projects and note links \u00b7 Photos and files stay in the old account",
+  "new": "Photos and files stay in the old account",
+  "group": "code-48:data:useSyncState.ts",
+  "phase": "code"
+ },
+ {
+  "id": 539,
+  "file": "jarvis-app/src/data/useSyncState.ts",
+  "old": "Offline \u00b7 3 Changes waiting / 3 Changes waiting \u00b7 Last synced 2 min ago (one string)",
+  "new": "Offline, 3 Changes waiting (amber) / 3 Changes waiting (amber), LAST SYNCED 2 MIN AGO (small caps) as separate facts; the separator is drawn by CSS",
+  "group": "code-48:data:useSyncState.ts",
+  "phase": "code"
+ },
+ {
+  "id": 424,
+  "file": "jarvis-app/src/settings/BackupPage.tsx",
+  "old": "iCloud / Account Sync [Off] with meta 'Nothing waiting' or 'Last synced \u2026' (no-backend build)",
+  "new": "iCloud / Account Sync [Off] with no meta line (the sync line shows only when sync is On)",
+  "group": "code-48:data:useSyncState.ts",
+  "phase": "code"
  }
 ]
