@@ -534,7 +534,16 @@ export default function SchedulePage({
                 <span className={"sched-bar cat-bg-" + catColor(r.category)} />
                 <div className="row-grow">
                   <div className="conn-name">{r.title}</div>
-                  <div className="conn-meta">{r.cadence} · {r.ends}{r.skipped > 0 ? ` · ${r.skipped} skipped` : ""}</div>
+                  {/* ONE GREY, DOTS FROM CSS (§AK, §AM F3/F5, 2026-09-26).
+                      The cadence is the line's one grey; an end date is a
+                      neutral date, so small caps; the skip count is a number
+                      with no state, so white. An endless series says so once,
+                      in the No End pill, not again in words beside it. */}
+                  <div className="facts">
+                    <span className="fact">{r.cadence}</span>
+                    {!r.endless && <span className="fact date">{r.ends}</span>}
+                    {r.skipped > 0 && <span className="fact"><b>{r.skipped} skipped</b></span>}
+                  </div>
                 </div>
                 {r.endless && <span className="pill pill-subdued">No End</span>}
               </div>
@@ -641,7 +650,9 @@ export default function SchedulePage({
         <div className="pad-x"><div className="card"><div className="row" role="button" tabIndex={0} aria-label="Fix the overlap"
           onClick={onFixOverlap}
           onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(onFixOverlap)(e); }}>
-          <div className="row-glyph cat-fg-orange"><AlertTriangle className="ic" /></div>
+          {/* The key's amber (§AM): a clash needs you soon. It wore the
+              orange category hue, which is for an area of life. */}
+          <div className="row-glyph urgency-warn"><AlertTriangle className="ic" /></div>
           <div className="row-grow">
             <div className="conn-name">Two Things Collide</div>
             <div className="conn-meta">{overlap.line}</div>
@@ -652,7 +663,11 @@ export default function SchedulePage({
       {mode === "day" && onFixOverlap && clashCount >= 2 && (
         <div className="pad-x">
           <button type="button" className="sched-open" onClick={onFixOverlap}>
-            <span className="sched-open-plus">!</span> {clashCount} clashes today
+            {/* The same amber warning mark the single-clash card leads with
+                (§AM). This was a "!" in the open-slot plus's class, which
+                also drew that class's generated "+" ahead of it, in the tap
+                red. */}
+            <AlertTriangle className="ic urgency-warn" aria-hidden="true" /> {clashCount} clashes today
             <span className="sched-fix">Fix</span>
           </button>
         </div>
@@ -827,7 +842,10 @@ export default function SchedulePage({
                         <span className="block-held-t truncate">{b.text}</span>
                         <span className="facts block-held-facts">
                           <span className="fact st gray">Proposed</span>
-                          <span className="fact">{blockMinutes(b)}m</span>
+                          {/* A length that cannot be tapped is a number with
+                              no state: white, not a second grey beside the
+                              block's own kicker (§AK, §AM). */}
+                          <span className="fact"><b>{blockMinutes(b)}m</b></span>
                         </span>
                         {proposed?.onAccept && (
                           <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); proposed.onAccept?.(b.taskId); }}>Accept</button>
@@ -926,7 +944,10 @@ export default function SchedulePage({
         <div className="pad-x"><div className="card list-card-ruled">
           <div className="task-row p2" {...pressable(() => onMode?.("repeats"))}>
             <div className="task-title"><span className="task-name">Repeats</span>
-              <div className="r-k"><span className="r-goal r-cat">{repeats.length === 0 ? "Nothing repeats yet" : capAfterNumber(`${repeats.length} standing`)}</span></div></div>
+              {/* No placeholder line (§AK): with nothing standing the row
+                  says nothing under its name, and the view it opens says the
+                  rest. */}
+              {repeats.length > 0 && <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(`${repeats.length} standing`)}</span></div>}</div>
             <div className="chev" />
           </div>
         </div></div>

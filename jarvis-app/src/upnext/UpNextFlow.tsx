@@ -9,9 +9,9 @@ import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { DEFAULT_ROUTINE } from "../routine/types";
-import { pickNext, quickWins, rankOpen, reasonFor, QUICK_WINS_COUNT } from "./upnext";
+import { daysBetween, pickNext, quickWins, rankOpen, reasonFor, QUICK_WINS_COUNT } from "./upnext";
 import MusicChip from "../music/MusicChip";
-import FocusScreen from "./FocusScreen";
+import FocusScreen, { type FocusReason } from "./FocusScreen";
 
 // FOCUS, THE CONTAINER (remodelled 2026-09-17, rebuilt 2026-09-18). One card
 // at a time, never a list: Next deals the single best task, Quick Wins deals
@@ -26,6 +26,23 @@ const WINS_SECONDS = 10 * 60;
 
 function fmtClock(s: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// THE REASON AS FACTS (§AM, 2026-09-26). reasonFor's line was one string with
+// a typed dot, drawn as ONE grey fact, so a late task and a calm one looked
+// the same. The due distance keeps reasonFor's own words and takes the key's
+// colour for its window: late red, today or tomorrow amber, later a neutral
+// date. The peak is the line's one grey. A task with no due date says
+// nothing about it rather than saying so.
+function reasonFacts(t: TaskItem, today: string, inPeak: boolean): FocusReason[] {
+  const out: FocusReason[] = [];
+  const due = t.data.due;
+  if (due) {
+    const d = daysBetween(today, due);
+    out.push({ text: reasonFor(t, today, false), tone: d < 0 ? "red" : d <= 1 ? "warn" : "date" });
+  }
+  if (inPeak) out.push({ text: "Your focus peak" });
+  return out;
 }
 
 export interface FifteenFace { taskId: string; text: string; line: string; over: boolean }
@@ -140,9 +157,9 @@ export default function UpNextFlow({ onClose, onStartNow, onFifteen, fifteen, on
     : winsDeck.slice(winsAt);
 
   const face = current ? {
-    areaName: catName(current.data.category) || "Anything",
+    areaName: catName(current.data.category),
     areaSlot: catColor(current.data.category),
-    reason: reasonFor(current, today, inPeak),
+    reasons: reasonFacts(current, today, inPeak),
     text: current.data.text,
   } : null;
 
@@ -151,8 +168,8 @@ export default function UpNextFlow({ onClose, onStartNow, onFifteen, fifteen, on
     sub: winsDone >= winsTotal && winsDeck.length > 0
       ? "A clean sweep."
       : winsDone > 0
-        ? "That's momentum \u00b7 Ride it or rest"
-        : "No pressure \u00b7 It'll be here",
+        ? "Ride the momentum or rest"
+        : "No pressure",
   } : null;
 
   return (
@@ -172,7 +189,7 @@ export default function UpNextFlow({ onClose, onStartNow, onFifteen, fifteen, on
         {...(onFifteenDone ? { onRunDone: onFifteenDone } : {})}
         {...(onFifteenAgain ? { onRunAgain: onFifteenAgain } : {})}
         {...(onFifteenStop ? { onRunStop: onFifteenStop } : {})}
-        winsLine={mode === "wins" && !winsOver ? `${winsDone} of ${winsTotal} \u00b7 ${fmtClock(secondsLeft)} left` : null}
+        wins={mode === "wins" && !winsOver ? { done: winsDone, total: winsTotal, clock: fmtClock(secondsLeft) } : null}
         finale={finale}
         onBackToNext={backToNext}
         music={<MusicChip context="focus" />}

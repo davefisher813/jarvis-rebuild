@@ -10,7 +10,7 @@ import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
 import type { BurstSize } from "../../shared/completion";
 import type { TaskItem } from "../TasksService";
-import { urgencyFor, distanceFor, type UrgencyKind } from "../grouping";
+import { urgencyFor, distanceFor, todayISO, type UrgencyKind } from "../grouping";
 import { FILTERS, FILTER_LABEL, type TaskFilter } from "../filters";
 import { categoriesOf } from "../categories";
 import { catColor, catName } from "../../shared/categories";
@@ -29,7 +29,7 @@ import { haptics } from "../../shared/haptics";
 import { ParentLineGlyph, EnvelopeGlyph } from "../../shared/glyphs";
 import StepCount, { stepsOf, hasUnfinishedSteps } from "../../shared/StepCount";
 import { Nums } from "../../bigger/GoalRowRuled";
-import type { ParentLine } from "../../life/parent";
+import { parentForTask, type ParentLine, type ParentIndex } from "../../life/parent";
 import { originLabel } from "../origin";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
@@ -122,6 +122,16 @@ function emptySub(filter: TaskFilter, counts: Record<TaskFilter, number>): strin
 // them; the menus on the list head carry every filter and every count the
 // chips did, and a menu never overflows sideways. The laws keep the record.
 
+// A task's area as a parent line, for a row whose caller passed none. No
+// projects and no events in the index, so parentForTask answers with the
+// area alone. The first NAMED area leads, so a primary deleted out from
+// under a task does not blank the line while a second area still has a name.
+const NO_PARENTS: ParentIndex = { projects: new Map(), events: new Map() };
+function areaLine(item: TaskItem): ParentLine | null {
+  const first = categoriesOf(item.data).find((id) => catName(id));
+  return first ? parentForTask(NO_PARENTS, { ...item, data: { ...item.data, category: first } }) : null;
+}
+
 // THE TASK ROW, everywhere a task is a row (exported 2026-09-02 for the
 // Health page's Up Next, Dave: "Add task on the same page as well should
 // render as a task there like it does everywhere else after. It should have
@@ -142,7 +152,7 @@ export function TaskRow({
   picked = false,
   onPick,
   muteToday = false,
-  parent = null,
+  parent: callerParent = null,
   kicker = null,
   kickerTone = null,
   tag = null,
@@ -182,7 +192,8 @@ export function TaskRow({
   // goal index, the same one Today reads, so the two pages cannot disagree.
   parent?: ParentLine | null;
   // A caller's own second line (a reminder's time on the Health page),
-  // in place of the parent or category words.
+  // in place of the parent or category words. Unless it is stalled it is
+  // drawn as a neutral time, in small caps.
   kicker?: string | null;
   // The kicker in the warning ink: the line is a fact about the task
   // stalling, not where it lives (the First Step offer, 2026-09-02).
@@ -208,6 +219,13 @@ export function TaskRow({
   person?: { name: string; onOpen?: () => void } | null;
 }) {
   const t = item.data;
+  // WHERE IT LIVES, EVEN WHEN THE CALLER DID NOT SAY (§AM, 2026-09-26). A
+  // caller with no parent index (Money's Also Tagged list) left the row to
+  // join every area name with a baked middle dot in one grey run, with no
+  // dot to mark it as an area. The row now draws the area the way every
+  // other row does, its dot ahead of its name, through the same parentForTask
+  // the flows use.
+  const parent = callerParent ?? areaLine(item);
   const u = urgencyFor(t, today);
   const prov = rowSource(t.source, t.moved);
   // ONE WHERE-IT-CAME-FROM PER ROW (§AK, 2026-09-26). When nothing ahead of
@@ -439,14 +457,14 @@ export function TaskRow({
             {(kicker || tag)
               ? <>
                   {tag && <span className="slide-tag">{tag}</span>}
-                  {kicker && <span className={"r-goal r-cat" + (kickerTone === "stalled" ? " r-stalled" : "")}>{kicker}</span>}
+                  {/* A stalled kicker is a count in the warning ink. Any other
+                      kicker is a reminder's clock time (the Health page), a
+                      neutral time, so it is small caps like every neutral
+                      time on a row (§AM F5), not the line's grey words. */}
+                  {kicker && <span className={kickerTone === "stalled" ? "r-goal r-cat r-stalled" : "fact date"}>{kicker}</span>}
                 </>
               : parent
               ? <ParentLineGlyph p={parent} />
-              : categoriesOf(t).map((id) => catName(id)).filter(Boolean).length > 0
-              ? <span className="r-goal r-cat">
-                  {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ")}
-                </span>
               : originLabel(t)
               /* WHERE IT CAME FROM WEARS A MARK (§AK, 2026-09-21, Dave's
                  Anytime screenshot: "Email" in bare grey under one task and
@@ -580,12 +598,15 @@ export function TaskRow({
 // behind the swipe every other dismiss action in the app already lives
 // behind, which is also the "or swipe" he asked for.
 export function MomentumRow({
-  task, reason, onOpen, onToggle, onStart, onNotNow,
+  task, reason, today = todayISO(), onOpen, onToggle, onStart, onNotNow,
 }: {
   task: TaskItem;
   /** momentum.ts's own derived line ("Same category, due today"), or null
    *  when neither fact applied. */
   reason: string | null;
+  /** The day the due chip is measured against; the flow's own today when
+   *  it passes one. */
+  today?: string;
   onOpen: (id: string) => void;
   onToggle: (id: string) => void;
   onStart: (id: string) => void;
@@ -594,6 +615,8 @@ export function MomentumRow({
   onNotNow: () => void;
 }) {
   const { dx, dragging, handlers, open: swipeOpen, closeThen } = useSwipe({ revealW: 88 });
+  const due = distanceFor(task.data, today);
+  const sameArea = !!reason && /^same category/i.test(reason);
   return (
     <div className="task-swipe">
       <button className="task-snooze" onClick={() => closeThen(onNotNow)} aria-label="Not now">
@@ -629,8 +652,15 @@ export function MomentumRow({
             {/* THE VERDICT AS A CHIP, the same vocabulary the stalled row's
                 "Keeps Sliding" already uses: the app concluded this, the
                 reason line under it is the count it concluded from. */}
+            {/* DUE AND LATE WEAR THE KEY (§AM, 2026-09-26). The reason
+                said "due today" or "overdue" in the line's plain grey, a
+                meaning with no colour. The due half is now the distance chip
+                every task row wears (TODAY amber, N DAYS LATE red), read off
+                the task itself, and the reason keeps only the fact with no
+                meaning of its own, the shared area, as the line's one grey. */}
+            {due && <span className={"uchip " + (due.kind === "late" ? "u-late" : "u-today")}>{due.label}</span>}
             <span className="slide-tag">Keep Going</span>
-            {reason && <span className="r-goal r-cat">{reason}</span>}
+            {sameArea && <span className="r-goal r-cat">Same category</span>}
           </div>
         </div>
         <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(task.id); }}>Start</button>

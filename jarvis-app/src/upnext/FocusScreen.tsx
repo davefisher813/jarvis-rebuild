@@ -33,13 +33,29 @@ import { Timer } from "../shared/icons";
 //     says what is behind this card.
 // ---------------------------------------------------------------------------
 
+/** One fact of the reason. A tone is the Colour Key's (§AM): late is red,
+ *  due today or tomorrow amber, a later due a neutral small-caps date. No
+ *  tone is the line's one grey. */
+export interface FocusReason {
+  text: string;
+  tone?: "red" | "warn" | "date";
+}
+
 export interface FocusFace {
-  /** The area's name and its colour slot, for the dot. */
+  /** The area's name and its colour slot, for the dot. An empty name draws
+   *  no area: a task with none says nothing about it. */
   areaName: string;
   areaSlot: string;
-  /** Why this one, in the app's own clock words. */
-  reason: string;
+  /** Why this one, in the app's own clock words, one fact per reason. */
+  reasons: FocusReason[];
   text: string;
+}
+
+/** Quick Wins progress: done of total, and the clock. */
+export interface FocusWins {
+  done: number;
+  total: number;
+  clock: string;
 }
 
 export interface FocusRunning {
@@ -68,7 +84,7 @@ export interface FocusScreenProps {
   onRunAgain?: (() => void) | undefined;
   onRunStop?: (() => void) | undefined;
   /** Quick Wins state. */
-  winsLine?: string | null;
+  wins?: FocusWins | null;
   /** The end of a Quick Wins run, or the end of the deck. */
   finale?: { title: string; sub: string } | null;
   onBackToNext: () => void;
@@ -80,7 +96,7 @@ export interface FocusScreenProps {
 
 export default function FocusScreen({
   mode, onMode, onClose, face, waiting, onStartNow, onFifteen, onDone, doneBusy,
-  onSkip, running, onRunDone, onRunAgain, onRunStop, winsLine, finale, onBackToNext,
+  onSkip, running, onRunDone, onRunAgain, onRunStop, wins, finale, onBackToNext,
   music, guard,
 }: FocusScreenProps) {
   const leadsWithStart = mode === "next" && !!onStartNow;
@@ -103,7 +119,14 @@ export default function FocusScreen({
         {mode === "next" && music}
       </div>
 
-      {winsLine && <div className="focus-run-line">{winsLine}</div>}
+      {/* Two facts, the separator drawn by CSS (§AM F3): the counts step up
+          to white, the clock is a neutral time in small caps. */}
+      {wins && (
+        <div className="focus-run-line facts">
+          <span className="fact"><b>{wins.done}</b> of <b>{wins.total}</b></span>
+          <span className="fact date">{wins.clock} left</span>
+        </div>
+      )}
 
       {/* WHAT IS ON THE CLOCK. It stays above the card, because a block that
           is running outranks a card proposing another one. */}
@@ -139,10 +162,14 @@ export default function FocusScreen({
         ) : face ? (
           <>
             <div className="card pad focus-card">
-              <div className="facts">
-                <span className="fact cat"><span className={"cd cat-bg-" + face.areaSlot} />{face.areaName}</span>
-                <span className="fact">{face.reason}</span>
-              </div>
+              {(face.areaName || face.reasons.length > 0) && (
+                <div className="facts">
+                  {face.areaName && <span className="fact cat"><span className={"cd cat-bg-" + face.areaSlot} />{face.areaName}</span>}
+                  {face.reasons.map((r) => (
+                    <span key={r.text} className={"fact" + (r.tone ? " " + r.tone : "")}>{r.text}</span>
+                  ))}
+                </div>
+              )}
               <div className="focus-task">{face.text}</div>
               {guard}
               {/* ONE FILLED ACTION. Next leads with the first step; Quick

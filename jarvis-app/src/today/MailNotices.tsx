@@ -484,10 +484,14 @@ export default function MailNotices({
         </div>
       )}
 
-      {/* The rest of the inbox is a receipt: it reports, it does not ask. */}
+      {/* The rest of the inbox is a receipt: it reports, it does not ask.
+          §AM (2026-09-26): it said "· Nothing urgent" after the count, a dot
+          typed into the line and a claim this component cannot back: the
+          residual is every thread that needs him minus the ones shown, and
+          a card cut by the cap or swiped away for the day is still in it. */}
       {residual && (
         <button data-receipt className="receipt-line" onClick={onOpenEmail}>
-          <span className="rl-t">{residual} · Nothing urgent</span>
+          <span className="rl-t">{residual}</span>
           <span className="chev" />
         </button>
       )}

@@ -190,14 +190,15 @@ export default function ReminderSheet({
   const tomorrowMorning = { day: addDays(today, 1), time: morningTime() };
   const isPick = (p: { day: string; time: string }) => when === "time" && effDay === p.day && effTime === p.time;
 
-  // THE GREEN LINE: what was just set, in words.
+  // THE GREEN LINE: what was just set, in words. Each half reads as one
+  // phrase, never two fragments glued with a baked middle dot (§AM F3).
   const summary = when === "time"
     ? (effTime
-      ? { head: `${effRepeat.kind === "once" ? "One Time" : describeRepeat(effRepeat)} · ${clock(effTime)}`, line: next ? "Next " + whenLabel(next.date, next.time, today) : `Starts ${effDay === today || !effDay ? "Today" : effDay === addDays(today, 1) ? "Tomorrow" : effDay}` }
+      ? { head: `${effRepeat.kind === "once" ? "One Time" : describeRepeat(effRepeat)} at ${clock(effTime)}`, line: next ? "Next " + whenLabel(next.date, next.time, today) : `Starts ${effDay === today || !effDay ? "Today" : effDay === addDays(today, 1) ? "Tomorrow" : effDay}` }
       : null)
-    : when === "none" ? { head: "Unscheduled", line: "Sits in Upcoming · No timed alert" }
-      : when === "area" ? { head: areaName ? `When You Open ${areaName}` : "When You Open the Area", line: "An in-app prompt · You can always continue" }
-        : { head: link?.type === "task" ? `After ${link.label ?? "the Task"}` : "After You Complete the Task", line: "An in-app prompt · You can always continue" };
+    : when === "none" ? { head: "Unscheduled", line: "Sits in Upcoming with no timed alert" }
+      : when === "area" ? { head: areaName ? `When You Open ${areaName}` : "When You Open the Area", line: "An in-app prompt that never blocks you" }
+        : { head: link?.type === "task" ? `After ${link.label ?? "the Task"}` : "After You Complete the Task", line: "An in-app prompt that never blocks you" };
 
   return (
     <FormSheet title={mode === "edit" ? "Edit Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"}>

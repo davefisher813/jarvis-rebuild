@@ -118,10 +118,17 @@ describe("billsLine", () => {
     expect(billsLine([plain("t", T)], T)).toBeNull(); // plain tasks are not bills
   });
 
+  // SPEC MOVED (§AM, 2026-09-26): two facts, not one string with a typed dot.
+  // The day takes the key's tone for its window: today or tomorrow is due
+  // (amber), later is a neutral date (small caps).
   it("names one bill with its amount and a human day", () => {
-    expect(billsLine([bill("b", "Pay Rent", "2026-08-10", 1850)], T)).toEqual({ title: "Rent", sub: "$1850 · Due tomorrow" });
-    expect(billsLine([bill("b", "Pay Rent", T, 1850)], T)).toEqual({ title: "Rent", sub: "$1850 · Due today" });
-    expect(billsLine([bill("b", "Pay Electric", "2026-08-12", 120)], T)).toEqual({ title: "Electric", sub: "$120 · Due Wednesday" });
+    expect(billsLine([bill("b", "Pay Rent", "2026-08-10", 1850)], T)).toEqual({ title: "Rent", amount: "$1850", due: { text: "Due tomorrow", tone: "warn" } });
+    expect(billsLine([bill("b", "Pay Rent", T, 1850)], T)).toEqual({ title: "Rent", amount: "$1850", due: { text: "Due today", tone: "warn" } });
+    expect(billsLine([bill("b", "Pay Electric", "2026-08-12", 120)], T)).toEqual({ title: "Electric", amount: "$120", due: { text: "Due Wednesday", tone: "date" } });
+  });
+
+  it("a bill with no amount says only when it is due", () => {
+    expect(billsLine([bill("b", "Pay Rent", "2026-08-10")], T)).toEqual({ title: "Rent", due: { text: "Due tomorrow", tone: "warn" } });
   });
 
   it("rolls several into a count, earliest first", () => {
@@ -158,8 +165,8 @@ describe("bills across zones and clock changes (TODAY-F-12)", () => {
     const prevTz = process.env.TZ;
     process.env.TZ = "America/New_York";
     try {
-      expect(billsLine([bill("b", "Pay Rent", "2026-03-09", 1850)], "2026-03-08")).toEqual({ title: "Rent", sub: "$1850 · Due tomorrow" });
-      expect(billsLine([bill("b", "Pay Rent", "2026-11-02", 1850)], "2026-11-01")).toEqual({ title: "Rent", sub: "$1850 · Due tomorrow" });
+      expect(billsLine([bill("b", "Pay Rent", "2026-03-09", 1850)], "2026-03-08")).toEqual({ title: "Rent", amount: "$1850", due: { text: "Due tomorrow", tone: "warn" } });
+      expect(billsLine([bill("b", "Pay Rent", "2026-11-02", 1850)], "2026-11-01")).toEqual({ title: "Rent", amount: "$1850", due: { text: "Due tomorrow", tone: "warn" } });
     } finally {
       process.env.TZ = prevTz;
     }

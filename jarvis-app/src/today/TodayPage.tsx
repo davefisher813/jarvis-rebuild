@@ -11,7 +11,7 @@ import { fmtTime } from "../schedule/calendar";
 import { urgencyFor, distanceFor, type UrgencyKind } from "../tasks/grouping";
 import { catColor, catName } from "../shared/categories";
 import { useRef, useState } from "react";
-import type { DaySummary } from "./todayData";
+import type { BillLine, DaySummary } from "./todayData";
 import RollingNumber from "../shared/RollingNumber";
 import YourDay from "./YourDay";
 import DayRing from "./DayRing";
@@ -19,7 +19,8 @@ import { useCondensed } from "../shared/PageHeader";
 import { useSyncState } from "../data/useSyncState";
 import { Burst, useBurst } from "../shared/Burst";
 import type { BurstSize } from "../shared/completion";
-import { eveningSummary, todayPlanLine, EVENING_TASKS_NOTE, type EveningStats, type TodayPlan, type WeekRecap } from "./evening";
+import { eveningFacts, todayPlanLine, EVENING_TASKS_NOTE, type EveningStats, type TodayPlan, type WeekRecap } from "./evening";
+import { Facts } from "../messages/factsLine";
 import MoveHeadliner from "./MoveHeadliner";
 
 import { capAfterNumber } from "../shared/casing";
@@ -190,10 +191,14 @@ function SchedRow({ ev, onOpen }: { ev: EventItem; onOpen?: () => void }) {
         <div className="sched-title">{ev.data.title}</div>
         {/* An event with no area rendered a dot and nothing after it (Dave's
             2026-09-04 screenshot: the call landed from an email with no
-            area, so the second line was one grey dot). The task rows on this
-            same page already say "No category" for an orphan, the Things
-            rule: conspicuous, never hidden, never a blank. Same words here. */}
-        <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(ev.data.category)} />{catName(ev.data.category) || "No category"}</div>
+            area, so the second line was one grey dot). It then said "No
+            category", which is a line announcing an absence (§AK, 2026-09-22:
+            a row with nothing to say shows nothing). The task rows on this
+            page already went quiet for an orphan (tasks/origin.ts); so does
+            this one: no area, no second line, and no stray dot either. */}
+        {catName(ev.data.category) && (
+          <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(ev.data.category)} />{catName(ev.data.category)}</div>
+        )}
       </div>
     </div>
   );
@@ -289,8 +294,9 @@ export default function TodayPage({
   // 2026-09-02): its project, else the goal it moves, else its category,
   // each with its own glyph. The flow derives it from the same index Pick 5
   // already builds; the page never reads projects or goals itself. Null
-  // means the row says "No category" and stays adoptable, which is the
-  // Things rule: orphans conspicuous, never hidden.
+  // means the row says where the task came from if that is worth naming
+  // (tasks/origin.ts), and otherwise nothing: an absent fact is an empty
+  // line, never "No category" (§AK, 2026-09-22).
   parentOf?: (t: TaskItem) => ParentLine | null;
   // SHARED-F-16 (2026-09-05): whether ticking this row clears the last task
   // of its project, answered before the tick so the burst escalates with the
@@ -305,7 +311,7 @@ export default function TodayPage({
   onSeeAllMail?: () => void;
   // The band and its head appear together or not at all.
   mailEmpty?: boolean;
-  billLine?: { title: string; sub: string }; // bills due within 3 days, from billsLine (2026-08-09)
+  billLine?: BillLine; // bills due within 3 days, from billsLine (2026-08-09)
   onPayBill?: () => void; // marks the SOONEST due bill paid, with undo
   onOpenBill?: () => void; // the bill card's body: the bill, or the list of them
   summary: DaySummary;
@@ -591,6 +597,7 @@ export default function TodayPage({
         category: fifteenIsDealt ? moveCategory ?? null : null,
         estimate: fifteenIsDealt ? moveEstimate ?? null : null,
         reason: fifteen.line,
+        over: fifteen.over,
       }}
       onDone={onFifteenDone}
       // One question at the end, and it is his: finished, or another fifteen.
@@ -723,7 +730,9 @@ export default function TodayPage({
               <div className="sched-time" />
               <div className="sched-body">
                 <div className="sched-title">{t.data.text}</div>
-                <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(t.data.category)} />{catName(t.data.category) || "No category"}</div>
+                {catName(t.data.category) && (
+                  <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(t.data.category)} />{catName(t.data.category)}</div>
+                )}
               </div>
               <span className="pill pill-subdued">{t.data.recurrence}</span>
             </div>
@@ -753,7 +762,16 @@ export default function TodayPage({
         icon={<DollarSign className="ic" />}
         tone="cat-fg-green"
         title={billLine.title}
-        sub={billLine.sub}
+        // §AM (2026-09-26): one bill is two facts, the dot drawn by the
+        // stylesheet. The amount is a number with no state (white); the day
+        // takes the key's tone for its window (today or tomorrow is due,
+        // amber; later is a neutral date, small caps).
+        sub={billLine.due ? (
+          <div className="facts">
+            {billLine.amount && <span className="fact"><b>{billLine.amount}</b></span>}
+            <span className={"fact " + billLine.due.tone}>{billLine.due.text}</span>
+          </div>
+        ) : billLine.sub}
         // A bill card with no button is the same dead end the old email line
         // was: it tells him he owes money and stops. One tap marks it paid.
         action={onPayBill ? { label: "Paid", onClick: onPayBill } : undefined}
@@ -769,7 +787,12 @@ export default function TodayPage({
         icon={<RotateCcw className="ic" />}
         tone="cat-fg-teal"
         title="Rough Day? Fresh Start."
-        sub="Re-plan what's left · Nothing lost"
+        // §AM (2026-09-26): it read "Re-plan what's left · Nothing lost", a
+        // dot baked into the line in the words' grey, and a first half that
+        // only repeated the Re-plan pill beside it. The promise is the half
+        // worth keeping: re-planning moves work to tomorrow, it deletes
+        // nothing.
+        sub="Nothing lost"
         action={{ label: "Re-plan", onClick: freshStart }}
         // ROW-TAP (Dave 2026-09-15): the body opens the same re-plan sheet.
         onOpen={freshStart}
@@ -806,10 +829,17 @@ export default function TodayPage({
                 identical whether or not anything had left the phone. It says
                 only what is true and offers nothing, because the queue is
                 already draining itself; Settings, Backup is where the count
-                and the Retry live. */}
-            <div className="eyebrow">{dateLong}{sync && !sync.online ? " · Offline" : ""}</div>
+                and the Retry live.
+                §AM (2026-09-26): two facts, so the dot between them is drawn
+                by the stylesheet in the separator's ink, never typed into the
+                kicker in the date's. */}
+            <div className="eyebrow">
+              {sync && !sync.online
+                ? <><span className="fact">{dateLong}</span><span className="fact">Offline</span></>
+                : dateLong}
+            </div>
             <div className="today-title">{greeting}</div>
-            <div className="today-summary">{evening ? eveningSummary(evening, movedLine) : parts}</div>
+            <div className="today-summary">{evening ? <Facts facts={eveningFacts(evening, movedLine)} /> : parts}</div>
             {/* Weather Fact (addendum item 4): the morning line. Threshold-
                 gated; a mild day renders nothing here. */}
             <MorningWeatherLine todayIso={localISODate()} />

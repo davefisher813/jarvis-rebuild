@@ -464,7 +464,7 @@ describe("MomentumRow (Dave 2026-09-16)", () => {
 
   it("is a plain task row: one check, one title, one trailing pill, no second pill floating beside it", () => {
     const { container } = render(
-      <MomentumRow task={task} reason="Same category, due today"
+      <MomentumRow task={task} reason="Same category, due today" today="2026-05-20"
         onOpen={() => {}} onToggle={() => {}} onStart={() => {}} onNotNow={() => {}} />,
     );
     // The old shape put two buttons in one trailing slot; this shape has
@@ -473,7 +473,11 @@ describe("MomentumRow (Dave 2026-09-16)", () => {
     expect(screen.getByText("Start")).toHaveClass("pill-act");
     expect(container.querySelector(".task-check-tap")).toBeInTheDocument();
     expect(screen.getByText("Keep Going")).toHaveClass("slide-tag");
-    expect(screen.getByText("Same category, due today")).toBeInTheDocument();
+    // AMENDED 2026-09-26 (§AM): the due half wears the key as the task row's
+    // own distance chip, and the reason keeps only the shared area in grey.
+    expect(container.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
+    expect(screen.getByText("Same category")).toHaveClass("r-goal", "r-cat");
+    expect(screen.queryByText(/due today/)).toBeNull();
     // Not Now is not a second visible button on the row; it lives behind
     // the swipe reveal instead (asserted by class, below).
     expect(screen.queryByRole("button", { name: "Not Now" })).toBeNull();

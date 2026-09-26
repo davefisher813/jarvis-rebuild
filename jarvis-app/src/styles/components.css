@@ -4148,7 +4148,10 @@ button {
 }
 [data-theme="light"] .note-conn-add { color: var(--on-light-red); }
 .note-conn-add .ic { width: 13px; height: 13px; }
-.note-conn-add:active { background-color: var(--press-3); }
+/* Pressed is a step past the resting fill in both themes: in light the
+   capsule fill IS the 8% press, so the 8% press showed no change, and in
+   dark it sank below the opaque rest. The 14% / 13% press lifts it. */
+.note-conn-add:active { background-color: var(--press-5); }
 /* With nothing linked yet the same control says what it is (Dave
    2026-09-12: a bare dashed circle under the title read as a stray). Once
    a chip exists the circle is enough, it sits after the chips.
@@ -5825,7 +5828,9 @@ body.selecting .voice-dock { display: none; }
   font: inherit; font-size: calc(15px * var(--type-scale)); font-weight: 600; padding: var(--s-2) var(--s-1h); cursor: pointer; }
 /* The format tag names a format; it means nothing the key colours, so it is
    the neutral tag: its fill and caps set it apart, in the one grey (§AM,
-   2026-09-25). Blue is Health's cool-down, and this is not one. */
+   2026-09-25). Blue is Health's cool-down, and this is not one.
+   Its size, like every type size on the clock face, is held with the
+   clock-caps question for Dave (the receipt's tag is 11); not moved until he rules. */
 .cf-fmt { font-size: var(--t-caption); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tx-3);
   background: var(--press-3); padding: var(--s-1) var(--s-2h); border-radius: var(--r-sm); }
 .cf-name { font-size: var(--t-sub); color: var(--tx-3); max-width: 70vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -5858,7 +5863,8 @@ body.selecting .voice-dock { display: none; }
 .cf-knob.dragging { transition: none; cursor: grabbing; }
 .cf-knob::after { content: ""; width: 12px; height: 12px; background: #fff; border-radius: var(--r-xxs); }
 
-/* The corners exist for landscape only. */
+/* The corners exist for landscape only. Their type size is held with the
+   clock-caps question for Dave, like the format tag's; not moved until he rules. */
 .cf-corner { display: none; }
 
 /* ---------- LANDSCAPE (ruled: the number fills the width, everything

@@ -185,7 +185,11 @@
    5.04:1 dimmed), where it only softens a hue. */
 .ruled .st-quiet .st-w, .ruled .st-late .st-w { opacity: 1; }
 .ruled .st-warn  { background: var(--warn-tint);  color: var(--warn); }
-.ruled .st-late  { background: var(--red-tint);   color: var(--sys-red); }
+/* The late wash is mixed from the system red (AMENDED 2026-09-26, round-4
+   review): the app's red tint token is the BRAND red's wash (the tap red at
+   16% in dark, the words red at 10% in light), so the late word sat on the
+   tap red. It is the same mix the urgency chip's red uses. */
+.ruled .st-late  { background: color-mix(in srgb, var(--sys-red) 14%, transparent); color: var(--sys-red); }
 /* No light text step for these tiles. BROWSER-F-04 (2026-09-05) took the
    green and amber steps out: two more hand-kept hexes doing what --good and
    --warn now do themselves in light. The red step went on 2026-09-26 (§AM,
@@ -615,14 +619,16 @@
 .ruled .uchip { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em; padding: 3px 7px;
   border-radius: var(--r-pill); flex-shrink: 0; white-space: nowrap; text-transform: uppercase; }
 .ruled .uchip.u-today { color: var(--warn); background: var(--warn-tint); }
-.ruled .uchip.u-late  { color: var(--sys-red); background: var(--red-tint); }
+.ruled .uchip.u-late  { color: var(--sys-red); background: color-mix(in srgb, var(--sys-red) 14%, transparent); }
 /* E-31 (2026-09-12): a proposed day is a guess he made, not a deadline the
    app holds him to, so it wears the quiet ramp. */
 .ruled .uchip.u-proposed { color: var(--tx-3); background: var(--press-3); }
 /* No light override for either chip. BROWSER-F-04 (2026-09-05) retired the
    today chip's hand-kept amber; the late chip's step down to the brand's
    words red went on 2026-09-26 (§AM, Dave's 2026-09-12 Astra ruling: late
-   is Apple's light system red as shipped, including as text). */
+   is Apple's light system red as shipped, including as text). Its wash went
+   the same way in round 4: mixed from the system red, not the red tint
+   token, which is the brand's wash. */
 
 /* ---------- ONE ACTION COLUMN on the stream and mail rows ---------------
    "The urgency chip makes the call to action button look misaligned." It
@@ -1866,8 +1872,10 @@
 .ruled.health-ruled .se-guard em { color: var(--hl-amber-ink); white-space: nowrap; flex-shrink: 0; }
 /* §AM: --accent-tx is the BRAND red, and the key reserves red-as-brand for
    things that respond to a tap. A guard that has been crossed is LATE in the
-   key's sense, which is --sys-red, the same red every overdue thing wears. */
-.ruled.health-ruled .se-guard-warn { color: var(--sys-red); background: var(--red-tint); }
+   key's sense, which is --sys-red, the same red every overdue thing wears.
+   Its wash is mixed from the system red too (round 4, 2026-09-26): the red
+   tint token is the brand's wash. */
+.ruled.health-ruled .se-guard-warn { color: var(--sys-red); background: color-mix(in srgb, var(--sys-red) 14%, transparent); }
 .ruled.health-ruled .se-guard-warn em { color: var(--sys-red); }
 
 /* THE PIN IS A CLAIM, NOT A VERB (2026-09-16). "Pin Days" was a red capsule on
@@ -2870,7 +2878,10 @@
 /* The card's two facts at the fact size, 14 (§AM F4, 2026-09-25); they were
    13. They take the card's own white rather than a raw near-white of their
    own: the ground is a fixed colour in both themes, so the key's greys
-   cannot sit on it, and the card already names the one ink that can. */
+   cannot sit on it. White does not pass everywhere either: on the pale
+   slots it measures 2.8 to 4.5:1 (round 3, eleven slots). The fix, a dark
+   fade under the footer or darker gradient pairs, is held for Dave with a
+   rendered preview (question "bp-foot"); until he rules, nothing moves. */
 .ruled .bp-card-lead, .ruled .bp-card-n {
   font-size: var(--t-sub); font-weight: var(--w-sub);
   color: inherit;

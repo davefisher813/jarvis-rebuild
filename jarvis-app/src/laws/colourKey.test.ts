@@ -32,11 +32,19 @@ const SHEETS = ["components.css", "ruled.css", "jarvis-design-system.css",
 
 const CATALOG = read("STYLING_CATALOG_V3.md");
 
-/** Every rule in every sheet, comments stripped, as [selector, body, file]. */
+/** Every rule in every sheet, comments stripped, as [selector, body, file].
+ *  AMENDED 2026-09-26 (round-4 review, the lead): at-rules are opened before
+ *  the split. The wrapper's selector starts with "@" and was dropped, and its
+ *  brace swallowed the first rule inside it, so every rule inside @media or
+ *  @supports went unread: `.fact.x { color: var(--tint) }` inside a contrast
+ *  query passed the key. F-04 and the capsule rings check open them the same
+ *  way ("a rule inside an at-rule block is still a rule"). Every rule read
+ *  before is still read. */
 function rules(): Array<{ sel: string; body: string; file: string }> {
   const out: Array<{ sel: string; body: string; file: string }> = [];
   for (const f of SHEETS) {
-    const css = read("src/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "");
+    const css = read("src/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/@(?:media|supports|container|layer)[^{;]*\{/g, "");
     for (const m of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
       const sel = m[1]!.replace(/\s+/g, " ").trim();
       if (!sel || sel.startsWith("@")) continue;

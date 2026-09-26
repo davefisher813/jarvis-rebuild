@@ -2456,6 +2456,41 @@ describe("LAW L1: red is a verb, never a status", () => {
     const bad = [...CSS.matchAll(UNREAD_RED)].map((m) => m[0].split("{")[0]!.trim());
     expect(bad, "unread is a fact about the inbox and behind is amber at most, never a failure").toEqual([]);
   });
+  // THE MAIL RAIL, PINNED (AMENDED 2026-09-26, round-4 review, the lead).
+  // The amendment above cites "the mail rail's white dot", but no pattern
+  // saw the rail: its unread state is its .on class and its lateness is its
+  // .hot class, and neither word is in GUILT or UNREAD_RED. On main the
+  // unread rail wore the brand red and every law passed; putting that back,
+  // or the tap red on a hot rail, passed too. So the settled rail is pinned
+  // here by rule (Colour Key, 2026-09-26): solid white is unread, amber is
+  // due soon or a wait of weeks, the system red is a wait past the point an
+  // email helps. Every rule in every sheet that names the rail is judged,
+  // in either theme and inside an at-rule too: a rail that is not hot takes
+  // no red of any kind, and a hot rail takes the system red, never the tap
+  // red. Nothing above is narrowed by it.
+  it("the mail rail wears the key: white unread, amber due, the system red late, the tap red never", () => {
+    const bare = CSS.replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/@(?:media|supports|container|layer)[^{;]*\{/g, "");
+    const bodies = new Map<string, string>();
+    const bad: string[] = [];
+    for (const m of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+      for (const one of m[1]!.split(",").map((x) => x.replace(/\s+/g, " ").trim())) {
+        if (!one || one.startsWith("@") || !/\.msg-rail(?![\w-])/.test(one)) continue;
+        bodies.set(one, (bodies.get(one) ?? "") + m[2]!);
+        const hot = /\.hot(?![\w-])/.test(one);
+        if (hot ? TAP_RED.test(m[2]!) : ANY_RED.test(m[2]!)) bad.push(one + " -> " + m[2]!.trim());
+      }
+    }
+    expect(bad, "the rail's red is the system red, and only a hot rail wears it").toEqual([]);
+    expect(bodies.get(".msg-rail.on"), "unread is solid white, the primary ink")
+      .toMatch(/background(?:-color)?:\s*var\(--tx-1\)/);
+    for (const sel of [".msg-rail.hot", ".msg-rail.on.hot"]) {
+      expect(bodies.get(sel), sel + " is late, the system red").toMatch(/var\(--sys-red\)/);
+    }
+    for (const sel of [".msg-rail.warm", ".msg-rail.on.warm"]) {
+      expect(bodies.get(sel), sel + " is due, the key's amber").toMatch(/var\(--warn-fill\)/);
+    }
+  });
   it("the ruled lateness classes render only when something is actually late", () => {
     // The red is earned by the render condition, not by the class name. Both
     // sites must be gated in TodayPage.
@@ -2500,7 +2535,13 @@ describe("LAW L1: red is a verb, never a status", () => {
   // because the class that carried this for months was called `.tab-badge`
   // and looked perfectly innocent in a stylesheet.
   it("no red badge rule survives with nothing to fill it", () => {
-    const reds = [...CSS.matchAll(/\.([a-z][a-z0-9-]*badge[a-z0-9-]*)\s*\{[^}]*(?:--accent-fill|--sys-red|--on-light-red)\b[^}]*\}/gi)]
+    // AMENDED 2026-09-26 (round-4 review, the lead): red here was three
+    // tokens of its own (--accent-fill, --sys-red, --on-light-red), so a
+    // dead badge painted --tint, --accent, --danger-tx, --red, a hand hex or
+    // a reference with a fallback passed, though L1 reads red from the one
+    // shared definition. It is the shared ANY_RED now (laws/reds.ts), which
+    // matches every token the old list did, their fills included.
+    const reds = [...CSS.matchAll(new RegExp(String.raw`\.([a-z][a-z0-9-]*badge[a-z0-9-]*)\s*\{[^}]*(?:${ANY_RED.source})[^}]*\}`, "gi"))]
       .map((m) => m[1]!);
     const src = COMPONENTS.map((f) => read(f)).join("\n");
     const dead = reds.filter((c) => !new RegExp("\\b" + c + "\\b").test(src));
@@ -3596,7 +3637,13 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
       .toMatch(/muteToday=\{filter === "today"\}/);
     expect(CSS, "the chip is a tint of the tag's own colour, not a new colour")
       .toMatch(/\.ruled \.uchip\.u-today \{ color: var\(--warn\); background: var\(--warn-tint\); \}/);
-    expect(CSS).toMatch(/\.ruled \.uchip\.u-late  \{ color: var\(--sys-red\); background: var\(--red-tint\); \}/);
+    // AMENDED 2026-09-26 (round-4 review, the lead): "tinted from its own
+    // colour" was false for the late chip. Its wash was --red-tint, which is
+    // the BRAND red's wash (the tap red at 16% in dark, the words red at 10%
+    // in light), so the late word sat on the tap red. The wash is mixed from
+    // the system red now, the mix the shared red urgency chip uses; the
+    // today chip's pin and every check above are unchanged.
+    expect(CSS).toMatch(/\.ruled \.uchip\.u-late  \{ color: var\(--sys-red\); background: color-mix\(in srgb, var\(--sys-red\) 14%, transparent\); \}/);
   });
 
   // FINDING 3, FOUR CHAPTERS. Read the history before changing this.

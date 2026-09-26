@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { StartAction, StartTarget, InTheWay } from "../startAction";
+import type { StartAction, StartTarget, StartSource, InTheWay } from "../startAction";
 import { smallerAction, IN_THE_WAY } from "../startAction";
 import { suggestStopPoint } from "../startStore";
 import { createPortal } from "react-dom";
@@ -125,10 +125,16 @@ export default function StartScreen({
         <div className="start-headline">{shown.headline}</div>
 
         {/* What the app actually read, and what it could not find. A hole is
-            warn-toned and named, never quietly filled in. */}
+            warn-toned and named, never quietly filled in.
+            ONE GREY RUN (§AK R1, 2026-09-26). A message task hanging off an
+            event and a person read "Source: Saturday Tournament" beside "To
+            Marco", two plain facts in the same grey. What was read is one
+            statement, so it is one fact: the sources join into a phrase
+            ("Source: Saturday Tournament, to Marco"), and the amber holes
+            stay facts of their own. */}
         {(shown.sources.length > 0 || shown.missing.length > 0) && (
           <div className="facts">
-            {shown.sources.map((s, i) => <span className="fact" key={"s" + i}>{s.label}</span>)}
+            {shown.sources.length > 0 && <span className="fact">{sourcePhrase(shown.sources)}</span>}
             {shown.missing.map((m, i) => <span className="fact warn" key={"m" + i}>{m}</span>)}
           </div>
         )}
@@ -204,7 +210,7 @@ export default function StartScreen({
           <div className="row" {...pressable(onFinish)}>
             <div className="row-grow">
               <div className="conn-name">Finish This Task</div>
-              <div className="conn-meta">Ticks the task itself {"·"} Separate from saving</div>
+              <div className="conn-meta">Ticks the task itself, separate from saving</div>
             </div>
             <span className="pill-act">Finish</span>
           </div>
@@ -222,6 +228,14 @@ export default function StartScreen({
       )}
     </div>
   );
+}
+
+/** What was read, as one phrase: the first source as written, each later
+ *  one after a comma with its first letter lowered. Only the grounding path
+ *  returns two (the event or note it read, then "To" whoever it goes to), so
+ *  a later source always opens on that small word: "to Marco". */
+function sourcePhrase(sources: StartSource[]): string {
+  return sources.map((s, i) => (i === 0 ? s.label : s.label.charAt(0).toLowerCase() + s.label.slice(1))).join(", ");
 }
 
 /** What the primary button will not do, said before it is pressed. */

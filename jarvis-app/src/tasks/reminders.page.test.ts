@@ -54,9 +54,9 @@ describe("pageSections", () => {
 
 describe("the words", () => {
   it("say when in the reference's shape", () => {
-    expect(whenWords({ time: "09:00" }, TUE, "09:00", TUE)).toBe("Today · 9:00 AM");
-    expect(whenWords({ time: "15:30" }, "2026-09-16", "15:30", TUE)).toBe("Tomorrow · 3:30 PM");
-    expect(whenWords({ time: "11:00" }, "2026-09-18", "11:00", TUE)).toBe("Sep 18 · 11:00 AM");
+    expect(whenWords({ time: "09:00" }, TUE, "09:00", TUE)).toBe("Today, 9:00 AM");
+    expect(whenWords({ time: "15:30" }, "2026-09-16", "15:30", TUE)).toBe("Tomorrow, 3:30 PM");
+    expect(whenWords({ time: "11:00" }, "2026-09-18", "11:00", TUE)).toBe("Sep 18, 11:00 AM");
     expect(whenWords({ time: "08:00", scheduleKind: "unscheduled" }, null, null, TUE)).toBe("Unscheduled");
     expect(whenWords({ time: "08:00", scheduleKind: "unscheduled", contextTrigger: { kind: "onOpenArea", targetId: "c1", cooldownMinutes: 60, lastShownAt: null } }, null, null, TUE, "Bridge")).toBe("When I Open Bridge");
     expect(whenWords({ time: "08:00", paused: true }, null, null, TUE)).toBe("Paused");
