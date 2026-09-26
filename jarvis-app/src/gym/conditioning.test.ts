@@ -21,7 +21,7 @@ describe("the clock's words", () => {
     expect(condSummary(amrap)).toBe("AMRAP · 12:00");
     expect(condSummary(emom)).toBe("EMOM · 10 × 1:00");
     expect(condSummary(tabata)).toBe("Tabata · 8 × 0:20 / 0:10");
-    expect(condSummary(forTime)).toBe("For Time · cap 20:00");
+    expect(condSummary(forTime)).toBe("For Time · Cap 20:00");
   });
   it("the cap is built from the parts, so it can never disagree with them", () => {
     expect(condCap("amrap", { minutes: 12 })).toBe(720);

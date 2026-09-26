@@ -497,5 +497,12 @@
   "new": "\"Noise\" (no count; the line under it still reads \"12 Machines wrote ...\")",
   "group": "mail-facts-today",
   "phase": "css-round3"
+ },
+ {
+  "id": "cr-cap",
+  "file": "jarvis-app/src/gym/conditioning.ts",
+  "old": "For Time \u00b7 cap 20:00 (receipt shows \"cap 20:00\")",
+  "new": "For Time \u00b7 Cap 20:00 (receipt shows \"Cap 20:00\")",
+  "phase": "css-round4"
  }
 ]
