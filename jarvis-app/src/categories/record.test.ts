@@ -66,10 +66,13 @@ describe("categoryRecord", () => {
     const tuesdays = ["2026-07-07", "2026-07-14", "2026-07-21", "2026-07-28", "2026-08-04"];
     const spread = ["2026-07-08", "2026-07-16", "2026-07-24"];
     const r = categoryRecord("c1", [...tuesdays, ...spread].map((d) => at(d, 9, "c1", "t1")), TASKS, TODAY);
-    expect(r.insight).toBe("Most gets done on Tuesdays");
+    // AMENDED 2026-09-26 (pass-off): Title Case, and the numbers behind it.
+    expect(r.insight).toBe("Most Gets Done on Tuesdays");
+    expect(r.insightDetail).toEqual({ dow: 2, count: 5, total: 8 });
     // Too little history: silent.
     const few = categoryRecord("c1", tuesdays.map((d) => at(d, 9, "c1", "t1")), TASKS, TODAY);
     expect(few.insight).toBeNull();
+    expect(few.insightDetail).toBeNull();
   });
 
   it("no clear winner means no forced insight", () => {

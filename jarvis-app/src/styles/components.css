@@ -6667,3 +6667,24 @@ span.row-star { cursor: default; }
 [data-theme="light"] .return-pill::before { background-color: var(--surface-2); }
 .return-pill .ic { width: 17px; height: 17px; }
 .return-pill:active { opacity: 0.85; }
+
+/* ===== WORKOUT LOGGING, one flow (2026-09-26) ===== */
+/* Dave's pass-off, top item: "Logging renders inconsistently... Needs one
+   single clean logging flow, no fluctuation." Every rule here is scoped to
+   the health root, as R3 of the Colour Key asks of the health inks. */
+/* A SUPERSET READS AS ONE in the This Session list: the A1/A2 mark rides
+   the facts line as the pair capsule (violet, its own fill, so it is never
+   a second grey), and the member row wears the same hue as a rule down its
+   edge. An inset shadow rather than a border, so the text edge does not
+   move on a grouped row (one text edge per card). */
+.ruled.health-ruled .row.se-grp { box-shadow: inset 3px 0 0 var(--hl-violet); }
+.ruled.health-ruled .facts > .se-chip { align-self: center; margin-right: var(--s-2); }
+/* The Up Next rows after the Now row are the plan, read and not tapped:
+   no pointer, no ring, the dashed edge alone says "not yet". */
+.ruled.health-ruled .set-chip-ghost.se-next { cursor: default; }
+/* The set editor's two moves are one capsule row, padded to the editor's
+   own text edge; the row-pair's tall row-gap stays for the 44px hit boxes. */
+.ruled.health-ruled .set-chip-editor .set-chip-acts, .sheet-scrim > .card .set-chip-editor .set-chip-acts { margin: var(--s-2) 0 var(--s-2); }
+/* The More capsule on the strip's head takes the head's own capsule slot
+   (.sh2 .see-all.pill-action) and sits after the count. */
+.ruled.health-ruled .sh2 > .n + .see-all.pill-action { margin-left: var(--s-2); }

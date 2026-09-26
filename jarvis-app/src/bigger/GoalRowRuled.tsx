@@ -1,6 +1,6 @@
 import type { Progress } from "./progress";
 import { TargetGlyph } from "../shared/glyphs";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, titleCase } from "../shared/casing";
 import { CHECKIN_LABEL, type CheckinWord } from "./checkin";
 
 // THE GOAL ROW (Goals and Projects, Dave 2026-09-02: "One card, status
@@ -37,7 +37,7 @@ export function Bar({ p }: { p: Progress }) {
   return <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, p.pct) + "%" }} /></div>;
 }
 
-export default function GoalRowRuled({ title, tone, body, status, bar, kind, moving = 0, next = null, checkin = null, when = null, onOpen }: {
+export default function GoalRowRuled({ title, tone, body, status, bar, kind, moving = 0, next = null, checkin = null, when = null, onOpen, onAddProject }: {
   title: string;
   /** A cat-fg-* class: the goal's home colour. */
   tone: string;
@@ -65,13 +65,23 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
    *  in the row's grey, the day not bolded as if it were a count. */
   when?: string | null;
   onOpen?: () => void;
+  /** A GOAL WITH NOTHING UNDER IT OFFERS THE ONE MOVE THAT EXISTS (Dave's
+   *  pass-off, 2026-09-26). "Nothing under it yet" was a grey line saying
+   *  nothing, six times in a row (§AK); silence was the first fix, and this
+   *  is the second: the empty line is one short tap-red action, Add a
+   *  Project, and it opens the add sheet already filed to this goal. Only
+   *  drawn where the row has no measure, no date and no status to show. */
+  onAddProject?: () => void;
 }) {
   const checkinKey = checkin ? checkinTone(checkin) : null;
+  const empty = !when && !body && !status && !bar;
   return (
     <div className="task-row p2 goal-row-ruled" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={onOpen}>
       <div className="task-check-tap"><span className={"gm-slot " + tone}><TargetGlyph /></span></div>
       <div className="task-title">
-        <span className="task-name">{title}</span>
+        {/* His own title, shown in Title Case; what he typed is stored
+            unchanged (Dave's pass-off, 2026-09-26). */}
+        <span className="task-name">{titleCase(title)}</span>
         {/* WHAT MOVES IT, THEN HOW FAR (Dave 2026-09-13: "where it lists how
             many projects are moving it... that's where we should put how many
             tasks are done... right above the bar... you could just say three
@@ -96,6 +106,12 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
           </div>
         )}
         {bar && <Bar p={bar} />}
+        {empty && onAddProject && (
+          <div className="goal-meter">
+            <button type="button" className="note-fix goal-add-proj"
+              onClick={(e) => { e.stopPropagation(); onAddProject(); }}>Add a Project</button>
+          </div>
+        )}
       </div>
       {onOpen && CHEV}
     </div>

@@ -12,7 +12,7 @@ import { readGymSettings, rackFrom } from "../gym/settings";
 import type { Program, Workout } from "../gym/types";
 import { pausedCategoryIds } from "../categories/kinds";
 import { workWindowOf } from "./planMeta";
-import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, goalTitleForTask, sheetGoals } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import EventDetailPage from "./screens/EventDetailPage";
 import { weekRowsFor } from "./weekRows";
@@ -591,7 +591,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     // B1-2 (2026-09-04): "until" has to travel into the sheet too, or the
     // sheet's own default of "" reads as "forever" and onSave below writes
     // that back, silently erasing a real end date on any unrelated edit.
-    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1 } });
+    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "", goalId: e.goalId ?? "" } });
     // UP-PLAT-26 (2026-09-06): Where You Were declared four kinds and only
     // two ever fired (restore/whereYouWere.ts:8-13). This is the third: an
     // event sheet opened is a spot, the same way a note editor opened is one
@@ -614,7 +614,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
       const occurrence = repeating ? nextOccurrence(e, todayISO()) ?? e.date : e.date;
       setSelected(occurrence);
       syncView(occurrence);
-      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1 } });
+      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "", goalId: e.goalId ?? "" } });
     })();
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -641,7 +641,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     let newEventDate: string | null = null;
     if (sheet?.mode === "new") {
       const created = await attemptWrite(async () => {
-        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, days: draft.days, interval: draft.interval, taskIds: draft.taskIds, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes });
+        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, days: draft.days, interval: draft.interval, taskIds: draft.taskIds, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined, goalId: draft.goalId || undefined });
         if (newEventId && draft.gym) await svc.editGymDoor(newEventId, true);
       });
       if (!created) newEventId = null;
@@ -661,7 +661,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           // one occurrence off a recurring Zoom used to stand it up with no
           // link and no notes, so the call he was about to join lost the way
           // in at the moment he edited it.
-          const splitId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes });
+          const splitId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined, goalId: draft.goalId || undefined });
           if (splitId && draft.gym) await svc.editGymDoor(splitId, true);
         });
       } else {
@@ -690,6 +690,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           await svc.editMeeting(id, { url: draft.url ?? "", notes: draft.notes ?? "" });
           await svc.editTaskIds(id, draft.taskIds ?? []);
           await svc.editGymDoor(id, !!draft.gym);
+          await svc.editLinks(id, { projectId: draft.projectId || null, goalId: draft.goalId || null });
         });
       }
     }
@@ -931,7 +932,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   const [taskSheet, setTaskSheet] = useState<{ id: string; initial: TaskDraft } | null>(null);
   const onOpenTask = async (id: string) => {
     const t = await tasksSvc.task(id);
-    if (t) setTaskSheet({ id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId } });
+    if (t) setTaskSheet({ id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId } });
   };
   const onSaveTask = async (draft: TaskDraft) => {
     if (taskSheet) {
@@ -942,6 +943,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
         await tasksSvc.setCategories(id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
         await tasksSvc.setDue(id, draft.due || null);
         await tasksSvc.setProject(id, draft.projectId ?? null);
+        await tasksSvc.setGoal(id, draft.goalId ?? null);
         await tasksSvc.setEvent(id, draft.eventId ?? null);
         await tasksSvc.setRecurrence(id, rec || null);
         await tasksSvc.setPlan(id, draft.plan ?? null);
@@ -1521,6 +1523,10 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
       {taskSheet && (
         <TaskSheet
           events={sheetEvents(allEvents, today)}
+          // THE SAME SHEET EVERYWHERE (2026-09-26): Schedule's copy handed
+          // over no projects and no goals; now the Where group is whole here.
+          projects={projList.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: liveGoals(goalList).find((g) => g.id === p.data.goalId)?.data.title, goalId: p.data.goalId }))}
+          goals={sheetGoals(goalList, taskSheet.initial.goalId)}
           mode="edit"
           initial={taskSheet.initial}
           selfId={taskSheet.id}
@@ -1628,6 +1634,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           checkConflict={checkConflict}
           suggestSlot={suggestSlot}
           onSave={onSave}
+          projects={projList.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: liveGoals(goalList).find((g) => g.id === p.data.goalId)?.data.title, goalId: p.data.goalId }))}
+          goals={sheetGoals(goalList, sheet.mode === "edit" ? sheet.initial.goalId : undefined)}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
           onDuplicate={sheet.mode === "edit" ? () => void duplicateEvent(sheet.id) : undefined}
           onMoveToAnytime={sheet.mode === "edit" ? () => { const id = sheet.id; setSheet(null); onUnschedule(id); } : undefined}

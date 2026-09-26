@@ -17,10 +17,14 @@ import HeadMenu from "../../shared/HeadMenu";
 import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
 import { addDays } from "../../schedule/calendar";
+import { sortPicks } from "../../shared/pickerSort";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
 export interface TaskDraft {
   text: string; category: string; extraCategories?: string[]; due: string; repeat: string; projectId?: string;
+  // THE GOAL IS A PICK (Dave's pass-off, 2026-09-26). The goal this task is
+  // for, by id; a project pick fills it, and the row is a real picker.
+  goalId?: string;
   // EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not tied to task
   // modals"). The event this task belongs to, by id, exactly as projectId
   // above names its project. The event page could file a task to itself from
@@ -50,7 +54,10 @@ export interface TaskDraft {
  *  project already knows its area and the goal it climbs to, so a task filed
  *  to it should not make him say either one again. Both optional, so a caller
  *  with only ids and titles keeps working exactly as before. */
-export interface SheetProject { id: string; title: string; category?: string; goalTitle?: string }
+export interface SheetProject { id: string; title: string; category?: string; goalTitle?: string; goalId?: string }
+/** A goal this sheet can file a task to (2026-09-26): the fileable ones,
+ *  plus whichever it is already under (bigger/reach.ts sheetGoals). */
+export interface SheetGoal { id: string; title: string }
 /** An event this sheet can file a task to. `when` is a rendered day, not a
  *  date: the menu has to disambiguate two events with the same name, and a
  *  raw ISO string in a picker is a machine talking. */
@@ -97,6 +104,7 @@ export default function TaskSheet({
   categoryMinutes = {},
   people = [],
   projects = [],
+  goals = [],
   events = [],
   source,
   openSourceFor,
@@ -132,6 +140,9 @@ export default function TaskSheet({
   // plans on one trigger cancel each other out.
   otherPlans?: { id: string; text: string; plan?: IfThen }[];
   projects?: SheetProject[];
+  /** THE GOAL PICKER'S OPTIONS (Dave's pass-off, 2026-09-26). With none
+   *  handed over the Goal row stays the derived read-only line it was. */
+  goals?: SheetGoal[];
   /** Events a task can be filed to. Empty for a caller with none to hand, and
       the row then does not render, the same way Project's does not. */
   events?: SheetEvent[];
@@ -203,6 +214,7 @@ export default function TaskSheet({
   const [due, setDue] = useState(initial?.due ?? "");
   const [repeat, setRepeat] = useState(initial?.repeat ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
+  const [goalId, setGoalId] = useState(initial?.goalId ?? "");
   const [eventId, setEventId] = useState(initial?.eventId ?? "");
   const [personId, setPersonId] = useState(initial?.personId ?? "");
 
@@ -222,7 +234,12 @@ export default function TaskSheet({
   };
   const pickProject = (id: string) => {
     setProjectId(id);
-    fillAreaFrom(projects.find((p) => p.id === id)?.category);
+    const p = projects.find((x) => x.id === id);
+    fillAreaFrom(p?.category);
+    // A project already knows the goal it climbs to, so filing the task to
+    // it answers the Goal row too; only a blank goal is filled, for the
+    // same reason only a blank area is (2026-09-26).
+    if (p?.goalId && goals.some((g) => g.id === p.goalId)) setGoalId((cur) => cur || p.goalId!);
   };
   const pickEvent = (id: string) => {
     setEventId(id);
@@ -234,7 +251,19 @@ export default function TaskSheet({
   // to answer "what is this for" without a trip to the goal page. It shows
   // only when the picked project actually climbs to one -- an empty Goal row
   // on every task would be a question with no answer.
-  const goalTitle = projects.find((p) => p.id === projectId)?.goalTitle ?? "";
+  // ...AND SINCE 2026-09-26 IT IS ALSO A PICK (Dave's pass-off: the row "has
+  // no chevron and does nothing"). Where the caller hands over goals the row
+  // is a menu like Project's; a project pick still fills it. Where it does
+  // not, the derived line stays. What is shown is the pick, or the project's
+  // goal when nothing was picked.
+  const goalTitle = (goalId ? goals.find((g) => g.id === goalId)?.title : undefined)
+    ?? projects.find((p) => p.id === projectId)?.goalTitle ?? "";
+  // THE PROJECT MENU IN ORDER (Dave's pass-off, 2026-09-26): the current
+  // pick first, then by area, then by name (shared/pickerSort), with a
+  // search field at the top of the menu.
+  const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
+  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category) })), projectId)
+    .map((p) => ({ value: p.id, label: p.title }));
   // UP-CORE-02: null means he has not said how long, which is different from
   // zero and is what lets the learned median keep answering.
   const [estimateMin, setEstimateMin] = useState<number | null>(initial?.estimateMin ?? null);
@@ -344,7 +373,7 @@ export default function TaskSheet({
     // BRAIN-F-09 (2026-09-05): a failed write used to hold this latch on
     // "Saving" forever, and Cancel (the only way out) took the draft with it.
     const r = onSave({
-      text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined, eventId: eventId || undefined,
+      text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined, goalId: goalId || undefined, eventId: eventId || undefined,
       // Only a plan that will actually work is saved. A weak one is worse
       // than none: it feels like a plan and carries no effect.
       plan: planTouched && isUsable(draftPlan) ? draftPlan : undefined,
@@ -570,7 +599,8 @@ export default function TaskSheet({
                 <Tile tone="indigo"><FolderKanban className="ic" /></Tile>
                 <div className="conn-name">Project</div>
                 <HeadMenu variant="value" ariaLabel="Project" value={projectId} label={projectWord} off={projectId === ""}
-                  options={[{ value: "", label: "None" }, ...projects.map((p) => ({ value: p.id, label: p.title }))]}
+                  options={[{ value: "", label: "None" }, ...projectOptions]}
+                  search="Search Projects"
                   onPick={pickProject} />
               </div>
             )}
@@ -591,11 +621,27 @@ export default function TaskSheet({
                 filing the project has already answered this), and now says
                 None like every other field here does when it has nothing to
                 report, rather than disappearing. */}
-            <div className="row xs-row">
-              <Tile tone="red"><TargetGlyph /></Tile>
-              <div className="conn-name">Goal</div>
-              <div className="row-val">{goalTitle || "None"}</div>
-            </div>
+            {/* A REAL PICKER (Dave's pass-off, 2026-09-26). The row above
+                stayed derived for a week and read as a control that did
+                nothing; it is the same menu Project's is now, and a project
+                pick still fills it. The derived line survives only for a
+                caller that hands over no goals. */}
+            {goals.length > 0 ? (
+              <div className="row xs-row" onClick={tapField}>
+                <Tile tone="red"><TargetGlyph /></Tile>
+                <div className="conn-name">Goal</div>
+                <HeadMenu variant="value" ariaLabel="Goal" value={goalId} label={goalTitle || "None"} off={goalTitle === ""}
+                  options={[{ value: "", label: "None" }, ...sortPicks(goals, goalId).map((g) => ({ value: g.id, label: g.title }))]}
+                  search="Search Goals"
+                  onPick={setGoalId} />
+              </div>
+            ) : (
+              <div className="row xs-row">
+                <Tile tone="red"><TargetGlyph /></Tile>
+                <div className="conn-name">Goal</div>
+                <div className="row-val">{goalTitle || "None"}</div>
+              </div>
+            )}
             {/* EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not
                 tied to task modals"). The event page could file a task to
                 itself from the day it was built, and that was the wrong half

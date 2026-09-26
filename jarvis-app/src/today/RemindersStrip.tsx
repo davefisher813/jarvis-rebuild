@@ -1,10 +1,12 @@
 import { Check, Plus, CalendarPlus, Trash2 } from "../shared/icons";
 import { Burst } from "../shared/Burst";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSwipe } from "../shared/useSwipe";
 import type { ReminderView } from "../tasks/reminders";
 import { fmtTime } from "../schedule/calendar";
 import { catColor, catName } from "../shared/categories";
+import { titleCase } from "../shared/casing";
 
 /** The area's name, when it has one to give. */
 const area = (r: { category: string }) => (r.category ? catName(r.category) : "");
@@ -70,9 +72,64 @@ function ReminderRow({ r, bursting, onTickRow, onDeleteRow, children }: {
   );
 }
 
+// THE MISSED LIST (Dave's pass-off, 2026-09-26). One red row on the strip
+// says how many were missed; this is what it opens: each missed reminder on
+// its own row, and one tap on the row (or its ring) marks it done. The
+// caller's tick offers Undo in its toast, so a wrong tap is one tap back.
+// The times are not red here: the sheet's own title says missed, once, and
+// the key's red on a sheet's grouped grey does not clear AA (§AM, 2026-09-26).
+function MissedSheet({ missed, onTick, onClose }: {
+  missed: ReminderView[];
+  onTick: (id: string) => void;
+  onClose: () => void;
+}) {
+  // The last one ticked closes the sheet: an empty list under "Missed" is a
+  // screen with nothing to do on it.
+  useEffect(() => { if (missed.length === 0) onClose(); }, [missed.length]);
+  return createPortal(
+    <div className="sheet-scrim" onClick={onClose}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="opt-bar">
+          <div className="opt-title">Missed Reminders</div>
+          <button type="button" className="opt-done" onClick={onClose}>Done</button>
+        </div>
+        <div className="sheet-list">
+          <div className="pad-x"><div className="card list-card-ruled">
+            {missed.map((r) => (
+              <div key={r.id} className="rem-row rem-tick-row" role="button" tabIndex={0}
+                aria-label={"Mark " + titleCase(r.text) + " done"}
+                onClick={() => onTick(r.id)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onTick(r.id); } }}>
+                <div className="cb" aria-hidden="true" />
+                <span className="rem-time">{fmtTime(r.time).time}<span className="ampm">{fmtTime(r.time).ap}</span></span>
+                <div className="row-grow">
+                  <div className="rem-name"><span className="rem-name-t">{titleCase(r.text)}</span></div>
+                  {area(r) && (
+                    <div className="facts">
+                      <span className="fact cat">
+                        <span className={"cd cat-bg-" + catColor(r.category)} />
+                        <span className="cat-t">{area(r)}</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div></div>
+        </div>
+        <div className="xs-foot" />
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export default function RemindersStrip({
   items,
+  missed = [],
   onTick,
+  onTickMissed,
   onSnooze,
   onAdd,
   onOpen,
@@ -80,10 +137,17 @@ export default function RemindersStrip({
   onAddAllToCalendar,
   onSeeAll,
 }: {
+  /** THE NEXT THREE (Dave's pass-off, 2026-09-26): what is still ahead of
+   *  the clock, soonest first, and no more than three (stripPick). */
   items: ReminderView[];
+  /** The missed ones, shown as ONE red count row that opens their list. */
+  missed?: ReminderView[];
   /** The Reminders page: everything, organised by when. */
   onSeeAll?: () => void;
   onTick?: (id: string, done: boolean) => void;
+  /** One tap on a row of the missed list: mark it done (the caller's toast
+   *  offers Undo). */
+  onTickMissed?: (id: string) => void;
   onSnooze?: (id: string) => void;
   onAdd?: () => void;
   onOpen?: (id: string) => void;
@@ -102,7 +166,10 @@ export default function RemindersStrip({
     });
   };
 
-  if (items.length === 0 && !onAdd) return null;
+  const [missedOpen, setMissedOpen] = useState(false);
+  const hasRows = items.length > 0 || missed.length > 0;
+
+  if (!hasRows && !onAdd) return null;
 
   return (
     <>
@@ -116,7 +183,7 @@ export default function RemindersStrip({
             (which is discoverable); a populated one shows the head action
             (which is out of the way). Both at once is two controls for one
             job, six pixels apart. */}
-        {onAdd && items.length > 0 && <button className="see-all pill-action" onClick={onAdd}>Add</button>}
+        {onAdd && hasRows && <button className="see-all pill-action" onClick={onAdd}>Add</button>}
         {onSeeAll && <button className="see-all pill-action" onClick={onSeeAll}>See All</button>}
       </div>
       <div className="pad-x"><div className="card">
@@ -156,7 +223,7 @@ export default function RemindersStrip({
                   ellipsis rather than wrap (Dave 2026-09-15: "Make sure you
                   have enough money for bills" ran to three lines and the
                   row grew with it). One row, one height, here too. */}
-              <div className="rem-name"><span className="rem-name-t">{r.text}</span></div>
+              <div className="rem-name"><span className="rem-name-t">{titleCase(r.text)}</span></div>
               {/* THE AREA SAYS ITS NAME (Dave 2026-09-15: "why is there a
                   yellow dot and no category next to it"). The dot alone was
                   a colour with nothing to read it by. It is the Reminders
@@ -185,7 +252,22 @@ export default function RemindersStrip({
             )}
           </ReminderRow>
         ))}
-        {items.length === 0 && onAdd && (
+        {/* ONE RED ROW FOR THE MISSED (Dave's pass-off, 2026-09-26). The
+            count wears the key's red (§AM: missed) and the row is the door
+            to their list, where each is ticked off in one tap. Never a row
+            per missed reminder on Today: a list of things you did not do is
+            the opposite of help, and the Heads Up cards already chase the
+            first two. */}
+        {missed.length > 0 && (
+          <div className="rem-row rem-missed-row" role="button" tabIndex={0}
+            aria-label={missed.length + (missed.length === 1 ? " Missed Reminder" : " Missed Reminders")}
+            onClick={() => setMissedOpen(true)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMissedOpen(true); } }}>
+            <span className="rem-missed-n">{missed.length} Missed</span>
+            <div className="chev" />
+          </div>
+        )}
+        {!hasRows && onAdd && (
           <button className="row row-act" onClick={onAdd}>
             <Plus className="ic" />Add a Reminder
           </button>
@@ -205,6 +287,9 @@ export default function RemindersStrip({
             <CalendarPlus className="ic" />Add All to Calendar
           </button>
         </div>
+      )}
+      {missedOpen && (
+        <MissedSheet missed={missed} onTick={(id) => onTickMissed?.(id)} onClose={() => setMissedOpen(false)} />
       )}
     </>
   );

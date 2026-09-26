@@ -50,7 +50,7 @@ import { pendingPicks } from "../events/planOutcome";
 import { rememberLeanedOn } from "./leanedOn";
 import { readSamples } from "../shared/timeSense";
 import { settleDuePlans } from "../events/pipeline";
-import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask, sheetGoals } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import { sheetEvents } from "../schedule/sheetEvents";
 import { inheritFromThread } from "../messages/threadTasks";
@@ -106,7 +106,7 @@ import { promptsDue, shownNow, snoozedForADay } from "../tasks/contextPrompts";
 import ContextPromptSheet from "../tasks/screens/ContextPromptSheet";
 import { SHORTCUTS } from "../health/settings";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
-import { stripReminders, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
+import { stripPick, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
 import { remindersToIcs, saveIcsFile } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
@@ -836,7 +836,7 @@ export default function TodayFlow({
     // the same TaskSheet the Tasks tab opens, so a project, an extra area or
     // an if-then plan set from Tasks would silently vanish the moment the
     // task was edited from home instead. Same sheet, same fields, both ends.
-    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId } });
+    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId } });
   };
 
   // Tappable schedule rows (roadmap v2): an event on Today opens the same
@@ -862,7 +862,7 @@ export default function TodayFlow({
     // section of the sheet was unusable from the tab today's events live on.
     // Travel, the weekday set and the guest list were missing for the same
     // reason and told the same lie. One literal now, matching openEdit's.
-    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1 } });
+    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "", goalId: e.goalId ?? "" } });
   };
   // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07; built
   // 2026-09-09). Tapping an event opens its PAGE, here as well as on Schedule.
@@ -1104,7 +1104,7 @@ export default function TodayFlow({
         // The split copy carries the meeting and the travel too: "This
         // Event" on a recurring Zoom used to stand the occurrence up without
         // its link, which is the same disappearance by another route.
-        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes });
+        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined, goalId: draft.goalId || undefined });
         if (splitId && draft.gym) await schedule.editGymDoor(splitId, true);
       });
     } else {
@@ -1131,6 +1131,7 @@ export default function TodayFlow({
         await schedule.editMeeting(id, { url: draft.url ?? "", notes: draft.notes ?? "" });
         await schedule.editTaskIds(id, draft.taskIds ?? []);
         await schedule.editGymDoor(id, !!draft.gym);
+        await schedule.editLinks(id, { projectId: draft.projectId || null, goalId: draft.goalId || null });
       });
     }
     setEventSheet(null);
@@ -1301,6 +1302,7 @@ export default function TodayFlow({
         await tasks.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
         await tasks.setDue(sheet.id, draft.due || null);
         await tasks.setProject(sheet.id, draft.projectId ?? null);
+        await tasks.setGoal(sheet.id, draft.goalId ?? null);
         await tasks.setEvent(sheet.id, draft.eventId ?? null);
         await tasks.setRecurrence(sheet.id, rec || null);
         await tasks.setPlan(sheet.id, draft.plan ?? null);
@@ -3311,11 +3313,28 @@ export default function TodayFlow({
   // which is exactly the "ton of notifications floating around" the one
   // stream rule exists to stop.
   const missedCards = missedReminders(taskItems, today, nhm);
-  const reminders = stripReminders(taskItems, today, nhm);
+  // THE STRIP'S PICK (Dave's pass-off, 2026-09-26): the next three still
+  // ahead of the clock, and the missed ones as one red count row. The Heads
+  // Up cards above keep chasing the first two missed; the count row is the
+  // door to all of them.
+  const remPick = stripPick(taskItems, today, nhm);
+  const reminders = remPick.next;
 
+  // A ticked reminder leaves the strip (the next one slides in), so the
+  // toast says so and offers the way back, the same as every other row that
+  // leaves a screen on a tap (undoLaw).
   const onTickReminder = async (id: string, done: boolean) => {
-    await attemptWrite(() => (done ? tasks.tickReminder(id, today) : tasks.untickReminder(id)));
+    const ok = await attemptWrite(() => (done ? tasks.tickReminder(id, today) : tasks.untickReminder(id)));
     await reload();
+    if (!ok || !done) return;
+    showToast({
+      message: "Marked Done",
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(() => tasks.untickReminder(id));
+        await reload();
+      },
+    });
   };
   // ADJUST, NOT A FIXED TEN MINUTES (Dave 2026-09-17): the strip's pill
   // opens Choose a Better Time, and the move is the same one occurrence
@@ -4034,7 +4053,9 @@ export default function TodayFlow({
       reminders={<>
         <RemindersStrip
           items={reminders}
+          missed={remPick.missed}
           onTick={(id, done) => void onTickReminder(id, done)}
+          onTickMissed={(id) => void onTickReminder(id, true)}
           onSnooze={(id) => void onSnoozeReminder(id)}
           onAdd={() => setRemSheet({ mode: "new" })}
           onOpen={openReminder}
@@ -4165,6 +4186,11 @@ export default function TodayFlow({
     {sheet && (
       <TaskSheet
         events={sheetEvents(allEvents, today)}
+        // THE SAME SHEET EVERYWHERE (2026-09-26): Today's copy handed over
+        // no projects and no goals, so its Where group had no Project row
+        // and a Goal row that could not be picked.
+        projects={projList.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: liveGoals(goalList).find((g) => g.id === p.data.goalId)?.data.title, goalId: p.data.goalId }))}
+        goals={sheetGoals(goalList, sheet.initial.goalId)}
         mode="edit"
         initial={sheet.initial}
         categories={categories}
@@ -4181,6 +4207,8 @@ export default function TodayFlow({
         mode="edit"
         initial={eventSheet.initial}
         categories={categories}
+        projects={projList.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: liveGoals(goalList).find((g) => g.id === p.data.goalId)?.data.title, goalId: p.data.goalId }))}
+        goals={sheetGoals(goalList, eventSheet.initial.goalId)}
         onSave={onSaveEvent}
         onDelete={onDeleteEvent}
         onMoveToAnytime={onEventToAnytime}

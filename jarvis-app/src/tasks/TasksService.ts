@@ -61,7 +61,7 @@ export class TasksService {
   // set the precedent; Store.create takes the id straight through.
   async createTask(
     text: string,
-    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; eventId?: string; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string; done?: boolean; lastDone?: string; proposedDate?: string; notes?: string } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; eventId?: string; projectId?: string; goalId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string; done?: boolean; lastDone?: string; proposedDate?: string; notes?: string } = {},
     id?: string,
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
@@ -95,6 +95,9 @@ export class TasksService {
     if (opts.personId) data.personId = opts.personId;
     if (opts.recurrence) data.recurrence = opts.recurrence;
     if (opts.projectId) data.projectId = opts.projectId;
+    // The goal, picked on the sheet (2026-09-26); written at creation like
+    // the project it usually came from.
+    if (opts.goalId) data.goalId = opts.goalId;
     if (opts.bill) data.bill = opts.bill;
     if (opts.reminder) data.reminder = opts.reminder;
     if (opts.source) data.source = opts.source;
@@ -513,6 +516,17 @@ export class TasksService {
     const t = await this.getTask(id);
     if (!t) return false;
     await this.store.update(this.ownerId, id, { projectId: projectId ?? null });
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  // THE GOAL IS A PICK (Dave's pass-off, 2026-09-26). The goal a task is for,
+  // settable and clearable from the task sheet the same way setProject above
+  // is. Null clears it.
+  async setGoal(id: string, goalId: string | null): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    await this.store.update(this.ownerId, id, { goalId: goalId ?? null });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }

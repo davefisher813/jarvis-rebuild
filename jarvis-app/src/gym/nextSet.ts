@@ -68,3 +68,40 @@ export function nextSetEntry(opts: {
   const { warmup: _w, drop: _d, skipped: _s, ...clean } = seed as SetEntry & { skipped?: boolean };
   return { ...(clean as SetEntry), ...(draft ?? {}) };
 }
+
+/** WHAT THE TWO FIELDS SAY, AS STRINGS (2026-09-26, the workout logging
+ *  pass-off: "Bottom action buttons do not update when numbers change. They
+ *  show the wrong logged weight").
+ *
+ *  The fields on the Now row kept their own copy of the numbers, seeded once
+ *  when the row mounted, while the red button read the plan merged with a
+ *  draft the fields only reported on a keystroke. Three readers of two
+ *  sources: correct a logged set's weight in its editor and the button moved
+ *  to the new number while the fields kept the old one, and the plan's
+ *  weight showed on the button whenever last session had logged reps alone.
+ *
+ *  So the fields are STRINGS owned by the session screen (a field can be
+ *  empty, and "" is not 0), seeded from the one answer above and replaced by
+ *  what is typed, and everything that names or writes the next set reads
+ *  `withDraft(seed, draft)`. There is no second copy left to drift. */
+export interface SetDraft { w: string; r: string }
+
+/** The strings the two fields open with for `seed`: a number the app knows,
+ *  or empty, never a zero nobody typed (Dave 2026-09-17: "0135"). */
+export function fieldsOf(seed: SetEntry | null): SetDraft {
+  return { w: seed?.w ? String(seed.w) : "", r: seed?.r ? String(seed.r) : "" };
+}
+
+/** The next set with the athlete's typing laid over it. An emptied field
+ *  comes OFF the entry (empty is legal, measures.ts) rather than landing as
+ *  a zero, so the label says "Log 10 Reps" and the record carries no weight,
+ *  which is the same thing. */
+export function withDraft(seed: SetEntry | null, draft: SetDraft | null): SetEntry | null {
+  if (!draft) return seed;
+  const next: SetEntry = seed ? { ...seed } : ({ id: "" } as SetEntry);
+  const w = Number(draft.w);
+  const r = Number(draft.r);
+  if (draft.w.trim() !== "" && Number.isFinite(w) && w > 0) next.w = w; else delete next.w;
+  if (draft.r.trim() !== "" && Number.isFinite(r) && r > 0) next.r = r; else delete next.r;
+  return next;
+}

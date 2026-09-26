@@ -16,7 +16,7 @@ import StartCard from "./screens/StartCard";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { useProjects, useGoals } from "../data/NotesProvider";
 import type { Goal } from "../life/types";
-import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, goalTitleForTask, sheetGoals } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import { sheetEvents, type SheetEvent as SheetEventRow } from "../schedule/sheetEvents";
 import { rowSource, type Source } from "../shared/provenance";
@@ -495,7 +495,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     // plan rides into the sheet (2026-08-25): without it the sheet's fields
     // start empty, save() sees an untouched plan, and setPlan(id, null) below
     // silently erased the task's if-then on EVERY edit.
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId }, source: rowSource(t.source, t.moved) });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId }, source: rowSource(t.source, t.moved) });
   };
 
   // When arriving via a note connection, open that task. SHELL-F-12: on the
@@ -526,13 +526,14 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, personId: draft.personId }));
+      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, personId: draft.personId }));
     } else if (sheet?.mode === "edit") {
       saved = await attemptWrite(async () => {
         await svc.editText(sheet.id, draft.text);
         await svc.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
         await svc.setDue(sheet.id, draft.due || null);
         await svc.setProject(sheet.id, draft.projectId ?? null);
+        await svc.setGoal(sheet.id, draft.goalId ?? null);
         await svc.setEvent(sheet.id, draft.eventId ?? null);
         await svc.setRecurrence(sheet.id, rec || null);
         await svc.setPlan(sheet.id, draft.plan ?? null);
@@ -1102,6 +1103,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         onUpload={ai.available ? () => setUploadOpen(true) : undefined}
         momentum={momentum && {
           afterId: momentum.afterId,
+          taskId: momentum.task.id,
           el: (
             // MomentumRow IS the suggested task's own row (2026-09-16): the
             // check, the swipe and the open it always had elsewhere, plus
@@ -1136,7 +1138,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       />
       {sheet && (
         <TaskSheet
-          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
+          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId), goalId: p.data.goalId }))}
+          goals={sheetGoals(goals, sheet.mode === "edit" ? sheet.initial?.goalId : undefined)}
           events={sheetEventList}
           mode={sheet.mode}
           initial={sheet.initial}

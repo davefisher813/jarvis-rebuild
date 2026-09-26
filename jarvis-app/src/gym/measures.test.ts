@@ -33,19 +33,21 @@ describe("formatSet speaks each kind's language", () => {
   });
 });
 
-describe("the one-tap button reads the NEXT planned set in the strip", () => {
-  it("labels with the target at the logged position, and Done needs no numbers", () => {
-    expect(logButtonLabel(ex("weight_reps", { unit: "lb", sets: strip(3, { w: 135, r: 8 }) }), 0)).toBe("Log 135 lb × 8");
-    expect(logButtonLabel(ex("time_faster", { unit: "sec", sets: strip(1, { v: 4.6 }) }), 0)).toBe("Log 4.6 sec");
-    expect(logButtonLabel(ex("done"), 0)).toBe("Mark Done");
+// AMENDED 2026-09-26 (workout logging): the button names the ONE entry the
+// session resolved (nextSet.ts withDraft), never the plan at a position, and
+// it is cased by the whole rule: "20 Lb", never "20 lb".
+describe("the one-tap button names exactly the entry it will write", () => {
+  it("says the entry's numbers, cased, and Done needs no numbers", () => {
+    expect(logButtonLabel(ex("weight_reps", { unit: "lb" }), { w: 135, r: 8 })).toBe("Log 135 Lb × 8");
+    expect(logButtonLabel(ex("time_faster", { unit: "sec" }), { v: 4.6 })).toBe("Log 4.6 Sec");
+    expect(logButtonLabel(ex("done"), null)).toBe("Mark Done");
   });
-  it("falls back once the strip is fully logged", () => {
+  it("never reads the plan on its own: an entry with reps alone says reps alone", () => {
     const heavy = ex("weight_reps", { unit: "lb", sets: strip(2, { w: 135, r: 8 }) });
-    expect(logButtonLabel(heavy, 0)).toBe("Log 135 lb × 8");
-    expect(logButtonLabel(heavy, 1)).toBe("Log 135 lb × 8");
+    expect(logButtonLabel(heavy, { r: 10 })).toBe("Log 10 Reps");
     // Past the end of the plan there is no next chip to read.
     expect(plannedEntryAt(heavy, 2)).toBeUndefined();
-    expect(logButtonLabel(heavy, 2)).toBe("Log Set");
+    expect(logButtonLabel(heavy, null)).toBe("Log Set");
   });
   it("names entries the way the athlete would", () => {
     expect(entryNoun("weight_reps")).toBe("Sets");
@@ -116,7 +118,7 @@ describe("an exercise with no target never offers to log a zero", () => {
   it("says what it will do instead, on the button and the plan line", () => {
     const bare = ex("time_faster", { unit: "sec", sets: strip(4) });
     expect(hasTarget(bare)).toBe(false);
-    expect(logButtonLabel(bare, 0)).toBe("Log Attempt");
+    expect(logButtonLabel(bare, {})).toBe("Log Attempt");
     expect(targetLine(bare)).toBe("4 attempts");
     const planned = ex("weight_reps", { unit: "lb", sets: strip(3, { w: 135, r: 8 }) });
     expect(hasTarget(planned)).toBe(true);

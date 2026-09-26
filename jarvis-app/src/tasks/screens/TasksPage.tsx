@@ -18,7 +18,7 @@ import type { SheetCategory, SheetProject } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
 import Provenance from "../../shared/ProvenanceLine";
 import { rowSource, type Source, type SourceType } from "../../shared/provenance";
-import { capAfterNumber } from "../../shared/casing";
+import { capAfterNumber, titleCase } from "../../shared/casing";
 import { cueLine } from "../ifThen";
 import { durLabel } from "../../schedule/durations";
 import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
@@ -630,12 +630,18 @@ export function MomentumRow({
         {...handlers}
         role="button"
         tabIndex={0}
-        aria-label={"Open " + task.data.text}
-        onClick={() => { if (swipeOpen || dx) { closeThen(); return; } onOpen(task.id); }}
+        // THE WHOLE ROW STARTS IT (Dave's pass-off, 2026-09-26: "make it
+        // real"). A suggestion is an offer to keep going, so the row does
+        // what its pill does: it starts the task, the same door as Start.
+        // The task's own row is not on the list below while this one shows
+        // (TasksPage hides it), so the suggestion is the one place it lives;
+        // opening its sheet is the swipe's Not Now away, on its real row.
+        aria-label={"Start " + titleCase(task.data.text)}
+        onClick={() => { if (swipeOpen || dx) { closeThen(); return; } onStart(task.id); }}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
           e.preventDefault();
-          onOpen(task.id);
+          onStart(task.id);
         }}
       >
         <div
@@ -648,7 +654,7 @@ export function MomentumRow({
           <div className="task-check" />
         </div>
         <div className="task-title">
-          <span className="task-name">{task.data.text}</span>
+          <span className="task-name">{titleCase(task.data.text)}</span>
           <div className="r-k r-k-one">
             {/* DUE AND LATE WEAR THE KEY (§AM, 2026-09-26). The reason
                 said "due today" or "overdue" in the line's plain grey, a
@@ -661,7 +667,7 @@ export function MomentumRow({
                 "Keeps Sliding" already uses: the app concluded this, the
                 reason line under it is the count it concluded from. */}
             <span className="slide-tag">Keep Going</span>
-            {sameArea && <span className="r-goal r-cat">Same category</span>}
+            {sameArea && <span className="r-goal r-cat">Same Area</span>}
           </div>
         </div>
         <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(task.id); }}>Start</button>
@@ -751,7 +757,10 @@ export default function TasksPage({
   // no space the task was not already taking.
   stalled?: { id: string; tag: string; line: string | null; action: { label: string; onClick: () => void } } | null;
   // Momentum Chain: a suggestion element pinned under the row it follows.
-  momentum?: { afterId: string; el: React.ReactNode } | null;
+  // `taskId` is the task the suggestion names; while the suggestion shows,
+  // that task's own row is left out of the list (Dave's pass-off,
+  // 2026-09-26: "nothing appears twice").
+  momentum?: { afterId: string; taskId?: string; el: React.ReactNode } | null;
   // The goal a task moves, from the flow's goal index (see Row.goal).
   // Group-by Goal reads the goal a task moves, by title, so the heads read
   // as goals. The row itself reads parentOf (2026-09-02).
@@ -813,7 +822,11 @@ export default function TasksPage({
   // was searched"). A task's text is what a task has, so that is what this
   // searches, and the scope line below says so rather than implying more.
   const q = query.trim().toLowerCase();
-  const shown = q ? items.filter((it) => it.data.text.toLowerCase().includes(q)) : items;
+  // ONCE, NOT TWICE (Dave's pass-off, 2026-09-26). The Keep Going row IS
+  // the suggested task's row, so the same task is not also drawn below it.
+  const suggested = momentum?.taskId ?? null;
+  const listed = suggested ? items.filter((it) => it.id !== suggested) : items;
+  const shown = q ? listed.filter((it) => it.data.text.toLowerCase().includes(q)) : listed;
   const sel = useSelection(shown.map((i) => i.id));
   /** EVERY VIEW, IN ONE MENU, WITH ITS COUNT (Dave 2026-09-18: "If you drop
    *  down, make the chips drop down so everything is on one row directly

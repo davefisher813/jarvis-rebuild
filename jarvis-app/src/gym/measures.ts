@@ -1,6 +1,6 @@
 import type { Exercise, MeasureKind, SetEntry, SetLog } from "./types";
 import { comparable, loadStyleOf, lowerIsStronger, repLabel, sideSuffix, volumeFactor, weightLabel, weightStep, type LoadStyle } from "./equipment";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, lineCase } from "../shared/casing";
 
 // Per-kind behavior in ONE place: what a set reads like, what the big in-gym
 // button says, which direction wins a PR, and whether volume means anything.
@@ -129,24 +129,22 @@ export function hasTarget(ex: Pick<Exercise, "kind" | "sets">): boolean {
 }
 
 /**
- * The big button's label: the real numbers for the NEXT planned set, so a
- * matching set is one tap. `loggedCount` is how many entries are already
- * filled this session; past the end of the plan it says what it will do
- * rather than offering to log a meaningless zero.
+ * The big button's label. AMENDED 2026-09-26 (the workout logging pass-off,
+ * Dave: "Bottom action buttons do not update when numbers change. They show
+ * the wrong logged weight"). It used to take the plan and a draft and merge
+ * them itself, which made it the THIRD reader of what the next set was: the
+ * plan's weight showed on the button whenever last session had logged reps
+ * alone, because the plan sat underneath the merge. It reads ONE entry now,
+ * the same `withDraft(seed, draft)` the fields show and log() writes
+ * (nextSet.ts), and says only what is in it. Cased by the whole rule ("Log
+ * 20 Lb × 10", never "20 lb"), since a button is a line the app writes.
  */
-export function logButtonLabel(ex: Exercise, loggedCount: number, draft?: Partial<SetEntry>): string {
+export function logButtonLabel(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> & { sided?: boolean }, next: SetLog | null): string {
   if (ex.kind === "done") return "Mark Done";
-  // WHAT IT WILL ACTUALLY WRITE (2026-09-16). The label read the PLAN, so it
-  // said "Log 8 reps" while the fields on screen said four at fifty and the
-  // button was about to write the four. A button that names a number has to
-  // name the one it is going to log; the draft is what the open set's fields
-  // say this moment, and it wins over the plan it replaced.
-  const planned0 = plannedEntryAt(ex, loggedCount);
-  const next = planned0 || draft ? { ...(planned0 ?? {}), ...(draft ?? {}) } as SetEntry : null;
   const keys = fieldsFor(ex.kind).map((f) => f.key);
   const ready = next && keys.some((k) => (next[k] ?? 0) > 0);
   if (!ready) return `Log ${entryNoun(ex.kind, false)}`;
-  return `Log ${formatSet(ex, next!)}`;
+  return `Log ${lineCase(formatSet(ex, next!))}`;
 }
 
 /** The plan as one line for the program pages: "3 × 135 lb × 8" when every

@@ -68,7 +68,7 @@ import { useLongPress } from "../shared/useLongPress";
 import { showToast } from "../shared/toast";
 import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { useAI } from "../ai/useAI";
-import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
+import { capAfterNumber, lineCase, liftTitle, workoutTitle } from "../shared/casing";
 import { BarbellGlyph } from "../shared/glyphs";
 import { Ellipsis } from "../shared/icons";
 import Stepper from "../shared/Stepper";
@@ -575,7 +575,6 @@ type Picker =
   /** SUPERSET WITH..., from inside a live session (Dave, 2026-09-21, picking
    *  "ask me each time"). The same picker as Group With, and then a choice
    *  the program editor never has to make: this workout only, or every one. */
-  | { kind: "supersetWith"; weekId: string; dayId: string; exId: string }
   /** SUPERSET, FROM THE DAY ITSELF (Dave, 2026-09-21: "There's also no
    *  superset buttons anywhere in the workout pages"). He was right, and the
    *  reason is that the only way in was a LONG-PRESS menu item called "Group
@@ -942,9 +941,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<RowMenu | null>(null);
   const [picker, setPicker] = useState<Picker | null>(null);
-  /** Partners chosen for a superset, waiting on the one question the program
-   *  editor never has to answer: this workout, or every one. */
-  const [supersetPick, setSupersetPick] = useState<{ weekId: string; dayId: string; exId: string; ids: string[] } | null>(null);
+  // THE "JUST THIS WORKOUT / EVERY PUSH DAY" CHOICE SHEET WENT (2026-09-26):
+  // a superset made in a session is for the session, and the program write is
+  // its own explicit line in the session's More sheet.
   const [backdateDay, setBackdateDay] = useState<ProgramDay | null>(null);
   // UP-ATH-02 (2026-09-06): the start time rides along now, so the fact can
   // be stated the way an athlete says it ("Game Saturday 6 PM") instead of as
@@ -2411,7 +2410,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       <SessionScreen
         live={live}
         exercise={exercise}
-        dayExercises={liveEx?.custom && !behind ? [] : (day?.exercises ?? [])}
+        // The session builds its own list from these (liveGroups.sessionExercises,
+        // 2026-09-26), so a swapped or added lift no longer hides every pair
+        // on the day by being handed an empty one.
+        dayExercises={day?.exercises ?? []}
         programDay={day ?? null}
         history={workouts}
         library={library}
@@ -2427,41 +2429,57 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         onSetLoad={(next) => { void setLoadStyle(exercise, next); }}
         {...(() => {
           // SUPERSET WHILE LOGGING (Dave, 2026-09-21: "I can't easily create
-          // a superset as I'm logging"). It opens the day's OWN Group With
-          // picker -- the same sheet, the same groupAction, the same write --
-          // because a pair is a program construct the live screen reads off
-          // the day, and the note on onAddMidSession below says why: a lift
-          // that is not on the day can never be paired with anything. So the
-          // pair lands in the program and holds for every session after this
-          // one, which is what a superset is. The toast says so plainly and
-          // carries the Undo, because editing a program from a workout screen
-          // should never be a thing you discover later.
+          // a superset as I'm logging"; 2026-09-26: "Superset linking between
+          // exercises is broken and hard to use"). ONE LINE, ONE WRITE: the
+          // session's More sheet offers "Superset With <the next lift>", and
+          // it pairs the two for THIS session (live.groups, keyed by the
+          // session's own exerciseIds). The program is touched only by the
+          // separate "Keep the Superset in the Program" line, the way a swap
+          // reaches the program only through Also Update the Program, so
+          // editing a program from a workout screen is never a surprise.
           const w = day ? program?.data.weeks.find((x) => x.days.some((d) => d.id === day.id)) : undefined;
-          if (!w || !day) return {};
           return {
-            onSuperset: () => setPicker({ kind: "supersetWith", weekId: w.id, dayId: day.id, exId: exercise.id }),
-            // AND THE WAY BACK OUT (2026-09-21). ungroupToday had been
-            // written and tested and was wired to nothing: a superset made
-            // from this screen could only be taken back inside the five
-            // seconds its toast was up. Today's own pair is simply released;
-            // a pair that came from the PROGRAM is broken for today only and
-            // the toast says which of the two happened, because one of them
-            // is still there next week and the other never was.
+            onGroupToday: (ids: string[], partnerName: string) => {
+              const before = liveRef.current?.groups;
+              patchLive((l) => ({ ...l, groups: groupForToday(l.groups, ids, () => nid("g")) }));
+              showToast({
+                message: lineCase(`Superset with ${liftTitle(partnerName)} for today`),
+                actionLabel: "Undo",
+                onAction: () => patchLive((l) => ({ ...l, groups: before })),
+              });
+            },
+            // AND THE WAY BACK OUT (2026-09-21). Today's own pair is simply
+            // released; a pair that came from the PROGRAM is broken for today
+            // only and the toast says which of the two happened, because one
+            // of them is still there next week and the other never was.
             onUngroup: () => {
               const before = liveRef.current?.groups;
               const wasTodays = isLiveGroup(before, exercise.id);
-              patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id, day.exercises) }));
+              patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id, day?.exercises ?? []) }));
               showToast({
-                // A pair made today and a pair the program owns are two
-                // different facts after this tap, and the difference is what
-                // you will find next week, so the receipt says which one.
-                message: wasTodays
-                  ? "Broken up for today"
+                message: wasTodays || !day
+                  ? "Broken Up for Today"
                   : capAfterNumber(`Broken up for today \u00b7 ${workoutTitle(day.name)} keeps the pair`),
                 actionLabel: "Undo",
                 onAction: () => patchLive((l) => ({ ...l, groups: before })),
               });
             },
+            // THE ONE EXPLICIT PROGRAM WRITE for a pair made at the rack.
+            // Only the members the day actually has can be written to it; the
+            // session's overlay is released once the program holds the pair,
+            // so Break Up afterwards means what it says.
+            ...(w && day ? {
+              onKeepSuperset: (memberIds: string[]) => {
+                const onDay = memberIds.filter((id) => id !== exercise.id && day.exercises.some((e) => e.id === id));
+                if (!day.exercises.some((e) => e.id === exercise.id) || onDay.length === 0) {
+                  showToast({ message: "Add the Lift to the Day First" });
+                  return;
+                }
+                void groupAction(w.id, day.id, exercise.id, onDay).then(() => {
+                  patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id) }));
+                });
+              },
+            } : {}),
           };
         })()}
         // THREE PLACES, NOT ONE (Dave 2026-09-17: "it doesn't save... doesn't
@@ -2522,7 +2540,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           drawn -- the button worked, the state was set, and nothing appeared.
           Caught by driving it, not by a type or a test. */}
       {pickerEl()}
-      {supersetChoiceEl()}
       </>
     );
   }
@@ -2872,45 +2889,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     );
   }
 
-  /** THE ONE QUESTION THE PROGRAM EDITOR NEVER HAS TO ANSWER (Dave,
-   *  2026-09-21, picking "ask me each time"): a superset made at the rack is
-   *  sometimes the way you train this lift and sometimes the way you got
-   *  round a busy machine. Both answers are real now -- the program keeps
-   *  pairs for every session, live.groups keeps one for this one -- so the
-   *  choice is asked rather than assumed, which is what the Add Exercise
-   *  sheet's "also on the day" switch has always done for the same reason. */
-  function supersetChoiceEl() {
-    if (!supersetPick) return null;
-    const pick = supersetPick;
-    const day = program?.data.weeks.find((w) => w.id === pick.weekId)?.days.find((d) => d.id === pick.dayId);
-    const names = (day?.exercises ?? []).filter((e) => pick.ids.includes(e.id) || e.id === pick.exId).map((e) => e.name);
-    return (
-      <ActionSheet
-        title={names.join(" + ")}
-        onClose={() => setSupersetPick(null)}
-        actions={[
-          {
-            label: "Just This Workout",
-            onClick: () => {
-              setSupersetPick(null);
-              const before = readLive()?.groups;
-              patchLive((l) => ({ ...l, groups: groupForToday(l.groups, [pick.exId, ...pick.ids], () => nid("g")) }));
-              showToast({
-                message: "Supersetted for today",
-                actionLabel: "Undo",
-                onAction: () => patchLive((l) => ({ ...l, groups: before })),
-              });
-            },
-          },
-          {
-            label: "Every " + workoutTitle(day?.name ?? "Session"),
-            onClick: () => { setSupersetPick(null); void groupAction(pick.weekId, pick.dayId, pick.exId, pick.ids); },
-          },
-        ]}
-      />
-    );
-  }
-
   function pickerEl() {
     if (!picker) return null;
     if (picker.kind === "moveExerciseToDay" || picker.kind === "copyExerciseToDays") {
@@ -2964,22 +2942,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             setPicker(null);
             void groupAction(picker.weekId, picker.dayId, ids[0]!, ids.slice(1));
           }}
-          onCancel={() => setPicker(null)}
-        />
-      );
-    }
-    if (picker.kind === "supersetWith") {
-      // The same list the program editor offers, off the same day.
-      const week = program?.data.weeks.find((w) => w.id === picker.weekId);
-      const day = week?.days.find((d) => d.id === picker.dayId);
-      const items: PickItem[] = (day?.exercises ?? []).filter((e) => e.id !== picker.exId).map((e) => ({ id: e.id, label: e.name }));
-      return (
-        <PickSheet
-          title="Superset With"
-          items={items}
-          multi
-          confirmLabel={(n) => (n === 0 ? "Pick at Least One" : n === 1 ? "Superset These Two" : capAfterNumber("Superset These " + (n + 1)))}
-          onPick={(ids) => { setPicker(null); if (ids.length) setSupersetPick({ ...picker, ids }); }}
           onCancel={() => setPicker(null)}
         />
       );
@@ -3244,8 +3206,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           {sheetEl()}
           {rowMenuEl()}
           {pickerEl()}
-          {supersetChoiceEl()}
-          {fitEl()}
+              {fitEl()}
           {backdateEl}
           {receiptEl}
         </>
@@ -3310,8 +3271,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         {sheetEl()}
         {rowMenuEl()}
         {pickerEl()}
-        {supersetChoiceEl()}
-        {fitEl()}
+          {fitEl()}
         {receiptEl}
       </>
     );
@@ -3624,7 +3584,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       {sheetEl()}
       {rowMenuEl()}
       {pickerEl()}
-      {supersetChoiceEl()}
       {fitEl()}
       {doorPickEl()}
       {switcherEl}

@@ -18,7 +18,7 @@ import GoalRowRuled from "./GoalRowRuled";
 import ProjectRowRuled from "./ProjectRowRuled";
 import RowActionSheet from "../shared/RowActionSheet";
 import { nextMilestone } from "./measure";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, titleCase } from "../shared/casing";
 import { fmtDay } from "../decisions/DecisionsFlow";
 
 // YOUR LIFE (the Life Merge, Dave 2026-08-26: "it's stupid having them
@@ -51,7 +51,7 @@ const TARGET = <TargetGlyph />;
 const FOLDER = <FolderOpenGlyph />;
 
 export default function BiggerPicturePage({
-  goals, reachOfGoal, measureOfGoal, statusOf, checkinOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, onCloseProject, onMoveProject,
+  goals, reachOfGoal, measureOfGoal, statusOf, checkinOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onAddProjectFor, onOpenProject, nextActionTextOf, holdLineOf, onCloseProject, onMoveProject,
   lens = "goals", title = "Your Life", segments,
 }: {
   // THE LENS (ruled 2026-09-01, "The Lens plus Lineage rows"). One tree,
@@ -92,6 +92,9 @@ export default function BiggerPicturePage({
   onAddGoal: () => void;
   onOpenGoal: (id: string) => void;
   onAddProject: () => void;
+  /** The empty goal's one move (Dave's pass-off, 2026-09-26): the add sheet,
+   *  born under this goal. */
+  onAddProjectFor?: (goalId: string) => void;
   onOpenProject: (id: string) => void;
   // Pick 6: the row offers to close itself where the work is already done.
   onCloseProject?: (id: string) => void;
@@ -249,7 +252,7 @@ export default function BiggerPicturePage({
       <ItemCard key={project.id} kind="project"
         title={project.data.title}
         areaRef={ref}
-        lead={nextActionTextOf?.(project.id) ? "Next: " + nextActionTextOf(project.id) : holdLineOf?.(project.id) ?? null}
+        lead={nextActionTextOf?.(project.id) ? "Next: " + titleCase(nextActionTextOf(project.id)!) : holdLineOf?.(project.id) ?? null}
         foot={progress ? capAfterNumber(`${progress.done} of ${progress.total} tasks`) : null}
         progress={progress}
         onOpen={() => onOpenProject(project.id)}
@@ -320,7 +323,8 @@ export default function BiggerPicturePage({
         body={body} when={when} status={statusOf?.(g.id) ?? null}
         moving={finished || g.data.measure?.kind === "projects" ? 0 : moving} next={finished ? null : next?.text ?? null}
         checkin={finished ? null : checkinOf?.(g.id) ?? null}
-        bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)} />
+        bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)}
+        onAddProject={!finished && onAddProjectFor ? () => onAddProjectFor(g.id) : undefined} />
     );
   };
 

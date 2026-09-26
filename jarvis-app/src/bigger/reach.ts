@@ -63,6 +63,12 @@ export function fileableGoals(goals: Goal[], currentId?: string): Goal[] {
   return goals.filter((g) => (g.data.state !== "achieved" && !g.data.dropped) || g.id === currentId);
 }
 
+/** The goal picker's options for a task or event sheet (2026-09-26): the
+ *  fileable goals, as the id-and-title pair the sheets take. */
+export function sheetGoals(goals: Goal[], currentId?: string): { id: string; title: string }[] {
+  return fileableGoals(goals, currentId).map((g) => ({ id: g.id, title: g.data.title }));
+}
+
 export interface GoalReach {
   /** Tasks reached through a project filed under this goal. */
   filedIds: string[];
@@ -206,6 +212,12 @@ export function buildGoalIndex(projects: Project[], goals: Goal[]): GoalIndex {
 export function goalIdsForTask(idx: GoalIndex, task: TaskItem): string[] {
   if (idx.size === 0) return [];
   const out: string[] = [];
+  // THE PICKED GOAL FIRST (Dave's pass-off, 2026-09-26). A task filed to a
+  // goal on its sheet moves that goal; the project chain still answers for
+  // every task filed before the pick existed. A pick on a goal that is no
+  // longer live (not in the index) moves nothing, like a stale project.
+  const gid = task.data.goalId;
+  if (gid && idx.titleOf.has(gid)) out.push(gid);
   const pid = task.data.projectId;
   if (pid) for (const g of idx.byProject.get(pid) ?? []) if (!out.includes(g)) out.push(g);
   return out;

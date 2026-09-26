@@ -118,6 +118,16 @@ describe("the upward index", () => {
     expect(movesGoal(idx, task("a", { category: "errands" }))).toBe(false);
     expect(goalTitleForTask(idx, task("a", { category: "errands" }))).toBeNull();
   });
+  // THE GOAL IS A PICK (Dave's pass-off, 2026-09-26): a goal picked on the
+  // task sheet moves that goal, ahead of the project chain, and a pick on a
+  // goal that is no longer live moves nothing.
+  it("a picked goal wins, the project chain still answers, a stale pick is nothing", () => {
+    expect(goalIdsForTask(idx, task("a", { goalId: "g2" }))).toEqual(["g2"]);
+    expect(goalIdsForTask(idx, task("a", { goalId: "g2", projectId: "p1" }))).toEqual(["g2", "g1"]);
+    expect(goalTitleForTask(idx, task("a", { goalId: "g2", projectId: "p1" }))).toBe("Get Fit");
+    expect(goalIdsForTask(idx, task("a", { goalId: "g1", projectId: "p1" }))).toEqual(["g1"]);
+    expect(goalIdsForTask(idx, task("a", { goalId: "gone" }))).toEqual([]);
+  });
   it("names the goal its project is filed to, and only that one", () => {
     const t = task("a", { projectId: "p1", category: "health" });
     expect(goalIdsForTask(idx, t)).toEqual(["g1"]);

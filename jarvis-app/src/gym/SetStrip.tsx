@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MeasureKind, SetEntry } from "./types";
 import { entryNoun, fieldsFor, formatSet } from "./measures";
 import { plateFacts, type PlateFacts } from "./ramp";
-import { plateMath, type LoadStyle } from "./equipment";
+import { plateMath, repLabel, type LoadStyle } from "./equipment";
+import { fieldsOf, type SetDraft } from "./nextSet";
+import { lineCase } from "../shared/casing";
 import { setState, setKicker, type SetState } from "./stateWord";
 import { readGymSettings, rackFrom } from "./settings";
 import { duplicateEntry, blankEntry } from "./strip";
@@ -35,7 +37,7 @@ import { Trash2, Check } from "../shared/icons";
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, style, entries, onChange, ghost, onLogGhost, onLogGhostAs, onGhostDraft, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false,
+  kind, unit, timeUnit, style, entries, onChange, ghost, onLogGhost, onLogGhostAs, nowDraft, onNowDraft, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false, canAdd = true,
 }: {
   kind: MeasureKind;
   unit?: string;
@@ -53,18 +55,27 @@ export default function SetStrip({
   entries: SetEntry[];
   onChange: (next: SetEntry[]) => void;
   /** Planned sets not yet logged (live session only): shown as unfilled
-   *  chips after the filled ones. Tap to log exactly that plan. */
+   *  chips after the filled ones. ONE FLOW (2026-09-26, the workout logging
+   *  pass-off: "Different styles show up for logging depending on what's
+   *  clicked. Needs one single clean logging flow"). Only a WARM-UP row logs
+   *  on tap, since a ramp set has nothing to type; the working set the
+   *  athlete is on is the Now row below, and the sets after it are the plan,
+   *  read and not tapped. A row body that logged the plan while the fields
+   *  on it said something else was two doors with two answers. */
   ghost?: SetEntry[];
   onLogGhost?: (ghostIdx: number) => void;
   /** VALUES READY TO EDIT (2026-09-14, the reference's set grid). With
-   *  editableGhosts on, a weight-and-reps ghost carries its own two fields
-   *  and a tick: change a number, tick, and that is the set logged. The row
-   *  body still logs the plan as it stands. */
+   *  editableGhosts on, the Now row carries the two fields and a tick: the
+   *  tick logs what the fields say, and so does the session's own Log
+   *  button, through the same `withDraft` answer (nextSet.ts). */
   onLogGhostAs?: (ghostIdx: number, patch: Partial<SetEntry>) => void;
-  /** What the CURRENT set's fields say, reported as they are typed, so the
-   *  session's own Log button can log the same numbers the athlete is looking
-   *  at rather than the plan they replaced. */
-  onGhostDraft?: (patch: { w: number; r: number }) => void;
+  /** THE FIELDS' OWN STRINGS, OWNED BY THE SESSION (2026-09-26). Given, the
+   *  Now row shows exactly these and reports every keystroke back through
+   *  onNowDraft, so the button's label, the fields and the write can never
+   *  say three things. Absent (a planning strip, a test), the row keeps its
+   *  own copy seeded from the ghost. */
+  nowDraft?: SetDraft;
+  onNowDraft?: (draft: SetDraft) => void;
   editableGhosts?: boolean;
   disabled?: boolean;
   /** True at an index that earned the in-session PR pill (live session only). */
@@ -86,6 +97,9 @@ export default function SetStrip({
    *  only while the caller's Reorder pill has them on. Default off -- a
    *  resting chip is a kicker, its numbers and one door. */
   handles?: boolean;
+  /** The live session turns the strip's own Add off (2026-09-26): its extra
+   *  set opens the Now row instead, so there is one way to log a set. */
+  canAdd?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const fields = fieldsFor(kind, style ? { ...style, unit } : undefined);
@@ -196,32 +210,38 @@ export default function SetStrip({
         <div className="set-strip-ghosts">
           {ghost.map((g, i) => {
             const pos = entries.length + i;
-            const lastText = lastFor?.(pos) ?? null;
             const st = setState(g, pos, nowPos);
+            const isNow = st === "now";
+            const grid = isNow && editableGhosts && kind === "weight_reps" && !!onLogGhostAs;
+            // The reference rides the Now row only: it is the set about to be
+            // logged, and the one Match applies to. On the rows after it the
+            // same line was a second grey under a plan nobody is typing into.
+            const lastText = isNow ? (lastFor?.(pos) ?? null)?.replace(/^Last:?\s*/, "") ?? null : null;
+            const tappable = st === "warm" && !!onLogGhost && !disabled;
             return (
-              <div className={"row set-chip-ghost" + (st === "now" ? " setrow-now" : "")} role="button" tabIndex={0} key={g.id}
-                onClick={() => onLogGhost?.(i)}>
+              // row-tap: the Now row is the fields and the tick; a tap on its
+              // padding must not log a second answer beside them (2026-09-26)
+              <div className={"row set-chip-ghost" + (isNow ? " setrow-now" : "") + (st === "next" ? " se-next" : "")} key={g.id}
+                {...(tappable ? { role: "button", tabIndex: 0, onClick: () => onLogGhost!(i) } : {})}>
                 <div className="row-grow">
                   {/* H-17 / R9 (2026-09-12): the row says its state. The working
                       set the athlete is on says Now and wears the cyan rule;
                       the rest say Up Next in quiet ink at full strength. */}
                   <div className={"se-kick " + st}>{setKicker(st, workNoAt(pos))}</div>
-                  {editableGhosts && kind === "weight_reps" && onLogGhostAs
-                    ? <GhostGrid entry={g} unit={unit} step={fields.find((f) => f.key === "w")?.step ?? 0.5} setNo={workNoAt(pos)} onLog={(patch) => onLogGhostAs(i, patch)}
-                        // Only the set he is ON reports upward: the session's
-                        // Log Set button logs that one, so a later ghost's
-                        // fields must not steer it.
-                        onDraft={st === "now" ? onGhostDraft : undefined} />
-                    : <div className="conn-name">{kind === "done" ? "Mark Done" : formatSet(fx, g)}</div>}
-                  {/* D2 tap-to-match: the faint last-time line is itself the
-                      door to logging those exact numbers -- the row still
-                      logs the plan, the line logs what last time did. */}
+                  {grid
+                    ? <GhostGrid entry={g} unit={unit} repWord={style ? repLabel(style) : "Reps"} step={fields.find((f) => f.key === "w")?.step ?? 0.5} setNo={workNoAt(pos)}
+                        value={nowDraft} onDraft={onNowDraft}
+                        onLog={(patch) => onLogGhostAs!(i, patch)} />
+                    : <div className="conn-name">{kind === "done" ? "Mark Done" : lineCase(formatSet(fx, g))}</div>}
+                  {/* D2 tap-to-match: the last-time line is the door to putting
+                      those exact numbers in the fields; the tick or the Log
+                      button then writes them, like every other set. */}
                   {lastText && (onMatchLast
-                    ? <button className="set-last-act" aria-label={`Log ${lastText.replace(/^Last: /, "")}, same as last time`}
+                    ? <button type="button" className="set-last-act" aria-label={`Use ${lastText}, same as last time`}
                         onClick={(e) => { e.stopPropagation(); onMatchLast(pos); }}>
-                        {lastText}<span className="act">Match</span>
+                        {`Last ${lineCase(lastText)}`}<span className="act">Match</span>
                       </button>
-                    : <div className="conn-meta">{lastText}</div>)}
+                    : <div className="conn-meta">{`Last ${lineCase(lastText)}`}</div>)}
                 </div>
               </div>
             );
@@ -230,7 +250,7 @@ export default function SetStrip({
       )}
       {/* The add lands after the plan (live session: after the ghosts), so
           "Add a Set" reads as extra work past it, never a step before it. */}
-      {!disabled && (
+      {!disabled && canAdd && (
         <button className="row-create set-strip-add" onClick={add}>Add {entryNoun(kind, false)}</button>
       )}
     </div>
@@ -271,6 +291,9 @@ function SetChipRow({
   const swipe = useSwipe({ revealW: 88, enabled: !disabled });
 
   const label = entry.skipped ? "Skipped" : kind === "done" ? (entry.done ? "Done" : "Not Marked Yet") : formatSet(fx, entry);
+  // The chip prints the whole rule's casing ("185 Lb × 5"); the aria-label
+  // keeps the raw reading, since casing is inaudible (laws.test.ts).
+  const shown = lineCase(label);
   const kicker = chipKicker(entry, state, workNo);
 
   return (
@@ -295,8 +318,8 @@ function SetChipRow({
           {/* TWO LINES (Dave 2026-09-14): the kicker carries Last at its
               right end, so a set is its name-and-reference, then its numbers. */}
           <div className={"se-kick" + (state ? " " + state : "")}>{(state === "done" || state === "warm") && <Check className="ic se-kick-ic" />}{kicker}
-            {last && <span className="se-chip se-chip-last"><em>Last</em>{last.replace(/^Last:\s*/, "")}</span>}</div>
-          <div className="conn-name">{label}</div>
+            {last && <span className="se-chip se-chip-last"><em>Last</em>{lineCase(last.replace(/^Last:?\s*/, ""))}</span>}</div>
+          <div className="conn-name">{shown}</div>
         </div>
         {pr && <span className="se-pr">PR</span>}
         {/* The chip is a door (preview anatomy): say so. */}
@@ -346,14 +369,14 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, tit
               <span className="se-plate" key={p + ":" + i}>{p}</span>
             ))}
           </div>
-          <div className="se-plate-k">Per side</div>
+          <div className="se-plate-k">Per Side</div>
         </div></div>
       ) : (
         // H-29 (Health Push B, 2026-09-12): a number the rack cannot build
         // says so and names the nearest it can, instead of falling silent.
         <div className="row"><div className="row-grow">
           <div className="facts">
-            <span className="fact amber">{`Not buildable at ${plates.at}`}</span>
+            <span className="fact amber">{`Not Buildable at ${plates.at}`}</span>
             {plates.nearest != null && <span className="fact">{`Nearest ${plates.nearest}`}</span>}
           </div>
         </div></div>
@@ -388,13 +411,16 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, tit
           </div>
         </div>
       )}
-      <div className="row" role="button" tabIndex={0} onClick={() => onPatch({ skipped: !entry.skipped, done: false })}>
-        <div className="row-grow"><div className="conn-name">{entry.skipped ? "Unskip This Set" : "Skip This Set"}</div></div>
-      </div>
-      {/* The door the long press used to be (see the note at the top of this
-          file). A real row, so Enter and Space reach it. */}
-      <div className="row" role="button" tabIndex={0} onClick={onDuplicate}>
-        <div className="row-grow"><div className="conn-name">Duplicate This Set</div></div>
+      {/* THE SET'S OWN TWO MOVES, AS CAPSULES (2026-09-26, the workout logging
+          pass-off: "Dropdowns everywhere, not organized, not minimalist").
+          They were two full rows of red text under every open set, so an
+          editor that is three steppers tall grew two more lines of the same
+          dress the exercise's own actions wore. One capsule row, the ladder's
+          34, and the door the long press used to be is still a real button
+          Enter and Space reach. */}
+      <div className="row-pair set-chip-acts">
+        <button type="button" className="pill-act pill-quiet" onClick={onDuplicate}>Duplicate This Set</button>
+        <button type="button" className="pill-act pill-quiet" onClick={() => onPatch({ skipped: !entry.skipped, done: false })}>{entry.skipped ? "Unskip This Set" : "Skip This Set"}</button>
       </div>
     </div>
   );
@@ -412,15 +438,20 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, tit
 // what the button now logs and what its label now reads. The fields stay
 // uncontrolled -- the local state is still the source of truth for the input,
 // so nothing re-renders under the thumb mid-keystroke.
-function GhostGrid({ entry, unit, step, setNo, onLog, onDraft }: {
+function GhostGrid({ entry, unit, repWord, step, setNo, value, onLog, onDraft }: {
   entry: SetEntry;
   unit?: string;
+  /** "Reps", or "Reps Per Side" for a sided lift (2026-09-26): the field
+   *  says which reading its number is, so the header needs no chip for it. */
+  repWord: string;
   /** The equipment's own increment, so the field's up/down arrows move by
    *  what the rack can actually do. */
   step: number;
   setNo: number;
+  /** The session's own strings for these fields, when it owns them. */
+  value?: SetDraft;
   onLog: (patch: Partial<SetEntry>) => void;
-  onDraft?: (patch: { w: number; r: number }) => void;
+  onDraft?: (draft: SetDraft) => void;
 }) {
   // A ZERO IS NOT A NUMBER SOMEBODY TYPED (Dave 2026-09-17: "a new exercise
   // renders a buggy and weird looking log box. The typing is all off too").
@@ -434,9 +465,16 @@ function GhostGrid({ entry, unit, step, setNo, onLog, onDraft }: {
   // So an unplanned number shows as empty with the unit as its placeholder,
   // which is also honest -- the app does not know what you are about to
   // lift, and printing 0 says it does.
-  const [w, setW] = useState(entry.w ? String(entry.w) : "");
-  const [r, setR] = useState(entry.r ? String(entry.r) : "");
-  const report = (nw: string, nr: string) => onDraft?.({ w: Number(nw) || 0, r: Number(nr) || 0 });
+  //
+  // ONE COPY OF THE NUMBERS (2026-09-26). The fields used to seed themselves
+  // once, on mount, and never look again, so a corrected earlier set moved
+  // the button's label and left these behind. They follow `value` now
+  // (fieldsOf the seed, or what was typed), and every keystroke reports up.
+  const seed = value ?? fieldsOf(entry);
+  const [w, setW] = useState(seed.w);
+  const [r, setR] = useState(seed.r);
+  useEffect(() => { setW(seed.w); setR(seed.r); }, [seed.w, seed.r]);
+  const report = (nw: string, nr: string) => onDraft?.({ w: nw, r: nr });
   const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
   // AND A PLANNED ONE IS REPLACED, NOT APPENDED TO. The other half of the
   // same complaint: a field already reading 135 put the caret at the end, so
@@ -455,9 +493,9 @@ function GhostGrid({ entry, unit, step, setNo, onLog, onDraft }: {
           the same word inside it; empty reads as "not set yet", which is what
           it is, and aria-label still names each field for a screen reader. */}
       <input className="set-field" type="number" inputMode="decimal" min={0} step={step} value={w} onFocus={selectAll} aria-label={`Set ${setNo} weight`} onChange={(e) => { setW(e.target.value); report(e.target.value, r); }} />
-      <span className="se-grid-u">{unit ?? ""}</span>
+      <span className="se-grid-u">{lineCase(unit ?? "")}</span>
       <input className="set-field" type="number" inputMode="numeric" min={0} step={1} value={r} onFocus={selectAll} aria-label={`Set ${setNo} reps`} onChange={(e) => { setR(e.target.value); report(w, e.target.value); }} />
-      <span className="se-grid-u">reps</span>
+      <span className="se-grid-u">{repWord}</span>
       <button type="button" className="se-tick" aria-label={`Log set ${setNo}`} onClick={() => onLog({ w: Number(w) || 0, r: Number(r) || 0 })}><Check className="ic" /></button>
     </div>
   );

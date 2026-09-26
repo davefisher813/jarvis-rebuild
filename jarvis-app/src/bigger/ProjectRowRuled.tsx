@@ -2,6 +2,7 @@ import type { Progress } from "./progress";
 import { Bar, Nums } from "./GoalRowRuled";
 import { FolderOpenGlyph, GoalMark } from "../shared/glyphs";
 import { useLongPress } from "../shared/useLongPress";
+import { titleCase } from "../shared/casing";
 
 // THE PROJECT ROW IS THE GOAL ROW (Dave 2026-09-13: "Let's make the format of
 // projects as much like Goals as possible... the goals page looks much
@@ -52,7 +53,9 @@ export default function ProjectRowRuled({ title, glyphTone, next = null, goal = 
       <div className="task-check-tap"><span className={"gm-slot " + glyphTone}><FolderOpenGlyph /></span></div>
       <div className="task-title">
         <div className="proj-line1">
-          <span className="task-name">{title}</span>
+          {/* His own titles, SHOWN in Title Case (Dave's pass-off,
+              2026-09-26); the record keeps what he typed. */}
+          <span className="task-name">{titleCase(title)}</span>
           {onClose && (
             <button className="pill-act proj-close" onClick={(e) => { e.stopPropagation(); onClose(); }}>Close</button>
           )}
@@ -60,8 +63,8 @@ export default function ProjectRowRuled({ title, glyphTone, next = null, goal = 
         {(next || goal) && (
           <div className="r-k goal-sub">
             {next
-              ? <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{next}</span></span>
-              : goal && <span className={"r-goal r-is-goal " + goal.hue}><GoalMark /><span className="r-goal-t">{goal.title}</span></span>}
+              ? <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{titleCase(next)}</span></span>
+              : goal && <span className={"r-goal r-is-goal " + goal.hue}><GoalMark /><span className="r-goal-t">{titleCase(goal.title)}</span></span>}
           </div>
         )}
         {/* No count, no hold and no status: no line at all, not an empty

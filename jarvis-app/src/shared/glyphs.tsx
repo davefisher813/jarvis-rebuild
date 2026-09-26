@@ -47,7 +47,10 @@ import {
 export function TargetGlyph({ className = "ic" }: { className?: string }) {
   return (
     <>
-      <svg className={className + " ic-out"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></svg>
+      {/* THE MIDDLE IS FILLED (Dave's pass-off, 2026-09-26: "the goals icon
+          should have its middle circle filled with colour"). Two hollow
+          rings read as a wheel; a filled centre reads as a target hit. */}
+      <svg className={className + " ic-out"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" /></svg>
       <TargetFill className={className + " ic-fill"} weight="fill" />
     </>
   );

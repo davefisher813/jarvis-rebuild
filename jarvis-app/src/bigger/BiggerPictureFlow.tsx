@@ -21,7 +21,7 @@ import { unfileProject, refileProject, type UnfiledFromProject } from "../projec
 import { unfileGoal, refileGoal, type UnfiledFromGoal } from "../life/unfileGoal";
 import GoalSheet from "../life/GoalSheet";
 import { rankProjects } from "./progress";
-import { reachOf, type GoalReach, fileableGoals } from "./reach";
+import { reachOf, type GoalReach, fileableGoals, sheetGoals } from "./reach";
 import { measureState, paceLine, healthOf, HEALTH_LABEL, type MeasureContext } from "./measure";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
 import { supabase } from "../auth/supabaseClient";
@@ -758,11 +758,13 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
             <TaskSheet
               mode="new"
               categories={categories.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}
-              projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
-              initial={{ category: proj?.data.category ?? "", projectId: sheet.projectId }}
+              projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId), goalId: p.data.goalId }))}
+              goals={sheetGoals(goals)}
+              initial={{ category: proj?.data.category ?? "", projectId: sheet.projectId, goalId: proj?.data.goalId ?? "" }}
               onSave={async (d: TaskDraft) => {
                 await attemptWrite(() => tasksSvc.createTask(d.text, {
                   projectId: d.projectId || sheet.projectId,
+                  goalId: d.goalId || undefined,
                   category: d.category || undefined,
                   extraCategories: d.extraCategories,
                   due: d.due || null,
@@ -795,7 +797,8 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
               // whose due date was the only thing that changed. It is the
               // same sheet the Tasks tab opens, so it now reads and writes
               // exactly what TasksFlow.openEdit and TasksFlow.onSave do.
-              projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
+              projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId), goalId: p.data.goalId }))}
+              goals={sheetGoals(goals, t.data.goalId)}
               otherPlans={tasks.map((x) => ({ id: x.id, text: x.data.text, plan: x.data.plan }))}
               selfId={sheet.id}
               source={t.data.source}
@@ -806,6 +809,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                 due: t.data.due ?? "",
                 repeat: t.data.recurrence ?? "",
                 projectId: t.data.projectId ?? "",
+                goalId: t.data.goalId ?? "",
                 plan: t.data.plan,
                 steps: t.data.steps,
                 // 2026-09-11: Length read None here and an edit to it was dropped.
@@ -825,6 +829,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                   await tasksSvc.setCategories(id, [d.category, ...(d.extraCategories ?? [])].filter(Boolean));
                   await tasksSvc.setDue(id, d.due || null);
                   await tasksSvc.setProject(id, d.projectId ?? null);
+                  await tasksSvc.setGoal(id, d.goalId ?? null);
                   await tasksSvc.setRecurrence(id, rec || null);
                   await tasksSvc.setPlan(id, d.plan ?? null);
                   await tasksSvc.setSteps(id, d.steps ?? []);
@@ -1041,6 +1046,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         // linked to it, visibly, one tap to undo in the sheet. A default, not
         // a hidden action.
         onAddProject={() => setSheet({ kind: "newProject", goalId: goals.length === 1 ? goals[0]!.id : undefined })}
+        onAddProjectFor={(goalId) => setSheet({ kind: "newProject", goalId })}
         onOpenProject={(id) => setDetailId(id)}
         onCloseProject={(id) => void closeProject(id)}
         onMoveProject={(id, goalId) => void moveProject(id, goalId)}

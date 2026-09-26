@@ -270,6 +270,12 @@ export interface TaskData {
   eventId?: string;
   projectId?: string; // the project this task belongs to (Session 6). Optional
   // field on the existing task entity, so no registry migration is needed.
+  // THE GOAL IS A PICK (Dave's pass-off, 2026-09-26: the Goal row "has no
+  // chevron and does nothing"). It used to be derived from the project
+  // alone; a task can now be filed to a goal directly, the way a project
+  // can. A project pick still fills it. Optional and additive, like the two
+  // ids above; reach.ts reads it ahead of the project chain.
+  goalId?: string;
   due?: string | null;
   /** E-31 (2026-09-12): the day the user named in their own reply when it
    *  could not be resolved to a date ("next week"). A proposal on the row,

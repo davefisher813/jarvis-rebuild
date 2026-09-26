@@ -2353,7 +2353,11 @@
    row is a ghost; the wash was saying it twice, and the second time it cost
    the word its contrast. */
 [data-theme="light"] .ruled.health-ruled .set-chip-ghost { background: var(--surface-1); }
-.ruled.health-ruled .se-tick { margin-left: auto; width: 36px; height: 36px; border-radius: var(--r-circle); border: 0; flex-shrink: 0;
+/* THE TICK IS A ROW CONTROL, SO IT IS 44 (2026-09-26, the workout logging
+   pass-off; was 36). It sits beside two 44px fields on the one row that logs
+   a set, and the ladder has no rung under 44 for a button with no expanded
+   hit area. */
+.ruled.health-ruled .se-tick { margin-left: auto; width: 44px; height: 44px; border-radius: var(--r-circle); border: 0; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: var(--hl-lime); color: var(--on-fill-dark); cursor: pointer; }
 .ruled.health-ruled .se-tick .ic { width: 18px; height: 18px; stroke-width: 2.6; }
 .ruled.health-ruled .se-meter { height: 4px; border-radius: var(--r-pill); background: var(--press-3); overflow: hidden; margin: var(--s-2) 0 var(--s-0h); }
@@ -2955,3 +2959,35 @@
   cursor: pointer;
 }
 .ruled .bp-viewtog .ic { width: 17px; height: 17px; }
+
+/* ===== PASS-OFF BATCH 1, Today / Event / Goals / Life (2026-09-26) ===== */
+/* THE STRIP'S ONE MISSED ROW (Dave: "one red N Missed row"). The count is
+   the row's own title-size text in the key's red (§AM: missed), the chevron
+   says it opens; the row is the door to the list where each is ticked off. */
+.rem-row.rem-missed-row { cursor: pointer; }
+.rem-missed-n { flex: 1; min-width: 0; font-size: calc(16px * var(--type-scale)); letter-spacing: -0.01em;
+  font-weight: var(--w-semi); color: var(--sys-red); }
+.rem-row.rem-missed-row .chev { flex-shrink: 0; }
+/* The missed list on its sheet: the strip's rows on a sheet's grouped card,
+   transparent like every ruled row, the whole row the tap. The ring is drawn
+   for what the tap does; it is not its own control. The times keep the
+   row's grey: the sheet's title says missed once (§AM: no red on a card
+   nested in a sheet). */
+.sheet-scrim > .card .rem-row.rem-tick-row { background: transparent; cursor: pointer; }
+.sheet-scrim > .card .rem-tick-row .cb { flex-shrink: 0; }
+.sheet-scrim > .card .rem-tick-row:active { background: var(--press-3); }
+/* THE EMPTY GOAL'S ONE MOVE (Dave: "Add a Project"): the inline-fix capsule
+   the sheets already use, alone on the meter line. */
+.ruled .goal-row-ruled .goal-add-proj { margin-top: var(--s-1); }
+/* A SEARCH FIELD AT THE TOP OF A LONG MENU (the Projects and Goals pickers).
+   Sticky, on the menu's own ground, so the list scrolls under it. */
+.hmenu-search { position: sticky; top: 0; z-index: 1; padding: var(--s-1h) var(--s-2h) var(--s-2); background: inherit; }
+.hmenu-search .search-bar { min-height: 40px; padding: var(--s-1) var(--s-2h); }
+.hmenu-search .search-bar input { font-size: calc(16px * var(--type-scale)); }
+/* THE LEARNED-PATTERN CARD on an area page ("Most Gets Done on Wednesdays").
+   The app worked it out, so its chip wears the key's colour for the app's
+   own reckoning (§AM: an estimate, sky, --est-ink in both themes). The title
+   wraps: a pattern is a sentence, not a name to ellipsize. */
+.ruled .area-learned { --h-hue: var(--est-ink); --h-tint: color-mix(in srgb, var(--est-ink) 16%, transparent); --h-ink: var(--est-ink); }
+.ruled .area-learned .ins-t { white-space: normal; }
+.ruled .area-learned-why { margin-top: var(--s-1h); }

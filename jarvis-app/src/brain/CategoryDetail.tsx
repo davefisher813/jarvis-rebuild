@@ -85,13 +85,13 @@ import { periodFor, periodOverview, muscleBreakdown } from "../insights/analytic
 import { findings, type Finding, type LiftId } from "../insights/findings";
 import type { HealthView } from "../insights/HealthNav";
 import type { Program } from "../gym/types";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, titleCase } from "../shared/casing";
 import { ProjectPie } from "../shared/glyphs";
 import GoalRowRuled from "../bigger/GoalRowRuled";
 import { TaskRow } from "../tasks/screens/TasksPage";
 import { trainingSummary, agoPhrase } from "../gym/summary";
 import type { Workout } from "../gym/types";
-import { buildGoalIndex, liveGoals, reachOf, reachLine } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, reachOf, reachLine, sheetGoals } from "../bigger/reach";
 import { measureState, healthOf, HEALTH_LABEL, type MeasureContext } from "../bigger/measure";
 import { goalTone } from "../shared/categories";
 import HealthBody from "./HealthBody";
@@ -160,7 +160,9 @@ function groupByDay(recent: RecordEntry[]): { day: string; rows: RecordEntry[] }
 }
 const NOTES_CAP = 4;
 
-type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project" } | { kind: "goal" } | { kind: "event" } | { kind: "edit" };
+const DOW_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project"; goalId?: string } | { kind: "goal" } | { kind: "event" } | { kind: "edit" };
 
 
 // The category page (2026-08-03), replacing the read-only archive. Pages are
@@ -351,6 +353,8 @@ export default function CategoryDetail({
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   // This Week's day groups start capped; See All opens the rest.
   const [weekOpen, setWeekOpen] = useState(false);
+  // The This Week head, so the learned-pattern card's action can bring it up.
+  const weekRef = useRef<HTMLDivElement>(null);
   const today = todayISO();
 
   const reload = useCallback(async () => {
@@ -1368,7 +1372,7 @@ export default function CategoryDetail({
   // the write actually landed.
   const saveTask = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
-    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin }));
+    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin }));
     if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();
@@ -1467,17 +1471,19 @@ export default function CategoryDetail({
               // action, so a grey "No next action" after the amber word only
               // restated it: a stalled row draws the amber word and no grey.
               const stalled = !next && p.data.status !== "on_hold";
-              const line = next ? `Next: ${next.data.text}` : p.data.status === "on_hold" ? "Paused" : null;
+              // The next step is his own typed task, SHOWN in Title Case
+              // (Dave's pass-off, 2026-09-26); stored unchanged.
+              const line = next ? `Next: ${titleCase(next.data.text)}` : p.data.status === "on_hold" ? "Paused" : null;
               const nextDue = next?.data.due ?? null;
               const nextTone = nextDue ? dayTone(nextDue, today) : null;
               return (
                 <div {...pressable(() => onOpenProject?.(p.id))} className="task-row p2 proj-row-ruled" key={p.id}>
                   <div className="task-check-tap"><span className={"pp-slot cat-fg-" + cat.data.color}><ProjectPie pct={pct} /></span></div>
                   <div className="task-title">
-                    <span className="task-name">{p.data.title}</span>
+                    <span className="task-name">{titleCase(p.data.title)}</span>
                     <div className="r-k">
-                      {doneWeek > 0 && <span className="uchip u-done">{doneWeek} done</span>}
-                      {overdue > 0 && <span className="uchip u-late">{overdue} late</span>}
+                      {doneWeek > 0 && <span className="uchip u-done">{doneWeek} Done</span>}
+                      {overdue > 0 && <span className="uchip u-late">{overdue} Late</span>}
                       {nextDue && nextTone === "warn" && <span className="uchip u-today">{nextDue === today ? "Today" : "Tomorrow"}</span>}
                       {stalled && <span className="r-goal r-stalled">Stalled</span>}
                       {line && <span className="r-goal r-cat">{line}</span>}
@@ -1534,7 +1540,10 @@ export default function CategoryDetail({
       <div className="pad-x"><div className="card list-card-ruled">
         {goalsHere.map((g) => (
           <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar} kind={g.kind}
-            onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined} />
+            onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined}
+            // The empty goal's one move (Dave's pass-off, 2026-09-26): the
+            // same ProjectSheet the Add Project row opens, born under it.
+            onAddProject={kind !== "health" ? () => setSheet({ kind: "project", goalId: g.id }) : undefined} />
         ))}
         {kind !== "health" && (
           <button className="row-create" onClick={() => setSheet({ kind: "goal" })}>Add Goal</button>
@@ -2105,15 +2114,39 @@ export default function CategoryDetail({
           {rec.lastWeek > 0 && <span className="stat-tile st-quiet"><span className="st-n">{(receipt.done - rec.lastWeek >= 0 ? "+" : "") + (receipt.done - rec.lastWeek)}</span><span className="st-w">vs last week</span></span>}
         </div></div>
       )}
-      {(ahLine || rec.insight) && (
+      {ahLine && (
         <div className="pad-x"><div className="area-facts">
-          {ahLine && <div className="area-fact">{ahLine}</div>}
-          {rec.insight && <div className="area-fact">{rec.insight}</div>}
+          <div className="area-fact">{ahLine}</div>
+        </div></div>
+      )}
+      {/* A LEARNED PATTERN IS A CARD, NOT A GREY LINE (Dave's pass-off,
+          2026-09-26: "Most gets done on Wednesdays" "reads flat"). It is
+          something the app worked out, so the kicker wears the key's colour
+          for that (§AM: an estimate, the app's own reckoning, sky). The one
+          sentence under it is the count it rests on (record.ts's own
+          numbers, never a guess), and its one action opens the week it was
+          learned from: This Week, the list of what got done and when. Plan
+          Wednesday would be the better action; nothing on this page can
+          reach Plan My Day (the hook stops at AppShell > TodayFlow). */}
+      {rec.insight && rec.insightDetail && (
+        <div className="pad-x"><div className="card ins-card area-learned">
+          <div className="ins-head">
+            <span className="ins-t">{rec.insight}</span>
+            <span className="ins-chip area-learned-chip">Learned</span>
+          </div>
+          <div className="conn-meta area-learned-why">
+            <span className="fact">{capAfterNumber(`${rec.insightDetail.count} of the last ${rec.insightDetail.total} done here landed on a ${DOW_NAMES[rec.insightDetail.dow]}`)}</span>
+          </div>
+          {rec.recent.length > 0 && (
+            <div className="ins-acts">
+              <button type="button" className="see-all" onClick={() => { setWeekOpen(true); weekRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>See the Pattern</button>
+            </div>
+          )}
         </div></div>
       )}
       {rec.recent.length > 0 && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">This Week</span><span className="n">{rec.recent.length}</span>
+          <div className="sh2 sh2-quiet" ref={weekRef}><span className="t">This Week</span><span className="n">{rec.recent.length}</span>
             {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
           <div className="pad-x">
             {shownGroups.map((g) => (
@@ -2272,11 +2305,12 @@ export default function CategoryDetail({
           to, and the derived Goal row had nothing to derive from. */}
       {sheet.kind === "task" && (
         <TaskSheet mode="new" categories={sheetCats} events={sheetEvents(allEvents, today)}
-          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
+          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId), goalId: p.data.goalId }))}
+          goals={sheetGoals(goals)}
           initial={{ category: categoryId }} onSave={saveTask} onCancel={() => setSheet({ kind: "closed" })} />
       )}
       {sheet.kind === "project" && (
-        <ProjectSheet mode="new" categories={allCats} goals={goals} initial={{ category: categoryId }}
+        <ProjectSheet mode="new" categories={allCats} goals={goals} initial={{ category: categoryId, ...(sheet.goalId ? { goalId: sheet.goalId } : {}) }}
           onSave={async (d) => {
             const ok = await attemptWrite(() => projectsSvc.create(d));
             if (!ok) return false;
@@ -2290,6 +2324,8 @@ export default function CategoryDetail({
         <EventSheet
           mode="new"
           categories={sheetCats}
+          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId), goalId: p.data.goalId }))}
+          goals={sheetGoals(goals)}
           initial={{ date: today, category: categoryId }}
           onSave={async (d) => {
             // Field for field with ScheduleFlow's own createEvent. This call
@@ -2304,6 +2340,7 @@ export default function CategoryDetail({
                 until: d.until || undefined, days: d.days, interval: d.interval,
                 travelMin: d.travelMin ?? undefined, bufferMin: d.bufferMin ?? undefined,
                 url: d.url, notes: d.notes,
+                projectId: d.projectId || undefined, goalId: d.goalId || undefined,
               });
               if (made && d.gym) await schedule.editGymDoor(made, true);
             });
