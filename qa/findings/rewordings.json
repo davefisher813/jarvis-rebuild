@@ -3216,5 +3216,37 @@
   "new": "Preference about Marco (one fact)",
   "phase": "r3-sitefixes",
   "group": "r3-sitefixes"
+ },
+ {
+  "item": "dave-pick",
+  "file": "src/schedule/screens/EventSheet.tsx",
+  "old": "Event sheet travel line: 25 min last time (grey note)",
+  "new": "Use Last Time's 25 Min (a one-tap button that fills Travel)",
+  "phase": "dave-picks",
+  "group": "dave-picks"
+ },
+ {
+  "item": "dave-pick",
+  "file": "src/settings/AccountPage.tsx",
+  "old": "(none: the avatar could not be tapped)",
+  "new": "Profile Photo sheet: Choose Photo, Remove Photo, Cancel",
+  "phase": "dave-picks",
+  "group": "dave-picks"
+ },
+ {
+  "item": "dave-pick",
+  "file": "src/settings/AccountPage.tsx",
+  "old": "(none)",
+  "new": "Toast: Photo removed, with Undo",
+  "phase": "dave-picks",
+  "group": "dave-picks"
+ },
+ {
+  "item": "dave-pick",
+  "file": "src/settings/AccountPage.tsx",
+  "old": "(none)",
+  "new": "Toast: Couldn't read that photo \u00b7 Try another",
+  "phase": "dave-picks",
+  "group": "dave-picks"
  }
 ]
