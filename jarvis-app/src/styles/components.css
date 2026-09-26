@@ -6293,7 +6293,14 @@ span.row-star { cursor: default; }
 
    The ring is never category-coloured here either (the ruled-row rule): it is
    the completion control only, and the category keeps the dot or the bar. */
-.sched-row .sched-check { flex-shrink: 0; margin: 0 var(--s-2) 0 0; }
+/* margin-right only, not the shorthand (2026-09-26 correction): the
+   shorthand's 0-top/0-bottom was overwriting .task-check-tap's own
+   margin: -8px 0, the exact trick every other checkbox in the app uses to
+   keep a 44px tap target from adding 44px to the line it sits on. Losing
+   that here is what made the checkbox+category line under a proposed
+   row's title read as a big empty box: the box was really there, just
+   uncompensated. */
+.sched-row .sched-check { flex-shrink: 0; margin-right: var(--s-2); }
 .block-held .bh-check { flex-shrink: 0; margin: 0; }
 /* The nested row's title stops being a plain span the moment it is a door,
    so it gets the door's affordance without growing a second one. */
