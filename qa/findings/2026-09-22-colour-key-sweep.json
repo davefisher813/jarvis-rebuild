@@ -249,7 +249,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 16,
   "phase": "1-css",
   "needs_dave": false
@@ -264,7 +264,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 17,
   "phase": "1-css",
   "needs_dave": false
@@ -489,7 +489,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none (laws.test.ts:6507 checks only white-space/clamp)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 32,
   "phase": "1-css",
   "needs_dave": false
@@ -549,7 +549,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 36,
   "phase": "1-css",
   "needs_dave": false
@@ -564,7 +564,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 37,
   "phase": "1-css",
   "needs_dave": false
@@ -579,7 +579,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 38,
   "phase": "1-css",
   "needs_dave": false
@@ -609,7 +609,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 40,
   "phase": "1-css",
   "needs_dave": false
@@ -639,7 +639,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 42,
   "phase": "1-css",
   "needs_dave": false
@@ -774,7 +774,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 51,
   "needs_dave": false,
   "phase": "1-css"
@@ -819,7 +819,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 54,
   "needs_dave": false,
   "phase": "1-css"
@@ -834,7 +834,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (laws.test.ts nested-control roster only pins its container)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 55,
   "needs_dave": false,
   "phase": "1-css"
@@ -849,7 +849,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 56,
   "needs_dave": false,
   "phase": "1-css"
@@ -864,7 +864,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 57,
   "needs_dave": false,
   "phase": "1-css"
@@ -879,7 +879,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 58,
   "needs_dave": false,
   "phase": "1-css"
@@ -984,7 +984,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none (browserWalk.test.ts only pins its overflow/ellipsis)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 65,
   "needs_dave": false,
   "phase": "1-css"
@@ -999,7 +999,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 66,
   "needs_dave": false,
   "phase": "1-css"
@@ -1014,7 +1014,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 67,
   "needs_dave": false,
   "phase": "1-css"
@@ -1029,7 +1029,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 68,
   "needs_dave": false,
   "phase": "1-css"
@@ -1044,7 +1044,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 69,
   "needs_dave": false,
   "phase": "1-css"
@@ -1059,7 +1059,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "browserWalk.test.ts 'live metadata takes the quiet token' requires this exact selector to keep color: var(--tx-quiet); the fix keeps it",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 70,
   "needs_dave": false,
   "phase": "1-css"
@@ -1074,7 +1074,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 71,
   "needs_dave": false,
   "phase": "1-css"
@@ -1104,7 +1104,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 73,
   "needs_dave": false,
   "phase": "1-css"
@@ -1119,10 +1119,11 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "src/laws/laws.test.ts pins the Now rule's hairline min-width and Running Late neutrality; check the adjacent Now-rule assertions before changing its colour",
   "confidence": "low",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 74,
   "needs_dave": false,
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Schedule's Now rule paints NOW, the LIVE state word and its hairline in the system red. That is your C-28 pick of 2026-09-12: 'LIVE is the only red, on the Now rule alone'. The Colour Key of 2026-09-22 gives that red only to late, overdue and missed, and has no entry for 'now'; Health uses cyan for now. Should the red Now rule stay, written into \u00a7AM as a named exception? Or should NOW and LIVE go white with a neutral hairline? Two constraints: laws.test.ts 'the Now rule is a hairline and a word, never a fill' pins the hairline to --sys-red, and in light the NOW word uses --on-light-red, the br"
  },
  {
   "file": "src/schedule/screens/SchedulePage.tsx",
@@ -1209,7 +1210,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 80,
   "needs_dave": false,
   "phase": "1-css"
@@ -1539,7 +1540,7 @@
   "fix_file": "src/styles/ruled.css",
   "confidence": "high",
   "law_risk": "laws.test.ts 'nothing on the task row renders below the second line' requires className=\"r-goal r-cue\" (kept); laws.test.ts:6687 lists .r-cue::before as a glyph (kept)",
-  "status": "pending",
+  "status": "done",
   "id": 102,
   "phase": "1-css",
   "needs_dave": false
@@ -1569,7 +1570,7 @@
   "fix_file": "src/styles/ruled.css",
   "confidence": "high",
   "law_risk": "laws.test.ts 'the row's provenance is the compact fact, and gives up the tap padding' asserts font-size var(--t-caption) -- must be amended to the eyebrow token",
-  "status": "pending",
+  "status": "done",
   "id": 104,
   "phase": "1-css",
   "needs_dave": false
@@ -1599,7 +1600,7 @@
   "fix_file": "src/styles/ruled.css",
   "confidence": "high",
   "law_risk": "none (colourKey 'an emphasis inside a quiet line steps up' is satisfied by --tx-1)",
-  "status": "pending",
+  "status": "done",
   "id": 106,
   "phase": "1-css",
   "needs_dave": false
@@ -1719,7 +1720,7 @@
   "fix_file": "src/styles/components.css",
   "confidence": "high",
   "law_risk": "astra.test STATE_WORDS is a closed set -- if the .fact.st route is used, 'STILL OPEN' must be added by ruling; the plain drop avoids it",
-  "status": "pending",
+  "status": "done",
   "id": 114,
   "phase": "1-css",
   "needs_dave": false
@@ -1764,7 +1765,7 @@
   "fix_file": "src/styles/components.css",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 117,
   "phase": "1-css",
   "needs_dave": false
@@ -1929,7 +1930,7 @@
   "fix_file": "src/styles/components.css",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 128,
   "phase": "1-css",
   "needs_dave": false
@@ -2244,7 +2245,7 @@
   "fix_file": "src/styles/ruled.css",
   "confidence": "medium",
   "law_risk": "none (laws.test TRACE-02b checks markup only)",
-  "status": "pending",
+  "status": "done",
   "id": 149,
   "phase": "1-css",
   "needs_dave": false
@@ -2349,7 +2350,7 @@
   "fix_file": "src/styles/components.css",
   "confidence": "low",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 156,
   "phase": "1-css",
   "needs_dave": false
@@ -2499,7 +2500,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 166,
   "phase": "1-css",
   "needs_dave": false
@@ -2514,7 +2515,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 167,
   "phase": "1-css",
   "needs_dave": false
@@ -2814,7 +2815,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "laws.test.ts casing scan reads msg-fold-head text only; unaffected",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 187,
   "phase": "1-css",
   "needs_dave": false
@@ -2829,7 +2830,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 188,
   "phase": "1-css",
   "needs_dave": false
@@ -3129,7 +3130,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 208,
   "phase": "1-css",
   "needs_dave": false
@@ -3174,7 +3175,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 211,
   "phase": "1-css",
   "needs_dave": false
@@ -3219,7 +3220,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 214,
   "phase": "1-css",
   "needs_dave": false
@@ -3279,7 +3280,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 218,
   "phase": "1-css",
   "needs_dave": false
@@ -3309,7 +3310,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (shared class; every sheet using .plan-sub moves to 14px)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 220,
   "phase": "1-css",
   "needs_dave": false
@@ -3414,7 +3415,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 227,
   "phase": "1-css",
   "needs_dave": false
@@ -3684,7 +3685,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 245,
   "phase": "1-css",
   "needs_dave": false
@@ -3864,7 +3865,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none (subtextLaw dead-class check: .rpe-ends is rendered by CallItScreen)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 257,
   "phase": "1-css",
   "needs_dave": false
@@ -3894,7 +3895,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (colourKey health-ink check covers only --hl-*-ink on shared primitives)",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 259,
   "phase": "1-css",
   "needs_dave": false
@@ -4089,7 +4090,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 272,
   "phase": "1-css",
   "needs_dave": false
@@ -4164,7 +4165,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 277,
   "phase": "1-css",
   "needs_dave": false
@@ -4179,7 +4180,7 @@
   "fix_file": "src/gym/progression.ts + src/styles/ruled.css",
   "law_risk": "none (check progression.test.ts for basis strings)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 278,
   "phase": "1-css",
   "needs_dave": false
@@ -4239,7 +4240,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 282,
   "phase": "1-css",
   "needs_dave": false
@@ -4269,7 +4270,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 284,
   "phase": "1-css",
   "needs_dave": false
@@ -4284,7 +4285,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 285,
   "phase": "1-css",
   "needs_dave": false
@@ -4299,7 +4300,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 286,
   "phase": "1-css",
   "needs_dave": false
@@ -4554,7 +4555,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 303,
   "phase": "1-css",
   "needs_dave": false
@@ -4764,7 +4765,7 @@
   "fix_file": "src/gym/ClassifySheet.tsx + src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 317,
   "phase": "1-css",
   "needs_dave": false
@@ -5214,7 +5215,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 347,
   "phase": "1-css",
   "needs_dave": false
@@ -5259,7 +5260,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 350,
   "phase": "1-css",
   "needs_dave": false
@@ -5274,7 +5275,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 351,
   "phase": "1-css",
   "needs_dave": false
@@ -5349,7 +5350,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 356,
   "phase": "1-css",
   "needs_dave": false
@@ -5484,7 +5485,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 365,
   "phase": "1-css",
   "needs_dave": false
@@ -5499,7 +5500,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 366,
   "phase": "1-css",
   "needs_dave": false
@@ -5619,7 +5620,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "capsuleLaw.test.ts \"head action stays bare text\" checks background only, so it is unaffected; colourKey OPERABLE already lists .see-all",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 374,
   "phase": "1-css",
   "needs_dave": false
@@ -5679,7 +5680,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 378,
   "phase": "1-css",
   "needs_dave": false
@@ -5859,7 +5860,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none (typeLaw SUBS subject is r-when, not r-goal; NotesList.test.tsx:60 checks textContent \"Edited today\", unaffected by CSS uppercase)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 390,
   "phase": "1-css",
   "needs_dave": false
@@ -6069,10 +6070,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 404,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed earlier in this sweep. .form-sheet .xs-note joined the .input-hint/.input-help/.input-note rule (14px, --tx-3, italic). Its own rule at the Form Sheet block now keeps only layout, plus margin-top: 0 and an upright .note-fix. Nothing sets --t-caption on it any more."
  },
  {
   "file": "src/notes/screens/Templates.tsx",
@@ -6159,7 +6161,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none (astra.test.ts:137 only reads the className=\"chat-prov position for the row-star)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 410,
   "phase": "1-css",
   "needs_dave": false
@@ -6174,7 +6176,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "browserWalk.test.ts:236 lists .note-conn-add for its tap-target ::after (unchanged); NoteEditor.test.tsx:262/268 only query the class",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 411,
   "phase": "1-css",
   "needs_dave": false
@@ -6279,7 +6281,7 @@
   "fix_file": "src/settings/AIControlPage.tsx + src/styles/ruled.css",
   "law_risk": "typeLaw.test.ts DEMOTIONS matches the selector string \".ruled .set-card > .set-sub .conn-name\" exactly. Keep the selector unchanged and remove only the color declaration.",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 418,
   "phase": "1-css",
   "needs_dave": false
@@ -6504,7 +6506,7 @@
   "fix_file": "src/settings/LearnedRulesPage.tsx + src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 433,
   "phase": "1-css",
   "needs_dave": false
@@ -6534,7 +6536,7 @@
   "fix_file": "src/settings/kit.tsx + src/styles/ruled.css",
   "law_risk": "subtextLaw.test.ts 'no subtext class survives without a call site': the .set-foot CSS rule must be deleted together with the class, or it fails as dead",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 435,
   "phase": "1-css",
   "needs_dave": false
@@ -6549,10 +6551,11 @@
   "fix_file": "src/shared/FormSheet.tsx + src/styles/components.css",
   "law_risk": "none (xs-note keeps a call site; no size or ink left on it)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 436,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the current tree. .form-sheet .xs-note is now in the .input-hint rule at components.css:4116 (--t-meta 14px, --tx-3, italic). The later .form-sheet .xs-note rule (~5620) keeps only layout and sets margin-top: 0. It no longer sets --t-caption or its own ink, so the FormSheet Note already renders as the field-note primitive."
  },
  {
   "file": "src/settings/AdvancedPage.tsx",
@@ -6594,10 +6597,11 @@
   "fix_file": "src/settings/AccountPage.tsx + src/styles/components.css",
   "law_risk": "laws.test.ts one-fill exemption list names .av-accent (no change needed; the class is still used on Today)",
   "confidence": "low",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 439,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "The Account screen's 72px avatar (your initial) sits on a brand-red disc and cannot be tapped. The Colour Key says brand red means 'tap this', but laws.test.ts:971 exempts .av-accent as an identity mark, and the same class is a real button on Today and a red-coloured person's avatar in People. Should your own avatar on Account go neutral (grey disc, white initial), or stay brand red as your identity mark? If neutral, the change goes in AccountPage.tsx (not a stylesheet-only fix)."
  },
  {
   "file": "src/people/screens/PeopleListPage.tsx",
@@ -6669,10 +6673,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (laws.test.ts:432 only reads plan-sub copy for casing). Also changes schedule OverlapSheet and PlanDaySheet, which share the class.",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 444,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the current tree. .plan-sub (components.css:~1721) is font-size var(--t-sub), color var(--tx-3), from an earlier batch of this phase."
  },
  {
   "file": "src/people/PeopleFlow.tsx",
@@ -6744,7 +6749,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 449,
   "phase": "1-css",
   "needs_dave": false
@@ -6999,10 +7004,11 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 466,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Life > Areas: the Health card sits on a green --good-tint panel with a green border, green-filled section chips and green chip glyphs, all to say 'this is Health'. Under \u00a7AM (2026-09-22) green means done / on track, and an area's colour belongs on its dot only. You approved this card on 2026-09-16: the component quotes 'we can keep the green background' and 'keep the font white in the health section'. A ruled.css comment from the same day quotes 'remove the green background' about the older row. Should \u00a7AM override that approval? If yes, the card goes plain like the other area cards and the ch"
  },
  {
   "file": "src/brain/CategoryDetail.tsx",
@@ -7044,7 +7050,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 469,
   "phase": "1-css",
   "needs_dave": false
@@ -7059,7 +7065,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 470,
   "phase": "1-css",
   "needs_dave": false
@@ -7329,7 +7335,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "src/laws/itemCard.test.ts:123-125 reads the .bp-card-lead block (clamp, no nowrap); untouched by this edit",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 488,
   "phase": "1-css",
   "needs_dave": false
@@ -7359,10 +7365,11 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "src/laws/browserWalk.test.ts:602 pins `.ruled .task-row .money-amt.paid` at --tx-2; this fix leaves that rule alone",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 490,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed. `.ruled .task-row .money-amt` is `color: var(--tx-1)` (ruled.css, the \u00a7AM 2026-09-22 comment) and `.ruled .task-row .money-amt.money-neg` is also `--tx-1`. An account row now reads grey type + white amount, one grey. The paid-bill half is finding 580."
  },
  {
   "file": "src/money/MoneyFlow.tsx",
@@ -7464,7 +7471,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 497,
   "phase": "1-css",
   "needs_dave": false
@@ -7614,7 +7621,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 507,
   "phase": "1-css",
   "needs_dave": false
@@ -7704,7 +7711,7 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none (capsuleLaw.test.ts checks the base geometry, not this override)",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 513,
   "phase": "1-css",
   "needs_dave": false
@@ -7719,10 +7726,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 514,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the current tree. .dring span (components.css:1126) is font-size var(--t-micro), not calc(8px * var(--type-scale))."
  },
  {
   "file": "src/shared/provenance.ts",
@@ -7779,7 +7787,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "colourKey.test.ts 'a fact never wears the brand red': safe only if the selector does NOT contain .prov-line; use .prov-link alone as written",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 518,
   "phase": "1-css",
   "needs_dave": false
@@ -7794,10 +7802,11 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none (laws.test.ts TRACE-02b pins markup and slot arity, not colour)",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 519,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. `.ruled .task-row > .tr-steps` is `font-size: var(--t-sub); font-weight: var(--w-medium); color: var(--tx-1)`, with a dated 2026-09-25 comment, so the whole '2 of 5' count, 'of' included, is white at 14 and is no longer a second grey run."
  },
  {
   "file": "src/shared/LifeHeader.tsx",
@@ -7809,7 +7818,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (unifiedHeader.test.ts:300 pins the markup only)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 520,
   "phase": "1-css",
   "needs_dave": false
@@ -7884,7 +7893,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 525,
   "phase": "1-css",
   "needs_dave": false
@@ -7899,7 +7908,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 526,
   "phase": "1-css",
   "needs_dave": false
@@ -7914,7 +7923,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 527,
   "phase": "1-css",
   "needs_dave": false
@@ -7944,7 +7953,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 529,
   "phase": "1-css",
   "needs_dave": false
@@ -7959,10 +7968,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 530,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "The Remember star turns filled YELLOW when on (.row-star.on { color: var(--yellow) }). Your 2026-09-12 ruling (catalog line 572) says 'filled yellow', but the Colour Key (\u00a7AM) says there are eight colours and no ninth, and yellow means nothing in it. Keep the yellow star, or make the on-star white (the fill already shows on vs off)?"
  },
  {
   "file": "src/styles/editor.css",
@@ -8124,7 +8134,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none in src/laws (laws.test.ts:3295 pins only `.grp .plan-head > .eyebrow`, which stays --tx-3)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 541,
   "phase": "1-css",
   "needs_dave": false
@@ -8139,7 +8149,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 542,
   "phase": "1-css",
   "needs_dave": false
@@ -8154,7 +8164,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "colourKey.test.ts 'an emphasis inside a quiet line steps up' passes (--tx-1 is in KEY_INK)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 543,
   "phase": "1-css",
   "needs_dave": false
@@ -8169,10 +8179,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 544,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "'Skip for now' / 'Later, JARVIS works fine without it' is the screen's quiet option under the filled red Begin primary. The rulings keep a quiet option out of the action red: RULEBOOK R2 and \u00a7AL say .quiet-action is not red, the sheet bar ruling puts Cancel in the quiet ink, and .focus-skip is quiet. Making it --tint would put a second red action next to the primary. If the lead wants it to match "
  },
  {
   "file": "src/onboarding/OnboardingFlow.tsx",
@@ -8214,7 +8225,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 547,
   "phase": "1-css",
   "needs_dave": false
@@ -8244,7 +8255,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 549,
   "phase": "1-css",
   "needs_dave": false
@@ -8259,7 +8270,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 550,
   "phase": "1-css",
   "needs_dave": false
@@ -8274,7 +8285,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 551,
   "phase": "1-css",
   "needs_dave": false
@@ -8364,10 +8375,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 557,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. The base .row-act rule (components.css:707-710) already declares `background-color: var(--capsule-fill); border: 0; color: var(--tint);`. The press-3 shorthand is gone."
  },
  {
   "file": "src/styles/components.css",
@@ -8379,7 +8391,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (laws.test.ts:888 only notes .promo-pill is not an accent fill, which stays true)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 558,
   "phase": "1-css",
   "needs_dave": false
@@ -8394,7 +8406,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 559,
   "phase": "1-css",
   "needs_dave": false
@@ -8409,10 +8421,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "laws.test.ts GUILT scan (line ~2365) must still pass: warn is not in its forbidden token list",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 560,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree (components.css:159-181). .sched-badge is --warn with no ring. .sched-badge-btn is the capsule (`background-color: var(--capsule-fill); border: 0; color: var(--tint)`, and light is --on-light-red). .sched-row-warn is `inset 2px 0 0 var(--warn)`."
  },
  {
   "file": "src/styles/components.css",
@@ -8469,10 +8482,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 564,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .sched-dist (components.css ~896) is --t-eyebrow, --w-semi, --track-caps, uppercase and --warn."
  },
  {
   "file": "src/styles/components.css",
@@ -8484,10 +8498,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 565,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. `.dring span` is `font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: var(--track-eyebrow); text-transform: uppercase; color: var(--tx-3)`. The raw 8px and the 800 weight are gone."
  },
  {
   "file": "src/styles/components.css",
@@ -8499,10 +8514,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "browserWalk.test.ts 'live metadata takes the quiet token' requires .receipt-line to keep --tx-quiet (kept); laws.test.ts 44px list requires its ::after (kept)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 566,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .receipt-line is `--t-eyebrow; --w-semi; uppercase; letter-spacing: var(--track-caps)` and keeps --tx-quiet, which browserWalk pins."
  },
  {
   "file": "src/styles/components.css",
@@ -8514,10 +8530,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 567,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree, a different way. .blend-why is now `--t-sub` sentence case in --tx-3, so there is no 11px lowercase line. .blend-text went to --tx-1, so the offer row has one grey."
  },
  {
   "file": "src/styles/components.css",
@@ -8529,10 +8546,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 568,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .msg-stands-head is `--t-eyebrow`, uppercase, `letter-spacing: var(--track-eyebrow)`."
  },
  {
   "file": "src/styles/components.css",
@@ -8544,10 +8562,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (laws.test.ts:315 Title-Case scan of msg-fold-head is unaffected)",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 569,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .msg-fold-head is `--t-eyebrow; --w-semi; --track-caps; uppercase; --tx-3`, and .band-n is --tx-1."
  },
  {
   "file": "src/styles/components.css",
@@ -8559,10 +8578,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (laws.test.ts:432 dot-break scan reads plan-sub text only)",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 570,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .plan-sub is `font-size: var(--t-sub); color: var(--tx-3)`."
  },
  {
   "file": "src/styles/components.css",
@@ -8589,10 +8609,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (colourKey 'an emphasis inside a quiet line steps up' will now see and accept this rule)",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 572,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. `.ob-privacy-txt b { color: var(--tx-1); font-weight: var(--w-semi); }` exists."
  },
  {
   "file": "src/styles/components.css",
@@ -8604,10 +8625,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 573,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. `.ob-privacy .ic` is --tx-3."
  },
  {
   "file": "src/styles/components.css",
@@ -8619,7 +8641,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 574,
   "phase": "1-css",
   "needs_dave": false
@@ -8634,7 +8656,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "typeLaw 'keeps the quiet line at the one legible grey' only checks selectors whose subject is bp-sub (a .bp-sub.r-est rule's subject is r-est, so it passes)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 575,
   "phase": "1-css",
   "needs_dave": false
@@ -8649,7 +8671,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "colourKey 'a fact never wears the brand red' already exempts .sched-loc as operable; no law pins .sched-rep's size",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 576,
   "needs_dave": false,
   "phase": "1-css"
@@ -8679,7 +8701,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "typeLaw 'lets no modifier smuggle a weight back onto a fact' (the fix deliberately sets no weight)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 578,
   "phase": "1-css",
   "needs_dave": false
@@ -8694,7 +8716,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none found (healthPrivacy bans the WORD 'missed' in health copy, not a CSS colour)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 579,
   "phase": "1-css",
   "needs_dave": false
@@ -8739,7 +8761,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "colourKey 'the health inks stay on the health surfaces' passes (scoped to health-ruled)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 582,
   "phase": "1-css",
   "needs_dave": false
@@ -8754,10 +8776,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "laws.test.ts GUILT scan targets classes named overdue/late/unread/behind; .msg-rail.hot is not one of them",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 583,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree (uncommitted). .msg-rail.hot and .msg-rail.on.hot (components.css:1288-1289) already use var(--sys-red), applied by an earlier batch under the duplicate finding 227."
  },
  {
   "file": "src/styles/components.css",
@@ -8769,7 +8792,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 584,
   "phase": "1-css",
   "needs_dave": false
@@ -8784,10 +8807,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 585,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .adm-role (components.css:~1384) is already color var(--tx-3) with letter-spacing var(--track-caps), uppercase, at --t-eyebrow (duplicate of finding 542). The caps set ADMIN apart from the email title."
  },
  {
   "file": "src/styles/components.css",
@@ -8829,7 +8853,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 588,
   "phase": "1-css",
   "needs_dave": false
@@ -8844,10 +8868,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 589,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed at HEAD (2816f68). The .focus-row .row-act .fc-n rule is already font-weight var(--w-semi), text-transform uppercase and letter-spacing var(--track-caps), so the 11px run is an uppercase kicker (duplicate of finding 17)."
  },
  {
   "file": "src/styles/components.css",
@@ -8859,10 +8884,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 590,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .payoff-line is already font-size var(--t-sub) and color var(--tx-3) (duplicate of finding 526). No other sheet overrides it."
  },
  {
   "file": "src/styles/components.css",
@@ -8874,10 +8900,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 591,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .ob-sub is already font-size var(--t-sub) and color var(--tx-3) (duplicate of finding 549). No .ruled override exists."
  },
  {
   "file": "src/styles/components.css",
@@ -8889,10 +8916,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 592,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .signin-tag is already font-size var(--t-sub) (duplicate of finding 550)."
  },
  {
   "file": "src/styles/components.css",
@@ -8904,7 +8932,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 593,
   "phase": "1-css",
   "needs_dave": false
@@ -8919,10 +8947,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 594,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed where it renders. The gap row appears only in SchedulePage (SchedulePage.tsx:778), inside .screen.ruled (line 453). The ruled.css batch replaced the 13px `.ruled .sched-gap-win { font-size: var(--t-caption) }` with the neutral-date letterform: `.ruled .sched-gap-win { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps); text-transform: uppercase"
  },
  {
   "file": "src/styles/components.css",
@@ -8934,7 +8963,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 595,
   "phase": "1-css",
   "needs_dave": false
@@ -8949,10 +8978,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "light contrast checks in browserWalk.test.ts / laws.test.ts should be re-run against #CC051B",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 596,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Not real now: .urgency-red renders nowhere. TasksPage.tsx:534 draws the urgency span only when u.kind === \"soon\" (urgency-muted). The overdue entry in URGENCY_CLASS (line 39) is never reached, and CreateTasks.tsx:66 passes only warn or muted. The light override is dead. Note if it ever comes back: the suggested --danger-tx is the red for destructive button labels (so also a tap red), and by my cal"
  },
  {
   "file": "src/styles/components.css",
@@ -8964,7 +8994,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 597,
   "phase": "1-css",
   "needs_dave": false
@@ -8979,10 +9009,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 598,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed at HEAD (2816f68). .sched-join is already color var(--tint), background-color var(--capsule-fill), with [data-theme=\"light\"] .sched-join { color: var(--on-light-red); } (components.css:205-208; duplicate of finding 58)."
  },
  {
   "file": "src/styles/components.css",
@@ -8994,10 +9025,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "src/laws/laws.test.ts LAW 11 requires YourDay.tsx to keep a plain className=\"sh2\" (the sanctioned loud head)",
   "confidence": "low",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 599,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Today's red \"Now\" head is sanctioned in the rulebook and stays. Brain's two red heads, \"Shaping JARVIS Now\" and \"Needs You\" (BrainTop.tsx:172 and :204), were kept loud by your C-38 pick on 2026-09-12, and LAW 11 records that pick as an exemption. But the Colour Key (2026-09-22) says brand red on anything that cannot be tapped is wrong. Should those two Brain heads go quiet like every other head (grey label, quiet hairline), leaving Today's Now as the only red head? If yes: BrainTop.tsx adds sh2-quiet to both heads, and the BrainTop line in LAW 11 (laws.test.ts ~3565) is removed. No components."
  },
  {
   "file": "src/styles/components.css",
@@ -9009,10 +9041,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (consider adding `eyebrow` to colourKey.test.ts FACT so this cannot recur)",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 600,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .grp .eyebrow is already color var(--tx-3), and its ::after leader is 1px dotted var(--divider) with no raw rgba (components.css:3418-3419; duplicates 529/541). Admin and Onboarding group heads now render grey."
  },
  {
   "file": "src/styles/components.css",
@@ -9024,10 +9057,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (unifiedHeader.test.ts:300 pins only the markup)",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 601,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the working tree. .hdr-scope-all is already color var(--tint) (duplicate of finding 520)."
  },
  {
   "file": "src/styles/components.css",
@@ -9084,7 +9118,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 605,
   "phase": "1-css",
   "needs_dave": false
@@ -9114,7 +9148,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 607,
   "phase": "1-css",
   "needs_dave": false
@@ -9144,7 +9178,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 609,
   "phase": "1-css",
   "needs_dave": false
@@ -9159,10 +9193,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 610,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed. `.purge-count` is --tx-1 (components.css ~4802, with a 2026-09-25 comment), and `.purge-warn` is --warn, so the row no longer has two greys told apart by weight."
  },
  {
   "file": "src/styles/components.css",
@@ -9174,10 +9209,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 611,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the WIP commit: `.rep-eyebrow` is color: var(--tx-3) now, where it was var(--accent-tx)."
  },
  {
   "file": "src/styles/components.css",
@@ -9189,10 +9225,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none (consider removing accent-tx/tint/on-light-red from colourKey.test.ts KEY_INK, which contradicts \u00a7AM F1 \"Never --tint\")",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 612,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in the WIP commit: `.rep-split b` is color: var(--tx-1) now, where it was var(--accent-tx)."
  },
  {
   "file": "src/styles/components.css",
@@ -9204,7 +9241,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 613,
   "phase": "1-css",
   "needs_dave": false
@@ -9234,7 +9271,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 615,
   "phase": "1-css",
   "needs_dave": false
@@ -9249,7 +9286,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "laws.test.ts:1433 (a delta never wears accent/danger), still satisfied",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 616,
   "phase": "1-css",
   "needs_dave": false
@@ -9264,10 +9301,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 617,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed by an earlier batch: `.hmenu-n` is font-size: var(--t-sub)."
  },
  {
   "file": "src/styles/components.css",
@@ -9279,10 +9317,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 618,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed by an earlier batch: `.opt-val` is --t-sub / --w-sub / --tx-3. `.opt-val + .opt-val` makes the count white when it follows a value, so the row no longer has two identical greys and needs no TSX change."
  },
  {
   "file": "src/styles/components.css",
@@ -9309,7 +9348,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "capsuleLaw.test.ts does not pin .btn-sm; laws.test.ts:3250 (Not Today must be btn-secondary) is unaffected",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 620,
   "phase": "1-css",
   "needs_dave": false
@@ -9324,7 +9363,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 621,
   "phase": "1-css",
   "needs_dave": false
@@ -9339,7 +9378,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "colourKey.test.ts 'health inks stay on health surfaces' is satisfied (scoped)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 622,
   "phase": "1-css",
   "needs_dave": false
@@ -9354,7 +9393,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "src/gym/ConditioningFace.test.tsx:116 queries `.cr-d.up` text only (unchanged)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 623,
   "phase": "1-css",
   "needs_dave": false
@@ -9384,7 +9423,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "laws.test.ts:1143 ESSENTIAL (forbids --tx-4 only), still satisfied",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 625,
   "phase": "1-css",
   "needs_dave": false
@@ -9399,7 +9438,7 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "laws.test.ts:5605 (markup only) and 6687 (.r-cue::before glyph), both unaffected",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 626,
   "phase": "1-css",
   "needs_dave": false
@@ -9414,10 +9453,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "src/gym/ConditioningFace.test.tsx:29-63 (text content only)",
   "confidence": "low",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 627,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "The conditioning clock face is a full-screen black readout the stylesheet says is 'read across a room'. Should its 'ROUND 2 OF 10' line (.cf-round, 15px caps) stay at 15px as a stated arm's-length exception to the two-size subtext rule, or drop to the 11px kicker size like every other caps label? The 11px size is correct by the rule but would be small mid-workout. The same question covers the face's 13px caps format tag (.cf-fmt) and the landscape corner labels (.cf-corner). Everything else in #627 (blue off the format tag and the corner, name and 'last' split at 14px in --tx-3) was already ap"
  },
  {
   "file": "src/money/screens/TrackerScreen.tsx",
@@ -9444,10 +9484,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 629,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed by an earlier batch. The three `.chip.active.chip-*` rules and `.chip-half.chip-lime` are scoped to `:where(.sheet-scrim > .card)` and use the -ink twins for text, so they cannot leak out of Health's sheets."
  },
  {
   "file": "src/styles/components.css",
@@ -9459,10 +9500,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 630,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Not a row subtext; this is a form field's value. `.xs-group .row-val` is deliberately set in `.dd.dd-value`'s type (15px) so the derived Goal value sits on the same optical line as the four picker values beside it. Those show 'None' in --tx-3 through `.dd-off` (TaskSheet.tsx:321-324), and a picker's own text falls under R7's 'input's own text' exception. 'None' is Dave's explicit 2026-09-16 ruling"
  },
  {
   "file": "src/styles/editor.css",
@@ -9729,7 +9771,7 @@
   "fix_file": "src/styles/jarvis-design-system.css + src/styles/components.css",
   "law_risk": "laws.test.ts 'the quiet CTA is neutral, not accent-coloured text beside a red fill' asserts CSS matches /background: var\\(--press-3\\); color: var\\(--tint\\)/; changing both rules breaks it, so update that regex to /background-color: var\\(--capsule-fill\\); color: var\\(--tint\\)/",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 648,
   "phase": "1-css",
   "needs_dave": false

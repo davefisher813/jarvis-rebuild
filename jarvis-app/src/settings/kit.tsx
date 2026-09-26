@@ -82,5 +82,5 @@ export function DangerRow({ label, onClick, disabled = false }: { label: string;
 
 /** The quiet line under a card. */
 export function Foot({ children }: { children: ReactNode }) {
-  return <div className="pad-x set-foot">{children}</div>;
+  return <div className="pad-x"><div className="input-hint">{children}</div></div>;
 }

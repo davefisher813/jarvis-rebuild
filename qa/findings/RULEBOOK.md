@@ -114,6 +114,30 @@ decision for the lead session, added once in `components.css` with a law.
 - `src/bench/`, `src/testpanel/`, `*.test.ts(x)` and `src/laws/` are not
   shipped UI.
 
+## Settled by the lead (2026-09-26): apply these, never reopen them
+
+- Light theme: `--good`, `--warn` and `--sys-red` are Apple's light system
+  colours AS TEXT (Dave's 2026-09-12 Astra ruling). Lateness in light is
+  `--sys-red`, never `--on-light-red` (that is the brand words red).
+- A paid amount is `--good`. A count with no state (goal projects) is white.
+- The capsule's label is its own `--tint` on its opaque fill, on sheets too.
+  Red WORDS straight on a sheet grey take `--tint-on-sheet` (`.see-all`,
+  `.prov-link`, `.note-fix`, `.sheet-bar-save`, `.toast-action`).
+- Mail rail: solid white = unread; amber = due soon or waiting weeks; red = a
+  wait past the point an email helps; hollow = read and calm.
+- A schedule row's first move (the next step) is amber. A length that cannot
+  be tapped is a white `<b>`, not small caps.
+- Purple is not in the key: no `.fact.purp`. An estimate is `.fact.est`.
+- `.btn-sm` is a capsule (§AL); the 50px base `.btn` is not.
+
+## Held for Dave: do not change these, report them as needs_dave if you meet them
+
+The red Now rule and LIVE word; the Classify sheet's question colours; the
+Health area card's green panel; the Account avatar's red disc; the yellow
+Remember star; Brain's two red heads; the conditioning clock's 15px caps; the
+disclosure `<summary>` colour; the user chat bubble's red; the receipt-line
+("13 More Waiting") quiet grey. Questions are in `dave-queue.json`.
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report

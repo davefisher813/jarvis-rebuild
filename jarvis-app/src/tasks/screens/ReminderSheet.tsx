@@ -263,7 +263,7 @@ export default function ReminderSheet({
           {mode === "edit" && link && onOpenLinked && (
             <Row tone="red" glyph={<Forward className="ic" />} label={actionLabelFor(link)} meta={link.label ?? ""} onClick={() => onOpenLinked(link)} chev />
           )}
-          <Note>What this reminder is about · Opening it never marks the reminder done</Note>
+          <Note>What this reminder is about. Opening it never marks the reminder done</Note>
         </Group>
         <Group label="Follow-up">
           <MenuRow tone="sand" glyph={<WarningGlyph />} label="Follow-up" value={follow} ariaLabel="Follow-up"

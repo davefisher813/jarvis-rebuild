@@ -41,7 +41,7 @@ export default function ContextPromptSheet({ item, eyebrow, onOpenLinked, onCont
           </div>
           <details className="exp-more rem-more">
             <summary>Why This Appeared</summary>
-            <Note>This reminder asked to be shown here · It responds to what you open inside JARVIS, never to another app</Note>
+            <Note>This reminder asked to be shown here. It responds to what you open inside JARVIS, never to another app</Note>
           </details>
           <div className="xs-foot" />
         </div>

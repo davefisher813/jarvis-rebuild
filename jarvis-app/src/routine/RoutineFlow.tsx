@@ -292,14 +292,14 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
         <Row label="Wake Up"><input type="time" className="set-field" aria-label="Wake up" value={toHHMM(data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ wakeMin: v }); }} /></Row>
         <Row label="Sleep"><input type="time" className="set-field" aria-label="Sleep" value={toHHMM(data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ sleepMin: v }); }} /></Row>
       </Card>
-      {overnight && <Foot>Overnight · JARVIS plans the day</Foot>}
+      {overnight && <Foot>Overnight. JARVIS plans the day</Foot>}
 
       <Head label="Work Hours" />
       <Card>
         <Row label="Work Starts"><input type="time" className="set-field" aria-label="Work starts" value={toHHMM(data.workStartMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workStartMin: v }); }} /></Row>
         <Row label="Work Ends"><input type="time" className="set-field" aria-label="Work ends" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workEndMin: v }); }} /></Row>
       </Card>
-      {workOutside && <Foot>Work hours outside active hours · Fine</Foot>}
+      {workOutside && <Foot>Work hours outside active hours. Fine</Foot>}
 
       <Head label="Protected Time" />
       <Card>
@@ -423,7 +423,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
                       );
                     })}
                   </Strip>
-                  <Note>A call fits · Typing does not</Note>
+                  <Note>A call fits. Typing does not</Note>
                 </>
               )}
             </Group>

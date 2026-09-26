@@ -45,4 +45,14 @@ if apply:
     except FileNotFoundError: R = []
     R += [{**x, "phase": res.get("phase")} for x in out["reworded"]]
     json.dump(R, open("qa/findings/rewordings.json","w"), indent=1)
+    # Work an agent could not finish in its own file, and fixes a law blocked:
+    # the lead picks these up before the phase is committed.
+    try: H = json.load(open("qa/findings/handoff.json"))
+    except FileNotFoundError: H = []
+    seen = {(h.get("kind"), h.get("id"), h.get("file"), h.get("law")) for h in H}
+    for k in ("needs_other_file", "blocked_by_law"):
+        for x in out[k]:
+            key = (k, x.get("id"), x.get("file"), x.get("law"))
+            if key not in seen: H.append({"kind": k, **x, "phase": res.get("phase"), "done": False}); seen.add(key)
+    json.dump(H, open("qa/findings/handoff.json","w"), indent=1)
     print("applied to sweep:", collections.Counter(f["status"] for f in F))

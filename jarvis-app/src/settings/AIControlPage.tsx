@@ -93,7 +93,7 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     : usd === null ? String(count) : `${count} · ~${formatUSD(usd)}`;
   const inTok = tokens.reduce((n, t) => n + t.inputTokens + t.cacheReadTokens + t.cacheWriteTokens, 0);
   const outTok = tokens.reduce((n, t) => n + t.outputTokens, 0);
-  const tokenRow = inTok + outTok > 0 ? `${formatTokens(inTok)} in · ${formatTokens(outTok)} out` : "";
+  const tokenRow = inTok + outTok > 0 ? `${formatTokens(inTok)} in, ${formatTokens(outTok)} out` : "";
 
   return (
     <div className="screen ruled">

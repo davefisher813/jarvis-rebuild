@@ -91,7 +91,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
 
       {/* HERO: the month's one number, then its named wins. */}
       <div className="pad-x rep-hero">
-        <div className="rep-eyebrow">{stillOpen ? "Your Month · Still Open" : "Your Month"}</div>
+        <div className="rep-eyebrow">{stillOpen ? "Your Month So Far" : "Your Month"}</div>
         <div className="rep-big"><RollingNumber value={Number(report.hero.big)} /></div>
         <div className="rep-big-label">
           {report.hero.label}
@@ -284,7 +284,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
         )}
 
         {/* A month still open is NOT sealed, and the lock card would be a
-            lie on it; the eyebrow already says Still Open (2026-08-25). */}
+            lie on it; the eyebrow already says So Far (2026-08-25). */}
         {!stillOpen && (
           <div className="card rep-gap">
             <div className="row">
@@ -308,7 +308,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
  *  props beyond navigation it opens the latest sealed month (the arrival
  *  path). `month` opens that sealed month from the shelf. `live` builds the
  *  CURRENT month from the live window through the same computeSeal, so the
- *  page is one engine wearing one honest extra label: Still Open. */
+ *  page is one engine wearing one honest extra label: So Far. */
 export default function ReportFlow({ onBack, onOpenTask, month, live }: {
   onBack: () => void;
   onOpenTask?: (id: string) => void;

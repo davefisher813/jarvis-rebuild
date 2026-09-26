@@ -105,13 +105,20 @@ const LENSES = [
   'R3 the colour key: every colour the diff adds or changes must mean exactly what the key says',
   'R2/R7/R8/R9/R10 capsule, sizes, dates, field notes, section heads: primitives used, nothing invented',
   'Regressions: layout, tap targets, meaning of reworded copy, TV guide behaviour, and every law in src/laws/',
+  'Light theme and sheets: every text colour the diff changed, against the grounds it sits on in light and dark (page, card, sheet grey, toast, tinted banner); under 4.5:1 is a problem unless it is --good, --warn or --sys-red in light (Dave accepted those as shipped)',
+  'Completeness: for every finding id the fixers reported applied, open the code and confirm the change is really there and whole (markup AND the rule it needs); for every rejected id, check the reason holds',
 ]
 
+// args.noReview: fix only (two fix runs side by side, one review after both).
+// args.reviewOnly: skip Fix and review the working-tree diff (groups ignored).
+const reviewOnly = !!(args && args.reviewOnly)
 phase('Fix')
-const groups = (args && args.groups) || []
-if (!groups.length) { log('No groups passed in args; nothing to do.'); return { reports: [], issues: [] } }
-let reports
-if (args.sequential) {
+const groups = reviewOnly ? [] : (args && args.groups) || []
+if (!groups.length && !reviewOnly) { log('No groups passed in args; nothing to do.'); return { reports: [], issues: [] } }
+let reports = []
+if (reviewOnly) {
+  log('review only')
+} else if (args.sequential) {
   // One file never has two agents at once: batches of the SAME stylesheet run
   // in order, while different stylesheets run side by side.
   const chains = {}
@@ -136,14 +143,21 @@ if (dead) log(`${dead} group(s) returned nothing -- rerun them by label`)
 const tally = (k) => ok.reduce((n, r) => n + (r[k] || []).length, 0)
 log(`applied ${tally('applied')}, rejected ${tally('rejected')}, reworded ${tally('reworded')}, needs_dave ${tally('needs_dave')}, needs_other_file ${tally('needs_other_file')}, blocked_by_law ${tally('blocked_by_law')}`)
 
+if (args && args.noReview) {
+  return { phase: args.phase, deadGroups: groups.filter((g) => !ok.find((r) => r.label === g.label)).map((g) => g.label), reports: ok, issues: [], deadReviews: [] }
+}
+
 phase('Review')
 const reviews = await parallel(LENSES.map((lens, i) => () =>
   agent(reviewPrompt(lens, args.phase), { label: 'review:' + i, phase: 'Review', schema: ISSUES })))
 const issues = reviews.filter(Boolean).flatMap((r) => r.issues || [])
+const deadReviews = reviews.map((r, i) => (r ? null : i)).filter((i) => i !== null)
+if (deadReviews.length) log('review lenses that returned nothing (rerun them): ' + deadReviews.join(', '))
 
 return {
   phase: args.phase,
   deadGroups: groups.filter((g) => !ok.find((r) => r.label === g.label)).map((g) => g.label),
+  deadReviews,
   reports: ok,
   issues,
 }

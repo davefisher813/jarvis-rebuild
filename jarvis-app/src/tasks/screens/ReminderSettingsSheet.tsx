@@ -45,7 +45,7 @@ export default function ReminderSettingsSheet({ initial, native, permission, tes
             <FieldRow tone="indigo" glyph={<Clock className="ic" />} label="To" type="time" value={p.quietTo} onChange={(v) => { if (/^\d{2}:\d{2}$/.test(v)) patch({ quietTo: v }); }} ariaLabel="Quiet to" />
           </>
         )}
-        <Note>Follow-ups and in-app prompts wait until quiet hours end · A reminder's own alert still rings</Note>
+        <Note>Follow-ups and in-app prompts wait until quiet hours end. A reminder's own alert still rings</Note>
       </Group>
       <Group label="Follow-up">
         <SwitchRow tone="sand" glyph={<WarningGlyph />} label="Default Follow-up" meta="Once After 1 Hour for new reminders" on={p.defaultFollowUp} onToggle={() => patch({ defaultFollowUp: !p.defaultFollowUp })} ariaLabel="Default follow-up" />
@@ -62,9 +62,9 @@ export default function ReminderSettingsSheet({ initial, native, permission, tes
         {native && onTest && !denied && <Row tone="red" glyph={<Bell className="ic" />} label={testing ? "Sending" : "Send a Test Reminder"} meta="Arrives in 10 seconds" onClick={testing ? undefined : onTest} chev />}
         <Note>
           {!native
-            ? "Alerts need the phone app · On the web reminders show inside JARVIS only"
+            ? "Alerts need the phone app. On the web reminders show inside JARVIS only"
             : denied
-              ? "Notifications are off for JARVIS in iOS Settings · Turn them on there and nothing here has to change"
+              ? "Notifications are off for JARVIS in iOS Settings. Turn them on there and nothing here has to change"
               : permission === "prompt"
                 ? "iOS will ask to allow notifications the first time a reminder is set"
                 : "Reminders arrive on this phone"}

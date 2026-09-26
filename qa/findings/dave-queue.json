@@ -10,5 +10,53 @@
   "question": "The user's own chat bubble is a brand-red fill: .bubble-user in onboarding and .chat-user in Chat. Should it stay that way under the Colour Key? Two rulings disagree here. On 2026-08-14 you approved the red user bubble (components.css:2581, 'chat-user rides the accent'), and laws.test.ts:971 explicitly exempts both .chat-user and .bubble-user as 'identity marks, not actions'. The 2026-09-22 key (R3) says --accent* on anything that cannot be tapped is a violation. If you keep the bubble red, it stays as a sanctioned exception and nothing changes. If you want it neutral, both bubbles have to move together to the same fill, for example var(--sel-bg) / var(--sel-fg). That means editing components.css .chat-user as well as uniformity.css .bubble-user. Moving only the onboarding bubble would make it disagree with the Chat screen, so I left both alone.",
   "group": "uniformity.css#1",
   "phase": "css-small"
+ },
+ {
+  "id": 317,
+  "question": "On 2026-09-16 you asked for colour on the Classify sheet (\"it's ugly, has no color\"). Its selected chips are now coloured by question: lime for muscles, violet for equipment, cyan for how the lift is described. The library row chips use the same hues. Under the Colour Key (2026-09-22), colour is for meaning only, and on Health these inks already mean done, budget/pair and now. Should the selected chips go back to the app's neutral selected pill, library row chips included? Or keep the question colours as a named exemption to \u00a7AM?",
+  "group": "components.css#2",
+  "phase": "css"
+ },
+ {
+  "id": 439,
+  "question": "The Account screen's 72px avatar (your initial) sits on a brand-red disc and cannot be tapped. The Colour Key says brand red means 'tap this', but laws.test.ts:971 exempts .av-accent as an identity mark, and the same class is a real button on Today and a red-coloured person's avatar in People. Should your own avatar on Account go neutral (grey disc, white initial), or stay brand red as your identity mark? If neutral, the change goes in AccountPage.tsx (not a stylesheet-only fix).",
+  "group": "components.css#3",
+  "phase": "css"
+ },
+ {
+  "id": 530,
+  "question": "The Remember star turns filled YELLOW when on (.row-star.on { color: var(--yellow) }). Your 2026-09-12 ruling (catalog line 572) says 'filled yellow', but the Colour Key (\u00a7AM) says there are eight colours and no ninth, and yellow means nothing in it. Keep the yellow star, or make the on-star white (the fill already shows on vs off)?",
+  "group": "components.css#3",
+  "phase": "css"
+ },
+ {
+  "id": 599,
+  "question": "Today's red \"Now\" head is sanctioned in the rulebook and stays. Brain's two red heads, \"Shaping JARVIS Now\" and \"Needs You\" (BrainTop.tsx:172 and :204), were kept loud by your C-38 pick on 2026-09-12, and LAW 11 records that pick as an exemption. But the Colour Key (2026-09-22) says brand red on anything that cannot be tapped is wrong. Should those two Brain heads go quiet like every other head (grey label, quiet hairline), leaving Today's Now as the only red head? If yes: BrainTop.tsx adds sh2-quiet to both heads, and the BrainTop line in LAW 11 (laws.test.ts ~3565) is removed. No components.css change is needed, because the default .sh2 .t accent is what Today's sanctioned Now head uses.",
+  "group": "components.css#5",
+  "phase": "css"
+ },
+ {
+  "id": 627,
+  "question": "The conditioning clock face is a full-screen black readout the stylesheet says is 'read across a room'. Should its 'ROUND 2 OF 10' line (.cf-round, 15px caps) stay at 15px as a stated arm's-length exception to the two-size subtext rule, or drop to the 11px kicker size like every other caps label? The 11px size is correct by the rule but would be small mid-workout. The same question covers the face's 13px caps format tag (.cf-fmt) and the landscape corner labels (.cf-corner). Everything else in #627 (blue off the format tag and the corner, name and 'last' split at 14px in --tx-3) was already applied by an earlier batch.",
+  "group": "components.css#6",
+  "phase": "css"
+ },
+ {
+  "id": 74,
+  "question": "Schedule's Now rule paints NOW, the LIVE state word and its hairline in the system red. That is your C-28 pick of 2026-09-12: 'LIVE is the only red, on the Now rule alone'. The Colour Key of 2026-09-22 gives that red only to late, overdue and missed, and has no entry for 'now'; Health uses cyan for now. Should the red Now rule stay, written into \u00a7AM as a named exception? Or should NOW and LIVE go white with a neutral hairline? Two constraints: laws.test.ts 'the Now rule is a hairline and a word, never a fill' pins the hairline to --sys-red, and in light the NOW word uses --on-light-red, the brand words-red.",
+  "group": "ruled.css#1",
+  "phase": "css"
+ },
+ {
+  "id": 466,
+  "question": "Life > Areas: the Health card sits on a green --good-tint panel with a green border, green-filled section chips and green chip glyphs, all to say 'this is Health'. Under \u00a7AM (2026-09-22) green means done / on track, and an area's colour belongs on its dot only. You approved this card on 2026-09-16: the component quotes 'we can keep the green background' and 'keep the font white in the health section'. A ruled.css comment from the same day quotes 'remove the green background' about the older row. Should \u00a7AM override that approval? If yes, the card goes plain like the other area cards and the chips go grey, with the area colour only on the tile. If no, it becomes a named \u00a7AM exemption.",
+  "group": "ruled.css#2",
+  "phase": "css"
+ },
+ {
+  "id": 43,
+  "phase": "css",
+  "question": "The overflow lines under a list (\"13 More Waiting\", \"4 More in Anytime\") can be tapped, and the Colour Key gives a tappable word brand red. On 2026-09-11 you moved exactly these from a red link to a quiet grey line, and a law was written to keep them quiet. Keep them quiet grey (the chevron marks the tap, the way a whole row is tappable without being red), or make them tap red like See All? They are small caps now either way.",
+  "default": "keep quiet"
  }
 ]

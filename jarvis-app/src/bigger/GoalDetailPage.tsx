@@ -465,7 +465,7 @@ export default function GoalDetailPage({
                 how a record stops getting written at all. */}
             <FieldRow tone="purple" glyph={<PenLine className="ic" />} value={dropWhy} onChange={setDropWhy} placeholder="e.g. the season ended" ariaLabel="Why" right={false} />
           </Group>
-          <Note>Optional · Whatever you write is kept with the decision</Note>
+          <Note>Optional. Whatever you write is kept with the decision</Note>
         </FormSheet>
       )}
 
