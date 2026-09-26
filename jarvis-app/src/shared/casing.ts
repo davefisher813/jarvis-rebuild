@@ -120,3 +120,50 @@ export function workoutTitle(name: string): string {
 export function liftTitle(name: string): string {
   return titleCase(name);
 }
+
+// THE WHOLE RULE (Dave 2026-09-26, the pass-off: "After dots and numbers is
+// always title casing", "Make sure all cases are addressed (ex: 45 min v
+// 45 Min)").
+//
+// Every word the app writes is Title Case: the start of a line, the part
+// after every middle dot, and the word after every number. This is the
+// formatter for a grey sub line or a facts line, where capAfterNumber only
+// ever capitalized the one word after a leading number and left "saves ~8
+// min" and "not a tested max" as they were. Small connecting words stay
+// lowercase mid-phrase ("Sep 14 · Food and Beverage Store", "2 of 5 Lifts");
+// the first and last word of every dot segment are always capitalized
+// ("45 Min", "Due in 12 Days"). A compact clock or count keeps its own shape
+// ("3h 30m", "10x", "1:32:05"): the letters ride on the digits and are not a
+// word. Capitals already inside a word survive (RDLs, AMRAP, JARVIS), so an
+// acronym is never flattened on the way past, and a hyphenated pair takes a
+// capital on both halves ("One-Rep").
+//
+// Like titleCase, it never lowercases a capital the caller wrote, so a proper
+// noun typed correctly is never wrong. Conversation (chat, notes' bodies,
+// onboarding, a field note that is a whole sentence) does not go through it.
+const COMPACT = /^[^A-Za-z]*\d[\d.,:/$%x-]*[a-z]{0,2}$/;
+
+function capWord(w: string): string {
+  return w.split("-").map(capFirst).join("-");
+}
+
+export function lineCase(text: string): string {
+  return text
+    .split("\u00b7")
+    .map((seg) => {
+      const m = seg.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      if (!m) return seg;
+      const [, pre, body, post] = m;
+      if (!body) return seg;
+      const words = body.split(/\s+/);
+      const last = words.length - 1;
+      const out = words.map((w, i) => {
+        if (COMPACT.test(w)) return w;
+        const bare = w.replace(/[^A-Za-z]/g, "").toLowerCase();
+        if (i > 0 && i < last && bare && SMALL.has(bare)) return w;
+        return capWord(w);
+      });
+      return (pre ?? "") + out.join(" ") + (post ?? "");
+    })
+    .join("\u00b7");
+}

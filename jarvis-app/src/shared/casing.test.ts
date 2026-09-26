@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { capAfterNumber, liftTitle, titleCase, workoutTitle } from "./casing";
+import { capAfterNumber, liftTitle, lineCase, titleCase, workoutTitle } from "./casing";
 
 // Dave 2026-08-20: "If a number leads a line the first letter after should be
 // capitalized." He caught it on "14 emails need you".
@@ -107,5 +107,36 @@ describe("liftTitle", () => {
   it("does not change the identity a fallback key is derived from", () => {
     const key = (n: string) => n.trim().toLowerCase() + "\u0000weight_reps";
     expect(key(liftTitle("bulgarian split squats"))).toBe(key("bulgarian split squats"));
+  });
+});
+
+// Dave 2026-09-26 (the pass-off): "After dots and numbers is always title
+// casing", "Make sure all cases are addressed (ex: 45 min v 45 Min)".
+describe("the whole rule: every line the app writes is Title Case", () => {
+  it("cases the start of the line, after every dot, and after every number", () => {
+    expect(lineCase("saves ~8 min \u00b7 never your main lift")).toBe("Saves ~8 Min \u00b7 Never Your Main Lift");
+    expect(lineCase("Est 1RM \u00b7 Epley, not a tested max \u00b7 lb")).toBe("Est 1RM \u00b7 Epley, Not a Tested Max \u00b7 Lb");
+    expect(lineCase("45 min")).toBe("45 Min");
+    expect(lineCase("12 min left \u00b7 2 of 6 logged")).toBe("12 Min Left \u00b7 2 of 6 Logged");
+  });
+  it("keeps small words lowercase mid-phrase, and capitalizes the edges", () => {
+    expect(lineCase("Sep 14 \u00b7 food and beverage store")).toBe("Sep 14 \u00b7 Food and Beverage Store");
+    expect(lineCase("2 of 5 lifts")).toBe("2 of 5 Lifts");
+    expect(lineCase("due in 12 days")).toBe("Due in 12 Days");
+    expect(lineCase("310 of 325 lb at 1+ reps")).toBe("310 of 325 Lb at 1+ Reps");
+    expect(lineCase("in")).toBe("In");
+  });
+  it("leaves a compact clock or count alone, and keeps capitals it finds", () => {
+    expect(lineCase("0m of 3h 30m")).toBe("0m of 3h 30m");
+    expect(lineCase("best 1:32:05 \u00b7 10x")).toBe("Best 1:32:05 \u00b7 10x");
+    expect(lineCase("RDLs and AMRAP at the JARVIS gym")).toBe("RDLs and AMRAP at the JARVIS Gym");
+    expect(lineCase("one-rep max")).toBe("One-Rep Max");
+    expect(lineCase("use last time's 25 min")).toBe("Use Last Time's 25 Min");
+  });
+  it("is idempotent and keeps the spacing it was given", () => {
+    const once = lineCase(" waiting 3 days \u00b7 nudged twice ");
+    expect(once).toBe(" Waiting 3 Days \u00b7 Nudged Twice ");
+    expect(lineCase(once)).toBe(once);
+    expect(lineCase("")).toBe("");
   });
 });
