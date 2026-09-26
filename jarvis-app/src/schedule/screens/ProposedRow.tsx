@@ -73,32 +73,25 @@ export default function ProposedRow({
       >
         <span className={"sched-bar sched-bar-proposed cat-bd-" + slot} />
         <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
-        {/* THE CHECKBOX RIDES LINE ONE, LIKE THE GRIP (2026-09-26 correction,
-            off Dave's second screenshot: "did you even reference our
-            catalog... this was how the rows were originally, stacked the
-            same way just with the new styling"). The first pass paired it
-            with the title inside .sched-body, which pushed the title's own
-            line in by 44px while .sched-cat below it stayed flush left --
-            the two lines of one row no longer shared a left edge, the same
-            kind of mess as the original bug. DayRow and LockedRow already
-            answer this: .sched-grip is a direct .sched-row child, pinned to
-            the end of line one next to the time (ruled.css: margin-left:
-            auto; order: 0), leaving .sched-body's two lines flush with each
-            other on line two. .sched-check gets the identical treatment
-            here, so ProposedRow's title and category line up exactly the
-            way every other row's does, and the catalog's own law (J.6:
-            schedule rows lead with the time column) never gets a second
-            leading column to fight it. */}
-        {onComplete && (
-          <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
-            aria-label={`Mark ${block.text} done`}
-            onClick={(e) => { e.stopPropagation(); onComplete(); }}>
-            <div className="task-check" />
-          </div>
-        )}
+        {/* TIME LEFT, EVENT ON TOP, EVERYTHING ELSE UNDER (Dave, 2026-09-26,
+            his own words after two earlier passes still read wrong). The
+            title rides line one beside the time, a direct .sched-row child
+            so ruled.css can give it flex:1 there without touching DayRow or
+            LockedRow's .sched-title (theirs lives inside .sched-body, never
+            a direct child, so the `>` selector never reaches it). Everything
+            that is not the event -- the checkbox, the category, the Proposed
+            tag -- drops into .sched-body as one line, full width, right
+            under the title. */}
+        <div className="sched-title">{block.text}</div>
         <div className="sched-body">
-          <div className="sched-title">{block.text}</div>
           <div className="sched-cat">
+            {onComplete && (
+              <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
+                aria-label={`Mark ${block.text} done`}
+                onClick={(e) => { e.stopPropagation(); onComplete(); }}>
+                <div className="task-check" />
+              </div>
+            )}
             <span className={"cat-dot cat-bg-" + slot} />
             {catName(block.category)}
             {/* The word does the work the dashes started. Its own segment, so
