@@ -1,14 +1,17 @@
 import { useState } from "react";
 import type { RefillState } from "../refillRunway";
-import { needsRefillCall, refillOffer } from "../refillRunway";
+import { needsRefillCall, refillOffer, REFILL_CALL_WITHIN_DAYS, REFILL_CALL_WITHIN_DOSES } from "../refillRunway";
 import { shortDateFromMs } from "../../shared/dateFormat";
 
 // REFILL RUNWAY (Part 4, top 3; Health Push D). Counts down remaining doses
 // from real Took It taps, and lands the pharmacy call as an offer on the
 // PARENT's list, never a badge on the athlete's. Pure logistics: no
-// medication is ever named on this screen. The fill is three facts in
-// medication blue (filled when, how many came, how many taken since) and two
-// tiles (doses left, runway); the form takes the day it was received, so a
+// medication is ever named on this screen. The fill is two facts (filled
+// when, and how many of the fill are taken) and two tiles: doses left, an
+// exact count, white; and the runway, a projection from the pace, so sky
+// (an estimate), shown once there is a pace to count it from. Each tile
+// turns amber only when its own number crosses its own threshold. The form
+// takes the day it was received, so a
 // fill logged on Tuesday for a bottle picked up Sunday counts from Sunday.
 export default function RefillRunwayScreen({
   state, onLogFill, onLandParentTask, onBack,
@@ -39,15 +42,21 @@ export default function RefillRunwayScreen({
         {state.hasFill ? (
           <>
             <div className="facts">
-              {state.filledAt !== undefined && <span className="fact hblue">Filled {shortDateFromMs(state.filledAt)}</span>}
-              <span className="fact">{state.dosesInFill} received</span>
-              <span className="fact">{state.taken} taken since</span>
+              {state.filledAt !== undefined && <span className="fact date">Filled {shortDateFromMs(state.filledAt)}</span>}
+              <span className="fact"><b>{state.taken}</b> of <b>{state.dosesInFill}</b> taken</span>
             </div>
             <div className="stat-row stat-row-gap stat-hblue">
-              <div className="stat-tile"><div className="stat-num">{state.remaining}</div><div className="stat-label">Doses Left</div></div>
-              <div className="stat-tile"><div className="stat-num">{state.runwayDays !== undefined ? state.runwayDays : "Not Yet"}</div><div className="stat-label">{state.runwayDays !== undefined ? "Days of Runway" : "Runway"}</div></div>
+              {/* Each tile is amber only when ITS OWN number is near its own
+                  limit (§AM: near a limit), so the amber lands on the number
+                  that is short. Doses left is exact (white); the runway is
+                  worked out from the pace (sky, an estimate). The runway
+                  tile shows only once there is a pace to count it from: a
+                  "Not Yet" tile states nothing (§AK). */}
+              <div className={"stat-tile" + (state.remaining <= REFILL_CALL_WITHIN_DOSES ? " stat-warn" : "")}><div className="stat-num">{state.remaining}</div><div className="stat-label">Doses Left</div></div>
+              {state.runwayDays !== undefined && (
+                <div className={"stat-tile " + (state.runwayDays <= REFILL_CALL_WITHIN_DAYS ? "stat-warn" : "stat-sky")}><div className="stat-num">{state.runwayDays}</div><div className="stat-label">Days of Runway</div></div>
+              )}
             </div>
-            <div className="bp-sub">Counted from real taps on Took It, never a guess.</div>
           </>
         ) : (
           <>
@@ -56,6 +65,9 @@ export default function RefillRunwayScreen({
           </>
         )}
       </div></div>
+      {/* The method is a note under the card, not a third grey inside it
+          (§AK): the same quiet footer settings/kit.tsx Foot draws. */}
+      {state.hasFill && <div className="pad-x"><div className="input-hint">Counted from real taps on Took It, never a guess.</div></div>}
 
       {needsRefillCall(state) && offer && (
         <div className="pad-x"><div className="card pad">

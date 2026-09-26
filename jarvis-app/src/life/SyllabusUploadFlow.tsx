@@ -219,7 +219,7 @@ export default function SyllabusUploadFlow({
           ))}
         </div></div>
         {undated > 0 && (
-          <div className="pad-x"><div className="xs-note">
+          <div className="pad-x"><div className="input-hint xs-note">
             {/* A fact, not a blocker: an undated assignment is a real thing on
                 a syllabus, and it comes in with no date rather than a made-up
                 one. Saying so here is what keeps it from being a surprise. */}

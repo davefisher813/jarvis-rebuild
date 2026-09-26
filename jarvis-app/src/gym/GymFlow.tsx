@@ -475,13 +475,17 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
-        {/* THE PREVIEW IS THE SPEC (2026-09-01): pairing wears the blue data
-            tag, a ramp wears the amber prep tag, a filler stays quiet --
-            colored facts, not more prose in the name. */}
+        {/* THE PREVIEW IS THE SPEC (2026-09-01), RECOLOURED BY THE KEY
+            (§AM, 2026-09-25): the pairing tag wears Health's violet, the ink
+            the key gives a pair; a ramp and a filler share the one neutral
+            tag, set apart by fill and caps -- marked facts, not more prose in
+            the name. The tag classes say what the tag IS (a pair, a quiet
+            tag), never a colour, so the name cannot bring a retired colour
+            back. */}
         <div className="conn-name truncate">
-          {pairLabel && <span className="xtag xtag-blue">{pairLabel}</span>}
+          {pairLabel && <span className="xtag xtag-pair">{pairLabel}</span>}
           {liftTitle(exercise.name)}
-          {exercise.ramp && <span className="xtag xtag-warn xtag-after">Ramp</span>}
+          {exercise.ramp && <span className="xtag xtag-dim xtag-after">Ramp</span>}
           {exercise.filler && <span className="xtag xtag-dim xtag-after">Filler</span>}
         </div>
         {/* THE PLAN IS THE ROW'S VALUE, NOT A SENTENCE UNDER ITS NAME
@@ -3425,7 +3429,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     glance where a sentence has to be parsed. */}
                 <div className="se-chips">
                   <span className="se-chip se-chip-last">{nextDay.exercises.length}<em>{nextDay.exercises.length === 1 ? "Lift" : "Lifts"}</em></span>
-                  {nextEst > 0 && <span className="se-chip se-chip-budget"><em>Est</em>{nextEst} Min</span>}
+                  {nextEst > 0 && <span className="se-chip se-chip-est"><em>Est</em>{nextEst} Min</span>}
                   {(pinnedToday === nextDay || upcomingPin?.day === nextDay) && (
                     <span className="se-chip se-chip-pin"><em>Pinned</em>{pinnedToday === nextDay
                       ? "Today"

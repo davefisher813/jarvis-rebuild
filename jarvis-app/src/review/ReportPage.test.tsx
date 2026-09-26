@@ -35,7 +35,7 @@ function SeededMonth() {
 describe("the live month's report (BRAIN-F-16)", () => {
   it("shows Where the Hours Went from the calendar it can already read", async () => {
     const { container } = render(<NotesProvider userId="rep-f16"><SeededMonth /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Your Month · Still Open")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Your Month So Far")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText("Where the Hours Went")).toBeInTheDocument());
     // The legend names the area the calendar time was tagged with.
     expect(container.querySelector(".rep-leg")?.textContent).toContain("Work");

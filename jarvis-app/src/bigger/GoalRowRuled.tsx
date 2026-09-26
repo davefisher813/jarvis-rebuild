@@ -1,6 +1,7 @@
 import type { Progress } from "./progress";
 import { TargetGlyph } from "../shared/glyphs";
 import { capAfterNumber } from "../shared/casing";
+import { CHECKIN_LABEL, type CheckinWord } from "./checkin";
 
 // THE GOAL ROW (Goals and Projects, Dave 2026-09-02: "One card, status
 // capsule on the right"). One anatomy wherever a goal is listed, on the
@@ -16,6 +17,20 @@ export function Nums({ text }: { text: string }) {
   // the whole fused token, not the digits alone.
   const parts = text.split(/(\d[\d,.:]*(?:[hm](?=\s|$|·))?)/);
   return <>{parts.map((s, i) => (i % 2 === 1 ? <b key={i}>{s}</b> : s))}</>;
+}
+
+/** A check-in says how the goal is going, so it wears the key colour of what
+ *  it says (§AM): ahead or on track is green, behind amber. It was green
+ *  whatever it said, so "Behind" read as good news. The tones are keyed by
+ *  the check-in's own words (checkin.ts), so a word added there has to be
+ *  given its colour here before it compiles; a string that is none of them
+ *  stays a plain fact. */
+const CHECKIN_TONE: Record<CheckinWord, "good" | "warn"> = { ahead: "good", on_track: "good", behind: "warn" };
+
+function checkinTone(checkin: string): "good" | "warn" | null {
+  const said = checkin.trim().toLowerCase();
+  const word = (Object.keys(CHECKIN_LABEL) as CheckinWord[]).find((w) => CHECKIN_LABEL[w].toLowerCase() === said);
+  return word ? CHECKIN_TONE[word] : null;
 }
 
 export function Bar({ p }: { p: Progress }) {
@@ -46,6 +61,7 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
   checkin?: string | null;
   onOpen?: () => void;
 }) {
+  const checkinKey = checkin ? checkinTone(checkin) : null;
   return (
     <div className="task-row p2 goal-row-ruled" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={onOpen}>
       <div className="task-check-tap"><span className={"gm-slot " + tone}><TargetGlyph /></span></div>
@@ -63,7 +79,7 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
             {kind && <span className={"gkind " + kind.hue}>{kind.text}</span>}
             {moving > 0 && <span className="r-goal goal-proj">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span>}
             {next && <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{next}</span></span>}
-            {!status && checkin && <span className="r-goal fact good">Check-in: {checkin}</span>}
+            {!status && checkin && <span className={"r-goal fact" + (checkinKey ? " " + checkinKey : "")}>Check-in: {checkin}</span>}
           </div>
         )}
         {(body || status) && (

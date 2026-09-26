@@ -57,7 +57,9 @@ export default function OptionsSheet({ title, rows, onClose }: {
             } : {})}>
               <div className="row-grow"><div className="conn-name">{r.label}</div></div>
               {r.value && <span className="opt-val">{r.value}</span>}
-              {typeof r.count === "number" && r.count > 0 && <span className="opt-val">{r.count}</span>}
+              {/* A count is a number with no state, so it is white (§AM) on
+                  every row, not only when a value sits before it. */}
+              {typeof r.count === "number" && r.count > 0 && <span className="opt-val"><b>{r.count}</b></span>}
               {r.right}
               {r.onClick && <div className="chev" />}
             </div>

@@ -23,9 +23,17 @@ import { capAfterNumber } from "../shared/casing";
 // other number here is a count.
 
 export type LineKey = "Worked" | "Slipped" | "Changed" | "Learned" | "Next";
-export type FactTone = "good" | "warn" | "sky" | "purp" | "cat" | undefined;
-export interface WeekFact { text: string; tone?: FactTone; color?: string }
-export interface WeekLine { key: LineKey; tone: "good" | "warn" | "sky" | "purp" | "red"; facts: WeekFact[] }
+export type FactTone = "good" | "warn" | "cat" | undefined;
+// A count with no state is white (§AM's "a number with no state that must
+// stand out"): `parts` carries the fact with its counts split out, and the
+// page draws each count as a <b> inside the line's one grey. `text` is the
+// same words joined, for the key and the tests.
+export type FactPart = string | { b: string };
+export interface WeekFact { text: string; parts?: FactPart[]; tone?: FactTone; color?: string }
+// A line's key word takes a colour only when the word is a meaning (§AM):
+// Worked is done (green), Slipped and Next ask something of him soon
+// (amber), and Changed and Learned are "quiet", the caps grey.
+export interface WeekLine { key: LineKey; tone: "good" | "warn" | "quiet"; facts: WeekFact[] }
 export interface WeekSegment { id: string; name: string; color: string; minutes: number; pct: number }
 
 export interface WeekInputs {
@@ -71,6 +79,12 @@ const isWeekday = (iso: string): boolean => {
   const dow = new Date(y!, m! - 1, d!).getDay();
   return dow >= 1 && dow <= 5;
 };
+
+/** A fact's words with every count split out as a part of its own, so the
+ *  page can draw the counts white and leave the words grey. */
+export function boldCounts(text: string): FactPart[] {
+  return text.split(/(\d+)/).filter((s) => s.length > 0).map((s) => (/^\d+$/.test(s) ? { b: s } : s));
+}
 
 /** C-65: the warn fact for an area whose share moved against its usual. */
 export function vsUsual(pct: number, prevPct: number | null, minDelta = 5): string | null {
@@ -127,16 +141,24 @@ export function buildWeek(inp: WeekInputs): WeekReport {
   const overrides = rows.filter((r) => r.type === "schedule.override").length;
   const checkins = rows.filter((r) => r.type === "goal.checkin").length;
   const changed: WeekFact[] = [];
-  if (overrides > 0) changed.push({ text: capAfterNumber(`${overrides} ${overrides === 1 ? "block" : "blocks"} moved`), tone: "sky" });
-  if (checkins > 0) changed.push({ text: capAfterNumber(`${checkins} ${checkins === 1 ? "check-in" : "check-ins"}`) });
-  if (changed.length) lines.push({ key: "Changed", tone: "sky", facts: changed });
+  // Blocks moved is the line's one grey; a check-in is logged, so green.
+  if (overrides > 0) changed.push({ text: capAfterNumber(`${overrides} ${overrides === 1 ? "block" : "blocks"} moved`) });
+  if (checkins > 0) changed.push({ text: capAfterNumber(`${checkins} ${checkins === 1 ? "check-in" : "check-ins"}`), tone: "good" });
+  if (changed.length) lines.push({ key: "Changed", tone: "quiet", facts: changed });
 
   const learnedN = seal.strands.created;
   const starred = rows.filter((r) => r.type === "strand.starred").length;
-  const learned: WeekFact[] = [];
-  if (learnedN > 0) learned.push({ text: capAfterNumber(`${learnedN} new ${learnedN === 1 ? "fact" : "facts"}`), tone: "purp" });
-  if (starred > 0) learned.push({ text: capAfterNumber(`${starred} remembered`) });
-  if (learned.length) lines.push({ key: "Learned", tone: "purp", facts: learned });
+  // One fact, not two (§AK, §AM 2026-09-26): neither count is a state, so
+  // neither takes a colour. The words are the line's one grey and the two
+  // counts are white.
+  const learnedWords = [
+    learnedN > 0 ? `${learnedN} new ${learnedN === 1 ? "fact" : "facts"}` : "",
+    starred > 0 ? `${starred} remembered` : "",
+  ].filter(Boolean).join(", ");
+  if (learnedWords) {
+    const text = capAfterNumber(learnedWords);
+    lines.push({ key: "Learned", tone: "quiet", facts: [{ text, parts: boldCounts(text) }] });
+  }
 
   // Next: the live-goal area with the least of the week's hours, said as a
   // count of hours against the scheduled total, with C-65's vs-usual beside
@@ -160,7 +182,8 @@ export function buildWeek(inp: WeekInputs): WeekReport {
       if (vs) nextFacts.push({ text: vs, tone: "warn" });
     }
   }
-  if (nextFacts.length) lines.push({ key: "Next", tone: "red", facts: nextFacts });
+  // Next is amber (§AM: next is "needs you soon"); red is only for late.
+  if (nextFacts.length) lines.push({ key: "Next", tone: "warn", facts: nextFacts });
 
   return { days, seal, tiles, stack, lines, next, offer: !!next && !inp.alreadyOffered };
 }

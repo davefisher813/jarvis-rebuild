@@ -27,6 +27,8 @@ const REPORT = {
       id: { type: 'integer' }, file: { type: 'string' }, what: { type: 'string' } }, required: ['id', 'what'] } },
     rejected: { type: 'array', items: { type: 'object', properties: {
       id: { type: 'integer' }, reason: { type: 'string' } }, required: ['id', 'reason'] } },
+    reworded: { type: 'array', items: { type: 'object', properties: {
+      id: { type: 'integer' }, file: { type: 'string' }, old: { type: 'string' }, new: { type: 'string' } }, required: ['id', 'old', 'new'] } },
     needs_dave: { type: 'array', items: { type: 'object', properties: {
       id: { type: 'integer' }, question: { type: 'string' } }, required: ['id', 'question'] } },
     needs_other_file: { type: 'array', items: { type: 'object', properties: {
@@ -35,7 +37,7 @@ const REPORT = {
       id: { type: 'integer' }, law: { type: 'string' }, why: { type: 'string' } }, required: ['id', 'law', 'why'] } },
     checks: { type: 'string', description: 'exact commands run and their result lines' },
   },
-  required: ['applied', 'rejected', 'needs_dave', 'needs_other_file', 'blocked_by_law', 'checks'],
+  required: ['applied', 'rejected', 'reworded', 'needs_dave', 'needs_other_file', 'blocked_by_law', 'checks'],
 }
 
 const ISSUES = {
@@ -68,8 +70,10 @@ These findings are UNVERIFIED and were written against the code as it stood on
   3. If it is real and the fix only restyles, apply it using the PRIMITIVES
      table -- the finding's own "fix" text is a suggestion, not an order;
      prefer the primitive when they differ.
-  4. If the only fix deletes or rewords user-facing text, do NOT apply it; put
-     it in "needs_dave" with a one-line question Dave can answer yes/no.
+  4. Rewording is allowed (Dave: "Reword freely"). If the best fix rewords or
+     drops a redundant fact, apply it and list it in "reworded" as the exact
+     old and new text. Use "needs_dave" only for a genuine product decision
+     (behaviour, not wording).
   5. If it needs a file you do not own, put it in "needs_other_file".
   6. If a test in src/laws/ blocks a correct fix, do not edit the law; put it
      in "blocked_by_law".
@@ -89,29 +93,45 @@ diff with an ADVERSARIAL eye, through this lens only: ${lens}
 Run: cd ${ROOT} && git diff -- jarvis-app/src
 Look for anything that is now WRONG: a fix that broke the rule it was fixing,
 introduced a second grey or a meaningless colour elsewhere on the same row,
-used a new class instead of a primitive, touched the schedule or Today card,
-changed user-facing wording, broke a layout (a wrapped or clipped line, a
-lost tap target), or will break a law (grep src/laws/ for the selector or
-string). Default to reporting only what you can show from the diff and the
-code. Do not edit anything.`
+used a new class instead of a primitive, changed the Today TV guide's
+BEHAVIOUR (scrolling, pausing, when it renders -- styling its rows is allowed),
+reworded text in a way that changes its MEANING (rewording itself is allowed),
+broke a layout (a wrapped or clipped line, a lost tap target), or will break a
+law (grep src/laws/ for the selector or string). Default to reporting only what
+you can show from the diff and the code. Do not edit anything.`
 
 const LENSES = [
   'R1/R5 one grey per row: count the grey runs on every row the diff touches, as rendered',
   'R3 the colour key: every colour the diff adds or changes must mean exactly what the key says',
   'R2/R7/R8/R9/R10 capsule, sizes, dates, field notes, section heads: primitives used, nothing invented',
-  'Regressions: layout, tap targets, copy, the schedule, and every law in src/laws/',
+  'Regressions: layout, tap targets, meaning of reworded copy, TV guide behaviour, and every law in src/laws/',
+  'Light theme and sheets: every text colour the diff changed, against the grounds it sits on in light and dark (page, card, sheet grey, toast, tinted banner); under 4.5:1 is a problem unless it is --good, --warn or --sys-red in light (Dave accepted those as shipped)',
+  'Completeness: for every finding id the fixers reported applied, open the code and confirm the change is really there and whole (markup AND the rule it needs); for every rejected id, check the reason holds',
 ]
 
+// args.noReview: fix only (two fix runs side by side, one review after both).
+// args.reviewOnly: skip Fix and review the working-tree diff (groups ignored).
+const reviewOnly = !!(args && args.reviewOnly)
 phase('Fix')
-const groups = (args && args.groups) || []
-if (!groups.length) { log('No groups passed in args; nothing to do.'); return { reports: [], issues: [] } }
-let reports
-if (args.sequential) {
-  reports = []
-  for (const g of groups) {
-    reports.push(await agent(fixPrompt(g), { label: 'fix:' + g.label, phase: 'Fix', schema: REPORT })
-      .then((r) => r && { ...r, label: g.label }))
-  }
+const groups = reviewOnly ? [] : (args && args.groups) || []
+if (!groups.length && !reviewOnly) { log('No groups passed in args; nothing to do.'); return { reports: [], issues: [] } }
+let reports = []
+if (reviewOnly) {
+  log('review only')
+} else if (args.sequential) {
+  // One file never has two agents at once: batches of the SAME stylesheet run
+  // in order, while different stylesheets run side by side.
+  const chains = {}
+  for (const g of groups) (chains[g.files[0]] = chains[g.files[0]] || []).push(g)
+  const perChain = await parallel(Object.values(chains).map((chain) => async () => {
+    const out = []
+    for (const g of chain) {
+      out.push(await agent(fixPrompt(g), { label: 'fix:' + g.label, phase: 'Fix', schema: REPORT })
+        .then((r) => r && { ...r, label: g.label }))
+    }
+    return out
+  }))
+  reports = perChain.filter(Boolean).flat()
 } else {
   reports = await parallel(groups.map((g) => () =>
     agent(fixPrompt(g), { label: 'fix:' + g.label, phase: 'Fix', schema: REPORT })
@@ -121,16 +141,23 @@ const ok = reports.filter(Boolean)
 const dead = groups.length - ok.length
 if (dead) log(`${dead} group(s) returned nothing -- rerun them by label`)
 const tally = (k) => ok.reduce((n, r) => n + (r[k] || []).length, 0)
-log(`applied ${tally('applied')}, rejected ${tally('rejected')}, needs_dave ${tally('needs_dave')}, needs_other_file ${tally('needs_other_file')}, blocked_by_law ${tally('blocked_by_law')}`)
+log(`applied ${tally('applied')}, rejected ${tally('rejected')}, reworded ${tally('reworded')}, needs_dave ${tally('needs_dave')}, needs_other_file ${tally('needs_other_file')}, blocked_by_law ${tally('blocked_by_law')}`)
+
+if (args && args.noReview) {
+  return { phase: args.phase, deadGroups: groups.filter((g) => !ok.find((r) => r.label === g.label)).map((g) => g.label), reports: ok, issues: [], deadReviews: [] }
+}
 
 phase('Review')
 const reviews = await parallel(LENSES.map((lens, i) => () =>
   agent(reviewPrompt(lens, args.phase), { label: 'review:' + i, phase: 'Review', schema: ISSUES })))
 const issues = reviews.filter(Boolean).flatMap((r) => r.issues || [])
+const deadReviews = reviews.map((r, i) => (r ? null : i)).filter((i) => i !== null)
+if (deadReviews.length) log('review lenses that returned nothing (rerun them): ' + deadReviews.join(', '))
 
 return {
   phase: args.phase,
   deadGroups: groups.filter((g) => !ok.find((r) => r.label === g.label)).map((g) => g.label),
+  deadReviews,
   reports: ok,
   issues,
 }

@@ -347,7 +347,9 @@ export default function DayRow({
                     onClick={(ev) => { ev.stopPropagation(); setSizing(!sizing); }}
                   >{durLabel(mins)}</button>
                 ) : (
-                  <span className="sched-until">{durLabel(mins)}</span>
+                  /* A length that cannot be tapped is a number with no
+                     state: white <b>, not small caps ("30M" read as months). */
+                  <b>{durLabel(mins)}</b>
                 )}
               </span>
             )}
@@ -378,12 +380,14 @@ export default function DayRow({
             )}
             {weatherDateIso && !isPast && e.data.location && <EventWeatherLine dateIso={weatherDateIso} start={e.data.start} />}
             {/* S6-Q36: the row's own start time is already this event's cue;
-                the move is the half that is not redundant here. */}
+                the move is the half that is not redundant here. It is free
+                text with no ceiling, so it gives way the way the place
+                does: an ellipsis, never a clip. */}
             {firstMove && (
-              <>
+              <span className="sched-fact sched-fact-loc">
                 <span className="sched-sep">&middot;</span>
-                <span className="sched-firstmove">{firstMove}</span>
-              </>
+                <span className="sched-firstmove truncate">{firstMove}</span>
+              </span>
             )}
           </div>
           {/* UP-CORE-05 (2026-09-05): where this block came from, or that

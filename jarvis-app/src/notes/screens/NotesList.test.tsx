@@ -66,6 +66,32 @@ describe("NotesList", () => {
     }
   });
 
+  // §AM F3 (R6) and §AK (R1), 2026-09-26: the line's gap separates its facts,
+  // so no dot is typed into them, and it carries one grey at most: the tags
+  // are one run, the finds are amber work waiting for review (§AM) with the
+  // number white, and the date is its own caps.
+  it("the second line types no dots, and its tags are one run beside the finds and the date", () => {
+    vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+    try {
+      const tagged: NoteListItem[] = [
+        { id: "t", title: "Offsite Ideas", edited: at(0, 12), category: "c-work", first: "", body: "", tags: ["ideas", "q3"], found: 3 },
+      ];
+      const { container } = render(<NotesList notes={tagged} />);
+      const line = container.querySelector(".note-row .r-k") as HTMLElement;
+      expect(line.textContent).not.toMatch(/\u00b7/);
+      const tags = line.querySelectorAll(".r-cat:not(.r-when)");
+      expect(tags).toHaveLength(1);
+      expect(tags[0]).toHaveTextContent("#ideas #q3");
+      expect(line.querySelector(".r-cue"), "the finds are not an if-then cue").toBeNull();
+      const found = line.querySelector(".r-goal.fact.warn") as HTMLElement;
+      expect(found).toHaveTextContent("JARVIS found 3");
+      expect(found.querySelector("b")).toHaveTextContent("3");
+      expect(line.querySelector(".r-when")?.textContent).toBe("Edited today");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("opens a note on tap, and in selection the box takes the check column", () => {
     const onOpen = vi.fn();
     const onDeleteMany = vi.fn();

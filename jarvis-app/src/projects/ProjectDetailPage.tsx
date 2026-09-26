@@ -15,7 +15,7 @@ import { capAfterNumber } from "../shared/casing";
 import { areaFromTasks } from "./backfill";
 import { fileableGoals } from "../bigger/reach";
 import { holdLine, holdExpired, sizeOf, sizeLine } from "./shape";
-import { projectPace } from "../bigger/progress";
+import { projectPaceParts } from "../bigger/progress";
 import { haptics } from "../shared/haptics";
 import { ForkGlyph } from "../shared/glyphs";
 
@@ -119,7 +119,7 @@ export default function ProjectDetailPage({
   } : {};
   // UP-CORE-18: N left, D days, is the pace real. Null without a due date or
   // without tasks, which is most projects.
-  const pace = today ? projectPace(steps.length ? { done: doneSteps.length, total: steps.length, pct: 0 } : null, data.due, today) : null;
+  const pace = today ? projectPaceParts(steps.length ? { done: doneSteps.length, total: steps.length, pct: 0 } : null, data.due, today) : null;
 
   const m = PROJECT_META[data.status];
   const size = estimateFor ? sizeOf(steps, estimateFor) : null;
@@ -164,16 +164,27 @@ export default function ProjectDetailPage({
             types, which decays like every other self-report, and not a task
             count on its own, because four ten-minute tasks and four half-day
             tasks are not the same project. "About" is doing real work in that
-            sentence: these are learned averages, not commitments. */}
-        {size && <div className="conn-meta">{sizeLine(size)}</div>}
+            sentence: these are learned averages, not commitments.
+            §AM (2026-09-26): an estimate the app worked out, so sky, and the
+            time alone; the open count it led with restated the line above. */}
+        {size && <div className="facts"><span className="fact est">{sizeLine(size)}</span></div>}
         {/* UP-CORE-18 (2026-09-05): the pace, the same arithmetic a goal with
             a By date has had since PICK 14. A fact about the numbers, never
             a prescription: "2 a day from here" is what is left over what is
-            left, not advice about how to spend the week. */}
-        {pace && <div className="conn-meta">{pace}</div>}
-        {/* PICK 20: a hold with an end. Expired, it stops being furniture and
-            becomes the one move worth offering. */}
-        {hold && <div className={"conn-meta" + (expired ? " fact-warn" : "")}>{hold}</div>}
+            left, not advice about how to spend the week.
+            THE DATE ALONE (§AM, 2026-09-26): it wears its meaning, past its
+            date red, due today or tomorrow amber, a rate sky, a date with
+            room to spare small caps. The count ("4 of 9 Left") went: it only
+            restated the progress line above, and it was a second grey. */}
+        {pace && (
+          <div className="facts">
+            <span className={"fact " + pace.tone}>{pace.when}</span>
+          </div>
+        )}
+        {/* PICK 20: a hold with an end. A hold is stalled work, so amber on
+            every render (§AM), the way the Bigger Picture row draws it.
+            Expired, it becomes the one move worth offering, further down. */}
+        {hold && <div className="facts"><span className="fact warn">{hold}</span></div>}
       </div></div>
       {decision && (
         <div className="pad-x">

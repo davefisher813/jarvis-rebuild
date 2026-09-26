@@ -3,7 +3,7 @@ import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
 import { leadFor, faceSlot } from "./rowAnatomy";
-import { Facts, waitingFor, ruleAccountFact } from "./factsLine";
+import { Facts, waitingFor, ruleAccountFact, dayTone } from "./factsLine";
 import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
 import type { TaskItem } from "../tasks/TasksService";
 import { attemptWrite } from "../shared/guard";
@@ -3718,11 +3718,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       )}
                       <div className="row-grow">
                         <div className="conn-name">{t.data.text}</div>
+                        {/* §AM (R8): the second fact is not a second grey.
+                            Done is green; a due day wears the reminder
+                            window (past red, today or tomorrow amber,
+                            later a small-caps date); a date the sender only
+                            proposed is a neutral date. */}
                         <Facts facts={[
                           { text: "Task" },
-                          t.data.done ? { text: "Done" }
-                            : t.data.due ? { text: capAfterNumber(dayPhrase(t.data.due, todayISO())) }
-                            : t.data.proposedDate ? { text: t.data.proposedDate + " (proposed)" } : null,
+                          t.data.done ? { text: "Done", tone: "good" }
+                            : t.data.due ? { text: capAfterNumber(dayPhrase(t.data.due, todayISO())), tone: dayTone(t.data.due, todayISO()) }
+                            : t.data.proposedDate ? { text: t.data.proposedDate + " (proposed)", tone: "date" } : null,
                         ]} />
                       </div>
                     </div>
@@ -4108,7 +4113,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             : <span className="mwhen">{fmtWhen(r.dateMs)}</span>}
         </div>
         <div className={"mline2" + (strong ? " strong" : "")}>
-          {gist ?? r.subject}{!gist && r.count > 1 ? " \u00b7 " + r.count : ""}
+          {gist ?? r.subject}{!gist && r.count > 1 && <><span className="sched-sep">{"\u00b7"}</span><b>{r.count}</b></>}
           {g.accounts.length > 1 && r.account && <span className="macct">{acctLabel(r.account)}</span>}
         </div>
       </div>
@@ -4696,7 +4701,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 const heads = showBandHeads(bands);
                 return bands.map((band) => (
                 <div key={band.label}>
-                  {heads && <div className="msg-fold-head">{band.label}<span className="band-n">{band.rows.length}</span></div>}
+                  {/* R10 (§AM F7, 2026-09-26): a band head is a section
+                      head, so it is the one section-head primitive, count
+                      and all, not a second caps style of its own. */}
+                  {heads && <div className="sh2 sh2-quiet"><span className="t">{band.label}</span><span className="n">{band.rows.length}</span></div>}
                   <div className="pad-x"><div className="card list-card-ruled">
                   {band.rows.map(({ w, d }) => (
                     <LetGoSwipe
@@ -4790,8 +4798,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           })()}
           {/* THE FOLD. Everything that does not need Dave collapses to one
               line. Worth Knowing and Noise live behind it and expand in
-              place, so the tab is never a scroll of mail he did not ask for. */}
-          {restCount > 0 && (
+              place, so the tab is never a scroll of mail he did not ask for.
+
+              R10 (§AM F7, 2026-09-26): the fold's card holds the fold row and
+              its tools, and nothing else. Worth Knowing and Noise are
+              sections, so their heads sit OUTSIDE a card, each over its own
+              list card, the way the Waiting On band heads do; a section head
+              inside a card was a label wearing a section's rule. */}
+          {restCount > 0 && (() => {
+            // The guard line keeps its place: under the last block of the
+            // fold, the fold card when it is shut, the last list when open.
+            const guard = netted > 0 ? <div className="msg-guard">{guardLine(netted)}</div> : null;
+            const guardAfter = !restOpen ? "fold" : noise.length > 0 ? "noise" : "worth";
+            return (
+            <>
             <div className="pad-x msg-fold">
               <div className="card">
                 <div className="row" {...pressable(() => { setRestOpen(!restOpen); setPicked(null); })}>
@@ -4804,89 +4824,99 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   {/* V2 anatomy: the count is a pill, never buried in the line. */}
                   <span className="pill pill-subdued">{restCount}</span>
                 </div>
-                {restOpen && (
-                  <>
-                    {/* E10: the one place bulk select lives. The fold holds
-                        everything that does not need Dave, which is exactly
-                        the pile where clearing ten at once is safe. */}
-                    {picked === null ? (
-                      <div className="fold-tools">
-                        <button className="quiet-action" onClick={() => setPicked(new Set())}>Select</button>
-                      </div>
-                    ) : (
-                      <div className="fold-tools">
-                        <button className="btn-sm" onClick={() => void archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                          {picked.size === 0 ? "Archive Selected" : capAfterNumber("Archive " + picked.size)}
-                        </button>
-                        {/* 11B: the other half of the job. Archive keeps it
-                            in the account; delete is for the mail that should
-                            not be in the account at all. Both count what
-                            landed, both undo. */}
-                        <button className="btn-sm btn-danger" onClick={() => void deletePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                          {picked.size === 0 ? "Delete Selected" : capAfterNumber("Delete " + picked.size)}
-                        </button>
-                        <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
-                      </div>
-                    )}
-                    {worthKnowing.length > 0 && (
-                      <>
-                        <div className="msg-fold-head">Worth Knowing</div>
-                        {worthKnowing.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
-                      </>
-                    )}
-                    {noise.length > 0 && (
-                      <>
-                        <div className="msg-fold-head">Noise</div>
-                        {/* 8A: ONE GREY LINE FOR ALL OF THEM. This was a
-                            full row with a bold name, which is the sensory
-                            flatness the catalog is against: a shipping promo
-                            wearing the same weight as a person. The count is
-                            a fact, not an alarm, and the one action ends the
-                            lot. Tap the line to unfold if you want to look. */}
-                        <div className="msg-machines" {...pressable(() => setNoiseOpen(!noiseOpen))}>
-                          <span className="msg-machines-icon" aria-hidden="true"><Tag className="ic" /></span>
-                          <span className="msg-machines-text">
-                            {capAfterNumber(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
-                            {" \u00b7 "}{noiseOpen ? "Tap to fold" : "Tap to look"}
-                          </span>
-                          <button className="pill-act msg-machines-sweep" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(noise); }}>
-                            Sweep
-                          </button>
-                        </div>
-                        {/* N5 (2026-08-20): a sender who writes six times a
-                            week about things he will never act on is not six
-                            decisions. It is one, repeated. Collapsing is
-                            presentation only: nothing is archived or filed,
-                            and only NOISE ever collapses. */}
-                        {noiseOpen && (() => {
-                          const { groups, loose } = collapseNoise(noise);
-                          return (
-                            <>
-                              {groups.map((g) => (
-                                <div key={g.key}>
-                                  <div className="row" {...pressable(() => setNoiseGroups((s) => ({ ...s, [g.key]: !s[g.key] })))}>
-                                    <div className="row-grow">
-                                      <div className="conn-name">{g.from}</div>
-                                      <div className="conn-meta msg-gist">{collapseLine(g)}</div>
-                                    </div>
-                                    <button className="pill-act" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(g.rows); }}>Archive All</button>
-                                  </div>
-                                  {noiseGroups[g.key] && g.rows.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
-                                </div>
-                              ))}
-                              {loose.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
-                            </>
-                          );
-                        })()}
-                      </>
-                    )}
-                  </>
-                )}
+                {/* E10: the one place bulk select lives. The fold holds
+                    everything that does not need Dave, which is exactly
+                    the pile where clearing ten at once is safe. */}
+                {restOpen && (picked === null ? (
+                  <div className="fold-tools">
+                    <button className="quiet-action" onClick={() => setPicked(new Set())}>Select</button>
+                  </div>
+                ) : (
+                  <div className="fold-tools">
+                    <button className="btn-sm" onClick={() => void archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
+                      {picked.size === 0 ? "Archive Selected" : capAfterNumber("Archive " + picked.size)}
+                    </button>
+                    {/* 11B: the other half of the job. Archive keeps it
+                        in the account; delete is for the mail that should
+                        not be in the account at all. Both count what
+                        landed, both undo. */}
+                    <button className="btn-sm btn-danger" onClick={() => void deletePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
+                      {picked.size === 0 ? "Delete Selected" : capAfterNumber("Delete " + picked.size)}
+                    </button>
+                    <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
+                  </div>
+                ))}
               </div>
               {/* The guard line: proof that folding is safe, derived or absent. */}
-              {netted > 0 && <div className="msg-guard">{guardLine(netted)}</div>}
+              {guardAfter === "fold" && guard}
             </div>
-          )}
+            {restOpen && worthKnowing.length > 0 && (
+              <>
+                <div className="sh2 sh2-quiet"><span className="t">Worth Knowing</span><span className="n">{worthKnowing.length}</span></div>
+                <div className="pad-x">
+                  <div className="card list-card-ruled">
+                    {worthKnowing.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
+                  </div>
+                  {guardAfter === "worth" && guard}
+                </div>
+              </>
+            )}
+            {restOpen && noise.length > 0 && (
+              <>
+                {/* No count on this head: the machines line under it
+                    already says how many, and one number twice is noise. */}
+                <div className="sh2 sh2-quiet"><span className="t">Noise</span></div>
+                <div className="pad-x">
+                  <div className="card list-card-ruled">
+                    {/* 8A: ONE GREY LINE FOR ALL OF THEM. This was a
+                        full row with a bold name, which is the sensory
+                        flatness the catalog is against: a shipping promo
+                        wearing the same weight as a person. The count is
+                        a fact, not an alarm, and the one action ends the
+                        lot. Tap the line to unfold if you want to look. */}
+                    <div className="msg-machines" {...pressable(() => setNoiseOpen(!noiseOpen))}>
+                      <span className="msg-machines-icon" aria-hidden="true"><Tag className="ic" /></span>
+                      <span className="msg-machines-text">
+                        {capAfterNumber(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
+                        {" \u00b7 "}{noiseOpen ? "Tap to fold" : "Tap to look"}
+                      </span>
+                      <button className="pill-act msg-machines-sweep" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(noise); }}>
+                        Sweep
+                      </button>
+                    </div>
+                    {/* N5 (2026-08-20): a sender who writes six times a
+                        week about things he will never act on is not six
+                        decisions. It is one, repeated. Collapsing is
+                        presentation only: nothing is archived or filed,
+                        and only NOISE ever collapses. */}
+                    {noiseOpen && (() => {
+                      const { groups, loose } = collapseNoise(noise);
+                      return (
+                        <>
+                          {groups.map((g) => (
+                            <div key={g.key}>
+                              <div className="row" {...pressable(() => setNoiseGroups((s) => ({ ...s, [g.key]: !s[g.key] })))}>
+                                <div className="row-grow">
+                                  <div className="conn-name">{g.from}</div>
+                                  <div className="conn-meta msg-gist">{collapseLine(g)}</div>
+                                </div>
+                                <button className="pill-act" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(g.rows); }}>Archive All</button>
+                              </div>
+                              {noiseGroups[g.key] && g.rows.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
+                            </div>
+                          ))}
+                          {loose.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  {guardAfter === "noise" && guard}
+                </div>
+              </>
+            )}
+            </>
+            );
+          })()}
           {restCount === 0 && netted > 0 && <div className="pad-x msg-guard">{guardLine(netted)}</div>}
           {/* ONE offer at a time. Three stacked offers is a form, and the law
               is one line, one action, one quiet dismiss. Self-cleaning wins

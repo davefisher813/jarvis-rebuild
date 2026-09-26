@@ -37,10 +37,17 @@
 .mfrom { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1);
   letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .mfrom.strong { font-weight: var(--w-bold); }
-/* N4: the VIP mark, where he reads. */
+/* N4: the VIP mark, where he reads. AMENDED 2026-09-26 (the lead): back to
+   yellow and HELD FOR DAVE. Whether a star is yellow or white is the open
+   question he has on the Remember star, and a remembered VIP thread shows
+   both stars on one row, so they move together on his answer, never one
+   ahead of the other. */
 .mstar { color: var(--yellow); font-size: var(--t-caption); flex: 0 0 auto; }
-/* The time, or in its place the deadline chip. One or the other. */
-.mwhen { margin-left: auto; flex: 0 0 auto; font-size: var(--t-caption); color: var(--tx-3);
+/* The time, or in its place the deadline chip. One or the other. A neutral
+   time on a row is small caps (§AM F5), the date primitive's own letterform,
+   so it stays apart from a read row's grey subject without a second grey. */
+.mwhen { margin-left: auto; flex: 0 0 auto; font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
 .mdue { margin-left: auto; flex: 0 0 auto; font-size: var(--t-micro); font-weight: var(--w-bold);
   padding: var(--s-0h) var(--s-2); border-radius: var(--r-pill); background: var(--warn-tint); color: var(--warn); white-space: nowrap; }
@@ -50,6 +57,10 @@
 .mline2 { font-size: var(--t-sub); color: var(--tx-3); margin-top: 1px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mline2.strong { color: var(--tx-1); font-weight: var(--w-semi); }
+/* The thread's message count after the subject: a number with no state, so
+   white (§AM F1), behind a separator its own span draws (F3). */
+.mline2 b { font-weight: var(--w-semi); color: var(--tx-1); }
+.mline2 .sched-sep { margin: 0 var(--s-1h); }
 /* The account, as small caps after the subject: text, never a pill. */
 .macct { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--tx-2); margin-left: var(--s-1h); }
@@ -57,4 +68,4 @@
 /* EM1 / E-38: the one quiet line under the title while Email Windows are
    on -- when it opens again, or when it closes -- in place of the row-act
    that used to sit above the whole page. The full control lives in Tools. */
-.mwin { font-size: var(--t-caption); color: var(--tx-3); padding: 0 var(--s-4) var(--s-2); }
+.mwin { font-size: var(--t-sub); color: var(--tx-3); padding: 0 var(--s-4) var(--s-2); }

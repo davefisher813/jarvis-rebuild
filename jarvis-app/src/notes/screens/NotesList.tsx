@@ -288,9 +288,14 @@ export default function NotesList({
           {NOTES_ROW === "line" && (
             <div className="r-k">
               <ParentLineGlyph p={{ kind: "category", name: area || "Not Filed", tone, pct: null }} />
-              {(n.tags ?? []).map((t) => <span className="r-goal r-cat" key={t}>{"· #" + t}</span>)}
-              {(n.found ?? 0) > 0 && <span className="r-goal r-cat fact purp">{"· JARVIS found " + n.found}</span>}
-              {when && <span className="r-goal r-cat r-when">{"· " + when}</span>}
+              {/* The line's gap separates its facts, as on a task row: no
+                  typed dots. The tags are one run, the row's one grey; what
+                  JARVIS found is work waiting for his review, so it is amber
+                  (§AM) with the number white, and the date is its own caps,
+                  so nothing else here is that grey. */}
+              {n.tags?.length ? <span className="r-goal r-cat">{n.tags.map((t) => "#" + t).join(" ")}</span> : null}
+              {(n.found ?? 0) > 0 && <span className="r-goal fact warn">JARVIS found <b>{n.found}</b></span>}
+              {when && <span className="r-goal r-cat r-when">{when}</span>}
             </div>
           )}
           {NOTES_ROW === "first" && n.first && <div className="note-first">{n.first}</div>}

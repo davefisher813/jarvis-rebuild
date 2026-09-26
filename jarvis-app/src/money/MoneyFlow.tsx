@@ -702,9 +702,15 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
               <div className="pad-x"><div className="card list-card-ruled money-hero" {...pressable(() => setMathOpen(!mathOpen))}>
                 <div className="money-hero-label">{nextPay ? "Yours until " + monthDay(nextPay) : "Yours"}</div>
                 <div className="money-hero-total">{formatMoney(Math.max(0, left.amount))}</div>
+                {/* Under the total: the shortfall, or what the total is
+                    after, or (with no bills or set-aside) the per-day line.
+                    The per-day amount is worked out, so it wears sky here
+                    exactly as it does inside the math below (§AM). */}
                 {left.amount < 0
                   ? <div className="money-hero-label">{shortLine(left)}</div>
-                  : <div className="money-hero-label">{leftSub(left) || perDayLine(left, daysLeft)}</div>}
+                  : leftSub(left)
+                    ? <div className="money-hero-label">{leftSub(left)}</div>
+                    : perDayLine(left, daysLeft) && <div className="money-hero-label"><span className="fact est">{perDayLine(left, daysLeft)}</span></div>}
                 {mathOpen && (
                   <div className="budget-math">
                     <div className="budget-row"><span>Paycheck</span><span>{formatMoney(left.paycheck)}</span></div>
@@ -715,7 +721,12 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                       <div className="budget-row"><span>Set aside</span><span>-{formatMoney(left.setAside)}</span></div>
                     )}
                     <div className="budget-row budget-total"><span>Yours</span><span>{formatMoney(left.amount)}</span></div>
-                    {perDayLine(left, daysLeft) && <div className="money-hero-label">{perDayLine(left, daysLeft)}</div>}
+                    {/* With no bills or set-aside, the line under the total
+                        already IS the per-day line: say it once. Shown, it
+                        is an amount the app worked out, so it wears sky. */}
+                    {leftSub(left) && perDayLine(left, daysLeft) && (
+                      <div className="money-hero-label"><span className="fact est">{perDayLine(left, daysLeft)}</span></div>
+                    )}
                   </div>
                 )}
               </div></div>

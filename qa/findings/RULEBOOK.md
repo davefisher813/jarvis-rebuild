@@ -79,7 +79,7 @@ grey. Bolding it does not make it different.
   `components.css`, 700 weight at 0.1em. Any other rule restyling `.sh2 .t`'s
   weight or tracking is a violation.
 - **R11.** The Today "Your Day" card (`.sched-ticker`) renders at all times.
-  **Do not touch it** (Dave, 2026-09-22: "Leave the schedule alone").
+  **Never change its behaviour** (Dave, 2026-09-22 and 2026-09-25).
 
 ## The primitives — use these, never a new class per screen
 
@@ -114,14 +114,57 @@ decision for the lead session, added once in `components.css` with a law.
 - `src/bench/`, `src/testpanel/`, `*.test.ts(x)` and `src/laws/` are not
   shipped UI.
 
+## Settled by the lead (2026-09-26): apply these, never reopen them
+
+- Light theme: `--good`, `--warn` and `--sys-red` are Apple's light system
+  colours AS TEXT (Dave's 2026-09-12 Astra ruling). Lateness in light is
+  `--sys-red`, never `--on-light-red` (that is the brand words red).
+- A paid amount is `--good`. A count with no state (goal projects) is white.
+- The capsule's label is its own `--tint` on its opaque fill, on sheets too.
+  Red WORDS straight on a sheet grey take `--tint-on-sheet` (`.see-all`,
+  `.prov-link`, `.note-fix`, `.sheet-bar-save`, `.toast-action`).
+- Mail rail: solid white = unread; amber = due soon or waiting weeks; red = a
+  wait past the point an email helps; hollow = read and calm.
+- A schedule row's first move (the next step) is amber. A length that cannot
+  be tapped is a white `<b>`, not small caps.
+- Purple is not in the key: no `.fact.purp`. An estimate is `.fact.est`.
+- `.btn-sm` is a capsule (§AL); the 50px base `.btn` is not.
+- Caps is for a label, never a sentence. A short caveat ("Correlation, not
+  cause") may be an 11px caps kicker; a sentence-length note under a card
+  goes below the card as `<div className="pad-x"><div className="input-hint">`
+  (the group-footer pattern, as settings' Foot does).
+- A date's colour follows the reminder/project window: past = `.fact.red`,
+  today or tomorrow = `.fact.warn`, later = `.fact.date`.
+- A decision row shows only homes that belong to an area (dot + name); person,
+  goal and task links live on the record page. A decision's outcome: worked
+  green, mixed amber, didn't red.
+- Field notes (`<Note>`, `<Foot>`) keep their middle dots: they are not facts
+  lines, and shortCopy.test.ts (Dave, 2026-08-15) keeps notes as fragments
+  joined by a dot.
+- Today's stat tiles follow the key: late red from the first late task, due
+  amber, done green (shown to Dave as a heads-up).
+
+## Held for Dave: do not change these, report them as needs_dave if you meet them
+
+The red Now rule and LIVE word; the Classify sheet's question colours; the
+Health area card's green panel; the Account avatar's red disc; the yellow
+Remember star; Brain's two red heads; the conditioning clock's 15px caps; the
+disclosure `<summary>` colour; the user chat bubble's red; the receipt-line
+("13 More Waiting") quiet grey. Questions are in `dave-queue.json`.
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report
   it as `needs_other_file` and leave it.
-- Never delete or reword user-facing copy. Restyle instead. If the only fix is
-  a copy change, report it as `needs_dave`.
-- Never touch `src/schedule/`, `src/today/YourDay.tsx`, `DayRow`, `LockedRow`,
-  `PlanDaySheet` or `SchedulePage` without Dave's explicit OK.
+- Rewording is ALLOWED (Dave, 2026-09-25: "Reword freely"): reword, or drop a
+  fact that only repeats another, when that is the better fix. Keep meaning.
+  Report EVERY wording change in `reworded` as exact old -> new, so he can be
+  shown the list.
+- Schedule rows are IN SCOPE for styling (Dave, 2026-09-25: "Fix row styling
+  only"): `src/schedule/`, `DayRow`, `LockedRow`, `PlanDaySheet`,
+  `SchedulePage`. The Today TV guide's BEHAVIOUR is NOT: never change how
+  `.sched-ticker` scrolls, pauses, measures, or when it renders (the state and
+  branches in `src/today/YourDay.tsx`). Styling a row it contains is fine.
 - Never edit `src/laws/`. If a law blocks a correct fix, report the law and why.
 - Co-located tests (`X.test.tsx` beside `X.tsx`) may be updated when a fix
   intentionally changes what they assert; say so in the report.

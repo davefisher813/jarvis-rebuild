@@ -30,11 +30,13 @@ export function holdExpired(d: ProjectData, today: string): boolean {
 
 /**
  * The one line under a held project, or null when it is not held. A hold with
- * no date says exactly that, rather than pretending to be a plan.
+ * no date says exactly that, rather than pretending to be a plan. Both callers
+ * draw it as one amber fact (§AM, 2026-09-26), so it is one fragment: the dot
+ * it used to carry was a separator typed into a facts line (F3).
  */
 export function holdLine(d: ProjectData, today: string): string | null {
   if (d.status !== "on_hold") return null;
-  if (!d.holdUntil) return "On hold · No date set";
+  if (!d.holdUntil) return "On hold, no end date";
   const days = daysBetween(today, d.holdUntil);
   if (days < 0) return capAfterNumber(`Hold ended ${-days} ${days === -1 ? "day" : "days"} ago`);
   if (days === 0) return "The hold ends today";
@@ -82,11 +84,21 @@ export function spanLabel(min: number): string {
 }
 
 /**
- * "4 open · About 3h". The word About is doing real work: these are learned
+ * "About 3h left". The word About is doing real work: these are learned
  * averages, not commitments, and a bare "3h" would read as a promise the app
  * has no business making.
+ *
+ * THE ESTIMATE ALONE (the Colour Key, §AM, 2026-09-26). This said "4 open ·
+ * About 3h", and a line that draws it paints it as an estimate the app worked
+ * out (sky). Only the time is that; the open count is a count, and the dot
+ * was typed into the string where the stylesheet should draw it. The count
+ * also restated the progress line both callers already draw right above it
+ * (5 of 9 done is 4 open), so it went rather than becoming a second fact.
+ * "left" stays, because the minutes are summed over the OPEN work only, and
+ * "About 3h" under "5 of 9 done" reads as the size of the whole project.
+ * The caller draws this as one `.fact.est`.
  */
 export function sizeLine(s: Size | null): string | null {
   if (!s) return null;
-  return capAfterNumber(`${s.open} open · About ${spanLabel(s.minutes)}`);
+  return `About ${spanLabel(s.minutes)} left`;
 }

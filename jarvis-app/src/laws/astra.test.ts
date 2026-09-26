@@ -59,10 +59,27 @@ describe("ASTRA: the primitives exist under the harness's own names", () => {
     // .fact.sky went on 2026-09-21 with the headliner's lineage line, its
     // only user (Dave: "get rid of the blue subtext"). A variant nothing
     // renders is a colour waiting to be reached for by accident.
-    for (const sel of [".facts {", ".fact + .fact::before", ".fact.warn", ".fact.good", ".fact.purp", ".fact.red", ".fact.cat", ".fact.st", ".row-star {", ".row-star.on", ".why {", ".dring {"]) {
+    //
+    // AMENDED 2026-09-26 (§AM, handoff #606): .fact.purp left the required
+    // list and joined .fact.sky among the retired. Purple is not in the
+    // Colour Key, so a purple fact is a colour with no meaning; its call
+    // sites moved to the key's own variants first (done and learned went
+    // green, a promise amber, a count with no state white, a date small
+    // caps). The rest of the list is unchanged.
+    for (const sel of [".facts {", ".fact + .fact::before", ".fact.warn", ".fact.good", ".fact.red", ".fact.cat", ".fact.st", ".row-star {", ".row-star.on", ".why {", ".dring {"]) {
       expect(CSS, sel + " is missing").toContain(sel);
     }
-    expect(CSS, "and the one that lost its last user is gone").not.toContain(".fact.sky");
+    // AMENDED 2026-09-26 (§AM, round-1 review): the two retired variants
+    // are looked for in ALL SIX sheets, not only this one. The catalog says
+    // this law fails if either returns, and ruled.css is where the fact
+    // variants scoped to a surface already live, so a rule planted there
+    // passed. Comments are stripped, so a sentence that names a retired
+    // variant to explain its retirement is not a rule; the boundary keeps a
+    // longer class that merely starts with the same letters out of it.
+    const ALLCSS = ["components.css", "ruled.css", "jarvis-design-system.css", "uniformity.css", "editor.css", "mail-rows.css"]
+      .map((f) => read(join(SRC, "styles", f))).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(ALLCSS, "and the one that lost its last user is gone").not.toMatch(/\.fact\.sky(?![\w-])/);
+    expect(ALLCSS, "purple is not in the Colour Key").not.toMatch(/\.fact\.purp(?![\w-])/);
   });
 
   // THE OTHER DIRECTION (2026-09-22). The law above checks that a retired
@@ -91,7 +108,7 @@ describe("ASTRA: the primitives exist under the harness's own names", () => {
         for (const v of vs) {
           if (STRUCTURAL.has(v)) continue;
           // Either a colour variant (.fact.<v>) or a class that styles it on
-          // its own (.<v> as a rule of its own, like .dec-when).
+          // its own (.<v> as a rule of its own).
           if (sheets.includes(".fact." + v) || new RegExp("(^|[\\s,])\\." + v + "(?![\\w-])", "m").test(sheets)) continue;
           missing.push(`${rel(f)}: "fact ${v}" has no rule`);
         }

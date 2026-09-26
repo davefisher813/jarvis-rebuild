@@ -656,7 +656,7 @@ export default function SessionScreen({
             {lever && (
               <div className="facts">
                 <span className="fact">{leverName}</span>
-                {leverSave > 0 && <span className="fact cyan">{`Saves ${leverSave} min`}</span>}
+                {leverSave > 0 && <span className="fact est">{`Saves ${leverSave} min`}</span>}
               </div>
             )}
           </div>

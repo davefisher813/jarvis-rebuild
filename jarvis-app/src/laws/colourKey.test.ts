@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { posix } from "node:path";
+import { TAP_RED } from "./reds";
 
 const { join } = posix;
 const ROOT = process.cwd().replace(/\\/g, "/");
@@ -74,17 +75,45 @@ describe("LAW §AM: the colour key", () => {
   // -------------------------------------------------------------------------
   it("a fact never wears the brand red, because the brand red means tap me", () => {
     // Classes whose whole job is to state a value.
-    const FACT = /\.(fact|facts|conn-meta|bp-sub|empty-sub|r-goal|area-fact|rdy-why|msg-gist|note-first|row-value|sched-cat|sched-rep|sched-loc|prov-line|input-hint|input-help|input-note)(?![\w-])/;
+    // AMENDED 2026-09-26 (§AM): the schedule time that cannot be tapped
+    // (.sched-until without the button) joined the list; it states a time.
+    const FACT = /\.(fact|facts|conn-meta|bp-sub|empty-sub|r-goal|area-fact|rdy-why|msg-gist|note-first|row-value|sched-cat|sched-rep|sched-until|sched-loc|prov-line|input-hint|input-help|input-note)(?![\w-])/;
     // ...unless the thing IS operable. .sched-loc reads like a plain fact
     // and is an <a> to Apple Maps, which no selector can tell you, so it is
     // named here rather than guessed at.
-    const OPERABLE = /(button|:active|:hover|:focus|-btn(?![\w-])|\ba\b|\[role="button"\]|\.see-all|\.pill-act|\.row-act|\.quiet-action|\.sched-until|\.sched-open|\.sched-loc|\.link|\.tap)/;
+    // AMENDED 2026-09-26 (§AM, round-1 review): `\.sched-until` had no
+    // boundary, so it exempted the plain time as well as its button, and the
+    // whole selector list was judged at once, so one tappable sibling in a
+    // list exempted every fact beside it. Both rules the phase rewrote were
+    // skipped that way. Now only the button form is operable, each
+    // comma-separated selector is judged on its own, and a class named only
+    // inside :not() says what the thing is NOT, so it exempts nothing.
+    const OPERABLE = /(button|:active|:hover|:focus|-btn(?![\w-])|\ba\b|\[role="button"\]|\.see-all|\.pill-act|\.row-act|\.quiet-action|\.sched-until-btn(?![\w-])|\.sched-open|\.sched-loc|\.link|\.tap)/;
+    // AMENDED 2026-09-26 (round-2 review, the lead): the brand red is every
+    // token that resolves to it, not five of them. The list left out
+    // --on-light-red (the brand's words red in light, R3) and --tint-on-sheet,
+    // and the phase moved many tap words onto those two, so a fact painted
+    // either passed. Every --tint* and --accent* token counts now, plus
+    // --on-light-red. Measured on the sheets that day: it matches only the
+    // two operable rules already exempt above, so nothing new fails.
+    // AMENDED 2026-09-26 (round-3 review, the lead): the pattern only matched
+    // a token with its closing paren straight after, so a fact painted
+    // `var(--tint, #FF2B3C)` (a fallback) passed, and it left out
+    // --danger-tx, the words red F-04 already named (#CC051B in light). The
+    // brand red is read from the one shared definition now (laws/reds.ts),
+    // the same one F-04 and L1 read: every token above, --danger-tx, a
+    // reference followed by a fallback, and the brand's hexes. Every token
+    // it matched before still matches. Measured on the sheets that day: it
+    // still matches only the operable rules exempt above.
+    const BRAND_RED = TAP_RED;
     const bad: string[] = [];
     for (const { sel, body, file } of RULES) {
-      if (!FACT.test(sel) || OPERABLE.test(sel)) continue;
       const c = textColour(body);
-      if (c && /var\(--(tint|accent|accent-tx|accent-chrome|accent-glyph)\)/.test(c)) {
-        bad.push(`${file}: ${sel} -> ${c}`);
+      if (!c || !BRAND_RED.test(c)) continue;
+      for (const one of sel.split(",").map((x) => x.trim())) {
+        const positive = one.replace(/:not\([^)]*\)/g, "");
+        if (!FACT.test(positive) || OPERABLE.test(positive)) continue;
+        bad.push(`${file}: ${one} -> ${c}`);
       }
     }
     expect(bad, "a value that cannot be tapped must not wear the colour that promises a tap").toEqual([]);

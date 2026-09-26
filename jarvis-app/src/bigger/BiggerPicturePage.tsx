@@ -4,7 +4,7 @@ import LifeHeader, { OptionsButton, type HeaderView } from "../shared/LifeHeader
 import HeadMenu from "../shared/HeadMenu";
 import OptionsSheet from "../shared/OptionsSheet";
 import type { Goal } from "../life/types";
-import type { ProjectRow, Progress } from "./progress";
+import type { ProjectRow, Progress, PaceParts } from "./progress";
 import { progressLabel, bucketOf, closable, projStatus, rankGoals } from "./progress";
 import type { GoalReach } from "./reach";
 import { reachLine, fileableGoals } from "./reach";
@@ -95,9 +95,10 @@ export default function BiggerPicturePage({
   // PICKS 20 + 22: what a row could never say. Both derived by the flow.
   holdLineOf?: (projectId: string) => string | null;
   sizeLineOf?: (projectId: string) => string | null;
-  // UP-CORE-18 (2026-09-05): "3 of 8 left · Due Fri · 1 a day keeps pace",
-  // derived by the flow from the project's own tasks and its due date.
-  paceLineOf?: (projectId: string) => string | null;
+  // UP-CORE-18 (2026-09-05): how much is left and whether the date holds,
+  // derived by the flow from the project's own tasks and its due date, in
+  // its parts (projectPaceParts) so the row can colour the date.
+  paceLineOf?: (projectId: string) => PaceParts | null;
   onAddGoal: () => void;
   onOpenGoal: (id: string) => void;
   onAddProject: () => void;
@@ -222,19 +223,35 @@ export default function BiggerPicturePage({
             <div className="bp-sub r-k"><span className={"r-goal r-is-goal " + goalTone(filed.data.tags)}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span></div>
           )}
           {/* THE NEXT MOVE LEADS (pick 19): "Call Ridgeline" tells you more
-              than a status word or a fraction ever will. */}
-          {next && <div className="bp-sub bp-next truncate">Next: {next}</div>}
+              than a status word or a fraction ever will. Drawn as the ruled
+              project row draws it (§AM): an amber NEXT kicker, the action in
+              full ink. */}
+          {next && <div className="bp-sub bp-next truncate"><span className="bp-next-k">Next</span> {next}</div>}
           {/* PICK 20: the date is the whole content of a hold. */}
           {hold
             ? <div className="bp-sub bp-stalled">{hold}</div>
             : <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>}
-          {/* PICK 22: size from the planner's own learned durations. */}
-          {sized && <div className="bp-sub">{sized}</div>}
+          {/* PICK 22: size from the planner's own learned durations, which
+              makes it an estimate the app worked out: sky (§AM). It is the
+              time alone ("About 3h left"); the open count it used to lead with
+              restated the progress line above. */}
+          {sized && <div className="bp-sub"><span className="fact est">{sized}</span></div>}
           {/* UP-CORE-18 (2026-09-05): the pace, when the project has a date.
               A client deliverable due the 30th and a school project due
               Friday are the same shape, and the row could say everything
-              about a project except when it is due. */}
-          {paced && <div className="bp-sub">{paced}</div>}
+              about a project except when it is due.
+              IN ITS PARTS (§AM, 2026-09-26): each part is its own fact, so
+              the date wears its meaning's colour (late red, due amber, a
+              rate sky) and the stylesheet draws the dot between them. The
+              count only restates the progress line above it (5 of 8 left is
+              3 of 8 done), so it rides only when a hold has taken that line;
+              either way the row keeps one plain grey. */}
+          {paced && (
+            <div className="facts">
+              {hold && <span className="fact">{paced.count}</span>}
+              <span className={"fact " + paced.tone}>{paced.when}</span>
+            </div>
+          )}
           {progress && <Bar p={progress} />}
         </div>
         {canClose && onCloseProject

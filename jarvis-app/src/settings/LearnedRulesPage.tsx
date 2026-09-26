@@ -66,7 +66,7 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
             {rules.map((r) => (
               <Row key={r.id} label={tuningLine(r) ?? `${label(r.data.from)} means ${label(r.data.to)}`}
                 meta={r.data.evidence.map((e, i) => <div key={i}>{e}</div>)}>
-                <button className="pill-act row-act-pill" disabled={removing === r.id} onClick={() => void remove(r)}>{removing === r.id ? "..." : "Delete"}</button>
+                <button className="pill-act" disabled={removing === r.id} onClick={() => void remove(r)}>{removing === r.id ? "..." : "Delete"}</button>
               </Row>
             ))}
           </Card>

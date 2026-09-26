@@ -50,13 +50,21 @@ describe("TodayPage", () => {
     const summary = container.querySelector(".today-summary")!;
     const tiles = summary.querySelectorAll(".stat-tile");
     expect(tiles.length).toBe(3);
-    expect(summary.querySelector(".st-time .st-n")).toHaveTextContent("2");
-    expect(summary.querySelector(".st-time .st-w")).toHaveTextContent("events");
-    expect(summary.querySelector(".st-quiet .st-n")).toHaveTextContent("1");
-    expect(summary.querySelector(".st-quiet .st-w")).toHaveTextContent("due");
+    // §AM (2026-09-25): the events tile is quiet, because a count with no
+    // state carries no colour.
+    // §AM (2026-09-26): each tile wears the Colour Key's meaning. Due is
+    // amber, and late is red at ANY count (the key has no threshold).
+    const quiet = summary.querySelectorAll(".st-quiet");
+    expect(quiet.length).toBe(1);
+    expect(quiet[0]!.querySelector(".st-n")).toHaveTextContent("2");
+    expect(quiet[0]!.querySelector(".st-w")).toHaveTextContent("events");
+    expect(summary.querySelector(".st-time")).toBeNull(); // time is no longer blue
+    expect(summary.querySelectorAll(".st-warn")).toHaveLength(1);
     expect(summary.querySelector(".st-warn .st-n")).toHaveTextContent("1");
-    expect(summary.querySelector(".st-warn .st-w")).toHaveTextContent("late");
-    expect(summary.querySelector(".st-late")).toBeNull(); // one late is amber, not red
+    expect(summary.querySelector(".st-warn .st-w")).toHaveTextContent("due");
+    expect(summary.querySelectorAll(".st-late")).toHaveLength(1);
+    expect(summary.querySelector(".st-late .st-n")).toHaveTextContent("1"); // one late is red
+    expect(summary.querySelector(".st-late .st-w")).toHaveTextContent("late");
     expect(summary.querySelector(".day-pill")).toBeNull(); // the old pills are gone
   });
 

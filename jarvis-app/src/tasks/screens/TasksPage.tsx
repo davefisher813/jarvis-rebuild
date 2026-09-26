@@ -17,7 +17,7 @@ import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory, SheetProject } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
 import Provenance from "../../shared/ProvenanceLine";
-import { rowSource, type Source } from "../../shared/provenance";
+import { rowSource, type Source, type SourceType } from "../../shared/provenance";
 import { capAfterNumber } from "../../shared/casing";
 import { cueLine } from "../ifThen";
 import { durLabel } from "../../schedule/durations";
@@ -39,6 +39,18 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
   overdue: "urgency-red",
   today: "urgency-warn",
   soon: "urgency-muted",
+};
+
+// The word the origin mark draws (originLabel) for each source type that
+// can draw one. A row's provenance repeats the mark only when its type maps
+// to the SAME word here; any other type is a different fact.
+const ORIGIN_OF: Partial<Record<SourceType, string>> = {
+  email: "Email",
+  note: "Note",
+  paste: "Smart Paste",
+  recorder: "Recording",
+  chat: "Chat",
+  file: "File",
 };
 
 // GROUP BY. "none" is one flat list; the other three cut it under heads.
@@ -198,6 +210,22 @@ export function TaskRow({
   const t = item.data;
   const u = urgencyFor(t, today);
   const prov = rowSource(t.source, t.moved);
+  // ONE WHERE-IT-CAME-FROM PER ROW (§AK, 2026-09-26). When nothing ahead of
+  // it claims the second line's slot, the origin mark draws the envelope and
+  // "Email" there, and the compact provenance at the end of the line then said
+  // the same thing again as "From an email". The mark keeps it, but only when
+  // the two really are one fact: provenance must name the SAME origin the mark
+  // drew (a Smart Paste task titled "Get back to Sam" draws "Email", and "From
+  // Smart Paste" is a different fact), and it must not be a door. The mark is
+  // a plain span; an openable provenance is the row's one tap onto the thread,
+  // so it stays. A move made today is never in ORIGIN_OF, so it stays too.
+  const originDrawn = !(kicker || tag) && !parent
+    && categoriesOf(t).map((id) => catName(id)).filter(Boolean).length === 0
+    && !!originLabel(t);
+  // Openable exactly as Provenance decides it: a handler AND a ref.
+  const provOpenable = !!(prov?.ref && openSourceFor && openSourceFor(prov));
+  const provRepeatsOrigin = originDrawn && !!prov
+    && ORIGIN_OF[prov.type] === originLabel(t) && !provOpenable;
   // The distance chip: TODAY, 2 DAYS LATE, 3 WEEKS LATE, OVER A MONTH.
   // Same ladder as Today's dealt row (distanceFor). Muted on the Today
   // filter, where every row would say the same word.
@@ -485,7 +513,7 @@ export function TaskRow({
                 out, whole rather than clipped -- and the full line, with its
                 own tap and its own 44px target, is on the sheet one tap away,
                 where it has always been. */}
-            <Provenance compact source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
+            {!provRepeatsOrigin && <Provenance compact source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />}
           </div>
         </div>
         {/* The urgency label steps aside for Start, exactly as it does on

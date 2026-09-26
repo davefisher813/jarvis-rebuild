@@ -116,6 +116,10 @@ describe("Copy", () => {
     fireEvent.click(screen.getByLabelText("Copy Note"));
     const field = await screen.findByLabelText("The note, ready to copy");
     expect((field as HTMLTextAreaElement).value).toContain("Went with option B.");
+    // Why, and what to press, as one line in one grey (§AK).
+    const notes = document.querySelectorAll(".sheet-form .exp-note");
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toHaveTextContent("This browser did not let JARVIS copy, so the words are selected: press Copy on your keyboard or in the menu");
     expect(seen).toEqual([]);
     stop(); resetToasts();
   });

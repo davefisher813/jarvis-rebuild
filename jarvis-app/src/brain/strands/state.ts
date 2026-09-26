@@ -34,11 +34,12 @@ export function stateForStrand(s: Strand, today: string): StrandState | null {
   return null;
 }
 
-// The colour each word wears: sky for what he said (time-neutral, quiet
-// certainty), purple for JARVIS-made knowledge (G7), warn for the one that
-// asks something of him.
-export function toneForStrandState(w: StrandState): "sky" | "purp" | "warn" {
-  return w === "KNOWN" ? "sky" : w === "LEARNED" ? "purp" : "warn";
+// The colour each word wears (§AM, 2026-09-26). KNOWN and LEARNED wear
+// none: each is a plain .fact.st, and its caps are what set it apart from
+// the facts beside it. Neither is done, due or late, so neither has a key
+// colour to wear. FADING asks something of him soon, so it is amber.
+export function toneForStrandState(w: StrandState): "" | "warn" {
+  return w === "FADING" ? "warn" : "";
 }
 
 // THE FILTER BUCKETS (C-40). Choosers over the list: a strand sits in exactly

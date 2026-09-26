@@ -269,7 +269,7 @@ export default function LiftDetailScreen({
                     </div>
                     <div className="facts">
                       <span className="fact cyan">{`Best on ${shortDate(best.date)}`}</span>
-                      <span className="fact">{`${shortDate(sessions[0]!.date)} to ${shortDate(sessions[sessions.length - 1]!.date)}`}</span>
+                      <span className="fact date">{`${shortDate(sessions[0]!.date)} to ${shortDate(sessions[sessions.length - 1]!.date)}`}</span>
                     </div>
                   </div>
                   {celebrate && <span className="se-pr">PR</span>}
@@ -281,7 +281,7 @@ export default function LiftDetailScreen({
                     </div>
                     {e1rmOpen && (
                       <div className="facts">
-                        <span className="fact amber">{`${bestE1rm}${unit ? " " + unit : ""}`}</span>
+                        <span className="fact est">{`${bestE1rm}${unit ? " " + unit : ""}`}</span>
                         <span className="fact">Epley estimate, not a tested lift or a suggested weight</span>
                       </div>
                     )}
@@ -306,7 +306,15 @@ export default function LiftDetailScreen({
               <div className="row-stack">
                 {/* H-31 / H-34: the unit joins the caption. */}
                 <div className="conn-meta">{label}{unit ? " · " + unit : ""}</div>
-                <div className="p3-q blue">{latest != null ? `${latest}${unit ? " " + unit : ""}` : "--"}</div>
+                {/* The latest number is white (§AM: a number with no state).
+                    For weight_reps it is the Epley estimate, so it wears the
+                    estimate primitive (sky); .fact has no size of its own and
+                    takes the headline's. */}
+                <div className="p3-q">{latest == null
+                  ? "--"
+                  : kind === "weight_reps"
+                    ? <span className="fact est">{`${latest}${unit ? " " + unit : ""}`}</span>
+                    : `${latest}${unit ? " " + unit : ""}`}</div>
               </div>
               <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="lift-chart" role="img"
                 aria-label={`${name} ${label} trend over ${sessions.length} sessions`}>

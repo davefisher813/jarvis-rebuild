@@ -46,10 +46,12 @@
 /* Category color classes are the neutral slots in components.css (.cat-bg/bd/fg-{slot}). */
 
 /* G7.  Today snapshot stat tiles (added v1.3, STEP 3 Batch 2). No design-system
-   equivalent; a recurring composite. Tokens only; no new token. */
+   equivalent; a recurring composite. Tokens only; no new token. A bare tile's
+   number is white, the Colour Key's number with no state (Dave 2026-09-22):
+   brand red promised a tap no tile answers. A tinted tile sets its own. */
 .snapshot { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); }
 .stat-tile { background: var(--surface-2); border-radius: var(--r-md); padding: var(--s-3); }
-.stat-num { font-size: var(--t-h1); font-weight: var(--w-bold); color: var(--tint); line-height: 1; }
+.stat-num { font-size: var(--t-h1); font-weight: var(--w-bold); color: var(--tx-1); line-height: 1; }
 .stat-label { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase;
   letter-spacing: var(--track-caps); color: var(--tx-3); margin-top: var(--s-1); }
 

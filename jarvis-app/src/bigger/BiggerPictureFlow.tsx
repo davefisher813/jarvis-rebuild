@@ -20,7 +20,7 @@ import { attemptWrite } from "../shared/guard";
 import { unfileProject, refileProject, type UnfiledFromProject } from "../projects/unfile";
 import { unfileGoal, refileGoal, type UnfiledFromGoal } from "../life/unfileGoal";
 import GoalSheet from "../life/GoalSheet";
-import { rankProjects, projectPace, projectProgress } from "./progress";
+import { rankProjects, projectPaceParts, projectProgress } from "./progress";
 import { reachOf, type GoalReach, fileableGoals } from "./reach";
 import { measureState, paceLine, healthOf, HEALTH_LABEL, type MeasureContext } from "./measure";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
@@ -1068,8 +1068,10 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         holdLineOf={(id: string) => { const p = projects.find((x) => x.id === id); return p ? holdLine(p.data, today) : null; }}
         sizeLineOf={(id: string) => sizeLine(sizeOf(tasks.filter((t) => t.data.projectId === id).map((t) => ({ done: !!t.data.done, category: t.data.category })), estimateFor))}
         // UP-CORE-18 (2026-09-05): N left, D days, is the pace real. The same
-        // arithmetic paceLine does for a goal with a By date.
-        paceLineOf={(id: string) => projectPace(projectProgress(tasks, id), projects.find((p) => p.id === id)?.data.due, today)}
+        // arithmetic paceLine does for a goal with a By date. In its parts
+        // (§AM, 2026-09-26), so the row can draw the date in its meaning's
+        // colour and the stylesheet can draw the dot.
+        paceLineOf={(id: string) => projectPaceParts(projectProgress(tasks, id), projects.find((p) => p.id === id)?.data.due, today)}
         // Single-goal default: with exactly one goal, a new project starts
         // linked to it, visibly, one tap to undo in the sheet. A default, not
         // a hidden action.

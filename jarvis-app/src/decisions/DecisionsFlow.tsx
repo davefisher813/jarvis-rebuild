@@ -4,7 +4,7 @@ import PageHeader, { BarAction } from "../shared/PageHeader";
 import InlineEdit from "../shared/InlineEdit";
 import MarkdownField from "../shared/MarkdownField";
 import DecisionCaptureSheet, { type AttachOption, type DecisionDraft } from "./DecisionCaptureSheet";
-import { ENTITY_DECISION, linksOf, OUTCOME_LABEL, SOURCE_LABEL, type DecisionRecord, type OutcomeWord } from "./types";
+import { ENTITY_DECISION, linksOf, OUTCOME_LABEL, SOURCE_LABEL, type DecisionLink, type DecisionRecord, type OutcomeWord } from "./types";
 import type { DecisionSourceKind } from "./types";
 
 // WHERE A DECISION'S SOURCE ACTUALLY GOES (button audit, 2026-09-16; Dave:
@@ -18,6 +18,7 @@ import type { DecisionSourceKind } from "./types";
 // other costume.
 const SOURCE_ROUTE: Partial<Record<DecisionSourceKind, string>> = { note: "note", email: "email" };
 import { todayISO } from "../schedule/calendar";
+import { dayTone } from "../messages/factsLine";
 import EntityStar from "../shared/EntityStar";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
@@ -55,21 +56,52 @@ const fmtShort = shortDate;
 export const fmtDay = (iso: string) =>
   new Date(iso.length === 10 ? iso + "T12:00:00" : iso).toLocaleDateString("en-US", { month: "long", day: "numeric" });
 
-// The list glyph wears the linked entity's color and goes quiet when the
-// decision stands alone.
-function glyphClass(rec: DecisionRecord, projectCat: (id: string) => string | undefined): string {
+// The list glyph wears the first linked entity's color and goes quiet when
+// the decision stands alone. The glyph only: it reads the record's legacy
+// first link, so the homes' dots are worked out per link (linkAreaSlot).
+function glyphSlot(rec: DecisionRecord, projectCat: (id: string) => string | undefined): string {
   const t = rec.data.linkedType;
   // V4 styling pass: an unlinked decision wears the decision type color
   // (purple), never grey; nothing with an identity is grey.
-  if (!t || !rec.data.linkedId) return "cat-fg-purple";
+  if (!t || !rec.data.linkedId) return "purple";
   if (t === "project") {
     const cat = projectCat(rec.data.linkedId);
-    return cat ? "cat-fg-" + catColor(cat) : "cat-fg-indigo";
+    return cat ? catColor(cat) : "indigo";
   }
-  if (t === "org") return "cat-fg-" + catColor(rec.data.linkedId);
-  if (t === "goal") return "cat-fg-purple";
-  if (t === "person") return "cat-fg-teal";
-  return "cat-fg-blue"; // task
+  if (t === "org") return catColor(rec.data.linkedId);
+  if (t === "goal") return "purple";
+  if (t === "person") return "teal";
+  return "blue"; // task
+}
+const glyphClass = (rec: DecisionRecord, projectCat: (id: string) => string | undefined) => "cat-fg-" + glyphSlot(rec, projectCat);
+
+// The area of life ONE home sits in, for its dot (§AM: a category colour on
+// a dot means which area). A project is in its category, an org IS an area;
+// a person, goal or task is not an area, and neither is a project with no
+// category, so those return null and draw no dot.
+function linkAreaSlot(l: DecisionLink, projectCat: (id: string) => string | undefined): string | null {
+  if (l.type === "project") {
+    const cat = projectCat(l.id);
+    return cat ? catColor(cat) : null;
+  }
+  if (l.type === "org") return catColor(l.id);
+  return null;
+}
+
+// The outcome word in the Colour Key (§AM): worked is done, mixed needs him
+// soon, didn't is missed.
+const OUTCOME_KEY: Record<OutcomeWord, "good" | "warn" | "red"> = { worked: "good", mixed: "warn", didnt: "red" };
+
+// A revisit still waiting on him (pending, or shown on Today) is a due date,
+// so it takes the reminder window (§AM R8): late red, today or tomorrow
+// amber, later a neutral small-caps date. Once answered or expired it is no
+// longer his to do, and the row falls back to the day the call was made,
+// which is always a neutral date.
+function whenFact(d: DecisionRecord["data"], today: string): { text: string; tone: "red" | "warn" | "date" } {
+  const revisit = d.revisitOn && (d.revisitState === "pending" || d.revisitState === "shown") ? d.revisitOn : null;
+  return revisit
+    ? { text: "Revisit " + fmtShort(revisit), tone: dayTone(revisit, today) }
+    : { text: fmtShort(d.createdAt), tone: "date" };
 }
 
 export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsumed, onOpenSource }: { onBack: () => void; openId?: string;
@@ -228,6 +260,16 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
     const older = d.supersedesId ? byId.get(d.supersedesId) : undefined;
     const newer = d.supersededById ? byId.get(d.supersededById) : undefined;
     const links = linksOf(d);
+    // The Attached To card (lead, 2026-09-26, the row's ruling carried over):
+    // a home in an area draws as the row draws it, the category fact with its
+    // own area's dot. A person, goal or task, or a project with no category,
+    // has no dot to wear, so those homes share ONE plain fact, joined, and the
+    // line keeps one grey.
+    const areaHomes = links.flatMap((l) => {
+      const slot = linkAreaSlot(l, (id) => projCats[id]);
+      return slot ? [{ link: l, slot }] : [];
+    });
+    const plainHomes = links.filter((l) => !areaHomes.some((h) => h.link.id === l.id)).map((l) => l.label).join(", ");
     const toggleLink = (opt: AttachOption) => {
       const next = links.some((l) => l.id === opt.id)
         ? links.filter((l) => l.id !== opt.id)
@@ -360,9 +402,15 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               <div className="sh2 sh2-quiet"><span className="t">Attached To</span></div>
               <div className="pad-x"><div className="card pad">
                 {/* C-53: every home, as facts; while editing, every option as
-                    a chooser chip, the ones it holds filled. */}
+                    a chooser chip, the ones it holds filled. Area homes wear
+                    their dot; every other home rides one plain run. */}
                 {!editing && (
-                  <div className="facts">{links.map((l) => <span className="fact" key={l.id}>{l.label}</span>)}</div>
+                  <div className="facts">
+                    {areaHomes.map(({ link: l, slot }) => (
+                      <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{l.label}</span></span>
+                    ))}
+                    {plainHomes && <span className="fact">{plainHomes}</span>}
+                  </div>
                 )}
                 {editing && (
                   <div className="chip-row chip-wrap-row">
@@ -496,6 +544,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
   onOpen: (id: string) => void;
   onAdd: () => void;
 }) {
+  const today = todayISO();
   return (
     <div className="screen ruled">
       <PageHeader
@@ -522,35 +571,61 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
           count here: a count of decisions is a guilt metric (spec law). */}
       {live.length > 0 && <div className="sh2 sh2-quiet"><span className="t">All Decisions</span></div>}
       {/* THE DECISION ROW (Astra, 2026-09-12; C-50, C-53). The star leads,
-          the glyph wears the first home's colour, the call, the reason, and
-          one facts line: where it came from, its homes, its outcome, and
-          the revisit day or the day it was recorded. */}
+          the glyph wears the first home's colour, the call, the reason when
+          there is one, and one facts line: its homes that sit in an area,
+          its outcome, and the revisit day or the day it was recorded. */}
       {live.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled">
-          {live.map((r) => (
+          {live.map((r) => {
+            const when = whenFact(r.data, today);
+            return (
             <div {...pressable(() => onOpen(r.id))} className="row dec-row" key={r.id}>
               <EntityStar entityType={ENTITY_DECISION} entityId={r.id} title={r.data.decision} />
               <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
               <div className="row-grow">
                 <div className="conn-name dec-name">{r.data.decision}</div>
-                <div className="conn-meta truncate">{r.data.why ? "Because " + r.data.why : NO_REASON}</div>
+                {/* A row with no reason says nothing about it (§AK): the
+                    "No reason recorded" line stated nothing, and it spent the
+                    row's one grey doing it. The record page still offers the
+                    empty field. */}
+                {r.data.why && <div className="conn-meta truncate">{"Because " + r.data.why}</div>}
                 <div className="facts">
-                  {r.data.source && <span className={"fact" + (r.data.source.kind === "manual" ? "" : " sky")}>{SOURCE_LABEL[r.data.source.kind]}</span>}
-                  {linksOf(r.data).map((l) => <span className={"fact fact-link " + glyphClass(r, projCat)} key={l.id}>{l.label}</span>)}
-                  {r.data.outcome && <span className="fact">{OUTCOME_LABEL[r.data.outcome.word]}</span>}
-                  {/* A date is SMALL CAPS (§AM F5, 2026-09-22). This asked
-                      for cyan and never got it -- .fact.cyan is scoped to
-                      .ruled.health-ruled and this screen is plain .ruled --
+                  {/* Where it came from is on the record page, not here: the
+                      row already spends its grey on the reason.
+                      Each home is its OWN area (§AM): a project's category,
+                      or the area itself, on the dot; the name stays the
+                      line's grey, told apart by the dot.
+                      ONLY A HOME IN AN AREA IS ON THE ROW (lead, 2026-09-26).
+                      A person, goal or task, or a project with no category,
+                      has no dot to wear, so its name was a second bare grey
+                      beside the reason (§AK). The record page's Attached To
+                      card names every home, the same move that took the
+                      source off the row. */}
+                  {linksOf(r.data).map((l) => {
+                    const slot = linkAreaSlot(l, projCat);
+                    return slot
+                      ? <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{l.label}</span></span>
+                      : null;
+                  })}
+                  {/* How it turned out takes the key: worked is done, mixed
+                      needs him, didn't is missed. */}
+                  {r.data.outcome && <span className={"fact " + OUTCOME_KEY[r.data.outcome.word]}>{OUTCOME_LABEL[r.data.outcome.word]}</span>}
+                  {/* A neutral date is SMALL CAPS (§AM F5, 2026-09-22). This
+                      asked for cyan and never got it -- .fact.cyan is scoped
+                      to .ruled.health-ruled and this screen is plain .ruled --
                       so the date drew as a second plain grey beside the
                       reason on every decision row. Caps is told apart by its
                       letterforms, so the row keeps its one grey for the
-                      words. The dead .cyan is gone with it. */}
-                  <span className="fact dec-when">{r.data.revisitOn && (r.data.revisitState === "pending" || r.data.revisitState === "shown") ? "Revisit " + fmtShort(r.data.revisitOn) : fmtShort(r.data.createdAt)}</span>
+                      words. A revisit that is due takes the key instead
+                      (§AM R8, whenFact): amber today or tomorrow, red once
+                      past. The recorded-on day is always the neutral date. */}
+                  <span className={"fact " + when.tone}>{when.text}</span>
                 </div>
               </div>
               <Chev />
             </div>
-          ))}
+            );
+          })}
         </div></div>
       )}
       <div className="screen-foot" />

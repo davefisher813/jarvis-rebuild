@@ -38,6 +38,19 @@ function ruleBody(css: string, sel: string): string {
   return open < 0 || close < 0 ? "" : css.slice(open + 1, close);
 }
 
+/** The body of the rule whose WHOLE selector is `sel`, comments stripped
+ *  (2026-09-26). `ruleBody` finds the first substring match, so a scoped
+ *  rule that happens to end in the same words is read in the base rule's
+ *  place; this reads the one rule that is exactly that selector. */
+function exactRule(css: string, sel: string): string {
+  const want = sel.replace(/\s+/g, " ").trim();
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const m of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+    if (m[1]!.replace(/\s+/g, " ").trim() === want) return m[2]!;
+  }
+  return "";
+}
+
 describe("LAW §AL: the capsule, settled", () => {
   it("the catalog carries the ruling, and names what it supersedes", () => {
     expect(CATALOG).toMatch(/## §AL\. The Capsule, Settled/);
@@ -66,6 +79,96 @@ describe("LAW §AL: the capsule, settled", () => {
     const quiet = ruleBody(CSS, ".quiet-action {");
     expect(quiet, "and it keeps secondary ink, not the action red")
       .toMatch(/color:\s*var\(--tx-2\)/);
+  });
+
+  // THE SMALL PILL IS A CAPSULE BY NAME (§AL; settled by the lead
+  // 2026-09-26). The comment on its rule says §AL binds it, and until today
+  // nothing but that comment did: this law pinned .pill-act and .row-act
+  // only, so the next pass could hand .btn-sm a ring or a wash and pass.
+  // Both themes, because each theme's rule is the one that paints there.
+  it("the small pill takes the capsule fill and the action red, in both themes", () => {
+    const CHAIN = ".btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary)";
+    const base = exactRule(CSS, CHAIN);
+    expect(base, "the small pill's own rule is still in the sheet").toBeTruthy();
+    expect(base, "it has the capsule fill, as a longhand").toMatch(/background-color:\s*var\(--capsule-fill\)/);
+    expect(base, "its label is the action red").toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
+    const light = exactRule(CSS, '[data-theme="light"] ' + CHAIN);
+    expect(light, "light has its own twin").toBeTruthy();
+    expect(light, "the same capsule fill in light").toMatch(/background-color:\s*var\(--capsule-fill\)/);
+    expect(light, "and the light words red").toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
+    // AMENDED 2026-09-26 (round-2 review, the lead): the dark twin is pinned
+    // too. It exists so the dark settings-card rule, which re-letters a
+    // button in the sheet red at the same specificity and loads later, cannot
+    // reach a small pill; deleting it left this law green while the pill's
+    // label went white in dark. The base and light pins above are unchanged.
+    const dark = exactRule(CSS, '[data-theme="dark"] ' + CHAIN);
+    expect(dark, "dark has its own twin").toBeTruthy();
+    expect(dark, "the same capsule fill in dark").toMatch(/background-color:\s*var\(--capsule-fill\)/);
+    expect(dark, "and the capsule's own red").toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
+    // AMENDED 2026-09-26 (round-2 review, the lead): a capsule is a fill and
+    // no ring (§AL). The comment above says a pass could hand the small pill
+    // a ring and pass, and it still could: nothing read box-shadow or border.
+    // No rule for it may draw a shadow other than none, and the base rule
+    // keeps border 0 with no border longhand to draw one back.
+    // AMENDED 2026-09-26 (round 3): the lookahead sat after `\s*`, which can
+    // give back its space, so "box-shadow: none" itself read as a ring. The
+    // lookahead takes the space now; any other shadow still fails.
+    for (const [theme, body] of [["base", base], ["light", light], ["dark", dark]] as const) {
+      expect(body, `${theme}: no ring`).not.toMatch(/box-shadow:(?!\s*none\b)/);
+    }
+    expect(base, "no border").toMatch(/(^|[;\s])border:\s*0\s*(;|$)/);
+    expect(base, "and no border longhand to draw one").not.toMatch(/(^|[;\s])border-(?:width|style|color|top|right|bottom|left|block|inline)[\w-]*\s*:/);
+    // AMENDED 2026-09-26 (round-3 review, the lead): the check above passed
+    // on an ABSENT box-shadow and read only the three chain rules, so any
+    // other rule reaching a small pill could paint the ring back:
+    // `.row-acts .btn-sm { box-shadow: inset 0 0 0 1px var(--tint); }` in
+    // this sheet, or `.ruled .card .btn-sm { border: 1px solid ...; }` in
+    // ruled.css, left every law green. That is the 2026-09-21 regression
+    // this file exists to stop. The base rule now says none out loud, the
+    // way .pill-act and .row-act must, and every rule in all six sheets
+    // whose subject is a small pill (not a primary, danger or secondary) is
+    // read for a shadow or a border with a width. Every check above stays.
+    expect(base, "the base rule says no ring out loud").toMatch(/(^|[;\s])box-shadow:\s*none\s*(;|$)/);
+    const SIX = ["components.css", "ruled.css", "jarvis-design-system.css", "uniformity.css", "editor.css", "mail-rows.css"];
+    const STYLE = /\b(solid|dashed|dotted|double|groove|ridge|inset|outset)\b/;
+    const drawsLine = (prop: string, value: string): boolean => {
+      const v = value.trim().toLowerCase();
+      if (/^(none|hidden|0|0px)$/.test(v)) return false;
+      // A transparent border is a hit area (the row pill reaches 44 that
+      // way), not a ring: it paints nothing.
+      if (!/-width$/.test(prop) && /\btransparent\b/.test(v)) return false;
+      if (/\b(thin|medium|thick)\b/.test(v)) return true;
+      const widths = [...v.matchAll(/(?:^|\s)(\d*\.?\d+)(?:px|rem|em|pt)?(?=\s|$)/g)].map((w) => Number(w[1]));
+      if (widths.some((n) => n > 0)) return true;
+      if (/-width$/.test(prop)) return /var\(/.test(v);
+      // A shorthand with a line style and no width of its own draws at
+      // medium; one whose only width is 0 draws nothing.
+      return STYLE.test(v) && !widths.some((n) => n === 0);
+    };
+    const rings: string[] = [];
+    for (const f of SIX) {
+      const bare = read("src/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/@(?:media|supports|container|layer)[^{;]*\{/g, "");
+      for (const m of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+        const subjects = m[1]!.replace(/:has\([^)]*\)/g, "").split(",")
+          .map((x) => x.trim().split(/\s+|>/).filter(Boolean).pop() ?? "");
+        const smallPill = subjects.some((x) => /\.btn-sm(?![\w-])/.test(x)
+          && !/\.btn-(primary|danger|secondary)(?![\w-])/.test(x.replace(/:not\([^)]*\)/g, "")));
+        if (!smallPill) continue;
+        const where = `${f}: ${m[1]!.replace(/\s+/g, " ").trim()}`;
+        for (const d of m[2]!.split(";")) {
+          const i = d.indexOf(":");
+          if (i < 0) continue;
+          const prop = d.slice(0, i).trim().toLowerCase();
+          const value = d.slice(i + 1).trim();
+          if (prop === "box-shadow" && !/^none\b/i.test(value)) rings.push(`${where} -> box-shadow: ${value}`);
+          if (/^border(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?(?:-width)?$/.test(prop) && drawsLine(prop, value)) {
+            rings.push(`${where} -> ${prop}: ${value}`);
+          }
+        }
+      }
+    }
+    expect(rings, "a small pill is a fill and no ring, whichever rule reaches it").toEqual([]);
   });
 
   it("the capsule fill is opaque in dark, so contrast cannot depend on the ground", () => {
@@ -109,9 +212,15 @@ describe("LAW §AL: the capsule, settled", () => {
         // a ruled card off it while this law, watching .pill-act only, passed.
         // Judged on each selector's SUBJECT (its last compound): a rule for
         // `.card:has(> .row-act:only-child)` styles the card, not the button.
+        // AMENDED 2026-09-26 (§AL): .btn-sm joined, since it is a capsule
+        // by name too. A small button that is ALSO a primary, danger or
+        // secondary is that button, with its own fill, so it is not judged
+        // here (a class inside :not() does not count as naming it).
         const subjects = selector.replace(/:has\([^)]*\)/g, "").split(",")
           .map((x) => x.trim().split(/\s+|>/).filter(Boolean).pop() ?? "");
-        if (!subjects.some((x) => /\.(pill-act|row-act)(?![\w-])/.test(x))) continue;
+        const isCapsule = (x: string) => /\.(pill-act|row-act)(?![\w-])/.test(x)
+          || (/\.btn-sm(?![\w-])/.test(x) && !/\.btn-(primary|danger|secondary)(?![\w-])/.test(x.replace(/:not\([^)]*\)/g, "")));
+        if (!subjects.some(isCapsule)) continue;
         if (/(^|[;\s])background:\s*(?!none\b)(?!0\b)/.test(body)) {
           offenders.push(file + " — " + selector.split("\n").pop()!.trim());
         }
@@ -124,8 +233,18 @@ describe("LAW §AL: the capsule, settled", () => {
     // §O.7: the one sanctioned bare-text control. §AA G5 + astra.test.ts: a
     // state word is small caps and never a filled pill. A sweep that gives
     // every control a capsule must not reach these two.
-    const seeAll = ruleBody(CSS, ".see-all {");
+    // AMENDED 2026-09-26 (round-1 review): this read `.sec-head .see-all`,
+    // the first rule containing the words, and never the base rule the
+    // phase recoloured. It reads the base rule exactly now, and fails if the
+    // rule is renamed rather than quietly matching nothing.
+    const seeAll = exactRule(CSS, ".see-all");
+    expect(seeAll, "the base head action rule is still in the sheet").toBeTruthy();
     expect(seeAll, "the head action stays bare text").toMatch(/background:\s*0|background:\s*none|background:\s*transparent/);
+    expect(seeAll, "no capsule fill").not.toMatch(/background-color/);
+    expect(seeAll, "and no capsule shape").not.toMatch(/border-radius/);
+    expect(seeAll, "its words are the tap red (§AM)").toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
+    expect(exactRule(CSS, '[data-theme="light"] .see-all'), "and the words red in light")
+      .toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
     const st = /\.fact\.st\s*\{([^}]*)\}/.exec(CSS)?.[1] ?? "";
     expect(st, "the state word takes no fill").not.toMatch(/background/);
     expect(st, "and no radius").not.toMatch(/border-radius/);

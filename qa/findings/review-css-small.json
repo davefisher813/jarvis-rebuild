@@ -1,0 +1,334 @@
+{
+ "phase": "css-small",
+ "issues": [
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 164,
+   "severity": "wrong",
+   "problem": "The new caps rule for the schedule meta line (`.sched-rep, .sched-until:not(.sched-until-btn)` at 11px, 700, uppercase) never gets its size on the screens it was written for. ruled.css:755 (`.ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, ... { font-size: var(--t-sub) }`) beats `.sched-rep` on specificity (0,2,0 against 0,1,0). It ties `.sched-until:not(...)` and wins because ruled.css loads later. Checked in Chromium against the real stylesheets on a `.screen.ruled`: 'Daily' / 'Leave by 9:00 AM' / a non-tappable '45m' / LockedRow's 'Until 7:00 PM' come out at 14px, weight 700, uppercase. That is not the 11px date letterform the comment promises, and 14px caps breaks R7 (caps are 11). The runs also get 17-30% wider ('Every weekday' 107 to 139px, 'Leave by 8:35 AM' 125 to 152px, '1h 30m' 54 to 63px). A DayRow line 'Work \u00b7 1h 30m \u00b7 Every weekday \u00b7 Office' fit on one line at 390 (content 281 of 314px, 18px tall). It now wraps to two (content 323px, 36px tall), so rows grow inside Today's fixed-height TV guide (YourDay renders DayRow and LockedRow) and on Schedule. '1H 30M' in caps also reads less clearly as minutes.",
+   "fix": "Put the small-caps numbers in ruled.css after line 755 at matching specificity, e.g. `.ruled .sched-rep, .ruled .sched-until:not(.sched-until-btn) { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps); text-transform: uppercase; }`. Alternatively drop `.ruled .sched-until, .ruled .sched-rep` from the 755 size list. Then re-measure the Today ticker rows at 390 and 320."
+  },
+  {
+   "file": "jarvis-app/src/styles/mail-rows.css",
+   "line": 60,
+   "severity": "inconsistent",
+   "problem": "`.mline2 b` (count in white) and `.mline2 .sched-sep` style markup that does not exist. MessagesFlow.tsx:4111 still renders `{gist ?? r.subject}{!gist && r.count > 1 ? \" \u00b7 \" + r.count : \"\"}`: the thread count is plain text inside the grey subject run, after a middot baked into the string. On a read row the count is the subject's own grey, the second fact on the line has no distinction (R5), and the baked middot stays (R6). The comment says the opposite ('white (\u00a7AM F1), behind a separator its own span draws (F3)'). Nothing changed on screen, and the finding reads as fixed.",
+   "fix": "needs_other_file: MessagesFlow.tsx:4111 has to render `<span className=\"sched-sep\">\u00b7</span><b>{r.count}</b>` (or the Facts primitive) before these rules do anything. Until then, remove the two rules or mark the finding pending, not fixed."
+  },
+  {
+   "file": "jarvis-app/src/styles/editor.css",
+   "line": 81,
+   "severity": "inconsistent",
+   "problem": "The selector was renamed from `.doc-save .pill-action` to `.doc-save .pill-act`, but the only button in the save line, NoteEditor.tsx:393, is still `<button className=\"pill-action\">Retry</button>`. The rule is now orphaned and Retry lost its margin (Chromium: margin-left 0px, was var(--s-1)). `.pill-action` has no rule of its own outside `.sh2/.plan-head .see-all`, so Retry is still a bare 14px/400 button in the failed line's red.",
+   "fix": "Keep `.doc-save .pill-action` until NoteEditor.tsx changes the class to `pill-act` (needs_other_file). Otherwise make both changes together."
+  },
+  {
+   "file": "jarvis-app/src/styles/ruled.css",
+   "line": 1671,
+   "severity": "inconsistent",
+   "problem": "The diff treats two head counts in opposite ways. `.band-n` (components.css:1305) goes to white because 'grey semibold was the head's own grey made heavier, which is not a second ink' (F1). The health `.sh2 .n` override was deleted instead, so Health's section-head counts fall back to `.sh2 .n` (components.css:2885), which is --tx-3 at weight 800 (Chromium: 11px, 800, rgb(210,210,214)). That is the bolded-grey count the band-n comment rules out, and R4 bans --tx-3 bolded as emphasis.",
+   "fix": "Pick one rule for a count on a head. If F1 applies (as band-n says), give `.sh2 .n` --tx-1 app-wide in components.css, not just in Health. If head counts stay grey, keep band-n grey too and fix the comment."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 167,
+   "severity": "inconsistent",
+   "problem": "`.sched-firstmove` (a task plan's 'then' step, words) is now --tx-1 white, 'what the key gives emphasis that carries no meaning'. The key only gives white to a number with no state; 'next' is amber. In the same diff `.bp-next` (line 2149, 'Next: Call Ridgeline') goes amber because 'Next is amber in the key'. The next move is amber on a project row and white on an event row, so the colour is chosen by screen, not by meaning (R3). On DayRow it also sits beside `.weather-inline`, which is white too, so the line has two white word runs.",
+   "fix": "Give the first move the same key colour the diff gives 'Next' (--warn), or keep it the row's grey and set it apart some other way."
+  },
+  {
+   "file": "jarvis-app/src/notes/screens/NotesList.tsx",
+   "line": 291,
+   "severity": "nit",
+   "problem": "Pre-existing, but the diff touched this row. Its r-when comment says caps is now what keeps the row to one grey, and the row still has two. Each tag (`r-goal r-cat`, '\u00b7 #tag') and the find count (`r-goal r-cat fact purp`, '\u00b7 JARVIS found N') both render 14px/400 grey. `.fact.purp` and `[data-theme=dark] .fact.purp` lose to `.ruled .r-goal.r-cat` (ruled.css:552, same or higher specificity, later sheet). Chromium shows 'found' at rgb(210,210,214). Both strings also bake a leading '\u00b7 '.",
+   "fix": "needs_other_file: drop `r-cat` from the found span or use a key colour or primitive for it, and draw separators instead of baking '\u00b7 '."
+  },
+  {
+   "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+   "line": 1751,
+   "severity": "nit",
+   "problem": "Pre-existing, on a row the diff changed (`.ins-sub` from 11px to 14px). The Weekly Volume breakdown value is one grey run holding three facts joined by baked middots: '{date} \u00b7 {n} sets \u00b7 primary / secondary, counted half'. After the change it reads as a 14px facts line, so R5 (a second fact must differ) and R6 (no baked middot) now clearly apply, and it fails both.",
+   "fix": "needs_other_file: split into `.fact` spans in a `.facts` line (date as `.fact.date`, count with `<b>`)."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 5766,
+   "severity": "nit",
+   "problem": "`.cf-tl` lost its blue and got nothing in its place. The landscape top corners are now the same run twice: `.cf-tl` ('AMRAP \u00b7 20:00') and `.cf-tr` ('ROUND 3 OF 5'), both 13px/800 grey caps. The portrait twin `.cf-fmt` got a press-3 fill to keep it apart; the landscape copy of the same fact did not. Both corners are also 13px caps where R7 wants 11. That part is pre-existing.",
+   "fix": "Give `.cf-tl` the same neutral tag treatment as `.cf-fmt` (press-3 fill), or drop the duplicated format from one corner."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 6297,
+   "severity": "nit",
+   "problem": "`.opt-val + .opt-val { color: var(--tx-1) }` makes an OptionsSheet count white only when a value comes before it. A row with a count and no value renders the count grey, so the same fact changes colour depending on its neighbour. Latent: no current OptionsSheet caller passes value or count.",
+   "fix": "Give the count its own class and colour (for example a `<b>` or `.opt-n` rule), not an adjacent-sibling selector."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 1288,
+   "severity": "wrong",
+   "problem": "`.msg-rail.hot` / `.msg-rail.on.hot` moved from --cat-rust to --sys-red (\"late\"). In src/messages/rows.ts, `hot` is set by railToneForDeadline when byRank(by) <= 1, which covers \"today\", \"asap\", \"eod\" and \"tomorrow\". Those are DUE, and the key makes due amber. The other path, railToneForWaiting(\"firm\"), is a long wait, which the key calls STALLED, also amber. So red now claims \"late\" for rows that are not late. It also erases the top rung. --sys-red is #FF453A and the unread rail `.msg-rail.on` is --accent #FA233B, a 1.15:1 difference on a 3px mark, so a row that wants you now looks the same as one that is merely unread. The same block also leaves `.msg-rail.on { background: var(--accent) }`: brand red on a mark nobody taps. That is the exact reason this diff gives for taking --accent off `.sweep-ring`.",
+   "fix": "Needs a lead decision, because the key has no second amber. One option: hot = solid --warn-fill and warm = the hollow --warn-fill ring, so both rungs stay amber and stay distinct. Keep --sys-red only for a deadline that has already passed (byRank day -1). Take --accent off the unread rail too (use --tx-1, or the hollow/solid distinction alone)."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 3348,
+   "severity": "wrong",
+   "problem": "The base `.see-all` went from --tx-1 to --tint, but `.see-all` is not on the BROWSER-F-10 sheet-red list (components.css ~1600, the rule that ends `.toast .toast-action { color: var(--tint-on-sheet) }`). PlanDaySheet.tsx:663 renders `<span className=\"see-all\">Show/Hide</span>` inside a card in the `.sheet-scrim > .card` sheet. There, dark --tint #FF2B3C reads 3.55 to 4.23:1, and 3.76:1 on the #2C2C2E sheet ground that browserWalk.test.ts measures. Before this change it was white, 13.94:1. GymFlow.tsx:616 \"Edit\"/\"Add\" sits on the Warm-Up `.banner-warn` amber wash inside `.ruled.health-ruled`, which computes to about 3.4 to 3.9:1 (estimated from the glass and tint tokens). Both are under AA for 14px semibold. The same diff moved `.doc-kdone` to --tint-on-sheet for exactly this failure.",
+   "fix": "Add `.sheet-scrim > .card .see-all` and `.form-sheet .see-all` to the --tint-on-sheet selector list. Measure the banner-warn / banner-cool case in a render before shipping."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 2472,
+   "severity": "wrong",
+   "problem": "`.prov-link` went from --tx-3 to --tint, and it too is missing from the sheet-red list. ProvenanceLine renders it straight onto the sheet ground in TaskSheet.tsx:393 and EventSheet.tsx:314 (`.sheet-scrim > .card.form-sheet`, background --surface-2 #2C2C2E). There, dark --tint reads 3.76:1, the exact BROWSER-F-10 failure. Its own comment calls the sheet \"where a source is actually opened from\".",
+   "fix": "Add `.sheet-scrim > .card .prov-link` to the --tint-on-sheet rule, alongside .row-act and .note-fix."
+  },
+  {
+   "file": "jarvis-app/src/styles/ruled.css",
+   "line": 455,
+   "severity": "wrong",
+   "problem": "`.goal-proj` changed from sky to --good (\"on track\"). Three problems. (a) GoalRowRuled.tsx:67 renders the check-in as `.r-goal.fact.good` on the same `.r-k.goal-sub` line, whenever there is no status. \"2 projects\" and \"Check-in: Behind\" are now both green, with only a gap between them, so the two facts no longer differ (R5). It also paints \"Behind\" beside a green count. (b) The same count renders as a plain grey `.fact` on GoalDetailPage.tsx:214, so one fact now wears two colours between the list and the detail page. (c) movingOf and BiggerPicturePage count `bucketOf(r) === \"moving\"`, and bucketOf (progress.ts:175) never checks `status === \"on_hold\"`, which projStatus labels \"Paused\" (warn). So the green \"on track\" count can include paused projects.",
+   "fix": "Leave the count grey (it is a number with no state) or white. If green is kept, exclude on_hold from the count, make GoalDetailPage match, and resolve the clash with the green check-in fact on the same line."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 1305,
+   "severity": "inconsistent",
+   "problem": "`.band-n` (the count on a Messages band head) went to --tx-1 white, but every section-head count `.sh2 .n` stays --tx-3 (components.css:2885). In the same diff, the Health `.sh2 .n` cyan was removed with the note \"The count keeps the head's own quiet ink\". Two treatments of one kind of number, on one screen: the band head, documented as \"quieter than the section count above it\", now outranks the section count (MessagesFlow.tsx:4699 vs :2957/:4275/:4402).",
+   "fix": "Treat head counts one way. Either band-n takes the `.sh2 .n` treatment (grey micro caps count), or `.sh2 .n` goes white app-wide by a lead decision."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 3394,
+   "severity": "inconsistent",
+   "problem": "After this change, head actions wear two inks. A bare `.see-all` is red, while `.sh2 .see-all.pill-action` still paints --tx-1. On GymFlow.tsx:3468-3475, the \"Days\" head's one `.sec-left` cluster shows \"Reorder\" as a white capsule beside \"Manage\" in red text. The change also reverses STYLING_CATALOG_V3 C1 (Dave, 2026-09-18, commit 9048cf2): \"the app's own primary ink when it only goes somewhere: See All, Open Inbox, Schedule, Add\". That pick is the one that turned the bare `.see-all` white. The rulebook lists `.see-all` as --tint-legitimate, so the two sources conflict, and the diff settles it silently.",
+   "fix": "Take C1 vs \u00a7AM to Dave before shipping. Whichever wins, bare and capsule head doors should share one ink."
+  },
+  {
+   "file": "jarvis-app/src/styles/mail-rows.css",
+   "line": 60,
+   "severity": "inconsistent",
+   "problem": "The new `.mline2 b { color: var(--tx-1) }` and `.mline2 .sched-sep` rules match nothing. MessagesFlow.tsx:4111 still renders `{gist ?? r.subject}{!gist && r.count > 1 ? \" \u00b7 \" + r.count : \"\"}` as plain text, with no `<b>` and no `.sched-sep`. The thread count is still grey with a middot baked into the string, while the rule's comment says it is white behind a separator its own span draws.",
+   "fix": "needs_other_file: MessagesFlow.tsx:4111 must render `<span className=\"sched-sep\" /><b>{r.count}</b>`. Otherwise drop the rules and their comment."
+  },
+  {
+   "file": "jarvis-app/src/styles/editor.css",
+   "line": 81,
+   "severity": "wrong",
+   "problem": "The selector changed from `.doc-save .pill-action` to `.doc-save .pill-act`, but NoteEditor.tsx:393 still renders Retry as `className=\"pill-action\"`. The rule now matches nothing and Retry loses its margin. The capsule the rename implies is never applied either: outside `.sh2`/`.plan-head`, `.pill-action` has no styling, so the tap word inherits `.doc-save.failed`'s --sys-red. That makes a control wear \"late\" red instead of the tap colour.",
+   "fix": "needs_other_file: change NoteEditor.tsx:393 to `pill-act`. Otherwise revert the selector."
+  },
+  {
+   "file": "jarvis-app/src/styles/editor.css",
+   "line": 63,
+   "severity": "nit",
+   "problem": "`.doc-pm mark` moved from the Health amber tint to --warn-tint, the key's \"needs you soon\" wash, on a writer's highlighter that means nothing in the key. The same diff's find-in-note comment argues \"a match is not 'needs you soon' (\u00a7AM)\" to move matches off amber. So the diff states that amber carries that meaning, then gives it to highlights.",
+   "fix": "Treat the highlighter as writer content outside the key and say so in the comment. Or give it a neutral highlight wash once a primitive for it is decided."
+  },
+  {
+   "file": "jarvis-app/src/styles/ruled.css",
+   "line": 1630,
+   "severity": "nit",
+   "problem": "`.rdy-n` is now entirely --tx-1. For a waiting detector (STATE_CLASS waiting = \"\"), the have `<b>{have}</b>` and the gate `/{need}` are both white and differ only by weight (semibold vs medium). The comment kept above `.rdy-n b` (\"The have, against the gate behind it\") describes a distinction that no longer exists, and the key's white is for the one number that must stand out.",
+   "fix": "Let the whole count read as one white number. Or keep the have white and move the gate into the caps or kicker form, so the two differ by more than weight."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 6297,
+   "severity": "nit",
+   "problem": "`.opt-val + .opt-val { color: var(--tx-1) }` never fires. No OptionsSheet caller passes both `value` and `count`: NotesList.tsx:340/343 pass count only, so \"Archived 3\" keeps the count as a lone grey `.opt-val`. If a caller ever passes both, the same kind of count would be white on that row and grey on the others.",
+   "fix": "Give the count its own class or selector so every count gets one treatment, or drop the rule."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 164,
+   "severity": "breaks",
+   "problem": "The new small-caps rule `.sched-rep, .sched-until:not(.sched-until-btn) { font-size: var(--t-eyebrow); ... uppercase }` loses the font-size on every `.ruled` screen, and Today and Schedule are both `screen ruled`. ruled.css:755 `.ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, ... { font-size: var(--t-sub) }` is (0,2,0). It beats `.sched-rep` (0,1,0) outright, and it ties `.sched-until:not(.sched-until-btn)` (0,2,0) but wins because ruled.css is imported last (main.tsx:19). So the repeat (\"DAILY\"), \"LEAVE BY 9:00 AM\", LockedRow's \"UNTIL 7:00 PM\" and the Select-mode length all paint as 14px semibold uppercase. That matches neither the 14px fact nor `.fact.date`'s 11px small caps, and a 14px caps run breaks R7, the rule this fix was for. It also lands inside the Today TV guide rows (YourDay renders DayRow and LockedRow). The wider caps make the nowrap items (ruled.css:757) wrap sooner on the meta line.",
+   "fix": "In ruled.css:755, take `.ruled .sched-until` and `.ruled .sched-rep` out of the 14px list (keep `.ruled .sched-until-btn`). Or restate the caps rule in ruled.css after line 755 as `.ruled .sched-rep, .ruled .sched-until:not(.sched-until-btn)`, so the `.fact.date` numbers actually apply."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 164,
+   "severity": "wrong",
+   "problem": "`text-transform: uppercase` on the non-button `.sched-until` also catches the LENGTH. DayRow.tsx:350 renders `<span className=\"sched-until\">{durLabel(mins)}</span>` in Select mode or when onSetEnd is absent, and durLabel returns \"30m\" / \"1h 30m\" / \"2h\". These now read \"30M\" / \"1H 30M\", where M reads as months or million. The same row's tappable `.sched-until-btn` still reads \"30m\", so one value has two spellings depending on mode. The length and \"Leave by\" share the class, so CSS alone cannot tell them apart.",
+   "fix": "Keep the caps off the length. Report needs_other_file so DayRow can give the Select-mode length its own class (or `.sched-until-btn`-style lowercase), or drop uppercase for `.sched-until` and set the length apart another way."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 1483,
+   "severity": "wrong",
+   "problem": "R10 section heads. `.msg-fold-head` draws the Email page's section heads (\"Worth Knowing\", \"Noise\", the age-band labels at MessagesFlow.tsx:4699/4833/4839), on the same page as `.sh2.sh2-quiet` heads (\"Tools\", \"For a Desk\", the group heads). The fix moved it to 11px / semi / `--track-caps` (0.04em). `.sh2 .t` is 13px (`--t-caption`) / semi / 0.1em, so the page still has two head sizes, which is what the new comment says it removed; it now has a third look with no leader. `.band-n` (line 1314) also went to `--tx-1`, while `.sh2 .n` on the same page is `--tx-3`. The same diff removes `.health-ruled .sh2 .n`'s colour so that \"the count keeps the head's own quiet ink\", which contradicts this.",
+   "fix": "Report needs_other_file: these heads should be `<div className=\"sh2 sh2-quiet\"><span className=\"t\">\u2026</span><span className=\"n\">\u2026</span></div>`. Until then, match `.sh2 .t`'s numbers (13px, semi, 0.1em) and leave `.band-n` at `--tx-3` like `.sh2 .n`."
+  },
+  {
+   "file": "jarvis-app/src/styles/editor.css",
+   "line": 81,
+   "severity": "wrong",
+   "problem": "`.doc-save .pill-action` was renamed to `.doc-save .pill-act`, but the only element it targets, NoteEditor.tsx:393's Retry, is still `className=\"pill-action\"`. The rule now matches nothing and Retry loses its margin. Retry was already a bare `<button>`: `.pill-action` has no rule outside `.sh2`/`.plan-head .see-all.pill-action`, so it is not a capsule (R2) either way.",
+   "fix": "Report needs_other_file: change NoteEditor's Retry to `pill-act`, which gives it the capsule and makes this selector live. Otherwise revert the selector to `.pill-action`."
+  },
+  {
+   "file": "jarvis-app/src/styles/mail-rows.css",
+   "line": 60,
+   "severity": "wrong",
+   "problem": "`.mline2 b` and `.mline2 .sched-sep` target markup that does not exist. MessagesFlow.tsx:4111 still renders `{gist ?? r.subject}{... \" \u00b7 \" + r.count}` as one text run, with no `<b>` and no `.sched-sep` span. Both rules are dead, and the comment (\"white (\u00a7AM F1), behind a separator its own span draws (F3)\") describes a fix that did not happen: the count is still grey and the middot is still baked (R6). `.sched-sep` also belongs to `.sched-cat` lines and is borrowed here.",
+   "fix": "Remove the two rules and report needs_other_file for MessagesFlow.tsx:4111, which needs to emit the separator span and `<b>{r.count}</b>`. Add the CSS in the same change as the TSX."
+  },
+  {
+   "file": "jarvis-app/src/styles/ruled.css",
+   "line": 1380,
+   "severity": "inconsistent",
+   "problem": "R9: `.set-foot` copies `.input-hint`'s numbers (t-meta, tx-3, italic) into a second rule. The rest of this diff does R9 the other way: `.xs-note` joined the one `.input-hint, .input-help, .input-note, .xs-note` rule in components.css. Two rules for one note will drift. The italic also reaches content that is not a hint: AccountPage's `deleteError` and the `.slip-warn` warnings (\"Permanent \u00b7 Every note...\", AdvancedPage \"This device only \u00b7 No undo\") now render as italic red errors. `.input-error` is upright.",
+   "fix": "Add `.ruled .set-foot` to the `.input-hint` selector list and keep only its layout (padding-top, line-height) here. Add `.set-foot .slip-warn { font-style: normal; }` so warnings and errors stay upright."
+  },
+  {
+   "file": "jarvis-app/src/styles/editor.css",
+   "line": 180,
+   "severity": "inconsistent",
+   "problem": "R9 is still not met, and this is handled differently from `.set-foot`. `.exp-note` is the note directly under the Filename field (ExportSheet.tsx:96, inside `.field` under `.input.exp-name`) and under the Format field (carries, line 109). The fix only changed size and ink: it is still a different class and upright, while `.set-foot`, which sits under a card rather than a field, was made italic \"so it reads like the field note\". `.exp-note` also carries error lines and the AISheet status, so CSS cannot make it `.input-hint`.",
+   "fix": "Report needs_other_file: ExportSheet should use `.input-hint` for the two notes under fields, and keep `.exp-note` for the status and error lines."
+  },
+  {
+   "file": "jarvis-app/src/styles/ruled.css",
+   "line": 949,
+   "severity": "wrong",
+   "problem": "R8: `.ins-sub` went to 14px sentence case as \"a value is a fact\", but it also carries dates. CategoryDetail.tsx:1808 puts `p.peakDate` (a raw ISO date from insights.ts:267) under the Best number in `.ins-cell`, and the volume-breakdown rows (1751) start with `shortDate(lift.date)`. A neutral date shown as a fact should be small caps (`.fact.date`). The old 11px was nearer the date letterform than the new 14px sentence case.",
+   "fix": "Report needs_other_file so the peak date renders as `<span className=\"fact date\">` or a date-specific class. Or leave `.ins-sub` at t-sub and add a scoped `.ruled .ins-cell .ins-sub` with the `.fact.date` numbers."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 3366,
+   "severity": "wrong",
+   "problem": "`.see-all` went from `--tx-1` to `--tint` everywhere, with no sheet variant. `--tint` is correct for a tap word (Known legitimate), but PlanDaySheet.tsx:663 draws its Show/Hide `.see-all` inside `.sheet-scrim > .card`, which is `--surface-2` (#2C2C2E) in dark. There `--tint` measures 3.76:1, the figure BROWSER-F-10 recorded for this ground (jarvis-design-system.css:216-228). The old white was about 13.9:1. The design system's answer for tap words on a sheet is `--tint-on-sheet`, and this diff uses it for `.doc-kdone` and `.doc-kai`.",
+   "fix": "Add `.sheet-scrim .see-all { color: var(--tint-on-sheet); }`. It resolves to the light red in light, so the light rule needs no change there."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 4138,
+   "severity": "inconsistent",
+   "problem": "R2: the diff declares several controls capsules but only half applies the capsule. ruled.css:1397 states \"every capsule's label is 14 (\u00a7AL, restating \u00a7AJ C1)\", and \u00a7AL says a capsule paints 34 inside a 44 tap box with `box-shadow: none`. Against that: `.note-conn-add.note-conn-first` (\"Link Something\") keeps a 13px label (`--t-caption`) on a 26px body; `.promo-pill` (line 2959) keeps a 16px raw-calc label painted 44 tall; `.h-add` (ruled.css) paints and taps at 36px, under the 44 minimum; `.return-pill` (line 6477) keeps its drop shadow and uses `--surface-2` rather than `--capsule-fill` in light.",
+   "fix": "Set `.note-conn-first` to `--t-meta`. Either give `.promo-pill`, `.h-add` and `.return-pill` the capsule geometry, or keep them out of the capsule claim and say in their comments which parts of \u00a7AL they follow. At minimum, `.h-add` needs a 44px hit area (a transparent border or ::after, the way .pill-act gets its hit box)."
+  },
+  {
+   "file": "jarvis-app/src/styles/ruled.css",
+   "line": 455,
+   "severity": "wrong",
+   "problem": "`.goal-proj` (\"3 projects\", GoalRowRuled.tsx:64) now wears `--good`, as if it meant \"on track\". It is a count of linked projects with no state. The key gives that white (or the one grey), and green means done or on track. On the same row, `.gstat` on the meter line can say the goal is behind, and a `fact good` check-in can sit on the same line, so green here contradicts or duplicates a real state. It was already wrong as sky (an estimate), but green gives it a new false meaning.",
+   "fix": "Use `color: var(--tx-1)` (a number with no state), or leave it grey if nothing else on line two is grey."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 167,
+   "severity": "nit",
+   "problem": "`.sched-firstmove` went to `--tx-1` on the grounds that white is \"what the key gives emphasis that carries no meaning\". The key gives white to a number with no state, and the first move is words (DayRow.tsx:385). On the meta line it now wears the row title's ink and reads as a second title. It sits on the same line as the 14px-caps problem above.",
+   "fix": "Set it apart with a key mark or caps (for example a `.r-next-k`-style NEXT kicker, since next is amber in the key), or report it for a lead decision instead of borrowing white."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 5740,
+   "severity": "nit",
+   "problem": "R7, in rules the fixer edited: `.cf-fmt` is still a 13px (`--t-caption`) uppercase tag, and `.cr-fmt` (line 5805) is still raw `calc(11px * var(--type-scale))`. Uppercase kickers are `--t-eyebrow` or `--t-micro`, and a raw calc is itself a violation. Only their colour and fill changed.",
+   "fix": "`.cf-fmt { font-size: var(--t-eyebrow) }` (or `--t-micro`) and `.cr-fmt { font-size: var(--t-micro) }`."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 1369,
+   "severity": "nit",
+   "problem": "The 11px caps kicker is copied into separate per-screen rules instead of reusing the `.eyebrow` primitive (jarvis-design-system.css:640: t-eyebrow, semi, `--track-eyebrow`). The copies are `.msg-stands-head`, `.msg-fold-head`, `.doc-paste-k`, `.rem-read-k`, `.se-grid-u`, `.ex-cell-k`, `.money-hero-label:first-child`, `.adm-role` and the \"Task\" tag. They already disagree on tracking: `.msg-stands-head`, `.doc-paste-k` and `.rem-read-k` use `--track-eyebrow` (0.06em), while `.msg-fold-head`, `.adm-role` and the doc Task tag use `--track-caps` (0.04em).",
+   "fix": "Add the kicker selectors to `.eyebrow`'s rule, the same way `.xs-note` joined `.input-hint`, and keep `--track-caps` only for date letterforms that copy `.fact.date`."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 164,
+   "severity": "wrong",
+   "problem": "The new small-caps rule for the repeat and the non-tappable time (`.sched-rep, .sched-until:not(.sched-until-btn)` at 11px) never gets its size on any surface that renders DayRow or LockedRow. Every one of them is `.screen.ruled` (SchedulePage:453, TodayPage:781, so the Today TV guide too). ruled.css:755 `.ruled .sched-until, .ruled .sched-rep { font-size: var(--t-sub) }` has equal or higher specificity: (0,2,0) against (0,2,0) and (0,1,0). ruled.css also loads after components.css (main.tsx:17-19), so it wins. The uppercase, semibold and tracking still apply, and \"DAILY\", \"LEAVE BY 9:00 AM\", \"UNTIL 7:00 PM\" and a Select-mode \"1H 30M\" render as 14px semibold caps. That is not the neutral-date letterform the comment claims (`.fact.date` is 11px), it breaks R7 (caps runs are 11px only), and each nowrap item gets much wider, so the meta line wraps more often.",
+   "fix": "Put the caps sizing in ruled.css after line 755, e.g. `.ruled .sched-rep, .ruled .sched-until:not(.sched-until-btn) { font-size: var(--t-eyebrow); }`. Or take `.ruled .sched-until` and `.ruled .sched-rep` out of the line-755 t-sub list (keep the `.sched-until-btn` entry)."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 2490,
+   "severity": "wrong",
+   "problem": "`.prov-link` went from grey to `--tint` globally. It also renders on sheet grey: TaskSheet.tsx:393 and EventSheet.tsx:314 put `<Provenance onOpen>` directly on `.sheet-scrim > .card` (surface-2 #2C2C2E). `--tint` measures 3.76:1 there, the exact BROWSER-F-10 case documented in jarvis-design-system.css:216-229. That standing rule says every red word on a sheet grey takes `--tint-on-sheet`, and the list at components.css:1609-1617 does not include `.prov-link`. The result is an AA failure at 14px.",
+   "fix": "Add `.sheet-scrim > .card .prov-link` (and `.form-sheet .prov-link`) to the BROWSER-F-10 `--tint-on-sheet` selector list."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 3366,
+   "severity": "wrong",
+   "problem": "The base `.see-all` went from `--tx-1` to `--tint`, and some bare `.see-all` now sit on grounds where that red fails contrast. PlanDaySheet.tsx:663 has `<span className=\"see-all\">Show/Hide</span>` inside a sheet's grouped card: 2.54 to 3.76:1 by the BROWSER-F-10 measurements. There is no sheet override for `.see-all`. GymFlow.tsx:616 has \"Edit\"/\"Add\" on the warm-up and cool-down block cards (`.banner-warn` / `.banner-cool` wash): about 3.4:1 on the amber wash (#40311B) and about 3.8:1 on the blue, where they were white before.",
+   "fix": "Add `.sheet-scrim > .card .see-all` to the `--tint-on-sheet` list, and give `.see-all` inside `.banner-warn` / `.banner-cool` cards `--tint-on-sheet` (or keep `--tx-1` there)."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 167,
+   "severity": "wrong",
+   "problem": "`.sched-firstmove` now uses `--tx-1`. What it renders is a sentence (a task's `plan.then`, DayRow.tsx:385, via attachments.ts firstMoveOf), not a number. The key reserves white for \"a number with no state that must stand out\", so this is emphasis with no meaning. On every Schedule and Today (TV guide) row that has a first move, the meta line now carries a sentence in the same ink as the row title.",
+   "fix": "Do not spend white on it. Either make the place link key-correct (`.sched-loc` is tappable, so `--tint` per the rulebook), which frees the line's one grey for the first move, or report it as needing a primitive decision."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 2165,
+   "severity": "inconsistent",
+   "problem": "`.bp-next` paints the whole \"Next: {action}\" sentence amber on the unlensed project row (BiggerPicturePage.tsx:226). On the ruled row the comment cites as precedent, only the NEXT kicker is amber (`.ruled .r-next-k`) and the action is `--tx-1` (`.r-next-v`). A stalled project now stacks two full amber lines (`.bp-next` plus `.bp-stalled`, both `--warn`), and an on-track project shows a warning-coloured sentence. Under `.ruled.health-ruled` the `.bp-sub` rule (ruled.css:2070, specificity 0,3,0) forces it back to grey.",
+   "fix": "Match the ruled anatomy: amber on a NEXT kicker only, action in `--tx-1`. That needs a markup change, so report it as needs_other_file."
+  },
+  {
+   "file": "jarvis-app/src/styles/ruled.css",
+   "line": 794,
+   "severity": "inconsistent",
+   "problem": "Because of the `.prov-link` change, the Provenance button on a Schedule/Today row (DayRow.tsx:393) is now red. The place link on the same row stays pinned to grey by `.ruled .sched-cat .sched-loc`, under \"THE ROW SPENDS NO RED (Dave 2026-09-02)\". One row now has two tappable links in two different inks, and red is back on schedule rows.",
+   "fix": "Pick one treatment for links on the schedule row. Either `.ruled .sched-row .prov-link` follows `.sched-loc`, or `.sched-loc` follows the key; ask Dave which ruling wins."
+  },
+  {
+   "file": "jarvis-app/src/styles/editor.css",
+   "line": 81,
+   "severity": "nit",
+   "problem": "The selector was renamed from `.doc-save .pill-action` to `.doc-save .pill-act`, but NoteEditor.tsx:393 still renders the Retry button as `className=\"pill-action\"`. The rule now matches nothing and the \"Couldn't save\" Retry loses its 4px left margin.",
+   "fix": "Revert the selector to `.pill-action`, or change the markup to `pill-act` (needs_other_file)."
+  },
+  {
+   "file": "jarvis-app/src/styles/mail-rows.css",
+   "line": 60,
+   "severity": "nit",
+   "problem": "`.mline2 b` and `.mline2 .sched-sep` target markup that does not exist. MessagesFlow.tsx:4111 still bakes `\" \u00b7 \" + r.count` into the subject string, so the thread count stays grey after a baked middot. The comment claims the opposite (a white count and a CSS-drawn separator). These are dead rules, and the R4/R6 issue is unfixed.",
+   "fix": "Drop the two rules until the TSX renders `<span className=\"sched-sep\"/>` and `<b>{count}</b>`, or report as needs_other_file."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 4147,
+   "severity": "inconsistent",
+   "problem": "`.note-conn-add` became a capsule, but its labelled variant `.note-conn-add.note-conn-first` still sets `font-size: var(--t-caption)` (13px). This same diff moves every other capsule label to 14 (`.row-act-pill`, `.h-add`, `.proj-close`) with the stated rule \"every capsule's label is 14 (\u00a7AL)\".",
+   "fix": "Set `.note-conn-add.note-conn-first` to `font-size: var(--t-meta)`."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 6331,
+   "severity": "nit",
+   "problem": "Two reds for bare tappable words in light theme. `.see-all` gets a light override to `--on-light-red` (#BC000E), but the other bare tap words recoloured in this diff (`.hdr-scope-all` \"Clear\" and `.prov-link`) stay on `--tint`, which is #DA0012 in light.",
+   "fix": "Add `[data-theme=\"light\"]` overrides to `--on-light-red` for `.hdr-scope-all` and `.prov-link`, as for `.see-all`."
+  },
+  {
+   "file": "jarvis-app/src/styles/components.css",
+   "line": 6521,
+   "severity": "nit",
+   "problem": "In dark, `.return-pill` swapped surface-2 (#2C2C2E) for the capsule fill (#17171A). It floats over whatever scrolls under it, and over a #1C1C1E card that is about 1.03:1, so the pill's shape nearly disappears and it reads as bare red words (\u00a7X). `.promo-pill` (line 2959) has the same issue on its #1C1C1E promo card. There the primary capsule (#17171A) is now a fainter shape than the quiet \"Not Now\" pill beside it (press-3 \u2248 #2A2A2C), which inverts the pair's hierarchy.",
+   "fix": "Keep an opaque fill that lifts off both black and card for the floating pill (e.g. surface-2 with `--tint-on-sheet`). For the promo pair, make sure the primary is not the fainter shape."
+  },
+  {
+   "file": "jarvis-app/src/styles/editor.css",
+   "line": 247,
+   "severity": "nit",
+   "problem": "`.doc-kai` and `.doc-kdone` now use `--tint-on-sheet`, which is `--accent-tx` = #FFFFFF in dark. That is the same white as Undo, Format, List and Insert (`.doc-kbtn` = `--tx-1`). In dark the writing bar loses its only red (Done), and JARVIS no longer stands apart when a selection is live.",
+   "fix": "Acceptable under BROWSER-F-10 but worth showing Dave. CLAUDE.md asks for a rendered preview before the writing bar changes again."
+  },
+  {
+   "file": "jarvis-app/src/styles/ruled.css",
+   "line": 455,
+   "severity": "nit",
+   "problem": "`.goal-proj` (\"N projects\" moving a goal) is now `--good` on the goal row. GoalDetailPage.tsx:214 renders the same fact as a plain grey `.fact`, so the same count carries green meaning on one surface and none on the next.",
+   "fix": "Make the detail page's fact `.fact.good` as well, or leave both grey."
+  }
+ ]
+}

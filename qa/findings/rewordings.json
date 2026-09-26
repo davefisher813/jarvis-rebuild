@@ -1,0 +1,508 @@
+[
+ {
+  "id": 522,
+  "file": "jarvis-app/src/styles/editor.css",
+  "old": "content: \" \u00b7 Task\"",
+  "new": "content: \"Task\" (drawn as TASK by text-transform, with a 6px margin in place of the baked-in middot)",
+  "group": "editor.css#1",
+  "phase": "css-small"
+ },
+ {
+  "id": 663,
+  "file": "jarvis-app/src/styles/editor.css",
+  "old": "content: \" \u00b7 Task\"",
+  "new": "content: \"Task\" (drawn uppercase by text-transform)",
+  "group": "editor.css#2",
+  "phase": "css-small"
+ },
+ {
+  "id": "114",
+  "file": "src/review/ReportPage.tsx",
+  "old": "Your Month \u00b7 Still Open",
+  "new": "Your Month So Far",
+  "group": "settings-report",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "418",
+  "file": "src/settings/AIControlPage.tsx",
+  "old": "{N} in \u00b7 {M} out  (e.g. \"12.3K in \u00b7 4.1K out\")",
+  "new": "{N} in, {M} out  (e.g. \"12.3K in, 4.1K out\")",
+  "group": "settings-report",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "68",
+  "file": "jarvis-app/src/schedule/screens/SchedulePage.tsx",
+  "old": "Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b> \u00b7 {spanShort(best.e - best.s)}  (e.g. \"Longest open stretch Wed 1:00 to 5:30 PM \u00b7 4h 30m\")",
+  "new": "Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b>  (e.g. \"Longest open stretch Wed 1:00 to 5:30 PM\")",
+  "group": "schedule-rows",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "DayRow-untappable-length",
+  "file": "jarvis-app/src/schedule/screens/DayRow.tsx",
+  "old": "Untappable length drawn in small caps: \"30M\" / \"1H 30M\"",
+  "new": "The same words in sentence case as a white <b> once the CSS below lands: \"30m\" / \"1h 30m\". This is a letter-case change only; the text is the same.",
+  "group": "schedule-rows",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 Email \u00b7 From an email",
+  "new": "\u2709 Email",
+  "group": "tasks-reminders",
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 Note \u00b7 From a note",
+  "new": "\u2709 Note",
+  "group": "tasks-reminders",
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 Smart Paste \u00b7 From Smart Paste",
+  "new": "\u2709 Smart Paste",
+  "group": "tasks-reminders",
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 Recording \u00b7 From the recorder",
+  "new": "\u2709 Recording",
+  "group": "tasks-reminders",
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 Chat \u00b7 From chat",
+  "new": "\u2709 Chat",
+  "group": "tasks-reminders",
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
+ },
+ {
+  "id": "104",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "\u2709 File \u00b7 From a file",
+  "new": "\u2709 File",
+  "group": "tasks-reminders",
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
+ },
+ {
+  "id": "278",
+  "file": "src/gym/progression.ts",
+  "old": "Lift (basis): \"{Exercise} \u00b7 {Equipment}\" (e.g. \"Bench \u00b7 Barbell\")",
+  "new": "\"{Exercise}, {Equipment}\" (e.g. \"Bench, Barbell\")",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "278",
+  "file": "src/gym/progression.ts",
+  "old": "Read (basis): \"{when} \u00b7 {N} working sets\" (e.g. \"Last Tuesday \u00b7 2 working sets\")",
+  "new": "\"{when}, {N} working sets\" (e.g. \"Last Tuesday, 2 working sets\")",
+  "group": "gym-health",
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2 changed this again; see the later entry"
+ },
+ {
+  "id": "278",
+  "file": "src/gym/progression.ts",
+  "old": "Sets (basis): \"Completed working sets only \u00b7 Warm-ups and drops left out\"",
+  "new": "\"Completed working sets only, warm-ups and drops left out\"",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "278",
+  "file": "src/gym/progression.ts",
+  "old": "Marks (basis): \"2 clean \u00b7 1 grind \u00b7 1 missed\"",
+  "new": "\"2 clean, 1 grind, 1 missed\"",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "623",
+  "file": "src/gym/CondReceipt.tsx",
+  "old": "Conditioning receipt before the clock has run, with no last time: \"Not run yet\"",
+  "new": "(nothing shown; last time's line still shows when there is one)",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "245",
+  "file": "src/health/screens/RefillRunwayScreen.tsx",
+  "old": "Runway tile before any dose is taken since the fill: number \"Not Yet\", label \"Runway\"",
+  "new": "(tile not shown until there is a pace; then \"{N}\" / \"Days of Runway\" as before)",
+  "group": "gym-health",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "389",
+  "file": "src/notes/screens/NotesList.tsx",
+  "old": "\u00b7 JARVIS found 6",
+  "new": "JARVIS found 6 (leading middot dropped; the count is now a white bold number)",
+  "group": "purple-and-decisions",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "575",
+  "file": "src/bigger/BiggerPicturePage.tsx",
+  "old": "5 of 8 Left \u00b7 Due tomorrow (pace line under the progress line '3 of 8 Done', unlensed Bigger Picture project row)",
+  "new": "Due tomorrow (the 'N of M Left' count is dropped on this row because the progress line directly above already says it; it stays when a hold line replaces the progress line). This takes effect once BiggerPictureFlow passes projectPaceParts. The projectPace string that other screens show is unchanged, word for word.",
+  "group": "bigger-picture",
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2 changed this again; see the later entry"
+ },
+ {
+  "id": "R8-peakDate",
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "2026-08-12 (the raw ISO date under Best on a plateau card)",
+  "new": "Aug 12 (shortDate; drawn in small caps as AUG 12)",
+  "group": "today-brain",
+  "phase": "css-handoff"
+ },
+ {
+  "id": "R8-volume",
+  "file": "jarvis-app/src/brain/CategoryDetail.tsx",
+  "old": "Aug 12 \u00b7 3 sets \u00b7 primary",
+  "new": "AUG 12 \u00b7 3 sets \u00b7 primary (same words; the date is now small caps, 3 is white, and CSS draws the dots instead of the string)",
+  "group": "today-brain",
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2 changed this again; see the later entry"
+ },
+ {
+  "issue": "#15",
+  "file": "src/projects/shape.ts (Bigger Picture project row, via BiggerPictureFlow sizeLineOf)",
+  "old": "4 Open \u00b7 About 3h",
+  "new": "About 3h",
+  "group": "bigger-pace",
+  "phase": "css-round2",
+  "superseded": "2026-09-26 round 3: now \"About 3h left\""
+ },
+ {
+  "issue": "#15",
+  "file": "src/projects/ProjectDetailPage.tsx (project page hero size line)",
+  "old": "4 Open \u00b7 About 3h",
+  "new": "About 3h",
+  "group": "bigger-pace",
+  "phase": "css-round2",
+  "superseded": "2026-09-26 round 3: now \"About 3h left\""
+ },
+ {
+  "issue": "#0/#13/#63",
+  "file": "src/bigger/BiggerPicturePage.tsx (Bigger Picture project row pace; the previous phase wrote this, and it only reaches the screen now that the flow passes parts)",
+  "old": "5 of 8 Left \u00b7 Due tomorrow",
+  "new": "Due tomorrow (when a hold has taken the progress line, it stays as two facts: 5 of 8 Left | Due tomorrow)",
+  "group": "bigger-pace",
+  "phase": "css-round2"
+ },
+ {
+  "file": "jarvis-app/src/notes/screens/NotesList.tsx",
+  "issue": "#27/#40 (note row tags)",
+  "old": "\u00b7 #ideas  \u00b7 #q3  (one span per tag, each with a typed middot)",
+  "new": "#ideas #q3  (one span, tags joined by a space)",
+  "group": "goals-notes-export",
+  "phase": "css-round2"
+ },
+ {
+  "file": "jarvis-app/src/notes/screens/NotesList.tsx",
+  "issue": "#27/#40 (note row date)",
+  "old": "\u00b7 Edited today / \u00b7 Yesterday / \u00b7 Sep 15",
+  "new": "Edited today / Yesterday / Sep 15",
+  "group": "goals-notes-export",
+  "phase": "css-round2"
+ },
+ {
+  "file": "jarvis-app/src/notes/screens/NotesList.tsx",
+  "issue": "#2 (finds)",
+  "old": "JARVIS found 3 (plain grey 14px)",
+  "new": "JARVIS found 3 (same words, now the r-cue small-caps letterform, so it shows as 'JARVIS FOUND 3' with the number white)",
+  "group": "goals-notes-export",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#3",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "<date> \u00b7 3 sets \u00b7 primary",
+  "new": "<date> \u00b7 3 sets   ('primary' dropped: it is the default and said nothing)",
+  "group": "brain-today-tiles",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#3",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "<date> \u00b7 3 sets \u00b7 secondary, counted half",
+  "new": "<date> \u00b7 3 sets, counted half   ('secondary, counted half' -> ', counted half', joined to the count)",
+  "group": "brain-today-tiles",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#8",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Two lines: 'Last 7 days \u00b7 Working sets only \u00b7 Warm-ups excluded' / '{range.source}' (e.g. 'Schoenfeld dose-response meta-analysis \u00b7 2025 Sports Medicine meta-regression' or 'Your band, from Health Settings')",
+  "new": "One line: 'Last 7 days \u00b7 Working sets only \u00b7 Warm-ups excluded \u00b7 {range.source}'. The words are unchanged, the separators are now drawn by CSS, and the CSS agent's kicker rule makes the line caps.",
+  "group": "brain-today-tiles",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#31 / #42 / #67",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Plateau card Now cell: 'NOW' / {currentValue} / 'Latest'",
+  "new": "'NOW' / {currentValue}   ('Latest' dropped: it only repeated the NOW kicker)",
+  "group": "brain-today-tiles",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#4/#33 Learned line (Insights, This Week card)",
+  "file": "src/review/week.ts",
+  "old": "two facts: \"N New facts\" \u00b7 \"M Remembered\" (the second one green)",
+  "new": "one fact: \"N New facts, M remembered\", with N and M drawn white as <b> and no colour on the fact. When only one count exists it reads \"N New facts\" or \"M Remembered\", as before.",
+  "group": "week-strands-facts",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#5",
+  "file": "jarvis-app/src/tasks/screens/RemindersPage.tsx",
+  "old": "Skipped row facts: \"Skipped \u00b7 Today \u00b7 10:00 AM\" (one plain grey string with baked middots)",
+  "new": "Three facts: \"Skipped\" (state word, small caps, quiet) | \"Today\" (fact date) | \"10:00 AM\" (fact date), with separators drawn by CSS. The words are unchanged. The rendering is caps and the middots are no longer baked into the string.",
+  "group": "reminders",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#5",
+  "file": "jarvis-app/src/tasks/screens/RemindersPage.tsx",
+  "old": "Done row facts: \"Today \u00b7 7:00 AM\" (one plain grey string with a baked middot)",
+  "new": "Two facts: \"Today\" (fact date) | \"7:00 AM\" (fact date), with the separator drawn by CSS. The words are unchanged and now render in small caps.",
+  "group": "reminders",
+  "phase": "css-round2"
+ },
+ {
+  "file": "jarvis-app/src/decisions/DecisionsFlow.tsx",
+  "issue": "#6",
+  "old": "On a decision row with no reason, the line under the title read \"No reason recorded\"",
+  "new": "(no line; the row shows nothing about the reason when there is none)",
+  "group": "decisions-people",
+  "phase": "css-round2"
+ },
+ {
+  "file": "jarvis-app/src/decisions/DecisionsFlow.tsx",
+  "issue": "#6",
+  "old": "The first fact on a decision row named its source: \"Manual\" / \"Email\" / \"Chat\" / \"Note\"",
+  "new": "(removed from the row; the record page's Source section still shows \"Email \u00b7 Aug 12, 3:04 PM\" etc.)",
+  "group": "decisions-people",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#41",
+  "file": "src/gym/progression.ts",
+  "old": "Aug 12, 2 working sets",
+  "new": "2 working sets on Aug 12",
+  "group": "tasks-gym-health-money",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#10",
+  "file": "src/health/screens/RefillRunwayScreen.tsx",
+  "old": "30 received \u00b7 4 taken since",
+  "new": "4 of 30 taken",
+  "group": "tasks-gym-health-money",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#39",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "Email task row with no area and an openable source: mark 'Email' only (the 'From an email' link was hidden)",
+  "new": "mark 'Email' plus the 'From an email' link (the tappable door restored); a task whose provenance names a different origin from the mark (e.g. 'Get back to Sam' from Smart Paste) shows 'From Smart Paste' again",
+  "group": "tasks-gym-health-money",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#12",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "Budget math foot repeated '14 Days, about $29 a day' under the Yours total when there were no bills or set-aside (same sentence as the line under the total)",
+  "new": "that repeat is dropped; the line shows only when the line under the total says 'After $X of bills\u2026', and then in sky as an estimate",
+  "group": "tasks-gym-health-money",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#28",
+  "file": "src/messages/MessagesFlow.tsx",
+  "old": "Worth Knowing",
+  "new": "Worth Knowing, plus its count in the head's .n slot (for example \"Worth Knowing \u00b7\u00b7\u00b7 3\"), which the lead asked for so it matches the band heads",
+  "group": "mail-options",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#28",
+  "file": "src/messages/MessagesFlow.tsx",
+  "old": "Noise",
+  "new": "Noise, plus its count in the head's .n slot (for example \"Noise \u00b7\u00b7\u00b7 5\"), which the lead asked for so it matches the band heads",
+  "group": "mail-options",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#0/#40",
+  "file": "src/decisions/DecisionsFlow.tsx",
+  "old": "Decision row facts line with a person, goal or task home, or a project with no category, e.g. \"Rebuild Bridge App \u00b7 Sam \u00b7 Didn't \u00b7 SEP 26\"",
+  "new": "Only homes in an area stay on the row: \"Rebuild Bridge App \u00b7 Didn't \u00b7 SEP 26\". Sam, and any goal, task or uncategorised project, now appears only on the record page's Attached To card. This drops a fact rather than rewording one; it is listed so Dave sees it.",
+  "group": "decisions",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#1",
+  "file": "src/projects/ProjectDetailPage.tsx",
+  "old": "4 of 9 Left \u00b7 Due tomorrow (the pace count and the date as two facts, dot drawn by CSS)",
+  "new": "Due tomorrow (the date alone, in its key colour; the count is dropped because it restated \"5 of 9 done\")",
+  "group": "projects-bigger",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#9",
+  "file": "src/bigger/BiggerPicturePage.tsx",
+  "old": "Next: Call Ridgeline",
+  "new": "NEXT Call Ridgeline (the source text is \"Next\" in a .bp-next-k caps kicker, then the action; the colon is dropped)",
+  "group": "projects-bigger",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#23",
+  "file": "src/projects/shape.ts",
+  "old": "About 3h (it was \"4 open \u00b7 About 3h\" before this sweep)",
+  "new": "About 3h left",
+  "group": "projects-bigger",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "extra, R6",
+  "file": "src/projects/shape.ts",
+  "old": "On hold \u00b7 No date set",
+  "new": "On hold, no end date",
+  "group": "projects-bigger",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#2",
+  "file": "jarvis-app/src/notes/screens/ExportSheet.tsx",
+  "old": "PDF keeps accented Latin text and includes photos / Its built-in fonts have no other scripts and no emoji, which Word keeps",
+  "new": "PDF keeps accented Latin text and photos, but not other scripts or emoji; Word keeps those",
+  "group": "notes-export",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#2",
+  "file": "jarvis-app/src/notes/screens/ExportSheet.tsx",
+  "old": "Markdown and text keep every character / Attachments are listed by name",
+  "new": "Markdown and text keep every character and list attachments by name",
+  "group": "notes-export",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#3",
+  "file": "jarvis-app/src/notes/screens/ExportSheet.tsx",
+  "old": "{failed} / The note is unchanged / Retry, or choose another format",
+  "new": "{failed}. The note is unchanged: retry, or choose another format",
+  "group": "notes-export",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#3",
+  "file": "jarvis-app/src/notes/screens/NoteEditor.tsx",
+  "old": "This browser did not let JARVIS copy for you / The words are selected: press Copy on your keyboard or in the menu",
+  "new": "This browser did not let JARVIS copy, so the words are selected: press Copy on your keyboard or in the menu",
+  "group": "notes-export",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#27",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "{n} sets, counted half",
+  "new": "{n} sets, secondary, counted half",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45 volume source line (was an 11px caps line of CSS-separated facts inside the card)",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Last 7 days \u00b7 Working sets only \u00b7 Warm-ups excluded \u00b7 Schoenfeld dose-response meta-analysis \u00b7 2025 Sports Medicine meta-regression",
+  "new": "Last 7 days, working sets only, warm-ups excluded. Schoenfeld dose-response meta-analysis, 2025 Sports Medicine meta-regression.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45 volume source line, personal band variant",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Last 7 days \u00b7 Working sets only \u00b7 Warm-ups excluded \u00b7 Your band, from Health Settings",
+  "new": "Last 7 days, working sets only, warm-ups excluded. Your band, from Health Settings.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45 coverage card",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Assign muscles on Exercises and these join the count",
+  "new": "Assign muscles on Exercises and these join the count.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45/#18 nearest pair",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Not enough days yet \u00b7 {metric} and {lift} \u00b7 {n} of {m} paired sessions",
+  "new": "Not enough days yet for {metric} and {lift}, {n} of {m} paired sessions.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45 lighter-week card",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Never a prescription, just an offer",
+  "new": "Never a prescription, just an offer.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4 correlation card (dropped: repeats the card's own last line)",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Correlation, not cause (cite under a line already ending 'Correlation, not cause')",
+  "new": "(removed)",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45/#18 InsightEvidence explain note (subject named now that it sits under the card, away from the words)",
+  "file": "src/brain/InsightEvidence.tsx",
+  "old": "From your records + AI \u00b7 Explains the rows above, adds nothing to them",
+  "new": "Explanation from your records + AI, adding nothing to the rows above.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "file": "src/messages/MessagesFlow.tsx",
+  "issue": "#43",
+  "old": "Noise head: \"Noise\" + count \"12\"",
+  "new": "\"Noise\" (no count; the line under it still reads \"12 Machines wrote ...\")",
+  "group": "mail-facts-today",
+  "phase": "css-round3"
+ },
+ {
+  "id": "cr-cap",
+  "file": "jarvis-app/src/gym/conditioning.ts",
+  "old": "For Time \u00b7 cap 20:00 (receipt shows \"cap 20:00\")",
+  "new": "For Time \u00b7 Cap 20:00 (receipt shows \"Cap 20:00\")",
+  "phase": "css-round4"
+ }
+]

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { TAP_RED } from "./reds";
 
 // THE BROWSER WALK, AS LAWS (2026-09-05).
 //
@@ -136,6 +137,48 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
     // light as in dark: one green, one orange, whatever the job.
     expect(tokenIn("light", "--good-fill").toUpperCase()).toBe(tokenIn("light", "--good").toUpperCase());
     expect(tokenIn("light", "--warn-fill").toUpperCase()).toBe(tokenIn("light", "--warn").toUpperCase());
+  });
+
+  // AMENDED 2026-09-26 (§AM, settled by the lead on the same 2026-09-12
+  // ruling). The third of the pair: lateness in light is Apple's system
+  // red as text, never the brand's words red, which means "tap this". The
+  // phase took the light overrides that stepped lateness down off three
+  // classes, one at a time, which is the pattern this describe exists to
+  // end; so the token is pinned, and no light rule on a lateness selector
+  // may hand-paint the words red (or its old hexes) back.
+  it("light --sys-red is Apple's light system red, and no rule in either theme paints lateness in the brand red", () => {
+    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#FF3B30");
+    const bare = ["components.css", "ruled.css", "uniformity.css", "jarvis-design-system.css", "mail-rows.css", "editor.css"]
+      .map((f) => read("styles/" + f)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "")
+      // A rule inside an at-rule block is still a rule: the wrapper's own
+      // brace would otherwise swallow the first rule inside it unread.
+      .replace(/@(?:media|supports|container|layer)[^{;]*\{/g, "");
+    const LATE = /(?:^|[\s.>+~,-])(?:late|overdue|missed)(?![a-z])|\.fact\.red(?![\w-])|urgency-red(?![\w-])/;
+    // AMENDED 2026-09-26 (round-2 review, the lead): the ban named the words
+    // red's hexes but only two of the tokens that resolve to them, so
+    // `var(--tint)` (#DA0012 in light) or `var(--danger-tx)` (#CC051B) on a
+    // light lateness rule passed while the same hex failed. Every --tint*
+    // and --accent* token and --danger-tx count now, beside the hexes and
+    // --on-light-red, which stay.
+    // AMENDED 2026-09-26 (round-3 review, the lead): two holes. The pattern
+    // wanted a closing paren straight after the token, so the exact form the
+    // phase deleted, `var(--on-light-red, #B8001A)` (a fallback), passed, and
+    // #B8001A was not on the hex list. And only rules scoped to light were
+    // judged, so a base `.urgency-red { color: var(--tint); }` passed too,
+    // though urgency-red is one of the classes this law names. The words red
+    // is now the one shared brand red (laws/reds.ts): every token and hex it
+    // matched before, a reference with a fallback, #B8001A, and the dark
+    // brand hexes. Every rule whose selector names lateness is judged, in
+    // either theme; the light rules it judged before are all still judged.
+    const WORDS_RED = TAP_RED;
+    const offenders: string[] = [];
+    for (const m of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+      for (const one of m[1]!.split(",").map((x) => x.trim())) {
+        if (!one || one.startsWith("@") || !LATE.test(one)) continue;
+        if (WORDS_RED.test(m[2]!)) offenders.push(one.replace(/\s+/g, " "));
+      }
+    }
+    expect(offenders, "late is --sys-red in both themes; the brand red means tap").toEqual([]);
   });
 
   // The saturated pair did not disappear, it changed job: anything with no
@@ -416,12 +459,71 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     const rule = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
       .find((m) => /color:\s*var\(--tint-on-sheet\)/.test(m[2]!));
     expect(rule, "something has to take the token").toBeTruthy();
-    for (const sel of [".sheet-bar-save", ".row-act", ".note-fix", ".toast-action"]) {
+    for (const sel of [".sheet-bar-save", ".note-fix", ".toast-action", ".see-all", ".prov-link"]) {
       expect(rule![1], `${sel} is on the sheet-red list`).toContain(sel);
+    }
+    // AMENDED 2026-09-26 (round-3 review, the lead): the check above is a
+    // substring match, so once `.banner-warn .see-all` joined the list it
+    // alone satisfied ".see-all", and the two sheet forms this law was
+    // amended for could both go with every law green (a head action on a
+    // sheet back on the plain tap red). `.prov-link` had the same gap. The
+    // list is split on its commas and each sheet form is required by name,
+    // as an exact member. The substring checks above stay.
+    const members = rule![1]!.split(",").map((x) => x.replace(/\s+/g, " ").trim());
+    for (const sel of [
+      ".form-sheet .sheet-bar-save", ".sheet-scrim > .card .sheet-bar-save",
+      ".form-sheet .note-fix", ".sheet-scrim > .card .note-fix",
+      ".form-sheet .see-all", ".sheet-scrim > .card .see-all",
+      ".form-sheet .prov-link", ".sheet-scrim > .card .prov-link",
+      ".banner-warn .see-all", ".banner-cool .see-all",
+      ".toast .toast-action",
+    ]) {
+      expect(members, `${sel} is a member of the sheet-red list`).toContain(sel);
+    }
+    // AMENDED 2026-09-25 (§AL): the capsule left this list. Its label sits on
+    // its own opaque --capsule-fill now, not on the sheet grey (--tint on
+    // #17171A is 4.82:1), and a capsule reads the same on a sheet as off one.
+    // .see-all and .prov-link joined it: §AM made them the tap red, and they
+    // sit straight on the sheet grey.
+    expect(rule![1], "the capsule keeps its own red label on a sheet").not.toMatch(/\.row-act(?![\w-])/);
+    // AMENDED 2026-09-26 (§AL, round-1 review): the amendment above traded a
+    // measured guarantee for a comment. Taking the capsule off this list was
+    // only safe because its label sits on its own opaque fill, so that pair
+    // is measured here, in both themes, and a paler dark capsule fill or a
+    // lighter light label fails. Light: the words red on the capsule fill
+    // (a --press-3 alpha) composited over a white card and over the page.
+    const resolve = (theme: string, name: string): string => {
+      const v = tokenIn(theme, name);
+      const ref = /^var\((--[\w-]+)\)$/.exec(v)?.[1];
+      return ref ? resolve(theme, ref) : v;
+    };
+    // AMENDED 2026-09-26 (round-2 review, the lead): the measurement below
+    // proves the tokens, so it only holds if the capsule actually wears them.
+    // No law read the rules that paint its label, and deleting the light one
+    // dropped the label to --tint (4.07:1 on the capsule over the page) with
+    // every law green. Both themes' label rules are pinned first; the
+    // measurement is unchanged.
+    expect(ruleBody(css(), ".row-act, .ruled .card .row.row-act"), "dark: the capsule's label is its own --tint")
+      .toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
+    expect(ruleBody(css(), '[data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act'), "light: the capsule's label is the words red")
+      .toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
+    const capDark = contrast(tokenIn("dark", "--tint"), resolve("dark", "--capsule-fill"));
+    expect(capDark, `dark capsule label on its fill is ${capDark.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    const onLightRed = /--on-light-red:\s*(#[0-9A-Fa-f]{6})/.exec(bare)?.[1];
+    expect(onLightRed, "the light words red is declared").toBeTruthy();
+    for (const [where, base] of [["a white card", tokenIn("light", "--surface-1")], ["the page", tokenIn("light", "--bg")]] as const) {
+      const ground = "rgb(" + overC(resolve("light", "--capsule-fill"), base).join(",") + ")";
+      const cr = contrast(onLightRed!, ground);
+      expect(cr, `light capsule label on its fill over ${where} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     }
     // The .btn variants declare their own ink against their own fill; taking
     // this token would invert .btn-danger's white on red.
     expect(rule![1]).toMatch(/:not\(\.btn-danger\)/);
+    // AMENDED 2026-09-26: a head action straight on a tinted banner joined
+    // the list (the dark warm wash put the tap red at 3.47:1).
+    for (const sel of [".banner-warn .see-all", ".banner-cool .see-all"]) {
+      expect(rule![1], `${sel} is on the sheet-red list`).toContain(sel);
+    }
   });
 
   // Red is still the verb on a sheet: it moved from the lettering to the fill.
@@ -553,8 +655,9 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
     }
   });
 
-  // The classes the walk measured. A done reminder, a paid bill and a
-  // .cal-cell.out are NOT here on purpose: they use the dim grey correctly.
+  // The classes the walk measured. A done reminder and a .cal-cell.out are
+  // NOT here on purpose: they recede to secondary. A paid bill is green
+  // (§AM, 2026-09-25), pinned below. (Comment AMENDED 2026-09-26.)
   it("live metadata takes the quiet token, not the dim one", () => {
     const all = (css() + read("styles/ruled.css")).replace(/\/\*[\s\S]*?\*\//g, "");
     const rules = [...all.matchAll(/([^{}]+)\{([^}]*)\}/g)];
@@ -564,7 +667,29 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
     // in --warn and the value in --tx-1. The old rule was never deleted, so
     // for nine days this law measured the quiet ink of a line no screen drew.
     // There is no successor to list here: nothing in that row is quiet now.
-    const LIVE = [".prop-tag", ".sched-sep", ".focus-skip", ".rep-hint", ".doc-count",
+    // AMENDED 2026-09-25 (§AM): .focus-skip left this list. "Not This One"
+    // is a tap, and the key gives a tap that is not button-shaped the red.
+    const skip = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === ".focus-skip")?.[2];
+    expect(skip, "Not This One wears the tap red").toMatch(/color:\s*var\(--tint\)/);
+    // AMENDED 2026-09-26 (round-1 review): the ink it left was measured by
+    // this describe and the one it took was not, so the card it sits on is
+    // measured here, in both themes: dark --tint on --surface-1 is 4.59:1,
+    // 0.09 over the floor, so a brighter card fails this. Light steps the
+    // words down to the words red, which reads darker still.
+    // AMENDED 2026-09-26 (round-2 review, the lead): the light half measured
+    // light --tint, a pair that never reaches the screen, since the rule
+    // pinned just below paints Not This One in the words red there. Light
+    // now measures what it draws: the --on-light-red hex, read from the
+    // sheet the way F-10 reads it, on light --surface-1. Dark is unchanged.
+    const darkSkip = contrast(tokenIn("dark", "--tint"), tokenIn("dark", "--surface-1"));
+    expect(darkSkip, `dark --tint on --surface-1 is ${darkSkip.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    const wordsRed = /--on-light-red:\s*(#[0-9A-Fa-f]{6})/.exec(css().replace(/\/\*[\s\S]*?\*\//g, ""))?.[1];
+    expect(wordsRed, "the light words red is declared").toBeTruthy();
+    const lightSkipCr = contrast(wordsRed!, tokenIn("light", "--surface-1"));
+    expect(lightSkipCr, `light --on-light-red on --surface-1 is ${lightSkipCr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    const lightSkip = rules.find((m) => m[1]!.split(",").some((x) => x.trim() === '[data-theme="light"] .focus-skip'))?.[2];
+    expect(lightSkip, "in light Not This One takes the words red").toMatch(/color:\s*var\(--on-light-red\)/);
+    const LIVE = [".prop-tag", ".sched-sep", ".rep-hint", ".doc-count",
       ".receipt-line", ".ruled .sched-time .ampm", ".ruled .wk-w", ".ruled .sched-now .t"];
     for (const sel of LIVE) {
       const body = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === sel)?.[2];
@@ -599,11 +724,16 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   it("the deliberately dimmed states recede to secondary, never to --tx-4", () => {
     const all = (css() + read("styles/ruled.css")).replace(/\/\*[\s\S]*?\*\//g, "");
     const rules = [...all.matchAll(/([^{}]+)\{([^}]*)\}/g)];
-    for (const sel of [".cal-cell.out", ".rem-row.done .rem-name", ".ruled .task-row .money-amt.paid"]) {
+    for (const sel of [".cal-cell.out", ".rem-row.done .rem-name"]) {
       const body = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === sel)?.[2];
       expect(body, `${sel} is still in the sheet`).toBeTruthy();
       expect(body, `${sel} is a past state and recedes to secondary`).toMatch(/color:\s*var\(--tx-2\)/);
     }
+    // AMENDED 2026-09-25 (§AM): a paid amount left this list. Beside "Paid
+    // Sep 1" in --tx-3 it was a second grey of the same hex, and the key
+    // gives paid green.
+    const paid = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === ".ruled .task-row .money-amt.paid")?.[2];
+    expect(paid, "a paid amount is the key's green").toMatch(/color:\s*var\(--good\)/);
   });
 });
 

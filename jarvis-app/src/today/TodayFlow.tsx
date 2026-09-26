@@ -55,7 +55,7 @@ import { sheetEvents } from "../schedule/sheetEvents";
 import { inheritFromThread } from "../messages/threadTasks";
 import { endOfAct, type MailAct } from "../messages/mailAct";
 import { dayPhrase } from "../money/bills";
-import { rankProjects, closable, projectPace, projectProgress } from "../bigger/progress";
+import { rankProjects, closable, projectPaceParts, projectProgress } from "../bigger/progress";
 import { movesCount, goalsMovedToday, movedLine, untouchedGoal, untouchedLine, openWorkOf, dismissGoalNudge } from "./goalPulse";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
@@ -83,6 +83,7 @@ import { enqueueTodaySend } from "../messages/todayOutbox";
 import { planFromBlock } from "../tasks/ifThen";
 import { endOf, FIFTEEN } from "../tasks/rightNow";
 import { acceptBody } from "../messages/meetingTimes";
+import { Facts } from "../messages/factsLine";
 import { welcomeBack, loadLastSeen, markSeen } from "./welcomeBack";
 import { proposeFirstMove, nextStart, endsAt, ritualIsReady, whyNotReady, ritualPlan, LENGTHS, DEFAULT_MINUTES, type Ritual } from "../tasks/startRitual";
 import RitualSheet from "../tasks/screens/RitualSheet";
@@ -1710,8 +1711,8 @@ export default function TodayFlow({
       if (p.data.status !== "active" || !p.data.due) continue;
       if (p.data.due > soon) continue;
       if (isQuiet(p.id, today, closeOfferStore)) continue;
-      const line = projectPace(projectProgress(taskItems, p.id), p.data.due, today);
-      if (line) return { project: p, line };
+      const pace = projectPaceParts(projectProgress(taskItems, p.id), p.data.due, today);
+      if (pace) return { project: p, pace };
     }
     return null;
   })();
@@ -3039,7 +3040,11 @@ export default function TodayFlow({
         icon={<FolderOpenGlyph />}
         tone="cat-fg-indigo"
         title={dueProject.project.data.title}
-        sub={dueProject.line}
+        // §AM (2026-09-26): two facts, the dot drawn by the stylesheet, and
+        // the date in its meaning's colour (past red, due amber, a rate sky,
+        // a date further off small caps). Built by the one facts helper, so
+        // K.3 is enforced there rather than here.
+        sub={<Facts facts={[{ text: dueProject.pace.count }, { text: dueProject.pace.when, tone: dueProject.pace.tone }]} />}
         action={{ label: "Open", onClick: () => onOpenProject?.(dueProject.project.id) }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
         // opens the project too.

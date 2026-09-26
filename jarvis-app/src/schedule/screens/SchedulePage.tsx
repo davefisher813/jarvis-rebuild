@@ -601,7 +601,7 @@ export default function SchedulePage({
           <div className="wk-ticks" aria-hidden="true">{ticks.map((t, i) => <span key={i} style={{ left: t.pct + "%" }} className={i === 0 ? "first" : i === ticks.length - 1 ? "last" : undefined}>{tickLabel(t.m)}</span>)}</div>
         )}
         {best && (
-          <div className="wk-note">Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b> · {spanShort(best.e - best.s)}</div>
+          <div className="wk-note">Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b></div>
         )}
         </>);
       })()}

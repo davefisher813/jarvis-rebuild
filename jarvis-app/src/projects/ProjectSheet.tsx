@@ -64,7 +64,7 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
             date to do it against. */}
         <FieldRow tone="orange" glyph={<Calendar className="ic" />} label="Due" type="date" value={due} onChange={setDue} ariaLabel="Due" />
       </Group>
-      {status === "on_hold" && <div className="xs-note">The day it comes back. A hold with no date is a project that disappeared.</div>}
+      {status === "on_hold" && <div className="input-hint xs-note">The day it comes back. A hold with no date is a project that disappeared.</div>}
       {(categories.length > 0 || goalOptions.length > 0) && (
         <Group label="Where">
           {categories.length > 0 && (

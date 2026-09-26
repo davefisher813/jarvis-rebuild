@@ -713,7 +713,11 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 .input.disabled { background: var(--press-1); color: var(--tx-2); pointer-events: none; }
 .input-label { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1); margin-bottom: var(--s-1h); display: flex; gap: var(--s-1); }
 .input-req { color: var(--red); }
-.input-error { font-size: var(--t-caption); color: var(--sys-red); margin-top: var(--s-1); }
+/* The line under a field that failed (§AM F4, 2026-09-25): subtext size, 14.
+   Some sheets also put this class on the field itself to mark it, so the
+   rule skips input elements: it was shrinking the goal sheets' typed text
+   and placeholder from 17 to 13 and nudging every marked field down 4px. */
+.input-error:not(input) { font-size: var(--t-sub); color: var(--sys-red); margin-top: var(--s-1); }
 .textarea { min-height: 80px; padding: var(--s-3); resize: vertical; }
 
 /* SWITCH */
@@ -913,7 +917,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    same shape of bug as the military-time one: a shared span whose styling
    only existed under one parent. It is now the class's own rule, so a new
    surface that prints a time gets it for free. */
-.ampm { font-size: calc(11px * var(--type-scale)); color: var(--tx-3); font-weight: var(--w-regular); margin-left: var(--s-1); letter-spacing: 0.3px; }
+.ampm { font-size: var(--t-micro); color: var(--tx-3); font-weight: var(--w-regular); margin-left: var(--s-1); letter-spacing: 0.3px; }
 /* min-width:0 is load-bearing, not tidiness (2026-08-21). A flex item will
    not shrink below its content's min-content width without it, so a long
    title or a nested row pushed .sched-body past the card and everything

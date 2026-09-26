@@ -72,4 +72,20 @@ describe("ReminderDetailSheet", () => {
     expect(onKeep).toHaveBeenCalledWith("r1");
     expect(screen.getByText("History")).toBeInTheDocument();
   });
+
+  // §AM (2026-09-26): the state word wears the key or nothing. Done Today is
+  // green; Open and Paused mean nothing the key names, so they are a plain
+  // fact. The reminders-only "when" tone is retired and has no rule.
+  it("the state fact is green when done and plain otherwise, never the retired when tone", () => {
+    const stateFact = (text: string) => screen.getByText(text, { selector: ".rem-detail-head .facts > .fact" });
+    const o = render(<ReminderDetailSheet {...base} item={item({ time: "21:00" })} />);
+    expect(stateFact("Open").className).toBe("fact");
+    o.unmount();
+    const p = render(<ReminderDetailSheet {...base} item={item({ time: "21:00", paused: true })} />);
+    expect(stateFact("Paused").className).toBe("fact");
+    p.unmount();
+    render(<ReminderDetailSheet {...base} item={item({ time: "07:00", lastDone: TUE })} />);
+    expect(stateFact("Done Today").className).toBe("fact good");
+    expect(document.querySelector(".fact.when")).toBeNull();
+  });
 });

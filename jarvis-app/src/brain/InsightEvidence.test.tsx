@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import InsightEvidence from "./InsightEvidence";
+import InsightEvidence, { InsightCard, EXPLAIN_NOTE } from "./InsightEvidence";
 import { evidenceText, explainEvidence, EXPLAIN_SYSTEM } from "./explainInsight";
 import type { Evidence } from "../gym/insights";
 import type { AIService } from "../ai/AIService";
@@ -33,15 +33,56 @@ describe("InsightEvidence", () => {
     expect(screen.queryByText("Exploratory Pattern")).toBeNull();
   });
 
-  it("Explain hands the evidence to the seam and shows the words under their own cite", async () => {
+  // §AK (2026-09-26): "Caps is for a label, never a sentence". The line that
+  // says where the words came from is a sentence, so it is the note UNDER
+  // the card (a bare .input-hint), never a caps cite inside it.
+  it("Explain hands the evidence to the seam and shows the words, with their note under the card", async () => {
     const onExplain = vi.fn(async (e: Evidence) => "On the days you slept more, the number moved more. It says nothing about why.");
-    render(<InsightEvidence evidence={ev} onExplain={onExplain} />);
+    const { container } = render(<InsightCard evidence={ev} onExplain={onExplain}><div className="ins-line">A finding</div></InsightCard>);
+    expect(screen.queryByText(EXPLAIN_NOTE)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Evidence" }));
     fireEvent.click(screen.getByRole("button", { name: "Explain" }));
     expect(onExplain).toHaveBeenCalledWith(ev);
     await waitFor(() => expect(screen.getByText(/On the days you slept more/)).toBeInTheDocument());
-    expect(screen.getByText(/From your records \+ AI/)).toBeInTheDocument();
+    const note = screen.getByText(EXPLAIN_NOTE);
+    expect(note).toHaveClass("input-hint");
+    expect(note.closest(".card")).toBeNull();
+    expect(container.querySelector(".ins-cite")).toBeNull();
     expect(screen.queryByRole("button", { name: "Explain" })).toBeNull();
+    // Hiding the evidence hides the words, and the note that goes with them.
+    fireEvent.click(screen.getByRole("button", { name: "Hide Evidence" }));
+    await waitFor(() => expect(screen.queryByText(EXPLAIN_NOTE)).toBeNull());
+  });
+
+  it("a card's own note sits under the card, and an open explanation joins it rather than adding a second", async () => {
+    const onExplain = vi.fn(async () => "It moved more on better nights.");
+    render(<InsightCard evidence={ev} onExplain={onExplain} note="Never a prescription, just an offer."><div className="ins-line">A finding</div></InsightCard>);
+    const foot = screen.getByText(/Never a prescription, just an offer\./);
+    expect(foot).toHaveClass("input-hint");
+    expect(foot.closest(".card")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explain" }));
+    await waitFor(() => expect(screen.getByText(/It moved more on better nights/)).toBeInTheDocument());
+    expect(document.querySelectorAll(".input-hint")).toHaveLength(1);
+    expect(document.querySelector(".input-hint")!.textContent).toBe("Never a prescription, just an offer. " + EXPLAIN_NOTE);
+  });
+
+  // The note sits at the card's own edge, 16px from the screen, as settings'
+  // Foot does beside its Card. The caller's one .pad-x insets the card and
+  // the note together; a .pad-x of the card's own would stack on it and push
+  // the note to 32px, inside the card's edge.
+  it("the note and the card share the caller's one .pad-x, so the note lines up with the card's edge", () => {
+    const { container } = render(
+      <div className="pad-x">
+        <InsightCard note="Never a prescription, just an offer."><div className="ins-line">A finding</div></InsightCard>
+      </div>,
+    );
+    const padXAncestors = (el: Element) => { let n = 0; for (let p = el.parentElement; p; p = p.parentElement) if (p.classList.contains("pad-x")) n++; return n; };
+    const card = container.querySelector(".ins-card")!;
+    const foot = screen.getByText(/Never a prescription, just an offer\./);
+    expect(padXAncestors(card)).toBe(1);
+    expect(padXAncestors(foot)).toBe(1);
+    expect(foot.parentElement).toBe(card.parentElement);
   });
 });
 

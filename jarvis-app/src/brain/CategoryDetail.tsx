@@ -102,7 +102,7 @@ import { newMetricDefData, activeMetrics, pulsePlan, logOn } from "../gym/metric
 import { readLive, isStillActive, readPending as readGymPending } from "../gym/liveSession";
 import { readPending as readHealthPending } from "../health/offlineQueue";
 import { chronologicalLog, type LogOpen } from "../health/log";
-import InsightEvidence from "./InsightEvidence";
+import { InsightCard } from "./InsightEvidence";
 import { explainEvidence } from "./explainInsight";
 import { readHealthSettings } from "../health/settings";
 import HealthSettingsPage from "../settings/HealthSettingsPage";
@@ -1712,9 +1712,22 @@ export default function CategoryDetail({
                   a footnote. Same facts, same honesty, same "correlation not
                   cause" -- read in a glance instead of a paragraph. */}
               <div className="sh2 sh2-quiet"><span className="t">Insights</span><span className="n">{insightCount}</span></div>
+              {/* ONE .pad-x FOR THE WHOLE STACK. It insets every card AND the
+                  note under it, so each note sits 16px from the screen edge,
+                  level with its card's edge, as settings' Foot does beside
+                  its Card. InsightCard and the nearest-pair note carry no
+                  .pad-x of their own; one would stack on this and push the
+                  note to 32px. */}
               <div className="pad-x">
+                {/* H-33 (Health Push C): what the count is made of, and whose
+                    band it is. CAPS IS FOR A LABEL, NEVER A SENTENCE (§AK,
+                    2026-09-26): this was an 11px caps cite of four facts and
+                    a citation inside the card. It is a sentence, so it is
+                    the note under the card now, with commas where the
+                    middots were. */}
                 {rangeRows.length > 0 && (
-                  <div className="card ins-card rep-gap">
+                  <InsightCard evidence={hardSetEvidence(rangeRows, nowMs, hsBand ? rangeRows[0]!.range : undefined)} onExplain={explain}
+                    note={<>Last 7 days, working sets only, warm-ups excluded. {rangeRows[0]!.range.source.split(" · ").join(", ")}.</>}>
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-lime" />
                       <span className="ins-t">Weekly Volume</span>
@@ -1748,9 +1761,20 @@ export default function CategoryDetail({
                               {volumeBreakdown(workouts, muscleMap, r.muscle, nowMs).map((lift, i) => (
                                 <div className="ins-row" key={lift.name + lift.date + i}>
                                   <span className="ins-k">{lift.name}</span>
+                                  {/* §AM (2026-09-26): the date is a neutral date,
+                                      so small caps, and the separators are
+                                      drawn by .fact + .fact rather than baked
+                                      into the string. The facts sit inline in
+                                      the one value run, which wraps under the
+                                      name when it cannot fit beside it.
+                                      ONE GREY FACT, NOT TWO (R5): the count and
+                                      how it counts are one fact. A primary lift
+                                      is the default and says nothing; only a
+                                      secondary one owes the reader its half,
+                                      and the reason for it. */}
                                   <span className="ins-sub">
-                                    {shortDate(lift.date)} · {lift.sets} {lift.sets === 1 ? "set" : "sets"}
-                                    {lift.primary ? " · primary" : " · secondary, counted half"}
+                                    <span className="fact date">{shortDate(lift.date)}</span>
+                                    <span className="fact"><b>{lift.sets}</b> {lift.sets === 1 ? "set" : "sets"}{lift.primary ? "" : ", secondary, counted half"}</span>
                                   </span>
                                 </div>
                               ))}
@@ -1759,18 +1783,14 @@ export default function CategoryDetail({
                         </div>
                       );
                     })}
-                    {/* H-33 (Health Push C): what the count is made of. */}
-                    <div className="ins-cite">Last 7 days · Working sets only · Warm-ups excluded</div>
-                    <div className="ins-cite">{rangeRows[0]!.range.source}</div>
-                    <InsightEvidence evidence={hardSetEvidence(rangeRows, nowMs, hsBand ? rangeRows[0]!.range : undefined)} onExplain={explain} />
-                  </div>
+                  </InsightCard>
                 )}
                 {/* WHY THE REST IS QUIET. Not a finding about training -- a
                     finding about the app's own blind spot, and the only card
                     here that is useful on day one and gone by design once the
                     work behind it is done. */}
                 {coverage && (
-                  <div className="card ins-card rep-gap" key="coverage">
+                  <InsightCard key="coverage" note="Assign muscles on Exercises and these join the count.">
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-amber" />
                       <span className="ins-t">Sets Weekly Volume Can't See</span>
@@ -1789,14 +1809,13 @@ export default function CategoryDetail({
                         </div>
                       ))}
                     </div>
-                    <div className="ins-cite">Assign muscles on Exercises and these join the count</div>
                     <div className="ins-acts">
                       <button type="button" className="pill-act pill-quiet" onClick={() => { setGymLibrary(true); setGymOpen(true); }}>Open Exercises</button>
                     </div>
-                  </div>
+                  </InsightCard>
                 )}
                 {plateaus.map((p) => (
-                  <div className="card ins-card rep-gap" key={"plateau-" + p.name}>
+                  <InsightCard key={"plateau-" + p.name} evidence={p.evidence} onExplain={explain}>
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-amber" />
                       <span className="ins-t">{p.name}</span>
@@ -1805,8 +1824,8 @@ export default function CategoryDetail({
                     {/* The two numbers that matter, side by side and aligned,
                         rather than a sentence you have to read to compare. */}
                     <div className="ins-pair">
-                      <div className="ins-cell"><span className="ins-k">Best</span><span className="ins-v">{p.peakValue}</span><span className="ins-sub">{p.peakDate}</span></div>
-                      <div className="ins-cell"><span className="ins-k">Now</span><span className="ins-v ins-v-warn">{p.currentValue}</span><span className="ins-sub">Latest</span></div>
+                      <div className="ins-cell"><span className="ins-k">Best</span><span className="ins-v">{p.peakValue}</span><span className="fact date">{shortDate(p.peakDate)}</span></div>
+                      <div className="ins-cell"><span className="ins-k">Now</span><span className="ins-v ins-v-warn">{p.currentValue}</span></div>
                     </div>
                     {p.whatChanged.length > 0 && (
                       <div className="ins-rows">
@@ -1818,36 +1837,36 @@ export default function CategoryDetail({
                         ))}
                       </div>
                     )}
+                    {/* A caveat LABEL, three words: the one cite that stays an
+                        11px caps kicker (§AK, 2026-09-26). */}
                     <div className="ins-cite">Correlation, not cause</div>
-                    <InsightEvidence evidence={p.evidence} onExplain={explain} />
-                  </div>
+                  </InsightCard>
                 ))}
                 {correlations.map((c) => (
-                  <div className="card ins-card rep-gap" key={c.exerciseName + "-" + c.metricName}>
+                  <InsightCard key={c.exerciseName + "-" + c.metricName} evidence={c.evidence} onExplain={explain}>
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-cyan" />
                       <span className="ins-t">{c.exerciseName}</span>
                       <span className="ins-chip hue-hl-cyan">{c.metricName}</span>
                     </div>
+                    {/* The line ends "Correlation, not cause" itself (correlate()
+                        writes it in), so no cite repeats it under the line. */}
                     <div className="ins-line">{c.line}</div>
-                    <div className="ins-cite">Correlation, not cause</div>
-                    <InsightEvidence evidence={c.evidence} onExplain={explain} />
-                  </div>
+                  </InsightCard>
                 ))}
+                {/* Bare: the one .pad-x above insets it, level with the cards. */}
                 {nearest && (
-                  <div className="pad-x"><div className="ins-cite">Not enough days yet · {nearest.def} and {nearest.ex} · {nearest.p.paired} of {nearest.p.needed} paired sessions</div></div>
+                  <div className="input-hint">Not enough days yet for {nearest.def} and {nearest.ex}, {nearest.p.paired} of {nearest.p.needed} paired sessions.</div>
                 )}
                 {offerLighter && (
-                  <div className="card ins-card rep-gap" key="lighter">
+                  <InsightCard key="lighter" evidence={backOff?.evidence} onExplain={explain} note="Never a prescription, just an offer.">
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-pink" />
                       <span className="ins-t">A Lighter Week, If You Want It</span>
                       <span className="ins-chip hue-hl-pink">Offer</span>
                     </div>
                     <div className="ins-line">Several grinds and misses lately.</div>
-                    <div className="ins-cite">Never a prescription, just an offer</div>
-                    {backOff && <InsightEvidence evidence={backOff.evidence} onExplain={explain} />}
-                  </div>
+                  </InsightCard>
                 )}
               </div>
             </>
@@ -2040,11 +2059,15 @@ export default function CategoryDetail({
           every ruled page wears over the rows the rest of the app already
           has: the Schedule's event row, the Projects lens's pie row, the
           goal row, the task row with its check and swipe, the note row. The
-          filled section tiles and the tinted stat tiles are gone. */}
+          filled section tiles and the tinted stat tiles are gone.
+          AMENDED 2026-09-26 (§AM, the Colour Key): done is the key's green, so
+          the done tile wears the green tile Today's goals tile wears. Events
+          and the week-on-week delta carry no state and stay quiet; pushed is
+          amber, work that needs you soon. */}
       {(receipt.done > 0 || receipt.events > 0 || pushedWeek > 0 || rec.lastWeek > 0) && (
         <div className="pad-x"><div className="stat-tiles area-tiles">
-          {receipt.done > 0 && <span className="stat-tile st-quiet"><span className="st-n">{receipt.done}</span><span className="st-w">done</span></span>}
-          {receipt.events > 0 && <span className="stat-tile st-time"><span className="st-n">{receipt.events}</span><span className="st-w">{receipt.events === 1 ? "event" : "events"}</span></span>}
+          {receipt.done > 0 && <span className="stat-tile st-goal"><span className="st-n">{receipt.done}</span><span className="st-w">done</span></span>}
+          {receipt.events > 0 && <span className="stat-tile st-quiet"><span className="st-n">{receipt.events}</span><span className="st-w">{receipt.events === 1 ? "event" : "events"}</span></span>}
           {pushedWeek > 0 && <span className="stat-tile st-warn"><span className="st-n">{pushedWeek}</span><span className="st-w">pushed</span></span>}
           {rec.lastWeek > 0 && <span className="stat-tile st-quiet"><span className="st-n">{(receipt.done - rec.lastWeek >= 0 ? "+" : "") + (receipt.done - rec.lastWeek)}</span><span className="st-w">vs last week</span></span>}
         </div></div>
