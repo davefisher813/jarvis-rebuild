@@ -258,7 +258,17 @@ export default function NoticeCard({
   const [tuneOpen, setTuneOpen] = useState(false);
   const hold = useLongPress({ onLongPress: () => { haptics.selection(); setTuneOpen(true); }, enabled: !!onTune && !!automation });
 
-  const subNode = sub != null && (typeof sub === "string" ? <Quiet s={sub} /> : sub);
+  // THE DOT IS DRAWN, NEVER TYPED (§AM F3, 2026-09-26). A string sub that
+  // joins its parts with a middle dot renders as separate facts, so the dot
+  // between them is the one .fact + .fact::before draws in its own quiet
+  // ink, the same as every facts line in the app. A sub with no dot renders
+  // exactly as it did. Each part still goes through the quiet line.
+  const subParts = typeof sub === "string" ? sub.split(/\s+\u00b7\s+/) : [];
+  const subNode = sub != null && (typeof sub === "string"
+    ? subParts.length > 1
+      ? subParts.map((part, i) => <span key={i} className="fact"><Quiet s={part} /></span>)
+      : <Quiet s={sub} />
+    : sub);
 
   // TWO VERBS, ONE LINE (2026-09-12): an expanded row with an alt puts both
   // its verbs on the line under the text, and the trailing slot goes empty.

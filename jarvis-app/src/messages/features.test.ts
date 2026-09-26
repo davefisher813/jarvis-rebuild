@@ -186,7 +186,7 @@ describe("VIPs", () => {
   });
 
   it("says what the list does, even when it is empty", () => {
-    expect(vipLine(0)).toBe("Nobody yet · Their mail always surfaces");
+    expect(vipLine(0)).toBe("Their mail always surfaces");
     expect(vipLine(1)).toBe("1 Person always gets through");
   });
 });
@@ -204,7 +204,7 @@ describe("same-sender collapse", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]!.rows).toHaveLength(3);
     expect(loose.map((r) => r.id)).toEqual(["4"]);
-    expect(collapseLine(groups[0]!)).toBe("3 Notices · Nothing needs you");
+    expect(collapseLine(groups[0]!)).toBe("3 Notices");
   });
 
   it("two from one sender is not a pile", () => {

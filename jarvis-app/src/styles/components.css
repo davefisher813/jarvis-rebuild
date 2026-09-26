@@ -5829,8 +5829,8 @@ body.selecting .voice-dock { display: none; }
 /* The format tag names a format; it means nothing the key colours, so it is
    the neutral tag: its fill and caps set it apart, in the one grey (§AM,
    2026-09-25). Blue is Health's cool-down, and this is not one.
-   Its size, like every type size on the clock face, is held with the
-   clock-caps question for Dave (the receipt's tag is 11); not moved until he rules. */
+   Its size, like the round line's and the landscape corners', is held with
+   the clock-caps question for Dave (the receipt's tag is 11); not moved until he rules. */
 .cf-fmt { font-size: var(--t-caption); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tx-3);
   background: var(--press-3); padding: var(--s-1) var(--s-2h); border-radius: var(--r-sm); }
 .cf-name { font-size: var(--t-sub); color: var(--tx-3); max-width: 70vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

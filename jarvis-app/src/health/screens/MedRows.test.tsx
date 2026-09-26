@@ -16,10 +16,13 @@ const NOW = new Date("2026-09-13T09:00:00").getTime();
 const dose = (id: string, at: number, medId: string): DoseRow => ({ id, at, medId, name: medId === "m1" ? "Vitamin D" : "Iron" });
 
 describe("MedRows", () => {
-  it("draws the amount in medication blue, the last time, and one Took It per med", () => {
+  it("draws the amount in the row's grey, the last time in small caps, and one Took It per med", () => {
     render(<MedRows meds={MEDS} doses={[dose("d1", NOW - 3 * 3_600_000, "m1")]} now={NOW} onTook={() => {}} />);
-    expect(screen.getByText("2000 IU")).toHaveClass("fact", "hblue");
-    expect(screen.getByText(/^Last 6:00/)).toBeInTheDocument();
+    // §AM: the amount has no state, so it is the row's one grey, never the
+    // medication area's blue on words; the last time is a neutral time (F5).
+    expect(screen.getByText("2000 IU")).toHaveClass("fact");
+    expect(screen.getByText("2000 IU")).not.toHaveClass("hblue");
+    expect(screen.getByText(/^Last 6:00/)).toHaveClass("fact", "date");
     expect(screen.getAllByRole("button", { name: /^Took It/ })).toHaveLength(2);
   });
 

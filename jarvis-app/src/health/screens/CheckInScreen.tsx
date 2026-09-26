@@ -64,7 +64,9 @@ export default function CheckInScreen({ today, onLog, onUndo, onBack }: {
               <div className="row" key={c.id}>
                 <div className="row-grow">
                   <div className="conn-name">{checkInLine(c.data) ?? "Check In"}</div>
-                  <div className="facts"><span className="fact cyan">{clockOf(c.data.at)}</span>{c.data.note && (c.data.energy || c.data.mood) && <span className="fact">{c.data.note}</span>}</div>
+                  {/* A check in logged earlier is a neutral time, small caps
+                      (§AM F5); cyan in Health means now, the live set. */}
+                  <div className="facts"><span className="fact date">{clockOf(c.data.at)}</span>{c.data.note && (c.data.energy || c.data.mood) && <span className="fact">{c.data.note}</span>}</div>
                 </div>
                 {onUndo && !c.pending && (
                   <button type="button" className="pill-act pill-quiet" onClick={() => onUndo(c)} aria-label="Undo this check in">Undo</button>

@@ -649,9 +649,6 @@ export function MomentumRow({
         <div className="task-title">
           <span className="task-name">{task.data.text}</span>
           <div className="r-k r-k-one">
-            {/* THE VERDICT AS A CHIP, the same vocabulary the stalled row's
-                "Keeps Sliding" already uses: the app concluded this, the
-                reason line under it is the count it concluded from. */}
             {/* DUE AND LATE WEAR THE KEY (§AM, 2026-09-26). The reason
                 said "due today" or "overdue" in the line's plain grey, a
                 meaning with no colour. The due half is now the distance chip
@@ -659,6 +656,9 @@ export function MomentumRow({
                 the task itself, and the reason keeps only the fact with no
                 meaning of its own, the shared area, as the line's one grey. */}
             {due && <span className={"uchip " + (due.kind === "late" ? "u-late" : "u-today")}>{due.label}</span>}
+            {/* THE VERDICT AS A CHIP, the same vocabulary the stalled row's
+                "Keeps Sliding" already uses: the app concluded this, the
+                reason line under it is the count it concluded from. */}
             <span className="slide-tag">Keep Going</span>
             {sameArea && <span className="r-goal r-cat">Same category</span>}
           </div>

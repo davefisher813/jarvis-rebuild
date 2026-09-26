@@ -67,7 +67,7 @@ describe("the home email surface", () => {
     const n = mailNotices(snap({ waiting: [{ threadId: "w1", to: "summitgear", subject: "Order #D2565", days: 55 }] }), TODAY, NOW);
     expect(n[0]!.kind).toBe("nudge");
     expect(n[0]!.title).toBe("summitgear Hasn't Replied");
-    expect(n[0]!.sub).toBe("Order #D2565 · 55 Days");
+    expect(n[0]!.sub).toBe("Order #D2565, sent 55 days ago");
   });
 
   it("catches what HE promised and offers it as a task", () => {

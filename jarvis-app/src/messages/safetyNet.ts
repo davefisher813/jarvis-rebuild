@@ -75,5 +75,5 @@ export function seedFirstRun(needsYou: ThreadRow[]): boolean {
 export function guardLine(n: number, days: number = NET_DAYS): string {
   if (n <= 0) return "";
   const what = capAfterNumber(n === 1 ? "1 email" : n + " emails");
-  return what + " over " + days + " days old · Now tasks";
+  return what + " over " + days + " days old " + (n === 1 ? "is now a task" : "are now tasks");
 }

@@ -40,13 +40,19 @@ function endingStreak(entries: [string, string][]): { mood: string; len: number 
 // The one observation worth making right now, or null. Priority order: a heavy
 // streak (respond to how things are going), then a weekday that keeps running
 // heavy (plannable), then a flow streak (earned, so say it).
+//
+// Each is ONE phrase (§AM, 2026-09-26). They were two joined by a typed
+// middle dot, which on the offer card's title (it wraps: the card opts out of
+// the one-line clamp) could strand at a line end in the title's own ink. A
+// comma is punctuation inside the phrase; a dot between facts is the
+// stylesheet's to draw, and a title is not a facts line.
 export function patternObservation(checkin: CheckinMap | undefined, _todayIso: string): PatternObservation | null {
   if (!checkin) return null;
   const entries = moodEntries(checkin);
   const streak = endingStreak(entries);
 
   if (streak && streak.mood === "under" && streak.len >= 3) {
-    return { id: "under-streak", text: "Heavy stretch · Keeping plans light" };
+    return { id: "under-streak", text: "Heavy stretch, keeping plans light" };
   }
 
   // Weekday heaviness needs real evidence: at least 6 answered evenings, and a
@@ -63,13 +69,13 @@ export function patternObservation(checkin: CheckinMap | undefined, _todayIso: s
     for (let dow = 0; dow < 7; dow++) {
       const c = byDow.get(dow);
       if (c && c.total >= 2 && c.under === c.total) {
-        return { id: `heavy-${dow}`, text: `${DOW_NAME[dow]} run heavy · Plan lighter?` };
+        return { id: `heavy-${dow}`, text: `${DOW_NAME[dow]} run heavy, plan lighter?` };
       }
     }
   }
 
   if (streak && streak.mood === "fire" && streak.len >= 3) {
-    return { id: "fire-streak", text: `${streak.len} days in flow · It is working` };
+    return { id: "fire-streak", text: `${streak.len} days in flow, and it is working` };
   }
 
   return null;

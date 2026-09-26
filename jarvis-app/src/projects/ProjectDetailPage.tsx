@@ -10,6 +10,7 @@ import { fmtDay } from "../decisions/DecisionsFlow";
 import HeadMenu from "../shared/HeadMenu";
 import { distanceFor } from "../tasks/grouping";
 import { dayPhrase } from "../money/bills";
+import { dayTone } from "../messages/factsLine";
 import { attemptWrite } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import { areaFromTasks } from "./backfill";
@@ -194,7 +195,13 @@ export default function ProjectDetailPage({
               <div className="promo-badge b-purple">{FORK}</div>
               <div className="promo-body">
                 <div className="promo-title">{decision.data.decision}</div>
-                <div className="promo-sub">{decision.data.why ? <>Because {decision.data.why} · Decided {fmtDay(decision.data.createdAt)}</> : <>No reason recorded · Decided {fmtDay(decision.data.createdAt)}</>}</div>
+                {/* §AK/§AM (2026-09-26): the reason is the card's one grey,
+                    and only when there is one ("No reason recorded" stated
+                    nothing). The day it was decided is a neutral date, so
+                    small caps on a facts line of its own, never a middle dot
+                    baked into the reason's string. */}
+                {decision.data.why && <div className="promo-sub">Because {decision.data.why}</div>}
+                <div className="facts"><span className="fact date">Decided {fmtDay(decision.data.createdAt)}</span></div>
               </div>
               {onOpenDecision && <div className="chev promo-chev" />}
             </div>
@@ -266,10 +273,17 @@ export default function ProjectDetailPage({
                   </div>
                   <div className="task-title">
                     <span className="task-name">{t.text}</span>
+                    {/* §AM R8 (2026-09-26): a due or late step says so in its
+                        chip alone; the day beside it only repeated the chip
+                        ("TODAY today"). A step due tomorrow is due soon, so
+                        amber; a later day is a neutral date, small caps. */}
                     {t.due && (
                       <div className="r-k">
-                        {dist && <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>}
-                        <span className="r-goal r-cat">{today ? dayPhrase(t.due, today) : fmtDay(t.due)}</span>
+                        {dist
+                          ? <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>
+                          : today && dayTone(t.due, today) === "warn"
+                            ? <span className="r-goal fact warn">Tomorrow</span>
+                            : <span className="fact date">{today ? dayPhrase(t.due, today) : fmtDay(t.due)}</span>}
                       </div>
                     )}
                   </div>

@@ -33,7 +33,8 @@ describe("HistoryScreen: Lifts / Sessions", () => {
     expect(screen.getByText("This Week")).toBeInTheDocument();
     expect(screen.getByText("Last Week")).toBeInTheDocument();
     expect(screen.getByText("August")).toBeInTheDocument();
-    expect(screen.getByText("47 Min")).toHaveClass("fact", "amber");
+    expect(screen.getByText("47 Min")).toHaveClass("fact");
+    expect(screen.getByText("47 Min")).not.toHaveClass("amber");
     expect(screen.getByText("12 sets")).toHaveClass("fact", "lime");
     expect(screen.getByText("1 set")).toBeInTheDocument();
   });

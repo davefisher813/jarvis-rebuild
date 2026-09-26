@@ -70,7 +70,9 @@ export default function MealScreen({ today, recent = [], onLog, onUndo, onBack }
               <div className="row" key={m.id} {...pressable(() => { setText(m.data.text); setLogged(false); })}>
                 <div className="row-grow">
                   <div className="conn-name">{m.data.text}</div>
-                  <div className="facts"><span className="fact amber">{clockOf(m.data.at)}</span></div>
+                  {/* The meal's time is a neutral time, small caps (§AM F5); amber
+                      in Health means next up or over, not the meal's hue. */}
+                  <div className="facts"><span className="fact date">{clockOf(m.data.at)}</span></div>
                 </div>
                 {onUndo && !m.pending && (
                   <button type="button" className="pill-act pill-quiet" onClick={(ev) => { ev.stopPropagation(); onUndo(m); }} aria-label={"Undo " + m.data.text}>Undo</button>

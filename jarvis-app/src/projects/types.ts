@@ -20,9 +20,12 @@ export interface ProjectData {
 }
 export interface Project { id: string; data: ProjectData; }
 
+// §AM, the Colour Key (2026-09-22): green means done. A project that is
+// merely active is not done or on track, so its word is the grey; the green
+// it wore belongs to Done, which had lost it.
 export const PROJECT_META: Record<ProjectStatus, { label: string; cls: string }> = {
-  active: { label: "Active", cls: "ok" },
+  active: { label: "Active", cls: "muted" },
   on_hold: { label: "On Hold", cls: "muted" },
-  done: { label: "Done", cls: "mute" },
+  done: { label: "Done", cls: "ok" },
 };
 export const PROJECT_STATES: ProjectStatus[] = ["active", "on_hold", "done"];

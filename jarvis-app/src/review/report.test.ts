@@ -119,7 +119,7 @@ describe("worth a look", () => {
     }));
     const quiet = r.worth.find((w) => w.id === "quiet")!;
     expect(quiet.title).toBe("Home went quiet");
-    expect(quiet.sub).toBe("2 This month · 11 In July");
+    expect(quiet.sub).toBe("2 This month, 11 in July");
     // No prior month, no quiet card: absence of evidence stays silent.
     const noPrev = buildReport(inputs({ seal: emptySeal("2026-08", { byCategory: { home: 2 } }) }));
     expect(noPrev.worth.find((w) => w.id === "quiet")).toBeUndefined();
@@ -147,7 +147,7 @@ describe("patterns", () => {
     const r = buildReport(inputs({ seal: strong }));
     const p = r.patterns.find((x) => x.id === "picks")!;
     expect(p.title).toBe("First picks finish");
-    expect(p.sub).toBe("Firsts 78% · Later picks 20%");
+    expect(p.sub).toBe("Firsts 78%, later picks 20%");
     // Thin months stay silent.
     const thin = buildReport(inputs({ seal: emptySeal("2026-08", { byPick: [{ n: 1, picked: 3, done: 3 }] }) }));
     expect(thin.patterns.find((x) => x.id === "picks")).toBeUndefined();
@@ -176,7 +176,7 @@ describe("the close", () => {
   it("learned shows its retractions, which is the anti-horoscope device", () => {
     const r = buildReport(inputs({ seal: emptySeal("2026-08", { strands: { created: 4, corrected: 1, deleted: 0 } }) }));
     expect(r.learned!.title).toBe("Learned 4 things about you");
-    expect(r.learned!.sub).toBe("You fixed 1 · It is gone");
+    expect(r.learned!.sub).toBe("You fixed 1, it is gone");
   });
 
   it("the closer appears once, only on evidence, and never when already capped", () => {
@@ -189,8 +189,8 @@ describe("the close", () => {
     expect(buildReport(inputs({ seal }))!.closer).toEqual({
       n: 3,
       question: "Cap the day at three?",
-      sub: "Your first three get done · The later picks mostly do not",
-      foot: "Starting tomorrow · Change it any time",
+      sub: "Your first three get done, the later picks mostly do not",
+      foot: "Starting tomorrow, change it any time",
     });
     expect(buildReport(inputs({ seal, alreadyCapped: true })).closer).toBeNull();
     expect(buildReport(inputs({ seal: emptySeal("2026-08") })).closer).toBeNull();

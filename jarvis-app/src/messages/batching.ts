@@ -314,7 +314,7 @@ export function peekLine(
   if (n === 0) return "Nothing from a person";
   const waiting = [...people.values()].filter((p) => p.urgent);
   const who = n === 1 ? "1 person wrote" : n + " people wrote";
-  if (waiting.length === 0) return capAfterNumber(who + " · nothing urgent");
+  if (waiting.length === 0) return capAfterNumber(who + ", nothing urgent");
   const first = waiting[0]!.name;
   const rest = waiting.length - 1;
   const tail = rest === 0
@@ -323,7 +323,7 @@ export function peekLine(
   // Through the number-lead rule, like every other counted line in the app:
   // it capitalizes "People" and leaves the name clause alone, because that
   // clause does not open on a number.
-  return capAfterNumber(who + " · " + tail);
+  return capAfterNumber(who + ", " + tail);
 }
 
 /** The shape the peek needs, so this module keeps its own dependencies small. */

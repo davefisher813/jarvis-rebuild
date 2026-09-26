@@ -101,9 +101,14 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
             <div className="row" key={i}>
               <div className="row-grow">
                 <div className="conn-name">{r.label}</div>
-                <div className="bp-sub">{shortDate(r.date)}</div>
+                {/* The day and the clock are neutral dates: one facts line in
+                    the date fact's small caps (§AM F5), not a grey sub beside
+                    a grey trailing value, which was the one grey twice (§AK). */}
+                <div className="facts">
+                  <span className="fact date">{shortDate(r.date)}</span>
+                  <span className="fact date">{new Date(r.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+                </div>
               </div>
-              <div className="row-value">{new Date(r.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
             </div>
           ))}
         </div></div>

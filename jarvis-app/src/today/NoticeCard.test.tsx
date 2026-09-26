@@ -158,3 +158,24 @@ describe("holding an automated card (UP-CORE-14)", () => {
     vi.useRealTimers();
   });
 });
+
+// §AM F3 (2026-09-26): a middle dot is drawn by .fact + .fact::before, never
+// typed into a meta line. NoticeCard is where every producer's string sub
+// lands, so a dotted sub becomes separate facts here, and the dot on screen
+// is the one the stylesheet draws.
+describe("a dotted sub renders as facts (§AM F3)", () => {
+  it("splits on the dot, draws no dot character, and keeps each part", () => {
+    const { container } = render(<NoticeCard icon={<i />} title="Rent" sub="$1850 · Due tomorrow" />);
+    const meta = container.querySelector(".conn-meta")!;
+    const facts = [...meta.querySelectorAll(".fact")].map((f) => f.textContent);
+    expect(facts).toEqual(["$1850", "Due tomorrow"]);
+    expect(meta.textContent).not.toContain("·");
+  });
+
+  it("leaves a sub with no dot exactly as it was", () => {
+    const { container } = render(<NoticeCard icon={<i />} title="Rent" sub="Due tomorrow" />);
+    const meta = container.querySelector(".conn-meta")!;
+    expect(meta.querySelector(".fact")).toBeNull();
+    expect(meta.textContent).toBe("Due tomorrow");
+  });
+});

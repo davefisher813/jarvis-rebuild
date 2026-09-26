@@ -56,8 +56,6 @@ function ReceiptsSheet({ title, lines, onDone }: { title: string; lines: string[
   );
 }
 
-const WIN_TONES = ["rep-win-good", "rep-win-blue", "rep-win-purple", "rep-win-warn"];
-
 export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, onBack, stillOpen }: {
   report: MonthReport;
   capped: boolean;
@@ -99,8 +97,10 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
         </div>
         {report.hero.wins.length > 0 && (
           <div className="rep-wins">
+            {/* Every win is done, achieved or paid, so every win is green
+                (§AM). The colour used to follow the slot a win landed in. */}
             {report.hero.wins.map((w) => (
-              <div className={"rep-win " + (WIN_TONES[w.tone] ?? "rep-win-good")} key={w.name}>
+              <div className="rep-win rep-win-good" key={w.name}>
                 <div className="rep-win-name">{w.name}</div>
                 <div className="rep-win-val">{w.value}</div>
               </div>
@@ -268,7 +268,9 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
           <div className="card pad rep-one rep-gap">
             <div className="rep-eyebrow">One Change</div>
             <div className="rep-question">{report.closer.question}</div>
-            <div className="rep-title rep-quiet2">{report.closer.sub}</div>
+            {/* The reason under the question is its quiet sub (§AM F4), not
+                a second title at 17px semibold. */}
+            <div className="conn-meta rep-quiet2">{report.closer.sub}</div>
             <div className="rep-one-acts">
               {capped
                 ? <button className="btn btn-block" disabled>Capped ✓</button>

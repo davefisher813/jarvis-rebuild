@@ -194,32 +194,32 @@ describe("UP-MIND-07: a deadline that lands during a meeting", () => {
     const n = mailNotices(snapWith("3 PM"), today, at2pm, 3, [], [
       { title: "Board Prep", date: today, start: "13:00", end: "15:00" },
     ])[0]!;
-    expect(n.sub).toBe("From Nadia · Due 3:00 PM · You're in Board Prep until 3:00");
+    expect(n.sub).toBe("From Nadia, due 3:00 PM while you're in Board Prep until 3:00");
   });
 
   it("says nothing when the day is clear at that hour", () => {
     const n = mailNotices(snapWith("3 PM"), today, at2pm, 3, [], [
       { title: "Standup", date: today, start: "09:00", end: "09:15" },
     ])[0]!;
-    expect(n.sub).toBe("From Nadia · Due 3:00 PM");
+    expect(n.sub).toBe("From Nadia, due 3:00 PM");
   });
 
   it("never invents a clock from a day word", () => {
     const n = mailNotices(snapWith("today"), today, at2pm, 3, [], [
       { title: "Board Prep", date: today, start: "00:00", end: "23:59" },
     ])[0]!;
-    expect(n.sub).toBe("From Nadia · Due today");
+    expect(n.sub).toBe("From Nadia, due today");
   });
 
   it("reads tomorrow's calendar for tomorrow's deadline", () => {
     const n = mailNotices(snapWith("tomorrow 3 PM"), today, at2pm, 3, [], [
       { title: "Board Prep", date: "2026-08-16", start: "13:00", end: "16:00" },
     ])[0]!;
-    expect(n.sub).toBe("From Nadia · Due tomorrow 3:00 PM · You're in Board Prep until 4:00");
+    expect(n.sub).toBe("From Nadia, due tomorrow 3:00 PM while you're in Board Prep until 4:00");
   });
 
   it("keeps working for a caller with no calendar at all", () => {
     const n = mailNotices(snapWith("3 PM"), today, at2pm)[0]!;
-    expect(n.sub).toBe("From Nadia · Due 3:00 PM");
+    expect(n.sub).toBe("From Nadia, due 3:00 PM");
   });
 });

@@ -241,14 +241,16 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
   const dueLabel = isHigh(confidenceOf(t.byEv)) ? "Due " + plain : hedge(plain);
   const endAp = clash?.end ? fmtTime(clash.end) : null;
   const until = clash && endAp
-    ? " · You're in " + clash.title + " until " + endAp.time + (at && endAp.ap === fmtTime(at).ap ? "" : " " + endAp.ap)
+    ? " while you're in " + clash.title + " until " + endAp.time + (at && endAp.ap === fmtTime(at).ap ? "" : " " + endAp.ap)
     : "";
   return {
     key: "deadline:" + t.id,
     kind: "deadline",
     threadId: t.id,
     title: titleCase(t.subject),
-    sub: capAfterNumber(`From ${t.from} · ${dueLabel}${until}`),
+    // One run, no typed dot (§AM F3): the sender, then the deadline as the
+    // rest of the same sentence, so "Due" and "Looks like" drop to lowercase.
+    sub: capAfterNumber(`From ${t.from}, ${dueLabel.charAt(0).toLowerCase() + dueLabel.slice(1)}${until}`),
     action: "Add Task",
     tone: "cat-fg-red",
     ...(t.byEv ? { evidence: t.byEv } : {}),
@@ -315,7 +317,7 @@ function chaseNotice(c: MailChase): MailNotice {
     kind: "chase",
     threadId: c.threadId,
     title: "Chase " + c.to,
-    sub: capAfterNumber(c.subject + " · You asked me to"),
+    sub: capAfterNumber(c.subject + ", as you asked"),
     // A chase starts gentle whatever the clock says (N13), so the wait is 0
     // and only the ask moves the label. Unlike a derived nudge, a chase he
     // set himself never disappears: with nothing draftable to derive the old
@@ -354,9 +356,9 @@ function draftNotice(d: MailDraftRow): MailNotice {
 function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
   const when = dayPhrase(a.date, todayISO);
   const plain = a.verb === "schedule"
-    ? `${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap} · ${a.durationMin} min`
+    ? `${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap} for ${a.durationMin} min`
     : a.verb === "bill"
-      ? `$${a.amount!.toFixed(2)} · Due ${when}`
+      ? `$${a.amount!.toFixed(2)} due ${when}`
       : when;
   // UP-MIND-18: this card writes to the schedule or to Money on one tap, so
   // a reading the app cannot back with the sender's own sentence says so
@@ -400,7 +402,7 @@ function nudgeNotice(w: MailWaiting): MailNotice | null {
     kind: "nudge",
     threadId: w.threadId,
     title: w.to + " Hasn't Replied",
-    sub: capAfterNumber(`${w.subject} · ${w.days} ${w.days === 1 ? "day" : "days"}`),
+    sub: capAfterNumber(`${w.subject}, sent ${w.days} ${w.days === 1 ? "day" : "days"} ago`),
     action: act.label,
     // mail-glyph opts this one into the light theme's brand-red envelope
     // (components.css). The marker is explicit so the rule cannot catch

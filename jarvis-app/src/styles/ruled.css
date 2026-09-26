@@ -615,7 +615,7 @@
 .ruled .r-goal.r-orphan { color: var(--tx-2); font-style: italic; }
 /* the dealt row's reason line keeps its place as the optional third line */
 .ruled .task-row .task-title > .eyebrow { margin-top: var(--s-1); }
-/* The urgency chip: 10/800, 0.06em, 3x7, capsule, 16% tint. Distance words. */
+/* The urgency chip: 10/800, 0.06em, 3x7, capsule, a wash of its own colour. Distance words. */
 .ruled .uchip { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em; padding: 3px 7px;
   border-radius: var(--r-pill); flex-shrink: 0; white-space: nowrap; text-transform: uppercase; }
 .ruled .uchip.u-today { color: var(--warn); background: var(--warn-tint); }

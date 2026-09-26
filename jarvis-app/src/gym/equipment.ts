@@ -439,11 +439,13 @@ export function comparable(a: LoadStyle, b: LoadStyle): boolean {
 }
 
 /** The one-line summary for a row that shows the convention without opening
- *  a menu: "Dumbbells · Each Hand", "Weight Stack", "Assisted". */
+ *  a menu: "Dumbbells, The Whole Load", "Weight Stack", "Assisted". The
+ *  two parts join with a comma, never a middle dot: this string renders
+ *  inside a .fact on the load sheet, where the CSS draws the separators. */
 export function styleSummary(style: LoadStyle): string {
   if (!style.equipment) return style.counted ? COUNTED_LABEL[style.counted] : "Not Set";
   const label = EQUIPMENT_LABEL[style.equipment];
   const counted = style.counted;
   if (!counted || !asksCount(style.equipment) || counted === defaultCount(style.equipment)) return label;
-  return `${label} · ${COUNTED_LABEL[counted]}`;
+  return `${label}, ${COUNTED_LABEL[counted]}`;
 }

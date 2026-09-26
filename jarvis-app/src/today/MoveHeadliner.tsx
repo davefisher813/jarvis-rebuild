@@ -199,15 +199,15 @@ export default function MoveHeadliner({
                 ) : null}
                 {/* NO LINEAGE ON THIS LINE (Dave 2026-09-21: "get rid of the
                     blue subtext in pic 1 idk what that is or why it's
-                    there"). It was .fact.sky printing "Moves <goal>", lineage
-                    the title cannot say and the reader cannot use. The
-                    placement fact ("Fits before Deep Work") is real and
+                    there"). It was .fact.sky printing Moves plus a goal,
+                    lineage the title cannot say and the reader cannot use.
+                    The placement fact (Fits before Deep Work) is real and
                     stays, in the same ink as every other fact on every
                     other row.
                     §AM (2026-09-26): the two slots that DO carry a meaning
                     wear the Colour Key's ink for it, and only one of them
-                    can render. A block that is up ("15 Minutes up") needs
-                    him now, which is amber, the same fact Focus draws amber.
+                    can render. A block that is up (15 Minutes up) needs him
+                    now, which is amber, the same fact Focus draws amber.
                     The length is the task's estimate or its area's learned
                     median, an estimate the app worked out, which is sky:
                     .fact.est, the ink the task rows' estimate already wears. */}

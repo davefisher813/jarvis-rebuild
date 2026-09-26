@@ -39,7 +39,11 @@ describe("buildWeek", () => {
     expect(w.stack!.map((s) => s.name)).toEqual(["Tucci", "Bridge", "Open"]);
     const byKey = Object.fromEntries(w.lines.map((l) => [l.key, l.facts.map((f) => f.text)]));
     expect(byKey.Worked).toEqual(["1 of 1 Plans landed", "Focus held 2 days"]);
-    expect(byKey.Slipped).toEqual(["Tucci · 2 Tasks pushed"]);
+    // The area is a category fact (dot + name) and the count its own amber
+    // fact; the separator is drawn by CSS, never baked in (§AM F3).
+    expect(byKey.Slipped).toEqual(["Tucci", "2 Tasks pushed"]);
+    const slipped = w.lines.find((l) => l.key === "Slipped")!;
+    expect(slipped.facts.map((f) => [f.tone, f.color])).toEqual([["cat", "teal"], ["warn", undefined]]);
     expect(byKey.Changed).toEqual(["1 Block moved"]);
     expect(byKey.Learned).toEqual(["1 New fact"]);
     // Purple is not in the Colour Key (§AM): Learned is the caps grey, and

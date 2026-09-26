@@ -2475,7 +2475,9 @@ describe("LAW L1: red is a verb, never a status", () => {
     const bad: string[] = [];
     for (const m of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
       for (const one of m[1]!.split(",").map((x) => x.replace(/\s+/g, " ").trim())) {
-        if (!one || one.startsWith("@") || !/\.msg-rail(?![\w-])/.test(one)) continue;
+        // Both mail rails: the Waiting rail (.msg-rail) and the 3px mark on a
+        // machine sender's row (.mrail). AMENDED 2026-09-26: .mrail joined.
+        if (!one || one.startsWith("@") || !/\.m(?:sg-)?rail(?![\w-])/.test(one)) continue;
         bodies.set(one, (bodies.get(one) ?? "") + m[2]!);
         const hot = /\.hot(?![\w-])/.test(one);
         if (hot ? TAP_RED.test(m[2]!) : ANY_RED.test(m[2]!)) bad.push(one + " -> " + m[2]!.trim());
@@ -2487,9 +2489,26 @@ describe("LAW L1: red is a verb, never a status", () => {
     for (const sel of [".msg-rail.hot", ".msg-rail.on.hot"]) {
       expect(bodies.get(sel), sel + " is late, the system red").toMatch(/var\(--sys-red\)/);
     }
-    for (const sel of [".msg-rail.warm", ".msg-rail.on.warm"]) {
+    for (const sel of [".msg-rail.warm", ".msg-rail.on.warm", ".mrail.due"]) {
       expect(bodies.get(sel), sel + " is due, the key's amber").toMatch(/var\(--warn-fill\)/);
     }
+    // The pins hold in every theme: any rule whose LAST compound is a rail
+    // state and that paints the rail must paint it that state's colour, so a
+    // [data-theme] twin cannot quietly turn unread grey or late amber.
+    const paint = /(?:background(?:-color)?|box-shadow):\s*([^;]+)/g;
+    const wrong: string[] = [];
+    for (const [sel, body] of bodies) {
+      const last = sel.split(" ").pop()!;
+      const want = /\.hot(?![\w-])/.test(last) ? /var\(--sys-red\)/
+        : /\.warm(?![\w-])|\.due(?![\w-])/.test(last) ? /var\(--warn-fill\)/
+        : /\.msg-rail\.on(?![\w-])/.test(last) ? /var\(--tx-1\)/ : null;
+      if (!want) continue;
+      for (const m of body.matchAll(paint)) {
+        if (/^(?:none|transparent|0)\b/.test(m[1]!.trim())) continue;
+        if (!want.test(m[1]!)) wrong.push(sel + " -> " + m[0]);
+      }
+    }
+    expect(wrong, "a rail state wears its own colour in every theme").toEqual([]);
   });
   it("the ruled lateness classes render only when something is actually late", () => {
     // The red is earned by the render condition, not by the class name. Both

@@ -43,8 +43,12 @@ export default function LockerScreen({
           <div className="pad-x"><div className="card list-card-ruled">
             {expiring.map((e) => (
               <div className="row" key={e.doc.id} {...pressable(() => openDoc(e.doc.data.kind, e.doc.data.expiresAt))}>
-                <div className="row-grow"><div className="conn-name">{LOCKER_DOC_LABEL[e.doc.data.kind]}</div></div>
-                <div className="row-value">{e.daysUntil < 0 ? "Lapsed" : e.daysUntil + " Days Left"}</div>
+                {/* A lapsed document is late (red, §AM); one inside the window
+                    needs you soon (the Health amber). Not the row's grey. */}
+                <div className="row-grow">
+                  <div className="conn-name">{LOCKER_DOC_LABEL[e.doc.data.kind]}</div>
+                  <div className="facts"><span className={"fact " + (e.daysUntil < 0 ? "red" : "amber")}>{e.daysUntil < 0 ? "Lapsed" : e.daysUntil + " Days Left"}</span></div>
+                </div>
               </div>
             ))}
           </div></div>
@@ -60,7 +64,10 @@ export default function LockerScreen({
             <div className="row" key={d.id} {...pressable(() => openDoc(d.data.kind, d.data.expiresAt))}>
               <div className="row-grow">
                 <div className="conn-name">{LOCKER_DOC_LABEL[d.data.kind]}</div>
-                {d.data.expiresAt && <div className="bp-sub">Expires {d.data.expiresAt}</div>}
+                {/* The date itself is neutral, small caps (§AM F5). What it
+                    means, lapsed or days left, is stated once, in its key
+                    colour, on the Worth a Look row above. */}
+                {d.data.expiresAt && <div className="facts"><span className="fact date">Expires {d.data.expiresAt}</span></div>}
               </div>
               {/* HMN-F-22 (2026-09-05): a document still in the pending
                   queue carries a placeholder id, so Remove on it deleted
