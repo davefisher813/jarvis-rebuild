@@ -199,6 +199,13 @@ describe("MessagesFlow (threads)", () => {
     // It expands in place, and noise inside it is still collapsed to a line.
     fireEvent.click(screen.getByText("The Rest"));
     expect(screen.getByText("Noise")).toBeInTheDocument();
+    // R10 (§AM F7, 2026-09-26): Noise is a section, so its head sits OUTSIDE
+    // a card with its count, like the Waiting On band heads, and its rows
+    // ride in their own list card under it.
+    const noiseHead = screen.getByText("Noise").closest(".sh2")!;
+    expect(noiseHead.closest(".card")).toBeNull();
+    expect(noiseHead.querySelector(".n")).toHaveTextContent("1");
+    expect(noiseHead.nextElementSibling?.querySelector(":scope > .card.list-card-ruled > .msg-machines")).toBeTruthy();
     // SPEC MOVED (8A castes, 2026-08-25): the machines' row used to be a
     // full row reading "1 Automated email", which is the sensory flatness
     // the Anti-Inbox catalog is against: a promo wearing a person's weight.
@@ -222,8 +229,14 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText("The Rest"));
 
-    // In: a quiet Select, no checkboxes yet.
+    // In: a quiet Select, no checkboxes yet. The tools stay on the fold's
+    // own card; Worth Knowing is a section head outside it (R10, §AM F7).
     expect(screen.queryByLabelText("Not picked")).toBeNull();
+    expect(screen.getByText("Select").closest(".msg-fold > .card")).toBeTruthy();
+    const wkHead = screen.getByText("Worth Knowing").closest(".sh2")!;
+    expect(wkHead.closest(".card")).toBeNull();
+    expect(wkHead.querySelector(".n")).toHaveTextContent("1");
+    expect(wkHead.nextElementSibling?.querySelector(":scope > .card.list-card-ruled")).toHaveTextContent(/DoorDash receipt/);
     fireEvent.click(await screen.findByText("Select"));
 
     // The fold row toggles instead of opening; Needs You rows grow nothing.

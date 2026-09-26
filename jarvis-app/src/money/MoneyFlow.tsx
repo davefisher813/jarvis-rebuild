@@ -715,7 +715,12 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                       <div className="budget-row"><span>Set aside</span><span>-{formatMoney(left.setAside)}</span></div>
                     )}
                     <div className="budget-row budget-total"><span>Yours</span><span>{formatMoney(left.amount)}</span></div>
-                    {perDayLine(left, daysLeft) && <div className="money-hero-label">{perDayLine(left, daysLeft)}</div>}
+                    {/* With no bills or set-aside, the line under the total
+                        already IS the per-day line: say it once. Shown, it
+                        is an amount the app worked out, so it wears sky. */}
+                    {leftSub(left) && perDayLine(left, daysLeft) && (
+                      <div className="money-hero-label"><span className="fact est">{perDayLine(left, daysLeft)}</span></div>
+                    )}
                   </div>
                 )}
               </div></div>

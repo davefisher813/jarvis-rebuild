@@ -38,6 +38,19 @@ function ruleBody(css: string, sel: string): string {
   return open < 0 || close < 0 ? "" : css.slice(open + 1, close);
 }
 
+/** The body of the rule whose WHOLE selector is `sel`, comments stripped
+ *  (2026-09-26). `ruleBody` finds the first substring match, so a scoped
+ *  rule that happens to end in the same words is read in the base rule's
+ *  place; this reads the one rule that is exactly that selector. */
+function exactRule(css: string, sel: string): string {
+  const want = sel.replace(/\s+/g, " ").trim();
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const m of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+    if (m[1]!.replace(/\s+/g, " ").trim() === want) return m[2]!;
+  }
+  return "";
+}
+
 describe("LAW §AL: the capsule, settled", () => {
   it("the catalog carries the ruling, and names what it supersedes", () => {
     expect(CATALOG).toMatch(/## §AL\. The Capsule, Settled/);
@@ -66,6 +79,23 @@ describe("LAW §AL: the capsule, settled", () => {
     const quiet = ruleBody(CSS, ".quiet-action {");
     expect(quiet, "and it keeps secondary ink, not the action red")
       .toMatch(/color:\s*var\(--tx-2\)/);
+  });
+
+  // THE SMALL PILL IS A CAPSULE BY NAME (§AL; settled by the lead
+  // 2026-09-26). The comment on its rule says §AL binds it, and until today
+  // nothing but that comment did: this law pinned .pill-act and .row-act
+  // only, so the next pass could hand .btn-sm a ring or a wash and pass.
+  // Both themes, because each theme's rule is the one that paints there.
+  it("the small pill takes the capsule fill and the action red, in both themes", () => {
+    const CHAIN = ".btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary)";
+    const base = exactRule(CSS, CHAIN);
+    expect(base, "the small pill's own rule is still in the sheet").toBeTruthy();
+    expect(base, "it has the capsule fill, as a longhand").toMatch(/background-color:\s*var\(--capsule-fill\)/);
+    expect(base, "its label is the action red").toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
+    const light = exactRule(CSS, '[data-theme="light"] ' + CHAIN);
+    expect(light, "light has its own twin").toBeTruthy();
+    expect(light, "the same capsule fill in light").toMatch(/background-color:\s*var\(--capsule-fill\)/);
+    expect(light, "and the light words red").toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
   });
 
   it("the capsule fill is opaque in dark, so contrast cannot depend on the ground", () => {
@@ -109,9 +139,15 @@ describe("LAW §AL: the capsule, settled", () => {
         // a ruled card off it while this law, watching .pill-act only, passed.
         // Judged on each selector's SUBJECT (its last compound): a rule for
         // `.card:has(> .row-act:only-child)` styles the card, not the button.
+        // AMENDED 2026-09-26 (§AL): .btn-sm joined, since it is a capsule
+        // by name too. A small button that is ALSO a primary, danger or
+        // secondary is that button, with its own fill, so it is not judged
+        // here (a class inside :not() does not count as naming it).
         const subjects = selector.replace(/:has\([^)]*\)/g, "").split(",")
           .map((x) => x.trim().split(/\s+|>/).filter(Boolean).pop() ?? "");
-        if (!subjects.some((x) => /\.(pill-act|row-act)(?![\w-])/.test(x))) continue;
+        const isCapsule = (x: string) => /\.(pill-act|row-act)(?![\w-])/.test(x)
+          || (/\.btn-sm(?![\w-])/.test(x) && !/\.btn-(primary|danger|secondary)(?![\w-])/.test(x.replace(/:not\([^)]*\)/g, "")));
+        if (!subjects.some(isCapsule)) continue;
         if (/(^|[;\s])background:\s*(?!none\b)(?!0\b)/.test(body)) {
           offenders.push(file + " — " + selector.split("\n").pop()!.trim());
         }
@@ -124,8 +160,18 @@ describe("LAW §AL: the capsule, settled", () => {
     // §O.7: the one sanctioned bare-text control. §AA G5 + astra.test.ts: a
     // state word is small caps and never a filled pill. A sweep that gives
     // every control a capsule must not reach these two.
-    const seeAll = ruleBody(CSS, ".see-all {");
+    // AMENDED 2026-09-26 (round-1 review): this read `.sec-head .see-all`,
+    // the first rule containing the words, and never the base rule the
+    // phase recoloured. It reads the base rule exactly now, and fails if the
+    // rule is renamed rather than quietly matching nothing.
+    const seeAll = exactRule(CSS, ".see-all");
+    expect(seeAll, "the base head action rule is still in the sheet").toBeTruthy();
     expect(seeAll, "the head action stays bare text").toMatch(/background:\s*0|background:\s*none|background:\s*transparent/);
+    expect(seeAll, "no capsule fill").not.toMatch(/background-color/);
+    expect(seeAll, "and no capsule shape").not.toMatch(/border-radius/);
+    expect(seeAll, "its words are the tap red (§AM)").toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
+    expect(exactRule(CSS, '[data-theme="light"] .see-all'), "and the words red in light")
+      .toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
     const st = /\.fact\.st\s*\{([^}]*)\}/.exec(CSS)?.[1] ?? "";
     expect(st, "the state word takes no fill").not.toMatch(/background/);
     expect(st, "and no radius").not.toMatch(/border-radius/);

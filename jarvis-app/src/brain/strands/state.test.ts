@@ -47,9 +47,12 @@ describe("stateForStrand (C-40, C-47)", () => {
     expect(Object.keys(src.data)).not.toContain("state");
   });
 
-  it("tones: sky for what he said, green for what JARVIS learned, warn for the question", () => {
-    expect(toneForStrandState("KNOWN")).toBe("sky");
-    expect(toneForStrandState("LEARNED")).toBe("good");
+  it("tones: Known and Learned are plain caps, Fading is amber (§AM)", () => {
+    // Neither Known nor Learned is done, due or late, so neither wears a key
+    // colour; the caps of .fact.st are the distinction. Fading asks him to
+    // confirm, which is "needs you soon".
+    expect(toneForStrandState("KNOWN")).toBe("");
+    expect(toneForStrandState("LEARNED")).toBe("");
     expect(toneForStrandState("FADING")).toBe("warn");
   });
 });

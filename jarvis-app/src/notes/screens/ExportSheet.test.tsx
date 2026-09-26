@@ -86,6 +86,17 @@ describe("the export sheet", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
+  // §AM F6 (R9): every note under a field on this sheet is the one field-note
+  // primitive, so the Filename, Format and More Options notes read alike.
+  it("draws each note under a field as .input-hint", () => {
+    const { container } = render(<ExportSheet doc={DOC} title="Convo with Berto" images={[]} attachmentNames={["plan.pdf"]} onClose={() => {}} />);
+    const hints = [...container.ownerDocument.querySelectorAll(".sheet-form .input-hint")].map((el) => el.textContent);
+    expect(hints).toContain("Convo with Berto.pdf");
+    expect(hints).toContain("PDF keeps accented Latin text and includes photos");
+    expect(hints).toContain("Not included: plan.pdf.");
+    expect(container.ownerDocument.querySelector(".sheet-form .field .exp-note")).toBeNull();
+  });
+
   it("the preview shows the words, and More Options can leave the title out", async () => {
     mount();
     fireEvent.click(screen.getByText("Preview"));

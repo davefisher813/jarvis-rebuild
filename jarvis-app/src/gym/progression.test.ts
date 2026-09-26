@@ -71,7 +71,7 @@ describe("suggestFor", () => {
     ])])];
     const s = suggestFor(h, plan())!;
     expect(s.basis!.marks).toBe("None marked");
-    expect(s.basis!.source).toMatch(/1 working set$/);
+    expect(s.basis!.source).toBe("1 working set on Aug 24");
     expect(suggestFor(h, plan({ sets: [{ id: "p1", w: 225 }] }))).toBeNull();
   });
 
@@ -127,7 +127,7 @@ describe("the Assisted engine", () => {
     expect(s.next.w).toBe(227.5);
     expect(s.why).toMatch(/every set cleared 8/);
     expect(s.basis).toMatchObject({ variant: "Bench, Barbell", range: "6 to 8 reps", increment: "2.5 lb", marks: "None marked" });
-    expect(s.basis!.source).toMatch(/2 working sets/);
+    expect(s.basis!.source).toBe("2 working sets on Sep 10");
     expect(s.basis!.role).toMatch(/warm-ups and drops left out/);
   });
 
@@ -152,6 +152,6 @@ describe("the Assisted engine", () => {
     const h = [wk("2026-09-10", [wex("Bench", [{ w: 135, r: 10, warmup: true }, { w: 225, r: 8 }, { w: 185, r: 12, drop: true }])])];
     expect(suggestFor(h, noRange)).toBeNull();
     const s = suggestFor(h, range)!;
-    expect(s.basis!.source).toMatch(/1 working set$/);
+    expect(s.basis!.source).toBe("1 working set on Sep 10");
   });
 });

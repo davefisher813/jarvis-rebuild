@@ -64,5 +64,12 @@
   "phase": "css",
   "question": "In light mode, an estimate (sky, e.g. 'About 3h', 'Saves 5 min', 'Est 45 Min') is Apple's own light cyan, #32ADE6. On white it reads about 2.5:1, and on an amber banner under 2:1. On 2026-09-12 you chose Apple's light green and amber as shipped over darker, easier-to-read versions. Same call here: keep Apple's cyan, or use a darker sky (#006592, 6.4:1) for estimates in light mode only?",
   "default": "keep Apple's cyan (consistent with 2026-09-12)"
+ },
+ {
+  "id": "today-tiles",
+  "phase": "css",
+  "kind": "heads-up (applied, shown for approval)",
+  "question": "Applied from the Colour Key; say if you want any of it back. Today's stat tiles: the Late tile is red from the first late task (it was amber for one or two); the Due tile is amber (it was grey); Brain's area Done tile is green (it was grey). Events stay grey.",
+  "default": "keep as applied"
  }
 ]

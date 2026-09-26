@@ -138,17 +138,25 @@ export default function RemindersPage({
     // facts line says the DATE alone (dateWord, no time -- the gutter
     // already has that) for a future occurrence, and nothing for today's
     // (implied by which section, Ready Now or Later Today, it sits in, same
-    // as before). Only unscheduled, paused, contextual and skipped rows --
-    // none of which carry a bare clock reading on their own -- still run the
-    // full whenWords() phrase through the facts line.
+    // as before). Unscheduled, paused and contextual rows -- none of which
+    // carry a bare clock reading on their own -- still run the full
+    // whenWords() phrase through the facts line.
     const hasGutter = it.state === "open" && timed && !!it.time;
     const dueToday = hasGutter && it.date === today;
-    const when = it.state === "skipped" ? "Skipped · " + whenWords(r, it.date, it.time, today, area) : whenWords(r, it.date, it.time, today, area);
+    const when = whenWords(r, it.date, it.time, today, area);
     // Today's open occurrence is due, so amber. Any other open date is a
     // neutral date, and a neutral date on a row is small caps (§AM F5), never
     // the row's grey again. A row with no date at all (unscheduled, on an
     // action) keeps a plain fact: its phrase is not a date.
     const tone = it.state !== "open" ? "" : it.date === today ? "when" : it.date ? "date" : "";
+    // A done or skipped occurrence is a day and a clock that have passed:
+    // neutral, so small caps too (§AM F5, 2026-09-26). They were one plain
+    // "Today · 7:00 AM" phrase, which on a repeating reminder sat beside the
+    // rhythm in the same grey twice; now the date and the clock are a fact
+    // each, with the line drawing the separator between them (F3). A skipped
+    // row leads with SKIPPED as a state word rather than baking "Skipped"
+    // into the phrase, so the rhythm is the row's one grey.
+    const pastClock = (it.state === "done" || it.state === "skipped") && !!it.date && !!it.time ? fmtTime(it.time!) : null;
     // ONE RIGHT-SLOT ACTION, whatever the state (Dave 2026-09-15, v3: the row
     // stacked to three lines because the pill took a line of its own under
     // the body). Open rows answer with the linked verb when there is one and
@@ -173,13 +181,17 @@ export default function RemindersPage({
             <div className="facts">
               {/* A gutter row's clock already lives in its own column, so
                   this fact says only the DATE (nothing at all for today's,
-                  implied by the section it sits in); every other row --
-                  unscheduled, paused, contextual, skipped -- has no clock to
-                  split out, and keeps the full whenWords() phrase it always
-                  has. */}
+                  implied by the section it sits in). A done or skipped row
+                  says its date and its clock as two small-caps facts, a
+                  skipped one after its state word. Every other row --
+                  unscheduled, paused, contextual -- has no clock to split
+                  out, and keeps the full whenWords() phrase it always has. */}
+              {it.state === "skipped" && <span className="fact st gray">Skipped</span>}
               {hasGutter
                 ? (!dueToday && <span className={"fact " + tone}>{dateWordFor(it.date!, today)}</span>)
-                : <span className={"fact " + tone}>{when}</span>}
+                : pastClock
+                  ? <><span className="fact date">{dateWordFor(it.date!, today)}</span><span className="fact date">{pastClock.time} {pastClock.ap}</span></>
+                  : <span className={"fact " + tone}>{when}</span>}
               {/* The area name takes its own element so IT is what gives way
                   when the line runs out of room. Its colour is already on the
                   dot beside it, so a clipped name still says which area this

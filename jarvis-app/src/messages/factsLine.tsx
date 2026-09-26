@@ -15,7 +15,9 @@ import type { ReactNode } from "react";
 import type { AskKind } from "./mailAction";
 import type { Evidence } from "./evidence";
 
-export type FactTone = "warn" | "good" | "sky" | "purp" | "red";
+// The Colour Key's own variants (§AM): due, done, late. Sky and purple are
+// retired; neither has a rule, so asking for one would paint a second grey.
+export type FactTone = "warn" | "good" | "red";
 export interface Fact { text: string; tone?: FactTone }
 
 /** One .facts line. Nullish or false entries are skipped so a caller can

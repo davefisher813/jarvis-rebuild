@@ -96,10 +96,9 @@ export default function BiggerPicturePage({
   holdLineOf?: (projectId: string) => string | null;
   sizeLineOf?: (projectId: string) => string | null;
   // UP-CORE-18 (2026-09-05): how much is left and whether the date holds,
-  // derived by the flow from the project's own tasks and its due date.
-  // PaceParts (projectPaceParts) is the form a row can colour; a string
-  // (projectPace) is the older joined sentence, still accepted.
-  paceLineOf?: (projectId: string) => PaceParts | string | null;
+  // derived by the flow from the project's own tasks and its due date, in
+  // its parts (projectPaceParts) so the row can colour the date.
+  paceLineOf?: (projectId: string) => PaceParts | null;
   onAddGoal: () => void;
   onOpenGoal: (id: string) => void;
   onAddProject: () => void;
@@ -231,7 +230,9 @@ export default function BiggerPicturePage({
             ? <div className="bp-sub bp-stalled">{hold}</div>
             : <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>}
           {/* PICK 22: size from the planner's own learned durations, which
-              makes it an estimate the app worked out: sky (§AM). */}
+              makes it an estimate the app worked out: sky (§AM). It is the
+              time alone ("About 3h"); the open count it used to lead with
+              restated the progress line above. */}
           {sized && <div className="bp-sub"><span className="fact est">{sized}</span></div>}
           {/* UP-CORE-18 (2026-09-05): the pace, when the project has a date.
               A client deliverable due the 30th and a school project due
@@ -242,16 +243,13 @@ export default function BiggerPicturePage({
               rate sky) and the stylesheet draws the dot between them. The
               count only restates the progress line above it (5 of 8 left is
               3 of 8 done), so it rides only when a hold has taken that line;
-              either way the row keeps one plain grey. A plain string is the
-              older sentence form, drawn as it always was. */}
-          {paced && (typeof paced === "string"
-            ? <div className="bp-sub">{paced}</div>
-            : (
-              <div className="facts">
-                {hold && <span className="fact">{paced.count}</span>}
-                <span className={"fact " + paced.tone}>{paced.when}</span>
-              </div>
-            ))}
+              either way the row keeps one plain grey. */}
+          {paced && (
+            <div className="facts">
+              {hold && <span className="fact">{paced.count}</span>}
+              <span className={"fact " + paced.tone}>{paced.when}</span>
+            </div>
+          )}
           {progress && <Bar p={progress} />}
         </div>
         {canClose && onCloseProject

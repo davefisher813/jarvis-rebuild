@@ -7,6 +7,7 @@ import { catColor } from "../../shared/categories";
 import { RowGlyph } from "../../shared/anatomy";
 import { pressable } from "../../shared/pressable";
 import { shortDate } from "../../shared/dateFormat";
+import { todayISO } from "../../tasks/grouping";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -339,16 +340,17 @@ export default function PersonDetail({
           <div className="sh2 sh2-quiet"><span className="t">Still Open</span><span className="n">{openWith.length + promises.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {/* C-61: what he said he would do, in his own mail to them.
-                The amber fact is the promise (it needs him); the deadline
-                beside it in small caps; Add Task writes the task and the row
-                leaves. Purple is not in the Colour Key (§AM). */}
+                "You promised" is the line's one grey; the deadline carries
+                the meaning (§AM, R8): amber while it is ahead, red once it
+                has passed, and a promise with no date has no colour to
+                wear. Add Task writes the task and the row leaves. */}
             {promises.map((p) => (
               // Row tap (Dave 2026-09-15): a promise has no task yet, so the row
               // does its pill's verb, Add Task.
               <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => onAddTask(p)) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.text}</div>
-                  <div className="facts"><span className="fact warn">You promised</span>{p.due && <span className="fact date">{shortDate(p.due)}</span>}</div>
+                  <div className="facts"><span className="fact">You promised</span>{p.due && <span className={"fact " + (p.due < todayISO() ? "red" : "warn")}>{shortDate(p.due)}</span>}</div>
                 </div>
                 {onAddTask && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onAddTask(p); }}>Add Task</button>}
               </div>

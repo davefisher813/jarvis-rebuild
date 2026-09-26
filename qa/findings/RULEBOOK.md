@@ -129,6 +129,20 @@ decision for the lead session, added once in `components.css` with a law.
   be tapped is a white `<b>`, not small caps.
 - Purple is not in the key: no `.fact.purp`. An estimate is `.fact.est`.
 - `.btn-sm` is a capsule (§AL); the 50px base `.btn` is not.
+- Caps is for a label, never a sentence. A short caveat ("Correlation, not
+  cause") may be an 11px caps kicker; a sentence-length note under a card
+  goes below the card as `<div className="pad-x"><div className="input-hint">`
+  (the group-footer pattern, as settings' Foot does).
+- A date's colour follows the reminder/project window: past = `.fact.red`,
+  today or tomorrow = `.fact.warn`, later = `.fact.date`.
+- A decision row shows only homes that belong to an area (dot + name); person,
+  goal and task links live on the record page. A decision's outcome: worked
+  green, mixed amber, didn't red.
+- Field notes (`<Note>`, `<Foot>`) keep their middle dots: they are not facts
+  lines, and shortCopy.test.ts (Dave, 2026-08-15) keeps notes as fragments
+  joined by a dot.
+- Today's stat tiles follow the key: late red from the first late task, due
+  amber, done green (shown to Dave as a heads-up).
 
 ## Held for Dave: do not change these, report them as needs_dave if you meet them
 

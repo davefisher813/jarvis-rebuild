@@ -53,7 +53,8 @@
   "old": "\u2709 Email \u00b7 From an email",
   "new": "\u2709 Email",
   "group": "tasks-reminders",
-  "phase": "css-handoff"
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
  },
  {
   "id": "104",
@@ -61,7 +62,8 @@
   "old": "\u2709 Note \u00b7 From a note",
   "new": "\u2709 Note",
   "group": "tasks-reminders",
-  "phase": "css-handoff"
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
  },
  {
   "id": "104",
@@ -69,7 +71,8 @@
   "old": "\u2709 Smart Paste \u00b7 From Smart Paste",
   "new": "\u2709 Smart Paste",
   "group": "tasks-reminders",
-  "phase": "css-handoff"
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
  },
  {
   "id": "104",
@@ -77,7 +80,8 @@
   "old": "\u2709 Recording \u00b7 From the recorder",
   "new": "\u2709 Recording",
   "group": "tasks-reminders",
-  "phase": "css-handoff"
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
  },
  {
   "id": "104",
@@ -85,7 +89,8 @@
   "old": "\u2709 Chat \u00b7 From chat",
   "new": "\u2709 Chat",
   "group": "tasks-reminders",
-  "phase": "css-handoff"
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
  },
  {
   "id": "104",
@@ -93,7 +98,8 @@
   "old": "\u2709 File \u00b7 From a file",
   "new": "\u2709 File",
   "group": "tasks-reminders",
-  "phase": "css-handoff"
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2: the provenance is hidden only when it names the same origin AND cannot be opened"
  },
  {
   "id": "278",
@@ -109,7 +115,8 @@
   "old": "Read (basis): \"{when} \u00b7 {N} working sets\" (e.g. \"Last Tuesday \u00b7 2 working sets\")",
   "new": "\"{when}, {N} working sets\" (e.g. \"Last Tuesday, 2 working sets\")",
   "group": "gym-health",
-  "phase": "css-handoff"
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2 changed this again; see the later entry"
  },
  {
   "id": "278",
@@ -157,7 +164,8 @@
   "old": "5 of 8 Left \u00b7 Due tomorrow (pace line under the progress line '3 of 8 Done', unlensed Bigger Picture project row)",
   "new": "Due tomorrow (the 'N of M Left' count is dropped on this row because the progress line directly above already says it; it stays when a hold line replaces the progress line). This takes effect once BiggerPictureFlow passes projectPaceParts. The projectPace string that other screens show is unchanged, word for word.",
   "group": "bigger-picture",
-  "phase": "css-handoff"
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2 changed this again; see the later entry"
  },
  {
   "id": "R8-peakDate",
@@ -173,6 +181,175 @@
   "old": "Aug 12 \u00b7 3 sets \u00b7 primary",
   "new": "AUG 12 \u00b7 3 sets \u00b7 primary (same words; the date is now small caps, 3 is white, and CSS draws the dots instead of the string)",
   "group": "today-brain",
-  "phase": "css-handoff"
+  "phase": "css-handoff",
+  "superseded": "2026-09-26 round 2 changed this again; see the later entry"
+ },
+ {
+  "issue": "#15",
+  "file": "src/projects/shape.ts (Bigger Picture project row, via BiggerPictureFlow sizeLineOf)",
+  "old": "4 Open \u00b7 About 3h",
+  "new": "About 3h",
+  "group": "bigger-pace",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#15",
+  "file": "src/projects/ProjectDetailPage.tsx (project page hero size line)",
+  "old": "4 Open \u00b7 About 3h",
+  "new": "About 3h",
+  "group": "bigger-pace",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#0/#13/#63",
+  "file": "src/bigger/BiggerPicturePage.tsx (Bigger Picture project row pace; the previous phase wrote this, and it only reaches the screen now that the flow passes parts)",
+  "old": "5 of 8 Left \u00b7 Due tomorrow",
+  "new": "Due tomorrow (when a hold has taken the progress line, it stays as two facts: 5 of 8 Left | Due tomorrow)",
+  "group": "bigger-pace",
+  "phase": "css-round2"
+ },
+ {
+  "file": "jarvis-app/src/notes/screens/NotesList.tsx",
+  "issue": "#27/#40 (note row tags)",
+  "old": "\u00b7 #ideas  \u00b7 #q3  (one span per tag, each with a typed middot)",
+  "new": "#ideas #q3  (one span, tags joined by a space)",
+  "group": "goals-notes-export",
+  "phase": "css-round2"
+ },
+ {
+  "file": "jarvis-app/src/notes/screens/NotesList.tsx",
+  "issue": "#27/#40 (note row date)",
+  "old": "\u00b7 Edited today / \u00b7 Yesterday / \u00b7 Sep 15",
+  "new": "Edited today / Yesterday / Sep 15",
+  "group": "goals-notes-export",
+  "phase": "css-round2"
+ },
+ {
+  "file": "jarvis-app/src/notes/screens/NotesList.tsx",
+  "issue": "#2 (finds)",
+  "old": "JARVIS found 3 (plain grey 14px)",
+  "new": "JARVIS found 3 (same words, now the r-cue small-caps letterform, so it shows as 'JARVIS FOUND 3' with the number white)",
+  "group": "goals-notes-export",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#3",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "<date> \u00b7 3 sets \u00b7 primary",
+  "new": "<date> \u00b7 3 sets   ('primary' dropped: it is the default and said nothing)",
+  "group": "brain-today-tiles",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#3",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "<date> \u00b7 3 sets \u00b7 secondary, counted half",
+  "new": "<date> \u00b7 3 sets, counted half   ('secondary, counted half' -> ', counted half', joined to the count)",
+  "group": "brain-today-tiles",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#8",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Two lines: 'Last 7 days \u00b7 Working sets only \u00b7 Warm-ups excluded' / '{range.source}' (e.g. 'Schoenfeld dose-response meta-analysis \u00b7 2025 Sports Medicine meta-regression' or 'Your band, from Health Settings')",
+  "new": "One line: 'Last 7 days \u00b7 Working sets only \u00b7 Warm-ups excluded \u00b7 {range.source}'. The words are unchanged, the separators are now drawn by CSS, and the CSS agent's kicker rule makes the line caps.",
+  "group": "brain-today-tiles",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#31 / #42 / #67",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Plateau card Now cell: 'NOW' / {currentValue} / 'Latest'",
+  "new": "'NOW' / {currentValue}   ('Latest' dropped: it only repeated the NOW kicker)",
+  "group": "brain-today-tiles",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#4/#33 Learned line (Insights, This Week card)",
+  "file": "src/review/week.ts",
+  "old": "two facts: \"N New facts\" \u00b7 \"M Remembered\" (the second one green)",
+  "new": "one fact: \"N New facts, M remembered\", with N and M drawn white as <b> and no colour on the fact. When only one count exists it reads \"N New facts\" or \"M Remembered\", as before.",
+  "group": "week-strands-facts",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#5",
+  "file": "jarvis-app/src/tasks/screens/RemindersPage.tsx",
+  "old": "Skipped row facts: \"Skipped \u00b7 Today \u00b7 10:00 AM\" (one plain grey string with baked middots)",
+  "new": "Three facts: \"Skipped\" (state word, small caps, quiet) | \"Today\" (fact date) | \"10:00 AM\" (fact date), with separators drawn by CSS. The words are unchanged. The rendering is caps and the middots are no longer baked into the string.",
+  "group": "reminders",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#5",
+  "file": "jarvis-app/src/tasks/screens/RemindersPage.tsx",
+  "old": "Done row facts: \"Today \u00b7 7:00 AM\" (one plain grey string with a baked middot)",
+  "new": "Two facts: \"Today\" (fact date) | \"7:00 AM\" (fact date), with the separator drawn by CSS. The words are unchanged and now render in small caps.",
+  "group": "reminders",
+  "phase": "css-round2"
+ },
+ {
+  "file": "jarvis-app/src/decisions/DecisionsFlow.tsx",
+  "issue": "#6",
+  "old": "On a decision row with no reason, the line under the title read \"No reason recorded\"",
+  "new": "(no line; the row shows nothing about the reason when there is none)",
+  "group": "decisions-people",
+  "phase": "css-round2"
+ },
+ {
+  "file": "jarvis-app/src/decisions/DecisionsFlow.tsx",
+  "issue": "#6",
+  "old": "The first fact on a decision row named its source: \"Manual\" / \"Email\" / \"Chat\" / \"Note\"",
+  "new": "(removed from the row; the record page's Source section still shows \"Email \u00b7 Aug 12, 3:04 PM\" etc.)",
+  "group": "decisions-people",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#41",
+  "file": "src/gym/progression.ts",
+  "old": "Aug 12, 2 working sets",
+  "new": "2 working sets on Aug 12",
+  "group": "tasks-gym-health-money",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#10",
+  "file": "src/health/screens/RefillRunwayScreen.tsx",
+  "old": "30 received \u00b7 4 taken since",
+  "new": "4 of 30 taken",
+  "group": "tasks-gym-health-money",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#39",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "old": "Email task row with no area and an openable source: mark 'Email' only (the 'From an email' link was hidden)",
+  "new": "mark 'Email' plus the 'From an email' link (the tappable door restored); a task whose provenance names a different origin from the mark (e.g. 'Get back to Sam' from Smart Paste) shows 'From Smart Paste' again",
+  "group": "tasks-gym-health-money",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#12",
+  "file": "src/money/MoneyFlow.tsx",
+  "old": "Budget math foot repeated '14 Days, about $29 a day' under the Yours total when there were no bills or set-aside (same sentence as the line under the total)",
+  "new": "that repeat is dropped; the line shows only when the line under the total says 'After $X of bills\u2026', and then in sky as an estimate",
+  "group": "tasks-gym-health-money",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#28",
+  "file": "src/messages/MessagesFlow.tsx",
+  "old": "Worth Knowing",
+  "new": "Worth Knowing, plus its count in the head's .n slot (for example \"Worth Knowing \u00b7\u00b7\u00b7 3\"), which the lead asked for so it matches the band heads",
+  "group": "mail-options",
+  "phase": "css-round2"
+ },
+ {
+  "issue": "#28",
+  "file": "src/messages/MessagesFlow.tsx",
+  "old": "Noise",
+  "new": "Noise, plus its count in the head's .n slot (for example \"Noise \u00b7\u00b7\u00b7 5\"), which the lead asked for so it matches the band heads",
+  "group": "mail-options",
+  "phase": "css-round2"
  }
 ]

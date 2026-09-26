@@ -312,7 +312,11 @@ describe("LAW: Apple HIG casing", () => {
       // Apple Music casing EVERYWHERE (Dave 2026-08-18): section heads (sh2
       // "t" spans), library names, fold heads, day dividers, and chips join
       // the scan alongside the original set.
-      for (const cls of ["conn-name", "lib-name", "empty-title", "input-label", "tip-title", "restore-title", "promo-title", "t", "sec-title", "msg-fold-head", "day-divide", "chip"]) {
+      // AMENDED 2026-09-26 (R10): "msg-fold-head" came off the roster. The
+      // mail fold heads became `.sh2 .t` that day and the class left the
+      // markup and the sheets, so its entry scanned for nothing; the heads
+      // are still scanned, under "t".
+      for (const cls of ["conn-name", "lib-name", "empty-title", "input-label", "tip-title", "restore-title", "promo-title", "t", "sec-title", "day-divide", "chip"]) {
         for (const m of src.matchAll(new RegExp('className="' + cls + '(?: [a-z-]+)*"[^>]*>\\s*([^<>{}\\n]{3,60}?)\\s*<', "g"))) {
           const t = m[1]!.trim();
           if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [" + cls + "]: " + t);
@@ -2338,6 +2342,8 @@ describe("LAW: a receipt names what landed, not what was attempted", () => {
 // exploits the brain's need for closure, it only ever counts up, and it turns
 // "you have mail" into "you are behind". Red in this app means TAP ME TO ACT.
 // It never means you are late, and it never counts your failures.
+// (AMENDED 2026-09-26, §AM: that is the BRAND red. Lateness takes the
+// system red, the Colour Key's late; see the amendment at GUILT below.)
 //
 // Red marking a WIN is still red doing its job: the streak square that colors
 // in on the finish screen is an accent because clearing the deck is the good
@@ -2362,7 +2368,25 @@ describe("LAW L1: red is a verb, never a status", () => {
   // tests below: red plus a NUMBER at the render site, and red badge rules
   // with nobody to fill them. What is left here is the vocabulary of
   // lateness, which is a sin in any shape.
-  const GUILT = /\.(?:[a-z-]*)(overdue|late|unread|behind)(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--sys-red|--bad)\b/gi;
+  //
+  // AMENDED 2026-09-26 (§AM, the Colour Key; Dave's 2026-09-12 Astra ruling
+  // that Apple's system colours as shipped are the palette, as text too).
+  // Lateness in --sys-red IS the key now: late, overdue, over the limit and
+  // missed are its red, on purpose, on every screen, and a correctly named
+  // late fact in the system red is the key doing its job, not a status
+  // slipped past this law. What the key forbids is the BRAND red on any of
+  // it, because the brand red means "tap me" (§AM), and a lateness word in
+  // it is exactly the guilt meter this law was written against. So the
+  // colour group below is the tap reds and only the tap reds. The
+  // .sched-badge note above is history too: the overlap word is the key's
+  // amber where it cannot be tapped, and a capsule with a tap-red label
+  // where it can. Unread was never lateness and never takes any red; that
+  // half is its own assertion below, so narrowing this pattern lets nothing
+  // through that it used to stop there.
+  const GUILT = /\.(?:[a-z-]*)(overdue|late|unread|behind)(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--accent-tx|--tint|--on-light-red)\b/gi;
+  // Unread is a state of the inbox, not of the user: no red of any kind,
+  // the key's included (Anti-Inbox, 2026-08-25; the mail rail's white dot).
+  const UNREAD_RED = /\.(?:[a-z-]*)unread(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--accent-tx|--tint|--on-light-red|--sys-red|--red|--bad)\b/gi;
 
   // WIDENED APP-WIDE 2026-08-25 (Dave). L1 was written for email and scoped
   // to email, which left the same mechanic running one tab over: the Tasks
@@ -2384,19 +2408,35 @@ describe("LAW L1: red is a verb, never a status", () => {
   // own definition of legal red ("a red thing you tap to fix the problem it
   // names"). So the two classes are named here, one by one, and everything
   // else stays under the rule. Adding a third means writing its ruling here.
-  const RULED_LATENESS = new Set([".st-late", ".u-late"]); // both scoped under .ruled in ruled.css
-  it("no class anywhere paints lateness or a count in red, except the two ruled on 2026-09-01", () => {
+  // AMENDED 2026-09-26 (§AM): the two are no longer exempt. They wear the
+  // system red, which the pattern above no longer names, so they pass on
+  // their own; an exemption now could only let the BRAND red onto a late
+  // tile or chip, which is the one thing the key still forbids there. The
+  // set stays empty on purpose, so a lateness class that needs the brand
+  // red has to be argued for here, by name, with its ruling.
+  const RULED_LATENESS = new Set<string>([]);
+  it("no class anywhere paints lateness in the brand red, the red that means tap me", () => {
     const bad = [...CSS.matchAll(GUILT)]
       .map((m) => m[0].split("{")[0]!.trim())
       .filter((sel) => !RULED_LATENESS.has(sel));
     expect(bad, "red means tap me, never you are behind").toEqual([]);
   });
+  it("no unread class takes any red at all, the key's included", () => {
+    const bad = [...CSS.matchAll(UNREAD_RED)].map((m) => m[0].split("{")[0]!.trim());
+    expect(bad, "unread is a fact about the inbox, not a failure").toEqual([]);
+  });
   it("the ruled lateness classes render only when something is actually late", () => {
-    // The exemption above is earned by the render condition, not by the
-    // class name. Both sites must be gated in TodayPage.
+    // The red is earned by the render condition, not by the class name. Both
+    // sites must be gated in TodayPage.
+    // AMENDED 2026-09-26 (§AM): the late tile is red from the FIRST late
+    // task, not from the third; the key has no threshold, so "amber for one
+    // or two" was a second meaning for amber. What this still holds is the
+    // gate: the tile does not exist until something has actually slipped,
+    // so red never fires on a day when nothing is late.
     const page = readFileSync(join(SRC, "today/TodayPage.tsx"), "utf8");
-    expect(page).toMatch(/summary\.overdue >= 3 \? "st-late" : "st-warn"/);
-    expect(page).toMatch(/summary\.overdue > 0 && \(/);
+    expect(page, "no count threshold on lateness").not.toMatch(/summary\.overdue >= \d/);
+    expect(page, "the late tile sits inside the overdue gate")
+      .toMatch(/\{summary\.overdue > 0 && \((?:(?!\)\}\n)[\s\S])*?className="stat-tile st-late"/);
     expect(page).toMatch(/dist\.kind === "late" \? "u-late" : "u-today"/);
   });
 

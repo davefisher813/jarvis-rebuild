@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { projectProgress, isStalled, rankProjects, progressLabel, lastActivity, STALE_DAYS,
-  bucketOf, closable, rankGoals, projectPace, projectPaceParts } from "./progress";
+  bucketOf, closable, rankGoals, projectPaceParts } from "./progress";
 import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
 
@@ -142,35 +142,11 @@ describe("wave 1: goals order by what is true", () => {
 // deliverable due the 30th are the same shape, and a project could hold a
 // status, an order, a goal and a hold date and no deadline at all. The
 // arithmetic is the one goals have had since PICK 14 (measure.ts's paceLine).
-describe("projectPace", () => {
-  const p = (done: number, total: number) => ({ done, total, pct: Math.round((done / total) * 100) });
-
-  it("says what is left and whether the pace is real", () => {
-    // 6 left over 3 days: two a day from here. The rate leads with a word,
-    // the same trick paceLine uses to keep the number-lead casing readable.
-    expect(projectPace(p(2, 8), "2026-09-08", "2026-09-05")).toBe("6 of 8 Left · About 2 a day from here");
-    // Fewer left than days: one a day is more than enough, so it says when.
-    expect(projectPace(p(5, 8), "2026-09-15", "2026-09-05")).toBe("3 of 8 Left · Due in 10 days");
-  });
-
-  it("says today, tomorrow and past in words", () => {
-    expect(projectPace(p(7, 8), "2026-09-05", "2026-09-05")).toBe("1 of 8 Left · Due today");
-    expect(projectPace(p(7, 8), "2026-09-06", "2026-09-05")).toBe("1 of 8 Left · Due tomorrow");
-    expect(projectPace(p(7, 8), "2026-09-01", "2026-09-05")).toBe("1 of 8 Left · Past its date");
-  });
-
-  it("says nothing when there is nothing to pace", () => {
-    expect(projectPace(p(2, 8), undefined, "2026-09-05")).toBeNull();
-    expect(projectPace(null, "2026-09-08", "2026-09-05")).toBeNull();
-    // Finished: a pace for work that is done is a number about nothing.
-    expect(projectPace(p(8, 8), "2026-09-08", "2026-09-05")).toBeNull();
-  });
-});
-
-// THE PACE IN ITS PARTS (§AM, 2026-09-26). A facts line draws the count and
-// the date as two facts, the date in its meaning's colour, with the dot drawn
-// by the stylesheet. So the parts carry no separator of their own, the words
-// are the sentence's own, and the tone is the fact variant the date wears.
+//
+// IN ITS PARTS (§AM, 2026-09-26). A facts line draws the count and the date
+// as two facts, the date in its meaning's colour, with the dot drawn by the
+// stylesheet. So the parts carry no separator of their own, the words are the
+// old sentence's own, and the tone is the fact variant the date wears.
 describe("projectPaceParts", () => {
   const p = (done: number, total: number) => ({ done, total, pct: Math.round((done / total) * 100) });
 
@@ -191,16 +167,10 @@ describe("projectPaceParts", () => {
     }
   });
 
-  it("is the sentence projectPace says, taken apart", () => {
-    for (const due of ["2026-09-01", "2026-09-05", "2026-09-06", "2026-09-08", "2026-09-30"]) {
-      const parts = projectPaceParts(p(2, 8), due, "2026-09-05")!;
-      expect(projectPace(p(2, 8), due, "2026-09-05")).toBe(parts.count + " \u00b7 " + parts.when);
-    }
-  });
-
   it("says nothing when there is nothing to pace", () => {
     expect(projectPaceParts(p(2, 8), undefined, "2026-09-05")).toBeNull();
     expect(projectPaceParts(null, "2026-09-08", "2026-09-05")).toBeNull();
+    // Finished: a pace for work that is done is a number about nothing.
     expect(projectPaceParts(p(8, 8), "2026-09-08", "2026-09-05")).toBeNull();
   });
 });

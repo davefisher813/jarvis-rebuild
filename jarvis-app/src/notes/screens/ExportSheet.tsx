@@ -106,7 +106,7 @@ export default function ExportSheet({ doc, title, selection = false, images, att
                 </button>
               ))}
             </div>
-            {carries.map((c) => <div className="exp-note" key={c}>{c}</div>)}
+            {carries.map((c) => <div className="input-hint" key={c}>{c}</div>)}
           </div>
           <details className="exp-more" open={previewOpen} onToggle={(e) => setPreviewOpen((e.target as HTMLDetailsElement).open)}>
             <summary>Preview</summary>
@@ -116,7 +116,7 @@ export default function ExportSheet({ doc, title, selection = false, images, att
             <summary>More Options</summary>
             <SwitchRow tone="grey" glyph={<FileText className="ic" />} label="Include the Title" on={includeTitle} onToggle={() => setIncludeTitle((v) => !v)} ariaLabel="Include the title" />
             {(images.length > 0 || attachmentNames.length > 0) && (
-              <div className="exp-note">
+              <div className="input-hint">
                 {images.length > 0 && `${images.length} ${images.length === 1 ? "photo" : "photos"} embedded in PDF and Word. `}
                 {attachmentNames.length > 0 && `Not included: ${attachmentNames.join(", ")}.`}
               </div>

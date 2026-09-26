@@ -20,8 +20,8 @@ describe("Facts", () => {
   });
 
   it("keeps the first tone and drops every tone after it (K.3)", () => {
-    const { container } = render(<Facts facts={[{ text: "a" }, { text: "b", tone: "warn" }, { text: "c", tone: "good" }, { text: "d", tone: "sky" }]} />);
-    const toned = container.querySelectorAll(".fact.warn, .fact.good, .fact.sky, .fact.purp, .fact.red");
+    const { container } = render(<Facts facts={[{ text: "a" }, { text: "b", tone: "warn" }, { text: "c", tone: "good" }, { text: "d", tone: "red" }]} />);
+    const toned = container.querySelectorAll(".fact.warn, .fact.good, .fact.red");
     expect(toned).toHaveLength(1);
     expect(toned[0]).toHaveTextContent("b");
   });

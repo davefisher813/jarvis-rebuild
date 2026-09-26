@@ -82,11 +82,19 @@ export function spanLabel(min: number): string {
 }
 
 /**
- * "4 open · About 3h". The word About is doing real work: these are learned
- * averages, not commitments, and a bare "3h" would read as a promise the app
- * has no business making.
+ * "About 3h". The word About is doing real work: these are learned averages,
+ * not commitments, and a bare "3h" would read as a promise the app has no
+ * business making.
+ *
+ * THE ESTIMATE ALONE (the Colour Key, §AM, 2026-09-26). This said "4 open ·
+ * About 3h", and a line that draws it paints it as an estimate the app worked
+ * out (sky). Only the time is that; the open count is a count, and the dot
+ * was typed into the string where the stylesheet should draw it. The count
+ * also restated the progress line both callers already draw right above it
+ * (5 of 9 done is 4 open), so it went rather than becoming a second fact.
+ * The caller draws this as one `.fact.est`.
  */
 export function sizeLine(s: Size | null): string | null {
   if (!s) return null;
-  return capAfterNumber(`${s.open} open · About ${spanLabel(s.minutes)}`);
+  return `About ${spanLabel(s.minutes)}`;
 }

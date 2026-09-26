@@ -152,7 +152,9 @@
    actually late, then amber, then red." The number is what you read; the
    word sits under it at label size so it is present without competing.
    Zero tiles do not render at all (contract §4.11, and the clean build
-   showed a stranger meeting three zeros). */
+   showed a stranger meeting three zeros).
+   AMENDED 2026-09-26 (§AM): due is amber and late is red at any count; see
+   kinds below. */
 .ruled .stat-tiles { display: flex; gap: var(--s-2); margin-top: var(--s-2h); flex-wrap: wrap; }
 .ruled .stat-tile {
   display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
@@ -164,16 +166,20 @@
 .ruled .stat-tile .st-n { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.05; }
 .ruled .stat-tile .st-w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.09em;
   text-transform: uppercase; opacity: 0.72; }
-/* kinds. Green is completion and goal movement, amber and red are the two
-   urgency steps. Neutral is the raised chip layer, which is what a plain
-   count deserves.
-   THE EVENTS TILE IS A PLAIN COUNT (§AM, 2026-09-25). It wore blue as "the
-   app's data/time colour", and blue is not in the Colour Key: a count of
-   events has no state, so it takes the neutral tile with its number in
-   white, the same as the due count beside it. */
+/* kinds. Each tile wears the Colour Key's meaning for what it counts (§AM,
+   2026-09-26): green is done and goal movement, amber is due (needs you
+   soon), red is late from the first late task (the key has no threshold),
+   and a plain count with no state (events, a week-on-week delta) takes the
+   neutral raised chip layer with its number in white. */
 .ruled .st-goal  { background: var(--good-tint);  color: var(--good); }
 .ruled .st-quiet { background: var(--press-3);    color: var(--tx-2); }
 .ruled .st-quiet .st-n { color: var(--tx-1); }
+/* The quiet tile's word is already the secondary grey, so it takes none of
+   the softening the tinted tiles' words get (§AM, 2026-09-26): dimmed, it
+   measured 4.22:1 on the light page and 4.44:1 on a light card, under AA;
+   undimmed it is 8.74:1 and 9.58:1. The tinted tiles keep theirs, which is
+   only there to soften a hue. */
+.ruled .st-quiet .st-w { opacity: 1; }
 .ruled .st-warn  { background: var(--warn-tint);  color: var(--warn); }
 .ruled .st-late  { background: var(--red-tint);   color: var(--sys-red); }
 /* No light text step for these tiles. BROWSER-F-04 (2026-09-05) took the
@@ -302,6 +308,13 @@
   letter-spacing: var(--track-caps); text-transform: uppercase;
   color: var(--tx-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border-top: 0; border-bottom: 0; margin-block: 0; line-height: inherit; }
+/* An event row's provenance keeps a line of its own, but it takes the same
+   letterform (§AK/§AM, 2026-09-26): at 14px regular it was a second grey run
+   beside the place, the meta line's one grey. Caps is the distinction. It
+   sets no colour, so a source that opens keeps its tap red, and nothing
+   here touches the 44px reach the tappable form carries. */
+.ruled .sched-body > .prov-line { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; }
 /* §AM (2026-09-25): a source that opens is a tap, so it wears the colour
    that says so, the same as an openable person on this line. One that
    cannot be opened keeps the line's grey. */
@@ -329,6 +342,16 @@
 .ruled .r-bar { width: 4px; height: 11px; border-radius: var(--r-xxs); flex-shrink: 0; }
 .ruled .r-goal { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* THE KEY STILL SHOWS THROUGH THE LINE'S GREY (§AM, 2026-09-26). A fact on
+   this line that carries a meaning wears the Colour Key's tone as well as
+   the line's own class, and the grey above is the same two-class weight as
+   the key's tones and loads later, so the tone never painted: a goal's
+   check-in read grey whatever it said. Three classes let the meaning win.
+   Colour only; the size and the truncation stay the line's. */
+.ruled .r-goal.fact.good { color: var(--good); }
+.ruled .r-goal.fact.warn { color: var(--warn); }
+.ruled .r-goal.fact.red { color: var(--sys-red); }
+.ruled .r-goal.fact.est { color: var(--cat-sky); }
 /* THE GOAL LINE (Dave 2026-09-01: "Goals can't render like typical
    subtext"). A goal wears the goal mark in goal green and its name one step
    brighter at medium weight; the category, the reason and everything else
@@ -973,18 +996,26 @@
 .ruled .ins-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-0h) var(--s-2h); padding: var(--s-1h) 0; }
 .ruled .ins-row + .ins-row { border-top: 0.5px solid var(--divider); }
 .ruled .ins-row .ins-k { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The move is a fact, so it is the fact size (§AM F4, AMENDED 2026-09-26):
+   13 beside the 14s in the same card was a third size. When it cannot sit
+   beside its label and wraps under it, it still keeps to the right edge, so
+   the column the label-left, move-right layout promises holds. */
 .ruled .ins-move { display: inline-flex; align-items: center; gap: var(--s-2); flex-shrink: 0;
-  font-size: var(--t-caption); color: var(--tx-3); font-variant-numeric: tabular-nums; }
+  font-size: var(--t-sub); color: var(--tx-3); font-variant-numeric: tabular-nums; }
+.ruled .ins-row > .ins-move { margin-left: auto; }
 .ruled .ins-move b { font-weight: var(--w-semi); color: var(--tx-1); }
 .ruled .ins-arrow { width: 14px; height: 1.5px; background: var(--tx-4); position: relative; display: inline-block; }
 .ruled .ins-arrow::after { content: ""; position: absolute; right: 0; top: -2.5px; width: 6px; height: 6px;
   border-top: 1.5px solid var(--tx-4); border-right: 1.5px solid var(--tx-4); transform: rotate(45deg); }
 .ruled .ins-line { margin-top: var(--s-2); font-size: var(--t-sub); color: var(--tx-3); }
-/* The source and the caveat: shaded, italic, and last. Present, never loud.
-   At the fact size like the line above it (§AM F4, 2026-09-25): 11px is the
-   uppercase kicker's, and this is a sentence. */
-.ruled .ins-cite { margin-top: var(--s-2h); font-size: var(--t-sub); font-style: italic;
-  color: var(--tx-quiet); }
+/* The source and the caveat: last, present, never loud.
+   AMENDED 2026-09-26 (§AK, the lead): a caps kicker. At the fact size in
+   italic it was a second regular grey under the finding's own line, and
+   italic is not one of the ways a run is set apart. Caps is, and the 11px
+   kicker size is the one that goes with it (F4). */
+.ruled .ins-cite { margin-top: var(--s-2h); font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; font-style: normal;
+  color: var(--tx-3); }
 .ruled .vol-card { padding: var(--s-3h) var(--s-4) var(--s-1h); }
 .ruled .vol-row { display: flex; align-items: center; gap: var(--s-2h); padding: var(--s-2) 0; }
 .ruled .ins-card .vol-row:first-of-type { margin-top: var(--s-2); }
@@ -1268,10 +1299,10 @@
 
 /* ---------- NOTES, PORTED (Notes and Money catalog, 2026-09-02) ----------
    A note is a row in the list card: the title, then the line every task row
-   uses for where it lives, here the area's dot and name and, past a dot,
-   when it was last touched. The heads are the day (Today, Yesterday,
-   Earlier), quiet like Today's. The page glyph is gone from the line row;
-   the dot is the colour. */
+   uses for where it lives, here the area's dot and name, its tags, what
+   JARVIS found and when it was last touched. The heads are the day (Today,
+   Yesterday, Earlier), quiet like Today's. The page glyph is gone from the
+   line row; the dot is the colour. */
 .ruled .note-row { cursor: pointer; }
 /* When it was touched is a neutral date, so it is small caps in the row's
    grey (§AM F5, the same numbers as the date fact, 2026-09-25): caps is the
@@ -1279,6 +1310,10 @@
 .ruled .note-row .r-k .r-when { flex-shrink: 0; font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
+/* What JARVIS found borrows the cue's small caps for its letterform only
+   (§AM, 2026-09-26). The arrow the cue draws before itself belongs to an
+   if-then plan on a task row; a note has no plan, so no arrow. */
+.ruled .note-row .r-k .r-cue::before { content: none; }
 .ruled .note-row .sel-box { margin: 0; }
 /* THE OLD EXCEPTION NEVER FOLLOWED THE ROW IT WAS WRITTEN FOR (2026-09-22).
    "Bridge Invitational Item List" lost a fifth of itself at 320px on the
@@ -1881,9 +1916,9 @@
 
 /* ---------- THE FACTS LINE, IN HEALTH (Health R7, Dave's picks 2026-09-12)
    ---------------------------------------------------------------------------
-   Astra's .facts primitive carries warn / good / sky / purp / red, which are
-   the app's INTENT colours: is this late, is this fine, is this the thing you
-   tap. A health row is not asking any of those. It is showing six kinds of
+   Astra's .facts primitive carries warn / good / red / est, which are
+   the Colour Key's meanings: is this due, is this fine, is this late, is
+   this an estimate (AMENDED 2026-09-26, §AM: the live set). A health row is not asking any of those. It is showing six kinds of
    reading at once -- 48 min, 14 sets, 185 x 5, 1 PR -- and the ramp exists so
    those read apart at a glance. So the ramp's six hues are available as fact
    variants here, and here only.

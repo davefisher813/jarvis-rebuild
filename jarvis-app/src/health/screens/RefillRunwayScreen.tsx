@@ -6,8 +6,8 @@ import { shortDateFromMs } from "../../shared/dateFormat";
 // REFILL RUNWAY (Part 4, top 3; Health Push D). Counts down remaining doses
 // from real Took It taps, and lands the pharmacy call as an offer on the
 // PARENT's list, never a badge on the athlete's. Pure logistics: no
-// medication is ever named on this screen. The fill is three facts (filled
-// when, how many came, how many taken since) and two white tiles (doses left,
+// medication is ever named on this screen. The fill is two facts (filled
+// when, and how many of the fill are taken) and two white tiles (doses left,
 // amber once the call is due; runway, once there is a pace to count it
 // from); the form takes the day it was received, so a
 // fill logged on Tuesday for a bottle picked up Sunday counts from Sunday.
@@ -41,8 +41,7 @@ export default function RefillRunwayScreen({
           <>
             <div className="facts">
               {state.filledAt !== undefined && <span className="fact date">Filled {shortDateFromMs(state.filledAt)}</span>}
-              <span className="fact">{state.dosesInFill} received</span>
-              <span className="fact">{state.taken} taken since</span>
+              <span className="fact"><b>{state.taken}</b> of <b>{state.dosesInFill}</b> taken</span>
             </div>
             <div className="stat-row stat-row-gap stat-hblue">
               {/* Amber when the call is due (§AM: near a limit). The runway
@@ -53,7 +52,6 @@ export default function RefillRunwayScreen({
                 <div className="stat-tile"><div className="stat-num">{state.runwayDays}</div><div className="stat-label">Days of Runway</div></div>
               )}
             </div>
-            <div className="bp-sub">Counted from real taps on Took It, never a guess.</div>
           </>
         ) : (
           <>
@@ -62,6 +60,9 @@ export default function RefillRunwayScreen({
           </>
         )}
       </div></div>
+      {/* The method is a note under the card, not a third grey inside it
+          (§AK): the same quiet footer settings/kit.tsx Foot draws. */}
+      {state.hasFill && <div className="pad-x"><div className="input-hint">Counted from real taps on Took It, never a guess.</div></div>}
 
       {needsRefillCall(state) && offer && (
         <div className="pad-x"><div className="card pad">

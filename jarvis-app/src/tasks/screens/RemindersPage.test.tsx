@@ -104,7 +104,33 @@ describe("RemindersPage", () => {
     expect(onTick).toHaveBeenCalledWith("done1", false);
     fireEvent.click(screen.getByText("Restore"));
     expect(onRestore).toHaveBeenCalledWith("sk1", TUE);
-    expect(screen.getByText(/^Skipped · Today/)).toBeInTheDocument();
+    // AMENDED 2026-09-26 (§AM): "Skipped" is the state word, not a prefix
+    // baked into the phrase with its own middot.
+    expect(screen.getByText("Skipped", { selector: ".fact.st.gray" })).toBeInTheDocument();
+    expect(screen.queryByText(/Skipped ·/)).not.toBeInTheDocument();
+  });
+
+  // §AM F5 (2026-09-26): a done or skipped occurrence of a daily reminder
+  // said "Today · 7:00 AM" and "Every Day" in the same plain grey. The date
+  // and the clock are small-caps facts now, a skipped row leads with its
+  // state word, and the rhythm is the row's one grey.
+  it("in the Done view a daily reminder's date and clock are neutral date facts, and the rhythm is the one grey", () => {
+    page("done");
+    const facts = (name: string) => [...screen.getByText(name).closest(".rem-card")!.querySelectorAll(".facts > .fact")]
+      .map((f) => ({ cls: f.className, text: f.textContent }));
+    expect(facts("Send Practice Details")).toEqual([
+      { cls: "fact date", text: "Today" },
+      { cls: "fact date", text: "7:00 AM" },
+      { cls: "fact", text: "Every Day" },
+    ]);
+    expect(facts("Log Effort")).toEqual([
+      { cls: "fact st gray", text: "Skipped" },
+      { cls: "fact date", text: "Today" },
+      { cls: "fact date", text: "10:00 AM" },
+      { cls: "fact", text: "Every Day" },
+    ]);
+    // No middot is baked into any fact on either row: the line draws them.
+    for (const f of document.querySelectorAll(".rem-card .facts > .fact")) expect(f.textContent).not.toMatch(/·/);
   });
 
   // §AM F5 (2026-09-26): a neutral future date on a row is small caps, the

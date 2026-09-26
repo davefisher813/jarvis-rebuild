@@ -458,9 +458,11 @@ export default function TodayPage({
   // Schedule, due on Tasks, late on the Overdue filter, goals on the Bigger
   // Picture. Rolling numbers kept.
   // AMENDED 2026-09-25 (§AM, the Colour Key): time is no longer blue. A count
-  // of events has no state, so the events tile is quiet like the due tile;
-  // colour on a tile now only ever means late or moved.
-  const lateKind = summary.overdue >= 3 ? "st-late" : "st-warn";
+  // of events has no state, so the events tile is quiet.
+  // AMENDED 2026-09-26 (§AM): each tile wears the key's colour for what it
+  // counts, and nothing else. Due is amber (needs you soon). Late is red at
+  // any count: the key has no threshold, so one late task is as late as
+  // three. Goals are green (done, moved). Events stay quiet.
   const parts = (
     <div className="stat-tiles">
       {summary.events > 0 && (
@@ -470,17 +472,17 @@ export default function TodayPage({
         </span>
       )}
       {summary.due > 0 && (
-        <span className="stat-tile st-quiet" role="button" tabIndex={0} onClick={onSeeAllTasks}>
+        <span className="stat-tile st-warn" role="button" tabIndex={0} onClick={onSeeAllTasks}>
           <span className="st-n"><RollingNumber value={summary.due} /></span>
           <span className="st-w">due</span>
         </span>
       )}
       {summary.overdue > 0 && (
         /* WAVE 4, DUPLICATE DOORS (2026-08-29) still holds: this tile lands
-           on the Overdue filter, not the unfiltered tab. It is the one tile
-           that wears colour, because it is the one that means you are
-           behind: amber for one or two, red from three. */
-        <span className={"stat-tile " + lateKind} role="button" tabIndex={0} onClick={onSeeAllOverdue ?? onSeeAllTasks}>
+           on the Overdue filter, not the unfiltered tab. It wears red,
+           the key's late, from the first late task: it renders only when
+           something has actually slipped. */
+        <span className="stat-tile st-late" role="button" tabIndex={0} onClick={onSeeAllOverdue ?? onSeeAllTasks}>
           <span className="st-n"><RollingNumber value={summary.overdue} /></span>
           <span className="st-w">late</span>
         </span>

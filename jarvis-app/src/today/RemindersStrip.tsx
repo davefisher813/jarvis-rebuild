@@ -14,15 +14,17 @@ const area = (r: { category: string }) => (r.category ? catName(r.category) : ""
 // done, gone until tomorrow.
 //
 // Deliberately NOT a task list: no due dates, no category TEXT kicker, no
-// counts, no overdue styling. A missed reminder greys its time rather than
-// reddening it, because "you didn't take your meds yet" is information and
-// "YOU ARE LATE" is a reason to stop opening the app.
+// counts. A missed reminder marks its TIME in the Colour Key's red (§AM,
+// 2026-09-25: missed is one of the key's red meanings), and only its time:
+// never the whole row, never a count of how many were missed. "You didn't
+// take your meds yet" is information, findable at a glance; a row or a
+// number shouting "YOU ARE LATE" is a reason to stop opening the app.
 //
 // One dot of colour restored (Dave 2026-09-15: "the reminders on the
 // homepage look too dull"): a single small category-colour dot before the
 // name, the same dot the Reminders page already uses, no text label riding
-// with it. Still not a kicker (a kicker names the category in words) and
-// still no red, no counts, no due-date phrasing.
+// with it. Still not a kicker (a kicker names the category in words), still
+// no counts, no due-date phrasing, and no red beyond a missed time's.
 // UP-CORE-15 (2026-09-05): SWIPE RIGHT TAKES IT. One row, one gesture, the
 // same one a task and a bill answer to: the whole row is the target, which
 // is what a thumb on a moving bus actually hits. Extracted from the map so

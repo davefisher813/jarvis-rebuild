@@ -380,11 +380,13 @@ export default function DayRow({
             )}
             {weatherDateIso && !isPast && e.data.location && <EventWeatherLine dateIso={weatherDateIso} start={e.data.start} />}
             {/* S6-Q36: the row's own start time is already this event's cue;
-                the move is the half that is not redundant here. */}
+                the move is the half that is not redundant here. It is free
+                text with no ceiling, so it gives way the way the place
+                does: an ellipsis, never a clip. */}
             {firstMove && (
-              <span className="sched-fact">
+              <span className="sched-fact sched-fact-loc">
                 <span className="sched-sep">&middot;</span>
-                <span className="sched-firstmove">{firstMove}</span>
+                <span className="sched-firstmove truncate">{firstMove}</span>
               </span>
             )}
           </div>

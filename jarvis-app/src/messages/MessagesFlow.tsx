@@ -4793,8 +4793,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           })()}
           {/* THE FOLD. Everything that does not need Dave collapses to one
               line. Worth Knowing and Noise live behind it and expand in
-              place, so the tab is never a scroll of mail he did not ask for. */}
-          {restCount > 0 && (
+              place, so the tab is never a scroll of mail he did not ask for.
+
+              R10 (§AM F7, 2026-09-26): the fold's card holds the fold row and
+              its tools, and nothing else. Worth Knowing and Noise are
+              sections, so their heads sit OUTSIDE a card, each over its own
+              list card, the way the Waiting On band heads do; a section head
+              inside a card was a label wearing a section's rule. */}
+          {restCount > 0 && (() => {
+            // The guard line keeps its place: under the last block of the
+            // fold, the fold card when it is shut, the last list when open.
+            const guard = netted > 0 ? <div className="msg-guard">{guardLine(netted)}</div> : null;
+            const guardAfter = !restOpen ? "fold" : noise.length > 0 ? "noise" : "worth";
+            return (
+            <>
             <div className="pad-x msg-fold">
               <div className="card">
                 <div className="row" {...pressable(() => { setRestOpen(!restOpen); setPicked(null); })}>
@@ -4807,89 +4819,97 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   {/* V2 anatomy: the count is a pill, never buried in the line. */}
                   <span className="pill pill-subdued">{restCount}</span>
                 </div>
-                {restOpen && (
-                  <>
-                    {/* E10: the one place bulk select lives. The fold holds
-                        everything that does not need Dave, which is exactly
-                        the pile where clearing ten at once is safe. */}
-                    {picked === null ? (
-                      <div className="fold-tools">
-                        <button className="quiet-action" onClick={() => setPicked(new Set())}>Select</button>
-                      </div>
-                    ) : (
-                      <div className="fold-tools">
-                        <button className="btn-sm" onClick={() => void archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                          {picked.size === 0 ? "Archive Selected" : capAfterNumber("Archive " + picked.size)}
-                        </button>
-                        {/* 11B: the other half of the job. Archive keeps it
-                            in the account; delete is for the mail that should
-                            not be in the account at all. Both count what
-                            landed, both undo. */}
-                        <button className="btn-sm btn-danger" onClick={() => void deletePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                          {picked.size === 0 ? "Delete Selected" : capAfterNumber("Delete " + picked.size)}
-                        </button>
-                        <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
-                      </div>
-                    )}
-                    {worthKnowing.length > 0 && (
-                      <>
-                        <div className="sh2 sh2-quiet"><span className="t">Worth Knowing</span></div>
-                        {worthKnowing.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
-                      </>
-                    )}
-                    {noise.length > 0 && (
-                      <>
-                        <div className="sh2 sh2-quiet"><span className="t">Noise</span></div>
-                        {/* 8A: ONE GREY LINE FOR ALL OF THEM. This was a
-                            full row with a bold name, which is the sensory
-                            flatness the catalog is against: a shipping promo
-                            wearing the same weight as a person. The count is
-                            a fact, not an alarm, and the one action ends the
-                            lot. Tap the line to unfold if you want to look. */}
-                        <div className="msg-machines" {...pressable(() => setNoiseOpen(!noiseOpen))}>
-                          <span className="msg-machines-icon" aria-hidden="true"><Tag className="ic" /></span>
-                          <span className="msg-machines-text">
-                            {capAfterNumber(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
-                            {" \u00b7 "}{noiseOpen ? "Tap to fold" : "Tap to look"}
-                          </span>
-                          <button className="pill-act msg-machines-sweep" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(noise); }}>
-                            Sweep
-                          </button>
-                        </div>
-                        {/* N5 (2026-08-20): a sender who writes six times a
-                            week about things he will never act on is not six
-                            decisions. It is one, repeated. Collapsing is
-                            presentation only: nothing is archived or filed,
-                            and only NOISE ever collapses. */}
-                        {noiseOpen && (() => {
-                          const { groups, loose } = collapseNoise(noise);
-                          return (
-                            <>
-                              {groups.map((g) => (
-                                <div key={g.key}>
-                                  <div className="row" {...pressable(() => setNoiseGroups((s) => ({ ...s, [g.key]: !s[g.key] })))}>
-                                    <div className="row-grow">
-                                      <div className="conn-name">{g.from}</div>
-                                      <div className="conn-meta msg-gist">{collapseLine(g)}</div>
-                                    </div>
-                                    <button className="pill-act" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(g.rows); }}>Archive All</button>
-                                  </div>
-                                  {noiseGroups[g.key] && g.rows.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
-                                </div>
-                              ))}
-                              {loose.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
-                            </>
-                          );
-                        })()}
-                      </>
-                    )}
-                  </>
-                )}
+                {/* E10: the one place bulk select lives. The fold holds
+                    everything that does not need Dave, which is exactly
+                    the pile where clearing ten at once is safe. */}
+                {restOpen && (picked === null ? (
+                  <div className="fold-tools">
+                    <button className="quiet-action" onClick={() => setPicked(new Set())}>Select</button>
+                  </div>
+                ) : (
+                  <div className="fold-tools">
+                    <button className="btn-sm" onClick={() => void archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
+                      {picked.size === 0 ? "Archive Selected" : capAfterNumber("Archive " + picked.size)}
+                    </button>
+                    {/* 11B: the other half of the job. Archive keeps it
+                        in the account; delete is for the mail that should
+                        not be in the account at all. Both count what
+                        landed, both undo. */}
+                    <button className="btn-sm btn-danger" onClick={() => void deletePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
+                      {picked.size === 0 ? "Delete Selected" : capAfterNumber("Delete " + picked.size)}
+                    </button>
+                    <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
+                  </div>
+                ))}
               </div>
               {/* The guard line: proof that folding is safe, derived or absent. */}
-              {netted > 0 && <div className="msg-guard">{guardLine(netted)}</div>}
+              {guardAfter === "fold" && guard}
             </div>
-          )}
+            {restOpen && worthKnowing.length > 0 && (
+              <>
+                <div className="sh2 sh2-quiet"><span className="t">Worth Knowing</span><span className="n">{worthKnowing.length}</span></div>
+                <div className="pad-x">
+                  <div className="card list-card-ruled">
+                    {worthKnowing.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
+                  </div>
+                  {guardAfter === "worth" && guard}
+                </div>
+              </>
+            )}
+            {restOpen && noise.length > 0 && (
+              <>
+                <div className="sh2 sh2-quiet"><span className="t">Noise</span><span className="n">{noise.length}</span></div>
+                <div className="pad-x">
+                  <div className="card list-card-ruled">
+                    {/* 8A: ONE GREY LINE FOR ALL OF THEM. This was a
+                        full row with a bold name, which is the sensory
+                        flatness the catalog is against: a shipping promo
+                        wearing the same weight as a person. The count is
+                        a fact, not an alarm, and the one action ends the
+                        lot. Tap the line to unfold if you want to look. */}
+                    <div className="msg-machines" {...pressable(() => setNoiseOpen(!noiseOpen))}>
+                      <span className="msg-machines-icon" aria-hidden="true"><Tag className="ic" /></span>
+                      <span className="msg-machines-text">
+                        {capAfterNumber(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
+                        {" \u00b7 "}{noiseOpen ? "Tap to fold" : "Tap to look"}
+                      </span>
+                      <button className="pill-act msg-machines-sweep" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(noise); }}>
+                        Sweep
+                      </button>
+                    </div>
+                    {/* N5 (2026-08-20): a sender who writes six times a
+                        week about things he will never act on is not six
+                        decisions. It is one, repeated. Collapsing is
+                        presentation only: nothing is archived or filed,
+                        and only NOISE ever collapses. */}
+                    {noiseOpen && (() => {
+                      const { groups, loose } = collapseNoise(noise);
+                      return (
+                        <>
+                          {groups.map((g) => (
+                            <div key={g.key}>
+                              <div className="row" {...pressable(() => setNoiseGroups((s) => ({ ...s, [g.key]: !s[g.key] })))}>
+                                <div className="row-grow">
+                                  <div className="conn-name">{g.from}</div>
+                                  <div className="conn-meta msg-gist">{collapseLine(g)}</div>
+                                </div>
+                                <button className="pill-act" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(g.rows); }}>Archive All</button>
+                              </div>
+                              {noiseGroups[g.key] && g.rows.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
+                            </div>
+                          ))}
+                          {loose.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  {guardAfter === "noise" && guard}
+                </div>
+              </>
+            )}
+            </>
+            );
+          })()}
           {restCount === 0 && netted > 0 && <div className="pad-x msg-guard">{guardLine(netted)}</div>}
           {/* ONE offer at a time. Three stacked offers is a form, and the law
               is one line, one action, one quiet dismiss. Self-cleaning wins

@@ -57,9 +57,17 @@ describe("sizeOf and sizeLine (pick 22)", () => {
     expect(sizeLine(null)).toBeNull();
   });
   it("fuses its units and never promises the estimate is a commitment", () => {
-    expect(sizeLine({ open: 4, minutes: 200 })).toBe("4 Open · About 3h 20m");
-    expect(sizeLine({ open: 1, minutes: 45 })).toBe("1 Open · About 45m");
-    expect(sizeLine({ open: 2, minutes: 120 })).toBe("2 Open · About 2h");
+    expect(sizeLine({ open: 4, minutes: 200 })).toBe("About 3h 20m");
+    expect(sizeLine({ open: 1, minutes: 45 })).toBe("About 45m");
+    expect(sizeLine({ open: 2, minutes: 120 })).toBe("About 2h");
+  });
+  // §AM (2026-09-26): the line is drawn as an estimate (sky), and only the
+  // time is one. The open count restated the progress line above it, and its
+  // dot was typed into the string where the stylesheet draws it.
+  it("is the estimate alone: no count, no baked separator", () => {
+    const line = sizeLine({ open: 4, minutes: 200 })!;
+    expect(line).not.toMatch(/·/);
+    expect(line).not.toMatch(/open/i);
   });
 });
 

@@ -269,7 +269,7 @@ export default function LiftDetailScreen({
                     </div>
                     <div className="facts">
                       <span className="fact cyan">{`Best on ${shortDate(best.date)}`}</span>
-                      <span className="fact">{`${shortDate(sessions[0]!.date)} to ${shortDate(sessions[sessions.length - 1]!.date)}`}</span>
+                      <span className="fact date">{`${shortDate(sessions[0]!.date)} to ${shortDate(sessions[sessions.length - 1]!.date)}`}</span>
                     </div>
                   </div>
                   {celebrate && <span className="se-pr">PR</span>}

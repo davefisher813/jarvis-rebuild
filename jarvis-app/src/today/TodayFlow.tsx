@@ -55,7 +55,7 @@ import { sheetEvents } from "../schedule/sheetEvents";
 import { inheritFromThread } from "../messages/threadTasks";
 import { endOfAct, type MailAct } from "../messages/mailAct";
 import { dayPhrase } from "../money/bills";
-import { rankProjects, closable, projectPace, projectProgress } from "../bigger/progress";
+import { rankProjects, closable, projectPaceParts, projectProgress } from "../bigger/progress";
 import { movesCount, goalsMovedToday, movedLine, untouchedGoal, untouchedLine, openWorkOf, dismissGoalNudge } from "./goalPulse";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
@@ -1710,8 +1710,8 @@ export default function TodayFlow({
       if (p.data.status !== "active" || !p.data.due) continue;
       if (p.data.due > soon) continue;
       if (isQuiet(p.id, today, closeOfferStore)) continue;
-      const line = projectPace(projectProgress(taskItems, p.id), p.data.due, today);
-      if (line) return { project: p, line };
+      const pace = projectPaceParts(projectProgress(taskItems, p.id), p.data.due, today);
+      if (pace) return { project: p, pace };
     }
     return null;
   })();
@@ -3039,7 +3039,14 @@ export default function TodayFlow({
         icon={<FolderOpenGlyph />}
         tone="cat-fg-indigo"
         title={dueProject.project.data.title}
-        sub={dueProject.line}
+        // §AM (2026-09-26): two facts, the dot drawn by the stylesheet, and
+        // the date in its meaning's colour (past red, due amber, a rate sky).
+        sub={(
+          <div className="facts">
+            <span className="fact">{dueProject.pace.count}</span>
+            <span className={"fact " + dueProject.pace.tone}>{dueProject.pace.when}</span>
+          </div>
+        )}
         action={{ label: "Open", onClick: () => onOpenProject?.(dueProject.project.id) }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
         // opens the project too.

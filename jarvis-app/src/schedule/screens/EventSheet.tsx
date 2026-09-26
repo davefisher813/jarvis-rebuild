@@ -405,7 +405,7 @@ export default function EventSheet({
           {err && !endInvalid && <div className="input-error xs-error">Needs title · Date · Start</div>}
           {conflict && !endInvalid && (
             <div className="xs-note">
-              <span>Overlaps another event</span>
+              <span className="fact warn">Overlaps another event</span>
               {suggestSlot && (
                 <button type="button" className="note-fix" onClick={() => {
                   const dur = durNow || 60;

@@ -161,7 +161,8 @@ export function suggestFor(history: Workout[], ex: Exercise, opts: SuggestOption
   const miss = marked.filter((s) => s.moved === "missed").length;
   const basis: SuggestionBasis = {
     variant: ex.name + (opts.equipmentLabel ? ", " + opts.equipmentLabel : ""),
-    source: when + ", " + completed.length + (completed.length === 1 ? " working set" : " working sets"),
+    // The count leads: "Aug 12, 2 working sets" read as a date with a year.
+    source: completed.length + (completed.length === 1 ? " working set" : " working sets") + " on " + when,
     role: "Completed working sets only, warm-ups and drops left out",
     range: high != null && low != null ? (low === high ? `${high} reps` : `${low} to ${high} reps`) : "No rep range on the plan",
     increment: jumpUsed > 0 ? `${jumpUsed} ${unit}`.trim() : "One rep",

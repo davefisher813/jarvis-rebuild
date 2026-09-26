@@ -22,7 +22,7 @@ const row = (over: Partial<ProjectRow["project"]["data"]> = {}): ProjectRow => (
 
 const reach = (): GoalReach => ({ progress: null } as unknown as GoalReach);
 
-function page(r: ProjectRow, pace: PaceParts | string | null, hold: string | null = null) {
+function page(r: ProjectRow, pace: PaceParts | null, hold: string | null = null) {
   return render(
     <BiggerPicturePage
       goals={[]}
@@ -45,6 +45,8 @@ describe("BiggerPicturePage project row", () => {
     const { container } = page(row(), null);
     const est = container.querySelector(".proj-row .bp-sub .fact.est");
     expect(est?.textContent).toBe("About 3h");
+    // Only the estimate is sky: the line carries no count beside it.
+    expect(est!.parentElement!.textContent).toBe("About 3h");
   });
 
   it("draws the pace's date as its own fact in the key's colour, no baked dot", () => {
@@ -68,14 +70,5 @@ describe("BiggerPicturePage project row", () => {
     const facts = container.querySelectorAll(".proj-row .facts .fact");
     expect([...facts].map((f) => f.className)).toEqual(["fact", "fact warn"]);
     expect([...facts].map((f) => f.textContent)).toEqual(["5 of 8 Left", "Due tomorrow"]);
-  });
-
-  // Until the flow hands the parts over (BiggerPictureFlow still passes
-  // projectPace's sentence), the row must not go blank.
-  it("still draws the older sentence form it is handed", () => {
-    const { container } = page(row(), "5 of 8 Left \u00b7 Due tomorrow");
-    const subs = [...container.querySelectorAll(".proj-row .bp-sub")].map((d) => d.textContent);
-    expect(subs).toContain("5 of 8 Left \u00b7 Due tomorrow");
-    expect(container.querySelector(".proj-row .facts")).toBeNull();
   });
 });

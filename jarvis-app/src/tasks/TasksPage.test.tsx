@@ -579,4 +579,46 @@ describe("a task's provenance line opens what it came from", () => {
     expect(container.querySelector(".prov-link")).toBeNull();
     expect(container.querySelector(".prov-line")).toHaveTextContent("From an email");
   });
+
+  // ONE WHERE-IT-CAME-FROM PER ROW (§AK, 2026-09-26), and only where the two
+  // really are one fact. With no area on the row the origin mark draws
+  // "Email" on the second line.
+  const bareEmail = (): TaskItem => ({
+    id: "a", data: { text: "a", category: "", done: false, due: "2026-05-20", source: { type: "email", ref: "th1", ts: Date.parse("2026-05-12T09:00:00") } },
+  });
+
+  it("a plain provenance that names the origin the mark drew says it once", () => {
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[bareEmail()]} today="2026-05-20"
+        openSourceFor={() => undefined} />,
+    );
+    expect(container.querySelector(".r-parent-plain")).toHaveTextContent("Email");
+    expect(container.querySelector(".prov-line")).toBeNull();
+  });
+
+  it("an openable provenance keeps its door beside the mark", () => {
+    const open = vi.fn();
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[bareEmail()]} today="2026-05-20"
+        openSourceFor={(s) => (s.ref ? () => open(s.ref) : undefined)} />,
+    );
+    expect(container.querySelector(".r-parent-plain")).toHaveTextContent("Email");
+    const link = container.querySelector(".prov-link")!;
+    expect(link).toHaveTextContent("From an email");
+    fireEvent.click(link);
+    expect(open).toHaveBeenCalledWith("th1");
+  });
+
+  it("a provenance naming a different origin from the mark stays", () => {
+    // "Get back to" makes originLabel say Email; the paste is a different fact.
+    const paste: TaskItem = {
+      id: "p", data: { text: "Get back to Sam", category: "", done: false, due: "2026-05-20", source: { type: "paste", ts: Date.parse("2026-05-12T09:00:00") } },
+    };
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[paste]} today="2026-05-20"
+        openSourceFor={() => undefined} />,
+    );
+    expect(container.querySelector(".r-parent-plain")).toHaveTextContent("Email");
+    expect(container.querySelector(".prov-line")).toHaveTextContent("From Smart Paste");
+  });
 });

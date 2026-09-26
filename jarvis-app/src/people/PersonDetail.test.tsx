@@ -297,3 +297,28 @@ describe("editing from the card", () => {
     expect(container.querySelector(".person-facts .fact:not(.cat)")?.textContent).toBe("Mother");
   });
 });
+
+// C-61 under the Colour Key (§AM, R8): the promise's DATE carries the
+// meaning, not the words. "You promised" is the line's one grey; a date
+// still ahead is due (amber), a date gone by is late (red), and a promise
+// with no date has nothing to colour.
+describe("PersonDetail: a promise's deadline takes the key", () => {
+  it("colours the date, not the words", () => {
+    const { container } = render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}}
+      promises={[
+        { threadId: "t-late", text: "Send the lease", due: "2020-01-15" },
+        { threadId: "t-due", text: "Book the table", due: "2999-12-31" },
+        { threadId: "t-open", text: "Call the plumber" },
+      ]} />);
+    const factsOf = (text: string) => screen.getByText(text).closest(".row")!.querySelector(".facts")!;
+    for (const t of ["Send the lease", "Book the table", "Call the plumber"]) {
+      const words = factsOf(t).querySelector(".fact")!;
+      expect(words.textContent).toBe("You promised");
+      expect(words.className, t).toBe("fact");
+    }
+    expect(factsOf("Send the lease").querySelectorAll(".fact")[1]!.className).toBe("fact red");
+    expect(factsOf("Book the table").querySelectorAll(".fact")[1]!.className).toBe("fact warn");
+    expect(factsOf("Call the plumber").querySelectorAll(".fact")).toHaveLength(1);
+    expect(container.querySelector(".fact.date")).toBeNull();
+  });
+});

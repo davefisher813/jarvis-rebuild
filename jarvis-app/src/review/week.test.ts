@@ -47,12 +47,39 @@ describe("buildWeek", () => {
     const learnedLine = w.lines.find((l) => l.key === "Learned")!;
     expect(learnedLine.tone).toBe("quiet");
     expect(learnedLine.facts[0]?.tone).toBeUndefined();
+    // The count is a number with no state, so it is white (a <b> part).
+    expect(learnedLine.facts[0]?.parts).toEqual([{ b: "1" }, " New fact"]);
+    // Changed is the caps grey and blocks moved its one grey fact; sky is
+    // retired (§AM).
+    const changedLine = w.lines.find((l) => l.key === "Changed")!;
+    expect(changedLine.tone).toBe("quiet");
+    expect(changedLine.facts[0]?.tone).toBeUndefined();
     expect(byKey.Next).toEqual(["Bridge 3h of 17h"]);
+    // Next is amber: "needs you soon" in the key, never the red of late.
+    expect(w.lines.find((l) => l.key === "Next")!.tone).toBe("warn");
+    for (const l of w.lines) expect(["good", "warn", "quiet"]).toContain(l.tone);
     expect(w.next?.name).toBe("Bridge");
     expect(w.offer).toBe(true);
     // No percent anywhere but the one C-65 allows, and that one is absent
     // without last week to compare against.
     for (const l of w.lines) for (const f of l.facts) expect(f.text).not.toMatch(/%/);
+  });
+
+  it("Changed: blocks moved is the one grey, a check-in is logged (green)", () => {
+    const rows: WindowRow[] = [row("schedule.override", "2026-09-10"), row("schedule.override", "2026-09-11"), row("goal.checkin", "2026-09-10")];
+    const w = buildWeek({ today: TODAY, rows, events: [], workouts: [], goals: [], projects: [], categories: CATS });
+    const changed = w.lines.find((l) => l.key === "Changed")!;
+    expect(changed.facts.map((f) => [f.text, f.tone])).toEqual([["2 Blocks moved", undefined], ["1 Check-in", "good"]]);
+  });
+
+  it("Learned is one fact: new facts and remembered together, counts white, no colour", () => {
+    const rows: WindowRow[] = [row("strand.created", "2026-09-10"), row("strand.created", "2026-09-11"), row("strand.starred", "2026-09-11")];
+    const w = buildWeek({ today: TODAY, rows, events: [], workouts: [], goals: [], projects: [], categories: CATS });
+    const learned = w.lines.find((l) => l.key === "Learned")!;
+    expect(learned.facts).toHaveLength(1);
+    expect(learned.facts[0]).toEqual({ text: "2 New facts, 1 remembered", parts: [{ b: "2" }, " New facts, ", { b: "1" }, " remembered"] });
+    const onlyStarred = buildWeek({ today: TODAY, rows: [row("strand.starred", "2026-09-11")], events: [], workouts: [], goals: [], projects: [], categories: CATS });
+    expect(onlyStarred.lines.find((l) => l.key === "Learned")!.facts[0]?.text).toBe("1 Remembered");
   });
 
   it("C-65: the vs-usual fact appears only in a report line, only when the share moved", () => {

@@ -74,17 +74,28 @@ describe("LAW §AM: the colour key", () => {
   // -------------------------------------------------------------------------
   it("a fact never wears the brand red, because the brand red means tap me", () => {
     // Classes whose whole job is to state a value.
-    const FACT = /\.(fact|facts|conn-meta|bp-sub|empty-sub|r-goal|area-fact|rdy-why|msg-gist|note-first|row-value|sched-cat|sched-rep|sched-loc|prov-line|input-hint|input-help|input-note)(?![\w-])/;
+    // AMENDED 2026-09-26 (§AM): the schedule time that cannot be tapped
+    // (.sched-until without the button) joined the list; it states a time.
+    const FACT = /\.(fact|facts|conn-meta|bp-sub|empty-sub|r-goal|area-fact|rdy-why|msg-gist|note-first|row-value|sched-cat|sched-rep|sched-until|sched-loc|prov-line|input-hint|input-help|input-note)(?![\w-])/;
     // ...unless the thing IS operable. .sched-loc reads like a plain fact
     // and is an <a> to Apple Maps, which no selector can tell you, so it is
     // named here rather than guessed at.
-    const OPERABLE = /(button|:active|:hover|:focus|-btn(?![\w-])|\ba\b|\[role="button"\]|\.see-all|\.pill-act|\.row-act|\.quiet-action|\.sched-until|\.sched-open|\.sched-loc|\.link|\.tap)/;
+    // AMENDED 2026-09-26 (§AM, round-1 review): `\.sched-until` had no
+    // boundary, so it exempted the plain time as well as its button, and the
+    // whole selector list was judged at once, so one tappable sibling in a
+    // list exempted every fact beside it. Both rules the phase rewrote were
+    // skipped that way. Now only the button form is operable, each
+    // comma-separated selector is judged on its own, and a class named only
+    // inside :not() says what the thing is NOT, so it exempts nothing.
+    const OPERABLE = /(button|:active|:hover|:focus|-btn(?![\w-])|\ba\b|\[role="button"\]|\.see-all|\.pill-act|\.row-act|\.quiet-action|\.sched-until-btn(?![\w-])|\.sched-open|\.sched-loc|\.link|\.tap)/;
     const bad: string[] = [];
     for (const { sel, body, file } of RULES) {
-      if (!FACT.test(sel) || OPERABLE.test(sel)) continue;
       const c = textColour(body);
-      if (c && /var\(--(tint|accent|accent-tx|accent-chrome|accent-glyph)\)/.test(c)) {
-        bad.push(`${file}: ${sel} -> ${c}`);
+      if (!c || !/var\(--(tint|accent|accent-tx|accent-chrome|accent-glyph)\)/.test(c)) continue;
+      for (const one of sel.split(",").map((x) => x.trim())) {
+        const positive = one.replace(/:not\([^)]*\)/g, "");
+        if (!FACT.test(positive) || OPERABLE.test(positive)) continue;
+        bad.push(`${file}: ${one} -> ${c}`);
       }
     }
     expect(bad, "a value that cannot be tapped must not wear the colour that promises a tap").toEqual([]);

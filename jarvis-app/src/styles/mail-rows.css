@@ -37,10 +37,12 @@
 .mfrom { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1);
   letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .mfrom.strong { font-weight: var(--w-bold); }
-/* N4: the VIP mark, where he reads. The glyph is the distinction; a VIP is
-   not one of the Colour Key's eight meanings (§AM), so it takes the white of
-   the name it follows rather than a hue that says nothing. */
-.mstar { color: var(--tx-1); font-size: var(--t-caption); flex: 0 0 auto; }
+/* N4: the VIP mark, where he reads. AMENDED 2026-09-26 (the lead): back to
+   yellow and HELD FOR DAVE. Whether a star is yellow or white is the open
+   question he has on the Remember star, and a remembered VIP thread shows
+   both stars on one row, so they move together on his answer, never one
+   ahead of the other. */
+.mstar { color: var(--yellow); font-size: var(--t-caption); flex: 0 0 auto; }
 /* The time, or in its place the deadline chip. One or the other. A neutral
    time on a row is small caps (§AM F5), the date primitive's own letterform,
    so it stays apart from a read row's grey subject without a second grey. */

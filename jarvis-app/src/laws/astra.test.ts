@@ -69,8 +69,17 @@ describe("ASTRA: the primitives exist under the harness's own names", () => {
     for (const sel of [".facts {", ".fact + .fact::before", ".fact.warn", ".fact.good", ".fact.red", ".fact.cat", ".fact.st", ".row-star {", ".row-star.on", ".why {", ".dring {"]) {
       expect(CSS, sel + " is missing").toContain(sel);
     }
-    expect(CSS, "and the one that lost its last user is gone").not.toContain(".fact.sky");
-    expect(CSS, "purple is not in the Colour Key").not.toContain(".fact.purp");
+    // AMENDED 2026-09-26 (§AM, round-1 review): the two retired variants
+    // are looked for in ALL SIX sheets, not only this one. The catalog says
+    // this law fails if either returns, and ruled.css is where the fact
+    // variants scoped to a surface already live, so a rule planted there
+    // passed. Comments are stripped, so a sentence that names a retired
+    // variant to explain its retirement is not a rule; the boundary keeps a
+    // longer class that merely starts with the same letters out of it.
+    const ALLCSS = ["components.css", "ruled.css", "jarvis-design-system.css", "uniformity.css", "editor.css", "mail-rows.css"]
+      .map((f) => read(join(SRC, "styles", f))).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(ALLCSS, "and the one that lost its last user is gone").not.toMatch(/\.fact\.sky(?![\w-])/);
+    expect(ALLCSS, "purple is not in the Colour Key").not.toMatch(/\.fact\.purp(?![\w-])/);
   });
 
   // THE OTHER DIRECTION (2026-09-22). The law above checks that a retired

@@ -886,6 +886,13 @@ This is the rule that decides §AM F1 below, and it is the reason the answer the
 - **F6, one note under a field**: 14px italic. Three classes said it three ways.
 - **F7, one section head rule**: `--t-caption` at 700 with 0.1em. Two rules said it two ways and the one the catalog documented was the one that never painted.
 
+**AMENDED 2026-09-26 (the lead, on the sweep's round-1 review).** Settlements that make the key hold where the first pass left it half-applied:
+
+- **Late is red from the first late thing.** The key has no threshold, so the Today late tile is red at any count and the due tile is amber (needs you soon). The tile still does not exist until something has slipped. Law L1 (`laws.test.ts`) now forbids only the BRAND red (`--accent*`, `--tint`, `--on-light-red`) on a lateness class, because lateness in `--sys-red` is the key; an unread class takes no red at all. `browserWalk.test.ts` pins light `--sys-red` to Apple's `#FF3B30` and fails a light rule that steps lateness down to the words red.
+- **A tap word steps down to `--on-light-red` in light** wherever it can land on a raised grey (Not This One, a source that opens, Clear on a search scope), the same as every capsule label. A head action straight on a tinted banner takes `--tint-on-sheet`, like one on a sheet grey.
+- **Caps is for a label, never a sentence.** An insight's caveat is an 11px caps kicker (italic is not a distinction). The next event's distance ("in 25m") and the receipt line are sentence case at 14: in caps, "30M" read as months and a whole suggestion lost half its words to the ellipsis. An event row's provenance takes the task row's 11px caps.
+- **A fixed dark ground pins the dark inks.** The conditioning clock paints black in both themes, so it declares the dark ink tokens on itself; every label on it measures 12.69:1 or better in light as in dark.
+
 **THIS APPLIES EVERYWHERE, INCLUDING WHAT DOES NOT EXIST YET** (Dave, same day: "Make sure all of these edits are applied to all pages, modals, backend pages, email pages, settings, Brain, etc. Literally everywhere. Text boxes, chat boxes, previews and future additions"). A sweep cannot reach a screen nobody has written. So the key is held by `src/laws/colourKey.test.ts`, which reads every stylesheet and fails on a semantic colour used for a meaning the key does not give it -- a new screen cannot opt out, because the law does not look at screens, it looks at the rules they all share.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)

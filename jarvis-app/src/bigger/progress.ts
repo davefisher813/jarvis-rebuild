@@ -80,12 +80,10 @@ export function projectPaceParts(progress: Progress | null, due: string | undefi
   return { count, when: `About ${Math.ceil(perDay)} a day from here`, tone: "est" };
 }
 
-// The same pace as one sentence, for a caller that still takes a string.
-// Word for word what it always said; a facts line should take the parts.
-export function projectPace(progress: Progress | null, due: string | undefined, today: string): string | null {
-  const p = projectPaceParts(progress, due, today);
-  return p ? `${p.count} · ${p.when}` : null;
-}
+// There is no joined form any more. projectPace returned "3 of 8 Left ·
+// Due tomorrow" as one string, and every place that drew it (the Bigger
+// Picture row, the project page, the Today notice) drew it as one grey with
+// the dot typed in. All three take the parts now, so the sentence went.
 
 // LIFE-F-22 (2026-09-05): goalProgress had no caller, and laws.test.ts:1494
 // is the reason: a goal's line is derived ONCE, through reach, because two

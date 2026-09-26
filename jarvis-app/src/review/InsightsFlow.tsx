@@ -221,7 +221,9 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
                   <span className="facts">
                     {l.facts.map((f) => f.tone === "cat"
                       ? <span className="fact cat" key={f.text}><span className={"cd cat-bg-" + (f.color ?? "graphite")} />{f.text}</span>
-                      : <span className={"fact" + (f.tone ? " " + f.tone : "")} key={f.text}>{f.text}</span>)}
+                      : <span className={"fact" + (f.tone ? " " + f.tone : "")} key={f.text}>
+                          {f.parts ? f.parts.map((p, i) => typeof p === "string" ? p : <b key={i}>{p.b}</b>) : f.text}
+                        </span>)}
                   </span>
                 </div>
               ))}

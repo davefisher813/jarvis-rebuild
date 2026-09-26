@@ -148,11 +148,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    See the note in DayRow.tsx: a run of loose separators and values reads
    correctly only while it fits on one line. */
 .sched-fact { display: inline-flex; align-items: center; gap: var(--s-1h); white-space: nowrap; min-width: 0; }
-/* The place is the one fact with no ceiling on its length, so it is the one
-   allowed to shrink -- but as a whole line now, not as a remainder. */
+/* The place and the first move are the facts with no ceiling on their
+   length, so they are the ones allowed to shrink -- but as a whole line now,
+   not as a remainder. */
 .sched-fact-loc { flex: 0 1 auto; min-width: 0; }
 .sched-cat .cat-dot { width: 8px; height: 8px; }
-.sched-until { font-size: var(--t-meta); color: var(--tx-3); }
 /* ONE GREY ON THE META LINE (§AK V5.2, 2026-09-25). The place is the line's
    one regular grey (pinned in ruled.css). Every other run is set apart:
    the repeat and a time that cannot be tapped ("Daily", "Leave by 9:00 AM",
@@ -912,10 +912,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
   font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-chrome); text-align: left; }
 .sched-lock-title { display: flex; align-items: center; gap: var(--s-1h); }
 .lock-ic { width: 13px; height: 13px; color: var(--tx-3); flex-shrink: 0; }
-/* "in 25m" on the next event: next is amber in the key (§AM), and an 11px
-   run is caps (§AM F4). Green is for done. */
-.sched-dist { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
-  text-transform: uppercase; color: var(--warn); margin-left: var(--s-2); }
+/* "in 25m" on the next event: next is amber in the key (§AM). Green is for
+   done. AMENDED 2026-09-26 (the lead): sentence case at the fact size, not
+   caps. As caps "IN 30M" read as months, the reason a length on this row
+   left caps the same day, and a run that is not caps is 14, never 11 (F4). */
+.sched-dist { font-size: var(--t-sub); font-weight: var(--w-semi); color: var(--warn); margin-left: var(--s-2); }
 /* The wrapper holds the row AND anything the row expands into (the length
    editor, the time popover), so it must NOT be the containing block for the
    swipe rail and must NOT clip. Both of those now belong to .sched-strip,
@@ -1603,13 +1604,19 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    --capsule-fill now, so its label sits on that fill and not on the sheet
    grey (4.82:1 in dark), and a capsule reads the same on a sheet as off one
    (§AL). The tap words that turned red under §AM (.see-all, .prov-link)
-   joined it, because they sit straight on the sheet grey. */
+   joined it, because they sit straight on the sheet grey.
+   AMENDED 2026-09-26: a head action straight on a tinted banner (the Health
+   warm-up and cool-down cards) joined too. In dark the warm wash over black
+   put the tap red at about 3.4:1; white clears it by far. Light takes the
+   words red either way, so nothing moves there. */
 .form-sheet .sheet-bar-save,
 .sheet-scrim > .card .sheet-bar-save,
 .form-sheet .note-fix,
 .sheet-scrim > .card .note-fix,
 .form-sheet .see-all,
 .sheet-scrim > .card .see-all,
+.banner-warn .see-all,
+.banner-cool .see-all,
 .form-sheet .prov-link,
 .sheet-scrim > .card .prov-link,
 .sheet-scrim > .card .btn:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not(.btn-disabled),
@@ -2357,11 +2364,14 @@ button {
 .vrow-fact { flex: 1 1 auto; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vrow-sub { flex: 0 100 auto; min-width: 52px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The receipt line: facts that need nothing collapse into one quiet mono
-   line under the stream. Furniture is for decisions. At 11px it is caps
-   (§AM F4, 2026-09-25): the eyebrow size is for caps only, and "the quiet
-   caps row" was what every call site already called it. */
-.receipt-line { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase;
-  letter-spacing: var(--track-caps);
+   line under the stream. Furniture is for decisions.
+   AMENDED 2026-09-26 (§AM F4, the lead): sentence case at the fact size.
+   It went to 11px caps on 2026-09-25, but several of these carry a whole
+   sentence (a noticed pattern, a suggestion, the thing to come back to),
+   and in caps inside a one-line ellipsis they lost more words and read as
+   shouting. A run that is not caps is 14, never 11. Its grey is held for
+   Dave and does not move here. */
+.receipt-line { font-size: var(--t-sub); font-weight: var(--w-sub);
   /* --tx-quiet (BROWSER-F-09, 2026-09-05): every one of these is a BUTTON that
      opens the pile it describes ("13 More waiting", "4 More Emails in Your
      Inbox"), and 2.3:1 is not a quiet button, it is a hidden one. */
@@ -2514,13 +2524,15 @@ button {
    every "Until 10:00 AM" uses, so a rain warning had the weight of a label.
    The symbol carries the condition and the words read at --tx-2, one step up,
    which is as loud as a fact that is not asking for a tap ever gets. */
-/* ON AN EVENT ROW IT STEPS UP FOR REAL (2026-09-25). --tx-2 has been the
-   same hex as --tx-3 since the two-tier ramp, so the "one step up" above
-   never happened: on a row the forecast was one more run of the row's grey
-   (§AK). The inline forecast takes white, the key's ink for a thing that
-   needs emphasis and has no state colour of its own (§AM). */
+/* ON AN EVENT ROW THE GLYPH SETS IT APART (AMENDED 2026-09-26, §AK/§AM,
+   the lead). --tx-2 has been the same hex as --tx-3 since the two-tier ramp,
+   so the "one step up" above never happened. White was tried on 2026-09-25
+   and was wrong: the key keeps white for a number with no state, and a
+   forecast sentence in white read as loud as the row's title. The weather
+   glyph that leads it is a MARK, one of the ways a run is set apart on a
+   row, so the words take the grey and need no colour of their own. */
 .weather-line { margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tx-2); }
-.weather-inline { font-size: var(--t-meta); color: var(--tx-1); }
+.weather-inline { font-size: var(--t-meta); color: var(--tx-3); }
 /* Sized off the line rather than the root so it scales with the text it
    leads, and given its own right margin so the glyph never touches the word.
    line-height 1 keeps an emoji from pushing the row taller than its
@@ -3177,7 +3189,8 @@ button {
 
 /* REMINDERS (Dave 2026-08-19: "taking meds should just be a set reminder").
    A reminder row is deliberately quieter than a task row: no category kicker,
-   no urgency colour, no overdue red. A missed one greys, it never shouts. */
+   no urgency colour on the row. A missed one marks its TIME in the Colour
+   Key's red (§AM, 2026-09-25), never the whole row, never a count. */
 /* INSIDE THE CARD, LIKE EVERY OTHER ROW (Dave 2026-08-25: "Reminders boxes
    aren't fully inside the container. Looks like it's not following catalog
    rules"). Measured: the card ran 16 to 374 and so did the row, so the
@@ -4136,9 +4149,11 @@ button {
 .note-conn-add:active { background-color: var(--press-3); }
 /* With nothing linked yet the same control says what it is (Dave
    2026-09-12: a bare dashed circle under the title read as a stray). Once
-   a chip exists the circle is enough, it sits after the chips. */
+   a chip exists the circle is enough, it sits after the chips.
+   AMENDED 2026-09-26 (§AL): its label is the capsule's own, 14 semibold,
+   like every other capsule label; 13 medium was the dashed hint's. */
 .note-conn-add.note-conn-first { width: auto; border-radius: var(--r-pill); padding: 0 var(--s-2h) 0 var(--s-2); gap: var(--s-1h);
-  font-family: var(--f); font-size: var(--t-caption); font-weight: var(--w-medium); }
+  font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi); }
 
 /* A checklist item already promoted to a real task (Dave 2026-08-28): a
    quiet badge instead of an item that looks plain but is secretly synced.
@@ -4798,14 +4813,19 @@ body.selecting .voice-dock { display: none; }
 .msg-row-human .msg-from { color: var(--tx-1); }
 
 /* The machine's line. One row for all of them, grey, with the count as a
-   fact rather than an alarm and one action that ends the lot. */
+   fact rather than an alarm and one action that ends the lot.
+   AMENDED 2026-09-26: it is the first row of its own card under the Noise
+   head now, not a line mid-card under other rows, so the inset margin and
+   the rule above it went (the card pads, and a rule on its top edge would
+   double the card's own edge). A rule under it separates it from the
+   unfolded senders, since the list's own hairlines run only between rows. */
 .msg-machines { display: flex; align-items: center; gap: var(--s-3);
-  margin: var(--s-2) var(--s-4) 0; padding: var(--s-3) var(--s-4);
-  border-top: 0.5px solid var(--divider); }
+  padding: var(--s-3) var(--s-4); }
 .msg-machines-icon { color: var(--tx-2); display: flex; flex-shrink: 0; }
 .msg-machines-icon .ic { width: 18px; height: 18px; }
 .msg-machines-text { flex: 1; min-width: 0; font-size: var(--t-meta); color: var(--tx-3); }
 .msg-machines-sweep { flex-shrink: 0; }
+.list-card-ruled > .msg-machines:not(:last-child) { border-bottom: 0.5px solid var(--divider); }
 
 /* 9A: the amnesty's promise line. Quieter than the offer above it, because
    it is the reassurance rather than the ask, but never hidden: every clause
@@ -4828,12 +4848,14 @@ body.selecting .voice-dock { display: none; }
   font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
 
-/* The safety line, on the row that is unsafe rather than in a legend. It
-   says this pile held mail that needed him, which is the key's amber
-   (§AM, 2026-09-25; the facts line's amber ships as text in both themes
-   since the Astra picks of 2026-09-12). Never red: that would make red a
-   status. The unticked box is the signal; this line is the reason. */
-.purge-warn { color: var(--warn); }
+/* The safety line, on the row that is unsafe rather than in a legend. It is
+   the row's one grey (AMENDED 2026-09-26, §AM, the lead): amber was tried on
+   2026-09-25, but the key's amber is "needs you soon", and this is a caution
+   on a delete choice about mail already past, not anything due. Never red:
+   that would make red a status. The unticked box is the signal; this line is
+   the reason. The words do the work, and they can, because they are
+   specific. */
+.purge-warn { color: var(--tx-3); }
 
 .purge-foot { margin-top: var(--s-5); }
 
@@ -5724,6 +5746,10 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .xs-note { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
   padding: var(--s-1h) var(--s-4) 0; margin-top: 0; }
 .xs-note .note-fix { flex-shrink: 0; font-style: normal; }
+/* A state inside the note is the same state it is on the row (§AM,
+   2026-09-26): the overlap there is upright amber, so it is upright here
+   too. The key's colour comes from the fact itself; only the slant goes. */
+.xs-note > .fact { font-style: normal; }
 /* A photo-only note: the canvas keeps no room for words it does not have. */
 .screen-editor .doc.doc-lean, .doc.doc-lean { padding-top: 0; padding-bottom: var(--s-2); }
 /* File Under (the note swipe, 2026-09-02): the dot leads, the tick says which. */
@@ -5764,7 +5790,16 @@ body.selecting .voice-dock { display: none; }
    ============================================================ */
 
 /* ---------- THE FACE ---------------------------------------------------- */
+/* THE FACE WEARS THE DARK INKS IN BOTH THEMES (2026-09-26). Its ground is a
+   fixed black in both, so the ink tokens its labels read have to be the
+   dark theme's too, or the light theme's near-black greys land on black:
+   the format tag, the name, the last split and the corners measured about
+   1.9:1 in light. They are pinned here, on the face, with the dark theme's
+   values (jarvis-design-system.css), and every label under it inherits
+   them. The fill tokens its tag and slider sit on are pinned with them. */
 .cond-face {
+  --tx-1: #FFFFFF; --tx-2: #D2D2D6; --tx-3: #D2D2D6; --tx-4: #84848A;
+  --tx-quiet: rgba(235,235,245,0.55); --press-3: rgba(255,255,255,0.06);
   position: fixed; inset: 0; z-index: 400; background: #000; color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: max(20px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
@@ -5845,7 +5880,11 @@ body.selecting .voice-dock { display: none; }
 .cr-fmt { font-size: var(--t-eyebrow); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tx-3);
   background: var(--press-3); padding: var(--s-1) var(--s-2); border-radius: var(--r-sm); flex-shrink: 0; }
 .cr-name { flex: 1; min-width: 0; font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cr-cap { font-size: var(--t-sub); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* The cap is a neutral time, so it is small caps (§AM F5, AMENDED
+   2026-09-26): at 14px regular it was a second grey beside the line under
+   it, the card's one grey. It pairs with the caps format tag beside it. */
+.cr-cap { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
+  text-transform: uppercase; color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .cr-empty { font-size: var(--t-sub); color: var(--tx-3); margin-top: var(--s-2h); }
 .cr-attempt { margin-top: var(--s-2); }
 /* GYM-F-10 (2026-09-05): the attempt title row now carries the delete a
@@ -6101,7 +6140,6 @@ span.row-star { cursor: default; }
 .goal-checkin .conn-meta { margin: 2px 0 var(--s-2); }
 .goal-checkin .receipt-line { padding-left: 0; padding-top: var(--s-2h); }
 .ms-row.completed .task-name { text-decoration: line-through; color: var(--tx-2); }
-.goal-row-ruled .r-k .fact { font-size: inherit; }
 
 /* CONTACTS, ROUTINE, WRITING, VALUES, PUSH G (C-59 to C-63, C-57, C-56,
    C-16; Astra, 2026-09-12). The label facts on a contact's hero, the quiet
@@ -6158,9 +6196,12 @@ span.row-star { cursor: default; }
 /* The line's key word is a caps kicker, 11 through the kicker token. It
    takes a colour only when the word is a meaning (§AM, 2026-09-25):
    Changed and Learned are neither an estimate nor a category, so they are
-   the caps grey, and their caps set them apart from the facts beside them. */
+   the caps grey, and their caps set them apart from the facts beside them.
+   Worked is green (done), and Slipped and Next are amber (needs you soon);
+   AMENDED 2026-09-26 (§AM): nothing is sky or red on this card any more, so
+   those two kicker tones went with the tones that asked for them. */
 .eq-k { flex: 0 0 64px; font-size: var(--t-eyebrow); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
-.eq-good { color: var(--good); } .eq-warn { color: var(--warn); } .eq-sky, .eq-quiet { color: var(--tx-3); } .eq-red { color: var(--red); }
+.eq-good { color: var(--good); } .eq-warn { color: var(--warn); } .eq-quiet { color: var(--tx-3); }
 .eq .facts { flex: 1; min-width: 0; }
 .week-acts { margin-top: var(--s-2h); align-items: center; }
 .rep-vs { margin-left: var(--s-1h); }
@@ -6326,6 +6367,16 @@ span.row-star { cursor: default; }
   flex-shrink: 0; background: none; border: 0; padding: 0;
   font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tint);
 }
+/* THE TAP WORDS STEP DOWN IN LIGHT (§AM, 2026-09-26), like every other red
+   word §AM touched. The light tap red clears white and the page, but not a
+   raised or pressed grey (4.47:1 on a press over white, 4.01:1 on a pressed
+   row), so the words take the words red there, as the head action and the
+   capsules already do. The ruled line's own rule is three classes deep, so
+   it is named on its own to outrank it. */
+[data-theme="light"] .focus-skip,
+[data-theme="light"] .prov-link,
+[data-theme="light"] .ruled .r-k-one > .prov-link,
+[data-theme="light"] .hdr-scope-all { color: var(--on-light-red); }
 
 /* THE OPTIONS CONTROL, in the title bar: Area, Sort, Group and the page's
    secondary tools, in one place on all five pages (handoff rule 7). */
@@ -6350,10 +6401,11 @@ span.row-star { cursor: default; }
 .opt-done { background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tint-on-sheet);
   border-top: 13px solid transparent; border-bottom: 13px solid transparent; margin-block: -13px; }
 /* The row's answer on the right is its one quiet fact (§AM F4, 2026-09-25):
-   the fact size and the grey. A count after it is a number with no state,
-   so it is white rather than a second grey run on the row (§AK). */
+   the fact size and the grey. A count is a number with no state, so its
+   bold is white on every row, whether or not an answer sits before it,
+   never a second grey run (§AK). */
 .opt-val { flex-shrink: 0; font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
-.opt-val + .opt-val { color: var(--tx-1); font-variant-numeric: tabular-nums; }
+.opt-val b { font-weight: inherit; color: var(--tx-1); font-variant-numeric: tabular-nums; }
 /* FOCUS, remodelled (2026-09-17): the facts line on the card, the verb grid
    under the one filled action, and the running block's own card. */
 
